@@ -931,6 +931,8 @@ TWENTY_SEVENTH_BRANCH_CASES = (
     "clock_minutes_seconds",
     "clock_minutes_slots",
     "clock_stand_ins_past_route_one",
+    "identifier_layout_exclusion",
+    "identifier_spill",
     "identifier_uid_root",
     "identifier_whole_places",
 )
@@ -1047,6 +1049,9 @@ SEEDS = {
     # first two seeds free after 571.
     "identifier_whole_places": 600,
     "identifier_uid_root": 601,
+    # Lane ID-ROOM's final pass (plan P4-D432) takes the next two.
+    "identifier_layout_exclusion": 602,
+    "identifier_spill": 603,
     "clock_minutes_seconds": 443,
     "clock_minutes_all_different": 444,
     "clock_minutes_rung_pins": 445,
@@ -1376,6 +1381,8 @@ DECLARED_IDENTIFIERS = frozenset(
         "identifier_absorbed_figure",
         "identifier_whole_places",
         "identifier_uid_root",
+        "identifier_layout_exclusion",
+        "identifier_spill",
     }
 )
 
@@ -3855,6 +3862,11 @@ def _no_whole_places_template(column: dict) -> dict:
     return templated
 
 
+def _no_final_pass(_column: dict, content: list) -> list:
+    """G9.6b's final pass withdrawn (plan P4-D432): the walk's cells stand."""
+    return content
+
+
 def _uid_arcs_led_by_noughts(candidate: str, template: str, convention: str) -> bool:
     """G9.6a's amendment withdrawn under a UID root (plan P4-D428): an arc may be led by a nought."""
     if gen.layout_of(candidate, convention) != gen.prefix_layout(template, convention):
@@ -4850,6 +4862,22 @@ CASE_MUTANTS = {
         "forbids, and the cells move",
         attribute="wears_template",
         replacement=_uid_arcs_led_by_noughts,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "identifier_layout_exclusion": Mutant(
+        branch="G9.6b's final pass (plan P4-D432); the mutant withdraws it, "
+        "the walk's cells stand without the exclusion's `9`, and the cells "
+        "move",
+        attribute="spelled_off_the_real",
+        replacement=_no_final_pass,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "identifier_spill": Mutant(
+        branch="G9.6b's final pass into a spill's width (plan P4-D432); the "
+        "mutant withdraws it, the walk's cells of three characters stand, "
+        "and the cells move",
+        attribute="spelled_off_the_real",
+        replacement=_no_final_pass,
         outcome=CHANGES_THE_CELLS,
     ),
     "identifier_layout_prefixes": Mutant(

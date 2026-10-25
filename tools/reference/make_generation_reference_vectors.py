@@ -34489,6 +34489,63 @@ def _identifier_uid_root():
     }
 
 
+def _identifier_layout_exclusion():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=24, n_missing=0, n_distinct=18, n_distinct_folded=18,
+        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        min_length=7, max_length=7, all_whole_numbers=False,
+        n_all_digits=0, n_code_alphabet=24,
+        n_distinct_by_occurrences={"1": 12, "2": 6},
+        layout_forms={"@@@%%%%": 24},
+        layout_prefixes={"(column)": "REC"},
+        layout_exclusions={
+            "@@@%%%%": "@@@9%%%", "(spill)": "@@@%%%%%", "(unnamed)": "(none)",
+        },
+    )
+    return {
+        "why": "a declared identifier every present cell of which opens with "
+        "`REC` and four figures, whose profile found no real cell holding `9` "
+        "at the first figure (contract section 7.12b, lane ID-ROOM, plan "
+        "P4-D432). G9.6b's final pass keeps each value of the walk that wears "
+        "the excluded template `REC9%%%` and spells every other one again as "
+        "the next free filling of it, so every cell opens `REC9` and no cell "
+        "can be a real record number. This case's mutant withdraws the final "
+        "pass, the walk's cells stand, and the cells move.",
+        "column": column,
+        "rows": 24,
+        "identifier_declared": True,
+    }
+
+
+def _identifier_spill():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=24, n_missing=0, n_distinct=18, n_distinct_folded=18,
+        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        min_length=3, max_length=3, all_whole_numbers=False,
+        n_all_digits=0, n_code_alphabet=24,
+        n_distinct_by_occurrences={"1": 12, "2": 6},
+        layout_forms={"@%%": 24},
+        layout_prefixes={"(column)": "Z"},
+        layout_exclusions={"(spill)": "@%%%", "(unnamed)": "(none)"},
+    )
+    return {
+        "why": "a declared identifier of `Z` and two figures whose profile "
+        "found no place and no block its real cells leave free in its one "
+        "layout, so it publishes only the spill `@%%%`, longer than every "
+        "real cell (contract section 7.12b, plan P4-D432). "
+        "G9.6b's final pass writes every value of the walk as the next free "
+        "filling of its layout widened as long as the spill, `Z%%%` under the "
+        "prefix, and every twin cell is four characters long, as no real cell "
+        "is. This case's mutant withdraws the final pass, the walk's cells of "
+        "three characters stand, and the cells move.",
+        "column": column,
+        "rows": 24,
+        "identifier_declared": True,
+    }
+
+
 def _identifier_layout_prefixes():
     column = _universal(
         "column_1", "identifier", "code", "identifier", "ok",
@@ -45648,6 +45705,11 @@ TWENTY_SEVENTH_BRANCH_CASE_BUILDERS = {
     # number, and a UID root's figures with no arc led by a nought.
     "identifier_whole_places": _identifier_whole_places,
     "identifier_uid_root": _identifier_uid_root,
+    # ...and lane ID-ROOM's final pass (plan P4-D432), method G9.6b: a
+    # value spelled again in its layout's excluded template, and a layout
+    # no exclusion holds written in its spill's width.
+    "identifier_layout_exclusion": _identifier_layout_exclusion,
+    "identifier_spill": _identifier_spill,
     "clock_minutes_slots": _clock_minutes_slots,
     "clock_minutes_seconds": _clock_minutes_seconds,
     "clock_minutes_all_different": _clock_minutes_all_different,
@@ -46586,7 +46648,10 @@ _TWENTY_SEVENTH_BRANCH_ACCOUNT = (
     "Codex review of the landing, item 1); and G9.6a's amendment for a "
     "record number (lane CODES-3, plan P4-D428): a whole number exported "
     "as a decimal written with its noughts after the point, and a DICOM "
-    "UID's root standing in every cell with no arc led by a nought. They "
+    "UID's root standing in every cell with no arc led by a nought; and "
+    "G9.6b's final pass (lane ID-ROOM, plan P4-D432): a record number "
+    "spelled again in its layout's excluded template, and one written in "
+    "its spill's width where no exclusion was found. They "
     "are computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -46689,6 +46754,28 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    # LANE ID-ROOM's final pass (plan P4-D432), method G9.6b, at seeds 602
+    # and 603, the two after lane CODES-3's.
+    "identifier_layout_exclusion": (
+        5006438331757149908, 16368629030709535112, 15189646063813802450,
+        10009151978150597873, 148407615600112895, 12332354051649788725,
+        17329606966838988893, 9573456237970068772, 11284411781775225022,
+        8281654474685024171, 8839019641553038908, 10761947507184653043,
+        11088396336952630281, 9222050820995979860, 2408805161056991798,
+        11568145192913584856, 11960428664520156166, 6553676248759612975,
+        5782718556512134095, 18029355169949230540, 8510363597466918031,
+        3145466298211442810, 9194252158862008638,
+    ),
+    "identifier_spill": (
+        3656569636567469460, 7018876939151039089, 3321261017423826703,
+        7282225493967377224, 79786968103902494, 17428609248965348170,
+        13550810313193267127, 2778521821647772483, 3826558286915755892,
+        8435567678370126036, 9575840651858628998, 4540640847925244054,
+        4956317637035633842, 13035399316305225867, 9793637460766637340,
+        1430706808061624702, 5904843535002942003, 10339939928587401951,
+        5835832080307945320, 3242260194219060829, 8417544217488639800,
+        13906875485066373237, 6090394187356805622,
+    ),
     # LANE CODES-3's two record-number templates (plan P4-D428), method
     # G9.6a's amendment, at seeds 600 and 601, the first two after every
     # seed in use below 642.

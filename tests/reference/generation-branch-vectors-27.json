@@ -1,5 +1,5 @@
 {
-  "case_set": "The 9 cases method section G14.3 adds with landing 3b.5's second step, the minute census of a column of clock times (plan P4-D374): G7A.4c's layout of a body on its minute census -- a clinic's slots, a column at the second, a column whose values all differ, rungs pinned in their census groups, a column with no tails whose heap's cells come off the minute groups' counts, and the rounding of a walk-in grid with both counts kept -- and G7A.5's stand-ins past route 1's allowance, written as times at the column's other precision (the Codex review of the landing, item 1); and G9.6a's amendment for a record number (lane CODES-3, plan P4-D428): a whole number exported as a decimal written with its noughts after the point, and a DICOM UID's root standing in every cell with no arc led by a nought. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json, tests/reference/generation-branch-vectors-4.json, tests/reference/generation-branch-vectors-5.json, tests/reference/generation-branch-vectors-6.json, tests/reference/generation-branch-vectors-7.json, tests/reference/generation-branch-vectors-8.json, tests/reference/generation-branch-vectors-9.json, tests/reference/generation-branch-vectors-10.json, tests/reference/generation-branch-vectors-11.json, tests/reference/generation-branch-vectors-12.json, tests/reference/generation-branch-vectors-13.json, tests/reference/generation-branch-vectors-14.json, tests/reference/generation-branch-vectors-21.json, tests/reference/generation-branch-vectors-22.json, tests/reference/generation-branch-vectors-23.json, tests/reference/generation-branch-vectors-25.json and tests/reference/generation-document-vectors.json, and live in a file of their own, the twenty-first standing at 247,663 bytes against the manifest's 250,000-byte cap: no cap is raised and no case is dropped.",
+  "case_set": "The 11 cases method section G14.3 adds with landing 3b.5's second step, the minute census of a column of clock times (plan P4-D374): G7A.4c's layout of a body on its minute census -- a clinic's slots, a column at the second, a column whose values all differ, rungs pinned in their census groups, a column with no tails whose heap's cells come off the minute groups' counts, and the rounding of a walk-in grid with both counts kept -- and G7A.5's stand-ins past route 1's allowance, written as times at the column's other precision (the Codex review of the landing, item 1); and G9.6a's amendment for a record number (lane CODES-3, plan P4-D428): a whole number exported as a decimal written with its noughts after the point, and a DICOM UID's root standing in every cell with no arc led by a nought; and G9.6b's final pass (lane ID-ROOM, plan P4-D432): a record number spelled again in its layout's excluded template, and one written in its spill's width where no exclusion was found. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json, tests/reference/generation-branch-vectors-4.json, tests/reference/generation-branch-vectors-5.json, tests/reference/generation-branch-vectors-6.json, tests/reference/generation-branch-vectors-7.json, tests/reference/generation-branch-vectors-8.json, tests/reference/generation-branch-vectors-9.json, tests/reference/generation-branch-vectors-10.json, tests/reference/generation-branch-vectors-11.json, tests/reference/generation-branch-vectors-12.json, tests/reference/generation-branch-vectors-13.json, tests/reference/generation-branch-vectors-14.json, tests/reference/generation-branch-vectors-21.json, tests/reference/generation-branch-vectors-22.json, tests/reference/generation-branch-vectors-23.json, tests/reference/generation-branch-vectors-25.json and tests/reference/generation-document-vectors.json, and live in a file of their own, the twenty-first standing at 247,663 bytes against the manifest's 250,000-byte cap: no cap is raised and no case is dropped.",
   "cases": {
     "clock_minutes_all_different": {
       "cells": [
@@ -5740,6 +5740,279 @@
         "5006664455913738150"
       ]
     },
+    "identifier_layout_exclusion": {
+      "cells": [
+        "REC9674",
+        "REC9824",
+        "REC9582",
+        "REC9325",
+        "REC9590",
+        "REC9740",
+        "REC9758",
+        "REC9666",
+        "REC9091",
+        "REC9832",
+        "REC9417",
+        "REC9409",
+        "REC9259",
+        "REC9740",
+        "REC9325",
+        "REC9175",
+        "REC9265",
+        "REC9666",
+        "REC9824",
+        "REC9916",
+        "REC9908",
+        "REC9582",
+        "REC9409",
+        "REC9333"
+      ],
+      "column": {
+        "all_whole_numbers": false,
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_exclusions": {
+          "(spill)": "@@@%%%%%",
+          "(unnamed)": "(none)",
+          "@@@%%%%": "@@@9%%%"
+        },
+        "layout_forms": {
+          "@@@%%%%": 24
+        },
+        "layout_prefixes": {
+          "(column)": "REC"
+        },
+        "max_length": 7,
+        "min_length": 7,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 0,
+        "n_code_alphabet": 24,
+        "n_contradictory": 0,
+        "n_distinct": 18,
+        "n_distinct_by_occurrences": {
+          "1": 12,
+          "2": 6
+        },
+        "n_distinct_folded": 18,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 24,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 24,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "identifier",
+        "sentinel_verdicts": [],
+        "statistical_type": "code",
+        "structural_role": "identifier"
+      },
+      "content": [
+        "REC9916",
+        "REC9832",
+        "REC9758",
+        "REC9674",
+        "REC9590",
+        "REC9417",
+        "REC9333",
+        "REC9259",
+        "REC9265",
+        "REC9175",
+        "REC9091",
+        "REC9908",
+        "REC9824",
+        "REC9824",
+        "REC9740",
+        "REC9740",
+        "REC9666",
+        "REC9666",
+        "REC9582",
+        "REC9582",
+        "REC9409",
+        "REC9409",
+        "REC9325",
+        "REC9325"
+      ],
+      "csv_bytes": "REC9674\nREC9824\nREC9582\nREC9325\nREC9590\nREC9740\nREC9758\nREC9666\nREC9091\nREC9832\nREC9417\nREC9409\nREC9259\nREC9740\nREC9325\nREC9175\nREC9265\nREC9666\nREC9824\nREC9916\nREC9908\nREC9582\nREC9409\nREC9333\n",
+      "float64": [],
+      "why": "a declared identifier every present cell of which opens with `REC` and four figures, whose profile found no real cell holding `9` at the first figure (contract section 7.12b, lane ID-ROOM, plan P4-D432). G9.6b's final pass keeps each value of the walk that wears the excluded template `REC9%%%` and spells every other one again as the next free filling of it, so every cell opens `REC9` and no cell can be a real record number. This case's mutant withdraws the final pass, the walk's cells stand, and the cells move.",
+      "word_budget": {
+        "content": 0,
+        "placement": 23
+      },
+      "words": [
+        "5006438331757149908",
+        "16368629030709535112",
+        "15189646063813802450",
+        "10009151978150597873",
+        "148407615600112895",
+        "12332354051649788725",
+        "17329606966838988893",
+        "9573456237970068772",
+        "11284411781775225022",
+        "8281654474685024171",
+        "8839019641553038908",
+        "10761947507184653043",
+        "11088396336952630281",
+        "9222050820995979860",
+        "2408805161056991798",
+        "11568145192913584856",
+        "11960428664520156166",
+        "6553676248759612975",
+        "5782718556512134095",
+        "18029355169949230540",
+        "8510363597466918031",
+        "3145466298211442810",
+        "9194252158862008638"
+      ]
+    },
+    "identifier_spill": {
+      "cells": [
+        "Z666",
+        "Z241",
+        "Z908",
+        "Z091",
+        "Z325",
+        "Z832",
+        "Z824",
+        "Z582",
+        "Z409",
+        "Z417",
+        "Z409",
+        "Z740",
+        "Z666",
+        "Z259",
+        "Z333",
+        "Z325",
+        "Z758",
+        "Z740",
+        "Z582",
+        "Z916",
+        "Z241",
+        "Z674",
+        "Z175",
+        "Z590"
+      ],
+      "column": {
+        "all_whole_numbers": false,
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_exclusions": {
+          "(spill)": "@%%%",
+          "(unnamed)": "(none)"
+        },
+        "layout_forms": {
+          "@%%": 24
+        },
+        "layout_prefixes": {
+          "(column)": "Z"
+        },
+        "max_length": 3,
+        "min_length": 3,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 0,
+        "n_code_alphabet": 24,
+        "n_contradictory": 0,
+        "n_distinct": 18,
+        "n_distinct_by_occurrences": {
+          "1": 12,
+          "2": 6
+        },
+        "n_distinct_folded": 18,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 24,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 24,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "identifier",
+        "sentinel_verdicts": [],
+        "statistical_type": "code",
+        "structural_role": "identifier"
+      },
+      "content": [
+        "Z916",
+        "Z832",
+        "Z758",
+        "Z674",
+        "Z590",
+        "Z417",
+        "Z333",
+        "Z259",
+        "Z175",
+        "Z091",
+        "Z908",
+        "Z824",
+        "Z740",
+        "Z740",
+        "Z666",
+        "Z666",
+        "Z582",
+        "Z582",
+        "Z409",
+        "Z409",
+        "Z325",
+        "Z325",
+        "Z241",
+        "Z241"
+      ],
+      "csv_bytes": "Z666\nZ241\nZ908\nZ091\nZ325\nZ832\nZ824\nZ582\nZ409\nZ417\nZ409\nZ740\nZ666\nZ259\nZ333\nZ325\nZ758\nZ740\nZ582\nZ916\nZ241\nZ674\nZ175\nZ590\n",
+      "float64": [],
+      "why": "a declared identifier of `Z` and two figures whose profile found no place and no block its real cells leave free in its one layout, so it publishes only the spill `@%%%`, longer than every real cell (contract section 7.12b, plan P4-D432). G9.6b's final pass writes every value of the walk as the next free filling of its layout widened as long as the spill, `Z%%%` under the prefix, and every twin cell is four characters long, as no real cell is. This case's mutant withdraws the final pass, the walk's cells of three characters stand, and the cells move.",
+      "word_budget": {
+        "content": 0,
+        "placement": 23
+      },
+      "words": [
+        "3656569636567469460",
+        "7018876939151039089",
+        "3321261017423826703",
+        "7282225493967377224",
+        "79786968103902494",
+        "17428609248965348170",
+        "13550810313193267127",
+        "2778521821647772483",
+        "3826558286915755892",
+        "8435567678370126036",
+        "9575840651858628998",
+        "4540640847925244054",
+        "4956317637035633842",
+        "13035399316305225867",
+        "9793637460766637340",
+        "1430706808061624702",
+        "5904843535002942003",
+        "10339939928587401951",
+        "5835832080307945320",
+        "3242260194219060829",
+        "8417544217488639800",
+        "13906875485066373237",
+        "6090394187356805622"
+      ]
+    },
     "identifier_uid_root": {
       "cells": [
         "1.2.840.113619.2.55.3.832",
@@ -5770,6 +6043,7 @@
       "column": {
         "all_whole_numbers": false,
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_exclusions": {},
         "layout_forms": {
           "%.%.%%%.%%%%%%.%.%%.%.%%%": 24
         },
@@ -5902,6 +6176,7 @@
       "column": {
         "all_whole_numbers": true,
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_exclusions": {},
         "layout_forms": {
           "%%%%%%%%.%%": 24
         },
