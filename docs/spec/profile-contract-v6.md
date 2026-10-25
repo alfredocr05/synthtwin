@@ -18726,6 +18726,57 @@ is pinned to a length only a case flip reaches — 750 record numbers and
 fifty of them again with a trailing space — writes one flipped prefix,
 which the twin's report and the validator both name.
 
+**Amended by plan P4-D428 (lane CODES-3, 2026-10-23; repair round 1 the
+same day; repair rounds 2 and 3, 2026-10-24).** (1) C6-139's prefix holds no figure save in one case: a
+column every present cell of which is a DICOM UID
+(`[012](\.(0|[1-9]\d*))+`, two points or more) publishes as `(column)`
+its organisation's root -- the arcs every cell shares, cut back to the
+last point and then before the first arc of five figures or more, the
+one arc after `1.2.840.` or `2.16.840.1.` aside (the orchestrator's ruling of 2026-10-23:
+a serial number, a timestamp or a random number names a device, a study
+or a series), and three arcs after the organisation arc at the latest
+(repair round 2: a site, a date and a time of four figures or fewer
+named one study), the organisation arc being that arc or else the first
+of four figures or more; after it only arcs of at most three figures,
+and where no organisation arc is found the fifth arc at the latest
+(repair round 3: `1.2.276.0.12.34.56` and `1.2.840.113619.2.4021.1015`
+named one study each) -- read over the whole column and never over one layout's
+cells (`parsing.uid_root`, which `is_a_literal_prefix` admits; LP2
+reads its figures as `%`); LP3 counts the room after such a root with no
+arc led by a nought (`parsing.uid_room`), and its twin writes none. (2)
+A declared record number whose present cells share a literal opening,
+each the opening and then figures alone (or, under a UID root, figures
+and points), counts every cell of a layout its published census does not
+name, or whose room the opening would take below the line, in its
+commonest named layout that keeps the room, and publishes the opening
+as `(column)`, its `min_length` and `max_length` read the same way,
+wherever C6-131b leaves that census whole (rule A1 of plan P4-D422's
+ZS.2). The validator reads a census so only where it publishes a
+`(column)` prefix, no `(withheld)` pool and named layouts counting every
+present cell, and then counts in the commonest layout a measured cell
+whose layout the recount does not name or the room rule refuses: the
+first limit above is closed, the 790 and ten cells writing 800 of 800
+in `^P\d{5,6}$`. (3) A record number publishing `all_whole_numbers
+true` writes `0` at each place after the point of a layout of figures,
+marks between thousands, one point and figures, and such a layout worn
+only by whole numbers is named only where its figures before the point
+clear the room rule (C6-130). (4) A description whose `(column)` prefix
+is a UID root is checked for the grammar on every present cell
+(`uid.grammar`). (5) Repair round 2: rule A1 of (2) also reaches a
+declared record number with no prefix every present cell of which is
+figures, one point and the same count of noughts, described with
+`all_whole_numbers` true: a layout its census does not name, or one whose
+room the census refuses, is counted in its commonest named whole-places
+layout of the same places, and the validator reads a census so where it
+publishes no prefix, no `(withheld)` pool and named whole-places layouts
+of one count of places counting every present cell. (6) Stated, not
+promised (the orchestrator's ruling of 2026-10-24): the twin of a
+declared identifier draws its free arcs and figures in the column's own
+rooms and reads no real value, so where the real values fill a room
+densely a twin cell can equal a real one by chance (1,022 of 20,000
+under `1.2.752.24.7.`; P4-D428's stated limit (4)); making that
+impossible by construction is lane ID-ROOM's (plan P4-D432).
+
 ---
 
 <!-- a7i: the spellings of a count column -->

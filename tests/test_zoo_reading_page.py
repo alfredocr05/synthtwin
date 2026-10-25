@@ -742,6 +742,9 @@ def test_rule_i_reads_the_holding_questions_the_product_has() -> None:
         asking.BECAUSE_FIXED_WIDTH,
         asking.BECAUSE_GROUPED_FIXED_WIDTH,
         asking.BECAUSE_LISTED_RECORD_NUMBERS,
+        # Q-ID, built by lane CODES-3 as ZR.2 states it: "yes (P4-D401, one
+        # more holding shape)" (plan P4-D428).
+        asking.BECAUSE_FIGURES_JOINED_BY_POINTS,
     )
     page_i = _flat(_page())
     assert "and it holds (rule I) until answered" in page_i

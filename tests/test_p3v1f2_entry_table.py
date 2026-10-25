@@ -2363,6 +2363,28 @@ def _one_cell(
     return ""
 
 
+def _shortened_cells(described: contract.Profile, text: str, index: int) -> str:
+    """The publication floor's worth of one column's cells, each one character shorter.
+
+    A cell of two characters or more loses its last; "" where fewer than
+    the floor's cells hold one (plan P4-D428).
+    """
+    rows = _rows_of(text)
+    wanted = described.settings.small_cell_floor
+    written = 0
+    for row in range(_first_record(described), len(rows)):
+        if written >= wanted:
+            break
+        cell = rows[row][index]
+        if len(cell) < 2 or not _holds_a_value(described, index, cell):
+            continue
+        rows[row][index] = cell[: len(cell) - 1]
+        written = written + 1
+    if written < wanted:
+        return ""
+    return _rebuilt(rows)
+
+
 def _floor_cells(
     described: contract.Profile, text: str, index: int, value: str
 ) -> str:
@@ -3433,6 +3455,20 @@ def _column_perturbations(
             _every_cell(described, twin, index, "zz"),
         ),
     ]
+    if isinstance(column.facts, contract.IdentifierFacts):
+        # THE FLOOR'S WORTH OF RECORD NUMBERS ONE CHARACTER SHORTER (lane
+        # CODES-3, plan P4-D428). Rule A1 counts a cell of a layout the
+        # description does not name in its commonest layout where the
+        # layout is under the line, so ONE moved cell no longer reaches
+        # `length.min`; the floor's worth in a shorter layout the room rule
+        # keeps is counted as itself, and misses.
+        built = built + [
+            (
+                f"shortened-{name}",
+                CLASS_CELL,
+                _shortened_cells(described, twin, index),
+            )
+        ]
     if described.n_columns > 1:
         # A column emptied altogether, which is the only edit that moves
         # the quality axis of a column whose role is otherwise settled:
@@ -4160,9 +4196,11 @@ NAMED_RED_CASES = (
         "universal.n_present",
         "presence.n_present",
     ),
+    # The floor's worth of record numbers one character shorter: one moved
+    # cell is counted in the commonest layout under rule A1 (plan P4-D428).
     RedCase(
         "every-role",
-        "moved-cell",
+        "shortened-record_code",
         "record_code",
         "identifier.min_length",
         "length.min",

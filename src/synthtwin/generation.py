@@ -54507,10 +54507,22 @@ def _templated_facts(
     entry gives its own layout its own. The pool keeps its key. Where the
     description publishes no prefix this is the description itself.
 
+    AND A WHOLE NUMBER'S PLACES AFTER THE POINT ARE ITS NOUGHTS (lane
+    CODES-3, plan P4-D428). A record number a warehouse exports as a
+    decimal -- Cerner's `31000000.00` -- publishes `all_whole_numbers
+    true` beside the layout `%%%%%%%%.%%`, and filling every `%` drew the
+    places after the point (`26819742.82`), so 595 of 600 twin cells were
+    no whole number and validate missed `type.all_whole_numbers`. Where
+    the description says every value is a whole number, a layout of
+    figures, one point and figures (`parsing.whole_places_layout`) is written with
+    `0` at every place after the point: the source's constant figures,
+    never drawn.
+
     Guarantees: a fixed function of the description; no randomness and
     no I/O.
     """
-    if not facts.layout_prefixes:
+    whole_places = facts.all_whole_numbers and _any_whole_places(facts.layout_forms)
+    if not facts.layout_prefixes and not whole_places:
         return facts
     whole = ""
     if parsing.PREFIX_OF_THE_COLUMN in facts.layout_prefixes:
@@ -54520,11 +54532,24 @@ def _templated_facts(
         prefix = whole
         if layout in facts.layout_prefixes:
             prefix = facts.layout_prefixes[layout]
-        if layout == contract.WITHHELD or not prefix:
+        if layout == contract.WITHHELD:
             templated[layout] = facts.layout_forms[layout]
             continue
-        templated[prefix + layout[len(prefix):]] = facts.layout_forms[layout]
+        written = layout
+        if prefix:
+            written = prefix + layout[len(prefix):]
+        if whole_places:
+            written = parsing.whole_places_layout(written)
+        templated[written] = facts.layout_forms[layout]
     return dataclasses.replace(facts, layout_forms=templated)
+
+
+def _any_whole_places(census: "dict[str, int]") -> bool:
+    """Whether any layout of a census is one `parsing.whole_places_layout` writes with noughts."""
+    for layout in sorted(census):
+        if layout != contract.WITHHELD and parsing.whole_places_layout(layout) != layout:
+            return True
+    return False
 
 
 def _wears_template(candidate: str, template: str, convention: str) -> bool:
@@ -54535,6 +54560,11 @@ def _wears_template(candidate: str, template: str, convention: str) -> bool:
     template holds -- a letter is only ever there as a published prefix,
     since no layout holds one -- stands in the cell at its own place. On
     a template holding no letter this is exactly the layout test.
+
+    ...AND EVERY FIGURE (lane CODES-3, plan P4-D428): a figure stands in
+    a template only as a UID's published root (`parsing.uid_root`) or a
+    whole number's nought after the point (`parsing.whole_places_layout`), and no
+    layout holds one, so on every other template this adds nothing.
     """
     if parsing.layout_form(candidate, convention) != parsing.prefix_layout(
         template, convention
@@ -54542,11 +54572,29 @@ def _wears_template(candidate: str, template: str, convention: str) -> bool:
         return False
     for place in range(len(template)):
         mark = template[place]
-        if ("a" <= mark <= "z" or "A" <= mark <= "Z") and (
-            candidate[place] != mark
-        ):
+        if (
+            "a" <= mark <= "z" or "A" <= mark <= "Z" or "0" <= mark <= "9"
+        ) and (candidate[place] != mark):
             return False
+    if _opens_with_a_uid_root(template) and not parsing.uid_unled(candidate):
+        # A UID's arcs are never led by a nought (P4-D428).
+        return False
     return True
+
+
+def _opens_with_a_uid_root(template: str) -> bool:
+    """Whether a template opens with a published UID root (plan P4-D428).
+
+    The root is the template's opening of figures and points, up to its
+    first placeholder; a layout opens with a placeholder and so never
+    with a root.
+    """
+    opening = ""
+    for mark in template:
+        if not ("0" <= mark <= "9" or mark == "."):
+            break
+        opening = opening + mark
+    return bool(opening) and parsing.is_a_uid_root(opening)
 
 
 def _layout_worn(

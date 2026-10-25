@@ -226,13 +226,18 @@ def test_a_file_not_opening_with_the_prefix_misses_it(
 
 
 def test_what_the_pooled_walk_still_writes_is_named() -> None:
-    """The limit C6-142 states, pinned with its numbers.
+    """The limit C6-142 stated, CLOSED by rule A1 (plan P4-D428), pinned with its numbers.
 
     790 `P` and five figures beside ten `P` and six at a floor of eleven:
-    the six-figure cells are pooled, the band walk writes them, and the
-    prefix is overwritten onto them -- all 800 twin cells open with `P`,
-    both files validate at exit 0 -- but `^P\\d{5,6}$` matches 790 twin
-    cells against 800, because the walk's own shapes are not figures.
+    the six-figure cells were pooled, the band walk wrote them, and the
+    prefix was overwritten onto them -- all 800 twin cells opened with
+    `P`, both files validated at exit 0 -- but `^P\\d{5,6}$` matched 790
+    twin cells against 800, because the walk's own shapes are not
+    figures. Under rule A1 (lane CODES-3) the column publishing a
+    `(column)` prefix counts its pool in its commonest layout, so the
+    census names no pool, the twin writes every cell in a template and
+    all 800 match; the real file still validates at exit 0, read with the
+    same absorption.
     """
     import tempfile
 
@@ -243,9 +248,10 @@ def test_what_the_pooled_walk_still_writes_is_named() -> None:
     with tempfile.TemporaryDirectory() as folder:
         got = _round_trip(pathlib.Path(folder) / "pooled", cells, floor=11)
     assert got["source"]["layout_prefixes"] == {"(column)": "P"}
+    assert got["source"]["layout_forms"] == {"@%%%%%": ROWS}
     assert got["twin_exit"] == 0 and got["real_exit"] == 0
     assert _opening(got["cells"], "P") == ROWS
-    assert _matching(got["cells"], r"P\d{5,6}") == 790
+    assert _matching(got["cells"], r"P\d{5,6}") == ROWS
     assert _matching(cells, r"P\d{5,6}") == ROWS
 
 

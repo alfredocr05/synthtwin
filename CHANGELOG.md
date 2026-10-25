@@ -6,6 +6,67 @@ exists).
 
 ## [Unreleased]
 
+### Lane CODES-3: identifiers with numeric roots, record numbers written as decimals, prefixed ids of several lengths, plain keys beside a word (plan P4-D428, 2026-10-23; repair rounds 2 and 3, 2026-10-24)
+
+**The health data zoo's identifier rows 19, 42 and 43, and push critic
+13's MAJOR 5.** A column whose every cell, words aside, is a DICOM UID --
+every value different, or repeating with an arc of five figures or more
+-- is put Q-ID, one more shape of HX's question (`keep`, `code`,
+`identifier`), never a second question, and held until answered.
+Declared, it publishes its organisation's root (cut before the first arc
+of five figures or more, the arc after `1.2.840.` aside: no study, series
+or scanner serial is named), its twin writes no arc led by a nought, and
+the validator checks the grammar. A declared record number publishing
+`all_whole_numbers true` (Cerner's `31000000.00`, grouped too) writes `0`
+after the point, and such a layout is named only where its figures before
+the point leave room. A declared record number of one opening and
+figures (VCF's `rs`, UID roots) counts the cells of its unnamed or
+room-refused layouts in its commonest layout, built on its published
+census (rule A1). Route two of the person rule and route four's padded
+arm set aside up to a third of any word or placeholder beside keys, and
+a whole record number ending in noughts after a point is read as its
+figures, so `R1000`, `AB100` or `0100` keys beside `OTHER`, `Not known.`,
+`-1` or `N.K.`, and `31000000.00` unanswered, publish 0 values at 600 and
+20,000 rows. New `K-HZ-04`: 1,799 identifier cells out of pattern on
+af69aaef, 0 now. No golden moves; the pinned C6-142 limit closes and
+P4-D406's stated limit 8 closes for `.0` by turns. Gate:
+`tests/test_zoo_identifiers.py`. The ledger's cap is 757,000.
+
+**Repair round 2 (the lane's combined verify, 2026-10-24).** A UID root
+now ends three arcs after its organisation arc at the latest, so a study
+UID of short arcs is never published as the root of its instances (332
+of 600 real instance UIDs in the twin before, 0 now); Q-ID reads
+repeating UIDs by the arcs after that root and never asks a column under
+the DICOM standard's root (SOP Class and Transfer Syntax UIDs). Words and
+placeholders beside keys or UIDs are set aside whatever their share
+where the floor's key cells remain (`Unknown` on two cells in five
+printed 24 keys). A whole record number of several widths at 20,000 rows
+keeps its noughts after the point (2,864 cells off `\d+\.00` before):
+rule A1 without a prefix. The oracle mirrors G9.6a's amended templates,
+with two frozen cases in vectors file 27, and method G9.6a gains step 7.
+
+**Repair round 3 (the lane's verify 2, 2026-10-24).** A UID root keeps
+only arcs of three figures or fewer after its organisation arc, and ends
+at the fifth arc where no organisation arc is found: instances under
+`1.2.276.0.12.34.56` no longer publish that study UID as their root (332
+of 600 real UIDs in the twin before; 0 of 600 now, and 1 of 20,000 by
+chance), and a vendor's single product arc no longer lets a site arc
+and a month-day into it. The gate pins four short roots, Siemens' among
+them, at 600 and 20,000 rows, each red on its mutant, and asserts 0 real
+UIDs in the twin for every node but `noorg` at 20,000 rows, which it
+bounds; P4-D428 names the any-share rule's false alarms (HCPCS codes and
+ward labels beside words) and widens stated limit (1).
+
+**The orchestrator's ruling (2026-10-24, 17:25).** A declared
+identifier's twin draws its free arcs and figures in the column's own
+rooms and reads no real value, so where the real values fill a room
+densely a twin cell can equal a real one by chance: 1,022 of 20,000
+under `1.2.752.24.7.`, 348 for Cerner numbers of two widths, about 250
+at 2,000,000 rows for `1.2.276.0.12.`. P4-D428's stated limit (4) names
+the class with verify 3's counts, OPEN and owned by lane ID-ROOM (plan
+P4-D432: no twin identifier cell equals a real one, by construction), as
+is the fidelity note that IANA enterprise roots now publish `1.3.6.1.4.`.
+
 ### Lane H3: a column whose values all differ, and free text, described with fewer objects a row (2026-10-21, repaired 2026-10-22 and 2026-10-23)
 
 **Describing a column whose values never repeat, or free text, holds
