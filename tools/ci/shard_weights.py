@@ -83,6 +83,9 @@ loading: the widened zoo's `tests/test_health_zoo.py`, 75.78 s; its new
 whose zoo smoke grew from about 21 s to six shard items of 25 to 43 s
 or less each (161.5 s in all at 600 rows, the lane's own 600-row run),
 weighed at its row of 2026-10-19 less 21 s and plus that 161.5 s.
+Changed again the same day by the lane's second repair: the leak file,
+which now copies every identifier of the catalogue into a twin three
+ways, 12.64 s on its own.
 
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
@@ -134,7 +137,7 @@ SECONDS = {
     "tests/test_generation.py": 7.12,
     "tests/test_generation_reference.py": 95.29,
     "tests/test_health_zoo.py": 75.78,
-    "tests/test_health_zoo_leaks.py": 1.31,
+    "tests/test_health_zoo_leaks.py": 12.64,
     "tests/test_health_zoo_shards.py": 9.82,
     "tests/test_held_unit_search.py": 25.61,
     "tests/test_joined_battery_readings.py": 215.32,
