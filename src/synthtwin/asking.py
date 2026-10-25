@@ -3069,7 +3069,10 @@ def date_columns_seen_in_a_walk(
         # round 1 of lane PS2, its skeptic's item 3) was read as dates and
         # held because too few rows hold them: no answer to Q6 would
         # publish one, so it is not asked.
-        if block.get("detection_evidence") == _HELD_IN_ROWS:
+        evidence = (
+            block["detection_evidence"] if "detection_evidence" in block else ""
+        )
+        if evidence == _HELD_IN_ROWS:
             continue
         cells = table_columns[position - 1]
         if (
