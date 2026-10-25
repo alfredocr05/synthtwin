@@ -35,6 +35,7 @@ import sys
 
 import pytest
 
+import environment_audit
 import fixtures
 import lowered_floor
 from synthtwin import cli, contract, parsing
@@ -319,47 +320,47 @@ def test_no_environment_variable_reaches_the_floor(
     capsys.readouterr()
 
 
-def _data_folder_nodes(path: pathlib.Path, tree: ast.Module) -> "set[int]":
-    """The nodes of lane CHa's `installation.data_folder`, after checking it reads only its two names.
+def _environment_readers(name: str, source: str) -> "list[str]":
+    """Every place one product module names the environment, and every way `data_folder` leaves its audited structure.
 
-    THE ONE ENVIRONMENT READ THE PRODUCT MAKES (batch 4i's integration):
-    the chain's data folder (contract 4.6b.4), behind the chain's switch,
-    from LOCALAPPDATA or XDG_DATA_HOME. Any other read still fails.
+    THE ONE ENVIRONMENT READ THE PRODUCT MAKES (batch 4i's integration;
+    narrowed by batch 4j's records on Codex's review of batch 4i): the
+    chain's data folder (contract 4.6b.4), behind the chain's switch,
+    from LOCALAPPDATA or XDG_DATA_HOME. Only its one audited read is set
+    aside, and only while `installation.data_folder` keeps the audited
+    structure (`environment_audit`); any other read still fails.
     """
-    if path.name != "installation.py":
-        return set()
-    inside: "set[int]" = set()
-    for node in tree.body:
-        if isinstance(node, ast.FunctionDef) and node.name == "data_folder":
-            names = {
-                one.value
-                for one in ast.walk(node)
-                if isinstance(one, ast.Constant) and isinstance(one.value, str) and one.value.isupper()
-            }
-            assert names == {"LOCALAPPDATA", "XDG_DATA_HOME"}, names
-            inside |= {id(one) for one in ast.walk(node)}
-    return inside
+    tree = ast.parse(source)
+    aside, readers = environment_audit.data_folder_set_aside(name, tree)
+    for node in ast.walk(tree):
+        if id(node) in aside:
+            continue
+        named = (
+            node.attr
+            if isinstance(node, ast.Attribute)
+            else node.id
+            if isinstance(node, ast.Name)
+            else ""
+        )
+        if named in ("environ", "getenv", "environb", "putenv"):
+            readers += [f"{name}:{node.lineno}"]
+    return readers
 
 
 def test_no_module_of_the_product_reads_the_environment() -> None:
     """The static half: no product module names the environment, but the chain's data folder."""
     readers: "list[str]" = []
     for path in sorted(_SRC.glob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        aside = _data_folder_nodes(path, tree)
-        for node in ast.walk(tree):
-            if id(node) in aside:
-                continue
-            named = (
-                node.attr
-                if isinstance(node, ast.Attribute)
-                else node.id
-                if isinstance(node, ast.Name)
-                else ""
-            )
-            if named in ("environ", "getenv", "environb", "putenv"):
-                readers += [f"{path.name}:{node.lineno}"]
+        readers += _environment_readers(path.name, path.read_text(encoding="utf-8"))
     assert readers == []
+
+
+@pytest.mark.parametrize("case", sorted(environment_audit.MUTANTS))
+def test_the_data_folder_is_the_only_environment_read_whatever_it_is_changed_to(case: str) -> None:
+    """Codex's review of batch 4i: a third key, a computed key, the environment used past the folder: each fails the check."""
+    source = (_SRC / "installation.py").read_text(encoding="utf-8")
+    assert _environment_readers("installation.py", source) == []
+    assert _environment_readers("installation.py", environment_audit.mutated(source, case)) != []
 
 
 def test_nothing_in_the_product_passes_the_internal_setting() -> None:

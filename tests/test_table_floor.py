@@ -24,6 +24,7 @@ import sys
 
 import pytest
 
+import environment_audit
 from synthtwin import asking, cli, errors, parsing
 
 ROWS = parsing.TABLE_ROW_FLOOR
@@ -523,46 +524,48 @@ def test_the_status_screen_and_the_package_say_the_new_floor() -> None:
 # -- nothing reaches the refusal but the keyword (skeptic 1, item 4) -----------
 
 
-# THE ONE ENVIRONMENT READ THE PACKAGE MAKES (batch 4i's integration):
-# lane CHa's `installation.data_folder` finds the platform's data folder
+# THE ONE ENVIRONMENT READ THE PACKAGE MAKES (batch 4i's integration;
+# narrowed by batch 4j's records on Codex's review of batch 4i): lane
+# CHa's `installation.data_folder` finds the platform's data folder
 # (contract 4.6b.4) from LOCALAPPDATA or XDG_DATA_HOME, behind the
-# chain's switch, and reads no other name. It is set aside by its
-# function and its two names, so any other read still fails here.
-_DATA_FOLDER_NAMES = {"LOCALAPPDATA", "XDG_DATA_HOME"}
+# chain's switch. Only its one audited read is set aside, and only while
+# the function keeps the audited structure (`environment_audit`), so a
+# third key, a computed key or the environment used for anything but the
+# folder fails here.
 
 
-def _set_aside(path: pathlib.Path, tree: ast.Module) -> "set[int]":
-    """The ids of the nodes inside `installation.data_folder`, after checking it reads only its two names."""
-    if path.name != "installation.py":
-        return set()
-    inside: "set[int]" = set()
-    for node in tree.body:
-        if isinstance(node, ast.FunctionDef) and node.name == "data_folder":
-            names = {
-                one.value
-                for one in ast.walk(node)
-                if isinstance(one, ast.Constant) and isinstance(one.value, str) and one.value.isupper()
-            }
-            assert names == _DATA_FOLDER_NAMES, names
-            inside |= {id(one) for one in ast.walk(node)}
-    return inside
+def _environment_readers(name: str, source: str) -> "list[str]":
+    """Every read of the environment in one module of the package, and every way `data_folder` leaves its audited structure."""
+    tree = ast.parse(source)
+    aside, found = environment_audit.data_folder_set_aside(name, tree)
+    for node in ast.walk(tree):
+        if id(node) in aside:
+            continue
+        if isinstance(node, ast.Attribute) and node.attr in ("environ", "getenv", "environb", "getenvb"):
+            found += [f"{name}:{node.lineno}"]
+        if isinstance(node, ast.Name) and node.id in ("environ", "getenv"):
+            found += [f"{name}:{node.lineno}"]
+        if isinstance(node, ast.alias) and node.name in ("environ", "getenv"):
+            found += [f"{name}"]
+    return found
 
 
 def test_no_module_of_the_package_reads_the_environment() -> None:
     """S6: an environment variable that switched the refusal off would be a bypass."""
     package = pathlib.Path(cli.__file__).parent
+    found: "list[str]" = []
     for path in sorted(package.glob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        aside = _set_aside(path, tree)
-        for node in ast.walk(tree):
-            if id(node) in aside:
-                continue
-            if isinstance(node, ast.Attribute):
-                assert node.attr not in ("environ", "getenv", "environb", "getenvb"), path.name
-            if isinstance(node, ast.Name):
-                assert node.id not in ("environ", "getenv"), path.name
-            if isinstance(node, ast.alias):
-                assert node.name not in ("environ", "getenv"), path.name
+        found += _environment_readers(path.name, path.read_text(encoding="utf-8"))
+    assert found == []
+
+
+@pytest.mark.parametrize("case", sorted(environment_audit.MUTANTS))
+def test_the_data_folder_s_exemption_takes_no_other_environment_read(case: str) -> None:
+    """Codex's review of batch 4i: a third key, a computed key, the environment used past the folder: each fails the check."""
+    path = pathlib.Path(cli.__file__).parent / "installation.py"
+    source = path.read_text(encoding="utf-8")
+    assert _environment_readers("installation.py", source) == []
+    assert _environment_readers("installation.py", environment_audit.mutated(source, case)) != []
 
 
 def _every_option() -> "list[str]":

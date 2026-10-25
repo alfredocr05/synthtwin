@@ -1,0 +1,172 @@
+"""The one environment read the product makes, audited by its structure (batch 4j's records, Codex's review of batch 4i).
+
+Lane CHa's `installation.data_folder` finds the platform's data folder
+(contract 4.6b.4) from LOCALAPPDATA or XDG_DATA_HOME, behind the chain's
+switch. Two checks hold that no other module reads the environment
+(lane POP's `tests/test_table_floor.py`, lane MIN's
+`tests/test_floor_is_a_minimum.py`); batch 4i's integration set aside
+EVERY node of that function, so a third key, a computed key or the
+environment used for anything but the folder escaped both (Codex's
+review of batch 4i, its one Medium). `data_folder_set_aside` sets aside
+only the one audited read, and only while the function keeps the
+audited structure:
+
+- exactly one `os.environ`, copied whole as the stand-in's default in
+  one assignment, `where = environ if environ is not None else
+  dict(os.environ)`, the one place the parameter `environ` is named;
+- the copy `where` read only by a written-out key, LOCALAPPDATA or
+  XDG_DATA_HOME, as `where["..."]` or `"..." in where`;
+- the function chooses a folder and does nothing else: its statements
+  are assignments to plain names, `if`s and returns; it calls only
+  `system_name`, `dict`, `os.path.join`, `os.path.expanduser` and
+  `pathlib.Path`; every return is a `pathlib.Path(...)`.
+
+Any other shape is a finding: the checks fail on it, and the exemption
+sets nothing aside.
+"""
+
+import ast
+
+AUDITED_NAMES = ("LOCALAPPDATA", "XDG_DATA_HOME")
+
+_CALLED = ("system_name", "dict", "os.path.join", "os.path.expanduser", "pathlib.Path")
+
+
+def _dotted(node: ast.expr) -> str:
+    """``a.b.c`` written out for a name or a chain of attributes, else the empty text."""
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        head = _dotted(node.value)
+        return f"{head}.{node.attr}" if head else ""
+    return ""
+
+
+def _is_the_copy(node: ast.stmt) -> bool:
+    """Is ``node`` exactly `where = environ if environ is not None else dict(os.environ)`?"""
+    if not (isinstance(node, ast.Assign) and len(node.targets) == 1):
+        return False
+    target = node.targets[0]
+    value = node.value
+    if not (isinstance(target, ast.Name) and target.id == "where" and isinstance(value, ast.IfExp)):
+        return False
+    test = value.test
+    default = value.orelse
+    return (
+        isinstance(test, ast.Compare)
+        and _dotted(test.left) == "environ"
+        and len(test.ops) == 1
+        and isinstance(test.ops[0], ast.IsNot)
+        and len(test.comparators) == 1
+        and isinstance(test.comparators[0], ast.Constant)
+        and test.comparators[0].value is None
+        and _dotted(value.body) == "environ"
+        and isinstance(default, ast.Call)
+        and _dotted(default.func) == "dict"
+        and len(default.args) == 1
+        and _dotted(default.args[0]) == "os.environ"
+        and not default.keywords
+    )
+
+
+def _audited_key(node: ast.expr) -> bool:
+    """Is ``node`` one of the two written-out keys?"""
+    return isinstance(node, ast.Constant) and node.value in AUDITED_NAMES
+
+
+def data_folder_problems(function: ast.FunctionDef) -> "tuple[set[int], list[str]]":
+    """The ids of the audited read's nodes in ``function``, and every way it leaves the audited structure."""
+    problems: "list[str]" = []
+    copies = [one for one in function.body if _is_the_copy(one)]
+    if len(copies) != 1:
+        problems += [f"data_folder: {len(copies)} copies of the environment, not one"]
+    aside: "set[int]" = set()
+    for copy in copies:
+        aside |= {id(one) for one in ast.walk(copy)}
+    # The copy read only by a written-out key.
+    allowed_where: "set[int]" = set()
+    for node in ast.walk(function):
+        if isinstance(node, ast.Subscript) and _dotted(node.value) == "where":
+            if _audited_key(node.slice) and isinstance(node.ctx, ast.Load):
+                allowed_where |= {id(node.value)}
+            else:
+                problems += [f"data_folder:{node.lineno}: the copy read by a key not written out"]
+        if isinstance(node, ast.Compare) and any(_dotted(one) == "where" for one in node.comparators):
+            if (
+                _audited_key(node.left)
+                and len(node.ops) == 1
+                and isinstance(node.ops[0], ast.In)
+                and len(node.comparators) == 1
+            ):
+                allowed_where |= {id(node.comparators[0])}
+            else:
+                problems += [f"data_folder:{node.lineno}: the copy compared otherwise"]
+    for node in ast.walk(function):
+        if id(node) in aside:
+            continue
+        if isinstance(node, ast.Name) and node.id == "where" and id(node) not in allowed_where:
+            problems += [f"data_folder:{node.lineno}: the copy used otherwise"]
+        if isinstance(node, ast.Name) and node.id in ("environ", "getenv"):
+            problems += [f"data_folder:{node.lineno}: {node.id} outside the copy"]
+        if isinstance(node, ast.Attribute) and node.attr in ("environ", "getenv", "environb", "getenvb", "putenv"):
+            problems += [f"data_folder:{node.lineno}: {node.attr} outside the copy"]
+        if isinstance(node, ast.Call) and _dotted(node.func) not in _CALLED:
+            problems += [f"data_folder:{node.lineno}: calls {_dotted(node.func) or 'a computed function'}"]
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value.isupper():
+            if node.value not in AUDITED_NAMES:
+                problems += [f"data_folder:{node.lineno}: names {node.value}"]
+    # It chooses a folder and does nothing else.
+    statements = function.body
+    if statements and isinstance(statements[0], ast.Expr) and isinstance(statements[0].value, ast.Constant):
+        statements = statements[1:]
+    for statement in statements:
+        for node in ast.walk(statement):
+            if isinstance(node, ast.stmt) and not isinstance(node, (ast.Assign, ast.If, ast.Return)):
+                problems += [f"data_folder:{node.lineno}: a {type(node).__name__} statement"]
+            if isinstance(node, ast.Assign) and not all(isinstance(one, ast.Name) for one in node.targets):
+                problems += [f"data_folder:{node.lineno}: assigns other than a plain name"]
+            if isinstance(node, ast.Return) and not (
+                isinstance(node.value, ast.Call) and _dotted(node.value.func) == "pathlib.Path"
+            ):
+                problems += [f"data_folder:{node.lineno}: returns other than a folder"]
+    if not problems:
+        return aside, []
+    return set(), problems
+
+
+def data_folder_set_aside(name: str, tree: ast.Module) -> "tuple[set[int], list[str]]":
+    """In ``installation.py``: the audited read's node ids and every problem; elsewhere nothing set aside."""
+    if name != "installation.py":
+        return set(), []
+    functions = [
+        one for one in tree.body if isinstance(one, ast.FunctionDef) and one.name == "data_folder"
+    ]
+    if len(functions) != 1:
+        return set(), [f"installation.py: {len(functions)} data_folder functions, not one"]
+    return data_folder_problems(functions[0])
+
+
+# THE NEGATIVE CASES (Codex's condition): each a change to today's
+# `installation.py` that both checks must reject, today's file accepted.
+_ANCHOR = "    where = environ if environ is not None else dict(os.environ)\n"
+
+MUTANTS: "dict[str, str]" = {
+    # A third key, in lower case, read straight from the environment
+    # (Codex's own case).
+    "a-third-lowercase-key": _ANCHOR + '    extra = os.environ.get("synthtwin_smallest_group")\n',
+    # The same key read through the audited copy.
+    "a-third-key-through-the-copy": _ANCHOR
+    + '    extra = where["synthtwin_smallest_group"] if "synthtwin_smallest_group" in where else ""\n',
+    # A key computed, so no written-out name shows it.
+    "a-computed-key": _ANCHOR + '    key = "xdg_data_home".upper()\n    extra = where[key] if key in where else ""\n',
+    # An audited key used outside the folder's choice.
+    "the-environment-used-outside-the-folder": _ANCHOR
+    + '    globals()["CHOSEN"] = where["LOCALAPPDATA"] if "LOCALAPPDATA" in where else ""\n',
+}
+
+
+def mutated(source: str, case: str) -> str:
+    """Today's `installation.py` with the negative case ``case`` written in after the audited read."""
+    if source.count(_ANCHOR) != 1:
+        raise AssertionError("installation.py no longer holds the audited read once")
+    return source.replace(_ANCHOR, MUTANTS[case])
