@@ -177,7 +177,7 @@ def _leak_case(tmp_path: pathlib.Path, twin_change: "object", described: "dict")
 def _made_up_zips(header: "list[str]", rows: "list[list[str]]") -> None:
     for column, value in (
         ("zip5", "99901"), ("zip4", "99901-0001"), ("dob_iso", "1990-01-01"), ("dob_us", "01/01/1990"),
-        ("dob_text", "01-Jan-1990"), ("patient_id", "PX0000001"),
+        ("dob_text", "01-Jan-1990"), ("patient_id", "PX0000001"), ("birth_city", "Nowhere"),
     ):
         place = header.index(column)
         for row in rows:

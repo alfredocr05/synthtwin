@@ -72,6 +72,10 @@ PLAN_LANES = (
     # Harbor numbers, P4-D427) and RD (computed columns, the zoo plan's
     # row 51).
     "HX", "SH", "RD",
+    # ...and the lane the orchestrator opens when SH closes for Safe Harbor
+    # years, places and devices no question reaches (THE ZOO ANSWERS
+    # TRUTHFULLY, 2026-10-25).
+    "SH2",
 )
 
 # The kinds the lane's step names, and the ones its reviews found missing
@@ -705,7 +709,11 @@ def test_one_table_runs_end_to_end_in_this_process(tmp_path: pathlib.Path) -> No
     assert result["roles"]["patient_id"] == "identifier"
     verdicts = zoo.per_kind([result])
     assert set(verdicts) == {"demographics", "utf8_accents"}
-    assert verdicts["utf8_accents"]["passed"] is True
+    # The accented cities are cities of birth, places smaller than a state
+    # the product publishes asking no question: the one failure of the
+    # kind, LIVE and lane SH2's (THE ZOO ANSWERS TRUTHFULLY, 2026-10-25).
+    assert verdicts["utf8_accents"]["failures"] == ["leak birth_city"]
+    assert verdicts["utf8_accents"]["owners"] == ["SH2"]
 
 
 def test_the_labs_misses_reach_its_verdict(tmp_path: pathlib.Path) -> None:

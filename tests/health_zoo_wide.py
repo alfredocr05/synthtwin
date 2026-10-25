@@ -2913,10 +2913,6 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
         ("SH", "LIVE: a five-figure ZIP column answered `code` publishes its real ZIPs as levels and its twin writes "
                "them (Safe Harbor; the orchestrator's LANE SH ADDENDUM 7: an answer of `code` never releases the ZIP "
                "hold)", covers("leak zip5", "leak zip4")),
-        ("CODES-3", "LIVE: a birth date column on a table of one row a person publishes real birth dates as its date "
-                    "percentiles and tail boundaries, each one person's (Safe Harbor; full birth dates no question "
-                    "flags are CODES-1 part C's, now CODES-3's: the orchestrator's LANE HX2 ruling of 2026-10-19, "
-                    "item (4))", covers("leak dob_iso")),
     ),
     "labelled_results": (
         ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
@@ -3207,10 +3203,6 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
         ("CODES-2", "names and street addresses answered `identifier` are written as made-up record numbers, not "
                     "names or addresses (the allowlist's limit, CODES-2)", covers(
             "names, first and last", "street addresses", columns=("patient_name", "street_address"))),
-        ("CODES-3", "LIVE: a birth date column no question flags publishes real birth dates as its date percentiles "
-                    "and tail boundaries, each one person's (Safe Harbor; full birth dates no question flags are "
-                    "CODES-1 part C's, now CODES-3's: the orchestrator's LANE HX2 ruling of 2026-10-19, item (4))",
-         covers("leak birth_date")),
     ),
     "undeclared_record_number_long": (
         ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
@@ -3266,10 +3258,21 @@ def _leaks(*names: str) -> "tuple[str, ...]":
     return tuple(f"leak {name}{stage}" for name in names for stage in ("", " unanswered"))
 
 
-SH_YEARS = (
+SH2_YEARS = (
     "LIVE: a year of 1934 or earlier (an age of 90 or more in the zoo's era, 2024) printed in the description or "
     "written by the twin, as a birth year or in a birth date (45 CFR 164.514(b)(2)(i)(C): all elements of dates, "
-    "the year included, indicative of such age); Safe Harbor's top-code reaches no year column yet (lane SH, P4-D427)"
+    "the year included, indicative of such age), where the product asks no Safe Harbor question; lane SH2 (Safe "
+    "Harbor years, places and devices; the orchestrator's ruling THE ZOO ANSWERS TRUTHFULLY, 2026-10-25)"
+)
+SH2_DEVICES = (
+    "LIVE: device identifiers (GS1 UDIs, lot-level, about a thousand rows each, no serial) are published as "
+    "category levels and written on every twin cell, the product asking no Safe Harbor question; lane SH2 (Safe "
+    "Harbor years, places and devices; the orchestrator's ruling THE ZOO ANSWERS TRUTHFULLY, 2026-10-25)"
+)
+SH2_PLACES = (
+    "LIVE: a person's city of birth, a place smaller than a state, is published as category levels and written in "
+    "the twin, the product asking no Safe Harbor question; lane SH2 (Safe Harbor years, places and devices; the "
+    "orchestrator's ruling THE ZOO ANSWERS TRUTHFULLY, 2026-10-25)"
 )
 SH_ZIPS = (
     "LIVE: a ZIP column publishes its real ZIPs before or after its answer (Safe Harbor; the orchestrator's LANE SH "
@@ -3283,44 +3286,55 @@ HELD_WHILE_OPEN = (
     "a question offering `identifier` is open; the held block follows the offer under the orchestrator's LANE SH "
     "ADDENDUM 6 (lane SH)"
 )
-CODES3_BIRTH_DATES = (
-    "LIVE: a birth date column no question flags publishes real birth dates as its date percentiles and tail "
-    "boundaries, each one person's, read as the ISO dates printed whatever the source's spelling (US, text, a "
-    "two-figure year in the century the person named); full birth dates no question flags are CODES-1 part C's, now "
-    "CODES-3's (the orchestrator's LANE HX2 ruling of 2026-10-19, item (4))"
+PS2_BIRTH_DATES = (
+    "LIVE: a birth date column publishes real birth dates, each one person's, as its date percentiles and tail "
+    "boundaries at a day's grain, read as the ISO dates printed whatever the source's spelling (US, text, a "
+    "two-figure year in the century the person named); a published date one to ten people or rows hold is lane "
+    "PS2's part (A), birth dates first (P4-D433; full birth dates no question flags were CODES-1 part C's, then "
+    "CODES-3's, by the orchestrator's ruling of 2026-10-19 on HX2, item (4))"
 )
-CODES3_UDIS = (
-    "LIVE: device identifiers (GS1 UDIs, lot-level, about a thousand rows each, no serial) answered `code` are "
-    "published as category levels and written on every twin cell; identifier forms are lane CODES-3's, and whether a "
-    "lot-level UDI is an identifier is the orchestrator's to rule"
+BY_DESIGN = (
+    "held by HIPAA's Safe Harbor rule; by design (the orchestrator's ruling THE ZOO ANSWERS TRUTHFULLY, "
+    "2026-10-25): the zoo answers the Safe Harbor question 'yes' for a ZIP, a place, a device number or a birth "
+    "year, the product holds the column, and the analyst check that wanted its real values fails: the HIPAA price"
 )
 LEAK_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     "demographics": (
-        ("CODES-3", CODES3_BIRTH_DATES, covers(*_leaks("dob_iso", "dob_us", "dob_text"))),
-        ("SH", SH_YEARS, covers(*_leaks("dob_iso years", "dob_us years", "dob_text years"))),
+        ("PS2", PS2_BIRTH_DATES, covers(*_leaks("dob_iso", "dob_us", "dob_text"))),
+        ("SH2", SH2_YEARS, covers(*_leaks("dob_iso years", "dob_us years", "dob_text years"))),
         ("SH", SH_ZIPS, covers(*_leaks("zip5", "zip4"))),
+        ("SH", BY_DESIGN, covers(columns=("zip5", "zip4"))),
+    ),
+    "utf8_accents": (
+        ("SH2", SH2_PLACES, covers(*_leaks("birth_city"))),
+        ("SH", BY_DESIGN, covers(columns=("birth_city",))),
     ),
     "redcap": (("SH", HELD_WHILE_OPEN, covers(*_leaks("record_id"))),),
-    "immunizations_providers": (("CODES-3", CODES3_UDIS, covers(*_leaks("udi"))),),
+    "immunizations_providers": (
+        ("SH2", SH2_DEVICES, covers(*_leaks("udi"))),
+        ("SH", BY_DESIGN, covers(columns=("udi",))),
+    ),
     "two_digit_years": (
-        ("CODES-3", CODES3_BIRTH_DATES, covers(*_leaks("dob_short"))),
-        ("SH", SH_YEARS, covers(*_leaks("dob_short years"))),
+        ("PS2", PS2_BIRTH_DATES, covers(*_leaks("dob_short"))),
+        ("SH2", SH2_YEARS, covers(*_leaks("dob_short years"))),
     ),
     "omop_cdm": (("SH", HELD_WHILE_OPEN, covers(*_leaks("person_id", "measurement_id"))),),
     "i2b2_eav": (("SH", HELD_WHILE_OPEN, covers(*_leaks("encounter_num", "patient_num"))),),
     "excel_mangled_codes": (
         ("SH", HELD_WHILE_OPEN, covers(*_leaks("npi_shown", "account_shown", "member_ref"))),
         ("SH", SH_ZIPS, covers(*_leaks("zip_lost"))),
+        ("SH", BY_DESIGN, covers(columns=("zip_lost",))),
     ),
     "phi_columns": (
-        ("CODES-3", CODES3_BIRTH_DATES, covers(*_leaks("birth_date"))),
-        ("SH", SH_YEARS, covers(*_leaks("birth_date years"))),
+        ("PS2", PS2_BIRTH_DATES, covers(*_leaks("birth_date"))),
+        ("SH2", SH2_YEARS, covers(*_leaks("birth_date years"))),
         ("SH", SH_ZIPS, covers(*_leaks("zip5"))),
     ),
     "safe_harbor_shapes": (
-        ("SH", SH_YEARS, covers(*_leaks("birth_year years"))),
+        ("SH2", SH2_YEARS, covers(*_leaks("birth_year years"))),
         ("SH", "LIVE: an age past the top-code 90 printed or written as a number (Safe Harbor; lane SH, P4-D427)",
          covers(*_leaks("age_top"))),
+        ("SH", BY_DESIGN, covers(columns=("birth_year",))),
     ),
 }
 for _kind, _lines in LEAK_OWNERS.items():

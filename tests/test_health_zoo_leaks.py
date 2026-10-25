@@ -70,6 +70,7 @@ MUST_BE_READ = {
     ("phi_registry", "birth_date", "years over 89"), ("imaging", "study_uid", "values"),
     ("sql_server", "death_date", "printed values"), ("edge_columns", "middle_name", "values"),
     ("long_visits_record_numbers", "med_rec_no", "values"), ("numeric_identifiers", "durable_key", "values"),
+    ("patients", "birth_city", "values"),
 }
 
 
@@ -353,3 +354,32 @@ def test_each_missed_check_of_a_column_is_its_own_failure() -> None:
     verdict = zoo.per_kind([result])["labs"]
     assert len([item for item in verdict["failures"] if item.startswith("miss ref_range")]) == 3
     assert zoo.zoo_measures([result])["K-HZ-02"]["failures"] >= 3
+
+
+# -- the zoo answers truthfully ------------------------------------------------------------
+
+
+def _safe_harbor_question(column: str) -> "dict":
+    return {"asked": [{"column": column, "answers_you_can_give": [{"answer": "no", "means": "none of these"},
+        {"answer": "yes", "means": "a person, a place, a date or a number"}]}]}
+
+
+def test_the_safe_harbor_question_is_answered_as_the_column_truly_is() -> None:
+    """THE ZOO ANSWERS TRUTHFULLY (the orchestrator, 2026-10-25): `yes` for a ZIP, a city, a device number, a birth year or a key.
+
+    Red on the mutant that answers `yes` only for a column the person
+    knows as a record number (lane SH's first form): a ZIP answered
+    `code` would then be told to name nobody.
+    """
+    cases = {
+        ("patients", "zip5"): "yes", ("patients", "birth_city"): "yes", ("patients", "patient_id"): "yes",
+        ("patients", "dob_us"): "yes", ("patients", "age"): "no", ("immunizations", "udi"): "yes",
+        ("safe_harbor", "birth_year"): "yes", ("safe_harbor", "age_top"): "no", ("vitals", "pulse"): "no",
+        ("vcf_calls", "rsid"): "no",
+    }
+    for (name, column), wanted in cases.items():
+        table = zoo.table_named(name)
+        document = _safe_harbor_question(column)
+        asked, general = zoo.answer_generally(table, document)
+        assert asked[0]["given"] == wanted, (name, column, asked)
+        assert general, (name, column)

@@ -142,6 +142,10 @@ GENERAL_ANSWERS = frozenset(
         "first-record", "month-first", "day-first", "missing",
         "real-value", "1969-2068", "1930-2029", "1940-2039",
         "1900-1999", "dates",
+        # The Safe Harbor question (lane SH, plan P4-D427): whether a value
+        # of the column could name a person, a place, a birth date or a
+        # number given to one person -- what the data is.
+        "no", "yes",
     }
 )
 # The count systems a column of dates written as numbers may be read in
@@ -2765,6 +2769,14 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
         # answered `keep`, "not a person: it repeats for some other reason".
         if given == "identifier" and table.person and column != table.person and _asks_for_people(entry):
             given = "keep" if "keep" in offered else ""
+        # THE ZOO ANSWERS TRUTHFULLY (the orchestrator, 2026-10-25 00:56): the
+        # Safe Harbor question is answered as the column truly is -- `yes`
+        # for a ZIP, a city or another place smaller than a state, a device
+        # number, a birth year or date, a name, an address, a telephone or
+        # social security number, and a record, account or person key;
+        # `no` for a measurement, a count, a code or a category.
+        if not given and column in every_column and sorted(offered) == ["no", "yes"]:
+            given = "yes" if names_a_safe_harbor_element(table, column) else "no"
         entry["your_answer"] = given
         words = " ".join(prose(entry) + [framing] + ([checklist_words] if id(entry) in listed else []))
         this_general = all(
@@ -2960,6 +2972,8 @@ SENSITIVE_NAMES: "tuple[tuple[re.Pattern[str], tuple[str, ...], str], ...]" = (
     (re.compile(r"(?i)address|street|phone|e_?mail|(^|_)ssn(_|$)|social_sec"), ("values",),
      "an address, a telephone number, an e-mail address or a social security number"),
     (re.compile(r"(?i)med_rec|(^|_)m[r]n(_|$)|durable_?key"), ("values",), "a medical record number or a patient key"),
+    (re.compile(r"(?i)(^|_)(city|county|town)(_|$)|birth_?place|place_of_birth"), ("values",),
+     "a person's city, county or town: a place smaller than a state"),
 )
 NOT_READ = {
     "rsid": "a public dbSNP variant code ('rs' and figures), the same in every person's file",
@@ -2974,6 +2988,23 @@ NOT_READ = {
 # indicative of such age").
 REF_YEAR = 2024
 OLDEST_YEAR_SHOWN = REF_YEAR - 90
+
+
+def names_a_safe_harbor_element(table: Table, column: str) -> bool:
+    """Whether a column truly holds one of Safe Harbor's elements, as the zoo answers the Safe Harbor question.
+
+    A record, account or person key (answered `identifier`), and every
+    column a Safe Harbor name rule reaches but an age's: an age is a
+    measurement, which Safe Harbor's top-code pools past 89 whatever the
+    answer.
+    """
+    if column in NOT_READ:
+        return False
+    if table.knows.get(column) == "identifier":
+        return True
+    return any(
+        pattern.search(column) and modes != ("ages over 89",) for pattern, modes, _what in SENSITIVE_NAMES
+    )
 
 
 def leak_list(table: Table, header: "list[str]") -> "tuple[tuple[str, str], ...]":
