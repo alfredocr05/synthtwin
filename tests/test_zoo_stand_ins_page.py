@@ -1214,13 +1214,25 @@ def _zip5word(lead: bool, token: str, times: int) -> "tuple[list[str], list[str]
 def test_one_word_cell_beside_five_figure_zips_read_as_numbers_prints_them_today(
     lead: bool, token: str, times: int, tmp_path: pathlib.Path,
 ) -> None:
-    """The second verify's item 1, `zip5word`: today 9 real ZIPs print; the five-figure hold reaches the column."""
+    """The second verify's item 1, `zip5word`: today 9 real ZIPs print; the five-figure hold reaches the column.
+
+    Since batch 4j's merge of lane CODES-3 (plan P4-D428) the two shapes
+    with a leading zero are held as padded keys beside a word: they read
+    `identifier`, publish no ZIP and are put the person question.
+    """
     zips, cells = _zip5word(lead, token, times)
     lines = ["pid,zip"] + [f"P{k:06d},{cell}" for k, cell in enumerate(cells)]
     column = _column(_profiled(tmp_path, "zip5word.csv", "\n".join(lines) + "\n"), "zip")
-    assert column["role"] == "count"
     printed = [value for value in _printed_values(column) if float(value).is_integer()]
-    assert len([value for value in printed if f"{int(value):05d}" in zips]) == 9
+    if lead:
+        assert column["role"] == "identifier"
+        assert not [value for value in printed if f"{int(value):05d}" in zips]
+        assert not [zip_code for zip_code in zips if zip_code in json.dumps(column)]
+        asked = json.loads((tmp_path / "zip5word-questions.json").read_text(encoding="utf-8"))["asked"]
+        assert [entry["read_as_now"] for entry in asked if entry.get("column") == "zip"] == ["identifier"]
+    else:
+        assert column["role"] == "count"
+        assert len([value for value in printed if f"{int(value):05d}" in zips]) == 9
     assert _five_figure_held(cells)
     assert not _five_figure_held(cells, every=True)  # the all-or-nothing reading: one word lifts it
     assert not _five_figure_held(["HOMELESS"] * 201 + cells[201:])  # repair 3's cap: past it, not reached
@@ -1760,12 +1772,19 @@ def test_a_placeholder_share_beside_zips_prints_them_today_and_the_hold_takes_th
     placeholders aside the hold reaches them."""
     cells, count = VERIFY4_ZIPS[case]
     column = _column(_profiled(tmp_path, "zips.csv", "zip\n" + "\n".join(cells) + "\n"), "zip")
-    assert column["role"] == "continuous" and column["role"] in _reach_roles()
     real = {cell.lstrip("0") for cell in cells if cell != "-99"}
     shown = {value.split(".")[0].lstrip("0") for value in _printed(column)}
-    assert len(real) == count and real <= shown, (real - shown)
     asked = json.loads((tmp_path / "zips-questions.json").read_text(encoding="utf-8"))["asked"]
-    assert not [entry for entry in asked if entry.get("column") == "zip"]
+    if case == "padded-minus99":
+        # Held since batch 4j's merge of lane CODES-3 (plan P4-D428): keys
+        # beside placeholders, put the person question.
+        assert column["role"] == "identifier"
+        assert len(real) == count and not real & shown
+        assert [entry["read_as_now"] for entry in asked if entry.get("column") == "zip"] == ["identifier"]
+    else:
+        assert column["role"] == "continuous" and column["role"] in _reach_roles()
+        assert len(real) == count and real <= shown, (real - shown)
+        assert not [entry for entry in asked if entry.get("column") == "zip"]
     assert _zip_reach(cells) and not _zip_reach(cells, placeholders=False)
     assert _zip_reach([cell if cell != "-99" else "999" for cell in cells])  # an all-nines share likewise
     page = _flat(_page())
@@ -1773,6 +1792,15 @@ def test_a_placeholder_share_beside_zips_prints_them_today_and_the_hold_takes_th
             "of 40 real ZIPs, and `[2100, 2107, 52240, 52247]` x 3,250 beside `-99` x 7,000 read `continuous` and print 4 "
             "of 4 -- nothing asked, 65 % of their numbers of four or five figures, under two thirds") in page
     assert 3 * 13000 < 2 * 20000 and 13000 * 100 // 20000 == 65
+
+
+def test_the_shapes_lane_codes_3_holds_are_recorded_in_the_decision() -> None:
+    """Batch 4j's integration: the three shapes held since lane CODES-3 are named beside the ones that still print."""
+    text = _flat(PLAN.read_text(encoding="utf-8"))
+    decision = text[text.index(DECISION_HEADING):]
+    assert ("**Batch 4j's integration (2026-10-24): three of the shapes this page measured printing today are held since "
+            "lane CODES-3 (P4-D428).**") in decision
+    assert "print as this page measured them: lane SH's (P4-D427)" in decision
 
 
 def test_the_hold_sets_aside_only_repeated_values_of_other_widths() -> None:

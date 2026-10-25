@@ -6,6 +6,28 @@ exists).
 
 ## [Unreleased]
 
+### Batch 4j's records: the data folder's exemption narrowed, the night's 2,000,000-row points written in, the ledger cap set once (2026-10-24)
+
+**Records of batch 4j**, which merged lanes H3 and CODES-3 (plans
+P4-D423 and P4-D428) on batch 4i. Lane POP's and lane MIN's checks that
+no module reads the environment now set aside only the one copy of the
+environment `installation.data_folder` makes, and only while it reads
+that copy by LOCALAPPDATA or XDG_DATA_HOME, written out, to choose the
+folder (Codex's review of batch 4i): a third key, a computed key or the
+environment used past the folder fails both checks, and batch 4i's entry
+below says what they set aside until now. Lane H3's two points at
+2,000,000 x 50 from the night of 2026-10-24, 1,420 MB with every
+candidate open and 1,386 MB with a declared person column, resident,
+are written into P4-D423, STATE and `K-S4-09`'s evidence; that entry's
+stamp by its own driver on the merged code stays a night window's.
+`K-HZ-04` is stamped on the merged head. P4-D428 names the held `.0`
+beside `31000000.00` among its gate's bounds. Three ZIP shapes lane
+ZR-b's page measured printing (padded ZIPs beside one word, or beside
+`-99` x 7,000) are held since lane CODES-3, and its test and P4-D422
+say so; the shapes that still print stay lane SH's. The ledger's cap is
+764,000 bytes, set once for the batch (763,347 used). No twin,
+description or report byte moves.
+
 ### Lane CODES-3: identifiers with numeric roots, record numbers written as decimals, prefixed ids of several lengths, plain keys beside a word (plan P4-D428, 2026-10-23; repair rounds 2 and 3, 2026-10-24)
 
 **The health data zoo's identifier rows 19, 42 and 43, and push critic
@@ -128,8 +150,11 @@ keyword only, off by default and set by no option; the suite's bridge
 hands either switch on, and lane SG's two gate cases at a smallest group
 of 1 describe through it, writing the same twins and descriptions as
 before. The package reads one environment variable pair, the chain's
-data folder (LOCALAPPDATA, XDG_DATA_HOME, behind the chain's switch),
-and both lanes' checks set aside only that. STATE's ruling line of
+data folder (LOCALAPPDATA, XDG_DATA_HOME, behind the chain's switch);
+both lanes' checks set aside the whole of `installation.data_folder`
+(corrected at batch 4j's records: since then they set aside only its
+one copy of the environment, read by those two names written out to
+choose the folder). STATE's ruling line of
 2026-09-22 now says the floor of 11 is raised and never lowered. No
 twin, description or report byte moves at a floor of 11 or more.
 
