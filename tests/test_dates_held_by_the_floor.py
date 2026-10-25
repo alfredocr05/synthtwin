@@ -114,6 +114,11 @@ PINNED: "dict[tuple[str, str, int], str]" = {
     ("no_person", "admit_date", 20000): "670a7f2848427d5b25534e42737c2334993a539fd8a65fc7528a4403c83cd7c0",
     ("dense_only", "admit_date", 20000): "681b7844e6f374a54a1c04834d5a7708aae16dc50b1b07657f09f328972ed3f6",
     ("dense_only", "arrived_at", 20000): "24c21436cb1faea7e381e8780c43ba40b4f3c433738cfa0c1dac22fee34309e0",
+    ("one_row", "admit_date", 200000): "48d5904c9a33e578a333cc74a46854471644a4cbed6b372f9279f72bc57904e8",
+    ("several_rows", "visit_date", 200000): "fa40ccc42396d76e301fbe8c453f9c2c0100feff6c73f351732b8a33bc194890",
+    ("no_person", "admit_date", 200000): "080f3843acf7aa062f30d5b9d0420625b7f185b0bbf7edbd63012d011982a1ba",
+    ("dense_only", "admit_date", 200000): "79beae64e891d3f447c613416434bd029641ae7db761327a878d35dd64c95d9c",
+    ("dense_only", "arrived_at", 200000): "c831fbebcc60caaa306fb685ca867bbc8f6c1ba9ed7a7df3d1a6fc4ddeb26e0a",
 }
 
 
