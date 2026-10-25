@@ -447,26 +447,44 @@ cannot get worse unseen.
   coarser grain its published facts choose, or held with a twin of
   valid dates in its own layouts; no count of one to ten people is
   left to subtraction, and absent spellings stay absent. Still so,
-  each with its owner (lane PS2 is lane PS's follow-up, the
-  time-of-day and weekday censuses counted in people; the owners the
-  orchestrator named on 2026-10-23, written at batch 4g's records): a
-  stamp of a few evenly filled hours misses its count of different
-  values and its count at midnight (`wearables` at 20,000 rows: 32 of
-  39 hours, 1,208 rows at midnight against 515), lane PS2; a
-  measurement attached to its person (`labs`' `viral_load`) is held
-  whole with made-up numbers in its layouts, lane PS2; the time of day
-  and the weekday of a stamp pooled at the day or coarser are not
-  described (admit hour TVD 0.37 at 200,000 rows) and the pooled tails
-  are drawn inside their end bucket (635 rows on one day against 80),
-  lane PS2; a birth date beside about four people a year is held with
-  no span and drawn from 2000 to 2029, lane PS2 (a rung of five or ten
-  years); the missing spellings of a pooled column print as the base's
-  held block printed them, lane PS2; a held column's length no valid
+  each with its owner (lane PS2, P4-D433, kept each of lane PS's
+  follow-ups below as a named limit with its reason, none built: each
+  changes the count in people or a published census; their owner is
+  the follow-up lane the orchestrator names, written PS3 here; the
+  owners the orchestrator named on 2026-10-23, written at batch 4g's
+  records): a stamp of a few evenly filled hours misses its count of
+  different values and its count at midnight (`wearables` at 20,000
+  rows: 32 of 39 hours, 1,208 rows at midnight against 515), lane PS3;
+  a measurement attached to its person (`labs`' `viral_load`) is held
+  whole with made-up numbers in its layouts, lane PS3 (no date: outside
+  lane PS2's columns); the time of day and the weekday of a stamp
+  pooled at the day or coarser beside a person column are not described
+  (admit hour TVD 0.37 at 200,000 rows; a census of hours in people
+  needs its own proof under R10) and the pooled tails are drawn inside
+  their end bucket (635 rows on one day against 80), lane PS3; a birth
+  date beside about four people a year is held with no span and drawn
+  from 2000 to 2029, lane PS3 (a rung of five or ten years, a new rung
+  of TG1, the draw and the oracle); the missing spellings of a pooled
+  column print as the base's held block printed them, lane PS3; a held column's length no valid
   date has is missed and named (three people's `pending`: `min_length`
   7 against 10), CODES-1 part C's (`GENERATOR_LIMITS`); a stamp with
   UTC offsets publishes no count at its rung, lane DST; a table of ten
   people or fewer whose person question is open still publishes per
   rows (P4-D406's limit (2)), the orchestrator's to decide.
+- **Dates counted in rows where no person column counts them** (lane
+  PS2, P4-D433). On a table of one row a person, or with no person
+  column, each row is its own holder: a column of dates is described
+  at the grain its published facts choose, or held with valid dates,
+  wherever a date it would publish falls on one to ten rows, counted
+  by the day it names; a column whose every published day the floor's
+  rows hold keeps its bytes (a dense admission day, a stamp's time of
+  day). Still so: the rule reaches tables of 20,000 rows and more, the
+  ones the command describes; below the floor the library keeps its
+  bytes (581 stage 3b cases would turn red), the orchestrator's to
+  confirm; on a table of one row a person a blank person cell is its
+  own holder; a clock time of day beside no person column is counted
+  by the row floor alone; a date written as a number nobody declared
+  is not reached.
 - **Lists of record numbers (lane HX4, P4-D424), still so:** values no
   route reaches (names, dotted ICD codes) or lists split by `+`, `^`,
   `~`, `/`, `.` or `;;` (the last three: 1 of 40 at 600 rows, 13 twin

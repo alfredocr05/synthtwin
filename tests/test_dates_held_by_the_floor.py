@@ -49,6 +49,8 @@ from synthtwin import cli, contract, parsing, profile, taxonomy, validation
 import dates_held
 
 SIZES = (20000, 200000)
+# Named apart, so `-k at20k` never selects the 200,000-row cases too.
+SIZE_IDS = ("at20k", "at200k")
 
 
 @pytest.fixture(scope="module")
@@ -68,7 +70,7 @@ def described(tmp_path_factory: pytest.TempPathFactory):
 # -- (A): no date one to ten people or rows hold is published -------------
 
 
-@pytest.mark.parametrize("rows", SIZES)
+@pytest.mark.parametrize("rows", SIZES, ids=SIZE_IDS)
 @pytest.mark.parametrize("shape", sorted(dates_held.SWEEP))
 def test_no_date_one_to_ten_people_or_rows_hold_is_published(described, shape: str, rows: int) -> None:
     source, folder = described(shape, rows)
@@ -86,7 +88,7 @@ EXPOSED = (
 )
 
 
-@pytest.mark.parametrize("rows", SIZES)
+@pytest.mark.parametrize("rows", SIZES, ids=SIZE_IDS)
 @pytest.mark.parametrize(("shape", "columns"), EXPOSED)
 def test_lane_e0c_exposures_are_counted_in_rows_and_held(described, shape: str, columns: "tuple[str, ...]",
                                                          rows: int) -> None:
@@ -114,7 +116,7 @@ PINNED: "dict[tuple[str, str, int], str]" = {
 }
 
 
-@pytest.mark.parametrize("rows", SIZES)
+@pytest.mark.parametrize("rows", SIZES, ids=SIZE_IDS)
 @pytest.mark.parametrize(("shape", "column"), [(shape, column) for shape in sorted(dates_held.DENSE)
                                                 for column in dates_held.DENSE[shape]])
 def test_a_date_column_the_floor_holds_at_the_day_keeps_its_bytes(described, shape: str, column: str,

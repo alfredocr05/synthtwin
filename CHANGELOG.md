@@ -6,6 +6,28 @@ exists).
 
 ## [Unreleased]
 
+### Every published date held by the floor, counted in people or else in rows (lane PS2, plan P4-D433, 2026-10-25)
+
+**A table of one row a person, or with no person column, no longer
+publishes dates that one to ten rows hold.** Lane E0c's leak scan found
+the zoo's `patients.csv` printing 11 real birth dates a column (the date
+percentiles and both tail boundaries, each one person's date) at 20,000
+rows, and a registry's birth dates which no question flags. Where no
+subject column counts a column of dates in people, each row is now its
+own holder: every date its description would publish is read as the day
+(month, quarter) it names, and one that one to ten rows fall on sends
+the column down lane PS's ladder -- day, month, quarter, year -- with
+each row a holder, or holds it with valid made-up dates in its own
+layouts. The date is counted, not the instant, so a dense admission day
+stays at the day and a stamp keeps its time of day; their bytes do not
+move. The rule reaches every table the command describes, from the
+table floor of 20,000 rows up; below it `synthtwin profile` refuses the
+table and the library keeps its bytes. Two new evidence sentences say
+rows rather than people (contract NF130 and NF131), and so does the
+summary. New KPI `K-HZ-07` (0 such dates published over the zoo and the
+lane's sweep at 20,000 and 200,000 rows); gate
+`tests/test_dates_held_by_the_floor.py`.
+
 ### Batch 4j's records: the data folder's exemption narrowed, the night's 2,000,000-row points written in, the ledger cap set once (2026-10-24)
 
 **Records of batch 4j**, which merged lanes H3 and CODES-3 (plans
