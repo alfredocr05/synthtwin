@@ -48,7 +48,7 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only. Stage 2b was built on `carried-2b-integration`, cut from it at `53bb012`, and lands on it whole |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 14,684 collected (lane PS2's gate, 50 cases, on batch 4j's 14,634: lanes H3, 48 cases, and CODES-3, 133, and batch 4j's records, 9, merged on batch 4i's 14,444; counted by `pytest --collect-only` under Python 3.11 and 3.13 alike and placed by `tools/ci/shards.py --of 5 --prove`, 342 files, every file in exactly one shard; the gate's 200,000-row cases describe its seven tables in about twenty minutes). One process took about 66 minutes when the suite held 9,138 cases (ledger `K-P0-10` carries the seconds); at 13,553, on `b85200be` (batch 4f), the five shards took 24.5 to 48.5 minutes each beside other lanes' runs. In CI it runs as **five shards**. Re-measure here whenever the count moves |
+| suite | 14,699 collected (lane PS2's gate, 65 cases at its repair round 1, on batch 4j's 14,634: lanes H3, 48 cases, and CODES-3, 133, and batch 4j's records, 9, merged on batch 4i's 14,444; counted by `pytest --collect-only` under Python 3.11 and 3.13 alike and placed by `tools/ci/shards.py --of 5 --prove`, 342 files, every file in exactly one shard; the gate runs at 20,000 rows in about ten minutes, its 200,000-row tables in K-HZ-07's slow leg). One process took about 66 minutes when the suite held 9,138 cases (ledger `K-P0-10` carries the seconds); at 13,553, on `b85200be` (batch 4f), the five shards took 24.5 to 48.5 minutes each beside other lanes' runs. In CI it runs as **five shards**. Re-measure here whenever the count moves |
 | KPIs | `tests/kpi/ledger.json`: 248 KPIs over phases 0-4, stages 1, 2, 2b, 3, 3b, 4 and 6, the terminal, the health data zoo and the broad between-columns program, 35 of them headlines under a cap of 35 (raised from 30 at 3b.K, plan P4-D364, for `K-S3-38`; from 31 to 35 by the orchestrator's recorded call D15 of the December plan, plans P4-D397, P4-D399 and P4-D398, for `K-S8-01`, `K-HZ-01`, `K-BC-01` and `K-BC-02`; the owner may veto any); 202 green, 30 open, 16 limits the owner accepted, as the merged ledger of batch 4j reads. Of the 30 open, as each one's `target_stage` reads: 24 have the stage or lane that owns the whole (`K-P4-06` and `K-S6-01` stage 6, `K-P4-22` stage 3, `K-P4-23` the carried reference vectors, `K-S1-06` and `K-S4-04` stage 4, `K-S3-44` lane S4bc2, its one census miss, `K-S4-09` the scale gate, lanes SR, SG and SV, then SX, its describe part OPEN-WORSE on 8a02faa3 under Python 3.11, to be re-stamped by its driver on the merged code in a night window (lane H3's head read 1,420 MB at 2,000,000 x 50 with every candidate open and 1,386 MB with a declared person column, resident, in the night of 2026-10-24), `K-S8-01` the terminal's lanes TT and TS, `K-HZ-01` and `K-HZ-02` the lanes each zoo failure names, lane G2T2 for the one 20,000-row failure that had none, lane MG for the person census and lane PS2 for what lane PS left held or pooled, and `K-BC-01` to `K-BC-13` the broad between-columns program's checkpoint 4); 1 is owned in part (`K-2B-47`: stage 3 the carried fidelity items, lane RT2 the date remainder, 9 missed checks against its bound of 6; its identifier-layout residue of 2026-09-19 has no stage set); 5 have none set (`K-2B-28`, `K-2B-49`, `K-S3-12`, `K-S3-22`, `K-S3-50`). By stage: stage 3's `K-S3-01` to `K-S3-25` (`K-S3-11`, the tail leak, a headline), lane HX's `K-S3-64`, lane HX2's `K-S3-65` and lane AQ's `K-S3-66`; stage 3b's `K-S3-30` to `K-S3-32` and `K-S3-34` to `K-S3-62` (`K-S3-33` retired; `K-S3-31`, the weekday, and `K-S3-38`, time of day, headlines); stage 4's `K-S4-02` to `K-S4-09`, `K-S4-11`, lane SG's `K-S4-12`, `K-S4-15` to `K-S4-22` (`K-S4-10`, `K-S4-13` and `K-S4-14` reserved; `K-S4-03` a headline in `K-2B-14`'s place); stage 6's `K-S6-01` and lane CHa's `K-S6-08`, the chain's tables part, green: no description its keyed draw can publish fixes or bounds a count of 1 to 10, the chain still behind its switch (P4-D418); the terminal's `K-S8-01`, a headline, and `K-S8-04` (lane TI); the zoo's `K-HZ-01`, a headline, `K-HZ-02` and `K-HZ-03` (lane E0a), re-measured on batch 4f's merged code, 20 of 40 kinds passing at 600 rows and 28 at 20,000, 104 analyst checks failing, every failure owned, and lane CODES-3's `K-HZ-04`, the zoo's identifier cells out of pattern, 0; the analyst battery's `K-BC-01` and `K-BC-02`, headlines, and `K-BC-03` to `K-BC-13` (lane E0b). `K-2B-42`, the oracle's independence, is bounded since batch 4c by a share, at most 0.363 of its scored functions close to shipped code, a changed policy whose larger allowance the orchestrator accepted and named (P4-D299). **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
 | CI | runs on every pull request: Python 3.11 to 3.14 on Ubuntu and Windows and 3.14 on macOS, and the minimums job on 3.11 against the declared floors (lane DEP-1, merged 2026-10-20 at batch 4d, P4-D410, on lane MDEP's dependency page, P4-D409: the four runtime libraries numpy, pandas, pyarrow and scipy held to their byte-identity zones; until then five Pythons from 3.10). Since batch 4f (lane DEP-2, P4-D416) three jobs more, each required by `gate`: `bundle-build` (three platforms by four Pythons), `bundle-test` (four Pythons by three systems) and `numba-vectors` (three systems by four Pythons), 27 cells. Its first runs on PR #6 (2026-09-20) were red on what only CI could see -- tests asserting their own machine's answer, a 3.13-only spelling, Windows paths holding `AppData`, workbook cases failing where openpyxl is absent -- each repaired with a guard that now fails HERE; run 39949505139 on `4682d6ad` (batch 4e) passed 59 of 59 jobs and run 39951917644 on `b85200be` (batch 4f) 86 of 86, DEP-2's bundle and numba cells first run there; run 39993807950 on `af69aaef` (batch 4g) 86 of 86, lanes CHa, CHo and ZR-a's first. A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
@@ -450,17 +450,20 @@ cannot get worse unseen.
   each with its owner (lane PS2, P4-D433, kept each of lane PS's
   follow-ups below as a named limit with its reason, none built: each
   changes the count in people or a published census; their owner is
-  the follow-up lane the orchestrator names, written PS3 here; the
-  owners the orchestrator named on 2026-10-23, written at batch 4g's
-  records): a stamp of a few evenly filled hours misses its count of
+  lane PS3, which the orchestrator opens after lane PS2 merges (its
+  ruling of 2026-10-25 13:22); the owners the orchestrator named on
+  2026-10-23, written at batch 4g's records): a stamp of a few evenly filled hours misses its count of
   different values and its count at midnight (`wearables` at 20,000
   rows: 32 of 39 hours, 1,208 rows at midnight against 515), lane PS3;
   a measurement attached to its person (`labs`' `viral_load`) is held
   whole with made-up numbers in its layouts, lane PS3 (no date: outside
   lane PS2's columns); the time of day and the weekday of a stamp
   pooled at the day or coarser beside a person column are not described
-  (admit hour TVD 0.37 at 200,000 rows; a census of hours in people
-  needs its own proof under R10) and the pooled tails are drawn inside
+  (admit hour TVD 0.37 at 200,000 rows; the census of hours in people
+  holds the floor, the fewest 378 people an hour at 20,000 rows, but
+  every day-by-hour cell a draw would read holds one to ten people,
+  so the hours must be drawn apart from the days: a new census, its
+  proof under R10, the draw and its oracle) and the pooled tails are drawn inside
   their end bucket (635 rows on one day against 80), lane PS3; a birth
   date beside about four people a year is held with no span and drawn
   from 2000 to 2029, lane PS3 (a rung of five or ten years, a new rung
@@ -478,13 +481,28 @@ cannot get worse unseen.
   wherever a date it would publish falls on one to ten rows, counted
   by the day it names; a column whose every published day the floor's
   rows hold keeps its bytes (a dense admission day, a stamp's time of
-  day). Still so: the rule reaches tables of 20,000 rows and more, the
-  ones the command describes; below the floor the library keeps its
-  bytes (581 stage 3b cases would turn red), the orchestrator's to
-  confirm; on a table of one row a person a blank person cell is its
-  own holder; a clock time of day beside no person column is counted
-  by the row floor alone; a date written as a number nobody declared
-  is not reached.
+  day). Each cell is counted on the clock its block publishes (its day
+  at UTC where the offsets differ) and a declared count by its true
+  calendar day; the user's raised floor binds as the owner's 11 does;
+  the validator reads the grain a description published, never
+  deciding one; a column the count in rows held is asked no date
+  question (repair round 1). Still so: the rule reaches tables of
+  20,000 rows and more, the ones the command describes, and below the
+  floor the library keeps its bytes (581 stage 3b cases would turn
+  red), a date-floor rule the orchestrator confirmed on 2026-10-25,
+  identifier rules holding at every size; on a table of one row a
+  person a blank person cell is its own holder; a clock time of day
+  beside no person column is counted by the row floor alone; a date
+  written as a number nobody declared is not reached; a column of
+  dates held in PEOPLE is still put the date question Q6, lane PS3; a
+  stamp published on the shared clock and pooled at a rung is drawn
+  inside its local bucket, so the offsets shape's twin misses two
+  points and its weekday census at 20,000 rows while the real table
+  meets them, lane DST (P4-D417's stamps with offsets); a column
+  described at a grain spends one draw a row, so the twin's later
+  columns are drawn again (9,984 of 20,000 cells of a two-level column
+  beside 20,000 consecutive days, its description and its counts
+  unchanged), as every column pooled in people already does.
 - **Lists of record numbers (lane HX4, P4-D424), still so:** values no
   route reaches (names, dotted ICD codes) or lists split by `+`, `^`,
   `~`, `/`, `.` or `;;` (the last three: 1 of 40 at 600 rows, 13 twin

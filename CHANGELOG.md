@@ -26,7 +26,17 @@ table and the library keeps its bytes. Two new evidence sentences say
 rows rather than people (contract NF130 and NF131), and so does the
 summary. New KPI `K-HZ-07` (0 such dates published over the zoo and the
 lane's sweep at 20,000 and 200,000 rows); gate
-`tests/test_dates_held_by_the_floor.py`.
+`tests/test_dates_held_by_the_floor.py`. Its repair round counts each
+cell on the clock its description publishes (its day at UTC where the
+offsets differ) and a declared count by its true calendar day, so Unix
+seconds in the afternoon and milliseconds just before midnight no
+longer publish one row's date; honours the user's raised floor; lets the
+validator read the grain a description published, so an older
+description is still met by its unchanged source; keeps month-first
+dates month-first under `--day-first`; asks no date question of a
+column it held; and never says a repeating person column does not
+repeat. The gate runs at the floor size, the 200,000-row tables in
+`K-HZ-07`'s slow leg.
 
 ### Batch 4j's records: the data folder's exemption narrowed, the night's 2,000,000-row points written in, the ledger cap set once (2026-10-24)
 
