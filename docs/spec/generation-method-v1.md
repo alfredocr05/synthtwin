@@ -15673,8 +15673,8 @@ make it so:
    P4-D432) the census entry of each named layout carrying no exclusion,
    and the column's two lengths beside it, are listed by the validator
    (V4.1-A1) and set aside in the twin's report for a remark naming the
-   values moved. That is the twin keeping no real record
-   number, and it is stated, never hidden.
+   values moved. That is the twin keeping clear of every record number
+   of the table, and it is stated, never hidden.
 
 ## G10. Absent cells, straggler stand-ins, unrepresentable values
 

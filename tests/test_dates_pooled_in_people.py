@@ -1015,7 +1015,7 @@ def test_a_published_layout_no_date_wears_is_written_as_made_up(tmp_path: pathli
     assert "length.max" in listed, listed
     # ...and the twin's report names the values moved where it named the length.
     report = (tmp_path / "unread-twin-report.txt").read_text(encoding="utf-8")
-    assert "values written where no real record number is" in report.split("'visit_date'")[1]
+    assert "values spelled off the table's record numbers" in report.split("'visit_date'")[1]
 
 
 @pytest.mark.parametrize("shape", ("pending", "short"))

@@ -491,9 +491,9 @@ _NOT_CHECKABLE_MOVED_OFF_THE_REAL = (
     "twin holds"
 )
 _NOT_CHECKABLE_EXCLUSIONS = (
-    "the description records what no real record number of each layout "
-    "holds (plan P4-D432), and the twin is written where no real one is; "
-    "no written file is checked against it"
+    "the description records, for each layout, what none of the table's "
+    "record numbers holds there (plan P4-D432), and the twin is written "
+    "off it; no written file is checked against it"
 )
 _NOT_CHECKABLE_REPORT_ONLY = (
     "no CSV can evidence this fact: the description records how the "

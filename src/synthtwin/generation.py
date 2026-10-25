@@ -54377,7 +54377,7 @@ def _spelled_off_the_real(
                         raise errors.ProfileError(
                             f"synthtwin internal check: the twin column "
                             f"'{parsing.visible(column.name)}' has no spelling "
-                            f"left that no real record number can hold. This "
+                            f"left that the table's record numbers leave free. This "
                             f"means a mistake in synthtwin; please report it. "
                             f"Nothing has been written."
                         )
@@ -54395,7 +54395,7 @@ def _spelled_off_the_real(
     return [moved[cell] if cell in moved else cell for cell in cells], [
         Remark(
             column=column.name,
-            subject="values written where no real record number is",
+            subject="values spelled off the table's record numbers",
             held=(
                 f"{len(moved)} different values on {rows} rows, {wider} of "
                 f"them written wider"

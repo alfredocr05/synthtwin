@@ -2690,10 +2690,10 @@ GOLDEN_REPORT_SHA256 = (
     # RE-RECORDED AT LANE ID-ROOM (2026-10-25, plan P4-D432): diffed line
     # by line against the lane's base 2d25b07, the summary's count of
     # cases a reader should know about goes from 1 to 2, and one remark
-    # arrives on `record_code` -- "values written where no real record
-    # number is: 216 different values on 216 rows, 0 of them written
+    # arrives on `record_code` -- "values spelled off the table's record
+    # numbers: 216 different values on 216 rows, 0 of them written
     # wider" and its note. Nothing else differs.
-    "3e45bb53efd42cf6115a4958f2380e218f94437de56f6d4c54d5c3c023a4ea88"
+    "58ae9301f9f72d2cccec8fbb4246b5fd5509dbf4a41f5b31ec96e548a5385e69"
 )
 
 
@@ -3522,7 +3522,7 @@ GOLDEN_QUALITY_SHA256 = (
     # REPORT-ONLY, listed with its sentence -- so 214 become 215 in the
     # two counts that say so; every check and every verdict is as it was,
     # the moved `record_code` cells held as the old ones were.
-    "db7be04a2ced388cc42a0ad42a59981a4e7f4fb178029b1271a458b89112c4ce"
+    "07f7bdbaf9b158357ac8957080f8e9fc9de17853e4347421a398782d13cd6660"
 )
 
 
