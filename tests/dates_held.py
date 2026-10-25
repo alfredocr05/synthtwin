@@ -182,7 +182,7 @@ SWEEP: "dict[str, health_zoo.Table]" = {
     # subject column repeats and the birth dates are counted in rows.
     "phi_registry": _table("phi_registry", phi_registry, PHI_COLUMNS, {
         "med_rec_no": "identifier", "patient_name": "keep", "street_address": "keep",
-        "phone": "keep", "email": "keep", "ssn": "keep", "zip5": "keep",
+        "phone": "keep", "email": "keep", "ssn": "keep", "zip5": "code",
     }),
 }
 DENSE: "dict[str, tuple[str, ...]]" = {
@@ -213,15 +213,25 @@ def answered(table: health_zoo.Table, folder: pathlib.Path, rows: int) -> pathli
 
     source = health_zoo.write_table(table, folder, rows, SEED)
     refused = rows >= 20000
+    asked = folder / f"{table.name}-questions.json"
     with nobody_at_the_keyboard():
         _quietly(["profile", f"{source}", "--out-dir", f"{folder}", "--replace"], refused)
-        asked = folder / f"{table.name}-questions.json"
-        if asked.exists():
+        # An answer may put the next question (a column answered `keep` to
+        # the person question is then asked what it holds): the person
+        # answers each round the file asks something they know, three at most.
+        for _round in range(ROUNDS):
+            if not asked.exists():
+                break
             document = json.loads(asked.read_text(encoding="utf-8"))
-            health_zoo.answer_generally(table, document)
+            answers, _general = health_zoo.answer_generally(table, document)
+            if not [answer for answer in answers if answer["given"]]:
+                break
             asked.write_text(json.dumps(document, indent=2), encoding="utf-8", newline="\n")
             _quietly(["profile", f"{source}", "--out-dir", f"{folder}", "--replace", "--answers", f"{asked}"], refused)
     return source
+
+
+ROUNDS = 3
 
 
 def block_of(folder: pathlib.Path, table: str, column: str) -> "dict[str, object]":
@@ -246,9 +256,15 @@ def dates_held_few(table: pathlib.Path, folder: pathlib.Path) -> "dict[str, obje
     asked = folder / f"{stem}-questions.json"
     questions = json.loads(asked.read_text(encoding="utf-8")) if asked.exists() else None
     names, columns = persons_counted.table_columns(table, *persons_counted._written(described))
+    # A question answered in an earlier round is asked again only to show
+    # the reading it keeps (`answered_before`): not an open question.
+    settled = {
+        entry["column"] for entry in (questions or {}).get("answered_before", [])
+        if entry.get("your_answer") and entry.get("column") not in described["settings"]["person_columns"]
+    }
     people = [
         name for name in persons_counted.subject_columns(described, questions)
-        if name in names
+        if name in names and name not in settled
         and persons_counted.repeats(columns[names.index(name)])
         and persons_counted.counts_people([persons_counted.subject_of(cell) for cell in columns[names.index(name)]])
     ]
