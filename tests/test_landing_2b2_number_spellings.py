@@ -486,8 +486,7 @@ def test_whole_numbers_with_a_point_between_thousands_are_asked_about(
     """`12.345` is read as twelve and a bit, and the person is asked, with --decimal-comma offered."""
     # THE SAFE HARBOR REACH (plan P4-D427, its second repair) holds whole
     # numbers of four and five figures, so read, until `no` whatever their
-    # other answer but `code`; these are amounts, so the person answers
-    # `no`.
+    # other answer; these are amounts, so the person answers `no`.
     keyboard.safe_harbor_answered_no(monkeypatch)
     draw = random.Random(6)
     cells = [f"{draw.randint(1000, 99999):,}".replace(",", ".") for _ in range(800)]

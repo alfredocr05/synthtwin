@@ -53,8 +53,7 @@ The mutants of wave6/SH/r1/sh_mutants_r1.py turn it red.
 THE SECOND REPAIR (the combined verify on 9ccb6bc7, wave6/SH-verify.md):
 the column's other question answered -- the padded question `measurement`
 for NAACCR's three-figure ages, the date-count, person or two-numbers
-question `measurement` or `keep` for ZIP codes (`code` is CODES-2's, lane
-HX's ruling of 2026-10-16) --
+question `measurement` or `keep` for ZIP codes --
 puts the Safe Harbor question in that run, one question a column, and
 publishes no age over 89 and no ZIP meanwhile
 (`shapes.SAFE_HARBOR_ANSWERED`, at 600 and 20,000 rows); every open
@@ -63,6 +62,18 @@ undeclared decimal comma is read where the point reads no number; a
 nine-figure whole number is a ZIP+4 written without its hyphen; and the
 twin's clamp keeps the declared missing cells. The mutants of
 wave6/SH/r2/sh_mutants_r2.py turn it red.
+
+THE THIRD REPAIR (verify 2 on 9a333e46, wave6/SH-verify2.md, and the
+orchestrator's rulings R1 and R2 of 2026-10-25, HIPAA first): `code` is no
+release either. A ZIP-shaped column answered or declared `code` stays held
+and is put the Safe Harbor question in that run, only `no` freeing it
+(LANE SH ADDENDA 7 and 8: 40 of 40 ZIPs printed at 20,000 rows on
+9a333e46, and the zoo's own `patients.zip5`, 12 of 12 on every twin cell);
+and a column in the age reach is top-coded whatever its other answer,
+`code` included (NAACCR's ages answered `code` printed 93 and 100 to 105,
+the twin 572 cells over 90). The zoo answers that question truthfully:
+`yes`, a ZIP names a place smaller than a state. The mutants of
+wave6/SH/r3/sh_mutants_r3.py turn it red.
 """
 
 from __future__ import annotations
@@ -164,8 +175,10 @@ def test_an_answer_to_the_other_question_puts_the_safe_harbor_question(
     """Items 1 and 6 of the second repair: no other answer frees an age over 89 or a ZIP.
 
     NAACCR's Age at Diagnosis answered `measurement` printed 91 to 105
-    and its twin wrote 606 cells over 90; ZIP codes answered
-    `measurement` or `keep` printed 40 of 40. Each answer is kept, the
+    and its twin wrote 606 cells over 90, and answered `code` 93 and 100
+    to 105 with 572 cells over 90; ZIP codes answered `measurement`,
+    `keep` or `code` printed 40 of 40 (the third repair: `code` too, the
+    orchestrator's rulings R1 and R2). Each answer is kept, the
     Safe Harbor question is the one question put, and the column is
     top-coded (ages) or held (ZIPs) until `no`.
     """
@@ -189,6 +202,35 @@ def test_an_answer_to_the_other_question_puts_the_safe_harbor_question(
         # styles of the unpadded `999` (at 20,000 rows) -- a generation
         # limit outside lane SH (wave6/SH/r2, wave6/SH-verify.md).
         assert seen["twin_misses"] == seen["control_twin_misses"], seen
+
+
+@pytest.mark.parametrize("rows", [600, 20000])
+def test_the_zoos_zip_codes_answered_code_stay_held(tmp_path: pathlib.Path, rows: int) -> None:
+    """The third repair (ruling R1; LANE SH ADDENDA 8 and 9): the zoo's own `zip5`, answered `code`.
+
+    On 9a333e46 its answer `code` printed 11 of 12 real ZIPs at 600 rows
+    and 12 of 12 at 20,000, written on every twin cell. Now the Safe
+    Harbor question follows that answer in the next run, one question at
+    a time; the zoo answers it truthfully, `yes` (a place smaller than a
+    state), and the column stays held: 0 real ZIPs in any file and the
+    twin, `zip4`'s heads among them, and the analyst's `levels zip5`
+    fails, the HIPAA price K-HZ-02 counts.
+    """
+    seen = shapes.run_zoo_zips(tmp_path, rows)
+    assert seen["steps"] == {"profile": 0, "answers": 0, "generate": 0, "validate": 0}, seen
+    assert seen["description_values"] == 0, seen
+    assert seen["description_fragments"] == 0, seen
+    assert seen["twin_cells"] == 0, seen
+    assert seen["twin_fragments"] == 0, seen
+    roles = seen["roles"]
+    assert isinstance(roles, dict)
+    assert roles["zip5"] == roles["zip4"] == taxonomy.ROLE_IDENTIFIER, seen
+    asked = seen["asked"]
+    assert isinstance(asked, list) and len(asked) == 2, seen
+    assert asked[0][1] == asking.ANSWER_CODE, seen
+    assert asked[1] == ([asking.ANSWER_SAFE_HARBOR_NO, asking.ANSWER_SAFE_HARBOR_YES],
+                        asking.ANSWER_SAFE_HARBOR_YES), seen
+    assert "levels zip5" in f"{seen['analyst']}", seen
 
 
 # -- the reach, cell by cell ----------------------------------------------

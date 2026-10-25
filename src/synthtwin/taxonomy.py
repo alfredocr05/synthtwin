@@ -26488,13 +26488,14 @@ def safe_harbor_reach(
     to be set aside as a placeholder whatever its share (three such
     values at most, `_placeholder_rows`); ``levels``: whether the
     column's role prints its values as levels; ``padded_answered``:
-    whether a person said the column is a measurement (P4-D401's padded
-    question answered, or declared), or an open question holds it. Ages: the cells
+    whether a person said the column is a measurement or a code (P4-D401's
+    padded question answered, or declared), or an open question holds it. Ages: the cells
     that remain within 0 to 125 but for fewer than ``floor`` or at most
     one in twenty, one of 90 or more among them, and at most half of
     them written with a leading zero unless ``padded_answered`` (the
     second repair of lane SH, item 1: NAACCR's Age at Diagnosis, `000`
-    to `120`, answered `measurement` printed 91 to 105). ZIPs: at least two in three of the
+    to `120`, answered `measurement` printed 91 to 105, and `code` 93
+    and 100 to 105, the orchestrator's ruling R2 of 2026-10-25). ZIPs: at least two in three of the
     cells that remain whole numbers of five figures, of four with no
     leading zero (a ZIP that lost it) or ZIP+4 forms, none grouped
     between its thousands, and one of five among them unless ``levels``

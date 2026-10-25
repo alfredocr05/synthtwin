@@ -4853,23 +4853,22 @@ def _run_profile(
     # cell, three `HOMELESS`, `-99` on a third of the rows -- were read as
     # a count, binary, constant or labels with nothing asked and printed
     # every real ZIP. Held whoever is at the keyboard, since that question
-    # is put in the questions file. NEITHER `measurement` NOR `keep` FREES
-    # IT (the second repair of lane SH, item 6): the other questions ask
-    # about record numbers, dates and codes, not places, and each such
-    # answer released 40 of 40 real ZIPs with no Safe Harbor question put;
-    # it, or the same declaration, leaves the column held and the Safe
-    # Harbor question is put in that run. A column answered or declared
-    # `code` is CODES-2's, which decides by its allowlist which codes are
-    # published (the orchestrator's ruling for lane HX of 2026-10-16); a
-    # declaration that reads the column as record numbers, dates or times
-    # takes it out of the reach, as before; `yes` holds it (Codex's review
-    # of lane SH, item 8: the column then stays held and the question is
-    # not put again). A column of ages whose top-code would make cells
-    # missing is held so too. It is no subject the other columns are
-    # counted in: it names a place.
+    # is put in the questions file. ONLY `no` FREES IT (the second repair
+    # of lane SH, item 6, and its third, the orchestrator's ruling R1 of
+    # 2026-10-25 on ADDENDA 7 and 8): the other questions ask about record
+    # numbers, dates and codes, not places, so `code`, `measurement` or
+    # `keep` is the truthful answer for a ZIP, and each released 40 of 40
+    # real ZIPs with no Safe Harbor question put (`code` the zoo's own
+    # `zip5` too: 12 of 12); such an answer, or the same declaration,
+    # leaves the column held and the Safe Harbor question is put in that
+    # run, one question at a time. A declaration that reads the column as
+    # record numbers, dates or times takes it out of the reach, as before;
+    # `yes` holds it (Codex's review of lane SH, item 8: the column then
+    # stays held and the question is not put again). A column of ages
+    # whose top-code would make cells missing is held so too. It is no
+    # subject the other columns are counted in: it names a place.
     declared_five = (
         forced_identifiers
-        + forced_codes
         + list(twelve_hours)
         + list(date_columns)
         + sorted(counted)

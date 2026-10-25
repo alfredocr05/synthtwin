@@ -35,9 +35,11 @@ and counts what is real:
   20,000 rows and an age twin missing only what the top-coded table's
   own twin misses. And the same over `SAFE_HARBOR_ANSWERED` (the second
   repair of lane SH): each shape once its column's other question is
-  answered -- NAACCR's three-figure ages `measurement`, ZIP codes
-  `measurement` or `keep` -- where the Safe Harbor question is then put.
-  Target 0.
+  answered -- NAACCR's three-figure ages `measurement` or `code`, ZIP
+  codes `measurement`, `keep` or `code` (its third repair, the
+  orchestrator's ruling R1 of 2026-10-25) -- where the Safe Harbor
+  question is then put; and the zoo's own `patients.zip5` (`ZOO_ZIPS`),
+  answered `code` and then `yes` as the zoo's person answers. Target 0.
 - over the STATED shapes (a name, a street address, a full birth date on
   a long table with no subject column, so no people to count in; plan
   P4-D406 item (a)): real values in the description and twin cells
@@ -125,12 +127,32 @@ with tempfile.TemporaryDirectory() as scratch:
                 and missed <= {"distinct.n_distinct_by_occurrences"}
             ):
                 held["twins_failing_validation"] += 1
+        # ...and the zoo's own ZIP codes, answered `code` and then `yes`
+        # (the third repair of lane SH, ruling R1 of 2026-10-25).
+        for kind in shapes.ZOO_ZIPS:
+            folder = pathlib.Path(scratch) / f"zoo-{rows}"
+            folder.mkdir()
+            seen = shapes.run_zoo_zips(folder, rows)
+            steps = seen["steps"]
+            assert isinstance(steps, dict)
+            if steps.get("profile") != 0 or steps.get("answers") != 0 or steps.get("generate") != 0:
+                raise SystemExit(f"{kind} at {rows} rows: {steps}")
+            lines += [f"{kind} code, then yes {rows:6d} rows: role {seen['roles']}, "
+                      f"{seen['description_values']} of {seen['different']} real values in the "
+                      f"outputs, {seen['description_fragments']} fragments, "
+                      f"{seen['twin_cells']} twin cells real, validate {steps.get('validate')}"]
+            for key in held:
+                if key != "twins_failing_validation":
+                    held[key] = held[key] + int(seen[key])  # type: ignore[call-overload]
+            if steps.get("validate") != 0:
+                held["twins_failing_validation"] += 1
 for line in lines:
     print(line)
 value = dict(held)
 value.update(stated)
 held_shapes = (len(shapes.HELD) + len(shapes.BESIDE) + len(shapes.COUNTED)
-               + len(shapes.SAFE_HARBOR_NUMBERS) + len(shapes.SAFE_HARBOR_ANSWERED))
+               + len(shapes.SAFE_HARBOR_NUMBERS) + len(shapes.SAFE_HARBOR_ANSWERED)
+               + len(shapes.ZOO_ZIPS))
 value["shapes"] = len(SIZES) * (held_shapes + len(shapes.STATED))
 kpi_rules.emit("K-S3-64", value, f"{len(SIZES)} sizes x {held_shapes} held and "
                f"{len(shapes.STATED)} stated shapes")

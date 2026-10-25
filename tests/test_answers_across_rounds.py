@@ -502,9 +502,9 @@ def test_three_rounds_write_one_rounds_bytes(tmp_path: pathlib.Path, cut: "tuple
     """The nine answers given over three rounds, cut at two places, are one round's."""
     # THE SAFE HARBOR REACH (plan P4-D427, its second repair) asks its own
     # question of the register `reg` and holds the points `amount`, read
-    # as five figures or as ages, until `no` whatever their other answer
-    # but `code`; they name no place, so the person answers `no`, and the
-    # rounds are those of the other questions.
+    # as five figures or as ages, until `no` whatever their other answer;
+    # they name no place, so the person answers `no`, and the rounds are
+    # those of the other questions.
     keyboard.safe_harbor_answered_no(monkeypatch)
     table = mixed_table(tmp_path)
     plan = [list(_MIXED_ANSWERS[: cut[0]]), list(_MIXED_ANSWERS[cut[0] : cut[1]]), list(_MIXED_ANSWERS[cut[1] :])]
@@ -576,9 +576,9 @@ def test_a_later_round_changes_an_earlier_answer(tmp_path: pathlib.Path, monkeyp
     """
     # THE SAFE HARBOR REACH (plan P4-D427, its second repair) asks its own
     # question of the register `reg` and holds the points `amount`, read
-    # as five figures or as ages, until `no` whatever their other answer
-    # but `code`; they name no place, so the person answers `no`, and the
-    # rounds are those of the other questions.
+    # as five figures or as ages, until `no` whatever their other answer;
+    # they name no place, so the person answers `no`, and the rounds are
+    # those of the other questions.
     keyboard.safe_harbor_answered_no(monkeypatch)
     table = mixed_table(tmp_path)
     assert profile(table) == 0
@@ -630,9 +630,9 @@ def test_a_later_answer_to_the_question_asked_again_wins(tmp_path: pathlib.Path,
     """
     # THE SAFE HARBOR REACH (plan P4-D427, its second repair) asks its own
     # question of the register `reg` and holds the points `amount`, read
-    # as five figures or as ages, until `no` whatever their other answer
-    # but `code`; they name no place, so the person answers `no`, and the
-    # rounds are those of the other questions.
+    # as five figures or as ages, until `no` whatever their other answer;
+    # they name no place, so the person answers `no`, and the rounds are
+    # those of the other questions.
     keyboard.safe_harbor_answered_no(monkeypatch)
     table = mixed_table(tmp_path)
     assert profile(table) == 0
@@ -1012,9 +1012,9 @@ def test_every_typed_form_replaces_a_kept_answer(tmp_path: pathlib.Path, form: s
     """Each option `_typed_answers` maps, typed over a kept answer about its column: the typed one wins."""
     # THE SAFE HARBOR REACH (plan P4-D427, its second repair) asks its own
     # question of the register `reg` and holds the points `amount`, read
-    # as five figures or as ages, until `no` whatever their other answer
-    # but `code`; they name no place, so the person answers `no`, and the
-    # rounds are those of the other questions.
+    # as five figures or as ages, until `no` whatever their other answer;
+    # they name no place, so the person answers `no`, and the rounds are
+    # those of the other questions.
     keyboard.safe_harbor_answered_no(monkeypatch)
     typed_case(tmp_path, form)
 
@@ -1264,9 +1264,9 @@ def test_a_measurement_and_its_comma_are_both_kept(tmp_path: pathlib.Path, monke
     """
     # THE SAFE HARBOR REACH (plan P4-D427, its second repair) asks its own
     # question of the register `reg` and holds the points `amount`, read
-    # as five figures or as ages, until `no` whatever their other answer
-    # but `code`; they name no place, so the person answers `no`, and the
-    # rounds are those of the other questions.
+    # as five figures or as ages, until `no` whatever their other answer;
+    # they name no place, so the person answers `no`, and the rounds are
+    # those of the other questions.
     keyboard.safe_harbor_answered_no(monkeypatch)
     for route, first, then in (
         ("handed-back", ["--measurement", "dose", "--decimal-comma", "dose"], []),

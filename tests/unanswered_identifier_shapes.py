@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import contextlib
 import csv
+import dataclasses
 import io
 import json
 import pathlib
@@ -619,8 +620,19 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
 #   (`zip5word52_unknown`), the person question (`zip52_unknown40`,
 #   `UNKNOWN` on 40 % of rows) or the two-numbers question
 #   (`zipplus4_30`, `zipplus4_1234`): the Safe Harbor question is put and
-#   the column held until `no`. A column answered `code` is CODES-2's
-#   (lane HX's ruling of 2026-10-16).
+#   the column held until `no`.
+#
+# THE THIRD REPAIR OF LANE SH (its verify 2 on 9a333e46, wave6/SH-verify2.md,
+# and the orchestrator's rulings R1 and R2 of 2026-10-25): `code` is no
+# release either. ZIPs answered `code` to the date-count question
+# (`zip5word52_unknown`: 40 of 40 printed at 20,000 rows on 9a333e46), the
+# person question (`zip52_unknown40`: 40 of 40) or the two-numbers
+# question (`zipplus4_30`, `zipplus4_1234`), and four-figure ZIPs that lost
+# their nought beside five-figure ones declared `code` (`zip_lost`, lane
+# E0c's `excel_mangled.zip_lost` rebuilt from the orchestrator's LANE SH
+# ADDENDUM 8: 11 real ZIPs on every twin cell), stay held and are put the
+# Safe Harbor question; and NAACCR's ages answered `code` (93 and 100 to
+# 105 printed, 572 twin cells over 90) are top-coded as `measurement` is.
 ZIP_WORDS = ("zip5word_unknown", "zip5word_homeless", "zip5word52_unknown",
              "zip5word52_homeless")
 ZIPS = ZIP_WORDS + (
@@ -629,7 +641,7 @@ ZIPS = ZIP_WORDS + (
     "zip_plus_sign", "zip4_binary", "zip4_constant", "zip_pad_unknown",
     "zip_pad_unknown35", "zip_mixed_unknown", "zip4_99999_unknown",
     "zip4_minus9999", "zip4_999999", "acct_date_count", "zipplus4_all",
-    "zip9_unk", "zip9pad_unk", "zipplus4_30",
+    "zip9_unk", "zip9pad_unk", "zipplus4_30", "zip_lost",
 )
 # The shapes counted only once their column's other question is answered.
 ZIPS_ANSWERED_ONLY = ("zip52_unknown40", "zipplus4_1234")
@@ -650,9 +662,12 @@ SAFE_HARBOR_NUMBERS = ZIPS + AGES
 SAFE_HARBOR_ANSWERED = (
     ("naaccr", "measurement"), ("zip5word52_unknown", "measurement"),
     ("zip52_unknown40", "keep"), ("zipplus4_30", "keep"), ("zipplus4_1234", "keep"),
+    # ...and `code` (the third repair, rulings R1 and R2).
+    ("naaccr", "code"), ("zip5word52_unknown", "code"), ("zip52_unknown40", "code"),
+    ("zipplus4_30", "code"), ("zipplus4_1234", "code"), ("zip_lost", "code"),
 )
 # The answers an option types.
-_TYPED = {"measurement": "--measurement"}
+_TYPED = {"measurement": "--measurement", "code": "--code"}
 # The tables written with `;` between their cells.
 _SEMICOLON = ("agescomma",)
 AGE_TOP_CODE = 90
@@ -760,6 +775,11 @@ def _zip_cells(kind: str, rows: int, draw: random.Random) -> "tuple[list[str], l
         cells = ["2100"] * rows
     elif kind == "zip_mixed":
         cells = [mixed[row % 4] for row in range(rows)]
+    elif kind == "zip_lost":
+        # A spreadsheet that dropped the nought: six four-figure ZIPs
+        # (`2100` for `02100`) beside six five-figure ones.
+        lost = [f"{2100 + 7 * k}" for k in range(6)] + [f"{52240 + 7 * k}" for k in range(6)]
+        cells = [draw.choice(lost) for _row in range(rows)]
     else:
         base, word, share = {
             "zip_pad_minus99": (padded, "-99", 0.35),
@@ -1104,3 +1124,106 @@ def run_safe_harbor(
                   "twin_cells": _twin_ages_over([f"{cell}" for cell in twin]),
                   "twin_fragments": 0, "differing": differing})
     return found
+
+
+# THE ZOO'S OWN ZIP CODES (the third repair of lane SH; the orchestrator's
+# LANE SH ADDENDA 8 and 9 and ruling R1): `tests/health_zoo.py`'s patients
+# export, whose `zip5` its person answers `code` and, in the next round,
+# its Safe Harbor question truthfully `yes`; `zip4`'s ZIP+4 cells open
+# with the same ZIP codes. One shape, counted with the rest in K-S3-64.
+ZOO_ZIPS = ("patients.zip5",)
+
+
+def run_zoo_zips(folder: pathlib.Path, rows: int) -> "dict[str, object]":
+    """The zoo's patients export end to end, its own answers given; what its ZIPs left in every output.
+
+    `health_zoo.run_table` profiles, answers in as many rounds as the
+    questions file opens, generates and validates (seed 0); the screen of
+    every run is kept, and the real table is validated against the
+    description too, so its quality report is read with the rest. The
+    real values are the ZIP codes `zip5` writes and `zip4`'s cells open
+    with, counted as every held shape is (`count_real`) over the
+    description, its summary, the questions file, the twin's report, both
+    quality reports and the screen, and over both columns of the twin.
+    """
+    import health_zoo as zoo
+
+    screens = {"text": ""}
+    real_main = cli.main
+
+    def main(arguments: "list[str]") -> int:
+        sink = io.StringIO()
+        with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
+            code = real_main(arguments)
+        screens["text"] += sink.getvalue()
+        return code
+
+    cli.main = main  # type: ignore[assignment]
+    try:
+        with nobody_at_the_keyboard():
+            result = zoo.run_table(zoo.table_named("patients"), folder, rows, 0)
+    finally:
+        cli.main = real_main  # type: ignore[assignment]
+    checked = folder / "real"
+    checked.mkdir()
+    with nobody_at_the_keyboard(), contextlib.redirect_stdout(io.StringIO()), \
+            contextlib.redirect_stderr(io.StringIO()):
+        validated_real = cli.main(["validate", f"{folder / 'patients-profile.json'}", "--twin",
+                                   f"{folder / 'patients.csv'}", "--out-dir", f"{checked}",
+                                   "--replace"])
+    source = folder / "patients.csv"
+    twin_path = folder / "patients-twin.csv"
+    real = sorted(set(_csv_column(source, 9)) | {cell[:5] for cell in _csv_column(source, 10)})
+    twin = _csv_column(twin_path, 9) + [cell[:5] for cell in _csv_column(twin_path, 10)]
+    texts = [path.read_text(encoding="utf-8") for path in sorted(folder.glob("patients-*"))
+             if path.suffix in (".json", ".txt")]
+    texts += [path.read_text(encoding="utf-8") for path in sorted(checked.glob("*.txt"))]
+    texts += [screens["text"]]
+    described = json.loads((folder / "patients-profile.json").read_text(encoding="utf-8"))
+    found: "dict[str, object]" = dict(count_real(real, texts, twin))
+    if found["twin_cells"]:
+        # A MADE-UP VALUE EQUAL TO A REAL ONE BY CHANCE, counted apart as
+        # `run_safe_harbor` counts it: the held twin writes made-up ZIP
+        # codes over the column's whole layout, drawn from the description
+        # alone, and the same export with every ZIP written as another
+        # (`_decoy`) twins the same values (twelve ZIP codes among a
+        # hundred thousand five-figure numbers meet about 2.4 of 20,000
+        # made-up cells).
+        decoy_folder = folder / "decoy"
+        decoy_folder.mkdir()
+        decoy_twin = _zoo_decoy_twin(zoo, decoy_folder, rows)
+        again = count_real(real, [], [cell for cell in twin if cell not in decoy_twin])
+        found["twin_cells_by_chance"] = int(found["twin_cells"]) - again["twin_cells"]  # type: ignore[call-overload]
+        found["twin_cells"] = again["twin_cells"]
+        found["twin_fragments"] = again["twin_fragments"]
+    found.update({
+        "different": len(real),
+        "steps": {step: done["exit"] for step, done in result["steps"].items()},
+        "validate_real_exit": validated_real,
+        "roles": {f"{column['name']}": f"{column['role']}" for column in described["columns"]},
+        "asked": [(entry["offered"], entry["given"]) for entry in result["asked"]
+                  if entry["column"] == "zip5"],
+        "analyst": [failure[1] for failure in result["analyst"] if failure[0] == "demographics"],
+    })
+    return found
+
+
+def _zoo_decoy_twin(zoo: object, folder: pathlib.Path, rows: int) -> "set[str]":
+    """The twin's ZIP cells (`zip4`'s heads) of the zoo's patients export with every ZIP written as another."""
+    table = zoo.table_named("patients")  # type: ignore[attr-defined]
+
+    def build(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+        header, built = table.build(n, seed)
+        five, plus = header.index("zip5"), header.index("zip4")
+        moved: "list[list[str]]" = []
+        for row in built:
+            row = list(row)
+            row[five] = _decoy(row[five])
+            row[plus] = _decoy(row[plus])
+            moved += [row]
+        return header, moved
+
+    with nobody_at_the_keyboard():
+        zoo.run_table(dataclasses.replace(table, build=build), folder, rows, 0)  # type: ignore[attr-defined]
+    twin_path = folder / "patients-twin.csv"
+    return set(_csv_column(twin_path, 9)) | {cell[:5] for cell in _csv_column(twin_path, 10)}
