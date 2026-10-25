@@ -54345,10 +54345,10 @@ def _spelled_off_the_real(
     exclusions = facts.layout_exclusions
     if not exclusions:
         return cells, []
-    room = _OffTheReal(facts, holes)
+    room = _off_the_real_room(facts, holes)
     for cell in cells:
         if cell not in room.written:
-            room.claim(cell)
+            _claimed(room, cell)
     groups: "dict[str, list[str]]" = {}
     order: "list[str]" = []
     seen: "dict[str, bool]" = {}
@@ -54365,14 +54365,14 @@ def _spelled_off_the_real(
     wider = 0
     for identity in order:
         members = groups[identity]
-        if all(room.kept(member) for member in members):
+        if all(_kept_off_the_real(room, member) for member in members):
             continue
-        together = room.respelled_together(members) if len(members) > 1 else None
+        together = _respelled_together(room, members) if len(members) > 1 else None
         if together is None:
             together = {}
             for member in members:
-                if not room.kept(member):
-                    together[member] = room.respelled(member)
+                if not _kept_off_the_real(room, member):
+                    together[member] = _respelled(room, member)
                     if not together[member]:
                         raise errors.ProfileError(
                             f"synthtwin internal check: the twin column "
@@ -54383,7 +54383,7 @@ def _spelled_off_the_real(
                         )
         for member in sorted(together):
             moved[member] = together[member]
-            room.claim(together[member])
+            _claimed(room, together[member])
             if len(together[member]) > len(member):
                 wider = wider + 1
     if not moved:
@@ -54416,183 +54416,229 @@ def _spelled_off_the_real(
 _OFF_THE_REAL_TRIES = 4096
 
 
+@dataclasses.dataclass(frozen=True)
 class _OffTheReal:
-    """What `_spelled_off_the_real` reads and spends: the templates, the steps, the spellings taken."""
+    """What `_spelled_off_the_real` reads and spends: the templates, the steps, the spellings taken.
 
-    def __init__(self, facts: contract.IdentifierFacts, holes: "tuple[str, ...]") -> None:
-        exclusions = facts.layout_exclusions
-        self.facts = facts
-        self.holes = holes
-        self.convention = _layout_convention(facts)
-        self.whole = ""
-        if parsing.PREFIX_OF_THE_COLUMN in facts.layout_prefixes:
-            self.whole = facts.layout_prefixes[parsing.PREFIX_OF_THE_COLUMN]
-        self.whole_places = facts.all_whole_numbers and _any_whole_places(
-            facts.layout_forms
-        )
-        self.templates: "dict[str, str]" = {}
-        # ...and each in lower case under its folded layout: a case flip of
-        # a value its exclusion keeps is kept too (contract 7.12b reads a
-        # layout's exclusion over every real core folding to its layout).
-        self.folded: "dict[str, list[str]]" = {}
-        for layout in _named_layouts(facts):
-            if layout in exclusions:
-                self.templates[layout] = parsing.written_excluded(
-                    parsing.layout_template(
-                        layout, _prefix_of(facts, layout), self.whole_places
-                    ),
-                    exclusions[layout],
-                )
-                folded = parsing.folded_layout(layout)
-                if folded not in self.folded:
-                    self.folded[folded] = []
-                self.folded[folded] += [
-                    parsing.folded_layout(self.templates[layout]).lower()
-                ]
-        self.spill = ""
-        self.bound = 0
-        if parsing.EXCLUSION_SPILL in exclusions:
-            self.spill = parsing.layout_template(
-                exclusions[parsing.EXCLUSION_SPILL], self.whole, self.whole_places
+    ``templates`` maps each named layout carrying an exclusion to its
+    excluded template; ``lowered`` maps each folded layout to those
+    templates in lower case (a case flip of a value kept is kept too:
+    contract 7.12b reads a layout's exclusion over every real core folding
+    to its layout); ``bound`` is the spill's length, which every real cell
+    is shorter than. ``written``, ``folds`` and ``steps`` are filled as
+    the pass goes.
+    """
+
+    facts: contract.IdentifierFacts
+    holes: "tuple[str, ...]"
+    convention: str
+    whole: str
+    whole_places: bool
+    templates: "dict[str, str]"
+    lowered: "dict[str, list[str]]"
+    spill: str
+    bound: int
+    unnamed: bool
+    written: "dict[str, bool]"
+    folds: "dict[str, bool]"
+    steps: "dict[str, int]"
+
+
+def _off_the_real_room(
+    facts: contract.IdentifierFacts, holes: "tuple[str, ...]"
+) -> _OffTheReal:
+    """The room `_spelled_off_the_real` spends, read off the description alone."""
+    exclusions = facts.layout_exclusions
+    convention = _layout_convention(facts)
+    whole = ""
+    if parsing.PREFIX_OF_THE_COLUMN in facts.layout_prefixes:
+        whole = facts.layout_prefixes[parsing.PREFIX_OF_THE_COLUMN]
+    whole_places = facts.all_whole_numbers and _any_whole_places(facts.layout_forms)
+    templates: "dict[str, str]" = {}
+    lowered: "dict[str, list[str]]" = {}
+    for layout in _named_layouts(facts):
+        if layout in exclusions:
+            templates[layout] = parsing.written_excluded(
+                parsing.layout_template(layout, _prefix_of(facts, layout), whole_places),
+                exclusions[layout],
             )
-            # Every real cell is shorter than the spill (contract 7.12b).
-            self.bound = len(self.spill)
-        self.unnamed = (
+            folded = parsing.folded_layout(layout)
+            if folded not in lowered:
+                lowered[folded] = []
+            lowered[folded] += [
+                parsing.folded(parsing.folded_layout(templates[layout]))
+            ]
+    spill = ""
+    if parsing.EXCLUSION_SPILL in exclusions:
+        spill = parsing.layout_template(
+            exclusions[parsing.EXCLUSION_SPILL], whole, whole_places
+        )
+    return _OffTheReal(
+        facts=facts,
+        holes=holes,
+        convention=convention,
+        whole=whole,
+        whole_places=whole_places,
+        templates=templates,
+        lowered=lowered,
+        spill=spill,
+        # Every real cell is shorter than the spill (contract 7.12b).
+        bound=len(spill),
+        unnamed=(
             parsing.EXCLUSION_UNNAMED in exclusions
             and exclusions[parsing.EXCLUSION_UNNAMED] == parsing.EXCLUSION_NONE
-        )
-        self.written: "dict[str, bool]" = {}
-        self.folds: "dict[str, bool]" = {}
-        self.steps: "dict[str, int]" = {}
+        ),
+        written={},
+        folds={},
+        steps={},
+    )
 
-    def claim(self, spelling: str) -> None:
-        """Record a spelling, and its folded identity, as written."""
-        self.written[spelling] = True
-        self.folds[parsing.folded(spelling)] = True
 
-    def kept(self, cell: str) -> bool:
-        """Whether a twin cell is spelled as no real cell can be (G9.6b)."""
-        core = parsing.trimmed(cell)
-        layout = parsing.layout_form(core, self.convention)
-        if layout in self.templates and _wears_template(
-            core, self.templates[layout], self.convention
-        ):
-            return True
-        folded = parsing.folded_layout(layout)
-        if folded in self.folded:
-            for template in self.folded[folded]:
-                if _wears_template(core.lower(), template, self.convention):
-                    return True
-        if self.bound and len(cell) >= self.bound:
-            return True
-        return bool(layout) and self.unnamed and layout not in self.facts.layout_forms
+def _claimed(room: _OffTheReal, spelling: str) -> None:
+    """Record a spelling, and its folded identity, as written."""
+    room.written[spelling] = True
+    room.folds[parsing.folded(spelling)] = True
 
-    def targets(self, core: str) -> "list[str]":
-        """The templates a value of this core is offered, nearest its own shape first."""
-        layout = parsing.layout_form(core, self.convention)
-        offered: "list[str]" = []
-        if layout in self.templates:
-            offered += [self.templates[layout]]
-        if layout and self.bound:
-            prefix = _prefix_of(self.facts, layout)
-            opening = (
-                len(parsing.prefix_layout(prefix, self.convention)) if prefix else 0
-            )
-            widest = parsing.spill_layout(layout, opening, self.bound - 1)
-            if widest:
-                offered += [parsing.layout_template(widest, prefix, self.whole_places)]
-        if self.spill:
-            offered += [self.spill]
-        return offered
 
-    def respelled(self, cell: str) -> str:
-        """One value's new spelling, its own spaces kept, or "" where none is left."""
-        core = parsing.trimmed(cell)
-        lead = cell[: cell.find(core)] if core else ""
-        trail = cell[len(lead) + len(core):]
-        targets = self.targets(core)
-        for strict in (True, False):
-            for into in targets if strict else targets[len(targets) - 1:]:
-                found = self._next(into, [(lead, core, trail, cell)], strict)
-                if found:
-                    return found[cell]
-        widening = self.spill
-        while self.spill and len(widening) < parsing.LAYOUT_FORM_LIMIT:
-            # THE LAST RESORT: the spill a figure wider, and wider again.
-            widening = parsing.spill_layout(widening, len(self.whole), len(widening))
-            if not widening:
-                break
-            found = self._next(widening, [(lead, core, trail, cell)], False)
-            if found:
+def _kept_off_the_real(room: _OffTheReal, cell: str) -> bool:
+    """Whether a twin cell is spelled as no real cell can be (method G9.6b)."""
+    core = parsing.trimmed(cell)
+    layout = parsing.layout_form(core, room.convention)
+    if layout in room.templates and _wears_template(
+        core, room.templates[layout], room.convention
+    ):
+        return True
+    folded = parsing.folded_layout(layout)
+    if folded in room.lowered:
+        for template in room.lowered[folded]:
+            if _wears_template(parsing.folded(core), template, room.convention):
+                return True
+    if room.bound and len(cell) >= room.bound:
+        return True
+    return bool(layout) and room.unnamed and layout not in room.facts.layout_forms
+
+
+def _off_the_real_targets(room: _OffTheReal, core: str) -> "list[str]":
+    """The templates a value of this core is offered, nearest its own shape first."""
+    layout = parsing.layout_form(core, room.convention)
+    offered: "list[str]" = []
+    if layout in room.templates:
+        offered += [room.templates[layout]]
+    if layout and room.bound:
+        prefix = _prefix_of(room.facts, layout)
+        opening = len(parsing.prefix_layout(prefix, room.convention)) if prefix else 0
+        widest = parsing.spill_layout(layout, opening, room.bound - 1)
+        if widest:
+            offered += [parsing.layout_template(widest, prefix, room.whole_places)]
+    if room.spill:
+        offered += [room.spill]
+    return offered
+
+
+def _respelled(room: _OffTheReal, cell: str) -> str:
+    """One value's new spelling, its own spaces kept, or "" where none is left."""
+    parts = [_edges(cell)]
+    targets = _off_the_real_targets(room, parts[0][1])
+    for strict in (True, False):
+        for into in targets if strict else targets[len(targets) - 1:]:
+            found = _next_off_the_real(room, into, parts, strict)
+            if found is not None:
                 return found[cell]
-        return ""
+    widening = room.spill
+    while room.spill and len(widening) < parsing.LAYOUT_FORM_LIMIT:
+        # THE LAST RESORT: the spill a figure wider, and wider again.
+        widening = parsing.spill_layout(widening, len(room.whole), len(widening))
+        if not widening:
+            break
+        found = _next_off_the_real(room, widening, parts, False)
+        if found is not None:
+            return found[cell]
+    return ""
 
-    def respelled_together(self, members: "list[str]") -> "dict[str, str] | None":
-        """One new core for every value of one folded identity, or None (G9.3's collision kept)."""
-        parts: "list[tuple[str, str, str, str]]" = []
-        for member in members:
-            core = parsing.trimmed(member)
-            lead = member[: member.find(core)]
-            parts += [(lead, core, member[len(lead) + len(core):], member)]
-        offered: "dict[str, bool]" = {}
-        for _lead, core, _trail, _cell in parts:
-            for into in self.targets(core):
-                if into in offered or len(into) != len(core):
-                    continue
-                offered[into] = True
-                found = self._next(into, parts, True)
-                if found:
-                    return found
-        return None
 
-    def _next(
-        self,
-        template: str,
-        parts: "list[tuple[str, str, str, str]]",
-        strict: bool,
-    ) -> "dict[str, str] | None":
-        """The next filling of ``template`` every one of ``parts`` takes, in its own case and spaces."""
-        # Each template's walk reads its fillings from the first, the nought
-        # filling (every place at its lowest) last.
-        step = self.steps[template] if template in self.steps else 0
-        room = parsing.layout_room(template)
-        tries = 0
-        found: "dict[str, str] | None" = None
-        while step < room and tries < _OFF_THE_REAL_TRIES and found is None:
-            filled = _filled_layout(template, (step + 1) % room)
-            step = step + 1
-            tries = tries + 1
-            if (
-                filled in self.written
-                or parsing.folded(filled) in self.written
-                or parsing.folded(filled) in self.folds
-                or not _wears_template(filled, template, self.convention)
-            ):
+def _respelled_together(
+    room: _OffTheReal, members: "list[str]"
+) -> "dict[str, str] | None":
+    """One new core for every value of one folded identity, or None (G9.3's collision kept)."""
+    parts = [_edges(member) for member in members]
+    offered: "dict[str, bool]" = {}
+    for _lead, core, _trail, _cell in parts:
+        for into in _off_the_real_targets(room, core):
+            if into in offered or len(into) != len(core):
                 continue
-            taken: "dict[str, str]" = {}
-            for lead, core, trail, cell in parts:
-                spelt = filled
-                if len(parts) > 1:
-                    if len(core) != len(filled):
-                        taken = {}
-                        break
-                    spelt = _in_its_case(filled, core)
-                written = lead + spelt + trail
-                if (
-                    written in self.written
-                    or written in taken.values()
-                    or (len(parts) > 1 and not self.kept(written))
-                    or _is_a_hole_spelling(written, self.holes)
-                    or _reads_as_a_date(written)
-                    or (strict and not _reads_alike(written, cell))
-                ):
-                    taken = {}
+            offered[into] = True
+            found = _next_off_the_real(room, into, parts, True)
+            if found is not None:
+                return found
+    return None
+
+
+def _edges(cell: str) -> "tuple[str, str, str, str]":
+    """A cell's spaces before, its core, its spaces after, and the cell itself."""
+    if not isinstance(cell, str):
+        raise TypeError("a cell reached the final pass as something else")
+    core = cell.strip()
+    lead = cell[: len(cell) - len(cell.lstrip())]
+    return lead, core, cell[len(lead) + len(core):], cell
+
+
+def _next_off_the_real(
+    room: _OffTheReal,
+    template: str,
+    parts: "list[tuple[str, str, str, str]]",
+    strict: bool,
+) -> "dict[str, str] | None":
+    """The next filling of ``template`` every one of ``parts`` takes, in its own case and spaces.
+
+    Free: neither the filling nor its folded identity is written, and no
+    part's spelling is. Each part's spelling wears what keeps it off the
+    real (`_kept_off_the_real`, for a folded identity of several), is no
+    hole spelling and no date, and, where ``strict``, reads as that
+    part's own class and alphabets. The fillings are read from the
+    first, the nought filling (every place at its lowest) last.
+    """
+    step = room.steps[template] if template in room.steps else 0
+    room_of = parsing.layout_room(template)
+    tries = 0
+    found: "dict[str, str] | None" = None
+    while step < room_of and tries < _OFF_THE_REAL_TRIES and found is None:
+        filled = _filled_layout(template, (step + 1) % room_of)
+        step = step + 1
+        tries = tries + 1
+        if (
+            filled in room.written
+            or parsing.folded(filled) in room.written
+            or parsing.folded(filled) in room.folds
+            or not _wears_template(filled, template, room.convention)
+        ):
+            continue
+        taken: "dict[str, str]" = {}
+        spelt_now: "dict[str, bool]" = {}
+        fits = True
+        for lead, core, trail, cell in parts:
+            spelt = filled
+            if len(parts) > 1:
+                if len(core) != len(filled):
+                    fits = False
                     break
-                taken[cell] = written
-            if taken:
-                found = taken
-        self.steps[template] = step
-        return found
+                spelt = _in_its_case(filled, core)
+            written = lead + spelt + trail
+            if (
+                written in room.written
+                or written in spelt_now
+                or (len(parts) > 1 and not _kept_off_the_real(room, written))
+                or _is_a_hole_spelling(written, room.holes)
+                or _reads_as_a_date(written)
+                or (strict and not _reads_alike(written, cell))
+            ):
+                fits = False
+                break
+            taken[cell] = written
+            spelt_now[written] = True
+        if fits and taken:
+            found = taken
+    room.steps[template] = step
+    return found
 
 
 def _reads_alike(spelling: str, cell: str) -> bool:
@@ -54606,15 +54652,21 @@ def _reads_alike(spelling: str, cell: str) -> bool:
 
 def _in_its_case(spelling: str, cell: str) -> str:
     """``spelling`` with each letter in the case ``cell``'s letter at that place wears."""
+    if not isinstance(spelling, str):
+        raise TypeError("a spelling reached the case rule as something else")
+    if not isinstance(cell, str):
+        raise TypeError("a cell reached the case rule as something else")
     if len(spelling) != len(cell):
         return spelling
+    lower = spelling.lower()
+    upper = spelling.upper()
     written = ""
     for place in range(len(spelling)):
         character = spelling[place]
         if "a" <= cell[place] <= "z":
-            character = character.lower()
+            character = lower[place]
         elif "A" <= cell[place] <= "Z":
-            character = character.upper()
+            character = upper[place]
         written = written + character
     return written
 

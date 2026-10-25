@@ -26399,7 +26399,7 @@ _EXCLUSION_RUN_MARKS = (
     + "0123456789"
 )
 # The placeholders an exclusion writes out: a figure's, the two
-# hexadecimal marks (the block's), and a letter's.
+# hexadecimal marks, and a letter's.
 _EXCLUDED_MARKS = (
     parsing.LAYOUT_DIGIT + parsing.LAYOUT_LOWER_HEX + parsing.LAYOUT_UPPER_HEX
 )
@@ -26490,7 +26490,7 @@ def with_layout_exclusions(
             if layout in folds:
                 if layout not in worn:
                     worn[layout] = []
-                worn[layout] += [core.lower()]
+                worn[layout] += [parsing.folded(core)]
         whole = ""
         if parsing.PREFIX_OF_THE_COLUMN in prefixes:
             whole = f"{prefixes[parsing.PREFIX_OF_THE_COLUMN]}"
@@ -26577,6 +26577,23 @@ def moved_by_the_exclusions(
     return moved, lengths
 
 
+def _greatest_last(alphabet: str) -> str:
+    """An exclusion's alphabet in the order it is read from the end: a hexadecimal mark's letters first, its figures last.
+
+    So the greatest character read first is a FIGURE wherever the mark
+    allows one: a hexadecimal cell of figures alone then keeps a spelling
+    of figures alone, and the class and alphabet counts with it.
+    """
+    letters = ""
+    figures = ""
+    for character in alphabet:
+        if "0" <= character <= "9":
+            figures = figures + character
+        else:
+            letters = letters + character
+    return letters + figures
+
+
 def _exclusion_of(
     cells: "list[str]",
     layout: str,
@@ -26600,14 +26617,15 @@ def _exclusion_of(
         for value in cells:
             character = value[place]
             held[character] = (held[character] if character in held else 0) + 1
-        alphabet = parsing.exclusion_alphabet(template[place])
+        alphabet = _greatest_last(parsing.exclusion_alphabet(template[place]))
         leads = place == 0 or template[place - 1] not in _EXCLUSION_RUN_MARKS
         for at in range(len(alphabet) - 1, -1, -1):
             character = alphabet[at]
             if character == "0" and leads:
                 continue
             # The cells are folded: a letter is counted in either case.
-            count = held[character.lower()] if character.lower() in held else 0
+            lowered = parsing.folded(character)
+            count = held[lowered] if lowered in held else 0
             if count == 0:
                 # ...ONLY WHERE THE ROOM LEFT HOLDS THE LAYOUT'S VALUES: a
                 # layout whose real values fill all but less than that
@@ -26628,14 +26646,10 @@ def _exclusion_of(
     # read from the greatest down and the first no real cell of the layout
     # holds there is written: what the choice passes over is held at those
     # places by some real cell, its low places, never an extreme's.
-    figures: "list[int]" = []
-    for place in places:
-        if template[place] in _EXCLUDED_MARKS:
-            figures += [place]
     spellings = 1
     block: "list[int]" = []
-    for at in range(len(figures) - 1, -1, -2):
-        place = figures[at]
+    for at in range(len(places) - 1, -1, -2):
+        place = places[at]
         wider = spellings * len(parsing.exclusion_alphabet(template[place]))
         if room // wider < max(need, 1):
             break
@@ -26648,17 +26662,17 @@ def _exclusion_of(
         key = ""
         for place in block:
             key = key + value[place]
-        worn[key.lower()] = True
+        worn[parsing.folded(key)] = True
     if len(worn) >= spellings:
         return ""
     for number in range(spellings - 1, -1, -1):
         key = ""
         rest = number
         for place in block:
-            alphabet = parsing.exclusion_alphabet(template[place])
+            alphabet = _greatest_last(parsing.exclusion_alphabet(template[place]))
             key = key + alphabet[rest % len(alphabet)]
             rest = rest // len(alphabet)
-        if key.lower() in worn:
+        if parsing.folded(key) in worn:
             continue
         leads = False
         for at in range(len(block)):

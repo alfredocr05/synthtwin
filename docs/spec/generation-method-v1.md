@@ -15661,10 +15661,12 @@ make it so:
    value present -- or are drawn at random across a room too small for
    one block to leave the twin room, no exclusion is found, the layout's
    values are written a figure or more wider, and the report recounts the
-   census, the lengths and the counts they move and names them (a remark
-   names the values moved). The validator names those layouts and
-   lengths as missed; that is the twin keeping no real record number,
-   and it is stated, never hidden.
+   census and the lengths they move; in a record number's corner (plan
+   P4-D432) the census entry of each named layout carrying no exclusion,
+   and the column's two lengths beside it, are listed by the validator
+   (V4.1-A1) and set aside in the twin's report for a remark naming the
+   values moved. That is the twin keeping no real record
+   number, and it is stated, never hidden.
 
 ## G10. Absent cells, straggler stand-ins, unrepresentable values
 

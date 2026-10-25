@@ -2393,7 +2393,7 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   repairs it. The summed reach can miss that, because it lets the
   smallest published groups answer for every band at once.
 - **V4.1-A1 (lane ID-ROOM, plan P4-D432, 2026-10-24): one more lowering,
-  a record number's own, beside the four and not one of them** -- it
+  a record number's corner, beside the four and not one of them** -- it
   lowers no count to an envelope; it names facts the twin gives up by
   construction. Where an identifier column publishes `layout_exclusions`
   (contract 7.12b), `validation.moved_off_the_real` reads, off the

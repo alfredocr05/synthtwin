@@ -14542,6 +14542,7 @@ rather than a list of its own, so the two cannot part again.
 | `all_whole_numbers` | | | | | | | | | | | | ● | | | |
 | `layout_forms` | | | | | | | | | | | | ● | | | |
 | `layout_prefixes` | | | | | | | | | | | | ● | | | |
+| `layout_exclusions` | | | | | | | | | | | | ● | | | |
 | `length` | | | | | | | | | | | | | ● | | |
 | `words` | | | | | | | | | | | | | ● | | |
 | `n_all_digits` | | | | | | | | | | | | ● | ● | | |
@@ -14564,11 +14565,11 @@ rather than a list of its own, so the two cannot part again.
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**One hundred and twelve rows, two hundred and two marked cells**,
+**One hundred and thirteen rows, two hundred and three marked cells**,
 distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
 `binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 28,
 `time_of_day` 10, `count` 32, `continuous` 31, `affixed_number` 41,
-`identifier` 8, `free_text` 6, `joined_numbers` 8,
+`identifier` 9, `free_text` 6, `joined_numbers` 8,
 `numbers_with_labels` 8. The counts are stated so that a reader can
 check a column of the matrix against the role's own section without
 counting twice.
@@ -14576,7 +14577,10 @@ counting twice.
 **RESTATED AT THE SECOND KEY CUT** (plan P4-D386): `count_form` is one
 row and one mark on `datetime`, so the rows go from a hundred and eleven
 to a hundred and twelve, the marked cells from two hundred and one to
-two hundred and two, and `datetime` from 27 to 28.
+two hundred and two, and `datetime` from 27 to 28. **RESTATED FOR
+`layout_exclusions`** (lane ID-ROOM, plan P4-D432): one row and one mark
+on `identifier`, so the rows go to a hundred and thirteen, the marked
+cells to two hundred and three, and `identifier` from 8 to 9.
 
 **RESTATED AT THE KEYS STAGE 3B RESERVES** (plan P4-D364): seven rows
 and seven marks on `datetime`, and four rows and five marks on
@@ -20145,11 +20149,13 @@ not modeled, exactly as a two-humped numeric column's valley is not.
 
 | field | disposition |
 |---|---|
-| `min_length`, `max_length`, `n_all_digits`, `n_code_alphabet` | EXACT-OBSERVABLE in every case, since owner decision 6 keeps the length |
+| `min_length`, `max_length` | EXACT-OBSERVABLE, since owner decision 6 keeps the length; REPORT-ONLY in a record number's corner (plan P4-D432): where a named layout carries no exclusion, `(unnamed)` is not published, or the census counts fewer cells than the column holds, the twin writes values wider than every real one (7.12b, validation method V4.1-A1) |
+| `n_all_digits`, `n_code_alphabet` | EXACT-OBSERVABLE in every case, since owner decision 6 keeps the length |
 | `all_whole_numbers` | EXACT-OBSERVABLE in every case, since owner decision 6 keeps the length. A published length range in which a value that must stand outside the figures can be no whole number at all — one character cannot be both — is a document whose own facts cannot all hold, and generation is refused before any cell is built (G12, `generation-whole-numbers-need-room`). No producer-written profile carries that pair |
 | `n_distinct`, `n_distinct_folded`, `n_distinct_by_occurrences` | EXACT-OBSERVABLE outside owner decision 6's infeasible corner; all THREE REPORT-ONLY inside it, with the report naming the achieved value beside the published one |
 | `layout_prefixes` | EXACT-OBSERVABLE: every cell a published prefix governs — every present cell under `(column)`, every cell wearing the layout otherwise — opens with it (7.12a, owner ruling of 2026-09-17, item 1). Owed inside owner decision 6's infeasible corner as well as outside it, for the reason `layout_forms` is |
-| `layout_forms` | EXACT-OBSERVABLE against the recount identity 7.12 states, on the same terms the form census stands on: a recounted layout numbers at least its published count and at most that count plus the pooled remainder. It is owed INSIDE owner decision 6's infeasible corner as well as outside it, because that corner lowers three DISTINCTNESS facts and says nothing about what a cell LOOKS like — a twin whose record numbers repeat still writes every one of them to a published layout |
+| `layout_forms` | EXACT-OBSERVABLE against the recount identity 7.12 states, on the same terms the form census stands on: a recounted layout numbers at least its published count and at most that count plus the pooled remainder. It is owed INSIDE owner decision 6's infeasible corner as well as outside it, because that corner lowers three DISTINCTNESS facts and says nothing about what a cell LOOKS like — a twin whose record numbers repeat still writes every one of them to a published layout. In a record number's corner (plan P4-D432) the entry of each named layout carrying no exclusion is REPORT-ONLY, and every other entry stays exact |
+| `layout_exclusions` | REPORT-ONLY (7.12b, plan P4-D432): what no real cell holds; the twin writes every cell of an excluded layout with it, the validator reads it only to know what the twin gives up, and no measured cell is checked against it |
 
 Two shapes a real table produces used to cost `all_whole_numbers`, and
 neither does now (Phase 3 plan P3-D8.1, owner decision 1). A length
