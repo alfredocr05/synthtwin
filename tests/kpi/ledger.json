@@ -10257,6 +10257,53 @@
    }
   },
   {
+   "id": "K-HZ-07",
+   "phase_stage": "December plan lane PS2, every published date held by the floor, counted in people or else in rows (plan P4-D433)",
+   "category": "PRIVACY",
+   "headline": false,
+   "name": "Real dates one to ten people (or rows, where no person column is) hold, published in a description",
+   "status": "GREEN",
+   "rule": "over tools/measurements/kpi_dates_held.py's tables -- every delimited export of the healthcare catalogue (tests/health_zoo.py's runnable_tables) at 20,000 rows, and lane PS2's sweep (tests/dates_held.py: birth dates over seventy years, death dates, sparse event dates and dense admission days on one row a person, several rows a person and no person column, a dense stamp to the minute, and lane E0c's two exposures, the zoo's patients.csv and its phi_registry.csv) at 20,000 and 200,000 rows -- each through the zoo's own path (profile, the general answers round by round, profile --answers) and counted by tests/dates_held.py, written apart from the product's count: no date a description publishes -- a point along the range, a tail's boundary or value, a mode, a heavy date, a census entry, a pooled or held record's span end or bucket, a written form -- is held by one to ten people under a person column that repeats, or, with none, falls on one to ten rows by the day, month or quarter it names (few), and no real date one to ten of them hold is printed in its column's block as written or as its canonical form (printed); and no table is lost to the count (not_counted)",
+   "rule_kind": "exact",
+   "expected": {
+    "not_counted": 0,
+    "sweep_dates_few_200000_rows": 0,
+    "sweep_dates_few_20000_rows": 0,
+    "sweep_printed_200000_rows": 0,
+    "sweep_printed_20000_rows": 0,
+    "tables": 36,
+    "zoo_dates_few_20000_rows": 0,
+    "zoo_printed_20000_rows": 0
+   },
+   "key_kinds": {
+    "tables": "at_least"
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [],
+   "test": null,
+   "driver": "tools/measurements/kpi_dates_held.py --kpi",
+   "pin_strength": "NONE",
+   "measured_on": "the zoo's delimited exports at 20,000 rows and the lane's sweep at 20,000 and 200,000 rows through the real profile with the zoo's general answers; the gate's cases are tests/test_dates_held_by_the_floor.py",
+   "evidence": "PROVISIONAL: stamped from the lane's kpi_run.",
+   "nodes_min_collected": 0,
+   "value_at": {
+    "commit": "0000000",
+    "date": "2026-10-25",
+    "measured_by": "PROVISIONAL",
+    "value": {
+     "not_counted": 0,
+     "sweep_dates_few_200000_rows": 0,
+     "sweep_dates_few_20000_rows": 0,
+     "sweep_printed_200000_rows": 0,
+     "sweep_printed_20000_rows": 0,
+     "tables": 36,
+     "zoo_dates_few_20000_rows": 0,
+     "zoo_printed_20000_rows": 0
+    }
+   }
+  },
+  {
    "id": "K-BC-01",
    "phase_stage": "The broad between-columns program (plan P4-D398), measured now as a baseline",
    "category": "STATS",
