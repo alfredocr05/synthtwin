@@ -18776,17 +18776,24 @@ cells:
    at those places, letters compared in either case. First ONE place: the places the twin fills (after the layout's
    prefix, never a whole number's nought after the point) are read left
    to right, and at each the characters of its alphabet from the
-   greatest down -- never a nought that would open the cell, an arc, or
-   the figures after a sign or a zero fill -- until one no such cell
-   holds, which is written; a character held by at least one cell and
-   fewer than `small_cell_floor` is never passed over: the place is left
-   for the next. Where no place gives one, the BLOCK: every other figure
+   greatest down -- never a nought that would open a run of figures:
+   the cell, an arc, the figures after a sign, a zero fill or a prefix's
+   letters -- until one no such cell
+   holds, which is written where the spellings it leaves hold the
+   layout's cells or the column's different values, whichever is fewer
+   (else the layout carries none); a character held by at least one cell
+   and fewer than `small_cell_floor` is never passed over: the place is
+   left for the next. Where no place gives one, the BLOCK: every other figure
    place the twin fills, counted from the last, k of them -- every other,
    so no run of written characters stands in the description -- k the
    most whose spellings leave the template room for the layout's cells or
    the column's different values, whichever is fewer; its spellings are
-   read from the greatest down, none leading a number or an arc with a
+   read from the greatest down, none opening a run of figures with a
    nought, and the first no such cell holds at those places is written.
+   A layout carrying no exclusion has every value of its twin written
+   wider than every real cell, and its census entry and the lengths are
+   then the real table's, listed by the validator and named by the
+   twin's report (method G9.6b, validation method V4.1-A1).
 2. **Under `(unnamed)`, `(none)`**, where no present cell wears a layout
    the census does not name -- a zero count, read off the cells, never
    beside a `(withheld)` pool (a census rule A1 absorbs is read so too).

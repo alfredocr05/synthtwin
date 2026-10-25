@@ -26388,11 +26388,16 @@ def _a1_written(
 
 # -- WHAT NO REAL CELL HOLDS (lane ID-ROOM, plan P4-D432) ----------------
 #
-# The places before which a nought would read otherwise: the opening of a
-# cell (a record number of figures alone would recount as a zero fill),
-# of a UID arc (the grammar leads no arc but `0` with a nought), after a
-# sign or after a zero fill's own noughts.
-_EXCLUSION_NO_NOUGHT_AFTER = ".-+" + parsing.LAYOUT_LEADING_ZERO
+# A nought is never written at the OPENING OF A RUN OF FIGURES -- the
+# opening of a cell (a record number of figures alone would recount as a
+# zero fill), of a UID arc (the grammar leads no arc but `0` with a
+# nought), after a sign, a zero fill's noughts or a prefix's letters
+# (`rs0...` spells an rsID no source writes): the marks that continue a
+# run are these.
+_EXCLUSION_RUN_MARKS = (
+    parsing.LAYOUT_DIGIT + parsing.LAYOUT_LOWER_HEX + parsing.LAYOUT_UPPER_HEX
+    + "0123456789"
+)
 # The placeholders an exclusion writes out: a figure's, the two
 # hexadecimal marks (the block's), and a letter's.
 _EXCLUDED_MARKS = (
@@ -26413,7 +26418,7 @@ def with_layout_exclusions(
     real cell of that layout holds -- ONE place, the first the twin fills,
     left to right, whose alphabet read from its greatest character down
     reaches one no such cell holds before one that 1 to ``floor`` - 1
-    cells hold (no nought that would lead a number or an arc); else the
+    cells hold (no nought opening a run of figures); else the
     BLOCK, every other figure place the twin fills from the last, as many
     as leave the template room for the layout's cells or the column's
     different values, written as the greatest of their spellings no real
@@ -26540,6 +26545,38 @@ def with_layout_exclusions(
     return dataclasses.replace(column, details=details)
 
 
+def moved_by_the_exclusions(
+    forms: "dict[str, int]", exclusions: "dict[str, str]", n_present: int
+) -> "tuple[tuple[str, ...], bool]":
+    """What a record number's twin gives up so no cell is spelled as a real one (plan P4-D432).
+
+    THE COLUMN'S OWN CORNER, read off its description alone, as owner
+    decision 6's is: the named layouts carrying no exclusion, whose values
+    the twin writes wider than every real cell (method G9.6b), and whether
+    the shortest and longest lengths go with them -- they do where such a
+    layout is named, where real cells stand outside the named layouts (no
+    `(unnamed)`: the pool's, rule A1's) or where cells are counted in no
+    layout at all. The validator lists these REPORT-ONLY and the twin's
+    report names the values moved instead of a miss. Nothing is moved on
+    a description publishing no exclusion. A fixed function of the three.
+    Raises nothing. No I/O.
+    """
+    if not exclusions:
+        return (), False
+    moved: "tuple[str, ...]" = ()
+    counted = 0
+    for layout in sorted(forms):
+        counted = counted + int(f"{forms[layout]}")
+        if layout != SUPPRESSED_LABEL and layout not in exclusions:
+            moved = moved + (layout,)
+    unnamed = (
+        parsing.EXCLUSION_UNNAMED in exclusions
+        and exclusions[parsing.EXCLUSION_UNNAMED] == parsing.EXCLUSION_NONE
+    )
+    lengths = bool(moved) or not unnamed or counted < n_present
+    return moved, lengths
+
+
 def _exclusion_of(
     cells: "list[str]",
     layout: str,
@@ -26564,7 +26601,7 @@ def _exclusion_of(
             character = value[place]
             held[character] = (held[character] if character in held else 0) + 1
         alphabet = parsing.exclusion_alphabet(template[place])
-        leads = place == 0 or template[place - 1] in _EXCLUSION_NO_NOUGHT_AFTER
+        leads = place == 0 or template[place - 1] not in _EXCLUSION_RUN_MARKS
         for at in range(len(alphabet) - 1, -1, -1):
             character = alphabet[at]
             if character == "0" and leads:
@@ -26572,6 +26609,11 @@ def _exclusion_of(
             # The cells are folded: a letter is counted in either case.
             count = held[character.lower()] if character.lower() in held else 0
             if count == 0:
+                # ...ONLY WHERE THE ROOM LEFT HOLDS THE LAYOUT'S VALUES: a
+                # layout whose real values fill all but less than that
+                # carries no exclusion, and its values are written wider.
+                if room // len(alphabet) < max(need, 1):
+                    return ""
                 return layout[:place] + character + layout[place + 1:]
             if count < floor:
                 # A CHARACTER FEWER THAN THE FLOOR'S CELLS HOLD IS NEVER
@@ -26622,7 +26664,7 @@ def _exclusion_of(
         for at in range(len(block)):
             place = block[at]
             if key[at] == "0" and (
-                place == 0 or template[place - 1] in _EXCLUSION_NO_NOUGHT_AFTER
+                place == 0 or template[place - 1] not in _EXCLUSION_RUN_MARKS
             ):
                 leads = True
         if leads:

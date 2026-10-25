@@ -484,6 +484,12 @@ INPUT_SIDE_ENTRIES = (
 
 # -- what a listing entry says, in one fixed sentence each ------------
 
+_NOT_CHECKABLE_MOVED_OFF_THE_REAL = (
+    "no twin record number is spelled as a real one (plan P4-D432): the "
+    "values of a layout no real cell leaves room in are written wider than "
+    "every real value, so this fact is the real table's and is not one the "
+    "twin holds"
+)
 _NOT_CHECKABLE_REPORT_ONLY = (
     "no CSV can evidence this fact: the description records how the "
     "real table was read, and a written file cannot show it"
@@ -22104,12 +22110,18 @@ def _identifier_checks(
             if absorbed[0][layout]:
                 census[layout] = absorbed[0][layout]
         absorbed_lengths = {"min_length": absorbed[1], "max_length": absorbed[2]}
+    # WHAT NO TWIN CELL MAY HOLD MOVES WHAT IT MUST (lane ID-ROOM, plan
+    # P4-D432): a layout carrying no exclusion, and the lengths with it,
+    # are listed REPORT-ONLY (`moved_off_the_real`).
+    moved, lengths = moved_off_the_real(facts, column.n_present)
     for field, published, subcheck in (
         ("min_length", facts.min_length, "length.min"),
         ("max_length", facts.max_length, "length.max"),
         ("n_all_digits", facts.n_all_digits, "counts.n_all_digits"),
         ("n_code_alphabet", facts.n_code_alphabet, "counts.n_code_alphabet"),
     ):
+        if lengths and field in ("min_length", "max_length"):
+            continue
         found = (
             absorbed_lengths[field]
             if field in absorbed_lengths
@@ -22156,9 +22168,12 @@ def _identifier_checks(
     # layout needs, and nothing it prints is more than the file holds.
     # (Recounted above, where rule A1 reads it: plan P4-D428.)
     recounted: "dict[str, object]" = {"layout_forms": census}
+    owed: "dict[str, int]" = {}
+    for layout in sorted(facts.layout_forms):
+        if layout not in moved:
+            owed[layout] = facts.layout_forms[layout]
     checks = checks + _form_checks(
-        name, "identifier.layout_forms", facts.layout_forms, recounted,
-        floor, "layout_forms",
+        name, "identifier.layout_forms", owed, recounted, floor, "layout_forms",
     )
     checks = checks + _prefix_checks(name, facts, present)
     checks = checks + _uid_grammar_checks(name, facts, present)
@@ -22175,6 +22190,38 @@ def _identifier_checks(
         )
     ]
     return checks
+
+
+def moved_off_the_real(
+    facts: contract.IdentifierFacts, n_present: int
+) -> "tuple[tuple[str, ...], bool]":
+    """A record number's corner of plan P4-D432: the layouts and lengths its twin gives up.
+
+    THIS VALIDATOR'S OWN READING of contract 7.12b and method G9.6b, from
+    the description alone, as `corners_of` reads its corners (a second
+    opinion on the generator, never its planner): a named layout no
+    exclusion is published for has every value of its twin written wider
+    than every real cell, so its census entry is REPORT-ONLY; and the
+    shortest and longest lengths are REPORT-ONLY with it wherever such a
+    layout is named, wherever `(unnamed)` does not say that no real cell
+    stands outside the named layouts, or wherever the census counts fewer
+    cells than the column holds. A description publishing no exclusion
+    gives up nothing. Raises nothing. No I/O.
+    """
+    exclusions = facts.layout_exclusions
+    if not exclusions:
+        return (), False
+    given_up: "tuple[str, ...]" = ()
+    total = 0
+    for layout in sorted(facts.layout_forms):
+        total = total + facts.layout_forms[layout]
+        if layout != contract.WITHHELD and layout not in exclusions:
+            given_up = given_up + (layout,)
+    said_none_outside = (
+        parsing.EXCLUSION_UNNAMED in exclusions
+        and exclusions[parsing.EXCLUSION_UNNAMED] == parsing.EXCLUSION_NONE
+    )
+    return given_up, bool(given_up) or not said_none_outside or total < n_present
 
 
 def _prefix_checks(
@@ -22454,6 +22501,30 @@ def _listings(
                 )
             ]
         facts = column.facts
+        if isinstance(facts, contract.IdentifierFacts):
+            # WHAT NO TWIN CELL MAY HOLD MOVES (lane ID-ROOM, plan P4-D432).
+            moved, lengths = moved_off_the_real(facts, column.n_present)
+            for layout in moved:
+                listings += [
+                    Listing(
+                        column.name,
+                        "identifier.layout_forms",
+                        f"layout_forms.published.{layout}",
+                        _NOT_CHECKABLE_MOVED_OFF_THE_REAL,
+                    )
+                ]
+            if lengths:
+                for field, subcheck in (
+                    ("min_length", "length.min"), ("max_length", "length.max"),
+                ):
+                    listings += [
+                        Listing(
+                            column.name,
+                            f"identifier.{field}",
+                            subcheck,
+                            _NOT_CHECKABLE_MOVED_OFF_THE_REAL,
+                        )
+                    ]
         if isinstance(facts, contract.ClockFacts):
             # WHAT THE TAIL RULE WITHHOLDS (stage 3), listed as a column of
             # dates lists it below.

@@ -54320,10 +54320,12 @@ def _spelled_off_the_real(
     are kept or moved TOGETHER: moved, they take one new core, each in its
     own case and with its own spaces, so the collision stays one. A value
     moved is written as the first free spelling of, nearest its own shape
-    first: its layout's excluded template; the excluded template of each
-    named layout its own widens to, a figure at a time; its layout widened
-    as long as the spill (`parsing.spill_layout`); the spill; and, where
-    none has one left, the spill widened a figure at a time. A spelling is
+    first: its layout's excluded template, so the census and the lengths
+    stay met; its layout widened as long as the spill
+    (`parsing.spill_layout`), so its kinds stay; the spill; and, where
+    none has one left, the spill widened a figure at a time. No value is
+    moved into ANOTHER named layout, so every count of a layout carrying
+    an exclusion stays as the walks met it. A spelling is
     taken first only where it reads as the value's own class and
     alphabets (`parsing.classify_number`, `is_digit_text`, `is_code_text`),
     so the counts the walks met stay met, and only then of any class. A
@@ -54496,10 +54498,6 @@ class _OffTheReal:
             opening = (
                 len(parsing.prefix_layout(prefix, self.convention)) if prefix else 0
             )
-            for width in range(len(layout) + 1, self.bound):
-                widened = parsing.spill_layout(layout, opening, width - 1)
-                if widened in self.templates:
-                    offered += [self.templates[widened]]
             widest = parsing.spill_layout(layout, opening, self.bound - 1)
             if widest:
                 offered += [parsing.layout_template(widest, prefix, self.whole_places)]
@@ -54619,6 +54617,33 @@ def _in_its_case(spelling: str, cell: str) -> str:
             character = character.upper()
         written = written + character
     return written
+
+
+def _not_moved_off_the_real(
+    column: contract.ColumnBlock, notes: "list[Deviation]"
+) -> "list[Deviation]":
+    """The notes of a record number's twin, those its final pass gives up set aside (plan P4-D432).
+
+    `taxonomy.moved_by_the_exclusions` names them -- the census of a
+    layout carrying no exclusion, and the lengths with it -- and the
+    validator lists them REPORT-ONLY; the remark `_spelled_off_the_real`
+    files says what moved instead.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.IdentifierFacts):
+        return notes
+    moved, lengths = taxonomy.moved_by_the_exclusions(
+        facts.layout_forms, facts.layout_exclusions, column.n_present
+    )
+    if not moved and not lengths:
+        return notes
+    dropped: "dict[str, bool]" = {}
+    for layout in moved:
+        dropped[f"layout_forms.{layout}"] = True
+    if lengths:
+        dropped["min_length"] = True
+        dropped["max_length"] = True
+    return [note for note in notes if note.fact not in dropped]
 
 
 def _prefix_of(facts: contract.IdentifierFacts, layout: str) -> str:
@@ -63751,6 +63776,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         # filter cannot drift from itself.
         notes = _not_settled_by_a_bound(notes, approximated_here)
         notes = notes + _bound_notes(approximated_here)
+        notes = _not_moved_off_the_real(column, notes)
         approximated = approximated + approximated_here
         deviations = deviations + notes
         # WHAT THIS COLUMN HOLDS THAT MISSED NOTHING (P4-G2-R4-F1).

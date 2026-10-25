@@ -2392,6 +2392,26 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   own domain cannot supply that many no packing of the other two
   repairs it. The summed reach can miss that, because it lets the
   smallest published groups answer for every band at once.
+- **V4.1-A1 (lane ID-ROOM, plan P4-D432, 2026-10-24): one more lowering,
+  a record number's own, beside the four and not one of them** -- it
+  lowers no count to an envelope; it names facts the twin gives up by
+  construction. Where an identifier column publishes `layout_exclusions`
+  (contract 7.12b), `validation.moved_off_the_real` reads, off the
+  description alone and as this validator's own second opinion: every
+  named layout no exclusion is published for, whose twin values the
+  generator writes wider than every real cell (method G9.6b) -- its
+  census entry, subcheck `layout_forms.published.<layout>`, is
+  REPORT-ONLY; and the shortest and longest lengths, subchecks
+  `length.min` and `length.max`, are REPORT-ONLY with it wherever such a
+  layout is named, wherever `(unnamed)` does not say that no real cell
+  stands outside the named layouts, or wherever the census counts fewer
+  cells than the column holds. Each is a listing entry citing the plan,
+  never a check that cannot fail; every other identifier check stands
+  as before, the census entries of the layouts carrying an exclusion
+  among them, exactly. A description publishing no exclusion lowers
+  nothing. A real table validated against its own description holds
+  every one of these facts and is simply not asked them here.
+
 - **datetime-offsets-withheld** (P2-D9): a datetime column whose
   `utc_offsets` map is the single `(withheld)` key. Then `utc_offsets`
   and `datetimes_read_at` are REPORT-ONLY, and the two TAILS are not:

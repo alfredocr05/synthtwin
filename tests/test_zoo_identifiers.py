@@ -436,11 +436,9 @@ def test_a_short_arc_study_uid_is_never_published_as_the_root(
     Declared, `<study>.<k>`: the root published is the organisation's,
     never the study UID, and no real instance UID is in any published file
     (the description, its text, the questions and the screen). The twin
-    writes 0 real instance UIDs for `ge`, `one_product_arc` and `siemens`
-    at both sizes and for every shape at 600 rows; for `noorg` at 20,000
-    rows alone it writes at most n // 4000 (5), a bound, not a 0: the
-    chance equalities of stated limit (4), owned by lane ID-ROOM (plan
-    P4-D432). `ge` (`...2.55.3.4021.1015.1230`; before repair 2: the study UID
+    writes 0 real instance UIDs for every shape at both sizes: the chance
+    equalities of stated limit (4) are closed by lane ID-ROOM (plan
+    P4-D432; `noorg` at 20,000 rows wrote 1 on 2d25b073). `ge` (`...2.55.3.4021.1015.1230`; before repair 2: the study UID
     published, 332 of 600 and 2,222 of 20,000 real UIDs in the twin);
     `noorg` (`1.2.276.0.12.34.56`, no organisation arc; on 1cf6f3c3: the
     study UID published, 332 of 600 and 2,222 of 20,000 real), red on the
@@ -460,18 +458,13 @@ def test_a_short_arc_study_uid_is_never_published_as_the_root(
     assert seen["block"]["layout_prefixes"] == {"(column)": root}
     for text in seen["texts"]:
         assert study + "." not in text
-    # 0 real UIDs in the twin, asserted, for ge, one_product_arc and
-    # siemens at both sizes and for noorg at 600 rows. noorg at 20,000 rows
-    # is bounded, not 0: under `1.2.276.0.12.` the twin's two-figure arcs
-    # spell `34.56` once in 8,100 draws and the instance numbers then fill
-    # their room, chance alone with nothing real read (1 cell of 20,000 at
-    # seed 0; stated limit (4), owned by lane ID-ROOM, plan P4-D432).
+    # 0 real UIDs in the twin, asserted for every shape at both sizes: the
+    # twin's arcs no longer spell `34.56` by chance under `1.2.276.0.12.`,
+    # since no twin cell is spelled as a real one (plan P4-D432; 1 cell of
+    # 20,000 at seed 0 on 2d25b073, stated limit (4) of P4-D428, closed).
     real = set(cells)
     equal = sum(1 for cell in seen["cells"] if cell in real)
-    if shape == "noorg" and n == 20_000:
-        assert equal <= n // 4000, equal
-    else:
-        assert equal == 0, equal
+    assert equal == 0, equal
     assert sum(1 for cell in seen["cells"] if UID.fullmatch(cell) is None) == 0
     assert sum(1 for cell in seen["cells"] if not cell.startswith(root)) == 0
 
@@ -593,7 +586,7 @@ def test_b_whole_record_numbers_written_as_decimals_are_held_unanswered(
 
     Read as its bare figures, the fixed-width question is put once and the
     column held, as the same numbers written without the point are: 0 real
-    values in any file, and in the twin none beyond chance. Mutant: `_without_nought_places`
+    values in any file, and none in the twin (plan P4-D432). Mutant: `_without_nought_places`
     answering [] (read as a count, its mean and percentiles published, 598
     of 600 real encounter numbers in the twin).
     """
@@ -604,9 +597,9 @@ def test_b_whole_record_numbers_written_as_decimals_are_held_unanswered(
     assert len(seen["asked"]) == 1 and asking.ANSWER_IDENTIFIER in seen["asked"][0]
     assert seen["held"] is True
     found, equal = _found_linear(cells, seen["texts"], seen["cells"], decimals=True)
-    # Made-up eight-figure numbers equal a real one only by chance: about
-    # n x n / 9 x 10^7 cells, 4 at 20,000 rows (stated limit (4)).
-    assert found == 0 and equal <= n // 1000, (found, equal)
+    # No made-up eight-figure number equals a real one (plan P4-D432; 4 at
+    # 20,000 rows by chance on 2d25b073, stated limit (4) of P4-D428, closed).
+    assert found == 0 and equal == 0, (found, equal)
 
 
 def _found_linear(

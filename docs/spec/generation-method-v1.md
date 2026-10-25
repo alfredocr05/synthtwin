@@ -15639,10 +15639,11 @@ make it so:
    column or any spelling taken before it, wears the template, is no
    spelling read as absent and no date, AND reads as the value's own
    class and alphabets (`parsing.classify_number`, `is_digit_text`,
-   `is_code_text`), of: its layout's excluded template; the excluded
-   template of each named layout its own layout widens to a figure at a
-   time (`parsing.spill_layout`); its layout widened as long as the
-   spill, under its prefix and noughts; the spill's template. Only where
+   `is_code_text`), of: its layout's excluded template; its layout
+   widened as long as the spill (`parsing.spill_layout`), under its
+   prefix and noughts; the spill's template. No value is moved into
+   another named layout, so every count of a layout carrying an
+   exclusion stays as the walks met it. Only where
    none of these gives one is the spill asked again for a spelling of
    any class. Every cell of the value is written so, so a key repeated on
    one twin person's rows stays one key, and its kinds -- a number, a

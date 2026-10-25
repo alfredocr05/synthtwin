@@ -289,3 +289,55 @@ def run_shape(
         "equal": equal_cells(real, twin, absent),
         "texts": texts,
     }
+
+
+def _column_cells(path: pathlib.Path, name: str) -> "list[str] | None":
+    """One column of a delimited file, read from its header row; None where it is not read."""
+    if path.suffix not in (".csv", ".tsv", ".txt", ".psv"):
+        return None
+    delimiter = "\t" if path.suffix == ".tsv" else ("|" if path.suffix == ".psv" else ",")
+    rows = list(csv.reader(io.StringIO(path.read_bytes().decode("utf-8", errors="replace")),
+                           delimiter=delimiter))
+    for start in range(min(len(rows), 12)):
+        if name in rows[start]:
+            place = rows[start].index(name)
+            return [row[place] for row in rows[start + 1:] if len(row) > place]
+    return None
+
+
+def zoo_equal_cells(folder: pathlib.Path, n: int) -> "dict[str, int]":
+    """The health data zoo's identifier columns: twin cells spelled as a real cell of their column.
+
+    Every delimited zoo table this machine runs (seed 20261016 plus its place, as
+    `health_zoo.run_zoo`), run through `health_zoo.run_table` -- profiled scripted, answered
+    with the zoo's general facts, generated at seed 0 -- and every column its description
+    writes as an identifier. Returns the equal cells, the identifier columns read and the
+    tables whose twin was not written.
+    """
+    import health_zoo
+
+    found = {"equal": 0, "columns": 0, "unwritten": 0}
+    runnable = health_zoo.runnable_tables()
+    for place, table in enumerate(health_zoo.TABLES):
+        if table not in runnable or table.suffix not in (".csv", ".tsv", ".txt", ".psv"):
+            continue
+        where = folder / table.name
+        health_zoo.run_table(table, where, n, 20261016 + place)
+        profile = where / f"{table.name}-profile.json"
+        twin = where / f"{table.name}-twin{table.suffix}"
+        if not profile.is_file() or not twin.is_file():
+            found["unwritten"] += 1
+            continue
+        document = json.loads(profile.read_text(encoding="utf-8"))
+        absent: "frozenset[str]" = frozenset()
+        for block in document["columns"]:
+            if block.get("role") != "identifier":
+                continue
+            real = _column_cells(where / f"{table.name}{table.suffix}", block["name"])
+            made = _column_cells(twin, block["name"])
+            if real is None or made is None:
+                continue
+            absent = frozenset(block.get("missing_by_source") or {})
+            found["columns"] += 1
+            found["equal"] += equal_cells(real, made, absent)
+    return found

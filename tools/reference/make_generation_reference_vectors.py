@@ -26204,11 +26204,10 @@ def spelled_off_the_real(column, content):
     template its own step, at most 4,096 a value before the next template
     is asked), that neither spells nor folds onto any cell of the content
     or any spelling taken before it, wears the template and reads as no
-    absent spelling -- of its layout's excluded template, then of the
-    excluded template of each named layout its own layout widens to, a
-    figure at a time, then of its layout widened as long as the spill
-    (the same prefix and noughts), then of the spill -- and every cell of
-    the value is written so.  An empty map moves nothing.
+    absent spelling -- of its layout's excluded template, then of its
+    layout widened as long as the spill (the same prefix and noughts),
+    then of the spill -- and every cell of the value is written so.  An
+    empty map moves nothing.
 
     THIS ORACLE DOES NOT MODEL four things the product asks of a moved
     value: that its spelling reads as the value's own class and
@@ -26274,10 +26273,6 @@ def spelled_off_the_real(column, content):
         if layout and bound:
             prefix = prefixes.get(layout, whole)
             opening = len(prefix_layout(prefix, convention))
-            for width in range(len(layout) + 1, bound):
-                wider = widened_layout(layout, opening, width - 1)
-                if wider in kept:
-                    targets += [kept[wider]]
             wide = widened_layout(layout, opening, bound - 1)
             if wide:
                 targets += [template_of(wide, prefix)]
