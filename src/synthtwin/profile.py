@@ -4489,16 +4489,21 @@ def build_document(
             column_cells: "list[str]",
             reading: "taxonomy.HeldReading | None",
             held: bool = False,
+            pinned: "grains.Reading | None" = None,
         ) -> taxonomy.ColumnProfile:
             # A column the count in people holds is read under no other
             # declaration than the record number it is described as, as
-            # the description then records it (`_without_held`).
+            # the description then records it (`_without_held`). A column
+            # written at a grain is read in the order its own cells were
+            # (`_read_in_its_order`): every bucket starts on the first.
             return taxonomy.profile_column(
                 name,
                 position,
                 column_cells,
                 table.n_rows,
-                _without_held(settings, [name]) if held else settings,
+                _without_held(settings, [name])
+                if held
+                else _read_in_its_order(settings, pinned),
                 name in described_identifiers,
                 name in declared_codes and not held,
                 name in declared_measurements and not held,
@@ -4671,6 +4676,8 @@ def build_document(
                         cells, published_grain, None, frozenset(described.absent_spellings)
                     ),
                     None,
+                    False,
+                    published_grain.reading,
                 ),
                 grains.record(published_grain),
                 in_rows,
@@ -4711,8 +4718,11 @@ def build_document(
                     coarse = _cells_at(cells, walked, spans[place])
                     if coarse is None:
                         continue
-                    candidate = described_from(coarse, None)
-                    if candidate.role in _GRAIN_ROLES and not _counted_in_subjects(
+                    candidate = described_from(coarse, None, False, walked.grain.reading)
+                    if (
+                        candidate.role in _GRAIN_ROLES
+                        and _reads_its_member(candidate, walked.grain.reading)
+                    ) and not _counted_in_subjects(
                         candidate,
                         coarse,
                         walking,
@@ -6283,6 +6293,53 @@ def _counted_in_subjects(
             if held.rows >= floor and _plainly(key, plain):
                 return True
     return False
+
+
+def _read_in_its_order(
+    settings: taxonomy.Settings, pinned: "grains.Reading | None"
+) -> taxonomy.Settings:
+    """The settings a column's cells written at a grain are read under (plan P4-D433).
+
+    Every bucket a grain writes starts on the first of its month, so a
+    day-first date written at the month (`01/03/2022`) reads either way and
+    the tie goes to month-first: the description would publish a member
+    its own record does not read, and the loader refuses it. A column
+    whose reading writes the day first is read with the tie given to the
+    day (`settings.day_first`); any other is read as before.
+    """
+    if (
+        pinned is None
+        or settings.day_first
+        or pinned.kind not in (grains.DATE, grains.STAMP)
+        or not _day_before_month(pinned.member)
+    ):
+        return settings
+    return dataclasses.replace(settings, day_first=True)
+
+
+def _day_before_month(member: str) -> bool:
+    """Whether a date member writes the day's figures before the month's."""
+    if "day-first" in member:
+        return True
+    if member[0:7] != parsing.LAYOUT_PREFIX:
+        return False
+    day = member.find("{DD}")
+    month = member.find("{MM}")
+    return 0 <= day < month
+
+
+def _reads_its_member(column: taxonomy.ColumnProfile, reading: grains.Reading) -> bool:
+    """Whether a column described at a grain publishes the member its record reads (TG1).
+
+    The loader refuses a block whose `format` is another member than its
+    record's reading; such a rung does not serve. A clock or counted
+    reading, or a block of one or two values, publishes no member to
+    compare.
+    """
+    if reading.kind not in (grains.DATE, grains.STAMP):
+        return True
+    shown = column.details["format"] if "format" in column.details else None
+    return not isinstance(shown, str) or shown == reading.member
 
 
 def _date_parts(text: str) -> "tuple[str, ...]":

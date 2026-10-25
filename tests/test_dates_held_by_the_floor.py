@@ -41,6 +41,7 @@ import hashlib
 import io
 import json
 import pathlib
+import types
 
 import pytest
 
@@ -179,6 +180,39 @@ def _parses(cell: str) -> bool:
     return False
 
 
+# -- a day-first date written at a grain keeps its order --------------------
+
+
+def test_a_day_first_date_written_at_a_grain_reads_day_first_and_its_twin_is_made(tmp_path: pathlib.Path) -> None:
+    """The zoo's `registry_extract` at 20,000 rows: day-first dates pooled at the month.
+
+    Every bucket starts on the first (`01/03/2022`), which reads either way;
+    read with the tie given to the month the block published
+    `month-first-date` beside a record reading `day-first-date`, and
+    `generate` refused the description (exit 1, the whole export lost).
+    """
+    table = [one for one in dates_held.health_zoo.TABLES if one.name == "registry_extract"][0]
+    source = dates_held.answered(table, tmp_path, 20000)
+    described = json.loads((tmp_path / "registry_extract-profile.json").read_text(encoding="utf-8"))
+    grained = 0
+    for block in described["columns"]:
+        grain = block.get("time_grain")
+        if isinstance(grain, dict) and grain["rung"] != "held":
+            grained += 1
+            assert block["format"] == grain["reading"], (block["name"], block["format"], grain["reading"])
+    assert grained >= 2
+    quiet = io.StringIO()
+    with contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
+        made = cli.main(["generate", f"{tmp_path / 'registry_extract-profile.json'}", "--out-dir", f"{tmp_path}",
+                         "--seed", "0", "--replace"])
+    assert made == 0, quiet.getvalue()[-1500:]
+    loaded = contract.load_profile(f"{tmp_path / 'registry_extract-profile.json'}")
+    for path in (tmp_path / "registry_extract-twin.csv", source):
+        outcome = validation.measure(loaded, f"{path}")
+        assert not [check for check in outcome.checks if check.verdict == validation.MISSED
+                    and "occurrences" not in f"{check.subcheck}"], path.name
+
+
 # -- in people first --------------------------------------------------------
 
 
@@ -258,6 +292,23 @@ def test_the_parts_a_published_date_names() -> None:
     assert profile._date_parts("2023-q3") == ("2023-q3",)
     for word in ("2023", "18:07:00", "2023-13-01", "abcd-01-01", ""):
         assert profile._date_parts(word) == ()
+
+
+@pytest.mark.parametrize(("published", "rows", "few"), [
+    ("2023-01-05", 10, True), ("2023-01-05", 11, False),
+    ("2023-01-05 18:07:00", 10, True), ("2023-01", 10, True), ("2023-01", 11, False),
+    ("2023-q1", 10, True), ("2023-q1", 11, False),
+])
+def test_a_published_date_on_ten_rows_is_few_and_on_eleven_is_not(
+    monkeypatch: pytest.MonkeyPatch, published: str, rows: int, few: bool
+) -> None:
+    """The count in rows at the floor: a published day, month or quarter one to ten rows fall on, and no more."""
+    monkeypatch.setattr(profile, "_column_block", lambda column: {"format": "iso-date"})
+    monkeypatch.setattr(profile, "_published_in", lambda block, rungs: profile._Published(
+        frozenset({published}), frozenset(), (), "iso-date"))
+    column = types.SimpleNamespace(absent_spellings=())
+    cells = ["2023-01-05"] * rows + ["2023-06-01"] * 50 + [""] * 5
+    assert profile._dates_few_in_rows(column, cells, 11) is few  # type: ignore[arg-type]
 
 
 def test_rows_as_holders_tells_every_row_apart() -> None:

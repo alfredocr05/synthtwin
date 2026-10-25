@@ -418,11 +418,15 @@ def printed(text: str, dated: "list[str]", names: "list[str]", columns: "list[li
         grain = blocks[name].get("time_grain") if name in blocks else None
         starts: "set[str]" = set()
         if isinstance(grain, dict):
-            if [rung for rung, _first, _last in grain.get("spans", []) if rung in _ABOVE_THE_DAY]:
+            # A bucket start at a rung coarser than the cells' own names its
+            # bucket (`2023-03-05 14:00:00` the hour, `1962-01-01` the year).
+            finest = _RUNG_ORDER.index(f"{grain.get('finest', 'day')}")
+            if [rung for rung, _first, _last in grain.get("spans", []) if _RUNG_ORDER.index(rung) < finest]:
                 starts = persons_counted.bucket_names(grain)
-            if grain.get("rung") in _ABOVE_THE_DAY:
+            if f"{grain.get('rung')}" in _RUNG_ORDER and _RUNG_ORDER.index(f"{grain.get('rung')}") < finest:
                 starts |= set(persons_counted.at_the_grain(raw, blocks[name]))
-            starts |= {start[:10] for start in starts}
+            if f"{grain.get('rung')}" in _ABOVE_THE_DAY:
+                starts |= {start[:10] for start in starts}
         own = json.dumps(blocks[name], indent=2) if name in blocks else text
         written: "dict[str, set[str]]" = {}
         for cell, key in zip(raw, keys):
@@ -443,4 +447,5 @@ def printed(text: str, dated: "list[str]", names: "list[str]", columns: "list[li
 
 
 _ABOVE_THE_DAY = ("year", "quarter", "month")
+_RUNG_ORDER = ("year", "quarter", "month", "day", "four hours", "hour", "minute", "second")
 _READINGS = ("iso-datetime", "iso-date", "month-first-date", "textual-day-first-date")
