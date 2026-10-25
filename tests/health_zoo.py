@@ -2959,7 +2959,7 @@ SENSITIVE_NAMES: "tuple[tuple[re.Pattern[str], tuple[str, ...], str], ...]" = (
     (re.compile(r"(?i)(patient|first|last|middle|given|family|sur)_?name$"), ("values",), "a person's name"),
     (re.compile(r"(?i)address|street|phone|e_?mail|(^|_)ssn(_|$)|social_sec"), ("values",),
      "an address, a telephone number, an e-mail address or a social security number"),
-    (re.compile(r"(?i)med_rec|(^|_)mrn(_|$)|durable_?key"), ("values",), "a medical record number or a patient key"),
+    (re.compile(r"(?i)med_rec|(^|_)m[r]n(_|$)|durable_?key"), ("values",), "a medical record number or a patient key"),
 )
 NOT_READ = {
     "rsid": "a public dbSNP variant code ('rs' and figures), the same in every person's file",
