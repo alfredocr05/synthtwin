@@ -3704,6 +3704,25 @@ footprint 401 MB at most there. At 2,000,000 rows the reading alone,
 growing with the rows, is about 100 times its 20,000-row figure:
 `K-S6-15`'s (lanes CHb, MPg, SX).
 
+**Repair 2 of the build (2026-10-25, lane CHv's verify of repair 1,
+plan P4-D430).** The verdict's NOT CHECKABLE count holds two kinds, and
+its sentence says how many of each and where each is named: the
+obligations no CSV can evidence, listed under WHAT COULD NOT BE CHECKED,
+AND WHY, and the between-columns lines the file cannot be checked for
+under (c) or (e), named in the section BETWEEN COLUMNS; that list ends
+by pointing to the second kind. Without such a line both are the bytes
+they were. Reading (f) holds for times of day as for dates, and (e)'s
+three sources (the description's declared record numbers, its role
+`identifier`, the file's own description) are one on every written
+file: a description reads a column `identifier` exactly where its
+settings declare it, and the file's own description is built under the
+description's declarations. The cost of (f) is one more description of
+the file on a switched run whose chain holds a date or time (measured
+at 20,000 rows by six columns, five and a visit date, a loaded machine:
+9.42 and 9.44 s against 8.16 and 8.20 s, about 15 % more); it is not
+folded into V2.1's, which the base checks read and which landing
+3b.1 builds without the censuses.
+
 **V12.1 The measurement re-uses the published choices and makes none of
 its own.** The file is re-described as V2 says. Each eligible column is
 cut at its PUBLISHED ladder (contract 4.6b.2), and every published

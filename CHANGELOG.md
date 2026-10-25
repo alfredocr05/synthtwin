@@ -32,7 +32,11 @@ chain's junction tree within bounds the description sets, every one of
 and the report's verdict, limits and handling paragraph say what the
 between-columns lines found, in plain words. At 20,000 rows the
 chain-arranged twin's whole real rows rise from 652.1 to 939.55, for the
-owner.
+owner. Repair 2: the verdict says how many of its NOT CHECKABLE
+obligations no CSV can evidence and how many are between-columns lines
+the file cannot be checked for, and where each kind is named; the clock
+census, each source of the people rule, the walk's held bound and RULE
+WE's room are each pinned by a case red on its mutant.
 
 ### Batch 4h's records: the record-number exposure closed and measured on the merged head, every twin the same bytes, owners for the chain's open items (2026-10-23)
 

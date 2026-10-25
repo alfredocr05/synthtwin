@@ -35,7 +35,11 @@ and every candidate pair with its published word, a pair reading
   calendar censuses, a file counted in people, a miss between columns
   only, the three-argument call without the switch, the implied bounds
   and the forest, the printed details, records of spaces and the
-  one-byte codes.
+  one-byte codes;
+- REPAIR 2's cases, each red on its mutant: the verdict's two kinds of
+  NOT CHECKABLE line, the clock census as the file's own fact, each
+  source of the people rule alone, the walk's held bound, RULE WE's room
+  outside the ladder and the published blanks of a column the file lacks.
 
 Every fixture is invented here; the key is the oracle's fixed test key.
 """
