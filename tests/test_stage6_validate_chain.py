@@ -1094,3 +1094,213 @@ def test_codes_are_held_one_byte_a_row_where_the_ladder_allows(clinic):
     as_bytes = chain_validation._measured_table(family, scales, {"A": bytearray([1, 1, 2, 2]), "B": bytearray([1, 2, 1, 2])}, 4)
     as_words = chain_validation._measured_table(family, scales, {"A": [1, 1, 2, 2], "B": [1, 2, 1, 2]}, 4)
     assert as_bytes == as_words == [1, 1, 1, 1]
+
+
+# -- REPAIR 2 (lane CHv, plan P4-D430): the verify's items, each pinned by a case red on its mutant --
+
+
+def test_the_verdict_names_both_kinds_of_not_checkable_line(clinic):
+    """The verify's item 1 on repair 1: a file without `gender` counts, on the
+    verdict's NOT CHECKABLE line, the obligations no CSV can evidence AND
+    the between-columns lines the file cannot be checked for; the verdict
+    says how many of each and where each kind is named, and the list of
+    obligations no CSV can evidence says where the others are. The table
+    itself (no such line) keeps the sentence it always had."""
+    from synthtwin import contract
+
+    place = clinic.header.index("gender")
+    header = [name for name in clinic.header if name != "gender"]
+    rows = [[cell for at, cell in enumerate(row) if at != place] for row in clinic.rows]
+    code, report, _screen = clinic.validate(rows, header=header)
+    measured = _write(clinic.folder / "no-gender.csv", header, rows)
+    loaded, document = contract.load_profile_document(str(clinic.path))
+    outcome = validation.measure(loaded, str(measured), "", document)
+    kept = outcome.chain.not_checkable
+    from_csv = outcome.census.not_checkable - kept
+    assert kept == 1 + len(_holding(clinic, "gender")) and from_csv == len(outcome.listings) > 0
+    top = report.split("THE VERDICT", 1)[1].split("WHAT THIS REPORT DOES NOT SAY", 1)[0]
+    assert (
+        f"A further {outcome.census.not_checkable} obligation(s) are NOT CHECKABLE: {from_csv} from a CSV\n"
+        "at all, each listed further down with the reason, and\n"
+        f"{kept} between-columns line(s) this file cannot be checked for (a\n"
+        "column it lacks, reads under another role, or counts in people),\n"
+        "named in the section BETWEEN COLUMNS. They carry no verdict and\n"
+        "they are not part of the count above.\n"
+    ) in top
+    assert "CHECKABLE from a CSV at\nall." not in top
+    listed = report.split("WHAT COULD NOT BE CHECKED, AND WHY", 1)[1].split("BETWEEN COLUMNS: THE CHAIN'S", 1)[0]
+    assert len(re.findall(r"^  \S.* -- ", listed, re.M)) == from_csv
+    assert f"Beside them, {kept} between-columns line(s) counted on the\nsame line of the verdict" in listed
+    assert "BETWEEN COLUMNS below." in listed
+    code, report, _screen = clinic.validate(clinic.rows)
+    top = report.split("THE VERDICT", 1)[1].split("WHAT THIS REPORT DOES NOT SAY", 1)[0]
+    assert "CHECKABLE from a CSV at\nall. They carry no verdict, they are not part of the count above,\n" in top
+    assert "Beside them," not in report
+
+
+def test_the_file_s_clock_census_is_its_own_fact_too(tmp_path, monkeypatch):
+    """The verify's item 2 on repair 1 (Codex's item 1 on the build, for times
+    of day): 4,000 visit times on ten-minute steps, `flag` yes from 11:30
+    on, the clock's `L2` edge at its published median 11:30, so `flag |
+    visit` confines each half. The file keeps every band total but holds
+    five rows at 11:20 and five at 11:30 (the rest moved an hour within
+    their bands): its clock census pools them into one group across the
+    edge, which leaves 1 to 10 rows on each side of it, an own-fact group
+    in a band the family confines, so every family line prints V5.3's
+    sentence. With the clock left out of the calendar's columns, both read
+    HELD."""
+    _home(monkeypatch, tmp_path)
+
+    def hhmm(minutes):
+        return f"{minutes // 60:02d}:{minutes % 60:02d}"
+
+    low = [360 + 10 * ((row * 33) // 1999) for row in range(1999)]
+    high = [690 + 10 * ((row * 39) // 2001) for row in range(2001)]
+    rows = [[hhmm(m), "no"] for m in low] + [[hhmm(m), "yes"] for m in high]
+    described = Described(tmp_path, ["visit", "flag"], rows)
+    assert described.blocks["visit"]["role"] == "time_of_day"
+    assert [f["table"] for f in _families(described)] == [[[1999, 2001]], [[0, 1999], [2001, 0]]], _families(described)
+    code, report, _screen = described.validate(rows)
+    assert code == 0 and set(_verdicts(report)[1].values()) == {"HELD"}
+    thinned = []
+    kept = {680: 0, 690: 0}
+    for text, flag in rows:
+        minutes = int(text[:2]) * 60 + int(text[3:])
+        if minutes in kept and kept[minutes] >= 5:
+            thinned += [[hhmm(minutes - 60 if minutes == 680 else minutes + 60), flag]]
+            continue
+        if minutes in kept:
+            kept[minutes] += 1
+        thinned += [[text, flag]]
+    code, report, _screen = described.validate(thinned)
+    totals, families = _verdicts(report)
+    assert set(totals.values()) == {"HELD"} and set(families.values()) == {"WITHHELD"}, (totals, families)
+    assert validation.CHAIN_GATE_CLOSED in _section(report)
+    monkeypatch.setattr(chain_validation, "reads_a_calendar", lambda document: False)
+    code, report, _screen = described.validate(thinned)
+    assert set(_verdicts(report)[1].values()) == {"HELD"}
+
+
+def test_each_source_of_the_people_rule_holds_alone(tmp_path):
+    """The verify's item 3 on repair 1: the rule that reads a file as counted in
+    people has three sources, each pinned alone on `_counted_in_people`:
+    the description's declared record numbers (`forced_identifiers`, or
+    `person_columns` alone), a column the description reads as record
+    numbers, and a column the file's own description alone reads so. A
+    written description reads a column as record numbers exactly where its
+    settings declare it, and validate's own description of a file is built
+    under the description's declarations, so no written file separates
+    them (P4-D430); this function's cases do. A column whose values never
+    repeat names rows, not people, and fires nothing."""
+    from synthtwin import reading
+
+    rows = [[f"{100000 + at // 10}", "x" if at % 3 else "y"] for at in range(200)]
+    table = reading.read_table(str(_write(tmp_path / "file.csv", ["id", "a"], rows)), small_cell_floor=FLOOR)
+    single = reading.read_table(str(_write(tmp_path / "rows.csv", ["id", "a"], [[f"{100000 + at}", row[1]] for at, row in enumerate(rows)])), small_cell_floor=FLOOR)
+
+    def holder(forced=(), people=(), role="count"):
+        return {"settings": {"forced_identifiers": list(forced), "person_columns": list(people)}, "columns": [{"name": "id", "role": role}, {"name": "a", "role": "binary"}]}
+
+    plain = holder()
+    counted = chain_validation._counted_in_people
+    assert counted(table, plain, plain) is False
+    assert counted(table, holder(forced=["id"]), plain) is True
+    assert counted(table, holder(people=["id"]), plain) is True
+    assert counted(table, holder(role="identifier"), plain) is True
+    assert counted(table, plain, holder(forced=["id"], role="identifier")) is True
+    assert counted(table, plain, holder(role="identifier")) is True
+    assert counted(single, holder(forced=["id"], role="identifier"), holder(forced=["id"], role="identifier")) is False
+
+
+def test_the_walk_s_held_cells_are_bounded_too(clinic, monkeypatch):
+    """The verify's item 4 on repair 1, `IMPLIED_HELD_AT_MOST`: a chain of three
+    columns of four bands, each pair of 16 cells (under 1,024), whose walk
+    holds 8 joint cells after its second family: under a bound of 5 the
+    pair is not worked out, and spends nothing past the bound; under the
+    report's bound it is. Through a report, a bound of 1 names every
+    implied pair as not worked out, in the words for the work."""
+    def ladder(name, bands):
+        return chain_rules.Ladder(name, tuple((f"{name}{k}",) for k in range(bands)), (tuple(range(bands)),) * 3, (bands,) * 3, (11,) * bands, (True,) * bands)
+
+    small = {"A": ladder("A", 4), "B": ladder("B", 4), "C": ladder("C", 4)}
+    diagonal = (11, 0, 0, 0, 0, 11, 0, 0, 0, 0, 11, 0, 0, 0, 0, 11)
+    linked = [chain_rules.Family("A", 0, (), None, (11,) * 4), chain_rules.Family("B", 0, (("A", 0),), 0, diagonal), chain_rules.Family("C", 0, (("B", 0),), 1, diagonal)]
+    assert chain_validation.implied_shares(linked, small, "A", "C")[0] == [(1, 4), (0, 1), (0, 1), (0, 1)]
+    monkeypatch.setattr(chain_validation, "IMPLIED_HELD_AT_MOST", 5)
+    assert chain_validation.implied_shares(linked, small, "A", "C") is None
+    monkeypatch.setattr(chain_validation, "IMPLIED_HELD_AT_MOST", 1)
+    code, report, _screen = clinic.validate(clinic.rows)
+    section = _section(report)
+    implied = [entry["columns"] for entry in clinic.statistical["words"] if entry["word"] == "implied"]
+    assert implied
+    for a, b in implied:
+        assert re.search(rf"^  '{a}' and '{b}': implied\n      {re.escape(chain_validation.TOO_MUCH_WORK)}$", section, re.M)
+
+
+def _we_rows():
+    """The three label columns of RULE WE's case: 200, 200 and 25 blank cells, no record holding nothing."""
+    draw = random.Random(9)
+    rows = []
+    for _row in range(3000):
+        a = draw.choice(["x", "y"])
+        b = ("u" if a == "x" else "v") if draw.random() < 0.8 else draw.choice(["u", "v"])
+        rows += [[a, b, draw.choice(["p", "q", "s"])]]
+    for at in range(0, 200):
+        rows[at][0] = ""
+    for at in range(170, 370):
+        rows[at][1] = ""
+    for at in range(1000, 1025):
+        rows[at][2] = ""
+    draw.shuffle(rows)
+    return rows
+
+
+def test_rule_we_counts_the_cells_outside_the_ladder_as_room(tmp_path, monkeypatch):
+    """The verify's item 4 on repair 1, RULE WE's `P`: RULE WE's case with a
+    fourth column outside the ladder (free text, a value on every row). The
+    file's 33 records holding nothing leave no room for a row blank in
+    every column, but a row blank in every column of the ladder may hold
+    a value of the free text, and the file's own description counts 3,000
+    such cells: the gate stands open and every family line is judged,
+    HELD."""
+    import hashlib
+
+    _home(monkeypatch, tmp_path)
+    rows = [row + [hashlib.sha256(f"{at}".encode()).hexdigest()[:10]] for at, row in enumerate(_we_rows())]
+    header = ["A", "B", "C", "note"]
+    described = Described(tmp_path, header, rows)
+    assert [entry["column"] for entry in described.statistical["ladder"]] == ["A", "B", "C"]
+    (tmp_path / "we").mkdir()
+    code, report, _said = _validate_file(described, _write_lines(tmp_path / "we" / "twin.csv", header, rows, 11, 11, 11))
+    totals, families = _verdicts(report)
+    assert set(totals.values()) == {"HELD"} and set(families.values()) == {"HELD"}, (totals, families)
+
+
+def test_rule_we_reads_a_column_the_file_lacks_at_its_published_blanks(tmp_path, monkeypatch):
+    """The verify's item 4 on repair 1, the published blank count of a column
+    that is not checkable: RULE WE's case, the file without `C` and with
+    `B`'s blank cells moved off `A`'s (every band total kept), so no row
+    of the file is blank in both. Only `C`'s 25 published blank cells,
+    read for the column the file lacks, place a row blank in every column
+    of the ladder, and with no room left for one every family line not
+    holding `C` prints V5.3's sentence; those holding it are NOT
+    CHECKABLE."""
+    _home(monkeypatch, tmp_path)
+    rows = _we_rows()
+    header = ["A", "B", "C"]
+    described = Described(tmp_path, header, rows)
+    both = [at for at in range(len(rows)) if rows[at][0] == "" and rows[at][1] == ""]
+    free = [at for at in range(len(rows)) if rows[at][0] != "" and rows[at][1] != ""][: len(both)]
+    moved = [list(row) for row in rows]
+    for one, other in zip(both, free):
+        moved[one][1], moved[other][1] = moved[other][1], moved[one][1]
+    assert both and not [row for row in moved if row[0] == "" and row[1] == ""]
+    (tmp_path / "we").mkdir()
+    code, report, _said = _validate_file(described, _write_lines(tmp_path / "we" / "twin.csv", ["A", "B"], [row[:2] for row in moved], 11, 11, 11))
+    totals, families = _verdicts(report)
+    assert totals == {"A": "HELD", "B": "HELD", "C": "NOT CHECKABLE"}, totals
+    holding = _holding(described, "C")
+    assert len(holding) < len(families)
+    for at, verdict in families.items():
+        assert verdict == ("NOT CHECKABLE" if at in holding else "WITHHELD"), (at, verdict)
+    assert validation.CHAIN_GATE_CLOSED in _section(report)

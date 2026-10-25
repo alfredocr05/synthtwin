@@ -391,14 +391,9 @@ def _summary_lines(
         ),
         "description sets that a file can be measured against.",
         "",
-        (
-            f"A further {census.not_checkable} obligation(s) are NOT "
-            f"CHECKABLE from a CSV at"
-        ),
-        "all. They carry no verdict, they are not part of the count above,",
-        "and every one of them is listed further down with the reason.",
-        "",
     ]
+    lines += _not_checkable_summary(census, chain)
+    lines += [""]
     if census.missed == 0:
         lines += [
             "NO CHECKABLE OBLIGATION WAS MISSED.",
@@ -447,6 +442,45 @@ def _summary_lines(
                 "BETWEEN COLUMNS further down rather than in the next one.",
             ]
     return lines
+
+
+def _not_checkable_summary(
+    census: validation.Census, chain: "validation.ChainLines | None"
+) -> "list[str]":
+    """The verdict's sentence on the obligations that carry no verdict.
+
+    TWO KINDS UNDER THE CHAIN'S SWITCH (lane CHv, plan P4-D430; the
+    verify's item 1 on repair 1): an obligation no CSV can evidence at
+    all, listed under WHAT COULD NOT BE CHECKED, AND WHY, and a
+    between-columns line this file cannot be checked for (a column it
+    lacks, reads under another role, or counts in people), named in the
+    section BETWEEN COLUMNS. Where the outcome carries no such line the
+    sentence is the one it always was, byte for byte.
+    """
+    if chain is None or chain.not_checkable <= 0:
+        return [
+            (
+                f"A further {census.not_checkable} obligation(s) are NOT "
+                f"CHECKABLE from a CSV at"
+            ),
+            "all. They carry no verdict, they are not part of the count above,",
+            "and every one of them is listed further down with the reason.",
+        ]
+    from_csv = census.not_checkable - chain.not_checkable
+    return [
+        (
+            f"A further {census.not_checkable} obligation(s) are NOT "
+            f"CHECKABLE: {from_csv} from a CSV"
+        ),
+        "at all, each listed further down with the reason, and",
+        (
+            f"{chain.not_checkable} between-columns line(s) this file cannot "
+            f"be checked for (a"
+        ),
+        "column it lacks, reads under another role, or counts in people),",
+        "named in the section BETWEEN COLUMNS. They carry no verdict and",
+        "they are not part of the count above.",
+    ]
 
 
 def _bounds_lines(chain: "validation.ChainLines | None" = None) -> "list[str]":
@@ -911,7 +945,27 @@ def _not_checkable_lines(outcome: validation.Outcome) -> "list[str]":
         "and named here so that silence never reads as a pass.",
         "",
     ]
+    # THE CHAIN'S LINES THIS FILE CANNOT BE CHECKED FOR (lane CHv, plan
+    # P4-D430; the verify's item 1 on repair 1) are counted on the same
+    # line of the verdict, so this list says where they are named;
+    # nothing at all where the outcome carries none.
+    beside: "list[str]" = []
+    if outcome.chain is not None and outcome.chain.not_checkable > 0:
+        beside = [
+            "",
+            (
+                f"Beside them, {outcome.chain.not_checkable} between-columns "
+                f"line(s) counted on the"
+            ),
+            "same line of the verdict could not be checked on this file,",
+            "because it lacks a column of the chain, reads one under another",
+            "role, or counts its values in people. They are not of the kind",
+            "listed here: each is named, with its reason, in the section",
+            "BETWEEN COLUMNS below.",
+        ]
     if not outcome.listings:
+        if beside:
+            return lines + ["No obligation of a single column is of this kind."] + beside
         return lines + [
             "On this description there are none: every obligation it sets",
             "could be measured against the file.",
@@ -928,7 +982,7 @@ def _not_checkable_lines(outcome: validation.Outcome) -> "list[str]":
             f"  {where} -- {named}",
             f"      {_shown(listing.reason)}",
         ]
-    return lines
+    return lines + beside
 
 
 def _chain_level(level: int) -> str:
