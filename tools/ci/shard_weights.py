@@ -75,6 +75,15 @@ loading: lane E0a's health data zoo, `tests/test_health_zoo.py`,
 22.78 s, and lane H1's padded swaps at scale,
 `tests/test_stage4_padded_swap_scale.py`, 67.35 s.
 
+ROWS CHANGED 2026-10-25, by lane E0c's repair (the skeptic's item 8), each
+file timed ON ITS OWN on the lane's head on a machine other work was
+loading: the widened zoo's `tests/test_health_zoo.py`, 75.78 s; its new
+`tests/test_health_zoo_shards.py`, 9.82 s, and
+`tests/test_health_zoo_leaks.py`, 1.31 s; and `tests/test_kpi_ledger.py`,
+whose zoo smoke grew from about 21 s to five shard items of 25 to 43 s
+each (161.5 s in all at 600 rows, the lane's own 600-row run), weighed
+at its row of 2026-10-19 less 21 s and plus that 161.5 s.
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
 an ordinary small file and runs in its shard from the commit that adds
@@ -124,12 +133,14 @@ SECONDS = {
     "tests/test_final_skeptic_repairs.py": 18.68,
     "tests/test_generation.py": 7.12,
     "tests/test_generation_reference.py": 95.29,
-    "tests/test_health_zoo.py": 22.78,
+    "tests/test_health_zoo.py": 75.78,
+    "tests/test_health_zoo_leaks.py": 1.31,
+    "tests/test_health_zoo_shards.py": 9.82,
     "tests/test_held_unit_search.py": 25.61,
     "tests/test_joined_battery_readings.py": 215.32,
     "tests/test_joined_pair_round_trip.py": 103.91,
     "tests/test_k_p3_03_outer_tail_spread.py": 58.33,
-    "tests/test_kpi_ledger.py": 658.49,
+    "tests/test_kpi_ledger.py": 798.99,
     "tests/test_kpi_ledger_integrity.py": 9.84,
     "tests/test_landing_2b12_identifiers_codes_text.py": 15.77,
     "tests/test_landing_2b13_numbers_beside_labels.py": 5.74,
