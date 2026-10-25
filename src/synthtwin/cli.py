@@ -3340,6 +3340,31 @@ def _counted_in_people_notice(names: "tuple[str, ...]", floor: int) -> str:
     )
 
 
+def _dates_held_in_rows_notice(names: "tuple[str, ...]", floor: int) -> str:
+    """What the screen says of the columns of dates the count in rows held (plan P4-D433).
+
+    On a table of one row a person, or with no person column, each row is
+    counted as its own: a column of dates one of whose dates falls on
+    fewer than the smallest group size of rows, at every grain from the
+    day to the year, is described as record numbers, and the twin writes
+    made-up dates in the column's own layouts.
+
+    Guarantees: accepts the columns and the floor; returns one paragraph.
+    A fixed function of the names, which are the table's own column names
+    and are published in the description like every other. Raises
+    nothing, opens no file.
+    """
+    return (
+        f"\nDATES HELD BY FEWER THAN {floor} ROWS\n"
+        f"No column of this table names a person on several rows, so each "
+        f"row of {_joined(list(names), ' and ')} was counted as its own: "
+        f"a date fewer than {floor} rows fall on is not published, at the "
+        f"day, the month, the quarter or the year, so these columns are "
+        f"described as record numbers and the twin writes made-up dates "
+        f"there, in each column's own layouts."
+    )
+
+
 def _small_population_notice(spoken: str, person_columns: str) -> str:
     """The notice a table between the floor and the line gets, on the screen.
 
@@ -4700,6 +4725,7 @@ def _run_profile_body(
     # The columns whose values the count in people changed (plan
     # P4-D406), named on the screen.
     counted_in_people: "list[str]" = []
+    counted_in_rows: "list[str]" = []
     document = profile.build_document(
         read,
         settings,
@@ -4723,6 +4749,7 @@ def _run_profile_body(
         # -- P4-D406: every value counted in the declared people too.
         subjects=list(person_columns),
         counted_in_subjects=counted_in_people,
+        counted_in_rows=counted_in_rows,
     )
     # Handed over once: the description has taken the reading as its own.
     census_readings = ()
@@ -5080,6 +5107,7 @@ def _run_profile_body(
                 census_box = [census_readings if read.source is None else ()]
                 census_readings = ()
                 counted_in_people = []
+                counted_in_rows = []
                 document = profile.build_document(
                     read,
                     settings,
@@ -5094,6 +5122,7 @@ def _run_profile_body(
                     stored_as=storage,
                     subjects=list(person_columns),
                     counted_in_subjects=counted_in_people,
+                    counted_in_rows=counted_in_rows,
                 )
                 census_readings = ()
                 # And the role check is asked again of the rebuilt
@@ -5294,6 +5323,7 @@ def _run_profile_body(
         # round 2, item 1). One that never repeats counts in rows, as the
         # floor does, and is set aside by `profile.build_document`.
         counted_in_people = []
+        counted_in_rows = []
         published = profile.build_document(
             read,
             settings,
@@ -5308,7 +5338,10 @@ def _run_profile_body(
             unanswered=list(withheld),
             subjects=list(person_columns) + list(withheld) + candidates,
             counted_in_subjects=counted_in_people,
+            counted_in_rows=counted_in_rows,
         )
+    if counted_in_rows:
+        _warn(_dates_held_in_rows_notice(tuple(counted_in_rows), settings.small_cell_floor))
     if counted_in_people:
         named_once: "list[str]" = []
         for name in counted_in_people:

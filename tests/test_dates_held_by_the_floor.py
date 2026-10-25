@@ -205,6 +205,17 @@ def test_the_description_and_its_summary_say_rows_where_rows_are_counted(describ
     assert pooled["detection_evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_POOLED_IN_ROWS, ())
     summary = (folder / "no_person-profile.txt").read_text(encoding="utf-8")
     assert "because too few rows hold its dates" in summary
+    # ...and the screen says rows too, never "several rows a person".
+    again = folder / "again"
+    again.mkdir()
+    screen = io.StringIO()
+    with shapes.nobody_at_the_keyboard():
+        with contextlib.redirect_stdout(screen), contextlib.redirect_stderr(screen):
+            assert cli.main(["profile", f"{source}", "--out-dir", f"{again}", "--replace"],
+                            small_tables_refused=True) == 0
+    said = screen.getvalue()
+    assert "DATES HELD BY FEWER THAN 11 ROWS" in said and "event_date" in said, said[-1500:]
+    assert "VALUES HELD BY FEWER THAN" not in said
     assert "each row is counted as its own, and some date" in summary
     _source, people = described("several_rows", 20000)
     beside = dates_held.block_of(people, "several_rows", "birth_date")

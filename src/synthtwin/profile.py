@@ -4210,6 +4210,7 @@ def build_document(
     counted_in_subjects: "list[str] | None" = None,
     time_grains: "dict[str, grains.Grain] | None" = None,
     absent_read: "dict[str, tuple[str, ...]] | None" = None,
+    counted_in_rows: "list[str] | None" = None,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -4303,7 +4304,9 @@ def build_document(
       subject columns that are each different on every row describe
       every column as before, byte for byte. ``counted_in_subjects``,
       where given, is a list this call extends with the name of each
-      column whose description that count changed, for the screen.
+      column whose description that count changed, for the screen;
+      ``counted_in_rows`` likewise with each column of dates the count
+      in rows held (plan P4-D433).
     - A column of dates, stamps, clock times or counted dates that the
       count in people would hold is described at a coarser calendar grain
       instead where one serves (plan P4-D417, `_grain_walk`): its cells
@@ -4754,7 +4757,13 @@ def build_document(
                         described = taxonomy.with_held_dates(
                             described, grains.record(held_dates)
                         )
-                    if counted_in_subjects is not None:
+                    # ...named apart where the rows held it (plan P4-D433),
+                    # so the screen never says the table has several rows a
+                    # person when it has one.
+                    if by_rows:
+                        if counted_in_rows is not None:
+                            counted_in_rows += [name]
+                    elif counted_in_subjects is not None:
                         counted_in_subjects += [name]
         if (
             not declarations_are_reconstructed
