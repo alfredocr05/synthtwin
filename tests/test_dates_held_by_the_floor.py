@@ -45,7 +45,7 @@ import types
 
 import pytest
 
-from synthtwin import cli, contract, parsing, profile, taxonomy, validation
+from synthtwin import cli, contract, grains, parsing, profile, taxonomy, validation
 
 import dates_held
 import unanswered_identifier_shapes as shapes
@@ -309,6 +309,19 @@ def test_a_published_date_on_ten_rows_is_few_and_on_eleven_is_not(
     column = types.SimpleNamespace(absent_spellings=())
     cells = ["2023-01-05"] * rows + ["2023-06-01"] * 50 + [""] * 5
     assert profile._dates_few_in_rows(column, cells, 11) is few  # type: ignore[arg-type]
+
+
+def test_a_rung_publishing_another_member_than_its_record_reads_does_not_serve() -> None:
+    """TG1 as the loader holds it, asked before a rung is kept; and the day-first order read."""
+    day_first = grains.Reading(grains.DATE, "day-first-date")
+    assert not profile._reads_its_member(types.SimpleNamespace(details={"format": "month-first-date"}), day_first)  # type: ignore[arg-type]
+    assert profile._reads_its_member(types.SimpleNamespace(details={"format": "day-first-date"}), day_first)  # type: ignore[arg-type]
+    assert profile._reads_its_member(types.SimpleNamespace(details={}), day_first)  # type: ignore[arg-type]
+    assert profile._reads_its_member(types.SimpleNamespace(details={"format": "x"}), grains.Reading(grains.CLOCK, "hh:mm"))  # type: ignore[arg-type]
+    for member, first in (("day-first-date", True), ("dotted-day-first-date", True), ("month-first-date", False),
+                          ("iso-date", False), ("layout {DD}/{MM}/{YY1900}", True), ("layout {MM}/{DD}/{YY1900}", False),
+                          ("layout {DD}-{MON}-{YY}", False)):
+        assert profile._day_before_month(member) is first, member
 
 
 def test_rows_as_holders_tells_every_row_apart() -> None:
