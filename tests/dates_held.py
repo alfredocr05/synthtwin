@@ -427,6 +427,10 @@ def printed(text: str, dated: "list[str]", names: "list[str]", columns: "list[li
                 starts |= set(persons_counted.at_the_grain(raw, blocks[name]))
             if f"{grain.get('rung')}" in _ABOVE_THE_DAY:
                 starts |= {start[:10] for start in starts}
+            # ...written at the cells' own precision: `1995-01` for 1995 in a
+            # column of months.
+            if grain.get("finest") == "month":
+                starts |= {start[:7] for start in starts}
         own = json.dumps(blocks[name], indent=2) if name in blocks else text
         written: "dict[str, set[str]]" = {}
         for cell, key in zip(raw, keys):
