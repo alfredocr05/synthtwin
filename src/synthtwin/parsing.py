@@ -3305,17 +3305,18 @@ def is_a_layout_exclusion(text: str) -> bool:
 
     One to `LAYOUT_FORM_LIMIT` characters, each a placeholder, a mark of
     `LAYOUT_MARKS`, a single interior space, an ASCII figure or an ASCII
-    letter, with at least one figure or letter and AT LEAST ONE
-    PLACEHOLDER, so no exclusion is ever spelled as a cell is (plan
-    P4-D432). Which layout it excludes is asked by `excludes_the_layout`.
-    Raises TypeError for a non-string. No I/O.
+    letter, with at least one figure or letter (plan P4-D432). Every
+    place written out is one NO real cell of its layout holds there, so
+    an exclusion with no placeholder left -- a layout of one value, `-3`
+    on every cell, excluded as `-9` -- is spelled as no real cell is.
+    Which layout it excludes is asked by `excludes_the_layout`. Raises
+    TypeError for a non-string. No I/O.
     """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
     if not text or len(text) > LAYOUT_FORM_LIMIT:
         return False
     written = 0
-    placeholders = 0
     before = ""
     for character in text:
         if _is_a_digit(character) or _is_a_letter(character):
@@ -3323,12 +3324,10 @@ def is_a_layout_exclusion(text: str) -> bool:
         elif character == LAYOUT_SPACE:
             if before in ("", LAYOUT_SPACE):
                 return False
-        elif character in _LAYOUT_PLACEHOLDERS:
-            placeholders = placeholders + 1
-        elif character not in LAYOUT_MARKS:
+        elif character not in _LAYOUT_PLACEHOLDERS and character not in LAYOUT_MARKS:
             return False
         before = character
-    return written > 0 and placeholders > 0 and before != LAYOUT_SPACE
+    return written > 0 and before != LAYOUT_SPACE
 
 
 def excludes_the_layout(layout: str, exclusion: str) -> bool:

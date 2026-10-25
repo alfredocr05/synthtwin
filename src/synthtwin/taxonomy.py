@@ -26388,17 +26388,17 @@ def _a1_written(
 
 # -- WHAT NO REAL CELL HOLDS (lane ID-ROOM, plan P4-D432) ----------------
 #
-# A block of the last k places is excluded only where its spellings are
-# at least this many times the layout's published cells, so the one
-# block tried is held by no real cell on all but about one layout in a
-# thousand of values drawn at random -- and a block a real cell does hold
-# is never followed by another, so the choice reads no second real block.
-_EXCLUSION_BLOCK_ODDS = 1000
 # The places before which a nought would read otherwise: the opening of a
 # cell (a record number of figures alone would recount as a zero fill),
 # of a UID arc (the grammar leads no arc but `0` with a nought), after a
 # sign or after a zero fill's own noughts.
 _EXCLUSION_NO_NOUGHT_AFTER = ".-+" + parsing.LAYOUT_LEADING_ZERO
+# The placeholders an exclusion writes out: a figure's, the two
+# hexadecimal marks, and a letter's where another letter place stays.
+_EXCLUDED_MARKS = (
+    parsing.LAYOUT_DIGIT + parsing.LAYOUT_LOWER_HEX + parsing.LAYOUT_UPPER_HEX
+)
+_LETTER_MARKS = parsing.LAYOUT_UPPER + parsing.LAYOUT_LOWER
 
 
 def with_layout_exclusions(
@@ -26486,18 +26486,18 @@ def with_layout_exclusions(
         whole_places = all_whole is True and any(
             parsing.whole_places_layout(layout) != layout for layout in named
         )
+        opening = len(parsing.prefix_layout(whole, convention)) if whole else 0
         for layout in named:
             prefix = f"{prefixes[layout]}" if layout in prefixes else whole
             template = parsing.layout_template(layout, prefix, whole_places)
-            need = min(int(f"{forms[layout]}"), column.n_distinct)
             found = _exclusion_of(
                 worn[layout] if layout in worn else [],
                 layout,
                 template,
                 prefix,
                 floor,
-                need,
                 int(f"{forms[layout]}"),
+                min(int(f"{forms[layout]}"), column.n_distinct),
             )
             if found:
                 exclusions[layout] = found
@@ -26508,7 +26508,6 @@ def with_layout_exclusions(
                 and int(f"{forms[layout]}") > int(f"{forms[widest]}")
             ):
                 widest = layout
-        opening = len(parsing.prefix_layout(whole, convention)) if whole else 0
         spill = parsing.spill_layout(widest, opening, longest)
         if spill:
             exclusions[parsing.EXCLUSION_SPILL] = spill
@@ -26525,62 +26524,66 @@ def _exclusion_of(
     template: str,
     prefix: str,
     floor: int,
-    need: int,
     published: int,
+    need: int,
 ) -> str:
-    """One layout's exclusion (`with_layout_exclusions`), or "" where none leaves room."""
+    """One layout's exclusion (`with_layout_exclusions`), or "" where none is found."""
     root = prefix if parsing.is_a_uid_root(prefix) else ""
     room = (
         parsing.uid_room(template[len(root):]) if root else parsing.layout_room(template)
     )
+    letters = 0
+    for mark in template:
+        if mark in _LETTER_MARKS:
+            letters = letters + 1
+    # A LETTER PLACE IS WRITTEN OUT ONLY WHERE ANOTHER STAYS, so every
+    # spelling of the template still holds a letter placeholder where the
+    # layout's own did (the fold-collision ask reads it, G9.3).
     places: "list[int]" = []
     for place in range(len(template)):
-        if parsing.exclusion_alphabet(template[place]):
+        if template[place] in _EXCLUDED_MARKS or (
+            template[place] in _LETTER_MARKS and letters >= 2
+        ):
             places += [place]
     for place in places:
         held: "dict[str, int]" = {}
         for value in cells:
             character = value[place]
             held[character] = (held[character] if character in held else 0) + 1
-        small = False
-        for character in held:
-            if 0 < held[character] < floor:
-                small = True
-        if small:
-            continue
         alphabet = parsing.exclusion_alphabet(template[place])
         leads = place == 0 or template[place - 1] in _EXCLUSION_NO_NOUGHT_AFTER
         for at in range(len(alphabet) - 1, -1, -1):
             character = alphabet[at]
             if character == "0" and leads:
                 continue
-            if character in held:
-                continue
-            written = layout[:place] + character + layout[place + 1:]
-            if room // len(alphabet) < need or not parsing.is_a_layout_exclusion(
-                written
-            ):
-                return ""
-            return written
+            count = held[character] if character in held else 0
+            if count == 0:
+                return layout[:place] + character + layout[place + 1:]
+            if count < floor:
+                # A CHARACTER FEWER THAN THE FLOOR'S CELLS HOLD IS NEVER
+                # PASSED OVER: the place is left, so what the choice says
+                # about a character it passed is that the floor's cells hold it.
+                break
+    # THE BLOCK: the last k figure places, k the most whose spellings the
+    # room still holds the layout's cells or values beside, written as
+    # their greatest characters, and one block tried, never a second.
     spellings = 1
     block: "list[int]" = []
     for at in range(len(places) - 1, -1, -1):
-        if spellings >= _EXCLUSION_BLOCK_ODDS * max(published, 1):
+        place = places[at]
+        if template[place] not in _EXCLUDED_MARKS:
             break
-        block += [places[at]]
-        spellings = spellings * len(parsing.exclusion_alphabet(template[places[at]]))
-    if (
-        not block
-        or spellings < _EXCLUSION_BLOCK_ODDS * max(published, 1)
-        or room // spellings < need
-    ):
+        wider = spellings * len(parsing.exclusion_alphabet(template[place]))
+        if room // wider < max(need, 1):
+            break
+        block += [place]
+        spellings = wider
+    if not block or spellings < max(published, 1):
         return ""
     written = layout
     for place in block:
         alphabet = parsing.exclusion_alphabet(template[place])
         written = written[:place] + alphabet[len(alphabet) - 1] + written[place + 1:]
-    if not parsing.is_a_layout_exclusion(written):
-        return ""
     for value in cells:
         every = True
         for place in block:

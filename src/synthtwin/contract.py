@@ -2420,7 +2420,7 @@ INVARIANTS = {
     "LX2": (
         "an exclusion is its layout with one place or more written as a "
         "character of that place's own alphabet, every one a place the "
-        "twin fills after the layout's prefix, and at least one place left"
+        "twin fills after the layout's prefix"
     ),
     "LX3": (
         "the spill is a layout the census does not name, longer than the "
@@ -18699,10 +18699,17 @@ def _layout_exclusions(
     whole_places = all_whole and any(
         parsing.whole_places_layout(name) != name for name in named
     )
+    opening = parsing.prefix_layout(whole, convention) if whole else ""
     for scope in sorted(exclusions):
         text = exclusions[scope]
+        if scope != parsing.EXCLUSION_SPILL and scope not in named:
+            raise _broken(
+                "LX1",
+                where,
+                "an exclusion published for a layout the census does not name",
+                f"the census names {len(named)} layout(s)",
+            )
         if scope == parsing.EXCLUSION_SPILL:
-            opening = parsing.prefix_layout(whole, convention) if whole else ""
             if (
                 not parsing.is_a_layout_form(text)
                 or text in layouts
@@ -18717,13 +18724,6 @@ def _layout_exclusions(
                     f"the longest value is {longest} characters",
                 )
             continue
-        if scope not in named:
-            raise _broken(
-                "LX1",
-                where,
-                "an exclusion published for a layout the census does not name",
-                f"the census names {len(named)} layout(s)",
-            )
         prefix = prefixes[scope] if scope in prefixes else whole
         template = parsing.layout_template(scope, prefix, whole_places)
         fits = parsing.excludes_the_layout(scope, text)

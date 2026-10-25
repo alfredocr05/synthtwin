@@ -26171,21 +26171,44 @@ def excluded_template(template, exclusion):
     )
 
 
+def widened_layout(name, opening, longest):
+    """A layout widened until it is longer than ``longest`` (G9.6b, P4-D432), or "".
+
+    Written from the rule statement: copies of `%` before the first `%` at
+    or after place ``opening``, else of the first placeholder there; ""
+    past sixty-four characters or with no placeholder after the opening.
+    """
+    wanted = max(longest - len(name) + 1, 1)
+    if len(name) + wanted > 64:
+        return ""
+    for place in range(max(opening, 0), len(name)):
+        if name[place] == LAYOUT_DIGIT:
+            return name[:place] + LAYOUT_DIGIT * wanted + name[place:]
+    for place in range(max(opening, 0), len(name)):
+        if name[place] in _EXCLUSION_ALPHABETS:
+            return name[:place] + name[place] * wanted + name[place:]
+    return ""
+
+
 def spelled_off_the_real(column, content):
     """Every present cell of a record number written where no real cell is (G9.6b, P4-D432).
 
-    Written from the rule statement.  A cell is KEPT where it recounts
-    into a named layout carrying an exclusion and wears that layout's
-    excluded template, or wears the spill's template; every other
-    different value, in the order it first appears in the content, takes
-    the next spelling of the target template -- the spill's, else the
-    excluded template of the most room -- stepping from nought, that
-    neither spells nor folds onto any cell of the content or any spelling
-    taken before it, wears the target and reads as no absent spelling,
-    and every cell of the value is written so.  An empty map moves
-    nothing.  THIS ORACLE DOES NOT MODEL the date test the product asks
-    of a moved spelling: no frozen case's target reaches a spelling any
-    date format reads, and a case that did would need it added first.
+    Written from the rule statement.  A different value is KEPT where it
+    recounts into a named layout carrying an exclusion and wears that
+    layout's excluded template, or is at least as long as the spill;
+    every other one, in the order it first appears in the content, takes
+    the first spelling, stepping from nought (each template its own
+    step), that neither spells nor folds onto any cell of the content or
+    any spelling taken before it, wears the template and reads as no
+    absent spelling -- of its layout's excluded template, then of the
+    excluded template of each named layout its own layout widens to, a
+    figure at a time, then of its layout widened as long as the spill
+    (the same prefix and noughts), then of the spill -- and every cell of
+    the value is written so.  An
+    empty map moves nothing.  THIS ORACLE DOES NOT MODEL the date test the
+    product asks of a moved spelling: no frozen case's target reaches a
+    spelling any date format reads, and a case that did would need it
+    added first.
     """
     exclusions = column.get("layout_exclusions") or {}
     if not exclusions:
@@ -26197,49 +26220,66 @@ def spelled_off_the_real(column, content):
         name != WITHHELD and whole_places_template(name) != name for name in census
     )
     convention = _convention_of_the_keys([name for name in census if name != WITHHELD])
-    kept = {}
-    target = ""
-    for name in sorted(census):
-        if name == WITHHELD or name not in exclusions:
-            continue
-        prefix = prefixes.get(name, whole)
+
+    def template_of(name, prefix):
         written = prefix + name[len(prefix):] if prefix else name
-        if noughts:
-            written = whole_places_template(written)
-        kept[name] = excluded_template(written, exclusions[name])
-        if not target or layout_room(kept[name]) > layout_room(target):
-            target = kept[name]
-    spill = exclusions.get(EXCLUSION_SPILL, "")
-    if spill:
-        target = whole + spill[len(whole):] if whole else spill
-        if noughts:
-            target = whole_places_template(target)
+        return whole_places_template(written) if noughts else written
+
+    kept = {
+        name: excluded_template(template_of(name, prefixes.get(name, whole)), exclusions[name])
+        for name in sorted(census)
+        if name != WITHHELD and name in exclusions
+    }
+    spill = ""
+    if EXCLUSION_SPILL in exclusions:
+        spill = template_of(exclusions[EXCLUSION_SPILL], whole)
+    bound = len(spill)
     holes = tuple(sorted(column.get("missing_by_source") or {}))
     used = set(content) | {folded(cell) for cell in content}
     moved = {}
-    step = 0
+    steps = {}
     for cell in content:
         if cell in moved or not cell.strip():
             continue
         layout = layout_of(cell, convention)
-        if (layout in kept and wears_template(cell, kept[layout], convention)) or (
-            spill and wears_template(cell, target, convention)
-        ):
+        if layout in kept and wears_template(cell, kept[layout], convention):
             continue
-        while True:
-            if step >= layout_room(target):
-                raise AssertionError(
-                    "the spill has no spelling left, which no frozen case reaches"
-                )
-            candidate = filled_layout(target, step)
-            step += 1
-            if (
-                candidate not in used
-                and folded(candidate) not in used
-                and wears_template(candidate, target, convention)
-                and not reads_as_absent(candidate, holes)
-            ):
+        if bound and len(cell) >= bound:
+            continue
+        targets = []
+        if layout in kept:
+            targets += [kept[layout]]
+        if layout and bound:
+            prefix = prefixes.get(layout, whole)
+            opening = len(prefix_layout(prefix, convention))
+            for width in range(len(layout) + 1, bound):
+                wider = widened_layout(layout, opening, width - 1)
+                if wider in kept:
+                    targets += [kept[wider]]
+            wide = widened_layout(layout, opening, bound - 1)
+            if wide:
+                targets += [template_of(wide, prefix)]
+        if spill:
+            targets += [spill]
+        candidate = ""
+        for into in targets:
+            step = steps.get(into, 0)
+            while step < layout_room(into):
+                trial = filled_layout(into, step)
+                step += 1
+                if (
+                    trial not in used
+                    and folded(trial) not in used
+                    and wears_template(trial, into, convention)
+                    and not reads_as_absent(trial, holes)
+                ):
+                    candidate = trial
+                    break
+            steps[into] = step
+            if candidate:
                 break
+        if not candidate:
+            raise AssertionError("no spelling is left, which no frozen case reaches")
         used.add(candidate)
         used.add(folded(candidate))
         moved[cell] = candidate
@@ -26276,6 +26316,9 @@ def _opens_with_a_uid_root(template):
         if mark not in DIGIT_CHARACTERS and mark != ".":
             break
         opening += mark
+    # ...read to its last point: an exclusion's figure may stand after the
+    # root, at the opening of the first arc drawn (G9.6b, plan P4-D432).
+    opening = opening[: opening.rfind(".") + 1]
     if len(opening) < 2 or not opening.endswith("."):
         return False
     arcs = opening[:-1].split(".")
@@ -26393,11 +26436,13 @@ def _a_signed_number(layout):
     every other layout opening with a formula character still is.
     """
     body = layout[1:]
+    # A figure an exclusion writes out stands for a figure (G9.6b, P4-D432).
+    figures = sum(1 for mark in body if mark == "%" or mark in DIGIT_CHARACTERS)
     return (
         layout[:1] in ("-", "+")
-        and body.count("%") >= 1
+        and figures >= 1
         and body.count(".") <= 1
-        and set(body) <= {"%", "."}
+        and set(body) <= {"%", "."} | DIGIT_CHARACTERS
     )
 LAYOUT_STEPS = 4096
 LAYOUT_ADMISSION_STEPS = 64

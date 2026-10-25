@@ -54313,10 +54313,16 @@ def _spelled_off_the_real(
     above write a cell of a layout carrying an exclusion with the places
     it writes out (`_templated_facts`), and no real cell of that layout
     holds them; this pass reads every other cell -- one of a layout no
-    exclusion leaves room in, the pool's, a stand-in's, a pinned end's,
-    the walk's -- and writes each different value of them, once, as the
-    next free spelling of the SPILL layout, which is longer than every
-    real cell (`parsing.spill_layout`). A value moves whole, so a key
+    exclusion is found for, the pool's, a stand-in's, a pinned end's, the
+    walk's, one an excluded layout's room could not hold -- and writes
+    each different value of them, once, as the next free spelling nearest
+    its own shape: its layout's excluded template where that has room
+    left; else the excluded template of its layout widened by one figure,
+    two and so on, where the census names that wider layout; else its
+    layout widened until it is as long as the column's `(spill)`
+    (`parsing.spill_layout`), which every real cell is shorter than, so
+    its kinds -- a number, a code, its prefix -- are kept; else the spill
+    itself. A cell already that long is kept. A value moves whole, so a key
     repeated on one twin person's rows stays one key, and the published
     shortest and longest lengths, the layout census and the counts a
     moved value read as are recounted where the report recounts them.
@@ -54341,50 +54347,71 @@ def _spelled_off_the_real(
         whole = facts.layout_prefixes[parsing.PREFIX_OF_THE_COLUMN]
     whole_places = facts.all_whole_numbers and _any_whole_places(facts.layout_forms)
     kept: "dict[str, str]" = {}
-    target = ""
     for layout in _named_layouts(facts):
-        if layout not in exclusions:
-            continue
-        prefix = whole
-        if layout in facts.layout_prefixes:
-            prefix = facts.layout_prefixes[layout]
-        kept[layout] = parsing.written_excluded(
-            parsing.layout_template(layout, prefix, whole_places), exclusions[layout]
-        )
-        if not target or parsing.layout_room(kept[layout]) > parsing.layout_room(target):
-            target = kept[layout]
+        if layout in exclusions:
+            kept[layout] = parsing.written_excluded(
+                parsing.layout_template(layout, _prefix_of(facts, layout), whole_places),
+                exclusions[layout],
+            )
+    spill = ""
+    bound = 0
     if parsing.EXCLUSION_SPILL in exclusions:
-        target = parsing.layout_template(
+        spill = parsing.layout_template(
             exclusions[parsing.EXCLUSION_SPILL], whole, whole_places
         )
+        # Every real cell is shorter than the spill (contract 7.12b).
+        bound = len(spill)
     used: "dict[str, int]" = {}
     for cell in cells:
         _claim(cell, used)
     moved: "dict[str, str]" = {}
     safe: "dict[str, bool]" = {}
-    step = 0
-    room = parsing.layout_room(target) if target else 0
+    steps: "dict[str, int]" = {}
     for cell in cells:
         if cell in moved or cell in safe or not parsing.trimmed(cell):
             continue
         layout = parsing.layout_form(cell, convention)
         if (layout in kept and _wears_template(cell, kept[layout], convention)) or (
-            parsing.EXCLUSION_SPILL in exclusions
-            and _wears_template(cell, target, convention)
+            bound and len(cell) >= bound
         ):
             safe[cell] = True
             continue
+        # THE NEXT FREE SPELLING, nearest the cell's own shape first: its
+        # layout's excluded template; the excluded template of the same
+        # layout a figure wider, two wider and so on (its family); its
+        # layout widened past every real cell; the column's spill.
+        targets: "list[str]" = []
+        if layout in kept:
+            targets += [kept[layout]]
+        if layout and bound:
+            prefix = _prefix_of(facts, layout)
+            opening = len(parsing.prefix_layout(prefix, convention)) if prefix else 0
+            for width in range(len(layout) + 1, bound):
+                wider = parsing.spill_layout(layout, opening, width - 1)
+                if wider in kept:
+                    targets += [kept[wider]]
+            wide = parsing.spill_layout(layout, opening, bound - 1)
+            if wide:
+                targets += [parsing.layout_template(wide, prefix, whole_places)]
+        if spill:
+            targets += [spill]
         found = ""
-        while step < room and not found:
-            candidate = _filled_layout(target, step)
-            step = step + 1
-            if (
-                _free(candidate, used)
-                and _wears_template(candidate, target, convention)
-                and not _is_a_hole_spelling(candidate, holes)
-                and not _reads_as_a_date(candidate)
-            ):
-                found = candidate
+        for into in targets:
+            step = steps[into] if into in steps else 0
+            room = parsing.layout_room(into)
+            while step < room and not found:
+                candidate = _filled_layout(into, step)
+                step = step + 1
+                if (
+                    _free(candidate, used)
+                    and _wears_template(candidate, into, convention)
+                    and not _is_a_hole_spelling(candidate, holes)
+                    and not _reads_as_a_date(candidate)
+                ):
+                    found = candidate
+            steps[into] = step
+            if found:
+                break
         if not found:
             raise errors.ProfileError(
                 f"synthtwin internal check: the twin column "
@@ -54415,6 +54442,15 @@ def _spelled_off_the_real(
             ),
         )
     ]
+
+
+def _prefix_of(facts: contract.IdentifierFacts, layout: str) -> str:
+    """The published prefix a layout's template opens with: its own, else the column's."""
+    if layout in facts.layout_prefixes:
+        return facts.layout_prefixes[layout]
+    if parsing.PREFIX_OF_THE_COLUMN in facts.layout_prefixes:
+        return facts.layout_prefixes[parsing.PREFIX_OF_THE_COLUMN]
+    return ""
 
 
 def _any_whole_places(census: "dict[str, int]") -> bool:
@@ -54467,6 +54503,10 @@ def _opens_with_a_uid_root(template: str) -> bool:
         if not ("0" <= mark <= "9" or mark == "."):
             break
         opening = opening + mark
+    # ...read to its last point: an exclusion's figure may stand after the
+    # root, at the opening of the first arc drawn (plan P4-D432).
+    while opening and opening[len(opening) - 1] != ".":
+        opening = opening[: len(opening) - 1]
     return bool(opening) and parsing.is_a_uid_root(opening)
 
 
@@ -54799,7 +54839,9 @@ def _signs_a_number(layout: str) -> bool:
     points = 0
     figures = 0
     for character in layout[1:]:
-        if character == parsing.LAYOUT_DIGIT:
+        # ...a figure an exclusion writes out stands for one too (plan
+        # P4-D432): `-9` is the template of `-%` beside the exclusion `-9`.
+        if character == parsing.LAYOUT_DIGIT or "0" <= character <= "9":
             figures = figures + 1
             continue
         if character == ".":
@@ -56616,7 +56658,7 @@ def _nought_walk_length(
             continue
         figures = True
         for character in layout:
-            if character != parsing.LAYOUT_DIGIT:
+            if character != parsing.LAYOUT_DIGIT and not "0" <= character <= "9":
                 figures = False
         if figures:
             after = len(layout) - 1
