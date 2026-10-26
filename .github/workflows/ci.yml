@@ -243,6 +243,20 @@ jobs:
             test -x .venv/bin/synthtwin
             .venv/bin/python -m synthtwin --version
           fi
+      - name: Reproduce the stage-5 goldens under the provenance guard
+        # Plan P4-D395 part 5 (lane S5a, plan P4-D437): WHAT IS
+        # AUTHORITATIVE IS THIS GUARDED REPRODUCTION. The recorder imports
+        # the installed product, then installs
+        # tools/provenance/guard_runner.py's own audit hook, proves it
+        # refuses (a negative control: importing or opening a socket must
+        # stop on the guard's message, or nothing is compared), and runs
+        # every case of tests/stage5_battery.py through `cli.main` under
+        # it, red where any file, screen run or exit status differs from
+        # tests/stage5_goldens.py or a stored digest differs. Without
+        # --write it writes nothing. On the POSIX cell of the recorder's
+        # Python (3.11, the floor), once a cell, on the second shard.
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11' && matrix.shard == 2
+        run: python tools/goldens/record_stage5_goldens.py
       - name: Run this shard of the test suite
         # The file list is computed by the tool, printed into the log so
         # a reader of one job can see exactly which files it ran, and

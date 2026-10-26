@@ -88,6 +88,7 @@ GROUP_TITLES = {
     "2B": "Stage 2b - the twin writes as the source wrote",
     "S3": "Stage 3 - the extremes, and the population floor",
     "S4": "Stage 4 - the largest tables, end to end",
+    "S5": "Stage 5 - results become data",
     "S6": "Stage 6 - relationships between columns (baseline)",
     "HZ": "The health data zoo - every kind of healthcare data, end to end",
     "BC": "The broad program - relations between columns, the analyst battery (baseline)",
