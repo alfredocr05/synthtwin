@@ -314,9 +314,11 @@ def _shipped_command_words() -> "tuple[str, ...]":
       built in this process and handed one word it will reject.
     """
     complaint = io.StringIO()
+    # The parser's refusal ends in `cli._Unusable`, its words already on
+    # the error stream, since plan P4-D437 (lane S5a), not in SystemExit.
     with (
         contextlib.redirect_stderr(complaint),
-        contextlib.suppress(SystemExit),
+        contextlib.suppress(SystemExit, cli._Unusable),
     ):
         cli._parse_arguments(["a-word-no-command-can-be"], None)
     said = complaint.getvalue()
