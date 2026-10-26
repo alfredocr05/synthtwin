@@ -6,6 +6,40 @@ exists).
 
 ## [Unreleased]
 
+### Lane S5a: results become data -- `synthtwin.cli.run` returns one result a run, its misses ranked once, every byte held (plan P4-D437, 2026-10-26; builds P4-D395)
+
+**Stage 5's first build lane.** `src/synthtwin/results.py` (new, the
+standard library only) holds what one run did as frozen records: its
+verdict (`no-miss`, `missed`, `refused`, `unusable`), its misses in
+`(tier, place, arrival)` order with the rank table that decides each
+tier once, what it could not judge, what it carries approximately or not
+at all, its tally, floor, warnings by key, files, next command and
+refusal with its step; `results.exit_code` reads the exit status from
+the command and the verdict alone. `synthtwin.cli.run(argv, *,
+screen=None, ask=None)` returns that result and prints nothing (the
+screen and the reader are data, `cli.TERMINAL`, a list or None, since
+the offline audit admits no call of a function a caller hands in);
+`synthtwin.cli.main` returns `exit_code(run(...))` and no longer raises
+`SystemExit` for `--help` or a word it does not know. The validator and
+the generator mark how each miss was judged; the four G12 refusals carry
+their catalog key; `src/synthtwin/roles.py` (new) keeps the registry
+group and the made-up class where generate's and validate's results read
+them without crossing the profile and generator boundary.
+`tests/stage5_battery.py`'s 45 command lines are recorded once, in the
+lane's first commit, from the base's code (`tests/stage5_goldens.py`,
+245 records), and CI's Ubuntu 3.11 cell reproduces them with
+`tools/goldens/record_stage5_goldens.py` under the provenance guard
+after its negative control. `K-S5-01` (headline, new): 53 of 53 battery
+cases told apart from the result alone, 0 of 9 corrupted results met
+(the page's baseline, 3 of 53, by its rule). `K-S5-02` (new): 0 of 245
+records differ, 0 digests (both stamped on 11d4d18 by `kpi_run.py
+--slow`). `tests/test_stage5_gate.py` (new) runs in 99 seconds. At the
+table floor G2's twin gives up the weight's mode count, so the battery's
+good generate run is G2n, the table without its weight (`K-S5-01` only).
+The ledger's cap is 774,000 bytes and the headline board holds 36 (stage
+5's first headline). No byte of a report, file or screen, and no exit
+status, moves.
+
 ### Batch 4j's records: the data folder's exemption narrowed, the night's 2,000,000-row points written in, the ledger cap set once (2026-10-24)
 
 **Records of batch 4j**, which merged lanes H3 and CODES-3 (plans
