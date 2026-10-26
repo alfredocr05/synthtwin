@@ -22,11 +22,14 @@ inside that time is linear and small (the real cells and their merged keys in se
 read once).
 
 The tables are written to a temporary folder and removed. About seventy minutes on the
-reference machine; one process, under 1 GB.
+reference machine (61 on 2026-10-26 under a load average of 25, before the validated shapes joined);
+one process, under 1 GB. Where KPI_IDENTIFIER_ROOM_LINES names a file, each run's line is written
+there too (kpi_run keeps only the KPI line).
 
     .venv/bin/python tools/measurements/kpi_identifier_room.py --kpi
 """
 
+import os
 import pathlib
 import sys
 import tempfile
@@ -93,5 +96,9 @@ with tempfile.TemporaryDirectory() as scratch:
                   f"{zoo['unwritten']} tables not written"]
 for line in lines:
     print(line)
+# kpi_run reads only the KPI line; KPI_IDENTIFIER_ROOM_LINES names a file the lines are copied to.
+if os.environ.get("KPI_IDENTIFIER_ROOM_LINES"):
+    pathlib.Path(os.environ["KPI_IDENTIFIER_ROOM_LINES"]).write_text(
+        "\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 kpi_rules.emit("K-HZ-06", value, f"{len(SIZES)} sizes x {len(room.every_shape())} shapes, "
                f"{len(room.ANSWERED)} answered, {len(LARGE)} at 200,000 rows, and the zoo")

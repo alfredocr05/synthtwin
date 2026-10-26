@@ -525,13 +525,35 @@ def test_the_dense_hexadecimal_column_keeps_its_width(tmp_path: pathlib.Path) ->
     Three spellings of one block leave 768 fillings for 591 values, and on the lane's first head the
     search spent the fillings a value of another class skipped, so 460 of 600 cells were written five
     characters long and validation exited 3. Each reading of a value now reads its templates from its
-    own step: the twin validates at exit 0 and writes at most one cell in five wider (78 measured).
-    Mutants: one step a template (the first head's); the class test dropped.
+    own step. Since the ruling 3 of 2026-10-25 (item 2, option (b)) the profile publishes no block
+    for this column -- every spelling of the last and second places is held by 1 to 10 keys -- so its
+    values are written wider and its census and lengths are listed: the twin validates at exit 0.
+    The final pass is asked here on the three spellings the repair's first head published, `~9~2`,
+    `~9~1` and `~9~0`, beside the spill: at most one cell in five written wider (69 measured), and
+    as many cells of figures alone as the walk wrote (79). Mutants: one step a template (the first
+    head's: 283 wider); the class test dropped (223 cells of figures alone).
     """
     seen = room.run_shape(tmp_path, "hex4_dense", 600, validate=True)
     assert seen["exits"] == (0, 0, 0), seen["exits"]
-    wider = sum(1 for cell in seen["twin"] if len(cell) > 4)
+    cells = [cell for cell in seen["real"]]
+    rows: "dict[str, int]" = {}
+    for cell in cells:
+        rows[cell] = rows.get(cell, 0) + 1
+    census: "dict[str, int]" = {}
+    for count in rows.values():
+        census[str(count)] = census.get(str(count), 0) + 1
+    facts = contract.IdentifierFacts(
+        min_length=4, max_length=4, all_whole_numbers=False,
+        n_all_digits=sum(1 for cell in cells if cell.isdigit()), n_code_alphabet=16,
+        n_distinct_by_occurrences=census, layout_forms={"~~~~": 600}, layout_prefixes={},
+        layout_exclusions={"~~~~": ("~9~2", "~9~1", "~9~0"), parsing.EXCLUSION_SPILL: ("%%%%%",)},
+    )
+    column = types.SimpleNamespace(name="target", time_grain=None)
+    written, _remarks = generation._spelled_off_the_real(column, facts, cells, ())  # type: ignore[arg-type]
+    wider = sum(1 for cell in written if len(cell) > 4)
     assert wider <= 120, wider
+    assert sum(1 for cell in written if cell.isdigit()) == sum(1 for cell in cells if cell.isdigit())
+    assert len(set(written)) == len(set(cells))
 
 
 def test_a_value_no_layout_describes_keeps_its_class(tmp_path: pathlib.Path) -> None:
