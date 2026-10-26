@@ -6463,11 +6463,12 @@ def _dates_few_in_rows(
                             else None
                         )
                         texts = [parsing.folded(read[0] if moved is None else moved)]
-            keyed = ()
+            found: "list[tuple[int, str]]" = []
             for tally in range(len(texts)):
                 for part in _date_parts(texts[tally]):
                     if part in wanted:
-                        keyed += ((tally, part),)
+                        found += [(tally, part)]
+            keyed = tuple(found)
             if len(memo) < 65536:
                 memo[cell] = keyed
         for key in keyed:
