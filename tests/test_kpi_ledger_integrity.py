@@ -818,7 +818,9 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # 770,000 from 768,000, AT LANE PS2'S REPAIR ROUND 1 (2026-10-25): K-HZ-07
     # re-stamped over 54 tables with its dense digests (`dense_moved`) and
     # repair round 1's shapes named in its rule, 769,274 bytes. The
-    # integrator sets the cap for the batch as a whole.
+    # integrator sets the cap for the batch as a whole. Its repair round 2
+    # (2026-10-26) re-stamps K-HZ-07 over 60 tables, 769,953 bytes, under
+    # the same cap.
     #
     # 768,000 from 764,000, ON LANE PS2'S BRANCH (2026-10-25, plan P4-D433),
     # the least round figure the lane's ledger fits under: `K-HZ-07` (real
