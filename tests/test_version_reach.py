@@ -637,7 +637,14 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # recounted on the merged tree, each loading a committed file of tests/ or
 # tools/, which this guard reads directly, so the floor holds for them as
 # it does for the other forty-four.
-FILES_LOADED_AS_MODULES = 45
+#
+# 46 ON LANE CHv'S BRANCH (plan P4-D430, its repair of 2026-10-24):
+# `tests/chain_twins.py`, shared by V12's gate and its KPI driver, loads
+# the committed oracle files `tools/reference/chain_oracle.py` and
+# `tools/reference/oracle_cases.py` through one call, which this guard
+# reads directly, so the floor holds for them as it does for the other
+# forty-five.
+FILES_LOADED_AS_MODULES = 46
 
 
 def _files() -> "list[pathlib.Path]":

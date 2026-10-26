@@ -983,6 +983,10 @@ _GATE_CLOSED = (
     "measures, so neither the measurement nor its outcome is shown"
 )
 
+# The same sentence where the chain's lines stand in V5.3's place (V12.3;
+# lane CHv, plan P4-D430): one sentence for one rule, named once.
+CHAIN_GATE_CLOSED = _GATE_CLOSED
+
 # THE SECOND WAY THE GATE CLOSES, AND WHY IT NEEDED ITS OWN SENTENCE
 # (review item P3-V2-D-F2; V5.3, V5.4).
 #
@@ -1641,6 +1645,102 @@ class Outcome:
     listings: "tuple[Listing, ...]"
     census: Census
     measured_name: str
+    # THE CHAIN'S LINES (V12, layer L1; lane CHv, plan P4-D430; NOT IN
+    # FORCE). None on every run but one made with the chain's switch on a
+    # description that carries a chain, so every other outcome, report and
+    # exit code is what it was (invariant S12).
+    chain: "ChainLines | None" = None
+
+
+# -- V12: the chain's lines, layer L1 (lane CHv, plan P4-D430; NOT IN FORCE) --
+
+
+@dataclasses.dataclass(frozen=True)
+class ChainLegend:
+    """One eligible column's published ladder, as the chain's lines name its bands.
+
+    ``bands`` names each `L0` band by the starting bands it joins, in
+    the description's own words; ``l1`` and ``l2`` list each coarser
+    band's `L0` bands. All of it is published; nothing is measured.
+    """
+
+    column: str
+    bands: "tuple[str, ...]"
+    l1: "tuple[tuple[int, ...], ...]"
+    l2: "tuple[tuple[int, ...], ...]"
+
+
+@dataclasses.dataclass(frozen=True)
+class ChainTotal:
+    """V12.2's `L0` band-total line of one column: its verdict and the published totals.
+
+    ``verdict`` is HELD or MISSED, or "" where the line is NOT CHECKABLE
+    (``reason`` then says why). No measured number is held here.
+    """
+
+    column: str
+    verdict: str
+    totals: "tuple[int, ...]"
+    reason: str = ""
+
+
+@dataclasses.dataclass(frozen=True)
+class ChainFamily:
+    """V12.2's line of one published family: its verdict and its published table.
+
+    ``verdict`` is HELD or MISSED; WITHHELD where V12.3 lets no verdict
+    stand (``reason`` holds its fixed words); "" where NOT CHECKABLE.
+    ``parents`` are `(column, level)` in schema order, ``table`` the
+    published table's rows. No measured cell is held here.
+    """
+
+    index: int
+    child: str
+    level: int
+    parents: "tuple[tuple[str, int], ...]"
+    table: "tuple[tuple[int, ...], ...]"
+    verdict: str
+    reason: str = ""
+
+
+@dataclasses.dataclass(frozen=True)
+class ChainPair:
+    """One candidate pair's line: its published word and, where it reads `implied`, what the chain implies.
+
+    ``family`` is the first family holding both columns (`exact`).
+    ``shares`` is the implied table at the two columns' chain levels
+    (``levels``), each share an exact fraction `(numerator,
+    denominator)` of the tabled rows, and ``spread`` V12.2's dealing
+    spread written to four decimals: REPORT-ONLY, a function of the
+    published families alone, never compared with the file (V12.3).
+    """
+
+    columns: "tuple[str, str]"
+    word: str
+    family: "int | None"
+    levels: "tuple[int, int]"
+    shares: "tuple[tuple[tuple[int, int], ...], ...]"
+    spread: str
+    # Why an implied table is not worked out (`chain_validation`'s bounds;
+    # its fixed words), "" where it is.
+    reason: str = ""
+
+
+@dataclasses.dataclass(frozen=True)
+class ChainLines:
+    """Every V12 line of one switched run (`chain_validation.lines_of`), and their census."""
+
+    legends: "tuple[ChainLegend, ...]"
+    totals: "tuple[ChainTotal, ...]"
+    families: "tuple[ChainFamily, ...]"
+    pairs: "tuple[ChainPair, ...]"
+    held: int
+    missed: int
+    withheld: int
+    not_checkable: int
+    # Of the withheld, the family lines V12.3's "not judged" words stand
+    # on (a member's band totals missed), not V5.3's rule.
+    not_judged: int = 0
 
 
 # -- V2.2: the settings the file is re-described under ----------------
@@ -4807,7 +4907,10 @@ def _withheld(column: str, fact: str, subcheck: str, why: str) -> Check:
 
 
 def measure(
-    description: contract.Profile, path: str, sheet: str = ""
+    description: contract.Profile,
+    path: str,
+    sheet: str = "",
+    chain_document: "dict[str, object] | None" = None,
 ) -> Outcome:
     """Measure one CSV against one description; return every verdict.
 
@@ -4868,6 +4971,15 @@ def measure(
       description does not record (V2.4-A5; plan amendment A-P3-26).
       That split is a function of the description, so the twin of such
       a description carries it too.
+    - THE CHAIN'S LINES (V12, layer L1; lane CHv, plan P4-D430; NOT IN
+      FORCE). ``chain_document`` is the description's parsed document,
+      handed in only by a run made with the chain's switch
+      (`contract.load_profile_document`); where it carries a chain, the
+      file's band totals and family tables are counted at the PUBLISHED
+      ladder entries (`chain_validation.lines_of`) and the outcome carries them,
+      their verdicts in its census. Everywhere else -- the switch off, or
+      a description carrying no chain -- the outcome is the one this
+      function returned before, byte for byte.
     """
     named = refusal_of(description)
     validated = validate_local_path(path, purpose="input")
@@ -5152,6 +5264,35 @@ def measure(
             absent_read=absent_read,
             top_coded_only=top_coded,
         )
+        # THE CHAIN'S OWN-FACT DESCRIPTION HOLDS THE CALENDAR CENSUSES (lane
+        # CHv, plan P4-D430; Codex's item 1 on its build). V12.3 reads RULE
+        # W1 with the file's own-fact groups, and a periodic census (days
+        # of the week or month, hours, minutes, seconds) draws some of
+        # them, which the description above never produces. Built only on
+        # a switched run whose chain holds a column of dates or times, from
+        # the cells and declarations the one above read, so no other run
+        # spends anything on it.
+        chain_described = redescribed
+        if chain_document is not None:
+            from synthtwin import chain_validation
+
+            if chain_validation.reads_a_calendar(chain_document):
+                chain_described = profile.build_document(
+                    table,
+                    settings_for(description),
+                    declared,
+                    declared_codes,
+                    declared_measured,
+                    declared_commas,
+                    True,
+                    described_pairs,
+                    kept_placeholder_days=kept_days,
+                    judged_candidates=judged_here,
+                    calendar_censuses=True,
+                    counted_units=counted_units(description),
+                    time_grains=time_grains,
+                    absent_read={},
+                )
         table = _at_their_grains(table, time_grains, description, absent_read)
         over_the_split = profile.build_document(
             table,
@@ -5215,7 +5356,27 @@ def measure(
         listings = listings + _unrebuildable_listings(
             description, column, headed, why
         )
-    return _assembled(checks, listings, measured_name)
+    outcome = _assembled(checks, listings, measured_name)
+    if chain_document is None:
+        return outcome
+    # THE CHAIN'S SWITCH (lane CHv, plan P4-D430): imported here, inside
+    # the branch, so a run without it loads nothing it did not load before.
+    from synthtwin import chain_validation
+
+    settings = settings_for(description)
+    lines = chain_validation.lines_of(
+        chain_document,
+        table,
+        chain_described,
+        settings,
+        declared_codes,
+        declared_measured,
+        declared_commas,
+        profile.stored_as_of(table, settings),
+    )
+    if lines is None:
+        return outcome
+    return chain_validation.with_lines(outcome, lines)
 
 
 def _at_their_grains(

@@ -6,6 +6,38 @@ exists).
 
 ## [Unreleased]
 
+### The chain's families checked by `validate`, behind the chain's switch (2026-10-24)
+
+**Lane CHv** (plan P4-D430; validation method V12, layer L1). `synthtwin
+validate` handed the chain's switch, which no option reaches, now reads a
+description's chain and checks the file against it: each column's band
+totals and each family table at the published bands, HELD or MISSED, a
+family judged only where its columns' totals hold and the file's own
+facts let the published tables stand; every pair of columns with the
+word the description gives it, a pair the chain only implies printed as
+the published families imply it, never as a check. No line prints a
+number the checked file holds. The written quality report holds the
+section; the screen prints one line for it. Every run without the switch,
+and every description carrying no chain, is checked and reported as
+before, byte for byte. `K-S6-04`, `K-S6-05` and `K-S6-10` are new: every
+pair one word, every family one line and V12's six data mutants as
+stated; whole real rows in a chain-arranged twin rising from 9.7 to
+17.45 in 1,000 rows on K-S6-01's table, for the owner; and the
+death-rate difference at age 70 recorded as the chain carries it. Repair
+1: the default run calls the measurement as it did (the health zoo's
+battery runs again); the file is read for people and for its calendar
+censuses before a family is judged; implied tables are carried along the
+chain's junction tree within bounds the description sets, every one of
+1,124 on 50 columns worked out; each column's codes take one byte a row;
+and the report's verdict, limits and handling paragraph say what the
+between-columns lines found, in plain words. At 20,000 rows the
+chain-arranged twin's whole real rows rise from 652.1 to 939.55, for the
+owner. Repair 2: the verdict says how many of its NOT CHECKABLE
+obligations no CSV can evidence and how many are between-columns lines
+the file cannot be checked for, and where each kind is named; the clock
+census, each source of the people rule, the walk's held bound and RULE
+WE's room are each pinned by a case red on its mutant.
+
 ### Lane SH, repair round 3: no code answer frees a ZIP code or an age over 89, and the zoo answers the Safe Harbor question truthfully (2026-10-25)
 
 **Verify 2's open items closed** (plan P4-D427, its repair round 3, under

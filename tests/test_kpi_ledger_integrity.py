@@ -823,7 +823,8 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # 749,000, below) and lane CHv's `K-S6-04`, `K-S6-05` and `K-S6-10`
     # with their note clause (its branch raised its own to 771,000), every
     # entry kept by id and the note merged clause by clause: 767,618 bytes
-    # with lane SH merged. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    # with lane SH merged and 778,554 with lane CHv. A MEASUREMENT IS NEVER
+    # TRIMMED TO FIT.
     #
     # 764,000 from 760,000, AT THE INTEGRATION OF BATCH 4J (2026-10-24),
     # the orchestrator's recorded call D15 (the owner may veto), set once
@@ -1391,6 +1392,14 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # round figure the lane's ledger fits under: K-S6-08 new, the chain's
     # tables part, with its note clause. The batch integrator settles this
     # beside the other lanes' raises.
+    #
+    # 769,000 from 760,000 (lane CHv, plan P4-D430, 2026-10-24), the least
+    # round figure the lane's ledger fits under: K-S6-04, K-S6-05 and
+    # K-S6-10 new, with their note clause. The batch integrator settles
+    # this beside the other lanes' raises.
+    #
+    # 771,000 from 769,000 (lane CHv's repair 1, 2026-10-24): the three
+    # entries' evidence gains the 20,000-row leg and the repair's mutants.
     assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 785_000
 
 

@@ -3620,18 +3620,108 @@ The third is the property the determinism clause above needs. A random
 source being present in the process is not a defect; drawing from one
 would be.
 
-## V12. Between columns: the chain's families checked (stage 6, plan P4-D407; specified, NOT BUILT)
+## V12. Between columns: the chain's families checked (stage 6, plan P4-D407; layer L1 built behind the chain's switch, plan P4-D430)
 
-**No validator in this repository runs anything in this section**, and
-the sentence at the head of this document (no cross-column check of any
-kind, because the profile publishes none) stays true until the landing
-that ships stage 6. What follows is what lane CHv builds for the chain,
+**No shipped command runs anything in this section**, and the sentence
+at the head of this document (no cross-column check of any kind, because
+the profile publishes none) stays true until the landing that ships
+stage 6. What follows is what lane CHv builds for the chain,
 layer L1, against the families `docs/spec/profile-contract-v6.md`
 section 4.6b publishes and the arrangement
 `docs/spec/generation-method-v1.md` G16 makes. The held page of plan
 P4-D394 numbered its checks V11; that page is superseded (plan P4-D407)
 and the number V11 stays unused. The moments' lines are lane MPOL's to
 add, and the patient layer's lane MG's.
+
+**Built for layer L1, behind the chain's switch (2026-10-24, lane CHv,
+plan P4-D430).** `synthtwin validate` handed the switch that `profile`
+takes (`cli.main(..., chain=...)`; no option, variable or file sets it)
+loads the description with its chain (`contract.load_profile_document`:
+S23 to S28 before a byte of the file is read) and, where it carries one,
+adds the lines of V12.2 that this version's chain can carry
+(`src/synthtwin/chain_validation.py`): an `L0` band-total line a column,
+a line a family, and every candidate pair with its published word, a
+pair reading `implied` beside its implied table and dealing spread. The
+written quality report holds them in a section of its own, counted in
+its verdict and its exit code; the screen prints that section as one
+line. A description carrying no chain is checked, reported and exited
+exactly as without the switch. The readings this build takes where the
+clauses below leave one open: (a) a cell standing in no published band
+(a starting band no `L0` band joins) makes its column's total line
+MISSED; (b) RULE W1 and RULE WE are read once over the whole published
+chain beside the file's own facts (its own-fact groups by the producer's
+two readings, `chain_rules.small_group_bands` and
+`chain.value_run_bands`, on its own description and values), and where
+either refuses, every family line takes V5.3's sentence; (c) a column
+the file lacks or reads under another role makes its total line and
+every family holding it NOT CHECKABLE, and is read for (b) as holding a
+group in every band; (d) an implied table is computed in whole numbers
+from the published families (each family's child share given its
+parents' cell) and printed as shares of the tabled rows to four
+decimals, its dealing spread bounded by integer square roots and written
+to four decimals. The design's 3.6 (BC-ARCH version 2.3) asked for a
+moved target and for mutant 5's descendants read OUTSIDE; V12.2, V12.3
+and V12.4 below replace both, and this build follows them. Slopes,
+carried rules and derived columns have no line: this version's loader
+refuses a description carrying one (S26, S28). Measured (wave6/CHv,
+`cost.py`, a loaded machine): on a clinic table of five columns the
+lines add 0.6 s to the measurement's 6.6 s at 20,000 rows and 8.3 s to
+63.1 s at 200,000 rows, at a peak of 230 MB; 2,000,000 rows are not run
+here.
+
+**Repair 1 of the build (2026-10-24, lane CHv's skeptic 1 and the codex
+review, plan P4-D430).** Four readings join (a) to (d): (e) the file's own
+description is read FOR PEOPLE: where a column the description or the
+file's own description reads as record numbers (declared, the person
+column, or read `identifier`) repeats a value on the file, `profile` run
+on the file counts every value in people and publishes no family (the
+chain's `OFF_PERSON`), so every total and family line is NOT CHECKABLE,
+in words that say why; (f) the own-fact groups of (b) are read on a
+description of the file that holds its CALENDAR CENSUSES (built, on a
+switched run, only where the chain holds a column of dates or times),
+since a periodic census draws some of them; (g) an implied table is
+carried along the chain's junction tree from its first column's family,
+each family's published table being its clique's joint count, one walk
+of the tree a leading column, and is worked out only within bounds the
+description alone sets (at most 1,024 cells, 65,536 joint cells held at
+once, 4,000,000 products over the section; a pair past one prints its
+word and why, no share and no spread); (h) each column's codes are held
+in one byte a tabled row (a list of whole numbers past 254 bands) and its
+own-fact groups read while its readings are in hand, which are then let
+go. Without the chain's lines the report is the bytes it was; with them,
+its verdict names the between-columns misses, its fact-by-fact part says
+where they are, its first limit and its expectations say which tables
+between columns were checked and which targets were not, and its
+handling paragraph counts the "not judged" lines apart from V5.3's.
+Measured (wave6/CHv/repair1, `wide_peak.py`, ten blocks of the clinic's
+five columns, a loaded machine): at 20,000 rows by 50 columns all 1,124
+implied tables are worked out and the lines take 53.6 s of the switched
+measurement's 129.8 s, most of it each column's reading by the
+profiler's own `chain.read_column`; their own traced peak is 12.4 MB at
+20,000 rows and 51.3 MB at 200,000, the codes 10 MB of it (one byte a
+row and column, as V12.6 counts), the switched measurement's whole
+footprint 401 MB at most there. At 2,000,000 rows the reading alone,
+growing with the rows, is about 100 times its 20,000-row figure:
+`K-S6-15`'s (lanes CHb, MPg, SX).
+
+**Repair 2 of the build (2026-10-25, lane CHv's verify of repair 1,
+plan P4-D430).** The verdict's NOT CHECKABLE count holds two kinds, and
+its sentence says how many of each and where each is named: the
+obligations no CSV can evidence, listed under WHAT COULD NOT BE CHECKED,
+AND WHY, and the between-columns lines the file cannot be checked for
+under (c) or (e), named in the section BETWEEN COLUMNS; that list ends
+by pointing to the second kind. Without such a line both are the bytes
+they were. Reading (f) holds for times of day as for dates, and (e)'s
+three sources (the description's declared record numbers, its role
+`identifier`, the file's own description) are one on every written
+file: a description reads a column `identifier` exactly where its
+settings declare it, and the file's own description is built under the
+description's declarations. The cost of (f) is one more description of
+the file on a switched run whose chain holds a date or time (measured
+at 20,000 rows by six columns, five and a visit date, a loaded machine:
+9.42 and 9.44 s against 8.16 and 8.20 s, about 15 % more); it is not
+folded into V2.1's, which the base checks read and which landing
+3b.1 builds without the censuses.
 
 **V12.1 The measurement re-uses the published choices and makes none of
 its own.** The file is re-described as V2 says. Each eligible column is
