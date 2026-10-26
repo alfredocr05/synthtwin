@@ -809,6 +809,8 @@ jobs:
           wheel required synthtwin/quality.py
           wheel required synthtwin/reading.py
           wheel required synthtwin/rendering.py
+          wheel required synthtwin/results.py
+          wheel required synthtwin/roles.py
           wheel required synthtwin/sheetwriting.py
           wheel required synthtwin/summary.py
           wheel required synthtwin/taxonomy.py
@@ -852,6 +854,8 @@ jobs:
           sdist required ROOT/src/synthtwin/quality.py
           sdist required ROOT/src/synthtwin/reading.py
           sdist required ROOT/src/synthtwin/rendering.py
+          sdist required ROOT/src/synthtwin/results.py
+          sdist required ROOT/src/synthtwin/roles.py
           sdist required ROOT/src/synthtwin/sheetwriting.py
           sdist required ROOT/src/synthtwin/summary.py
           sdist required ROOT/src/synthtwin/taxonomy.py
