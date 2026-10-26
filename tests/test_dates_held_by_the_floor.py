@@ -184,6 +184,10 @@ def test_the_twin_writes_valid_dates_and_meets_its_description(described, shape:
 # cannot grow unseen.
 TWIN_LIMITS: "dict[str, set[str]]" = {
     "utc_offsets": {"arrived_at.date-ladder.p75", "arrived_at.date-ladder.p99", "arrived_at.weekday_census.groups"},
+    # Repair round 2: the births at +14:00 and -10:00, pooled at the month in
+    # people on the shared clock (wave6/PS2/repair2/g1.log), the same limit.
+    "utc_split": {"born_at.date-ladder.p25", "born_at.day_of_month_census.groups", "born_at.tails.high.rows",
+                  "born_at.tails.high.values", "born_at.tails.low.boundary", "born_at.tails.low.rows"},
 }
 
 
