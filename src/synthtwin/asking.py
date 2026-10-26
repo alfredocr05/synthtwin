@@ -283,6 +283,17 @@ BECAUSE_REPEATS_AND_MANY = "repeats-and-many-different-values"
 # it offers `keep`, `code` and `identifier`, and holds the column as record
 # numbers until it is answered.
 BECAUSE_FIGURES_JOINED_BY_POINTS = "whole-numbers-joined-by-points"
+# WHOLE NUMBERS EACH ON ONE ROW, OR IN SEQUENCE, OR PREFIXED IDS OF FIVE
+# FIGURES (lane HX5, plan P4-D436): a column read as plain or affixed
+# whole numbers, words and placeholders aside, whose values repeat on
+# fewer than two rows each on average -- the line every route of the
+# person rule asks from, so the two never meet -- and are every one
+# different, or run in sequence, or are letters and five figures or more
+# (`_whole_numbers_each_on_one_row`). One more shape of HX's question about
+# figures (plan P4-D401), never a second question: it offers `keep`,
+# `code` and `identifier`, and holds the column as record numbers until it
+# is answered.
+BECAUSE_EACH_ON_ONE_ROW = "whole-numbers-each-on-one-row-or-in-sequence"
 # QUESTION Q3, "NUMBER OR DATE?" (landing R4, plan P4-D384): a column of
 # numbers whose values lie where a counting system writes dates -- Excel's
 # serials, SAS's and Stata's days and seconds, Unix seconds -- read as
@@ -1047,7 +1058,9 @@ def _date_count_question(
 ) -> Question:
     """Question Q3 for one column, merged with the fixed-width question where it is asked too."""
     fixed = ""
-    if reason == BECAUSE_FIXED_WIDTH:
+    if reason == BECAUSE_FIXED_WIDTH or reason == BECAUSE_EACH_ON_ONE_ROW:
+        # ...and lane HX5's shape (plan P4-D436), held as the width
+        # question's is (`unanswered_identities`).
         fixed = _shape_of(reason, present, floor)
     return Question(
         name,
@@ -1575,6 +1588,26 @@ def questions_and_splits_for(
             ]
             position = position + 1
             continue
+        # -- lane HX5 (plan P4-D436): affixed numbers and numbers beside
+        # labels, whole numbers each on one row, in sequence, or letters
+        # and five figures; the numeric roles are asked below, after the
+        # width questions, which keep their own.
+        if (
+            role not in NUMERIC_ROLES
+            and _whole_numbers_each_on_one_row(present, role)
+        ):
+            asked += [
+                Question(
+                    name,
+                    role,
+                    BECAUSE_EACH_ON_ONE_ROW,
+                    _each_on_one_row_said(present),
+                    _each_on_one_row_choices(role, settings.small_cell_floor),
+                    ANSWER_KEEP,
+                )
+            ]
+            position = position + 1
+            continue
         if role not in NUMERIC_ROLES and role not in JOINED_ROLES:
             position = position + 1
             continue
@@ -1630,6 +1663,15 @@ def questions_and_splits_for(
                 )
         if reason == BECAUSE_POINT_THOUSANDS and name in decimal_commas:
             reason = None
+        # ...AND WHOLE NUMBERS EACH ON ONE ROW OR IN SEQUENCE (lane HX5,
+        # plan P4-D436), where no width question is put: `9701` up, one a
+        # row, crosses a power of ten and was a count asked nothing.
+        if (
+            reason is None
+            and role in NUMERIC_ROLES
+            and _whole_numbers_each_on_one_row(present, role)
+        ):
+            reason = BECAUSE_EACH_ON_ONE_ROW
         # -- 3b.R4 (P4-D384): QUESTION Q3, where the description's own
         # remarks say the column's numbers lie where a counting system
         # writes dates (NF113) -- one question with the fixed-width one
@@ -1663,6 +1705,11 @@ def questions_and_splits_for(
             elif reason == BECAUSE_POINT_THOUSANDS:
                 choices = _point_choices(role, settings.small_cell_floor)
                 taken = ANSWER_MEASUREMENT
+            elif reason == BECAUSE_EACH_ON_ONE_ROW:
+                # Lane HX5 (plan P4-D436): `keep` first, the reading in
+                # force, as the list question puts it.
+                choices = _each_on_one_row_choices(role, settings.small_cell_floor)
+                taken = ANSWER_KEEP
             else:
                 choices = _numeric_choices(
                     ANSWER_MEASUREMENT, role, settings.small_cell_floor
@@ -1857,6 +1904,207 @@ def _an_arc_naming_an_item(uid: str) -> bool:
     if not isinstance(uid, str):
         raise TypeError("a cell to ask about must be text")
     return bool(parsing.uid_after_the_organisation(uid))
+
+
+# A COLUMN OF WHOLE NUMBERS EACH ON ONE ROW IS ASKED (lane HX5, plan
+# P4-D436; the live exposure lane E0c's strict twin scan measured on
+# ccebc947). The zoo's `titled_report.report_ref` -- `RPT` and six figures,
+# one a row, in sequence -- was read as an affixed number and asked nothing:
+# its description published the run's percentile ladder and the twin wrote
+# the sequence again, 598 of 600 real references at 600 rows and 19,998 of
+# 20,000 at 20,000. Plain figures crossing a power of ten (`9701` up, one a
+# row) were a count publishing the same ladder, and `MRN` and six figures on
+# about four rows in three were affixed numbers printing 50 real record
+# numbers as rungs. Every route of the person rule asks from two rows a
+# value on average (`PERSON_ROWS_PER_VALUE`), and the width question asks
+# plain figures of one width only, so nothing reached them. So a column is
+# asked where:
+#
+# * it is read as a count, a measurement, numbers too large for a float, an
+#   affixed number or numbers beside labels (`_EACH_ON_ONE_ROW_ROLES`);
+# * every present cell is a WORD (no figure), a placeholder of figures
+#   (`-1` to `-999`, a lone `0`, nines alone), set aside whatever their
+#   share as route two's arm sets them aside (plan P4-D428), or a WHOLE
+#   NUMBER: figures alone as route four reads them (`_key_figures`:
+#   `100001`, `100001.0`, `123,456`), or one to six letters, an optional
+#   `-`, `_` or `#`, and figures (`_a_whole_number_after_letters`);
+# * the whole numbers fill the floor's cells (`_KEY_CELLS_AT_LEAST`), over
+#   two different values or more, and stand on FEWER than
+#   `PERSON_ROWS_PER_VALUE` rows a value on average;
+# * and they are every one different, or their different values run in
+#   sequence under one opening (each the last one plus one), or more than
+#   half of them are letters and five figures or more.
+#
+# NOT REACHED, on purpose (the owner's principle: true measurements are not
+# asked): a cell carrying a decimal (`72.5`), a unit or any mark after its
+# figures (`120 mg`, `300001A`), a currency sign (`$1200`), a minus sign
+# before four figures or more, or anything else not a word, a placeholder
+# or a whole number, takes the column out; and a column whose values repeat
+# -- two rows a value on average or more -- is the person rule's. A
+# measurement of whole numbers drawn from a wide range can be all different
+# on a short table (charges in cents, steps) and is asked, one question
+# whose `keep` restores it byte for byte: the price plan P4-D436 measures.
+_EACH_ON_ONE_ROW_ROLES = (
+    taxonomy.ROLE_COUNT,
+    taxonomy.ROLE_CONTINUOUS,
+    taxonomy.ROLE_UNREPRESENTABLE,
+    taxonomy.ROLE_AFFIXED,
+    taxonomy.ROLE_COMPOUND,
+)
+_OPENING_LETTERS_AT_MOST = 6
+_OPENING_MARKS = "-_#"
+# A run in sequence is read only where every number is at most this many
+# figures, so the arithmetic stays far inside any integer conversion limit.
+_SEQUENCE_FIGURES_AT_MOST = 18
+_PREFIXED_FIGURES_AT_LEAST = 5
+
+
+def _a_whole_number_after_letters(value: str) -> "tuple[str, str] | None":
+    """The opening and figures of a cell written as letters and a whole number (P4-D436).
+
+    One to six ASCII letters, an optional `-`, `_` or `#`, then figures
+    and nothing else: `RPT300001`, `MRN-123456`. None for anything else.
+    The opening is returned in upper case, so `rpt1` and `RPT1` share one.
+    A fixed function of the text. Raises nothing. No I/O.
+    """
+    place = 0
+    while (
+        place < len(value)
+        and place < _OPENING_LETTERS_AT_MOST
+        and (("a" <= value[place] <= "z") or ("A" <= value[place] <= "Z"))
+    ):
+        place = place + 1
+    if place == 0:
+        return None
+    if place < len(value) and value[place] in _OPENING_MARKS:
+        place = place + 1
+    figures = value[place:]
+    if not _is_plain_whole_number(figures):
+        return None
+    return value[:place].upper(), figures
+
+
+def _whole_numbers_each_on_one_row(present: "list[str]", role: str) -> bool:
+    """Lane HX5's trigger (plan P4-D436); see the note above.
+
+    Guarantees: accepts the present cells and the column's role; returns a
+    truth value. A fixed function of them. Raises nothing. No I/O, and no
+    cell reaches what it returns.
+    """
+    if role not in _EACH_ON_ONE_ROW_ROLES:
+        return False
+    numbers: "dict[tuple[str, str], int]" = {}
+    # A lone `0` and nines alone are set aside as what a key writes for
+    # nobody, and are also numbers a run in sequence passes through
+    # (`99999` between `99998` and `100000`): kept apart for that test.
+    nines: "dict[str, bool]" = {}
+    cells = 0
+    for value in present:
+        if _set_aside_beside_keys(value):
+            if _is_plain_whole_number(value):
+                nines[value] = True
+            continue
+        figures = _key_figures(value)
+        opening = ""
+        if figures is None:
+            lettered = _a_whole_number_after_letters(value)
+            if lettered is None:
+                return False
+            opening, figures = lettered
+        cells = cells + 1
+        # ONE NUMBER WRITTEN TWO WAYS IS ONE NUMBER (lane POP's ruling):
+        # `00123` and `123` are the same value here.
+        key = (opening, figures.lstrip("0") or "0")
+        if key in numbers:
+            numbers[key] = numbers[key] + 1
+        else:
+            numbers[key] = 1
+    if cells < _KEY_CELLS_AT_LEAST or len(numbers) < 2:
+        return False
+    if cells >= PERSON_ROWS_PER_VALUE * len(numbers):
+        return False
+    if cells == len(numbers):
+        return True
+    openings: "dict[str, bool]" = {}
+    short_enough = True
+    prefixed = 0
+    for opening, figures in numbers:
+        openings[opening] = True
+        if len(figures) > _SEQUENCE_FIGURES_AT_MOST:
+            short_enough = False
+        if opening and len(figures) >= _PREFIXED_FIGURES_AT_LEAST:
+            prefixed = prefixed + 1
+    if len(openings) == 1 and short_enough:
+        counted = sorted(int(figures) for _opening, figures in numbers)
+        if counted[len(counted) - 1] - counted[0] + 1 == len(counted):
+            return True
+        if "" in openings:
+            # ...through a set-aside `0` or nines alone, where they close
+            # the run's gaps.
+            closed: "dict[int, bool]" = {}
+            for number in counted:
+                closed[number] = True
+            for value in nines:
+                if len(value) <= _SEQUENCE_FIGURES_AT_MOST:
+                    closed[int(value)] = True
+            if max(closed) - min(closed) + 1 == len(closed):
+                return True
+    return prefixed * 2 > len(numbers)
+
+
+def _each_on_one_row_said(present: "list[str]") -> str:
+    """What `_whole_numbers_each_on_one_row` saw, in words carrying no value (P4-D436)."""
+    different: "dict[str, bool]" = {}
+    cells = 0
+    for value in present:
+        if _set_aside_beside_keys(value):
+            continue
+        cells = cells + 1
+        different[parsing.folded(value)] = True
+    if len(different) == cells:
+        return (
+            "every value is a whole number, alone or after letters, and "
+            "every one is different, so each stands on one row"
+        )
+    return (
+        "every value is a whole number, alone or after letters, and they "
+        "stand on fewer than two rows each on average, in sequence or as "
+        "letters and five figures or more"
+    )
+
+
+def _each_on_one_row_choices(role: str, floor: int) -> "list[Choice]":
+    """The three answers lane HX5's question takes (plan P4-D436): `keep`, `code`, `identifier`.
+
+    About the data and nothing else, in the words of the list question
+    (plan P4-D424): `keep` says what the reading the column has now
+    publishes -- a column read as numbers its numbers' statistics, never
+    its values.
+    """
+    kept = _publishes_under(ANSWER_KEEP, role, floor)
+    if role in NUMERIC_ROLES or role == taxonomy.ROLE_AFFIXED:
+        kept = f"what it publishes now: {_publishes_under(ANSWER_MEASUREMENT, role, floor)}"
+    return [
+        Choice(
+            ANSWER_KEEP,
+            "measurements or counts -- quantities somebody counted or "
+            "measured, and the reading it has now is right",
+            kept,
+        ),
+        Choice(
+            ANSWER_CODE,
+            "codes of a coding system, where each value stands for a "
+            "thing rather than counting one",
+            _publishes_under(ANSWER_CODE, role, floor),
+        ),
+        Choice(
+            ANSWER_IDENTIFIER,
+            "record numbers -- each value names one record, report, "
+            "sample, visit or person, and it is a key nothing should "
+            "publish",
+            _publishes_under(ANSWER_IDENTIFIER, role, floor),
+        ),
+    ]
 
 
 def _holds_no_figure(value: str) -> bool:
@@ -2522,6 +2770,9 @@ def _shape_of(
             f"{len(different)} different value(s) over {len(present)} "
             f"cell(s), so they stand on more than one row each on average"
         )
+    if reason == BECAUSE_EACH_ON_ONE_ROW:
+        # Lane HX5's words (plan P4-D436): the shape, and no count.
+        return _each_on_one_row_said(present)
     if reason == BECAUSE_FIGURES_JOINED_BY_POINTS:
         # Q-ID's words (plan P4-D419's ZR.2): the shape, and a made-up
         # example that is no cell (plan P4-D428).
@@ -4196,6 +4447,9 @@ HOLDING_REASONS = (
     # record numbers until it is answered, though its free-text reading
     # publishes no value either.
     BECAUSE_FIGURES_JOINED_BY_POINTS,
+    # ...and whole numbers each on one row or in sequence (plan P4-D436,
+    # lane HX5).
+    BECAUSE_EACH_ON_ONE_ROW,
 )
 
 # THE QUESTIONS ABOUT DATES AND TIMES HOLD NOTHING, and nor does a
@@ -4220,6 +4474,9 @@ _READ_AS_DATES_OR_TIMES = (taxonomy.ROLE_DATETIME, taxonomy.ROLE_CLOCK)
 # reads as seconds since 1970 as well (measured on lane HX's build: 38
 # real values published). Its words open as the width question's do.
 _FIGURES_ALL_ONE_WIDTH = "every value is written in figures alone, all "
+# ...and lane HX5's (plan P4-D436): whole numbers each on one row or in
+# sequence, inside a counting band, are held as the width question holds.
+_EACH_ON_ONE_ROW_OPENING = "every value is a whole number, alone or after letters"
 
 
 def offers_identifier(question: "Question") -> bool:
@@ -4270,7 +4527,11 @@ def unanswered_identities(
             continue
         if question.reason not in HOLDING_REASONS and not (
             question.reason == BECAUSE_DATE_COUNTS
-            and question.shape[: len(_FIGURES_ALL_ONE_WIDTH)] == _FIGURES_ALL_ONE_WIDTH
+            and (
+                question.shape[: len(_FIGURES_ALL_ONE_WIDTH)] == _FIGURES_ALL_ONE_WIDTH
+                or question.shape[: len(_EACH_ON_ONE_ROW_OPENING)]
+                == _EACH_ON_ONE_ROW_OPENING
+            )
         ):
             continue
         if question.role in _READ_AS_DATES_OR_TIMES:

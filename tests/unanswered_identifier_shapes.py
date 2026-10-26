@@ -251,6 +251,27 @@ LISTED = ("reglist6", "reglist7", "reglistR", "reglist6_beside",
 # The register lists of one record number a cell (lane HX4's repair 2).
 LISTED_ONE = ("reglistone6", "reglistoneR", "reglistquoted6", "reglistword6")
 LIST_KEYS = 40
+# ONE VALUE A ROW, OR IN SEQUENCE (lane HX5, plan P4-D436): a reference
+# column of whole numbers, alone or after letters, standing on fewer than
+# two rows a value, which no route of the person rule reaches (each asks
+# from two rows a value) and the width question reaches only at one width
+# of plain figures. Lane E0c's strict twin scan measured the first on
+# ccebc947: `RPT` and six figures counting up, one a row, read as an
+# affixed number and asked nothing -- its percentile ladder published, the
+# twin writing the sequence again (598 of 600 real references, 19,998 of
+# 20,000). `refseq` is that shape; `refrand` its references drawn at random;
+# `refmrn` `MRN` and six figures on about four rows in three (letters and
+# five figures or more); `seqcross` plain figures counting up across a
+# power of ten (99,701 up), so no width question is put; `seqdup` that run
+# with its first number on the last row too (a run in sequence, not all
+# different); `randall` plain figures of six and seven, drawn at random,
+# one a row; and `seqm1` the plain run beside `-1` on about one row in
+# fifty.
+# Every value is its own patient-free record, so the real values are
+# every cell's.
+ONE_A_ROW = ("refseq", "refrand", "refmrn", "seqcross", "seqdup", "randall", "seqm1")
+# What `seqm1` writes for a row with no reference, and on what share.
+ONE_A_ROW_PLACEHOLDER = ("-1", 0.02)
 # The STATED shapes: a name, a street address and a full birth date on a
 # long table with NO subject column -- the value is the only thing that
 # says who the rows are, nothing is declared and no person question is
@@ -272,7 +293,7 @@ STATED = ("name", "address", "dob")
 # exit 3 on the tree before lane HX4 too (measured on 4682d6ad), the forms
 # lane FM's limit STATE names.
 VALIDATION_LIMITS = ("durable", "key_m1_40", "phone_plus", "key_point0", "reglistonce6",
-                     "reglistgrouped")
+                     "reglistgrouped", "seqm1")
 
 # What each key shape writes for an unknown patient, and on what share
 # of its rows (`write_table`).
@@ -355,9 +376,39 @@ def _cell(value: str) -> str:
     return f'"{value}"' if "," in value else value
 
 
+def _one_a_row(kind: str, rows: int, draw: random.Random) -> "list[str]":
+    """The column of a `ONE_A_ROW` table, a cell a row (lane HX5, plan P4-D436)."""
+    if kind == "refseq":
+        return [f"RPT{300001 + row}" for row in range(rows)]
+    if kind == "refrand":
+        return [f"RPT{value}" for value in draw.sample(range(100000, 1000000), rows)]
+    if kind == "seqdup":
+        cells = [f"{99701 + row}" for row in range(rows)]
+        cells[rows - 1] = cells[0]
+        return cells
+    if kind == "refmrn":
+        people = draw.sample(range(100000, 1000000), (rows * 3) // 4)
+        return [f"MRN{people[draw.randrange(len(people))]}" for _row in range(rows)]
+    if kind == "seqcross":
+        return [f"{99701 + row}" for row in range(rows)]
+    if kind == "randall":
+        return [f"{value}" for value in draw.sample(range(100000, 10000000), rows)]
+    unknown, share = ONE_A_ROW_PLACEHOLDER
+    return [unknown if draw.random() < share else f"{99701 + row}" for row in range(rows)]
+
+
 def write_table(folder: pathlib.Path, kind: str, rows: int) -> "tuple[pathlib.Path, list[str]]":
     """The table, written as a CSV file; its path and its different identifiers."""
     draw = random.Random(SEED + len(kind))
+    if kind in ONE_A_ROW:
+        column = _one_a_row(kind, rows, draw)
+        lines = [f"{kind},test,value"]
+        for cell in column:
+            test = ("Sodium", "Potassium", "Glucose")[draw.randrange(3)]
+            lines += [f"{cell},{test},{draw.uniform(3, 150):.1f}"]
+        path = folder / f"{kind}_long.csv"
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+        return path, sorted({cell for cell in column if cell != ONE_A_ROW_PLACEHOLDER[0]})
     beside = _beside(kind)
     patients = (PATIENTS_BESIDE if kind.endswith("_beside") or kind.endswith("_keyzero")
                 else PATIENTS)
@@ -522,15 +573,132 @@ def _opening_in(opening: str, text: str) -> bool:
     return re.search(f"(?<![A-Za-z]){re.escape(opening)}(?![A-Za-z])", text) is not None
 
 
-def count_real(
+# THE PAIRWISE SEARCH IS QUADRATIC (lane HX5, plan P4-D436): a column of a
+# value a row holds as many real values as rows, and every real value was
+# searched for in every twin cell -- 20,000 by 20,000 regular expressions,
+# hours a table. Past this many pairs the same count is read through an
+# index (`_count_real_indexed`), which the gate holds equal to the pairwise
+# search on the shapes it is used for.
+_PAIRWISE_AT_MOST = 2_000_000
+
+
+def _figure_runs(text: str) -> "set[str]":
+    """The runs of figures a figures-only needle can stand as in `_found_in`.
+
+    `(?<![0-9.])N(?![0-9])` with N figures alone holds exactly where N is a
+    whole run of figures with no point before it.
+    """
+    found: "set[str]" = set()
+    run = ""
+    before = ""
+    for character in text + " ":
+        if "0" <= character <= "9":
+            run = run + character
+            continue
+        if run and before != ".":
+            found.add(run)
+        run = ""
+        before = character
+    return found
+
+
+def _keys_of(needle: str) -> "tuple[bool, set[str]]":
+    """Whether `_found_in` searches the needle as text, and the figure runs it stands as."""
+    keys: "set[str]" = set()
+    as_text = not (needle.isascii() and needle.isdigit())
+    if not as_text:
+        keys.add(needle)
+    number = _as_number(needle)
+    if number:
+        keys.add(number)
+    else:
+        figures = _longest_figures(needle)
+        if figures:
+            keys.add(figures)
+    return as_text, keys
+
+
+def _substrings(cell: str) -> "set[str]":
+    found: "set[str]" = set()
+    for start in range(len(cell)):
+        for end in range(start + 1, len(cell) + 1):
+            found.add(cell[start:end])
+    return found
+
+
+def _count_real_indexed(
     real: "list[str]", texts: "list[str]", cells: "list[str]"
+) -> "dict[str, int]":
+    """`count_real` read through an index of figure runs and substrings; the same counts."""
+    fragments: "dict[str, bool]" = {}
+    for value in real:
+        for run_of in _runs(value):
+            fragments[run_of] = True
+    opening = _opening(real) if real else ""
+    text_runs = [_figure_runs(text) for text in texts]
+
+    def in_texts(needle: str) -> bool:
+        as_text, keys = _keys_of(needle)
+        for text, runs in zip(texts, text_runs):
+            if (as_text and needle in text) or keys & runs:
+                return True
+        return False
+
+    whole = [value for value in real if in_texts(value)]
+    published = [one for one in fragments if in_texts(one)]
+    if opening and any(_opening_in(opening, text) for text in texts):
+        published += [opening]
+    by_text: "dict[str, list[str]]" = {}
+    by_key: "dict[str, list[str]]" = {}
+    for group, needles in (("real", real), ("fragment", list(fragments))):
+        for needle in needles:
+            as_text, keys = _keys_of(needle)
+            if as_text:
+                by_text.setdefault(needle, []).append(group + "\0" + needle)
+            for key in keys:
+                by_key.setdefault(key, []).append(group + "\0" + needle)
+    twin_cells = 0
+    twin_fragments: "dict[str, bool]" = {}
+    seen_cells: "dict[str, bool]" = {}
+    for cell in cells:
+        hits: "set[str]" = set()
+        for key in _figure_runs(cell):
+            hits.update(by_key.get(key, ()))
+        for piece in _substrings(cell):
+            hits.update(by_text.get(piece, ()))
+        if any(hit.startswith("real\0") for hit in hits):
+            twin_cells += 1
+        if cell in seen_cells:
+            continue
+        seen_cells[cell] = True
+        for hit in hits:
+            if hit.startswith("fragment\0"):
+                twin_fragments[hit[len("fragment\0"):]] = True
+        if opening and _opening_in(opening, cell):
+            twin_fragments[opening] = True
+    return {
+        "description_values": len(whole),
+        "description_fragments": len(published),
+        "twin_cells": twin_cells,
+        "twin_fragments": len(twin_fragments),
+    }
+
+
+def count_real(
+    real: "list[str]", texts: "list[str]", cells: "list[str]", indexed: "bool | None" = None
 ) -> "dict[str, int]":
     """What of the real values the published texts and the twin's cells carry.
 
     ``texts``: the description, its summary, the questions file and the
     screen; ``cells``: the twin's column. Every comparison is by
     substring, so a value wrapped in other characters is still found.
+    ``indexed`` reads the same counts through an index (`_count_real_
+    indexed`): by default where the pairs pass `_PAIRWISE_AT_MOST`.
     """
+    if indexed is None:
+        indexed = len(real) * max(len(cells), len(texts)) > _PAIRWISE_AT_MOST
+    if indexed:
+        return _count_real_indexed(real, texts, cells)
     fragments: "dict[str, bool]" = {}
     for value in real:
         for run_of in _runs(value):
