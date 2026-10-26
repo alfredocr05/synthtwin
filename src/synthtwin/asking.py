@@ -1913,7 +1913,7 @@ def _an_arc_naming_an_item(uid: str) -> bool:
 # its description published the run's percentile ladder and the twin wrote
 # the sequence again, 598 of 600 real references at 600 rows and 19,998 of
 # 20,000 at 20,000. Plain figures crossing a power of ten (`9701` up, one a
-# row) were a count publishing the same ladder, and `MRN` and six figures on
+# row) were a count publishing the same ladder, and `ACC` and six figures on
 # about four rows in three were affixed numbers printing 50 real record
 # numbers as rungs. Every route of the person rule asks from two rows a
 # value on average (`PERSON_ROWS_PER_VALUE`), and the width question asks
@@ -1964,10 +1964,12 @@ def _a_whole_number_after_letters(value: str) -> "tuple[str, str] | None":
     """The opening and figures of a cell written as letters and a whole number (P4-D436).
 
     One to six ASCII letters, an optional `-`, `_` or `#`, then figures
-    and nothing else: `RPT300001`, `MRN-123456`. None for anything else.
+    and nothing else: `RPT300001`, `ACC-123456`. None for anything else.
     The opening is returned in upper case, so `rpt1` and `RPT1` share one.
-    A fixed function of the text. Raises nothing. No I/O.
+    A fixed function of the text. Raises TypeError for a non-string. No I/O.
     """
+    if not isinstance(value, str):
+        raise TypeError("a cell to ask about must be text")
     place = 0
     while (
         place < len(value)
@@ -1983,6 +1985,13 @@ def _a_whole_number_after_letters(value: str) -> "tuple[str, str] | None":
     if not _is_plain_whole_number(figures):
         return None
     return value[:place].upper(), figures
+
+
+def _without_leading_noughts(figures: str) -> str:
+    """Figures with their leading noughts off, `0` where nothing else is left (P4-D436)."""
+    if not isinstance(figures, str):
+        raise TypeError("a cell to ask about must be text")
+    return figures.lstrip("0") or "0"
 
 
 def _whole_numbers_each_on_one_row(present: "list[str]", role: str) -> bool:
@@ -2015,7 +2024,7 @@ def _whole_numbers_each_on_one_row(present: "list[str]", role: str) -> bool:
         cells = cells + 1
         # ONE NUMBER WRITTEN TWO WAYS IS ONE NUMBER (lane POP's ruling):
         # `00123` and `123` are the same value here.
-        key = (opening, figures.lstrip("0") or "0")
+        key = (opening, _without_leading_noughts(figures))
         if key in numbers:
             numbers[key] = numbers[key] + 1
         else:

@@ -8,7 +8,7 @@ published the run's percentile ladder and its twin wrote the sequence
 again: 598 of 600 real references at 600 rows, 19,998 of 20,000 at 20,000.
 The same tree published plain figures counting up across a power of ten
 (`99701` up, read as a count: 97 real values in the description and 598 twin
-cells at 600 rows) and `MRN` and six figures on about four rows in three (50
+cells at 600 rows) and `ACC` and six figures on about four rows in three (50
 real record numbers as rungs), each with nothing asked: every route of the
 person rule (plan P4-D401) asks from two rows a value on average, and the
 width question asks plain figures of one width only.
@@ -92,7 +92,7 @@ def test_a_column_of_whole_numbers_each_on_one_row_is_held(
     _check_held(shapes.run(tmp_path, kind, _ROWS), kind, _ROWS)
 
 
-@pytest.mark.parametrize("kind", ("refseq", "seqcross", "refmrn"))
+@pytest.mark.parametrize("kind", ("refseq", "seqcross", "refacc"))
 def test_at_the_floor_size_the_column_is_held(tmp_path: pathlib.Path, kind: str) -> None:
     """The live shape and the plain run at 20,000 rows, the owner's table floor.
 
@@ -120,7 +120,7 @@ def test_the_question_is_the_identifier_question_with_keep_first(
     assert "RPT3" not in screen
 
 
-@pytest.mark.parametrize("kind", ("refseq", "seqcross", "refmrn"))
+@pytest.mark.parametrize("kind", ("refseq", "seqcross", "refacc"))
 def test_the_indexed_count_is_the_pairwise_count(tmp_path: pathlib.Path, kind: str) -> None:
     """`shapes.count_real` read through its index counts what the pairwise search counts.
 
@@ -145,6 +145,8 @@ def test_the_indexed_count_is_the_pairwise_count(tmp_path: pathlib.Path, kind: s
 # -- the reach: what is asked, and what is not --------------------------------
 
 _DRAW = random.Random(20261025)
+# 450 record numbers, 150 of them on a second row: no run, not all different.
+_ACC = _DRAW.sample(range(100000, 1000000), 450)
 
 
 def _run(start: int, count: int, opening: str = "") -> "list[str]":
@@ -158,8 +160,7 @@ _REACHED = {
     "plain across a power of ten": _run(99701, 600),
     "plain at random": [f"{value}" for value in _DRAW.sample(range(100000, 10000000), 600)],
     "a run with one number twice": _run(99701, 599) + ["99701"],
-    "MRN on four rows in three": [f"MRN{value}" for value in _DRAW.sample(range(100000, 1000000), 450)]
-    + [f"MRN{value}" for value in _DRAW.sample(range(100000, 1000000), 150)] * 1,
+    "ACC on four rows in three": [f"ACC{value}" for value in _ACC] + [f"ACC{value}" for value in _ACC[:150]],
     "letters, a mark and figures": _run(10001, 600, "ACC-"),
     "beside words and placeholders": _run(99701, 400) + ["UNKNOWN"] * 150 + ["-1"] * 50,
     "written as whole decimals": [f"{value}.0" for value in range(99701, 100301)],

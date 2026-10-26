@@ -260,7 +260,7 @@ LIST_KEYS = 40
 # affixed number and asked nothing -- its percentile ladder published, the
 # twin writing the sequence again (598 of 600 real references, 19,998 of
 # 20,000). `refseq` is that shape; `refrand` its references drawn at random;
-# `refmrn` `MRN` and six figures on about four rows in three (letters and
+# `refacc` `ACC` and six figures on about four rows in three (letters and
 # five figures or more); `seqcross` plain figures counting up across a
 # power of ten (99,701 up), so no width question is put; `seqdup` that run
 # with its first number on the last row too (a run in sequence, not all
@@ -269,7 +269,7 @@ LIST_KEYS = 40
 # fifty.
 # Every value is its own patient-free record, so the real values are
 # every cell's.
-ONE_A_ROW = ("refseq", "refrand", "refmrn", "seqcross", "seqdup", "randall", "seqm1")
+ONE_A_ROW = ("refseq", "refrand", "refacc", "seqcross", "seqdup", "randall", "seqm1")
 # What `seqm1` writes for a row with no reference, and on what share.
 ONE_A_ROW_PLACEHOLDER = ("-1", 0.02)
 # The STATED shapes: a name, a street address and a full birth date on a
@@ -386,9 +386,9 @@ def _one_a_row(kind: str, rows: int, draw: random.Random) -> "list[str]":
         cells = [f"{99701 + row}" for row in range(rows)]
         cells[rows - 1] = cells[0]
         return cells
-    if kind == "refmrn":
+    if kind == "refacc":
         people = draw.sample(range(100000, 1000000), (rows * 3) // 4)
-        return [f"MRN{people[draw.randrange(len(people))]}" for _row in range(rows)]
+        return [f"ACC{people[draw.randrange(len(people))]}" for _row in range(rows)]
     if kind == "seqcross":
         return [f"{99701 + row}" for row in range(rows)]
     if kind == "randall":

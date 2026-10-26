@@ -15,7 +15,7 @@ and counts what is real:
   to three record numbers a cell, six figures, six padded to seven, `R` and
   six figures, and the first beside a declared person column), and the
   columns of a value a row (`ONE_A_ROW`, plan P4-D436: `RPT` and six
-  figures counting up, at random, `MRN` and six figures on about four rows
+  figures counting up, at random, `ACC` and six figures on about four rows
   in three, plain figures counting up across a power of ten, that run with
   one number twice, plain figures at random, and the run beside `-1`): real
   values written whole, or as a number, in the
