@@ -15661,10 +15661,12 @@ reads nothing real to make it so:
    one widened cell where another holds a figure, and the column's
    convention, read over cells of one length, stays), a UID never past
    the grammar's 64 characters; the spill's template. In a column of
-   plain layouts a widened value that is no number never holds letters
-   of `a` to `f` alone, and a value no layout describes is followed by
-   letters at a length no widened value of figures holds, for the same
-   reason. No value is moved into another named layout, so every count
+   plain layouts a widened value that is no number never holds, at the
+   places its template fills, letters of `a` to `f` alone (a published
+   prefix's letters stand in every cell and are not asked), and a value
+   no layout describes is followed by letters at a length no widened value
+   of figures holds, for the same reason. The last resort widens the
+   spill by eight figures at most. No value is moved into another named layout, so every count
    of a layout carrying an exclusion stays as the walks met it. Only
    where none of these gives one is the spill asked again for a spelling
    of any class, then the spill widened a figure at a time. Every cell of
