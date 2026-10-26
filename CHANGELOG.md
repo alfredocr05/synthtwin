@@ -6,6 +6,26 @@ exists).
 
 ## [Unreleased]
 
+### Whole numbers each on one row, or in sequence, are asked the identifier question (lane HX5, plan P4-D436, 2026-10-25)
+
+**Lane HX5** closes the live exposure lane E0c's strict twin scan measured
+on ccebc947: the zoo's `titled_report.report_ref`, `RPT` and six figures
+one a row counting up, was read as an affixed number and asked nothing,
+and its twin wrote 598 of 600 real references at 600 rows and 19,998 of
+20,000 at 20,000. A column read as plain or affixed whole numbers, words
+and placeholders aside, standing on fewer than two rows a value and every
+one different, in sequence (five figures or more) or letters and five
+figures or more, is now put P4-D401's question (`keep`, `code`,
+`identifier`) where no other question is put to it, and held until
+answered; decimals, units, suffixes and values that repeat are not
+reached. K-S3-64 gains seven shapes (0 values published at 600, 20,000
+and 200,000 rows; the twin's chance equalities counted apart, lane
+ID-ROOM's) and reads its counts through an index past two million pairs.
+Moved, with the reason: three twin digests of the generate-memory gate
+(key columns now held), K-HZ-01 and K-HZ-02 by one kind (the zoo's title
+table, answered in one round; owner lane E0c), and the reading page's
+rule I names the question. Gate: `tests/test_all_different_numbers_asked.py`.
+
 ### Batch 4j's records: the data folder's exemption narrowed, the night's 2,000,000-row points written in, the ledger cap set once (2026-10-24)
 
 **Records of batch 4j**, which merged lanes H3 and CODES-3 (plans
