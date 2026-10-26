@@ -26206,16 +26206,19 @@ def keeps_its_places(cell, template):
     return len(merged_key(cell)) == len(merged_key(stand_in(template)))
 
 
-def widened_layout(name, opening, wanted, limit):
+def widened_layout(name, opening, wanted, limit, at_the_end=False):
     """A layout with ``wanted`` placeholders more, or "" past ``limit`` (G9.6b, P4-D432).
 
     Written from the rule statement: copies of `%` before the first `%` at
     or after place ``opening`` -- a rootless UID's (figures and points
     alone, two points or more, opening `%.`) in its second arc -- else of
-    the first placeholder there.
+    the first placeholder there; a decimal's (a sign, figures, one point,
+    figures) after its last figure where ``at_the_end``.
     """
     if wanted < 1 or len(name) + wanted > limit:
         return ""
+    if at_the_end and re.fullmatch(r"[-+]?%+\.%+", name):
+        return name + LAYOUT_DIGIT * wanted
     start = max(opening, 0)
     if start == 0 and re.fullmatch(r"%(\.%+){2,}", name):
         start = name.index(".") + 1
@@ -26336,7 +26339,7 @@ def spelled_off_the_real(column, content):
         lettered = any(mark in layout for mark in (LAYOUT_UPPER, LAYOUT_LOWER, LAYOUT_LOWER_HEX, LAYOUT_UPPER_HEX))
         found = ""
         for more in range(1 if lettered else 0, 9):
-            wide = widened_layout(layout, opening, wanted + more, limit) if wanted + more >= 1 else ""
+            wide = widened_layout(layout, opening, wanted + more, limit, not noughts) if wanted + more >= 1 else ""
             if (
                 wide
                 and len(wide) not in lengths[not lettered]
@@ -26345,7 +26348,7 @@ def spelled_off_the_real(column, content):
                 found = template_of(wide, prefix)
                 break
         if not found and lettered:
-            wide = widened_layout(layout, opening, wanted, limit) if wanted >= 1 else ""
+            wide = widened_layout(layout, opening, wanted, limit, not noughts) if wanted >= 1 else ""
             if wide and len(merged_key(stand_in(template_of(wide, prefix)))) >= bound:
                 found = template_of(wide, prefix)
         if found:

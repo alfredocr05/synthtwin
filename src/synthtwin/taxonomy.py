@@ -26660,8 +26660,10 @@ def widened_layouts_of(facts: "object", convention: str) -> "dict[str, list[str]
         wanted = bound - parsing.merged_length(
             parsing.layout_template(layout, prefix, whole_places)
         )
-        for more in (0, 1):
-            wide = parsing.widened_layout(layout, opening, wanted + more, 1 << 30)
+        for more in range(0, 9):
+            wide = parsing.widened_layout(
+                layout, opening, wanted + more, 1 << 30, not whole_places
+            )
             if wide:
                 if wide not in found:
                     found[wide] = []

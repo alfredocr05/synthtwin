@@ -3421,7 +3421,9 @@ def written_excluded(template: str, exclusion: str) -> str:
     return written
 
 
-def widened_layout(layout: str, opening: int, wanted: int, limit: int) -> str:
+def widened_layout(
+    layout: str, opening: int, wanted: int, limit: int, at_the_end: bool = False
+) -> str:
     """``layout`` with ``wanted`` placeholders more, or "" past ``limit`` characters (P4-D432).
 
     THE LAYOUT A VALUE IS WRITTEN WIDER IN. Copies of `%` are inserted
@@ -3432,10 +3434,13 @@ def widened_layout(layout: str, opening: int, wanted: int, limit: int) -> str:
     has no opening -- a UID with no published root -- is widened in its
     SECOND arc, so its first arc keeps the grammar's one figure (skeptic
     1 of lane ID-ROOM, item 4). A layout holding no `%` there takes copies
-    of its first placeholder after the opening instead. "" where the
-    widened layout would pass ``limit`` characters, where ``wanted`` is
-    under one, or where the layout has no placeholder after the opening.
-    Raises TypeError for a non-string or a non-whole number. No I/O.
+    of its first placeholder after the opening instead. With
+    ``at_the_end`` (`is_a_decimal_layout`, a number that is not whole) the
+    figures go after its last figure, so the value's magnitude, and that
+    it is no whole number, stay. "" where the widened layout would pass
+    ``limit`` characters, where ``wanted`` is under one, or where the
+    layout has no placeholder after the opening. Raises TypeError for a
+    non-string or a non-whole number. No I/O.
     """
     if not isinstance(layout, str):
         raise TypeError(_NOT_TEXT)
@@ -3447,6 +3452,8 @@ def widened_layout(layout: str, opening: int, wanted: int, limit: int) -> str:
         raise TypeError(_NOT_TEXT)
     if wanted < 1 or len(layout) + wanted > limit:
         return ""
+    if at_the_end and is_a_decimal_layout(layout):
+        return layout + LAYOUT_DIGIT * wanted
     start = max(opening, 0)
     if start == 0 and _reads_as_a_rootless_uid(layout):
         start = layout.find(".") + 1
@@ -3465,6 +3472,20 @@ def widened_layout(layout: str, opening: int, wanted: int, limit: int) -> str:
     if at < 0:
         return ""
     return layout[:at] + mark * wanted + layout[at:]
+
+
+def is_a_decimal_layout(layout: str) -> bool:
+    """Whether a layout is a decimal number's: an optional sign, figures, one point, figures (P4-D432)."""
+    if not isinstance(layout, str):
+        raise TypeError(_NOT_TEXT)
+    body = layout[1:] if layout[:1] in ("-", "+") else layout
+    point = body.find(".")
+    if point < 1 or point == len(body) - 1:
+        return False
+    for place in range(len(body)):
+        if place != point and body[place] != LAYOUT_DIGIT:
+            return False
+    return True
 
 
 def _reads_as_a_rootless_uid(layout: str) -> bool:

@@ -15652,7 +15652,9 @@ reads nothing real to make it so:
    `is_code_text`), of: its layout's excluded templates, in turn; its
    layout widened under its own prefix and noughts until its merged key
    is as long as the spill's (`parsing.widened_layout`: figures after the
-   prefix or root, a rootless UID's in its second arc), one character
+   prefix or root, a rootless UID's in its second arc, a number that is
+   not whole after its last figure, so its magnitude and its fraction
+   stay, where the column writes no whole number's noughts), one character
    longer still where it holds a letter, and further, to the first length
    the widened layouts of the other kind -- of letters, of figures alone,
    the spill among them -- do not take (so no length holds a letter in

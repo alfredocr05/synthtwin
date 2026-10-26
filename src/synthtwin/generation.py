@@ -54607,16 +54607,21 @@ def _widened_template(room: _OffTheReal, layout: str) -> str:
     mine = "letters" if lettered else "figures"
     other = room.lengths["figures" if lettered else "letters"]
     found = ""
+    # A NUMBER THAT IS NOT WHOLE is widened after its last figure, so its
+    # magnitude and its fraction stay (P4-D298's held counts beside one
+    # decimal stand-in: widened before its point, `1284849894788933081.6`
+    # read as a whole number).
+    at_the_end = not room.whole_places
     for more in range(1 if lettered else 0, 9):
         if found or wanted + more < 1:
             continue
-        wide = parsing.widened_layout(layout, opening, wanted + more, limit)
+        wide = parsing.widened_layout(layout, opening, wanted + more, limit, at_the_end)
         if wide and len(wide) not in other:
             template = parsing.layout_template(wide, prefix, room.whole_places)
             if parsing.merged_length(template) >= room.bound:
                 found = template
     if not found and lettered and wanted + 1 >= 1:
-        wide = parsing.widened_layout(layout, opening, wanted, limit)
+        wide = parsing.widened_layout(layout, opening, wanted, limit, at_the_end)
         if wide:
             template = parsing.layout_template(wide, prefix, room.whole_places)
             if parsing.merged_length(template) >= room.bound:
