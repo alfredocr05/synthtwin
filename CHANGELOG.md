@@ -34,7 +34,7 @@ its values are written wider, and its census entry and the two lengths
 are listed (V4.1-A1); where a layout keeping an exclusion still has
 values written wider, the entries and lengths they leave are an
 AUTHORIZED-DEVIATION, measured (V4.1-A2). The repair round closed
-skeptic 1's and Codex's findings: a stray cell switching the rule off,
+skeptic 1's and Codex's items: a stray cell switching the rule off,
 noughts after a prefix and numbers written two ways naming real people
 by the merged key, a rootless UID's first arc written, dense layouts
 failing their own validation, the spill printing an outlier's length,

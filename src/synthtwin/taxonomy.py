@@ -26519,7 +26519,7 @@ def with_layout_exclusions(
             parsing.whole_places_layout(layout) != layout for layout in named
         )
         # THE ROOM A FOLDED LAYOUT SHARES: a layout and its case flip
-        # (`MRN` and `mrn` and seven figures) take their fillings from one
+        # (`REC` and `rec` and seven figures) take their fillings from one
         # folded room, since no two twin values may fold to one, so each is
         # asked the room of both.
         sharing: "dict[str, int]" = {}

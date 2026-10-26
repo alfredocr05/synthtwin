@@ -485,7 +485,7 @@ def test_a_folded_identity_is_written_wider_together() -> None:
         n_distinct_by_occurrences={"1": 4}, layout_forms={"@%": 3}, layout_prefixes={},
         layout_exclusions={parsing.EXCLUSION_SPILL: ("%%%%",)},
     )
-    column = types.SimpleNamespace(name="key")
+    column = types.SimpleNamespace(name="key", time_grain=None)
     cells, _remarks = generation._spelled_off_the_real(column, facts, ["B1", "A1", " A1", "a1 "], ())  # type: ignore[arg-type]
     assert len({parsing.folded(cell) for cell in cells}) == 2, cells
     assert cells[2] == " " + cells[1] and cells[3] == cells[1].lower() + " ", cells

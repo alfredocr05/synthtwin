@@ -169,8 +169,8 @@ SHAPES: "dict[str, tuple[object, bool]]" = {
     "pad_split": (lambda k, d: (lambda v: f"{v:09d}" if d.random.random() < 0.5 else f"{v}")(
         d.unique(10**6, 10**7 - 1)), True),
     "case_split": (
-        lambda k, d: f"MRN{d.random.randint(8000000, 9999999)}" if k % 2 == 0
-        else f"mrn{d.random.randint(1000000, 7999999)}", True,
+        lambda k, d: f"REC{d.random.randint(8000000, 9999999)}" if k % 2 == 0
+        else f"rec{d.random.randint(1000000, 7999999)}", True,
     ),
     "space_mixed": (lambda k, d: f" {1000000 + k}" if k % 4 == 0 else f"{1000000 + k}", True),
     "dash_split": (
