@@ -4057,8 +4057,15 @@ def _width_places(
     bounds: "dict[float, tuple[float, float]]",
     ends: "tuple[float, float]",
     whole_column: bool,
+    walls: "tuple[_Piece, ...]" = (),
 ) -> "list[int]":
     """Which width each cell is written at, or -1 for the value's own.
+
+    ON A COLUMN LAID WITH ITS L0 BAND TOTALS ``walls`` are its pieces
+    (method G5.7b), and no snap carries a value out of its piece (lane
+    BT's second repair, after its outside review, item 2): a value whose
+    snap at a width would read in another piece takes no such width, as a
+    snap that leaves its stretch takes none.
 
     THE PINNED CELLS ARE SERVED FIRST AND ARE NEVER SNAPPED (plan
     P4-D4.5). The two endpoints and the zero stratum are
@@ -4206,6 +4213,8 @@ def _width_places(
             # one-place cells to be written at two.
             if need > width and _snaps_away(value, width, bounds, ends):
                 continue
+            if need > width and walls and _l0_snap_leaves(value, width, walls):
+                continue
             # ...AND A SNAP NEVER LANDS ON A NUMBER ANOTHER VALUE HOLDS
             # WHERE THE VALUE'S OWN WIDTH IS A PUBLISHED ONE (plan
             # P4-D179). Two values a hundredth apart are two numbers, and
@@ -4240,6 +4249,15 @@ def _width_places(
             places[index] = whole
         landed[_snapped_to(value, whole)] = 1
     return _some_fraction_survives(places, styles, holds, whole_column)
+
+
+def _l0_snap_leaves(value: float, width: int, walls: "tuple[_Piece, ...]") -> bool:
+    """Whether writing ``value`` at ``width`` reads as a number outside the piece holding it (method G5.7b; `_width_places`)."""
+    read = _snapped_to(value, width)
+    for wall in walls:
+        if _piece_takes(wall, value):
+            return not _piece_takes(wall, read)
+    return False
 
 
 def _pinned_width_order(
@@ -9187,18 +9205,44 @@ def _grid_float(index: int, figures: int) -> float:
 
 
 def _grid_index_above(value: float, figures: int, strictly: bool) -> int:
-    """The first grid index whose point stands above ``value`` (or at it, where not ``strictly``)."""
-    index = _scaled_floor(value, figures)
-    while _grid_float(index, figures) > value or (
-        not strictly and _grid_float(index, figures) == value
-    ):
-        index = index - 1
-    index = index + 1
-    while _grid_float(index, figures) < value or (
-        strictly and _grid_float(index, figures) == value
-    ):
-        index = index + 1
-    return index
+    """The first grid index whose point stands above ``value`` (or at it, where not ``strictly``).
+
+    Whether an index's point stands there rises with the index (the grid
+    text reads back correctly rounded), so the index is found by steps
+    that double from `floor(value * 10**figures)` and then by halving,
+    never a unit at a time: near a large binary64 some `10**13`
+    consecutive indices read back as one value, and a walk over them did
+    not end (lane BT's second repair, after its outside review, item 9).
+    """
+    start = _scaled_floor(value, figures)
+    step = 1
+    if _grid_stands(start, figures, value, strictly):
+        high = start
+        low = start - step
+        while _grid_stands(low, figures, value, strictly):
+            high = low
+            step = step * 2
+            low = start - step
+    else:
+        low = start
+        high = start + step
+        while not _grid_stands(high, figures, value, strictly):
+            low = high
+            step = step * 2
+            high = start + step
+    while high - low > 1:
+        middle = (low + high) // 2
+        if _grid_stands(middle, figures, value, strictly):
+            high = middle
+        else:
+            low = middle
+    return high
+
+
+def _grid_stands(index: int, figures: int, value: float, strictly: bool) -> bool:
+    """Whether grid index ``index``'s point stands above ``value`` (or at it, where not ``strictly``)."""
+    point = _grid_float(index, figures)
+    return point > value or (not strictly and point == value)
 
 
 def _grid_index_below(value: float, figures: int, strictly: bool) -> int:
@@ -9452,7 +9496,11 @@ class _Entries:
     stratum of today's twin it is (-1 for one layer L0 adds), whether a
     proven heap holds its value, its cells before the band totals moved
     them, and its piece; `ordered` is how many lead in ascending order (a
-    point `_l0_kept_point` adds stands after them).
+    point `_l0_kept_point` adds stands after them). `today` is each
+    stratum's cells in today's twin, before the proven heaps moved any (0
+    for one layer L0 adds), and `kept` names the places step 3 gave a
+    value back, which its count rule never merges again (lane BT's second
+    repair, after its verify, item 1).
     """
 
     values: "list[float]"
@@ -9462,6 +9510,8 @@ class _Entries:
     before: "list[int]"
     pieces: "list[int]"
     ordered: int = 0
+    today: "list[int]" = dataclasses.field(default_factory=list)
+    kept: "dict[int, int]" = dataclasses.field(default_factory=dict)
 
 
 def _l0_internal(column: contract.ColumnBlock, what: str) -> str:
@@ -9544,6 +9594,7 @@ def _l0_least_move(
     facts: contract.NumericFacts,
     layout: "_NumericLayout",
     values: "list[float]",
+    floor: int,
 ) -> "tuple[_NumericLayout, list[float], list[Deviation]]":
     """LAYER L0 ON A COLUMN OF NUMBERS: today's twin, moved the least the description proves (method G5.7c; lane BT, plan P4-D429).
 
@@ -9577,12 +9628,21 @@ def _l0_least_move(
        on a grid, its cells take the free admissible point of the piece
        they fell in nearest the cut, at most 64 units in (`_l0_kept_point`); otherwise the count
        of different values gives way, named by the twin's recount (rule
-       B1). Where the move leaves more different values than today's twin
-       held (a heap step 1 restored, which today's twin wrote nowhere),
-       the smallest stratum no heap proves that stands between two proven
-       heaps with no published rung between them -- the run today's
-       ladder reading made up there -- joins its nearer neighbour of its
-       own piece, until the counts agree (`_l0_counted`).
+       B1). THE COUNT RULE IS TWO-SIDED against today's count of
+       different values (lane BT's second repair, after its verify, item
+       1). Where the move leaves fewer -- a value step 1 emptied into a
+       proven heap, which today's twin wrote and the real column need not
+       hold -- each such value, in value order, takes one cell back from
+       the nearest entry of its own piece holding two or more that no
+       heap proves, the published mode's last, while the count is short
+       (`_l0_heap_lost`). Where it leaves more (a heap step 1 restored,
+       which today's twin wrote nowhere), the smallest stratum no heap
+       proves joins its nearer neighbour of its own piece, until the
+       counts agree (`_l0_counted`): first one standing between two
+       proven heaps with no published rung between them -- the run
+       today's ladder reading made up there -- and then one anywhere
+       holding fewer cells than the floor, never a value step 3 gave
+       back, the published mode, `min`, `max` or a tail's row.
 
     4. THE MODE KEPT (`_l0_mode_kept`). Where today's twin held the
        published mode at its published count and the move changed that
@@ -9616,6 +9676,7 @@ def _l0_least_move(
         [],
         [],
     )
+    today.today = [size for size in today.sizes]
     distinct = _l0_distinct(today)
     heaps = _l0_proven_heaps(facts, total)
     entries = _l0_heaped(today, heaps)
@@ -9628,7 +9689,8 @@ def _l0_least_move(
         )
         _l0_spread(facts, walls, entries, held)
     _l0_values_kept(facts, walls, entries, held)
-    _l0_counted(entries, distinct, _l0_heap_gaps(facts, heaps))
+    _l0_heap_lost(facts, walls, entries, distinct, heaps)
+    _l0_counted(facts, entries, distinct, _l0_heap_gaps(facts, heaps), floor)
     _l0_mode_kept(facts, entries, today)
     _l0_counts_met(column, walls, entries)
     by_place = [0 for _place in range(count)]
@@ -9735,6 +9797,7 @@ def _l0_heaped(entries: _Entries, heaps: "list[tuple[float, int, int]]") -> _Ent
             out.sizes += [added[extra[taken]]]
             out.places += [-1]
             out.proven += [1]
+            out.today += [0]
             taken = taken + 1
         if at >= len(entries.values):
             break
@@ -9744,6 +9807,7 @@ def _l0_heaped(entries: _Entries, heaps: "list[tuple[float, int, int]]") -> _Ent
         out.sizes += [size]
         out.places += [entries.places[at]]
         out.proven += [1 if value in heap_values else 0]
+        out.today += [entries.today[at]]
     return out
 
 
@@ -9836,6 +9900,7 @@ def _l0_banded(
             out.proven += [0]
             out.before += [0]
             out.pieces += [extra[taken][2]]
+            out.today += [0]
             taken = taken + 1
         if at >= len(entries.values):
             break
@@ -9845,6 +9910,7 @@ def _l0_banded(
         out.proven += [entries.proven[at]]
         out.before += [entries.sizes[at]]
         out.pieces += [entries.pieces[at]]
+        out.today += [entries.today[at]]
     out.ordered = len(out.values)
     return out
 
@@ -9905,6 +9971,7 @@ def _l0_spread(
             entries.proven += [0]
             entries.before += [0]
             entries.pieces += [piece]
+            entries.today += [0]
             held.added[point] = 1
 
 
@@ -9953,7 +10020,13 @@ def _l0_whole_free(
             continue
         start = float(near + 1) if upward else float(near)
         while len(found) < wanted:
-            points = _l0_points(facts, wall, 0, start, upward, held, 1 << 20)
+            # ...each search held to its own gap (lane BT's second repair,
+            # after its outside review, item 7): a walk past the far value
+            # looked through every occupied value beyond it again.
+            room = far - int(start) if upward else int(start) - 1 - far
+            if room <= 0:
+                break
+            points = _l0_points(facts, wall, 0, start, upward, held, min(room, 1 << 20))
             if not points:
                 break
             point = points[0]
@@ -10010,6 +10083,7 @@ def _l0_values_kept(
                 if entries.sizes[donor] < 2:
                     spare[piece] = spare[piece] - 1
                 entries.sizes[at] = 1
+                entries.kept[at] = 1
                 continue
         _l0_kept_point(facts, walls, entries, first_of, last_of, starts[at], at, held)
 
@@ -10044,17 +10118,21 @@ def _l0_donor(
     first: int,
     last: int,
     lost: int,
+    unproven: bool = False,
 ) -> int:
     """The entry of a lost stratum's own piece that gives it a cell back, or -1.
 
     The nearest in value order holding two cells or more, the lower on a
-    tie, and the published mode's only where no other can give.
+    tie, and the published mode's only where no other can give; where
+    ``unproven``, never one a proven heap holds (`_l0_heap_lost`).
     """
     mode = facts.mode
     held_mode = -1
     for reach in range(1, last - first + 1):
         for at in (lost - reach, lost + reach):
             if at < first or at > last or entries.sizes[at] < 2:
+                continue
+            if unproven and entries.proven[at]:
                 continue
             if mode is not None and entries.values[at] == mode:
                 if held_mode < 0:
@@ -10109,56 +10187,340 @@ def _l0_kept_point(
     entries.proven += [0]
     entries.before += [0]
     entries.pieces += [landed]
+    entries.today += [0]
+    entries.kept[len(entries.values) - 1] = 1
     held.added[point] = 1
 
 
-def _l0_counted(entries: _Entries, distinct: int, gaps: "list[tuple[float, float]]") -> None:
-    """Step 3 of `_l0_least_move`, second half: no more different values than today's twin held.
+def _l0_heap_lost(
+    facts: contract.NumericFacts,
+    walls: "tuple[_Piece, ...]",
+    entries: _Entries,
+    distinct: int,
+    heaps: "list[tuple[float, int, int]]",
+) -> None:
+    """Step 3 of `_l0_least_move`, its count rule below: a value step 1 emptied keeps a cell while the count is short.
+
+    Step 1 moves every rank inside a proven heap onto the heap's value, so a
+    value today's twin wrote only there -- `38.0` beside a lab's sentinel
+    heap at `10.0`, `4.2` beside a sparse column's heap at `4.3` -- holds no
+    cell after it. The real column need not hold it, but today's twin held
+    the published count of different values with it (lane BT's verify,
+    item 1: 893 against 892 on such a lab). So while the entries hold
+    fewer different values than ``distinct``, today's count, each value
+    step 1 emptied, in value order, takes one cell back from the nearest
+    entry of its own piece holding two or more, the published mode's only
+    where no other can give, and only where NO PROVEN HEAP LEAVES ITS
+    RANKS (`_l0_heap_donor`): a giving heap gives a cell it holds beyond
+    its proven ranks on the side facing the value, and a heap between the
+    two, whose ranks shift by one, holds one beyond them on the side it
+    shifts from. So no piece's count moves and every proven rank keeps
+    its value. Where none can give, a cell stands on a free grid point
+    beside a stratum (`_l0_count_points`), and off a grid the count gives
+    way, named by the twin's recount (rule B1). A value the band totals
+    emptied is step 3's first half's (`_l0_values_kept`). The entries are
+    changed in place.
+    """
+    found = _l0_held_count(entries)
+    if found >= distinct:
+        return
+    first_of: "dict[int, int]" = {}
+    last_of: "dict[int, int]" = {}
+    for at in range(entries.ordered):
+        piece = entries.pieces[at]
+        if piece not in first_of:
+            first_of[piece] = at
+        last_of[piece] = at
+    dealt: "dict[float, int]" = {}
+    holders: "dict[float, int]" = {}
+    for at in range(len(entries.values)):
+        if entries.sizes[at] > 0:
+            dealt[entries.values[at]] = 1
+            holders[entries.values[at]] = (holders[entries.values[at]] if entries.values[at] in holders else 0) + 1
+    spans: "dict[float, tuple[int, int]]" = {}
+    for value, first, last in heaps:
+        spans[value] = (first, last)
+    # Each entry's first rank, as the strata stand sorted by value.
+    starts = [0 for _value in entries.values]
+    running = 0
+    for _value, at in sorted([(entries.values[at], at) for at in range(len(entries.values)) if entries.sizes[at] > 0]):
+        starts[at] = running
+        running = running + entries.sizes[at]
+    for at in range(entries.ordered):
+        if found >= distinct:
+            return
+        value = entries.values[at]
+        if entries.sizes[at] > 0 or entries.today[at] <= 0 or entries.before[at] > 0 or value in dealt:
+            continue
+        dealt[value] = 1
+        piece = entries.pieces[at]
+        donor = _l0_heap_donor(facts, entries, first_of[piece], last_of[piece], at, spans, starts, holders)
+        if donor < 0:
+            continue
+        # The ranks between the two shift by one toward the giver; a giver
+        # above gives its first rank. (Only a heap's ranks are read again,
+        # and every heap stands among the ordered entries.)
+        if donor > at:
+            for between in range(at + 1, donor):
+                starts[between] = starts[between] + 1
+            starts[donor] = starts[donor] + 1
+        else:
+            for between in range(donor + 1, at):
+                starts[between] = starts[between] - 1
+        entries.sizes[donor] = entries.sizes[donor] - 1
+        entries.sizes[at] = 1
+        entries.kept[at] = 1
+        holders[value] = 1
+        found = found + 1
+    if found < distinct:
+        _l0_count_points(facts, walls, entries, distinct - found)
+
+
+def _l0_count_points(
+    facts: contract.NumericFacts,
+    walls: "tuple[_Piece, ...]",
+    entries: _Entries,
+    wanted: int,
+) -> None:
+    """The last of `_l0_heap_lost`: a cell on a free grid point beside a stratum, while the count is short.
+
+    Where no value step 1 emptied can take a cell back (every entry of its
+    piece holds one cell, or a heap's ranks stand in the way: a sparse
+    column's 4.2 below its heap at 4.3, lane BT's verify, item 1), the
+    stratum no heap proves holding the most cells, two or more, not the
+    published mode (the lower on a tie), gives one cell to the free
+    admissible point of its piece's grid nearest it (the lower on a tie)
+    that stands strictly between it and its neighbours holding cells, so
+    no other stratum's ranks move; an emptied stratum of that value takes
+    it back, else one new stratum. Off a grid nothing is added and the
+    count gives way (rule B1). The entries are changed in place.
+    """
+    order = [at for _value, at in sorted([(entries.values[at], at) for at in range(len(entries.values)) if entries.sizes[at] > 0])]
+    neighbours: "dict[int, tuple[float | None, float | None]]" = {}
+    for place in range(len(order)):
+        below = entries.values[order[place - 1]] if place > 0 else None
+        above = entries.values[order[place + 1]] if place + 1 < len(order) else None
+        neighbours[order[place]] = (below, above)
+    emptied: "dict[float, int]" = {}
+    for at in range(entries.ordered):
+        if entries.sizes[at] <= 0 and entries.values[at] not in emptied:
+            emptied[entries.values[at]] = at
+    givers = sorted([(-entries.sizes[at], entries.values[at], at) for at in order if entries.sizes[at] >= 2 and not entries.proven[at] and entries.values[at] != facts.mode])
+    taken: "dict[float, int]" = {}
+    for _size, value, at in givers:
+        if wanted <= 0:
+            return
+        wall = walls[entries.pieces[at]]
+        if wall.figures < 0 or entries.sizes[at] < 2:
+            continue
+        below, above = neighbours[at]
+        point = _l0_beside(facts, wall, value, below, above, taken)
+        if point is None:
+            continue
+        taken[point] = 1
+        entries.sizes[at] = entries.sizes[at] - 1
+        if point in emptied:
+            entries.sizes[emptied[point]] = 1
+            entries.kept[emptied[point]] = 1
+        else:
+            entries.values += [point]
+            entries.sizes += [1]
+            entries.places += [-1]
+            entries.proven += [0]
+            entries.before += [0]
+            entries.pieces += [entries.pieces[at]]
+            entries.today += [0]
+            entries.kept[len(entries.values) - 1] = 1
+        wanted = wanted - 1
+
+
+def _l0_beside(
+    facts: contract.NumericFacts,
+    wall: _Piece,
+    value: float,
+    below: "float | None",
+    above: "float | None",
+    taken: "dict[float, int]",
+) -> "float | None":
+    """The admissible grid point of ``wall`` nearest ``value`` strictly between ``below`` and ``above`` (`_l0_count_points`), or None.
+
+    One grid unit each way, the lower first: the nearest point, and so
+    the least move of the cell.
+    """
+    figures = wall.figures
+    index = _grid_index_above(value, figures, False)
+    candidates = [index - 1, index + 1] if _grid_float(index, figures) == value else [index - 1, index]
+    for candidate in candidates:
+        point = _grid_float(candidate, figures)
+        if point == value or point in taken:
+            continue
+        if (below is not None and not point > below) or (above is not None and not point < above):
+            continue
+        if _l0_admissible(facts, wall, point, figures):
+            return point
+    return None
+
+
+def _l0_heap_donor(
+    facts: contract.NumericFacts,
+    entries: _Entries,
+    first: int,
+    last: int,
+    lost: int,
+    spans: "dict[float, tuple[int, int]]",
+    starts: "list[int]",
+    holders: "dict[float, int]",
+) -> int:
+    """The entry that gives a value step 1 emptied its cell back, or -1 (`_l0_heap_lost`).
+
+    The nearest in value order of the piece's entries ``first`` to
+    ``last`` holding two cells or more, the lower on a tie, the published
+    mode's only where no other can give, such that no proven heap leaves
+    its ranks (``spans``, each heap's first and last proven rank;
+    ``starts``, each entry's first rank now): a giver above the value
+    gives its first rank and the entries between shift up a rank, a giver
+    below gives its last and those between shift down. A heap held by two
+    strata neither gives nor is crossed. A side's search ends at the first
+    heap that cannot shift.
+    """
+    mode = facts.mode
+    held_mode = -1
+    open_below = True
+    open_above = True
+    for reach in range(1, last - first + 1):
+        for at in (lost - reach, lost + reach):
+            upward = at > lost
+            if at < first or at > last or (upward and not open_above) or (not upward and not open_below):
+                continue
+            size = entries.sizes[at]
+            value = entries.values[at]
+            if size <= 0:
+                continue
+            proven = value in spans
+            if proven:
+                if holders[value] > 1:
+                    fits = False
+                else:
+                    span_first, span_last = spans[value]
+                    # It gives (or shifts off) its first rank where it stands
+                    # above the value, its last where it stands below.
+                    fits = starts[at] < span_first if upward else starts[at] + size - 1 > span_last
+                if not fits:
+                    if upward:
+                        open_above = False
+                    else:
+                        open_below = False
+                    continue
+            if size < 2:
+                continue
+            if mode is not None and value == mode:
+                if held_mode < 0:
+                    held_mode = at
+                continue
+            return at
+        if not open_below and not open_above:
+            break
+    return held_mode
+
+
+def _l0_counted(
+    facts: contract.NumericFacts,
+    entries: _Entries,
+    distinct: int,
+    gaps: "list[tuple[float, float]]",
+    floor: int,
+) -> None:
+    """Step 3 of `_l0_least_move`, its count rule above: no more different values than today's twin held.
 
     Today's twin holds the published count of different values, so where
     step 1 restored a heap it wrote nowhere, it also holds a value the
-    real column does not: the run its ladder reading interpolated between
-    two heaps. While the entries hold more different values than
-    ``distinct``, the smallest entry no heap proves that lies strictly
-    inside one of ``gaps`` -- the stretches between two published rungs
-    that are both proven heaps, with no published rung between them,
-    where the real column's ranks hold the one heap or the other or a
-    value no rung reached -- joins its nearer neighbour of its own piece
-    (the lower on a tie), and no piece's count moves. Nothing changes
-    where no such entry stands. The entries are changed in place.
+    real column does not. While the entries hold more different values
+    than ``distinct``, one stratum no heap proves joins its nearer
+    neighbour of its own piece (the lower on a tie), and no piece's count
+    moves: the smallest standing strictly inside one of ``gaps`` -- the
+    stretches between two published rungs that are both proven heaps,
+    with no published rung between them, where the run today's ladder
+    reading interpolated stands -- and, where none stands there, the
+    smallest anywhere holding fewer cells than the floor (lane BT's second
+    repair, after its verify, item 1: a sparse count held 53 different
+    values against today's 51). Never one step 3 gave back, nor the
+    published mode, `min` or `max`, nor a tail's row; and only a value no
+    other stratum holds. Nothing changes where none stands, and the count
+    gives way, named by the twin's recount (rule B1). The entries are
+    changed in place.
     """
-    if not gaps:
-        return
     found = _l0_held_count(entries)
     while found > distinct:
-        order = [at for _value, at in sorted([(entries.values[at], at) for at in range(len(entries.values)) if entries.sizes[at] > 0])]
-        best = -1
-        partner = -1
-        for place in range(len(order)):
-            at = order[place]
-            value = entries.values[at]
-            if entries.proven[at] or not any(low < value < high for low, high in gaps):
-                continue
-            below = order[place - 1] if place > 0 else -1
-            above = order[place + 1] if place + 1 < len(order) else -1
-            if below >= 0 and (entries.pieces[below] != entries.pieces[at] or entries.values[below] == value):
-                below = -1
-            if above >= 0 and (entries.pieces[above] != entries.pieces[at] or entries.values[above] == value):
-                above = -1
-            if below < 0 and above < 0:
-                continue
-            near = below
-            if above >= 0 and (below < 0 or entries.values[above] - value < value - entries.values[below]):
-                near = above
-            if best >= 0 and entries.sizes[at] >= entries.sizes[best]:
-                continue
-            best = at
-            partner = near
+        best, partner = _l0_merged_pick(facts, entries, gaps, floor, True)
+        if best < 0:
+            best, partner = _l0_merged_pick(facts, entries, gaps, floor, False)
         if best < 0:
             return
         entries.sizes[partner] = entries.sizes[partner] + entries.sizes[best]
         entries.sizes[best] = 0
         found = found - 1
+
+
+def _l0_tail_bounds(facts: contract.NumericFacts) -> "tuple[float | None, float | None]":
+    """A tail block's two boundary rungs (`_l0_counted` merges no row at or beyond one); None where a side has no tail."""
+    tails = facts.tails
+    if tails is None:
+        return None, None
+    named: "dict[int, float | None]" = {}
+    for place in range(len(contract.LADDER_PERCENTS)):
+        named[contract.LADDER_PERCENTS[place]] = facts.percentiles.rungs[place]
+    for place in range(len(contract.FINER_LADDER_KEYS)):
+        named[int(contract.FINER_LADDER_KEYS[place][1:])] = facts.percentiles_between[place]
+    low = named[tails.low.percent] if tails.low is not None and tails.low.percent in named else None
+    high = named[tails.high.percent] if tails.high is not None and tails.high.percent in named else None
+    return low, high
+
+
+def _l0_merged_pick(
+    facts: contract.NumericFacts,
+    entries: _Entries,
+    gaps: "list[tuple[float, float]]",
+    floor: int,
+    in_gaps: bool,
+) -> "tuple[int, int]":
+    """The stratum `_l0_counted` merges and the neighbour it joins, or (-1, -1)."""
+    order = [at for _value, at in sorted([(entries.values[at], at) for at in range(len(entries.values)) if entries.sizes[at] > 0])]
+    lowest = facts.percentiles.minimum
+    highest = facts.percentiles.maximum
+    low_tail, high_tail = (None, None) if in_gaps else _l0_tail_bounds(facts)
+    best = -1
+    partner = -1
+    for place in range(len(order)):
+        at = order[place]
+        value = entries.values[at]
+        if entries.proven[at] or at in entries.kept:
+            continue
+        if in_gaps:
+            if not any(low < value < high for low, high in gaps):
+                continue
+        else:
+            if entries.sizes[at] >= floor or value == facts.mode or value == lowest or value == highest:
+                continue
+            if (low_tail is not None and not value > low_tail) or (high_tail is not None and not value < high_tail):
+                continue
+        below = order[place - 1] if place > 0 else -1
+        above = order[place + 1] if place + 1 < len(order) else -1
+        if (below >= 0 and entries.values[below] == value) or (above >= 0 and entries.values[above] == value):
+            continue
+        if below >= 0 and entries.pieces[below] != entries.pieces[at]:
+            below = -1
+        if above >= 0 and entries.pieces[above] != entries.pieces[at]:
+            above = -1
+        if below < 0 and above < 0:
+            continue
+        near = below
+        if above >= 0 and (below < 0 or entries.values[above] - value < value - entries.values[below]):
+            near = above
+        if best >= 0 and entries.sizes[at] >= entries.sizes[best]:
+            continue
+        best = at
+        partner = near
+    return best, partner
 
 
 def _l0_heap_gaps(facts: contract.NumericFacts, heaps: "list[tuple[float, int, int]]") -> "list[tuple[float, float]]":
@@ -10315,6 +10677,48 @@ def _l0_counts_met(
     for wall_at in range(len(walls)):
         if held[wall_at] != walls[wall_at].cells:
             raise errors.ProfileError(_l0_internal(column, "misses the count of one of its bands"))
+
+
+def _l0_walls(column: contract.ColumnBlock, facts: contract.NumericFacts) -> "tuple[_Piece, ...]":
+    """An eligible number column's pieces (method G5.7b), on the grid `_l0_least_move` reads; empty off L0."""
+    if facts.l0 is None:
+        return ()
+    figures = 0 if facts.integer_valued else _written_grid(column, facts)
+    return _l0_pieces(column, facts, facts.l0, figures)
+
+
+def _l0_cells_met(
+    column: contract.ColumnBlock,
+    walls: "tuple[_Piece, ...]",
+    layout: "_NumericLayout",
+    values: "list[float]",
+    cells: "list[str]",
+) -> None:
+    """G5.7g read on the cells as written: each number cell reads in its stratum's piece (lane BT's second repair).
+
+    ``cells`` are the number cells in stratum order, as `_number_cells`
+    writes them, each read as the profile reads a cell
+    (`taxonomy.spelling_read` where the plain reader finds no number).
+    Raises `errors.ProfileError` (an internal check) where one reads
+    outside it, which `_width_places`' walls rule out.
+    """
+    at = 0
+    for place in range(len(layout.sizes)):
+        value = values[place]
+        piece = -1
+        for wall_at in range(len(walls)):
+            if _piece_takes(walls[wall_at], value):
+                piece = wall_at
+                break
+        for _cell in range(layout.sizes[place]):
+            read: "float | None" = None
+            if at < len(cells):
+                read = parsing.parse_number(cells[at])
+                if read is None:
+                    read = taxonomy.spelling_read(cells[at])[1]
+            at = at + 1
+            if piece < 0 or (read is not None and not _piece_takes(walls[piece], read)):
+                raise errors.ProfileError(_l0_internal(column, "writes a cell outside its band"))
 
 
 def _mode_again(
@@ -13391,7 +13795,7 @@ def _numeric_content(
     # heaps and its band totals -- and the mode's note is read again on
     # what the move left.
     if facts.l0 is not None:
-        layout, values, mode_notes = _l0_least_move(column, facts, layout, values)
+        layout, values, mode_notes = _l0_least_move(column, facts, layout, values, floor)
         notes = [note for note in notes if note.fact not in ("mode", "mode_count")] + mode_notes
     # AND THE SHORTFALL NEEDS NO NOTE OF ITS OWN (residual R-P4-69). A
     # second report was written here and withdrawn on measurement: the
@@ -13403,9 +13807,22 @@ def _numeric_content(
     # PAST THE WIDTH (method G6.3, G6.6.8): the sides its own width walk
     # left cells on, and none where the second reading stands, which is
     # 110cb46's (Codex's review of lane G2, item 2).
-    cells, style_notes = _number_cells(
-        column, facts, layout, values, floor, kept
-    )
+    walls: "tuple[_Piece, ...]" = ()
+    if facts.l0 is not None:
+        walls = _l0_walls(column, facts)
+    if walls:
+        cells, style_notes = _number_cells(
+            column, facts, layout, values, floor, kept, walls
+        )
+        # ...AND THE BAND TOTALS ARE CHECKED ON THE CELLS AS WRITTEN (lane
+        # BT's second repair, after its outside review, item 2): each cell
+        # reads in its stratum's piece, or the column is refused as an
+        # internal check (G5.7g).
+        _l0_cells_met(column, walls, layout, values, cells)
+    else:
+        cells, style_notes = _number_cells(
+            column, facts, layout, values, floor, kept
+        )
     notes = notes + style_notes
     # EACH NUMBER'S READING is its stratum's value (method G4.2b).
     if readings is not None:
@@ -21952,8 +22369,12 @@ def _number_cells(
     values: "list[float]",
     floor: int,
     kept: "tuple[bool, ...]" = (),
+    walls: "tuple[_Piece, ...]" = (),
 ) -> "tuple[list[str], list[Deviation]]":
     """Write every cell that reads as a number (method G6.4, G6.6).
+
+    ``walls``, on a column laid with its L0 band totals, are its pieces,
+    which no width's snap leaves (`_width_places`).
 
     Styles are shared out over the cells in stratum order by largest
     remaining quota, narrowed to the styles each cell's own value can
@@ -22050,6 +22471,7 @@ def _number_cells(
         _segment_bounds(column, facts, layout, values),
         _published_ends(facts, values),
         facts.integer_valued,
+        walls,
     )
     pads = _pad_places(
         facts.pad_widths, styles, holds, facts.integer_valued,

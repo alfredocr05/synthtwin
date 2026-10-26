@@ -55756,6 +55756,7 @@ def l0_least_move(column, values, sizes, bands, figures):
             starts[place] = running
             running += after_heaps[place]
     mode = wire_value(column.get("mode"))
+    kept = set()
     # a VALUE is lost only where no stratum still holds it, and kept once
     dealt = {value_of[place] for place in value_of if now.get(place, 0) > 0}
     for place in ranked():
@@ -55784,6 +55785,7 @@ def l0_least_move(column, values, sizes, bands, figures):
         if donor is not None:
             now[donor] -= 1
             now[place] = 1
+            kept.add(place)
             continue
         if figures < 0:
             continue
@@ -55813,21 +55815,181 @@ def l0_least_move(column, values, sizes, bands, figures):
         piece_of[new_place] = into
         now[new_place] = after_heaps[place]
         held.add(point)
-    # ...and no more different values than today's twin held
+        kept.add(new_place)
+    # ...two-sided against today's count (lane BT's second repair): a value
+    # step 1 emptied keeps a cell while the count is short, from the nearest
+    # entry of its own piece holding two or more that no heap proves
+    def held_count():
+        return len({value_of[place] for place in value_of if now.get(place, 0) > 0})
+
+    count_now = held_count()
+    if count_now < today_values:
+        dealt = {value_of[place] for place in value_of if now.get(place, 0) > 0}
+        holders = {}
+        for place in value_of:
+            if now.get(place, 0) > 0:
+                holders[value_of[place]] = holders.get(value_of[place], 0) + 1
+        spans = {value: (first, last) for value, first, last in heaps}
+        rank_of = {}
+        running = 0
+        for place in ranked():
+            if now.get(place, 0) > 0:
+                rank_of[place] = running
+                running += now[place]
+        for place in ranked():
+            if count_now >= today_values:
+                break
+            if place in late or now.get(place, 0) > 0 or place >= len(values) or sizes[place] <= 0:
+                continue
+            if after_heaps.get(place, 0) > 0 or value_of[place] in dealt:
+                continue
+            dealt.add(value_of[place])
+            at = piece_of[place]
+            members = [other for other in ranked() if piece_of[other] == at and other not in late]
+            where = members.index(place)
+            donor = None
+            spare = None
+            open_sides = {-1: True, 1: True}
+            for reach in range(1, len(members)):
+                for side in (-1, 1):
+                    other_at = where + side * reach
+                    if not 0 <= other_at < len(members) or not open_sides[side]:
+                        continue
+                    other = members[other_at]
+                    if now.get(other, 0) <= 0:
+                        continue
+                    value = value_of[other]
+                    if value in spans:
+                        span_first, span_last = spans[value]
+                        fits = holders[value] == 1 and (
+                            rank_of[other] < span_first if side > 0 else rank_of[other] + now[other] - 1 > span_last
+                        )
+                        if not fits:
+                            open_sides[side] = False
+                            continue
+                    if now[other] < 2:
+                        continue
+                    if mode is not None and value == mode:
+                        spare = other if spare is None else spare
+                        continue
+                    donor = other
+                    break
+                if donor is not None or not (open_sides[-1] or open_sides[1]):
+                    break
+            donor = donor if donor is not None else spare
+            if donor is None:
+                continue
+            giver_at = members.index(donor)
+            if giver_at > where:
+                for between in members[where + 1: giver_at]:
+                    if between in rank_of:
+                        rank_of[between] += 1
+                rank_of[donor] += 1
+            else:
+                for between in members[giver_at + 1: where]:
+                    if between in rank_of:
+                        rank_of[between] -= 1
+            now[donor] -= 1
+            now[place] = 1
+            kept.add(place)
+            holders[value_of[place]] = 1
+            count_now += 1
+    # ...and where none could, a cell on a free grid point beside the
+    # largest stratum no heap proves, between it and its neighbours
+    if count_now < today_values and figures >= 0:
+        holding = [place for place in ranked() if now.get(place, 0) > 0]
+        neighbours = {}
+        for index, place in enumerate(holding):
+            neighbours[place] = (
+                value_of[holding[index - 1]] if index > 0 else None,
+                value_of[holding[index + 1]] if index + 1 < len(holding) else None,
+            )
+        emptied = {}
+        for place in ranked():
+            if place not in late and now.get(place, 0) <= 0 and value_of[place] not in emptied:
+                emptied[value_of[place]] = place
+        position_of = {place: index for index, place in enumerate(ranked())}
+        givers = sorted(
+            (-now[place], value_of[place], position_of[place], place)
+            for place in holding
+            if now[place] >= 2 and value_of[place] not in proven and value_of[place] != mode
+        )
+        taken = set()
+        for _size, value, _position, place in givers:
+            if count_now >= today_values:
+                break
+            below, above = neighbours[place]
+            index = _l0_index(value, figures, True, False)
+            if l0_grid_point(index, figures) == value:
+                candidates = [index - 1, index + 1]
+            else:
+                candidates = [index - 1, index]
+            point = None
+            for candidate in candidates:
+                found = l0_grid_point(candidate, figures)
+                if found == value or found in taken:
+                    continue
+                if (below is not None and not found > below) or (above is not None and not found < above):
+                    continue
+                if l0_admissible(column, pieces[piece_of[place]], found, figures):
+                    point = found
+                    break
+            if point is None:
+                continue
+            taken.add(point)
+            now[place] -= 1
+            if point in emptied:
+                now[emptied[point]] = 1
+                kept.add(emptied[point])
+            else:
+                new_place = len(value_of)
+                value_of[new_place] = point
+                added.append(new_place)
+                late.add(new_place)
+                piece_of[new_place] = piece_of[place]
+                now[new_place] = 1
+                held.add(point)
+                kept.add(new_place)
+            count_now += 1
+    # ...and no more different values than today's twin held: the smallest
+    # stratum no heap proves between two proven heaps, then the smallest
+    # anywhere under the floor (never one kept above, the mode, min, max or
+    # a tail's row)
     rungs = sorted({l0_rung(column, key) for key in ALL_LADDER_KEYS if l0_rung(column, key) is not None})
     gaps = [(rungs[at], rungs[at + 1]) for at in range(len(rungs) - 1) if rungs[at] in proven and rungs[at + 1] in proven]
-    while gaps and len({value_of[place] for place in value_of if now.get(place, 0) > 0}) > today_values:
+    lowest = wire_value(column["percentiles"].get("min"))
+    highest = wire_value(column["percentiles"].get("max"))
+    tails = column.get("tails")
+    low_tail = None
+    high_tail = None
+    if tails is not None:
+        if tails.get("low") is not None:
+            low_tail = l0_rung(column, ALL_LADDER_KEYS[tails["low"]["percent"]])
+        if tails.get("high") is not None:
+            high_tail = l0_rung(column, ALL_LADDER_KEYS[tails["high"]["percent"]])
+
+    def merged_pick(in_gaps):
         holding = [place for place in ranked() if now.get(place, 0) > 0]
         best = None
         for index, place in enumerate(holding):
             value = value_of[place]
-            if value in proven or not any(low < value < high for low, high in gaps):
+            if value in proven or place in kept:
                 continue
+            if in_gaps:
+                if not any(low < value < high for low, high in gaps):
+                    continue
+            else:
+                if now[place] >= CASE_SMALL_CELL_FLOOR or value == mode or value == lowest or value == highest:
+                    continue
+                if (low_tail is not None and not value > low_tail) or (high_tail is not None and not value < high_tail):
+                    continue
             below = holding[index - 1] if index > 0 else None
             above = holding[index + 1] if index + 1 < len(holding) else None
-            if below is not None and (piece_of[below] != piece_of[place] or value_of[below] == value):
+            if (below is not None and value_of[below] == value) or (above is not None and value_of[above] == value):
+                continue
+            if below is not None and piece_of[below] != piece_of[place]:
                 below = None
-            if above is not None and (piece_of[above] != piece_of[place] or value_of[above] == value):
+            if above is not None and piece_of[above] != piece_of[place]:
                 above = None
             if below is None and above is None:
                 continue
@@ -55836,6 +55998,12 @@ def l0_least_move(column, values, sizes, bands, figures):
                 near = above
             if best is None or now[place] < now[best[0]]:
                 best = (place, near)
+        return best
+
+    while held_count() > today_values:
+        best = merged_pick(True)
+        if best is None:
+            best = merged_pick(False)
         if best is None:
             break
         now[best[1]] += now[best[0]]
@@ -55948,7 +56116,11 @@ def l0_free_points(column, piece, figures, own, upward, wanted, held):
             continue
         start = float(near + 1) if upward else float(near)
         while len(found) < wanted:
-            point = l0_walk(column, piece, 0, start, upward, held | set(found), 1 << 20)
+            # each search held to its own gap (lane BT's second repair)
+            room = None if far is None else (far - int(start) if upward else int(start) - 1 - far)
+            if room is not None and room <= 0:
+                break
+            point = l0_walk(column, piece, 0, start, upward, held | set(found), 1 << 20 if room is None else min(room, 1 << 20))
             if point is None or (far is not None and (point >= far if upward else point <= far)):
                 break
             found.append(point)
