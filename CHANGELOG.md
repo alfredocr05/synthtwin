@@ -6,7 +6,7 @@ exists).
 
 ## [Unreleased]
 
-### The health data zoo widened to every kind, re-defined at the owner's table floor (plan P4-D431, lane E0c, 2026-10-24, repaired twice 2026-10-25; tests and drivers only)
+### The health data zoo widened to every kind, re-defined at the owner's table floor (plan P4-D431, lane E0c, 2026-10-24, repaired twice 2026-10-25 and a third time 2026-10-26; tests and drivers only)
 
 **Lane E0c of the December plan** (the zoo plan's section 6 (b); the
 owner's Z2 answer (a)). The zoo's catalogue grows from 40 kinds over 25
@@ -19,20 +19,24 @@ held are merged there. Its KPI legs run at 20,000 rows through the
 SHIPPED table floor, the 600-row runs are the suite's smoke below it,
 one test item a shard, and the slow driver runs six shards. K-HZ-01's
 pass rule is restated (a kind passes at 20,000 rows with the floor on,
-its 600-row smoke running: 47 of 93), K-HZ-02 counts failures per kind
-and check at 20,000 rows (190, every one owned), K-HZ-03 bounds each
+its 600-row smoke running: 21 of 93 since the twin is read strictly,
+47 before), K-HZ-02 counts failures per kind and check at 20,000 rows
+(261, every one owned; 190 before), K-HZ-03 bounds each
 shard, and K-HZ-05 (new) counts the kinds the floor refuses: none.
 HIPAA first, the lane's repair reads every column answered `identifier`
 and every column that names a Safe Harbor element for its real values,
 each description as soon as it is written (the first before any
 answer), a year of an age of 90 or more included, and the zoo answers
-the Safe Harbor question truthfully; the twin is read against a control
-past the real range only, so a verbatim, shuffled or half copy of
-sequential keys counts (repair 2). LIVE on the base: ZIPs, and keys
+the Safe Harbor question truthfully, `yes` for a ZIP3 area and an age
+column holding an age over 89, every round of the questions file
+answered; the twin is read strictly, every real value it meets counted
+with no chance allowance, so a verbatim, shuffled or half copy counts
+(repair 3). LIVE on the base: ZIPs, and keys
 published while their question is open (lane SH's); years of an age of
 90 or more, device numbers and cities of birth (lane SH2's); full birth
 dates one person holds (lane PS2's); made-up identifier keys equal to
-real ones (lane ID-ROOM's); a sequential report reference read as a
+real ones (lane ID-ROOM's: 33,305 real keys on 70,931 twin cells over
+74 columns of 57 tables at 20,000 rows); a sequential report reference read as a
 number, its twin writing the real sequence (lane CODES-3's). Nothing
 under `src` changed; no golden, vector or SR battery byte moved.
 

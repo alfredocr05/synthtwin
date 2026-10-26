@@ -815,6 +815,14 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 785,000 from 776,000 ON LANE E0c'S BRANCH, ITS REPAIR 3 (plan P4-D431,
+    # 2026-10-26), the least round figure the ledger fits under, 784,854
+    # bytes: K-HZ-01 and K-HZ-02 re-stamped after the twin was read
+    # strictly (the orchestrator's LANE E0c RULINGS 2 (1)), K-HZ-02's value
+    # naming each of the 34,282 real values' entries, repair 2's figures
+    # kept as history. The batch integrator settles this beside the other
+    # lanes' raises.
+    #
     # 776,000 from 774,000 ON LANE E0c'S BRANCH, ITS REPAIR 2 (plan P4-D431,
     # 2026-10-25), the least round figure the ledger fits under, 775,608
     # bytes: K-HZ-01, K-HZ-02, K-HZ-03 and K-HZ-05 re-stamped after the leak
@@ -1363,7 +1371,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # round figure the lane's ledger fits under: K-S6-08 new, the chain's
     # tables part, with its note clause. The batch integrator settles this
     # beside the other lanes' raises.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 776_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 785_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:
