@@ -40,7 +40,12 @@ by the merged key, a rootless UID's first arc written, dense layouts
 failing their own validation, the spill printing an outlier's length,
 identifiers past 64 characters, prefixes lost to the spill, a folded
 identity widened apart; `(unnamed)` is withdrawn. New `K-HZ-06`:
-KPI_LINE. Gate: `tests/test_identifier_room.py`. The demonstration's
+0 equal and 0 merging over 89 shapes at 600 rows and 85 at 20,000, the
+answered shapes, `P` and five figures at 200,000 rows and the zoo's 66
+identifier columns, the nine validated shapes at exit 0. A block now
+passes over no spelling 1 to 10 keys hold (the orchestrator's option (b)),
+so thinly spread keys -- random seven or eight figures at 20,000 rows --
+are written wider. Gate: `tests/test_identifier_room.py`. The demonstration's
 goldens move on `record_code` alone, and vectors file 27 gains five
 cases.
 
