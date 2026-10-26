@@ -4,8 +4,9 @@
 Plan P4-D416 (lane DEP-2): after the bundle is installed with the
 network denied, the job profiles, generates and validates this table
 with the installed synthtwin. Three columns -- a whole-number count, a
-label and a measurement with one figure after the point -- 300 rows,
-the same bytes on every system:
+label and a measurement with one figure after the point -- 20,000 rows,
+the table floor `synthtwin profile` holds to (plan P4-D425: a table under
+20,000 rows that hold a value is refused), the same bytes on every system:
 
     python tools/bundle/invented_table.py TABLE.csv
 """
@@ -24,7 +25,7 @@ def main(argv: "list[str] | None" = None) -> int:
     with open(arguments[0], "w", newline="", encoding="utf-8") as handle:
         out = csv.writer(handle, lineterminator="\n")
         out.writerow(["age", "group", "pressure"])
-        for _ in range(300):
+        for _ in range(20000):
             out.writerow(
                 [rng.randint(20, 90), rng.choice("ABC"), f"{rng.gauss(120, 15):.1f}"]
             )

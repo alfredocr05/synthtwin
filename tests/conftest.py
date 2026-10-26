@@ -70,7 +70,16 @@ def _the_small_table_refusal_off_in_process_runs() -> "Iterator[None]":
     # calls `monkeypatch.undo()` part way (46 calls in tests/) would
     # otherwise undo this default too and turn the refusal back on for
     # the rest of that test (skeptic 1 of lane POP, item 1 (b)).
-    from synthtwin import cli
+    try:
+        from synthtwin import cli
+    except ModuleNotFoundError as missing:
+        # CI's static jobs (the offline scan, provenance, decontamination)
+        # run their test files without the package installed; they call
+        # no command, so there is no default to set for them.
+        if missing.name != "synthtwin":
+            raise
+        yield
+        return
 
     defaults = cli.main.__kwdefaults__
     assert defaults is not None and "small_tables_refused" in defaults

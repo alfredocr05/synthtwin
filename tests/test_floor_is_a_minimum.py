@@ -41,6 +41,10 @@ import lowered_floor
 from synthtwin import cli, contract, parsing
 
 _SRC = pathlib.Path(cli.__file__).resolve().parent
+# The repository's own pages are read from beside this test file, never
+# from beside the package: CI installs the package into site-packages,
+# where no README, SECURITY.md or plan stands.
+_REPO = pathlib.Path(__file__).resolve().parents[1]
 _OPTION = "--smallest-group"
 _REFUSED_BELOW = ("10", "1", "0", "-1")
 
@@ -526,7 +530,7 @@ def test_no_user_facing_page_names_the_internal_setting() -> None:
     The mutant is SECURITY.md's sentence naming `cli.main`'s keyword,
     which told a reader the library call that lowers the floor.
     """
-    root = _SRC.parent.parent
+    root = _REPO
     for page in ("README.md", "INSTALL.md", "SECURITY.md"):
         path = root / page
         if not path.exists():
@@ -602,7 +606,7 @@ def test_rebuilding_at_eleven_may_withhold_a_level_the_old_twin_named(
         }
     assert "rare" in found[1] and "common" in found[1]
     assert "rare" not in found[11] and "common" in found[11]
-    plan = (_SRC.parent.parent / "docs" / "plans" / "phase-4-columns.md").read_text(
+    plan = (_REPO / "docs" / "plans" / "phase-4-columns.md").read_text(
         encoding="utf-8"
     )
     decision = " ".join(plan.split("## Decision P4-D426")[1].split())
@@ -613,7 +617,7 @@ def test_rebuilding_at_eleven_may_withhold_a_level_the_old_twin_named(
 def test_the_counts_the_floor_does_not_govern_are_named_in_the_readme() -> None:
     """Codex's item 3: cells counted by kind are published whatever size."""
     readme = " ".join(
-        (_SRC.parent.parent / "README.md").read_text(encoding="utf-8").split()
+        (_REPO / "README.md").read_text(encoding="utf-8").split()
     )
     assert "every count those files carry covers at least eleven rows" not in readme
     assert "the counts of cells by kind above are not governed by it" in readme
