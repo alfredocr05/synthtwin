@@ -178,6 +178,8 @@ _NOT_REACHED = {
     "a negative of four figures": _run(99701, 599) + ["-1234"],
     "seven letters before the figures": _run(300001, 600, "REPORTX"),
     "one value alone": ["12345"] * 600,
+    # K-P4-24's decision-7 column: `10` to `99` on 114 rows covers its range.
+    "a two-figure run that repeats": [f"{10 + place % 90}" for place in range(114)],
 }
 
 
@@ -223,6 +225,33 @@ def test_a_repeating_key_keeps_the_person_question(tmp_path: pathlib.Path) -> No
     shapes.run(tmp_path, "randkey", _ROWS)
     entries = _asked_of(tmp_path, "randkey")
     assert len(entries) == 1 and "different value(s) over" in f"{entries[0]['what_synthtwin_saw']}"
+
+
+def test_a_count_of_dates_asked_with_this_shape_is_held(tmp_path: pathlib.Path) -> None:
+    """One question, the date-count question (Q3), merged with this shape, and held.
+
+    Midnights in Unix seconds, one a row, crossing 1,000,000,000 (two
+    widths, so no width question): Q3's rule B asks it, and the merged
+    question offers `identifier`, so the column is held until answered as
+    the width question's merge is. Red on the mutant "only the width
+    question merges into Q3" (its values published, no hold).
+    """
+    start = 1_000_000_000 - 1_000_000_000 % 86400 - 300 * 86400
+    table = tmp_path / "stamps.csv"
+    table.write_text(
+        "stamp,value\n" + "".join(f"{start + 86400 * row},{row % 7}\n" for row in range(_ROWS)),
+        encoding="utf-8", newline="\n",
+    )
+    _profile(table, tmp_path)
+    entries = _asked_of_file(tmp_path / "stamps-questions.json", "stamp")
+    assert len(entries) == 1 and _saw(entries[0], asking._EACH_ON_ONE_ROW_OPENING)
+    offered = [choice["answer"] for choice in entries[0]["answers_you_can_give"]]
+    assert asking.ANSWER_IDENTIFIER in offered and len(offered) > 3
+    document = json.loads((tmp_path / "stamps-profile.json").read_text(encoding="utf-8"))
+    block = [one for one in document["columns"] if one["name"] == "stamp"][0]
+    assert block["role"] == taxonomy.ROLE_IDENTIFIER
+    published = (tmp_path / "stamps-profile.json").read_text(encoding="utf-8")
+    assert f"{start + 86400 * 300}" not in published and f"{start}" not in published
 
 
 # -- the answers give back the description as each reading writes it ---------

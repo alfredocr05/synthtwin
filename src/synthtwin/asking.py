@@ -1932,8 +1932,9 @@ def _an_arc_naming_an_item(uid: str) -> bool:
 #   two different values or more, and stand on FEWER than
 #   `PERSON_ROWS_PER_VALUE` rows a value on average;
 # * and they are every one different, or their different values run in
-#   sequence under one opening (each the last one plus one), or more than
-#   half of them are letters and five figures or more.
+#   sequence under one opening (each the last one plus one), more than half
+#   of them five figures or more, or more than half of them are letters and
+#   five figures or more.
 #
 # NOT REACHED, on purpose (the owner's principle: true measurements are not
 # asked): a cell carrying a decimal (`72.5`), a unit or any mark after its
@@ -2028,13 +2029,20 @@ def _whole_numbers_each_on_one_row(present: "list[str]", role: str) -> bool:
     openings: "dict[str, bool]" = {}
     short_enough = True
     prefixed = 0
+    wide = 0
     for opening, figures in numbers:
         openings[opening] = True
         if len(figures) > _SEQUENCE_FIGURES_AT_MOST:
             short_enough = False
-        if opening and len(figures) >= _PREFIXED_FIGURES_AT_LEAST:
-            prefixed = prefixed + 1
-    if len(openings) == 1 and short_enough:
+        if len(figures) >= _PREFIXED_FIGURES_AT_LEAST:
+            wide = wide + 1
+            if opening:
+                prefixed = prefixed + 1
+    # A RUN THAT REPEATS IS READ ONLY FIVE FIGURES WIDE (batch 4j's K-P4-24
+    # fixture, measured on this lane's first head): `10` to `99` on 114 rows,
+    # a two-figure measurement covering its range, is a run in sequence too;
+    # a scale is never five figures wide (route four's line).
+    if len(openings) == 1 and short_enough and wide * 2 > len(numbers):
         counted = sorted(int(figures) for _opening, figures in numbers)
         if counted[len(counted) - 1] - counted[0] + 1 == len(counted):
             return True

@@ -745,9 +745,13 @@ def test_rule_i_reads_the_holding_questions_the_product_has() -> None:
         # Q-ID, built by lane CODES-3 as ZR.2 states it: "yes (P4-D401, one
         # more holding shape)" (plan P4-D428).
         asking.BECAUSE_FIGURES_JOINED_BY_POINTS,
+        # Lane HX5's whole numbers each on one row or in sequence (plan
+        # P4-D436): the page's rule I names it, dated 2026-10-25.
+        asking.BECAUSE_EACH_ON_ONE_ROW,
     )
     page_i = _flat(_page())
     assert "and it holds (rule I) until answered" in page_i
+    assert "lane HX5's question to whole numbers each on one row or in sequence (P4-D436" in page_i
     assert asking._READ_AS_DATES_OR_TIMES == (taxonomy.ROLE_DATETIME, taxonomy.ROLE_CLOCK)
     # A unit column read as an affixed number is still put the person
     # question; a column read as joined numbers is not, which is why

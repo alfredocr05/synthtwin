@@ -783,6 +783,7 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
     asked = [entry for entry in questions["asked"] if entry["column"] == kind]
     cells = _csv_column(folder / f"{kind}_long-twin.csv", 1 if beside else 0)
     written = cells
+    real_written = set(real)
     # A COLUMN OF DATES DESCRIBED AT A GRAIN OR HELD WITH VALID DATES (plan
     # P4-D417): its published points are the STARTS of buckets the floor's
     # number of people hold, and its twin's cells are draws inside them or
@@ -823,6 +824,9 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
         "twin_sample": sorted(set(written))[:3],
         "twin_cells_drawn": drawn,
         "bucket_starts_published": len(starts),
+        # ...and the twin cells EQUAL to a real value as written (lane HX5,
+        # plan P4-D436), beside `twin_cells`' search for its figures inside.
+        "twin_cells_equal": len([cell for cell in written if cell in real_written]),
     }
     seen.update(counted)
     return seen
