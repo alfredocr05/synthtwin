@@ -1030,8 +1030,9 @@ def census_floor(floor: int) -> int:
 
     NEVER ONE, WHATEVER THE SETTINGS FLOOR (owner twin definition,
     clause 3; plan P4-D65.1). A published count of one names an
-    individual outright, and a person may lower the settings floor to
-    one with `--smallest-group 1`.
+    individual outright, and the settings floor may still be one where
+    the library is called directly or through the internal setting the
+    tests use; `--smallest-group` never lowers it (plan P4-D426).
 
     ONE STATEMENT OF THE RULE, read by the producer, the loader and the
     checker alike (plan P4-D140). It lives in this module because it is

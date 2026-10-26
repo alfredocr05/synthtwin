@@ -260,8 +260,10 @@ STATED = ("name", "address", "dob")
 
 # THE HELD SHAPES WHOSE TWIN FAILS ITS OWN VALIDATION, each a stated limit
 # of the generator for a DECLARED record number too (plan P4-D401):
-# `-1` for nobody (CODES-1 part C), a telephone layout opening `+`, and a
-# key written `100001.0` whose twin writes a figure after the point.
+# `-1` for nobody (CODES-1 part C) and a telephone layout opening `+`. A
+# key written `100001.0` validates since lane CODES-3 (plan P4-D428), at
+# 600 and 20,000 rows, and is checked as every other shape (batch 4k's
+# records, push critic 14).
 #
 # ...and `reglistonce6` (lane HX4's repair 1): 599 cells of one six-figure
 # key beside ONE list cell publish `all_whole_numbers` false beside a
@@ -272,8 +274,7 @@ STATED = ("name", "address", "dob")
 # value and is held by nothing: its twin misses `free_text.shape_forms` at
 # exit 3 on the tree before lane HX4 too (measured on 4682d6ad), the forms
 # lane FM's limit STATE names.
-VALIDATION_LIMITS = ("durable", "key_m1_40", "phone_plus", "key_point0", "reglistonce6",
-                     "reglistgrouped")
+VALIDATION_LIMITS = ("durable", "key_m1_40", "phone_plus", "reglistonce6", "reglistgrouped")
 
 # What each key shape writes for an unknown patient, and on what share
 # of its rows (`write_table`).

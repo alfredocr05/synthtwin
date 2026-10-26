@@ -21,6 +21,16 @@ audited structure:
   `system_name`, `dict`, `os.path.join`, `os.path.expanduser` and
   `pathlib.Path`; every return is a `pathlib.Path(...)`.
 
+- no name the audit trusts is bound to anything else (batch 4k's
+  records, Codex's review of batch 4j, its first Medium): `dict`,
+  `system_name`, `os` and `pathlib` are bound in `installation.py` only
+  by `import os`, `import pathlib` and the one module-level
+  `def system_name`, and nothing there stores into `os.*`, `pathlib.*`
+  or the built-ins, so `dict(os.environ)` and the four other calls the
+  audit allows are the functions their spelling names (`dict = lambda
+  source: ...` written before the copy read a third key through it, and
+  both checks accepted it).
+
 Any other shape is a finding: the checks fail on it, and the exemption
 sets nothing aside.
 """
@@ -30,6 +40,12 @@ import ast
 AUDITED_NAMES = ("LOCALAPPDATA", "XDG_DATA_HOME")
 
 _CALLED = ("system_name", "dict", "os.path.join", "os.path.expanduser", "pathlib.Path")
+
+# The names those calls are spelled with: each must name what its
+# spelling says (batch 4k's records).
+_TRUSTED = ("system_name", "dict", "os", "pathlib")
+_TRUSTED_IMPORTS = ("os", "os.path", "pathlib")
+_BUILTIN_HOLDERS = ("builtins", "__builtins__")
 
 
 def _dotted(node: ast.expr) -> str:
@@ -134,6 +150,56 @@ def data_folder_problems(function: ast.FunctionDef) -> "tuple[set[int], list[str
     return set(), problems
 
 
+def _bound_names(node: ast.AST) -> "list[str]":
+    """Every plain name ``node`` binds itself (not the names bound inside it)."""
+    bound: "list[str]" = []
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        bound += [node.name]
+    if isinstance(node, (ast.Import, ast.ImportFrom)):
+        bound += [(one.asname or one.name).split(".")[0] for one in node.names]
+    if isinstance(node, (ast.Global, ast.Nonlocal)):
+        bound += list(node.names)
+    if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+        bound += [node.id]
+    if isinstance(node, ast.arg):
+        bound += [node.arg]
+    if isinstance(node, ast.ExceptHandler) and node.name:
+        bound += [node.name]
+    if isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name:
+        bound += [node.name]
+    if isinstance(node, ast.MatchMapping) and node.rest:
+        bound += [node.rest]
+    return bound
+
+
+def trusted_names_rebound(tree: ast.Module) -> "list[str]":
+    """Every way ``tree`` binds a name the audit trusts to something else, or stores into the modules it trusts."""
+    problems: "list[str]" = []
+    allowed: "set[int]" = set()
+    for node in tree.body:
+        if isinstance(node, ast.Import) and all(
+            one.asname is None and one.name in _TRUSTED_IMPORTS for one in node.names
+        ):
+            allowed |= {id(node)}
+    systems = [one for one in tree.body if isinstance(one, ast.FunctionDef) and one.name == "system_name"]
+    if len(systems) == 1:
+        allowed |= {id(systems[0])}
+    for node in ast.walk(tree):
+        if id(node) in allowed:
+            continue
+        for bound in _bound_names(node):
+            if bound in _TRUSTED:
+                line = getattr(node, "lineno", 0)
+                problems += [f"installation.py:{line}: binds {bound}, a name the audit trusts"]
+        if isinstance(node, ast.Attribute) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            root = _dotted(node).split(".")[0]
+            if root in _TRUSTED or root in _BUILTIN_HOLDERS or not root:
+                problems += [f"installation.py:{node.lineno}: stores into {_dotted(node) or 'a computed object'}"]
+        if isinstance(node, ast.Call) and _dotted(node.func) in ("setattr", "delattr", "globals", "vars", "exec", "eval"):
+            problems += [f"installation.py:{node.lineno}: calls {_dotted(node.func)}"]
+    return problems
+
+
 def data_folder_set_aside(name: str, tree: ast.Module) -> "tuple[set[int], list[str]]":
     """In ``installation.py``: the audited read's node ids and every problem; elsewhere nothing set aside."""
     if name != "installation.py":
@@ -143,7 +209,11 @@ def data_folder_set_aside(name: str, tree: ast.Module) -> "tuple[set[int], list[
     ]
     if len(functions) != 1:
         return set(), [f"installation.py: {len(functions)} data_folder functions, not one"]
-    return data_folder_problems(functions[0])
+    rebound = trusted_names_rebound(tree)
+    aside, problems = data_folder_problems(functions[0])
+    if rebound:
+        return set(), problems + rebound
+    return aside, problems
 
 
 # THE NEGATIVE CASES (Codex's condition): each a change to today's
@@ -162,6 +232,10 @@ MUTANTS: "dict[str, str]" = {
     # An audited key used outside the folder's choice.
     "the-environment-used-outside-the-folder": _ANCHOR
     + '    globals()["CHOSEN"] = where["LOCALAPPDATA"] if "LOCALAPPDATA" in where else ""\n',
+    # A callee the audit trusts rebound before the copy, so `dict(os.environ)`
+    # reads a third key (Codex's review of batch 4j, its first Medium).
+    "a-rebound-callee": '    dict = lambda source: {"XDG_DATA_HOME": source["synthtwin_smallest_group"]}\n'
+    + _ANCHOR,
 }
 
 
