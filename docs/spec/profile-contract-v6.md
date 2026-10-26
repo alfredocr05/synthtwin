@@ -18806,8 +18806,11 @@ than a nought or a letter.
    the greatest down, none opening a run of figures with a nought, and
    the first no such key holds at those places are written: ONE text
    where one leaves the room, else a LIST of two or more, in that order
-   (else the layout carries none). A block of one place passes over only
-   characters `small_cell_floor` keys hold, as the one-place choice does,
+   (else the layout carries none). A block of ANY size passes over only
+   spellings `small_cell_floor` keys or more hold at its places, as the
+   one-place choice does: a spelling held by at least one key and fewer
+   than `small_cell_floor` ends that block size, and the next size is
+   asked (the orchestrator's ruling 3 of 2026-10-25, item 2, option (b));
    so a layout of one place carries its free characters as several
    spellings. An exclusion spelled as a present cell's text is none, and
    the layout then carries no exclusion. A layout carrying no exclusion
@@ -18827,20 +18830,23 @@ than a nought or a letter.
    merged key is shorter than the spill's.
 3. **What it publishes is what the column does not hold.** A written
    character is held by no real key at its place; every character the
-   one-place choice passed over at that place is held by at least
-   `small_cell_floor` keys; a block writes every other place, so no two
+   one-place choice passed over at that place, and every spelling a
+   block passed over at its places, is held by at least
+   `small_cell_floor` keys (the orchestrator's ruling 3 of 2026-10-25,
+   item 2, option (b)); a block writes every other place, so no two
    written characters are neighbours, and no spelling read off the choice
    -- written or passed over -- holds two neighbouring characters of a
-   value: none is a fragment (the orchestrator's ruling 1 of 2026-10-25,
-   item 2 (a)); no exclusion is a real cell's text; and the spill's
+   value: none is a fragment; no exclusion is a real cell's text; and the spill's
    length is `max_length`'s and one, or a constant. No value, no
    fragment of one, no extreme of one and no count below the floor is
    published. What the choice can say beyond that is stated: a place it
    left holds a character on 1 to `small_cell_floor` - 1 keys, or every
-   character on the floor's keys or more; and each block spelling of two
-   places or more it passed over -- the spellings together, never each
-   character alone, which may be absent from every key at its place -- is
-   held at the block's places, every other one, by some real key.
+   character on the floor's keys or more; and each block spelling it
+   passed over -- the spellings together, never each character alone,
+   which may be absent from every key at its place -- is held at the
+   block's places, every other one, by `small_cell_floor` real keys or
+   more; a block size it left holds some spelling on 1 to
+   `small_cell_floor` - 1 keys.
 
 Invariants: **LX1** an exclusion is published for a layout the census
 names, or as the spill, which every identifier block may publish beside

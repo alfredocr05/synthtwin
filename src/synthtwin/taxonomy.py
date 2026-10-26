@@ -26442,10 +26442,11 @@ def with_layout_exclusions(
     block's spelling by none at its places TOGETHER -- each of its
     characters alone may well be held there (Codex's review of lane
     ID-ROOM, item 6); every character the one-place choice passed over at
-    that place is held by at least ``floor`` keys; a block's spellings
-    stand at every other place, so no two written characters are
-    neighbours and no fragment of a value is read off it (the
-    orchestrator's ruling 1 of 2026-10-25, item 2 (a)); no exclusion is a
+    that place is held by at least ``floor`` keys, and every spelling a
+    block passed over at its places by at least ``floor`` keys too (the
+    orchestrator's ruling 3 of 2026-10-25, item 2, option (b)); a block's
+    spellings stand at every other place, so no two written characters
+    are neighbours and no fragment of a value is read off it; no exclusion is a
     real cell's text; and the spill's length is the published longest
     value's and one. No real identifier, no extreme of one and no count
     below the floor is published.
@@ -26866,10 +26867,12 @@ def _exclusion_of(
     # written characters are neighbours and no fragment of a value is read
     # off a spelling, written or passed over (the orchestrator's ruling 1
     # of 2026-10-25, item 2 (a)). Its spellings are read from the greatest
-    # down and the first free ones are written. A block of ONE place
-    # passes over only characters the floor's keys hold, as the one-place
-    # choice does (skeptic 1 of lane ID-ROOM, item 1 (c)): a layout of one
-    # place carries its free characters as several spellings.
+    # down and the first free ones are written. A block of ANY size passes
+    # over only spellings the floor's keys hold, as the one-place choice
+    # does (the orchestrator's ruling 3 of 2026-10-25, item 2, option (b)):
+    # a spelling 1 to 10 keys hold ends that size and the next is tried. A
+    # layout of one place carries its free characters as several spellings
+    # (skeptic 1 of lane ID-ROOM, item 1 (c)).
     chosen: "list[int]" = []
     for at in range(len(places) - 1, -1, -2):
         chosen += [places[at]]
@@ -26915,7 +26918,12 @@ def _exclusion_of(
                 continue
             lowered = parsing.folded(spelt)
             if lowered in worn:
-                if size == 1 and worn[lowered] < floor:
+                # A SPELLING FEWER THAN THE FLOOR'S KEYS HOLD ENDS THE
+                # BLOCK SIZE, as it ends the one-place scan (the
+                # orchestrator's ruling 3 of 2026-10-25, item 2, option
+                # (b)): a spelling passed over is held by the floor's keys
+                # or more, so no count of 1 to 10 is read off the block.
+                if worn[lowered] < floor:
                     break
                 continue
             written = layout

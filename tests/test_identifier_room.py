@@ -48,29 +48,48 @@ import fixtures
 import identifier_room_shapes as room
 import unanswered_identifier_shapes as held_shapes
 
-SIZES = (600, 20_000)
 FLOOR = 11
 UID = re.compile(r"[012](\.(0|[1-9]\d*))+")
 
+# EVERY SHAPE AT 600 ROWS, AND ONE CASE A WRITER AT 20,000 ROWS (the orchestrator's rule of
+# 2026-10-26 11:06: a test file adds at most three minutes to the suite, and checks at 20,000 rows go
+# into a KPI driver or one case a writer). The excluded template (`random_seven_figures`), the spill
+# and the widened layouts (`sequential_from_one`), a UID root (`uid_752`), the merged key across two
+# zero fills (`pad_split`, validated), a stray cell beside an empty census (`outlier_long`,
+# validated), a nought after a prefix (`p_five`) and a person's rows (`cerner_person_on_three_rows`).
+# Every shape at 20,000 rows, the answered shapes at 20,000 rows, the validated shapes and three at
+# 200,000 rows are K-HZ-06's (tools/measurements/kpi_identifier_room.py, kpi_run --slow).
+AT_20000 = ("random_seven_figures", "sequential_from_one", "uid_752", "pad_split", "outlier_long",
+            "p_five", "cerner_person_on_three_rows")
+
+_SEEN: "dict[tuple[str, int, str, bool], dict[str, object]]" = {}
+
+
+def _seen(factory: pytest.TempPathFactory, name: str, n: int, answer: str = "",
+          validate: bool = False) -> "dict[str, object]":
+    """One shape's run, built once for the whole file (a test reading it reads its own copy's facts)."""
+    key = (name, n, answer, validate)
+    if key not in _SEEN:
+        _SEEN[key] = room.run_shape(factory.mktemp(f"{name}-{n}"), name, n, answer=answer, validate=validate)
+    return _SEEN[key]
+
 
 def _cases() -> "list[tuple[str, int]]":
-    return [
-        (name, n)
-        for name in room.every_shape()
-        for n in SIZES
-        if n == 600 or name not in room.AT_600_ALONE
-    ]
+    return [(name, 600) for name in room.every_shape()] + [(name, 20_000) for name in AT_20000]
 
 
 # -- the gate: no twin cell names a real one --------------------------------------------------
 
 
 @pytest.mark.parametrize(("name", "n"), _cases())
-def test_no_twin_identifier_cell_equals_a_real_one(tmp_path: pathlib.Path, name: str, n: int) -> None:
-    """Every shape at 600 and 20,000 rows: 0 twin cells spelled as, or merging with, a real one.
+def test_no_twin_identifier_cell_equals_a_real_one(
+    tmp_path_factory: pytest.TempPathFactory, name: str, n: int
+) -> None:
+    """Every shape at 600 rows, and one a writer at 20,000: 0 twin cells spelled as, or merging with, a real one.
 
     Counted twice: exactly as written, and on the merged key `profile.subject_keys` counts a person
-    by (plan P4-D406). The shapes `room.VALIDATED` are validated too, at exit 0 at 20,000 rows.
+    by (plan P4-D406). The shapes `room.VALIDATED` among them are validated too, at exit 0 at 20,000
+    rows (every one of them is, in K-HZ-06's driver).
     Mutants: the exclusions dropped (`with_layout_exclusions` returning its column); the final pass
     returning at once where the census is empty (the stray-cell shapes write 19,998 real values);
     the exclusions read per layout and not on the merged key (`pad_split`, `dash_split`); the final
@@ -79,7 +98,7 @@ def test_no_twin_identifier_cell_equals_a_real_one(tmp_path: pathlib.Path, name:
     character a real cell holds -- each turns a shape red.
     """
     validate = n == 20_000 and name in room.VALIDATED
-    seen = room.run_shape(tmp_path, name, n, validate=validate)
+    seen = _seen(tmp_path_factory, name, n, validate=validate)
     if n == 600 and name in room.REFUSED_AT_600:
         assert seen["exits"][0] == 1 and not seen["twin"], (name, seen["exits"])
         return
@@ -94,11 +113,15 @@ def test_no_twin_identifier_cell_equals_a_real_one(tmp_path: pathlib.Path, name:
 
 
 @pytest.mark.parametrize(
-    ("name", "n"), [(name, n) for name, sizes in room.ANSWERED for n in sizes]
+    ("name", "n"), [(name, 600) for name, sizes in room.ANSWERED if 600 in sizes]
 )
-def test_an_answered_identifier_writes_no_real_one(tmp_path: pathlib.Path, name: str, n: int) -> None:
-    """The held shapes answered `identifier` (a person column): 0 twin cells equal to, or merging with, a real one."""
-    seen = room.run_shape(tmp_path, name, n, answer="identifier", validate=False)
+def test_an_answered_identifier_writes_no_real_one(
+    tmp_path_factory: pytest.TempPathFactory, name: str, n: int
+) -> None:
+    """The held shapes answered `identifier` (a person column): 0 twin cells equal to, or merging with, a real one.
+
+    At 600 rows; at 20,000 rows each is K-HZ-06's."""
+    seen = _seen(tmp_path_factory, name, n, answer="identifier")
     assert seen["exits"][:2] == (0, 0), (name, n, seen["exits"])
     assert seen["equal"] == 0, (name, n, seen["equal"])
     assert seen["merged"] == 0, (name, n, seen["merged"])
@@ -118,22 +141,27 @@ def _keys_by_length(real: "list[str]", absent: "set[str]") -> "dict[int, list[st
 
 
 @pytest.mark.parametrize("name", room.every_shape())
-def test_the_exclusion_publishes_what_no_real_cell_holds(tmp_path: pathlib.Path, name: str) -> None:
+def test_the_exclusion_publishes_what_no_real_cell_holds(
+    tmp_path_factory: pytest.TempPathFactory, name: str
+) -> None:
     """Every written character is held by no real merged key at its place; the spill outlasts every cell.
 
     At 600 rows. A written character stands in a filling's merged key at `parsing.merged_places`'s
     place, among the real keys as long as the template's fillings', and no such real key holds it
-    there. Every character the one-place choice passed over at its place is held by at least the
-    floor's keys, so no count of 1 to 10 is read off the choice. A block writes every other place,
+    there. Every character the one-place choice passed over at its place, and every spelling a block
+    passed over at its places, is held by at least the floor's keys, so no count of 1 to 10 is read
+    off the choice (the orchestrator's ruling 3 of 2026-10-25, item 2, option (b)). A block writes every other place,
     so no two written characters are NEIGHBOURS -- no spelling read off it, written or passed over,
     holds two neighbouring characters of a value, so none is a fragment (the orchestrator's ruling
     1 of 2026-10-25, item 2 (a)). No exclusion is a real cell's text. Mutants: the choice passing
-    over a character fewer than the floor's cells hold (the scan's stop removed); the block written
+    over a character fewer than the floor's cells hold (the scan's stop removed); the block passing
+    over a spelling 1 to 10 keys hold (its stop kept for a block of one place alone, the lane's
+    repair-1 head; `random_seven_figures`, `uuid`, `rsid`); the block written
     at neighbouring places; a nought written where it opens a run of figures (the block's test
     removed, skeptic 1's M0); a real cell spelled as an exclusion kept; and the spill's own mutant
     (`_the_spill_says_nothing_the_description_does_not`).
     """
-    seen = room.run_shape(tmp_path, name, 600, validate=False)
+    seen = _seen(tmp_path_factory, name, 600)
     block = seen["block"]
     if name in room.REFUSED_AT_600:
         assert not block, name
@@ -193,6 +221,48 @@ def test_the_exclusion_publishes_what_no_real_cell_holds(tmp_path: pathlib.Path,
                     continue
                 count = held.get(character.casefold(), 0)
                 assert count == 0 or count >= FLOOR, (name, scope, character, count)
+    # A BLOCK PASSES OVER ONLY SPELLINGS THE FLOOR'S KEYS HOLD (the orchestrator's ruling 3 of
+    # 2026-10-25, item 2, option (b)): read in the product's order, from the greatest down, every
+    # spelling before the last one written is written, opens a run of figures with a nought, or is
+    # held at the block's places by no key or by at least the floor's.
+    by_scope: "dict[str, list[str]]" = {}
+    for scope, text in entries:
+        if scope != parsing.EXCLUSION_SPILL:
+            by_scope.setdefault(scope, []).append(text)
+    for scope, texts_of in by_scope.items():
+        block_places = sorted({place for text in texts_of for place in range(len(text))
+                               if text[place] != scope[place]}, reverse=True)
+        if len(block_places) < 2:
+            continue
+        template = parsing.layout_template(scope, prefixes.get(scope, whole), noughts)
+        stands = parsing.merged_places(template)
+        keys = keyed.get(parsing.merged_length(template), [])
+        alone = any(key and all("0" <= c <= "9" for c in key) for key in keys)
+        worn: "dict[str, int]" = {}
+        for key in keys:
+            spelt = "".join(key[stands[place]] for place in block_places)
+            worn[spelt] = worn.get(spelt, 0) + 1
+        alphabets = [taxonomy._greatest_last(parsing.exclusion_alphabet(template[place]), alone)
+                     for place in block_places]
+        written_spellings = {"".join(text[place] for place in block_places) for text in texts_of}
+        choices = 1
+        for alphabet in alphabets:
+            choices *= len(alphabet)
+        for number in range(choices - 1, -1, -1):
+            if not written_spellings:
+                break
+            rest, spelt = number, ""
+            for alphabet in alphabets:
+                spelt += alphabet[rest % len(alphabet)]
+                rest //= len(alphabet)
+            if spelt in written_spellings:
+                written_spellings.discard(spelt)
+                continue
+            if any(spelt[at] == "0" and (place == 0 or template[place - 1] not in "%~^0123456789")
+                   for at, place in enumerate(block_places)):
+                continue
+            count = worn.get(parsing.folded(spelt), 0)
+            assert count == 0 or count >= FLOOR, (name, scope, spelt, count)
     # NO FRAGMENT (K-S3-64's: a run of five or more letters and figures out of a real value) stands
     # in the published text, and the only number readable off it is one figure: no two written
     # characters are neighbours. (K-S3-64's own counter also reads every lone figure as a number, so
@@ -239,7 +309,9 @@ def _the_spill_says_nothing_the_description_does_not(name: str, seen: "dict[str,
         assert not 1 <= lengths.get(len(spill) - 1, 0) < FLOOR, (name, len(spill))
 
 
-def test_no_real_value_reaches_the_description_through_an_exclusion(tmp_path: pathlib.Path) -> None:
+def test_no_real_value_reaches_the_description_through_an_exclusion(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
     """The densest shapes' exclusions carry no real value whole, at 600 rows; nor a real cell spelled as one.
 
     `literal_marks` (Codex's review, item 2) holds a real cell spelled `9%%%`, which the first head
@@ -247,7 +319,7 @@ def test_no_real_value_reaches_the_description_through_an_exclusion(tmp_path: pa
     removed.
     """
     for name in ("uid_752", "sequential_from_one", "cerner_three_widths", "rsid", "keys_beside_na", "literal_marks"):
-        seen = room.run_shape(tmp_path / name, name, 600, validate=False)
+        seen = _seen(tmp_path_factory, name, 600)
         published = json.dumps(seen["block"].get("layout_exclusions") or {})
         for value in {cell for cell in seen["real"] if cell.strip()}:
             assert f'"{value}"' not in published, (name, value)
@@ -490,6 +562,24 @@ def test_a_folded_identity_is_written_wider_together() -> None:
     assert len({parsing.folded(cell) for cell in cells}) == 2, cells
     assert cells[2] == " " + cells[1] and cells[3] == cells[1].lower() + " ", cells
     assert all(len(parsing.merged_key(cell)) >= 4 for cell in cells), cells
+
+
+def test_a_block_passes_over_no_spelling_fewer_than_the_floors_keys_hold() -> None:
+    """A spelling 1 to 10 keys hold ends a block size, as a character does the one-place scan.
+
+    The orchestrator's ruling 3 of 2026-10-25, item 2, option (b) (skeptic 1 of lane ID-ROOM, item
+    7: the lane's first head passed over block spellings held by 1 to 10 real cells, 170 of them on
+    random seven figures at 20,000 rows, 43 held by one cell). Four figures, the one-place choice too
+    short for 2,000 values and the last place full, so the block of the last and second places is
+    asked: its greatest spelling, `9` and `9`, is held by five keys, so the size ends and the layout
+    carries none; held by eleven, it is passed over and the next free spellings are written. Mutant:
+    the stop kept for a block of one place alone (the repair's first head), and `%9%8` and its
+    neighbours are written past the five keys.
+    """
+    keys = [f"1{second}2{last}" for last in range(10) for second in range(5) for _ in range(15)]
+    assert taxonomy._exclusion_of(keys + ["1929"] * 5, "%%%%", "%%%%", "", FLOOR, 2000, 2000, 0, {}) == []
+    found = taxonomy._exclusion_of(keys + ["1929"] * 11, "%%%%", "%%%%", "", FLOOR, 2000, 2000, 0, {})
+    assert found[:3] == ["%9%8", "%9%7", "%9%6"] and "%9%9" not in found, found
 
 
 def test_no_block_writes_a_nought_where_it_opens_a_run_of_figures() -> None:

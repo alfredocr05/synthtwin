@@ -15,7 +15,11 @@ present real cell's -- one person written two ways is one person -- over the sam
 `abc_dash_four`, `pad_split`). Also: how many shapes were measured, how many zoo identifier
 columns were read and how many were NOT read (each a failure: no column goes uncounted), and how
 many profiles or twins failed to be written (the population floor's refusals of the shapes listed
-in REFUSED_AT_600 aside).
+in REFUSED_AT_600 aside), and how many of the shapes listed in VALIDATED fail their twin's own
+validation at 20,000 rows (the gate's 20,000-row grid moved here on 2026-10-26: the suite keeps one
+case a writer). Each line says how long its profile, generate and validate took; the counting
+inside that time is linear and small (the real cells and their merged keys in sets, each twin cell
+read once).
 
 The tables are written to a temporary folder and removed. About seventy minutes on the
 reference machine; one process, under 1 GB.
@@ -26,6 +30,7 @@ reference machine; one process, under 1 GB.
 import pathlib
 import sys
 import tempfile
+import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
@@ -44,7 +49,7 @@ value = {"twin_cells_equal_to_a_real_identifier": 0, "zoo_twin_cells_equal_to_a_
          "twin_cells_merging_with_a_real_identifier": 0,
          "zoo_twin_cells_merging_with_a_real_identifier": 0,
          "shapes": 0, "zoo_identifier_columns": 0, "zoo_identifier_columns_not_read": 0,
-         "not_written": 0}
+         "not_written": 0, "validated_twins_failing": 0}
 lines = []
 with tempfile.TemporaryDirectory() as scratch:
     for rows in SIZES + (200000,):
@@ -54,7 +59,12 @@ with tempfile.TemporaryDirectory() as scratch:
             runs = [(name, "") for name in LARGE]
         for name, answer in runs:
             folder = pathlib.Path(scratch) / f"{name}-{answer or 'asis'}-{rows}"
-            seen = room.run_shape(folder, name, rows, answer=answer, validate=False)
+            validate = rows == 20000 and not answer and name in room.VALIDATED
+            started = time.perf_counter()
+            seen = room.run_shape(folder, name, rows, answer=answer, validate=validate)
+            took = time.perf_counter() - started
+            if validate and seen["exits"][2] != 0:
+                value["validated_twins_failing"] += 1
             refused = rows == 600 and not answer and name in room.REFUSED_AT_600
             if seen["exits"][:2] != (0, 0) and not refused:
                 value["not_written"] += 1
@@ -64,7 +74,7 @@ with tempfile.TemporaryDirectory() as scratch:
             longest = seen["block"].get("max_length") if isinstance(seen["block"], dict) else None
             wider = sum(1 for cell in seen["twin"] if cell.strip() and isinstance(longest, int)
                         and len(cell) > longest)
-            lines += [f"{name:40s} {answer or '-':10s} {rows:6d} rows: exits {seen['exits'][:2]}, "
+            lines += [f"{name:40s} {answer or '-':10s} {rows:6d} rows: exits {seen['exits']}, {took:.1f} s, "
                       f"{seen['equal']} twin cells equal to a real one, {seen['merged']} merging, "
                       f"{wider} written wider"]
             for written in folder.glob("*"):
