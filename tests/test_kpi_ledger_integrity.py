@@ -816,7 +816,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
     # 785,000 from 776,000 ON LANE E0c'S BRANCH, ITS REPAIR 3 (plan P4-D431,
-    # 2026-10-26), the least round figure the ledger fits under, 784,854
+    # 2026-10-26), the least round figure the ledger fits under, 784,842
     # bytes: K-HZ-01 and K-HZ-02 re-stamped after the twin was read
     # strictly (the orchestrator's LANE E0c RULINGS 2 (1)), K-HZ-02's value
     # naming each of the 34,282 real values' entries, repair 2's figures
