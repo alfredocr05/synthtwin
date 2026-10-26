@@ -476,3 +476,311 @@ def clear(root: pathlib.Path) -> None:
     """Remove every case folder under ``root`` (links removed, never followed)."""
     if root.exists():
         shutil.rmtree(root)
+
+
+# -- K-S5-01's rows: what a caller must read off each case's result ------
+#
+# Written from how each case is built, before any run of the result code
+# (plan P4-D395, `K-S5-01`): the class, and for a damage the column, fact,
+# subcheck and tier it breaks; a refusal's step; the warning keys in
+# order; the floor; the next command; the carried entries that are not
+# approximations (each approximation is held to its producer's own entry
+# by `tests/test_stage5_gate.py`, one for one). G5's three lines pin bytes
+# only, as part 5's table writes them.
+_FOLDER = "<FOLDER>"
+_MADE_UP = ("not-carried", "made-up", "")
+_NOT_MODELED = ("not-carried", "not-modeled", "")
+_NEXT_GENERATE = ("synthtwin", "generate", f"{_FOLDER}/t-profile.json")
+_NEXT_VALIDATE = ("synthtwin", "validate", "t-profile.json", "--twin", f"{_FOLDER}/t-twin.csv")
+
+
+def _refused(step: str, floor: "int | None" = None, key: str = "") -> Expect:
+    return Expect("refused", step=step, floor=floor, key=key, carried=())
+
+
+def _unusable() -> Expect:
+    return Expect("unusable", step="command-line", carried=())
+
+
+def _profiled(*warnings: str, carried: "tuple[tuple[str, str, str], ...]" = ()) -> Expect:
+    return Expect(
+        "no-miss",
+        warnings=tuple(warnings),
+        floor=11,
+        next_words=_NEXT_GENERATE,
+        next_purpose="generate",
+        carried=carried,
+    )
+
+
+def _generated(verdict: str = "no-miss", **fields: typing.Any) -> Expect:
+    return Expect(
+        verdict,
+        warnings=("made-up-columns",),
+        floor=11,
+        next_words=_NEXT_VALIDATE,
+        next_purpose="validate",
+        carried=(_MADE_UP, _NOT_MODELED),
+        **fields,
+    )
+
+
+def _validated(verdict: str = "no-miss", **fields: typing.Any) -> Expect:
+    return Expect(verdict, floor=11, carried=(_MADE_UP, _NOT_MODELED), **fields)
+
+
+def _damaged(*breaks: "tuple[str, str, str, str]", **fields: typing.Any) -> Expect:
+    return _validated("missed", breaks=tuple(breaks), **fields)
+
+
+# AT THE TABLE FLOOR THE WEIGHT'S COMMONEST VALUE IS GIVEN UP. The page's
+# 300-row twin of Step 0's table gave nothing up; at 20,000 rows the
+# generator sizes the weight's groups of equal cells from its ladder and
+# misses its published `mode_count` (measured at seeds 7, 1 and 2, and on
+# a weight present on every row), so G2, O1.1 and G11i.1 are generate
+# runs that missed, exit 0 -- named in the twin's report -- and G1n and
+# G2n, the same table without its weight, are the good generate run.
+_MODE_COUNT = ("weight", "numeric.mode_count", "", "count")
+
+EXPECTED: "dict[str, Expect]" = {
+    "G1": _profiled(),
+    "G2": _generated("missed", breaks=(_MODE_COUNT,), first_tier="count", every_tier="count"),
+    "G3": _validated(),
+    "G4": _validated(),
+    "R3": _refused("outputs", 11),
+    "R4": _refused("outputs", 11),
+    "R7": _refused("input", 11),
+    # G6 puts its questions in the file and on the screen; at 20,000 rows
+    # every record number is different and no question offering
+    # `identifier` holds the column, so no caution is given.
+    "G6": _profiled(),
+    "G7": _profiled(),
+    # The table floor (plan P4-D425) refuses the page's 150-row table.
+    "G8": _refused("content"),
+    # The floor of 11 is a minimum (plan P4-D426): 5 typed is unusable.
+    "G9": _unusable(),
+    "G10.1": Expect("no-miss", carried=()),
+    "G10.2": Expect("no-miss", carried=()),
+    "G10.3": Expect("no-miss", carried=()),
+    # A description recorded at 5 is neither built from nor checked
+    # against (plan P4-D426); its floor still stands in the result.
+    "G11.1": Expect(
+        "refused", step="content", floor=5, floor_lowered=True,
+        warnings=("lowered-floor",), carried=(),
+    ),
+    "G11.2": Expect(
+        "refused", step="content", floor=5, floor_lowered=True,
+        warnings=("lowered-floor",), carried=(),
+    ),
+    "O1.1": _generated("missed", breaks=(_MODE_COUNT,), first_tier="count", every_tier="count"),
+    "O1.2": _validated(),
+    "L1": _profiled("questions-would-replace"),
+    "R1": _refused("input"),
+    "R2": _refused("content"),
+    "R5": _refused("input"),
+    "R6.1": _refused("content", 11, "generation-counts-contradict"),
+    "R6.2": _refused("content", 11, "generation-counts-contradict"),
+    "L2": _refused("outputs"),
+    "L3": _refused("outputs", 11),
+    "L4": _refused("outputs", 11),
+    "U1": _unusable(),
+    "U2": _unusable(),
+    "U3": _unusable(),
+    "U4": _unusable(),
+    "M1": _damaged(
+        ("weight", "universal.n_present", "presence.n_present", "count"),
+        first_tier="count",
+        every_tier="count",
+    ),
+    "M2": _damaged(
+        ("ward", "label.variants", "levels.cardiology.variants", "writing"),
+        ("ward", "label.n_distinct", "distinct.n_distinct", "count"),
+        first_tier="writing",
+    ),
+    "M3": _damaged(
+        ("ward", "universal.position", "position.at", "form"),
+        first_tier="form",
+        every_tier="form",
+    ),
+    "M4": _damaged(("", "document.n_rows", "rows.n_rows", "form"), first_tier="form"),
+    "M5": _damaged(("", "document.columns", "columns.order", "form"), first_tier="form"),
+    "M6": _damaged(
+        ("", "document.encoding", "bytes.byte-order-mark", "form"), first_tier="form"
+    ),
+    "M7": _damaged(
+        ("weight", "numeric.mean", "moments.mean", "window"),
+        first_tier="window",
+        every_tier="window",
+    ),
+    "M8": _damaged(
+        ("ward", "universal.position", "position.at", "form"),
+        ("ward", "label.variants", "levels.cardiology.variants", "writing"),
+        first_tier="form",
+    ),
+    "M9": _damaged(
+        ("weight", "universal.role", "axes.role", "writing"), first_tier="writing"
+    ),
+    "M10": _damaged(
+        ("admitted", "datetime.date_field_widths", "widths.padded", "count"),
+        ("admitted", "datetime.date_field_widths", "widths.unnamed", "count"),
+        first_tier="count",
+        every_tier="count",
+    ),
+    "D1": _generated(
+        "missed",
+        breaks=(("weight", "numeric.percentiles.min", "", "count"),),
+        first_tier="count",
+    ),
+}
+
+
+def _persons_table(n_rows: int) -> str:
+    """Q1's table: Step 0's columns and a patient number each person holds ten rows of."""
+    rows = step0_table(n_rows).split("\n")
+    people = n_rows // 10
+    found = ["patient," + rows[0]]
+    for index in range(1, n_rows + 1):
+        found += [f"P{(index - 1) % people:05d},{rows[index]}"]
+    return "\n".join(found) + "\n"
+
+
+def _without_weight(text: str) -> str:
+    """Step 0's table with its weight column taken out (G1n's)."""
+    rows = []
+    for line in text.split("\n"):
+        if line:
+            cells = line.split(",")
+            rows += [",".join(cells[:2] + cells[3:])]
+    return "\n".join(rows) + "\n"
+
+
+def lay_unrecorded(case: Case, root: pathlib.Path) -> pathlib.Path:
+    """Make an unrecorded case's folder (or find its base case's) and lay its inputs."""
+    folder = root / (case.on or case.key)
+    folder.mkdir(parents=True, exist_ok=True)
+    if case.build in ("table",):
+        build(case.build, folder, root)
+    elif case.build:
+        build_unrecorded(case.build, folder, root)
+    return folder
+
+
+def build_unrecorded(name: str, folder: pathlib.Path, root: pathlib.Path) -> None:
+    """Lay the inputs of a case `K-S5-01` alone runs."""
+    if name == "g1-description":
+        _copy(root / "G1" / "t-profile.json", folder / "t-profile.json")
+    elif name == "persons":
+        _write(folder, "p.csv", _persons_table(TABLE_ROWS))
+    elif name == "doctor":
+        _write(folder, "t.csv", step0_table(TABLE_ROWS))
+        (folder / "out").mkdir(exist_ok=True)
+    elif name == "no-weight":
+        _write(folder, "t.csv", _without_weight(step0_table(TABLE_ROWS)))
+    else:
+        raise AssertionError(f"no builder is named {name}")
+
+
+# THE CASES `K-S5-01` ALONE RUNS (part 5): the reader that ends input at
+# its first prompt (Q1), the two injected faults (I1, I2), the doctor's
+# three memory readings (DR1 to DR3, the reading fixed by the test), and a
+# floor of 5 carried from profile to validate through the internal
+# setting, which no command line reaches since plan P4-D426 (G9i, G11i),
+# and the good generate run the table floor took from G2 (G1n, G2n).
+UNRECORDED: "tuple[Case, ...]" = (
+    Case(
+        "G9i", ("profile", "t.csv", "--identifier", "record_no"), build="table",
+        recorded=False, internal=(("internal_smallest_group", 5),),
+        expect=Expect(
+            "no-miss", exit=0, floor=5, floor_lowered=True,
+            warnings=("lowered-floor", "lowered-floor-reminder"),
+            next_words=_NEXT_GENERATE, next_purpose="generate", carried=(),
+        ),
+    ),
+    Case(
+        "G11i.1", ("generate", "t-profile.json", "--seed", "7"), on="G9i",
+        recorded=False, internal=(("internal_smallest_group", 5),),
+        expect=Expect(
+            "missed", exit=0, floor=5, floor_lowered=True,
+            breaks=(_MODE_COUNT,), first_tier="count", every_tier="count",
+            warnings=("lowered-floor", "made-up-columns"),
+            next_words=_NEXT_VALIDATE, next_purpose="validate",
+            carried=(_MADE_UP, _NOT_MODELED),
+        ),
+    ),
+    Case(
+        "G11i.2", ("validate", "t-profile.json"), on="G9i",
+        recorded=False, internal=(("internal_smallest_group", 5),),
+        expect=Expect(
+            "no-miss", exit=0, floor=5, floor_lowered=True,
+            warnings=("lowered-floor",), carried=(_MADE_UP, _NOT_MODELED),
+        ),
+    ),
+    Case(
+        "G1n", ("profile", "t.csv", "--identifier", "record_no"), build="no-weight",
+        recorded=False,
+        expect=Expect(
+            "no-miss", exit=0, floor=11, next_words=_NEXT_GENERATE,
+            next_purpose="generate", carried=(),
+        ),
+    ),
+    Case(
+        "G2n", ("generate", "t-profile.json", "--seed", "7"), on="G1n", recorded=False,
+        expect=Expect(
+            "no-miss", exit=0, floor=11, warnings=("made-up-columns",),
+            next_words=_NEXT_VALIDATE, next_purpose="validate",
+            carried=(_MADE_UP, _NOT_MODELED),
+        ),
+    ),
+    Case(
+        "Q1", ("profile", "p.csv"), build="persons", recorded=False, fault="reader",
+        expect=Expect("refused", exit=1, step="questions", carried=()),
+    ),
+    Case(
+        "I1", ("profile", "t.csv", "--identifier", "record_no"), build="table",
+        recorded=False, fault="questions-unwritable",
+        expect=Expect(
+            "no-miss", exit=0, floor=11, warnings=("questions-not-written",),
+            next_words=_NEXT_GENERATE, next_purpose="generate", carried=(),
+        ),
+    ),
+    Case(
+        "I2", ("generate", "t-profile.json", "--seed", "7"), build="g1-description",
+        recorded=False, fault="unencodable",
+        expect=Expect("refused", exit=1, step="content", floor=11, carried=()),
+    ),
+    Case(
+        "DR1", ("doctor", "t.csv", "--out-dir", "out"), build="doctor",
+        recorded=False, fault="memory-16-GiB",
+        expect=Expect(
+            "no-miss", exit=0,
+            tally=(("checks", 8), ("passed", 8), ("failed", 0), ("not-made", 0)),
+            next_words=("synthtwin", "profile", "t.csv", "--out-dir", "out"),
+            next_purpose="profile", carried=(),
+        ),
+    ),
+    Case(
+        "DR2", ("doctor", "t.csv", "--out-dir", "out"), on="DR1",
+        recorded=False, fault="memory-unread",
+        expect=Expect(
+            "no-miss", exit=0,
+            tally=(("checks", 8), ("passed", 6), ("failed", 0), ("not-made", 2)),
+            next_words=("synthtwin", "profile", "t.csv", "--out-dir", "out"),
+            next_purpose="profile", carried=(),
+        ),
+    ),
+    Case(
+        "DR3", ("doctor", "t.csv", "--out-dir", "out"), on="DR1",
+        recorded=False, fault="memory-100000-bytes",
+        expect=Expect(
+            "refused", exit=1, step="environment",
+            tally=(("checks", 8), ("passed", 7), ("failed", 1), ("not-made", 0)),
+            next_words=("synthtwin", "doctor", "t.csv", "--out-dir", "out"),
+            next_purpose="doctor", carried=(),
+        ),
+    ),
+)
+
+# The recorded cases the suite's gate leaves to CI's guarded recorder:
+# the every-role run at the table floor took 281 seconds under the guard
+# (its generate 220), measured at lane S5a's first recording.
+SLOW = ("G5.1", "G5.2", "G5.3")

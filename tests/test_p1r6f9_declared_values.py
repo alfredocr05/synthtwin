@@ -489,9 +489,7 @@ def test_the_profile_records_the_declarations_and_the_rule(
 def test_the_options_are_described_on_the_help_screen(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    with pytest.raises(SystemExit) as caught:
-        main(["--help"])
-    assert caught.value.code == 0
+    assert main(["--help"]) == 0  # `main` returns its status since plan P4-D437 (lane S5a)
     shown = capsys.readouterr().out
     assert "--keep-value" in shown
     assert "--missing-value" in shown

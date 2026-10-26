@@ -532,9 +532,7 @@ def test_the_option_help_does_not_claim_a_declared_value_is_withheld(
     # The help screen carried the same false sentence, in fewer words:
     # "The value you type is not written into the profile -- it is a
     # value of your table, so it is held back like any other."
-    with pytest.raises(SystemExit) as caught:
-        main(["profile", "--help"])
-    assert caught.value.code == 0
+    assert main(["profile", "--help"]) == 0  # `main` returns its status since plan P4-D437 (lane S5a)
     # argparse wraps the help text to the width of the screen, so the
     # sentences are checked with the line breaks taken out.
     shown = " ".join(capsys.readouterr().out.split())

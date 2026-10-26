@@ -221,9 +221,7 @@ def test_a_smallest_group_below_one_is_refused(
     """Typed, 0 is under the minimum of 11 (plan P4-D426); internally,
     through `lowered_floor`, it is still no floor at all."""
     table = _table(tmp_path)
-    with pytest.raises(SystemExit) as stopped:
-        main(["profile", str(table), "--smallest-group", "0"])
-    assert stopped.value.code == 2
+    assert main(["profile", str(table), "--smallest-group", "0"]) == 2  # `main` returns its status since plan P4-D437 (lane S5a)
     assert "raised but not lowered" in capsys.readouterr().err
     assert lowered_floor.main(["profile", str(table), "--smallest-group", "0"]) == 2
     assert "whole number of 1 or more" in capsys.readouterr().err
@@ -532,9 +530,7 @@ def test_a_malformed_table_is_a_sentence_not_a_traceback(
 def test_asking_for_the_command_without_a_file_says_so(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    with pytest.raises(SystemExit) as caught:
-        main(["profile"])
-    assert caught.value.code == 2
+    assert main(["profile"]) == 2  # `main` returns its status since plan P4-D437 (lane S5a)
     assert "which file to describe" in capsys.readouterr().err
 
 
@@ -548,8 +544,6 @@ def test_the_bare_command_still_prints_the_status(
 
 
 def test_help_shows_an_example(capsys: pytest.CaptureFixture[str]) -> None:
-    with pytest.raises(SystemExit) as caught:
-        main(["--help"])
-    assert caught.value.code == 0
+    assert main(["--help"]) == 0  # `main` returns its status since plan P4-D437 (lane S5a)
     out = capsys.readouterr().out
     assert "synthtwin profile data.csv" in out

@@ -659,8 +659,7 @@ def test_doctor_never_opens_the_table(
 
 
 def test_the_help_names_doctor(capsys: pytest.CaptureFixture[str]) -> None:
-    with pytest.raises(SystemExit):
-        cli.main(["--help"])
+    assert cli.main(["--help"]) == 0  # `main` returns its status since plan P4-D437 (lane S5a)
     said = capsys.readouterr().out
     assert "doctor" in said and "synthtwin doctor data.csv" in said
 

@@ -83,6 +83,11 @@ def _the_small_table_refusal_off_in_process_runs() -> "Iterator[None]":
 
     defaults = cli.main.__kwdefaults__
     assert defaults is not None and "small_tables_refused" in defaults
+    # ...and on `cli.run` too, the entry point `main` runs through (plan
+    # P4-D437): a test calling it directly meets the suite's default.
+    run_defaults = cli.run.__kwdefaults__
+    assert run_defaults is not None and "small_tables_refused" in run_defaults
     with pytest.MonkeyPatch.context() as own:
         own.setitem(defaults, "small_tables_refused", False)
+        own.setitem(run_defaults, "small_tables_refused", False)
         yield

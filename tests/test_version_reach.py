@@ -637,7 +637,12 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # recounted on the merged tree, each loading a committed file of tests/ or
 # tools/, which this guard reads directly, so the floor holds for them as
 # it does for the other forty-four.
-FILES_LOADED_AS_MODULES = 45
+#
+# 46 AT LANE S5a (2026-10-26, plan P4-D437): `tests/test_stage5_gate.py`
+# loads `tools/goldens/record_stage5_goldens.py`, a committed file of
+# tools/ this guard reads directly, so the floor holds for it as it
+# does for the other forty-five.
+FILES_LOADED_AS_MODULES = 46
 
 
 def _files() -> "list[pathlib.Path]":

@@ -172,9 +172,11 @@ def _options_the_parser_offers() -> "set[str]":
     help text cannot be mistaken for one the parser takes.
     """
     printed = io.StringIO()
+    # The help page ends the reading with `cli._HelpShown` since plan
+    # P4-D437 (lane S5a), not with SystemExit.
     with (
         contextlib.redirect_stdout(printed),
-        contextlib.suppress(SystemExit),
+        contextlib.suppress(cli._HelpShown),
     ):
         cli._parse_arguments(["--help"], None)
     said = printed.getvalue()
