@@ -215,6 +215,41 @@ def month_first_days(rows: int, seed: int) -> "tuple[list[str], list[list[str]]]
     return ["seen_on", "group"], lines
 
 
+def few_visit_days(rows: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """1,000 patients: patient 0 on 2,500 rows, every one on 2023-06-15; the rest on seven other days (repair round 2).
+
+    The combined verify's item 1: under a raised floor above the table's
+    1,000 people the count once moved to rows, and the 2,500 rows of one
+    patient published that patient's day.
+    """
+    draw = random.Random(seed)
+    heavy = min(2500, rows // 8)
+    owners = [0] * heavy + [1 + (index % 999) for index in range(rows - heavy)]
+    others = [datetime.date(2023, 6, 15) + datetime.timedelta(days=step) for step in range(1, 8)]
+    lines = [[f"P{1000000 + owner:07d}",
+              (datetime.date(2023, 6, 15) if owner == 0 else draw.choice(others)).isoformat(),
+              f"{draw.uniform(40, 140):.1f}"] for owner in owners]
+    draw.shuffle(lines)
+    return ["patient_id", "visit_date", "weight"], lines
+
+
+def utc_split_several(rows: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """Ten rows a person; births at local midnight every second day, 12 people a day, half +14:00, half -10:00.
+
+    The combined verify's item 2: every local day holds 12 people, but on
+    the shared clock, where the column is published, each day holds 6.
+    """
+    draw = random.Random(seed)
+    people = rows // 10
+    first = datetime.date(1950, 1, 1)
+    born = [f"{(first + datetime.timedelta(days=2 * (person // 12))).isoformat()}T00:00:00"
+            f"{'+14:00' if person % 12 < 6 else '-10:00'}" for person in range(people)]
+    lines = [[f"P{1000000 + index % people:07d}", born[index % people], f"{draw.uniform(40, 140):.1f}"]
+             for index in range(rows)]
+    draw.shuffle(lines)
+    return ["patient_id", "born_at", "weight"], lines
+
+
 # Lane E0c's `phi_registry` (tests/health_zoo_wide.py on lane E0c's head
 # a974b1d9), the same builder: every value invented.
 FIRST_NAMES = (
@@ -300,6 +335,13 @@ SWEEP.update({
     "unix_afternoons": _table("unix_afternoons", unix_afternoons, ("stamp", "ward"), {}),
     "unix_millis": _table("unix_millis", unix_millis_before_midnight, ("stamp", "ward"), {}),
     "month_first": _table("month_first", month_first_days, ("seen_on", "group"), {}),
+    # Repair round 2 (the combined verify's items 1 and 2).
+    "few_visit_days": _table("few_visit_days", few_visit_days, ("patient_id", "visit_date", "weight"),
+                             {"patient_id": "identifier", "weight": "measurement"}),
+    "few_visit_days_2000": _table("few_visit_days", few_visit_days, ("patient_id", "visit_date", "weight"),
+                                  {"patient_id": "identifier", "weight": "measurement"}),
+    "utc_split": _table("utc_split", utc_split_several, ("patient_id", "born_at", "weight"),
+                        {"patient_id": "identifier", "weight": "measurement"}),
 })
 # The options each shape is profiled under, and the floor it is counted at:
 # the owner's floor of 11, or the user's raised floor (skeptic 1, item 4).
@@ -309,6 +351,7 @@ OPTIONS: "dict[str, tuple[tuple[str, ...], int]]" = {
     "unix_afternoons": (("--date-count", "stamp", "seconds-since-1970"), 11),
     "unix_millis": (("--date-count", "stamp", "milliseconds-since-1970"), 11),
     "month_first": (("--day-first",), 11),
+    "few_visit_days_2000": (("--smallest-group", "2000"), 2000),
 }
 
 
@@ -376,6 +419,8 @@ LAYOUTS: "dict[tuple[str, str], tuple[str, ...]]" = {
     ("unix_afternoons", "stamp"): ("count:seconds-since-1970",),
     ("unix_millis", "stamp"): ("count:milliseconds-since-1970",),
     ("month_first", "seen_on"): ("%m/%d/%Y",),
+    ("few_visit_days", "visit_date"): ("%Y-%m-%d",), ("few_visit_days_2000", "visit_date"): ("%Y-%m-%d",),
+    ("utc_split", "born_at"): ("%Y-%m-%dT%H:%M:%S%z",),
 }
 
 
@@ -456,7 +501,8 @@ def dates_held_few(table: pathlib.Path, folder: pathlib.Path, floor: int = FLOOR
     (`_in_rows`). Returns the count, the named dates and groups, the date
     columns, the unit and the printed real dates (`printed`). ``floor`` is
     the owner's 11 or the user's raised floor; in people the count reads
-    11 (`persons_counted`), which no raised floor of this sweep reaches.
+    11 (`persons_counted`), and under a raised floor every published date
+    is counted again at that floor (`_few_in_people_at`, repair round 2).
     """
     stem = table.name[: -len(table.suffix)]
     text = (folder / f"{stem}-profile.json").read_text(encoding="utf-8")
@@ -504,8 +550,40 @@ def dates_held_few(table: pathlib.Path, folder: pathlib.Path, floor: int = FLOOR
         )
         few += int(found["few"])  # type: ignore[call-overload]
         named += list(found["named"])  # type: ignore[call-overload]
-    shown = printed(text, dated, names, columns, held_columns, described)
+        if floor > FLOOR:
+            raised = _few_in_people_at(block, columns[names.index(block["name"])], held_columns, floor)
+            few += len(raised)
+            named += raised
+    shown = printed(text, dated, names, columns, held_columns, described, floor)
     return {"few": few, "named": named, "dated": dated, "counted_in": "people", "printed": shown}
+
+
+def _few_in_people_at(block: "dict[str, object]", raw: "list[str]", people: "list[list[str]]",
+                      floor: int) -> "list[str]":
+    """Every date text a block publishes whose day, month or quarter one to `floor` - 1 people hold (repair round 2).
+
+    The count in people under the user's raised floor, apart from
+    `persons_counted` (which reads the owner's 11): each cell read by the
+    block's format on the clock it publishes, its parts held by the
+    subjects of each person column.
+    """
+    shown = f"{block.get('format', '')}"
+    at_utc = block.get("datetimes_read_at") == "utc"
+    found: "list[str]" = []
+    texts, _numbers = persons_counted.leaves(block)
+    for column in people:
+        on: "dict[str, set[str]]" = {}
+        for cell, holder in zip(raw, column):
+            read = parsing.parse_datetime(cell, shown) if shown and parsing.folded(cell) else None
+            if read is None:
+                continue
+            for part in parts_of(_days_of_text(read[0], read[1], at_utc)[0]):
+                on.setdefault(part, set()).add(persons_counted.subject_of(holder))
+        for text in sorted(texts):
+            mine = parts_of(text)
+            if mine and mine[0] in on and len(on[mine[0]]) < floor:
+                found += [f"{block['name']}={text}"]
+    return found
 
 
 _PART = re.compile(r"^([0-9]{4})-(?:q([1-4])|([0-9]{2})(?:-([0-9]{2}))?)")
@@ -730,10 +808,11 @@ def printed(text: str, dated: "list[str]", names: "list[str]", columns: "list[li
                 for shown in (() if moment is not None else _READINGS):
                     read = parsing.parse_datetime(cell, shown)
                     if read is not None:
-                        # in people the value as the block writes it; in rows its day,
-                        # on the clock the block publishes
+                        # in people the value as the block writes it, in rows its day,
+                        # each on the clock the block publishes (repair round 2)
                         utc = blocks[name].get("datetimes_read_at") == "utc" if name in blocks else False
-                        canonical[cell] = read[0] if people else _days_of_text(read[0], read[1], utc)[0][:10]
+                        canonical[cell] = (_days_of_text(read[0], read[1], utc)[0] if people
+                                           else _days_of_text(read[0], read[1], utc)[0][:10])
                         break
             keys += [cell if people else (canonical[cell] or cell)]
         grain = blocks[name].get("time_grain") if name in blocks else None
@@ -745,7 +824,17 @@ def printed(text: str, dated: "list[str]", names: "list[str]", columns: "list[li
             if [rung for rung, _first, _last in grain.get("spans", []) if _RUNG_ORDER.index(rung) < finest]:
                 starts = persons_counted.bucket_names(grain)
             if f"{grain.get('rung')}" in _RUNG_ORDER and _RUNG_ORDER.index(f"{grain.get('rung')}") < finest:
-                starts |= set(_at_the_grain(raw, blocks[name], members.get(name, "")))
+                coarse = _at_the_grain(raw, blocks[name], members.get(name, ""))
+                starts |= set(coarse)
+                # ...and on the shared clock each cell's bucket start, written at
+                # the cell's offset, is printed as its instant at UTC (repair
+                # round 2): that text names the bucket and offset too.
+                if blocks[name].get("datetimes_read_at") == "utc":
+                    for cell, start in zip(raw, coarse):
+                        read = parsing.parse_datetime(cell, "iso-datetime")
+                        begun = parsing.parse_datetime(start, "iso-datetime")
+                        if read is not None and read[1] and begun is not None:
+                            starts |= {_days_of_text(begun[0], read[1], True)[0]}
             if f"{grain.get('rung')}" in _ABOVE_THE_DAY:
                 starts |= {start[:10] for start in starts}
             # ...written at the cells' own precision: `1995-01` for 1995 in a
@@ -759,6 +848,7 @@ def printed(text: str, dated: "list[str]", names: "list[str]", columns: "list[li
                     if len(start) >= 10 and parts_of(start[:10]):
                         day = datetime.date.fromisoformat(start[:10])
                         starts |= {(day + datetime.timedelta(days=step)).isoformat() for step in (-1, 1)}
+
         own = json.dumps(blocks[name], indent=2) if name in blocks else text
         written: "dict[str, set[str]]" = {}
         for cell, key in zip(raw, keys):
@@ -770,7 +860,7 @@ def printed(text: str, dated: "list[str]", names: "list[str]", columns: "list[li
                 if key:
                     holders.setdefault(key, set()).add(persons_counted.subject_of(holder) if people else holder)
             for key, who in holders.items():
-                if len(who) >= (FLOOR if people else floor):
+                if len(who) >= floor:
                     continue
                 for form in written[key] - starts:
                     # A declared count's own figures are searched as text

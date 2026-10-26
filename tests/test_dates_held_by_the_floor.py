@@ -449,8 +449,10 @@ def test_the_evidence_never_denies_repeated_people(tmp_path: pathlib.Path) -> No
     """Codex's item 6: 1,000 declared patients on 20 rows each, `--smallest-group 2000`, event dates that vary.
 
     The person column repeats but names fewer people than the raised
-    floor, so each row is counted as its own; the sentence says that, and
-    never that no column names a person on several rows.
+    floor; its dates are counted in those people (repair round 2, the
+    combined verify's item 1), so no bucket reaches the floor and the
+    column is held in people; the sentences never say that no column names
+    a person on several rows.
     """
     draw = __import__("random").Random(dates_held.SEED)
     lines = [[f"P{1000000 + index % 1000:07d}",
@@ -466,9 +468,74 @@ def test_the_evidence_never_denies_repeated_people(tmp_path: pathlib.Path) -> No
     described = json.loads((tmp_path / "visits-profile.json").read_text(encoding="utf-8"))
     block = [one for one in described["columns"] if one["name"] == "event_date"][0]
     evidence = f"{block['detection_evidence']}"
-    assert evidence in (taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_ROWS, ()),
-                        taxonomy.rendered(taxonomy.EVIDENCE_POOLED_IN_ROWS, ())), evidence
-    assert "that names a person on several rows names as many people as the smallest group size" in evidence
+    assert evidence == taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_PEOPLE, ()), evidence
     for text in (evidence, said, (tmp_path / "visits-profile.txt").read_text(encoding="utf-8")):
         assert "names a person on several rows, so" not in text
         assert "No column of this table names a person" not in text
+
+
+# -- repair round 2: the combined verify's items 1 and 2 -------------------
+
+# The sha256 of `few_visit_days`' visit_date block at the owner's floor on
+# the base, ccebc947, through the same path (wave6/PS2/repair2/base-digest.log).
+FEW_VISIT_DAYS_AT_11 = "7355021785b9916289b50d383ed38898bfd4ad3eec1087d41ff005c8eeb130c0"
+
+
+def test_a_raised_floor_above_the_tables_people_still_counts_its_dates_in_people(described) -> None:
+    """The combined verify's item 1: 1,000 patients, one of them on 2,500 rows all on one day, `--smallest-group 2000`.
+
+    Counted in rows, those 2,500 rows passed the raised floor and the one
+    patient's day was published as the low tail, beside points 929 to 940
+    people hold. Counted in its people, whatever their number, no date
+    reaches 2,000 people and the column is held; at the owner's 11 its
+    block is the base's, byte for byte.
+    """
+    source, folder = described("few_visit_days_2000", 20000)
+    found = dates_held.dates_held_few(source, folder, 2000)
+    assert found["counted_in"] == "people" and found["dated"] == ["visit_date"], found
+    assert found["few"] == 0 and found["printed"] == [], found
+    block = dates_held.block_of(folder, "few_visit_days", "visit_date")
+    assert "2023-06-15" not in json.dumps(block), block
+    assert block["detection_evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_PEOPLE, ()), block
+    _source, eleven = described("few_visit_days", 20000)
+    digest = dates_held.hashlib.sha256(
+        json.dumps(dates_held.block_of(eleven, "few_visit_days", "visit_date"), sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    assert digest == FEW_VISIT_DAYS_AT_11
+
+
+def test_dates_on_the_shared_clock_are_counted_in_people_there(described) -> None:
+    """The combined verify's item 2: births at local midnight at +14:00 and -10:00, ten rows a person.
+
+    Every local day holds 12 people; on the shared clock, where the block
+    publishes the column, each day holds 6. Counted under its local text,
+    every point and both tails printed a moment 6 people hold.
+    """
+    source, folder = described("utc_split", 20000)
+    found = dates_held.dates_held_few(source, folder)
+    assert found["counted_in"] == "people" and found["dated"] == ["born_at"], found
+    assert found["few"] == 0 and found["printed"] == [], found
+    block = dates_held.block_of(folder, "utc_split", "born_at")
+    grain = block.get("time_grain")
+    assert block.get("datetimes_read_at") == "utc" or isinstance(grain, dict), block
+    assert isinstance(grain, dict) and grain["rung"] != "day", grain
+
+
+def test_the_walk_counts_each_bucket_and_offset_apart() -> None:
+    """The walk on the shared clock: one bucket written at two offsets is two published texts, each its own people."""
+    cells = [f"1950-01-0{1 + 2 * (person // 12)}T00:00:00{'+14:00' if person % 12 < 6 else '-10:00'}"
+             for person in range(24)]
+    people = [f"P{person}" for person in range(24)]
+    reading = grains.Reading(grains.STAMP, "iso-datetime")
+    local = profile._grain_walk(cells, 24, reading, [people], [True], 11)
+    shared = profile._grain_walk(cells, 24, reading, [people], [True], 11, frozenset(), True)
+    assert local.thin.get(grains.DAY) is False and local.grain.rung != grains.HELD, (local.thin, local.grain)
+    assert shared.thin.get(grains.DAY) is True, shared.thin
+
+
+def test_a_cell_is_counted_in_people_under_the_instant_the_block_prints() -> None:
+    """The count in people on the shared clock: `+14:00` local midnight is counted as the UTC instant printed."""
+    printed = profile._Published(frozenset({"1950-01-02 10:00:00"}), frozenset(), (), "iso-datetime", at_utc=True)
+    assert profile._keys_of("1950-01-03T00:00:00+14:00", printed, {}) == ("w1950-01-02 10:00:00",)
+    local = profile._Published(frozenset({"1950-01-03 00:00:00"}), frozenset(), (), "iso-datetime")
+    assert profile._keys_of("1950-01-03T00:00:00+14:00", local, {}) == ("w1950-01-03 00:00:00",)
