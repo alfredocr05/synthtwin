@@ -81,7 +81,10 @@ lane's tree under the machine-wide guard, on a machine other work was
 loading -- sixty-six shapes profiled and generated at 20,000 rows, which no
 default weighs. RE-TIMED at the lane's repair round 1 the same day,
 1,089.82 s, the same way: ninety-one shapes, eleven of them validated at
-20,000 rows.
+20,000 rows. RE-TIMED 2026-10-26, 152.84 s, the same way, after the
+orchestrator's rule of 11:06 (a file adds at most three minutes): every
+shape at 600 rows and one case a writer at 20,000 rows, the rest in
+`K-HZ-06`'s driver.
 
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
@@ -134,7 +137,7 @@ SECONDS = {
     "tests/test_generation_reference.py": 95.29,
     "tests/test_health_zoo.py": 22.78,
     "tests/test_held_unit_search.py": 25.61,
-    "tests/test_identifier_room.py": 1089.82,
+    "tests/test_identifier_room.py": 152.84,
     "tests/test_joined_battery_readings.py": 215.32,
     "tests/test_joined_pair_round_trip.py": 103.91,
     "tests/test_k_p3_03_outer_tail_spread.py": 58.33,

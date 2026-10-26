@@ -622,7 +622,10 @@ cannot get worse unseen.
   20,000 rows, as written and by the merged key the product counts a
   person by). Where the real values fill a layout's room -- record
   numbers `1` to `N`, a person on twenty rows, `P` and five figures at
-  20,000 rows -- its twin values are written longer than every real one,
+  20,000 rows -- or spread thinly over a block's spellings, which then
+  passes over none 1 to 10 keys hold -- random seven or eight figures and
+  `REC` beside `rec` at 20,000 rows (338,776 of 1,700,000 cells over the
+  gate's shapes) -- its twin values are written longer than every real one,
   its census entry and the column's lengths are listed rather than
   checked (or, where only some values widen, met within the cells written
   wider), and the report names the values moved. Code testing a width

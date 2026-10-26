@@ -22,7 +22,7 @@ MERGED KEY -- the form the product counts a person by, so `P0013736` and
 layout, the layout with one place, or every other place of a block,
 written as a character no real key holds there -- several spellings
 where one leaves too little room, at most 32 -- never passing over a
-character 1 to 10 keys hold; and on every identifier block, whatever its
+character or a block's spelling 1 to 10 keys hold; and on every identifier block, whatever its
 census, a spill of the column's prefix and figures one longer than the
 published longest value. The generator's walks are unchanged; a final
 pass (method G9.6b) keeps a value whose merged key holds the written

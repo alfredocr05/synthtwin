@@ -30,7 +30,7 @@ cell's, and no twin cell is spelled as a real one. The exclusion publishes what 
 hold: no value, no extreme of one, no count below the floor.
 
 Each case runs the product's command line, nobody at the keyboard, and each is red on the mutant its
-docstring names (wave6/ID-ROOM/repair1/mutants.log).
+docstring names (wave6/ID-ROOM/repair1b/mutants.log).
 """
 
 from __future__ import annotations
