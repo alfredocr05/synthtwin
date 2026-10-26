@@ -26620,7 +26620,13 @@ def written_wider(
     return wider
 
 
-def widened_layouts_of(facts: "object", convention: str) -> "dict[str, list[str]]":
+def widened_layouts_of(
+    layouts: "dict[str, int]",
+    prefixes: "dict[str, str]",
+    exclusions: "dict[str, tuple[str, ...]]",
+    all_whole: bool,
+    convention: str,
+) -> "dict[str, list[str]]":
     """The layouts a record number's twin writes its named layouts' values wider in, each with the layouts it comes from (P4-D432).
 
     Read off the description alone, as the generator widens (method
@@ -26633,10 +26639,7 @@ def widened_layouts_of(facts: "object", convention: str) -> "dict[str, list[str]
     against the cells that can have come from it (V4.1-A2). Raises
     nothing. No I/O.
     """
-    layouts = getattr(facts, "layout_forms", {})
-    prefixes = getattr(facts, "layout_prefixes", {})
-    exclusions = getattr(facts, "layout_exclusions", {})
-    whole_places = bool(getattr(facts, "all_whole_numbers", False)) and any(
+    whole_places = all_whole and any(
         parsing.whole_places_layout(layout) != layout
         for layout in layouts
         if layout != SUPPRESSED_LABEL
@@ -26675,7 +26678,10 @@ def widened_layouts_of(facts: "object", convention: str) -> "dict[str, list[str]
 
 
 def moved_by_the_exclusions(
-    forms: "dict[str, int]", exclusions: "dict[str, tuple[str, ...]]", n_present: int
+    forms: "dict[str, int]",
+    exclusions: "dict[str, tuple[str, ...]]",
+    n_present: int,
+    grained: bool = False,
 ) -> "tuple[tuple[str, ...], bool]":
     """What a record number's twin gives up so no cell is spelled as a real one (plan P4-D432).
 
@@ -26684,19 +26690,31 @@ def moved_by_the_exclusions(
     the twin writes wider than every real cell (method G9.6b), and whether
     the shortest and longest lengths go with them -- they do where such a
     layout is named. The validator lists these REPORT-ONLY and the twin's
-    report names the values moved instead of a miss; a layout carrying an
-    exclusion whose twin writes some values wider all the same is the
-    validator's AUTHORIZED-DEVIATION, measured (`written_wider`). Nothing
-    is moved on a description publishing no exclusion. A fixed function
-    of the three. Raises nothing. No I/O.
+    report names the values moved instead of a miss; the lengths go with
+    them too where a pool stands or the census counts fewer cells than
+    the column holds, the cells outside the named layouts written wider or
+    by the G1 floor. A layout carrying an exclusion whose twin writes some
+    values wider all the same is the validator's AUTHORIZED-DEVIATION,
+    measured (`written_wider`). Nothing is moved on a description
+    publishing no exclusion. A fixed function of the three. Raises
+    nothing. No I/O.
     """
-    if not exclusions:
+    if not exclusions or grained:
+        # ...and a column of dates or times at a grain gives up nothing:
+        # its twin moves values only inside their own excluded templates
+        # (method G9.6b).
         return (), False
     moved: "list[str]" = []
+    counted = 0
     for layout in sorted(forms):
+        counted = counted + int(f"{forms[layout]}")
         if layout != SUPPRESSED_LABEL and layout not in exclusions:
             moved += [layout]
-    return tuple(moved), bool(moved)
+    # ...AND THE LENGTHS WHEREVER SOME REAL CELL STANDS OUTSIDE THE NAMED
+    # LAYOUTS -- a pool, or cells the census counts in no layout -- whose
+    # twin values are written wider, or by the G1 floor (P4-D417).
+    pooled = SUPPRESSED_LABEL in forms or counted < n_present
+    return tuple(moved), bool(moved) or pooled
 
 
 def _greatest_last(alphabet: str, alone: bool) -> str:

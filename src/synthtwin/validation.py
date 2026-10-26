@@ -22118,7 +22118,9 @@ def _identifier_checks(
     # WHAT NO TWIN CELL MAY HOLD MOVES WHAT IT MUST (lane ID-ROOM, plan
     # P4-D432): a layout carrying no exclusion, and the lengths with it,
     # are listed REPORT-ONLY (`moved_off_the_real`).
-    moved, lengths = moved_off_the_real(facts, column.n_present)
+    moved, lengths = moved_off_the_real(
+        facts, column.n_present, column.time_grain is not None
+    )
     # ...AND A VALUE THE TWIN WROTE WIDER ALL THE SAME (method G9.6b: an
     # excluded template a value of another class or a date could not
     # take): every real cell's merged key is shorter than the spill's, so
@@ -22231,7 +22233,7 @@ def _identifier_checks(
 
 
 def moved_off_the_real(
-    facts: contract.IdentifierFacts, n_present: int
+    facts: contract.IdentifierFacts, n_present: int, grained: bool = False
 ) -> "tuple[tuple[str, ...], bool]":
     """A record number's corner of plan P4-D432: the layouts and lengths its twin gives up.
 
@@ -22241,17 +22243,25 @@ def moved_off_the_real(
     exclusion is published for has every value of its twin written wider
     than every real cell, so its census entry is REPORT-ONLY, and the
     shortest and longest lengths are REPORT-ONLY with it wherever such a
-    layout is named. A description publishing no exclusion gives up
-    nothing. Raises nothing. No I/O.
+    layout is named, a pool stands, or the census counts fewer cells than
+    the column holds (cells outside the named layouts, written wider or by
+    the G1 floor). A description publishing no exclusion gives up nothing.
+    Raises nothing. No I/O.
     """
     exclusions = facts.layout_exclusions
-    if not exclusions:
+    if not exclusions or grained:
+        # A column of dates or times at a published grain (plan P4-D417)
+        # gives up nothing: its twin moves a value only inside its own
+        # excluded templates, and the G1 floor writes the rest.
         return (), False
     given_up: "list[str]" = []
+    total = 0
     for layout in sorted(facts.layout_forms):
+        total = total + facts.layout_forms[layout]
         if layout != contract.WITHHELD and layout not in exclusions:
             given_up += [layout]
-    return tuple(given_up), bool(given_up)
+    pooled = contract.WITHHELD in facts.layout_forms or total < n_present
+    return tuple(given_up), bool(given_up) or pooled
 
 
 # What authorizes a record number's census entry and lengths a value its
@@ -22301,7 +22311,10 @@ def _written_wider_forms(
     if not bound:
         return checks
     convention = parsing.layout_convention(present)
-    widened = taxonomy.widened_layouts_of(facts, convention)
+    widened = taxonomy.widened_layouts_of(
+            facts.layout_forms, facts.layout_prefixes, facts.layout_exclusions,
+            facts.all_whole_numbers, convention,
+        )
     # Every cell counted under its own layout, a count under the floor
     # included: the arithmetic below prints none of them.
     worn: "dict[str, int]" = {}
@@ -22396,7 +22409,10 @@ def _prefix_checks(
         # spill. A stand-in of a layout the census leaves unnamed, written
         # wider in its own kinds, opened with no prefix before and is not
         # one of them.
-        widened = taxonomy.widened_layouts_of(facts, convention)
+        widened = taxonomy.widened_layouts_of(
+            facts.layout_forms, facts.layout_prefixes, facts.layout_exclusions,
+            facts.all_whole_numbers, convention,
+        )
         opens_otherwise = 0
         for cell in present:
             if len(parsing.merged_key(cell)) < bound:
@@ -22683,7 +22699,9 @@ def _listings(
                         _NOT_CHECKABLE_EXCLUSIONS,
                     )
                 ]
-            moved, lengths = moved_off_the_real(facts, column.n_present)
+            moved, lengths = moved_off_the_real(
+        facts, column.n_present, column.time_grain is not None
+    )
             for layout in moved:
                 listings += [
                     Listing(

@@ -2403,7 +2403,10 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   census entry, subcheck `forms.published.<layout>`, is
   REPORT-ONLY; and the shortest and longest lengths, subchecks
   `length.min` and `length.max`, are REPORT-ONLY with it wherever such a
-  layout is named. `layout_exclusions` itself is REPORT-ONLY wherever it
+  layout is named, wherever the census holds a `(withheld)` pool, or
+  wherever it counts fewer cells than the column holds (cells outside the
+  named layouts, whose twin values are written wider or by the G1 floor).
+  `layout_exclusions` itself is REPORT-ONLY wherever it
   is published, subcheck `layout_exclusions`: it says what no real cell
   holds, and no written file is checked against it. Each is a listing
   entry citing the plan, never a check that cannot fail; every other

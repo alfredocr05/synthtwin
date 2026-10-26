@@ -3582,7 +3582,7 @@ def _merged_stands(template: str) -> "list[int]":
     lone = -1
     for place in range(len(template)):
         mark = template[place]
-        written = mark.casefold()
+        written = folded(mark)
         if mark in (LAYOUT_DIGIT, LAYOUT_LOWER_HEX, LAYOUT_UPPER_HEX):
             written = "1"
         elif mark in (LAYOUT_UPPER, LAYOUT_LOWER):

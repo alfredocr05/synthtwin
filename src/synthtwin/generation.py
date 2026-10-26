@@ -54353,6 +54353,13 @@ def _spelled_off_the_real(
     for cell in cells:
         if cell not in room.written:
             _claimed(room, cell)
+    # A COLUMN OF DATES OR TIMES AT A PUBLISHED GRAIN (plan P4-D417): the
+    # G1 floor writes its made-up values as dates or times drawn inside the
+    # record's spans, in their own layouts, after this pass -- a made-up
+    # date names no person (the orchestrator's ruling 1 of 2026-10-25, item
+    # 3) -- so a value is moved only inside its own layout's excluded
+    # templates, never wider, and its layout stays the one the floor reads.
+    grained = column.time_grain is not None
     groups: "dict[str, list[str]]" = {}
     order: "list[str]" = []
     seen: "dict[str, bool]" = {}
@@ -54370,6 +54377,22 @@ def _spelled_off_the_real(
     for identity in order:
         members = groups[identity]
         if all(_kept_off_the_real(room, member) for member in members):
+            continue
+        if grained:
+            inside: "dict[str, str]" = {}
+            for member in members:
+                layout = parsing.layout_form(parsing.trimmed(member), room.convention)
+                if _kept_off_the_real(room, member) or layout not in room.templates:
+                    continue
+                for into in room.templates[layout]:
+                    if member in inside:
+                        break
+                    found = _next_off_the_real(room, into, [_edges(member)], True)
+                    if found is not None:
+                        inside[member] = found[member]
+            for member in sorted(inside):
+                moved[member] = inside[member]
+                _claimed(room, inside[member])
             continue
         together = _respelled_together(room, members) if len(members) > 1 else None
         if together is None:
@@ -54849,8 +54872,8 @@ def _reads_as_hexadecimal(spelling: str) -> bool:
     """Whether a spelling holds a letter, and every letter it holds is one of `a` to `f` in either case."""
     letters = 0
     for character in spelling:
-        if "a" <= character.lower() <= "z":
-            if character.lower() > "f":
+        if "a" <= character <= "z" or "A" <= character <= "Z":
+            if character not in "abcdefABCDEF":
                 return False
             letters = letters + 1
     return letters > 0
@@ -54901,7 +54924,7 @@ def _in_its_case(spelling: str, cell: str) -> str:
     at = 0
     for place in range(len(spelling)):
         character = spelling[place]
-        if "a" <= character.lower() <= "z":
+        if "a" <= character <= "z" or "A" <= character <= "Z":
             case = cases[min(at, len(cases) - 1)]
             character = lower[place] if "a" <= case <= "z" else upper[place]
             at = at + 1
@@ -54926,11 +54949,14 @@ def _not_moved_off_the_real(
     if not isinstance(facts, contract.IdentifierFacts):
         return notes
     moved, lengths = taxonomy.moved_by_the_exclusions(
-        facts.layout_forms, facts.layout_exclusions, column.n_present
+        facts.layout_forms, facts.layout_exclusions, column.n_present,
+        column.time_grain is not None,
     )
     wider = taxonomy.written_wider(
         facts.layout_exclusions, facts.layout_prefixes, cells
     )
+    if column.time_grain is not None:
+        wider = 0
     if not moved and not lengths and not wider:
         return notes
     dropped: "dict[str, bool]" = {}
@@ -54942,7 +54968,10 @@ def _not_moved_off_the_real(
         # (`taxonomy.widened_layouts_of`), as the validator reads it.
         present = [cell for cell in cells if parsing.trimmed(cell)]
         convention = parsing.layout_convention(present)
-        widened = taxonomy.widened_layouts_of(facts, convention)
+        widened = taxonomy.widened_layouts_of(
+            facts.layout_forms, facts.layout_prefixes, facts.layout_exclusions,
+            facts.all_whole_numbers, convention,
+        )
         bound = taxonomy.spill_bound(facts.layout_exclusions, facts.layout_prefixes)
         for cell in present:
             layout = parsing.layout_form(cell, convention)
