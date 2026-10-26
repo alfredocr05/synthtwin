@@ -75,6 +75,12 @@ loading: lane E0a's health data zoo, `tests/test_health_zoo.py`,
 22.78 s, and lane H1's padded swaps at scale,
 `tests/test_stage4_padded_swap_scale.py`, 67.35 s.
 
+ROWS ADDED 2026-10-26, at the integration of batch 4k, each file timed
+ON ITS OWN as above, on a machine other work was loading: lane SH's
+Safe Harbor numbers, `tests/test_safe_harbor_numbers.py`, 2,705.80 s on
+the lane's tree at its repair 3, and lane CHv's V12 gate,
+`tests/test_stage6_validate_chain.py`, 77.10 s on the merged tree.
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
 an ordinary small file and runs in its shard from the commit that adds
@@ -321,6 +327,7 @@ SECONDS = {
     "tests/test_ruling_identifier_prefix.py": 20.42,
     "tests/test_ruling_levels_counted_by_subtraction.py": 7.53,
     "tests/test_ruling_pooled_held_back_levels.py": 12.86,
+    "tests/test_safe_harbor_numbers.py": 2705.8,
     "tests/test_shipped_page_review.py": 3.39,
     "tests/test_stage2_dates_as_written.py": 35.13,
     "tests/test_stage2_datetime_oracle.py": 6.41,
@@ -365,6 +372,7 @@ SECONDS = {
     "tests/test_stage4_padded_swap_scale.py": 67.35,
     "tests/test_stage4_sign_repairs.py": 18.92,
     "tests/test_stage4_tier2a.py": 88.39,
+    "tests/test_stage6_validate_chain.py": 77.1,
     "tests/test_summary_and_properties.py": 41.37,
     "tests/test_tail_back_solve_without_recursion.py": 14.72,
     "tests/test_taxonomy.py": 4.6,

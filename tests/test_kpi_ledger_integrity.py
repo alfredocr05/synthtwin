@@ -823,8 +823,11 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # 749,000, below) and lane CHv's `K-S6-04`, `K-S6-05` and `K-S6-10`
     # with their note clause (its branch raised its own to 771,000), every
     # entry kept by id and the note merged clause by clause: 767,618 bytes
-    # with lane SH merged and 778,554 with lane CHv. A MEASUREMENT IS NEVER
-    # TRIMMED TO FIT.
+    # with lane SH merged and 778,554 with lane CHv; then the records:
+    # `K-S3-66`, `K-HZ-02`, `K-S6-04`, `K-S6-05` and `K-S6-10` stamped on
+    # the merged code, `K-S3-66`'s evidence corrected and the night
+    # windows' points written into `K-S4-09`'s and `K-S4-12`'s, 781,460
+    # bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
     # 764,000 from 760,000, AT THE INTEGRATION OF BATCH 4J (2026-10-24),
     # the orchestrator's recorded call D15 (the owner may veto), set once
