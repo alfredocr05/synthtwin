@@ -54448,6 +54448,8 @@ _OFF_THE_REAL_TRIES = 4096
 # spill's own length.
 _UID_AT_MOST = 64
 _NO_LIMIT = 1 << 30
+# How many figures the spill is widened by, at most, as a last resort.
+_SPILL_WIDENED_AT_MOST = 8
 
 
 @dataclasses.dataclass(frozen=True)
@@ -54679,8 +54681,16 @@ def _respelled(room: _OffTheReal, cell: str) -> str:
                 return appended
     widening = room.spill
     uid = _opens_with_a_uid_root(room.spill)
-    while room.spill and not (uid and len(widening) >= _UID_AT_MOST):
-        # THE LAST RESORT: the spill a figure wider, and wider again.
+    wider_by = 0
+    while (
+        room.spill
+        and not (uid and len(widening) >= _UID_AT_MOST)
+        and wider_by < _SPILL_WIDENED_AT_MOST
+    ):
+        # THE LAST RESORT: the spill a figure wider, and wider again -- at
+        # most `_SPILL_WIDENED_AT_MOST` figures, past which the pass says it
+        # has no spelling left rather than search on.
+        wider_by = wider_by + 1
         widening = parsing.widened_layout(widening, len(room.whole), 1, _NO_LIMIT)
         if not widening:
             break
@@ -54834,7 +54844,7 @@ def _next_off_the_real(
             or parsing.folded(filled) in room.written
             or parsing.folded(filled) in room.folds
             or not _wears_template(filled, template, room.convention)
-            or (wider and _reads_as_hexadecimal(filled))
+            or (wider and _reads_as_hexadecimal(filled, template))
         ):
             continue
         taken: "dict[str, str]" = {}
@@ -54868,10 +54878,18 @@ def _next_off_the_real(
     return found
 
 
-def _reads_as_hexadecimal(spelling: str) -> bool:
-    """Whether a spelling holds a letter, and every letter it holds is one of `a` to `f` in either case."""
+def _reads_as_hexadecimal(spelling: str, template: str = "") -> bool:
+    """Whether a spelling holds a letter where ``template`` holds a placeholder, and every such letter is one of `a` to `f`.
+
+    A letter the template writes itself -- a published prefix's -- stands
+    in every cell of its layout and trades places with no figure, so it is
+    not asked; with no template every letter is.
+    """
     letters = 0
-    for character in spelling:
+    for place in range(len(spelling)):
+        character = spelling[place]
+        if template and place < len(template) and template[place] == character:
+            continue
         if "a" <= character <= "z" or "A" <= character <= "Z":
             if character not in "abcdefABCDEF":
                 return False
