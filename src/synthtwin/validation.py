@@ -22208,9 +22208,10 @@ def _identifier_checks(
         ),
         owed,
         census,
-        wider,
         floor,
         present,
+        facts,
+        bound,
     )
     checks = checks + _prefix_checks(name, facts, present)
     checks = checks + _uid_grammar_checks(name, facts, present)
@@ -22279,29 +22280,43 @@ def _written_wider_forms(
     checks: "list[Check]",
     owed: "dict[str, int]",
     census: "dict[str, int]",
-    wider: int,
     floor: int,
     present: "list[str]",
+    facts: contract.IdentifierFacts,
+    bound: int,
 ) -> "list[Check]":
     """The census entries a record number's twin left by writing values wider, authorized (P4-D432).
 
     THE EXACT BAR IS TRIED FIRST: a layout's entry the twin met is HELD.
     One it MISSED by holding fewer cells than published is an
     AUTHORIZED-DEVIATION where the measured file holds cells written
-    wider than every real one (`taxonomy.written_wider`) and every such
-    shortfall together is no more than those cells; a surplus, or a
-    shortfall they do not cover, stays MISSED. A count under the floor is
-    not printed.
+    wider than every real one IN A LAYOUT THAT LAYOUT'S VALUES ARE
+    WIDENED INTO -- its own widened under its prefix, or the spill
+    (`taxonomy.widened_layouts_of`) -- as many as its shortfall, and
+    every such shortfall together is no more than those cells; a surplus,
+    or a shortfall they do not cover, stays MISSED, so a stand-in of
+    another layout written wider excuses nothing. A count under the
+    floor is not printed.
     """
-    if not wider:
+    if not bound:
         return checks
+    convention = parsing.layout_convention(present)
+    widened = taxonomy.widened_layouts_of(facts, convention)
     # Every cell counted under its own layout, a count under the floor
     # included: the arithmetic below prints none of them.
-    convention = parsing.layout_convention(present)
     worn: "dict[str, int]" = {}
+    could: "dict[str, int]" = {}
+    any_named = 0
     for cell in present:
         layout = parsing.layout_form(cell, convention)
         worn[layout] = (worn[layout] if layout in worn else 0) + 1
+        if len(parsing.merged_key(cell)) < bound or layout not in widened:
+            continue
+        any_named = any_named + 1
+        for source in widened[layout]:
+            could[source] = (could[source] if source in could else 0) + 1
+    if not any_named:
+        return checks
     short = 0
     for check in checks:
         layout = check.subcheck[len("forms.published."):]
@@ -22309,10 +22324,11 @@ def _written_wider_forms(
             found = census[layout] if layout in census else (
                 worn[layout] if layout in worn else 0
             )
-            if found >= owed[layout]:
+            gap = owed[layout] - found
+            if gap <= 0 or gap > (could[layout] if layout in could else 0):
                 return checks
-            short = short + owed[layout] - found
-    if short > wider:
+            short = short + gap
+    if short > any_named:
         return checks
     authorized: "list[Check]" = []
     for check in checks:
@@ -22321,6 +22337,7 @@ def _written_wider_forms(
             authorized += [check]
             continue
         published = owed[layout]
+        cover = could[layout] if layout in could else 0
         authorized += [
             Check(
                 check.column,
@@ -22328,7 +22345,7 @@ def _written_wider_forms(
                 check.subcheck,
                 AUTHORIZED_DEVIATION,
                 f"{_shown_count(published)} "
-                f"({_shown_window(float(max(published - wider, 0)), float(published))})",
+                f"({_shown_window(float(max(published - cover, 0)), float(published))})",
                 _shown_count(census[layout])
                 if layout in census
                 else _below_the_floor(floor),

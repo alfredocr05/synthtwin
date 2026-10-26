@@ -54811,9 +54811,10 @@ def _in_its_case(spelling: str, cell: str) -> str:
     """``spelling`` with each letter in the case ``cell``'s letter wears.
 
     Place for place where the two are as long; otherwise letter for
-    letter, in order, where both hold as many letters (a widened core,
-    Codex's review of lane ID-ROOM, item 3); otherwise ``spelling`` as it
-    stands.
+    letter, in order, each letter past ``cell``'s last taking that last
+    letter's case (a widened core, Codex's review of lane ID-ROOM, item 3:
+    `x` and `X` widened to five letters are `abcde` and `ABCDE`); a
+    ``cell`` holding no letter leaves ``spelling`` as it stands.
     """
     if not isinstance(spelling, str):
         raise TypeError("a spelling reached the case rule as something else")
@@ -54835,18 +54836,15 @@ def _in_its_case(spelling: str, cell: str) -> str:
     for character in cell:
         if "a" <= character <= "z" or "A" <= character <= "Z":
             cases += [character]
-    letters = 0
-    for character in spelling:
-        if "a" <= character.lower() <= "z":
-            letters = letters + 1
-    if letters != len(cases):
+    if not cases:
         return spelling
     written = ""
     at = 0
     for place in range(len(spelling)):
         character = spelling[place]
         if "a" <= character.lower() <= "z":
-            character = lower[place] if "a" <= cases[at] <= "z" else upper[place]
+            case = cases[min(at, len(cases) - 1)]
+            character = lower[place] if "a" <= case <= "z" else upper[place]
             at = at + 1
         written = written + character
     return written
@@ -54880,8 +54878,18 @@ def _not_moved_off_the_real(
     for layout in moved:
         dropped[f"layout_forms.{layout}"] = True
     if wider:
-        for layout in sorted(facts.layout_forms):
-            dropped[f"layout_forms.{layout}"] = True
+        # Only the entries of layouts whose values were widened: a cell
+        # written wider in a layout that layout's values widen into
+        # (`taxonomy.widened_layouts_of`), as the validator reads it.
+        present = [cell for cell in cells if parsing.trimmed(cell)]
+        convention = parsing.layout_convention(present)
+        widened = taxonomy.widened_layouts_of(facts, convention)
+        bound = taxonomy.spill_bound(facts.layout_exclusions, facts.layout_prefixes)
+        for cell in present:
+            layout = parsing.layout_form(cell, convention)
+            if layout in widened and len(parsing.merged_key(cell)) >= bound:
+                for source in widened[layout]:
+                    dropped[f"layout_forms.{source}"] = True
     if lengths or wider:
         dropped["min_length"] = True
         dropped["max_length"] = True

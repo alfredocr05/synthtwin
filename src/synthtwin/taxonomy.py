@@ -26620,16 +26620,18 @@ def written_wider(
     return wider
 
 
-def widened_layouts_of(facts: "object", convention: str) -> "dict[str, bool]":
-    """The layouts a record number's twin writes its named layouts' values wider in, and the spill's (P4-D432).
+def widened_layouts_of(facts: "object", convention: str) -> "dict[str, list[str]]":
+    """The layouts a record number's twin writes its named layouts' values wider in, each with the layouts it comes from (P4-D432).
 
     Read off the description alone, as the generator widens (method
     G9.6b, `parsing.widened_layout`): each named layout under its own
     prefix, figures inserted until its merged key is the spill's length,
-    and one placeholder more where it holds a letter; the spill's layout.
-    The validator holds a measured cell of one of these to a published
-    prefix (Codex's review of lane ID-ROOM, item 4). Raises nothing. No
-    I/O.
+    and one placeholder more where it holds a letter; and the spill's
+    layout, which a value of any named layout may take. The validator
+    holds a measured cell of one of these to a published prefix (Codex's
+    review of lane ID-ROOM, item 4) and counts a census entry's shortfall
+    against the cells that can have come from it (V4.1-A2). Raises
+    nothing. No I/O.
     """
     layouts = getattr(facts, "layout_forms", {})
     prefixes = getattr(facts, "layout_prefixes", {})
@@ -26640,7 +26642,7 @@ def widened_layouts_of(facts: "object", convention: str) -> "dict[str, bool]":
         if layout != SUPPRESSED_LABEL
     )
     bound = spill_bound(exclusions, prefixes)
-    found: "dict[str, bool]" = {}
+    found: "dict[str, list[str]]" = {}
     if not bound:
         return found
     whole = (
@@ -26648,9 +26650,11 @@ def widened_layouts_of(facts: "object", convention: str) -> "dict[str, bool]":
         if parsing.PREFIX_OF_THE_COLUMN in prefixes
         else ""
     )
+    named: "list[str]" = []
     for layout in sorted(layouts):
         if layout == SUPPRESSED_LABEL:
             continue
+        named += [layout]
         prefix = prefixes[layout] if layout in prefixes else whole
         opening = len(parsing.prefix_layout(prefix, convention)) if prefix else 0
         wanted = bound - parsing.merged_length(
@@ -26659,8 +26663,12 @@ def widened_layouts_of(facts: "object", convention: str) -> "dict[str, bool]":
         for more in (0, 1):
             wide = parsing.widened_layout(layout, opening, wanted + more, 1 << 30)
             if wide:
-                found[wide] = True
-    found[exclusions[parsing.EXCLUSION_SPILL][0]] = True
+                if wide not in found:
+                    found[wide] = []
+                if layout not in found[wide]:
+                    found[wide] += [layout]
+    spill = exclusions[parsing.EXCLUSION_SPILL][0]
+    found[spill] = named
     return found
 
 

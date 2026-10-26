@@ -153,24 +153,20 @@ def test_the_first_packing_alone_leaves_the_review_column_short(
 
 
 # THE DEFAULT, HELD (plan P4-D320). What a person meets who declares this
-# column and names no floor: the twin misses `layout_forms.%%%` at exit 3
+# column and names no floor: the twin missed `layout_forms.%%%` at exit 3
 # on every seed, because the pooled groups' made-up spellings read as
-# hexadecimal. The test states what SHOULD hold and is expected to fail
-# for exactly that reason; `strict` makes a repair turn it red (XPASS),
-# and a shape that no longer publishes the census the defect was measured
-# on fails outright rather than being counted as the expected failure.
+# hexadecimal. REPAIRED BY LANE ID-ROOM'S REPAIR ROUND 1 (2026-10-25, plan
+# P4-D432), and the test that stated the miss as expected turned XPASS:
+# the final pass of method G9.6b writes the pooled groups' stand-ins (`A0`,
+# `A1`, `0e0`) wider than every real cell, in their own kinds, so no cell
+# of the column's own length reads as hexadecimal and no layout is
+# renamed; the two values of `%%%` its excluded template `8%%` could not
+# take are written wider, an AUTHORIZED-DEVIATION of V4.1-A2. The twin
+# validates at exit 0 on every seed. A shape that no longer publishes the
+# census the defect was measured on still fails outright.
 _DEFAULT_CENSUS = {"%%%": 12, "(withheld)": 21}
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason=(
-        "plan P4-D320: at the default floor the pooled groups are written "
-        "A0, A1 and 0e0, which read as hexadecimal and rename every layout, "
-        "so the twin misses layout_forms.%%% at exit 3"
-    ),
-)
 @pytest.mark.parametrize("seed", SEEDS)
 def test_the_review_column_keeps_its_layout_census_at_the_default(
     tmp_path: pathlib.Path, seed: str
