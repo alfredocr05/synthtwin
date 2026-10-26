@@ -11,8 +11,8 @@ each identifier column spelled exactly as a present real cell of that column (`e
 Target 0 each, exact. And, since the repair of lane ID-ROOM (skeptic 1, item 3), the twin cells
 whose MERGED KEY (`parsing.merged_key`, the form `profile.subject_keys` counts a person by) is a
 present real cell's -- one person written two ways is one person -- over the same runs and, at
-200,000 rows, over the three shapes that measured it on the lane's first head (`p_five`,
-`abc_dash_four`, `pad_split`). Also: how many shapes were measured, how many zoo identifier
+200,000 rows, over the densest shape that measured it on the lane's first head (`p_five`: 1,800
+twin cells merging at 200,000 rows there; one leg, as the lane's brief asks, since 2026-10-26). Also: how many shapes were measured, how many zoo identifier
 columns were read and how many were NOT read (each a failure: no column goes uncounted), and how
 many profiles or twins failed to be written (the population floor's refusals of the shapes listed
 in REFUSED_AT_600 aside), and how many of the shapes listed in VALIDATED fail their twin's own
@@ -44,9 +44,9 @@ kpi_rules.guard_this_tree()
 import identifier_room_shapes as room  # noqa: E402
 
 SIZES = (600, 20000)
-# The shapes whose merged keys a nought after a prefix or a second zero fill tied to a real one on
-# the lane's first head, measured once more at 200,000 rows.
-LARGE = ("p_five", "abc_dash_four", "pad_split")
+# The densest shape whose merged keys a nought after a prefix tied to a real one on the lane's first
+# head (1,800 at 200,000 rows), measured once more at 200,000 rows.
+LARGE = ("p_five",)
 
 value = {"twin_cells_equal_to_a_real_identifier": 0, "zoo_twin_cells_equal_to_a_real_identifier": 0,
          "twin_cells_merging_with_a_real_identifier": 0,
