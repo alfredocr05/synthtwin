@@ -51,7 +51,6 @@ import string
 import pytest
 
 from synthtwin import asking
-from synthtwin import canonical
 from synthtwin import cli
 from synthtwin import contract
 from synthtwin import errors
@@ -123,32 +122,32 @@ def _asked_of(folder: pathlib.Path, stem: str, name: str) -> "list[str]":
     return [f"{entry['read_as_now']}" for entry in asked if entry.get("column") == name]
 
 
-def _zip_findings(folder: pathlib.Path, stem: str, screen: str, real: "set[str]") -> "list[str]":
+def _zip_escapes(folder: pathlib.Path, stem: str, screen: str, real: "set[str]") -> "list[str]":
     """Every way a held ZIP column breaks its hold (Codex's review of batch 4j, its second Medium): its block not an
     identifier's as the description's loader reads the contract, or a real ZIP, padded or not, whole or with a point,
     in the description, its summary, the questions file or the screen."""
-    findings: "list[str]" = []
+    escapes: "list[str]" = []
     described = folder / f"{stem}-profile.json"
     try:
         contract.load_profile(f"{described}")
     except errors.ProfileError as problem:
-        findings += [f"contract: {problem}"[:160]]
+        escapes += [f"contract: {problem}"[:160]]
     column = _column(json.loads(described.read_text(encoding="utf-8")), "zip")
     if column["role"] != "identifier":
-        findings += [f"role {column['role']}"]
+        escapes += [f"role {column['role']}"]
     texts = {"screen": screen}
     for ending in ("-profile.json", "-profile.txt", "-questions.json"):
         texts[f"{stem}{ending}"] = (folder / f"{stem}{ending}").read_text(encoding="utf-8")
     for place, text in texts.items():
         for zip_code in sorted(real):
             if re.search(rf"(?<![\d.,])0*{zip_code.lstrip('0')}(?:\.0+)?(?!\d)", text):
-                findings += [f"{place}: {zip_code}"]
-    return findings
+                escapes += [f"{place}: {zip_code}"]
+    return escapes
 
 
 def _held_since_sh(folder: pathlib.Path, stem: str, screen: str, real: "set[str]") -> None:
     """A ZIP column on the merged product: no real ZIP anywhere, held with one question put (P4-D401's or SH's)."""
-    assert _zip_findings(folder, stem, screen, real) == []
+    assert _zip_escapes(folder, stem, screen, real) == []
     put = _asked_of(folder, stem, "zip")
     assert len(put) == 1 and put[0] in ("identifier", asking.ANSWER_SAFE_HARBOR_YES), put
 
@@ -1303,19 +1302,19 @@ def test_the_zip_checks_catch_an_unpadded_number_and_a_summary_only_zip(tmp_path
     lines = ["pid,zip"] + [f"P{k:06d},{cell}" for k, cell in enumerate(cells)]
     document, screen = _profiled_seen(tmp_path, "zip5word.csv", "\n".join(lines) + "\n")
     real = set(zips) & set(cells)
-    assert "02100" in real and _zip_findings(tmp_path, "zip5word", screen, real) == []
+    assert "02100" in real and _zip_escapes(tmp_path, "zip5word", screen, real) == []
     described = tmp_path / "zip5word-profile.json"
     kept = described.read_text(encoding="utf-8")
     _column(document, "zip")["tails"] = {"low": {"values": [2100.0]}}
-    described.write_text(canonical.serialize(document), encoding="utf-8")
-    found = _zip_findings(tmp_path, "zip5word", screen, real)
+    fixtures.write_profile(tmp_path, "zip5word-profile.json", document)
+    found = _zip_escapes(tmp_path, "zip5word", screen, real)
     assert [one for one in found if one.startswith("contract: ")], found
     assert "zip5word-profile.json: 02100" in found
-    described.write_text(kept, encoding="utf-8")
+    described.write_text(kept, encoding="utf-8", newline="\n")
     summary = tmp_path / "zip5word-profile.txt"
-    summary.write_text(summary.read_text(encoding="utf-8") + "ZIP 02100\n", encoding="utf-8")
-    assert _zip_findings(tmp_path, "zip5word", screen, real) == ["zip5word-profile.txt: 02100"]
-    assert _zip_findings(tmp_path, "zip5word", screen + " 2100.0", real) == [
+    summary.write_text(summary.read_text(encoding="utf-8") + "ZIP 02100\n", encoding="utf-8", newline="\n")
+    assert _zip_escapes(tmp_path, "zip5word", screen, real) == ["zip5word-profile.txt: 02100"]
+    assert _zip_escapes(tmp_path, "zip5word", screen + " 2100.0", real) == [
         "screen: 02100", "zip5word-profile.txt: 02100"]
 
 

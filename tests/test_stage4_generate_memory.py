@@ -145,6 +145,16 @@ _TABLES: "dict[str, tuple[str, typing.Callable[[], bytes], tuple[str, ...]]]" = 
 # the bridge, write the same two twins and the same two descriptions, so
 # both digests stand (`planning-notes/work-2026-10/wave3/merge-4i/
 # floor-one-digests.log`).
+#
+# `utf16` RE-MEASURED AT BATCH 4K'S MERGE OF LANE SH (plan P4-D427,
+# 2026-10-26): its `value` column, the whole numbers 0 to 100 that
+# `(index * 7) % 101` writes, is in lane SH's Safe Harbor reach, read as a
+# count holding values above 89, so it is top-coded at 90 while the
+# question is open and its twin moves on purpose (P4-D427's price: a
+# number column within 0 to 125 holding one above 89 is top-coded until
+# that question is answered no). The frozen assembly still writes the merged
+# command's bytes, and the other seven digests stand (batch 4j's
+# f677d6a0 wrote dd69f453... for this one).
 _BEFORE_SHA256 = {
     "latin": "c5a78f1a7c2980c4913bfe4e220cd321f70cb28d0305df1898b02ba4519bc09c",
     "sorted": "f88db8f7772084ce124ba6569786b8313e6a59a1aa88bb53944e098847b50592",
@@ -152,7 +162,7 @@ _BEFORE_SHA256 = {
     "sparse": "829f54e6618b56cd54b38be8f1fedc660a4fa6c4f55037969ee802aa622b7e3e",
     "sparse_floor_one": "d32dc86c471fa47d5a7d68a8118ae7c2871540f18b7adf2fbcd170f830725b27",
     "texts": "2ac127f20cb24c19a4c3b92b2ebe90049df4dffdf5a5e8a7743c19ba6f65064d",
-    "utf16": "dd69f4534646ca603000e5a98d1b76834c78c7b6b45b3757b29cfb21c3d26fde",
+    "utf16": "35d626ec1e295044f0faea922fd44528d03ffecc957fcab515f996b763484adc",
     "wide": "edaee2c842fa47c880123a55c7b195416b4a7d63334cf1165be690dfc5f84097",
 }
 
