@@ -73,8 +73,8 @@ PLAN_LANES = (
     # row 51).
     "HX", "SH", "RD",
     # ...and, since the second repair's scan reads chance only past the
-    # real range, ID-ROOM (twin identifier cells equal to real ones,
-    # P4-D432).
+    # real range and the third reads the twin strictly (LANE E0c RULINGS
+    # 2 (1)), ID-ROOM (twin identifier cells equal to real ones, P4-D432).
     "ID-ROOM",
     # ...and the lane the orchestrator opens when SH closes for Safe Harbor
     # years, places and devices no question reaches (THE ZOO ANSWERS

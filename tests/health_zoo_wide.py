@@ -3297,14 +3297,16 @@ PS2_BIRTH_DATES = (
     "CODES-3's, by the orchestrator's ruling of 2026-10-19 on HX2, item (4))"
 )
 TWIN_KEYS_EQUAL_REAL = (
-    "LIVE: the made-up keys the twin writes for a column answered `identifier` equal real keys of the column, drawn "
-    "inside the real keys' range or over the layout's whole room, which the real keys fill (sequential record "
-    "numbers) or a share of: at 20,000 rows redcap.record_id 5,572 real keys on 15,182 twin cells (1,933 in the "
-    "control past the range), tumor_registry.tumor_id ('T' and five figures, the real T80000 to T99999 a fifth of "
-    "the room) 4,000, sql_server.record_no (nine figures, the real keys 2 % of the room) 389; at 600 rows (below "
-    "the floor) omop_measurement.person_id 95 and i2b2_facts.patient_num 82 and encounter_num 48 too (E0c verify "
-    "of repair 1, item 1: the scan reads chance only past the range); lane ID-ROOM (P4-D432: twin identifier cells "
-    "equal to a real cell of their column, K-HZ-06)"
+    "LIVE: the made-up keys the twin writes for a key column equal real keys of the column, drawn inside the real "
+    "keys' range or over the layout's whole room, which the real keys fill (sequential record numbers) or a share "
+    "of; the twin is read strictly (the orchestrator's LANE E0c RULINGS 2 (1)), every twin cell equal to a real key "
+    "counted with no chance allowance: at 20,000 rows 33,305 real keys on 70,931 twin cells over 74 columns of 57 "
+    "tables (lane E0c's repair 3), among them redcap.record_id 5,572 on 15,182 cells, tumor_registry.tumor_id, "
+    "surveys.respondent_id and microbiology.isolate_id 4,000 each, omop_measurement.person_id 2,627 on 10,916, "
+    "i2b2_facts.patient_num 2,418 on 10,942, wearables.device_id 2,410 on 9,819, i2b2_facts.encounter_num 1,219 "
+    "on 2,532, sql_server.record_no 389 on 394, and 1 to 400 on each other key; at 600 rows (below the floor) 327 "
+    "on 1,259 cells over 15 columns of 14 tables; lane ID-ROOM (P4-D432: twin identifier cells equal to a real "
+    "cell of their column, K-HZ-06)"
 )
 PREFIXED_SEQUENCE = (
     "LIVE: a report reference written 'RPT' and six figures, one a row in sequence, is read as an affixed number "
@@ -3319,7 +3321,6 @@ BY_DESIGN = (
 )
 LEAK_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     "demographics": (
-        ("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak patient_id")),
         ("PS2", PS2_BIRTH_DATES, covers(*_leaks("dob_iso", "dob_us", "dob_text"))),
         ("SH2", SH2_YEARS, covers(*_leaks("dob_iso years", "dob_us years", "dob_text years"))),
         ("SH", SH_ZIPS, covers(*_leaks("zip5", "zip4"))),
@@ -3336,13 +3337,6 @@ LEAK_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     "sql_server_export": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers(*_leaks("record_no"))),),
     "tumor_registry": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers(*_leaks("tumor_id"))),),
     "title_rows_above_header": (("CODES-3", PREFIXED_SEQUENCE, covers(*_leaks("report_ref"))),),
-    # THE ZOO'S TWIN IDENTIFIER CHECK IS STRICT (LANE E0c RULINGS 2 (1)):
-    # the made-up keys equal to real ones the strict scan counts, ID-ROOM's.
-    "encounters": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak patient_id", "leak enc_id")),),
-    "epic_caboodle": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak PatientDurableKey", "leak EncounterKey")),),
-    "cerner_ccl": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak ENCNTR_ID", "leak PERSON_ID")),),
-    "fhir_flattened": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak id", "leak subject_reference")),),
-    "undeclared_record_number_long": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak visit_ref")),),
     "immunizations_providers": (
         ("SH2", SH2_DEVICES, covers(*_leaks("udi"))),
         ("SH", BY_DESIGN, covers(columns=("udi",))),
@@ -3365,7 +3359,6 @@ LEAK_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
         ("SH", BY_DESIGN, covers(columns=("zip_lost",))),
     ),
     "phi_columns": (
-        ("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak med_rec_no")),
         ("PS2", PS2_BIRTH_DATES, covers(*_leaks("birth_date"))),
         ("SH2", SH2_YEARS, covers(*_leaks("birth_date years"))),
         ("SH", SH_ZIPS, covers(*_leaks("zip5"))),
@@ -3377,6 +3370,71 @@ LEAK_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
         ("SH", BY_DESIGN, covers(columns=("birth_year",))),
     ),
 }
+# THE ZOO'S TWIN IDENTIFIER CHECK IS STRICT (the orchestrator's LANE E0c
+# RULINGS 2 (1), 2026-10-25 16:36; E0c verify 2 item 1): every twin cell
+# equal to a real identifier of its column counts, with no chance
+# allowance, so the made-up keys the product draws where the real keys
+# fill their room read red. Each kind and the columns the strict scan
+# turns red there (measured by lane E0c's repair 3 at 600 and 20,000
+# rows), owned by lane ID-ROOM (P4-D432), LIVE until it merges.
+STRICT_KEYS_RED: "dict[str, tuple[str, ...]]" = {
+    "demographics": ("patient_id",),
+    "surveys_pro": ("respondent_id",),
+    "genomics": ("sample_id",),
+    "microbiology": ("isolate_id",),
+    "empty_and_constant_columns": ("patient_id",),
+    "utf16_text": ("ward_ref",),
+    "trailing_delimiter": ("order_ref",),
+    "workbook_1904_dates": ("patient_ref",),
+    "safe_harbor_shapes": ("person_ref",),
+    "dst_zones_and_words": ("event_ref",),
+    "encounters": ("patient_id",),
+    "labs": ("patient_id",),
+    "medication_orders": ("order_id", "patient_id"),
+    "vitals": ("patient_id",),
+    "flowsheet_long": ("patient_id",),
+    "claims": ("patient_id",),
+    "clinical_notes": ("note_id",),
+    "wearables": ("device_id",),
+    "imaging": ("accession", "patient_id"),
+    "perioperative": ("surgery_id", "patient_id"),
+    "us_unit_vitals": ("patient_id",),
+    "immunizations_providers": ("patient_id",),
+    "risk_and_comorbidity_codes": ("member_id",),
+    "day_first_dates": ("case_ref",),
+    "labelled_results": ("patient_id",),
+    "numeric_unrepresentable": ("sample_id",),
+    "ventilator_settings": ("patient_id",),
+    "medication_administration": ("mar_id", "patient_id"),
+    "pharmacy_dispensing": ("rx_number", "patient_id"),
+    "obstetrics": ("patient_id",),
+    "pediatrics": ("patient_id",),
+    "cardiology_ecg": ("patient_id",),
+    "organism_long_tail": ("isolate_id", "patient_id"),
+    "report_text_with_headings": ("report_id", "patient_id"),
+    "naaccr_and_trauma_registry": ("case_ref",),
+    "scheduling": ("appt_id", "patient_id"),
+    "remittance_835": ("claim_control", "patient_id"),
+    "adt_bed_movements": ("event_id", "patient_id"),
+    "promis_phq9": ("patient_id",),
+    "vcf_flattened": ("sample_id",),
+    "wearable_offsets_subsecond": ("device_id",),
+    "pcornet_cdm": ("DIAGNOSISID", "PATID", "ENCOUNTERID"),
+    "fhir_flattened": ("id", "subject_reference"),
+    "epic_caboodle": ("PatientDurableKey",),
+    "cerner_ccl": ("ENCNTR_ID",),
+    "cp1252_smart_quotes": ("note_ref",),
+    "sas_dot_missing": ("subjid",),
+    "wide_table": ("patient_ref",),
+    "excel_mangled_codes": ("member_ref", "npi_shown", "account_shown"),
+    "phi_columns": ("med_rec_no",),
+    "undeclared_record_number_long": ("visit_ref",),
+    "month_year": ("row_ref",),
+}
+for _kind, _columns in STRICT_KEYS_RED.items():
+    LEAK_OWNERS[_kind] = LEAK_OWNERS.get(_kind, ()) + (
+        ("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers(*(f"leak {column}" for column in _columns))),
+    )
 for _kind, _lines in LEAK_OWNERS.items():
     WIDE_OWNERS[_kind] = WIDE_OWNERS.get(_kind, ()) + _lines
 

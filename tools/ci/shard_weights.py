@@ -137,7 +137,7 @@ SECONDS = {
     "tests/test_generation.py": 7.12,
     "tests/test_generation_reference.py": 95.29,
     "tests/test_health_zoo.py": 75.78,
-    "tests/test_health_zoo_leaks.py": 12.64,
+    "tests/test_health_zoo_leaks.py": 21.31,
     "tests/test_health_zoo_shards.py": 9.82,
     "tests/test_held_unit_search.py": 25.61,
     "tests/test_joined_battery_readings.py": 215.32,
