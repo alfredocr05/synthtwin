@@ -6,26 +6,38 @@ exists).
 
 ## [Unreleased]
 
-### Layer L0 built behind the chain's switch: each eligible column meets its band totals (lane BT, 2026-10-24)
+### Layer L0 built behind the chain's switch: each eligible column meets its band totals, today's twin moved the least (lane BT, 2026-10-24, repaired 2026-10-25)
 
 **Lane BT** (plan P4-D429, the build of P4-D404). Behind the switch no
 shipped command sets, an eligible number, date or clock column of the
 twin now makes its cells so that each of its published L0 bands holds
-exactly its published count, every other within-column fact still met
-or giving way by a stated rule and named in the twin's report. One
+exactly its published count. A number column is made exactly as today
+and then moved the least the description proves: the values two equal
+published rungs pin, the band totals, an all-different column's keys
+once a row, the values and the count of different values today's twin
+holds, and its mode. The first build's band map is withdrawn: on the
+health zoo it emptied real codes and wrote codes nobody wrote. One
 reservation of records holding nothing is made before the arrangement,
-by spelling in a text file and by class in a workbook, and nothing
-after it moves a cell; the interface lane CHb's chain generator will
-call hands over each eligible column's cells grouped by band. Measured
-on invented tables (`K-S6-02`, new, OPEN on one clause): 684 bands of
-75 column twins at 5,000 and 20,000 rows, none a row off, where the
-same columns made without the layer miss by 2 to 241 rows; at 200,000 rows
-every band of the ten-column table holds its count at five seeds;
-no fact the twin without the layer holds is lost, and the last guard
-moves no value. One shape regression is stated with its owner: a
-uniform two-figure age sits a little further from the real counts
-inside its bands. The one oracle answers the rules it freezes from the
-method text alone. Every shipped twin is the same file, byte for byte.
+by spelling in a text file and by class in a workbook, a workbook's
+classes now travel with each cell to the writer, a reservation short of
+its records is named, and nothing after it moves a cell; the interface
+lane CHb's chain generator will call hands over each eligible column's
+cells grouped by band. Measured on invented tables and the health zoo
+(`K-S6-02`, restated, OPEN on two clauses): 10,918 bands of 528 column
+twins, none a row off, where the same columns made without the layer
+miss by 56,932 rows; no check of the quality report lost, no column of
+that battery further from the real one, and no column whose values all
+differ short of one. At 200,000 rows every band holds its count at five
+seeds and no key is lost. Three limits are stated with their owners: on
+a uniform whole-number column the cells a cut crosses join the value
+beside the edge (the age's edge value 73 holds 157 cells against a real
+210, 238 without the layer); where the layer restores a value today's
+twin skipped, a column can hold one different value more than
+published; and where today's twin skipped a value beside a cut, the
+cut's cells pass it, so one column at one seed of 200,000 rows sits
+further from the real one. The one oracle freezes the cells of four of the method's
+cases through its own pipelines. Every shipped twin is the same file,
+byte for byte.
 
 ### Batch 4h's records: the record-number exposure closed and measured on the merged head, every twin the same bytes, owners for the chain's open items (2026-10-23)
 
