@@ -54461,6 +54461,7 @@ class _OffTheReal:
     steps: "dict[str, int]"
     missed: "dict[str, bool]"
     widened: "dict[str, str]"
+    lengths: "dict[str, dict[int, bool]]"
 
 
 def _off_the_real_room(
@@ -54517,6 +54518,9 @@ def _off_the_real_room(
         steps={},
         missed={},
         widened={},
+        # The lengths widened values holding a letter, and holding none,
+        # are written at (`_widened_template`), the spill's among the second.
+        lengths={"letters": {}, "figures": {len(spill): True} if spill else {}},
     )
 
 
@@ -54587,16 +54591,38 @@ def _widened_template(room: _OffTheReal, layout: str) -> str:
     wanted = room.bound - parsing.merged_length(base)
     uid = _opens_with_a_uid_root(base) or parsing.first_arc_places(base) > 0
     limit = _UID_AT_MOST if uid else _NO_LIMIT
-    lettered = parsing.LAYOUT_UPPER in layout or parsing.LAYOUT_LOWER in layout
+    lettered = False
+    for mark in layout:
+        if mark in (
+            parsing.LAYOUT_UPPER, parsing.LAYOUT_LOWER,
+            parsing.LAYOUT_LOWER_HEX, parsing.LAYOUT_UPPER_HEX,
+        ):
+            lettered = True
+    # NO LENGTH HOLDS WIDENED VALUES OF LETTERS AND OF FIGURES ALONE TOGETHER:
+    # a position holding a letter in one cell and a figure in another, of
+    # one length, is what makes a column read as hexadecimal
+    # (`parsing.layout_convention`), so a widened layout takes the first
+    # length past the spill's (one more where it holds a letter) that the
+    # other kind's widened values do not hold.
+    mine = "letters" if lettered else "figures"
+    other = room.lengths["figures" if lettered else "letters"]
     found = ""
-    for more in ((1, 0) if lettered else (0,)):
+    for more in range(1 if lettered else 0, 9):
         if found or wanted + more < 1:
             continue
         wide = parsing.widened_layout(layout, opening, wanted + more, limit)
+        if wide and len(wide) not in other:
+            template = parsing.layout_template(wide, prefix, room.whole_places)
+            if parsing.merged_length(template) >= room.bound:
+                found = template
+    if not found and lettered and wanted + 1 >= 1:
+        wide = parsing.widened_layout(layout, opening, wanted, limit)
         if wide:
             template = parsing.layout_template(wide, prefix, room.whole_places)
             if parsing.merged_length(template) >= room.bound:
                 found = template
+    if found:
+        room.lengths[mine][len(found)] = True
     room.widened[layout] = found
     return found
 
@@ -54651,6 +54677,10 @@ def _appended_off_the_real(
     if not room.bound:
         return ""
     wanted = max(room.bound - len(parsing.merged_key(core)), 1)
+    # ...at a length no widened value of figures alone holds (`_widened_template`).
+    while len(core) + wanted in room.lengths["figures"] and wanted < 64:
+        wanted = wanted + 1
+    room.lengths["letters"][len(core) + wanted] = True
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     for character in core:
         if "a" <= character <= "z":
@@ -54674,6 +54704,7 @@ def _appended_off_the_real(
         if (
             written in room.written
             or parsing.folded(written) in room.folds
+            or (room.convention == parsing.LAYOUT_PLAIN and _reads_as_hexadecimal(written))
             or not _kept_off_the_real(room, written)
             or _is_a_hole_spelling(written, room.holes)
             or _reads_as_a_date(written)
@@ -54753,6 +54784,17 @@ def _next_off_the_real(
         if search in room.missed:
             return None
     room_of = parsing.layout_room(template)
+    # A VALUE WRITTEN WIDER IN A COLUMN OF PLAIN LAYOUTS never holds letters
+    # of `a` to `f` alone: two such values of one length, a letter in one
+    # where a figure stands in the other, would make the column read as
+    # hexadecimal and rename every layout of it (`parsing.
+    # layout_convention`; lane ID-ROOM's repair, measured on P4-D298's case
+    # 16, where `738886e6` beside `9330816.` did).
+    wider = (
+        room.convention == parsing.LAYOUT_PLAIN
+        and template not in room.stands
+        and all(parsing.classify_number(cell) == parsing.NOT_A_NUMBER for _l, _c, _t, cell in parts)
+    )
     tries = 0
     found: "dict[str, str] | None" = None
     while step < room_of and tries < _OFF_THE_REAL_TRIES and found is None:
@@ -54764,6 +54806,7 @@ def _next_off_the_real(
             or parsing.folded(filled) in room.written
             or parsing.folded(filled) in room.folds
             or not _wears_template(filled, template, room.convention)
+            or (wider and _reads_as_hexadecimal(filled))
         ):
             continue
         taken: "dict[str, str]" = {}
@@ -54795,6 +54838,17 @@ def _next_off_the_real(
         return None
     room.steps[cursor] = step
     return found
+
+
+def _reads_as_hexadecimal(spelling: str) -> bool:
+    """Whether a spelling holds a letter, and every letter it holds is one of `a` to `f` in either case."""
+    letters = 0
+    for character in spelling:
+        if "a" <= character.lower() <= "z":
+            if character.lower() > "f":
+                return False
+            letters = letters + 1
+    return letters > 0
 
 
 def _reads_alike(spelling: str, cell: str) -> bool:

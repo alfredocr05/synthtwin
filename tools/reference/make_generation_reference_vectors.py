@@ -26244,21 +26244,25 @@ def spelled_off_the_real(column, content):
     or any spelling taken before it, wears the template, is itself kept so
     and reads as no absent spelling -- of its layout's excluded template,
     then of its layout widened under its own prefix until its merged key
-    is the spill's length (one placeholder more where it holds a letter
-    and that fits; a UID never past 64 characters), then of the spill --
+    is the spill's length (one placeholder more where it holds a letter,
+    and further at the first length the other kind's widened layouts --
+    of letters, of figures alone, the spill among them -- do not take; a
+    UID never past 64 characters), then of the spill --
     and every cell of the value is written so.  An empty map moves
     nothing.
 
-    THIS ORACLE DOES NOT MODEL five things the product asks of a moved
+    THIS ORACLE DOES NOT MODEL six things the product asks of a moved
     value: that its spelling reads as the value's own class and
     alphabets, each class from its own step; that no date format reads
     it; that the values of one folded identity are spelled together; that
     a value written with spaces around it is spelled on its core; and that
     a value no layout describes is written as itself followed by letters
-    until its merged key is the spill's length.  No frozen case's
-    templates spell another class or a date, and none holds a fold
-    collision, an edge space or a value no layout describes, so a case
-    that did would need them added first.
+    until its merged key is the spill's length; and that a value written
+    wider in a column of plain layouts holds no letters of `a` to `f`
+    alone.  No frozen case's templates spell another class or a date, and
+    none holds a fold collision, an edge space, a value no layout
+    describes or a widened letter, so a case that did would need them
+    added first.
     """
     exclusions = column.get("layout_exclusions") or {}
     if not exclusions:
@@ -26314,7 +26318,14 @@ def spelled_off_the_real(column, content):
             for template in lowered.get(folded_marks(layout_of(core, convention)), [])
         )
 
+    # The lengths widened layouts of letters, and of figures alone, take: no
+    # length holds both kinds, the spill's among the figures'.
+    lengths = {True: set(), False: {len(spill)} if spill else set()}
+    chosen = {}
+
     def widened(layout):
+        if layout in chosen:
+            return chosen[layout]
         prefix = prefixes.get(layout, whole)
         opening = len(prefix_layout(prefix, convention))
         wanted = bound - len(merged_key(stand_in(template_of(layout, prefix))))
@@ -26322,12 +26333,25 @@ def spelled_off_the_real(column, content):
             r"%(\.%+){2,}", layout
         )
         limit = 64 if uid else 1 << 30
-        lettered = LAYOUT_UPPER in layout or LAYOUT_LOWER in layout
-        for more in ((1, 0) if lettered else (0,)):
-            wide = widened_layout(layout, opening, wanted + more, limit)
+        lettered = any(mark in layout for mark in (LAYOUT_UPPER, LAYOUT_LOWER, LAYOUT_LOWER_HEX, LAYOUT_UPPER_HEX))
+        found = ""
+        for more in range(1 if lettered else 0, 9):
+            wide = widened_layout(layout, opening, wanted + more, limit) if wanted + more >= 1 else ""
+            if (
+                wide
+                and len(wide) not in lengths[not lettered]
+                and len(merged_key(stand_in(template_of(wide, prefix)))) >= bound
+            ):
+                found = template_of(wide, prefix)
+                break
+        if not found and lettered:
+            wide = widened_layout(layout, opening, wanted, limit) if wanted >= 1 else ""
             if wide and len(merged_key(stand_in(template_of(wide, prefix)))) >= bound:
-                return template_of(wide, prefix)
-        return ""
+                found = template_of(wide, prefix)
+        if found:
+            lengths[lettered].add(len(found))
+        chosen[layout] = found
+        return found
 
     written = set(content)
     folds = {folded(cell) for cell in content} - written

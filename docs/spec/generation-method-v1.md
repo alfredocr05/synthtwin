@@ -15653,11 +15653,16 @@ reads nothing real to make it so:
    layout widened under its own prefix and noughts until its merged key
    is as long as the spill's (`parsing.widened_layout`: figures after the
    prefix or root, a rootless UID's in its second arc), one character
-   longer still where it holds a letter and that fits (so no widened
-   value of letters shares its length with the widened values of
-   figures, and the column's convention, read over cells of one length,
-   stays), a UID never past the grammar's 64 characters; the spill's
-   template. No value is moved into another named layout, so every count
+   longer still where it holds a letter, and further, to the first length
+   the widened layouts of the other kind -- of letters, of figures alone,
+   the spill among them -- do not take (so no length holds a letter in
+   one widened cell where another holds a figure, and the column's
+   convention, read over cells of one length, stays), a UID never past
+   the grammar's 64 characters; the spill's template. In a column of
+   plain layouts a widened value that is no number never holds letters
+   of `a` to `f` alone, and a value no layout describes is followed by
+   letters at a length no widened value of figures holds, for the same
+   reason. No value is moved into another named layout, so every count
    of a layout carrying an exclusion stays as the walks met it. Only
    where none of these gives one is the spill asked again for a spelling
    of any class, then the spill widened a figure at a time. Every cell of
