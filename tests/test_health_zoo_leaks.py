@@ -393,11 +393,74 @@ def test_every_identifier_copied_into_the_twin_is_counted(tmp_path: pathlib.Path
     assert not missed, missed
 
 
-def test_a_real_value_copied_past_twice_the_most_rows_is_a_copy(tmp_path: pathlib.Path) -> None:
-    """E0c verify of repair 1, item 2 (V6): the copy rule's boundary, a real key on 2 x most + 4 twin cells counts, on 2 x most + 3 not.
+def _just_past_the_range(real: "set[str]", index: int) -> str:
+    """A made-up value JUST past the real range (E0c verify 2's halfnear shape): what a twin drawing evenly over twice the range writes.
 
-    `most` is the most rows any real value holds. Red when the threshold
-    is widened (20 x most + 3 lets the 2 x most + 4 copy pass).
+    Keys of one run of figures between constant marks continue from the
+    highest real key; any other value lies past the control, as
+    `_past_the_control` draws it.
+    """
+    parts = [re.fullmatch(r"(\D*?)(\d+)(\D*)", value) for value in real]
+    marks = {(part.group(1), part.group(3)) for part in parts if part}
+    if real and all(parts) and len(marks) == 1:
+        (before, after), = marks
+        numbers = [int(part.group(2)) for part in parts if part]
+        places = max(len(part.group(2)) for part in parts if part)
+        return f"{before}{max(numbers) + 1 + index:0{places}d}{after}"
+    return _past_the_control(real, index)
+
+
+def test_a_half_copy_beside_keys_just_past_the_range_is_counted(tmp_path: pathlib.Path) -> None:
+    """E0c verify 2 item 1 (HIPAA; LANE E0c RULINGS 2 (1)): half the rows copied, half drawn just past the range, every copied value counts.
+
+    At 600 rows (BELOW THE FLOOR: the library's scan), every 'values'
+    entry of the catalogue has its real cells written as the twin in the
+    even rows and made-up values just past the real range in the odd
+    ones: the twin a draw over twice the range writes, whose made-up
+    half fills the control band. The strict scan counts every distinct
+    real value copied. Red on the mutant "chance allowance restored"
+    (`len(in_twin) <= 2 * chance + 3`): at efac0822 84 of the 93 numeric
+    entries counted 0 of their copied half, 18,352 copied values hidden.
+    """
+    missed: "list[str]" = []
+    for table in zoo.catalogue():
+        header, rows = table.build(zoo.SMOKE_ROWS, zoo.seed_of(table))
+        entries = [column for column, how in zoo.leak_list(table, header) if how == "values"]
+        if not entries:
+            continue
+        folder = tmp_path / table.name
+        source = _write(folder, table, header, rows, "real")
+        profile = _profile(folder, {"columns": []})
+        halved = [list(row) for row in rows]
+        expected: "dict[str, set[str]]" = {}
+        for column in entries:
+            place = header.index(column)
+            cells = [row[place] for row in rows]
+            real = _real_values(cells)
+            made_up = 0
+            for index, row in enumerate(halved):
+                if index % 2:
+                    row[place] = _just_past_the_range(real, made_up)
+                    made_up += 1
+            expected[column] = _real_values(cells[::2])
+        twin = _write(folder, table, header, halved, "halfnear")
+        found = zoo.leaked(table, source, twin, profile)
+        for column in entries:
+            got = found[zoo._leak_key(column, "values")]
+            wanted = expected[column]
+            cells = sum(1 for row in halved if zoo._normal(row[header.index(column)]) in wanted)
+            if got["twin"] != len(wanted) or got["twin_cells"] != cells:
+                missed += [f"{table.name}.{column}: {got['twin']} of {len(wanted)}, {got['twin_cells']} of {cells} cells"]
+    assert not missed, missed
+
+
+def test_one_real_value_met_once_in_the_twin_counts(tmp_path: pathlib.Path) -> None:
+    """LANE E0c RULINGS 2 (1): a real key the twin writes on ONE cell counts, as on 2 x most + 3 cells; no copy threshold.
+
+    `most` is the most rows any real value holds. Red on the mutant
+    "chance allowance restored" (`len(in_twin) <= 2 * chance + 3`, then
+    only a value past 2 x most + 3 cells counts): one cell, and 2 x most
+    + 3 cells, each counted 0 at efac0822.
     """
     import collections
 
@@ -409,13 +472,13 @@ def test_a_real_value_copied_past_twice_the_most_rows_is_a_copy(tmp_path: pathli
     most = max(collections.Counter(zoo._normal(cell) for cell in cells if cell.strip()).values())
     real = _real_values(cells)
     profile = _profile(tmp_path, {"columns": []})
-    for written, counted in ((2 * most + 4, 1), (2 * most + 3, 0)):
+    for written in (1, 2 * most + 3, 2 * most + 4):
         twin_rows = [list(row) for row in rows]
         for index, row in enumerate(twin_rows):
             row[place] = cells[0] if index < written else _past_the_control(real, index)
         twin = _write(tmp_path, table, header, twin_rows, f"twin-{written}")
         found = zoo.leaked(table, source, twin, profile)["med_rec_no"]
-        assert found["twin"] == counted, (written, most, found)
+        assert (found["twin"], found["twin_cells"]) == (1, written), (written, most, found)
 
 
 def test_a_missing_word_is_no_persons_value(tmp_path: pathlib.Path) -> None:
@@ -510,13 +573,17 @@ def test_the_safe_harbor_question_is_answered_as_the_column_truly_is() -> None:
 
     Red on the mutant that answers `yes` only for a column the person
     knows as a record number (lane SH's first form): a ZIP answered
-    `code` would then be told to name nobody.
+    `code` would then be told to name nobody. Since LANE E0c RULINGS 2
+    (2) a ZIP3 area and an age column holding an age over 89 answer
+    `yes` too (each pinned below); an age column whose ages all lie
+    under 90 answers `no`.
     """
     cases = {
         ("patients", "zip5"): "yes", ("patients", "birth_city"): "yes", ("patients", "patient_id"): "yes",
-        ("patients", "dob_us"): "yes", ("patients", "age"): "no", ("immunizations", "udi"): "yes",
-        ("safe_harbor", "birth_year"): "yes", ("safe_harbor", "age_top"): "no", ("vitals", "pulse"): "no",
-        ("vcf_calls", "rsid"): "no",
+        ("patients", "dob_us"): "yes", ("patients", "age"): "yes", ("immunizations", "udi"): "yes",
+        ("safe_harbor", "birth_year"): "yes", ("safe_harbor", "age_top"): "yes", ("vitals", "pulse"): "no",
+        ("vcf_calls", "rsid"): "no", ("safe_harbor", "zip3"): "yes", ("edge_columns", "age_years"): "no",
+        ("well_child", "age_text"): "no", ("prenatal_visits", "gest_age_wd"): "no",
     }
     for (name, column), wanted in cases.items():
         table = zoo.table_named(name)
@@ -524,3 +591,136 @@ def test_the_safe_harbor_question_is_answered_as_the_column_truly_is() -> None:
         asked, general = zoo.answer_generally(table, document)
         assert asked[0]["given"] == wanted, (name, column, asked)
         assert general, (name, column)
+
+
+def test_a_zip3_area_names_a_place_smaller_than_a_state() -> None:
+    """LANE E0c RULINGS 2 (2): safe_harbor.zip3 ('021**') is answered `yes`, though the leak scan does not read it.
+
+    `NOT_READ` still keeps the column out of the scan (its three figures
+    and '**' are the Safe Harbor form itself); a later ZIP3 allowlist of
+    areas over 20,000 people is lane CODES-2's. Red on the mutant that
+    lets `NOT_READ` answer the Safe Harbor question too (efac0822's
+    `names_a_safe_harbor_element`, which answered `no`).
+    """
+    table = zoo.table_named("safe_harbor")
+    assert "zip3" in zoo.NOT_READ and "zip3" not in {column for column, _how in zoo.leak_list(table, ["zip3"])}
+    assert zoo.names_a_safe_harbor_element(table, "zip3") is True
+    asked, _general = zoo.answer_generally(table, _safe_harbor_question("zip3"))
+    assert asked[0]["given"] == "yes", asked
+
+
+def test_an_age_column_holding_an_age_over_89_answers_yes() -> None:
+    """LANE E0c RULINGS 2 (2): patients.age holds ages of 90 and over, so the Safe Harbor question is answered `yes` and the top-code stays.
+
+    The answer follows the person's table: `ages_over_89` names the age
+    columns with an age over 89 (patients.age, safe_harbor.age_top),
+    none of edge_columns.age_years (18 to 89); handed an empty set, the
+    same column answers `no`. Red on the mutant that answers every age
+    `no` (efac0822's "ages over 89" exclusion), and on the one that
+    answers every age `yes`.
+    """
+    patients = zoo.table_named("patients")
+    header, rows = patients.build(zoo.SMOKE_ROWS, zoo.seed_of(patients))
+    assert "age" in zoo.ages_over_89(header, rows)
+    edge = zoo.table_named("edge_columns")
+    assert "age_years" not in zoo.ages_over_89(*edge.build(zoo.SMOKE_ROWS, zoo.seed_of(edge)))
+    asked, _general = zoo.answer_generally(patients, _safe_harbor_question("age"), zoo.ages_over_89(header, rows))
+    assert asked[0]["given"] == "yes", asked
+    asked, _general = zoo.answer_generally(patients, _safe_harbor_question("age"), frozenset())
+    assert asked[0]["given"] == "no", asked
+    asked, _general = zoo.answer_generally(edge, _safe_harbor_question("age_years"))
+    assert asked[0]["given"] == "no", asked
+    assert zoo.ages_over_89(["age"], [["89"], ["90 years"], [""]]) == frozenset({"age"})
+    assert zoo.ages_over_89(["age"], [["89"], ["89.9"], ["UNK"], ["1203"]]) == frozenset()
+
+
+# -- every round of the questions file answered ----------------------------------------------
+
+
+def test_a_question_put_after_another_answer_is_answered(tmp_path: pathlib.Path) -> None:
+    """LANE E0c RULINGS 2 (3): run_table answers every round until no new question is put.
+
+    The real product: titled_report's header is found only once the
+    title rows are answered, and the next round puts report_ref's
+    question, which the zoo answers `identifier`. Red on the one-round
+    mutant (efac0822's run_table: one answer_generally, one profile
+    --answers), under which report_ref stayed unanswered.
+    """
+    table = zoo.table_named("titled_report")
+    result = zoo.run_table(table, tmp_path, zoo.SMOKE_ROWS, zoo.seed_of(table))
+    given = [(entry["column"], entry["given"]) for entry in result["asked"]]
+    assert result["answer_rounds"] == 2, (result["answer_rounds"], given)
+    assert ("report_ref", "identifier") in given, given
+    assert all(step["exit"] == 0 for step in result["steps"].values()), result["steps"]
+
+
+def _put_after_each_answer(monkeypatch: pytest.MonkeyPatch, put: "object") -> "list[tuple[str, str]]":
+    """Run the real commands, and after each profile --answers put the questions `put(round)` returns.
+
+    The questions this test put are taken out again before the product
+    reads the file, so the product meets only its own; the answers the
+    zoo gave them are returned, in order.
+    """
+    quietly = zoo._quietly
+    given: "list[tuple[str, str]]" = []
+    rounds = [0]
+
+    def answering(arguments: "list[str]", small_tables_refused: bool = False) -> "tuple[int, str]":
+        if "--answers" not in arguments:
+            return quietly(arguments, small_tables_refused)
+        path = pathlib.Path(arguments[arguments.index("--answers") + 1])
+        document = json.loads(path.read_text(encoding="utf-8"))
+        ours = [entry for entry in document.get("asked") or [] if entry.get("put_by_this_test")]
+        given.extend([(f"{entry.get('column') or entry.get('subject')}", f"{entry.get('your_answer')}") for entry in ours])
+        document["asked"] = [entry for entry in document.get("asked") or [] if not entry.get("put_by_this_test")]
+        path.write_text(json.dumps(document, indent=2), encoding="utf-8", newline="\n")
+        code, error = quietly(arguments, small_tables_refused)
+        rounds[0] += 1
+        document = json.loads(path.read_text(encoding="utf-8"))
+        document["asked"] = (document.get("asked") or []) + put(rounds[0])  # type: ignore[operator]
+        path.write_text(json.dumps(document, indent=2), encoding="utf-8", newline="\n")
+        return code, error
+
+    monkeypatch.setattr(zoo, "_quietly", answering)
+    return given
+
+
+def test_the_safe_harbor_question_that_follows_a_code_answer_is_answered(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path,
+) -> None:
+    """LANE E0c RULINGS 2 (3) with LANE SH ADDENDUM 7: zip5 answered `code`, then put the Safe Harbor question, is answered `yes`.
+
+    The follow-up question is put by this test after the first profile
+    --answers, as lane SH's product puts it (not on this base); the next
+    round answers it truthfully and the run stops when no new question
+    is put. Red on the one-round mutant (the question left unanswered).
+    """
+    def safe_harbor(round_: int) -> "list[dict]":
+        if round_ != 1:
+            return []
+        question = _safe_harbor_question("zip5")["asked"][0]
+        return [{**question, "your_answer": "", "put_by_this_test": True}]
+
+    given = _put_after_each_answer(monkeypatch, safe_harbor)
+    table = zoo.table_named("patients")
+    result = zoo.run_table(table, tmp_path, 150, zoo.seed_of(table))
+    assert given == [("zip5", "yes")], given
+    assert result["answer_rounds"] == 2, result["answer_rounds"]
+    assert ("zip5", "code") in [(entry["column"], entry["given"]) for entry in result["asked"]]
+    assert ("zip5", "yes") in [(entry["column"], entry["given"]) for entry in result["asked"]]
+
+
+def test_the_rounds_of_answers_are_bounded(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    """A questions file that puts a new question after every answer is answered ANSWER_ROUNDS_AT_MOST rounds, then the run goes on."""
+    def another(round_: int) -> "list[dict]":
+        return [{
+            "subject": f"the file, round {round_}", "put_by_this_test": True, "your_answer": "",
+            "answers_you_can_give": [{"answer": "no", "means": "none of these"}, {"answer": "yes", "means": "one"}],
+        }]
+
+    given = _put_after_each_answer(monkeypatch, another)
+    table = zoo.table_named("patients")
+    result = zoo.run_table(table, tmp_path, 150, zoo.seed_of(table))
+    assert result["answer_rounds"] == zoo.ANSWER_ROUNDS_AT_MOST, result["answer_rounds"]
+    assert len(given) == zoo.ANSWER_ROUNDS_AT_MOST - 1, given
+    assert result["steps"]["generate"]["exit"] == 0, result["steps"]

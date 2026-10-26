@@ -204,13 +204,18 @@ def test_the_leak_scan_sees_a_real_value(tmp_path: pathlib.Path) -> None:
     assert counted["zip5"]["description"] == 0, "a count is not a value"
 
 
-def test_made_up_keys_meeting_real_ones_by_chance_are_told_from_a_copy(tmp_path: pathlib.Path) -> None:
-    """A twin of keys drawn in a range real keys fill meets them by chance; a copy of a few real keys is a leak.
+def test_made_up_keys_meeting_real_ones_are_counted_strictly(tmp_path: pathlib.Path) -> None:
+    """A twin of keys drawn in a range real keys fill meets them: every real key met counts, chance or not.
 
-    The control (the real keys moved past their range by its width) meets
-    the twin as often as chance does, so the drawn twin counts nothing;
-    the twin that copies twenty real keys and draws the rest past the
-    range counts all twenty.
+    THE ZOO'S TWIN IDENTIFIER CHECK IS STRICT (the orchestrator's LANE
+    E0c RULINGS 2 (1)): no twin identifier equals a real one by
+    construction, so the drawn twin counts every real key it meets, and
+    the control (the real keys moved past their range by its width) is
+    recorded beside it as `twin_by_chance`, subtracting nothing; the
+    twin that copies twenty real keys and draws the rest past the range
+    counts all twenty. Red on the mutant "chance allowance restored"
+    (`len(in_twin) <= 2 * chance + 3`), under which the drawn twin
+    counted nothing.
     """
     import dataclasses
     import random
@@ -229,8 +234,11 @@ def test_made_up_keys_meeting_real_ones_by_chance_are_told_from_a_copy(tmp_path:
         row[place] = f"{draw.randint(100000, 103599)}"
     drawn = tmp_path / "drawn.csv"
     drawn.write_bytes(table.write(header, rows))
+    real_keys = {f"{100000 + index * 3}" for index in range(len(rows))}
+    met = {row[place] for row in rows} & real_keys
     by_chance = _counted(zoo.leaked(table, real, drawn, profile))["patient_id"]
-    assert by_chance["twin"] == 0 and by_chance["twin_by_chance"] > 0, by_chance
+    assert met and by_chance["twin"] == len(met) and by_chance["twin_by_chance"] > 0, (len(met), by_chance)
+    assert by_chance["twin_cells"] == sum(1 for row in rows if row[place] in met), by_chance
     for index in range(len(rows)):
         rows[index][place] = f"{100000 + index * 3}" if index < 20 else f"{200000 + index}"
     copied = tmp_path / "copied.csv"
@@ -250,10 +258,12 @@ def test_made_up_keys_meeting_real_ones_by_chance_are_told_from_a_copy(tmp_path:
         row[place] = f"MR{draw.randint(4000000, 4001199)}"
     drawn.write_bytes(table.write(header, rows))
     marked = _counted(zoo.leaked(table, real, drawn, profile))["patient_id"]
-    assert marked["twin"] == 0 and marked["twin_by_chance"] > 0, marked
+    marked_met = {row[place] for row in rows} & {f"MR{4000000 + index}" for index in range(len(rows))}
+    assert marked_met and marked["twin"] == len({zoo._normal(key) for key in marked_met}), (len(marked_met), marked)
+    assert marked["twin_by_chance"] > 0, marked
     assert zoo._by_chance({"maria chen", "mr1"}, ["maria chen"]) == (False, 0), "no control where the values are not numbers"
-    # A number in scientific notation met once by chance: the control is
-    # drawn, and one match under it is not a copy.
+    # A number in scientific notation met once: the control is drawn
+    # (an informational figure since the strict ruling).
     assert zoo._by_chance({zoo._normal("4.56789E+11"), zoo._normal("1.23457E+11")}, [zoo._normal("4.56789E+11")])[0] is True
 
 

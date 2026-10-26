@@ -3319,6 +3319,7 @@ BY_DESIGN = (
 )
 LEAK_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     "demographics": (
+        ("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak patient_id")),
         ("PS2", PS2_BIRTH_DATES, covers(*_leaks("dob_iso", "dob_us", "dob_text"))),
         ("SH2", SH2_YEARS, covers(*_leaks("dob_iso years", "dob_us years", "dob_text years"))),
         ("SH", SH_ZIPS, covers(*_leaks("zip5", "zip4"))),
@@ -3335,6 +3336,13 @@ LEAK_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     "sql_server_export": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers(*_leaks("record_no"))),),
     "tumor_registry": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers(*_leaks("tumor_id"))),),
     "title_rows_above_header": (("CODES-3", PREFIXED_SEQUENCE, covers(*_leaks("report_ref"))),),
+    # THE ZOO'S TWIN IDENTIFIER CHECK IS STRICT (LANE E0c RULINGS 2 (1)):
+    # the made-up keys equal to real ones the strict scan counts, ID-ROOM's.
+    "encounters": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak patient_id", "leak enc_id")),),
+    "epic_caboodle": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak PatientDurableKey", "leak EncounterKey")),),
+    "cerner_ccl": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak ENCNTR_ID", "leak PERSON_ID")),),
+    "fhir_flattened": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak id", "leak subject_reference")),),
+    "undeclared_record_number_long": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak visit_ref")),),
     "immunizations_providers": (
         ("SH2", SH2_DEVICES, covers(*_leaks("udi"))),
         ("SH", BY_DESIGN, covers(columns=("udi",))),
@@ -3357,6 +3365,7 @@ LEAK_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
         ("SH", BY_DESIGN, covers(columns=("zip_lost",))),
     ),
     "phi_columns": (
+        ("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak med_rec_no")),
         ("PS2", PS2_BIRTH_DATES, covers(*_leaks("birth_date"))),
         ("SH2", SH2_YEARS, covers(*_leaks("birth_date years"))),
         ("SH", SH_ZIPS, covers(*_leaks("zip5"))),

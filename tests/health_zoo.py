@@ -56,7 +56,6 @@ table.
 
 from __future__ import annotations
 
-import collections
 import contextlib
 import csv
 import dataclasses
@@ -2715,7 +2714,9 @@ def prose(value: object) -> "list[str]":
     return found
 
 
-def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]":
+def answer_generally(
+    table: Table, document: "dict", old_ages: "frozenset[str] | None" = None,
+) -> "tuple[list[dict], bool]":
     """Fill a questions file the way the person who holds the table would.
 
     The answers are GENERAL facts about the data: which column is a
@@ -2733,6 +2734,9 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
     export's SNOMED ids -- is answered `code` there, in the one round.
     Returns what was asked -- column (or subject), the answers offered
     and the answer given -- and whether every question was general.
+    `old_ages` names the age columns of the person's table that hold an
+    age over 89 (`ages_over_89`, for the Safe Harbor question); where it
+    is not given it is read from the table built at the smoke size.
 
     A question is general when every answer it offers is about the data
     AND none of the prose that asks it -- the entry's own sentences
@@ -2774,9 +2778,13 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
         # for a ZIP, a city or another place smaller than a state, a device
         # number, a birth year or date, a name, an address, a telephone or
         # social security number, and a record, account or person key;
-        # `no` for a measurement, a count, a code or a category.
+        # `no` for a measurement, a count, a code or a category. A ZIP3
+        # area ('021**') and an age column holding an age over 89 are
+        # answered `yes` too (LANE E0c RULINGS 2 (2), 2026-10-25 16:36).
         if not given and column in every_column and sorted(offered) == ["no", "yes"]:
-            given = "yes" if names_a_safe_harbor_element(table, column) else "no"
+            if old_ages is None and _is_an_age(column):
+                old_ages = ages_over_89(*table.build(SMOKE_ROWS, seed_of(table)))
+            given = "yes" if names_a_safe_harbor_element(table, column, old_ages) else "no"
         entry["your_answer"] = given
         words = " ".join(prose(entry) + [framing] + ([checklist_words] if id(entry) in listed else []))
         this_general = all(
@@ -2834,10 +2842,34 @@ def _floor_refused(arguments: "list[str]", small_tables_refused: bool, code: int
     return _quietly(arguments, False)[0] == 0
 
 
+# The rounds of answers `run_table` gives at most: the questions a later
+# round puts follow an earlier answer (P4-D408's rounds), and a file that
+# kept putting new questions past this would be a fault to see, not a
+# loop to wait on.
+ANSWER_ROUNDS_AT_MOST = 6
+
+
+def _question_key(entry: "dict") -> "tuple[str, tuple[str, ...]]":
+    """What makes a question the same question in a later round: what it asks about and the answers it offers."""
+    about = f"{entry.get('column') or entry.get('subject') or entry.get('about') or ''}"
+    return about, tuple(sorted(_offered(entry)))
+
+
+def _keep_the_most(kept: "dict[str, dict]", found: "dict[str, dict]") -> None:
+    """Merge one reading into the leaks kept: each count the most any reading of its entry gave (HIPAA first)."""
+    for key, entry in found.items():
+        if key not in kept:
+            kept[key] = entry
+            continue
+        for count in ("description", "twin", "twin_cells", "twin_by_chance"):
+            if count in entry:
+                kept[key][count] = max(kept[key].get(count, 0), entry[count])
+
+
 def run_table(
     table: Table, folder: pathlib.Path, n: int, seed: int, small_tables_refused: bool = False,
 ) -> "dict":
-    """profile, the general answers, profile --answers, generate, validate, the analyst.
+    """profile, the general answers and profile --answers round by round, generate, validate, the analyst.
 
     Every step is recorded, and a step that fails stops the ones that
     need its output. Nothing is retried and nothing is repaired: a step
@@ -2858,6 +2890,7 @@ def run_table(
     header, rows = table.build(n, seed)
     source = folder / f"{table.name}{table.suffix}"
     source.write_bytes(table.write(header, rows))
+    old_ages = ages_over_89(header, rows)
     stem = table.name
     profile_path = folder / f"{stem}-profile.json"
     questions_path = folder / f"{stem}-questions.json"
@@ -2885,21 +2918,43 @@ def run_table(
     unanswered.write_bytes(profile_path.read_bytes())
     real_raw = table.read(source)["raw"]
     result["leaks"] = leaked(table, source, None, unanswered, stage="unanswered", real_raw=real_raw)
-    document = json.loads(questions_path.read_text(encoding="utf-8"))
-    asked, general = answer_generally(table, document)
-    result["asked"] = asked
-    result["general"] = general
-    questions_path.write_text(json.dumps(document, indent=2), encoding="utf-8", newline="\n")
-    arguments = ["profile", f"{source}", "--replace", "--answers", f"{questions_path}"]
-    code, error = _quietly(arguments, small_tables_refused)
-    steps["answers"] = {"exit": code, "error": error}
-    if code != 0:
-        if _floor_refused(arguments, small_tables_refused, code):
-            result["refused_by_floor"] = "answers"
-        result["seconds"] = time.perf_counter() - started
-        return result
-
-    result["leaks"].update(leaked(table, source, None, profile_path, real_raw=real_raw))
+    # EVERY ROUND IS ANSWERED (the orchestrator's LANE E0c RULINGS 2 (3),
+    # AQ's rounds, plan P4-D408): a question the product puts only after
+    # another answer -- the Safe Harbor question that follows a ZIP's
+    # `code` (LANE SH ADDENDUM 7), a column's question once the title
+    # rows are answered -- is answered as the first round's are, until
+    # the questions file puts no new unanswered question, at most
+    # `ANSWER_ROUNDS_AT_MOST` rounds. Each round's description is read
+    # for real values, the most each entry published kept.
+    put: "set[tuple[str, tuple[str, ...]]]" = set()
+    result["asked"] = []
+    result["general"] = True
+    result["answer_rounds"] = 0
+    first = True
+    while result["answer_rounds"] < ANSWER_ROUNDS_AT_MOST:
+        document = json.loads(questions_path.read_text(encoding="utf-8"))
+        entries = _entries(document)
+        new = [entry for entry in entries if _question_key(entry) not in put and not f"{entry.get('your_answer') or ''}"]
+        if not first and not new:
+            break
+        asked, general = answer_generally(table, document, old_ages)
+        result["asked"] += [
+            question for entry, question in zip(entries, asked) if _question_key(entry) not in put
+        ]
+        result["general"] = result["general"] and general
+        put |= {_question_key(entry) for entry in entries}
+        questions_path.write_text(json.dumps(document, indent=2), encoding="utf-8", newline="\n")
+        arguments = ["profile", f"{source}", "--replace", "--answers", f"{questions_path}"]
+        code, error = _quietly(arguments, small_tables_refused)
+        steps["answers"] = {"exit": code, "error": error}
+        result["answer_rounds"] += 1
+        first = False
+        if code != 0:
+            if _floor_refused(arguments, small_tables_refused, code):
+                result["refused_by_floor"] = "answers"
+            result["seconds"] = time.perf_counter() - started
+            return result
+        _keep_the_most(result["leaks"], leaked(table, source, None, profile_path, real_raw=real_raw))
 
     code, error = _quietly(["generate", f"{profile_path}", "--replace", "--seed", "0"], small_tables_refused)
     steps["generate"] = {"exit": code, "error": error}
@@ -2911,7 +2966,7 @@ def run_table(
     if code != 0 or not twin.is_file():
         result["seconds"] = time.perf_counter() - started
         return result
-    result["leaks"].update(leaked(table, source, twin, profile_path, real_raw=real_raw))
+    _keep_the_most(result["leaks"], leaked(table, source, twin, profile_path, real_raw=real_raw))
     del real_raw
 
     seen: "list[object]" = []
@@ -2990,21 +3045,59 @@ REF_YEAR = 2024
 OLDEST_YEAR_SHOWN = REF_YEAR - 90
 
 
-def names_a_safe_harbor_element(table: Table, column: str) -> bool:
+# Columns `NOT_READ` keeps out of the leak scan that still name a Safe
+# Harbor element, so the zoo answers the Safe Harbor question `yes` for
+# them (the orchestrator's LANE E0c RULINGS 2 (2)): a three-figure ZIP
+# area ('021**') names a place smaller than a state; a later Safe Harbor
+# ZIP3 allowlist of areas over 20,000 people is lane CODES-2's.
+SAFE_HARBOR_THOUGH_NOT_READ = frozenset({"zip3"})
+
+
+def _is_an_age(column: str) -> bool:
+    """Whether a Safe Harbor name rule reads the column as an age alone."""
+    return any(pattern.search(column) and modes == ("ages over 89",) for pattern, modes, _what in SENSITIVE_NAMES)
+
+
+def ages_over_89(header: "list[str]", rows: "list[list[str]]") -> "frozenset[str]":
+    """The age columns (`_is_an_age`) whose cells hold an age over 89: a cell whose leading whole years are 90 to 149."""
+    held: "set[str]" = set()
+    for place, column in enumerate(header):
+        if column in NOT_READ or not _is_an_age(column):
+            continue
+        for row in rows:
+            match = re.match(r"\s*(\d{2,3})(?!\d)", row[place]) if place < len(row) else None
+            if match and 90 <= int(match.group(1)) < 150:
+                held |= {column}
+                break
+    return frozenset(held)
+
+
+def names_a_safe_harbor_element(table: Table, column: str, old_ages: "frozenset[str] | None" = None) -> bool:
     """Whether a column truly holds one of Safe Harbor's elements, as the zoo answers the Safe Harbor question.
 
-    A record, account or person key (answered `identifier`), and every
-    column a Safe Harbor name rule reaches but an age's: an age is a
-    measurement, which Safe Harbor's top-code pools past 89 whatever the
-    answer.
+    A record, account or person key (answered `identifier`), every
+    column a Safe Harbor name rule reaches, a three-figure ZIP area
+    (`SAFE_HARBOR_THOUGH_NOT_READ`), and an age column that holds an age
+    over 89 (45 CFR 164.514(b)(2)(i)(C): the ages past 89 are Safe
+    Harbor's to pool, so the top-code stays; the orchestrator's LANE E0c
+    RULINGS 2 (2)). An age column whose ages all lie under 90 is a
+    measurement: `no`. `old_ages` names the age columns holding such an
+    age on the table the person holds (`ages_over_89`); where it is not
+    given it is read from the table built at the smoke size.
     """
+    if column in SAFE_HARBOR_THOUGH_NOT_READ:
+        return True
     if column in NOT_READ:
         return False
     if table.knows.get(column) == "identifier":
         return True
-    return any(
-        pattern.search(column) and modes != ("ages over 89",) for pattern, modes, _what in SENSITIVE_NAMES
-    )
+    if any(pattern.search(column) and modes != ("ages over 89",) for pattern, modes, _what in SENSITIVE_NAMES):
+        return True
+    if not _is_an_age(column):
+        return False
+    if old_ages is None:
+        old_ages = ages_over_89(*table.build(SMOKE_ROWS, seed_of(table)))
+    return column in old_ages
 
 
 def leak_list(table: Table, header: "list[str]") -> "tuple[tuple[str, str], ...]":
@@ -3227,18 +3320,19 @@ def leaked(
     twin (a description read before the next step, `stage`
     'unanswered'), only the description is read.
 
-    A TWIN OF MADE-UP NUMBERS MEETS REAL ONES BY CHANCE where the real
-    keys fill their range (5,000 durable keys from 100000 to 104999, a
-    twin of six-figure keys): so where every real value is a number, the
-    twin is read against a CONTROL as well (`_by_chance`: the real
-    values moved past the real range, which no real value holds; never
-    the twin's own values inside the range, which a copy fills), and
-    `twin_by_chance` says what chance gives. The twin's real values all
-    count (`twin`) when they pass twice that and three more; within it,
-    a real value still counts when the twin writes it on more cells than
-    twice the most rows any real value holds, and three more (Codex item
-    1: one real key copied onto every row is a copy, whatever chance
-    gives); the description's are counted exactly.
+    THE TWIN IS READ STRICTLY (the orchestrator's LANE E0c RULINGS 2
+    (1), 2026-10-25 16:36; E0c verify 2 item 1): every twin cell equal
+    to a real value of its column counts, with NO chance allowance:
+    `twin` is the number of distinct real values the twin meets and
+    `twin_cells` the cells holding one, whatever chance gives. No twin
+    identifier equals a real one by construction (lane ID-ROOM, plan
+    P4-D432), so a made-up key that meets a real key where the real keys
+    fill their room is counted as the copy is. Where every real value is
+    a number, `twin_by_chance` still says what a CONTROL meets
+    (`_by_chance`: the real values moved past the real range, which no
+    real value holds): an informational figure only, which no count
+    subtracts, kept until BATCH 4k retires it when ID-ROOM merges. The
+    description's values are counted exactly.
     """
     raw = table.read(source)["raw"] if real_raw is None else real_raw
     twin_raw = table.read(twin)["raw"] if twin is not None else None
@@ -3275,14 +3369,9 @@ def leaked(
             entry["description"] = len(real & set(said))
             normal_twin = [_normal(cell) for cell in twin_cells] if how == "values" else []
             in_twin = real & set(normal_twin)
-            drawn, chance = _by_chance(real, normal_twin)
-            if drawn and len(in_twin) <= 2 * chance + 3:
-                # Within what chance gives, a real value still counts when
-                # the twin writes it on more cells than any real value
-                # holds rows, twice over and three more (Codex item 1).
-                written = collections.Counter(cell for cell in normal_twin if cell in in_twin)
-                most = max(collections.Counter(_normal(cell) for cell in real_cells if cell.strip()).values())
-                in_twin = {value for value, cells in written.items() if cells > 2 * most + 3}
+            # Strict (RULINGS 2 (1)): every real value met counts; the
+            # control's matches are recorded beside it, never subtracted.
+            _drawn, chance = _by_chance(real, normal_twin)
             cells = sum(1 for cell in normal_twin if cell in in_twin)
             entry.update({"twin": len(in_twin), "twin_cells": cells, "twin_by_chance": chance})
         found[_leak_key(column, how, stage)] = entry
@@ -3291,6 +3380,11 @@ def leaked(
 
 def _by_chance(real: "set[str]", twin: "list[str]") -> "tuple[bool, int]":
     """Whether a CONTROL is drawn, and the distinct real values the twin meets by chance: the control's matches.
+
+    INFORMATIONAL ONLY since the orchestrator's LANE E0c RULINGS 2 (1):
+    `leaked` records it as `twin_by_chance` and subtracts it from no
+    count (the twin is read strictly); BATCH 4k retires it when lane
+    ID-ROOM merges.
 
     The control is the real numbers moved past their range -- figures by
     the range's width, numbers by twice their spread -- so none of it is
