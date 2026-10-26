@@ -53,14 +53,16 @@ UID = re.compile(r"[012](\.(0|[1-9]\d*))+")
 
 # EVERY SHAPE AT 600 ROWS, AND ONE CASE A WRITER AT 20,000 ROWS (the orchestrator's rule of
 # 2026-10-26 11:06: a test file adds at most three minutes to the suite, and checks at 20,000 rows go
-# into a KPI driver or one case a writer). The excluded template (`random_seven_figures`), the spill
-# and the widened layouts (`sequential_from_one`), a UID root (`uid_752`), the merged key across two
-# zero fills (`pad_split`, validated), a stray cell beside an empty census (`outlier_long`,
-# validated), a nought after a prefix (`p_five`) and a person's rows (`cerner_person_on_three_rows`).
+# into a KPI driver or one case a writer). The spill and the widened layouts (`sequential_from_one`),
+# a UID root (`uid_752`), the merged key across two zero fills (`pad_split`, validated), values
+# widened beside a layout keeping its exclusion (`pad_mixed`, validated: V4.1-A2), a stray cell
+# beside an empty census (`outlier_long`, validated), a nought after a prefix (`p_five`), a key's
+# case split across its letters (`letter_case_halves`) and a person's rows
+# (`cerner_person_on_three_rows`).
 # Every shape at 20,000 rows, the answered shapes at 20,000 rows, the validated shapes and three at
 # 200,000 rows are K-HZ-06's (tools/measurements/kpi_identifier_room.py, kpi_run --slow).
-AT_20000 = ("random_seven_figures", "sequential_from_one", "uid_752", "pad_split", "outlier_long",
-            "p_five", "cerner_person_on_three_rows")
+AT_20000 = ("sequential_from_one", "uid_752", "pad_split", "pad_mixed", "outlier_long", "p_five",
+            "letter_case_halves", "cerner_person_on_three_rows")
 
 _SEEN: "dict[tuple[str, int, str, bool], dict[str, object]]" = {}
 
@@ -451,6 +453,9 @@ def test_the_merged_key_is_the_one_the_product_counts_people_by() -> None:
         assert parsing.merged_key(cell) == profile._subject_key(cell), cell
     assert parsing.merged_key("P0013736") == parsing.merged_key("P13736") == "p13736"
     assert parsing.merged_key("009297784") == parsing.merged_key("9297784")
+    # Case folded and spaces dropped, edge spaces too (skeptic 1, item 8: M2 and M5).
+    assert parsing.merged_key(" Rec 7 ") == parsing.merged_key("REC7") == parsing.merged_key("rec-7") == "rec7"
+    assert parsing.merged_key(" 1000003") == parsing.merged_key("1000003 ") == "1000003"
     assert parsing.merged_places("REC%%%%") == (0, 1, 2, 3, 4, 5, 6)
     assert parsing.merged_places("!!%%%") == (-1, -1, 0, 1, 2)
     assert parsing.merged_places("@-%%") == (0, -1, 1, 2)
