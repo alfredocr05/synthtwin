@@ -612,13 +612,34 @@ def test_a_block_passes_over_no_spelling_fewer_than_the_floors_keys_hold() -> No
 def test_no_block_writes_a_nought_where_it_opens_a_run_of_figures() -> None:
     """A block's spelling never opens a run of figures with a nought (skeptic 1 of lane ID-ROOM, M0).
 
-    The nine hundred three-figure values `100` to `999` hold every spelling of the block's two
-    places, the last and the first, but those whose first figure is a nought: a twin value written
-    `0%9` would merge with a real `%9`, so the layout carries none. Mutant: the block's test of a
-    leading nought removed, and `0%9` is published.
+    The nine hundred three-figure values `100` to `999`, twice each, hold every spelling of the
+    block's two places, the last and the first, on twenty keys, but those whose first figure is a
+    nought: a twin value written `0%9` would merge with a real `%9`, so the layout carries none.
+    Mutant: the block's test of a leading nought removed, and `0%9` is published.
     """
-    cells = [f"{value}" for value in range(100, 1000)]
-    assert taxonomy._exclusion_of(cells, "%%%", "%%%", "", FLOOR, 900, 10, 0, {}) == []
+    cells = [f"{value}" for value in range(100, 1000)] * 2
+    assert taxonomy._exclusion_of(cells, "%%%", "%%%", "", FLOOR, 1800, 10, 0, {}) == []
+
+
+def test_a_value_dropping_a_nought_before_the_written_place_is_spelled_again() -> None:
+    """A walk's value that wears an excluded template only by a nought its merged key drops is moved.
+
+    `P09123` wears `P%9%%%`, but its merged key, `p9123`, holds the `9` one place earlier, where the
+    exclusion says nothing (skeptic 1 of lane ID-ROOM, item 3 (a): `P0013736` beside a real
+    `P13736`). The final pass keeps a value only where its merged key holds the written characters
+    at their places. Mutant: a value kept on wearing the template alone, and `P09123` stays.
+    """
+    cells = ["P09123", "P19123", "P29123", "P39456", "P49789"]
+    facts = contract.IdentifierFacts(
+        min_length=6, max_length=6, all_whole_numbers=False, n_all_digits=0, n_code_alphabet=5,
+        n_distinct_by_occurrences={"1": 5}, layout_forms={"@%%%%%": 5},
+        layout_prefixes={parsing.PREFIX_OF_THE_COLUMN: "P"},
+        layout_exclusions={"@%%%%%": ("@%9%%%",), parsing.EXCLUSION_SPILL: ("@%%%%%%",)},
+    )
+    column = types.SimpleNamespace(name="key", time_grain=None)
+    written, _remarks = generation._spelled_off_the_real(column, facts, cells, ())  # type: ignore[arg-type]
+    assert written[0] != "P09123" and written[1:] == cells[1:], written
+    assert all(parsing.merged_key(cell)[2] == "9" for cell in written), written
 
 
 def test_the_loader_refuses_an_exclusion_that_does_not_fit_its_layout(tmp_path: pathlib.Path) -> None:
