@@ -201,6 +201,16 @@ SHAPES: "dict[str, tuple[object, bool]]" = {
         lambda k, d: ("A" + "-" * 59 if k % 800 < 400 else "B" + "_" * 59) + str(100 + k % 400), True,
     ),
     "sixty_four_characters": (lambda k, d: "Q" * 61 + str(100 + k % 800), True),
+    # -- the orchestrator's ruling 2 of 2026-10-25 (lane SH's verify 3, 'New shapes'): a held ZIP
+    # column's made-up values in its layouts -- every cell ZIP+4, and three in ten. Lane SH's ZIP hold
+    # is not on this lane's base, where the unanswered column is read as free text, so these are
+    # DECLARED, which writes them as the hold does: made-up values in the column's own layouts.
+    "zip_plus_four": (lambda k, d: f"{52240 + 7 * d.random.randrange(40)}-{d.random.randint(1000, 9999)}", True),
+    "zip_plus_four_thirty": (
+        lambda k, d: (lambda z: f"{z}-{d.random.randint(1000, 9999)}" if d.random.random() < 0.3 else z)(
+            f"{52240 + 7 * d.random.randrange(40)}"),
+        True,
+    ),
 }
 
 # Shapes the gate validates too, at 20,000 rows (exit 0): the twin keeps its own validation where

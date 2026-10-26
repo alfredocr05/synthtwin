@@ -22210,6 +22210,7 @@ def _identifier_checks(
         census,
         wider,
         floor,
+        present,
     )
     checks = checks + _prefix_checks(name, facts, present)
     checks = checks + _uid_grammar_checks(name, facts, present)
@@ -22280,6 +22281,7 @@ def _written_wider_forms(
     census: "dict[str, int]",
     wider: int,
     floor: int,
+    present: "list[str]",
 ) -> "list[Check]":
     """The census entries a record number's twin left by writing values wider, authorized (P4-D432).
 
@@ -22293,11 +22295,20 @@ def _written_wider_forms(
     """
     if not wider:
         return checks
+    # Every cell counted under its own layout, a count under the floor
+    # included: the arithmetic below prints none of them.
+    convention = parsing.layout_convention(present)
+    worn: "dict[str, int]" = {}
+    for cell in present:
+        layout = parsing.layout_form(cell, convention)
+        worn[layout] = (worn[layout] if layout in worn else 0) + 1
     short = 0
     for check in checks:
         layout = check.subcheck[len("forms.published."):]
         if check.verdict == MISSED and layout in owed:
-            found = census[layout] if layout in census else 0
+            found = census[layout] if layout in census else (
+                worn[layout] if layout in worn else 0
+            )
             if found >= owed[layout]:
                 return checks
             short = short + owed[layout] - found
@@ -22363,9 +22374,17 @@ def _prefix_checks(
         and parsing.PREFIX_OF_THE_COLUMN not in prefixes
         and all(layout in prefixes for layout in named)
     ):
+        # The layouts a value of a named layout is written wider in: its own
+        # widened under its prefix (`taxonomy.widened_layouts_of`), and the
+        # spill. A stand-in of a layout the census leaves unnamed, written
+        # wider in its own kinds, opened with no prefix before and is not
+        # one of them.
+        widened = taxonomy.widened_layouts_of(facts, convention)
         opens_otherwise = 0
         for cell in present:
             if len(parsing.merged_key(cell)) < bound:
+                continue
+            if parsing.layout_form(cell, convention) not in widened:
                 continue
             if not any(cell[: len(prefixes[layout])] == prefixes[layout] for layout in named):
                 opens_otherwise = opens_otherwise + 1

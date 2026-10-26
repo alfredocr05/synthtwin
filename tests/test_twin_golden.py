@@ -1777,7 +1777,11 @@ GOLDEN_DESCRIPTION_SHA256 = (
     # gains `layout_exclusions` `{"(spill)": "@%%%%%%", "(unnamed)":
     # "(none)", "@%%%%%": "@9%%%%"}`; with it taken out the bytes are the
     # base's. The quality report digest below did not move.
-    "db38c85962b91a51659c3b8e911cea063af7887be98c45e36fc4a742a8a69603"
+    # RE-RECORDED AT LANE ID-ROOM'S REPAIR (2026-10-25, plan P4-D432):
+    # diffed against the lane's first head 14692458, ONE LINE LEAVES,
+    # `"(unnamed)": "(none)"`, a key the repair withdraws; the twin and
+    # the quality report digests below did not move.
+    "94e133cd74d3474abbce20b9236f5b95398d480e0f7b3eea5744e97a0b4832e0"
 )
 
 
@@ -2693,7 +2697,12 @@ GOLDEN_REPORT_SHA256 = (
     # arrives on `record_code` -- "values spelled off the table's record
     # numbers: 216 different values on 216 rows, 0 of them written
     # wider" and its note. Nothing else differs.
-    "58ae9301f9f72d2cccec8fbb4246b5fd5509dbf4a41f5b31ec96e548a5385e69"
+    # RE-RECORDED AT LANE ID-ROOM'S REPAIR (2026-10-25, plan P4-D432):
+    # diffed line by line against the lane's first head 14692458, ONE
+    # LINE MOVES, the remark's note, which now says no twin record number
+    # is spelled as a real one "or as a real one written another way"
+    # (the merged key). The twin's cells did not move.
+    "691f19efcea895c42700ea06a4ac75adb57a42b58fa53aeb89aab5e431938768"
 )
 
 

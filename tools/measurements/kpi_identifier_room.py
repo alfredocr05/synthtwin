@@ -61,8 +61,12 @@ with tempfile.TemporaryDirectory() as scratch:
             value["shapes"] += 1
             value["twin_cells_equal_to_a_real_identifier"] += int(seen["equal"])
             value["twin_cells_merging_with_a_real_identifier"] += int(seen["merged"])
+            longest = seen["block"].get("max_length") if isinstance(seen["block"], dict) else None
+            wider = sum(1 for cell in seen["twin"] if cell.strip() and isinstance(longest, int)
+                        and len(cell) > longest)
             lines += [f"{name:40s} {answer or '-':10s} {rows:6d} rows: exits {seen['exits'][:2]}, "
-                      f"{seen['equal']} twin cells equal to a real one, {seen['merged']} merging"]
+                      f"{seen['equal']} twin cells equal to a real one, {seen['merged']} merging, "
+                      f"{wider} written wider"]
             for written in folder.glob("*"):
                 if written.is_file():
                     written.unlink()

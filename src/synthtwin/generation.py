@@ -54605,12 +54605,17 @@ def _respelled(room: _OffTheReal, cell: str) -> str:
     """One value's new spelling, its own spaces kept, or "" where none is left."""
     parts = [_edges(cell)]
     targets = _off_the_real_targets(room, parts[0][1])
+    layout = parsing.layout_form(parts[0][1], room.convention)
+    own = len(room.templates[layout]) if layout in room.templates else 0
     for strict in (True, False):
-        for into in targets if strict else targets[len(targets) - 1:]:
+        # ...and only then of any class, past the value's own templates: its
+        # layout widened under its prefix, then the spill, so a prefix is
+        # kept wherever a wider spelling of its layout is left.
+        for into in targets if strict else targets[own:]:
             found = _next_off_the_real(room, into, parts, strict)
             if found is not None:
                 return found[cell]
-        if strict and not parsing.layout_form(parts[0][1], room.convention):
+        if strict and not layout:
             # A VALUE NO LAYOUT DESCRIBES (a character outside ASCII, a
             # placeholder's mark, past the layout limit) keeps its class:
             # it is written as itself followed by letters, until its merged

@@ -619,16 +619,23 @@ cannot get worse unseen.
   (`K-S3-64`, 0 at 600 and 20,000 rows).
 - **A twin record number never equals a real one, and a dense layout is
   written wider** (lane ID-ROOM, plan P4-D432; `K-HZ-06`, 0 at 600 and
-  20,000 rows). Where the real values fill a layout's room -- record
+  20,000 rows, as written and by the merged key the product counts a
+  person by). Where the real values fill a layout's room -- record
   numbers `1` to `N`, a person on twenty rows, `P` and five figures at
   20,000 rows -- its twin values are written longer than every real one,
   its census entry and the column's lengths are listed rather than
-  checked, and the report names the values moved; a pooled layout's cells
-  are written past the longest real cell. Code testing a width meets those
-  rows otherwise. Lane CODES-3's stated limit (4) is closed. Outside it: a
-  held UID's twin writes placeholders off the grammar (lane HX's hold), and
-  the G1 floor's made-up dates for a held column may equal real dates
-  (lane PS's).
+  checked (or, where only some values widen, met within the cells written
+  wider), and the report names the values moved. Code testing a width
+  meets those rows otherwise. Lane CODES-3's stated limit (4) is closed.
+  Outside it, each with its owner: the walk writes about seven in ten
+  rootless twin UIDs off the grammar, as on the base, and the product
+  publishes no check digit, so an NPI-like twin's Luhn digit was never the
+  table's (lane CODES-1 part C, identifier forms, both for the
+  orchestrator to confirm); a held UID's twin writes placeholders off the
+  grammar (lane CODES-1 part C); the G1 floor's made-up dates for a held
+  column may equal real dates (no owner: a made-up date names no person);
+  an identifier written with spaces around it is written without them
+  (exit 3 on the base and the head alike).
 - **A pool's spread is no longer verified.** The owner chose on
   2026-09-21 to publish a pooled column's mean and not its spread,
   because publishing both solved for the held-back values. The twin's

@@ -26518,6 +26518,16 @@ def with_layout_exclusions(
         whole_places = all_whole is True and any(
             parsing.whole_places_layout(layout) != layout for layout in named
         )
+        # THE ROOM A FOLDED LAYOUT SHARES: a layout and its case flip
+        # (`MRN` and `mrn` and seven figures) take their fillings from one
+        # folded room, since no two twin values may fold to one, so each is
+        # asked the room of both.
+        sharing: "dict[str, int]" = {}
+        for layout in named:
+            folded = parsing.folded_layout(layout)
+            sharing[folded] = (sharing[folded] if folded in sharing else 0) + int(
+                f"{forms[layout]}"
+            )
         for layout in named:
             prefix = f"{prefixes[layout]}" if layout in prefixes else whole
             template = parsing.layout_template(layout, prefix, whole_places)
@@ -26530,7 +26540,7 @@ def with_layout_exclusions(
                 prefix,
                 floor,
                 int(f"{forms[layout]}"),
-                min(int(f"{forms[layout]}"), column.n_distinct),
+                min(sharing[folded], column.n_distinct),
                 parsing.first_arc_places(template)
                 if folded in uids and uids[folded]
                 else 0,
@@ -26608,6 +26618,50 @@ def written_wider(
         if parsing.trimmed(cell) and len(parsing.merged_key(cell)) >= bound:
             wider = wider + 1
     return wider
+
+
+def widened_layouts_of(facts: "object", convention: str) -> "dict[str, bool]":
+    """The layouts a record number's twin writes its named layouts' values wider in, and the spill's (P4-D432).
+
+    Read off the description alone, as the generator widens (method
+    G9.6b, `parsing.widened_layout`): each named layout under its own
+    prefix, figures inserted until its merged key is the spill's length,
+    and one placeholder more where it holds a letter; the spill's layout.
+    The validator holds a measured cell of one of these to a published
+    prefix (Codex's review of lane ID-ROOM, item 4). Raises nothing. No
+    I/O.
+    """
+    layouts = getattr(facts, "layout_forms", {})
+    prefixes = getattr(facts, "layout_prefixes", {})
+    exclusions = getattr(facts, "layout_exclusions", {})
+    whole_places = bool(getattr(facts, "all_whole_numbers", False)) and any(
+        parsing.whole_places_layout(layout) != layout
+        for layout in layouts
+        if layout != SUPPRESSED_LABEL
+    )
+    bound = spill_bound(exclusions, prefixes)
+    found: "dict[str, bool]" = {}
+    if not bound:
+        return found
+    whole = (
+        prefixes[parsing.PREFIX_OF_THE_COLUMN]
+        if parsing.PREFIX_OF_THE_COLUMN in prefixes
+        else ""
+    )
+    for layout in sorted(layouts):
+        if layout == SUPPRESSED_LABEL:
+            continue
+        prefix = prefixes[layout] if layout in prefixes else whole
+        opening = len(parsing.prefix_layout(prefix, convention)) if prefix else 0
+        wanted = bound - parsing.merged_length(
+            parsing.layout_template(layout, prefix, whole_places)
+        )
+        for more in (0, 1):
+            wide = parsing.widened_layout(layout, opening, wanted + more, 1 << 30)
+            if wide:
+                found[wide] = True
+    found[exclusions[parsing.EXCLUSION_SPILL][0]] = True
+    return found
 
 
 def moved_by_the_exclusions(

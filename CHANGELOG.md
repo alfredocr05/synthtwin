@@ -6,7 +6,7 @@ exists).
 
 ## [Unreleased]
 
-### Lane ID-ROOM: no twin identifier cell equals a real one, by construction (plan P4-D432, 2026-10-25)
+### Lane ID-ROOM: no twin identifier cell equals a real one, by construction (plan P4-D432, 2026-10-25; repair round 1 the same day)
 
 **The class lane CODES-3's stated limit (4) names, closed.** A declared or
 answered identifier's twin drew its free figures, letters and arcs in its
@@ -16,22 +16,33 @@ CODES-3's final head 1,022 of 20,000 cells under `1.2.752.24.7.1.`, 11,110
 for record numbers `1` to `20,000`, 19,980 for a person on twenty rows,
 and 328 and 50,594 cells of the health data zoo's identifier columns at
 600 and 20,000 rows. The profile, which reads the real column, now
-publishes `layout_exclusions` beside each named layout (contract 7.12b):
-the layout with one place, or every other place of a block, written as a
-character no real cell of that layout holds there -- several spellings of
-the block where one leaves too little room, at most 32 -- never passing
-over a character 1 to 10 cells hold, and a spill longer than every real
-cell. The generator's walks are unchanged; a final pass (method G9.6b)
-spells every other value in its layout's excluded templates, else wider
-than every real value, so two equal cells cannot occur. Where the real
-values fill a layout's room its values are written wider, and its census
-entry and the two lengths are listed (a record number's corner,
-validation method V4.1-A1); `layout_exclusions` is REPORT-ONLY. New
-`K-HZ-06`: 0 at 600 and 20,000 rows over the shapes and the zoo, every
-shape validating at exit 0 at 20,000 rows. Gate:
-`tests/test_identifier_room.py`. The demonstration's goldens move on
-`record_code` alone (216 of 240 cells now open `R9`; one more listing in
-the quality report), and vectors file 27 gains three cases.
+publishes `layout_exclusions` (contract 7.12b), read on each real cell's
+MERGED KEY -- the form the product counts a person by, so `P0013736` and
+`P13736`, `009297784` and `9297784` are one key: beside each named
+layout, the layout with one place, or every other place of a block,
+written as a character no real key holds there -- several spellings
+where one leaves too little room, at most 32 -- never passing over a
+character 1 to 10 keys hold; and on every identifier block, whatever its
+census, a spill of the column's prefix and figures one longer than the
+published longest value. The generator's walks are unchanged; a final
+pass (method G9.6b) keeps a value whose merged key holds the written
+characters or is as long as the spill's, and spells every other one in
+its layout's excluded templates, else wider under its own prefix, each
+class from its own step, a folded identity together, so no twin cell's
+merged key is a real cell's. Where the real values fill a layout's room
+its values are written wider, and its census entry and the two lengths
+are listed (V4.1-A1); where a layout keeping an exclusion still has
+values written wider, the entries and lengths they leave are an
+AUTHORIZED-DEVIATION, measured (V4.1-A2). The repair round closed
+skeptic 1's and Codex's findings: a stray cell switching the rule off,
+noughts after a prefix and numbers written two ways naming real people
+by the merged key, a rootless UID's first arc written, dense layouts
+failing their own validation, the spill printing an outlier's length,
+identifiers past 64 characters, prefixes lost to the spill, a folded
+identity widened apart; `(unnamed)` is withdrawn. New `K-HZ-06`:
+KPI_LINE. Gate: `tests/test_identifier_room.py`. The demonstration's
+goldens move on `record_code` alone, and vectors file 27 gains five
+cases.
 
 ### Lane CODES-3: identifiers with numeric roots, record numbers written as decimals, prefixed ids of several lengths, plain keys beside a word (plan P4-D428, 2026-10-23; repair rounds 2 and 3, 2026-10-24)
 

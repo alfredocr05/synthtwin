@@ -192,9 +192,15 @@ def test_the_exclusion_publishes_what_no_real_cell_holds(tmp_path: pathlib.Path,
                     continue
                 count = held.get(character.casefold(), 0)
                 assert count == 0 or count >= FLOOR, (name, scope, character, count)
+    # NO FRAGMENT (K-S3-64's: a run of five or more letters and figures out of a real value) stands
+    # in the published text, and the only number readable off it is one figure: no two written
+    # characters are neighbours. (K-S3-64's own counter also reads every lone figure as a number, so
+    # a real `000001` "is" the `1` of `!!!9%1`; one figure names no value.)
     published = json.dumps(exclusions)
-    counted = held_shapes.count_real([cell for cell in seen["real"] if cell.strip()], [published], [])
-    assert counted["description_values"] == 0 and counted["description_fragments"] == 0, (name, counted)
+    runs = {run for cell in seen["real"] if cell.strip() for run in held_shapes._runs(cell)}
+    assert not [run for run in runs if run in published], name
+    assert all(len(figures) == 1 for _scope, text in entries if _scope != parsing.EXCLUSION_SPILL
+               for figures in re.findall(r"[0-9]+", text)), name
     _the_spill_says_nothing_the_description_does_not(name, seen)
 
 
@@ -292,12 +298,18 @@ def _code_runs_unchanged(name: str, seen: "dict[str, object]", answered: bool) -
     prefixes = block.get("layout_prefixes") or {}
     if name in UID_SHAPES and (answered or name not in dict(room.ANSWERED)):
         root = prefixes.get(parsing.PREFIX_OF_THE_COLUMN, "")
-        for cell in twin:
-            if name in UID_WALK_OFF_THE_GRAMMAR:
-                assert cell[:2] in ("0.", "1.", "2."), (name, cell)
-                continue
-            assert UID.fullmatch(cell) is not None and len(cell) <= 64, (name, cell)
-            assert cell.startswith(root), (name, cell, root)
+        if not parsing.is_a_uid_root(root):
+            # A ROOTLESS UID: the walk draws its first arc as the lane's base did, and no exclusion
+            # writes it (skeptic 1, item 4), so every exclusion leaves the first arc a placeholder.
+            assert name in UID_WALK_OFF_THE_GRAMMAR or name == "uid_one_arc_repeating", (name, root)
+            for scope, value in (block.get("layout_exclusions") or {}).items():
+                if scope != parsing.EXCLUSION_SPILL:
+                    for text in [value] if isinstance(value, str) else value:
+                        assert text[: parsing.first_arc_places(scope)] == scope[: parsing.first_arc_places(scope)], (name, text)
+        else:
+            for cell in twin:
+                assert UID.fullmatch(cell) is not None and len(cell) <= 64, (name, cell)
+                assert cell.startswith(root), (name, cell, root)
     if name in PREFIXED:
         prefix = prefixes.get(parsing.PREFIX_OF_THE_COLUMN, "")
         assert prefix, name
@@ -427,6 +439,48 @@ def test_a_layout_of_one_place_carries_its_free_characters_as_several_spellings(
     cells = ["a", "b", "c", "d", "a", "b", "c", "d", "a", "b", "c"]
     found = taxonomy._exclusion_of(cells, "&", "&", "", FLOOR, 11, 4, 0, {})
     assert found == ["z", "y", "x", "w"], found
+
+
+def test_the_dense_hexadecimal_column_keeps_its_width(tmp_path: pathlib.Path) -> None:
+    """Four hexadecimal characters at random, 600 rows (skeptic 1 of lane ID-ROOM, item 5 (b)).
+
+    Three spellings of one block leave 768 fillings for 591 values, and on the lane's first head the
+    search spent the fillings a value of another class skipped, so 460 of 600 cells were written five
+    characters long and validation exited 3. Each reading of a value now reads its templates from its
+    own step: the twin validates at exit 0 and writes at most one cell in five wider (78 measured).
+    Mutants: one step a template (the first head's); the class test dropped.
+    """
+    seen = room.run_shape(tmp_path, "hex4_dense", 600, validate=True)
+    assert seen["exits"] == (0, 0, 0), seen["exits"]
+    wider = sum(1 for cell in seen["twin"] if len(cell) > 4)
+    assert wider <= 120, wider
+
+
+def test_a_value_no_layout_describes_keeps_its_class(tmp_path: pathlib.Path) -> None:
+    """A value no layout describes is written as itself and letters, so its class stays (plan P4-D432).
+
+    `literal_marks` (Codex's review of the lane, item 2) holds cells such as `x%00`, which no layout
+    describes, and the walk writes stand-ins no layout describes for them: written wider as figures,
+    as the spill is, their class and the column's counts of figure-only and code cells would move.
+    Validation exits 0 and the twin holds as many cells of figures alone as the table. Mutant: such
+    a value given the spill, and the counts miss.
+    """
+    seen = room.run_shape(tmp_path, "literal_marks", 600, validate=True)
+    assert seen["exits"] == (0, 0, 0), seen["exits"]
+    figures = [cell for cell in seen["twin"] if cell.isdigit()]
+    assert len(figures) == sum(1 for cell in seen["real"] if cell.isdigit()), len(figures)
+
+
+def test_no_block_writes_a_nought_where_it_opens_a_run_of_figures() -> None:
+    """A block's spelling never opens a run of figures with a nought (skeptic 1 of lane ID-ROOM, M0).
+
+    The nine hundred three-figure values `100` to `999` hold every spelling of the block's two
+    places, the last and the first, but those whose first figure is a nought: a twin value written
+    `0%9` would merge with a real `%9`, so the layout carries none. Mutant: the block's test of a
+    leading nought removed, and `0%9` is published.
+    """
+    cells = [f"{value}" for value in range(100, 1000)]
+    assert taxonomy._exclusion_of(cells, "%%%", "%%%", "", FLOOR, 900, 10, 0, {}) == []
 
 
 def test_the_loader_refuses_an_exclusion_that_does_not_fit_its_layout(tmp_path: pathlib.Path) -> None:
