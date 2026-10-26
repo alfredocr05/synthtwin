@@ -20,7 +20,8 @@ figures or more, is now put P4-D401's question (`keep`, `code`,
 answered; decimals, units, suffixes and values that repeat are not
 reached. K-S3-64 gains seven shapes (0 values published at 600, 20,000
 and 200,000 rows; the twin's chance equalities counted apart, lane
-ID-ROOM's) and reads its counts through an index past two million pairs.
+ID-ROOM's) and reads its counts, from 20,000 cells, by a counter linear in
+the data (each text and each different twin cell read once).
 Moved, with the reason: three twin digests of the generate-memory gate
 (key columns now held), K-HZ-01 and K-HZ-02 by one kind (the zoo's title
 table, answered in one round; owner lane E0c), and the reading page's

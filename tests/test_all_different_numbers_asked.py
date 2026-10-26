@@ -62,6 +62,25 @@ _FLOOR_ROWS = 20000
 _CHANCE_SHARE = 20
 
 
+@pytest.fixture(scope="module")
+def ran(tmp_path_factory: pytest.TempPathFactory):
+    """Each 600-row shape profiled, generated and validated ONCE for the file.
+
+    The suite's time (the orchestrator's rule of 2026-10-26: a file adds at
+    most three minutes): the cases reading the same run share it, and none
+    writes into its folder.
+    """
+    done: "dict[str, tuple[pathlib.Path, dict[str, object]]]" = {}
+
+    def run(kind: str) -> "tuple[pathlib.Path, dict[str, object]]":
+        if kind not in done:
+            folder = tmp_path_factory.mktemp(kind)
+            done[kind] = (folder, shapes.run(folder, kind, _ROWS))
+        return done[kind]
+
+    return run
+
+
 def _check_held(seen: "dict[str, object]", kind: str, rows: int) -> None:
     """0 real values or fragments published, held as record numbers, asked once."""
     assert seen["profile_exit"] == 0 and seen["generate_exit"] == 0
@@ -84,33 +103,31 @@ def _check_held(seen: "dict[str, object]", kind: str, rows: int) -> None:
 
 
 @pytest.mark.parametrize("kind", shapes.ONE_A_ROW)
-def test_a_column_of_whole_numbers_each_on_one_row_is_held(
-    tmp_path: pathlib.Path, kind: str
-) -> None:
+def test_a_column_of_whole_numbers_each_on_one_row_is_held(ran, kind: str) -> None:
     """Every shape at 600 rows: nothing real published, held, asked once.
 
     Red on the mutant "the rule switched off" (`_whole_numbers_each_on_one_row`
     false): `refseq` publishes 97 references and its twin writes 598.
     """
-    _check_held(shapes.run(tmp_path, kind, _ROWS), kind, _ROWS)
+    _check_held(ran(kind)[1], kind, _ROWS)
 
 
-@pytest.mark.parametrize("kind", ("refseq", "seqcross", "refacc"))
-def test_at_the_floor_size_the_column_is_held(tmp_path: pathlib.Path, kind: str) -> None:
-    """The live shape and the plain run at 20,000 rows, the owner's table floor.
+def test_at_the_floor_size_the_column_is_held(tmp_path: pathlib.Path) -> None:
+    """The live shape at 20,000 rows, the owner's table floor: one case.
 
-    Red on the mutant "the rule switched off": `refseq` publishes its ladder
-    and the twin writes 19,998 of 20,000 real references.
+    Every other shape at 20,000 and 200,000 rows is K-S3-64's (its driver,
+    kpi_run --slow), as the orchestrator's rule of 2026-10-26 keeps the
+    suite's 20,000-row checks to one case a writer. Red on the mutant "the
+    rule switched off": `refseq` publishes its ladder and the twin writes
+    19,998 of 20,000 real references.
     """
-    _check_held(shapes.run(tmp_path, kind, _FLOOR_ROWS), kind, _FLOOR_ROWS)
+    _check_held(shapes.run(tmp_path, "refseq", _FLOOR_ROWS), "refseq", _FLOOR_ROWS)
 
 
-def test_the_question_is_the_identifier_question_with_keep_first(
-    tmp_path: pathlib.Path,
-) -> None:
+def test_the_question_is_the_identifier_question_with_keep_first(ran) -> None:
     """`keep`, `code`, `identifier`, the reason named, and no value in its words."""
-    shapes.run(tmp_path, "refseq", _ROWS)
-    entries = _asked_of(tmp_path, "refseq")
+    folder = ran("refseq")[0]
+    entries = _asked_of(folder, "refseq")
     assert len(entries) == 1
     entry = entries[0]
     assert [choice["answer"] for choice in entry["answers_you_can_give"]] == [
@@ -119,30 +136,80 @@ def test_the_question_is_the_identifier_question_with_keep_first(
     words = json.dumps(entry)
     assert "RPT" not in words and "3000" not in words
     assert "every one is different" in words
-    screen = (tmp_path / "refseq_long-profile.txt").read_text(encoding="utf-8")
+    screen = (folder / "refseq_long-profile.txt").read_text(encoding="utf-8")
     assert "RPT3" not in screen
 
 
-@pytest.mark.parametrize("kind", ("refseq", "seqcross", "refacc"))
-def test_the_indexed_count_is_the_pairwise_count(tmp_path: pathlib.Path, kind: str) -> None:
-    """`shapes.count_real` read through its index counts what the pairwise search counts.
+@pytest.mark.parametrize("kind", ("refseq", "seqcross"))
+def test_the_linear_count_is_the_pairwise_count(
+    ran, tmp_path: pathlib.Path, kind: str
+) -> None:
+    """`shapes.count_real` read by its linear counter counts what the pairwise search counts.
 
-    The index is what K-S3-64 reads at 20,000 rows and more (20,000 real
-    values by 20,000 twin cells); here both read the same 600-row run, and
-    a copy of the column written as the twin, so every count is non-zero.
+    The linear counter is what K-S3-64 reads at 20,000 rows and more (20,000
+    real values by 20,000 twin cells); here both read the product's own
+    600-row run, and a copy of the column written as the twin, so every
+    count is non-zero.
     """
-    shapes.run(tmp_path, kind, _ROWS)
-    (tmp_path / "again").mkdir()
-    _table, real = shapes.write_table(tmp_path / "again", kind, _ROWS)
-    texts = [(tmp_path / f"{kind}_long-{page}").read_text(encoding="utf-8")
+    folder = ran(kind)[0]
+    _table, real = shapes.write_table(tmp_path, kind, _ROWS)
+    texts = [(folder / f"{kind}_long-{page}").read_text(encoding="utf-8")
              for page in ("profile.json", "profile.txt", "questions.json")]
-    with open(tmp_path / f"{kind}_long-twin.csv", encoding="utf-8") as handle:
+    with open(folder / f"{kind}_long-twin.csv", encoding="utf-8") as handle:
         cells = [line.split(",")[0] for line in handle.read().splitlines()[1:]]
-    for twin in (cells, real, [f"x{value}." for value in real]):
+    # The pairwise search reads 40 cells of each twin (600 by 600 pairs
+    # take about 26 seconds).
+    for twin in (cells[:40], real[:40], [f"x{value}." for value in real[100:140]]):
         published = texts + [f"p50 {real[3]} and {real[5][:5]}"]
-        pairwise = shapes.count_real(real, published, twin, indexed=False)
-        assert shapes.count_real(real, published, twin, indexed=True) == pairwise
-    assert shapes.count_real(real, texts, real, indexed=True)["twin_cells"] == len(real)
+        pairwise = shapes.count_real(real, published, twin, linear=False)
+        assert shapes.count_real(real, published, twin, linear=True) == pairwise
+    assert shapes.count_real(real, texts, real, linear=True)["twin_cells"] == len(real)
+
+
+def test_the_linear_count_is_the_pairwise_count_on_every_shape(tmp_path: pathlib.Path) -> None:
+    """Every shape K-S3-64 counts, no product run: the two counters agree.
+
+    Each shape's real values are written into texts and cells whole, as a
+    number, wrapped in other characters, cut to a fragment and beside a
+    point, with cells of no real value between; the pairwise search reads
+    the first 60 real values against 90 cells. Red on the mutant "the
+    linear counter reads only runs of figures" (`wave6/HX5/mutants-d.log`).
+    """
+    kinds = (shapes.HELD + shapes.BESIDE + shapes.COUNTED + shapes.LISTED
+             + shapes.ONE_A_ROW + shapes.STATED)
+    for kind in kinds:
+        folder = tmp_path / kind
+        folder.mkdir()
+        _table, everything = shapes.write_table(folder, kind, _ROWS)
+        real = everything[:60]
+        if not real:
+            continue
+        texts = [
+            f"p50 {real[0]}, tail [{real[-1]}], mode {real[len(real) // 2][:6]}",
+            f"{{\"x\": \"a{real[1]}b\", \"y\": 0.{real[2]}, \"z\": \"{real[3][2:]}\"}}",
+            "nothing real here: 12345 and ABCDE",
+        ]
+        cells = ([f"{value}" for value in real[:30]] + [f"<{value}>" for value in real[30:45]]
+                 + [f"{value[:5]}" for value in real[45:]]
+                 + [f"Z{place:09d}" for place in range(15)] + real[:15])
+        pairwise = shapes.count_real(real, texts, cells, linear=False)
+        assert shapes.count_real(real, texts, cells, linear=True) == pairwise, kind
+    # ...and the readings lane HX's gate pins on the pairwise search: a value
+    # wrapped, a prefix alone, figures printed as a number, and figures
+    # inside a decimal or a longer number, which never count.
+    for real, texts, cells in (
+        (["REC10000000", "REC10000007"], ["nothing here", "RECORD HELD BACK"], ["APT07388860"]),
+        (["REC10000000", "REC10000007"], ["a summary naming xxREC10000007yy"],
+         ["ZZREC10000000ZZ", "APT07388860"]),
+        (["REC10000000", "REC10000007"], ['"layout_prefixes": {"REC": 40}'], []),
+        (["02100"], ['"p50": 2100.0', '"rows": 21000'], ["2100", "21000"]),
+        (["123,456,789"], ["mode 123456789"], ["123456789.5"]),
+        (["ACC30000484"], ['"mode": 30000484.0', '"p50": 130000484.0', "0.30000484"],
+         ["KXA30000484"]),
+        (["100000"], ['"p53": 82.34100000000001'], ["x100000", "1000001"]),
+    ):
+        pairwise = shapes.count_real(real, texts, cells, linear=False)
+        assert shapes.count_real(real, texts, cells, linear=True) == pairwise, real
 
 
 # -- the reach: what is asked, and what is not --------------------------------
@@ -270,11 +337,11 @@ def test_a_count_of_dates_asked_with_this_shape_is_held(tmp_path: pathlib.Path) 
     ],
 )
 def test_each_answer_gives_the_description_of_its_reading(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, answer: str, typed: "list[str]"
+    ran, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, answer: str, typed: "list[str]"
 ) -> None:
     """Byte for byte the description the rule-off tree writes with that reading typed."""
-    shapes.run(tmp_path, "refseq", _ROWS)
-    questions = json.loads((tmp_path / "refseq_long-questions.json").read_text(encoding="utf-8"))
+    folder = ran("refseq")[0]
+    questions = json.loads((folder / "refseq_long-questions.json").read_text(encoding="utf-8"))
     for entry in questions["asked"]:
         if entry["column"] == "refseq":
             entry["your_answer"] = answer
@@ -283,14 +350,14 @@ def test_each_answer_gives_the_description_of_its_reading(
     answered = tmp_path / "answered"
     answered.mkdir()
     with shapes.nobody_at_the_keyboard():
-        assert cli.main(["profile", f"{tmp_path / 'refseq_long.csv'}", "--out-dir", f"{answered}",
+        assert cli.main(["profile", f"{folder / 'refseq_long.csv'}", "--out-dir", f"{answered}",
                          "--answers", f"{answers}"], small_tables_refused=False) == 0
     before = tmp_path / "before"
     before.mkdir()
     with monkeypatch.context() as patched:
         patched.setattr(asking, "_whole_numbers_each_on_one_row", lambda present, role: False)
         with shapes.nobody_at_the_keyboard():
-            assert cli.main(["profile", f"{tmp_path / 'refseq_long.csv'}", "--out-dir",
+            assert cli.main(["profile", f"{folder / 'refseq_long.csv'}", "--out-dir",
                              f"{before}"] + typed, small_tables_refused=False) == 0
     for page in ("refseq_long-profile.json", "refseq_long-profile.txt"):
         assert (answered / page).read_bytes() == (before / page).read_bytes(), page

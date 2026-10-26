@@ -74,7 +74,9 @@ with tempfile.TemporaryDirectory() as scratch:
                       f"{seen['description_values']} of {seen['different']} real values in the "
                       f"description, {seen['description_fragments']} fragments published, "
                       f"{seen['twin_cells']} twin cells real, {seen['twin_fragments']} twin fragments, "
-                      f"{seen['twin_cells_equal']} twin cells equal, validate {seen['validate_exit']}"]
+                      f"{seen['twin_cells_equal']} twin cells equal, validate {seen['validate_exit']}; "
+                      f"profile, generate and validate {seen['product_seconds']} s, counting "
+                      f"{seen['counting_seconds']} s"]
             if kind in shapes.ONE_A_ROW:
                 held["description_values"] += int(seen["description_values"])
                 held["description_fragments"] += int(seen["description_fragments"])

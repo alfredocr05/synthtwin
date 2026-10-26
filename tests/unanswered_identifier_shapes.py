@@ -59,6 +59,7 @@ import json
 import pathlib
 import random
 import re
+import time
 
 from synthtwin import cli
 
@@ -576,10 +577,16 @@ def _opening_in(opening: str, text: str) -> bool:
 # THE PAIRWISE SEARCH IS QUADRATIC (lane HX5, plan P4-D436): a column of a
 # value a row holds as many real values as rows, and every real value was
 # searched for in every twin cell -- 20,000 by 20,000 regular expressions,
-# hours a table. Past this many pairs the same count is read through an
-# index (`_count_real_indexed`), which the gate holds equal to the pairwise
-# search on the shapes it is used for.
-_PAIRWISE_AT_MOST = 2_000_000
+# about three and a half hours a table, and 26 of a 600-row run's 28
+# seconds. At 20,000 cells or real values, or past this many pairs, the
+# same counts are read by a counter LINEAR IN THE DATA (`_count_real_
+# linear`, the orchestrator's rule of 2026-10-26): the real values and
+# their fragments in two lookups, and each text and each different twin
+# cell scanned once, through its own runs of figures and its own pieces
+# of the lengths the lookups hold. The gate holds it equal to the
+# pairwise search on every shape of this file.
+_PAIRWISE_AT_MOST = 50_000
+_LINEAR_FROM_ROWS = 20000
 
 
 def _figure_runs(text: str) -> "set[str]":
@@ -618,87 +625,90 @@ def _keys_of(needle: str) -> "tuple[bool, set[str]]":
     return as_text, keys
 
 
-def _substrings(cell: str) -> "set[str]":
-    found: "set[str]" = set()
-    for start in range(len(cell)):
-        for end in range(start + 1, len(cell) + 1):
-            found.add(cell[start:end])
-    return found
-
-
-def _count_real_indexed(
+def _count_real_linear(
     real: "list[str]", texts: "list[str]", cells: "list[str]"
 ) -> "dict[str, int]":
-    """`count_real` read through an index of figure runs and substrings; the same counts."""
+    """`count_real`'s counts, each text and each different twin cell read once."""
     fragments: "dict[str, bool]" = {}
     for value in real:
         for run_of in _runs(value):
             fragments[run_of] = True
     opening = _opening(real) if real else ""
-    text_runs = [_figure_runs(text) for text in texts]
-
-    def in_texts(needle: str) -> bool:
-        as_text, keys = _keys_of(needle)
-        for text, runs in zip(texts, text_runs):
-            if (as_text and needle in text) or keys & runs:
-                return True
-        return False
-
-    whole = [value for value in real if in_texts(value)]
-    published = [one for one in fragments if in_texts(one)]
-    if opening and any(_opening_in(opening, text) for text in texts):
-        published += [opening]
-    by_text: "dict[str, list[str]]" = {}
-    by_key: "dict[str, list[str]]" = {}
+    # Each needle -- a real value ("real") or a fragment ("fragment") --
+    # under the text `_found_in` looks for and under the runs of figures
+    # it stands as.
+    by_text: "dict[str, list[tuple[str, str]]]" = {}
+    by_key: "dict[str, list[tuple[str, str]]]" = {}
     for group, needles in (("real", real), ("fragment", list(fragments))):
         for needle in needles:
             as_text, keys = _keys_of(needle)
             if as_text:
-                by_text.setdefault(needle, []).append(group + "\0" + needle)
+                listed = by_text.setdefault(needle, [])
+                listed += [(group, needle)]
             for key in keys:
-                by_key.setdefault(key, []).append(group + "\0" + needle)
+                listed = by_key.setdefault(key, [])
+                listed += [(group, needle)]
+    sizes = sorted({len(needle) for needle in by_text})
+
+    def needles_in(text: str) -> "set[tuple[str, str]]":
+        hits: "set[tuple[str, str]]" = set()
+        for key in _figure_runs(text):
+            hits.update(by_key.get(key, ()))
+        for size in sizes:
+            for start in range(len(text) - size + 1):
+                found = by_text.get(text[start:start + size])
+                if found:
+                    hits.update(found)
+        return hits
+
+    published: "set[tuple[str, str]]" = set()
+    for text in texts:
+        published |= needles_in(text)
+    whole = len([1 for group, _needle in published if group == "real"])
+    in_texts = len([1 for group, _needle in published if group == "fragment"])
+    if opening and any(_opening_in(opening, text) for text in texts):
+        in_texts += 1
     twin_cells = 0
     twin_fragments: "dict[str, bool]" = {}
-    seen_cells: "dict[str, bool]" = {}
+    holds_real: "dict[str, bool]" = {}
     for cell in cells:
-        hits: "set[str]" = set()
-        for key in _figure_runs(cell):
-            hits.update(by_key.get(key, ()))
-        for piece in _substrings(cell):
-            hits.update(by_text.get(piece, ()))
-        if any(hit.startswith("real\0") for hit in hits):
+        if cell not in holds_real:
+            hits = needles_in(cell)
+            holds_real[cell] = any(group == "real" for group, _needle in hits)
+            for group, needle in hits:
+                if group == "fragment":
+                    twin_fragments[needle] = True
+            if opening and _opening_in(opening, cell):
+                twin_fragments[opening] = True
+        if holds_real[cell]:
             twin_cells += 1
-        if cell in seen_cells:
-            continue
-        seen_cells[cell] = True
-        for hit in hits:
-            if hit.startswith("fragment\0"):
-                twin_fragments[hit[len("fragment\0"):]] = True
-        if opening and _opening_in(opening, cell):
-            twin_fragments[opening] = True
     return {
-        "description_values": len(whole),
-        "description_fragments": len(published),
+        "description_values": whole,
+        "description_fragments": in_texts,
         "twin_cells": twin_cells,
         "twin_fragments": len(twin_fragments),
     }
 
 
 def count_real(
-    real: "list[str]", texts: "list[str]", cells: "list[str]", indexed: "bool | None" = None
+    real: "list[str]", texts: "list[str]", cells: "list[str]", linear: "bool | None" = None
 ) -> "dict[str, int]":
     """What of the real values the published texts and the twin's cells carry.
 
     ``texts``: the description, its summary, the questions file and the
     screen; ``cells``: the twin's column. Every comparison is by
     substring, so a value wrapped in other characters is still found.
-    ``indexed`` reads the same counts through an index (`_count_real_
-    indexed`): by default where the pairs pass `_PAIRWISE_AT_MOST`.
+    ``linear`` reads the same counts by the counter linear in the data
+    (`_count_real_linear`): by default at 20,000 cells or real values or
+    more, or where the pairs pass `_PAIRWISE_AT_MOST`.
     """
-    if indexed is None:
-        indexed = len(real) * max(len(cells), len(texts)) > _PAIRWISE_AT_MOST
-    if indexed:
-        return _count_real_indexed(real, texts, cells)
+    if linear is None:
+        linear = (
+            max(len(real), len(cells)) >= _LINEAR_FROM_ROWS
+            or len(real) * max(len(cells), len(texts)) > _PAIRWISE_AT_MOST
+        )
+    if linear:
+        return _count_real_linear(real, texts, cells)
     fragments: "dict[str, bool]" = {}
     for value in real:
         for run_of in _runs(value):
@@ -759,6 +769,10 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
     beside = _beside(kind)
     declared = ["--identifier", "patient"] if kind.endswith("_beside") else []
     screen = io.StringIO()
+    # THE PRODUCT'S OWN TIME, apart from the counting (the orchestrator's
+    # rule of 2026-10-26, point 5): profile, generate and validate, then
+    # the count of what is real.
+    started = time.perf_counter()
     with nobody_at_the_keyboard():
         with contextlib.redirect_stdout(screen), contextlib.redirect_stderr(screen):
             profiled = cli.main(["profile", f"{table}", "--out-dir", f"{folder}",
@@ -772,6 +786,7 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
             validated = cli.main(["validate", f"{described}", "--twin",
                                   f"{folder / (kind + '_long-twin.csv')}",
                                   "--out-dir", f"{folder}", "--replace"])
+    product_seconds = time.perf_counter() - started
     texts = {
         name: (folder / name).read_text(encoding="utf-8")
         for name in (f"{kind}_long-profile.json", f"{kind}_long-profile.txt",
@@ -829,4 +844,6 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
         "twin_cells_equal": len([cell for cell in written if cell in real_written]),
     }
     seen.update(counted)
+    seen["product_seconds"] = round(product_seconds, 1)
+    seen["counting_seconds"] = round(time.perf_counter() - started - product_seconds, 1)
     return seen
