@@ -38,10 +38,11 @@ from __future__ import annotations
 import json
 import pathlib
 import re
+import types
 
 import pytest
 
-from synthtwin import contract, parsing, profile, taxonomy
+from synthtwin import contract, generation, parsing, profile, taxonomy
 
 import fixtures
 import identifier_room_shapes as room
@@ -469,6 +470,26 @@ def test_a_value_no_layout_describes_keeps_its_class(tmp_path: pathlib.Path) -> 
     assert seen["exits"] == (0, 0, 0), seen["exits"]
     figures = [cell for cell in seen["twin"] if cell.isdigit()]
     assert len(figures) == sum(1 for cell in seen["real"] if cell.isdigit()), len(figures)
+
+
+def test_a_folded_identity_is_written_wider_together() -> None:
+    """One identity written `A1`, ` A1` and `a1 ` is widened to one new core (Codex's review of the lane, item 3).
+
+    The layout `@%` carries no exclusion, so every value is written wider, as the spill's length
+    asks: the three spellings of one folded identity take ONE new core, each in its own case and with
+    its own spaces, and the column keeps two identities, as the walk wrote it. Mutant: the members
+    moved one by one, each claimed as it is moved, and the identity splits in three.
+    """
+    facts = contract.IdentifierFacts(
+        min_length=2, max_length=3, all_whole_numbers=False, n_all_digits=0, n_code_alphabet=4,
+        n_distinct_by_occurrences={"1": 4}, layout_forms={"@%": 3}, layout_prefixes={},
+        layout_exclusions={parsing.EXCLUSION_SPILL: ("%%%%",)},
+    )
+    column = types.SimpleNamespace(name="key")
+    cells, _remarks = generation._spelled_off_the_real(column, facts, ["B1", "A1", " A1", "a1 "], ())  # type: ignore[arg-type]
+    assert len({parsing.folded(cell) for cell in cells}) == 2, cells
+    assert cells[2] == " " + cells[1] and cells[3] == cells[1].lower() + " ", cells
+    assert all(len(parsing.merged_key(cell)) >= 4 for cell in cells), cells
 
 
 def test_no_block_writes_a_nought_where_it_opens_a_run_of_figures() -> None:

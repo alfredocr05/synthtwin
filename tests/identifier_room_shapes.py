@@ -193,8 +193,15 @@ SHAPES: "dict[str, tuple[object, bool]]" = {
         True,
     ),
     "folded_with_spaces": (
-        lambda k, d: (lambda i: (" " if i % 2 else "") + "ABCDEFGHIJ"[(i // 2) // 10] + str((i // 2) % 10))(
-            (k // 3) % 200),
+        lambda k, d: (lambda i: (" " if i % 2 else "") + "ABCDEFGHIJ"[(i // 2) // 10] + str((i // 2) % 10)
+                      if i < 200 else "KLMNOPQRST"[(i - 200) // 10] + str((i - 200) % 10))((k // 2) % 300),
+        True,
+    ),
+    # Letters a key's case splits: `N` to `Z` written in capitals, `a` to `m` in small letters, so only
+    # the fold of the case says every letter is held at the first place.
+    "letter_case_halves": (
+        lambda k, d: (f"{chr(ord('N') + d.random.randrange(13))}" if k % 2 == 0
+                      else f"{chr(ord('a') + d.random.randrange(13))}") + f"{d.random.randint(10000, 99999)}",
         True,
     ),
     "two_long_prefixes": (
