@@ -2403,17 +2403,34 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   census entry, subcheck `forms.published.<layout>`, is
   REPORT-ONLY; and the shortest and longest lengths, subchecks
   `length.min` and `length.max`, are REPORT-ONLY with it wherever such a
-  layout is named, wherever `(unnamed)` does not say that no real cell
-  stands outside the named layouts, or wherever the census counts fewer
-  cells than the column holds. `layout_exclusions` itself is
-  REPORT-ONLY wherever it is published, subcheck `layout_exclusions`:
-  it says what no real cell holds, and no written file is checked
-  against it. Each is a listing entry citing the plan,
-  never a check that cannot fail; every other identifier check stands
-  as before, the census entries of the layouts carrying an exclusion
-  among them, exactly. A description publishing no exclusion lowers
-  nothing. A real table validated against its own description holds
-  every one of these facts and is simply not asked them here.
+  layout is named. `layout_exclusions` itself is REPORT-ONLY wherever it
+  is published, subcheck `layout_exclusions`: it says what no real cell
+  holds, and no written file is checked against it. Each is a listing
+  entry citing the plan, never a check that cannot fail; every other
+  identifier check stands as before, the census entries of the layouts
+  carrying an exclusion among them. A description publishing no
+  exclusion lowers nothing. A real table validated against its own
+  description holds every one of these facts and is simply not asked
+  them here.
+- **V4.1-A2 (lane ID-ROOM's repair, plan P4-D432, 2026-10-25): a record
+  number written wider**, measured, never assumed. Every real cell's
+  merged key is shorter than the spill's (contract 7.12b), so a measured
+  cell whose merged key is as long (`taxonomy.written_wider`) is one the
+  twin wrote wider -- a value of a class or a date its layout's excluded
+  template could not take, or a value of a layout the census leaves
+  unnamed. THE EXACT BAR IS TRIED FIRST. A census entry of a layout
+  carrying an exclusion MISSED by holding fewer cells than published is
+  an AUTHORIZED-DEVIATION, citing the plan, where the measured file
+  holds cells written wider and every such shortfall together is no more
+  than them; a surplus, or a shortfall they do not cover, stays MISSED.
+  `length.min` and `length.max` MISSED are an AUTHORIZED-DEVIATION where
+  the file holds cells written wider and every other cell lies inside the
+  published lengths. And where every named layout publishes its own
+  prefix and the column none, a cell written wider wears no named
+  layout, so one more silent check, subcheck `prefix.(spill)`, holds it
+  to one of the published prefixes (Codex's review of the lane, item 4).
+  A real table holds no cell written wider and is asked every fact
+  exactly.
 
 - **datetime-offsets-withheld** (P2-D9): a datetime column whose
   `utc_offsets` map is the single `(withheld)` key. Then `utc_offsets`

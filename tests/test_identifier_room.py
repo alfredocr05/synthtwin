@@ -1,4 +1,4 @@
-"""P4-D432 (lane ID-ROOM): no twin identifier cell equals a real identifier of its column, by construction.
+"""P4-D432 (lane ID-ROOM): no twin identifier cell names a real identifier of its column, by construction.
 
 WHAT WAS MEASURED (lane CODES-3's verify 3, wave6/CODES-3-verify3.md finding 1 and NEW SHAPES;
 re-measured by lane ID-ROOM on CODES-3's final head 2d25b073 with wave6/ID-ROOM/idprobe.py and
@@ -13,18 +13,24 @@ person on twenty rows 19,980, zero-filled 2,225, `100000.0` exported 400, random
 absent `.` aside); and the zoo's own identifier columns 328 cells at 600 rows (its REDCap
 record ids 318). The count grows with the rows.
 
+AND WHAT THE LANE'S FIRST HEAD LEFT (skeptic 1, wave6/ID-ROOM-sk1.md, and Codex's review): one stray
+cell that emptied the census turned the rule off (598 of 600 real record numbers written back); a
+nought written after a prefix (`P0013736` beside a real `P13736`) and one number written two ways
+(`9297784` beside a real `009297784`) named a real person as the product's own merged key reads one
+(P4-D406); every rootless UID opened `9.`; dense layouts failed the twin's validation; the spill
+printed one outlier's length; identifiers past sixty-four characters wrote real values or stopped.
+
 THE RULE (contract 7.12b, method G9.6b). The profile, which reads the real column, publishes beside
 each named layout an EXCLUSION -- the layout with one place (or every other place of a block)
-written as a character NO real cell of that layout holds there -- and the SPILL, a layout longer
-than every real cell. The twin writes each excluded layout's cells with the exclusion, and every
-other value nearest its own shape where no real cell can be: its layout's excluded template, the
-named layout its own widens to, its own layout widened past the spill's length, the spill. Two
-equal cells wear one layout and hold one character at every place, so no twin cell is spelled as a
-real one. The exclusion publishes what the column does NOT hold: no value, no extreme of one, no
-count below the floor (a character the choice passes over is held by the floor's cells or more).
+written as a character NO real cell's MERGED KEY holds where that place stands in it -- and, beside
+every identifier block, the SPILL: the column's prefix and figures, one character longer than the
+published longest value. The twin writes each value with its merged key read place for place in an
+excluded template, or at least as long, merged, as the spill, so no twin cell's merged key is a real
+cell's, and no twin cell is spelled as a real one. The exclusion publishes what the column does NOT
+hold: no value, no extreme of one, no count below the floor.
 
 Each case runs the product's command line, nobody at the keyboard, and each is red on the mutant its
-docstring names (wave6/ID-ROOM/mutants.log).
+docstring names (wave6/ID-ROOM/repair1/mutants.log).
 """
 
 from __future__ import annotations
@@ -35,44 +41,54 @@ import re
 
 import pytest
 
-from synthtwin import contract, parsing, taxonomy
+from synthtwin import contract, parsing, profile, taxonomy
 
+import fixtures
 import identifier_room_shapes as room
+import unanswered_identifier_shapes as held_shapes
 
 SIZES = (600, 20_000)
 FLOOR = 11
 UID = re.compile(r"[012](\.(0|[1-9]\d*))+")
 
 
-def _real_by_layout(real: "list[str]") -> "dict[str, list[str]]":
-    present = [cell for cell in real if cell.strip()]
-    convention = parsing.layout_convention(present)
-    by: "dict[str, list[str]]" = {}
-    for cell in present:
-        by.setdefault(parsing.layout_form(cell, convention), []).append(cell)
-    return by
+def _cases() -> "list[tuple[str, int]]":
+    return [
+        (name, n)
+        for name in room.every_shape()
+        for n in SIZES
+        if n == 600 or name not in room.AT_600_ALONE
+    ]
 
 
-# -- the gate: no twin cell spelled as a real one ---------------------------------------------
+# -- the gate: no twin cell names a real one --------------------------------------------------
 
 
-@pytest.mark.parametrize("n", SIZES)
-@pytest.mark.parametrize("name", room.every_shape())
+@pytest.mark.parametrize(("name", "n"), _cases())
 def test_no_twin_identifier_cell_equals_a_real_one(tmp_path: pathlib.Path, name: str, n: int) -> None:
-    """Every shape at 600 and 20,000 rows: 0 twin cells spelled as a real cell of their column.
+    """Every shape at 600 and 20,000 rows: 0 twin cells spelled as, or merging with, a real one.
 
-    Mutants: the exclusions dropped (`with_layout_exclusions` returning its column), the twin's final
-    pass leaving its first moved value where it was, and an exclusion written with a character a real
-    cell holds -- each turns a dense shape red.
+    Counted twice: exactly as written, and on the merged key `profile.subject_keys` counts a person
+    by (plan P4-D406). The shapes `room.VALIDATED` are validated too, at exit 0 at 20,000 rows.
+    Mutants: the exclusions dropped (`with_layout_exclusions` returning its column); the final pass
+    returning at once where the census is empty (the stray-cell shapes write 19,998 real values);
+    the exclusions read per layout and not on the merged key (`pad_split`, `dash_split`); the final
+    pass taking a filling that drops a nought (`p_five`, `abc_dash_four`, `rsid_beside_dots`); the
+    room of a template not read per class (`hex4_dense` exits 3); an exclusion written with a
+    character a real cell holds -- each turns a shape red.
     """
-    seen = room.run_shape(tmp_path, name, n, validate=False)
+    validate = n == 20_000 and name in room.VALIDATED
+    seen = room.run_shape(tmp_path, name, n, validate=validate)
     if n == 600 and name in room.REFUSED_AT_600:
         assert seen["exits"][0] == 1 and not seen["twin"], (name, seen["exits"])
         return
     assert seen["exits"][:2] == (0, 0), (name, n, seen["exits"])
     assert seen["equal"] == 0, (name, n, seen["equal"])
-    if seen["block"].get("role") == "identifier" and seen["block"].get("layout_forms"):
-        assert seen["block"]["layout_exclusions"], (name, n)
+    assert seen["merged"] == 0, (name, n, seen["merged"])
+    if validate:
+        assert seen["exits"][2] == 0, (name, n, seen["exits"])
+    if seen["block"].get("role") == "identifier":
+        assert parsing.EXCLUSION_SPILL in (seen["block"].get("layout_exclusions") or {}), (name, n)
     _code_runs_unchanged(name, seen, answered=False)
 
 
@@ -80,35 +96,56 @@ def test_no_twin_identifier_cell_equals_a_real_one(tmp_path: pathlib.Path, name:
     ("name", "n"), [(name, n) for name, sizes in room.ANSWERED for n in sizes]
 )
 def test_an_answered_identifier_writes_no_real_one(tmp_path: pathlib.Path, name: str, n: int) -> None:
-    """The held shapes answered `identifier` (a person column): 0 twin cells equal to a real one."""
+    """The held shapes answered `identifier` (a person column): 0 twin cells equal to, or merging with, a real one."""
     seen = room.run_shape(tmp_path, name, n, answer="identifier", validate=False)
     assert seen["exits"][:2] == (0, 0), (name, n, seen["exits"])
     assert seen["equal"] == 0, (name, n, seen["equal"])
+    assert seen["merged"] == 0, (name, n, seen["merged"])
     _code_runs_unchanged(name, seen, answered=True)
 
 
 # -- the fact's own privacy -------------------------------------------------------------------
 
 
+def _keys_by_length(real: "list[str]", absent: "set[str]") -> "dict[int, list[str]]":
+    by: "dict[int, list[str]]" = {}
+    for cell in real:
+        if cell.strip() and cell not in absent:
+            key = parsing.merged_key(cell)
+            by.setdefault(len(key), []).append(key)
+    return by
+
+
 @pytest.mark.parametrize("name", room.every_shape())
 def test_the_exclusion_publishes_what_no_real_cell_holds(tmp_path: pathlib.Path, name: str) -> None:
-    """Every written character is held by no real cell of its layout; the spill outlasts every cell.
+    """Every written character is held by no real merged key at its place; the spill outlasts every cell.
 
-    At 600 rows. Also: every character the one-place choice passed over at its place is held by at
-    least the floor's cells, so no count of 1 to 10 is read off the choice; no exclusion holds a run
-    of five written characters (a fragment some value could hold). Mutants: the choice passing over
-    a character fewer than the floor's cells hold (the scan's stop removed), and the spill no longer
-    than the longest real cell.
+    At 600 rows. A written character stands in a filling's merged key at `parsing.merged_places`'s
+    place, among the real keys as long as the template's fillings', and no such real key holds it
+    there. Every character the one-place choice passed over at its place is held by at least the
+    floor's keys, so no count of 1 to 10 is read off the choice. A block writes every other place,
+    so no two written characters are NEIGHBOURS -- no spelling read off it, written or passed over,
+    holds two neighbouring characters of a value, so none is a fragment (the orchestrator's ruling
+    1 of 2026-10-25, item 2 (a)). No exclusion is a real cell's text. Mutants: the choice passing
+    over a character fewer than the floor's cells hold (the scan's stop removed); the block written
+    at neighbouring places; a nought written where it opens a run of figures (the block's test
+    removed, skeptic 1's M0); a real cell spelled as an exclusion kept; and the spill's own mutant
+    (`_the_spill_says_nothing_the_description_does_not`).
     """
     seen = room.run_shape(tmp_path, name, 600, validate=False)
     block = seen["block"]
-    exclusions = block.get("layout_exclusions") or {}
     if name in room.REFUSED_AT_600:
         assert not block, name
         return
-    by = _real_by_layout(seen["real"])
-    longest = max(len(cell) for cell in seen["real"] if cell.strip())
+    exclusions = block.get("layout_exclusions") or {}
+    absent = set(block.get("missing_by_source") or {})
+    keyed = _keys_by_length(seen["real"], absent)
+    texts = {parsing.folded(cell) for cell in seen["real"] if cell.strip()}
     prefixes = block.get("layout_prefixes") or {}
+    whole = prefixes.get(parsing.PREFIX_OF_THE_COLUMN, "")
+    noughts = bool(block.get("all_whole_numbers")) and any(
+        parsing.whole_places_layout(form) != form for form in block.get("layout_forms") or {}
+    )
     entries: "list[tuple[str, str]]" = []
     for scope, value in sorted(exclusions.items()):
         if isinstance(value, list):
@@ -119,55 +156,90 @@ def test_the_exclusion_publishes_what_no_real_cell_holds(tmp_path: pathlib.Path,
             entries += [(scope, value)]
     for scope, text in entries:
         if scope == parsing.EXCLUSION_SPILL:
-            assert len(text) > longest, (name, text)
             continue
-        if scope == parsing.EXCLUSION_UNNAMED:
-            # Said only where no real core wears a layout the census leaves unnamed.
-            assert text == parsing.EXCLUSION_NONE, (name, text)
-            named = {parsing.folded_layout(form) for form in block["layout_forms"]}
-            holes = set(block.get("missing_by_source") or {})
-            present = [cell.strip() for cell in seen["real"] if cell.strip() and cell not in holes]
-            convention = parsing.layout_convention(present)
-            assert all(
-                parsing.folded_layout(parsing.layout_form(core, convention)) in named
-                for core in present
-            ), name
-            continue
+        assert parsing.folded(text) not in texts, (name, text)
         written = [place for place in range(len(text)) if text[place] != scope[place]]
         assert written, (name, scope)
-        for cell in by.get(scope, []):
-            assert any(cell[place] != text[place] for place in written), (name, scope)
-        assert not re.search(r"[0-9A-Za-z]{5}", "".join(
-            text[place] if place in written else "%" for place in range(len(text)))), (name, text)
+        assert all(later - earlier > 1 for earlier, later in zip(written, written[1:])), (name, text)
+        template = parsing.layout_template(scope, prefixes.get(scope, whole), noughts)
+        # NO NOUGHT OPENS A RUN OF FIGURES: a twin key spelled so would merge one nought shorter.
+        for place in written:
+            if text[place] == "0":
+                assert place > 0 and template[place - 1] in "%~^0123456789", (name, text)
+        stands = parsing.merged_places(template)
+        for key in keyed.get(parsing.merged_length(template), []):
+            assert any(key[stands[place]] != text[place].casefold() for place in written), (name, scope, key)
         if len(written) == 1:
             place = written[0]
             held: "dict[str, int]" = {}
-            for cell in by.get(scope, []):
-                held[cell[place]] = held.get(cell[place], 0) + 1
+            for key in keyed.get(parsing.merged_length(template), []):
+                held[key[stands[place]]] = held.get(key[stands[place]], 0) + 1
             alphabet = parsing.exclusion_alphabet(scope[place])
             if any("0" <= c <= "9" for c in alphabet) and any(c > "9" for c in alphabet):
                 # A hexadecimal place is written with a figure, read from nine down,
-                # where some real cell of the layout is figures alone; else its letters
-                # are read first, from the greatest down, and its figures after.
+                # where some real key is figures alone; else its letters are read
+                # first, from the greatest down, and its figures after.
                 figures = "".join(c for c in alphabet if "0" <= c <= "9")
                 letters = "".join(c for c in alphabet if c > "9")
-                alone = any(cell.strip().isdigit() for cell in by.get(scope, []))
+                alone = any(
+                    key.isdigit() for key in keyed.get(parsing.merged_length(template), [])
+                )
                 alphabet = figures if alone else figures + letters
             for character in reversed(alphabet):
                 if character == text[place]:
                     break
-                if character == "0" and (place == 0 or scope[place - 1] in ".-+!"):
+                if character == "0" and (place == 0 or template[place - 1] not in "%~^0123456789"):
                     continue
-                assert held.get(character, 0) >= FLOOR, (name, scope, character)
-        prefix = prefixes.get(scope, prefixes.get(parsing.PREFIX_OF_THE_COLUMN, ""))
-        opening = len(parsing.prefix_layout(prefix, parsing.layout_convention(
-            [cell for cell in seen["real"] if cell.strip()]))) if prefix else 0
-        assert all(place >= opening for place in written), (name, scope)
+                count = held.get(character.casefold(), 0)
+                assert count == 0 or count >= FLOOR, (name, scope, character, count)
+    published = json.dumps(exclusions)
+    counted = held_shapes.count_real([cell for cell in seen["real"] if cell.strip()], [published], [])
+    assert counted["description_values"] == 0 and counted["description_fragments"] == 0, (name, counted)
+    _the_spill_says_nothing_the_description_does_not(name, seen)
+
+
+def _the_spill_says_nothing_the_description_does_not(name: str, seen: "dict[str, object]") -> None:
+    """The spill is the column's prefix and figures, as long as the published longest value and one.
+
+    Asked on every run of `test_the_exclusion_publishes_what_no_real_cell_holds`, at 600 rows
+    (skeptic 1 of lane ID-ROOM, item 6): where every real cell is at most the published longest
+    value, one longer; where rule A1 counted a longer cell in a shorter layout,
+    `parsing.LAYOUT_FORM_LIMIT` and one, a length that says nothing of any cell -- so the spill's
+    length less one is never a length only 1 to 10 real cells hold that the description does not
+    publish. And it is longer, merged, than every real cell. Mutant: the spill built off the longest
+    real cell (`pt_two_outliers`: 16, one more than its one cell of 15).
+    """
+    block = seen["block"]
+    if block.get("role") != "identifier":
+        return
+    spill = (block.get("layout_exclusions") or {}).get(parsing.EXCLUSION_SPILL)
+    holes = set(block.get("missing_by_source") or {})
+    present = [cell for cell in seen["real"] if cell.strip() and cell not in holes]
+    assert isinstance(spill, str) and present, name
+    longest = max(len(cell) for cell in present)
+    published = block["max_length"]
+    if longest <= published:
+        assert len(spill) == published + 1, (name, spill, published)
+    else:
+        assert len(spill) == parsing.LAYOUT_FORM_LIMIT + 1, (name, len(spill))
+    whole = (block.get("layout_prefixes") or {}).get(parsing.PREFIX_OF_THE_COLUMN, "")
+    bound = parsing.merged_length(parsing.layout_template(spill, whole, False))
+    assert all(len(parsing.merged_key(cell)) < bound for cell in present), name
+    lengths: "dict[int, int]" = {}
+    for cell in present:
+        lengths[len(cell)] = lengths.get(len(cell), 0) + 1
+    if len(spill) - 1 != published:
+        assert not 1 <= lengths.get(len(spill) - 1, 0) < FLOOR, (name, len(spill))
 
 
 def test_no_real_value_reaches_the_description_through_an_exclusion(tmp_path: pathlib.Path) -> None:
-    """The densest shapes' exclusions carry no real value whole, at 600 rows."""
-    for name in ("uid_752", "sequential_from_one", "cerner_three_widths", "rsid", "keys_beside_na"):
+    """The densest shapes' exclusions carry no real value whole, at 600 rows; nor a real cell spelled as one.
+
+    `literal_marks` (Codex's review, item 2) holds a real cell spelled `9%%%`, which the first head
+    published as its layout's exclusion. Mutant: the check of a candidate against the real cells
+    removed.
+    """
+    for name in ("uid_752", "sequential_from_one", "cerner_three_widths", "rsid", "keys_beside_na", "literal_marks"):
         seen = room.run_shape(tmp_path / name, name, 600, validate=False)
         published = json.dumps(seen["block"].get("layout_exclusions") or {})
         for value in {cell for cell in seen["real"] if cell.strip()}:
@@ -178,13 +250,19 @@ def test_no_real_value_reaches_the_description_through_an_exclusion(tmp_path: pa
 
 
 UID_SHAPES = tuple(name for name in room.SHAPES if name.startswith("uid_")) + ("codes3_pacs_study_uid",)
+# Rootless UIDs of two roots: the walk of the lane's base writes about four in five of their twin
+# cells off the grammar (an arc led by a nought, a first arc past 2), which no published fact lets a
+# twin avoid; the exclusion writes none of them (it never writes a rootless UID's first arc).
+UID_WALK_OFF_THE_GRAMMAR = ("uid_ge_and_siemens", "uid_hl7_and_dicom")
 PREFIXED = ("pt_seven_sequential", "pt_seven_person_on_three_rows", "e_nine_sequential", "p_five",
-            "letters_eight_random", "abc_dash_four", "rsid", "codes3_vcf_rsid")
+            "letters_eight_random", "abc_dash_four", "rsid", "codes3_vcf_rsid", "pt_two_outliers",
+            "sixty_four_characters")
 WHOLE = ("cerner_one_width", "cerner_three_widths", "cerner_two_widths",
          "cerner_person_on_three_rows", "codes3_cerner_encounter")
 PEOPLE = ("sequential_person_on_three_rows", "sequential_person_on_twenty_rows",
           "pt_seven_person_on_three_rows", "cerner_person_on_three_rows",
-          "zero_filled_person_on_four_rows", "uid_study_on_ten_rows", "uid_pydicom_repeated")
+          "zero_filled_person_on_four_rows", "uid_study_on_ten_rows", "uid_pydicom_repeated",
+          "outlier_person_on_three_rows", "folded_with_spaces")
 
 
 def _code_runs_unchanged(name: str, seen: "dict[str, object]", answered: bool) -> None:
@@ -194,15 +272,20 @@ def _code_runs_unchanged(name: str, seen: "dict[str, object]", answered: bool) -
     `test_an_answered_identifier_writes_no_real_one`, at 600 and 20,000 rows, so no shape is built
     twice for it. THE UID GRAMMAR: every twin UID matches `[012](\\.(0|[1-9]\\d*))+`, is at most 64
     characters and opens with the published root (a held UID publishes no root and its twin writes
-    placeholders off the grammar, as on the lane's base 2d25b07, 480 of 600 cells: lane HX's hold,
-    asked only answered here); mutant: the UID root's opening read only to the first placeholder.
-    THE PREFIX: every twin cell of a column publishing a `(column)` prefix opens with it. THE NOUGHTS:
-    a record number exported as `31000000.00` writes `.00` on every twin cell. THE CHECK DIGIT: NPI-like
+    placeholders off the grammar, as on the lane's base 2d25b07, 480 of 600 cells: lane CODES-1 part
+    C's, asked only answered here); a rootless UID of two roots keeps the grammar's first arc on every
+    twin cell, its exclusion never writing it (skeptic 1, item 4); mutants: the UID root's opening read
+    only to the first placeholder, the first arc offered to the exclusion. THE PREFIX: every twin cell
+    of a column publishing a `(column)` prefix opens with it, and of `two_long_prefixes` with one of
+    its two layouts' prefixes (Codex, item 4); mutant: a widened value given the spill. THE NOUGHTS: a
+    record number exported as `31000000.00` writes `.00` on every twin cell. THE CHECK DIGIT: NPI-like
     numbers keep ten figures and the description publishes no check-digit fact -- the product
-    publishes none for any column, so the twin's Luhn digits were never the table's -- and the
-    exclusion writes its one figure at the first place. THE JOIN: the twin's census of rows a value
-    equals the published one, a value moved whole; mutant: the final pass writing a fresh spelling
-    on every ROW of a moved value instead of one a value.
+    publishes none for any column, so the twin's Luhn digits were never the table's (a stated limit,
+    P4-D432) -- and the exclusion writes its one figure at the first place. THE JOIN: the twin's
+    census of rows a value equals the published one, a value moved whole, and a folded identity
+    written with and without a space stays ONE identity (Codex, item 3); mutant: the final pass
+    writing a fresh spelling on every ROW of a moved value instead of one a value, or widening the
+    members of one identity apart.
     """
     twin = [cell for cell in seen["twin"] if cell.strip()]
     block = seen["block"]
@@ -210,12 +293,19 @@ def _code_runs_unchanged(name: str, seen: "dict[str, object]", answered: bool) -
     if name in UID_SHAPES and (answered or name not in dict(room.ANSWERED)):
         root = prefixes.get(parsing.PREFIX_OF_THE_COLUMN, "")
         for cell in twin:
+            if name in UID_WALK_OFF_THE_GRAMMAR:
+                assert cell[:2] in ("0.", "1.", "2."), (name, cell)
+                continue
             assert UID.fullmatch(cell) is not None and len(cell) <= 64, (name, cell)
             assert cell.startswith(root), (name, cell, root)
     if name in PREFIXED:
         prefix = prefixes.get(parsing.PREFIX_OF_THE_COLUMN, "")
         assert prefix, name
         assert all(cell.startswith(prefix) for cell in twin), name
+    if name == "two_long_prefixes":
+        opening = ("A" + "-" * 59, "B" + "_" * 59)
+        assert all(cell.startswith(opening) for cell in twin), name
+        assert all(sum(1 for cell in twin if cell.startswith(one)) for one in opening), name
     if name in WHOLE:
         assert all(re.fullmatch(r"[1-9]\d*\.00", cell) for cell in twin), name
     if name == "npi_check_digit":
@@ -223,18 +313,23 @@ def _code_runs_unchanged(name: str, seen: "dict[str, object]", answered: bool) -
         assert block["layout_exclusions"].get("%%%%%%%%%%", "").count("%") == 9
     if name in PEOPLE:
         counts: "dict[str, int]" = {}
-        for cell in twin:
-            counts[cell] = counts.get(cell, 0) + 1
+        for cell in seen["twin"]:
+            if cell.strip():
+                counts[cell] = counts.get(cell, 0) + 1
         census: "dict[int, int]" = {}
         for rows in counts.values():
             census[rows] = census.get(rows, 0) + 1
         published = {int(key): value for key, value in block["n_distinct_by_occurrences"].items()}
         assert census == published, name
+    if name == "folded_with_spaces":
+        folded = {parsing.folded(cell) for cell in seen["twin"] if cell.strip()}
+        assert len(folded) == block["n_distinct_folded"], (name, len(folded))
 
 
 def test_the_code_pins_reach_every_shape_they_name() -> None:
     """Every shape a pin of `_code_runs_unchanged` names is one the gate builds."""
-    named = set(UID_SHAPES) | set(PREFIXED) | set(WHOLE) | set(PEOPLE) | {"npi_check_digit"}
+    named = (set(UID_SHAPES) | set(PREFIXED) | set(WHOLE) | set(PEOPLE) | {"npi_check_digit"}
+             | set(room.VALIDATED) | set(room.AT_600_ALONE) | set(UID_WALK_OFF_THE_GRAMMAR))
     assert named <= set(room.every_shape()), sorted(named - set(room.every_shape()))
 
 
@@ -265,8 +360,23 @@ def test_the_exclusion_is_the_only_key_the_description_gains(tmp_path: pathlib.P
 # -- the pieces -----------------------------------------------------------------------------------
 
 
+def test_the_merged_key_is_the_one_the_product_counts_people_by() -> None:
+    """`parsing.merged_key` is `profile._subject_key`, and a template's places stand where its fillings' keys hold them."""
+    for cell in ("REC-0007", "rec7", "Rec 7", "P0013736", "009297784", "1.2.276.0.12", "00", "a0f", "ß1"):
+        assert parsing.merged_key(cell) == profile._subject_key(cell), cell
+    assert parsing.merged_key("P0013736") == parsing.merged_key("P13736") == "p13736"
+    assert parsing.merged_key("009297784") == parsing.merged_key("9297784")
+    assert parsing.merged_places("REC%%%%") == (0, 1, 2, 3, 4, 5, 6)
+    assert parsing.merged_places("!!%%%") == (-1, -1, 0, 1, 2)
+    assert parsing.merged_places("@-%%") == (0, -1, 1, 2)
+    assert parsing.merged_length("%%%%%%%%.00") == 9
+    places = parsing.merged_places("REC%%%%")
+    assert parsing.projected("REC9123", places) == parsing.merged_key("REC9123")
+    assert parsing.projected("REC0123", places) != parsing.merged_key("REC0123")
+
+
 def test_an_exclusion_is_its_layout_with_places_written_out() -> None:
-    """`parsing.excludes_the_layout`, `written_excluded`, `spill_layout` and the loader's LX rules."""
+    """`parsing.excludes_the_layout`, `written_excluded`, `widened_layout` and the spill's own reading."""
     assert parsing.excludes_the_layout("%%%%", "9%%%")
     assert parsing.excludes_the_layout("-%", "-9")
     assert not parsing.excludes_the_layout("%%%%", "A%%%")
@@ -274,11 +384,17 @@ def test_an_exclusion_is_its_layout_with_places_written_out() -> None:
     assert not parsing.excludes_the_layout("!%%%", "9%%%")
     assert parsing.written_excluded("REC%%%%", "@@@9%%%") == "REC9%%%"
     assert parsing.written_excluded("%%%%.00", "9%%%.%%") == "9%%%.00"
-    assert parsing.spill_layout("%%%%", 0, 5) == "%%%%%%"
-    assert parsing.spill_layout("@%%%%", 1, 5) == "@%%%%%"
-    assert parsing.spill_layout("%.%.%%", 4, 6) == "%.%.%%%"
-    assert parsing.spill_layout("@&&&", 0, 4) == "@@&&&"
-    assert parsing.spill_layout("%" * 64, 0, 64) == ""
+    assert parsing.widened_layout("%%%%", 0, 2, 64) == "%%%%%%"
+    assert parsing.widened_layout("@%%%%", 1, 1, 64) == "@%%%%%"
+    assert parsing.widened_layout("%.%.%%", 4, 1, 64) == "%.%.%%%"
+    # A rootless UID is widened in its second arc, so its first keeps one figure.
+    assert parsing.widened_layout("%.%.%%", 0, 1, 64) == "%.%%.%%"
+    assert parsing.widened_layout("@&&&", 0, 1, 64) == "@@&&&"
+    assert parsing.widened_layout("%" * 64, 0, 1, 64) == ""
+    assert parsing.widened_layout("%" * 64, 0, 1, 1 << 30) == "%" * 65
+    assert parsing.first_arc_places("%.%.%%") == 1 and parsing.first_arc_places("%%.%%") == 0
+    assert parsing.is_a_spill_layout("@@" + "%" * 70)
+    assert not parsing.is_a_spill_layout("@@%%@")
     assert not parsing.is_a_layout_exclusion("%%%%")
     assert parsing.is_a_layout_exclusion("-9")
 
@@ -287,35 +403,54 @@ def test_a_figure_after_a_numbers_point_is_never_written_out() -> None:
     """Several spellings of one block, none at the figure after the point (plan P4-D432).
 
     500 different values `100.0` to `149.9` held as record numbers fill too much of `%%%.%` for one
-    spelling, so the block carries fifteen; none writes the figure after the point, which says whether
-    a value is whole, so a twin value ending `.0` still wears a template. Mutant: the point's figures
-    offered to the block -- `%9%.9` and its neighbours, and the twin of a held measurement column
-    missed its census at exit 3 at 20,000 rows.
+    spelling, so the block carries several; none writes the figure after the point, which says
+    whether a value is whole, so a twin value ending `.0` still wears a template. Mutant: the point's
+    figures offered to the block -- `%9%.9` and its neighbours, and the twin of a held measurement
+    column missed its census at exit 3 at 20,000 rows.
     """
     cells = [f"{value / 10:.1f}" for value in range(1000, 1500)] * 7
-    found = taxonomy._exclusion_of(cells, "%%%.%", "%%%.%", "", FLOOR, len(cells), 1470)
+    keys = [parsing.merged_key(cell) for cell in cells]
+    found = taxonomy._exclusion_of(keys, "%%%.%", "%%%.%", "", FLOOR, len(cells), 1470, 0, {})
     assert 2 <= len(found) <= parsing.EXCLUSIONS_AT_MOST, found
     assert all(text[4] == "%" and text[3] == "." for text in found), found
     worn = {(cell[0], cell[2]) for cell in cells}
     assert all((text[0], text[2]) not in worn for text in found), found
 
 
+def test_a_layout_of_one_place_carries_its_free_characters_as_several_spellings() -> None:
+    """A block of ONE place (skeptic 1 of lane ID-ROOM, item 1 (c)).
+
+    Eleven cells of four letters, `a` to `d`, beside a pool: no one spelling leaves room for four
+    values, so the layout `&` carries several, `z`, `y`, `x` and `w`, each held by no cell, passing
+    over none. Mutant: the block's sizes read from two, and the layout carries no exclusion.
+    """
+    cells = ["a", "b", "c", "d", "a", "b", "c", "d", "a", "b", "c"]
+    found = taxonomy._exclusion_of(cells, "&", "&", "", FLOOR, 11, 4, 0, {})
+    assert found == ["z", "y", "x", "w"], found
+
+
 def test_the_loader_refuses_an_exclusion_that_does_not_fit_its_layout(tmp_path: pathlib.Path) -> None:
     """LX2 for a written place inside the prefix, in one exclusion or one of several; a list of one,
     of a repeated spelling or under `(spill)` refused as no entry; LX3 for a spill no longer than the
-    longest value."""
+    longest value or holding more than figures after the prefix; and a spill beside an empty census
+    loaded (skeptic 1, item 2)."""
     seen = room.run_shape(tmp_path / "made", "pt_seven_sequential", 600, validate=False)
     document = json.loads(seen["texts"]["t-profile.json"])
     block = [one for one in document["columns"] if one["name"] == "target"][0]
-    for exclusions, rule in (({"@@%%%%%%%": "Z@%%%%%%%"}, "LX2"),
+    for place, (exclusions, rule) in enumerate((({"@@%%%%%%%": "Z@%%%%%%%"}, "LX2"),
                              ({"@@%%%%%%%": ["@@%9%9%%%", "Z@%%%%%%%"]}, "LX2"),
                              ({"@@%%%%%%%": ["@@%9%9%%%", "@@%9%9%%%"]}, "layout_exclusions"),
                              ({"@@%%%%%%%": ["@@%9%9%%%"]}, "layout_exclusions"),
                              ({"(spill)": ["@@%%%%%%%%%", "@@%%%%%%%%%%"]}, "layout_exclusions"),
-                             ({"(spill)": "@@%%%%%%%"}, "LX3")):
+                             ({"(spill)": "@@%%%%%%%"}, "LX3"),
+                             ({"(spill)": "@@%%%%%%%@"}, "LX3"))):
         block["layout_exclusions"] = exclusions
-        path = tmp_path / f"{rule}.json"
-        path.write_text(json.dumps(document), encoding="utf-8", newline="\n")
+        path = fixtures.write_profile(tmp_path, f"{rule}-{place}.json", document)
         with pytest.raises(Exception) as refused:
             contract.load_profile(str(path))
         assert rule in str(refused.value)
+    stray = room.run_shape(tmp_path / "stray", "outlier_long", 600, validate=False)
+    loaded = contract.load_profile(str(tmp_path / "stray" / "t-profile.json"))
+    facts = [column for column in loaded.columns if column.name == "target"][0].facts
+    assert isinstance(facts, contract.IdentifierFacts)
+    assert not facts.layout_forms and parsing.EXCLUSION_SPILL in facts.layout_exclusions, stray["block"]

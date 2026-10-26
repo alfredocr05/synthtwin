@@ -3256,40 +3256,36 @@ def uid_unled(text: str) -> bool:
 
 # -- THE EXCLUSION OF A RECORD NUMBER'S LAYOUT (lane ID-ROOM, plan P4-D432)
 #
-# NO TWIN IDENTIFIER CELL EQUALS A REAL IDENTIFIER OF ITS COLUMN, BY
-# CONSTRUCTION. The twin of a declared or answered identifier draws its
-# free figures and letters in its column's own layouts and reads no real
-# value, so where the real values fill a layout densely a twin cell
-# equalled a real one by chance: measured on CODES-3's final head at
-# 20,000 rows, `1.2.752.24.7.1.<k>` wrote 1,022 real UIDs, Cerner record
-# numbers of three widths 214, rsIDs 15, and the count grew with the
-# rows. The profile, which reads the real column, therefore publishes
-# beside each named layout ONE EXCLUSION: the layout with one placeholder
-# (or, on a layout too densely filled for one, several) written as a
-# character NO real cell of that layout holds there. Every twin cell of
-# that layout carries it, so it equals no real cell: two equal cells wear
-# one layout and hold one character at every place. A layout no
-# exclusion leaves room in -- its real values fill it -- gets none, and
-# the twin writes its cells in the column's SPILL layout instead: the
-# widest named layout widened past the column's published longest value,
-# which no real cell can wear.
+# NO TWIN IDENTIFIER CELL NAMES A REAL ONE, BY CONSTRUCTION. The twin of a
+# declared or answered identifier draws its free figures and letters in
+# its column's own layouts and reads no real value, so where the real
+# values fill a layout densely a twin cell equalled a real one by chance:
+# measured on CODES-3's final head at 20,000 rows, `1.2.752.24.7.1.<k>`
+# wrote 1,022 real UIDs, Cerner record numbers of three widths 214, rsIDs
+# 15, and the count grew with the rows. The profile, which reads the real
+# column, therefore publishes beside each named layout an EXCLUSION: the
+# layout with one placeholder (or, on a layout too densely filled for one,
+# several spellings of a block) written as a character no real cell holds
+# there, READ ON THE MERGED KEY (`merged_key`): the one form the product
+# itself counts a person by (plan P4-D406), so `P0013736` and `P13736`,
+# `009297784` and `9297784`, `P-1` and `p1` are one key. And beside every
+# identifier block it publishes the SPILL: the column's prefix and figures,
+# one character longer than the published longest value, which no real
+# cell's merged key reaches. Every twin cell either wears an excluded
+# template with its merged key read place for place, or is at least as
+# long, merged, as the spill, so its merged key is no real cell's.
 
 # THE MOST EXCLUSIONS ONE LAYOUT CARRIES (lane ID-ROOM, plan P4-D432). A
 # layout whose real values leave no one spelling of a block room enough
 # for the twin's values carries several spellings of one block, each no
-# real cell of the layout holds; past this many it carries none, and its
-# values are written wider. The description stays short and the number
-# of spellings a reader is told some real cell holds stays small.
+# real cell holds; past this many it carries none, and its values are
+# written wider. The description stays short and the number of spellings
+# a reader is told some real cell holds stays small.
 EXCLUSIONS_AT_MOST = 32
 
 # The key of `layout_exclusions` naming the spill layout. It holds
 # lower-case letters, which no layout holds, as `(column)` does.
 EXCLUSION_SPILL = "(spill)"
-# ...and the key saying NO real cell wears a layout the census does not
-# name (a zero count), under its one value: a twin cell of such a layout
-# then equals no real cell either.
-EXCLUSION_UNNAMED = "(unnamed)"
-EXCLUSION_NONE = "(none)"
 
 _EXCLUSION_ALPHABETS = {
     LAYOUT_DIGIT: "0123456789",
@@ -3425,36 +3421,43 @@ def written_excluded(template: str, exclusion: str) -> str:
     return written
 
 
-def spill_layout(layout: str, opening: int, longest: int) -> str:
-    """``layout`` widened until it is longer than ``longest`` characters, or "" (P4-D432).
+def widened_layout(layout: str, opening: int, wanted: int, limit: int) -> str:
+    """``layout`` with ``wanted`` placeholders more, or "" past ``limit`` characters (P4-D432).
 
-    THE LAYOUT NO REAL CELL WEARS. A cell is never longer than the
-    column's published longest value, so a layout longer than that is
-    worn by none, and knowing it says nothing the description does not
-    already say. Figures are inserted before the first `%` at or after
-    place ``opening`` (the end of a published prefix or UID root): a
-    record number gains a leading figure, a UID's first drawn arc one
-    figure more. A layout holding no `%` there takes copies of its first
-    placeholder after the opening instead. "" where the widened layout
-    would pass `LAYOUT_FORM_LIMIT` or the layout has no placeholder
-    after the opening. Raises TypeError for a non-string or a non-whole
-    number. No I/O.
+    THE LAYOUT A VALUE IS WRITTEN WIDER IN. Copies of `%` are inserted
+    before the first `%` at or after place ``opening`` (the end of a
+    published prefix or UID root): a record number gains leading figures,
+    a UID's first drawn arc more figures. A layout of figures and points
+    alone with two points or more that opens with a one-figure arc and
+    has no opening -- a UID with no published root -- is widened in its
+    SECOND arc, so its first arc keeps the grammar's one figure (skeptic
+    1 of lane ID-ROOM, item 4). A layout holding no `%` there takes copies
+    of its first placeholder after the opening instead. "" where the
+    widened layout would pass ``limit`` characters, where ``wanted`` is
+    under one, or where the layout has no placeholder after the opening.
+    Raises TypeError for a non-string or a non-whole number. No I/O.
     """
     if not isinstance(layout, str):
         raise TypeError(_NOT_TEXT)
-    if not isinstance(opening, int) or not isinstance(longest, int):
+    if (
+        not isinstance(opening, int)
+        or not isinstance(wanted, int)
+        or not isinstance(limit, int)
+    ):
         raise TypeError(_NOT_TEXT)
-    wanted = max(longest - len(layout) + 1, 1)
-    if len(layout) + wanted > LAYOUT_FORM_LIMIT:
+    if wanted < 1 or len(layout) + wanted > limit:
         return ""
+    start = max(opening, 0)
+    if start == 0 and _reads_as_a_rootless_uid(layout):
+        start = layout.find(".") + 1
     at = -1
-    for place in range(max(opening, 0), len(layout)):
+    for place in range(start, len(layout)):
         if layout[place] == LAYOUT_DIGIT:
             at = place
             break
     mark = LAYOUT_DIGIT
     if at < 0:
-        for place in range(max(opening, 0), len(layout)):
+        for place in range(start, len(layout)):
             if exclusion_alphabet(layout[place]):
                 at = place
                 mark = layout[place]
@@ -3462,6 +3465,183 @@ def spill_layout(layout: str, opening: int, longest: int) -> str:
     if at < 0:
         return ""
     return layout[:at] + mark * wanted + layout[at:]
+
+
+def _reads_as_a_rootless_uid(layout: str) -> bool:
+    """Whether a layout is figures and points alone, two points or more, opening `%.` (P4-D432)."""
+    points = 0
+    for character in layout:
+        if character == ".":
+            points = points + 1
+        elif character != LAYOUT_DIGIT:
+            return False
+    return points >= 2 and layout[:2] == LAYOUT_DIGIT + "."
+
+
+def first_arc_places(template: str) -> int:
+    """How many opening places of a template are a rootless UID's first arc, else 0 (P4-D432).
+
+    A UID's first arc is `0`, `1` or `2` (the grammar
+    `[012](\\.(0|[1-9]\\d*))+`), so an exclusion never writes it and no
+    widening reaches it (skeptic 1 of lane ID-ROOM, item 4).
+    """
+    if not isinstance(template, str):
+        raise TypeError(_NOT_TEXT)
+    if _reads_as_a_rootless_uid(template):
+        return template.find(".")
+    return 0
+
+
+def merged_key(text: str) -> str:
+    """One cell's MERGED KEY: the form the product counts a subject by (plan P4-D406).
+
+    The cell folded (`folded`), every character of the ASCII range that
+    is neither a letter nor a figure dropped (one outside it is kept),
+    and every zero that opens a run of figures dropped (a run of zeros
+    alone stays one zero): `REC-0007`, `rec7` and `Rec 7` are all `rec7`.
+    `profile.subject_keys` counts people by it, and lane ID-ROOM's
+    exclusions are read on it, so a twin key names no real person written
+    another way (skeptic 1 of lane ID-ROOM, item 3). A fixed function of
+    the text. Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    kept = ""
+    zeros = False
+    started = False
+    for character in folded(text):
+        if "0" <= character <= "9":
+            if started or character != "0":
+                kept = kept + character
+                started = True
+            else:
+                zeros = True
+            continue
+        if zeros and not started:
+            kept = kept + "0"
+        zeros = False
+        started = False
+        if "a" <= character <= "z" or character > "\x7f":
+            kept = kept + character
+    if zeros and not started:
+        kept = kept + "0"
+    return kept
+
+
+def merged_places(template: str) -> "tuple[int, ...]":
+    """Where each place of a template stands in its fillings' merged key, -1 where nowhere (P4-D432).
+
+    Read off the template as `merged_key` reads a cell, every placeholder
+    a figure other than a nought or a letter, the zero fill a nought and
+    every other character itself: a placeholder always stands in the key,
+    a mark never, a zero fill only where it is a run of noughts alone. A
+    FILLING whose merged key is `projected` -- the characters at the
+    places that stand, in order -- holds at each such place the character
+    its key holds there: one that drops a nought the template does not
+    (a nought opening a run of figures) is not one. Raises TypeError for a
+    non-string. No I/O.
+    """
+    if not isinstance(template, str):
+        raise TypeError(_NOT_TEXT)
+    stands = _merged_stands(template)
+    found: "list[int]" = []
+    for _place in range(len(template)):
+        found += [-1]
+    for index in range(len(stands)):
+        if found[stands[index]] < 0:
+            found[stands[index]] = index
+    return tuple(found)
+
+
+def _merged_stands(template: str) -> "list[int]":
+    """The place each character of a template's fillings' merged key comes from, in order."""
+    stands: "list[int]" = []
+    zeros = False
+    started = False
+    lone = -1
+    for place in range(len(template)):
+        mark = template[place]
+        written = mark.casefold()
+        if mark in (LAYOUT_DIGIT, LAYOUT_LOWER_HEX, LAYOUT_UPPER_HEX):
+            written = "1"
+        elif mark in (LAYOUT_UPPER, LAYOUT_LOWER):
+            written = "a"
+        elif mark == LAYOUT_LEADING_ZERO:
+            written = "0"
+        for character in written:
+            if "0" <= character <= "9":
+                if started or character != "0":
+                    stands += [place]
+                    started = True
+                elif not zeros:
+                    zeros = True
+                    lone = place
+                continue
+            if zeros and not started:
+                stands += [lone]
+            zeros = False
+            started = False
+            if "a" <= character <= "z" or character > "\x7f":
+                stands += [place]
+    if zeros and not started:
+        stands += [lone]
+    return stands
+
+
+def merged_length(template: str) -> int:
+    """How long the merged key of every filling `projected` reads is (P4-D432).
+
+    Read as `merged_places` reads the template. Raises TypeError for a
+    non-string. No I/O.
+    """
+    if not isinstance(template, str):
+        raise TypeError(_NOT_TEXT)
+    return len(_merged_stands(template))
+
+
+def projected(text: str, places: "tuple[int, ...]") -> str:
+    """The characters of a filling at the places `merged_places` stands, folded, in order (P4-D432).
+
+    Equal to the filling's `merged_key` exactly where the filling drops no
+    nought the template does not, so each place written stands where its
+    key holds it. "" for a text of another length. Raises TypeError for a
+    non-string. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if len(text) != len(places):
+        return ""
+    order: "list[tuple[int, int]]" = []
+    for place in range(len(places)):
+        if places[place] >= 0:
+            order += [(places[place], place)]
+    written = ""
+    for _index, place in sorted(order):
+        written = written + text[place].casefold()
+    return written
+
+
+def is_a_spill_layout(text: str) -> bool:
+    """Whether a text could be a spill: an opening of a prefix's marks and then figures (P4-D432).
+
+    Any length: the spill is one character longer than the column's
+    published longest value, which may pass `LAYOUT_FORM_LIMIT`. Raises
+    TypeError for a non-string. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not text or text[len(text) - 1] != LAYOUT_DIGIT:
+        return False
+    for character in text:
+        if not (
+            character in _LAYOUT_PLACEHOLDERS
+            or character in LAYOUT_MARKS
+            or character == LAYOUT_SPACE
+            or _is_a_digit(character)
+            or _is_a_letter(character)
+        ):
+            return False
+    return True
 
 
 def literal_prefix(values: "list[str]", convention: str) -> str:

@@ -154,7 +154,67 @@ SHAPES: "dict[str, tuple[object, bool]]" = {
         lambda k, d: f"{GE}{2831164355 + (k // 10) * 7}.311.{1593607063 + k // 10}.{464 + (k // 10) % 100}",
         False,
     ),
+    # -- lane ID-ROOM's skeptic 1 (wave6/ID-ROOM-sk1.md): one stray cell beside a column of keys
+    # (item 2), one key written two ways (item 3), UIDs of two roots (item 4), dense layouts a class
+    # or a date can exhaust (item 5), the spill beside outliers rule A1 counts (item 6), case, spaces,
+    # zero fill and a hyphen (item 8)
+    "outlier_long": (lambda k, d: "123456789012" if k == 5 else f"{1000000 + k}", True),
+    "outlier_short": (lambda k, d: "12" if k == 5 else f"{1000000 + k}", True),
+    "outlier_word": (lambda k, d: "ERR" if k == 5 else f"{1000000 + k}", True),
+    "outlier_person_on_three_rows": (lambda k, d: "99999999999" if k == 5 else f"{1000000 + k // 3}", True),
+    "pt_two_outliers": (
+        lambda k, d: "PT1234567890123" if k == 5 else ("PT98765432" if k == 9 else f"PT{1000000 + k:07d}"), True,
+    ),
+    "pad_mixed": (lambda k, d: f"{k + 1:08d}" if k % 2 else f"{k + 1}", True),
+    "pad_split": (lambda k, d: (lambda v: f"{v:09d}" if d.random.random() < 0.5 else f"{v}")(
+        d.unique(10**6, 10**7 - 1)), True),
+    "case_split": (
+        lambda k, d: f"MRN{d.random.randint(8000000, 9999999)}" if k % 2 == 0
+        else f"mrn{d.random.randint(1000000, 7999999)}", True,
+    ),
+    "space_mixed": (lambda k, d: f" {1000000 + k}" if k % 4 == 0 else f"{1000000 + k}", True),
+    "dash_split": (
+        lambda k, d: f"P{d.random.randint(80000, 99999)}" if k % 2 == 0 else f"P-{d.random.randint(10000, 79999)}",
+        True,
+    ),
+    "hex4_dense": (lambda k, d: f"{d.random.getrandbits(16):04x}", True),
+    "uid_ge_and_siemens": (lambda k, d: f"{GE}{k + 1}" if k % 2 else f"{SIEMENS}{k + 1}", True),
+    "uid_hl7_and_dicom": (
+        lambda k, d: f"2.16.840.1.113883.3.464.{k + 1}" if k % 2 else f"1.2.840.10008.5.1.4.{k + 1}", True,
+    ),
+    "uid_one_arc_repeating": (lambda k, d: f"1.2.3.{k % 1000}", True),
+    # -- Codex's review of the lane (codex-w3/verdict-ID-ROOM): identifiers past the layout limit
+    # (item 1), a real cell spelled as an exclusion (item 2), a folded identity widened (item 3), two
+    # long prefixes widened (item 4), identifiers of sixty-four characters (item 5)
+    "over_the_layout_limit": (lambda k, d: str(10**64 + k % 100), True),
+    "dense_beside_one_past_the_limit": (lambda k, d: str(10**64) if k % 600 == 599 else str(k % 600 + 1), True),
+    "literal_marks": (
+        lambda k, d: (lambda i: f"{1000 + i}" if i < 200 else ("9%%%" if i == 200 else f"x%0{i - 201}"))(k % 211),
+        True,
+    ),
+    "folded_with_spaces": (
+        lambda k, d: (lambda i: (" " if i % 2 else "") + "ABCDEFGHIJ"[(i // 2) // 10] + str((i // 2) % 10))(
+            (k // 3) % 200),
+        True,
+    ),
+    "two_long_prefixes": (
+        lambda k, d: ("A" + "-" * 59 if k % 800 < 400 else "B" + "_" * 59) + str(100 + k % 400), True,
+    ),
+    "sixty_four_characters": (lambda k, d: "Q" * 61 + str(100 + k % 800), True),
 }
+
+# Shapes the gate validates too, at 20,000 rows (exit 0): the twin keeps its own validation where
+# the lane's base did (skeptic 1 of lane ID-ROOM, items 5 and 8).
+VALIDATED = (
+    "pad_mixed", "hex4_dense", "case_split", "dash_split", "pad_split", "outlier_long",
+    "outlier_short", "outlier_word", "outlier_person_on_three_rows", "pt_two_outliers",
+    "two_long_prefixes",
+)
+
+# Shapes built at 600 rows alone: what they pin is a construction, not a density.
+AT_600_ALONE = (
+    "over_the_layout_limit", "literal_marks", "folded_with_spaces", "two_long_prefixes",
+)
 
 # The held shapes answered `identifier` on the questions file, as the person holding the table
 # would, at the sizes whose people the population floor describes (P4-D341: 100 people or more; the
@@ -215,6 +275,24 @@ def rows_of(name: str, n: int) -> "tuple[list[str], list[list[str]], str, bool]"
 def every_shape() -> "tuple[str, ...]":
     """Every shape's name, CODES-3's tables last."""
     return tuple(SHAPES) + tuple(table for table, _column, _declared in CODES3)
+
+
+def merged_equal_cells(
+    real: "list[str]", twin: "list[str]", absent: "frozenset[str]" = frozenset()
+) -> int:
+    """Twin cells, present, whose MERGED KEY (`parsing.merged_key`) is a present real cell's.
+
+    The form `profile.subject_keys` counts a person by (plan P4-D406): `P0013736` and `P13736`,
+    `009297784` and `9297784`, `P-1` and `p1` are one key, so a twin cell merging with a real one
+    names a real person written another way (skeptic 1 of lane ID-ROOM, item 3).
+    """
+    from synthtwin import parsing
+
+    keys = {parsing.merged_key(cell) for cell in real if cell.strip() and cell not in absent}
+    keys.discard("")
+    return sum(
+        1 for cell in twin if cell.strip() and cell not in absent and parsing.merged_key(cell) in keys
+    )
 
 
 def equal_cells(real: "list[str]", twin: "list[str]", absent: "frozenset[str]" = frozenset()) -> int:
@@ -287,39 +365,55 @@ def run_shape(
         "real": real,
         "twin": twin,
         "equal": equal_cells(real, twin, absent),
+        "merged": merged_equal_cells(real, twin, absent),
         "texts": texts,
     }
 
 
 def _column_cells(path: pathlib.Path, name: str) -> "list[str] | None":
-    """One column of a delimited file, read from its header row; None where it is not read."""
+    """One column of a table, read by the product's own reader; None where it is not read.
+
+    `reading.read_table` reads each table in its own dialect -- a byte-order mark, a `;` or a tab,
+    a workbook -- as `synthtwin profile` does (skeptic 1 of lane ID-ROOM, item 8); a table it reads
+    with made-up names, or whose header sits under rows of notes, is read by the csv module under
+    the delimiter that splits its header, the mark aside.
+    """
+    from synthtwin import reading
+
+    try:
+        table = reading.read_table(f"{path}")
+        if name in table.column_names:
+            return list(table.columns[table.column_names.index(name)])
+    except Exception:  # noqa: BLE001 -- a table the reader refuses is read below
+        pass
     if path.suffix not in (".csv", ".tsv", ".txt", ".psv"):
         return None
-    delimiter = "\t" if path.suffix == ".tsv" else ("|" if path.suffix == ".psv" else ",")
-    rows = list(csv.reader(io.StringIO(path.read_bytes().decode("utf-8", errors="replace")),
-                           delimiter=delimiter))
-    for start in range(min(len(rows), 12)):
-        if name in rows[start]:
-            place = rows[start].index(name)
-            return [row[place] for row in rows[start + 1:] if len(row) > place]
+    text = path.read_bytes().decode("utf-8-sig", errors="replace")
+    for delimiter in (",", ";", "\t", "|"):
+        rows = list(csv.reader(io.StringIO(text), delimiter=delimiter))
+        for start in range(min(len(rows), 12)):
+            if name in rows[start]:
+                place = rows[start].index(name)
+                return [row[place] for row in rows[start + 1:] if len(row) > place]
     return None
 
 
 def zoo_equal_cells(folder: pathlib.Path, n: int) -> "dict[str, int]":
     """The health data zoo's identifier columns: twin cells spelled as a real cell of their column.
 
-    Every delimited zoo table this machine runs (seed 20261016 plus its place, as
-    `health_zoo.run_zoo`), run through `health_zoo.run_table` -- profiled scripted, answered
-    with the zoo's general facts, generated at seed 0 -- and every column its description
-    writes as an identifier. Returns the equal cells, the identifier columns read and the
-    tables whose twin was not written.
+    Every zoo table this machine runs (seed 20261016 plus its place, as `health_zoo.run_zoo`),
+    workbooks included where the cross-check reader is, run through `health_zoo.run_table` --
+    profiled scripted, answered with the zoo's general facts, generated at seed 0 -- and every
+    column its description writes as an identifier, each read in its table's own dialect. Returns
+    the equal cells, the cells whose merged key is a real cell's, the identifier columns read, those
+    NOT read (a failure: no column goes uncounted) and the tables whose twin was not written.
     """
     import health_zoo
 
-    found = {"equal": 0, "columns": 0, "unwritten": 0}
+    found = {"equal": 0, "merged": 0, "columns": 0, "unread": 0, "unwritten": 0}
     runnable = health_zoo.runnable_tables()
     for place, table in enumerate(health_zoo.TABLES):
-        if table not in runnable or table.suffix not in (".csv", ".tsv", ".txt", ".psv"):
+        if table not in runnable:
             continue
         where = folder / table.name
         health_zoo.run_table(table, where, n, 20261016 + place)
@@ -336,8 +430,10 @@ def zoo_equal_cells(folder: pathlib.Path, n: int) -> "dict[str, int]":
             real = _column_cells(where / f"{table.name}{table.suffix}", block["name"])
             made = _column_cells(twin, block["name"])
             if real is None or made is None:
+                found["unread"] += 1
                 continue
             absent = frozenset(block.get("missing_by_source") or {})
             found["columns"] += 1
             found["equal"] += equal_cells(real, made, absent)
+            found["merged"] += merged_equal_cells(real, made, absent)
     return found

@@ -3082,12 +3082,12 @@ def battery() -> list[Mutation]:
         ),
         Mutation(
             "LX1",
-            "an exclusion beside a layout census that names no layout",
+            "an exclusion for a layout beside a layout census that names no layout",
             edit(
                 "record_code",
                 layout_forms={},
                 layout_prefixes={},
-                layout_exclusions={"(spill)": "@%%%%%%"},
+                layout_exclusions={"@%%%%%": "@9%%%%", "(spill)": "%%%%%%%"},
             ),
         ),
         Mutation(
@@ -3121,12 +3121,9 @@ def battery() -> list[Mutation]:
             edit("record_code", layout_exclusions={"(spill)": "%%%%%%%"}),
         ),
         Mutation(
-            "LX4",
-            "no real cell outside the named layouts said otherwise than (none)",
-            edit(
-                "record_code",
-                layout_exclusions={"@%%%%%": "@9%%%%", "(unnamed)": "(some)"},
-            ),
+            "LX3",
+            "a spill holding more than figures after the column's prefix",
+            edit("record_code", layout_exclusions={"(spill)": "@%%%%%@"}),
         ),
         Mutation(
             "R16",

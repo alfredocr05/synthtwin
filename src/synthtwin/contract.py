@@ -894,9 +894,9 @@ IDENTIFIER_KEYS = (
     "layout_prefixes",
     # THE NINTH KEY, AND THE ONE THAT SAYS WHAT THE COLUMN DOES NOT HOLD
     # (lane ID-ROOM, plan P4-D432). Beside each named layout, the layout
-    # with places written as characters no real cell of it holds there,
-    # and the spill, a layout no real cell wears: the twin writes every
-    # cell with one of them, so no twin cell is spelled as a real one.
+    # with places written as characters no real cell's merged key holds
+    # there, and the spill, longer than every real cell: the twin writes
+    # every cell with one of them, so no twin cell names a real one.
     # Invariants LX1 to LX3 hold it.
     "layout_exclusions",
     "max_length",
@@ -2415,7 +2415,8 @@ INVARIANTS = {
     # holds, and the layout no real cell wears.
     "LX1": (
         "an exclusion is published for a layout the census names, or as "
-        "the spill, and only beside a census naming a layout"
+        "the spill, which every identifier block may publish beside any "
+        "census, an empty one included"
     ),
     "LX2": (
         "an exclusion is its layout with one place or more written as a "
@@ -2423,13 +2424,9 @@ INVARIANTS = {
         "twin fills after the layout's prefix"
     ),
     "LX3": (
-        "the spill is a layout the census does not name, longer than the "
-        "column's longest value, opening with the column's own prefix "
-        "where it publishes one"
-    ),
-    "LX4": (
-        "that no real cell wears a layout the census does not name is said "
-        "only beside a census publishing no pool, and only as `(none)`"
+        "the spill is the column's own prefix and then figures alone, a "
+        "layout the census does not name, longer than the column's longest "
+        "value"
     ),
     # -- lane PS (plan P4-D417): the grain a column of dates or times was
     # pooled at, and the record a held one keeps.
@@ -3378,11 +3375,10 @@ class IdentifierFacts:
     layout_prefixes: "dict[str, str]"
     # WHAT NO REAL CELL HOLDS (7.12b; lane ID-ROOM, plan P4-D432). Each
     # named layout mapped to its exclusions -- itself with places written
-    # as characters no real cell of that layout holds there, one or
-    # several spellings of one block -- and `(spill)` to a layout longer
-    # than every real cell, `(unnamed)` to `(none)`, each one entry. Empty
-    # on a document whose producer published none, which the twin then
-    # writes as before.
+    # as characters no real cell's merged key holds there, one or several
+    # spellings of one block -- and `(spill)` to the column's prefix and
+    # figures, longer than every real cell, one entry. Empty on a document
+    # whose producer published none, which the twin then writes as before.
     layout_exclusions: "dict[str, tuple[str, ...]]" = dataclasses.field(
         default_factory=dict
     )
@@ -18663,10 +18659,12 @@ def _layout_exclusions(
     that is not its layout with places written as characters of their own
     alphabets, each a place the twin fills -- after the layout's prefix,
     never a whole number's nought after the point -- and one left (LX2);
-    a spill the census names, no longer than the longest value, or not
-    opening with the column's prefix (LX3). What it cannot check is the
-    producer's promise that no real cell holds the written characters:
-    that is `taxonomy.with_layout_exclusions`'s, read off the cells.
+    a spill that is not the column's prefix and figures alone, that the
+    census names, or no longer than the longest value (LX3). The spill
+    stands beside any census, an empty one included (skeptic 1 of lane
+    ID-ROOM, item 2). What it cannot check is the producer's promise that
+    no real cell holds the written characters: that is
+    `taxonomy.with_layout_exclusions`'s, read off the cells.
 
     NO REFUSAL QUOTES AN EXCLUSION; it names the key and the rule.
     Raises ProfileError for a wrong type and LX1 to LX3.
@@ -18675,19 +18673,19 @@ def _layout_exclusions(
     exclusions: "dict[str, tuple[str, ...]]" = {}
     for scope in sorted(found):
         entry = found[scope]
-        texts: "tuple[str, ...]" = ()
+        texts: "list[str]" = []
         if isinstance(entry, str):
-            texts = (entry,)
+            texts = [entry]
         elif (
             isinstance(entry, list)
             and 2 <= len(entry) <= parsing.EXCLUSIONS_AT_MOST
-            and scope not in (parsing.EXCLUSION_SPILL, parsing.EXCLUSION_UNNAMED)
+            and scope != parsing.EXCLUSION_SPILL
         ):
             for each in entry:
                 if isinstance(each, str) and each not in texts:
-                    texts = texts + (each,)
+                    texts += [each]
             if len(texts) != len(entry):
-                texts = ()
+                texts = []
         if not texts:
             raise _out_of_range(
                 "layout_exclusions",
@@ -18696,20 +18694,13 @@ def _layout_exclusions(
                 "a layout with places written out, several of one layout, or the "
                 "spill's layout",
             )
-        exclusions[scope] = texts
+        exclusions[scope] = tuple(texts)
     if not exclusions:
         return exclusions
     named: "list[str]" = []
     for name in sorted(layouts):
         if name != WITHHELD:
             named += [name]
-    if not named:
-        raise _broken(
-            "LX1",
-            where,
-            f"{len(exclusions)} exclusion(s) published",
-            "the layout census names no layout",
-        )
     convention = _layout_census_convention(layouts)
     whole = (
         prefixes[parsing.PREFIX_OF_THE_COLUMN]
@@ -18722,15 +18713,6 @@ def _layout_exclusions(
     opening = parsing.prefix_layout(whole, convention) if whole else ""
     for scope in sorted(exclusions):
         text = exclusions[scope][0]
-        if scope == parsing.EXCLUSION_UNNAMED:
-            if text != parsing.EXCLUSION_NONE or WITHHELD in layouts:
-                raise _broken(
-                    "LX4",
-                    where,
-                    "a census of layouts publishing a pool, or another value",
-                    "no real cell outside the named layouts is said so alone",
-                )
-            continue
         if scope != parsing.EXCLUSION_SPILL and scope not in named:
             raise _broken(
                 "LX1",
@@ -18739,12 +18721,14 @@ def _layout_exclusions(
                 f"the census names {len(named)} layout(s)",
             )
         if scope == parsing.EXCLUSION_SPILL:
+            figures = len(text) - len(opening)
             if (
-                not parsing.is_a_layout_form(text)
+                not parsing.is_a_spill_layout(text)
                 or text in layouts
                 or len(text) <= longest
+                or figures < 1
                 or text[: len(opening)] != opening
-                or not _holds_a_placeholder(text[len(opening):])
+                or text[len(opening):] != parsing.LAYOUT_DIGIT * figures
             ):
                 raise _broken(
                     "LX3",

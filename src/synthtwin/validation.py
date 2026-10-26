@@ -22119,6 +22119,16 @@ def _identifier_checks(
     # P4-D432): a layout carrying no exclusion, and the lengths with it,
     # are listed REPORT-ONLY (`moved_off_the_real`).
     moved, lengths = moved_off_the_real(facts, column.n_present)
+    # ...AND A VALUE THE TWIN WROTE WIDER ALL THE SAME (method G9.6b: an
+    # excluded template a value of another class or a date could not
+    # take): every real cell's merged key is shorter than the spill's, so
+    # a measured cell as long is one the twin wrote wider, and the census
+    # entries and lengths it leaves are an AUTHORIZED-DEVIATION, bounded
+    # by how many there are (skeptic 1 of lane ID-ROOM, item 5).
+    wider = taxonomy.written_wider(
+        facts.layout_exclusions, facts.layout_prefixes, present
+    )
+    bound = taxonomy.spill_bound(facts.layout_exclusions, facts.layout_prefixes)
     for field, published, subcheck in (
         ("min_length", facts.min_length, "length.min"),
         ("max_length", facts.max_length, "length.max"),
@@ -22132,15 +22142,30 @@ def _identifier_checks(
             if field in absorbed_lengths
             else _count_at(block, field)
         )
-        checks += [
-            _exact(
+        check = _exact(
+            name,
+            f"identifier.{field}",
+            subcheck,
+            _shown_count(published),
+            None if found is None else _shown_count(found),
+        )
+        if (
+            check.verdict == MISSED
+            and wider
+            and found is not None
+            and field in ("min_length", "max_length")
+            and _lengths_kept_by_the_rest(facts, present, bound)
+        ):
+            check = Check(
                 name,
                 f"identifier.{field}",
                 subcheck,
+                AUTHORIZED_DEVIATION,
                 _shown_count(published),
-                None if found is None else _shown_count(found),
+                _shown_count(found),
+                _WRITTEN_WIDER_CITATION,
             )
-        ]
+        checks += [check]
     found_truth = _truth_at(block, "all_whole_numbers")
     checks += [
         _exact(
@@ -22177,8 +22202,14 @@ def _identifier_checks(
     for layout in sorted(facts.layout_forms):
         if layout not in moved:
             owed[layout] = facts.layout_forms[layout]
-    checks = checks + _form_checks(
-        name, "identifier.layout_forms", owed, recounted, floor, "layout_forms",
+    checks = checks + _written_wider_forms(
+        _form_checks(
+            name, "identifier.layout_forms", owed, recounted, floor, "layout_forms",
+        ),
+        owed,
+        census,
+        wider,
+        floor,
     )
     checks = checks + _prefix_checks(name, facts, present)
     checks = checks + _uid_grammar_checks(name, facts, present)
@@ -22206,27 +22237,94 @@ def moved_off_the_real(
     the description alone, as `corners_of` reads its corners (a second
     opinion on the generator, never its planner): a named layout no
     exclusion is published for has every value of its twin written wider
-    than every real cell, so its census entry is REPORT-ONLY; and the
+    than every real cell, so its census entry is REPORT-ONLY, and the
     shortest and longest lengths are REPORT-ONLY with it wherever such a
-    layout is named, wherever `(unnamed)` does not say that no real cell
-    stands outside the named layouts, or wherever the census counts fewer
-    cells than the column holds. A description publishing no exclusion
-    gives up nothing. Raises nothing. No I/O.
+    layout is named. A description publishing no exclusion gives up
+    nothing. Raises nothing. No I/O.
     """
     exclusions = facts.layout_exclusions
     if not exclusions:
         return (), False
-    given_up: "tuple[str, ...]" = ()
-    total = 0
+    given_up: "list[str]" = []
     for layout in sorted(facts.layout_forms):
-        total = total + facts.layout_forms[layout]
         if layout != contract.WITHHELD and layout not in exclusions:
-            given_up = given_up + (layout,)
-    said_none_outside = (
-        parsing.EXCLUSION_UNNAMED in exclusions
-        and exclusions[parsing.EXCLUSION_UNNAMED][0] == parsing.EXCLUSION_NONE
-    )
-    return given_up, bool(given_up) or not said_none_outside or total < n_present
+            given_up += [layout]
+    return tuple(given_up), bool(given_up)
+
+
+# What authorizes a record number's census entry and lengths a value its
+# twin wrote wider leaves (plan P4-D432), in the plan's words.
+_WRITTEN_WIDER_CITATION = (
+    "phase-4 plan P4-D432, as the disposition registry cites it: in a "
+    "record number written wider, the census entry of a layout carrying "
+    "an exclusion, `min_length` and `max_length` are APPROXIMATED, by the "
+    "values the twin wrote wider than every real value"
+)
+
+
+def _lengths_kept_by_the_rest(
+    facts: contract.IdentifierFacts, present: "list[str]", bound: int
+) -> bool:
+    """Whether every measured cell not written wider lies inside the published lengths (plan P4-D432)."""
+    for cell in present:
+        if len(parsing.merged_key(cell)) >= bound:
+            continue
+        if not facts.min_length <= len(cell) <= facts.max_length:
+            return False
+    return True
+
+
+def _written_wider_forms(
+    checks: "list[Check]",
+    owed: "dict[str, int]",
+    census: "dict[str, int]",
+    wider: int,
+    floor: int,
+) -> "list[Check]":
+    """The census entries a record number's twin left by writing values wider, authorized (P4-D432).
+
+    THE EXACT BAR IS TRIED FIRST: a layout's entry the twin met is HELD.
+    One it MISSED by holding fewer cells than published is an
+    AUTHORIZED-DEVIATION where the measured file holds cells written
+    wider than every real one (`taxonomy.written_wider`) and every such
+    shortfall together is no more than those cells; a surplus, or a
+    shortfall they do not cover, stays MISSED. A count under the floor is
+    not printed.
+    """
+    if not wider:
+        return checks
+    short = 0
+    for check in checks:
+        layout = check.subcheck[len("forms.published."):]
+        if check.verdict == MISSED and layout in owed:
+            found = census[layout] if layout in census else 0
+            if found >= owed[layout]:
+                return checks
+            short = short + owed[layout] - found
+    if short > wider:
+        return checks
+    authorized: "list[Check]" = []
+    for check in checks:
+        layout = check.subcheck[len("forms.published."):]
+        if check.verdict != MISSED or layout not in owed:
+            authorized += [check]
+            continue
+        published = owed[layout]
+        authorized += [
+            Check(
+                check.column,
+                check.fact,
+                check.subcheck,
+                AUTHORIZED_DEVIATION,
+                f"{_shown_count(published)} "
+                f"({_shown_window(float(max(published - wider, 0)), float(published))})",
+                _shown_count(census[layout])
+                if layout in census
+                else _below_the_floor(floor),
+                _WRITTEN_WIDER_CITATION,
+            )
+        ]
+    return authorized
 
 
 def _prefix_checks(
@@ -22252,6 +22350,36 @@ def _prefix_checks(
         return []
     convention = parsing.layout_convention(present)
     checks: "list[Check]" = []
+    # ...AND A VALUE WRITTEN WIDER KEEPS ITS LAYOUT'S PREFIX (Codex's review
+    # of lane ID-ROOM, item 4). Where every named layout publishes its own
+    # prefix and the column none, a measured cell written wider than every
+    # real one (`taxonomy.written_wider`) wears no named layout, so no
+    # layout's entry governs it: it is owed one of the published prefixes.
+    named = [layout for layout in sorted(facts.layout_forms) if layout != contract.WITHHELD]
+    bound = taxonomy.spill_bound(facts.layout_exclusions, facts.layout_prefixes)
+    if (
+        bound
+        and named
+        and parsing.PREFIX_OF_THE_COLUMN not in prefixes
+        and all(layout in prefixes for layout in named)
+    ):
+        opens_otherwise = 0
+        for cell in present:
+            if len(parsing.merged_key(cell)) < bound:
+                continue
+            if not any(cell[: len(prefixes[layout])] == prefixes[layout] for layout in named):
+                opens_otherwise = opens_otherwise + 1
+        checks += [
+            _silent(
+                name,
+                "identifier.layout_prefixes",
+                f"prefix.{parsing.EXCLUSION_SPILL}",
+                "every cell written wider than every real cell opens with a "
+                "prefix the description publishes for a layout",
+                opens_otherwise == 0,
+                _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
+            )
+        ]
     for scope in sorted(prefixes):
         prefix = prefixes[scope]
         opens_otherwise = 0

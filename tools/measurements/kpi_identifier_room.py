@@ -8,12 +8,17 @@ placeholders held until answered, CODES-3's own gate tables -- and the held shap
 terminal this is started from), `synthtwin generate` (seed 0); and the health data zoo's every
 identifier column at the same two sizes through `health_zoo.run_table`. Counts the twin cells of
 each identifier column spelled exactly as a present real cell of that column (`equal_cells`).
-Target 0 each, exact. Also: how many shapes were measured, how many zoo identifier columns were
-read, and how many profiles or twins failed to be written (the population floor's refusals of
-the shapes listed in REFUSED_AT_600 aside).
+Target 0 each, exact. And, since the repair of lane ID-ROOM (skeptic 1, item 3), the twin cells
+whose MERGED KEY (`parsing.merged_key`, the form `profile.subject_keys` counts a person by) is a
+present real cell's -- one person written two ways is one person -- over the same runs and, at
+200,000 rows, over the three shapes that measured it on the lane's first head (`p_five`,
+`abc_dash_four`, `pad_split`). Also: how many shapes were measured, how many zoo identifier
+columns were read and how many were NOT read (each a failure: no column goes uncounted), and how
+many profiles or twins failed to be written (the population floor's refusals of the shapes listed
+in REFUSED_AT_600 aside).
 
-The tables are written to a temporary folder and removed. About forty minutes on the
-reference machine; one process, under 600 MB.
+The tables are written to a temporary folder and removed. About seventy minutes on the
+reference machine; one process, under 1 GB.
 
     .venv/bin/python tools/measurements/kpi_identifier_room.py --kpi
 """
@@ -31,14 +36,22 @@ kpi_rules.guard_this_tree()
 import identifier_room_shapes as room  # noqa: E402
 
 SIZES = (600, 20000)
+# The shapes whose merged keys a nought after a prefix or a second zero fill tied to a real one on
+# the lane's first head, measured once more at 200,000 rows.
+LARGE = ("p_five", "abc_dash_four", "pad_split")
 
 value = {"twin_cells_equal_to_a_real_identifier": 0, "zoo_twin_cells_equal_to_a_real_identifier": 0,
-         "shapes": 0, "zoo_identifier_columns": 0, "not_written": 0}
+         "twin_cells_merging_with_a_real_identifier": 0,
+         "zoo_twin_cells_merging_with_a_real_identifier": 0,
+         "shapes": 0, "zoo_identifier_columns": 0, "zoo_identifier_columns_not_read": 0,
+         "not_written": 0}
 lines = []
 with tempfile.TemporaryDirectory() as scratch:
-    for rows in SIZES:
-        runs = [(name, "") for name in room.every_shape()]
+    for rows in SIZES + (200000,):
+        runs = [(name, "") for name in room.every_shape() if rows == 600 or name not in room.AT_600_ALONE]
         runs += [(name, "identifier") for name, sizes in room.ANSWERED if rows in sizes]
+        if rows == 200000:
+            runs = [(name, "") for name in LARGE]
         for name, answer in runs:
             folder = pathlib.Path(scratch) / f"{name}-{answer or 'asis'}-{rows}"
             seen = room.run_shape(folder, name, rows, answer=answer, validate=False)
@@ -47,15 +60,24 @@ with tempfile.TemporaryDirectory() as scratch:
                 value["not_written"] += 1
             value["shapes"] += 1
             value["twin_cells_equal_to_a_real_identifier"] += int(seen["equal"])
+            value["twin_cells_merging_with_a_real_identifier"] += int(seen["merged"])
             lines += [f"{name:40s} {answer or '-':10s} {rows:6d} rows: exits {seen['exits'][:2]}, "
-                      f"{seen['equal']} twin cells equal to a real one"]
+                      f"{seen['equal']} twin cells equal to a real one, {seen['merged']} merging"]
+            for written in folder.glob("*"):
+                if written.is_file():
+                    written.unlink()
+        if rows == 200000:
+            continue
         zoo = room.zoo_equal_cells(pathlib.Path(scratch) / f"zoo-{rows}", rows)
         value["zoo_twin_cells_equal_to_a_real_identifier"] += zoo["equal"]
+        value["zoo_twin_cells_merging_with_a_real_identifier"] += zoo["merged"]
         value["zoo_identifier_columns"] += zoo["columns"]
+        value["zoo_identifier_columns_not_read"] += zoo["unread"]
         value["not_written"] += zoo["unwritten"]
-        lines += [f"the zoo at {rows} rows: {zoo['columns']} identifier columns, {zoo['equal']} twin "
-                  f"cells equal to a real one, {zoo['unwritten']} tables not written"]
+        lines += [f"the zoo at {rows} rows: {zoo['columns']} identifier columns read, {zoo['unread']} "
+                  f"not, {zoo['equal']} twin cells equal to a real one, {zoo['merged']} merging, "
+                  f"{zoo['unwritten']} tables not written"]
 for line in lines:
     print(line)
 kpi_rules.emit("K-HZ-06", value, f"{len(SIZES)} sizes x {len(room.every_shape())} shapes, "
-               f"{len(room.ANSWERED)} answered, and the zoo")
+               f"{len(room.ANSWERED)} answered, {len(LARGE)} at 200,000 rows, and the zoo")

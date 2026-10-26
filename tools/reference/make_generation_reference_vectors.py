@@ -26138,7 +26138,6 @@ def templated_census(column):
 
 
 EXCLUSION_SPILL = "(spill)"
-EXCLUSION_UNNAMED = "(unnamed)"
 _EXCLUSION_ALPHABETS = {
     LAYOUT_DIGIT: "0123456789",
     LAYOUT_UPPER: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
@@ -26171,20 +26170,59 @@ def folded_marks(name):
     return name.replace(LAYOUT_UPPER, LAYOUT_LOWER).replace(LAYOUT_UPPER_HEX, LAYOUT_LOWER_HEX)
 
 
-def widened_layout(name, opening, longest):
-    """A layout widened until it is longer than ``longest`` (G9.6b, P4-D432), or "".
+def merged_key(text):
+    """A cell's merged key (P4-D406, read by G9.6b, plan P4-D432).
+
+    Written from the rule statement: folded; every ASCII character that is
+    neither a letter nor a figure dropped; every nought opening a run of
+    figures dropped, a run of noughts alone kept as one nought.
+    """
+    kept = []
+    for run in re.findall(r"[0-9]+|[^0-9]", text.strip().casefold()):
+        if run[0] in DIGIT_CHARACTERS:
+            kept.append(run.lstrip("0") or "0")
+        elif ("a" <= run <= "z") or run > "\x7f":
+            kept.append(run)
+    return "".join(kept)
+
+
+def stand_in(template):
+    """A template's fillings, read as merged keys are: a placeholder a figure other than a nought or a letter."""
+    return "".join(
+        "1" if mark in (LAYOUT_DIGIT, LAYOUT_LOWER_HEX, LAYOUT_UPPER_HEX)
+        else "a" if mark in (LAYOUT_UPPER, LAYOUT_LOWER)
+        else "0" if mark == LAYOUT_LEADING_ZERO
+        else mark
+        for mark in template
+    )
+
+
+def keeps_its_places(cell, template):
+    """Whether a filling's merged key drops no nought its template does not (G9.6b, P4-D432).
+
+    Written from the rule statement: its merged key is as long as the
+    template's stand-in's, so every placeholder written stands in it.
+    """
+    return len(merged_key(cell)) == len(merged_key(stand_in(template)))
+
+
+def widened_layout(name, opening, wanted, limit):
+    """A layout with ``wanted`` placeholders more, or "" past ``limit`` (G9.6b, P4-D432).
 
     Written from the rule statement: copies of `%` before the first `%` at
-    or after place ``opening``, else of the first placeholder there; ""
-    past sixty-four characters or with no placeholder after the opening.
+    or after place ``opening`` -- a rootless UID's (figures and points
+    alone, two points or more, opening `%.`) in its second arc -- else of
+    the first placeholder there.
     """
-    wanted = max(longest - len(name) + 1, 1)
-    if len(name) + wanted > 64:
+    if wanted < 1 or len(name) + wanted > limit:
         return ""
-    for place in range(max(opening, 0), len(name)):
+    start = max(opening, 0)
+    if start == 0 and re.fullmatch(r"%(\.%+){2,}", name):
+        start = name.index(".") + 1
+    for place in range(start, len(name)):
         if name[place] == LAYOUT_DIGIT:
             return name[:place] + LAYOUT_DIGIT * wanted + name[place:]
-    for place in range(max(opening, 0), len(name)):
+    for place in range(start, len(name)):
         if name[place] in _EXCLUSION_ALPHABETS:
             return name[:place] + name[place] * wanted + name[place:]
     return ""
@@ -26195,27 +26233,32 @@ def spelled_off_the_real(column, content):
 
     Written from the rule statement, after the walks have met the
     column's counts.  A different value, in the order it first appears in
-    the content, is KEPT where it wears its own layout's excluded template,
-    or in lower case the lowered excluded template of a named layout its
-    own folds to, is at least as long as the spill, or wears a layout the
-    census does not name where the profile publishes that no real cell
-    does (`(unnamed)`).  Every other value takes the first spelling, its
+    the content, is KEPT where its merged key is at least as long as the
+    spill's (every real cell's is shorter), or where it wears its own
+    layout's excluded template, or in lower case the lowered excluded
+    template of a named layout its own folds to, dropping no nought the
+    template does not.  Every other value takes the first spelling, its
     fillings read from the first and the nought filling last (each
     template its own step, at most 4,096 a value before the next template
     is asked, a search that finds nothing giving its step back), that neither spells nor folds onto any cell of the content
-    or any spelling taken before it, wears the template and reads as no
-    absent spelling -- of its layout's excluded template, then of its
-    layout widened as long as the spill (the same prefix and noughts),
-    then of the spill -- and every cell of the value is written so.  An
-    empty map moves nothing.
+    or any spelling taken before it, wears the template, is itself kept so
+    and reads as no absent spelling -- of its layout's excluded template,
+    then of its layout widened under its own prefix until its merged key
+    is the spill's length (one placeholder more where it holds a letter
+    and that fits; a UID never past 64 characters), then of the spill --
+    and every cell of the value is written so.  An empty map moves
+    nothing.
 
-    THIS ORACLE DOES NOT MODEL four things the product asks of a moved
+    THIS ORACLE DOES NOT MODEL five things the product asks of a moved
     value: that its spelling reads as the value's own class and
-    alphabets; that no date format reads it; that the values of one
-    folded identity are spelled together; and that a value written with
-    spaces around it is spelled on its core.  No frozen case's templates
-    spell another class or a date, and none holds a fold collision or an
-    edge space, so a case that did would need them added first.
+    alphabets, each class from its own step; that no date format reads
+    it; that the values of one folded identity are spelled together; that
+    a value written with spaces around it is spelled on its core; and that
+    a value no layout describes is written as itself followed by letters
+    until its merged key is the spill's length.  No frozen case's
+    templates spell another class or a date, and none holds a fold
+    collision, an edge space or a value no layout describes, so a case
+    that did would need them added first.
     """
     exclusions = column.get("layout_exclusions") or {}
     if not exclusions:
@@ -26253,41 +26296,50 @@ def spelled_off_the_real(column, content):
     spill = ""
     if EXCLUSION_SPILL in exclusions:
         spill = template_of(exclusions[EXCLUSION_SPILL], whole)
-    bound = len(spill)
-    unnamed = exclusions.get(EXCLUSION_UNNAMED) == "(none)"
+    bound = len(merged_key(stand_in(spill))) if spill else 0
     holes = tuple(sorted(column.get("missing_by_source") or {}))
+
+    def off_the_real(cell):
+        core = cell.strip()
+        if bound and len(merged_key(core)) >= bound:
+            return True
+        if any(
+            wears_template(core, template, convention) and keeps_its_places(core, template)
+            for template in kept.get(layout_of(core, convention), [])
+        ):
+            return True
+        return any(
+            wears_template(core.lower(), template, convention)
+            and keeps_its_places(core.lower(), template)
+            for template in lowered.get(folded_marks(layout_of(core, convention)), [])
+        )
+
+    def widened(layout):
+        prefix = prefixes.get(layout, whole)
+        opening = len(prefix_layout(prefix, convention))
+        wanted = bound - len(merged_key(stand_in(template_of(layout, prefix))))
+        uid = _opens_with_a_uid_root(template_of(layout, prefix)) or re.fullmatch(
+            r"%(\.%+){2,}", layout
+        )
+        limit = 64 if uid else 1 << 30
+        lettered = LAYOUT_UPPER in layout or LAYOUT_LOWER in layout
+        for more in ((1, 0) if lettered else (0,)):
+            wide = widened_layout(layout, opening, wanted + more, limit)
+            if wide and len(merged_key(stand_in(template_of(wide, prefix)))) >= bound:
+                return template_of(wide, prefix)
+        return ""
+
     written = set(content)
     folds = {folded(cell) for cell in content} - written
     moved = {}
     steps = {}
     for cell in content:
-        if cell in moved or not cell.strip():
+        if cell in moved or not cell.strip() or off_the_real(cell):
             continue
         layout = layout_of(cell, convention)
-        if layout in kept and any(
-            wears_template(cell, template, convention) for template in kept[layout]
-        ):
-            continue
-        if any(
-            wears_template(cell.strip().lower(), template, convention)
-            for template in lowered.get(folded_marks(layout_of(cell.strip(), convention)), [])
-        ):
-            continue
-        if bound and len(cell) >= bound:
-            continue
-        if layout and unnamed and layout not in census:
-            continue
-        targets = []
-        if layout in kept:
-            targets += kept[layout]
-        if layout and bound:
-            prefix = prefixes.get(layout, whole)
-            opening = len(prefix_layout(prefix, convention))
-            # A value holding a letter is written one character wider still.
-            lettered = LAYOUT_UPPER in layout or LAYOUT_LOWER in layout
-            wide = widened_layout(layout, opening, bound - 1 + (1 if lettered else 0))
-            if wide:
-                targets += [template_of(wide, prefix)]
+        targets = list(kept.get(layout, []))
+        if layout and bound and widened(layout):
+            targets += [widened(layout)]
         if spill:
             targets += [spill]
         candidate = ""
@@ -26303,6 +26355,7 @@ def spelled_off_the_real(column, content):
                     and folded(trial) not in written
                     and folded(trial) not in folds
                     and wears_template(trial, into, convention)
+                    and off_the_real(trial)
                     and not reads_as_absent(trial, holes)
                 ):
                     candidate = trial
@@ -34507,9 +34560,7 @@ def _identifier_layout_exclusion():
         n_distinct_by_occurrences={"1": 12, "2": 6},
         layout_forms={"@@@%%%%": 24},
         layout_prefixes={"(column)": "REC"},
-        layout_exclusions={
-            "@@@%%%%": "@@@9%%%", "(spill)": "@@@%%%%%", "(unnamed)": "(none)",
-        },
+        layout_exclusions={"@@@%%%%": "@@@9%%%", "(spill)": "@@@%%%%%"},
     )
     return {
         "why": "a declared identifier every present cell of which opens with "
@@ -34539,7 +34590,6 @@ def _identifier_layout_exclusions_several():
         layout_exclusions={
             "@%%%": ["@9%9", "@9%8", "@9%7"],
             "(spill)": "@%%%%",
-            "(unnamed)": "(none)",
         },
     )
     return {
@@ -34568,7 +34618,7 @@ def _identifier_spill():
         n_distinct_by_occurrences={"1": 12, "2": 6},
         layout_forms={"@%%": 24},
         layout_prefixes={"(column)": "Z"},
-        layout_exclusions={"(spill)": "@%%%", "(unnamed)": "(none)"},
+        layout_exclusions={"(spill)": "@%%%"},
     )
     return {
         "why": "a declared identifier of `Z` and two figures whose profile "
@@ -34581,6 +34631,62 @@ def _identifier_spill():
         "prefix, and every twin cell is five characters long, as no real cell "
         "is. This case's mutant withdraws the final pass, the walk's cells of "
         "three characters stand, and the cells move.",
+        "column": column,
+        "rows": 24,
+        "identifier_declared": True,
+    }
+
+
+def _identifier_exclusion_drops_no_nought():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=24, n_missing=0, n_distinct=24, n_distinct_folded=24,
+        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        min_length=4, max_length=4, all_whole_numbers=False,
+        n_all_digits=0, n_code_alphabet=24,
+        n_distinct_by_occurrences={"1": 24},
+        layout_forms={"@%%%": 24},
+        layout_prefixes={"(column)": "P"},
+        layout_exclusions={"@%%%": "@%%9", "(spill)": "@%%%%"},
+    )
+    return {
+        "why": "a declared identifier of `P` and three figures, every value "
+        "different, whose exclusion writes `9` at its last place, `@%%9` "
+        "(contract section 7.12b, lane ID-ROOM's repair, plan P4-D432). "
+        "G9.6b's final pass spells the walk's values in `P%%9`, and a "
+        "filling that opens the figures with a nought -- `P019`, whose merged "
+        "key `p19` is shorter than the template's, so it could be a real "
+        "`P19` written another way -- is not taken: every cell's merged key "
+        "holds the `9` where the template's last place stands. This case's "
+        "mutant takes such a filling, and `P019` and `P029` are written.",
+        "column": column,
+        "rows": 24,
+        "identifier_declared": True,
+    }
+
+
+def _identifier_spill_beside_no_census():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=24, n_missing=0, n_distinct=18, n_distinct_folded=18,
+        n_numeric=24, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        min_length=3, max_length=3, all_whole_numbers=True,
+        n_all_digits=24, n_code_alphabet=24,
+        n_distinct_by_occurrences={"1": 12, "2": 6},
+        layout_forms={},
+        layout_prefixes={},
+        layout_exclusions={"(spill)": "%%%%"},
+    )
+    return {
+        "why": "a declared identifier of three figures whose census names no "
+        "layout -- one stray cell can empty it -- beside the spill `%%%%`, "
+        "which every identifier block now publishes (contract section 7.12b, "
+        "lane ID-ROOM's repair, plan P4-D432). The walk writes `100` to `117`, "
+        "the values a real column of record numbers counted from a hundred "
+        "holds, and G9.6b's final pass writes every one again as the next "
+        "free filling of its layout widened to the spill's length, `1816`, "
+        "`2632`, so no cell is three figures, as every real cell is. This "
+        "case's mutant withdraws the final pass and the walk's cells stand.",
         "column": column,
         "rows": 24,
         "identifier_declared": True,
@@ -45753,6 +45859,10 @@ TWENTY_SEVENTH_BRANCH_CASE_BUILDERS = {
     "identifier_spill": _identifier_spill,
     # ...and a layout carrying several spellings of one block.
     "identifier_layout_exclusions_several": _identifier_layout_exclusions_several,
+    # ...and its repair (plan P4-D432): a filling that drops a nought is
+    # not taken, and the spill stands beside a census naming no layout.
+    "identifier_exclusion_drops_no_nought": _identifier_exclusion_drops_no_nought,
+    "identifier_spill_beside_no_census": _identifier_spill_beside_no_census,
     "clock_minutes_slots": _clock_minutes_slots,
     "clock_minutes_seconds": _clock_minutes_seconds,
     "clock_minutes_all_different": _clock_minutes_all_different,
@@ -46695,7 +46805,9 @@ _TWENTY_SEVENTH_BRANCH_ACCOUNT = (
     "G9.6b's final pass (lane ID-ROOM, plan P4-D432): a record number "
     "spelled again in its layout's excluded template, one written in "
     "its spill's width where no exclusion was found, and one spelled in "
-    "three spellings of one block in turn. They "
+    "three spellings of one block in turn; and its repair: a filling whose "
+    "merged key drops a nought not taken, and a spill beside a census "
+    "naming no layout. They "
     "are computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -46798,6 +46910,28 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    # LANE ID-ROOM's repair (plan P4-D432), method G9.6b, at seeds 605 and
+    # 606, the two after the lane's first three.
+    "identifier_exclusion_drops_no_nought": (
+        2033679879040843352, 15258056522168639959, 11097598104518470415,
+        9498731545757227292, 5559143978381242777, 5287605640184169966,
+        6393742066026257492, 9086740196440183059, 12745946076170793652,
+        3529936021335986974, 9580555465870283584, 1263199748172724275,
+        5600958097040134291, 15474017166986335527, 17536528885963023932,
+        10321655955318697456, 12673058177287851088, 17505244747880625338,
+        4406200413344517453, 14955140710922234503, 11467111701741624800,
+        9175219109012560556, 14323886641853824144,
+    ),
+    "identifier_spill_beside_no_census": (
+        14283887921730025570, 13493949482537579186, 497255974909557393,
+        8043715207166930108, 1779966863584035374, 820947180344237767,
+        6150157752223348682, 12757090342386131672, 3199792441807539848,
+        15421079295491314615, 10015164854858383807, 5445993946138154811,
+        6874475478882107571, 6739610215263138446, 9434161284964705597,
+        9834297299258185698, 17493709035351750560, 8292102259759043471,
+        1317508763760055120, 13463007387865515283, 8052206153769711168,
+        16569725193386609993, 17415895031031588290,
+    ),
     # LANE ID-ROOM's final pass (plan P4-D432), method G9.6b, at seeds 602
     # and 603, the two after lane CODES-3's.
     "identifier_layout_exclusion": (

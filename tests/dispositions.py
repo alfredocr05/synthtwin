@@ -2047,6 +2047,15 @@ _RECORD_CORNER_SAID = (
     "**In a record number's corner, the census entry of each named layout "
     "carrying no exclusion, `min_length` and `max_length` are REPORT-ONLY**"
 )
+# ...AND A RECORD NUMBER WRITTEN WIDER (lane ID-ROOM's repair, plan P4-D432,
+# 2026-10-25): where a layout carrying an exclusion still has values the
+# twin writes wider than every real one, the entries and lengths they
+# leave are APPROXIMATED, bounded by those cells, measured (V4.1-A2).
+_WIDER_CORNER = "a record number written wider"
+_WIDER_CORNER_SAID = (
+    "**In a record number written wider, the census entry of a layout "
+    "carrying an exclusion, `min_length` and `max_length` are APPROXIMATED**"
+)
 REGISTRY += _facts(
     "identifier",
     EXACT_OBSERVABLE,
@@ -2064,7 +2073,10 @@ REGISTRY += [
         "identifier",
         field,
         EXACT_OBSERVABLE,
-        authorized=((_RECORD_CORNER, _RECORD_CORNER_SAID),),
+        authorized=(
+            (_RECORD_CORNER, _RECORD_CORNER_SAID),
+            (_WIDER_CORNER, _WIDER_CORNER_SAID),
+        ),
     )
     for field in (
         "min_length",
@@ -2239,6 +2251,10 @@ AUTHORIZED_BY: "dict[tuple[str, str, str], tuple[str, str]]" = {
     ("identifier", "min_length", _RECORD_CORNER): ("id-room", REPORT_ONLY),
     ("identifier", "max_length", _RECORD_CORNER): ("id-room", REPORT_ONLY),
     ("identifier", "layout_forms", _RECORD_CORNER): ("id-room", REPORT_ONLY),
+    # ...and a record number written wider (V4.1-A2), measured.
+    ("identifier", "min_length", _WIDER_CORNER): ("id-room", APPROXIMATED),
+    ("identifier", "max_length", _WIDER_CORNER): ("id-room", APPROXIMATED),
+    ("identifier", "layout_forms", _WIDER_CORNER): ("id-room", APPROXIMATED),
     # The one corner P2-D9 gives a column of dates: offsets the
     # disclosure rules withheld cannot be put back without making them
     # up. It reaches the offset fields, never the two ends.

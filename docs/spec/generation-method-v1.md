@@ -15611,70 +15611,85 @@ repeat. Three distinctness facts are then REPORT-ONLY, not one — raw
 the report names all three achieved values beside the published ones,
 with the join and de-duplication consequence in the person's own words.
 
-### G9.6b What no real cell holds (lane ID-ROOM, plan P4-D432, 2026-10-24)
+### G9.6b What no real cell holds (lane ID-ROOM, plan P4-D432, 2026-10-24; repaired 2026-10-25)
 
 Contract section 7.12b publishes `layout_exclusions`. NO TWIN IDENTIFIER
-CELL IS SPELLED AS A REAL ONE, and the generator reads nothing real to
-make it so:
+CELL NAMES A REAL ONE -- not as written, and not as the product's own
+MERGED KEY reads one (`parsing.merged_key`, the form `profile.
+subject_keys` counts a person by, plan P4-D406) -- and the generator
+reads nothing real to make it so:
 
 1. **The walks of G9.2 to G9.6 are as they were.** Every count they meet
    -- the census, the lengths, the four classes, the two alphabets, the
    repetition, the fold collisions -- is met first, on the templates of
    G9.6a.
 2. **Then every value is spelled where no real cell can be.** Each
-   different value, in the order it first appears, is KEPT where its core
-   (the value trimmed of the spaces around it) wears its own layout's
-   EXCLUDED TEMPLATE (the layout's template of G9.6a with the places its
-   exclusion writes out, `parsing.written_excluded`; a layout publishing
-   several spellings of one block has one template for each, asked in
-   the order published), or, in lower case,
-   the lowered excluded template of a named layout its own folds to
-   (`parsing.folded_layout`), is at least as long as the spill, or wears a
-   layout the census does not name where the description publishes
-   `(unnamed)`.
-   A value written again in another case, beside one already moved,
-   takes that one's letters in its own case where its own layout's
-   excluded template takes them, so a fold collision stays one. Every
+   different value, in the order it first appears, is KEPT where its
+   merged key is at least as long as the spill's (every real cell's is
+   shorter), or where its core (the value trimmed of the spaces around
+   it) wears its own layout's EXCLUDED TEMPLATE (the layout's template
+   of G9.6a with the places its exclusion writes out,
+   `parsing.written_excluded`; a layout publishing several spellings of
+   one block has one template for each, asked in the order published),
+   or, in lower case, the lowered excluded template of a named layout
+   its own folds to (`parsing.folded_layout`), AND drops no nought the
+   template does not, so its merged key holds the written characters
+   where the template's places stand (`parsing.projected`). The values of
+   one folded identity -- written again in another case or with a space
+   -- are kept or moved together: moved, they take one new core, each in
+   its own case and with its own spaces, also where the new core is
+   wider, its letters taken in turn, so a fold collision stays one. Every
    other value is written as the first spelling, its fillings read from
-   the first and the nought filling last (each template its own step, at most 4,096 a value before the next
-   template is asked; a search that finds nothing gives its step back, so
-   the fillings a value of another class could not take stay for the
-   values that can), that neither spells nor folds onto any cell of the
-   column or any spelling taken before it, wears the template, is no
-   spelling read as absent and no date, AND reads as the value's own
-   class, whole or not as it is, and in its alphabets
+   the first and the nought filling last (each template and each reading
+   of a value -- its class, whole or not, its alphabets -- its own step,
+   so a filling one class cannot take stays for another; at most 4,096 a
+   value before the next template is asked; a search that finds nothing
+   gives its step back), that neither spells nor folds onto any cell of
+   the column or any spelling taken before it, wears the template, is
+   itself kept so, is no spelling read as absent and no date, AND reads
+   as the value's own class, whole or not as it is, and in its alphabets
    (`parsing.classify_number`, `numeric_whole`, `is_digit_text`,
-   `is_code_text`), of: its layout's excluded templates, in turn; its layout
-   widened as long as the spill (`parsing.spill_layout`), one character
-   longer still where it holds a letter (so no widened value of letters
-   shares its length with the widened values of figures, and the
-   column's convention, read over cells of one length, stays), under its
-   prefix and noughts; the spill's template. No value is moved into
-   another named layout, so every count of a layout carrying an
-   exclusion stays as the walks met it. Only where
-   none of these gives one is the spill asked again for a spelling of
-   any class. Every cell of the value is written so, so a key repeated on
-   one twin person's rows stays one key, and its kinds -- a number, a
-   code, its prefix -- are kept. Where the description publishes no
-   exclusion at all, nothing moves and the column is written byte for
-   byte as before. A UID root's opening is read to its last point, so an
+   `is_code_text`), of: its layout's excluded templates, in turn; its
+   layout widened under its own prefix and noughts until its merged key
+   is as long as the spill's (`parsing.widened_layout`: figures after the
+   prefix or root, a rootless UID's in its second arc), one character
+   longer still where it holds a letter and that fits (so no widened
+   value of letters shares its length with the widened values of
+   figures, and the column's convention, read over cells of one length,
+   stays), a UID never past the grammar's 64 characters; the spill's
+   template. No value is moved into another named layout, so every count
+   of a layout carrying an exclusion stays as the walks met it. Only
+   where none of these gives one is the spill asked again for a spelling
+   of any class, then the spill widened a figure at a time. Every cell of
+   the value is written so, so a key repeated on one twin person's rows
+   stays one key, and its kinds -- a number, a code, its prefix -- are
+   kept. A template longer than any layout (a spill past 64 characters)
+   is worn place by place. Where the description publishes no exclusion
+   at all, nothing moves and the column is written byte for byte as
+   before. A UID root's opening is read to its last point, so an
    exclusion's figure after the root keeps the grammar's test of G9.6a
    step 7 (c).
-3. **Why no cell equals a real one.** Two equal cells wear one layout and
-   hold one character at every place. A cell wearing an excluded template
-   holds characters no real cell of that layout holds at those places; a
-   cell as long as the spill is longer than every real cell.
+3. **Why no cell names a real one.** Two cells naming one key have merged
+   keys of one length holding one character at every place. A kept cell
+   wearing an excluded template holds, where its places stand in its
+   merged key, characters no real key of that length holds there; a cell
+   whose merged key is as long as the spill's is longer, merged, than
+   every real cell. So no twin cell's merged key is a real cell's, and no
+   twin cell is spelled as a real one.
 4. **What it costs**, measured (P4-D432): where the real values fill a
    layout's room -- record numbers `1` to `20,000`, every four-figure
    value present -- or are drawn at random across a room too small for
    one block to leave the twin room, no exclusion is found, the layout's
-   values are written a figure or more wider, and the report recounts the
-   census and the lengths they move; in a record number's corner (plan
-   P4-D432) the census entry of each named layout carrying no exclusion,
+   values are written a figure or more wider; in a record number's
+   corner the census entry of each named layout carrying no exclusion,
    and the column's two lengths beside it, are listed by the validator
-   (V4.1-A1) and set aside in the twin's report for a remark naming the
-   values moved. That is the twin keeping clear of every record number
-   of the table, and it is stated, never hidden.
+   (V4.1-A1); where a layout carrying an exclusion still has values
+   written wider (a class or a date its template could not take), the
+   entries and lengths they leave are the validator's
+   AUTHORIZED-DEVIATION, bounded by the cells written wider (V4.1-A2);
+   the twin's report sets both aside for a remark naming the values
+   moved. That is the twin keeping clear of every record number of the
+   table, and it is stated, never hidden.
 
 ## G10. Absent cells, straggler stand-ins, unrepresentable values
 

@@ -2943,7 +2943,7 @@ def _leaf_is_published(
     if kind == _LITERAL_PREFIX:
         return isinstance(value, str) and parsing.is_a_literal_prefix(value)
     if kind == _EXCLUSION_SCOPE:
-        if value in (parsing.EXCLUSION_SPILL, parsing.EXCLUSION_UNNAMED):
+        if value == parsing.EXCLUSION_SPILL:
             return True
         return value != taxonomy.SUPPRESSED_LABEL and _is_layout_form(value)
     if kind == _LAYOUT_EXCLUSION:
@@ -2957,9 +2957,9 @@ def _leaf_is_published(
                     return False
             return True
         return isinstance(value, str) and (
-            value == parsing.EXCLUSION_NONE
-            or parsing.is_a_layout_exclusion(value)
+            parsing.is_a_layout_exclusion(value)
             or _is_layout_form(value)
+            or parsing.is_a_spill_layout(value)
         )
     if kind == _LAYOUT_FORM:
         return _is_layout_form(value)
@@ -5453,27 +5453,12 @@ def subject_keys(
 
 
 def _subject_key(cell: str) -> str:
-    """One subject cell's merged form (`subject_keys`)."""
-    kept = ""
-    zeros = False
-    started = False
-    for character in parsing.folded(cell):
-        if "0" <= character <= "9":
-            if started or character != "0":
-                kept = kept + character
-                started = True
-            else:
-                zeros = True
-            continue
-        if zeros and not started:
-            kept = kept + "0"
-        zeros = False
-        started = False
-        if "a" <= character <= "z" or character > "\x7f":
-            kept = kept + character
-    if zeros and not started:
-        kept = kept + "0"
-    return kept
+    """One subject cell's merged form (`subject_keys`): `parsing.merged_key`, the one rule.
+
+    Lane ID-ROOM reads its exclusions on the same form (plan P4-D432),
+    so the rule lives once, in `parsing`, and both ask it.
+    """
+    return parsing.merged_key(cell)
 
 
 def _holding(

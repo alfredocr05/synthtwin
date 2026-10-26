@@ -1,5 +1,5 @@
 {
-  "case_set": "The 12 cases method section G14.3 adds with landing 3b.5's second step, the minute census of a column of clock times (plan P4-D374): G7A.4c's layout of a body on its minute census -- a clinic's slots, a column at the second, a column whose values all differ, rungs pinned in their census groups, a column with no tails whose heap's cells come off the minute groups' counts, and the rounding of a walk-in grid with both counts kept -- and G7A.5's stand-ins past route 1's allowance, written as times at the column's other precision (the Codex review of the landing, item 1); and G9.6a's amendment for a record number (lane CODES-3, plan P4-D428): a whole number exported as a decimal written with its noughts after the point, and a DICOM UID's root standing in every cell with no arc led by a nought; and G9.6b's final pass (lane ID-ROOM, plan P4-D432): a record number spelled again in its layout's excluded template, one written in its spill's width where no exclusion was found, and one spelled in three spellings of one block in turn. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json, tests/reference/generation-branch-vectors-4.json, tests/reference/generation-branch-vectors-5.json, tests/reference/generation-branch-vectors-6.json, tests/reference/generation-branch-vectors-7.json, tests/reference/generation-branch-vectors-8.json, tests/reference/generation-branch-vectors-9.json, tests/reference/generation-branch-vectors-10.json, tests/reference/generation-branch-vectors-11.json, tests/reference/generation-branch-vectors-12.json, tests/reference/generation-branch-vectors-13.json, tests/reference/generation-branch-vectors-14.json, tests/reference/generation-branch-vectors-21.json, tests/reference/generation-branch-vectors-22.json, tests/reference/generation-branch-vectors-23.json, tests/reference/generation-branch-vectors-25.json and tests/reference/generation-document-vectors.json, and live in a file of their own, the twenty-first standing at 247,663 bytes against the manifest's 250,000-byte cap: no cap is raised and no case is dropped.",
+  "case_set": "The 14 cases method section G14.3 adds with landing 3b.5's second step, the minute census of a column of clock times (plan P4-D374): G7A.4c's layout of a body on its minute census -- a clinic's slots, a column at the second, a column whose values all differ, rungs pinned in their census groups, a column with no tails whose heap's cells come off the minute groups' counts, and the rounding of a walk-in grid with both counts kept -- and G7A.5's stand-ins past route 1's allowance, written as times at the column's other precision (the Codex review of the landing, item 1); and G9.6a's amendment for a record number (lane CODES-3, plan P4-D428): a whole number exported as a decimal written with its noughts after the point, and a DICOM UID's root standing in every cell with no arc led by a nought; and G9.6b's final pass (lane ID-ROOM, plan P4-D432): a record number spelled again in its layout's excluded template, one written in its spill's width where no exclusion was found, and one spelled in three spellings of one block in turn; and its repair: a filling whose merged key drops a nought not taken, and a spill beside a census naming no layout. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json, tests/reference/generation-branch-vectors-4.json, tests/reference/generation-branch-vectors-5.json, tests/reference/generation-branch-vectors-6.json, tests/reference/generation-branch-vectors-7.json, tests/reference/generation-branch-vectors-8.json, tests/reference/generation-branch-vectors-9.json, tests/reference/generation-branch-vectors-10.json, tests/reference/generation-branch-vectors-11.json, tests/reference/generation-branch-vectors-12.json, tests/reference/generation-branch-vectors-13.json, tests/reference/generation-branch-vectors-14.json, tests/reference/generation-branch-vectors-21.json, tests/reference/generation-branch-vectors-22.json, tests/reference/generation-branch-vectors-23.json, tests/reference/generation-branch-vectors-25.json and tests/reference/generation-document-vectors.json, and live in a file of their own, the twenty-first standing at 247,663 bytes against the manifest's 250,000-byte cap: no cap is raised and no case is dropped.",
   "cases": {
     "clock_minutes_all_different": {
       "cells": [
@@ -5740,6 +5740,141 @@
         "5006664455913738150"
       ]
     },
+    "identifier_exclusion_drops_no_nought": {
+      "cells": [
+        "P399",
+        "P409",
+        "P189",
+        "P519",
+        "P509",
+        "P229",
+        "P739",
+        "P679",
+        "P899",
+        "P999",
+        "P949",
+        "P449",
+        "P169",
+        "P259",
+        "P309",
+        "P239",
+        "P889",
+        "P249",
+        "P669",
+        "P729",
+        "P179",
+        "P459",
+        "P959",
+        "P389"
+      ],
+      "column": {
+        "all_whole_numbers": false,
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_exclusions": {
+          "(spill)": "@%%%%",
+          "@%%%": "@%%9"
+        },
+        "layout_forms": {
+          "@%%%": 24
+        },
+        "layout_prefixes": {
+          "(column)": "P"
+        },
+        "max_length": 4,
+        "min_length": 4,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 0,
+        "n_code_alphabet": 24,
+        "n_contradictory": 0,
+        "n_distinct": 24,
+        "n_distinct_by_occurrences": {
+          "1": 24
+        },
+        "n_distinct_folded": 24,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 24,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 24,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "identifier",
+        "sentinel_verdicts": [],
+        "statistical_type": "code",
+        "structural_role": "identifier"
+      },
+      "content": [
+        "P169",
+        "P229",
+        "P389",
+        "P449",
+        "P509",
+        "P669",
+        "P729",
+        "P259",
+        "P889",
+        "P949",
+        "P179",
+        "P239",
+        "P399",
+        "P459",
+        "P519",
+        "P409",
+        "P679",
+        "P739",
+        "P899",
+        "P959",
+        "P999",
+        "P189",
+        "P249",
+        "P309"
+      ],
+      "csv_bytes": "P399\nP409\nP189\nP519\nP509\nP229\nP739\nP679\nP899\nP999\nP949\nP449\nP169\nP259\nP309\nP239\nP889\nP249\nP669\nP729\nP179\nP459\nP959\nP389\n",
+      "float64": [],
+      "why": "a declared identifier of `P` and three figures, every value different, whose exclusion writes `9` at its last place, `@%%9` (contract section 7.12b, lane ID-ROOM's repair, plan P4-D432). G9.6b's final pass spells the walk's values in `P%%9`, and a filling that opens the figures with a nought -- `P019`, whose merged key `p19` is shorter than the template's, so it could be a real `P19` written another way -- is not taken: every cell's merged key holds the `9` where the template's last place stands. This case's mutant takes such a filling, and `P019` and `P029` are written.",
+      "word_budget": {
+        "content": 0,
+        "placement": 23
+      },
+      "words": [
+        "2033679879040843352",
+        "15258056522168639959",
+        "11097598104518470415",
+        "9498731545757227292",
+        "5559143978381242777",
+        "5287605640184169966",
+        "6393742066026257492",
+        "9086740196440183059",
+        "12745946076170793652",
+        "3529936021335986974",
+        "9580555465870283584",
+        "1263199748172724275",
+        "5600958097040134291",
+        "15474017166986335527",
+        "17536528885963023932",
+        "10321655955318697456",
+        "12673058177287851088",
+        "17505244747880625338",
+        "4406200413344517453",
+        "14955140710922234503",
+        "11467111701741624800",
+        "9175219109012560556",
+        "14323886641853824144"
+      ]
+    },
     "identifier_layout_exclusion": {
       "cells": [
         "REC9674",
@@ -5772,7 +5907,6 @@
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "layout_exclusions": {
           "(spill)": "@@@%%%%%",
-          "(unnamed)": "(none)",
           "@@@%%%%": "@@@9%%%"
         },
         "layout_forms": {
@@ -5909,7 +6043,6 @@
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "layout_exclusions": {
           "(spill)": "@%%%%",
-          "(unnamed)": "(none)",
           "@%%%": [
             "@9%9",
             "@9%8",
@@ -6048,8 +6181,7 @@
         "all_whole_numbers": false,
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "layout_exclusions": {
-          "(spill)": "@%%%",
-          "(unnamed)": "(none)"
+          "(spill)": "@%%%"
         },
         "layout_forms": {
           "@%%": 24
@@ -6151,6 +6283,137 @@
         "8417544217488639800",
         "13906875485066373237",
         "6090394187356805622"
+      ]
+    },
+    "identifier_spill_beside_no_census": {
+      "cells": [
+        "8521",
+        "9265",
+        "5172",
+        "7705",
+        "6988",
+        "9347",
+        "5172",
+        "4356",
+        "2714",
+        "6807",
+        "9347",
+        "5090",
+        "4274",
+        "8449",
+        "4356",
+        "3458",
+        "3530",
+        "7623",
+        "8521",
+        "2632",
+        "1997",
+        "1816",
+        "6988",
+        "7705"
+      ],
+      "column": {
+        "all_whole_numbers": true,
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_exclusions": {
+          "(spill)": "%%%%"
+        },
+        "layout_forms": {},
+        "layout_prefixes": {},
+        "max_length": 3,
+        "min_length": 3,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 24,
+        "n_code_alphabet": 24,
+        "n_contradictory": 0,
+        "n_distinct": 18,
+        "n_distinct_by_occurrences": {
+          "1": 12,
+          "2": 6
+        },
+        "n_distinct_folded": 18,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 24,
+        "n_out_of_range": 0,
+        "n_present": 24,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "identifier",
+        "sentinel_verdicts": [],
+        "statistical_type": "code",
+        "structural_role": "identifier"
+      },
+      "content": [
+        "1816",
+        "2632",
+        "3458",
+        "4274",
+        "5090",
+        "6807",
+        "7623",
+        "8449",
+        "9265",
+        "1997",
+        "2714",
+        "3530",
+        "4356",
+        "4356",
+        "5172",
+        "5172",
+        "6988",
+        "6988",
+        "7705",
+        "7705",
+        "8521",
+        "8521",
+        "9347",
+        "9347"
+      ],
+      "csv_bytes": "8521\n9265\n5172\n7705\n6988\n9347\n5172\n4356\n2714\n6807\n9347\n5090\n4274\n8449\n4356\n3458\n3530\n7623\n8521\n2632\n1997\n1816\n6988\n7705\n",
+      "float64": [],
+      "why": "a declared identifier of three figures whose census names no layout -- one stray cell can empty it -- beside the spill `%%%%`, which every identifier block now publishes (contract section 7.12b, lane ID-ROOM's repair, plan P4-D432). The walk writes `100` to `117`, the values a real column of record numbers counted from a hundred holds, and G9.6b's final pass writes every one again as the next free filling of its layout widened to the spill's length, `1816`, `2632`, so no cell is three figures, as every real cell is. This case's mutant withdraws the final pass and the walk's cells stand.",
+      "word_budget": {
+        "content": 0,
+        "placement": 23
+      },
+      "words": [
+        "14283887921730025570",
+        "13493949482537579186",
+        "497255974909557393",
+        "8043715207166930108",
+        "1779966863584035374",
+        "820947180344237767",
+        "6150157752223348682",
+        "12757090342386131672",
+        "3199792441807539848",
+        "15421079295491314615",
+        "10015164854858383807",
+        "5445993946138154811",
+        "6874475478882107571",
+        "6739610215263138446",
+        "9434161284964705597",
+        "9834297299258185698",
+        "17493709035351750560",
+        "8292102259759043471",
+        "1317508763760055120",
+        "13463007387865515283",
+        "8052206153769711168",
+        "16569725193386609993",
+        "17415895031031588290"
       ]
     },
     "identifier_uid_root": {
