@@ -301,7 +301,7 @@ def test_a_repeating_key_keeps_the_person_question(tmp_path: pathlib.Path) -> No
 def test_a_count_of_dates_asked_with_this_shape_is_held(tmp_path: pathlib.Path) -> None:
     """One question, the date-count question (Q3), merged with this shape, and held.
 
-    Midnights in Unix seconds, one a row, crossing 1,000,000,000 (two
+    Days in Unix seconds (each at the start of its day), one a row, crossing 1,000,000,000 (two
     widths, so no width question): Q3's rule B asks it, and the merged
     question offers `identifier`, so the column is held until answered as
     the width question's merge is. Red on the mutant "only the width
