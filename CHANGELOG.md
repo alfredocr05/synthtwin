@@ -35,8 +35,12 @@ validator read the grain a description published, so an older
 description is still met by its unchanged source; keeps month-first
 dates month-first under `--day-first`; asks no date question of a
 column it held; and never says a repeating person column does not
-repeat. The gate runs at the floor size, the 200,000-row tables in
-`K-HZ-07`'s slow leg.
+repeat. Its second repair round counts a column of dates in the people
+of every person column that repeats, however few they are against a
+raised `--smallest-group` (2,500 rows of one patient no longer print that
+patient's day under a floor of 2,000), and counts each cell in people on
+the clock the description publishes, not its local text. The gate runs
+at the floor size, the 200,000-row tables in `K-HZ-07`'s slow leg.
 
 ### Batch 4j's records: the data folder's exemption narrowed, the night's 2,000,000-row points written in, the ledger cap set once (2026-10-24)
 
