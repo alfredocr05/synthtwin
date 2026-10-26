@@ -1955,9 +1955,14 @@ def _permitted(role: str, fact: str) -> "str | None":
 # as it always did. The same miss is counted by ledger K-2B-47
 # (`declared_layout_default_missed_checks`) and pinned as a strict xfail
 # in `tests/test_p4d182_layout_packing.py`.
-_HELD_AT_THE_DEFAULT = {
-    ("declared identifier", "identifier", "layout_forms.%%%", "code"),
-}
+# GONE AT LANE ID-ROOM'S REPAIR ROUND 1 (2026-10-25, plan P4-D432): the
+# final pass of method G9.6b writes the pooled groups' stand-ins wider than
+# every real cell, so none of the column's own length reads as hexadecimal
+# and no layout is renamed; the twin's report names no miss of
+# `layout_forms.%%%` at any seed, and the set is emptied as its sentence
+# asks (the xfail in `tests/test_p4d182_layout_packing.py` became a
+# passing test the same day).
+_HELD_AT_THE_DEFAULT: "set[tuple[str, str, str, str]]" = set()
 
 
 def test_the_shipped_generator_misses_no_exact_fact_the_plan_holds_it_to(
