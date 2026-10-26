@@ -26254,7 +26254,7 @@ def spelled_off_the_real(column, content):
     and every cell of the value is written so.  An empty map moves
     nothing.
 
-    THIS ORACLE DOES NOT MODEL six things the product asks of a moved
+    THIS ORACLE DOES NOT MODEL seven things the product asks of a moved
     value: that its spelling reads as the value's own class and
     alphabets, each class from its own step; that no date format reads
     it; that the values of one folded identity are spelled together; that
@@ -26262,7 +26262,9 @@ def spelled_off_the_real(column, content):
     a value no layout describes is written as itself followed by letters
     until its merged key is the spill's length; and that a value written
     wider in a column of plain layouts holds no letters of `a` to `f`
-    alone.  No frozen case's templates spell another class or a date, and
+    alone; and that a column of dates at a grain moves a value only
+    inside its own excluded templates.  No frozen case's templates spell
+    another class or a date, no case holds a grain, and
     none holds a fold collision, an edge space, a value no layout
     describes or a widened letter, so a case that did would need them
     added first.

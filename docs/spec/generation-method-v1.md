@@ -15671,7 +15671,11 @@ reads nothing real to make it so:
    the value is written so, so a key repeated on one twin person's rows
    stays one key, and its kinds -- a number, a code, its prefix -- are
    kept. A template longer than any layout (a spill past 64 characters)
-   is worn place by place. Where the description publishes no exclusion
+   is worn place by place. A column of dates or times at a published
+   grain (plan P4-D417) moves a value only inside its own layout's
+   excluded templates, never wider: the G1 floor writes its made-up values
+   as dates or times in their own layouts afterwards (G7.13), and a
+   made-up date names no person. Where the description publishes no exclusion
    at all, nothing moves and the column is written byte for byte as
    before. A UID root's opening is read to its last point, so an
    exclusion's figure after the root keeps the grammar's test of G9.6a
