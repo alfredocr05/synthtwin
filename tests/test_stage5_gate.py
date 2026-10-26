@@ -7,10 +7,12 @@ golden battery of `tests/stage5_battery.py`, and this file is their gate:
 - `K-S5-01`: each case's result, read through `cli.run`, says what the
   case's row wrote for it when the case was written -- its class, the
   misses a damage must break with their tiers, a refusal's step, the
-  warnings, the floor, the next command, the carried entries -- and each
-  miss's text and rank values equal its producer's, checked one by one
-  against values found without the result's code. A checker handed a
-  correct result corrupted one field at a time must find it unmet.
+  warnings, the floor, the next command, the carried entries, and (lane
+  S5a's repair 1, clause (j)) its command, the files it wrote and the
+  rule keys of what it could not judge -- and each miss's identity, text
+  and rank values equal its producer's, checked one by one against
+  values found without the result's code. A checker handed a correct
+  result corrupted one field at a time must find it unmet.
 - `K-S5-02`: every file, screen and exit status a case leaves equals the
   goldens recorded from the code before lane S5a (`tests/stage5_goldens.py`),
   and the goldens' three digests are what they claim. What is
@@ -33,6 +35,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import types
@@ -239,28 +242,111 @@ def _golden_exit(key: str) -> "int | None":
     return None
 
 
-def _positions(folder: pathlib.Path, argv: "tuple[str, ...]") -> "dict[str, int]":
-    """Each column's position, read from the description the case names (the test's own reading)."""
+def _document(folder: pathlib.Path, argv: "tuple[str, ...]") -> "dict[str, typing.Any]":
+    """The description the case names, as JSON (the test's own reading), or {} where it names none."""
     for word in argv:
         if word.endswith("-profile.json") and (folder / word).exists():
-            document = json.loads((folder / word).read_text(encoding="utf-8"))
-            return {block["name"]: block["position"] for block in document["columns"]}
+            return typing.cast(
+                "dict[str, typing.Any]",
+                json.loads((folder / word).read_text(encoding="utf-8")),
+            )
     return {}
 
 
+def _positions(folder: pathlib.Path, argv: "tuple[str, ...]") -> "dict[str, int]":
+    """Each column's position, read from the description the case names (the test's own reading)."""
+    document = _document(folder, argv)
+    return {block["name"]: block["position"] for block in document.get("columns", [])}
+
+
+def _groups(folder: pathlib.Path, argv: "tuple[str, ...]") -> "dict[str, str]":
+    """Each column's registry group, read off its role in the description through the registry's own table."""
+    document = _document(folder, argv)
+    return {
+        block["name"]: dispositions.ROLE_GROUPS[block["role"]]
+        for block in document.get("columns", [])
+    }
+
+
+# The disposition registry's universal fields: column-level keys, whatever
+# the role. And THE ONE KEY THE GENERATOR WRITES THAT THE REGISTRY HOLDS
+# UNDER NO GROUP: a column's time grain, a column-level key of the
+# description (plan P4-D415), read as the universal keys are; plan P4-D437
+# names the gap.
+_UNIVERSAL_FIELDS = frozenset(
+    fact.field for fact in dispositions.REGISTRY if fact.group == "universal"
+)
+_UNREGISTERED_COLUMN_KEYS = frozenset({"time_grain"})
+
+
+def _head(field: str) -> str:
+    return re.split(r"[.\[]", field, maxsplit=1)[0]
+
+
+def _qualified(groups: "dict[str, str]", column: str, fact: str, end: str) -> str:
+    """A generator fact as the registry names it, found by the test alone (`K-S5-01` (h), (i)).
+
+    The field is the generator's key after its last `levels -> `; the
+    group `universal` for a column-level key, else the group the column's
+    role publishes under; then `.end` for a ladder end that gave way.
+    """
+    field = fact.split(" -> ")[-1]
+    if _head(field) in _UNIVERSAL_FIELDS | _UNREGISTERED_COLUMN_KEYS:
+        group = "universal"
+    else:
+        group = groups.get(column, "")
+    named = f"{group}.{field}" if group else field
+    return f"{named}.{end}" if end else named
+
+
 def _expected_tier(
-    expect: battery.Expect, miss: results.Miss, judged: str
+    expect: battery.Expect, identity: "tuple[str, str, str]", judged: str
 ) -> "str | None":
     for column, fact, subcheck, tier in expect.breaks:
-        if (miss.column, miss.fact, miss.subcheck) == (column, fact, subcheck):
+        if identity == (column, fact, subcheck):
             return tier
     if judged == results.JUDGED_WINDOW:
         return results.TIER_WINDOW
-    return results._ranked(miss.fact, miss.subcheck)
+    return results._ranked(identity[1], identity[2])
+
+
+def recorded_fields_unmet(run: Ran, result: results.Result) -> "list[str]":
+    """Clause (j) of `K-S5-01` alone: the command, the files written, validate's rule keys.
+
+    The fields lanes TT and TS read (lane S5a's repair 1): the command
+    equals the one its row writes; the kinds of the files, in order, are
+    the row's, each path existing, and none on a run that writes
+    nothing; and each of validate's unjudged entries carries the key
+    whose sentence in `validation.WITHHELD_RULES` is its producer check's
+    citation, the fallback only as often as the row writes it.
+    """
+    case = run.case
+    expect = case.expect if case.expect is not None else battery.EXPECTED[case.key]
+    found: "list[str]" = []
+    if result.command != expect.command:
+        found += [f"(j) command {result.command!r}, the row writes {expect.command!r}"]
+    kinds = tuple(one.kind for one in result.files)
+    if kinds != expect.files:
+        found += [f"(j) files {kinds}, the row writes {expect.files}"]
+    for one in result.files:
+        if not (run.folder / one.path).exists():
+            found += [f"(j) {one.path} is named among the files and does not exist"]
+    if run.outcome is not None and result.verdict != "refused":
+        keyed = dict(validation.WITHHELD_RULES)
+        wanted = [
+            keyed.get(check.citation, validation.WITHHELD_FALLBACK)
+            for check in run.outcome.checks
+            if check.verdict == validation.WITHHELD
+        ]
+        if [one.key for one in result.unjudged] != wanted:
+            found += ["(j) an unjudged entry's key is not its producer check's rule"]
+        if wanted.count(validation.WITHHELD_FALLBACK) != expect.fallback_keys:
+            found += ["(j) an unjudged entry falls to the fallback key the row does not write"]
+    return found
 
 
 def unmet(run: Ran, result: results.Result) -> "list[str]":
-    """Why ``result`` does not meet the case's row, under `K-S5-01` (a) to (i); empty when met.
+    """Why ``result`` does not meet the case's row, under `K-S5-01` (a) to (j); empty when met.
 
     Only the result's fields are read; no text field is parsed or
     searched. Each value is checked against what the case's row writes
@@ -290,13 +376,27 @@ def unmet(run: Ran, result: results.Result) -> "list[str]":
     ranks = [(results.TIER_ORDER[miss.tier], miss.place, miss.arrival) for miss in misses]
     if ranks != sorted(ranks):
         found += ["(d) the misses do not stand in (tier, place, arrival) order"]
-    if run.outcome is not None and result.verdict != "refused":
+    arrivals = sorted(miss.arrival for miss in misses)
+    if result.verdict == "refused":
+        # A refused run keeps the misses of a report it showed, and only those.
+        if len(misses) != expect.misses_kept:
+            found += [f"(d) {len(misses)} misses on a refused run, the row writes {expect.misses_kept}"]
+    elif run.outcome is not None:
         if len(misses) != run.outcome.census.missed:
             found += [f"(d) {len(misses)} misses, the census counts {run.outcome.census.missed}"]
-    elif run.twin is not None and result.verdict != "refused":
+        missed_at = [
+            place
+            for place, check in enumerate(run.outcome.checks)
+            if check.verdict == validation.MISSED
+        ]
+        if arrivals != missed_at:
+            found += ["(d) the arrivals are not the places of the MISSED checks"]
+    elif run.twin is not None:
         if len(misses) != len(run.twin.deviations):
             found += [f"(d) {len(misses)} misses, the twin {len(run.twin.deviations)} deviations"]
-    elif misses and result.verdict != "refused":
+        if arrivals != list(range(len(run.twin.deviations))):
+            found += ["(d) the arrivals are not the twin's deviations, each once"]
+    elif misses:
         found += ["(d) misses where no producer made any"]
     if expect.first_tier and (not misses or misses[0].tier != expect.first_tier):
         found += [f"(d) the first miss is not at tier {expect.first_tier}"]
@@ -369,26 +469,47 @@ def unmet(run: Ran, result: results.Result) -> "list[str]":
         result.next_command.purpose,
     ) != (wanted_words, expect.next_purpose):
         found += [f"(g) next command {result.next_command}, the row writes {wanted_words} {expect.next_purpose}"]
-    # (h) carried: the entries not carried as the row writes them, and an
-    # approximate entry for each approximation the producer made
+    # (h) carried: the entries not carried as the row writes them, each
+    # with its subject; an approximate entry for each approximation the
+    # generator made, or each check the validator judged against a window,
+    # with its subject, fact, subcheck, class and reason -- and on validate
+    # the checks the row writes, read off the description.
     if expect.carried is not None:
         not_carried = tuple(
-            (one.kind, one.reason, one.verdict)
+            (one.subject, one.kind, one.reason, one.verdict)
             for one in result.carried
             if one.kind == results.CLASS_NOT_CARRIED
         )
         if not_carried != expect.carried:
             found += [f"(h) not carried {not_carried}, the row writes {expect.carried}"]
     approximate = [one for one in result.carried if one.kind == results.CLASS_APPROXIMATE]
+    groups = _groups(run.folder, case.argv)
     if run.twin is not None and result.verdict != "refused":
         wanted = [
-            (one.column, one.fact, one.published, one.achieved, one.lowest, one.highest, one.inside, one.covers_published)
+            (
+                (one.column,),
+                _qualified(groups, one.column, one.fact, ""),
+                "",
+                "approximate",
+                "approximated",
+                "",
+                one.published,
+                one.achieved,
+                one.lowest,
+                one.highest,
+                one.inside,
+                one.covers_published,
+            )
             for one in run.twin.approximations
         ]
         held = [
             (
-                one.subject[0],
+                one.subject,
                 one.fact,
+                one.subcheck,
+                one.kind,
+                one.reason,
+                one.verdict,
                 one.measures[0].published,
                 one.measures[0].achieved,
                 one.measures[0].lowest,
@@ -402,19 +523,40 @@ def unmet(run: Ran, result: results.Result) -> "list[str]":
             found += ["(h)(i) the approximate entries are not the twin's approximations"]
     if run.outcome is not None and result.verdict != "refused":
         wanted_checks = [check for check in run.outcome.checks if check.judged == validation.JUDGED_WINDOW]
-        if [(one.fact, one.verdict) for one in approximate] != [
-            (check.fact, check.verdict) for check in wanted_checks
+        if [
+            (one.subject, one.fact, one.subcheck, one.kind, one.reason, one.verdict)
+            for one in approximate
+        ] != [
+            (
+                (check.column,) if check.column else (),
+                check.fact,
+                check.subcheck,
+                "approximate",
+                "approximated",
+                check.verdict,
+            )
+            for check in wanted_checks
         ]:
             found += ["(h) the approximate entries are not the checks judged against a window"]
+        if expect.approximate is not None and tuple(
+            (one.subject[0] if one.subject else "", one.fact, one.subcheck) for one in approximate
+        ) != expect.approximate:
+            found += ["(h) the approximate entries are not the ones the row reads off the description"]
         for one, check in zip(approximate, wanted_checks):
             measure = one.measures[0]
-            inside = None if check.verdict == validation.WITHHELD else check.verdict != validation.MISSED
+            # inside: none where the check is WITHHELD or V5 keeps its measured side back
+            inside = (
+                None
+                if check.verdict == validation.WITHHELD or not check.achieved
+                else check.verdict != validation.MISSED
+            )
             if (measure.published, measure.achieved, measure.inside) != (check.published, check.achieved, inside):
                 found += [f"(i) a carried measure of {check.fact} is not its check's"]
-    # (i) each miss's text and rank values, one by one
+    # (i) each miss's identity, text and rank values, one by one
     positions = _positions(run.folder, case.argv)
     for miss in misses:
         producer: typing.Any = None
+        identity: "tuple[str, str, str, str]" = ("", "", "", "")
         if run.outcome is not None:
             if 0 <= miss.arrival < len(run.outcome.checks):
                 producer = run.outcome.checks[miss.arrival]
@@ -422,15 +564,22 @@ def unmet(run: Ran, result: results.Result) -> "list[str]":
                     producer = None
             if producer is not None:
                 text = (producer.published, producer.achieved, producer.note)
+                identity = (producer.column, producer.fact, producer.subcheck, producer.judged)
         elif run.twin is not None:
             if 0 <= miss.arrival < len(run.twin.deviations):
                 producer = run.twin.deviations[miss.arrival]
                 text = (producer.published, producer.achieved, (producer.note,) if producer.note else ())
+                identity = (
+                    producer.column,
+                    _qualified(groups, producer.column, producer.fact, producer.end),
+                    "",
+                    producer.judged,
+                )
         if producer is None:
             found += [f"(i) arrival {miss.arrival} names no missed check or deviation"]
             continue
-        if producer.column != miss.column:
-            found += [f"(i) arrival {miss.arrival} is another column's"]
+        if (miss.column, miss.fact, miss.subcheck, miss.judged) != identity:
+            found += [f"(i) arrival {miss.arrival} is named {(miss.column, miss.fact, miss.subcheck, miss.judged)}, its producer {identity}"]
         if (miss.published, miss.achieved, miss.note) != text:
             found += [f"(i) {miss.fact}'s text is not its producer's"]
         if miss.shown != bool(producer.achieved):
@@ -438,8 +587,10 @@ def unmet(run: Ran, result: results.Result) -> "list[str]":
         wanted_place = positions.get(miss.column, 0) if miss.column else 0
         if miss.place != wanted_place:
             found += [f"(i) {miss.fact} at place {miss.place}, the description puts it at {wanted_place}"]
-        if _expected_tier(expect, miss, producer.judged) != miss.tier:
+        if _expected_tier(expect, identity[:3], identity[3]) != miss.tier:
             found += [f"(i) {miss.fact} [{miss.subcheck}] at tier {miss.tier}"]
+    # (j) the command, the files written, validate's rule keys
+    found += recorded_fields_unmet(run, result)
     return found
 
 
@@ -499,6 +650,48 @@ def _corruptions(ran: Battery) -> "list[tuple[str, Ran, results.Result]]":
     two = ran.runs["G2"]
     assert two.result.next_command is not None
     found += [("the next command's purpose changed", two, dataclasses.replace(two.result, next_command=dataclasses.replace(two.result.next_command, purpose="doctor")))]
+    # Lane S5a's repair 1: the identity of a miss the row does not name,
+    # the carried entries' subjects, reasons and subcheck, the fields lanes
+    # TT and TS read, and a refused run's misses.
+    four = ran.runs["M4"]
+    named = {(column, fact, subcheck) for column, fact, subcheck, _tier in battery.EXPECTED["M4"].breaks}
+    unnamed = [place for place, miss in enumerate(four.result.misses) if (miss.column, miss.fact, miss.subcheck) not in named]
+    assert unnamed, "M4 holds misses its row does not name"
+    place = unnamed[-1]
+    kept = four.result.misses
+    other = kept[place]
+
+    def with_miss(changed: results.Miss) -> results.Result:
+        return dataclasses.replace(four.result, misses=kept[:place] + (changed,) + kept[place + 1:])
+
+    renamed = "numeric.std" if other.fact != "numeric.std" else "numeric.mean"
+    found += [("a miss's fact renamed", four, with_miss(dataclasses.replace(other, fact=renamed)))]
+    moved = "distinct.n_distinct" if other.subcheck != "distinct.n_distinct" else "moments.std"
+    found += [("a miss's subcheck changed", four, with_miss(dataclasses.replace(other, subcheck=moved)))]
+    flipped = "window" if other.judged == "exact" else "exact"
+    found += [("a miss's judged flipped, its tier kept", four, with_miss(dataclasses.replace(other, judged=flipped)))]
+    three = ran.runs["G3"]
+    carried = three.result.carried
+    first_approximate = [place for place, entry in enumerate(carried) if entry.kind == "approximate"][0]
+    first_not_carried = [place for place, entry in enumerate(carried) if entry.kind == "not-carried"][0]
+
+    def with_carried(at: int, changed: results.Carried) -> results.Result:
+        return dataclasses.replace(three.result, carried=carried[:at] + (changed,) + carried[at + 1:])
+
+    entry = carried[first_approximate]
+    found += [("an approximate entry's subject changed", three, with_carried(first_approximate, dataclasses.replace(entry, subject=("ward",))))]
+    found += [("an approximate entry's reason changed", three, with_carried(first_approximate, dataclasses.replace(entry, reason="held-back")))]
+    found += [("an approximate entry's subcheck changed", three, with_carried(first_approximate, dataclasses.replace(entry, subcheck=entry.subcheck + ".other")))]
+    entry = carried[first_not_carried]
+    found += [("a not-carried entry's subject changed", three, with_carried(first_not_carried, dataclasses.replace(entry, subject=("ward",))))]
+    found += [("a not-carried entry's reason changed", three, with_carried(first_not_carried, dataclasses.replace(entry, reason="held-back")))]
+    found += [("the command changed", three, dataclasses.replace(three.result, command="generate"))]
+    found += [("a file dropped", two, dataclasses.replace(two.result, files=two.result.files[:1]))]
+    five = ran.runs["M5"]
+    assert five.result.unjudged, "M5 keeps checks back"
+    found += [("an unjudged entry's rule key changed", five, dataclasses.replace(five.result, unjudged=(dataclasses.replace(five.result.unjudged[0], key="gate-pooled"),) + five.result.unjudged[1:]))]
+    refused = ran.runs["R3"]
+    found += [("a miss kept on a refused run that showed no report", refused, dataclasses.replace(refused.result, misses=two.result.misses[:1]))]
     return found
 
 
@@ -507,6 +700,48 @@ def test_k_s5_01_a_corrupted_result_is_never_met(ran: Battery) -> None:
     for name, run, corrupted in _corruptions(ran):
         assert unmet(run, run.result) == [], name
         assert unmet(run, corrupted), f"the checker met a result with {name}"
+
+
+def test_the_command_files_and_rule_keys_are_the_row_s(ran: Battery) -> None:
+    """Clause (j) on its own (lane S5a's repair 1): the fields lanes TT and TS read.
+
+    Every case's command and files are its row's, and each unjudged
+    entry of validate carries its producer check's rule key; the command
+    changed, a file dropped or a key changed is found by this clause alone.
+    """
+    wrong = {
+        key: found
+        for key, run in classed(ran).items()
+        if (found := recorded_fields_unmet(run, run.result))
+    }
+    assert not wrong, wrong
+    keyed = [run for run in classed(ran).values() if run.result.unjudged and run.outcome is not None]
+    assert {run.case.key for run in keyed} >= {"M5", "M9"}
+    for name, run, corrupted in _corruptions(ran):
+        if name in ("the command changed", "a file dropped", "an unjudged entry's rule key changed"):
+            assert recorded_fields_unmet(run, corrupted), name
+
+
+def test_inside_is_none_where_the_measured_side_is_kept_back(ran: Battery) -> None:
+    """A window check whose measured side V5 keeps back carries `inside` None (lane S5a's repair 1)."""
+    described = rendering.contract.load_profile(f"{ran.root / 'G1' / 't-profile.json'}")
+    window = "70.1 (between 69.0 and 71.0)"
+    checks = (
+        validation.Check("weight", "numeric.mean", "moments.mean", validation.WITHIN_BOUND, window, "", "c", judged="window"),
+        validation.Check("weight", "numeric.std", "moments.std", validation.MISSED, window, "", judged="window"),
+        validation.Check("weight", "numeric.skew", "moments.skew", validation.WITHIN_BOUND, window, "70.2", "c", judged="window"),
+        validation.Check("weight", "numeric.kurtosis", "moments.kurtosis", validation.WITHHELD, window, "", "c", judged="window"),
+    )
+    outcome = validation.Outcome(checks, (), validation.Census(0, 2, 0, 1, 1, 0), "t-twin.csv")
+    session = cli._Session(None, None)
+    cli._OPEN.sessions += [session]
+    try:
+        cli._validated(described, outcome)
+    finally:
+        del cli._OPEN.sessions[len(cli._OPEN.sessions) - 1]
+    insides = [entry.measures[0].inside for entry in session.carried if entry.kind == "approximate"]
+    assert insides == [None, None, True, None]
+    assert [miss.shown for miss in session.misses] == [False]
 
 
 # -- K-S5-02: every byte held ------------------------------------------
@@ -604,6 +839,126 @@ def test_every_miss_key_on_the_battery_is_in_the_rank_table(ran: Battery) -> Non
     assert not lacking, lacking
 
 
+def test_the_censuses_of_a_writing_fact_rank_count() -> None:
+    """The form and mark censuses rank `count`; the cells wearing no named mark `writing` (lane S5a's repair 1).
+
+    Each published form of an identifier's layouts or a number column's
+    spellings, and each published mark of a datetime column, is checked
+    as a census of the cells wearing it (`validation._form_checks`,
+    `_mark_checks`), which part 2 ranks `count`.
+    """
+    table = (
+        ("identifier.layout_forms", "forms.published.@@@%%%%%%", "count"),
+        ("numeric.number_spellings", "spellings.published.07", "count"),
+        ("datetime.datetime_separators", "marks.T", "count"),
+        ("datetime.datetime_separators", "marks.unnamed", "writing"),
+        ("datetime.datetime_separators", "", "writing"),
+        ("label.shape_forms", "forms.published.@@", "count"),
+        ("numeric.numeric_styles", "styles.spelled", "writing"),
+        ("identifier.layout_prefixes", "prefix.@@@%%%%%%", "writing"),
+    )
+    for fact, subcheck, tier in table:
+        assert results.tier_of(fact, subcheck, "exact") == tier, (fact, subcheck)
+
+
+def test_m4_s_layout_census_ranks_count(ran: Battery) -> None:
+    """Twelve rows dropped move the record number's layout census, which ranks behind no spelling."""
+    layouts = [miss for miss in ran.runs["M4"].result.misses if miss.fact == "identifier.layout_forms"]
+    assert layouts and all(miss.tier == "count" for miss in layouts), layouts
+
+
+def _generator_keys() -> "list[tuple[int, str]]":
+    """Every fact key the generator writes as a literal or a module's constant (an AST scan of `generation`)."""
+    import ast
+
+    from synthtwin import calendar_clock, calendar_rules
+
+    modules = {"calendar_rules": calendar_rules, "calendar_clock": calendar_clock}
+    tree = ast.parse(pathlib.Path(generation.__file__).read_text(encoding="utf-8"))
+    found: "list[tuple[int, str]]" = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        called = node.func
+        name = called.id if isinstance(called, ast.Name) else getattr(called, "attr", "")
+        if name not in ("_deviation", "Deviation"):
+            continue
+        given = node.args[1] if len(node.args) >= 2 else None
+        for keyword in node.keywords:
+            if keyword.arg == "fact":
+                given = keyword.value
+        if isinstance(given, ast.Constant) and isinstance(given.value, str):
+            found += [(node.lineno, given.value)]
+        elif (
+            isinstance(given, ast.Attribute)
+            and isinstance(given.value, ast.Name)
+            and given.value.id in modules
+        ):
+            found += [(node.lineno, getattr(modules[given.value.id], given.attr))]
+    return found
+
+
+def _registry_pairs() -> "set[tuple[str, str]]":
+    return {(fact.group, fact.field) for fact in dispositions.REGISTRY}
+
+
+def _in_the_registry(fact: str) -> bool:
+    """A result's fact is a registry `group.field`, less a ladder end and an index."""
+    plain = re.sub(r"\[[0-9]+\]", "", fact)
+    for end in (".min", ".max"):
+        if plain.endswith(end):
+            plain = plain[: -len(end)]
+    group, _dot, field = plain.partition(".")
+    return (group, field) in _registry_pairs()
+
+
+def test_every_miss_fact_is_a_registry_fact(ran: Battery) -> None:
+    """A miss names the registry's `group.field`, on the battery and for every key the generator writes.
+
+    Lane S5a's repair 1: `levels -> variants_withheld` is the label
+    group's `variants_withheld`, and the column-level counts (present,
+    missing, out of range) are `universal` whatever the role. The one
+    key the registry holds under no group, the time grain, is named
+    `universal.time_grain` and listed here as the gap plan P4-D437 names.
+    The validator's two byte rules (`validation.BYTE_RULE_FACTS`) are the
+    contract's rules of the file's bytes, named apart from the registry
+    as the suite's entry table names them.
+    """
+    lacking = [
+        (key, miss.fact)
+        for key, run in ran.runs.items()
+        for miss in run.result.misses
+        if not _in_the_registry(miss.fact) and miss.fact not in validation.BYTE_RULE_FACTS
+    ]
+    assert not lacking, lacking
+
+
+def test_every_key_the_generator_writes_is_named_as_the_registry_names_it() -> None:
+    """Each literal key of `generation`'s deviations, named by `cli._registry_fact`, is a registry fact.
+
+    Its column-level counts are `universal` under every group, and every
+    other key is a field of some group's (lane S5a's repair 1); the time
+    grain is the one gap, named `universal.time_grain`.
+    """
+    keys = _generator_keys()
+    assert len(keys) >= 60, len(keys)
+    universal = {field for group, field in _registry_pairs() if group == "universal"}
+    groups = sorted({group for group, _field in _registry_pairs()} - {"universal", "document"})
+    wrong = []
+    for line, key in keys:
+        field = key.split(" -> ")[-1]
+        if _head(field) in universal | _UNREGISTERED_COLUMN_KEYS:
+            if any(cli._registry_fact(group, key, "") != f"universal.{field}" for group in groups):
+                wrong += [(line, key, "not universal")]
+            continue
+        if not any(_in_the_registry(cli._registry_fact(group, key, "")) for group in groups):
+            wrong += [(line, key, "in no group")]
+    assert not wrong, wrong
+    # cli's list of column-level keys is the registry's, and the gap alone besides
+    assert set(cli._UNIVERSAL_FACTS) - universal == _UNREGISTERED_COLUMN_KEYS
+    assert {_head(key.split(" -> ")[-1]) for _line, key in keys} & universal <= set(cli._UNIVERSAL_FACTS)
+
+
 def test_judged_is_window_at_the_sites_the_page_names(ran: Battery) -> None:
     """M7's misses are judged against windows; M10's two width misses and D1's ladder end exactly."""
     assert all(miss.judged == "window" for miss in ran.runs["M7"].result.misses)
@@ -636,12 +991,47 @@ def _returns_marked(name: str) -> "list[int]":
     raise AssertionError(f"validation has no function {name}")
 
 
+def _function(name: str) -> typing.Any:
+    import ast
+
+    tree = ast.parse(pathlib.Path(validation.__file__).read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name == name:
+            return node
+    raise AssertionError(f"validation has no function {name}")
+
+
 def test_every_window_check_is_marked_where_it_is_made() -> None:
     """`_within`, `_within_clock`, `_within_instant` and `_tail_window_check` mark every check."""
+    import ast
+
     for name in ("_within", "_within_clock", "_within_instant", "_tail_window_check"):
         assert _returns_marked(name) == [], name
-    # `_lesser_or_held`: the exact bar first (unmarked), then the corner's window.
-    assert len(_returns_marked("_lesser_or_held")) == 3
+    # `_lesser_or_held` (lane S5a's repair 1): where the description gives
+    # the corner no window, every check is exact -- withheld, held or the
+    # deviation, three returns inside that one branch; where it gives one,
+    # every check is marked, held and withheld included.
+    unmarked = _returns_marked("_lesser_or_held")
+    assert len(unmarked) == 3, unmarked
+    windowless = [
+        node
+        for node in ast.walk(_function("_lesser_or_held"))
+        if isinstance(node, ast.If) and "supply is None" in ast.unparse(node.test)
+    ]
+    assert len(windowless) == 1
+    inside = {inner.lineno for inner in ast.walk(windowless[0]) if isinstance(inner, ast.Return)}
+    assert set(unmarked) == inside, (unmarked, inside)
+    # The compound column's distinctness (`_distinctness_checks`): marked
+    # where its window's two ends differ, exact where they meet.
+    compound = [
+        node
+        for node in ast.walk(_function("_distinctness_checks"))
+        if isinstance(node, ast.If) and "CompoundFacts" in ast.unparse(node.test)
+    ]
+    assert len(compound) == 1
+    text = ast.unparse(compound[0])
+    assert text.count("_judged_window(") == 2, text
+    assert "outside if low == high else _judged_window(outside)" in text
 
 
 # -- part 3: `run` prints nothing; each command reaches only its own modules --
@@ -794,6 +1184,56 @@ def test_every_caution_key_is_one_the_command_gives() -> None:
 
 
 # -- the parser's own words ------------------------------------------------
+
+# argparse's usage block on the recorder's Python (3.11) at 80 columns,
+# as the base f677d6a0 showed it before every ambiguous-option refusal.
+_USAGE_311 = (
+    "usage: synthtwin [-h] [--version] [--twin PATH] [--out-dir FOLDER]\n"
+    "                 [--seed NUMBER] [--replace] [--smallest-group ROWS]\n"
+    "                 [--identifier COLUMN] [--code COLUMN]\n"
+    "                 [--decimal-comma COLUMN] [--measurement COLUMN]\n"
+    "                 [--century COLUMN=YEAR] [--date-column COLUMN]\n"
+    "                 [--twelve-hour COLUMN] [--date-count COLUMN SYSTEM]\n"
+    "                 [--metadata-rows N] [--delimiter CHARACTER] [--answers FILE]\n"
+    "                 [--keep-value VALUE] [--missing-value VALUE] [--day-first]\n"
+    "                 [--sheet NAME] [--first-row {auto,names,data}]\n"
+    "                 [{profile,generate,validate,doctor}] [path]\n"
+)
+
+
+def test_an_ambiguous_word_after_the_help_word_is_refused_as_before(tmp_path: pathlib.Path) -> None:
+    """argparse refuses a word abbreviating several options wherever it stands, the help word before it or not.
+
+    Lane S5a's repair 1: the base f677d6a0 answered these three lines
+    with exit 2, its usage block and argparse's ambiguous-option line,
+    measured through `cli.main` under Python 3.11; through `main` and
+    through `run` they still do, and the help page is not shown.
+    """
+    lines = (
+        (("--help", "--d"), "--d could match --decimal-comma, --date-column, --date-count, --delimiter, --day-first"),
+        (("-h", "--da"), "--da could match --date-column, --date-count, --day-first"),
+        (("profile", "x.csv", "-h", "--tw"), "--tw could match --twin, --twelve-hour"),
+    )
+    usage = _USAGE_311
+    if f"{sys.version_info[0]}.{sys.version_info[1]}" != goldens.RECORDER_PYTHON:
+        # argparse lays its usage out per Python: read it off this one's help page.
+        page = RECORDER.capture(("--help",), tmp_path)
+        usage = page.runs[0][1].split("\n\n")[0] + "\n"
+    for argv, matches in lines:
+        wanted = [("err", usage + f"synthtwin: error: ambiguous option: {matches}\n")]
+        through_main = RECORDER.capture(argv, tmp_path)
+        assert (through_main.exit, through_main.runs) == (2, wanted), argv
+
+        def listed(given: "list[str]", write: "typing.Callable[[str, str], None]") -> int:
+            screen: "list[tuple[str, str]]" = []
+            result = cli.run(given, screen=screen, small_tables_refused=True)
+            assert (result.verdict, result.command) == ("unusable", "profile" if "profile" in given else "")
+            for stream, text in screen:
+                write(stream, text)
+            return results.exit_code(result)
+
+        through_run = RECORDER.capture(argv, tmp_path, listed)
+        assert (through_run.exit, through_run.runs, through_run.strays) == (2, wanted, []), argv
 
 
 def test_the_long_options_are_the_parser_s_in_its_order() -> None:

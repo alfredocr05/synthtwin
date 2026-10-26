@@ -578,7 +578,9 @@ class _Open:
     """The sessions open now, the innermost last: one per call of `run` in progress.
 
     A list rather than a single slot, so a run started from inside
-    another (no command does that) still finds its own.
+    another (no command does that) still finds its own. One list for the
+    whole module, so `run` serves one thread at a time (its docstring
+    states the limit).
     """
 
     sessions: "list[_Session]" = dataclasses.field(default_factory=list)
@@ -754,16 +756,58 @@ def _fact_head(fact: str) -> str:
     return head
 
 
+# THE FACTS A DEVIATION NAMES OUTSIDE ITS ROLE'S GROUP (lane S5a's repair
+# 1): the column-level counts the disposition registry files under
+# `universal` -- present, missing, out of range -- and the column's time
+# grain, a column-level key the description publishes beside them (plan
+# P4-D415) which the registry holds under no group yet (plan P4-D437
+# names the gap). `tests/test_stage5_gate.py` holds this list to the
+# registry and to every key the generator writes.
+_UNIVERSAL_FACTS = ("n_present", "n_missing", "n_out_of_range", "time_grain")
+# A generator key `levels -> field` names a field of the label group's
+# levels block (`label.variants_withheld`, `label.shape_form_cells`).
+_ARROW = " -> "
+
+
+def _registry_fact(group: str, fact: str, end: str) -> str:
+    """A generator's fact named as the disposition registry names it (plan P4-D395 part 1).
+
+    Guarantees: `group.field`, where the field is the generator's key
+    after its last `levels -> `, and the group is `universal` for the
+    column-level keys of `_UNIVERSAL_FACTS` and ``group`` -- the one the
+    column's role publishes under -- otherwise; then `.end` where
+    ``end`` names the ladder end that gave way. A key on no column
+    (``group`` empty) is the key itself. A pure function of the three;
+    built without a method of the value, for the offline audit's reason.
+    """
+    if not isinstance(fact, str):
+        raise TypeError("a fact is named by text")
+    field = fact
+    place = 0
+    while place + len(_ARROW) <= len(field):
+        if field[place : place + len(_ARROW)] == _ARROW:
+            field = field[place + len(_ARROW) :]
+            place = 0
+            continue
+        place = place + 1
+    if _fact_head(field) in _UNIVERSAL_FACTS:
+        group = "universal"
+    named = f"{group}.{field}" if group else field
+    return f"{named}.{end}" if end else named
+
+
 def _generated(described: object, made: object) -> None:
     """Put a generated twin's misses, tally and carried entries in the run's result.
 
-    One miss for each deviation, its fact named by the registry group its
-    column's role publishes under (`universal` for the present and
-    missing counts) and a ladder end that gives way by the end the
-    generator pins; its rank read off `results.tier_of`. Every
-    approximation is carried, inside or outside its bound, as the report
-    lists it, and so is each column the twin made up. No cell of the twin
-    is read (plan P4-D395 part 1, lane SG's seam).
+    One miss for each deviation, its fact named as the registry names it
+    (`_registry_fact`: the group its column's role publishes under,
+    `universal` for the column-level counts, and a ladder end that gives
+    way by the end the generator pins); its rank read off
+    `results.tier_of`. Every approximation is carried, inside or outside
+    its bound, as the report lists it, its fact named by the same rule so
+    it joins the miss its bound makes, and so is each column the twin
+    made up. No cell of the twin is read (plan P4-D395 part 1, lane SG's
+    seam).
     """
     from synthtwin import contract, generation, roles
 
@@ -783,11 +827,7 @@ def _generated(described: object, made: object) -> None:
     for arrival in range(len(made.deviations)):
         deviation = made.deviations[arrival]
         group = groups[deviation.column] if deviation.column in groups else ""
-        if _fact_head(deviation.fact) in ("n_present", "n_missing"):
-            group = "universal"
-        fact = f"{group}.{deviation.fact}" if group else deviation.fact
-        if deviation.end:
-            fact = f"{fact}.{deviation.end}"
+        fact = _registry_fact(group, deviation.fact, deviation.end)
         found += [
             results.Miss(
                 tier=results.tier_of(fact, "", deviation.judged),
@@ -812,10 +852,13 @@ def _generated(described: object, made: object) -> None:
         else:
             part = part + 1
     for approximation in made.approximations:
+        group = (
+            groups[approximation.column] if approximation.column in groups else ""
+        )
         carried += [
             results.Carried(
                 (approximation.column,),
-                approximation.fact,
+                _registry_fact(group, approximation.fact, ""),
                 results.CLASS_APPROXIMATE,
                 results.REASON_APPROXIMATED,
                 measures=(
@@ -852,9 +895,10 @@ def _validated(described: object, measured: object) -> None:
     one unjudged entry for each WITHHELD check, keyed by the rule that
     kept its outcome back and holding no measured value; the census's
     six counts; and carried, each check judged against a window with the
-    verdict it got, `inside` None where it is WITHHELD. No string read
-    from the measured file enters the result: every field is the
-    validator's own, as the report prints it (plan P4-D395 part 1).
+    verdict it got and its subcheck, `inside` None where it is WITHHELD
+    or where V5 keeps its measured side back (lane S5a's repair 1). No
+    string read from the measured file enters the result: every field is
+    the validator's own, as the report prints it (plan P4-D395 part 1).
     """
     from synthtwin import contract, validation
 
@@ -900,7 +944,7 @@ def _validated(described: object, measured: object) -> None:
             ]
         if check.judged == validation.JUDGED_WINDOW:
             inside: "bool | None" = None
-            if check.verdict != validation.WITHHELD:
+            if check.verdict != validation.WITHHELD and check.achieved:
                 inside = check.verdict != validation.MISSED
             carried += [
                 results.Carried(
@@ -908,6 +952,7 @@ def _validated(described: object, measured: object) -> None:
                     check.fact,
                     results.CLASS_APPROXIMATE,
                     results.REASON_APPROXIMATED,
+                    subcheck=check.subcheck,
                     verdict=check.verdict,
                     measures=(
                         results.Measure(
@@ -1850,12 +1895,16 @@ def _parse_arguments(
     # page is then shown; a refusal argparse raises is shown in its own
     # words; and a word abbreviating several options is refused before
     # argparse reads it, because Python 3.11's argparse prints and exits
-    # on that one whatever it is asked.
+    # on that one whatever it is asked. argparse sorts EVERY word into
+    # options and values before it acts on the help option, so a word
+    # abbreviating several options is refused wherever it stands, after
+    # the help word too (lane S5a's repair 1): `_ambiguous` reads them all,
+    # up to `--`.
     words = sys.argv[1:] if argv is None else [f"{word}" for word in argv]
     helped = _help_asked_at(words)
     read = words if helped < 0 else words[:helped]
     help_page = parser.format_help()
-    ambiguous = _ambiguous(read)
+    ambiguous = _ambiguous(words)
     if ambiguous:
         _refused_as_argparse_refuses(help_page, ambiguous)
     try:
@@ -7943,6 +7992,12 @@ def run(
     - Determinism and boundary: as `main`'s. Each command's modules are
       still imported inside its own branch (plans P2-D1, P3-D1), so a
       validate run reaches no generator.
+    - ONE RUN AT A TIME IN A PROCESS (a stated limit, plan P4-D437): the
+      run in progress is found through one module-wide list of open
+      sessions, so two threads calling `run` (or `main`) at once can each
+      receive the other's command, screen text or misses (measured at
+      lane S5a's skeptic 1: 82 of 600 results crossed). Run them one
+      after another, or in separate processes.
     """
     return _run(
         argv, screen, ask, chain, small_tables_refused, internal_smallest_group

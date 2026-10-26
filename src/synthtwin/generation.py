@@ -552,7 +552,9 @@ class Deviation:
     (plan P4-D395 part 1, lane S5a): `judged` is `window` exactly where
     `_bound_notes` makes the deviation from an approximation outside its
     bound, else `exact`; `end` names the ladder end that gave way, `min`
-    or `max`, where the generator pins one, else it is empty.
+    or `max`, where the generator pins one, else it is empty. Neither
+    enters the record's text or its equality, so a deviation reads and
+    compares as it did before results existed (lane S5a's repair 1).
     """
 
     column: str
@@ -560,8 +562,8 @@ class Deviation:
     published: str
     achieved: str
     note: str
-    judged: str = "exact"
-    end: str = ""
+    judged: str = dataclasses.field(default="exact", repr=False, compare=False)
+    end: str = dataclasses.field(default="", repr=False, compare=False)
 
 
 @dataclasses.dataclass(frozen=True)

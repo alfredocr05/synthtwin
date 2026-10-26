@@ -365,9 +365,15 @@ def test_p1r6f11_only_the_terminal_screen_prints_in_the_command_module() -> None
     only call to print lives in `_terminal_screen`, the terminal's screen
     (plan P4-D395 part 3, lane S5a), and the only text handed to it comes
     from `_say` and `_warn`, both of which apply the boundary (the test
-    below) -- or from argparse's own help page and refusals, which quote
-    every value with `repr` -- so every message is covered whether or not
-    its author thought about it.
+    below) -- or from argparse's own help page and refusals, shown as
+    argparse composes them, which quote a typed value with `repr` -- so
+    every message is covered whether or not its author thought about
+    it. ONE REFUSAL DOES NOT, a stated limit (plan P4-D437): the
+    ambiguous-option line (`cli._ambiguous`, composed as argparse
+    composes it) shows the typed word raw, so `--d=` followed by an
+    escape sequence reaches the error stream as typed, on the base as on
+    lane S5a, which may move no screen byte; the next landing allowed
+    to move screen bytes (lane TW's words) owns it.
     """
     printing = _every_print(_command_module_tree())
     assert printing, "the command module must still print something"

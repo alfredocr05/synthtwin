@@ -247,17 +247,21 @@ class Carried:
     """What the run holds only approximately, or does not carry.
 
     ``subject`` is empty for the table, one name for a column, two in
-    schema order for a pair. ``kind`` is the page's `class`
-    (`approximate` or `not-carried`; a pair's class read verbatim once
-    stage 6 publishes pairs) and ``reason`` its reason; ``verdict`` the
-    census word its validate check got, or REPORT-ONLY, and empty off
-    validate.
+    schema order for a pair. ``fact`` is the disposition registry's
+    `group.field`, named as a miss names it, so an approximation and
+    the miss its bound makes join by key; ``subcheck`` the validator's
+    identity (one rung of a ladder, one tail), empty off validate.
+    ``kind`` is the page's `class` (`approximate` or `not-carried`; a
+    pair's class read verbatim once stage 6 publishes pairs) and
+    ``reason`` its reason; ``verdict`` the census word its validate
+    check got, or REPORT-ONLY, and empty off validate.
     """
 
     subject: "tuple[str, ...]"
     fact: str
     kind: str
     reason: str
+    subcheck: str = ""
     words: str = ""
     verdict: str = ""
     measures: "tuple[Measure, ...]" = ()
@@ -352,8 +356,18 @@ class Result:
 # exactly is a `count`, the style, width and mark censuses among them
 # (a census dropping a spelling to nought ranks `count`, because ranking
 # it otherwise would make the order turn on the measured side, which V5
-# keeps back for those counts).
+# keeps back for those counts). THE FORM AND MARK CENSUSES OF A WRITING
+# FACT RANK `count` TOO (lane S5a's repair 1): an identifier's layout
+# forms and a number column's spellings are each checked as the cells
+# that wear one published form (`validation._form_checks`), and a
+# datetime column's marks as the cells that wear one published mark,
+# each a census of cells; the cells that wear no mark the census names
+# (`marks.unnamed`) stay `writing`, as `styles.spelled` does.
 _RANKS: "tuple[tuple[str, str, str], ...]" = (
+    ("identifier.layout_forms", "forms.published", TIER_COUNT),
+    ("numeric.number_spellings", "spellings.published", TIER_COUNT),
+    ("datetime.datetime_separators", "marks.unnamed", TIER_WRITING),
+    ("datetime.datetime_separators", "marks", TIER_COUNT),
     ("document.*", "", TIER_FORM),
     ("universal.name", "", TIER_FORM),
     ("universal.position", "", TIER_FORM),

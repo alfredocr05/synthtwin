@@ -1573,10 +1573,13 @@ class Check:
     `_within_clock`, `_within_instant` and `_tail_window_check` make,
     whose WITHIN-BOUND carries the envelope's citation, and a count of
     different values judged against the window a corner of distinctness
-    authorizes (`_lesser_or_held`, and the compound column's window
-    where its two ends differ) -- and `exact` for every other check,
-    the floor censuses of `_written_form_checks` and `_settled_verdict`
-    among them. It moves no verdict and no byte of the report.
+    authorizes (`_lesser_or_held`: every check of a count whose corner
+    the description gives a window, held, withheld or judged; and the
+    compound column's window where its two ends differ) -- and `exact`
+    for every other check, the floor censuses of `_written_form_checks`
+    and `_settled_verdict` among them. It moves no verdict and no byte of the report, and it
+    enters neither the record's text nor its equality, so a check reads
+    and compares as it did before results existed (lane S5a's repair 1).
     """
 
     column: str
@@ -1587,7 +1590,7 @@ class Check:
     achieved: str = ""
     citation: str = ""
     note: "tuple[str, ...]" = ()
-    judged: str = "exact"
+    judged: str = dataclasses.field(default="exact", repr=False, compare=False)
 
 
 # HOW A CHECK WAS JUDGED (plan P4-D395 part 1): the two words `Check.judged`
@@ -9821,17 +9824,34 @@ def _lesser_or_held(
     would lower an obligation the twin actually held -- which is the
     class of quiet lowering this project refuses by name. So the corner
     is consulted only once the exact comparison has already failed.
+
+    HOW IT IS JUDGED IS READ OFF THE DESCRIPTION, NOT OFF THE OUTCOME (lane
+    S5a's repair 1): where the description gives the corner its window
+    (both ends of the supply settled), every check of the count is
+    marked `window` -- held at the exact bar, withheld, or judged against
+    the window -- so a run's result carries the count as approximate
+    whatever the twin did; where it gives none, every check is `exact`.
+    The verdicts are as before: the window's two ends are read off the
+    published fields alone, so asking for them first moves nothing.
     """
     shown = _shown_count(published)
-    if measured is None:
-        return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
-    if measured == published:
-        return Check(name, fact, subcheck, HELD, shown, _shown_count(measured))
     facts = column.facts
     supply = _spelling_supply(column, facts, published)
     ceiling = _spelling_ceiling(column, facts, published)
     if supply is None or ceiling is None:
+        if measured is None:
+            return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
+        if measured == published:
+            return Check(name, fact, subcheck, HELD, shown, _shown_count(measured))
         return _deviation(name, fact, subcheck, shown, corner)
+    if measured is None:
+        return _judged_window(
+            Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
+        )
+    if measured == published:
+        return _judged_window(
+            Check(name, fact, subcheck, HELD, shown, _shown_count(measured))
+        )
     low = min(supply, published)
     high = max(ceiling, published)
     # ...AND BEYOND THE EXACT BAR THE COUNT IS JUDGED AGAINST THE

@@ -67,11 +67,22 @@ class Expect:
     ``floor_lowered`` the result's floor; ``next_words`` and
     ``next_purpose`` the next command (the words as one tuple, with
     `<FOLDER>` for the case's folder as resolved); ``carried`` the
-    (class, reason, verdict) of every carried entry, in order;
-    ``tally`` the doctor's counts.
+    (subject, class, reason, verdict) of every carried entry that is
+    not an approximation, in order; ``tally`` the doctor's counts.
+
+    Written at lane S5a's repair 1: ``command`` the result's command;
+    ``files`` the kinds of file the run writes, in order (none on a run
+    that writes nothing); ``misses_kept`` how many misses a refused run
+    keeps (none on the battery: no refused case showed a report);
+    ``approximate`` the (column, fact, subcheck) of every check a
+    validate run judges against a window, in order, read off the
+    description (`_G1_APPROXIMATE`); ``fallback_keys`` how many of a
+    validate run's unjudged entries may carry the fallback key (none).
     """
 
     verdict: str
+    command: str = ""
+    files: "tuple[str, ...]" = ()
     exit: "int | None" = None
     step: str = ""
     key: str = ""
@@ -85,7 +96,9 @@ class Expect:
     next_purpose: str = ""
     carried: "tuple[tuple[str, str, str], ...] | None" = None
     tally: "tuple[tuple[str, int], ...] | None" = None
-    unjudged_count: "int | None" = None
+    misses_kept: int = 0
+    approximate: "tuple[tuple[str, str, str], ...] | None" = None
+    fallback_keys: int = 0
 
 
 @dataclasses.dataclass(frozen=True)
@@ -488,23 +501,75 @@ def clear(root: pathlib.Path) -> None:
 # by `tests/test_stage5_gate.py`, one for one). G5's three lines pin bytes
 # only, as part 5's table writes them.
 _FOLDER = "<FOLDER>"
-_MADE_UP = ("not-carried", "made-up", "")
-_NOT_MODELED = ("not-carried", "not-modeled", "")
+# The record number is described as an identifier, whose values the
+# description never publishes, so the twin makes every one up; and the
+# table carries nothing between its columns (its statistical block null).
+_MADE_UP = (("record_no",), "not-carried", "made-up", "")
+_NOT_MODELED = ((), "not-carried", "not-modeled", "")
 _NEXT_GENERATE = ("synthtwin", "generate", f"{_FOLDER}/t-profile.json")
 _NEXT_VALIDATE = ("synthtwin", "validate", "t-profile.json", "--twin", f"{_FOLDER}/t-twin.csv")
+_PROFILE_FILES = ("description", "summary", "questions")
+_TWIN_FILES = ("twin", "twin-report")
+_QUALITY_FILES = ("quality-report",)
+
+# WHAT A VALIDATE RUN AGAINST G1'S DESCRIPTION JUDGES AGAINST A WINDOW,
+# read off that description (lane S5a's repair 1), in the validator's
+# order: the admission date's two tails, each by its mean and its
+# root-mean-square distance (G12's tail windows), and its nine rungs;
+# then the weight's three counts of different values, each in the corner
+# of distinctness its description sits in, whatever the twin did; its
+# nine rungs, its two tails and its four moments. The record number and
+# the ward are judged exactly throughout.
+_G1_TAILS_ADMITTED = tuple(
+    ("admitted", f"datetime.{side}_tail.{measure}", f"tails.{side}.{measure}")
+    for side in ("low", "high")
+    for measure in ("mean_distance", "rms_distance")
+)
+_RUNGS = ("p01", "p05", "p10", "p25", "p50", "p75", "p90", "p95", "p99")
+_G1_APPROXIMATE: "tuple[tuple[str, str, str], ...]" = (
+    _G1_TAILS_ADMITTED
+    + tuple(("admitted", "datetime.date_percentiles", f"date-ladder.{rung}") for rung in _RUNGS)
+    + tuple(
+        ("weight", f"numeric.{count}", f"distinct.{count}")
+        for count in ("n_distinct", "n_distinct_folded", "n_distinct_values")
+    )
+    + tuple(("weight", "numeric.percentiles", f"ladder.{rung}") for rung in _RUNGS)
+    + tuple(
+        ("weight", f"numeric.tails.{side}.{measure}", f"tails.{side}.{measure}")
+        for side in ("low", "high")
+        for measure in ("mean_distance", "rms_distance")
+    )
+    + tuple(
+        ("weight", f"numeric.{moment}", f"moments.{moment}")
+        for moment in ("mean", "std", "skew", "kurtosis")
+    )
+)
+# Described at a smallest group of 5, the admission date's high tail
+# publishes no distances to judge (G9i's description, G11i.2).
+_G9I_APPROXIMATE = tuple(
+    entry
+    for entry in _G1_APPROXIMATE
+    if entry[1] not in ("datetime.high_tail.mean_distance", "datetime.high_tail.rms_distance")
+)
 
 
-def _refused(step: str, floor: "int | None" = None, key: str = "") -> Expect:
-    return Expect("refused", step=step, floor=floor, key=key, carried=())
+def _refused(command: str, step: str, floor: "int | None" = None, key: str = "") -> Expect:
+    return Expect("refused", command=command, step=step, floor=floor, key=key, carried=())
 
 
-def _unusable() -> Expect:
-    return Expect("unusable", step="command-line", carried=())
+def _unusable(command: str) -> Expect:
+    return Expect("unusable", command=command, step="command-line", carried=())
 
 
-def _profiled(*warnings: str, carried: "tuple[tuple[str, str, str], ...]" = ()) -> Expect:
+def _profiled(
+    *warnings: str,
+    carried: "tuple[tuple[tuple[str, ...], str, str, str], ...]" = (),
+    files: "tuple[str, ...]" = _PROFILE_FILES,
+) -> Expect:
     return Expect(
         "no-miss",
+        command="profile",
+        files=files,
         warnings=tuple(warnings),
         floor=11,
         next_words=_NEXT_GENERATE,
@@ -516,6 +581,8 @@ def _profiled(*warnings: str, carried: "tuple[tuple[str, str, str], ...]" = ()) 
 def _generated(verdict: str = "no-miss", **fields: typing.Any) -> Expect:
     return Expect(
         verdict,
+        command="generate",
+        files=_TWIN_FILES,
         warnings=("made-up-columns",),
         floor=11,
         next_words=_NEXT_VALIDATE,
@@ -526,7 +593,15 @@ def _generated(verdict: str = "no-miss", **fields: typing.Any) -> Expect:
 
 
 def _validated(verdict: str = "no-miss", **fields: typing.Any) -> Expect:
-    return Expect(verdict, floor=11, carried=(_MADE_UP, _NOT_MODELED), **fields)
+    return Expect(
+        verdict,
+        command="validate",
+        files=_QUALITY_FILES,
+        floor=11,
+        carried=(_MADE_UP, _NOT_MODELED),
+        approximate=_G1_APPROXIMATE,
+        **fields,
+    )
 
 
 def _damaged(*breaks: "tuple[str, str, str, str]", **fields: typing.Any) -> Expect:
@@ -547,46 +622,47 @@ EXPECTED: "dict[str, Expect]" = {
     "G2": _generated("missed", breaks=(_MODE_COUNT,), first_tier="count", every_tier="count"),
     "G3": _validated(),
     "G4": _validated(),
-    "R3": _refused("outputs", 11),
-    "R4": _refused("outputs", 11),
-    "R7": _refused("input", 11),
+    "R3": _refused("generate", "outputs", 11),
+    "R4": _refused("validate", "outputs", 11),
+    "R7": _refused("validate", "input", 11),
     # G6 puts its questions in the file and on the screen; at 20,000 rows
     # every record number is different and no question offering
     # `identifier` holds the column, so no caution is given.
     "G6": _profiled(),
     "G7": _profiled(),
     # The table floor (plan P4-D425) refuses the page's 150-row table.
-    "G8": _refused("content"),
+    "G8": _refused("profile", "content"),
     # The floor of 11 is a minimum (plan P4-D426): 5 typed is unusable.
-    "G9": _unusable(),
-    "G10.1": Expect("no-miss", carried=()),
-    "G10.2": Expect("no-miss", carried=()),
-    "G10.3": Expect("no-miss", carried=()),
+    "G9": _unusable("profile"),
+    "G10.1": Expect("no-miss", command="status", carried=()),
+    "G10.2": Expect("no-miss", command="help", carried=()),
+    "G10.3": Expect("no-miss", command="version", carried=()),
     # A description recorded at 5 is neither built from nor checked
     # against (plan P4-D426); its floor still stands in the result.
     "G11.1": Expect(
-        "refused", step="content", floor=5, floor_lowered=True,
+        "refused", command="generate", step="content", floor=5, floor_lowered=True,
         warnings=("lowered-floor",), carried=(),
     ),
     "G11.2": Expect(
-        "refused", step="content", floor=5, floor_lowered=True,
+        "refused", command="validate", step="content", floor=5, floor_lowered=True,
         warnings=("lowered-floor",), carried=(),
     ),
     "O1.1": _generated("missed", breaks=(_MODE_COUNT,), first_tier="count", every_tier="count"),
     "O1.2": _validated(),
-    "L1": _profiled("questions-would-replace"),
-    "R1": _refused("input"),
-    "R2": _refused("content"),
-    "R5": _refused("input"),
-    "R6.1": _refused("content", 11, "generation-counts-contradict"),
-    "R6.2": _refused("content", 11, "generation-counts-contradict"),
-    "L2": _refused("outputs"),
-    "L3": _refused("outputs", 11),
-    "L4": _refused("outputs", 11),
-    "U1": _unusable(),
-    "U2": _unusable(),
-    "U3": _unusable(),
-    "U4": _unusable(),
+    # Its questions file is a link to the table, never written over.
+    "L1": _profiled("questions-would-replace", files=("description", "summary")),
+    "R1": _refused("profile", "input"),
+    "R2": _refused("profile", "content"),
+    "R5": _refused("generate", "input"),
+    "R6.1": _refused("generate", "content", 11, "generation-counts-contradict"),
+    "R6.2": _refused("validate", "content", 11, "generation-counts-contradict"),
+    "L2": _refused("profile", "outputs"),
+    "L3": _refused("generate", "outputs", 11),
+    "L4": _refused("validate", "outputs", 11),
+    "U1": _unusable("generate"),
+    "U2": _unusable("profile"),
+    "U3": _unusable("profile"),
+    "U4": _unusable("profile"),
     "M1": _damaged(
         ("weight", "universal.n_present", "presence.n_present", "count"),
         first_tier="count",
@@ -691,8 +767,8 @@ UNRECORDED: "tuple[Case, ...]" = (
         "G9i", ("profile", "t.csv", "--identifier", "record_no"), build="table",
         recorded=False, internal=(("internal_smallest_group", 5),),
         expect=Expect(
-            "no-miss", exit=0, floor=5, floor_lowered=True,
-            warnings=("lowered-floor", "lowered-floor-reminder"),
+            "no-miss", command="profile", files=_PROFILE_FILES, exit=0, floor=5,
+            floor_lowered=True, warnings=("lowered-floor", "lowered-floor-reminder"),
             next_words=_NEXT_GENERATE, next_purpose="generate", carried=(),
         ),
     ),
@@ -700,7 +776,8 @@ UNRECORDED: "tuple[Case, ...]" = (
         "G11i.1", ("generate", "t-profile.json", "--seed", "7"), on="G9i",
         recorded=False, internal=(("internal_smallest_group", 5),),
         expect=Expect(
-            "missed", exit=0, floor=5, floor_lowered=True,
+            "missed", command="generate", files=_TWIN_FILES, exit=0, floor=5,
+            floor_lowered=True,
             breaks=(_MODE_COUNT,), first_tier="count", every_tier="count",
             warnings=("lowered-floor", "made-up-columns"),
             next_words=_NEXT_VALIDATE, next_purpose="validate",
@@ -711,48 +788,53 @@ UNRECORDED: "tuple[Case, ...]" = (
         "G11i.2", ("validate", "t-profile.json"), on="G9i",
         recorded=False, internal=(("internal_smallest_group", 5),),
         expect=Expect(
-            "no-miss", exit=0, floor=5, floor_lowered=True,
-            warnings=("lowered-floor",), carried=(_MADE_UP, _NOT_MODELED),
+            "no-miss", command="validate", files=_QUALITY_FILES, exit=0, floor=5,
+            floor_lowered=True, warnings=("lowered-floor",),
+            carried=(_MADE_UP, _NOT_MODELED), approximate=_G9I_APPROXIMATE,
         ),
     ),
     Case(
         "G1n", ("profile", "t.csv", "--identifier", "record_no"), build="no-weight",
         recorded=False,
         expect=Expect(
-            "no-miss", exit=0, floor=11, next_words=_NEXT_GENERATE,
-            next_purpose="generate", carried=(),
+            "no-miss", command="profile", files=_PROFILE_FILES, exit=0, floor=11,
+            next_words=_NEXT_GENERATE, next_purpose="generate", carried=(),
         ),
     ),
     Case(
         "G2n", ("generate", "t-profile.json", "--seed", "7"), on="G1n", recorded=False,
         expect=Expect(
-            "no-miss", exit=0, floor=11, warnings=("made-up-columns",),
+            "no-miss", command="generate", files=_TWIN_FILES, exit=0, floor=11,
+            warnings=("made-up-columns",),
             next_words=_NEXT_VALIDATE, next_purpose="validate",
             carried=(_MADE_UP, _NOT_MODELED),
         ),
     ),
     Case(
         "Q1", ("profile", "p.csv"), build="persons", recorded=False, fault="reader",
-        expect=Expect("refused", exit=1, step="questions", carried=()),
+        expect=Expect("refused", command="profile", exit=1, step="questions", carried=()),
     ),
     Case(
         "I1", ("profile", "t.csv", "--identifier", "record_no"), build="table",
         recorded=False, fault="questions-unwritable",
         expect=Expect(
-            "no-miss", exit=0, floor=11, warnings=("questions-not-written",),
+            "no-miss", command="profile", files=("description", "summary"), exit=0,
+            floor=11, warnings=("questions-not-written",),
             next_words=_NEXT_GENERATE, next_purpose="generate", carried=(),
         ),
     ),
     Case(
         "I2", ("generate", "t-profile.json", "--seed", "7"), build="g1-description",
         recorded=False, fault="unencodable",
-        expect=Expect("refused", exit=1, step="content", floor=11, carried=()),
+        expect=Expect(
+            "refused", command="generate", exit=1, step="content", floor=11, carried=()
+        ),
     ),
     Case(
         "DR1", ("doctor", "t.csv", "--out-dir", "out"), build="doctor",
         recorded=False, fault="memory-16-GiB",
         expect=Expect(
-            "no-miss", exit=0,
+            "no-miss", command="doctor", exit=0,
             tally=(("checks", 8), ("passed", 8), ("failed", 0), ("not-made", 0)),
             next_words=("synthtwin", "profile", "t.csv", "--out-dir", "out"),
             next_purpose="profile", carried=(),
@@ -762,7 +844,7 @@ UNRECORDED: "tuple[Case, ...]" = (
         "DR2", ("doctor", "t.csv", "--out-dir", "out"), on="DR1",
         recorded=False, fault="memory-unread",
         expect=Expect(
-            "no-miss", exit=0,
+            "no-miss", command="doctor", exit=0,
             tally=(("checks", 8), ("passed", 6), ("failed", 0), ("not-made", 2)),
             next_words=("synthtwin", "profile", "t.csv", "--out-dir", "out"),
             next_purpose="profile", carried=(),
@@ -772,7 +854,7 @@ UNRECORDED: "tuple[Case, ...]" = (
         "DR3", ("doctor", "t.csv", "--out-dir", "out"), on="DR1",
         recorded=False, fault="memory-100000-bytes",
         expect=Expect(
-            "refused", exit=1, step="environment",
+            "refused", command="doctor", exit=1, step="environment",
             tally=(("checks", 8), ("passed", 7), ("failed", 1), ("not-made", 0)),
             next_words=("synthtwin", "doctor", "t.csv", "--out-dir", "out"),
             next_purpose="doctor", carried=(),
