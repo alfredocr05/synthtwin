@@ -4021,3 +4021,34 @@ its widths and its census of repetition.
 measured at the grain through the redescription alone
 (`profile.build_document`'s ``time_grains``); the checks that count the
 file's own cells read its cells as written.
+
+## V15. A column read under the Safe Harbor top-code (lane SH, plan P4-D427)
+
+**V15.1 The top-code is read, never chosen.** A column whose block carries
+`top_coded` (contract TC1) was described with every value from 90 to 125
+read as 90 while its Safe Harbor question was open. The validator reads
+the checked file's column the same way -- every cell that reads as a
+number from 90 to 125, a unit word after it or not, is read as 90 in the
+cell's own form, and a cell blank, spelled as a built-in "no value" or
+as one the description declared is kept as written (Codex's review of
+lane SH, item 1) -- before both redescriptions and every check that
+counts the file's own cells (`profile.build_document`'s
+``top_coded_only``, `validation._top_coded_table`); a column whose block
+carries no `top_coded` is read as written, whatever its values. A block
+held as a record number from top-coded cells carries the key too, so its
+layouts and widths are read from the same cells (item 2 of the same
+review).
+
+**V15.2 What it buys.** The real table checked against the description it
+made meets every obligation of the block, as its twin does (measured on
+K-S3-64's age shapes at 600 and 20,000 rows: exit 0 both, and a held
+block's real table missing only the census of repetition every held
+block's real table misses, plan P4-D401). That no twin cell stands above
+90 is the generator's promise (method G7.14) and the gate's check, not
+the validator's: a file holding 103 is read as holding 90 there, so the
+real table is not refused for its own ages.
+
+**V15.3 Stated limit.** A table read in groups of columns (lane SR) is
+read under the top-code through the redescription alone; the checks that
+count the file's own cells read its cells as written, as V14.3 states for
+the grain.

@@ -51,7 +51,10 @@ import string
 import pytest
 
 from synthtwin import asking
+from synthtwin import canonical
 from synthtwin import cli
+from synthtwin import contract
+from synthtwin import errors
 from synthtwin import parsing
 from synthtwin import taxonomy
 
@@ -93,6 +96,73 @@ def _profiled(folder: pathlib.Path, name: str, text: str) -> "dict":
 
 def _column(document: "dict", name: str) -> "dict":
     return next(column for column in document["columns"] if column["name"] == name)
+
+
+def _profiled_seen(folder: pathlib.Path, name: str, text: str) -> "tuple[dict, str]":
+    """`_profiled`, the screen kept (batch 4k's records; Codex's review of batch 4j, its second Medium)."""
+    path = fixtures.write(folder, name, text)
+    sink = io.StringIO()
+    with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
+        code = cli.main(["profile", f"{path}", "--replace"])
+    assert code == 0, sink.getvalue()[-400:]
+    stem = name.rsplit(".", 1)[0]
+    return json.loads((folder / f"{stem}-profile.json").read_text(encoding="utf-8")), sink.getvalue()
+
+
+# EVERY SHAPE THIS PAGE MEASURED PRINTING IS HELD OR TOP-CODED SINCE LANE SH
+# (batch 4k's merge of lane SH, plan P4-D427): its ZIP codes publish none
+# and its ages above 89 are read as 90, the one question put. The page's
+# sentences stay as batch 4i's product measured them, and its own reach
+# models (`_zip_reach`, `_top_code_reach`, `_label_age_reach`) stay the
+# page's; the tests read the merged product for what it does now.
+
+
+def _asked_of(folder: pathlib.Path, stem: str, name: str) -> "list[str]":
+    """What the questions file says each question put to column ``name`` reads it as now."""
+    asked = json.loads((folder / f"{stem}-questions.json").read_text(encoding="utf-8"))["asked"]
+    return [f"{entry['read_as_now']}" for entry in asked if entry.get("column") == name]
+
+
+def _zip_findings(folder: pathlib.Path, stem: str, screen: str, real: "set[str]") -> "list[str]":
+    """Every way a held ZIP column breaks its hold (Codex's review of batch 4j, its second Medium): its block not an
+    identifier's as the description's loader reads the contract, or a real ZIP, padded or not, whole or with a point,
+    in the description, its summary, the questions file or the screen."""
+    findings: "list[str]" = []
+    described = folder / f"{stem}-profile.json"
+    try:
+        contract.load_profile(f"{described}")
+    except errors.ProfileError as problem:
+        findings += [f"contract: {problem}"[:160]]
+    column = _column(json.loads(described.read_text(encoding="utf-8")), "zip")
+    if column["role"] != "identifier":
+        findings += [f"role {column['role']}"]
+    texts = {"screen": screen}
+    for ending in ("-profile.json", "-profile.txt", "-questions.json"):
+        texts[f"{stem}{ending}"] = (folder / f"{stem}{ending}").read_text(encoding="utf-8")
+    for place, text in texts.items():
+        for zip_code in sorted(real):
+            if re.search(rf"(?<![\d.,])0*{zip_code.lstrip('0')}(?:\.0+)?(?!\d)", text):
+                findings += [f"{place}: {zip_code}"]
+    return findings
+
+
+def _held_since_sh(folder: pathlib.Path, stem: str, screen: str, real: "set[str]") -> None:
+    """A ZIP column on the merged product: no real ZIP anywhere, held with one question put (P4-D401's or SH's)."""
+    assert _zip_findings(folder, stem, screen, real) == []
+    put = _asked_of(folder, stem, "zip")
+    assert len(put) == 1 and put[0] in ("identifier", asking.ANSWER_SAFE_HARBOR_YES), put
+
+
+def _top_coded_since_sh(folder: pathlib.Path, stem: str, column: "dict") -> None:
+    """An age column on the merged product: `top_coded` 90, no age above 90 printed (rung, mode, tail or level), and
+    the Safe Harbor question alone put, read as top-coded."""
+    assert column.get("top_coded") == 90, sorted(column)
+    shown = [f"{value}" for value in _printed(column)]
+    numbers = [float(match.group(1)) for match in (LEVEL_NUMBER.fullmatch(text) for text in shown) if match]
+    # A RUNG BETWEEN THE TOP-CODE AND A PLACEHOLDER KEPT AS WRITTEN names no age of the table (`p99` 99.09 between
+    # 90 and twenty `999`), as lane SH's gate counts only the table's own ages: whole years above 89.
+    assert not [number for number in numbers if 90 < number <= 125 and number == int(number)], shown
+    assert _asked_of(folder, stem, f"{column['name']}") == [asking.SAFE_HARBOR_TOP_CODED]
 
 
 def test_the_page_stands_once_and_its_decision_follows_it() -> None:
@@ -568,7 +638,8 @@ def test_path_iii_holds_figure_columns_and_leaves_words_as_the_stated_limit() ->
 
 
 def test_a_zip_column_half_written_zip_plus_four_is_asked_nothing_on_this_base(tmp_path: pathlib.Path) -> None:
-    """The first review's case: today no question reaches it and real five-figure ZIPs print with their counts."""
+    """The first review's case: on batch 4i's product no question reached it and real five-figure ZIPs printed with
+    their counts; since lane SH (batch 4k, P4-D427) its ZIP+4 and five-figure cells are in the Safe Harbor reach, held."""
     draw = random.Random(11)
     zips = [f"0{2100 + 7 * k:04d}" for k in range(70)]
     weights = [1.0 / (k + 1) ** 1.1 for k in range(70)]
@@ -576,13 +647,8 @@ def test_a_zip_column_half_written_zip_plus_four_is_asked_nothing_on_this_base(t
     for k in range(600):
         code = draw.choices(zips, weights)[0]
         lines += [f"P{k:06d},{code}-{draw.randint(1000, 9999)}" if k % 2 else f"P{k:06d},{code}"]
-    document = _profiled(tmp_path, "zipmix.csv", "\n".join(lines) + "\n")
-    zip_column = _column(document, "zip")
-    assert zip_column["role"] in ("categorical", "long_tail_labels")
-    printed = [level["label"] for level in zip_column.get("levels") or []]
-    assert printed and all(re.fullmatch(r"\d{5}", label) for label in printed)
-    asked = json.loads((tmp_path / "zipmix-questions.json").read_text(encoding="utf-8"))["asked"]
-    assert not [entry for entry in asked if entry.get("column") == "zip"]
+    _document, screen = _profiled_seen(tmp_path, "zipmix.csv", "\n".join(lines) + "\n")
+    _held_since_sh(tmp_path, "zipmix", screen, set(zips))
     assert _held_while_unanswered([line.split(",")[1] for line in lines[1:]])
     assert "0 of 363 and 0 of 40 real values printed" in _flat(_page())
 
@@ -937,7 +1003,8 @@ def _figure_levels(levels: "list[str]") -> "list[str]":
 def test_one_word_cell_defeats_the_column_wise_hold_and_not_the_level_wise_one(
     token: str, times: int, tmp_path: pathlib.Path,
 ) -> None:
-    """The combined review's `zipword` shapes: today 6 real ZIPs print and nothing is asked."""
+    """The combined review's `zipword` shapes: on batch 4i's product 6 real ZIPs printed and nothing was asked; since
+    lane SH (batch 4k, P4-D427), the word set aside, its ZIP+4 and five-figure cells are in the reach, held."""
     draw = random.Random(11)
     zips = [f"0{2100 + 7 * k:04d}" for k in range(70)]
     weights = [1.0 / (k + 1) ** 1.1 for k in range(70)]
@@ -946,15 +1013,9 @@ def test_one_word_cell_defeats_the_column_wise_hold_and_not_the_level_wise_one(
         code = draw.choices(zips, weights)[0]
         cell = f"{code}-{draw.randint(1000, 9999)}" if k % 2 else code
         lines += [f"P{k:06d},{token if k < times else cell}"]
-    document = _profiled(tmp_path, "zipword.csv", "\n".join(lines) + "\n")
-    column = _column(document, "zip")
-    assert (column["role"], column.get("n_missing")) == ("long_tail_labels", 0)
-    printed = [f"{level['label']}" for level in column.get("levels") or []]
-    assert len([label for label in printed if re.fullmatch(r"\d{5}", label)]) == 6
-    asked = json.loads((tmp_path / "zipword-questions.json").read_text(encoding="utf-8"))["asked"]
-    assert not [entry for entry in asked if entry.get("column") == "zip"]
+    _document, screen = _profiled_seen(tmp_path, "zipword.csv", "\n".join(lines) + "\n")
+    _held_since_sh(tmp_path, "zipword", screen, set(zips))
     assert not _held_while_unanswered([line.split(",")[1] for line in lines[1:]])
-    assert [level for level in printed if level not in _figure_levels(printed)] == []
     page = _flat(_page())
     assert "6 real five-figure ZIPs print with their counts (`02100`, `02107`, `02114`, `02121`, ...)" in page
     assert "`K-S3-64`'s held shapes `zipword`" in page
@@ -1003,10 +1064,8 @@ def test_ages_over_89_print_today_and_the_top_code_reaches_them(tmp_path: pathli
     lines = ["pid,age"] + [f"P{k:06d},{age}" for k, age in enumerate(ages)]
     document = _profiled(tmp_path, "ages2000.csv", "\n".join(lines) + "\n")
     age = _column(document, "age")
-    assert (age["role"], age.get("n_distinct")) == ("count", 75)
-    assert sorted(value for value in _printed_values(age) if value > 89) == [93.0, 103.0, 104.0]
-    asked = json.loads((tmp_path / "ages2000-questions.json").read_text(encoding="utf-8"))["asked"]
-    assert not [entry for entry in asked if entry.get("column") == "age"]
+    assert age["role"] == "count"
+    _top_coded_since_sh(tmp_path, "ages2000", age)  # batch 4k: lane SH's top-code (P4-D427)
     assert _top_coded([f"{value}" for value in ages])
     read = ["pid,age"] + [f"P{k:06d},{min(age, 90)}" for k, age in enumerate(ages)]
     top = _column(_profiled(tmp_path, "ages2000top.csv", "\n".join(read) + "\n"), "age")
@@ -1222,17 +1281,12 @@ def test_one_word_cell_beside_five_figure_zips_read_as_numbers_prints_them_today
     """
     zips, cells = _zip5word(lead, token, times)
     lines = ["pid,zip"] + [f"P{k:06d},{cell}" for k, cell in enumerate(cells)]
-    column = _column(_profiled(tmp_path, "zip5word.csv", "\n".join(lines) + "\n"), "zip")
-    printed = [value for value in _printed_values(column) if float(value).is_integer()]
-    if lead:
-        assert column["role"] == "identifier"
-        assert not [value for value in printed if f"{int(value):05d}" in zips]
-        assert not [zip_code for zip_code in zips if zip_code in json.dumps(column)]
-        asked = json.loads((tmp_path / "zip5word-questions.json").read_text(encoding="utf-8"))["asked"]
-        assert [entry["read_as_now"] for entry in asked if entry.get("column") == "zip"] == ["identifier"]
-    else:
-        assert column["role"] == "count"
-        assert len([value for value in printed if f"{int(value):05d}" in zips]) == 9
+    _document, screen = _profiled_seen(tmp_path, "zip5word.csv", "\n".join(lines) + "\n")
+    # Held since batch 4j's merge of lane CODES-3 with a leading zero (the
+    # person question) and since batch 4k's of lane SH without one (the
+    # date-count question, which offers `identifier`; plan P4-D427, its
+    # addendum 6): no ZIP in any output, the one question put.
+    _held_since_sh(tmp_path, "zip5word", screen, set(zips) & set(cells))
     assert _five_figure_held(cells)
     assert not _five_figure_held(cells, every=True)  # the all-or-nothing reading: one word lifts it
     assert not _five_figure_held(["HOMELESS"] * 201 + cells[201:])  # repair 3's cap: past it, not reached
@@ -1240,6 +1294,29 @@ def test_one_word_cell_beside_five_figure_zips_read_as_numbers_prints_them_today
     page = _flat(_page())
     assert "TODAY'S product prints 9 real ZIPs on each of the four shapes" in page
     assert "a tenth rung within one of a real ZIP (`2478.7`, `52618.7`; the second verify counted it, 10)" in page
+
+
+def test_the_zip_checks_catch_an_unpadded_number_and_a_summary_only_zip(tmp_path: pathlib.Path) -> None:
+    """Codex's review of batch 4j, its second Medium: a held block keeping role `identifier` beside a low tail
+    `[2100.0]`, and a ZIP written in the summary alone, each fail the checks the ZIP tests make."""
+    zips, cells = _zip5word(True, "UNKNOWN", 1)
+    lines = ["pid,zip"] + [f"P{k:06d},{cell}" for k, cell in enumerate(cells)]
+    document, screen = _profiled_seen(tmp_path, "zip5word.csv", "\n".join(lines) + "\n")
+    real = set(zips) & set(cells)
+    assert "02100" in real and _zip_findings(tmp_path, "zip5word", screen, real) == []
+    described = tmp_path / "zip5word-profile.json"
+    kept = described.read_text(encoding="utf-8")
+    _column(document, "zip")["tails"] = {"low": {"values": [2100.0]}}
+    described.write_text(canonical.serialize(document), encoding="utf-8")
+    found = _zip_findings(tmp_path, "zip5word", screen, real)
+    assert [one for one in found if one.startswith("contract: ")], found
+    assert "zip5word-profile.json: 02100" in found
+    described.write_text(kept, encoding="utf-8")
+    summary = tmp_path / "zip5word-profile.txt"
+    summary.write_text(summary.read_text(encoding="utf-8") + "ZIP 02100\n", encoding="utf-8")
+    assert _zip_findings(tmp_path, "zip5word", screen, real) == ["zip5word-profile.txt: 02100"]
+    assert _zip_findings(tmp_path, "zip5word", screen + " 2100.0", real) == [
+        "screen: 02100", "zip5word-profile.txt: 02100"]
 
 
 def test_the_five_figure_hold_spares_other_number_columns() -> None:
@@ -1264,10 +1341,8 @@ def test_a_999_cell_beside_ages_prints_ages_over_89_today_and_both_signs_are_set
     lines = ["pid,age"] + [f"P{k:06d},{cell}" for k, cell in enumerate(cells)]
     document = _profiled(tmp_path, "ages999.csv", "\n".join(lines) + "\n")
     age = _column(document, "age")
-    assert age["role"] == "count"
-    assert sorted(value for value in _printed_values(age) if 89 < value <= 125) == over
-    asked = json.loads((tmp_path / "ages999-questions.json").read_text(encoding="utf-8"))["asked"]
-    assert not [entry for entry in asked if entry.get("column") == "age"]
+    assert age["role"] == "count" and len(over) == 2
+    _top_coded_since_sh(tmp_path, "ages999", age)  # batch 4k: lane SH's top-code (P4-D427)
     assert _top_coded(cells)
     assert not _top_coded(cells, placeholder=NEGATIVE_PLACEHOLDER)  # "negative all-nines placeholders aside"
     assert _top_coded(["9999", "45", "91"]) and not _top_coded(["99", "45", "91", "130"])
@@ -1446,10 +1521,8 @@ def test_codex_round_two_ages_print_today_and_the_widened_reach_takes_them(case:
     cells, role = CODEX_AGES[case]
     document = _profiled(tmp_path, "ages.csv", "age\n" + "\n".join(cells) + "\n")
     column = _column(document, "age")
-    assert column["role"] == role and role in _reach_roles()
-    assert any(89 < float(value) <= 125 for value in _printed(column)), _printed(column)
-    asked = json.loads((tmp_path / "ages-questions.json").read_text(encoding="utf-8"))["asked"]
-    assert not [entry for entry in asked if entry.get("column") == "age"]
+    assert role in _reach_roles()
+    _top_coded_since_sh(tmp_path, "ages", column)  # batch 4k: lane SH's top-code (P4-D427)
     assert _top_code_reach(cells)
     if case == "outlier":
         assert not _top_code_reach(cells, bulk=False) and not _top_coded(cells)  # every value within 0..125: off
@@ -1476,14 +1549,9 @@ def test_codex_round_two_affixed_ages_are_in_reach_after_keep() -> None:
 def test_codex_round_two_zips_print_today_and_the_widened_hold_takes_them(case: str, tmp_path: pathlib.Path) -> None:
     """Items 1 and 4: binary and constant ZIPs and ZIPs that lost their leading zeros print real ZIPs today."""
     cells, role = CODEX_ZIPS[case]
-    document = _profiled(tmp_path, "zips.csv", "zip\n" + "\n".join(cells) + "\n")
-    column = _column(document, "zip")
-    assert column["role"] == role and role in _reach_roles()
-    real = {cell.lstrip("0") for cell in cells}
-    shown = {value.split(".")[0].lstrip("0") for value in _printed(column)}
-    assert real <= shown, (real, shown)
-    asked = json.loads((tmp_path / "zips-questions.json").read_text(encoding="utf-8"))["asked"]
-    assert not [entry for entry in asked if entry.get("column") == "zip"]
+    _document, screen = _profiled_seen(tmp_path, "zips.csv", "zip\n" + "\n".join(cells) + "\n")
+    assert role in _reach_roles()
+    _held_since_sh(tmp_path, "zips", screen, set(cells))  # batch 4k: lane SH's hold (P4-D427)
     assert _zip_reach(cells)
     if case == "zeros-lost":
         assert not _zip_reach(cells, widths=(5,)) and not _five_figure_held(cells)  # five figures only: missed
@@ -1671,10 +1739,8 @@ def test_placeholders_that_are_not_all_nines_print_ages_today_and_the_reach_take
     cells, role, over = VERIFY_AGES[case]
     document = _profiled(tmp_path, "ages.csv", "age\n" + "\n".join(cells) + "\n")
     column = _column(document, "age")
-    assert column["role"] == role and role in _reach_roles()
-    assert sorted({float(value) for value in _printed(column) if 89 < float(value) <= 125}) == over
-    asked = json.loads((tmp_path / "ages-questions.json").read_text(encoding="utf-8"))["asked"]
-    assert not [entry for entry in asked if entry.get("column") == "age"]
+    assert role in _reach_roles() and over
+    _top_coded_since_sh(tmp_path, "ages", column)  # batch 4k: lane SH's top-code (P4-D427)
     assert _top_code_reach(cells) and not _top_code_reach(cells, repeated=False)
     top = _column(_profiled(tmp_path, "agestop.csv", "age\n" + "\n".join(_read_as_90(cells)) + "\n"), "age")
     assert {float(value) for value in _printed(top) if 89 < float(value) <= 125} <= {90.0}
@@ -1713,12 +1779,7 @@ def test_ages_in_label_roles_print_today_and_the_label_reach_takes_them(case: st
     document = _profiled(tmp_path, "labels.csv", "age\n" + "\n".join(cells) + "\n")
     column = _column(document, "age")
     assert column["role"] == role
-    shown = [f"{level['label']}" for level in column.get("levels") or []]
-    numbers = [float(match.group(1)) for match in (LEVEL_NUMBER.fullmatch(label) for label in shown) if match]
-    over = sorted(number for number in numbers if 89 < number <= 125)
-    assert over == ([float(age) for age in range(90, 105)] if case == "years" else [95.0])
-    asked = json.loads((tmp_path / "labels-questions.json").read_text(encoding="utf-8"))["asked"]
-    assert not [entry for entry in asked if entry.get("column") == "age"]
+    _top_coded_since_sh(tmp_path, "labels", column)  # batch 4k: lane SH's top-code (P4-D427)
     assert role not in _reach_roles()  # the number roles' reach never reads a label column
     assert _label_age_reach(cells)
     if case == "unk":
@@ -1771,20 +1832,13 @@ def test_a_placeholder_share_beside_zips_prints_them_today_and_the_hold_takes_th
     every real ZIP with no question; close 3's hold, setting aside words, `0` and `-d` only, misses them; with the
     placeholders aside the hold reaches them."""
     cells, count = VERIFY4_ZIPS[case]
-    column = _column(_profiled(tmp_path, "zips.csv", "zip\n" + "\n".join(cells) + "\n"), "zip")
-    real = {cell.lstrip("0") for cell in cells if cell != "-99"}
-    shown = {value.split(".")[0].lstrip("0") for value in _printed(column)}
-    asked = json.loads((tmp_path / "zips-questions.json").read_text(encoding="utf-8"))["asked"]
-    if case == "padded-minus99":
-        # Held since batch 4j's merge of lane CODES-3 (plan P4-D428): keys
-        # beside placeholders, put the person question.
-        assert column["role"] == "identifier"
-        assert len(real) == count and not real & shown
-        assert [entry["read_as_now"] for entry in asked if entry.get("column") == "zip"] == ["identifier"]
-    else:
-        assert column["role"] == "continuous" and column["role"] in _reach_roles()
-        assert len(real) == count and real <= shown, (real - shown)
-        assert not [entry for entry in asked if entry.get("column") == "zip"]
+    _document, screen = _profiled_seen(tmp_path, "zips.csv", "zip\n" + "\n".join(cells) + "\n")
+    real = {cell for cell in cells if cell != "-99"}
+    assert len(real) == count
+    # Held since batch 4j's merge of lane CODES-3 (plan P4-D428, keys beside
+    # placeholders, the person question: `padded-minus99`) and batch 4k's of
+    # lane SH (plan P4-D427: `zeros-lost-minus99`): no ZIP in any output.
+    _held_since_sh(tmp_path, "zips", screen, real)
     assert _zip_reach(cells) and not _zip_reach(cells, placeholders=False)
     assert _zip_reach([cell if cell != "-99" else "999" for cell in cells])  # an all-nines share likewise
     page = _flat(_page())
@@ -1838,12 +1892,8 @@ def test_ages_beside_words_past_one_cell_in_three_print_today_and_the_label_reac
     cells, over = VERIFY4_LABELS[case]
     assert len(set(_rare_words(800))) == 800 and len(cells) == 20000
     column = _column(_profiled(tmp_path, "labels.csv", "age\n" + "\n".join(cells) + "\n"), "age")
-    assert column["role"] == "categorical"
-    labels = [f"{level['label']}" for level in column.get("levels") or []]
-    numbers = [float(match.group(1)) for match in (LEVEL_NUMBER.fullmatch(label) for label in labels) if match]
-    assert sorted(number for number in numbers if 89 < number <= 125) == over
-    asked = json.loads((tmp_path / "labels-questions.json").read_text(encoding="utf-8"))["asked"]
-    assert not [entry for entry in asked if entry.get("column") == "age"]
+    assert column["role"] == "categorical" and over
+    _top_coded_since_sh(tmp_path, "labels", column)  # batch 4k: lane SH's top-code (P4-D427)
     assert _label_age_reach(cells) and not _label_age_reach(cells, capped=True)
     pooled = _read_as_90(cells, label=True)
     top = _column(_profiled(tmp_path, "labelstop.csv", "age\n" + "\n".join(pooled) + "\n"), "age")
@@ -1923,12 +1973,8 @@ def test_zips_that_all_lost_their_zeros_beside_99999_print_today_and_the_hold_ta
     with no question; close 4's hold, setting `99999` aside before "one of five", misses them; close 5's takes them."""
     cells = V5_1[case]
     assert len(cells) == 20000 and FOUR_FIGURE_ZIPS[-1] == "2373"
-    column = _column(_profiled(tmp_path, "zips.csv", "zip\n" + "\n".join(cells) + "\n"), "zip")
-    assert column["role"] == "count" and column["role"] in _reach_roles()
-    shown = {value.split(".")[0] for value in _printed(column)}
-    assert set(FOUR_FIGURE_ZIPS) <= shown, set(FOUR_FIGURE_ZIPS) - shown
-    asked = json.loads((tmp_path / "zips-questions.json").read_text(encoding="utf-8"))["asked"]
-    assert not [entry for entry in asked if entry.get("column") == "zip"]
+    _document, screen = _profiled_seen(tmp_path, "zips.csv", "zip\n" + "\n".join(cells) + "\n")
+    _held_since_sh(tmp_path, "zips", screen, set(FOUR_FIGURE_ZIPS))  # batch 4k: lane SH's hold (P4-D427)
     assert _zip_reach(cells) and not _zip_reach(cells, nines=False)  # close 4's hold: missed
 
 
@@ -1949,16 +1995,11 @@ def test_zips_that_all_lost_their_zeros_are_held_only_as_zs10_says(case: str, tm
     any other placeholder or a word neither that question nor the hold reaches them and 40 of 40 print today, the
     live exposure ZS.10 names."""
     cells, role = FOUR_FIGURES_BESIDE[case]
-    column = _column(_profiled(tmp_path, "zips.csv", "zip\n" + "\n".join(cells) + "\n"), "zip")
-    assert column["role"] == role
-    shown = {value.split(".")[0] for value in _printed(column)}
-    asked = json.loads((tmp_path / "zips-questions.json").read_text(encoding="utf-8"))["asked"]
-    put = [entry for entry in asked if entry.get("column") == "zip"]
-    assert not _zip_reach(cells)
-    if role == "identifier":
-        assert put and not set(FOUR_FIGURE_ZIPS) & shown
-    else:
-        assert not put and set(FOUR_FIGURE_ZIPS) <= shown, set(FOUR_FIGURE_ZIPS) - shown
+    _document, screen = _profiled_seen(tmp_path, "zips.csv", "zip\n" + "\n".join(cells) + "\n")
+    assert not _zip_reach(cells) and role in ("identifier", "count", "continuous", "categorical")
+    # Every case, the page's live exposure among them, is held since batch
+    # 4k's merge of lane SH (plan P4-D427): no ZIP in any output.
+    _held_since_sh(tmp_path, "zips", screen, set(FOUR_FIGURE_ZIPS))
     page = _flat(_page())
     assert "one whose zeros were ALL lost (four figures alone) is held by P4-D401's fixed-width question" not in page
 
@@ -2018,16 +2059,9 @@ def test_four_figure_zips_of_one_or_two_values_print_today_and_three_are_asked(
     and none print. The page's five-figure hold reaches none of them (no value of five figures)."""
     cells, role, kinds = FOUR_FIGURES_FEW[case]
     assert len(cells) == 20000 and len(set(cells)) == kinds
-    column = _column(_profiled(tmp_path, "zips.csv", "zip\n" + "\n".join(cells) + "\n"), "zip")
-    assert column["role"] == role
-    shown = {value.split(".")[0] for value in _printed(column)}
-    asked = json.loads((tmp_path / "zips-questions.json").read_text(encoding="utf-8"))["asked"]
-    put = [entry for entry in asked if entry.get("column") == "zip"]
-    assert not _zip_reach(cells)
-    if role == "identifier":
-        assert put and not set(cells) & shown
-    else:
-        assert role in _reach_roles() and not put and set(cells) <= shown, set(cells) - shown
+    _document, screen = _profiled_seen(tmp_path, "zips.csv", "zip\n" + "\n".join(cells) + "\n")
+    assert not _zip_reach(cells) and role in _reach_roles() | {"identifier"}
+    _held_since_sh(tmp_path, "zips", screen, set(cells))  # batch 4k: lane SH's hold (P4-D427)
     page = _flat(_page())
     assert ("every value of four figures (`9999` included), is held by P4-D401's fixed-width question instead"
             not in page)  # the claim the sixth verify found false of one or two values

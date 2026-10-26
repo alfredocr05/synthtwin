@@ -222,9 +222,13 @@ def _opens_with_an_invented_zero(cell: str) -> bool:
     ids=[f"{case[0]}-{case[1]}-floor{case[2]}-seed{case[3]}" for case in LABEL_CASES],
 )
 def test_numbers_beside_labels_come_back_as_numbers_where_the_table_has_them(
-    tmp_path: pathlib.Path, shape: str, rows: int, floor: str, seed: int
+    tmp_path: pathlib.Path, shape: str, rows: int, floor: str, seed: int,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The class counts, the role and the location of the numbers return."""
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column; its numbers
+    # are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     cells = SHAPES[shape](rows, random.Random(rows * 31 + seed))
     first, second, written, twin_exit, real_exit = _round_trip(
         tmp_path / "labels", cells, ("--smallest-group", floor), True, str(seed)
@@ -378,8 +382,12 @@ def test_a_column_of_counts_publishing_only_zero_gets_its_rare_counts(
 
 def test_a_made_up_number_is_never_one_the_profiler_reads_as_absent(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """`9999` is stepped past, and the walk takes the next step instead."""
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column; its numbers
+    # are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     draw = random.Random(31)
     cells = (
         ["not done"] * 60 + ["9996"] * 12 + ["9997"] * 12 + ["9998"] * 12

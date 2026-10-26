@@ -273,6 +273,9 @@ def test_the_two_reports_print_one_window_and_the_faithful_twin_misses_nothing(
     HELD and prints none, which is why the count compared is asserted
     separately rather than assumed to be thirteen.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column; its numbers
+    # are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     keyboard.every_reading_kept(monkeypatch)
     cells = build(random.Random(rows * 31 + len(name)), rows)
     compared = 0
@@ -346,6 +349,9 @@ def test_a_twin_scaled_by_three_or_five_percent_is_caught_inside_the_ladder(
     or moment MISSED. The two exact ends are not counted: they would catch
     any scaling on their own, and stage 3 stops publishing them exactly.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column; its numbers
+    # are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     keyboard.every_reading_kept(monkeypatch)
     rows = 2000
     cells = build(random.Random(rows * 31 + len(name)), rows)

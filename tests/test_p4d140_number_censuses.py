@@ -648,6 +648,9 @@ def test_the_width_censuses_leave_no_one_to_subtract(
     every difference a reader can take is nought or a group, and every
     file validates.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column; its numbers
+    # are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     keyboard.every_reading_kept(monkeypatch)
     floor = 11
     for label, rows in (("without", _codes([], plus)), ("with", _codes([extra], plus))):
@@ -719,6 +722,9 @@ def test_the_loader_refuses_a_width_complement_of_one(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Enforced where a description is READ (plan P4-D148)."""
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column; its numbers
+    # are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     keyboard.every_reading_kept(monkeypatch)
     rows = _codes(["12345" if key == "field_widths" else "+00123"], key == "pad_widths")
     code, described = _describe(tmp_path / "base", ["code", "label"], rows)

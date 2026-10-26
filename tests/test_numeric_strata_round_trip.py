@@ -27,6 +27,7 @@ Every table is built by seeded neutral code at runtime (plan D13).
 """
 
 import collections
+import json
 import math
 import pathlib
 import random
@@ -36,7 +37,7 @@ import pytest
 
 import keyboard
 
-from synthtwin import contract, generation, parsing, profile, reading, rendering, taxonomy
+from synthtwin import asking, contract, generation, parsing, profile, reading, rendering, taxonomy
 from synthtwin import validation
 from tests import fixtures
 from tests.test_stage2_round_trip import _round_trip
@@ -49,6 +50,52 @@ SEEDS = ("1", "7", "23")
 # number was held by `FLOOR` cells, so G5.2a's cap is `FLOOR - 1`
 # (`test_a_pair_the_floor_withheld_caps_every_number_under_the_floor`).
 FLOOR = parsing.DEFAULT_SMALL_CELL_FLOOR
+
+
+def _round_trip_answered(
+    folder: pathlib.Path,
+    cells: "list[str]",
+    flags: "tuple[str, ...]" = (),
+    check_real: bool = True,
+    seed: str = "4",
+) -> "tuple[dict[str, object], dict[str, object], list[str], int, int]":
+    """`_round_trip`, with the question that held the column answered as a measurement.
+
+    THE HOLDS OF PLAN P4-D427: a column whose whole numbers have five
+    figures, as ZIP codes are written, is held as record numbers until
+    its Safe Harbor question is answered `no`, and a column put any open
+    question offering `identifier` -- incomes in hundreds read as
+    spreadsheet days by the date-count question among them -- until it is
+    answered (the price P4-D427 names). These shapes are measurements, so
+    the person answers `no` or `measurement`, and the numeric facts are
+    those of the column read as numbers.
+    """
+    found = _round_trip(folder, cells, flags, check_real=check_real, seed=seed)
+    if found[0]["role"] != taxonomy.ROLE_IDENTIFIER:
+        return found
+    questions = folder / "real-questions.json"
+    written = json.loads(questions.read_text(encoding="utf-8"))
+    answered = False
+    for entry in written["asked"]:
+        offered = [choice["answer"] for choice in entry["answers_you_can_give"]]
+        if entry["column"] != "value":
+            continue
+        if offered == [asking.ANSWER_SAFE_HARBOR_NO, asking.ANSWER_SAFE_HARBOR_YES]:
+            entry["your_answer"] = asking.ANSWER_SAFE_HARBOR_NO
+            answered = True
+        elif asking.ANSWER_MEASUREMENT in offered and asking.ANSWER_IDENTIFIER in offered:
+            entry["your_answer"] = asking.ANSWER_MEASUREMENT
+            answered = True
+    assert answered, (folder, "held, but by no question it could answer")
+    answers = folder.parent / f"{folder.name}-answers.json"
+    answers.write_text(json.dumps(written), encoding="utf-8", newline="\n")
+    return _round_trip(
+        folder.parent / f"{folder.name}-no",
+        cells,
+        flags + ("--answers", f"{answers}"),
+        check_real=check_real,
+        seed=seed,
+    )
 
 
 def _cap(mode: "float | None", mode_count: int) -> int:
@@ -357,13 +404,21 @@ def test_the_numeric_facts_come_back_from_the_twin(
     """Described, built, described again: the broken facts return."""
     keyboard.every_reading_kept(monkeypatch)
     cells = build(random.Random(data_seed), rows)
-    real = collections.Counter(_number(cell) for cell in cells)
-    real_most = max(real.values())
     real_leading = any(re.match(r"-?0\d", cell) for cell in cells)
     for seed in SEEDS:
-        first, second, written, twin_exit, real_exit = _round_trip(
+        first, second, written, twin_exit, real_exit = _round_trip_answered(
             tmp_path / seed, cells, check_real=seed == SEEDS[0], seed=seed
         )
+        # THE SAFE HARBOR TOP-CODE (plan P4-D427): the command reads a
+        # column of numbers from 0 to 125 with one of 90 or more as ages
+        # until its question is answered, every value from 90 to 125 as 90
+        # -- a column of weights or scores around 70 to 80 among them, whose
+        # pooled 90 then holds the floor's cells and is its published mode
+        # (the price P4-D427 names). Its real counts are those of the cells
+        # so read.
+        read = taxonomy.top_coded_cells(cells) if "top_coded" in first else cells
+        real = collections.Counter(_number(cell) for cell in read)
+        real_most = max(real.values())
         short = CARRIED_SHORT.get((name, rows, seed), 0)
         owed = CARRIED_MISSED.get((name, rows, seed), ())
         assert (twin_exit == 0) == (short == 0 and not owed), (
@@ -453,7 +508,7 @@ def test_a_pair_the_floor_withheld_caps_every_number_under_the_floor(
     assert real_most < 11, real_most
     flags = ("--smallest-group", "11")
     for seed in SEEDS:
-        first, second, written, twin_exit, real_exit = _round_trip(
+        first, second, written, twin_exit, real_exit = _round_trip_answered(
             tmp_path / seed, cells, flags, check_real=seed == SEEDS[0], seed=seed
         )
         assert first["mode"] is None and first["mode_count"] == 0, name
@@ -596,7 +651,7 @@ def test_a_value_moved_off_an_empty_stretch_keeps_the_written_grid(
     """
     cells = _halves_spreadsheet(random.Random(101 + rows), rows)
     for seed in SEEDS:
-        first, second, written, twin_exit, real_exit = _round_trip(
+        first, second, written, twin_exit, real_exit = _round_trip_answered(
             tmp_path / f"{rows}-{seed}", cells, check_real=True, seed=seed
         )
         # NO CELL OUTSIDE THE PUBLISHED CENSUS. A point-free cell

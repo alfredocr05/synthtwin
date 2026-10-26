@@ -1668,6 +1668,15 @@ def questions_and_splits_for(
                     ANSWER_MEASUREMENT, role, settings.small_cell_floor
                 )
                 taken = ANSWER_MEASUREMENT
+            # A column of padded ages is counted in words as the top-code
+            # reads it (plan P4-D427, its second repair): `103` written
+            # `090` too, so the sentence names no count the top-coded
+            # description would not.
+            if reason == BECAUSE_PADDED and taxonomy.safe_harbor_reach(
+                shaped, False, frozenset([""]), settings.small_cell_floor,
+                False, True,
+            ) == taxonomy.SAFE_HARBOR_AGES:
+                shaped = taxonomy.top_coded_cells(shaped)
             asked += [
                 Question(
                     name,
@@ -4090,7 +4099,14 @@ def person_questions(
                     BECAUSE_REPEATS_AND_MANY,
                     _shape_of(
                         BECAUSE_REPEATS_AND_MANY,
-                        present,
+                        # A column read under the Safe Harbor top-code is
+                        # counted so in words too (plan P4-D427): its
+                        # different values are those of the top-coded
+                        # cells, as its description's are. Whether the
+                        # question is put is still read on its own cells.
+                        taxonomy.top_coded_cells(present)
+                        if "top_coded" in block
+                        else present,
                         settings.small_cell_floor,
                     ),
                     _person_choices(
@@ -4198,8 +4214,8 @@ HOLDING_REASONS = (
     BECAUSE_FIGURES_JOINED_BY_POINTS,
 )
 
-# THE QUESTIONS ABOUT DATES AND TIMES HOLD NOTHING, and nor does a
-# column the run read as dates or times. Each offers `identifier` beside
+# THE QUESTIONS ABOUT DATES AND TIMES HOLD NOTHING where the run read
+# the column as dates or times. Each offers `identifier` beside
 # the readings it is about -- dates written like codes, dates counted
 # from a day, days of the year, mostly dates, a twelve-hour clock -- and
 # its cells were read, or nearly read, as dates or times, which no record
@@ -4214,12 +4230,14 @@ HOLDING_REASONS = (
 # measurement of every table.
 _READ_AS_DATES_OR_TIMES = (taxonomy.ROLE_DATETIME, taxonomy.ROLE_CLOCK)
 
-# THE ONE DATE QUESTION THAT HOLDS: the date-count question merged with
-# the fixed-width one (`_date_count_question`), where every value is
-# also one width -- a ten-figure national provider or account number
-# reads as seconds since 1970 as well (measured on lane HX's build: 38
-# real values published). Its words open as the width question's do.
-_FIGURES_ALL_ONE_WIDTH = "every value is written in figures alone, all "
+# THE ONE DATE QUESTION THAT HOLDS is the date-count question, whose
+# column is read as numbers while it is open: a ten-figure national
+# provider or account number reads as seconds since 1970 as well
+# (measured on lane HX's build: 38 real values published), and five-figure
+# ZIP codes as spreadsheet days (plan P4-D427). Lane HX held it only
+# where every value was also one width; it now holds at every width, as
+# every question offering `identifier` holds (the orchestrator's LANE SH
+# ADDENDUM 6).
 
 
 def offers_identifier(question: "Question") -> bool:
@@ -4238,10 +4256,11 @@ def unanswered_identities(
     """The columns described as record numbers until their question is answered.
 
     A column is held back where a question put to it offers `identifier`
-    and is one of `HOLDING_REASONS` (or the date-count question merged
-    with the width question), nobody has answered it, nothing declares
-    the column, and its reading publishes values (free text and the like
-    publish none already) and is not one of dates or times.
+    -- whichever question it is, `HOLDING_REASONS` or not (plan P4-D427,
+    the orchestrator's LANE SH ADDENDUM 6) -- nobody has answered it,
+    nothing declares the column, and its reading publishes values (free
+    text and the like publish none already) and is not one of dates or
+    times.
 
     ``asked`` is the run's questions, every one of them unanswered: a
     column answered `identifier`, `code`, `measurement` or `joined` is
@@ -4266,12 +4285,15 @@ def unanswered_identities(
         return ()
     flagged: "dict[str, bool]" = {}
     for question in asked:
+        # THE HOLD FOLLOWS THE OFFER, NOT THE FAMILY (plan P4-D427; the
+        # orchestrator's LANE SH ADDENDUM 6 of 2026-10-23): every open
+        # question offering `identifier` holds its column -- the
+        # date-count question of any width and the point-between-thousands
+        # question among them. Measured on 28e5d2f5: five-figure ZIPs
+        # without a leading zero beside one `UNKNOWN` cell were put the
+        # date-count question alone, read `measurement` meanwhile, and
+        # printed 10 real ZIPs.
         if question.name in declared or not offers_identifier(question):
-            continue
-        if question.reason not in HOLDING_REASONS and not (
-            question.reason == BECAUSE_DATE_COUNTS
-            and question.shape[: len(_FIGURES_ALL_ONE_WIDTH)] == _FIGURES_ALL_ONE_WIDTH
-        ):
             continue
         if question.role in _READ_AS_DATES_OR_TIMES:
             continue
@@ -4936,6 +4958,180 @@ def _listed_choices(role: str, floor: int) -> "list[Choice]":
             _publishes_under(ANSWER_IDENTIFIER, role, floor),
         ),
     ]
+
+
+# THE SAFE HARBOR QUESTION (plan P4-D427; the owner's Z1 sentence of
+# 2026-10-16, verbatim in plan-dec/OWNER-ANSWERS.md; lane ZR-b's page,
+# ZS.3). ONE question, about the data and never the analysis, put in the
+# questions file to a column the Safe Harbor top-code reaches (ages, in
+# any role that prints a value) and to a column held for its ZIP-shaped
+# numbers, wherever no other question is put to that column (HX3's
+# `code` in round one is the model: one entry, which lane CODES-2 extends
+# to the other label columns). Its two
+# answers are `no` and `yes`; `yes` holds the column as P4-D401 holds one
+# whose question is open (its block, its twin's made-up record numbers),
+# and never as a declared `--identifier`, which would make a column of
+# ages or ZIP codes the table's person column and count the table in
+# them (measured: 20,000 ages answered so were 86 "people", and the run
+# refused the table); `no` lifts the top-code or the hold. Unanswered, a
+# column the top-code reaches reads every value from 90 to 125 as 90, and
+# a column of ZIP-shaped numbers is held whole.
+BECAUSE_SAFE_HARBOR_AGES = "numbers-from-0-to-125-some-above-89"
+BECAUSE_SAFE_HARBOR_ZIPS = "whole-numbers-of-four-or-five-figures"
+BECAUSE_SAFE_HARBOR_AGES_HELD = "ages-whose-top-code-is-a-missing-value"
+SAFE_HARBOR_REASONS = (
+    BECAUSE_SAFE_HARBOR_AGES, BECAUSE_SAFE_HARBOR_ZIPS,
+    BECAUSE_SAFE_HARBOR_AGES_HELD,
+)
+ANSWER_SAFE_HARBOR_NO = "no"
+ANSWER_SAFE_HARBOR_YES = "yes"
+# What a column the top-code reaches is read as while its question is open.
+SAFE_HARBOR_TOP_CODED = "top-coded"
+# What each class of the question covers, in the words of 45 CFR
+# 164.514(b)(2)(i) (lane ZR-b's ZS.3). No value of the table is in it.
+SAFE_HARBOR_CLASSES = (
+    "In the words of the HIPAA Safe Harbor rule (45 CFR 164.514(b)(2)(i)): "
+    "a person is a patient or a patient's relative, employer or household "
+    "member, by name, initials or any mark; a place smaller than a state is "
+    "a street address, city, county, precinct, or a ZIP code, or its first "
+    "three figures where that area holds 20,000 people or fewer (a postcode "
+    "of another country likewise); a birth date includes any date of a "
+    "person other than its year, and an age over 89 years, or any date that "
+    "shows one; the numbers include medical record, health-plan, account, "
+    "certificate or licence, vehicle, device and serial numbers, telephone, "
+    "fax and social security numbers, e-mail, web and internet addresses, "
+    "and any other number or code given to one person. A clinician's "
+    "provider number names a provider, not the patient."
+)
+# `no` is true of a measurement too (the orchestrator's LANE SH ADDENDUM
+# 1 (4): a pulse of 50 to 120 is neither a code nor a category).
+_SAFE_HARBOR_NO_MEANS = (
+    "none of these: the values are measurements, counts, codes or "
+    "categories that name no person, place, date or record"
+)
+_SAFE_HARBOR_YES_MEANS = (
+    "yes, or not sure: no value of this column is published, and the twin "
+    "writes made-up values in its layouts"
+)
+
+
+def safe_harbor_sentence(name: str) -> str:
+    """The owner's Z1 question about one column, word for word (plan P4-D427)."""
+    return (
+        f"Could a value of '{name}' name a person, a place smaller than a "
+        f"state, a birth date, or a record, account or device number?"
+    )
+
+
+def _safe_harbor_question(name: str, role: str, reason: str) -> Question:
+    """The Safe Harbor question put to one column (plan P4-D427)."""
+    ages = (
+        f"its numbers, placeholders and words set aside, are between 0 and "
+        f"{taxonomy.TOP_CODE_REACH_CEILING} and some are above "
+        f"{taxonomy.TOP_CODE_LAST_AGE}, as ages are written (a unit word after "
+        f"a number, such as years, is read with it), and an age over "
+        f"{taxonomy.TOP_CODE_LAST_AGE} is part of a birth date"
+    )
+    held = (
+        "until this question is answered the column is held back: it is "
+        "described as record numbers and none of its values is published"
+    )
+    if reason == BECAUSE_SAFE_HARBOR_AGES:
+        seen = (
+            f"{ages}; until this question is answered every value from "
+            f"{taxonomy.TOP_CODE} to {taxonomy.TOP_CODE_REACH_CEILING} is read "
+            f"as {taxonomy.TOP_CODE} (\"{taxonomy.TOP_CODE} or more\") in the "
+            f"description, its summary and the twin, and placeholders and "
+            f"words are kept as written"
+        )
+        unanswered = SAFE_HARBOR_TOP_CODED
+        lifted = (
+            f"the column as it is read without the top-code, its numeric "
+            f"reading kept: its points, mode and tails, values above "
+            f"{taxonomy.TOP_CODE_LAST_AGE} among them"
+        )
+    elif reason == BECAUSE_SAFE_HARBOR_AGES_HELD:
+        seen = (
+            f"{ages}, and {taxonomy.TOP_CODE} is one of its missing values, so "
+            f"its ages cannot be read as {taxonomy.TOP_CODE}; {held}"
+        )
+        unanswered = ANSWER_SAFE_HARBOR_YES
+        lifted = "what its reading publishes: for numbers, their points, mode and tails"
+    else:
+        seen = (
+            f"its numbers, placeholders and words set aside, are whole numbers "
+            f"of four or five figures, as ZIP codes are written (one that lost "
+            f"its leading zero has four); {held}"
+        )
+        unanswered = ANSWER_SAFE_HARBOR_YES
+        lifted = "what its reading publishes: for numbers, their points, mode and tails"
+    return Question(
+        name,
+        role,
+        reason,
+        f"{seen}. {safe_harbor_sentence(name)} {SAFE_HARBOR_CLASSES}",
+        [
+            Choice(ANSWER_SAFE_HARBOR_NO, _SAFE_HARBOR_NO_MEANS, lifted),
+            Choice(
+                ANSWER_SAFE_HARBOR_YES,
+                _SAFE_HARBOR_YES_MEANS,
+                "no value of the column: it is held as a record number is",
+            ),
+        ],
+        unanswered,
+    )
+
+
+def safe_harbor_questions(
+    document: "dict[str, object]",
+    held: "tuple[str, ...]",
+    asked: "list[Question]",
+    ages_held: "tuple[str, ...]" = (),
+    answered: "tuple[str, ...]" = (),
+) -> "list[Question]":
+    """The Safe Harbor questions a run puts, in the table's own column order.
+
+    Plan P4-D427. One to each column the description publishes as
+    `top_coded`, and to each column held for its numbers in ``held``
+    (those in ``ages_held`` as ages, the others as ZIP-shaped numbers),
+    WHERE NO QUESTION IN ``asked`` NAMES THE COLUMN: one question a
+    column, never a second (an open question offering `identifier` holds
+    such a column meanwhile), and none to a column in ``answered`` -- its
+    answer is kept, and a column answered `yes` is held from its
+    top-coded cells (Codex's review of lane SH, item 8). Guarantees: a
+    fixed function of the five. Raises nothing. No I/O.
+    """
+    named: "dict[str, bool]" = {}
+    for question in asked:
+        named[question.name] = True
+    for name in answered:
+        named[name] = True
+    blocks = document["columns"]
+    found: "list[Question]" = []
+    if not isinstance(blocks, list):
+        return found
+    for block in blocks:
+        if not isinstance(block, dict):
+            continue
+        name = f"{block['name']}"
+        if name in named:
+            continue
+        role = f"{block['role']}"
+        if "top_coded" in block:
+            found += [_safe_harbor_question(name, role, BECAUSE_SAFE_HARBOR_AGES)]
+            named[name] = True
+        elif name in held:
+            found += [
+                _safe_harbor_question(
+                    name,
+                    role,
+                    BECAUSE_SAFE_HARBOR_AGES_HELD
+                    if name in ages_held
+                    else BECAUSE_SAFE_HARBOR_ZIPS,
+                )
+            ]
+            named[name] = True
+    return found
 
 
 # A REGISTER EVERY CELL OF WHICH NAMES ONE PERSON (plan P4-D401, route
@@ -6792,6 +6988,12 @@ class Answers:
     # for such a column is not replaced by it, as it is by an answer to
     # the question of a point between thousands, which decides both.
     decimal_commas_alone: "tuple[str, ...]" = ()
+    # ...AND THE COLUMNS ANSWERED `no` TO THE SAFE HARBOR QUESTION (plan
+    # P4-D427): read without the top-code, or no longer held for their
+    # five figures; and those answered `yes`, held as P4-D401 holds a
+    # column whose question is open.
+    safe_harbor_no: "tuple[str, ...]" = ()
+    safe_harbor_yes: "tuple[str, ...]" = ()
 
 
 def _entry_answer(
@@ -7021,6 +7223,8 @@ def answers_in(document: object, shown: str) -> Answers:
     identities_kept_answered: "list[str]" = []
     carried: "list[tuple[str, str, str]]" = []
     decimal_commas_alone: "list[str]" = []
+    safe_harbor_no: "list[str]" = []
+    safe_harbor_yes: "list[str]" = []
     # EVERY ENTRY READ FIRST, so an earlier round's answer can be set
     # against every later one before any is acted on (plan P4-D408).
     entries: "list[tuple[object, str, bool, tuple[str, str, tuple[str, ...]] | None]]" = []
@@ -7135,6 +7339,12 @@ def answers_in(document: object, shown: str) -> Answers:
             # carried so the question is not put again. Measured on
             # 45191fa: the run reading that answer asked Q6 once more.
             date_columns_kept += [name]
+        elif written == ANSWER_SAFE_HARBOR_YES:
+            # The Safe Harbor question answered `yes` (plan P4-D427): the
+            # column is held, P4-D401's held block.
+            safe_harbor_yes += [name]
+        elif written == ANSWER_SAFE_HARBOR_NO:
+            safe_harbor_no += [name]
         elif written == ANSWER_KEEP and ANSWER_IDENTIFIER in offered:
             # ...and a question offering `identifier` answered `keep`
             # (plan P4-D401): nothing declared, and the column's values
@@ -7182,6 +7392,8 @@ def answers_in(document: object, shown: str) -> Answers:
         identities_kept_answered=tuple(identities_kept_answered),
         carried=tuple(carried),
         decimal_commas_alone=tuple(decimal_commas_alone),
+        safe_harbor_no=tuple(safe_harbor_no),
+        safe_harbor_yes=tuple(safe_harbor_yes),
     )
 
 
@@ -7251,6 +7463,9 @@ _FAMILY_FIRST_ROW = "first-row"
 _FAMILY_METADATA = "metadata"
 _FAMILY_DELIMITER = "delimiter"
 _FAMILY_DAY_ORDER = "day-order"
+# The Safe Harbor question (plan P4-D427), a family of its own: whether a
+# value of the column could name a person, beside what the column holds.
+_FAMILY_SAFE_HARBOR = "safe-harbor"
 _FAMILY_WORDS: "dict[str, tuple[str, ...]]" = {
     _FAMILY_KIND: (
         ANSWER_KEEP, ANSWER_CODE, ANSWER_IDENTIFIER, ANSWER_MEASUREMENT,
@@ -7272,6 +7487,7 @@ _FAMILY_WORDS: "dict[str, tuple[str, ...]]" = {
     _FAMILY_METADATA: (ANSWER_DATA, ANSWER_METADATA_ROWS),
     _FAMILY_DELIMITER: ("comma", "semicolon", "tab", "vertical-bar"),
     _FAMILY_DAY_ORDER: (ANSWER_MONTH_FIRST, ANSWER_DAY_FIRST),
+    _FAMILY_SAFE_HARBOR: (ANSWER_SAFE_HARBOR_NO, ANSWER_SAFE_HARBOR_YES),
 }
 # The subject a question about the whole file is filed under, which is
 # the `column` its entry names.
@@ -7303,6 +7519,8 @@ _KEPT_MEANS: "dict[str, str]" = {
     ANSWER_METADATA_ROWS: "the two rows under the column names describe them",
     ANSWER_MONTH_FIRST: "the month comes first in the dates",
     ANSWER_DAY_FIRST: "the day comes first in the dates",
+    ANSWER_SAFE_HARBOR_NO: "no value of the column could name a person (the Safe Harbor question)",
+    ANSWER_SAFE_HARBOR_YES: "a value of the column could name a person: no value of it is published",
 }
 # ...and `keep` where it takes a declaration of how numbers are written
 # back, which is not the reading a column keeps.
@@ -7362,6 +7580,7 @@ def _family_of(answer: str, offered: "tuple[str, ...]") -> str:
         _FAMILY_KIND, _FAMILY_GRAMMAR, _FAMILY_CLOCK, _FAMILY_COUNTED,
         _FAMILY_DATE_CODES, _FAMILY_CENTURY, _FAMILY_DATES, _FAMILY_FIRST_ROW,
         _FAMILY_METADATA, _FAMILY_DELIMITER, _FAMILY_DAY_ORDER,
+        _FAMILY_SAFE_HARBOR,
     ):
         if answer in _FAMILY_WORDS[family]:
             return family
@@ -7630,6 +7849,10 @@ class Given:
     date_columns: "tuple[str, ...]" = ()
     date_columns_kept: "tuple[str, ...]" = ()
     identities_kept: "tuple[str, ...]" = ()
+    # The columns answered `no` and `yes` to the Safe Harbor question
+    # (plan P4-D427).
+    safe_harbor_no: "tuple[str, ...]" = ()
+    safe_harbor_yes: "tuple[str, ...]" = ()
     # `(column, what the question saw)`: the run reading the answer
     # finds the codes again by those words.
     missing_dates: "tuple[tuple[str, str], ...]" = ()
@@ -7753,6 +7976,11 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
     for name in given.centuries_kept:
         if name not in centuries:
             centuries[name] = ANSWER_CENTURY_POSIX
+    harbored: "dict[str, str]" = {
+        name: ANSWER_SAFE_HARBOR_NO for name in given.safe_harbor_no
+    }
+    for name in given.safe_harbor_yes:
+        harbored[name] = ANSWER_SAFE_HARBOR_YES
     dated: "dict[str, str]" = {name: ANSWER_DATES for name in given.date_columns}
     for name in given.date_columns_kept:
         if name not in dated:
@@ -7766,6 +7994,7 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
     others: "dict[str, bool]" = {}
     for table in (
         kinds, commas, kept_identity, clocks, counted, coded, centuries, dated,
+        harbored,
     ):
         for name in table:
             if name not in named:
@@ -7795,6 +8024,10 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
             ]
         if name in dated:
             found += [_kept_entry(name, dated[name], _FAMILY_DATES, "")]
+        if name in harbored:
+            found += [
+                _kept_entry(name, harbored[name], _FAMILY_SAFE_HARBOR, "")
+            ]
     return found
 
 

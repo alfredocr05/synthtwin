@@ -58,9 +58,10 @@ SEED = 20261016
 # P4-D406; batch 4e's integration); lane G2T2 the mixed result column's
 # held-back mean at 20,000 rows (batch 4e's records); lane PS2, lane PS's
 # follow-up, what PS left held or pooled (the orchestrator, 2026-10-23;
-# batch 4g's records).
+# batch 4g's records); lane SH the HIPAA price of a ZIP code held by its
+# Safe Harbor question (plan P4-D427).
 PLAN_LANES = (
-    "DST", "RT1", "RT2", "LM1", "LM2", "R7", "FM", "SCH", "G2T", "G2T2", "MG", "PS", "PS2", *zoo.ZOO_LANES,
+    "DST", "RT1", "RT2", "LM1", "LM2", "R7", "FM", "SCH", "G2T", "G2T2", "MG", "PS", "PS2", "SH", *zoo.ZOO_LANES,
     zoo.NEEDS_OWNER,
 )
 

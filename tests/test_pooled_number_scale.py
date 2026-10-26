@@ -51,6 +51,8 @@ import dataclasses
 import pathlib
 import statistics
 
+import keyboard
+
 from synthtwin import contract, generation, parsing, taxonomy, validation
 from tests import fixtures
 from tests.test_stage2_round_trip import _exit_of, _round_trip
@@ -486,6 +488,9 @@ def test_a_group_the_census_pushes_away_is_carried_by_the_others(
     nothing -- the placement no longer reading back what it wrote, so
     no group carries another's arrears -- the same twin is MISSED.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column; its numbers
+    # are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)  # type: ignore[arg-type]
     cells = _pushed_cells()
     folder = tmp_path / "pushed"
     first, second, _written, twin_exit, real_exit = _round_trip(

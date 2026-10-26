@@ -462,8 +462,17 @@ def test_a_clock_column_is_read_as_clocks_keeping_its_seconds(
         assert all(value.second == 0 for value, _code in read)
 
 
-def test_moments_wearing_a_clock_format_stay_numbers(tmp_path: pathlib.Path) -> None:
-    """`h:mm` over full date-times reads as it did: their dates are kept."""
+def test_moments_wearing_a_clock_format_stay_numbers(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`h:mm` over full date-times reads as it did: their dates are kept.
+
+    Read as numbers, these spreadsheet days are put the date-count
+    question, which offers `identifier` and so holds the column while it
+    is open (plan P4-D427, the orchestrator's LANE SH ADDENDUM 6); a
+    person at the keyboard presses Enter and keeps the reading.
+    """
+    keyboard.every_reading_kept(monkeypatch)
     draw = random.Random(12)
     cells = [(_moment(draw).replace(second=0), "h:mm") for _row in range(ROWS)]
     trip = _trip(tmp_path, cells)

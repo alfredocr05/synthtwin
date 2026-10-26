@@ -815,6 +815,16 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 785,000 from 764,000, AT THE INTEGRATION OF BATCH 4K (2026-10-26),
+    # the orchestrator's recorded call D15 (the owner may veto), set once
+    # for the batch (its integrator's record 3), a round figure the merged
+    # ledger and the batch's records fit under: lane SH's `K-S3-64`,
+    # `K-S3-66` and `K-HZ-02` restated (its branch raised its own cap to
+    # 749,000, below) and lane CHv's `K-S6-04`, `K-S6-05` and `K-S6-10`
+    # with their note clause (its branch raised its own to 771,000), every
+    # entry kept by id and the note merged clause by clause: 767,618 bytes
+    # with lane SH merged. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
     # 764,000 from 760,000, AT THE INTEGRATION OF BATCH 4J (2026-10-24),
     # the orchestrator's recorded call D15 (the owner may veto), set once
     # for the batch, the least round figure the merged ledger and the
@@ -859,6 +869,28 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # and lane SR-A's percentage corrected, and `K-S3-64`, `K-S3-65`,
     # `K-P4-06` and `K-S6-08` stamped from their re-runs on the merged
     # head, 753,943 bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
+    # 749,000 from 746,500, ON LANE SH'S BRANCH (2026-10-25, plan P4-D427,
+    # repair round 3): `K-S3-64` restamped over 246 shapes, `K-S3-66` and
+    # `K-HZ-02` restated to the Safe Harbor question's second round (the
+    # orchestrator's ruling R1), their rules, evidence and notes, 748,726
+    # bytes. The batch integrator settles this beside the other lanes'
+    # raises.
+    #
+    # 746,500 from 746,000, ON LANE SH'S BRANCH (2026-10-24, plan P4-D427,
+    # repair round 2): `K-S3-64` restamped over 230 shapes, its rule,
+    # evidence and note sentences, 746,195 bytes. The batch integrator
+    # settles this beside the other lanes' raises.
+    #
+    # 746,000 from 745,500, ON LANE SH'S BRANCH (2026-10-23, plan P4-D427,
+    # repair round 1): `K-S3-64` restamped over the 41 Safe Harbor number
+    # shapes, its rule and evidence sentences, 745,712 bytes. The batch
+    # integrator settles this beside the other lanes' raises.
+    #
+    # 745,500 from 745,000, ON LANE SH'S BRANCH (2026-10-23, plan P4-D427):
+    # `K-S3-64` restamped over the eight Safe Harbor number shapes, its rule,
+    # evidence and note sentence, 745,093 bytes. The batch integrator
+    # settles this beside the other lanes' raises.
     #
     # 745,000 from 741,000, AT THE INTEGRATION OF BATCH 4F (2026-10-22),
     # the orchestrator's recorded call D15 (the owner may veto), set once
@@ -1359,7 +1391,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # round figure the lane's ledger fits under: K-S6-08 new, the chain's
     # tables part, with its note clause. The batch integrator settles this
     # beside the other lanes' raises.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 764_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 785_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

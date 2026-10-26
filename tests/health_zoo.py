@@ -131,6 +131,10 @@ GENERAL_ANSWERS = frozenset(
         "first-record", "month-first", "day-first", "missing",
         "real-value", "1969-2068", "1930-2029", "1940-2039",
         "1900-1999", "dates",
+        # The Safe Harbor question (plan P4-D427): whether a value of the
+        # column could name a person, a place, a birth date or a number
+        # given to one person -- what the data is.
+        "no", "yes",
     }
 )
 # The count systems a column of dates written as numbers may be read in
@@ -1130,6 +1134,13 @@ STAND_IN = r"group-\d+"
 # rule there, not a gap. The `codes` check leaves them out; their levels,
 # shapes and forms are checked like any column's.
 NOT_A_VOCABULARY = frozenset({"zip5", "zip4"})
+# ...and the columns that name a PLACE SMALLER THAN A STATE, one of HIPAA's
+# Safe Harbor elements (45 CFR 164.514(b)(2)(i)(B)): the zoo answers their
+# Safe Harbor question truthfully, `yes` (the orchestrator's ruling THE
+# ZOO ANSWERS TRUTHFULLY and LANE SH ADDENDUM 9, 2026-10-25), so each
+# stays held and the analyst checks that look for its real values fail:
+# the HIPAA price, counted in K-HZ-02 (`HARBOR_PRICE`), never hidden.
+PLACES = frozenset({"zip5", "zip4", "zip_lost"})
 # A text column is read for its shapes when the real table writes it in
 # at most this many shapes; free text, whose sentences recombine, is not.
 SHAPED_AT_MOST = 30
@@ -1788,7 +1799,11 @@ TABLES: "tuple[Table, ...]" = (
             "vitals": ("patient_id", "taken_at", "bp", "temp", "spo2", "pulse", "stature", "weight"),
             "semicolon_decimal_comma": ("mass_index",),
         },
-        {"patient_id": "identifier", "bp": "joined", "pulse": "measurement", "mass_index": "decimal_comma"},
+        {"patient_id": "identifier", "bp": "joined", "pulse": "measurement", "mass_index": "decimal_comma",
+         # ...and a weight in kilograms is a measurement: the Safe Harbor
+         # question its decimal comma, read since lane SH's second repair,
+         # puts is answered `no` (plan P4-D427).
+         "weight": "measurement"},
         _csv_reader(sep=";", decimal=","),
         (
             Check("semicolon_decimal_comma", "the file splits into nine columns", "same",
@@ -2635,6 +2650,13 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
         given = known if known in offered else ""
         if not given and known and "identifier" in offered and "keep" in offered:
             given = "keep"
+        # ...and the Safe Harbor question (plan P4-D427; lane ZR-b's ZS.7):
+        # a column the person knows as anything but a record number or a
+        # place names nobody, so `no`; one they know as a record number,
+        # or a ZIP code -- a place smaller than a state -- `yes`
+        # (`PLACES`, lane SH's third repair).
+        if not given and known and offered == ["no", "yes"]:
+            given = "yes" if known == "identifier" or column in PLACES else "no"
         entry["your_answer"] = given
         words = " ".join(prose(entry) + [framing] + ([checklist_words] if id(entry) in listed else []))
         this_general = all(
@@ -2706,6 +2728,27 @@ def run_table(table: Table, folder: pathlib.Path, n: int, seed: int) -> "dict":
     if code != 0:
         result["seconds"] = time.perf_counter() - started
         return result
+    # ...AND THE QUESTION AN ANSWER OPENS (plan P4-D427, the second repair
+    # of lane SH, items 1 and 6): a column the Safe Harbor reach takes,
+    # answered `code`, `measurement` or `keep` to its padded, fixed-width,
+    # date-count, two-numbers or person question, is put the Safe Harbor
+    # question in the run reading that answer; the person answers the new
+    # question as they did the first round's.
+    follow = json.loads(questions_path.read_text(encoding="utf-8"))
+    before = {(one["column"], one["given"]) for one in asked}
+    probe = json.loads(json.dumps(follow))
+    more, more_general = answer_generally(table, probe)
+    opened = [one for one in more if one["given"] and (one["column"], one["given"]) not in before]
+    if opened:
+        more, more_general = answer_generally(table, follow)
+        result["asked"] = asked + opened
+        result["general"] = general and more_general
+        questions_path.write_text(json.dumps(follow, indent=2), encoding="utf-8", newline="\n")
+        code, error = _quietly(["profile", f"{source}", "--replace", "--answers", f"{questions_path}"])
+        steps["answers"] = {"exit": code, "error": error}
+        if code != 0:
+            result["seconds"] = time.perf_counter() - started
+            return result
 
     code, error = _quietly(["generate", f"{profile_path}", "--replace", "--seed", "0"])
     steps["generate"] = {"exit": code, "error": error}
@@ -2820,8 +2863,17 @@ CENSUS_IN_PEOPLE = (
     "pooled, so the shares of patients with two and three rows move on the twin; a census in "
     "subject bands is lane MG's (plan P4-D406)"
 )
+# THE HIPAA PRICE (lane SH, plan P4-D427; the orchestrator's LANE SH
+# ADDENDUM 9 and ruling R1 of 2026-10-25): a ZIP code names a place smaller
+# than a state, so the zoo answers its Safe Harbor question `yes` and the
+# column stays held whatever its other answer; the analyst's check that
+# looks for its real ZIPs in the twin then fails, by design. A later Safe
+# Harbor ZIP3 allowlist (three-figure areas over 20,000 people) is lane
+# CODES-2's.
+HARBOR_PRICE = "held by HIPAA's Safe Harbor rule; by design (45 CFR 164.514(b)(2)(i)(B))"
 OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     "demographics": (
+        ("SH", HARBOR_PRICE, covers("levels zip5")),
         ("CODES-2", WITHHELD, covers(
             "ancestry is a listed category", "ethnicity is a listed category",
             "gender codes are M/F/U/X", "gender words are Male/Female/Unknown",

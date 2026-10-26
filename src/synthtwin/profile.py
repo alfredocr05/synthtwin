@@ -1825,6 +1825,9 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # contract NF128, NF129 and TG1): its rung, the column's precision, its kind,
     # how its cells read, the rows its walk read and the spans it passed.
     ("columns", _EACH, "time_grain"): _OBJECT,
+    # THE SAFE HARBOR TOP-CODE (plan P4-D427): 90, read "90 or more", on a
+    # column described with every value above 89 read as 90.
+    ("columns", _EACH, "top_coded"): _COUNT,
     ("columns", _EACH, "time_grain", "rung"): _WORD,
     ("columns", _EACH, "time_grain", "finest"): _WORD,
     ("columns", _EACH, "time_grain", "kind"): _WORD,
@@ -4210,6 +4213,11 @@ def build_document(
     counted_in_subjects: "list[str] | None" = None,
     time_grains: "dict[str, grains.Grain] | None" = None,
     absent_read: "dict[str, tuple[str, ...]] | None" = None,
+    top_code: bool = False,
+    safe_harbor_no: "list[str] | None" = None,
+    top_coded_only: "tuple[str, ...] | None" = None,
+    five_figures: "list[str] | None" = None,
+    ages_held: "list[str] | None" = None,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -4325,8 +4333,27 @@ def build_document(
       dates published as plain numbers. Declarations reconstructed from
       a description (``declarations_are_reconstructed``, the validator's)
       hold nothing: a checked file is described as its cells read.
+    - THE SAFE HARBOR NUMBERS (plan P4-D427, lane ZR-b's ZS.1 and ZS.3),
+      the command's rule as P4-D401's hold is (``top_code``, which
+      `synthtwin profile` passes; False describes every column as
+      before, byte for byte). A column of any role that prints a value
+      (`taxonomy.SAFE_HARBOR_UNREACHED_ROLES` aside), not held and not
+      named in ``safe_harbor_no`` -- answered `no` to its Safe Harbor
+      question -- is read by `taxonomy.safe_harbor_reach` on its present
+      cells, its absent ones set aside: AGES are described with every
+      value from 90 to 125 read as 90 (`taxonomy.top_coded_cells`, its
+      absent cells kept) and the key `top_coded`, or, where so reading
+      them would change which cells are absent (90 is one of its missing
+      values), named in ``ages_held`` for the command to hold;
+      ``five_figures``, where given, is extended with the name of each
+      column of ZIP-shaped numbers, for the command to hold. A column of
+      ages held as record numbers -- by its open question or by the count
+      in people -- is held from its top-coded cells and keeps the key
+      (Codex's review of lane SH, item 2). ``top_coded_only``, the validator's, names exactly the
+      columns to read so, each read so whatever its cells, and no other.
     """
     withheld_names = [] if unanswered is None else unanswered
+    no_safe_harbor = [] if safe_harbor_no is None else safe_harbor_no
     # THE SUBJECT COLUMNS THAT REPEAT (plan P4-D406): one different on
     # every row counts each value in rows already, as the floor does.
     # Each is kept with whether it holds the floor's number of different
@@ -4515,6 +4542,70 @@ def build_document(
 
         described = described_from(cells, handed_over)
         handed_over = None
+        # THE SAFE HARBOR NUMBERS (plan P4-D427): while the column's Safe
+        # Harbor question is open, every age over 89 is read as 90 for the
+        # whole description, so no rung, mode, tail, level, bin, mean or
+        # spread is one of those values, and every step below reads the
+        # cells so written; a column of ZIP-shaped numbers is named for the
+        # command to hold. A column held as record numbers -- by an open
+        # question (P4-D401) or by the count in people (P4-D406) -- is held
+        # from its top-coded cells and keeps the key, so its layouts name
+        # no age over 89 and the validator reads the checked file the same
+        # way (Codex's review of lane SH, item 2).
+        forced_top = top_coded_only is not None and name in top_coded_only
+        top_coded_here = False
+        reach = ""
+        if (
+            top_coded_only is None
+            and top_code
+            and name not in no_safe_harbor
+            and (
+                described.role not in taxonomy.SAFE_HARBOR_UNREACHED_ROLES
+                or name in withheld_names
+            )
+        ):
+            reach = taxonomy.safe_harbor_reach(
+                cells,
+                name in declared_commas,
+                frozenset(described.absent_spellings),
+                settings.small_cell_floor,
+                described.role in taxonomy.SAFE_HARBOR_LEVEL_ROLES,
+                # ...and a column a person has said is a measurement or a
+                # code -- P4-D401's padded question answered, or declared
+                # -- is no longer judged a code by its leading zeros (the
+                # second repair of lane SH, item 1: ages written `000` to
+                # `120`, answered `measurement`, printed 91 to 105; and
+                # its third, the orchestrator's ruling R2 of 2026-10-25:
+                # answered `code` they printed 93 and 100 to 105, so a
+                # column in the age reach is top-coded whatever its other
+                # answer, and put the Safe Harbor question), nor is one
+                # held meanwhile by an open question, which publishes
+                # nothing: its held block is read from the top-coded
+                # cells.
+                name in declared_codes
+                or name in declared_measurements
+                or name in withheld_names,
+            )
+        if forced_top or reach == taxonomy.SAFE_HARBOR_AGES:
+            coded = taxonomy.top_coded_cells(
+                cells, name in declared_commas, frozenset(described.absent_spellings)
+            )
+            recoded = described_from(coded, None)
+            if forced_top or (
+                recoded.n_missing == described.n_missing
+                and recoded.n_present == described.n_present
+            ):
+                cells = coded
+                described = taxonomy.with_top_code(recoded)
+                top_coded_here = True
+            elif ages_held is not None:
+                # 90 is one of the column's missing values, so reading its
+                # ages as 90 would make them missing: held whole instead
+                # until the question is answered (Codex's review, item 1).
+                ages_held += [name]
+            coded = []
+        elif reach == taxonomy.SAFE_HARBOR_ZIPS and five_figures is not None:
+            five_figures += [name]
         # COUNTED IN PEOPLE, NOT ROWS (plan P4-D406). A column of record
         # numbers names no layout fewer than the floor's number of
         # subjects wear, before its census of repetition is drawn from
@@ -4726,6 +4817,10 @@ def build_document(
         # ...and the walk's own name lets go of the column it described,
         # so no column of one group outlives it while the next is read.
         cells = []
+        # A column held as a record number from its top-coded cells says so
+        # too (plan P4-D427): its twin and the validator read it so.
+        if top_coded_here:
+            described = taxonomy.with_top_code(described)
         columns += [_column_block(described)]
         absent_spellings += [described.absent_spellings]
         for note in described.publication_notes:

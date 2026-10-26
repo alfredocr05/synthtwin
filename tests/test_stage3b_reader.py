@@ -886,7 +886,9 @@ def test_every_answer_a_column_question_offers_has_a_key() -> None:
     column whose years are two figures in the questions file alone, so its
     four answers need no key either. AND QUESTION Q6 OF LANE R2c (plan
     P4-D383): `date_column_questions` puts each column mostly of dates in
-    the questions file alone, so `dates` needs no key.
+    the questions file alone, so `dates` needs no key. AND THE SAFE HARBOR
+    QUESTION OF LANE SH (plan P4-D427): `safe_harbor_questions` puts it in
+    the questions file alone, so `no` and `yes` need no key.
     """
     from synthtwin import cli
 
@@ -895,8 +897,11 @@ def test_every_answer_a_column_question_offers_has_a_key() -> None:
     assert callable(asking._date_code_choices)
     assert callable(asking._century_choices)
     assert callable(asking._date_column_choices)
+    assert callable(asking._safe_harbor_question)
     offered = _offered_by_each_builder(
-        to_the_file | {"_date_code_choices", "_century_choices", "_date_column_choices"}
+        to_the_file
+        | {"_date_code_choices", "_century_choices", "_date_column_choices",
+           "_safe_harbor_question"}
     )
     assert "_clock_question" in offered and "_person_choices" in offered
     column_answers: "set[str]" = set()

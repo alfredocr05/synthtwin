@@ -41,6 +41,7 @@ import pytest
 
 import fixtures
 import health_zoo as zoo
+import keyboard
 from synthtwin import asking, cli, date_counts
 
 ROWS = 600
@@ -400,9 +401,14 @@ def test_us_vitals_person_answered_over_two_rounds_is_one_rounds_twin(tmp_path: 
     # P4-D401) a blank to a question offering `identifier` holds the
     # column, so the zoo's person answers `keep` where it knows the column
     # as something else (batch 4d's integration, 2026-10-20).
+    # ...and `no` for temp_f, written `98.6 F`: a number from 0 to 125
+    # with a unit word, values of 90 or more among them, is put the Safe
+    # Harbor question (plan P4-D427), which the zoo's person answers `no`
+    # in the same round.
     assert [(one[0], one[1]) for one in rounds.given[0]] == [
         ("patient_id", asking.ANSWER_IDENTIFIER),
         ("weight", "keep"),
+        ("temp_f", asking.ANSWER_SAFE_HARBOR_NO),
     ]
     assert [(one[0], one[1]) for one in rounds.given[1]] == [("weight", asking.ANSWER_MEASUREMENT)]
     assert rounds.lost == []
@@ -477,8 +483,13 @@ def by_round(plan: "list[list[tuple[str, str]]]") -> Answerer:
     return answerer
 
 
-def test_the_first_file_asks_all_nine(tmp_path: pathlib.Path) -> None:
+def test_the_first_file_asks_all_nine(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The table's first file offers every answer the cases below give."""
+    # THE SAFE HARBOR REACH (plan P4-D427, its second repair) asks its own
+    # question of the register `reg` and the points `amount`; they name
+    # no place, so the person answers `no`, and the first file asks the
+    # nine questions this table was built for.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     table = mixed_table(tmp_path)
     assert profile(table) == 0
     document = questions(table)
@@ -487,8 +498,14 @@ def test_the_first_file_asks_all_nine(tmp_path: pathlib.Path) -> None:
 
 
 @pytest.mark.parametrize("cut", [(3, 6), (1, 8), (5, 7)])
-def test_three_rounds_write_one_rounds_bytes(tmp_path: pathlib.Path, cut: "tuple[int, int]") -> None:
+def test_three_rounds_write_one_rounds_bytes(tmp_path: pathlib.Path, cut: "tuple[int, int]", monkeypatch: pytest.MonkeyPatch) -> None:
     """The nine answers given over three rounds, cut at two places, are one round's."""
+    # THE SAFE HARBOR REACH (plan P4-D427, its second repair) asks its own
+    # question of the register `reg` and holds the points `amount`, read
+    # as five figures or as ages, until `no` whatever their other answer;
+    # they name no place, so the person answers `no`, and the rounds are
+    # those of the other questions.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     table = mixed_table(tmp_path)
     plan = [list(_MIXED_ANSWERS[: cut[0]]), list(_MIXED_ANSWERS[cut[0] : cut[1]]), list(_MIXED_ANSWERS[cut[1] :])]
     rounds, differs = compare(table, by_round(plan))
@@ -548,7 +565,7 @@ def test_codes_in_dates_read_either_way_answered_after_the_order(tmp_path: pathl
 # -- a later answer changes an earlier one -------------------------------
 
 
-def test_a_later_round_changes_an_earlier_answer(tmp_path: pathlib.Path) -> None:
+def test_a_later_round_changes_an_earlier_answer(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Changed in the kept section, and typed: the later answer wins, as if given once.
 
     `--measurement amount` typed over a kept `decimal_comma` says what
@@ -557,6 +574,12 @@ def test_a_later_round_changes_an_earlier_answer(tmp_path: pathlib.Path) -> None
     `--code clock` typed over a kept `twelve-hour` replaces it, since a
     12-hour clock reaches nothing on a column of codes.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427, its second repair) asks its own
+    # question of the register `reg` and holds the points `amount`, read
+    # as five figures or as ages, until `no` whatever their other answer;
+    # they name no place, so the person answers `no`, and the rounds are
+    # those of the other questions.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     table = mixed_table(tmp_path)
     assert profile(table) == 0
     first = questions(table)
@@ -596,7 +619,7 @@ def test_a_later_round_changes_an_earlier_answer(tmp_path: pathlib.Path) -> None
     assert outputs(table) == several
 
 
-def test_a_later_answer_to_the_question_asked_again_wins(tmp_path: pathlib.Path) -> None:
+def test_a_later_answer_to_the_question_asked_again_wins(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Answered again where the next file asks again: the later answer wins, as if given once.
 
     `keep` for the person column, then `identifier`; a point between
@@ -605,6 +628,12 @@ def test_a_later_answer_to_the_question_asked_again_wins(tmp_path: pathlib.Path)
     says what the column holds, and the comma stands beside it: the third
     round.)
     """
+    # THE SAFE HARBOR REACH (plan P4-D427, its second repair) asks its own
+    # question of the register `reg` and holds the points `amount`, read
+    # as five figures or as ages, until `no` whatever their other answer;
+    # they name no place, so the person answers `no`, and the rounds are
+    # those of the other questions.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     table = mixed_table(tmp_path)
     assert profile(table) == 0
     first = questions(table)
@@ -979,8 +1008,14 @@ def typed_case(folder: pathlib.Path, form: str) -> None:
 
 
 @pytest.mark.parametrize("form", [case[0] for case in _TYPED_CASES])
-def test_every_typed_form_replaces_a_kept_answer(tmp_path: pathlib.Path, form: str) -> None:
+def test_every_typed_form_replaces_a_kept_answer(tmp_path: pathlib.Path, form: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """Each option `_typed_answers` maps, typed over a kept answer about its column: the typed one wins."""
+    # THE SAFE HARBOR REACH (plan P4-D427, its second repair) asks its own
+    # question of the register `reg` and holds the points `amount`, read
+    # as five figures or as ages, until `no` whatever their other answer;
+    # they name no place, so the person answers `no`, and the rounds are
+    # those of the other questions.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     typed_case(tmp_path, form)
 
 
@@ -1001,8 +1036,13 @@ def test_mutant_a_typed_form_not_set_against_kept_answers_is_seen(tmp_path: path
 # -- a blank kept entry keeps its answer (skeptic 1, item 3) ---------------
 
 
-def test_a_blank_kept_entry_keeps_its_answer(tmp_path: pathlib.Path) -> None:
+def test_a_blank_kept_entry_keeps_its_answer(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A kept `identifier` and a kept `code` with `your_answer` cleared: the unedited file's bytes."""
+    # THE SAFE HARBOR REACH (plan P4-D427, its second repair) asks its own
+    # question of the register `reg` and the points `amount`; they name
+    # no place, so the person answers `no`, and the first file asks the
+    # nine questions this table was built for.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     table = mixed_table(tmp_path)
     assert profile(table) == 0
     first = questions(table)
@@ -1029,7 +1069,7 @@ def test_mutant_a_blank_kept_entry_read_as_unanswered_is_seen(tmp_path: pathlib.
 
     monkeypatch.setattr(asking, "_entry_answer", entry_answer)
     with pytest.raises(AssertionError):
-        test_a_blank_kept_entry_keeps_its_answer(tmp_path)
+        test_a_blank_kept_entry_keeps_its_answer(tmp_path, monkeypatch)
 
 
 # -- the contradicted answer (skeptic 1, item 4) ---------------------------
@@ -1165,9 +1205,9 @@ def test_mutant_the_later_answer_losing_to_the_earlier_is_seen(tmp_path: pathlib
     """No later answer replaces a kept one: the typed measurement does not win."""
     monkeypatch.setattr(asking, "_answered_again", lambda name, answer, family, later: False)
     with pytest.raises(AssertionError):
-        test_a_later_round_changes_an_earlier_answer(tmp_path / "typed")
+        test_a_later_round_changes_an_earlier_answer(tmp_path / "typed", monkeypatch)
     with pytest.raises(AssertionError):
-        test_a_later_answer_to_the_question_asked_again_wins(tmp_path / "asked")
+        test_a_later_answer_to_the_question_asked_again_wins(tmp_path / "asked", monkeypatch)
 
 
 def test_mutant_the_refusal_path_losing_answers_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1212,7 +1252,7 @@ def described_column(table: Table, name: str) -> "dict[str, object]":
 _PAIR = (("dose", asking.ANSWER_MEASUREMENT), ("dose", asking.ANSWER_DECIMAL_COMMA))
 
 
-def test_a_measurement_and_its_comma_are_both_kept(tmp_path: pathlib.Path) -> None:
+def test_a_measurement_and_its_comma_are_both_kept(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`--measurement dose --decimal-comma dose`, at once or a round apart either way: both kept, the mean 1299.5.
 
     Codex's review of lane AQ, item 1 (high), on 8901146b: the section
@@ -1222,6 +1262,12 @@ def test_a_measurement_and_its_comma_are_both_kept(tmp_path: pathlib.Path) -> No
     once end, byte for byte, and a third round handed back unchanged
     keeps it there.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427, its second repair) asks its own
+    # question of the register `reg` and holds the points `amount`, read
+    # as five figures or as ages, until `no` whatever their other answer;
+    # they name no place, so the person answers `no`, and the rounds are
+    # those of the other questions.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     for route, first, then in (
         ("handed-back", ["--measurement", "dose", "--decimal-comma", "dose"], []),
         ("comma-later", ["--measurement", "dose"], ["--decimal-comma", "dose"]),
@@ -1254,7 +1300,7 @@ def test_mutant_the_comma_in_the_slot_of_what_the_column_holds_is_seen(tmp_path:
 
     monkeypatch.setattr(asking, "answered_before", answered_before)
     with pytest.raises(AssertionError):
-        test_a_measurement_and_its_comma_are_both_kept(tmp_path)
+        test_a_measurement_and_its_comma_are_both_kept(tmp_path, monkeypatch)
 
 
 def visits_table(folder: pathlib.Path, grouped: bool = False) -> Table:
@@ -1508,7 +1554,9 @@ def test_k_s3_66_counts_a_refusal_on_both_routes_apart(tmp_path: pathlib.Path, m
     table, answerer = zoo_table(tmp_path, "us_vitals")
     measure_table(table, answerer, found)
     assert found["twins_refused_on_both_routes"] == 1
-    assert found["answers"] == 2 and found["byte_differences"] == 0 and found["failed_runs"] == 0
+    # Three answers: patient_id, weight and temp_f's Safe Harbor `no`
+    # (plan P4-D427).
+    assert found["answers"] == 3 and found["byte_differences"] == 0 and found["failed_runs"] == 0
 
 
 def test_mutant_judged_reading_refusals_as_twins_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1796,7 +1844,12 @@ def measure(folder: pathlib.Path) -> "dict[str, int]":
         table = mixed_table(folder / f"mixed-{cut[0]}-{cut[1]}")
         plan = [list(_MIXED_ANSWERS[: cut[0]]), list(_MIXED_ANSWERS[cut[0] : cut[1]]), list(_MIXED_ANSWERS[cut[1] :])]
         try:
-            rounds, differs = compare(table, by_round(plan))
+            # ...the person answering `no` to the Safe Harbor questions of
+            # its register and its points (plan P4-D427, its second
+            # repair), as `test_three_rounds_write_one_rounds_bytes` does.
+            with pytest.MonkeyPatch.context() as patch:
+                keyboard.safe_harbor_answered_no(patch)
+                rounds, differs = compare(table, by_round(plan))
         except AssertionError:
             found["failed_runs"] += 1
             continue
@@ -1814,7 +1867,21 @@ def measure(folder: pathlib.Path) -> "dict[str, int]":
     ):
         found["cases"] += 1
         try:
-            case(folder / case.__name__)
+            if case in _ANSWERING_SAFE_HARBOR_NO:
+                # ...the person answering `no` to the Safe Harbor question
+                # of the columns it holds (plan P4-D427, its second repair).
+                with pytest.MonkeyPatch.context() as patch:
+                    case(folder / case.__name__, patch)  # type: ignore[call-arg]
+            else:
+                case(folder / case.__name__)  # type: ignore[call-arg]
         except AssertionError:
             found["byte_differences"] += 1
     return found
+
+
+# The cases whose columns the Safe Harbor reach holds, answered `no`.
+_ANSWERING_SAFE_HARBOR_NO = (
+    test_a_later_round_changes_an_earlier_answer,
+    test_a_later_answer_to_the_question_asked_again_wins,
+    test_a_measurement_and_its_comma_are_both_kept,
+)

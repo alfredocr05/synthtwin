@@ -222,6 +222,9 @@ def test_no_twin_cell_is_wider_than_the_field_its_description_publishes(
     and `010035` at seed 11: six characters in a field its own
     description publishes as five.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column; its numbers
+    # are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     keyboard.every_reading_kept(monkeypatch)
     cells = _postal_codes(seed)
     first, second, written, twin_exit, real_exit = _round_trip(
@@ -252,6 +255,9 @@ def test_where_the_census_cannot_be_met_the_field_holds_and_the_miss_is_named(
     published count -- no value in hand can wear the field -- so it
     keeps the FIELD and gives the form up, and both counts are named.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column; its numbers
+    # are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     keyboard.every_reading_kept(monkeypatch)
     folder = tmp_path / "unmeetable"
     first, second, written, twin_exit, real_exit = _round_trip(
@@ -809,6 +815,9 @@ def test_a_narrow_padded_code_column_still_says_none(
     rule that read the pad off and then forgot the bound would call
     this column canonical and file a ceiling on it.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column; its numbers
+    # are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     keyboard.every_reading_kept(monkeypatch)
     draw = random.Random(1)
     cells = [f"{draw.randrange(0, 99999):05d}" for _ in range(ROWS)]

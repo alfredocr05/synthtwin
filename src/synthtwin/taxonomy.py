@@ -27637,6 +27637,625 @@ def with_held_dates(column: ColumnProfile, grain: "dict[str, object]") -> Column
     return dataclasses.replace(column, details=details, remarks=remarks)
 
 
+# THE SAFE HARBOR NUMBERS (plan P4-D427; 45 CFR 164.514(b)(2)(i); lane
+# ZR-b's page, ZS.1 and ZS.3; the orchestrator's LANE SH NOTE and its
+# addenda 1 to 5 of 2026-10-23). Two elements of the Safe Harbor list
+# stand in columns read as numbers or as labels of numbers:
+#
+# AN AGE OVER 89 (164.514(b)(2)(i)(C)), an element of a birth date.
+# Measured on b85200be: 20,000 ages from 18 to 103 published `max` 103,
+# `p99` 99 and the high tail's values 99 to 103. A column whose numbers,
+# its placeholders and words set aside, lie within 0 to 125 and include
+# one of 90 or more may be an age; while its Safe Harbor question is open
+# every such value from 90 to 125 is read as 90 for the whole
+# description (an age is counted in whole years, so 89.5 is 89), and its
+# block says so with `top_coded`.
+#
+# A ZIP CODE (164.514(b)(2)(i)(B)). A column whose numbers, its
+# placeholders and words set aside, are whole numbers of five figures,
+# padded or not, or of four (a ZIP that lost its leading zero), signed
+# `+` or not, never grouped between thousands, or ZIP+4 forms, one of
+# five among them where the role is a count or a measurement unless
+# every one has four (four figures beside other widths are as often a
+# year or a count), is held whole until the question is answered `no`.
+#
+# THE REACH IS JUDGED ON THE BULK, never on every cell (the orchestrator's
+# addenda 1 (2), 2 (1) and 3: one outlier `130`, or `999`, `-1` or `888`
+# on a third of the rows, turned the protection off). SET ASIDE WHATEVER
+# THEIR SHARE: words (cells with no figure), the column's absent cells
+# (blanks and the missing values it was read with: Codex's review of
+# lane SH, item 1), placeholders written as nines alone (for ages,
+# `-9`, `-99`, `999`, `9999`; for ZIPs, every width but four and five,
+# where `9999` and `99999` are ZIPs: addendum 4), one-figure negatives
+# (`-1`) for ages and every negative for ZIPs, and any single value
+# outside the reach that at least the floor's rows repeat, three such
+# values at most (a measurement's tail past the reach is many values and
+# stays). Of the cells that remain, ages must be within 0 to 125 but for
+# a few strays (fewer than the floor's rows, or at most one in twenty:
+# a lone outlier, a few typing slips, never a systolic pressure's tail),
+# and ZIPs at least two in three of four or five figures: so a lone
+# outlier, a few odd forms or a ZIP+4 cell keep the reach. EVERY ROLE THAT
+# PRINTS A VALUE is reached (addenda 1 (1), 2 (2) and 5): binary,
+# constant, count, continuous, labels and their number parts -- `95
+# years` is a number and a unit word. A column most of whose numbers
+# are written with a leading zero holds codes, not ages (a site code
+# `0100` on every row was read as the constant 90); a few such cells are
+# ages still (skeptic 1 of lane SH, item 5).
+TOP_CODE = 90
+TOP_CODE_LAST_AGE = 89
+TOP_CODE_REACH_CEILING = 125
+SAFE_HARBOR_UNREACHED_ROLES = (
+    ROLE_EMPTY, ROLE_UNREPRESENTABLE, ROLE_DATETIME, ROLE_CLOCK,
+    ROLE_IDENTIFIER,
+)
+# The roles that print a column's values as levels: there a ZIP that lost
+# its leading zero (four figures alone) is reached; a count or a
+# measurement of four figures alone needs one of five beside it (lane
+# ZR-b's page: four figures alone are as often a year or a count, and
+# the fixed-width question holds a column of them).
+SAFE_HARBOR_LEVEL_ROLES = (ROLE_CONSTANT, ROLE_BINARY, ROLE_CATEGORICAL, ROLE_LONG_TAIL)
+SAFE_HARBOR_AGES = "ages"
+SAFE_HARBOR_ZIPS = "zips"
+ZIP_WIDTHS = (4, 5)
+# The widths of a whole number read as a ZIP code's own: five figures, and
+# nine, a ZIP+4 written without its hyphen.
+ZIP_IN_FIGURES = (5, 9)
+# At least two in three of the cells that remain: `_BULK_PARTS` times
+# those in the reach is at least `_BULK_TAKEN` times those that remain.
+_BULK_PARTS = 3
+_BULK_TAKEN = 2
+# The ages' strays: of the cells that remain, at most one in twenty (or
+# fewer than the floor's rows) outside 0 to 125 -- a lone outlier, a few
+# typing slips -- where a measurement's tail past 125 is more (a systolic
+# pressure's, a glucose's).
+_STRAY_PARTS = 20
+# The placeholders set aside whatever their share, at most: `777`, `888`
+# and one more beside the nines and one-figure negatives already aside.
+_PLACEHOLDERS_AT_MOST = 3
+# The decimal places a twin's value below the top-code is chosen at, at
+# most: finer figures are written as zeros (Codex's review of lane SH,
+# item 4: a search at twenty places did not end).
+_TOP_CODE_PLACES = 6
+# How many different cells a column's reading remembers, at most.
+_SAFE_HARBOR_MEMO = 4096
+_NOT_TEXT_HERE = "a cell must be text"
+# What one cell is to each reach: for ages, set aside, in the reach (of
+# 90 or more, written with a leading zero), a number outside it, or
+# another text holding a figure; for ZIPs, set aside, in the reach, a
+# number of another width, or another text.
+_AGE_ASIDE = 0
+_AGE_IN = 1
+_AGE_IN_PADDED = 2
+_AGE_ABOVE = 3
+_AGE_ABOVE_PADDED = 4
+_AGE_OUTSIDE = 5
+_AGE_OTHER = 6
+_ZIP_ASIDE = 0
+_ZIP_IN = 1
+_ZIP_OUTSIDE = 2
+_ZIP_OTHER = 3
+_ZIP_IN_FOUR = 4
+
+
+def _a_figure(character: str) -> bool:
+    """Whether one character is a figure from 0 to 9."""
+    return "0" <= character <= "9"
+
+
+def _a_letter(character: str) -> bool:
+    """Whether one character is a letter: one with a capital and a small form."""
+    if not isinstance(character, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    return character.lower() != character.upper()
+
+
+def _holds_a_figure(text: str) -> bool:
+    """Whether a text holds one figure or more."""
+    for character in text:
+        if _a_figure(character):
+            return True
+    return False
+
+
+def _figures_alone(text: str) -> bool:
+    """Whether a text is one figure or more and nothing else, read one character at a time."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    if not text:
+        return False
+    for character in text:
+        if not _a_figure(character):
+            return False
+    return True
+
+
+def _at_the_point(number_text: str) -> "tuple[str, str]":
+    """A plain number's whole part and its fraction's figures (empty where it has no point)."""
+    if not isinstance(number_text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    whole = ""
+    fraction = ""
+    seen = False
+    for character in number_text:
+        if character == "." and not seen:
+            seen = True
+        elif seen:
+            fraction = fraction + character
+        else:
+            whole = whole + character
+    return whole, fraction
+
+
+@dataclasses.dataclass(frozen=True)
+class SafeHarborNumber:
+    """One cell read as a number with an optional unit word after it (plan P4-D427).
+
+    ``head`` is the spaces before the number, ``number`` the number as
+    the cell wrote it, ``tail`` the unit word and the spaces after it;
+    ``value`` is what the profiler's own reader (`parsing.parse_number`)
+    reads, ``whole`` the figures before the point (leading zeros kept),
+    ``places`` the figures after it (0 with an exponent), ``plus``
+    whether a plus sign stands before it, ``grouped`` whether a mark
+    stands between its thousands (`12,345`), ``decimal_comma`` whether
+    the number was read with a comma for its point though no column
+    declared one (`94,8`: the second repair of lane SH, item 3).
+    """
+
+    head: str
+    number: str
+    tail: str
+    value: float
+    whole: str
+    places: int
+    plus: bool
+    exponent: bool
+    grouped: bool
+    decimal_comma: bool = False
+
+
+def safe_harbor_number(cell: str, comma: bool = False) -> "SafeHarborNumber | None":
+    """A cell read as one number, a unit word after it or not; None where it is not one.
+
+    The number is read by the profiler's own grammar (Codex's review of
+    lane SH, item 5: `99,000e-3` is 99), after the declared decimal comma
+    is turned into a point (plan P4-D26); where no comma is declared and
+    the point reading finds no number, the cell is read with its comma
+    for the point (`parsing.written_with_a_decimal_comma`): ages written
+    `94,8` in an undeclared column were levels the reach never read, and
+    printed `96,5` and `94,8` (the second repair of lane SH, item 3). A unit word is letters, spaces
+    and points after the number, holding a letter: `95 years`, `95y`.
+    Guarantees: a fixed function of the two. Raises TypeError for a cell
+    that is not text. No I/O.
+    """
+    if not isinstance(cell, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    body = cell.lstrip()
+    head = cell[: len(cell) - len(body)]
+    rest = body.rstrip()
+    after = body[len(rest):]
+    place = len(rest)
+    while place > 0 and (_a_letter(rest[place - 1]) or rest[place - 1] in " ."):
+        place -= 1
+    number = rest
+    tail = after
+    for character in rest[place:]:
+        if _a_letter(character):
+            number = rest[:place].rstrip()
+            tail = rest[len(number):] + after
+            break
+    if not _holds_a_figure(number):
+        return None
+    read = parsing.written_with_a_decimal_comma(number) if comma else number
+    value = parsing.parse_number(read)
+    decimal_comma = False
+    if value is None and not comma:
+        read = parsing.written_with_a_decimal_comma(number)
+        value = parsing.parse_number(read)
+        decimal_comma = value is not None
+    if value is None or not math.isfinite(value):
+        return None
+    core = parsing.number_core(read)
+    plus = core[:1] == "+"
+    unsigned = core[1:] if core[:1] in ("+", "-") else core
+    mantissa = ""
+    exponent = False
+    for character in unsigned:
+        if character in ("e", "E"):
+            exponent = True
+            break
+        mantissa = mantissa + character
+    whole, fraction = _at_the_point(mantissa)
+    # Written with a mark between its thousands (`12,345`, `12 345`):
+    # the profiler's reader drops the mark, so the text holds more
+    # characters than the figures, sign and point it read.
+    grouped = len(parsing.trimmed(read)) > len(core) and not _holds_a_letter(read)
+    return SafeHarborNumber(
+        head, number, tail, value, whole, 0 if exponent else len(fraction),
+        plus, exponent, grouped, decimal_comma,
+    )
+
+
+def _holds_a_letter(text: str) -> bool:
+    """Whether a text holds a letter (an exponent's `e`, a currency word)."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    for character in text:
+        if _a_letter(character):
+            return True
+    return False
+
+
+def _all_nines(value: float) -> bool:
+    """Whether a whole number is nines alone, whatever its sign."""
+    if value != int(value):
+        return False
+    figures = f"{int(abs(value))}"
+    for character in figures:
+        if character != "9":
+            return False
+    return True
+
+
+def _a_zip_plus_four(text: str) -> bool:
+    """Whether a text is five figures, a hyphen and four figures: `52240-1000`."""
+    written = parsing.trimmed(text)
+    return (
+        len(written) == 10
+        and written[5] == "-"
+        and _figures_alone(written[:5])
+        and _figures_alone(written[6:])
+    )
+
+
+def _safe_harbor_kind(cell: str, comma: bool) -> "tuple[int, int, float]":
+    """What one present cell is to the age reach and to the ZIP reach, and its value."""
+    if not _holds_a_figure(cell):
+        return _AGE_ASIDE, _ZIP_ASIDE, 0.0
+    read = safe_harbor_number(cell, comma)
+    if read is None:
+        return _AGE_OTHER, (_ZIP_IN if _a_zip_plus_four(cell) else _ZIP_OTHER), 0.0
+    value = read.value
+    whole = value == int(value)
+    padded = len(read.whole) >= 2 and read.whole[:1] == "0"
+    if whole and value < 0 and (value >= -9 or _all_nines(value)):
+        age = _AGE_ASIDE
+    elif whole and value >= 999 and _all_nines(value):
+        age = _AGE_ASIDE
+    elif value < 0 or value > TOP_CODE_REACH_CEILING:
+        age = _AGE_OUTSIDE
+    elif value >= TOP_CODE:
+        age = _AGE_ABOVE_PADDED if padded else _AGE_ABOVE
+    else:
+        age = _AGE_IN_PADDED if padded else _AGE_IN
+    if parsing.trimmed(read.tail):
+        # A number with a word after it is no ZIP, nor a placeholder.
+        postal = _ZIP_OTHER
+    elif value < 0 or (whole and value == 0 and len(read.whole) == 1):
+        postal = _ZIP_ASIDE
+    elif read.grouped or (len(read.whole) == 4 and read.whole[:1] == "0"):
+        # A number grouped between its thousands (`1,234.00`) or padded to
+        # four figures (`0123`) is no ZIP's spelling, nor a placeholder:
+        # set aside as one, `1,234.00` on fourteen rows beside `1234.00`
+        # left the rest to read as ZIP codes.
+        postal = _ZIP_OTHER
+    elif whole and not read.exponent and len(read.whole) in ZIP_IN_FIGURES:
+        # Five figures, or nine: a ZIP+4 written without its hyphen
+        # (`522401234`, padded `021001234`), as `52240-1234` is one (the
+        # second repair of lane SH, item 4: beside three `UNKNOWN` such
+        # cells read as a count and printed 9 of 9 rungs opening with a
+        # real ZIP).
+        postal = _ZIP_IN
+    elif whole and not read.exponent and len(read.whole) == 4:
+        # A ZIP that lost its leading zero (`2100`).
+        postal = _ZIP_IN_FOUR
+    elif whole and _all_nines(value):
+        postal = _ZIP_ASIDE
+    else:
+        postal = _ZIP_OUTSIDE
+    return age, postal, value
+
+
+def safe_harbor_reach(
+    cells: "list[str]",
+    comma: bool,
+    absent: "frozenset[str]",
+    floor: int,
+    levels: bool = False,
+    padded_answered: bool = False,
+) -> str:
+    """Which Safe Harbor reach a column's cells fall in: `ages`, `zips` or none (plan P4-D427).
+
+    ``absent``: the spellings the column was read as holding no value,
+    set aside; ``floor``: the rows a value outside the reach must hold
+    to be set aside as a placeholder whatever its share (three such
+    values at most, `_placeholder_rows`); ``levels``: whether the
+    column's role prints its values as levels; ``padded_answered``:
+    whether a person said the column is a measurement or a code (P4-D401's
+    padded question answered, or declared), or an open question holds it. Ages: the cells
+    that remain within 0 to 125 but for fewer than ``floor`` or at most
+    one in twenty, one of 90 or more among them, and at most half of
+    them written with a leading zero unless ``padded_answered`` (the
+    second repair of lane SH, item 1: NAACCR's Age at Diagnosis, `000`
+    to `120`, answered `measurement` printed 91 to 105, and `code` 93
+    and 100 to 105, the orchestrator's ruling R2 of 2026-10-25). ZIPs: at least two in three of the
+    cells that remain whole numbers of five figures, of four with no
+    leading zero (a ZIP that lost it) or ZIP+4 forms, none grouped
+    between its thousands, and one of five among them unless ``levels``
+    or every cell that remains has four (the fixed-width question's
+    shape, its placeholders set aside whatever their share: four-figure
+    ZIPs beside `-9999` on a twentieth of the rows printed 40 of 40). Guarantees: a fixed
+    function of the four. Raises TypeError for a cell that is not text.
+    No I/O.
+    """
+    memo: "dict[str, tuple[int, int, float]]" = {}
+    present = 0
+    age_in = 0
+    age_padded = 0
+    age_aside = 0
+    age_above = False
+    age_outside: "dict[float, int]" = {}
+    zip_in = 0
+    zip_five = 0
+    zip_aside = 0
+    zip_outside: "dict[float, int]" = {}
+    for cell in cells:
+        if cell in absent or not parsing.trimmed(cell):
+            continue
+        present += 1
+        if cell in memo:
+            kind = memo[cell]
+        else:
+            kind = _safe_harbor_kind(cell, comma)
+            if len(memo) < _SAFE_HARBOR_MEMO:
+                memo[cell] = kind
+        age, postal, value = kind
+        if age == _AGE_ASIDE:
+            age_aside += 1
+        elif age == _AGE_OUTSIDE:
+            age_outside[value] = (age_outside[value] if value in age_outside else 0) + 1
+        elif age != _AGE_OTHER:
+            age_in += 1
+            if age in (_AGE_IN_PADDED, _AGE_ABOVE_PADDED):
+                age_padded += 1
+            if age in (_AGE_ABOVE, _AGE_ABOVE_PADDED):
+                age_above = True
+        if postal == _ZIP_ASIDE:
+            zip_aside += 1
+        elif postal == _ZIP_IN:
+            zip_in += 1
+            zip_five += 1
+        elif postal == _ZIP_IN_FOUR:
+            zip_in += 1
+        elif postal == _ZIP_OUTSIDE:
+            zip_outside[value] = (zip_outside[value] if value in zip_outside else 0) + 1
+    repeat = max(floor, 1)
+    age_aside += _placeholder_rows(age_outside, repeat)
+    zip_aside += _placeholder_rows(zip_outside, repeat)
+    # Of the age cells that remain, those outside 0 to 125 (or holding a
+    # figure but no number) are strays: fewer than the floor's rows, or
+    # at most one in `_STRAY_PARTS`.
+    strays = present - age_aside - age_in
+    if (
+        age_in > 0
+        and age_above
+        and (strays < repeat or _STRAY_PARTS * strays <= present - age_aside)
+        and (padded_answered or 2 * age_padded <= age_in)
+    ):
+        return SAFE_HARBOR_AGES
+    if (
+        zip_in > 0
+        and (zip_five > 0 or levels or zip_in == present - zip_aside)
+        and _BULK_PARTS * zip_in >= _BULK_TAKEN * (present - zip_aside)
+    ):
+        return SAFE_HARBOR_ZIPS
+    return ""
+
+
+def _placeholder_rows(outside: "dict[float, int]", repeat: int) -> int:
+    """The rows of a column's placeholders among its values outside a reach (plan P4-D427).
+
+    A placeholder is ONE value standing for "not known": of the values
+    outside the reach that at least ``repeat`` rows hold, the
+    `_PLACEHOLDERS_AT_MOST` most held (the larger value first among
+    equals) -- `888` beside ages on a third of the rows, `-99` beside
+    ZIP codes. A measurement's own tail -- systolic pressures from 126
+    to 200, each held by the floor's rows at 20,000 rows -- is many such
+    values, and stays (measured on 4282f7ee: setting every one aside
+    top-coded the analyst tables' glucose, sbp, crp and follow-up days).
+    Guarantees: a fixed function of the two. Raises nothing. No I/O.
+    """
+    held = sorted(
+        ((outside[value], value) for value in outside if outside[value] >= repeat),
+        reverse=True,
+    )
+    rows = 0
+    for count, _value in held[:_PLACEHOLDERS_AT_MOST]:
+        rows += count
+    return rows
+
+
+def _padded_widths(
+    cells: "list[str]", comma: bool, absent: "frozenset[str]"
+) -> "dict[int, bool]":
+    """The widths a column pads its numbers to: those of its cells written with a leading zero."""
+    widths: "dict[int, bool]" = {}
+    seen: "dict[str, bool]" = {}
+    for cell in cells:
+        if cell in seen or cell in absent:
+            continue
+        if len(seen) < _SAFE_HARBOR_MEMO:
+            seen[cell] = True
+        read = safe_harbor_number(cell, comma)
+        if read is not None and not read.exponent and len(read.whole) >= 2 and read.whole[:1] == "0":
+            widths[len(read.whole)] = True
+    return widths
+
+
+def _padded_to(figures: str, width: int) -> str:
+    """A number's text with zeros put before its whole part up to ``width`` figures."""
+    whole, fraction = _at_the_point(figures)
+    if len(whole) >= width:
+        return figures
+    return "0" * (width - len(whole)) + whole + ("." + fraction if "." in figures else "")
+
+
+def _top_coded_text(
+    read: SafeHarborNumber, comma: bool, padded: "dict[int, bool] | None" = None
+) -> str:
+    """A cell over 89 written as the top-code, in the cell's own form (plan P4-D427).
+
+    Its spaces and unit word kept, its plus sign kept (skeptic 1 of lane
+    SH, item 12: `+95` lost its sign and the twin its share of them), as
+    many zeros after the point as it wrote, and leading zeros where its
+    figures were padded wider than two, or are as wide as ``padded``, the
+    widths its column pads to (the second repair of lane SH, item 1:
+    `103` among `064` and `093` is `090`, as the column writes its
+    numbers); an exponent's cell is written 90.
+    """
+    figures = f"{TOP_CODE}"
+    whole = read.whole
+    if not read.exponent and len(whole) > len(figures) and (
+        whole[:1] == "0" or (padded is not None and len(whole) in padded)
+    ):
+        figures = "0" * (len(whole) - len(figures)) + figures
+    if read.places:
+        figures = figures + ("," if comma or read.decimal_comma else ".") + "0" * read.places
+    if read.plus:
+        figures = "+" + figures
+    return read.head + figures + read.tail
+
+
+def top_coded_cells(
+    cells: "list[str]", comma: bool = False, absent: "frozenset[str]" = frozenset()
+) -> "list[str]":
+    """A column's cells with every value from 90 to 125 written 90 (plan P4-D427, ZS.1).
+
+    Read by `safe_harbor_number`, so a number with a unit word after it
+    (`95 years`) is `90 years`; a cell spelled as one of ``absent`` keeps
+    its spelling, so the column keeps its missing cells (Codex's review
+    of lane SH, item 1); a value above 125 is no age and is kept, as
+    every other cell is. Guarantees: a fixed function of the three, the
+    cells in their own order. Raises TypeError for a cell that is not
+    text. No I/O.
+    """
+    padded = _padded_widths(cells, comma, absent)
+    memo: "dict[str, str]" = {}
+    written: "list[str]" = []
+    for cell in cells:
+        if cell in memo:
+            written += [memo[cell]]
+            continue
+        coded = cell
+        if cell not in absent:
+            read = safe_harbor_number(cell, comma)
+            if read is not None and TOP_CODE <= read.value <= TOP_CODE_REACH_CEILING:
+                coded = _top_coded_text(read, comma, padded)
+        if len(memo) < _SAFE_HARBOR_MEMO:
+            memo[cell] = coded
+        written += [coded]
+    return written
+
+
+def _free_below_the_top_code(
+    places: int, taken: "dict[int, bool]", lowest: int
+) -> str:
+    """The largest value from 90 down, at ``places``, that ``taken`` does not hold.
+
+    ``taken`` holds values as whole numbers of millionths, ``lowest`` is
+    the column's least such value: the value chosen is above 89, or no
+    lower than ``lowest``, and joins ``taken``. The
+    search steps once per value already taken, so it ends (Codex's review
+    of lane SH, item 4). 90 itself where none is free, written at the
+    cell's places.
+    """
+    shown = min(places, _TOP_CODE_PLACES)
+    unit = 10 ** _TOP_CODE_PLACES
+    step = 10 ** (_TOP_CODE_PLACES - shown)
+    # ...and never below the column's least value, but above 89 always.
+    least = min(lowest, TOP_CODE_LAST_AGE * unit + step)
+    mark = TOP_CODE * unit
+    while mark >= least and mark in taken:
+        mark -= step
+    if mark < least:
+        return f"{TOP_CODE}" + ("." + "0" * places if places else "")
+    taken[mark] = True
+    if not places:
+        return f"{mark // unit}"
+    fraction = f"{(mark % unit) // step:0{shown}d}" if shown else ""
+    return f"{mark // unit}." + fraction + "0" * (places - shown)
+
+
+def at_most_the_top_code(
+    cells: "list[str]", absent: "frozenset[str]" = frozenset()
+) -> "list[str]":
+    """A twin's cells with every value above 90, to 125, written at or below 90 (plan P4-D427).
+
+    The twin of a `top_coded` column writes no age over 89 but the
+    top-code itself: a tail drawn past a rung the description does not
+    publish would otherwise write 91 or 99. EACH DIFFERENT VALUE takes the
+    largest value from 90 down, at its own decimals and no lower than the
+    column's least, that no other cell of the column holds -- every cell
+    of that value the same one, so the column keeps its count of
+    different values and how many cells each holds (Codex's review of
+    lane SH, item 3) -- and 90 itself where none is free (90 reads "90 or
+    more"). Its spaces, plus sign and unit word are kept; a value above
+    125 is no age and is kept, and so is a cell spelled as one of
+    ``absent``, the column's missing values (the second repair of lane
+    SH, item 5: `--missing-value 95` beside top-coded ages had its 18
+    missing cells written 90, and the twin failed validation). The cells
+    are in point form, as the generator writes them before any comma is
+    put back. Guarantees: a fixed function of the two, the cells in
+    their order. Raises TypeError for a
+    cell that is not text. No I/O.
+    """
+    unit = 10 ** _TOP_CODE_PLACES
+    taken: "dict[int, bool]" = {}
+    lowest = TOP_CODE * unit
+    padded = _padded_widths(cells, False, absent)
+    for cell in cells:
+        if cell in absent or parsing.trimmed(cell) in absent:
+            continue
+        read = safe_harbor_number(cell, False)
+        if read is not None and read.value <= TOP_CODE:
+            mark = round(read.value * unit)
+            taken[mark] = True
+            lowest = min(lowest, mark)
+    chosen: "dict[tuple[float, int], str]" = {}
+    written: "list[str]" = []
+    for cell in cells:
+        read = (
+            None
+            if cell in absent or parsing.trimmed(cell) in absent
+            else safe_harbor_number(cell, False)
+        )
+        if read is None or not TOP_CODE < read.value <= TOP_CODE_REACH_CEILING:
+            written += [cell]
+            continue
+        key = (read.value, read.places)
+        if key not in chosen:
+            chosen[key] = _free_below_the_top_code(read.places, taken, lowest)
+        value = chosen[key]
+        if not read.exponent and (read.whole[:1] == "0" or len(read.whole) in padded):
+            # ...as wide as its column pads its numbers (`097` is `089`).
+            value = _padded_to(value, len(read.whole))
+        written += [read.head + ("+" if read.plus else "") + value + read.tail]
+    return written
+
+
+def with_top_code(column: ColumnProfile) -> ColumnProfile:
+    """A column described with every age over 89 read as 90 (plan P4-D427, ZS.1).
+
+    It keeps the description its top-coded cells gave and takes the key
+    `top_coded`, 90, which says that 90 reads "90 or more". Guarantees:
+    a fixed function of the argument. Raises nothing. No I/O.
+    """
+    details: "dict[str, object]" = {}
+    for key in column.details:
+        details[key] = column.details[key]
+    details["top_coded"] = TOP_CODE
+    return dataclasses.replace(column, details=details)
+
+
 def as_counted_dates_held(column: ColumnProfile) -> ColumnProfile:
     """A record-number description, for counted dates not read as dates (plan P4-D406).
 

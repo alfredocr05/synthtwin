@@ -46,6 +46,7 @@ import random
 import pytest
 
 import counted_dates as battery
+import keyboard
 from synthtwin import (
     asking,
     contract,
@@ -1191,6 +1192,14 @@ def test_c4_the_counted_route_never_calls_the_whole_share_pass(
     monkeypatch.setattr(generation, "_whole_enough", counted)
     _trip(tmp_path / "declared", cells, shape.system)
     assert calls[0] == 0
+    # Undeclared, the date-count question is put, and it offers
+    # `identifier`, so it holds the column while it is open (plan
+    # P4-D427, the orchestrator's LANE SH ADDENDUM 6); a person at the
+    # keyboard presses Enter and keeps the numbers. Its whole numbers of
+    # five figures, as ZIP codes are written, are put the Safe Harbor
+    # question in the file too, which the person answers `no`.
+    keyboard.every_reading_kept(monkeypatch)
+    keyboard.safe_harbor_answered_no(monkeypatch)
     path = _table(tmp_path / "plain", cells)
     folder = tmp_path / "plain"
     assert _exit_of(["profile", str(path), "--out-dir", str(folder), "--replace"])[0] == 0

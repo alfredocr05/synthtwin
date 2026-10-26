@@ -386,8 +386,10 @@ def test_a_question_about_dates_or_times_holds_nothing(
     Each question offers `identifier`, and neither is about record
     numbers: the cells were read as times of day or as dates, and held
     they would write record numbers where the times and dates stood.
-    ...and the question of a point between thousands (`12.345`), which
-    is about how a number is written and is not one the ruling names.
+    THE QUESTION OF A POINT BETWEEN THOUSANDS (`12.345`) HOLDS NOW: the
+    hold follows the offer, not the family (plan P4-D427, the
+    orchestrator's LANE SH ADDENDUM 6), and a record number grouped by
+    points reads as such a number; its column is held until answered.
     """
     draw = random.Random(3)
     cells: "list[str]" = []
@@ -407,9 +409,9 @@ def test_a_question_about_dates_or_times_holds_nothing(
     )
     assert code == 0
     expected = {"clock": taxonomy.ROLE_CLOCK, "stamp": taxonomy.ROLE_DATETIME,
-                "point": taxonomy.ROLE_CONTINUOUS}[shape]
+                "point": taxonomy.ROLE_IDENTIFIER}[shape]
     assert _block(document, "t")["role"] == expected
-    assert document["settings"]["forced_identifiers"] == []
+    assert document["settings"]["forced_identifiers"] == (["t"] if shape == "point" else [])
     asked = json.loads(
         (tmp_path / f"{shape}-questions.json").read_text(encoding="utf-8")
     )["asked"]

@@ -669,7 +669,11 @@ def test_the_real_command_still_profiles_a_plain_table(
     # differs, both ends touch the outermost values and the tail rule
     # withholds them. `keeps_its_distribution` says the same thing
     # through the facts that replaced them, worked out from the rule.
-    keeps_its_distribution(counts, [row[0] for row in rows])
+    # ...read under the Safe Harbor top-code (plan P4-D427): a count of 0
+    # to 99 lies within 0 to 125 with values of 90 or more, so those are
+    # read as 90 until its question is answered.
+    assert counts["top_coded"] == 90
+    keeps_its_distribution(counts, [str(min(int(row[0]), 90)) for row in rows])
     assert counts["mean"] is not None
     assert "COLUMNS, ONE BY ONE" in out
     assert "identifier" not in out.replace("--identifier", "")

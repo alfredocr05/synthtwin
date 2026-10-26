@@ -511,6 +511,9 @@ def test_the_questions_file_cannot_restore_an_absorbed_count(
     lives. The twin meets its mean and spread and the real table still
     passes at exit 0.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column; its numbers
+    # are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     keyboard.every_reading_kept(monkeypatch)
     cells = [f"{index:05}" for index in range(1, 400)] + ["12345"]
     result = _round_trip(tmp_path, {"value": cells}, FLOOR)

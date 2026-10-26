@@ -36,7 +36,7 @@ import sys
 
 import pytest
 
-from tests import fixtures
+from tests import fixtures, keyboard
 from tests.test_stage2_round_trip import _exit_of, _round_trip
 
 FACTS = ("role", "group_separator", "negative_form", "decimal_plus", "n_negative")
@@ -480,8 +480,14 @@ def test_an_identifier_grouped_with_spaces_is_asked_about(tmp_path: pathlib.Path
     assert "identifier" in answers and "code" in answers
 
 
-def test_whole_numbers_with_a_point_between_thousands_are_asked_about(tmp_path: pathlib.Path) -> None:
+def test_whole_numbers_with_a_point_between_thousands_are_asked_about(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """`12.345` is read as twelve and a bit, and the person is asked, with --decimal-comma offered."""
+    # THE SAFE HARBOR REACH (plan P4-D427, its second repair) holds whole
+    # numbers of four and five figures, so read, until `no` whatever their
+    # other answer; these are amounts, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     draw = random.Random(6)
     cells = [f"{draw.randint(1000, 99999):,}".replace(",", ".") for _ in range(800)]
     folder = tmp_path / "points"
@@ -489,19 +495,17 @@ def test_whole_numbers_with_a_point_between_thousands_are_asked_about(tmp_path: 
     asked = document["asked"]
     assert isinstance(asked, list) and len(asked) == 1
     entry = asked[0]
-    assert entry["read_as_now"] == "measurement"
+    # THE HOLD FOLLOWS THE OFFER (plan P4-D427, the orchestrator's LANE SH
+    # ADDENDUM 6): the question offers `identifier` -- six figures grouped
+    # by a point are what a record number written the German way looks
+    # like -- so until it is answered the column is held as P4-D401 holds
+    # one, and none of its values is published.
+    assert entry["read_as_now"] == "identifier"
     answers = [choice["answer"] for choice in entry["answers_you_can_give"]]
     assert answers[:2] == ["measurement", "decimal_comma"]
     column = json.loads((folder / "t-profile.json").read_text(encoding="utf-8"))["columns"][0]
-    assert column["role"] == "continuous"
-    # READ AS TWELVE AND A BIT, said through the rung the tail rule
-    # leaves: `max` is withheld on a column of different numbers
-    # (contract 6.7a, landing 3.3), and the middle rung carries the
-    # same point -- read with the point between thousands these cells
-    # are tens of thousands, and read as decimals they are under a
-    # hundred.
-    assert column["percentiles"]["max"] is None
-    assert column["percentiles"]["p50"] < 100
+    assert column["role"] == "identifier"
+    assert "percentiles" not in column or not column["percentiles"]
     # ANSWERED IN THE FILE, the column is read with a point between thousands.
     entry["your_answer"] = "decimal_comma"
     answers_path = folder / "answered.json"

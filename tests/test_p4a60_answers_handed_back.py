@@ -37,6 +37,8 @@ import tempfile
 
 import pytest
 
+import keyboard
+
 import fixtures
 from synthtwin import asking, cli, contract, profile, reading, taxonomy
 
@@ -323,9 +325,14 @@ def test_the_answer_replaces_a_declaration_typed_earlier(
 
 
 def test_the_run_says_the_answered_file_is_written_again(
-    tmp_path: pathlib.Path, capsys
+    tmp_path: pathlib.Path, capsys, monkeypatch
 ) -> None:
     """A person who spent ten minutes filling it in is told first."""
+    # THE SAFE HARBOR REACH (plan P4-D427, its second repair) holds five
+    # figures padded with zeros until `no` whatever else they are
+    # answered, and asks its own question; these are codes of no place,
+    # so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     assert _run(tmp_path) == 0
     capsys.readouterr()
     questions = tmp_path / "clinic-questions.json"
@@ -359,6 +366,9 @@ def test_the_questions_file_never_survives_a_terminal_answer(
     reading the run did not take, which is the one thing it may never
     do.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column; its numbers
+    # are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
     answers = iter([asking.ANSWER_CODE, "", ""])
     monkeypatch.setattr(

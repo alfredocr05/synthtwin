@@ -6,6 +6,83 @@ exists).
 
 ## [Unreleased]
 
+### Lane SH, repair round 3: no code answer frees a ZIP code or an age over 89, and the zoo answers the Safe Harbor question truthfully (2026-10-25)
+
+**Verify 2's open items closed** (plan P4-D427, its repair round 3, under
+the orchestrator's rulings R1 and R2 of 2026-10-25). A column of
+ZIP-shaped numbers answered or declared `code` now stays held and is put
+the Safe Harbor question in that run, as `measurement` and `keep`
+already were: only `no` frees it (40 of 40 real ZIPs were printed at
+20,000 rows, and the zoo's own `patients.zip5` 12 of 12 on every twin
+cell). A column in the age reach answered or declared `code` is
+top-coded and asked as for `measurement` (NAACCR's three-figure ages
+printed 93 and 100 to 105). The zoo answers that question truthfully:
+`yes` for a ZIP code, a place smaller than a state, so its `levels zip5`
+check is the HIPAA price, owned by this lane. `K-S3-64` counts 246
+shapes, 0 on every key. The price, by design: `K-S3-66` reads 100
+answers and 3 zoo tables that need the Safe Harbor question's second
+round, and `K-HZ-02` 105 analyst failures; no golden moves and no
+battery column is newly top-coded.
+
+### Lane SH, repair round 2: no measurement or keep answer frees an age over 89 or a ZIP, one question a column, decimal commas and nine-figure ZIPs (2026-10-24)
+
+**The combined verify's open items closed** (plan P4-D427, its repair
+round 2). Three-figure ages answered `measurement` to the padded question
+(NAACCR's Age at Diagnosis printed 91 to 105) are top-coded, `090` as
+wide as the column pads, and put the Safe Harbor question; a column of
+ZIP-shaped numbers answered `measurement` or `keep` to another question,
+or so declared, stays held and is put the Safe Harbor question, since
+only `no` frees it (a column answered `code` stays CODES-2's, as lane
+HX's ruling of 2026-10-16 gave it). Every open question offering
+`identifier` counts as the one put, so ZIP+4 cells are asked one
+question; ages written `94,8` with no decimal comma declared are read
+and top-coded `90,0`; a nine-figure number is a ZIP+4 written without
+its hyphen; and the twin keeps the declared missing cells of a top-coded
+column. `K-S3-64` counts 230 shapes, 0 on every key. The price, each
+freed by `no`: whole-number charges, costs and step counts of four and
+five figures held as ZIP-shaped even answered `measurement`, kilograms
+written with an undeclared decimal comma top-coded.
+
+### Lane SH, repair round 1: the Safe Harbor numbers in every role, judged on the bulk, and the hold follows the identifier offer (2026-10-23)
+
+**Every escape measured on the lane's first head closed** (plan P4-D427,
+its repair round 1). The age top-code and the ZIP hold now reach every
+role that prints a value (two values, one value, labels such as `95
+years`), set aside words, the column's missing values, nines, one-figure
+negatives and up to three repeated placeholders whatever their share, and
+judge the rest on its bulk: ages within 0 to 125 but for a few strays,
+ZIPs two in three of five figures, padded or not, signed or ZIP+4, or of
+four (a ZIP that lost its zero) as levels or all of one width. A
+cell keeps its own form in the description and the twin, the twin keeps
+how many cells each value holds, and ages held as record numbers keep the
+key validation reads. Every open question offering `identifier` now holds
+its column, the date-count question at any width among them. `no` reads
+"none of these: the values are measurements, counts, codes or categories
+that name no person, place, date or record". `K-S3-64` rises to 206
+shapes, 0 on every key. The price, each freed by `no`: weights, CRP and
+Fahrenheit temperatures top-coded; five-figure procedure codes, incomes in
+hundreds, years and four-figure codes held.
+
+### Lane SH: ages over 89 read as 90, and five-figure numbers beside a few words held, while the Safe Harbor question is open (2026-10-23)
+
+**Two live Safe Harbor exposures closed** (plan P4-D427; 45 CFR
+164.514(b)(2)(i)). A number column whose present numbers lie within 0 to
+125 and include an age over 89 -- all-nines placeholders of either sign
+set aside, at most one cell in three -- is put the owner's Safe Harbor
+question in the questions file, and while it is open every value of 90 or
+more is read as 90 for the whole description (`top_coded`, contract
+TC1), the twin writes none above 90 (method G7.14), and `synthtwin
+validate` reads the real table the same way (validation V15). A number
+column of five-figure whole numbers beside a few words is held whole until
+that question is answered `no`. On b85200be, 20,000 ages published 95 to
+103 and five-figure ZIP codes beside one `UNKNOWN` printed 38 to 44 real
+ZIPs; now 0 in every file and in the twin, at 600 and 20,000 rows.
+`yes` holds a column as an open question does; `no` gives back today's
+description. `K-S3-64` gains the eight shapes; the zoo answers `no` for
+its pulse, its verdicts unchanged. Owed: the analyst battery's slow KPIs
+re-measured by the batch integrator (its ages are top-coded under the
+command).
+
 ### Batch 4j's records: the data folder's exemption narrowed, the night's 2,000,000-row points written in, the ledger cap set once (2026-10-24)
 
 **Records of batch 4j**, which merged lanes H3 and CODES-3 (plans
