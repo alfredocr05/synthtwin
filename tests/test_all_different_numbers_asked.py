@@ -77,6 +77,9 @@ def _check_held(seen: "dict[str, object]", kind: str, rows: int) -> None:
     assert seen["role"] == taxonomy.ROLE_IDENTIFIER
     assert seen["evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_UNANSWERED_IDENTITY, ())
     assert "COLUMNS HELD BACK UNTIL YOU ANSWER" in f"{seen['screen']}"
+    # ...and the screen says what the question is about, never that the
+    # column is averaged (red on the mutant "falls to the measurements block").
+    assert "THESE COLUMNS HOLD WHOLE NUMBERS THAT EACH STAND ON ONE ROW" in f"{seen['screen']}"
     assert seen["forced_identifiers"] == [kind]
 
 
