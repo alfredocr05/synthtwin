@@ -460,13 +460,30 @@ def test_dates_beside_codes_put_one_question_and_hold(tmp_path: pathlib.Path) ->
     table = _dated_table(tmp_path, _ROWS, "codes")
     _profile(table, tmp_path)
     _one_merged_question(tmp_path, asking.ANSWER_REAL_VALUE)
-    questions = json.loads((tmp_path / "dated-questions.json").read_text(encoding="utf-8"))
+    _answered_keep_releases(table, tmp_path)
+
+
+def test_mostly_dates_put_one_question_and_hold(tmp_path: pathlib.Path) -> None:
+    """Codex's item 3, at 20,000 rows: 12,000 days beside 8,000 words, Q6 carries this shape, held.
+
+    Red on the mutant "HX5 beside Q6" (two questions on one column); its
+    `keep` releases the column (red on the mutant "Q6's keep holds on").
+    """
+    table = _dated_table(tmp_path, _FLOOR_ROWS, "words")
+    _profile(table, tmp_path)
+    _one_merged_question(tmp_path, asking.ANSWER_DATES)
+    _answered_keep_releases(table, tmp_path)
+
+
+def _answered_keep_releases(table: pathlib.Path, folder: pathlib.Path) -> None:
+    """The one question answered `keep`: the column is described under its reading, no longer held."""
+    questions = json.loads((folder / "dated-questions.json").read_text(encoding="utf-8"))
     for entry in questions["asked"]:
         if entry["column"] == "lab":
             entry["your_answer"] = asking.ANSWER_KEEP
-    answers = tmp_path / "answers.json"
+    answers = folder / "answers.json"
     answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
-    answered = tmp_path / "answered"
+    answered = folder / "answered"
     answered.mkdir()
     with shapes.nobody_at_the_keyboard():
         assert cli.main(["profile", f"{table}", "--out-dir", f"{answered}", "--answers", f"{answers}"],
@@ -474,15 +491,6 @@ def test_dates_beside_codes_put_one_question_and_hold(tmp_path: pathlib.Path) ->
     block = [one for one in json.loads((answered / "dated-profile.json").read_text(
         encoding="utf-8"))["columns"] if one["name"] == "lab"][0]
     assert block["role"] != taxonomy.ROLE_IDENTIFIER
-
-
-def test_mostly_dates_put_one_question_and_hold(tmp_path: pathlib.Path) -> None:
-    """Codex's item 3, at 20,000 rows: 12,000 days beside 8,000 words, Q6 carries this shape, held.
-
-    Red on the mutant "HX5 beside Q6" (two questions on one column).
-    """
-    _profile(_dated_table(tmp_path, _FLOOR_ROWS, "words"), tmp_path)
-    _one_merged_question(tmp_path, asking.ANSWER_DATES)
 
 
 def test_a_declared_decimal_comma_is_asked_nothing(tmp_path: pathlib.Path) -> None:
