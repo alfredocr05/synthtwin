@@ -10228,7 +10228,7 @@
     "zoo_identifier_columns_not_read": 0,
     "not_written": 0,
     "validated_twins_failing": 0,
-    "shapes": 180,
+    "shapes": 186,
     "zoo_identifier_columns": 66
    },
    "key_kinds": {
@@ -10244,12 +10244,12 @@
    "measured_on": "the driver's shapes at 600 and 20,000 rows and the zoo; gate tests/test_identifier_room.py",
    "evidence": "The profile publishes beside each named layout what no real merged key holds and a spill one longer than the published longest value; the twin's final pass writes every value off them.",
    "value_at": {
-    "commit": "c3ffc7b",
-    "date": "2026-10-26",
-    "measured_by": "tools/measurements/kpi_run.py --slow --only K-HZ-06 --print-values over lane ID-ROOM's c3ffc7b0 under floor311 (Python 3.11.15), load average 25 to 58 (a count); 66 minutes",
+    "commit": "1bb49f9",
+    "date": "2026-10-27",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-HZ-06 --print-values over lane ID-ROOM's 1bb49f96 (repair round 2) under floor311 (Python 3.11.15), under guard.sh after the night window (a count); 32 minutes",
     "value": {
      "not_written": 0,
-     "shapes": 180,
+     "shapes": 186,
      "twin_cells_equal_to_a_real_identifier": 0,
      "twin_cells_merging_with_a_real_identifier": 0,
      "validated_twins_failing": 0,
