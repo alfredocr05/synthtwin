@@ -17,7 +17,9 @@ and counts what is real:
   columns of a value a row (`ONE_A_ROW`, plan P4-D436: `RPT` and six
   figures counting up, at random, `ACC` and six figures on about four rows
   in three, plain figures counting up across a power of ten, that run with
-  one number twice, plain figures at random, and the run beside `-1`): real
+  one number twice, plain figures at random, and the run beside `-1`; and,
+  from lane HX5's repair 1, `SPECIMEN`, `S24-` and `-A` references, the run
+  beside `-9999`, and the run and `RPT` references with one stray cell): real
   values written whole, or as a number, in the
   description, its summary, the questions file or the screen, fragments
   of them anywhere there, twin cells holding a real value and fragments

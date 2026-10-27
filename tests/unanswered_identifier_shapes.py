@@ -269,7 +269,7 @@ LIST_KEYS = 40
 # one a row; and `seqm1` the plain run beside `-1` on about one row in
 # fifty. Lane HX5's repair 1 (skeptic 1, items 2 to 4) adds the shapes that
 # escaped its first head: `refspecimen`, eight letters before the figures;
-# `refyear`, a pathology accession with its year (`S24-10001` up);
+# `refyear`, a pathology accession with its year (`S24-50001` up);
 # `refsuffix`, a mark and a letter after the figures (`300001-A` up);
 # `seqnines`, the plain run beside `-9999` on about one row in fifty; and
 # `seqdecimal` and `refstray`, the plain run and `refseq` with one stray
@@ -406,7 +406,10 @@ def _one_a_row(kind: str, rows: int, draw: random.Random) -> "list[str]":
     if kind == "refspecimen":
         return [f"SPECIMEN{300001 + row}" for row in range(rows)]
     if kind == "refyear":
-        return [f"S24-{10001 + row}" for row in range(rows)]
+        # From 50001, so no count the description publishes about the
+        # held column at 20,000 rows (its rows, 20000; its lines, 20001)
+        # equals one by coincidence, as from 10001 two do.
+        return [f"S24-{50001 + row}" for row in range(rows)]
     if kind == "refsuffix":
         return [f"{300001 + row}-A" for row in range(rows)]
     if kind == "seqdecimal":

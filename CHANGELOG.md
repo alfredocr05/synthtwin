@@ -26,6 +26,18 @@ Moved, with the reason: three twin digests of the generate-memory gate
 (key columns now held), K-HZ-01 and K-HZ-02 by one kind (the zoo's title
 table, answered in one round; owner lane E0c), and the reading page's
 rule I names the question. Gate: `tests/test_all_different_numbers_asked.py`.
+Repair 1 (skeptic 1 and Codex): the five-figure line binds every arm and a
+writer's row index is left out, so the 66 suite cases the first head moved
+stand again or are typed with their reason; the reach gains openings of up
+to twelve letters, `S24-` and `-A` forms, `-9999` and repeated negatives
+set aside, one stray cell in a hundred and one repeated value in a hundred
+(each escape measured 0 published at 600 and 20,000 rows, once 97 to 100
+values and nearly every twin cell); the codes question and Q6 carry this
+question where both reach a column, one question; a declared decimal comma
+is read; placeholders close a run's gaps only inside it; written width is
+kept for the five-figure line. Stated limits, lane CODES-1 part C's: runs
+mostly under five figures that repeat, mixed-width keys on one to two rows
+a value, all-different numbers under five figures, glued letters.
 
 ### Batch 4j's records: the data folder's exemption narrowed, the night's 2,000,000-row points written in, the ledger cap set once (2026-10-24)
 
