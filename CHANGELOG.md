@@ -6,7 +6,7 @@ exists).
 
 ## [Unreleased]
 
-### Lane ID-ROOM: no twin identifier cell equals a real one, by construction (plan P4-D432, 2026-10-25; repair round 1 the same day)
+### Lane ID-ROOM: no twin identifier cell equals a real one, by construction (plan P4-D432, 2026-10-25; repair round 1 the same day; repair round 2, 2026-10-27)
 
 **The class lane CODES-3's stated limit (4) names, closed.** A declared or
 answered identifier's twin drew its free figures, letters and arcs in its
@@ -45,8 +45,15 @@ answered shapes, `P` and five figures at 200,000 rows and the zoo's 66
 identifier columns, the nine validated shapes at exit 0. A block now
 passes over no spelling 1 to 10 keys hold (the orchestrator's option (b)),
 so thinly spread keys -- random seven or eight figures at 20,000 rows --
-are written wider. Gate: `tests/test_identifier_room.py`. The demonstration's
-goldens move on `record_code` alone, and vectors file 27 gains five
+are written wider. Repair round 2: the final pass claimed a spelling by
+its fold alone, so two layouts filling in step wrote one twin person two
+ways (`9891959` beside `009891959`, `100005` beside `100005.0`: 600
+persons written as 317 to 333 at 600 rows); each spelling's merged key
+and its number are now claimed too, and one merged identity is moved
+together, each value keeping its spelling, so the twin keeps the walk's
+persons (the walk's own merges at 20,000 rows are lane CODES-1 part C's).
+Gate: `tests/test_identifier_room.py`. The demonstration's
+goldens move on `record_code` alone, and vectors file 27 gains seven
 cases.
 
 ### Lane CODES-3: identifiers with numeric roots, record numbers written as decimals, prefixed ids of several lengths, plain keys beside a word (plan P4-D428, 2026-10-23; repair rounds 2 and 3, 2026-10-24)
