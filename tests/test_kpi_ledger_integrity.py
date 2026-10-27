@@ -1366,7 +1366,12 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # measurement text as its rule, with their note clause, 773,198
     # bytes. The batch integrator settles this beside the other lanes'
     # raises. A MEASUREMENT IS NEVER TRIMMED TO FIT.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 774_000
+    #
+    # 775,000 from 774,000 (lane S5a's repair 1, plan P4-D437,
+    # 2026-10-26), the least round figure it fits under: K-S5-01's rule
+    # gains the checker's strengthened clauses and twelve corruptions,
+    # both entries restamped on the repaired head, 774,719 bytes.
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 775_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

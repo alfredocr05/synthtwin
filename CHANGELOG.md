@@ -30,15 +30,30 @@ lane's first commit, from the base's code (`tests/stage5_goldens.py`,
 245 records), and CI's Ubuntu 3.11 cell reproduces them with
 `tools/goldens/record_stage5_goldens.py` under the provenance guard
 after its negative control. `K-S5-01` (headline, new): 53 of 53 battery
-cases told apart from the result alone, 0 of 9 corrupted results met
+cases told apart from the result alone, 0 of 21 corrupted results met
 (the page's baseline, 3 of 53, by its rule). `K-S5-02` (new): 0 of 245
-records differ, 0 digests (both stamped on 11d4d18 by `kpi_run.py
---slow`). `tests/test_stage5_gate.py` (new) runs in 99 seconds. At the
-table floor G2's twin gives up the weight's mode count, so the battery's
-good generate run is G2n, the table without its weight (`K-S5-01` only).
-The ledger's cap is 774,000 bytes and the headline board holds 36 (stage
-5's first headline). No byte of a report, file or screen, and no exit
+records differ, 0 digests (both stamped on 11612e6, repair 1's head,
+by `kpi_run.py --slow`). `tests/test_stage5_gate.py` (new) runs in 104
+seconds. At the table floor G2's twin gives up the weight's mode count,
+so the battery's good generate run is G2n, the table without its weight
+(`K-S5-01` only). The ledger's cap is 775,000 bytes and the headline
+board holds 36 (stage 5's first headline). No byte of a report, file or screen, and no exit
 status, moves.
+
+**Repair 1 (both skeptics, every item fixed).** The judged and ladder-end
+marks enter no record's text or equality (four suite cases had gone red
+on pinned digests); a word abbreviating several options after the help
+word is refused again with exit 2 and the base's usage and error line,
+where it had shown the help page; the form and mark censuses of a
+writing fact rank `count`; generate names every fact as the disposition
+registry does, its approximations too, and a carried entry holds its
+subcheck; `K-S5-01`'s checker reads each miss's identity, the carried
+entries' subjects and reasons, validate's approximate entries off the
+description, the command, the files and the rule keys, with twenty-one
+corrupted results unmet. Stated limits, each with its owner: the weight's
+mode count given up at the table floor (lane G2T); `cli.run` serves one
+thread at a time; the ambiguous-option line shows a typed word raw (lane
+TW).
 
 ### Batch 4j's records: the data folder's exemption narrowed, the night's 2,000,000-row points written in, the ledger cap set once (2026-10-24)
 
