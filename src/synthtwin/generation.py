@@ -54621,8 +54621,10 @@ def _numeric_identity(text: str) -> str:
         body = body[1:]
     power = 0
     for mark in ("e", "E"):
-        if mark in body:
-            body, written_power = body.split(mark, 1)
+        at = body.find(mark)
+        if at >= 0:
+            written_power = body[at + 1:]
+            body = body[:at]
             if not written_power.lstrip("+-").isdigit():
                 return ""
             power = int(written_power)
