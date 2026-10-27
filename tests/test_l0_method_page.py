@@ -758,3 +758,58 @@ def test_the_clock_knots_name_index_and_percent_apart():
     assert "they stand at `18000 * 2**64` and `20000 * 2**64`" in clocks
     case = _case(9)
     assert "the upper knot at `20000 * 2**64`" in case
+
+
+# -- LANE BT'S SECOND REPAIR (2026-10-26): its verify and the outside review of 07aaed4e ------------
+# Each check is red on the page at 07aaed4e, which said none of these.
+
+
+def test_the_interface_hands_one_group_per_published_band_in_its_order():
+    """The outside review's items 4, 5 and 8: a band joining `missing` with a level is one group; a column rule B3 makes is grouped by its readings; a level found by halving."""
+    text = _g42b()
+    assert "ONE GROUP PER PUBLISHED L0 BAND, IN THE PUBLISHED BAND ORDER" in text
+    assert "one group of its 376 cells, not a group of the 375 `B` cells and one of the absent cell" in text
+    assert "a column of numbers and labels by its numbers' readings and its labels in `labels`" in text
+    assert "found by halving the levels' places" in text
+    # ...and the old order, spread bands last, is gone.
+    assert "then `missing`, `other` and `labels`, wherever the column has them" not in text
+
+
+def test_the_workbook_classes_travel_a_byte_a_row_and_move_with_the_sort():
+    """The outside review's items 1 and 6."""
+    text = _g42b()
+    assert "moves them with its rows where the description publishes a sort" in text
+    assert "32 of 60 numeric cells" in text and "a byte a row" in text
+
+
+def test_the_count_rule_is_two_sided_against_todays_twin():
+    """Lane BT's verify, item 1: a value step 1 empties keeps a cell while the count is short; a count over today's merges outside the heap gaps too."""
+    text = _g57()
+    assert "THE COUNT RULE IS TWO-SIDED, AGAINST TODAY'S TWIN'S COUNT" in text
+    assert "**Short of it**" in text and "NO PROVEN HEAP LEAVES ITS RANKS" in text
+    assert "**Over it**" in text and "holding fewer cells than the floor" in text
+    # ...and the residual the one-sided rule left is no longer a rule.
+    assert "nothing changes where none stands, and the twin then holds one different value more" not in text
+
+
+def test_the_cells_as_written_stay_in_their_pieces():
+    """The outside review's items 2 and 3: the snap held to the piece; the written cells and a date's or clock's readings checked."""
+    text = _g57()
+    assert "AND ON THE CELLS AS WRITTEN" in text
+    assert "`5.175` written `5.18`, across the published edge `5.1756`" in text
+    assert "`_l0_cells_met`" in text and "`_l0_readings_met`" in text
+
+
+def test_an_edges_rung_at_a_boundary_rank_cuts_the_clock():
+    """The outside review's item 3."""
+    text = _g7a4d()
+    assert "An edge's rung read at a boundary's own rank cuts too" in text
+    assert "379 cells below `12:10` where the band publishes 370" in text
+
+
+def test_the_searches_are_bounded():
+    """The outside review's items 7 and 9."""
+    text = _g57()
+    assert "THE SEARCHES ARE BOUNDED" in text
+    assert "doubled" in text or "steps that double" in text
+    assert "80,200 checks for one free point" in text

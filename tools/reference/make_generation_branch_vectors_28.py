@@ -2,12 +2,17 @@
 
 This is the TWENTY-EIGHTH entry point of one oracle, not a second oracle.
 It asks `make_generation_reference_vectors.py` for the cases layer L0's
-rules add to method section G14.3a (lane BT, plan P4-D429): G5.7c's
-knots of a band map as exact fractions, G5.7d item 3's share over pieces
-and item 3a's eligible gap, G7A.4d's halves of a cut census group and
-G4.2a's reserved cells by spelling -- the parts of layer L0 that turn on
-whole numbers and words alone, each frozen with the answer the method's
-text gives it.
+rules add to method section G14.3a (lane BT, plan P4-D429, and its two
+repairs): the cells of cases 1 (a), 1 (b), 2 and 7 (a), made by the
+oracle's own number and date pipelines with layer L0 on them (G5.7c's
+least move, G7.3l's edge runs) from each invented column's description
+and the opening words of the stream at its seed, given as inputs; the
+counts at each value of a sparse count short of today's count of
+different values and over it, and of an age whose mode stands beside a
+cut (G5.7c steps 3 and 4, the second repair); the heaps a ladder proves;
+G7A.4d's halves of a cut census group, the boundary counted once; and
+G4.2a's reserved cells by spelling in a text file and by class in a
+workbook -- each frozen with the answer the method's text gives it.
 
 **Why a twenty-eighth file.**  No branch file holds a case of layer L0,
 and these are not cells of a column but answers of a rule, as the

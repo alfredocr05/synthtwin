@@ -6,7 +6,7 @@ exists).
 
 ## [Unreleased]
 
-### Layer L0 built behind the chain's switch: each eligible column meets its band totals, today's twin moved the least (lane BT, 2026-10-24, repaired 2026-10-25)
+### Layer L0 built behind the chain's switch: each eligible column meets its band totals, today's twin moved the least (lane BT, 2026-10-24, repaired 2026-10-25 and 2026-10-26)
 
 **Lane BT** (plan P4-D429, the build of P4-D404). Behind the switch no
 shipped command sets, an eligible number, date or clock column of the
@@ -28,16 +28,36 @@ twins, none a row off, where the same columns made without the layer
 miss by 56,932 rows; no check of the quality report lost, no column of
 that battery further from the real one, and no column whose values all
 differ short of one. At 200,000 rows every band holds its count at five
-seeds and no key is lost. Three limits are stated with their owners: on
-a uniform whole-number column the cells a cut crosses join the value
-beside the edge (the age's edge value 73 holds 157 cells against a real
-210, 238 without the layer); where the layer restores a value today's
-twin skipped, a column can hold one different value more than
-published; and where today's twin skipped a value beside a cut, the
-cut's cells pass it, so one column at one seed of 200,000 rows sits
-further from the real one. The one oracle freezes the cells of four of the method's
-cases through its own pipelines. Every shipped twin is the same file,
-byte for byte.
+seeds and no key is lost. The second repair keeps today's count of
+different values both ways: a value the proven heaps empty takes a cell
+back while the column is short (a laboratory value holds its 893
+different values, 892 before; a sparse reading its 66, 64 or 65 before), and a
+column over today's count merges a small made-up run outside two heaps
+too, so no column of the battery now gains a note of its own report
+(two did). It also keeps every written cell inside its band where a
+narrower width would round it across a cut, cuts an older clock
+description at a rung standing on its boundary's rank, refuses a date
+or clock column whose readings miss a band rather than write it, moves
+a workbook's classes with a sorted twin's rows and holds them a byte a
+row, hands the chain's generator one group per published band in the
+published order with a column of numbers and labels grouped by its
+numbers, and bounds three searches a large or crowded column asked.
+`K-S6-02`, stamped again on a battery grown by sparse codes, sparse
+columns, a laboratory value and a workbook with dates and clocks:
+11,463 bands of 590 column twins, none a row off, where the same columns
+without the layer miss by 61,993 rows; nothing of the quality report or
+of the twin's own report lost. Three limits are stated with their
+owners: on a uniform whole-number column the cells a cut crosses join
+the value beside the edge (the age's edge value 73 holds 157 cells
+against a real 210, 238 without the layer); at 200,000 rows, where the
+layer restores a value today's twin skipped and no small run is left to
+merge, a column can still hold one different value more than published;
+and where today's twin skipped a value beside a cut, the cut's cells
+pass it, so one column at one seed of 200,000 rows sits further from the
+real one. The gate runs one case a
+writer at 20,000 rows and pins every other rule on a small table. The
+one oracle freezes the cells of seven of the method's cases through its
+own pipelines. Every shipped twin is the same file, byte for byte.
 
 ### Batch 4h's records: the record-number exposure closed and measured on the merged head, every twin the same bytes, owners for the chain's open items (2026-10-23)
 

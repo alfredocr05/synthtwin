@@ -1058,16 +1058,38 @@ is its rank's ordinal before G7.5's spelling step; a cell that step
 moves stays inside its piece (G7.3l), so its band is the one its
 reading names. A column of a role this landing lays without its band
 totals (G5.7h) is handed over by the groups its cells fall into, its
-`without` naming why.
+`without` naming why: a column of numbers and labels by its numbers'
+readings and its labels in `labels`, a column of joined numbers by its
+first number's reading, as the profile reads them (lane BT's second
+repair, after its outside review, item 5: every cell of such a column
+had gone to `other`, and G16.6 met no band of it).
+
+**LANE BT'S SECOND REPAIR (after its outside review, items 4 and 8).**
+The call hands over ONE GROUP PER PUBLISHED L0 BAND, IN THE PUBLISHED
+BAND ORDER (contract 4.6b.2: the spread bands, then the range bands
+ascending, on a number, date or clock column; `missing`, the levels and
+the held-back pool on a label column, merges keeping their places), and
+each group holds the cells of EVERY starting band its band joins: an
+L0 band published as `missing` joined with the level `B` is one group
+of its 376 cells, not a group of the 375 `B` cells and one of the absent
+cell, and a range band joined with `other` holds that band's `other`
+cells too. A cell whose starting band no published band names (the
+absent cells beyond `n_missing - E` where `E_eff` falls short of `E`)
+stands in a group of its own after them, named by its starting band. A
+label cell's level is found by halving the levels' places in G8.4's
+content list, a few steps a cell however many levels the column
+publishes (a column of 20,000 codes on a million rows had asked every
+level for every cell, twenty billion checks).
 
 `cells_by_band(column)` is called by G16 (lane MBC's section) once for
 each eligible column, in schema order, after that column's G4.2, G4.2a
 and the L0 passes (G5.7, G7.3l, G7A.4d). It returns the column's cells
 standing in the ARRANGED rows, that is every cell except the reserved
-ones of G4.2a, as one GROUP per L0 band, in BAND ORDER: the range bands
-in ascending order of their lower edge (the lowest band has no lower
-edge and comes first), then `missing`, `other` and `labels`, wherever
-the column has them. On a label column (`constant`, `binary`,
+ones of G4.2a, as one GROUP per L0 band, in the PUBLISHED BAND ORDER,
+each group holding every starting band its band joins (lane BT's second
+repair, above): the range bands stand in ascending order of their lower
+edge (the lowest band has no lower edge and comes first), and `missing`,
+`other` and `labels` where contract 4.6b.2 puts them. On a label column (`constant`, `binary`,
 `categorical`, `long_tail_labels`) the range bands are the LEVEL BANDS
 the column's L0 block names, in its published order, each holding one
 published level (or the published levels the block pools into it); G8
@@ -1117,8 +1139,13 @@ over as four things:
   text, and one of the five value classes on a cell holding text, with
   the FORMAT KIND step 2 fixed for it and, on a cell step 0 or 0b
   converted, the kind of date or clock it came with. G16 never changes
-  any of them, and G2.2 step 7 writes the cell by them. A text file's
-  cell carries none. Without the class, an `absent` and a `blank` cell
+  any of them, and G2.2 step 7 writes the cell by them, after the sort
+  too: the twin holds them a byte a row and moves them with its rows
+  where the description publishes a sort (`generation.SheetDealt`; lane
+  BT's second repair, after its outside review, items 1 and 6: a sorted
+  twin had written 32 of 60 numeric cells as numbers, and three tuples
+  a row had cost about 850 MB at a million rows by fifty columns). A
+  text file's cell carries none. Without the class, an `absent` and a `blank` cell
   are both the text "" and both hold nothing, and a `blank` and an
   `empty` cell are both "" while only one holds nothing, so nothing
   after G16 could tell which class each arranged cell is, and a writer
@@ -1128,10 +1155,13 @@ over as four things:
 **What it promises**, each a function of the description and the seed
 alone:
 
-1. **Exact group sizes.** The group of a range band holds exactly that
-   band's published count (G5.7, G7.3l, G7A.4d). The `missing` group
-   holds `n_missing - E_eff` cells, and `other` and `labels` hold the
-   class counts they stand for. The groups sum to `n'`. Where a column
+1. **Exact group sizes.** The range part of a range band's group holds
+   exactly that band's published count less the spread cells it joins
+   (G5.7, G7.3l, G7A.4d), and the call refuses, as an internal check, a
+   column where it does not. The `missing` cells number
+   `n_missing - E_eff`, and `other` and `labels` hold the class counts
+   they stand for, each in the group of the band that joins it. The
+   groups sum to `n'`. Where a column
    was made without L0 because G5.7a's preconditions failed, the call
    says so and hands over the groups its cells fell into, with their
    sizes, for G16.6.
@@ -3579,24 +3609,53 @@ in four steps.
    them keeps a cell of its own -- take the free admissible point of
    that piece nearest the cut, at most 64 units in; otherwise the count
    of different values gives way, named by the twin's recount (rule B1).
-   **And no more different values than today's twin held**: today's twin
-   holds the published count, so where step 1 restored a heap it wrote
-   nowhere, it also holds a run its ladder reading made up between two
-   heaps. While the column holds more different values than today's
-   twin, the smallest stratum no heap proves that lies strictly between
-   two published rungs that are both proven heaps, with no published rung
-   between them, joins its nearer neighbour of its own piece (the lower
-   on a tie); nothing changes where none stands, and the twin then holds
-   one different value more than today's twin, named by its recount
-   (rule B1): measured on the ten-column table's `change` at 200,000
-   rows, seeds 0 and 4, where today's twin wrote 8,114 cells on one
-   value and none on its neighbour, a heap two rungs prove, and held the
-   published 169 different values only by a value the real column does
-   not hold; step 1 restores the heap (the distance from 4,258 rows to
-   1,933, and from 4,142 to 1,874) and the twin holds 170; and so at
-   5,000 rows, table draw 11, seeds 1 and 2, on 0.4 (126 against 125)
-   (K-S6-02 clause 4's named residual; today's twin's made-up value is
-   lane G2T's, the count rule's reach lane BT2's).
+   **THE COUNT RULE IS TWO-SIDED, AGAINST TODAY'S TWIN'S COUNT of
+   different values** (lane BT's second repair, after its verify, item
+   1: the rule as first built looked only above, so a value step 1
+   emptied into a proven heap -- `38.0` beside a laboratory value's
+   sentinel heap at `10.0`, `4.2` beside a sparse reading's heap at `4.3`,
+   values the real column need not hold but by which today's twin held
+   the published count -- left the twin one or more values short, 34 of
+   311 number, date and clock column twins at 20,000 rows holding another
+   count than today's, 31 of them fewer).
+   **Short of it**: while the column holds fewer different values than
+   today's twin, each value step 1 emptied, in value order, takes one
+   cell back from the nearest stratum of its own piece holding two or
+   more, the published mode's only where no other can give, and only
+   where NO PROVEN HEAP LEAVES ITS RANKS: a heap that gives, gives a cell
+   it holds beyond its proven ranks on the side facing the value, and a
+   heap between the two, whose ranks shift by one toward the giver,
+   holds one beyond them on the side it shifts from (a side's search
+   ends at the first heap that cannot shift). Where none can, the stratum
+   no heap proves holding the most cells, two or more, not the mode, the
+   lower on a tie, gives one cell to the free admissible point of its
+   piece's grid nearest it, the lower on a tie, that stands strictly
+   between it and its neighbours holding cells, so no other stratum's
+   ranks move; an emptied stratum of that value takes it back, else one
+   new stratum. Off a grid nothing is added and the count gives way,
+   named by the twin's recount (rule B1).
+   **Over it**: today's twin holds the published count, so where step 1
+   restored a heap it wrote nowhere, it also holds a value the real
+   column does not. While the column holds more different values than
+   today's twin, one stratum no heap proves, holding a value no other
+   stratum holds, joins its nearer neighbour of its own piece (the lower
+   on a tie): the smallest that lies strictly between two published
+   rungs that are both proven heaps, with no published rung between
+   them -- the run today's ladder reading made up there -- and, where
+   none lies there, the smallest anywhere holding fewer cells than the
+   floor that is no value step 3 gave back, the published mode, `min`,
+   `max` or a tail's row. Nothing changes where none stands, and the
+   count gives way, named by the twin's recount (rule B1). MEASURED:
+   the ten-column table's `change` at 5,000 rows, table draw 11, seeds 1
+   and 2, holds today's 125 different values (126 under the one-sided
+   rule); at 200,000 rows, seeds 0 and 4, where today's twin wrote 8,114
+   cells on one value and none on its neighbour, a heap two rungs prove,
+   and held the published 169 only by a value the real column does not
+   hold, every stratum outside the heaps and the tails holds the floor's
+   cells or more, so the twin still holds 170 (K-S6-02 clause 4's
+   residual at that size, measured on its 200,000-row leg; today's
+   twin's made-up value is lane G2T's, the count rule's reach lane
+   BT2's).
 4. **THE MODE KEPT.** Where today's twin's first stratum on the
    published mode held exactly `mode_count` cells and the move left
    another count, the cells over it go to the mode's nearer neighbour of
@@ -3627,7 +3686,12 @@ rows the ten-column table's `change` at seed 3 grew from 2,978 rows to
 3,886, because today's twin writes no cell on 0.4, which the real
 column holds 3,886 times, and the cut at 0.5 moves 908 cells onto 0.3
 (K-S6-02 clause 5's named residual; today's twin's missing value is lane
-G2T's). Where today's twin wrote a commonest level on almost none of its
+G2T's). Step 3's count rule moves a cell from its giver to the value it
+keeps, across the values between them: at 2,000 rows, below the owner's
+table floor, a laboratory value's distance grew by 2 rows (two values
+the proven heaps emptied took their cells from 136.6 and 137.1); on
+K-S6-02's grown battery at 20,000 rows it grew by none (lane BT's second
+repair). Where today's twin wrote a commonest level on almost none of its
 rows (a dose's 500 mg, 35 per cent of the real rows, on 193 of 20,000
 cells), the proven heaps put it back (7,008 of 7,008).
 
@@ -3684,6 +3748,18 @@ the piece's grid that no stratum holds. By (P3) and the piece grid every
 piece with cells holds an admissible value, so the fallback always
 exists; a piece that held none would be refused as an internal check.
 
+**THE SEARCHES ARE BOUNDED** (lane BT's second repair, after its outside
+review, items 7 and 9). The grid index of a value -- the first point at
+or above it -- is found by steps that double from
+`floor(value * 10**f)` and then by halving, since whether a point stands
+there rises with the index: near `1e30` some `7 * 10**13` consecutive
+whole numbers read back as one binary64, and a walk a unit at a time
+over them did not end. And step 2a's walk for free whole numbers looks
+only inside the gap it is in, from the cut it crossed toward the next
+value of the piece: run past that value, each gap looked through every
+occupied value beyond it again, 80,200 checks for one free point of a
+piece of 399 consecutive values. Neither changes a value found.
+
 #### G5.7f The value passes run as today
 
 Every value pass of G5 and G6 (G5.2a's narrower-width exchanges and
@@ -3706,6 +3782,24 @@ is a mistake in synthtwin, refused as an internal check rather than
 written, so the band totals hold by construction even where a later
 amendment forgets them.
 
+**AND ON THE CELLS AS WRITTEN** (lane BT's second repair, after its
+outside review, items 2 and 3). G6 writes a stratum's cells at the
+widths the census names, and a width narrower than a value's own
+rounds it: 600 readings written at one to three figures had four cells
+of `5.175` written `5.18`, across the published edge `5.1756`, so the
+written bands held 56 and 64 cells where the strata held 60 and 60. So
+on an eligible column no width's snap carries a value out of its piece
+(G6.6's width walk refuses the width for that value, as it refuses a
+snap that leaves its stretch, `_l0_snap_leaves`), and every number cell
+as written is read back as the profile reads a cell and checked against
+its stratum's piece (`_l0_cells_met`). A date or clock column's readings
+are counted against its bands before any cell is written
+(`_l0_readings_met`): an older clock description, with no step, cut at
+its 95th percentile `12:10` where that rung stands at the high
+boundary's own rank, had written 379 cells below `12:10` against a
+published 370, without a word (G7A.4d). Each refuses the column as an
+internal check rather than write it.
+
 #### G5.7h What each published fact owes on an eligible column
 
 **The band totals are EXACT.** By G5.7c, every piece holds the cells its
@@ -3723,7 +3817,7 @@ band is a union of pieces.
 | `mode`, `mode_count` | REPORT-ONLY, the count a ceiling | held as today's twin holds them | G5.7c step 4 |
 | `empty_bins`, `empty_edges` | EXACT | held | every value is today's, a proven heap's (a value the real column holds) or an admissible point outside the named stretches |
 | `numeric_styles`, `fraction_widths`, `pad_widths`, `group_separator`, the field widths of G6.6 | EXACT | held where G6's writer finds them on the moved strata; otherwise rule B1 | G6 writes the cells as today, over strata whose sizes changed at the cuts |
-| `n_distinct`, `n_distinct_folded`, `n_distinct_values` | EXACT where reachable | held as today's twin holds them, save where a value has no cell left and no point is free (rule B1, named) | G5.7c steps 2a and 3 |
+| `n_distinct`, `n_distinct_folded`, `n_distinct_values` | EXACT where reachable | held as today's twin holds them, the count rule two-sided (lane BT's second repair), save where no stratum can give and no point is free (rule B1, named) | G5.7c steps 2a and 3 |
 | `value_histogram` | REPORT-ONLY | measured as today | |
 
 **RULE B1: the band totals stand.** Where a step cannot meet another
@@ -3809,11 +3903,17 @@ cell. For lane BT to stamp, it reads:
 The battery: G5.7i's ten-column table at 5,000 and 20,000 rows at two
 table draws, the count of few values of G14.3a case 1, an invented ward
 of records some of which hold nothing (E > 0) as a text file and as a
-workbook, the every-role table, and the health zoo's 25 exports at
-20,000 rows, at seeds 0 to 2 (the zoo and the every-role table at their
-own); a 200,000-row leg of the ten-column table at one table draw and
-seeds 0 to 4, under the heavy-slot guard. No count is published that
-was not published before.
+workbook (the workbook with date and clock columns too), the every-role
+table, and the health zoo's 25 exports at 20,000 rows, at seeds 0 to 2
+(the zoo and the every-role table at their own); and, since lane BT's
+second repair, the gate's former checks at 20,000 rows: invented codes
+and keys (seeds 0 and 1), sparse columns of bands of 11 to 24 rows and a
+laboratory value with sentinel heaps (seeds 0 to 4); a 200,000-row leg
+of the ten-column table at one table draw and seeds 0 to 4, under the
+heavy-slot guard. Reported beside the clauses, never judged: the values
+the twin with L0 writes that neither the real column nor the twin
+without it holds (`made_up`). No count is published that was not
+published before.
 
 #### G5.7i Measured today
 
@@ -11890,7 +11990,18 @@ stands at `100 * (r * 2**64 + w)`, below the knot by at least one unit
 of position, so its share is less than `p1 - p0` and
 `(share * (e_j - v0)) // (p1 - p0)` is at most `e_j - v0 - 1`: the
 rank is earlier than `e_j`. A rank at or above `R_j` reads `e_j` or
-later, since every knot from `R_j` on is at least `e_j`.
+later, since every knot from `R_j` on is at least `e_j`. **An edge's
+rung read at a boundary's own rank cuts too** (lane BT's second repair,
+after its outside review, item 3): G7A.4 respaces only the rungs
+strictly between the two boundaries' ranks, but an edge's two knots are
+laid wherever its rung's rank lies from the low boundary's to the high
+boundary's, both included, its upper knot held at the boundary's
+position. Left out, a column of 400 clock times (every minute from
+`06:00` to `12:09` once, ten `12:10`s and twenty `13:20`s, an older
+description with no step) cut at its 95th percentile `12:10`, whose rank
+is the high boundary's, wrote 379 cells below `12:10` where the band
+publishes 370; and G5.7g now counts every date and clock column's
+readings against its bands before it is written.
 
 **The all-different repair runs inside each piece**, the stretch
 between two consecutive edges (the boundaries close the outer two). Its
