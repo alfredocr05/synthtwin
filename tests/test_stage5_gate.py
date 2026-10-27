@@ -875,6 +875,10 @@ def test_the_censuses_of_a_writing_fact_rank_count() -> None:
         ("label.shape_forms", "forms.published.@@", "count"),
         ("numeric.numeric_styles", "styles.spelled", "writing"),
         ("identifier.layout_prefixes", "prefix.@@@%%%%%%", "writing"),
+        # the orchestrator's ruling of 2026-10-26 (lane S5a's repair 2): an
+        # exact census of cells per missing spelling ranks count
+        ("universal.missing_by_source", "holes.by_source.NA", "count"),
+        ("universal.sentinel_verdicts", "", "writing"),
     )
     for fact, subcheck, tier in table:
         assert results.tier_of(fact, subcheck, "exact") == tier, (fact, subcheck)
@@ -1303,6 +1307,7 @@ _PARSER_LINES = (
     ("--date-count", "-h", "a"), ("--date-count", "a", "b", "-h"), ("--version", "--d"), ("-hx", "--d"),
     ("profile", "-hfoo", "--d"), ("--first-row", "names", "-hh"), ("frob", "-hh"), ("--he", "--d"),
     ("--date-count", "--d", "-h", "x"), ("--d=\x1b[31m",), ("--keep-value", "-h"),
+    ("-hh", "--seed"), ("-hfoo", "--seed"), ("-h", "--seed"), ("--seed", "-h"), ("-hh", "frob"),
 )
 
 
@@ -1487,6 +1492,17 @@ def test_what_validate_carries_follows_the_description_whatever_the_file_lacks(
     assert measured is not None
     closed = validation._withheld_if(list(measured.checks), True, "the gate's sentence")
     assert [check.approximate for check in closed] == [check.approximate for check in measured.checks]
+    # ...the window's ends kept only where the copy's published text still
+    # prints them: a tail's or a rung's, printed in the note it drops, go.
+    kinds = set()
+    for before, after in zip(measured.checks, closed):
+        if before.lowest:
+            printed = before.published.endswith(f"(between {before.lowest} and {before.highest})")
+            kinds.add(printed)
+            assert (after.lowest, after.highest, after.covers) == (
+                (before.lowest, before.highest, before.covers) if printed else ("", "", None)
+            ), (before.fact, before.subcheck)
+    assert kinds == {True, False}
 
 
 def test_a_window_s_ends_are_carried_where_the_report_prints_them(ran: Battery) -> None:
