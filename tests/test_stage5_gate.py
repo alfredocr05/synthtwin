@@ -1570,6 +1570,63 @@ def test_a_window_s_ends_and_cover_reach_the_result(ran: Battery) -> None:
     ]
 
 
+def _compound_count(result: results.Result, field: str) -> results.Carried:
+    found = [
+        one
+        for one in result.carried
+        if one.kind == "approximate" and one.subject == ("value",) and one.fact == f"compound.{field}"
+    ]
+    assert len(found) == 1, result.carried
+    return found[0]
+
+
+def test_a_compound_count_carries_its_window_s_ends_only_beside_a_count_it_missed(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A numbers-with-labels column's count of different values, met and missed inside its window (S5a verify 2, new item 1).
+
+    `validation._distinctness_checks`' compound branch prints the window
+    only beside a count the twin did not meet exactly, so its ends are
+    carried only there. Measured at 2,000 rows (the library's size, the
+    table floor set aside as the joined-ranking case sets it): readings
+    0.0 to 29.9 beside `<0.1` and `>99` publish 242 different values in
+    G12.8's corner, a window of two different ends (242 and 1602). The
+    table itself as the twin meets 242 exactly: HELD, no end carried and
+    no cover. Eight readings more, 250: AUTHORIZED-DEVIATION, the ends
+    those the quality report prints and the cover true.
+    """
+    rows = [f"{index},{(index % 300) / 10:.1f}" if index % 5 else f"{index},{'<0.1' if index % 2 else '>99'}" for index in range(2000)]
+    more = list(rows)
+    for extra in range(8):
+        more[5 * extra + 1] = f"{5 * extra + 1},{30 + extra / 10 + 0.1:.1f}"
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "t.csv").write_text("id,value\n" + "\n".join(rows) + "\n", encoding="utf-8", newline="\n")
+    (tmp_path / "more.csv").write_text("id,value\n" + "\n".join(more) + "\n", encoding="utf-8", newline="\n")
+    assert cli.run(["profile", "t.csv", "--identifier", "id"], small_tables_refused=False).verdict == "no-miss"
+    document = json.loads((tmp_path / "t-profile.json").read_text(encoding="utf-8"))
+    described = [column for column in document["columns"] if column["name"] == "value"][0]
+    assert described["role"] == "numbers_with_labels"
+    loaded = rendering.contract.load_profile(f"{tmp_path / 't-profile.json'}")
+    column = [one for one in loaded.columns if one.name == "value"][0]
+    assert isinstance(column.facts, rendering.contract.CompoundFacts)
+    mine = validation.corners_of(loaded)["value"]
+    low, high, _said = validation._compound_window(column, column.facts, mine, "n_distinct")
+    assert (low, high, column.n_distinct) == (242, 1602, 242)
+    met = cli.run(["validate", "t-profile.json", "--twin", "t.csv"], small_tables_refused=False)
+    held = _compound_count(met, "n_distinct")
+    assert held.verdict == validation.HELD, held
+    assert (held.measures[0].lowest, held.measures[0].highest, held.measures[0].covers_published) == ("", "", None)
+    assert "between" not in held.measures[0].published
+    missed = cli.run(["validate", "t-profile.json", "--twin", "more.csv"], small_tables_refused=False)
+    inside = _compound_count(missed, "n_distinct")
+    assert inside.verdict == validation.AUTHORIZED_DEVIATION, inside
+    assert inside.measures[0].achieved == "250", inside
+    printed = re.search(r"\(between (\S+) and (\S+)\)$", inside.measures[0].published)
+    assert printed is not None, inside.measures[0].published
+    assert (inside.measures[0].lowest, inside.measures[0].highest) == printed.groups() == ("242.0", "1602.0")
+    assert inside.measures[0].covers_published is True
+
+
 def test_joined_positions_rank_as_columns_of_numbers(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A joined position's type miss ranks `writing`, ahead of an earlier column's counts (Codex's item 6).
 
