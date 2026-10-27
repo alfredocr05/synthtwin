@@ -145,6 +145,25 @@ def _round_trip(
     }
 
 
+def _a_layout_is_written_wider(block: dict) -> bool:
+    """Whether a named layout carries no exclusion: its values are written wider (plan P4-D432).
+
+    THE RECORD NUMBER'S CORNER. Under the block rule's option (b) (the
+    orchestrator's ruling 3 of 2026-10-25) a layout whose real keys spread
+    thinly over a block's spellings carries no exclusion, and the twin
+    writes its values wider than every real one, its census entry and
+    lengths listed (validation method V4.1-A1). There the walk's own
+    layouts are what these cases pin, built from the description without
+    its exclusions; the widening is tests/test_identifier_room.py's.
+    """
+    exclusions = block.get("layout_exclusions") or {}
+    return bool(exclusions) and any(
+        layout not in exclusions
+        for layout in block.get("layout_forms") or {}
+        if layout != "(withheld)"
+    )
+
+
 # ------------------------------------------------------------- the shapes
 
 
@@ -319,6 +338,9 @@ def test_the_twin_wears_its_column_s_own_layout(
     make, pattern, width, case = SHAPES[name]
     cells = make(source_seed)
     got = _round_trip(tmp_path / f"{name}-{source_seed}", cells)
+    if _a_layout_is_written_wider(got["source"]):
+        # `E` and six figures on source seed 3 (P4-D432's corner).
+        got = _round_trip(tmp_path / f"{name}-{source_seed}-walk", cells, walk_only=True)
 
     # ...the layout facts come back when the twin is described again.
     published = got["source"]["layout_forms"]
@@ -641,6 +663,9 @@ def test_a_repeating_key_spreads_its_layouts_and_keeps_its_missing_cells(
     """
     cells = repeating_cells(source_seed)
     got = _round_trip(tmp_path / f"repeat-{source_seed}", cells)
+    if _a_layout_is_written_wider(got["source"]):
+        # `E` and six figures on source seed 3 (P4-D432's corner).
+        got = _round_trip(tmp_path / f"repeat-{source_seed}-walk", cells, walk_only=True)
     assert got["twin_exit"] == 0 and got["real_exit"] == 0
     twin = got["cells"]
     published = got["source"]["layout_forms"]

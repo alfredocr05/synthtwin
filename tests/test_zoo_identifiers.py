@@ -737,23 +737,27 @@ def _the_real_file_meets_its_forms(tmp_path: pathlib.Path) -> None:
         assert "layout" not in line and "prefix" not in line and "length" not in line, line
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="plan P4-D428's stated limit (10), owner lane CODES-1 part C: at 20,000 rows "
-    "C6-131b takes back the 20 six-figure rsIDs so that the one of five figures is not "
-    "named, rule A1 keeps that decision, and the REAL file, not the twin, misses its own "
-    "census and length.min",
-)
 def test_c_the_real_vcf_meets_its_own_forms_at_20000(tmp_path: pathlib.Path) -> None:
     """The owner's floor size, the real file against its description (the verify of repair 1, finding 7).
 
-    Kept as a strict xfail pinned to stated limit (10): it turns red the
-    day the real file meets its forms, so the limit is closed in the plan
-    then.
+    A strict xfail pinned to plan P4-D428's stated limit (10) until lane
+    ID-ROOM's repair (plan P4-D432): at 20,000 rows C6-131b takes back
+    the 20 six-figure rsIDs so that the one of five figures is not named,
+    rule A1 keeps that decision, and the REAL file missed its own census
+    and `length.min`. Under the block rule's option (b) (the
+    orchestrator's ruling 3 of 2026-10-25) the commonest rsID layout's
+    keys spread too thinly for a block, so it carries no exclusion, and a
+    record number's corner lists its census entry and the lengths
+    REPORT-ONLY (validation method V4.1-A1): the real file meets its
+    forms because those checks are listed, not because the take-back is
+    gone. Limit (10) stands, owner lane CODES-1 part C. Pinned so: the
+    corner is what the real file meets.
     """
     header, rows = vcf_rows(20_000, 43)
     seen = run(tmp_path / "vcf", header, rows, "ID", declared=("ID",), validate=False)
     assert seen["exits"][:2] == (0, 0), seen["exits"]
+    exclusions = seen["block"].get("layout_exclusions") or {}
+    assert any(layout not in exclusions for layout in seen["block"]["layout_forms"]), exclusions
     _the_real_file_meets_its_forms(tmp_path)
 
 
