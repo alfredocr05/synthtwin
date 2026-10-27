@@ -78,6 +78,13 @@ class Expect:
     validate run judges against a window, in order, read off the
     description (`_G1_APPROXIMATE`); ``fallback_keys`` how many of a
     validate run's unjudged entries may carry the fallback key (none).
+
+    Written at lane S5b (plan P4-D441): ``questions`` the (section,
+    column) of every entry a profile's questions file holds, in the
+    file's order, from how the case's table is built; ``carried`` and
+    ``tally`` for profile too, its tally its columns, the questions it
+    asked, those put at a prompt, the checklist's columns and the
+    columns held.
     """
 
     verdict: str
@@ -99,6 +106,7 @@ class Expect:
     misses_kept: int = 0
     approximate: "tuple[tuple[str, str, str], ...] | None" = None
     fallback_keys: int = 0
+    questions: "tuple[tuple[str, str], ...] | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -554,17 +562,39 @@ _G9I_APPROXIMATE = tuple(
 
 
 def _refused(command: str, step: str, floor: "int | None" = None, key: str = "") -> Expect:
-    return Expect("refused", command=command, step=step, floor=floor, key=key, carried=())
+    return Expect("refused", command=command, step=step, floor=floor, key=key, carried=(), questions=())
 
 
 def _unusable(command: str) -> Expect:
-    return Expect("unusable", command=command, step="command-line", carried=())
+    return Expect("unusable", command=command, step="command-line", carried=(), questions=())
+
+
+# WHAT A PROFILE OF STEP 0'S TABLE ASKS AND CARRIES (lane S5b, plan
+# P4-D441), from how the table is built: four columns; a record number,
+# whose values are all different at 20,000 rows and which no question
+# reaches, and a weight, each read as a number nothing in its values can
+# tell from a code -- the checklist's two columns; the date and the ward
+# raise none. Declared (`--identifier record_no`) or answered so (G7),
+# the record number leaves the checklist and is made up in the twin.
+_CHECKLIST_BOTH = (("checklist", "record_no"), ("checklist", "weight"))
+_CHECKLIST_WEIGHT = (("checklist", "weight"),)
+
+
+def _profile_tally(checklist: int, columns: int = 4) -> "tuple[tuple[str, int], ...]":
+    return (
+        ("columns", columns),
+        ("questions-asked", 0),
+        ("questions-put", 0),
+        ("checklist", checklist),
+        ("held", 0),
+    )
 
 
 def _profiled(
     *warnings: str,
-    carried: "tuple[tuple[tuple[str, ...], str, str, str], ...]" = (),
+    carried: "tuple[tuple[tuple[str, ...], str, str, str], ...]" = (_MADE_UP, _NOT_MODELED),
     files: "tuple[str, ...]" = _PROFILE_FILES,
+    questions: "tuple[tuple[str, str], ...]" = _CHECKLIST_WEIGHT,
 ) -> Expect:
     return Expect(
         "no-miss",
@@ -575,6 +605,8 @@ def _profiled(
         next_words=_NEXT_GENERATE,
         next_purpose="generate",
         carried=carried,
+        questions=questions,
+        tally=_profile_tally(len(questions)),
     )
 
 
@@ -628,7 +660,8 @@ EXPECTED: "dict[str, Expect]" = {
     # G6 puts its questions in the file and on the screen; at 20,000 rows
     # every record number is different and no question offering
     # `identifier` holds the column, so no caution is given.
-    "G6": _profiled(),
+    "G6": _profiled(carried=(_NOT_MODELED,), questions=_CHECKLIST_BOTH),
+    # G6's file with the record number answered `identifier`.
     "G7": _profiled(),
     # The table floor (plan P4-D425) refuses the page's 150-row table.
     "G8": _refused("profile", "content"),
@@ -769,7 +802,9 @@ UNRECORDED: "tuple[Case, ...]" = (
         expect=Expect(
             "no-miss", command="profile", files=_PROFILE_FILES, exit=0, floor=5,
             floor_lowered=True, warnings=("lowered-floor", "lowered-floor-reminder"),
-            next_words=_NEXT_GENERATE, next_purpose="generate", carried=(),
+            next_words=_NEXT_GENERATE, next_purpose="generate",
+            carried=(_MADE_UP, _NOT_MODELED), questions=_CHECKLIST_WEIGHT,
+            tally=_profile_tally(1),
         ),
     ),
     Case(
@@ -798,7 +833,8 @@ UNRECORDED: "tuple[Case, ...]" = (
         recorded=False,
         expect=Expect(
             "no-miss", command="profile", files=_PROFILE_FILES, exit=0, floor=11,
-            next_words=_NEXT_GENERATE, next_purpose="generate", carried=(),
+            next_words=_NEXT_GENERATE, next_purpose="generate",
+            carried=(_MADE_UP, _NOT_MODELED), questions=(), tally=_profile_tally(0, 3),
         ),
     ),
     Case(
@@ -812,7 +848,10 @@ UNRECORDED: "tuple[Case, ...]" = (
     ),
     Case(
         "Q1", ("profile", "p.csv"), build="persons", recorded=False, fault="reader",
-        expect=Expect("refused", command="profile", exit=1, step="questions", carried=()),
+        expect=Expect(
+            "refused", command="profile", exit=1, step="questions", carried=(),
+            questions=(), tally=(),
+        ),
     ),
     Case(
         "I1", ("profile", "t.csv", "--identifier", "record_no"), build="table",
@@ -820,7 +859,9 @@ UNRECORDED: "tuple[Case, ...]" = (
         expect=Expect(
             "no-miss", command="profile", files=("description", "summary"), exit=0,
             floor=11, warnings=("questions-not-written",),
-            next_words=_NEXT_GENERATE, next_purpose="generate", carried=(),
+            next_words=_NEXT_GENERATE, next_purpose="generate",
+            carried=(_MADE_UP, _NOT_MODELED), questions=_CHECKLIST_WEIGHT,
+            tally=_profile_tally(1),
         ),
     ),
     Case(

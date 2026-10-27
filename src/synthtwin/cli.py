@@ -571,6 +571,9 @@ class _Session:
     files: "list[results.FileWritten]" = dataclasses.field(default_factory=list)
     left_behind: "list[str]" = dataclasses.field(default_factory=list)
     next_command: "results.NextCommand | None" = None
+    questions: "tuple[results.Asked, ...]" = ()
+    # The columns whose question was put at a prompt in this run (lane S5b).
+    put: "list[str]" = dataclasses.field(default_factory=list)
 
 
 @dataclasses.dataclass
@@ -686,6 +689,79 @@ def _wrote(*written: "tuple[str, pathlib.Path]") -> None:
         return
     for kind, place in written:
         session.files += [results.FileWritten(kind, f"{place}")]
+
+
+def _put_at_a_prompt(questions: "list[asking.Question]") -> None:
+    """Record the columns whose question this run put at a prompt (lane S5b, plan P4-D441)."""
+    session = _current()
+    if session is None:
+        return
+    for question in questions:
+        if question.name not in session.put:
+            session.put += [question.name]
+
+
+def _asked_at_a_prompt() -> "tuple[str, ...]":
+    """The columns whose question this run put at a prompt, in the order put."""
+    session = _current()
+    return () if session is None else tuple(session.put)
+
+
+def _questions_put_in_the_result(
+    records: "tuple[results.Asked, ...]", columns: int
+) -> None:
+    """Put a profile's questions and their tally in its result (lane S5b, plan P4-D441).
+
+    One record for each entry of the questions file, in its order, and
+    the profile's tally (plan P4-D395 part 1, `tally`): its columns, the
+    questions it asked -- about the file and column by column --, those
+    put at a prompt, the checklist's columns, and the columns held.
+    """
+    session = _current()
+    if session is None:
+        return
+    session.questions = records
+    asked = [
+        one
+        for one in records
+        if one.section in (results.SECTION_ABOUT_FILE, results.SECTION_ASKED)
+    ]
+    session.tally = (
+        ("columns", columns),
+        ("questions-asked", len(asked)),
+        ("questions-put", len([one for one in asked if one.put])),
+        (
+            "checklist",
+            len([one for one in records if one.section == results.SECTION_CHECKLIST]),
+        ),
+        (
+            "held",
+            len([one for one in records if one.section == results.SECTION_HELD]),
+        ),
+    )
+
+
+def _described_carried(written: pathlib.Path, chain: bool) -> None:
+    """Put what a written description carries in the profile's result (lane S5b, plan P4-D441).
+
+    Drawn from the description itself, read back through the loader
+    generate reads it with, so a profile's `carried` is generate's for
+    the same description: each column whose twin cells are made up,
+    wholly or in part (`roles.made_up_class`), and the table's
+    `not-modeled` entry while nothing between columns is carried. A
+    description the loader refuses carries nothing here, as generate of
+    it refuses; nothing is shown either way.
+    """
+    from synthtwin import contract
+
+    session = _current()
+    if session is None:
+        return
+    try:
+        described = contract.load_profile(f"{written}", chain)
+    except errors.ProfileError:
+        return
+    session.carried = tuple(_not_carried(described) + [_NOT_MODELED])
 
 
 def _left_behind(left: "list[str]", note: str) -> None:
@@ -5718,6 +5794,8 @@ def _run_profile_body(
     if asked_about:
         if _there_is_somebody_to_ask():
             given = _put_the_questions(asked_about)
+            if given is not None:
+                _put_at_a_prompt(asked_about)
             if given is None:
                 _warn(
                     errors.the_questions_were_not_finished(),
@@ -6397,6 +6475,7 @@ def _run_profile_body(
         (results.FILE_DESCRIPTION, profile_path),
         (results.FILE_SUMMARY, summary_path),
     )
+    _described_carried(profile_path, chain_state is not None)
     if left_behind:
         # A caution, not a refusal. The profile is good, so the exit
         # code stays 0; the reader is simply told what to delete.
@@ -6514,6 +6593,46 @@ def _run_profile_body(
         (profile_path, errors.INPUT_DESCRIPTION),
         (summary_path, errors.INPUT_SUMMARY),
     ]
+    # THE QUESTIONS AS DATA, BEFORE ANY FILE OF THEM IS WRITTEN (lane S5b,
+    # plan P4-D441): the result holds one record for each entry of the
+    # file, and the file is rendered from those records, so the two
+    # cannot differ; a run whose questions file is not written keeps them.
+    question_records = asking.question_records(
+        # -- P4-D401: a column held back is read as record
+        # numbers until answered, and its entry says so.
+        asking.held_back(asked_about, withheld),
+        listed_about,
+        asking.file_questions(
+            surveyed is not None
+            and surveyed.metadata_shape
+            and not metadata_rows,
+            # ...and the same subject from the other side:
+            # a declaration the file does not bear out was
+            # not acted on, so the person is asked here
+            # rather than having it done to their table.
+            metadata_rows if metadata_declaration_unseen else 0,
+            # ...and the delimiter, where the file reads
+            # equally well under more than one (P4-D110).
+            delimiter_tie,
+            # ...and which row the column names are in,
+            # where the first row could not be told from a
+            # record of the table (the owner's ruling of
+            # 2026-09-17, item 8; plan P4-D232). The words
+            # are what the FILE showed, and no cell of it.
+            read.first_row_seen,
+            # ...and which comes first, the day or the month,
+            # where no value of a column of dates can say
+            # (plan P4-D381), from the FINAL settings -- and
+            # not to a person whose file answered it. The
+            # screen's pass, where nothing has moved since.
+            day_or_month=day_or_month,
+        ),
+        # ...and each column declared as counted dates that
+        # did not read so, held on every table (P4-D406).
+        _held_counted_dates(document, counted),
+        put=_asked_at_a_prompt(),
+    )
+    _questions_put_in_the_result(question_records, len(read.column_names))
     if questions_collides:
         # Said once, before the files existed. Repeating it here would
         # be the same sentence twice with the run's outcome between
@@ -6532,37 +6651,10 @@ def _run_profile_body(
         left_questions = writing.write_one_file(
             questions_path,
             canonical.serialize(
-                asking.questions_document(
+                asking.questions_document_of(
                     _shown(pathlib.Path(table).name),
-                    # -- P4-D401: a column held back is read as record
-                    # numbers until answered, and its entry says so.
-                    asking.held_back(asked_about, withheld),
-                    listed_about,
-                    asking.file_questions(
-                        surveyed is not None
-                        and surveyed.metadata_shape
-                        and not metadata_rows,
-                        # ...and the same subject from the other side:
-                        # a declaration the file does not bear out was
-                        # not acted on, so the person is asked here
-                        # rather than having it done to their table.
-                        metadata_rows if metadata_declaration_unseen else 0,
-                        # ...and the delimiter, where the file reads
-                        # equally well under more than one (P4-D110).
-                        delimiter_tie,
-                        # ...and which row the column names are in,
-                        # where the first row could not be told from a
-                        # record of the table (the owner's ruling of
-                        # 2026-09-17, item 8; plan P4-D232). The words
-                        # are what the FILE showed, and no cell of it.
-                        read.first_row_seen,
-                        # ...and which comes first, the day or the month,
-                        # where no value of a column of dates can say
-                        # (plan P4-D381), from the FINAL settings -- and
-                        # not to a person whose file answered it. The
-                        # screen's pass, where nothing has moved since.
-                        day_or_month=day_or_month,
-                    ),
+                    # Every entry, rendered from the result's records.
+                    question_records,
                     # ...AND WHAT THIS RUN SAID ABOUT THE TABLE AS A
                     # WHOLE (plan P4-D341). The population notice, in
                     # the description's own words, because this file
@@ -6589,9 +6681,6 @@ def _run_profile_body(
                     ),
                     # ...with the names those answers use (P4-D408).
                     answered_columns=list(read.column_names),
-                    # ...and each column declared as counted dates that
-                    # did not read so, held on every table (P4-D406).
-                    held_dates=_held_counted_dates(document, counted),
                     # ...and, behind the chain's switch alone, its one
                     # entry (lane CHa, plan P4-D418).
                     chain_pairs=_chain_pairs(chain_state),
@@ -8152,6 +8241,7 @@ def _result_of(session: _Session, verdict: str) -> results.Result:
         floor=session.floor,
         floor_lowered=session.floor_lowered,
         warnings=tuple(session.warnings),
+        questions=session.questions,
         files=tuple(session.files),
         left_behind=tuple(session.left_behind),
         next_command=session.next_command,

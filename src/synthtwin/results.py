@@ -305,6 +305,56 @@ class Refusal:
     on_disk: str = ""
 
 
+# -- what a profile asks (part 1, `questions`; lane S5b, plan P4-D441) --
+# The sections of the questions file an entry stands in, in the file's
+# order: questions about the file itself (plan P4-D81), the columns
+# asked one by one, the checklist's columns under its one question, and
+# the columns declared as counted dates that did not read so, held
+# (plan P4-D406), which no answer gives back.
+SECTION_ABOUT_FILE = "about_your_file"
+SECTION_ASKED = "asked"
+SECTION_CHECKLIST = "checklist"
+SECTION_HELD = "held"
+SECTIONS = (SECTION_ABOUT_FILE, SECTION_ASKED, SECTION_CHECKLIST, SECTION_HELD)
+
+
+@dataclasses.dataclass(frozen=True)
+class Offer:
+    """One answer a question offers: its key, what it means, what the description then publishes."""
+
+    answer: str
+    means: str
+    publishes: str
+
+
+@dataclasses.dataclass(frozen=True)
+class Asked:
+    """One entry of the questions file, as data (plan P4-D395 part 1; lane S5b).
+
+    ``section`` and ``order`` place it in the file (its order counted
+    from 1 within its section); ``column`` is the description's name,
+    empty for a question about the file; ``role`` and ``reason`` are its
+    kind (`asking.Question.role` and `.reason`); ``saw`` the file's
+    `what_synthtwin_saw`, a count, a width or a separator and never a
+    cell; ``read_as_now`` the reading that stands unanswered; ``offers``
+    the answers it offers, in order; ``put`` whether it was put at a
+    prompt in this run, rather than only written down. A held entry
+    offers nothing and stands under no reading. Every text field is the
+    words `asking` composes for the file today, so the file is rendered
+    from these records (`asking.questions_document_of`) byte for byte.
+    """
+
+    section: str
+    order: int
+    column: str
+    role: str
+    reason: str
+    saw: str
+    read_as_now: str
+    offers: "tuple[Offer, ...]" = ()
+    put: bool = False
+
+
 @dataclasses.dataclass(frozen=True)
 class Result:
     """One run of synthtwin, as data (plan P4-D395 part 1).
@@ -315,7 +365,9 @@ class Result:
     command reads or writes one, with ``floor_lowered`` beside it;
     ``refusal`` is set exactly when the verdict is `refused` or
     `unusable`; ``steps`` is the `twin` command's (lane TT's).
-    ``questions`` is profile's (lane S5b's), empty until it lands.
+    ``questions`` is profile's (lane S5b, plan P4-D441): one record for
+    each entry its questions file holds, in the file's order, whether or
+    not the file could be written.
     """
 
     command: str
@@ -327,7 +379,7 @@ class Result:
     floor: "int | None" = None
     floor_lowered: bool = False
     warnings: "tuple[Caution, ...]" = ()
-    questions: "tuple[object, ...]" = ()
+    questions: "tuple[Asked, ...]" = ()
     files: "tuple[FileWritten, ...]" = ()
     left_behind: "tuple[str, ...]" = ()
     next_command: "NextCommand | None" = None

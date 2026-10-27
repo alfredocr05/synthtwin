@@ -41,7 +41,7 @@ import pytest
 
 import fixtures
 import health_zoo as zoo
-from synthtwin import asking, cli, date_counts
+from synthtwin import asking, cli, date_counts, results
 
 ROWS = 600
 SEED = 20261016
@@ -1679,15 +1679,16 @@ def test_mutant_code_standing_is_seen(tmp_path: pathlib.Path, monkeypatch: pytes
 
 def test_mutant_the_file_prefilling_code_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The questions file writes `code` beside route four's question as if the person had said it."""
-    real = asking._question_entry
+    real = asking._record_entry
 
-    def prefilled(question: asking.Question) -> "dict[str, object]":
-        entry = real(question)
-        if asking.ANSWER_CODE in [choice.answer for choice in question.choices]:
+    # The file is rendered from its records since lane S5b (plan P4-D441).
+    def prefilled(record: results.Asked) -> "dict[str, object]":
+        entry = real(record)
+        if asking.ANSWER_CODE in [offer.answer for offer in record.offers]:
             entry["your_answer"] = asking.ANSWER_CODE
         return entry
 
-    monkeypatch.setattr(asking, "_question_entry", prefilled)
+    monkeypatch.setattr(asking, "_record_entry", prefilled)
     with pytest.raises(AssertionError, match="the file answers for the person"):
         route_four_case(tmp_path)
 

@@ -79,6 +79,7 @@ from synthtwin import parsing
 from synthtwin import taxonomy
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
 from synthtwin import date_counts
+from synthtwin import results
 
 # The roles that publish a ladder of real values. A column here that is
 # really a coding system publishes real codes as its endpoints.
@@ -6462,26 +6463,6 @@ HOW_TO_ANSWER = (
 )
 
 
-def _question_entry(question: Question) -> "dict[str, object]":
-    """One question as the plain data both the file and a screen show."""
-    offered: list[dict[str, str]] = []
-    for choice in question.choices:
-        offered += [
-            {
-                "answer": choice.answer,
-                "means": choice.means,
-                "then_the_description_publishes": choice.publishes,
-            }
-        ]
-    return {
-        "column": question.name,
-        "what_synthtwin_saw": question.shape,
-        "read_as_now": question.taken,
-        "answers_you_can_give": offered,
-        "your_answer": "",
-    }
-
-
 # The chain's one entry in the questions file (lane CHa, plan P4-D418),
 # written only behind its switch.
 BETWEEN_COLUMNS = "between_columns"
@@ -6528,6 +6509,107 @@ def between_columns_requests(
     return found[0], found[1], tuple(unread)
 
 
+def question_records(
+    asked: "list[Question]",
+    listed: "list[Question]",
+    about_file: "list[Question] | None" = None,
+    held_dates: "list[tuple[str, str]] | None" = None,
+    put: "tuple[str, ...]" = (),
+) -> "tuple[results.Asked, ...]":
+    """Every entry the questions file holds, as records, in the file's order (lane S5b, plan P4-D441).
+
+    Guarantees:
+
+    - One record for each question about the file (plan P4-D81), each
+      column asked, each column of the checklist and each column
+      declared as counted dates that did not read so (plan P4-D406), in
+      that order, each numbered from 1 within its section. ``put`` names
+      the columns put at a prompt in this run; a record of the `asked`
+      section naming one of them says so.
+    - The words are the ones the file writes: a question's shape, its
+      standing reading and each answer it offers with what the
+      description then publishes, all composed here once (A-P4-58); a
+      held entry's `saw` is the sentence the file writes for it.
+    - Boundary: no value of the table appears in any record. Every
+      question carries a shape -- a count, a width or a separator --
+      and never a cell; a held entry names the column and the counting
+      system the person declared.
+    - Determinism: a fixed function of the arguments. Raises nothing.
+    """
+    found: "list[results.Asked]" = []
+    for section, questions in (
+        (results.SECTION_ABOUT_FILE, about_file if about_file else []),
+        (results.SECTION_ASKED, asked),
+        (results.SECTION_CHECKLIST, listed),
+    ):
+        order = 0
+        for question in questions:
+            order = order + 1
+            offers: "list[results.Offer]" = []
+            for choice in question.choices:
+                offers += [results.Offer(choice.answer, choice.means, choice.publishes)]
+            found += [
+                results.Asked(
+                    section,
+                    order,
+                    question.name,
+                    question.role,
+                    question.reason,
+                    question.shape,
+                    question.taken,
+                    tuple(offers),
+                    section == results.SECTION_ASKED and question.name in put,
+                )
+            ]
+    order = 0
+    for name, member in held_dates if held_dates else []:
+        order = order + 1
+        found += [
+            results.Asked(
+                results.SECTION_HELD,
+                order,
+                name,
+                "",
+                BECAUSE_HELD_COUNTED_DATES,
+                f"you said this column writes its dates as counts "
+                f"({member}), and its cells did not read as such dates",
+                "",
+            )
+        ]
+    return tuple(found)
+
+
+# WHY A HELD ENTRY STANDS IN THE FILE (plan P4-D406): a column declared as
+# counted dates whose cells did not read so, held on every table.
+BECAUSE_HELD_COUNTED_DATES = "declared-counted-dates-not-read"
+
+
+def _record_entry(record: results.Asked) -> "dict[str, object]":
+    """One record as the plain data the file shows: a question's, or a held column's."""
+    if record.section == results.SECTION_HELD:
+        return {
+            "column": record.column,
+            "what_synthtwin_saw": record.saw,
+            "what_this_run_did": HELD_DATES_SAID,
+        }
+    offered: list[dict[str, str]] = []
+    for offer in record.offers:
+        offered += [
+            {
+                "answer": offer.answer,
+                "means": offer.means,
+                "then_the_description_publishes": offer.publishes,
+            }
+        ]
+    return {
+        "column": record.column,
+        "what_synthtwin_saw": record.saw,
+        "read_as_now": record.read_as_now,
+        "answers_you_can_give": offered,
+        "your_answer": "",
+    }
+
+
 def questions_document(
     table_name: str,
     asked: "list[Question]",
@@ -6540,7 +6622,34 @@ def questions_document(
     chain_pairs: "list[list[str]] | None" = None,
     chain_requests: "tuple[tuple[tuple[str, str], ...], tuple[tuple[str, str], ...]]" = ((), ()),
 ) -> "dict[str, object]":
-    """The questions file's whole content, as plain data.
+    """The questions file's whole content, as plain data, from the questions themselves.
+
+    `question_records` of the questions, rendered by
+    `questions_document_of`: the one route, so the file a run writes
+    from its result's records and the file written from the questions
+    are one text (lane S5b, plan P4-D441).
+    """
+    return questions_document_of(
+        table_name,
+        question_records(asked, listed, about_file, held_dates),
+        about_table,
+        answered,
+        answered_columns,
+        chain_pairs,
+        chain_requests,
+    )
+
+
+def questions_document_of(
+    table_name: str,
+    records: "tuple[results.Asked, ...]",
+    about_table: "list[str] | None" = None,
+    answered: "list[dict[str, object]] | None" = None,
+    answered_columns: "list[str] | None" = None,
+    chain_pairs: "list[list[str]] | None" = None,
+    chain_requests: "tuple[tuple[tuple[str, str], ...], tuple[tuple[str, str], ...]]" = ((), ()),
+) -> "dict[str, object]":
+    """The questions file's whole content, as plain data, rendered from its records.
 
     TWO SECTIONS, AND THE ORDER IS THE POINT (amendment A-P4-58; owner
     ruling 2026-09-10). `asked` holds the columns synthtwin could read
@@ -6559,13 +6668,18 @@ def questions_document(
 
     Guarantees:
 
-    - Inputs: the table's name and the two lists of questions.
-      ``held_dates`` names each column declared as counted dates whose
-      cells did not read as such dates, with the counting system it was
-      declared with (plan P4-D406, contract NF127): held on every table,
-      each is written in a section of its own, `held`, which no answer
-      in the file changes. Absent where there is none, so every other
-      file is written as before, byte for byte.
+    - Inputs: the table's name and the file's entries as records
+      (`question_records`, which a run's result carries: lane S5b, plan
+      P4-D441), each placed in its section in its records' order; the
+      sentences about the table as a whole (the population notice, from
+      the description); the answers the run acted on, written back for
+      the file handed back (plans P4-D401 and P4-D408); and the chain's
+      entry behind its switch. A record of the `held` section names a
+      column declared as counted dates whose cells did not read as such
+      dates (plan P4-D406, contract NF127): held on every table, each is
+      written in a section of its own, `held`, which no answer in the
+      file changes. Absent where there is none, so every other file is
+      written as before, byte for byte.
     - Determinism: a fixed function of the arguments, in the table's
       own column order.
     - Errors raised: none.
@@ -6574,14 +6688,18 @@ def questions_document(
       width or a separator, and never a cell.
     """
     file_entries: list[dict[str, object]] = []
-    for question in about_file if about_file else []:
-        file_entries += [_question_entry(question)]
     asked_entries: list[dict[str, object]] = []
-    for question in asked:
-        asked_entries += [_question_entry(question)]
     listed_entries: list[dict[str, object]] = []
-    for question in listed:
-        listed_entries += [_question_entry(question)]
+    held_entries: "list[dict[str, object]]" = []
+    for record in records:
+        if record.section == results.SECTION_ABOUT_FILE:
+            file_entries += [_record_entry(record)]
+        elif record.section == results.SECTION_ASKED:
+            asked_entries += [_record_entry(record)]
+        elif record.section == results.SECTION_CHECKLIST:
+            listed_entries += [_record_entry(record)]
+        elif record.section == results.SECTION_HELD:
+            held_entries += [_record_entry(record)]
     said: list[str] = []
     for sentence in about_table if about_table else []:
         said += [f"{sentence}"]
@@ -6637,18 +6755,6 @@ def questions_document(
     # HELD (the orchestrator's LANE HX2 ADDENDUM 2: "name it in the
     # questions"). The column's name and the system the person gave are
     # theirs already; no cell of the column is.
-    held_entries: "list[dict[str, object]]" = []
-    for name, member in held_dates if held_dates else []:
-        held_entries += [
-            {
-                "column": name,
-                "what_synthtwin_saw": (
-                    f"you said this column writes its dates as counts "
-                    f"({member}), and its cells did not read as such dates"
-                ),
-                "what_this_run_did": HELD_DATES_SAID,
-            }
-        ]
     if held_entries:
         written["held"] = held_entries
     # ...AND, BEHIND THE CHAIN'S SWITCH ALONE (lane CHa, plan P4-D418;
