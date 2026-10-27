@@ -1376,7 +1376,12 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # 2026-10-27), the least round figure it fits under: K-S5-01's rule
     # gains the approximate mark, the carried windows and two
     # corruptions, both entries restamped on ca9645b, 775,406 bytes.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 776_000
+    #
+    # 777,000 from 776,000 (lane S5b, plan P4-D441, 2026-10-27), the
+    # least round figure it fits under: K-S5-01's rule gains clause (k)
+    # and seven corruptions, both entries restamped on 067aedda,
+    # 776,237 bytes.
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 777_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

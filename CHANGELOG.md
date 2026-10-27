@@ -6,6 +6,34 @@ exists).
 
 ## [Unreleased]
 
+### Lane S5b: profile's questions and carried become data, and the questions file is rendered from them (plan P4-D441, 2026-10-27; builds P4-D395)
+
+**Stage 5's second build lane, on lane S5a's head.** A profile run's
+result (`synthtwin.cli.run`) now holds one record for each entry of its
+questions file (`results.Asked`: its section -- about the file, asked,
+the checklist, or held -- its order, column, kind, what synthtwin saw,
+the reading that stands unanswered, each answer offered with what the
+description then publishes, and whether it was put at a prompt), its
+tally, and what the description it wrote carries (each column whose
+twin cells are made up, and the table's `not-modeled` entry), read back
+through the loader `generate` uses. The questions file is rendered from
+those records (`asking.questions_document_of`), so a caller reads the
+questions without reading the file. Also: a column's `time_grain` is
+registered in the disposition registry's universal group as
+EXACT-CONTROL, and the stage-5 gate pins a compound column's window
+ends (lane S5a's verify 2). No byte of a report, a file or a screen,
+and no exit status, moves: the goldens hold (`K-S5-02`), the questions
+file rendered from a result is the goldens' file for G6, G1 and G7, and
+at 20,000 rows the file the code before this lane wrote for a table with
+held identifier and ZIP columns and for dates that raise the question
+about the file; no question or carried entry holds a value of a held
+column. `K-S5-01` 53 of 53 cases met and 0 of 30 corrupted results
+met; `K-S5-02` 0 of 245 records moved; both restamped on 067aedda.
+The summary is still rendered from the description, not from `carried`
+(the two classify made-up columns by different rules on some tables;
+lane TW owns the sentence), and the gate holds its made-up columns
+equal to the carried ones on the battery.
+
 ### Lane S5a: results become data -- `synthtwin.cli.run` returns one result a run, its misses ranked once, every byte held (plan P4-D437, 2026-10-26; builds P4-D395)
 
 **Stage 5's first build lane.** `src/synthtwin/results.py` (new, the
