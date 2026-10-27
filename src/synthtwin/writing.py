@@ -825,7 +825,7 @@ def _stopped_clean(
     stated = _state_nothing_published(
         target, summary_target, leftovers, words, target_code
     )
-    return errors.TransactionRefusal(f"{trouble} {stated}")
+    return errors.transaction_refusal(trouble, stated)
 
 
 def _stopped_broken(
@@ -859,8 +859,8 @@ def _stopped_broken(
                 kept, errors.ON_DISK_SET_ASIDE, errors.ON_DISK_ABSENT
             )
         ]
-    return errors.TransactionRefusal(
-        f"{trouble} {errors.rollback_failed([], on_disk + left, words)}"
+    return errors.transaction_refusal(
+        trouble, errors.rollback_failed([], on_disk + left, words)
     )
 
 
@@ -1717,9 +1717,8 @@ def _stopped_clean_one(
     looks at every name before this returns, so the object handed back
     carries a cleanup that has run and a message that names every file.
     """
-    return errors.TransactionRefusal(
-        f"{trouble} "
-        f"{_state_nothing_published_one(target, leftovers, words, target_code)}"
+    return errors.transaction_refusal(
+        trouble, _state_nothing_published_one(target, leftovers, words, target_code)
     )
 
 
@@ -1741,8 +1740,8 @@ def _stopped_broken_one(
                 kept, errors.ON_DISK_SET_ASIDE, errors.ON_DISK_ABSENT
             )
         ]
-    return errors.TransactionRefusal(
-        f"{trouble} {errors.rollback_failed([], on_disk + left, words)}"
+    return errors.transaction_refusal(
+        trouble, errors.rollback_failed([], on_disk + left, words)
     )
 
 

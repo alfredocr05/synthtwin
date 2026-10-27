@@ -72,7 +72,29 @@ class TransactionRefusal(ProfileError):
     It is a subclass, so every caller that catches `ProfileError` --
     including the command -- catches it unchanged, and nothing about
     what the person reads depends on which of the two it is.
+
+    ``on_disk`` IS THE MESSAGE'S ACCOUNT OF THE DISK, apart (lane S5a's
+    repair 2, Codex's item 8): the sentence the transaction composed
+    naming what is at every name after its cleanup, which the message
+    holds after the trouble it names. A run's result carries it as its
+    refusal's `on_disk`. Built by `transaction_refusal` below and not by
+    a constructor of its own, for the reason `ShapeRefusal` states (the
+    offline audit admits no `super`); empty on one raised directly.
     """
+
+    on_disk = ""
+
+
+def transaction_refusal(trouble: str, stated: str) -> TransactionRefusal:
+    """The transaction's refusal: ``trouble``, then ``stated``, the disk's account, kept apart too.
+
+    The message is the two joined by one space, as the transaction
+    always composed it; ``on_disk`` is ``stated``. A fixed function of
+    the two. Raises nothing.
+    """
+    refusal = TransactionRefusal(f"{trouble} {stated}")
+    refusal.on_disk = stated
+    return refusal
 
 
 # WHICH OF THE READER'S REFUSALS ABOUT A FILE'S OWN SHAPE THIS IS.

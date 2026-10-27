@@ -899,6 +899,16 @@ def _validated(described: object, measured: object) -> None:
     or where V5 keeps its measured side back (lane S5a's repair 1). No
     string read from the measured file enters the result: every field is
     the validator's own, as the report prints it (plan P4-D395 part 1).
+
+    WHAT IS CARRIED FOLLOWS THE DESCRIPTION (lane S5a's repair 2, Codex's
+    item 5): an approximate entry for each check whose obligation the
+    description grants a window (`Check.approximate`), the column the
+    file lacks, a file of no rows or names and a closed gate included,
+    where such a check's verdict was decided by the absence and its
+    `inside` is None, since nothing of the subject was checked. Each
+    measure carries the window's ends and whether it holds the
+    description's value where the report prints that window (Codex's
+    item 7), so no consumer parses them out of `published`.
     """
     from synthtwin import contract, validation
 
@@ -942,9 +952,13 @@ def _validated(described: object, measured: object) -> None:
                     validation.withheld_rule(check),
                 )
             ]
-        if check.judged == validation.JUDGED_WINDOW:
+        if check.approximate:
             inside: "bool | None" = None
-            if check.verdict != validation.WITHHELD and check.achieved:
+            if (
+                check.judged == validation.JUDGED_WINDOW
+                and check.verdict != validation.WITHHELD
+                and check.achieved
+            ):
                 inside = check.verdict != validation.MISSED
             carried += [
                 results.Carried(
@@ -956,7 +970,12 @@ def _validated(described: object, measured: object) -> None:
                     verdict=check.verdict,
                     measures=(
                         results.Measure(
-                            check.published, check.achieved, "", "", inside, None
+                            check.published,
+                            check.achieved,
+                            check.lowest,
+                            check.highest,
+                            inside,
+                            check.covers,
                         ),
                     ),
                 )
@@ -1310,7 +1329,7 @@ def _no_floor_at_all(given: "int | None") -> bool:
 
 # THE LONG OPTIONS, in the order the parser below is given them, `--help`
 # (argparse's own) first: what a word abbreviating several of them is said
-# to match, in argparse's own order and words (`_ambiguous`).
+# to match, in argparse's own order and words (`_ambiguous_at`).
 # `tests/test_stage5_gate.py` holds it to the parser's own list.
 _LONG_OPTIONS = (
     "--help",
@@ -1340,34 +1359,53 @@ _LONG_OPTIONS = (
 # The words argparse reads as its help option: `-h`, and every prefix of
 # `--help` it takes (no other long option starts with `--h`).
 _HELP_WORDS = ("-h", "--h", "--he", "--hel", "--help")
+# A WORD OF SHORT OPTIONS RUN TOGETHER THAT STARTS WITH `-h`, such as
+# `-hh` or `-hfoo`, may ask for the help page too, as the Python that runs
+# decides (lane S5a's repair 2, Codex's item 2): `-hh` does on every
+# supported Python, and `-hfoo` did on 3.11.15 and 3.13.14 alike. Such a
+# word, and every word of `_HELP_WORDS`, is a candidate; whether argparse
+# takes it as the help option there is asked of argparse itself
+# (`_parse_arguments`).
+_HELP_PREFIX = "-h"
 
 
-def _help_asked_at(words: "list[str]") -> int:
-    """Where the first word asking for the help page stands, or -1.
+def _could_ask_for_help(word: str) -> bool:
+    """Whether argparse could read ``word`` as its help option: a help word, or `-h` run on."""
+    if word in _HELP_WORDS:
+        return True
+    return len(word) > len(_HELP_PREFIX) and word[: len(_HELP_PREFIX)] == _HELP_PREFIX
 
-    Words after `--` are values, never options, as argparse reads them.
+
+# WHEN ARGPARSE REFUSES A WORD ABBREVIATING SEVERAL OPTIONS (lane S5a's
+# repair 2, Codex's item 3). Python 3.11's argparse sorts every word into
+# an option or a value before it acts on any, and refuses such a word as
+# it sorts it -- printing and exiting whatever it was asked -- so the
+# refusal comes first wherever the word stands, before the help page and
+# before any other refusal. From Python 3.12.7 and 3.13 (CPython's change
+# gh-58573 in their changelogs) it refuses the word only when it reaches
+# it in order, raising the refusal as any other: the help word before it
+# shows the help page, an option before it that wants a value is refused
+# for the value it lacks, and an option of two values takes it as one.
+# The rule this module follows is the one of the Python it runs on, read
+# off its version: measured on 3.11.15 as the first and on 3.12.13,
+# 3.13.14 and 3.14.6 as the second (the gate asks argparse itself on
+# whichever Python runs it). On the first the word is refused here, in
+# argparse's words, before argparse is handed anything; on the second
+# argparse is handed it and raises the refusal, printing nothing.
+_AMBIGUITY_SORTED_FIRST = sys.version_info < (3, 12, 7)
+
+
+def _ambiguous_at(words: "list[str]") -> "tuple[int, str]":
+    """Where the first option abbreviated past one meaning stands, and argparse's words for it.
+
+    A word starting `--` that is no option itself (before any `=`) and
+    begins several of them is refused by argparse as ambiguous, in these
+    words; (-1, "") where none stands before `--`.
     """
     for place in range(len(words)):
         word = words[place]
         if word == "--":
-            return -1
-        if word in _HELP_WORDS:
-            return place
-    return -1
-
-
-def _ambiguous(words: "list[str]") -> str:
-    """argparse's words for the first option abbreviated past one meaning, or "".
-
-    A word starting `--` that is no option itself (before any `=`) and
-    begins several of them is refused by argparse as ambiguous; Python
-    3.11's argparse says so by printing and exiting whatever it was
-    asked, so the same words are composed here first (plan P4-D395 part
-    3: a run prints nothing of argparse's own).
-    """
-    for word in words:
-        if word == "--":
-            return ""
+            return (-1, "")
         if not isinstance(word, str) or word[:2] != "--":
             continue
         prefix = ""
@@ -1384,8 +1422,8 @@ def _ambiguous(words: "list[str]") -> str:
                 matches = option if not matches else matches + ", " + option
                 count = count + 1
         if count > 1:
-            return f"ambiguous option: {word} could match {matches}"
-    return ""
+            return (place, f"ambiguous option: {word} could match {matches}")
+    return (-1, "")
 
 
 def _refused_as_argparse_refuses(help_page: str, message: str) -> "typing.NoReturn":
@@ -1403,8 +1441,16 @@ def _refused_as_argparse_refuses(help_page: str, message: str) -> "typing.NoRetu
         if not line:
             break
         usage = usage + line + "\n"
+    error = f"synthtwin: error: {message}"
     _show(_ERR, usage)
-    _show(_ERR, f"synthtwin: error: {message}\n")
+    _show(_ERR, error + "\n")
+    # ...AND THE RESULT KEEPS THEM AS THE REFUSAL'S WORDS (lane S5a's
+    # repair 2, Codex's item 4), the characters shown less the last line
+    # feed, as `_warn` keeps a refusal's: without them a run with no
+    # screen would lose its only explanation.
+    session = _current()
+    if session is not None:
+        session.refusal_words += [usage[: len(usage) - 1], error]
     raise _Unusable()
 
 
@@ -1455,6 +1501,15 @@ def _parse_arguments(
         # prints nothing and never exits, so argparse's words reach the
         # run's screen from `_refused_as_argparse_refuses`.
         exit_on_error=False,
+        # ...AND ITS HELP OPTION IS A SWITCH (lane S5a's repair 2): the one
+        # argparse adds prints the page to the process's own output and
+        # exits whatever it is asked, so the same option is added below,
+        # first, under the same two names and words, as a switch that
+        # prints nothing; `_parse_arguments` reads where it is taken.
+        add_help=False,
+    )
+    parser.add_argument(
+        "-h", "--help", action="store_true", help="show this help message and exit"
     )
     parser.add_argument(
         "--version", action="store_true", help="print the version and exit"
@@ -1895,27 +1950,66 @@ def _parse_arguments(
     # page is then shown; a refusal argparse raises is shown in its own
     # words; and a word abbreviating several options is refused before
     # argparse reads it, because Python 3.11's argparse prints and exits
-    # on that one whatever it is asked. argparse sorts EVERY word into
-    # options and values before it acts on the help option, so a word
-    # abbreviating several options is refused wherever it stands, after
-    # the help word too (lane S5a's repair 1): `_ambiguous` reads them all,
-    # up to `--`.
+    # on that one whatever it is asked. That argparse sorts EVERY word into
+    # options and values before it acts on the help option, so there a
+    # word abbreviating several options is refused wherever it stands,
+    # after the help word too (lane S5a's repair 1): `_ambiguous_at` reads
+    # them all, up to `--` (`_AMBIGUITY_SORTED_FIRST`).
+    # ON A PYTHON WHOSE ARGPARSE REFUSES SUCH A WORD ONLY IN ORDER (lane
+    # S5a's repair 2, Codex's item 3), argparse is handed it: it raises that
+    # refusal, as any other, where it reaches the word, the help word before
+    # it is taken first, and an option of two values takes it as a value,
+    # as that Python's argparse did before results existed.
     words = sys.argv[1:] if argv is None else [f"{word}" for word in argv]
-    helped = _help_asked_at(words)
-    read = words if helped < 0 else words[:helped]
     help_page = parser.format_help()
-    ambiguous = _ambiguous(words)
-    if ambiguous:
+    _place, ambiguous = _ambiguous_at(words)
+    if ambiguous and _AMBIGUITY_SORTED_FIRST:
         _refused_as_argparse_refuses(help_page, ambiguous)
+    # WHERE ARGPARSE TAKES THE HELP OPTION (lane S5a's repair 2, Codex's
+    # items 2 and 3). It is a plain switch here, so reading it prints
+    # nothing; argparse's own printed the page and stopped the moment it
+    # was taken, refusing nothing after it. So for each candidate word in
+    # order, up to `--`, the words up to and including it are read: where
+    # they read without a refusal and the switch is set, the help option is
+    # taken there, every word before it read as the whole line reads it --
+    # a candidate that is an option's value ends no option's values, and
+    # one cut short makes that reading a refusal, so a value is never taken
+    # for the help word. A candidate whose reading argparse refuses is
+    # passed over: the whole line then answers with that refusal, or reads
+    # on. Here, beside the parser, because the offline policy uses a value
+    # an allowlisted API produced where it was made (plan D6.2).
+    for place in range(len(words)):
+        if words[place] == "--":
+            break
+        if not _could_ask_for_help(words[place]):
+            continue
+        try:
+            before, _rest = parser.parse_known_args(words[: place + 1])
+        except Exception:  # noqa: BLE001,S112 -- the import allowlist (plan
+            # D6.2) admits argparse's parser alone, so its ArgumentError
+            # cannot be named; a refused reading takes no help option.
+            continue
+        if before.help:
+            _show(_OUT, help_page)
+            raise _HelpShown()
     try:
-        args, not_understood = parser.parse_known_args(read)
+        args, not_understood = parser.parse_known_args(words)
     except Exception as refused:  # noqa: BLE001 -- the import allowlist
         # (plan D6.2) admits argparse's parser alone, so its ArgumentError
         # cannot be named; argparse raises nothing else here.
         _refused_as_argparse_refuses(help_page, f"{refused}")
-    if helped >= 0:
+    if args.help:
+        # Taken where no candidate stood (none is known): the whole line
+        # read without a refusal, so the page is what argparse showed.
         _show(_OUT, help_page)
         raise _HelpShown()
+    # THE COMMAND IS THE ONE ARGPARSE READ (lane S5a's repair 2, Codex's
+    # item 1): a command word standing as an option's value, such as
+    # `--out-dir profile validate`, named the wrong command before, and the
+    # exit status is read off the command.
+    session = _current()
+    if session is not None:
+        session.command = "" if args.command is None else f"{args.command}"
     if not_understood:
         listed = ""
         for word in not_understood:
@@ -8167,6 +8261,12 @@ def _dispatch(
             session.key = error.key
             session.step = session.step or results.STEP_CONTENT
         _warn(_shown(error))
+        # The write transaction's own refusal names what is on disk in its
+        # message, and holds that account apart too: the result carries it
+        # as such (lane S5a's repair 2, Codex's item 8), shown as the words
+        # show it.
+        if isinstance(error, errors.TransactionRefusal) and error.on_disk:
+            session.on_disk = parsing.visible_lines(_shown(error.on_disk))
         return results.REFUSED
     except MemoryError:
         # Reading is not the only step that can exhaust memory: building

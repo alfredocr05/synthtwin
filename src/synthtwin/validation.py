@@ -1580,6 +1580,21 @@ class Check:
     and `_settled_verdict` among them. It moves no verdict and no byte of the report, and it
     enters neither the record's text nor its equality, so a check reads
     and compares as it did before results existed (lane S5a's repair 1).
+
+    ``approximate``, ``lowest``, ``highest`` and ``covers`` stand beside
+    it on the same terms (lane S5a's repair 2, Codex's items 5 and 7).
+    ``approximate`` says the description grants this obligation a window,
+    set by `_judged_window` with ``judged`` and KEPT by every copy that
+    puts a verdict no window decided -- a column the file does not carry,
+    a file of no rows or of no names, a closed gate (`_copied`) -- so the
+    inventory of what is carried approximately follows the description
+    whatever the file did; such a copy is ``judged`` `exact`, its verdict
+    decided by the absence. ``lowest`` and ``highest`` are the window's
+    two ends, as the report prints them, and ``covers`` whether the window
+    holds the description's own value (None where the producer says
+    nothing of it), set only where the report prints that window -- in
+    ``published`` or in ``note`` -- so a result carries no end the report
+    keeps back.
     """
 
     column: str
@@ -1591,6 +1606,10 @@ class Check:
     citation: str = ""
     note: "tuple[str, ...]" = ()
     judged: str = dataclasses.field(default="exact", repr=False, compare=False)
+    approximate: bool = dataclasses.field(default=False, repr=False, compare=False)
+    lowest: str = dataclasses.field(default="", repr=False, compare=False)
+    highest: str = dataclasses.field(default="", repr=False, compare=False)
+    covers: "bool | None" = dataclasses.field(default=None, repr=False, compare=False)
 
 
 # HOW A CHECK WAS JUDGED (plan P4-D395 part 1): the two words `Check.judged`
@@ -1599,9 +1618,53 @@ JUDGED_EXACT = "exact"
 JUDGED_WINDOW = "window"
 
 
-def _judged_window(check: Check) -> Check:
-    """The same check, marked as judged against a bound the method grants."""
-    return dataclasses.replace(check, judged=JUDGED_WINDOW)
+def _judged_window(
+    check: Check,
+    lowest: str = "",
+    highest: str = "",
+    covers: "bool | None" = None,
+) -> Check:
+    """The same check, marked as judged against a bound the method grants.
+
+    ``lowest`` and ``highest`` are the window's ends where the report
+    prints them with this check, written as it prints them, and
+    ``covers`` whether that window holds the description's own value,
+    where the producer decided it; all three stay empty elsewhere.
+    """
+    return dataclasses.replace(
+        check,
+        judged=JUDGED_WINDOW,
+        approximate=True,
+        lowest=lowest,
+        highest=highest,
+        covers=covers,
+    )
+
+
+def _copied(check: Check, verdict: str, achieved: str, citation: str = "") -> Check:
+    """The same obligation under a verdict no window decided (lane S5a's repair 2).
+
+    A column the file does not carry, a file of no rows or of no names,
+    a closed gate: the verdict, the measured side and the citation are
+    the caller's, the note goes, and the check is `exact` -- the absence
+    decided it -- while ``approximate`` is kept, so the obligation is
+    still carried approximately as the description grants. The window's
+    ends stay only where the published text the copy keeps still prints
+    them; ends the report printed in the note it drops are dropped too.
+    """
+    window = f"({_shown_window_text(check.lowest, check.highest)})"
+    printed = bool(check.lowest) and check.published[-len(window) :] == window
+    return dataclasses.replace(
+        check,
+        verdict=verdict,
+        achieved=achieved,
+        citation=citation,
+        note=(),
+        judged=JUDGED_EXACT,
+        lowest=check.lowest if printed else "",
+        highest=check.highest if printed else "",
+        covers=check.covers if printed else None,
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4480,6 +4543,11 @@ def _shown_window(low: float, high: float) -> str:
     return f"between {low} and {high}"
 
 
+def _shown_window_text(lowest: str, highest: str) -> str:
+    """`_shown_window`'s words for two ends already written as it writes them."""
+    return f"between {lowest} and {highest}"
+
+
 # -- building one check at a time -------------------------------------
 
 
@@ -4797,16 +4865,21 @@ def _within(
                     "      so the window above is not taken as a pass (V6.1-A2).",
                 ]
     note: tuple[str, ...] = tuple(lines)
-    return _judged_window(Check(
-        column,
-        fact,
-        subcheck,
-        verdict,
-        f"{published} ({_shown_window(low, high)})",
-        _shown_number(measured),
-        citation,
-        note,
-    ))
+    return _judged_window(
+        Check(
+            column,
+            fact,
+            subcheck,
+            verdict,
+            f"{published} ({_shown_window(low, high)})",
+            _shown_number(measured),
+            citation,
+            note,
+        ),
+        f"{low}",
+        f"{high}",
+        None if value is None else reaches,
+    )
 
 
 def _deviation(
@@ -6623,18 +6696,7 @@ def _withheld_if(
     """
     if not closed:
         return checks
-    return [
-        Check(
-            check.column,
-            check.fact,
-            check.subcheck,
-            WITHHELD,
-            check.published,
-            "",
-            why,
-        )
-        for check in checks
-    ]
+    return [_copied(check, WITHHELD, "", why) for check in checks]
 
 
 def _unaligned_column_checks(
@@ -6977,16 +7039,7 @@ def _no_column_is_named(
         for check in _obligations(
             description, column, [], {}, {}, None, headed
         ):
-            missed += [
-                Check(
-                    check.column,
-                    check.fact,
-                    check.subcheck,
-                    MISSED,
-                    check.published,
-                    _NO_NAMES_HERE,
-                )
-            ]
+            missed += [_copied(check, MISSED, _NO_NAMES_HERE)]
     return missed
 
 
@@ -8804,16 +8857,7 @@ def _nothing_stands_here(
     for check in _obligations(
         description, column, [], {}, {}, names, headed
     ):
-        missed += [
-            Check(
-                check.column,
-                check.fact,
-                check.subcheck,
-                MISSED,
-                check.published,
-                _NO_COLUMN_HERE,
-            )
-        ]
+        missed += [_copied(check, MISSED, _NO_COLUMN_HERE)]
     return missed
 
 
@@ -8845,29 +8889,10 @@ def _nothing_left_to_measure(
         description, column, [], {}, {}, names, headed
     ):
         if check.fact == _POSITION_FACT and names is None:
-            filled += [
-                Check(
-                    check.column,
-                    check.fact,
-                    check.subcheck,
-                    WITHHELD,
-                    check.published,
-                    "",
-                    _GATE_REFUSED,
-                )
-            ]
+            filled += [_copied(check, WITHHELD, "", _GATE_REFUSED)]
             continue
         if check.verdict == WITHHELD and check.citation == _GATE_CLOSED:
-            filled += [
-                Check(
-                    check.column,
-                    check.fact,
-                    check.subcheck,
-                    MISSED,
-                    check.published,
-                    _NO_ROWS_HERE,
-                )
-            ]
+            filled += [_copied(check, MISSED, _NO_ROWS_HERE)]
             continue
         filled += [check]
     return filled
@@ -9513,16 +9538,7 @@ def _governed(
             settled += [closed]
             continue
         if found.verdict == WITHHELD and found.citation == _GATE_CLOSED:
-            settled += [
-                Check(
-                    closed.column,
-                    closed.fact,
-                    closed.subcheck,
-                    MISSED,
-                    closed.published,
-                    _NOT_OF_THAT_KIND,
-                )
-            ]
+            settled += [_copied(closed, MISSED, _NOT_OF_THAT_KIND)]
             continue
         settled += [found]
     return settled
@@ -9723,6 +9739,9 @@ def _distinctness_checks(
                         )
                     ]
                     continue
+                # The window is printed only beside a count it did not
+                # meet exactly, and its ends are carried only there.
+                shown_ends = measured != published
                 checks += [
                     _judged_window(
                         Check(
@@ -9738,7 +9757,10 @@ def _distinctness_checks(
                             else _shown_count(published),
                             _shown_count(measured),
                             said if measured != published else "",
-                        )
+                        ),
+                        f"{float(low)}" if shown_ends else "",
+                        f"{float(high)}" if shown_ends else "",
+                        (low <= published <= high) if shown_ends else None,
                     )
                 ]
                 continue
@@ -9754,7 +9776,16 @@ def _distinctness_checks(
                 f"({_shown_window(float(low), float(high))})",
                 None if measured is None else _shown_count(measured),
             )
-            checks += [outside if low == high else _judged_window(outside)]
+            checks += [
+                outside
+                if low == high
+                else _judged_window(
+                    outside,
+                    f"{float(low)}",
+                    f"{float(high)}",
+                    low <= published <= high,
+                )
+            ]
             continue
         corner = _distinct_corner(facts, mine, field)
         if corner == CORNER_IDENTIFIER_INFEASIBLE:
@@ -9856,6 +9887,7 @@ def _lesser_or_held(
     high = max(ceiling, published)
     # ...AND BEYOND THE EXACT BAR THE COUNT IS JUDGED AGAINST THE
     # CORNER'S WINDOW (plan P4-D395 part 1: `judged` is `window`).
+    covers = low <= published <= high
     if low <= measured <= high:
         return _judged_window(
             Check(
@@ -9866,7 +9898,10 @@ def _lesser_or_held(
                 f"{shown} ({_shown_window(float(low), float(high))})",
                 _shown_count(measured),
                 CORNER_CITATIONS[corner],
-            )
+            ),
+            f"{float(low)}",
+            f"{float(high)}",
+            covers,
         )
     return _judged_window(
         Check(
@@ -9876,7 +9911,10 @@ def _lesser_or_held(
             MISSED,
             f"{shown} ({_shown_window(float(low), float(high))})",
             _shown_count(measured),
-        )
+        ),
+        f"{float(low)}",
+        f"{float(high)}",
+        covers,
     )
 
 
@@ -17724,16 +17762,21 @@ def _tail_window_check(
             ENVELOPE_TAIL_DISTANCE,
             _NOT_SHOWN_IT_IS_A_SUBFLOOR_GROUP_OF_THE_FILE,
         ))
-    return _judged_window(Check(
-        name,
-        fact,
-        subcheck,
-        verdict,
-        _tail_figure(published, unit),
-        shown,
-        ENVELOPE_TAIL_DISTANCE,
-        note,
-    ))
+    return _judged_window(
+        Check(
+            name,
+            fact,
+            subcheck,
+            verdict,
+            _tail_figure(published, unit),
+            shown,
+            ENVELOPE_TAIL_DISTANCE,
+            note,
+        ),
+        f"{low_value!r}",
+        f"{high_value!r}",
+        low_value <= published <= high_value,
+    )
 
 
 def _tail_ratio_equal(top: int, count: int, published: float, rooted: bool) -> bool:
@@ -18249,16 +18292,21 @@ def _within_clock(
             () if reaches else _MET_OUTSIDE_ITS_WINDOW,
         ))
     verdict = WITHIN_BOUND if low <= measured <= high else MISSED
-    return _judged_window(Check(
-        column,
-        "clock.clock_percentiles",
-        subcheck,
-        verdict,
-        published,
-        _shown_clock_distance(measured, rung, form),
-        ENVELOPE_CLOCK_RUNG,
-        note,
-    ))
+    return _judged_window(
+        Check(
+            column,
+            "clock.clock_percentiles",
+            subcheck,
+            verdict,
+            published,
+            _shown_clock_distance(measured, rung, form),
+            ENVELOPE_CLOCK_RUNG,
+            note,
+        ),
+        _shown_clock_distance(low, rung, form),
+        _shown_clock_distance(high, rung, form),
+        reaches,
+    )
 
 
 def _clock_rank_windows(
@@ -20843,16 +20891,21 @@ def _within_instant(
             () if reaches else _MET_OUTSIDE_ITS_WINDOW,
         ))
     verdict = WITHIN_BOUND if low <= measured <= high else MISSED
-    return _judged_window(Check(
-        column,
-        "datetime.date_percentiles",
-        subcheck,
-        verdict,
-        published,
-        _shown_distance(measured, rung, facts),
-        ENVELOPE_DATETIME_RUNGS,
-        note,
-    ))
+    return _judged_window(
+        Check(
+            column,
+            "datetime.date_percentiles",
+            subcheck,
+            verdict,
+            published,
+            _shown_distance(measured, rung, facts),
+            ENVELOPE_DATETIME_RUNGS,
+            note,
+        ),
+        _shown_distance(low, rung, facts),
+        _shown_distance(high, rung, facts),
+        reaches,
+    )
 
 
 def _clock_distinct_window(

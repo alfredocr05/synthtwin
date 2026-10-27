@@ -350,7 +350,7 @@ class Result:
 # name and position -- every column is read through them. `writing`:
 # a column's role and type, its date and clock formats and what they
 # are read at, its separators and decimal marks, its layouts, a label's
-# spelling map and variants, how its missing values are spelled, and a
+# spelling map and variants, which spellings mean no value, and a
 # cell wearing no spelling its value admits (`styles.spelled`) -- every
 # value of the column is read through them. Every other fact decided
 # exactly is a `count`, the style, width and mark censuses among them
@@ -362,7 +362,19 @@ class Result:
 # that wear one published form (`validation._form_checks`), and a
 # datetime column's marks as the cells that wear one published mark,
 # each a census of cells; the cells that wear no mark the census names
-# (`marks.unnamed`) stay `writing`, as `styles.spelled` does.
+# (`marks.unnamed`) stay `writing`, as `styles.spelled` does. AND THE
+# CENSUS OF CELLS PER MISSING SPELLING RANKS `count` (the orchestrator's
+# ruling of 2026-10-26, lane S5a's repair 2): `universal.missing_by_source`
+# holds each published spelling of "no value" at exactly its count of
+# cells (`holes.by_source.*`), an exact census, so it falls to
+# `universal.*`; which spellings mean "no value" stays `writing` through
+# `sentinel_verdicts`. A JOINED COLUMN'S POSITION RANKS AS A COLUMN OF
+# NUMBERS (lane S5a's repair 2, Codex's item 6): the validator and the
+# generator rename a position's numeric fact `numeric.X` to
+# `joined.parts[N].X`, its subcheck led by `number N+1`, so `_ranked`
+# reads it back as `numeric.X` and the subcheck after that lead, and a
+# position's type or spelling miss stands where the same miss of a plain
+# number column stands.
 _RANKS: "tuple[tuple[str, str, str], ...]" = (
     ("identifier.layout_forms", "forms.published", TIER_COUNT),
     ("numeric.number_spellings", "spellings.published", TIER_COUNT),
@@ -374,7 +386,6 @@ _RANKS: "tuple[tuple[str, str, str], ...]" = (
     ("universal.role", "", TIER_WRITING),
     ("universal.statistical_type", "", TIER_WRITING),
     ("universal.structural_role", "", TIER_WRITING),
-    ("universal.missing_by_source", "", TIER_WRITING),
     ("universal.sentinel_verdicts", "", TIER_WRITING),
     ("numeric.numeric_styles", "styles.spelled", TIER_WRITING),
     ("numeric.group_separator", "", TIER_WRITING),
@@ -444,10 +455,58 @@ def _forms(fact: str) -> "list[str]":
     return found
 
 
+# A joined column's position, as the validator and the generator name its
+# numeric facts (`joined.parts[N].X`, subcheck `number N+1 ...`).
+_PART_OPEN = "joined.parts["
+_PART_CLOSE = "]."
+_PART_LEAD = "number "
+_FIGURES = "0123456789"
+
+
+def _figures_from(text: str, place: int) -> int:
+    """Where the run of figures starting at ``place`` in ``text`` ends."""
+    while place < len(text) and text[place] in _FIGURES:
+        place = place + 1
+    return place
+
+
+def _as_a_number_column(fact: str, subcheck: str) -> "tuple[str, str] | None":
+    """A joined position's fact and subcheck as a plain number column's, or None.
+
+    `joined.parts[0].integer_valued` is `numeric.integer_valued`, and its
+    subcheck `number 1 integer.valued` is `integer.valued`: the rename
+    the validator (`_joined_style_checks`, `_joined_numeric_checks`) and
+    the generator (`parts[N].fact`) make, read back. A subcheck without
+    the lead (generate's, which is empty) is kept as it is. Built without
+    a method of the value, for the offline audit's reason.
+    """
+    if fact[: len(_PART_OPEN)] != _PART_OPEN:
+        return None
+    place = _figures_from(fact, len(_PART_OPEN))
+    if place == len(_PART_OPEN):
+        return None
+    if fact[place : place + len(_PART_CLOSE)] != _PART_CLOSE:
+        return None
+    field = fact[place + len(_PART_CLOSE) :]
+    if not field:
+        return None
+    inner = subcheck
+    if subcheck[: len(_PART_LEAD)] == _PART_LEAD:
+        after = _figures_from(subcheck, len(_PART_LEAD))
+        if after > len(_PART_LEAD) and subcheck[after : after + 1] == " ":
+            inner = subcheck[after + 1 :]
+    return ("numeric." + field, inner)
+
+
 def _ranked(fact: str, subcheck: str) -> "str | None":
     """The tier the rank table gives a fact decided exactly, or None where it has none."""
     if not isinstance(subcheck, str):
         raise TypeError("a subcheck is named by text")
+    if not isinstance(fact, str):
+        raise TypeError("a fact is named by text")
+    part = _as_a_number_column(fact, subcheck)
+    if part is not None:
+        return _ranked(part[0], part[1])
     for form in _forms(fact):
         for key, prefix, tier in _RANKS:
             if key != form:

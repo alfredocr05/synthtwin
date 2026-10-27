@@ -522,7 +522,10 @@ def unmet(run: Ran, result: results.Result) -> "list[str]":
         if held != wanted:
             found += ["(h)(i) the approximate entries are not the twin's approximations"]
     if run.outcome is not None and result.verdict != "refused":
-        wanted_checks = [check for check in run.outcome.checks if check.judged == validation.JUDGED_WINDOW]
+        # Every check whose obligation the description grants a window
+        # (lane S5a's repair 2: `Check.approximate`, kept where the file
+        # lacks the column, holds no rows or names, or the gate closed).
+        wanted_checks = [check for check in run.outcome.checks if check.approximate]
         if [
             (one.subject, one.fact, one.subcheck, one.kind, one.reason, one.verdict)
             for one in approximate
@@ -544,14 +547,21 @@ def unmet(run: Ran, result: results.Result) -> "list[str]":
             found += ["(h) the approximate entries are not the ones the row reads off the description"]
         for one, check in zip(approximate, wanted_checks):
             measure = one.measures[0]
-            # inside: none where the check is WITHHELD or V5 keeps its measured side back
+            # inside: none where the check is WITHHELD, V5 keeps its measured
+            # side back, or no window decided its verdict (repair 2)
             inside = (
                 None
-                if check.verdict == validation.WITHHELD or not check.achieved
+                if check.verdict == validation.WITHHELD
+                or not check.achieved
+                or check.judged != validation.JUDGED_WINDOW
                 else check.verdict != validation.MISSED
             )
             if (measure.published, measure.achieved, measure.inside) != (check.published, check.achieved, inside):
                 found += [f"(i) a carried measure of {check.fact} is not its check's"]
+            # ...and the window's ends and whether it holds the published
+            # value, as the producer printed them (repair 2, Codex's item 7)
+            if (measure.lowest, measure.highest, measure.covers_published) != (check.lowest, check.highest, check.covers):
+                found += [f"(i) a carried measure of {check.fact} does not carry its check's window"]
     # (i) each miss's identity, text and rank values, one by one
     positions = _positions(run.folder, case.argv)
     for miss in misses:
@@ -682,6 +692,15 @@ def _corruptions(ran: Battery) -> "list[tuple[str, Ran, results.Result]]":
     found += [("an approximate entry's subject changed", three, with_carried(first_approximate, dataclasses.replace(entry, subject=("ward",))))]
     found += [("an approximate entry's reason changed", three, with_carried(first_approximate, dataclasses.replace(entry, reason="held-back")))]
     found += [("an approximate entry's subcheck changed", three, with_carried(first_approximate, dataclasses.replace(entry, subcheck=entry.subcheck + ".other")))]
+    # Lane S5a's repair 2: a window's printed ends and whether it holds the
+    # published value, carried as data.
+    windowed = [place for place, one in enumerate(carried) if one.kind == "approximate" and one.measures[0].lowest]
+    assert windowed, "G3 prints windows"
+    at = windowed[0]
+    measure = carried[at].measures[0]
+    found += [("a carried window's low end changed", three, with_carried(at, dataclasses.replace(carried[at], measures=(dataclasses.replace(measure, lowest="-" + measure.lowest),))))]
+    flipped_cover = False if measure.covers_published is not False else True
+    found += [("a carried window's cover flipped", three, with_carried(at, dataclasses.replace(carried[at], measures=(dataclasses.replace(measure, covers_published=flipped_cover),))))]
     entry = carried[first_not_carried]
     found += [("a not-carried entry's subject changed", three, with_carried(first_not_carried, dataclasses.replace(entry, subject=("ward",))))]
     found += [("a not-carried entry's reason changed", three, with_carried(first_not_carried, dataclasses.replace(entry, reason="held-back")))]
@@ -727,10 +746,10 @@ def test_inside_is_none_where_the_measured_side_is_kept_back(ran: Battery) -> No
     described = rendering.contract.load_profile(f"{ran.root / 'G1' / 't-profile.json'}")
     window = "70.1 (between 69.0 and 71.0)"
     checks = (
-        validation.Check("weight", "numeric.mean", "moments.mean", validation.WITHIN_BOUND, window, "", "c", judged="window"),
-        validation.Check("weight", "numeric.std", "moments.std", validation.MISSED, window, "", judged="window"),
-        validation.Check("weight", "numeric.skew", "moments.skew", validation.WITHIN_BOUND, window, "70.2", "c", judged="window"),
-        validation.Check("weight", "numeric.kurtosis", "moments.kurtosis", validation.WITHHELD, window, "", "c", judged="window"),
+        validation.Check("weight", "numeric.mean", "moments.mean", validation.WITHIN_BOUND, window, "", "c", judged="window", approximate=True),
+        validation.Check("weight", "numeric.std", "moments.std", validation.MISSED, window, "", judged="window", approximate=True),
+        validation.Check("weight", "numeric.skew", "moments.skew", validation.WITHIN_BOUND, window, "70.2", "c", judged="window", approximate=True),
+        validation.Check("weight", "numeric.kurtosis", "moments.kurtosis", validation.WITHHELD, window, "", "c", judged="window", approximate=True),
     )
     outcome = validation.Outcome(checks, (), validation.Census(0, 2, 0, 1, 1, 0), "t-twin.csv")
     session = cli._Session(None, None)
@@ -1031,7 +1050,7 @@ def test_every_window_check_is_marked_where_it_is_made() -> None:
     assert len(compound) == 1
     text = ast.unparse(compound[0])
     assert text.count("_judged_window(") == 2, text
-    assert "outside if low == high else _judged_window(outside)" in text
+    assert "outside if low == high else _judged_window(outside," in text
 
 
 # -- part 3: `run` prints nothing; each command reaches only its own modules --
@@ -1201,13 +1220,42 @@ _USAGE_311 = (
 )
 
 
+def _argparse_sorts_first() -> bool:
+    """Whether this Python's argparse refuses an ambiguous word as it sorts the words (3.11's way).
+
+    Asked of argparse itself, on a parser of its own with its own help
+    option: the help word first, an ambiguous word after it. Sorting
+    first, it refuses (exit 2); reading in order, it shows the help (0).
+    """
+    import argparse
+    import contextlib
+    import io
+
+    probe = argparse.ArgumentParser(prog="probe")
+    probe.add_argument("--alpha")
+    probe.add_argument("--also")
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        try:
+            probe.parse_known_args(["--help", "--al"])
+        except SystemExit as stop:
+            return stop.code == 2
+    raise AssertionError("argparse's help option did not stop")
+
+
+def test_the_ambiguity_rule_is_this_python_s() -> None:
+    """`cli._AMBIGUITY_SORTED_FIRST` is how this Python's argparse refuses an ambiguous word (lane S5a's repair 2)."""
+    assert cli._AMBIGUITY_SORTED_FIRST == _argparse_sorts_first()
+
+
 def test_an_ambiguous_word_after_the_help_word_is_refused_as_before(tmp_path: pathlib.Path) -> None:
-    """argparse refuses a word abbreviating several options wherever it stands, the help word before it or not.
+    """A word abbreviating several options, after the help word: answered as this Python's argparse answered it.
 
     Lane S5a's repair 1: the base f677d6a0 answered these three lines
-    with exit 2, its usage block and argparse's ambiguous-option line,
-    measured through `cli.main` under Python 3.11; through `main` and
-    through `run` they still do, and the help page is not shown.
+    under Python 3.11 with exit 2, its usage block and argparse's
+    ambiguous-option line; lane S5a's repair 2 (Codex's item 3): on a
+    Python whose argparse refuses the word only when it reaches it
+    (3.12.7 and later), the base showed the help page with exit 0. Through
+    `main` and through `run` they still do.
     """
     lines = (
         (("--help", "--d"), "--d could match --decimal-comma, --date-column, --date-count, --delimiter, --day-first"),
@@ -1215,25 +1263,145 @@ def test_an_ambiguous_word_after_the_help_word_is_refused_as_before(tmp_path: pa
         (("profile", "x.csv", "-h", "--tw"), "--tw could match --twin, --twelve-hour"),
     )
     usage = _USAGE_311
+    page = RECORDER.capture(("--help",), tmp_path)
     if f"{sys.version_info[0]}.{sys.version_info[1]}" != goldens.RECORDER_PYTHON:
         # argparse lays its usage out per Python: read it off this one's help page.
-        page = RECORDER.capture(("--help",), tmp_path)
         usage = page.runs[0][1].split("\n\n")[0] + "\n"
     for argv, matches in lines:
         wanted = [("err", usage + f"synthtwin: error: ambiguous option: {matches}\n")]
+        status, verdict = 2, "unusable"
+        if not _argparse_sorts_first():
+            wanted, status, verdict = page.runs, 0, "no-miss"
         through_main = RECORDER.capture(argv, tmp_path)
-        assert (through_main.exit, through_main.runs) == (2, wanted), argv
+        assert (through_main.exit, through_main.runs) == (status, wanted), argv
 
         def listed(given: "list[str]", write: "typing.Callable[[str, str], None]") -> int:
             screen: "list[tuple[str, str]]" = []
             result = cli.run(given, screen=screen, small_tables_refused=True)
-            assert (result.verdict, result.command) == ("unusable", "profile" if "profile" in given else "")
+            command = ("profile" if "profile" in given else "") if verdict == "unusable" else "help"
+            assert (result.verdict, result.command) == (verdict, command)
             for stream, text in screen:
                 write(stream, text)
             return results.exit_code(result)
 
         through_run = RECORDER.capture(argv, tmp_path, listed)
-        assert (through_run.exit, through_run.runs, through_run.strays) == (2, wanted, []), argv
+        assert (through_run.exit, through_run.runs, through_run.strays) == (status, wanted, []), argv
+
+
+# THE LINES argparse ITSELF ANSWERS, by refusing them or showing its help
+# page: abbreviations, help words run together, options short of values,
+# values that look like options. Each is held below to what argparse
+# answers on the Python that runs the gate, read off argparse with its own
+# help option, as the base f677d6a0 used it.
+_PARSER_LINES = (
+    ("--help", "--d"), ("-h", "--da"), ("profile", "x.csv", "-h", "--tw"), ("--d", "--help"),
+    ("--seed", "--d"), ("--seed", "5", "--d"), ("profile", "--d", "x.csv"), ("--d",), ("--d=5",),
+    ("-hh",), ("-hhh",), ("-hfoo",), ("-h=h",), ("-h=x",), ("-hh", "--d"), ("--d", "-hh"),
+    ("--out-dir", "-hh"), ("--out-dir", "-h"), ("frobnicate",), ("frobnicate", "-h"), ("-h", "frobnicate"),
+    ("profile", "--seed"), ("--he",), ("--h",), ("--help=x",), ("--he=x",), ("-h x",), ("--", "-h"),
+    ("--sheet", "--d"), ("--seed", "-hh"), ("--date-count", "a", "--d"), ("--date-count", "a", "-h"),
+    ("--date-count", "-h", "a"), ("--date-count", "a", "b", "-h"), ("--version", "--d"), ("-hx", "--d"),
+    ("profile", "-hfoo", "--d"), ("--first-row", "names", "-hh"), ("frob", "-hh"), ("--he", "--d"),
+    ("--date-count", "--d", "-h", "x"), ("--d=\x1b[31m",), ("--keep-value", "-h"),
+)
+
+
+def _base_parser() -> typing.Any:
+    """The command's own parser, given back argparse's help option and its exits, as the base had them."""
+    import argparse
+
+    seen: "list[argparse.ArgumentParser]" = []
+    original = argparse.ArgumentParser.parse_known_args
+
+    def caught(self: argparse.ArgumentParser, *_given: object, **_named: object) -> object:
+        seen.extend([self])
+        raise SystemExit(0)
+
+    argparse.ArgumentParser.parse_known_args = caught  # type: ignore[assignment,method-assign]
+    try:
+        with pytest.raises(SystemExit):
+            cli._parse_arguments(["profile", "x.csv"], None)
+    finally:
+        argparse.ArgumentParser.parse_known_args = original  # type: ignore[method-assign]
+    parser = seen[0]
+    parser.exit_on_error = True
+    helper = parser._option_string_actions["-h"]
+    helper.__class__ = argparse._HelpAction  # type: ignore[assignment]
+    helper.default = argparse.SUPPRESS
+    return parser
+
+
+def test_argparse_s_own_answer_on_this_python_is_kept(tmp_path: pathlib.Path) -> None:
+    """Every line argparse answers shows, through `main` and `run`, what argparse showed here (lane S5a's repair 2).
+
+    Codex's items 2 to 4: a help word run together (`-hh`, `-hfoo`) shows
+    the help page wherever this Python's argparse shows it, and never by
+    argparse's own print; an ambiguous word is refused where this
+    Python's argparse refuses it; and a refusal keeps its words in the
+    result, the characters shown less the last line feed, with no screen
+    at all too. A line argparse reads through is answered by the command.
+    """
+    parser = _base_parser()
+    stopped = 0
+    for argv in _PARSER_LINES:
+
+        def by_argparse(given: "list[str]", _write: "typing.Callable[[str, str], None]") -> int:
+            try:
+                parser.parse_known_args(given)
+            except SystemExit as stop:
+                return int(f"{stop.code}")
+            return -1
+
+        oracle = RECORDER.capture(argv, tmp_path, by_argparse)
+        through_main = RECORDER.capture(argv, tmp_path)
+        quiet = cli.run(list(argv), small_tables_refused=True)
+        if oracle.exit < 0:
+            assert not any(text.startswith("usage: ") for _stream, text in through_main.runs), argv
+            continue
+        stopped = stopped + 1
+        assert (through_main.exit, through_main.runs) == (oracle.exit, oracle.strays), argv
+        screen: "list[tuple[str, str]]" = []
+
+        def listed(given: "list[str]", write: "typing.Callable[[str, str], None]") -> int:
+            result = cli.run(given, screen=screen, small_tables_refused=True)
+            for stream, text in screen:
+                write(stream, text)
+            return results.exit_code(result)
+
+        through_run = RECORDER.capture(argv, tmp_path, listed)
+        assert (through_run.exit, through_run.runs, through_run.strays) == (oracle.exit, oracle.strays, []), argv
+        if oracle.exit == 0:
+            assert quiet.verdict == "no-miss" and quiet.command == "help", argv
+            continue
+        shown = "".join(text for _stream, text in screen)
+        assert quiet.verdict == "unusable" and quiet.refusal is not None, argv
+        assert quiet.refusal.words == shown[: len(shown) - 1] and quiet.refusal.words, argv
+    assert stopped >= 30, stopped
+
+
+def test_the_command_is_the_one_argparse_read(ran: Battery, tmp_path: pathlib.Path) -> None:
+    """A command word standing as an option's value names no command (lane S5a's repair 2, Codex's item 1).
+
+    `--out-dir profile validate` validates into a folder named `profile`:
+    the run is validate's, its miss exit 3; `--out-dir validate generate`
+    generates into `validate`: generate's, its miss exit 0.
+    """
+    folder = tmp_path / "words"
+    folder.mkdir()
+    for name in ("t-profile.json", "t-twin.csv"):
+        (folder / name).write_bytes((ran.runs["M7"].folder / name).read_bytes())
+    (folder / "profile").mkdir()
+    (folder / "validate").mkdir()
+    here = os.getcwd()
+    os.chdir(folder)
+    try:
+        checked = cli.run(["--out-dir", "profile", "validate", "t-profile.json"], small_tables_refused=True)
+        made = cli.run(["--out-dir", "validate", "generate", "t-profile.json", "--seed", "7"], small_tables_refused=True)
+    finally:
+        os.chdir(here)
+    assert (checked.command, checked.verdict, results.exit_code(checked)) == ("validate", "missed", 3)
+    assert (made.command, made.verdict, results.exit_code(made)) == ("generate", "missed", 0)
+    assert [one.kind for one in made.files] == ["twin", "twin-report"]
 
 
 def test_the_long_options_are_the_parser_s_in_its_order() -> None:
@@ -1241,10 +1409,12 @@ def test_the_long_options_are_the_parser_s_in_its_order() -> None:
     import argparse
 
     seen: "list[str]" = []
+    shorts: "list[str]" = []
     original = argparse.ArgumentParser.parse_known_args
 
     def caught(self: argparse.ArgumentParser, *_given: object, **_named: object) -> object:
         seen.extend([option for option in self._option_string_actions if option.startswith("--")])
+        shorts.extend([option for option in self._option_string_actions if not option.startswith("--")])
         usage = self.format_usage()
         assert self.format_help().split("\n\n")[0] + "\n" == usage
         raise SystemExit(0)
@@ -1256,3 +1426,191 @@ def test_the_long_options_are_the_parser_s_in_its_order() -> None:
     finally:
         argparse.ArgumentParser.parse_known_args = original  # type: ignore[method-assign]
     assert tuple(seen) == cli._LONG_OPTIONS
+    # ...and `-h` is its one short option, which `cli._could_ask_for_help`
+    # takes a word of short options run together to begin with (repair 2).
+    assert tuple(shorts) == ("-h",)
+
+
+# -- lane S5a's repair 2: Codex's items 5 to 8 -----------------------------
+
+
+def _carried_approximately(result: results.Result) -> "list[tuple[tuple[str, ...], str, str]]":
+    return sorted((one.subject, one.fact, one.subcheck) for one in result.carried if one.kind == "approximate")
+
+
+def _step0_rows(text: str) -> "list[list[str]]":
+    return [line.split(",") for line in text.split("\n") if line]
+
+
+def test_what_validate_carries_follows_the_description_whatever_the_file_lacks(
+    ran: Battery, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Columns the file lacks, no rows, no names, a closed gate: the same approximate entries (Codex's item 5).
+
+    Lane S5a's repair 2: the copies that put a verdict no window decided
+    keep `Check.approximate`, so validate's inventory of what is carried
+    approximately is the description's -- G3's, of the good twin -- and
+    each miss the absence decided is `exact`, its entry's `inside` None.
+    """
+    good = _carried_approximately(ran.runs["G3"].result)
+    assert len(good) == 33, len(good)
+    twin = (ran.root / "G1" / "t-twin.csv").read_text(encoding="utf-8")
+    rows = _step0_rows(twin)
+    place = rows[0].index("weight")
+    # The validator finds a column by its position: a file of the columns
+    # before the weight holds no column at the weight's number, or after.
+    lacking = "\n".join(",".join(row[:place]) for row in rows) + "\n"
+    header_only = ",".join(rows[0]) + "\n"
+    for name, text in (("lacking", lacking), ("no-rows", header_only)):
+        folder = tmp_path / name
+        folder.mkdir()
+        (folder / "t-profile.json").write_bytes((ran.root / "G1" / "t-profile.json").read_bytes())
+        (folder / "t-twin.csv").write_text(text, encoding="utf-8", newline="\n")
+        monkeypatch.chdir(folder)
+        result = cli.run(["validate", "t-profile.json"], small_tables_refused=True)
+        assert result.verdict == "missed", name
+        assert _carried_approximately(result) == good, name
+        weight = [one for one in result.carried if one.kind == "approximate" and one.subject == ("weight",)]
+        assert weight and all(one.measures[0].inside is None for one in weight), name
+        # each miss the absence decided is `exact`
+        absences = (validation._NO_COLUMN_HERE, validation._NO_ROWS_HERE, validation._NO_NAMES_HERE)
+        absent = [miss for miss in result.misses if miss.achieved in absences]
+        assert absent and all(miss.judged == "exact" and miss.tier != "window" for miss in absent), name
+    # A header naming no column, and a gate closed over a measured file:
+    # the two other copies, asked of the validator directly.
+    described = rendering.contract.load_profile(f"{ran.root / 'G1' / 't-profile.json'}")
+    unnamed = validation._no_column_is_named(described, "the file's first row names none", True)
+    wanted = sorted(((check.column,) if check.column else (), check.fact, check.subcheck) for check in unnamed if check.approximate)
+    assert wanted == good
+    assert all(check.judged == "exact" for check in unnamed)
+    measured = ran.runs["G3"].outcome
+    assert measured is not None
+    closed = validation._withheld_if(list(measured.checks), True, "the gate's sentence")
+    assert [check.approximate for check in closed] == [check.approximate for check in measured.checks]
+
+
+def test_a_window_s_ends_are_carried_where_the_report_prints_them(ran: Battery) -> None:
+    """Every window the quality report prints is in the result as data, and no other (Codex's item 7).
+
+    For each approximate entry of every validate run: where its check's
+    published text ends with the window, or its note says what the file
+    is allowed, the measure's `lowest` and `highest` are those printed
+    ends; where neither prints one, both are empty; and `covers_published`
+    is false exactly where the note says the window does NOT reach the
+    description's value, true where it says it covers it.
+    """
+    in_published = 0
+    in_note = 0
+    for key, run in ran.runs.items():
+        if run.outcome is None or run.result.verdict == "refused":
+            continue
+        checks = [check for check in run.outcome.checks if check.approximate]
+        carried = [one for one in run.result.carried if one.kind == "approximate"]
+        assert len(checks) == len(carried), key
+        for one, check in zip(carried, checks):
+            measure = one.measures[0]
+            note = "\n".join(check.note)
+            window = re.search(r"\(between (\S+) and (\S+)\)$", check.published)
+            where = (key, check.fact, check.subcheck)
+            if window:
+                in_published = in_published + 1
+                assert (measure.lowest, measure.highest) == window.groups(), where
+            elif "allowed from" in note:
+                # a tail's distances or a rung's distances from its value
+                in_note = in_note + 1
+                assert measure.lowest and measure.highest, (where, note)
+                assert f"allowed from {measure.lowest}" in note, (where, note)
+                assert f"to {measure.highest}" in note, (where, note)
+            else:
+                assert (measure.lowest, measure.highest, measure.covers_published) == ("", "", None), where
+            if "does NOT reach" in note:
+                assert measure.covers_published is False, where
+            if "it covers the value above" in note:
+                assert measure.covers_published is True, where
+    assert in_published > 0 and in_note > 0, (in_published, in_note)
+
+
+def test_a_window_s_ends_and_cover_reach_the_result(ran: Battery) -> None:
+    """`_within`'s window, published 70.1 and the file 70.2 between 69 and 71, as data (Codex's item 7).
+
+    Beside it the same window against a published 75.0, which it does not
+    reach: the cover is false, said in the note as before.
+    """
+    inside = validation._within("weight", "numeric.mean", "moments.mean", "70.1", 70.2, (69.0, 71.0), "c", value=70.1)
+    beside = validation._within("weight", "numeric.std", "moments.std", "75.0", 70.2, (69.0, 71.0), "c", value=75.0)
+    assert (inside.verdict, inside.published) == (validation.WITHIN_BOUND, "70.1 (between 69.0 and 71.0)")
+    assert beside.verdict == validation.WITHIN_BOUND and "does NOT reach" in "".join(beside.note)
+    outcome = validation.Outcome((inside, beside), (), validation.Census(0, 2, 0, 0, 0, 0), "t-twin.csv")
+    session = cli._Session(None, None)
+    cli._OPEN.sessions += [session]
+    try:
+        cli._validated(rendering.contract.load_profile(f"{ran.root / 'G1' / 't-profile.json'}"), outcome)
+    finally:
+        del cli._OPEN.sessions[len(cli._OPEN.sessions) - 1]
+    measures = [entry.measures[0] for entry in session.carried if entry.kind == "approximate"]
+    assert [(one.lowest, one.highest, one.inside, one.covers_published) for one in measures] == [
+        ("69.0", "71.0", True, True),
+        ("69.0", "71.0", True, False),
+    ]
+
+
+def test_joined_positions_rank_as_columns_of_numbers(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A joined position's type miss ranks `writing`, ahead of an earlier column's counts (Codex's item 6).
+
+    The validator names a position's facts `joined.parts[N].X`, its
+    subcheck led by `number N+1`; the rank reads them back as the number
+    column's `numeric.X`. Measured on 2,000 readings `100/60` to `139/84`
+    beside a ward, the first number written with a decimal and 100 wards
+    moved: the position's whole-number miss stands before the ward's counts.
+    """
+    table = [f"{'A' if index % 2 else 'B'},{100 + index % 40}/{60 + index % 25}" for index in range(2000)]
+    damaged = [
+        f"{'A' if index % 2 or index < 100 else 'B'},{100 + index % 40}.5/{60 + index % 25}" for index in range(2000)
+    ]
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "t.csv").write_text("ward,bp\n" + "\n".join(table) + "\n", encoding="utf-8", newline="\n")
+    (tmp_path / "d.csv").write_text("ward,bp\n" + "\n".join(damaged) + "\n", encoding="utf-8", newline="\n")
+    assert cli.run(["profile", "t.csv", "--measurement", "bp"], small_tables_refused=False).verdict == "no-miss"
+    checked = cli.run(["validate", "t-profile.json", "--twin", "d.csv"], small_tables_refused=False)
+    whole = [miss for miss in checked.misses if miss.fact == "joined.parts[0].integer_valued"]
+    assert whole and whole[0].tier == "writing", whole
+    first_count = [place for place, miss in enumerate(checked.misses) if miss.tier == "count"][0]
+    assert checked.misses.index(whole[0]) < first_count
+    assert any(miss.column == "ward" and miss.tier == "count" for miss in checked.misses)
+    table_rows = (
+        ("joined.parts[0].integer_valued", "type.number 1 is whole", "writing"),
+        ("joined.parts[1].numeric_styles", "number 2 styles.spelled", "writing"),
+        ("joined.parts[0].numeric_styles", "number 1 styles.published.plain", "count"),
+        ("joined.parts[0].number_spellings", "number 1 spellings.published.07", "count"),
+        ("joined.parts[0].group_separator", "", "writing"),
+        ("joined.parts[0].percentiles", "number 1 ladder.p50", "count"),
+        ("joined.parts[12].max", "ends.number 13 max", "count"),
+        ("joined.part_above[0]", "above.number 1", "count"),
+        ("joined.separator", "", "writing"),
+    )
+    for fact, subcheck, tier in table_rows:
+        assert results.tier_of(fact, subcheck, "exact") == tier, (fact, subcheck)
+
+
+def test_a_write_the_transaction_refused_names_what_is_on_disk(
+    ran: Battery, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A quality report whose working file could not be written: the refusal's `on_disk` is the transaction's account (Codex's item 8)."""
+    folder = tmp_path / "unwritten"
+    folder.mkdir()
+    for name in ("t-profile.json", "t-twin.csv"):
+        (folder / name).write_bytes((ran.root / "M7" / name).read_bytes())
+
+    def refusing(*_given: typing.Any, **_named: typing.Any) -> "tuple[str, str]":
+        return ("The battery's injected stop: the disk would not take the working file.", errors.ON_DISK_WORKING)
+
+    monkeypatch.setattr(writing, "_write_part", refusing)
+    monkeypatch.chdir(folder)
+    screen: "list[tuple[str, str]]" = []
+    result = cli.run(["validate", "t-profile.json"], screen=screen, small_tables_refused=True)
+    assert result.verdict == "refused" and results.exit_code(result) == 1
+    assert result.refusal is not None and result.refusal.step == "writing"
+    assert result.refusal.on_disk, result.refusal
+    assert result.refusal.words.endswith(result.refusal.on_disk)
+    assert result.refusal.words.startswith("The battery's injected stop")
+    assert result.files == () and result.misses == ran.runs["M7"].result.misses
