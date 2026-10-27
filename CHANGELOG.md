@@ -40,6 +40,10 @@ mostly under five figures that repeat, mixed-width keys on one to two rows
 a value, all-different numbers under five figures, glued letters, and the
 held runs beside `-1` and `-9999` missing their own validation at 200,000
 rows. K-S3-64 re-stamped at 04cfb00: 178 shapes, nothing real published.
+The suite's last moves are typed as the measurements they are (800 salaries,
+the study workbook's padded and grouped numbers); a candidate person column
+repeating a few values leaves the real workbook missing its own repetition
+pattern, on the base too (lane PS3's).
 
 ### Batch 4j's records: the data folder's exemption narrowed, the night's 2,000,000-row points written in, the ledger cap set once (2026-10-24)
 
