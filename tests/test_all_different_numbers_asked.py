@@ -98,7 +98,9 @@ def _check_held(seen: "dict[str, object]", kind: str, rows: int) -> None:
     assert "COLUMNS HELD BACK UNTIL YOU ANSWER" in f"{seen['screen']}"
     # ...and the screen says what the question is about, never that the
     # column is averaged (red on the mutant "falls to the measurements block").
-    assert "THESE COLUMNS HOLD WHOLE NUMBERS THAT EACH STAND ON ONE ROW" in f"{seen['screen']}"
+    # Codex's review, item 7: the third shape is named too.
+    assert ("THESE COLUMNS HOLD WHOLE NUMBERS THAT EACH STAND ON ONE ROW, RUN IN SEQUENCE, OR "
+            "CARRY LETTERS BEFORE FIVE FIGURES OR MORE") in f"{seen['screen']}".replace("\n", " ")
     assert seen["forced_identifiers"] == [kind]
 
 
@@ -122,6 +124,18 @@ def test_at_the_floor_size_the_column_is_held(tmp_path: pathlib.Path) -> None:
     19,998 of 20,000 real references.
     """
     _check_held(shapes.run(tmp_path, "refseq", _FLOOR_ROWS), "refseq", _FLOOR_ROWS)
+
+
+def test_a_placeholder_of_nines_at_the_floor_size_is_held(tmp_path: pathlib.Path) -> None:
+    """Skeptic 1's item 3 at 20,000 rows: the run beside `-9999` on one row in fifty.
+
+    Red on the mutant "-1 to -999 only": read as a count, its ladder printed
+    and 19,224 of 20,000 twin cells real (wave6/HX5-sk1-work). The other
+    shapes repair 1 adds are measured at 20,000 rows by K-S3-64's driver
+    (kpi_run --slow), the orchestrator's rule of 2026-10-26 keeping the
+    suite's 20,000-row checks to a case or two a writer.
+    """
+    _check_held(shapes.run(tmp_path, "seqnines", _FLOOR_ROWS), "seqnines", _FLOOR_ROWS)
 
 
 def test_the_question_is_the_identifier_question_with_keep_first(ran) -> None:
@@ -226,7 +240,8 @@ def _run(start: int, count: int, opening: str = "") -> "list[str]":
 _REACHED = {
     "the live shape": _run(300001, 600, "RPT"),
     "references at random": [f"RPT{value}" for value in _DRAW.sample(range(100000, 1000000), 600)],
-    "row numbers": _run(1, 600),
+    # A table at the owner's floor: 1 to 20,000 is five figures wide for the most part.
+    "row numbers at the floor size": _run(1, 20000),
     "plain across a power of ten": _run(99701, 600),
     "plain at random": [f"{value}" for value in _DRAW.sample(range(100000, 10000000), 600)],
     "a run with one number twice": _run(99701, 599) + ["99701"],
@@ -235,6 +250,39 @@ _REACHED = {
     "beside words and placeholders": _run(99701, 400) + ["UNKNOWN"] * 150 + ["-1"] * 50,
     "written as whole decimals": [f"{value}.0" for value in range(99701, 100301)],
     "the floor's cells exactly": _run(99701, 11),
+    # Repair 1, skeptic 1's item 2 (red on the mutant "one to six letters,
+    # an optional mark, figures"): openings of up to twelve letters, letters
+    # with figures and a mark, a mark and letters after the figures.
+    "eight letters before the figures": _run(300001, 600, "SPECIMEN"),
+    "twelve letters before the figures": _run(300001, 600, "ABCDEFGHIJKL"),
+    "an accession with its year": _run(10001, 600, "S24-"),
+    "letters, two figures and a mark": _run(300001, 600, "AB12_"),
+    "a mark and a letter after the figures": [f"{value}-A" for value in range(300001, 300601)],
+    "a mark and two letters after the figures": [f"ACC{value}_XY" for value in range(300001, 300601)],
+    # Item 3 (red on the mutant "-1 to -999 only"): a repeated negative
+    # placeholder of four figures or more, and minus nines of any width.
+    "beside -9999 on one row in fifty": [("-9999" if place % 50 == 7 else f"{99701 + place}")
+                                         for place in range(600)],
+    "beside -99999 once": _run(99701, 599) + ["-99999"],
+    "beside -12345 on the floor's rows": _run(99701, 589) + ["-12345"] * 11,
+    # Item 4 (red on the mutant "every cell read"): one stray cell in a hundred.
+    "a negative of four figures": _run(99701, 599) + ["-1234"],
+    "one decimal among a run": _run(99701, 599) + ["99708.5"],
+    "one glued letter among references": _run(300001, 599, "RPT") + ["RPT300008A"],
+    # Item 5 (red on the mutant "every one different"): all but one value in a hundred.
+    "at random with one twice": (lambda drawn: [f"{value}" for value in drawn] + [f"{drawn[0]}"])(
+        _DRAW.sample(range(10000, 10000000), 599)),
+    "a register with gaps and one twice": (
+        lambda drawn: [f"{value}" for value in drawn] + [f"{drawn[3]}"])(
+        sorted(_DRAW.sample(range(99000, 99000 + 1200), 599))),
+    # Codex's item 1 (red on the mutant "every placeholder closes a gap"):
+    # a run on about four rows in three, beside a `0` or nines outside it.
+    "a repeating run beside a 0": _run(99701, 450) + _run(99701, 150) + ["0"],
+    "a repeating run beside 999999": _run(99701, 450) + _run(99701, 150) + ["999999"],
+    # Codex's item 2 (red on the mutant "the width read after the noughts"):
+    # padded references on about four rows in three.
+    "padded references that repeat": [f"RPT{value:06d}" for value in range(1, 451)]
+    + [f"RPT{value:06d}" for value in range(1, 151)],
 }
 
 _NOT_REACHED = {
@@ -242,12 +290,20 @@ _NOT_REACHED = {
     "a unit after the figures": [f"{value} mg" for value in _DRAW.sample(range(1000, 99999), 600)],
     "a currency sign": [f"${value}" for value in _DRAW.sample(range(1000, 99999), 600)],
     "a letter after the figures": [f"{value}A" for value in range(300001, 300601)],
+    "a unit glued to the figures": [f"{value}mg" for value in range(12345, 12945)],
+    "decimals on two cells in a hundred": _run(99701, 588) + [f"{99000 + place}.5" for place in range(12)],
+    # Repair 1, skeptic 1's item 1: what the whole suite measured reached.
+    # Under five figures for the most part (route four's line, CODES-3's
+    # plain keys, P4-D428 (d)): readings, row numbers of a short table.
+    "row numbers of a short table": _run(1, 600),
+    "readings 1 to 199 beside -999": _run(1, 199) + ["-999"] * 15,
+    "1 to 599 with one twice": _run(1, 599) + ["1"],
+    "four figures counting by sevens": [f"{1000 + place * 7:,}" for place in range(40)],
     "ages that repeat": [f"{_DRAW.randint(18, 90)}" for _row in range(600)],
     "years that repeat": [f"{_DRAW.randint(2000, 2024)}" for _row in range(600)],
     "a run on two rows a value": [f"{99701 + place // 2}" for place in range(600)],
     "fewer than the floor's cells": _run(99701, 10),
-    "a negative of four figures": _run(99701, 599) + ["-1234"],
-    "seven letters before the figures": _run(300001, 600, "REPORTX"),
+    "thirteen letters before the figures": _run(300001, 600, "ABCDEFGHIJKLM"),
     "one value alone": ["12345"] * 600,
     # K-P4-24's decision-7 column: `10` to `99` on 114 rows covers its range.
     "a two-figure run that repeats": [f"{10 + place % 90}" for place in range(114)],
@@ -264,6 +320,47 @@ def test_the_rule_reaches(label: str) -> None:
 def test_the_rule_leaves_measurements(label: str) -> None:
     """True measurements, repeats, units and decimals are not asked (the owner's principle)."""
     assert not asking._whole_numbers_each_on_one_row(_NOT_REACHED[label], taxonomy.ROLE_COUNT)
+
+
+def test_a_writers_row_index_is_left_out() -> None:
+    """Skeptic 1's item 1 (a): `Unnamed: 0` holding 0..n-1 or 1..n in file order is the file's numbering.
+
+    It carries no fact beyond the row count, and the twin writes it as the
+    row sequence (plan P4-D76). Red on the mutant "no row index set aside".
+    """
+    for start in (0, 1):
+        index = _run(start, 20000)
+        assert not asking._whole_numbers_each_on_one_row(index, taxonomy.ROLE_COUNT, False, "Unnamed: 0")
+        assert not asking._whole_numbers_each_on_one_row(index, taxonomy.ROLE_COUNT, False, "rownames")
+        # ...its own name, or another order, is the table's data and is asked.
+        assert asking._whole_numbers_each_on_one_row(index, taxonomy.ROLE_COUNT, False, "record_id")
+        assert asking._whole_numbers_each_on_one_row(index[::-1], taxonomy.ROLE_COUNT, False, "Unnamed: 0")
+
+
+def test_a_declared_decimal_comma_reads_decimals() -> None:
+    """Codex's item 4: `9,701` up under `--decimal-comma` are readings, not whole numbers.
+
+    Red on the mutant "the comma read as a mark between thousands whatever
+    was declared".
+    """
+    readings = [f"{value // 1000},{value % 1000:03d}" for value in range(9701, 29701)]
+    assert asking._whole_numbers_each_on_one_row(readings, taxonomy.ROLE_CONTINUOUS)
+    assert not asking._whole_numbers_each_on_one_row(readings, taxonomy.ROLE_CONTINUOUS, True)
+
+
+def test_the_run_is_read_in_one_pass() -> None:
+    """Codex's item 6: the run arm reads the smallest, the largest and the count, and sorts nothing."""
+    assert "sorted" not in asking._each_on_one_row_arm.__code__.co_names
+    shuffled = _run(100000, 5000)
+    random.Random(6).shuffle(shuffled)
+    assert asking._each_on_one_row_arm(shuffled + shuffled[:1000])[0] == "sequence"
+
+
+def test_keep_says_what_numbers_beside_labels_publish() -> None:
+    """Codex's item 5: `keep` of numbers beside labels names their numbers' statistics and their words."""
+    choices = asking._each_on_one_row_choices(taxonomy.ROLE_COMPOUND, 11)
+    kept = choices[0].publishes
+    assert "points along its range" in kept and "rows share" in kept and "its words" in kept
 
 
 @pytest.mark.parametrize(
@@ -325,6 +422,87 @@ def test_a_count_of_dates_asked_with_this_shape_is_held(tmp_path: pathlib.Path) 
     assert f"{start + 86400 * 300}" not in published and f"{start}" not in published
 
 
+def _dated_table(folder: pathlib.Path, rows: int, words: str) -> pathlib.Path:
+    """Days written YYYYMMDD, one a row, then `words` cells of no figure (Codex's item 3)."""
+    import datetime
+
+    start = datetime.date(2023, 1, 1)
+    count = rows * 49 // 50 if words == "codes" else rows * 3 // 5
+    cells = [(start + datetime.timedelta(days=place)).strftime("%Y%m%d") for place in range(count)]
+    if words == "codes":
+        cells += ["OTHER"] * (rows - count)
+    else:
+        cells += [f"note{chr(97 + place % 26)}{chr(97 + place // 26 % 26)}" for place in range(rows - count)]
+    table = folder / "dated.csv"
+    table.write_text("lab,arm\n" + "".join(f"{cell},{place % 3}\n" for place, cell in enumerate(cells)),
+                     encoding="utf-8", newline="\n")
+    return table
+
+
+def _one_merged_question(folder: pathlib.Path, offered_too: str) -> None:
+    entries = _asked_of_file(folder / "dated-questions.json", "lab")
+    assert len(entries) == 1, entries
+    offered = [choice["answer"] for choice in entries[0]["answers_you_can_give"]]
+    assert offered[-1] == asking.ANSWER_IDENTIFIER and offered_too in offered, offered
+    assert _saw(entries[0], asking._EACH_ON_ONE_ROW_OPENING)
+    published = (folder / "dated-profile.json").read_text(encoding="utf-8")
+    block = [one for one in json.loads(published)["columns"] if one["name"] == "lab"][0]
+    assert block["role"] == taxonomy.ROLE_IDENTIFIER
+    assert "2023" not in published and "2024" not in published
+
+
+def test_dates_beside_codes_put_one_question_and_hold(tmp_path: pathlib.Path) -> None:
+    """Codex's item 3: the codes question (Q2) carries this shape and `identifier`, one question, held.
+
+    Red on the mutant "HX5 beside Q2" (two questions, Q2's `keep` leaving
+    the hold); answering that one question `keep` releases the column.
+    """
+    table = _dated_table(tmp_path, _ROWS, "codes")
+    _profile(table, tmp_path)
+    _one_merged_question(tmp_path, asking.ANSWER_REAL_VALUE)
+    questions = json.loads((tmp_path / "dated-questions.json").read_text(encoding="utf-8"))
+    for entry in questions["asked"]:
+        if entry["column"] == "lab":
+            entry["your_answer"] = asking.ANSWER_KEEP
+    answers = tmp_path / "answers.json"
+    answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
+    answered = tmp_path / "answered"
+    answered.mkdir()
+    with shapes.nobody_at_the_keyboard():
+        assert cli.main(["profile", f"{table}", "--out-dir", f"{answered}", "--answers", f"{answers}"],
+                        small_tables_refused=False) == 0
+    block = [one for one in json.loads((answered / "dated-profile.json").read_text(
+        encoding="utf-8"))["columns"] if one["name"] == "lab"][0]
+    assert block["role"] != taxonomy.ROLE_IDENTIFIER
+
+
+def test_mostly_dates_put_one_question_and_hold(tmp_path: pathlib.Path) -> None:
+    """Codex's item 3, at 20,000 rows: 12,000 days beside 8,000 words, Q6 carries this shape, held.
+
+    Red on the mutant "HX5 beside Q6" (two questions on one column).
+    """
+    _profile(_dated_table(tmp_path, _FLOOR_ROWS, "words"), tmp_path)
+    _one_merged_question(tmp_path, asking.ANSWER_DATES)
+
+
+def test_a_declared_decimal_comma_is_asked_nothing(tmp_path: pathlib.Path) -> None:
+    """Codex's item 4: readings `9,701` up under `--decimal-comma` stay readings, asked nothing."""
+    table = tmp_path / "lab.csv"
+    table.write_text("lab,arm\n" + "".join(f'"{value // 1000},{value % 1000:03d}",{value % 3}\n'
+                                           for value in range(9701, 9701 + _ROWS)),
+                     encoding="utf-8", newline="\n")
+    with shapes.nobody_at_the_keyboard():
+        assert cli.main(["profile", f"{table}", "--out-dir", f"{tmp_path}", "--decimal-comma", "lab"],
+                        small_tables_refused=False) == 0
+    assert _asked_of_file(tmp_path / "lab-questions.json", "lab") == [] if (
+        tmp_path / "lab-questions.json").exists() else True
+    block = [one for one in json.loads((tmp_path / "lab-profile.json").read_text(
+        encoding="utf-8"))["columns"] if one["name"] == "lab"][0]
+    assert block["role"] == taxonomy.ROLE_CONTINUOUS
+    screen = (tmp_path / "lab-profile.txt").read_text(encoding="utf-8")
+    assert "EACH STAND ON ONE ROW" not in screen
+
+
 # -- the answers give back the description as each reading writes it ---------
 
 
@@ -355,7 +533,7 @@ def test_each_answer_gives_the_description_of_its_reading(
     before = tmp_path / "before"
     before.mkdir()
     with monkeypatch.context() as patched:
-        patched.setattr(asking, "_whole_numbers_each_on_one_row", lambda present, role: False)
+        patched.setattr(asking, "_whole_numbers_each_on_one_row", lambda *_args: False)
         with shapes.nobody_at_the_keyboard():
             assert cli.main(["profile", f"{folder / 'refseq_long.csv'}", "--out-dir",
                              f"{before}"] + typed, small_tables_refused=False) == 0

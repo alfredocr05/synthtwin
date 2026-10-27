@@ -267,12 +267,21 @@ LIST_KEYS = 40
 # with its first number on the last row too (a run in sequence, not all
 # different); `randall` plain figures of six and seven, drawn at random,
 # one a row; and `seqm1` the plain run beside `-1` on about one row in
-# fifty.
+# fifty. Lane HX5's repair 1 (skeptic 1, items 2 to 4) adds the shapes that
+# escaped its first head: `refspecimen`, eight letters before the figures;
+# `refyear`, a pathology accession with its year (`S24-10001` up);
+# `refsuffix`, a mark and a letter after the figures (`300001-A` up);
+# `seqnines`, the plain run beside `-9999` on about one row in fifty; and
+# `seqdecimal` and `refstray`, the plain run and `refseq` with one stray
+# cell (`99708.5`, `RPT300008A`).
 # Every value is its own patient-free record, so the real values are
-# every cell's.
-ONE_A_ROW = ("refseq", "refrand", "refacc", "seqcross", "seqdup", "randall", "seqm1")
-# What `seqm1` writes for a row with no reference, and on what share.
+# every cell's but the placeholders'.
+ONE_A_ROW = ("refseq", "refrand", "refacc", "seqcross", "seqdup", "randall", "seqm1",
+             "refspecimen", "refyear", "refsuffix", "seqnines", "seqdecimal", "refstray")
+# What `seqm1` writes for a row with no reference, and on what share
+# (`seqnines` writes `-9999` on the same share).
 ONE_A_ROW_PLACEHOLDER = ("-1", 0.02)
+ONE_A_ROW_NINES = "-9999"
 # The STATED shapes: a name, a street address and a full birth date on a
 # long table with NO subject column -- the value is the only thing that
 # says who the rows are, nothing is declared and no person question is
@@ -394,7 +403,23 @@ def _one_a_row(kind: str, rows: int, draw: random.Random) -> "list[str]":
         return [f"{99701 + row}" for row in range(rows)]
     if kind == "randall":
         return [f"{value}" for value in draw.sample(range(100000, 10000000), rows)]
+    if kind == "refspecimen":
+        return [f"SPECIMEN{300001 + row}" for row in range(rows)]
+    if kind == "refyear":
+        return [f"S24-{10001 + row}" for row in range(rows)]
+    if kind == "refsuffix":
+        return [f"{300001 + row}-A" for row in range(rows)]
+    if kind == "seqdecimal":
+        cells = [f"{99701 + row}" for row in range(rows)]
+        cells[7] = "99708.5"
+        return cells
+    if kind == "refstray":
+        cells = [f"RPT{300001 + row}" for row in range(rows)]
+        cells[7] = "RPT300008A"
+        return cells
     unknown, share = ONE_A_ROW_PLACEHOLDER
+    if kind == "seqnines":
+        unknown = ONE_A_ROW_NINES
     return [unknown if draw.random() < share else f"{99701 + row}" for row in range(rows)]
 
 
@@ -409,7 +434,8 @@ def write_table(folder: pathlib.Path, kind: str, rows: int) -> "tuple[pathlib.Pa
             lines += [f"{cell},{test},{draw.uniform(3, 150):.1f}"]
         path = folder / f"{kind}_long.csv"
         path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
-        return path, sorted({cell for cell in column if cell != ONE_A_ROW_PLACEHOLDER[0]})
+        return path, sorted({cell for cell in column
+                             if cell not in (ONE_A_ROW_PLACEHOLDER[0], ONE_A_ROW_NINES)})
     beside = _beside(kind)
     patients = (PATIENTS_BESIDE if kind.endswith("_beside") or kind.endswith("_keyzero")
                 else PATIENTS)

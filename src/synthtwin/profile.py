@@ -5256,7 +5256,9 @@ def questions_of(
             split, decimal_commas,
         )
         if with_dates:
-            asked = asked + list(dates_seen.questions)
+            # ...one question a column where Q6 takes lane HX5's place
+            # (plan P4-D436).
+            asked = asking.without_merged_questions(asked + list(dates_seen.questions))
         return Asked(
             asked, split, codes_seen, dates_seen, day_or_month,
             asking.checklist_for(
@@ -5295,7 +5297,7 @@ def questions_of(
         day_or_month = tuple(found_months)
     asked = kept_all + person_all + listed_all
     if with_dates:
-        asked = asked + list(dates_seen.questions)
+        asked = asking.without_merged_questions(asked + list(dates_seen.questions))
     return Asked(asked, None, codes_seen, dates_seen, day_or_month, listed)
 
 

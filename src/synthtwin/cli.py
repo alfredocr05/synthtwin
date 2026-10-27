@@ -2647,12 +2647,14 @@ def _assumptions_notice(
             [_typed_option("--identifier", one.name) for one in singles], " "
         )
         blocks += [
-            f"THESE COLUMNS HOLD WHOLE NUMBERS THAT EACH STAND ON ONE ROW, OR "
-            f"RUN IN SEQUENCE, AS RECORD NUMBERS DO.{_listing(singles, False)}"
+            f"THESE COLUMNS HOLD WHOLE NUMBERS THAT EACH STAND ON ONE ROW, "
+            f"RUN IN SEQUENCE, OR CARRY LETTERS BEFORE FIVE FIGURES OR MORE, "
+            f"AS RECORD NUMBERS DO.{_listing(singles, False)}"
             f"\n\n"
             f"Each column above is written the way record numbers are -- "
-            f"one value a row, or numbers counting up -- and also the way "
-            f"some measurements are. Until you say which, no value of it is "
+            f"one value a row, numbers counting up, or letters and five "
+            f"figures or more on fewer than two rows a value -- and also the "
+            f"way some measurements are. Until you say which, no value of it is "
             f"published and its twin writes made-up record numbers. Only "
             f"you know which it is.\n\n"
             f"If they are measurements or counts, answer `keep` in the "
