@@ -3300,19 +3300,25 @@ TWIN_KEYS_EQUAL_REAL = (
     "LIVE: the made-up keys the twin writes for a key column equal real keys of the column, drawn inside the real "
     "keys' range or over the layout's whole room, which the real keys fill (sequential record numbers) or a share "
     "of; the twin is read strictly (the orchestrator's LANE E0c RULINGS 2 (1)), every twin cell equal to a real key "
-    "counted with no chance allowance: at 20,000 rows 33,305 real keys on 70,931 twin cells over 74 columns of 57 "
+    "counted with no chance allowance: at 20,000 rows 33,705 real keys on 71,331 twin cells over 75 columns of 58 "
     "tables (lane E0c's repair 3), among them redcap.record_id 5,572 on 15,182 cells, tumor_registry.tumor_id, "
     "surveys.respondent_id and microbiology.isolate_id 4,000 each, omop_measurement.person_id 2,627 on 10,916, "
     "i2b2_facts.patient_num 2,418 on 10,942, wearables.device_id 2,410 on 9,819, i2b2_facts.encounter_num 1,219 "
-    "on 2,532, sql_server.record_no 389 on 394, and 1 to 400 on each other key; at 600 rows (below the floor) 327 "
-    "on 1,259 cells over 15 columns of 14 tables; lane ID-ROOM (P4-D432: twin identifier cells equal to a real "
-    "cell of their column, K-HZ-06)"
+    "on 2,532, sql_server.record_no 389 on 394, titled_report.report_ref 400 on 400, and 1 to 400 on each other "
+    "key; at 600 rows (below the floor) 328 on 1,260 cells over 16 columns of 15 tables; lane ID-ROOM (P4-D432: "
+    "twin identifier cells equal to a real cell of their column, K-HZ-06)"
 )
+# The report reference's case at repair 3's head, kept beside the OWNERS
+# line that covers it (TWIN_KEYS_EQUAL_REAL's, lane ID-ROOM's), with its
+# one-round history: no case at the head shows CODES-3's shape.
 PREFIXED_SEQUENCE = (
-    "LIVE: a report reference written 'RPT' and six figures, one a row in sequence, is read as an affixed number "
-    "with no question (its header found only after the title rows are answered), so its description publishes the "
-    "run's ladder and the twin writes the sequence again: 19,998 of 20,000 real references at 20,000 rows, 598 of "
-    "600 at 600; lane CODES-3 (identifiers with numeric roots and prefixed ids, P4-D428)"
+    "LIVE: a report reference written 'RPT' and six figures, one a row in sequence, under two title rows: every "
+    "round of the questions file answered (lane E0c's repair 3), the header is found in the first round and the "
+    "column answered `identifier` in the second, so its description publishes none, and the twin's made-up "
+    "references equal real ones, 400 real references on 400 twin cells at 20,000 rows and 1 on 1 at 600 (the "
+    "made-up keys equal to real ones, lane ID-ROOM, P4-D432); with one round only (repair 2's run) it was read as "
+    "an affixed number with no question and the twin wrote the sequence again, 19,998 of 20,000 real references, "
+    "then lane CODES-3's"
 )
 BY_DESIGN = (
     "held by HIPAA's Safe Harbor rule; by design (the orchestrator's ruling THE ZOO ANSWERS TRUTHFULLY, "
@@ -3336,7 +3342,7 @@ LEAK_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     ),
     "sql_server_export": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers(*_leaks("record_no"))),),
     "tumor_registry": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers(*_leaks("tumor_id"))),),
-    "title_rows_above_header": (("CODES-3", PREFIXED_SEQUENCE, covers(*_leaks("report_ref"))),),
+    "title_rows_above_header": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak report_ref")),),
     "immunizations_providers": (
         ("SH2", SH2_DEVICES, covers(*_leaks("udi"))),
         ("SH", BY_DESIGN, covers(columns=("udi",))),

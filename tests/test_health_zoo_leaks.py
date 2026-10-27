@@ -652,6 +652,11 @@ def test_a_question_put_after_another_answer_is_answered(tmp_path: pathlib.Path)
     assert result["answer_rounds"] == 2, (result["answer_rounds"], given)
     assert ("report_ref", "identifier") in given, given
     assert all(step["exit"] == 0 for step in result["steps"].values()), result["steps"]
+    # Answered, its twin's made-up references meeting real ones are lane
+    # ID-ROOM's strict-red shape (E0c verify 3), owned LIVE as every key is.
+    owned = zoo.owner_lines("title_rows_above_header", "leak report_ref")
+    assert [owner for owner, _gap in owned] == ["ID-ROOM"], owned
+    assert all(gap.startswith("LIVE:") for _owner, gap in owned), owned
 
 
 def _put_after_each_answer(monkeypatch: pytest.MonkeyPatch, put: "object") -> "list[tuple[str, str]]":

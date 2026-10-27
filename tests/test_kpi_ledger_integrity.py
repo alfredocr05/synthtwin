@@ -819,9 +819,10 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # 2026-10-26), the least round figure the ledger fits under, 784,842
     # bytes: K-HZ-01 and K-HZ-02 re-stamped after the twin was read
     # strictly (the orchestrator's LANE E0c RULINGS 2 (1)), K-HZ-02's value
-    # naming each of the 34,282 real values' entries, repair 2's figures
-    # kept as history. The batch integrator settles this beside the other
-    # lanes' raises.
+    # naming each of the 34,282 real values' entries (its per-entry sum),
+    # repair 2's figures kept as history; 784,928 bytes after K-HZ-05's
+    # re-stamp at 3e96fe5 (verify 3). The batch integrator settles this
+    # beside the other lanes' raises.
     #
     # 776,000 from 774,000 ON LANE E0c'S BRANCH, ITS REPAIR 2 (plan P4-D431,
     # 2026-10-25), the least round figure the ledger fits under, 775,608

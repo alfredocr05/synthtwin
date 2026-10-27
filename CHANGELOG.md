@@ -35,9 +35,11 @@ with no chance allowance, so a verbatim, shuffled or half copy counts
 published while their question is open (lane SH's); years of an age of
 90 or more, device numbers and cities of birth (lane SH2's); full birth
 dates one person holds (lane PS2's); made-up identifier keys equal to
-real ones (lane ID-ROOM's: 33,305 real keys on 70,931 twin cells over
-74 columns of 57 tables at 20,000 rows); a sequential report reference read as a
-number, its twin writing the real sequence (lane CODES-3's). Nothing
+real ones (lane ID-ROOM's: 33,705 real keys on 71,331 twin cells over
+75 columns of 58 tables at 20,000 rows, among them a sequential report
+reference under two title rows, answered `identifier` in the second
+round, 400 on 400 cells; with one round only, as repair 2 ran it, it
+was read as a number and its twin wrote 19,998 of 20,000). Nothing
 under `src` changed; no golden, vector or SR battery byte moved.
 
 ### Batch 4i's records: the two floors merged, a grained column's working set let go (2026-10-23)
