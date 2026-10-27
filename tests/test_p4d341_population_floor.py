@@ -470,7 +470,10 @@ def test_the_twin_table_carries_no_trace_of_the_notice(
     folder = tmp_path / "with"
     folder.mkdir()
     table = _table(folder, parsing.POPULATION_FLOOR)
-    assert main(["profile", f"{table}"]) == 0
+    # `subject_id` (`P00001` up, every one different) is a key: declared so
+    # on both sides, since unanswered it is held by the command alone (lane
+    # HX5, plan P4-D436), which is not the note this case compares.
+    assert main(["profile", f"{table}", "--identifier", "subject_id"]) == 0
     assert main(["generate", f"{folder / 'clinic-profile.json'}"]) == 0
     noticed = (folder / "clinic-twin.csv").read_bytes()
 
@@ -480,7 +483,7 @@ def test_the_twin_table_carries_no_trace_of_the_notice(
     read = reading.read_table(
         f"{table}", "auto", small_cell_floor=settings.small_cell_floor
     )
-    plain = profile.build_document(read, settings, [])
+    plain = profile.build_document(read, settings, ["subject_id"])
     notes = plain["publication_notes"]
     assert isinstance(notes, list)
     assert not [note for note in notes if note["column"] == ""]

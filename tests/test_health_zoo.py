@@ -58,9 +58,13 @@ SEED = 20261016
 # P4-D406; batch 4e's integration); lane G2T2 the mixed result column's
 # held-back mean at 20,000 rows (batch 4e's records); lane PS2, lane PS's
 # follow-up, what PS left held or pooled (the orchestrator, 2026-10-23;
-# batch 4g's records).
+# batch 4g's records). Lane E0c (the zoo widened, the December plan's
+# launch list) owns what the zoo's one round of answers leaves unanswered:
+# the orchestrator's E0c rulings 2, item 3, of 2026-10-25 (run_table
+# answers every round), lane HX5's title-row reference (plan P4-D436).
 PLAN_LANES = (
-    "DST", "RT1", "RT2", "LM1", "LM2", "R7", "FM", "SCH", "G2T", "G2T2", "MG", "PS", "PS2", *zoo.ZOO_LANES,
+    "DST", "RT1", "RT2", "LM1", "LM2", "R7", "FM", "SCH", "G2T", "G2T2", "MG", "PS", "PS2", "E0c",
+    *zoo.ZOO_LANES,
     zoo.NEEDS_OWNER,
 )
 

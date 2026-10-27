@@ -1131,8 +1131,14 @@ def test_a_real_export_whose_wide_keys_wear_a_sign_or_a_space_is_not_accused(
     # The shape, asserted before the answer: these really are wide runs
     # written in a notation the raw-text test refused.
     assert moved > 0, moved
+    # ONE SLOPPY CELL IN EIGHT HUNDRED IS SET ASIDE (lane HX5, plan
+    # P4-D436, its repair 1): 800 wide keys every one different are put the
+    # identifier question and held until answered, so the minimal case is
+    # typed as the measurement this test reads it as; the other two
+    # notations, on every other cell, are not that question's.
+    flags: "tuple[str, ...]" = ("--measurement", "ledger_key") if notation == "one_space" else ()
     first, second, _written, twin_exit, real_exit = _round_trip(
-        tmp_path / "worn", cells, (), True, seed="1", header="ledger_key"
+        tmp_path / "worn", cells, flags, True, seed="1", header="ledger_key"
     )
     assert first["n_present"] == 800, first["n_present"]
     assert first["numeric_styles"] == {"plain": 800}, first["numeric_styles"]

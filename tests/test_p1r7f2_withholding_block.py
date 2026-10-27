@@ -226,7 +226,10 @@ def test_a_publishing_role_still_names_the_candidate(
         tmp_path,
         "reading",
         IDENTIFIERS + [SENTINEL] * 20,
-        [f"--keep-value={SENTINEL}"],
+        # ...declared a measurement (lane HX5, plan P4-D436): 180 numbers of
+        # six figures, every one different, are otherwise put the
+        # identifier question and held until it is answered.
+        [f"--keep-value={SENTINEL}", "--measurement", "reading"],
         capsys,
     )
     column = document["columns"][0]
