@@ -735,12 +735,43 @@ class Twin:
     # ...AND EACH ELIGIBLE WORKBOOK COLUMN'S CELLS AS G2.2 DEALT THEM BEFORE
     # THE ARRANGEMENT (method G4.2a steps 1 and 7; lane BT's repair, plan
     # P4-D429): one entry a column, None for a column the writer deals as
-    # before, else, in the twin's row order, each cell's class as one code
-    # byte (`sheetwriting.class_codes`), its format kind, its kind of date,
-    # and the cell as written where the writer's conversion changes one
-    # (None where none does). The writer writes such a column by them and
-    # deals nothing again, so wherever G16 put a cell it keeps its class.
-    sheet_dealt: "tuple[tuple[bytes, tuple[str, ...], tuple[str, ...], tuple[str, ...] | None] | None, ...]" = ()
+    # before, else a `SheetDealt` in the twin's FINAL row order (the sort
+    # moves it with the cells, lane BT's second repair, after its outside
+    # review, item 1), held a byte a cell (item 6). The writer writes such
+    # a column by it and deals nothing again, so wherever G16 put a cell
+    # it keeps its class.
+    sheet_dealt: "tuple[SheetDealt | None, ...]" = ()
+
+
+@dataclasses.dataclass(frozen=True)
+class SheetDealt:
+    """One eligible workbook column's cells as G4.2a dealt them, held compactly (method G4.2a; plan P4-D429).
+
+    `palette` lists each different (class, format kind, kind of date) a
+    cell was dealt, and `codes` each row's place in it -- one byte a row
+    where the palette holds at most 256 entries, else a number a row -- so
+    a column of a million rows holds a megabyte, not three tuples of a
+    million references (lane BT's second repair, after its outside
+    review, item 6). `written` is the column as the writer writes it,
+    held by `twinstore`, where the writer's conversion changes a cell;
+    None where it changes none. Every field stands in the twin's final row
+    order.
+    """
+
+    palette: "tuple[tuple[str, str, str], ...]"
+    codes: "bytes | tuple[int, ...]"
+    written: "twinstore.HeldColumn | None"
+
+
+def sheet_dealt_kinds(dealt: SheetDealt) -> "tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]":
+    """A `SheetDealt`'s classes, format kinds and kinds of date, one text a row (for the writer, one column at a time)."""
+    palette = dealt.palette
+    codes = dealt.codes
+    return (
+        tuple([palette[code][0] for code in codes]),
+        tuple([palette[code][1] for code in codes]),
+        tuple([palette[code][2] for code in codes]),
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -25488,9 +25519,14 @@ def _clock_l0_knots(
         if rung is None:
             continue
         rank = _rung_rank(_PCT[step], parsed)
-        if not low_rank < rank < high_rank:
-            continue
         value = _clock_ordinal_of(rung, form)
+        # ...AN EDGE'S RUNG READ AT A BOUNDARY RANK CUTS TOO (lane BT's
+        # second repair, after its outside review, item 3): a rung at the
+        # high boundary's own rank is no rung of the body, but where it is
+        # an edge its cut must still stand, or 370 cells below `12:10` came
+        # back 379 on a column whose step an older description leaves out.
+        if not low_rank < rank < high_rank and not (value in edges and low_rank <= rank <= high_rank):
+            continue
         place = -1
         if value in edges and value not in seen_edges:
             for edge_place in range(len(edges)):
@@ -65736,9 +65772,15 @@ def _content_of(
             return _affixed_content(plan, words)
         return _affixed_content(plan, words, readings)
     if kind == "joined_numbers":
-        return _joined_content(plan, words)
+        joined = _joined_content(plan, words)
+        if readings is not None:
+            _b3_readings(column, joined[0], readings)
+        return joined
     if kind == "numbers_with_labels":
-        return _compound_content(plan, words)
+        compound = _compound_content(plan, words)
+        if readings is not None:
+            _b3_readings(column, compound[0], readings)
+        return compound
     if kind == "time_of_day":
         if readings is None:
             return _clock_content(plan, words)
@@ -65752,6 +65794,25 @@ def _content_of(
     if kind == "text":
         return _plan_cells(plan), []
     raise _wrong_facts(column.name)
+
+
+def _b3_readings(column: contract.ColumnBlock, cells: "list[str]", readings: "list[float | None]") -> None:
+    """The READING of each cell of a column rule B3 makes without its band totals, as the profile reads it (method G4.2b).
+
+    A column of numbers and labels reads a number cell as its number and a
+    label as none (its band is `labels`); a column of joined numbers reads
+    its first number (lane BT's second repair, after its outside review,
+    item 5: every cell had gone to `other`, so G16.6 met no band).
+    """
+    facts = column.facts
+    separator = facts.separator if isinstance(facts, contract.JoinedFacts) else ""
+    for cell in cells:
+        text = cell
+        if separator:
+            parts = taxonomy.splits_into_numbers(cell, separator)
+            text = parts[0] if parts else ""
+        kind, number = taxonomy.spelling_read(text) if text else ("", None)
+        readings += [float(number) if kind == parsing.NUMBER and number is not None else None]
 
 
 def generate(profile: contract.Profile, seed: int) -> Twin:
@@ -65840,9 +65901,7 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
     # B0's mixed table, held to the end of the run: here each is handed
     # over once, and nothing of it outlives its column but its outcome.
     plans: "list[_ColumnPlan | None]" = [each for each in plan.columns]
-    sheet_dealt: "list[tuple[bytes, tuple[str, ...], tuple[str, ...], tuple[str, ...] | None] | None]" = [
-        None for _each in plan.columns
-    ]
+    sheet_dealt: "list[SheetDealt | None]" = [None for _each in plan.columns]
     plan = GenerationPlan((), plan.words_planned)
     finished: "list[twinstore.HeldColumn]" = []
     outcomes: list[ColumnOutcome] = []
@@ -65882,6 +65941,8 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
             content, notes = _content_of(each, words, short)
         else:
             content, notes = _content_of(each, words, short, readings)
+        if readings is not None:
+            _l0_readings_met(column, readings)
         if len(content) != column.n_present:
             raise errors.ProfileError(
                 f"synthtwin internal check: the twin column for "
@@ -66249,7 +66310,18 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
     # in place. Whole rows move for the sort and cells move only within
     # one column for the empty records, so nothing measured above moves.
     # One column at a time (plan P4-D415).
-    finished = dialect.arranged_columns(arranging, finished)
+    moved_rows: "list[int]" = []
+    finished = dialect.arranged_columns(arranging, finished, moved_rows)
+    # ...AND WHAT G4.2a DEALT EACH ELIGIBLE WORKBOOK CELL MOVES WITH IT (lane
+    # BT's second repair, after its outside review, item 1): the sort that
+    # moved whole rows above moves each column's classes, kinds and written
+    # cells the same way, so a sorted twin writes each cell by its own.
+    if moved_rows:
+        for step in range(len(sheet_dealt)):
+            entry = sheet_dealt[step]
+            if entry is not None:
+                sheet_dealt[step] = _sheet_dealt_moved(entry, moved_rows)
+    moved_rows = []
     return Twin(
         names=tuple([column.name for column in profile.columns]),
         write_header=profile.source.header_source == "file",
@@ -66269,6 +66341,42 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
     )
 
 
+def _l0_readings_met(column: contract.ColumnBlock, readings: "list[float | None]") -> None:
+    """G5.7g on a date or clock column laid with its L0 band totals: its readings fill each band exactly (lane BT's second repair).
+
+    A column whose cuts a later step missed is refused as an internal
+    check rather than written: an older clock description's high cut
+    went missing without a word (the outside review, item 3). Nothing
+    elsewhere.
+    """
+    facts = column.facts
+    if not isinstance(facts, (contract.DatetimeFacts, contract.ClockFacts)) or facts.l0 is None:
+        return
+    edges = list(facts.l0.edges)
+    held = [0 for _band in range(len(edges) + 1)]
+    for reading in readings:
+        if reading is not None:
+            band = _places_at_or_below(edges, reading)
+            held[band] = held[band] + 1
+    if held != list(facts.l0.counts):
+        raise errors.ProfileError(_l0_internal(column, "misses the count of one of its bands"))
+
+
+def _sheet_dealt_moved(entry: SheetDealt, moved: "list[int]") -> SheetDealt:
+    """A `SheetDealt` with its rows moved as the sort moved the cells: row ``r`` takes row ``moved[r]``'s."""
+    codes = entry.codes
+    if isinstance(codes, bytes):
+        laid: "bytes | tuple[int, ...]" = bytes([codes[moved[row]] for row in range(len(moved))])
+    else:
+        laid = tuple([codes[moved[row]] for row in range(len(moved))])
+    written = entry.written
+    if written is not None:
+        cells = twinstore.column_cells(written)
+        written = twinstore.held_column([cells[moved[row]] for row in range(len(moved))])
+        cells = []
+    return SheetDealt(entry.palette, laid, written)
+
+
 def _sheet_dealt_before(
     profile: contract.Profile,
     step: int,
@@ -66276,7 +66384,7 @@ def _sheet_dealt_before(
     order: "list[int]",
     before: "list[int]",
     reserved: int,
-) -> "tuple[bytes, tuple[str, ...], tuple[str, ...], tuple[str, ...] | None]":
+) -> SheetDealt:
     """One eligible workbook column dealt in G4.2's order and handed back in the twin's row order (method G4.2a).
 
     ``leaving`` is the column's cells as they leave, in the twin's row
@@ -66301,13 +66409,26 @@ def _sheet_dealt_before(
     for row in range(count):
         at_of[before[row]] = row
     picked = [at_of[order[row]] for row in range(count)]
-    written = tuple([own[picked[row]] for row in range(count)])
-    return (
-        sheetwriting.class_codes(tuple([dealt[picked[row]] for row in range(count)])),
-        tuple([kinds[picked[row]] for row in range(count)]),
-        tuple([dated[picked[row]] for row in range(count)]),
-        None if written == tuple(leaving) else written,
-    )
+    palette: "list[tuple[str, str, str]]" = []
+    place_of: "dict[tuple[str, str, str], int]" = {}
+    numbers: "list[int]" = []
+    changed = False
+    for row in range(count):
+        at = picked[row]
+        dealt_as = (dealt[at], kinds[at] if at < len(kinds) else "", dated[at] if at < len(dated) else "")
+        if dealt_as not in place_of:
+            place_of[dealt_as] = len(palette)
+            palette += [dealt_as]
+        numbers += [place_of[dealt_as]]
+        if own[at] != leaving[row]:
+            changed = True
+    sheetwriting.class_codes(tuple([entry[0] for entry in palette]))
+    held: "twinstore.HeldColumn | None" = None
+    if changed:
+        held = twinstore.held_column([own[picked[row]] for row in range(count)])
+    codes: "bytes | tuple[int, ...]" = bytes(numbers) if len(palette) <= 256 else tuple(numbers)
+    numbers = []
+    return SheetDealt(tuple(palette), codes, held)
 
 
 def _reservation(
@@ -66843,7 +66964,8 @@ def cells_by_band(
     edges: "list[float]" = [] if cut is None else list(cut.edges)
     if cut is None and readings is not None:
         edges = _l0_published_edges(column, entry)
-    levels: "list[tuple[int, int]]" = []
+    starts_of: "list[int]" = []
+    ends_of: "list[int]" = []
     if isinstance(facts, contract.LabelFacts):
         # A LABEL COLUMN HOLDS ITS BAND TOTALS BY CONSTRUCTION (G8 writes
         # each published level at its count), and a cell's band is its
@@ -66851,104 +66973,99 @@ def cells_by_band(
         without = ""
         start = 0
         for place in range(len(facts.levels)):
-            levels += [(start, start + facts.levels[place].count)]
+            starts_of += [start]
             start = start + facts.levels[place].count
+            ends_of += [start]
+    # ONE GROUP PER PUBLISHED L0 BAND, IN THE PUBLISHED BAND ORDER (lane BT's
+    # second repair, after its outside review, item 4): each group holds the
+    # cells of every starting band its band joins -- `missing` joined with a
+    # level, `other` with a range -- so a published total of 376 over `B`
+    # and the absent cell is one group of 376, not two of 375 and 1.
+    band_of: "dict[object, int]" = {}
     names: "list[str]" = []
     lowers: "list[object]" = []
-    members: "list[list[int]]" = []
-    reads: "list[list[float | None]]" = []
-    sizes: "list[int]" = []
-    index_of: "dict[object, int]" = {}
-    if isinstance(facts, contract.LabelFacts):
-        for at in range(len(entry.bands)):
-            joined = entry.bands[at]
-            labels = tuple(start[0] for start in joined if isinstance(start, tuple) and len(start) == 1)
-            if not labels:
-                continue
-            index_of[("level", at)] = len(names)
+    ranged_bands = 0
+    for at in range(len(entry.bands)):
+        band = entry.bands[at]
+        ranged = [start for start in band if isinstance(start, tuple) and len(start) == 2]
+        labels = tuple(start[0] for start in band if isinstance(start, tuple) and len(start) == 1)
+        spread = [start for start in band if isinstance(start, str)]
+        if ranged:
+            band_of[("range", ranged_bands)] = at
+            names += ["range"]
+            lowers += [edges[ranged_bands - 1] if 0 < ranged_bands <= len(edges) else None]
+            ranged_bands = ranged_bands + 1
+        elif labels:
             names += ["level"]
             lowers += [labels]
-            members += [[]]
-            reads += [[]]
-            sizes += [0]
-    else:
-        for edge_place in range(len(edges) + 1):
-            index_of[("range", edge_place)] = len(names)
-            names += ["range"]
-            lowers += [None if edge_place == 0 else edges[edge_place - 1]]
-            members += [[]]
-            reads += [[]]
-            sizes += [cut.counts[edge_place] if cut is not None else 0]
-    level_of_label: "dict[str, int]" = {}
-    for at in range(len(entry.bands)):
-        for starting in entry.bands[at]:
-            if isinstance(starting, tuple) and len(starting) == 1 and isinstance(starting[0], str):
-                level_of_label[starting[0]] = at
-    for kind in ("missing", "other", "labels"):
-        index_of[kind] = -1
+        else:
+            names += [f"{spread[0]}" if spread else "other"]
+            lowers += [None]
+        for label in labels:
+            band_of[("level", label)] = at
+        for name in spread:
+            band_of[name] = at
+    members: "list[list[int]]" = [[] for _band in entry.bands]
+    reads: "list[list[float | None]]" = [[] for _band in entry.bands]
+    in_range = [0 for _place in range(ranged_bands)]
+    compound = isinstance(facts, contract.CompoundFacts)
     for row in range(count):
         cell = drawn[row]
         if cell in taken:
             continue
+        key: object = "missing"
+        reading: "float | None" = None
         if cell >= column.n_present:
-            key: object = "missing"
-            reading: "float | None" = None
+            key = "missing"
         elif isinstance(facts, contract.LabelFacts):
-            level = -1
-            for number in range(len(levels)):
-                if levels[number][0] <= cell < levels[number][1]:
-                    level = number
-            if level >= 0:
-                label = facts.levels[level].label
-                band = level_of_label[label] if label in level_of_label else -1
-                key = ("level", band)
+            # ...found by halving the levels' places, so a column of many
+            # levels costs a row a few steps, not one a level (the outside
+            # review, item 8).
+            level = _places_at_or_below(starts_of, cell) - 1
+            if 0 <= level < len(ends_of) and cell < ends_of[level]:
+                key = ("level", facts.levels[level].label)
                 reading = float(level)
             else:
-                # ...a cell G8.3 writes for a WITHHELD level has no
-                # published level and lies in `other` (G4.2b).
-                key = "other"
-                reading = None
+                # ...a cell G8.3 writes for a WITHHELD level has no published
+                # level: it stands in the held-back pool (contract 4.6b.2).
+                key = "held back"
         elif readings is not None and cell < parsed and readings[cell] is not None:
-            value = readings[cell]
-            band = 0
-            while band < len(edges) and value is not None and value >= edges[band]:
-                band = band + 1
-            key = ("range", band)
-            reading = value
+            reading = readings[cell]
+            ranged_at = _places_at_or_below(edges, reading if reading is not None else 0.0)
+            key = ("range", ranged_at)
+            if ranged_at < len(in_range):
+                in_range[ranged_at] = in_range[ranged_at] + 1
         else:
-            key = "other"
-            reading = None
-        if key not in index_of or index_of[key] < 0:
-            index_of[key] = len(names)
-            names += [key if isinstance(key, str) else "level"]
+            # ...a present cell with no reading: the labels of a column of
+            # numbers and labels, `other` elsewhere (the outside review,
+            # item 5).
+            key = "labels" if compound else "other"
+        if key not in band_of:
+            band_of[key] = len(names)
+            names += [key if isinstance(key, str) else "range"]
             lowers += [None]
             members += [[]]
             reads += [[]]
-            sizes += [0]
-        group = index_of[key]
+        group = band_of[key]
         members[group] += [cell]
         reads[group] += [reading]
-    for group in range(len(names)):
-        if cut is None or names[group] != "range":
-            sizes[group] = len(members[group])
     if cut is not None:
-        for group in range(len(names)):
-            if names[group] == "range" and len(members[group]) != sizes[group]:
+        for ranged_at in range(len(in_range)):
+            wanted = cut.counts[ranged_at] if ranged_at < len(cut.counts) else 0
+            if in_range[ranged_at] != wanted:
                 raise errors.ProfileError(
                     "synthtwin internal check: an L0 band of the column "
-                    f"'{parsing.visible(column.name)}' holds {len(members[group])} cells "
-                    f"where its published count is {sizes[group]}. This means a "
+                    f"'{parsing.visible(column.name)}' holds {in_range[ranged_at]} cells "
+                    f"where its published count is {wanted}. This means a "
                     "mistake in synthtwin; please report it. Nothing has been written."
                 )
-    order_of = {"range": 0, "level": 0, "missing": 1, "other": 2, "labels": 3}
-    ranked = [group for _rank, group in sorted((order_of[names[group]], group) for group in range(len(names)))]
     return BandCells(
         column=column.name,
-        names=tuple(names[group] for group in ranked),
-        lowers=tuple(lowers[group] for group in ranked),
-        groups=tuple(tuple(members[group]) for group in ranked),
-        readings=tuple(tuple(reads[group]) for group in ranked),
-        sizes=tuple(sizes[group] for group in ranked),
+        names=tuple(names),
+        lowers=tuple(lowers),
+        groups=tuple(tuple(group) for group in members),
+        readings=tuple(tuple(read) for read in reads),
+        sizes=tuple(len(group) for group in members),
         nothing=bytes(nothing),
         reserved=reserved_places,
         classes=classes,
@@ -66956,6 +67073,19 @@ def cells_by_band(
         dates=dates,
         without="" if cut is not None else without,
     )
+
+
+def _places_at_or_below(ordered: "list[int] | list[float]", value: float) -> int:
+    """How many of ``ordered`` (ascending) are at most ``value``: found by halving (`cells_by_band`)."""
+    low = 0
+    high = len(ordered)
+    while low < high:
+        middle = (low + high) // 2
+        if ordered[middle] <= value:
+            low = middle + 1
+        else:
+            high = middle
+    return low
 
 
 def _l0_published_edges(column: contract.ColumnBlock, entry: contract.LadderEntry) -> "list[float]":
@@ -66976,6 +67106,17 @@ def _l0_published_edges(column: contract.ColumnBlock, entry: contract.LadderEntr
                 edges += [value]
         elif isinstance(facts, contract.AffixedFacts):
             value = _rung_by_key(facts.numbers, key)
+            if value is not None:
+                edges += [value]
+        elif isinstance(facts, contract.CompoundFacts):
+            # ...a column of numbers and labels by its numbers' ladder, and
+            # a column of joined numbers by its first number's, as the
+            # profile reads them (the outside review, item 5).
+            value = _rung_by_key(facts.numbers, key)
+            if value is not None:
+                edges += [value]
+        elif isinstance(facts, contract.JoinedFacts) and facts.parts:
+            value = _rung_by_key(facts.parts[0], key)
             if value is not None:
                 edges += [value]
         elif isinstance(facts, contract.DatetimeFacts) and _ladder_key_place(key, _LADDER_NAMES) >= 0:

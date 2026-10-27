@@ -7421,7 +7421,9 @@ def _given_cells(
 
 
 def arranged_columns(
-    state: Arranging, columns: "list[twinstore.HeldColumn]"
+    state: Arranging,
+    columns: "list[twinstore.HeldColumn]",
+    rows_moved: "list[int] | None" = None,
 ) -> "list[twinstore.HeldColumn]":
     """The held columns, every one through `placed_column`, with the rows placed.
 
@@ -7430,6 +7432,11 @@ def arranged_columns(
     the rows that are not all-empty records are sorted by the form's sort
     column, whole rows moving together, and a row-sequence column is
     written in place last. One column is text objects at a time.
+
+    ``rows_moved``, where given, receives the sort's rows: row ``r`` of the
+    result holds the cells of row ``rows_moved[r]``; it is left empty where no
+    sort runs (lane BT's second repair: what G4.2a dealt each workbook
+    cell moves with it, `generation.SheetDealt`).
 
     Guarantees: the columns `arranged` gives for the same cells; raises
     nothing; no I/O of any kind.
@@ -7451,6 +7458,12 @@ def arranged_columns(
         key = twinstore.column_cells(made[order.column - 1])
         placed = _permutation([key[row] for row in free], order, len(free))
         key = []
+        if rows_moved is not None:
+            sorted_rows = [row for row in range(n_rows)]
+            for index in range(len(free)):
+                sorted_rows[free[index]] = free[placed[index]]
+            rows_moved += sorted_rows
+            sorted_rows = []
         sorted_columns: "list[twinstore.HeldColumn]" = []
         for place in range(width):
             column = twinstore.column_cells(made[place])

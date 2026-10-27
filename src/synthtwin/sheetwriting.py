@@ -2099,18 +2099,23 @@ def _package(
     # ARRANGEMENT (lane BT's repair, plan P4-D429): its classes, format
     # kinds and kinds of date travelled with each cell to the row G16 put
     # it on, so none is dealt again here (`generation._sheet_dealt_before`).
-    carried_kinds: "dict[int, tuple[str, ...]]" = {}
+    # ...each held a byte a cell (`generation.SheetDealt`), its format kinds
+    # read out one column at a time where the styles are worked out below.
+    carried_kinds: "dict[int, generation.SheetDealt]" = {}
     for index in range(width):
         carried = twin.sheet_dealt[index] if index < len(twin.sheet_dealt) else None
         if carried is not None:
-            codes_of, kinds_of, dated_of, written_of = carried
-            if written_of is None:
+            classes_of, _kinds_of, dated_of = generation.sheet_dealt_kinds(carried)
+            if carried.written is None:
                 cells += [twin.held_columns[index] if twin.held_columns is not None else twinstore.held_column(list(generation.twin_column(twin, index)))]
             else:
-                cells += [twinstore.held_column(list(written_of))]
+                cells += [carried.written]
             dates += [_held_tags(dated_of)]
-            classes += [codes_of]
-            carried_kinds[index] = kinds_of
+            classes += [_class_codes(classes_of)]
+            classes_of = ()
+            dated_of = ()
+            _kinds_of = ()
+            carried_kinds[index] = carried
             continue
         given = generation.twin_column(twin, index)
         own, dated, dealt = _column_dealt(profile, index, given, twin.reserved_rows)
@@ -2153,7 +2158,7 @@ def _package(
     for index in range(width):
         column = form.columns[index]
         if index in carried_kinds:
-            kinds = carried_kinds[index]
+            kinds = generation.sheet_dealt_kinds(carried_kinds[index])[1]
         else:
             kinds = cell_format_kinds(
                 column.format_kinds, _class_names(classes[index]), column.format_code,
