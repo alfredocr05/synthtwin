@@ -37,7 +37,9 @@ question where both reach a column, one question; a declared decimal comma
 is read; placeholders close a run's gaps only inside it; written width is
 kept for the five-figure line. Stated limits, lane CODES-1 part C's: runs
 mostly under five figures that repeat, mixed-width keys on one to two rows
-a value, all-different numbers under five figures, glued letters.
+a value, all-different numbers under five figures, glued letters, and the
+held runs beside `-1` and `-9999` missing their own validation at 200,000
+rows. K-S3-64 re-stamped at 04cfb00: 178 shapes, nothing real published.
 
 ### Batch 4j's records: the data folder's exemption narrowed, the night's 2,000,000-row points written in, the ledger cap set once (2026-10-24)
 

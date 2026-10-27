@@ -224,8 +224,9 @@ cannot get worse unseen.
   of mixed widths on one to two rows a value (43 values published at
   20,000 rows); all-different numbers under five figures (only under
   20,000 cells: `1` to `600`, 599 twin cells); a letter glued to every
-  key; and `seqm1`'s own validation. Chance equalities in held twins:
-  lane ID-ROOM (P4-D432).
+  key; and the held runs beside `-1` and `-9999` missing their own
+  validation at 200,000 rows. Chance equalities in held twins: lane
+  ID-ROOM (P4-D432).
 - ~~**The description still names individuals.**~~ **CLOSED by landing
   3, 2026-09-23** (`K-P4-22`, `K-S3-11`). Its residual is open again by
   choice since plan P4-D375 publishes every pair: `K-S3-11` records 14
