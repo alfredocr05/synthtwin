@@ -18728,7 +18728,7 @@ landing I3a a column on the dial with no marker read at UTC beside two
 offsets, which G7.3b step 10's half day does not reach; and from lane
 L2 a set of clock times written with U+202F before their marker (plan
 P4-D392) --; and the TWENTY-SEVENTH,
-`tests/reference/generation-branch-vectors-27.json`, holds fourteen --
+`tests/reference/generation-branch-vectors-27.json`, holds sixteen --
 landing 3b.5's second step, G7A.4c's minute census of a column of clock
 times (plan P4-D374), in a file of its own because the twenty-first
 stands at the manifest's cap, and from its Codex review G7A.5's
@@ -18739,7 +18739,8 @@ G9.6b's final pass, a record number spelled again in its excluded
 template, one written in its spill's width and one spelled in three
 spellings of one block in turn (plan P4-D432), and from its repair a
 filling whose merged key drops a nought not taken and a spill beside a
-census naming no layout --
+census naming no layout, and from its second repair two layouts whose
+excluded templates fill in step, claimed by merged key and by number --
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
