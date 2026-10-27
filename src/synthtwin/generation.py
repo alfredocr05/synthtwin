@@ -54611,25 +54611,44 @@ def _numeric_identity(text: str) -> str:
     rounding, so two values that differ in their last figure stay two
     however long they are. A fixed function of the text; no I/O.
     """
+    if not isinstance(text, str):
+        raise TypeError("a cell reached the numeric identity as something else")
     if parsing.classify_number(text) != parsing.NUMBER:
         return ""
-    body = parsing.number_core(text)
+    return _numeric_identity_of_core(parsing.number_core(text))
+
+
+def _numeric_identity_of_core(body: str) -> str:
+    """`_numeric_identity` of a cell's `parsing.number_core`; "" where its figures read as no number."""
+    if not isinstance(body, str):
+        raise TypeError("a number's core reached the numeric identity as something else")
     sign = ""
     if body[:1] == "-":
         sign = "-"
     if body[:1] in ("-", "+"):
         body = body[1:]
     power = 0
-    for mark in ("e", "E"):
-        at = body.find(mark)
-        if at >= 0:
-            written_power = body[at + 1:]
-            body = body[:at]
-            if not written_power.lstrip("+-").isdigit():
-                return ""
-            power = int(written_power)
-    whole, _point, fraction = body.partition(".")
-    figures = whole + fraction
+    at = body.find("e")
+    if at >= 0:
+        written_power = body[at + 1:]
+        body = body[:at]
+        if not written_power.lstrip("+-").isdigit():
+            return ""
+        power = int(written_power)
+    at = body.find("E")
+    if at >= 0:
+        written_power = body[at + 1:]
+        body = body[:at]
+        if not written_power.lstrip("+-").isdigit():
+            return ""
+        power = int(written_power)
+    whole = body
+    fraction = ""
+    point = body.find(".")
+    if point >= 0:
+        whole = body[:point]
+        fraction = body[point + 1:]
+    figures = f"{whole}{fraction}"
     if not figures.isdigit() or not figures.isascii():
         return ""
     power = power - len(fraction)
@@ -54879,7 +54898,11 @@ def _on_its_spelling(spelling: str, core: str) -> str:
     a figure would stand for a letter, or the spelling written does not
     read back as the new key. A fixed function of the two texts; no I/O.
     """
-    key = parsing.merged_key(spelling)
+    if not isinstance(spelling, str):
+        raise TypeError("a spelling reached the merged writer as something else")
+    if not isinstance(core, str):
+        raise TypeError("a core reached the merged writer as something else")
+    key = str(parsing.merged_key(spelling))
     stands = _merged_stands_of(core)
     if stands is None or len(stands) != len(key):
         return ""
@@ -54903,6 +54926,8 @@ def _on_its_spelling(spelling: str, core: str) -> str:
 
 def _merged_stands_of(core: str) -> "list[int] | None":
     """The place in ``core`` each character of its merged key comes from, in order; None where a fold changes a length."""
+    if not isinstance(core, str):
+        raise TypeError("a core reached the merged places as something else")
     stands: "list[int]" = []
     zeros = False
     started = False
