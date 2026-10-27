@@ -87,16 +87,21 @@ def _shapes(seed: int) -> "dict[str, tuple[list[str], tuple[str, ...], dict[str,
             (),
             {"group_separator": "'"},
         ),
+        # SALARIES ARE DECLARED MEASUREMENTS (lane HX5, plan P4-D436, its
+        # repair 1): 800 draws from 18,000 to 160,000 are all different but
+        # two or three, five or six figures wide, the shape record numbers
+        # take, so undeclared they are put the identifier question and held
+        # until it is answered; `--measurement` is the answer `keep`.
         "salaries grouped with a right single quotation mark": (
             [f"{value:,}".replace(",", "’") for value in whole],
-            (),
+            ("--measurement", "value"),
             {"group_separator": "’", "role": "count"},
         ),
         # The thin space U+2009, which the verification of this landing
         # measured still read as free text with nothing said.
         "salaries grouped with a thin space": (
             [f"{value:,}".replace(",", "\u2009") for value in whole],
-            (),
+            ("--measurement", "value"),
             {"group_separator": "\u2009", "role": "count"},
         ),
         "charges grouped with a no-break space": (

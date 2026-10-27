@@ -3549,7 +3549,7 @@ def date_columns_seen_in_a_walk(
         comma = name in decimal_commas
         if _whole_numbers_each_on_one_row(present, role, comma, name):
             dated_said = f"{_each_on_one_row_said(present, comma, name)}; and {dated_said}"
-            dated_choices = dated_choices + [_each_on_one_row_identifier_choice(role, floor)]
+            dated_choices += [_each_on_one_row_identifier_choice(role, floor)]
         found += [
             Question(name, role, reason, dated_said, dated_choices, ANSWER_KEEP)
         ]
@@ -6882,7 +6882,7 @@ def date_codes_found(
         )
         if codes.each_on_one_row:
             coded_said = f"{codes.each_on_one_row}; and {coded_said}"
-            coded_choices = coded_choices + [
+            coded_choices += [
                 _each_on_one_row_identifier_choice(role, settings.small_cell_floor)
             ]
         found += [
