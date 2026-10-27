@@ -15635,17 +15635,24 @@ reads nothing real to make it so:
    its own folds to (`parsing.folded_layout`), AND drops no nought the
    template does not, so its merged key holds the written characters
    where the template's places stand (`parsing.projected`). The values of
-   one folded identity -- written again in another case or with a space
-   -- are kept or moved together: moved, they take one new core, each in
-   its own case and with its own spaces, also where the new core is
-   wider, its letters taken in turn, so a fold collision stays one. Every
+   one MERGED identity -- written again in another case or with a space,
+   or the walk's one key written two ways (`009891959` beside `9891959`)
+   -- are kept or moved together: moved, they take one new merged key,
+   each in its own case and with its own spaces, also where the new core
+   is wider, its letters taken in turn, so a fold collision stays one,
+   and each value folding otherwise keeps its own spelling with the new
+   key written where its own key stands, place for place (lane ID-ROOM's
+   verify, new item 1, 2026-10-27). Every
    other value is written as the first spelling, its fillings read from
    the first and the nought filling last (each template and each reading
    of a value -- its class, whole or not, its alphabets -- its own step,
    so a filling one class cannot take stays for another; at most 4,096 a
    value before the next template is asked; a search that finds nothing
    gives its step back), that neither spells nor folds onto any cell of
-   the column or any spelling taken before it, wears the template, is
+   the column or any spelling taken before it, nor MERGES with one (its
+   merged key) nor reads as the same number (`100005.0` beside `100005`,
+   the figures read exactly, as a table reader reads a column of
+   numbers), so the pass never writes two twin persons as one, wears the template, is
    itself kept so, is no spelling read as absent and no date, AND reads
    as the value's own class, whole or not as it is, and in its alphabets
    (`parsing.classify_number`, `numeric_whole`, `is_digit_text`,
@@ -18654,7 +18661,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All two hundred and twenty-three are required.** The count is taken off the committed
+**All two hundred and twenty-five are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -18969,6 +18976,8 @@ case passed, which is the failure the count exists to prevent:
 | `identifier_spill` | G9.6b's widening (plan P4-D432): a declared identifier publishing `{"@%%": 24}`, `{"(column)": "Z"}`, no exclusion for its layout and the spill `@%%%`; every walk value is written as the next free filling of its layout widened as long as the spill and one character longer since it holds a letter, `Z%%%%`, so every cell is five characters, `Z4356`, `Z8521`, as no real cell is. Its mutant withdraws the final pass and the cells of three characters stand |
 | `identifier_exclusion_drops_no_nought` | G9.6b's merged-key test (plan P4-D432, lane ID-ROOM's repair): a declared identifier publishing `{"@%%%": 24}`, `{"(column)": "P"}` and the exclusion `@%%9` beside its spill; the final pass spells the walk's values in `P%%9`, never taking a filling that opens its figures with a nought (`P019`, whose merged key `p19` could be a real `P19` written another way), so every cell's merged key holds the `9` where the template's last place stands. Its mutant takes such a filling, and `P019` and `P029` are written |
 | `identifier_spill_beside_no_census` | G9.6b beside a census naming no layout (plan P4-D432, lane ID-ROOM's repair): a declared identifier of three figures publishing an empty census beside the spill `%%%%`; the walk writes `100` to `117`, and the final pass writes every value again as the next free filling of its layout widened to the spill's length, `1816`, `2632`, so no cell is three figures. Its mutant withdraws the final pass and the walk's cells stand |
+| `identifier_whole_places_two_widths` | G9.6b's claims (plan P4-D432, lane ID-ROOM's verify, new item 1): a declared record number exported as a decimal with one nought and with two after its point, each layout's exclusion writing `9` at its third figure; the excluded templates `%%9.0` and `%%9.00` fill from steps that run in step, and the final pass takes no spelling another twin value's merged key holds, so `239.0` and `239.00` are never both written. Its mutant withdraws the claims and they are |
+| `identifier_number_beside_its_decimal` | G9.6b's number claim (plan P4-D432, lane ID-ROOM's verify, new item 1): a declared record number written `!!%%%%` and `%%%%.%`, each layout's exclusion writing `9` at its last figure before the point; `001009` and `1009.0` hold two merged keys and one number, and the final pass takes no spelling another twin value's number holds. Its mutant reads no cell as a number, and `003339` beside `3339.0` are written |
 | `identifier_layout_prefixes` | G9.6a's templates per layout (plan P4-D202): `{"@%%%%%": 12, "@@%%%%": 12}` with `{"@%%%%%": "E", "@@%%%%": "ST"}` over twenty-four identities; the rotation spreads `E%%%%%` and `ST%%%%` over them as it spread the layouts, `E30816`, `ST7553`. Its mutant reads the census as published, and the recount of 7.12a stops the oracle |
 | `pooled_level_sizes` | G8.3's sizes read off a pooled total and its debts (plan P4-D201, owner ruling of 2026-09-17): a column of categories publishing `alpha` and `beta` beside five held-back labels pooled on twenty-one rows at a floor of eleven, all owed to the one form the census names; the debt takes the three labels that pay it below the floor and then the other two, and its rows are shared one each and the rest by the square of each label's place, so the stand-ins cover 1, 2, 4, 6 and 8 rows. Its mutant shares the pool out evenly, 4, 4, 4, 4 and 5, and the cells move |
 | `pooled_number_scale` | G8.3c's placement of the pool's made-up numbers on the mean contract 6.3.3 publishes for them (plan P4-D302, ledger K-2B-50): thirty-one rows at a floor of eleven, one published label `alpha` on eleven and four held-back levels covering twenty rows, every one of which the source wrote as a number. The column publishes no number of its own, so the ladder of G8.3a step 3 is unanchored; the pool's block — twenty numeric cells and a mean of 50, with NO spread since the owner's decision of 2026-09-21 — places them instead. G8.3 reads the four sizes off the pool as 10, 6, 3 and 1, the walk hands them out largest first at positions 0, 1, -1 and 2, and their weighted centre is a quarter, so their offsets are -1/4, 3/4, -5/4 and 7/4. Nothing published says how far apart the held-back numbers stood, so the spacing is this method's own — five places of this column's whole-number grid, unbounded here because the column publishes no number to bound it — and the first value asked for, 48.75, rounds onto 49. The four groups then CARRY EACH OTHER'S ARREARS (step 4): no group is pushed by the census here, so the order is the walk's own, and each group after the first is asked for what the cells still to be written must average for the pool to come out on 50 — 53.5 onto 54, 42.75 onto 43 and 57 onto 57 — against the 54, 44 and 59 the step 2 values alone would have written. The twin's own pool comes back at 50 EXACTLY, inside the window G12.12 draws, which is two places of this column's whole-number grid; the fact stays APPROXIMATED because a mean the last group's rounding cannot carry is met inside that window and not on it. Its mutant withdraws the placement and the unanchored ladder answers instead, so all four cells move |

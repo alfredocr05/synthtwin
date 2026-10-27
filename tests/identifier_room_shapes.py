@@ -208,6 +208,18 @@ SHAPES: "dict[str, tuple[object, bool]]" = {
         lambda k, d: ("A" + "-" * 59 if k % 800 < 400 else "B" + "_" * 59) + str(100 + k % 400), True,
     ),
     "sixty_four_characters": (lambda k, d: "Q" * 61 + str(100 + k % 800), True),
+    # -- lane ID-ROOM's verify (wave6/ID-ROOM-verify.md, new item 1): two layouts whose excluded
+    # templates write the same figures at the same merged places, so their fillings run in step and
+    # the final pass, claiming by the fold alone, wrote two twin persons as one -- `97525937.0` beside
+    # `97525937.00` (its `s_dec_mixed`), `100005` beside `100005.0` read as numbers (`s_float_int`),
+    # `1234 5` beside `1234-5` (`x_space_inside`).
+    "decimal_one_or_two_noughts": (
+        lambda k, d: f"{31000000 + k}.0" if k % 2 else f"{31000000 + k}.00", True,
+    ),
+    "number_beside_its_decimal": (lambda k, d: f"{100000 + k}.0" if k % 2 else f"{100000 + k}", True),
+    "space_or_dash_inside": (
+        lambda k, d: f"{1000 + k % 9000} {k % 7}" if k % 2 else f"{1000 + k % 9000}-{k % 7}", True,
+    ),
     # -- the orchestrator's ruling 2 of 2026-10-25 (lane SH's verify 3, 'New shapes'): a held ZIP
     # column's made-up values in its layouts -- every cell ZIP+4, and three in ten. Lane SH's ZIP hold
     # is not on this lane's base, where the unanswered column is read as free text, so these are
@@ -295,6 +307,46 @@ def rows_of(name: str, n: int) -> "tuple[list[str], list[list[str]], str, bool]"
 def every_shape() -> "tuple[str, ...]":
     """Every shape's name, CODES-3's tables last."""
     return tuple(SHAPES) + tuple(table for table, _column, _declared in CODES3)
+
+
+def walk_and_pass(folder: pathlib.Path, name: str, n: int) -> "dict[str, list[str]]":
+    """One declared shape's real column, its twin, and the twin the walks write with the final pass withdrawn.
+
+    Profiled once and generated twice at seed 0, the second time with `generation.
+    _spelled_off_the_real` returning the walk's cells, so the two twins differ only by the pass
+    (lane ID-ROOM's verify, new item 1).
+    """
+    from synthtwin import generation
+
+    header, rows, column, declared = rows_of(name, n)
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / "t.csv"
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        writer = csv.writer(handle, lineterminator="\n")
+        writer.writerow(header)
+        writer.writerows(rows)
+    typed = ["--identifier", column] if declared else []
+    found: "dict[str, list[str]]" = {"real": [row[header.index(column)] for row in rows]}
+    screen = io.StringIO()
+    final_pass = generation._spelled_off_the_real
+    with held_shapes.nobody_at_the_keyboard():
+        with contextlib.redirect_stdout(screen), contextlib.redirect_stderr(screen):
+            assert cli.main(["profile", f"{path}", "--out-dir", f"{folder}", "--replace"] + typed) == 0
+            for label in ("twin", "walk"):
+                out = folder / label
+                out.mkdir(exist_ok=True)
+                try:
+                    if label == "walk":
+                        generation._spelled_off_the_real = lambda _c, _f, cells, _h: (cells, [])  # type: ignore[assignment]
+                    assert cli.main(["generate", f"{folder / 't-profile.json'}", "--out-dir", f"{out}",
+                                     "--seed", "0", "--replace"]) == 0
+                finally:
+                    generation._spelled_off_the_real = final_pass  # type: ignore[assignment]
+                with open(out / "t-twin.csv", encoding="utf-8", newline="") as handle:
+                    table = list(csv.reader(handle))
+                place = table[0].index(column)
+                found[label] = [row[place] for row in table[1:]]
+    return found
 
 
 def merged_equal_cells(

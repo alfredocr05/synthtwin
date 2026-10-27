@@ -591,6 +591,93 @@ def test_a_folded_identity_is_written_wider_together() -> None:
     assert all(len(parsing.merged_key(cell)) >= 4 for cell in cells), cells
 
 
+# -- two twin persons are never written as one (lane ID-ROOM's verify, new item 1) ---------------
+
+# The verify's shapes at 600 rows, and one at 20,000 rows, each with its walk measured: on fabc15b2
+# the final pass, claiming by the fold alone, wrote 600 different persons as 317 (`pad_split`, read
+# as numbers), 330 (`decimal_one_or_two_noughts`), 333 (`number_beside_its_decimal`, as numbers), 299
+# of 597 (`dash_split`, merged) and 329 (`space_or_dash_inside`, merged); at 20,000 rows `pad_split`
+# 13,649 as 10,038 (the verify's seeds 11 and 3).
+TWO_PERSONS = (("pad_split", 600), ("dash_split", 600), ("decimal_one_or_two_noughts", 600),
+               ("number_beside_its_decimal", 600), ("space_or_dash_inside", 600),
+               ("pad_split", 20_000))
+
+
+def _as_a_number(cell: str) -> "str | None":
+    """A cell read as a plain number, as a table reader reads a column of them, exactly; else None."""
+    import decimal
+
+    if re.fullmatch(r"\s*[+-]?\d+(\.\d+)?\s*", cell) is None:
+        return None
+    value = decimal.Decimal(cell.strip())
+    return "0" if value == 0 else f"{value.normalize():E}"
+
+
+@pytest.mark.parametrize(("name", "n"), TWO_PERSONS)
+def test_the_final_pass_writes_no_two_twin_persons_as_one(
+    tmp_path: pathlib.Path, name: str, n: int
+) -> None:
+    """The twin holds as many persons as the walk wrote, by the merged key and read as numbers.
+
+    The walk's twin (the final pass withdrawn) against the twin: the different merged keys and the
+    different numbers are no fewer, the join is the walk's -- each walk person one twin person
+    (none split) and each twin person one walk person (none merged) -- and no twin cell is, or
+    merges with, a real one. Mutants: the pass claiming a spelling by its fold alone (`009891959`
+    beside `9891959`, `P-48249196` beside `P48249196`, `97525937.0` beside `97525937.00`, `100005`
+    beside `100005.0`); the values of one merged identity moved one by one (the join split).
+    """
+    seen = room.walk_and_pass(tmp_path, name, n)
+    real, twin, walk = seen["real"], seen["twin"], seen["walk"]
+    present = [place for place in range(len(twin)) if twin[place].strip()]
+    assert [place for place in range(len(walk)) if walk[place].strip()] == present, name
+    for reading in (parsing.merged_key, _as_a_number):
+        assert len({reading(twin[place]) for place in present}) >= len(
+            {reading(walk[place]) for place in present}
+        ), (name, n, reading)
+    by_walk: "dict[str, set[str]]" = {}
+    by_twin: "dict[str, set[str]]" = {}
+    for place in present:
+        was, now = parsing.merged_key(walk[place]), parsing.merged_key(twin[place])
+        by_walk.setdefault(was, set()).add(now)
+        by_twin.setdefault(now, set()).add(was)
+    assert sum(1 for keys in by_twin.values() if len(keys) > 1) == 0, (name, n, "merged")
+    assert sum(1 for keys in by_walk.values() if len(keys) > 1) == 0, (name, n, "split")
+    assert room.equal_cells(real, twin) == 0 and room.merged_equal_cells(real, twin) == 0, (name, n)
+
+
+def test_one_merged_identity_moves_together_each_keeping_its_spelling() -> None:
+    """`0123` and `123`, one merged person of the walk, take one new key; `456` takes another.
+
+    Both layouts' exclusions write `9` at the last figure, so the three values are moved: the two
+    spellings of one person take ONE new merged key, each in its own layout -- `0109` and `109` --
+    and `456` takes the next key no twin value holds, never `109` again. Mutants: the values grouped
+    by their fold (the person splits in two), and a spelling claimed by its fold alone (`456` written
+    `109`, merging with the first person).
+    """
+    facts = contract.IdentifierFacts(
+        min_length=3, max_length=4, all_whole_numbers=True, n_all_digits=3, n_code_alphabet=3,
+        n_distinct_by_occurrences={"1": 3}, layout_forms={"!%%%": 1, "%%%": 2}, layout_prefixes={},
+        layout_exclusions={"!%%%": ("!%%9",), "%%%": ("%%9",), parsing.EXCLUSION_SPILL: ("%%%%%",)},
+    )
+    column = types.SimpleNamespace(name="key", time_grain=None)
+    cells, _remarks = generation._spelled_off_the_real(column, facts, ["0123", "123", "456"], ())  # type: ignore[arg-type]
+    assert parsing.merged_key(cells[0]) == parsing.merged_key(cells[1]), cells
+    assert parsing.layout_form(cells[0], parsing.LAYOUT_PLAIN) == "!%%%", cells
+    assert parsing.layout_form(cells[1], parsing.LAYOUT_PLAIN) == "%%%", cells
+    assert parsing.merged_key(cells[2]) != parsing.merged_key(cells[1]), cells
+    assert all(cell[-1] == "9" for cell in cells), cells
+
+
+def test_a_number_and_its_decimal_are_one_number() -> None:
+    """The pass's number reading: one value however it is written, two however long they are."""
+    same = ("100005", "100005.0", "+100005", "100005.00", "1.00005e5", " 100005 ")
+    assert len({generation._numeric_identity(text) for text in same}) == 1
+    assert generation._numeric_identity("0") == generation._numeric_identity("0.00") == "0"
+    assert generation._numeric_identity("10" * 40 + "1") != generation._numeric_identity("10" * 40 + "2")
+    assert generation._numeric_identity("-5") != generation._numeric_identity("5")
+    assert generation._numeric_identity("P100005") == generation._numeric_identity("1-2-3") == ""
+
+
 def test_a_block_passes_over_no_spelling_fewer_than_the_floors_keys_hold() -> None:
     """A spelling 1 to 10 keys hold ends a block size, as a character does the one-place scan.
 

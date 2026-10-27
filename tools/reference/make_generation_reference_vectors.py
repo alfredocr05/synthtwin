@@ -26244,7 +26244,8 @@ def spelled_off_the_real(column, content):
     fillings read from the first and the nought filling last (each
     template its own step, at most 4,096 a value before the next template
     is asked, a search that finds nothing giving its step back), that neither spells nor folds onto any cell of the content
-    or any spelling taken before it, wears the template, is itself kept so
+    or any spelling taken before it, nor merges with one (its merged key) or reads as the same number as
+    one (lane ID-ROOM's verify, new item 1: two twin persons are never written as one), wears the template, is itself kept so
     and reads as no absent spelling -- of its layout's excluded template,
     then of its layout widened under its own prefix until its merged key
     is the spill's length (one placeholder more where it holds a letter,
@@ -26257,7 +26258,8 @@ def spelled_off_the_real(column, content):
     THIS ORACLE DOES NOT MODEL seven things the product asks of a moved
     value: that its spelling reads as the value's own class and
     alphabets, each class from its own step; that no date format reads
-    it; that the values of one folded identity are spelled together; that
+    it; that the values of one merged identity are spelled together, each
+    keeping its own spelling; that
     a value written with spaces around it is spelled on its core; and that
     a value no layout describes is written as itself followed by letters
     until its merged key is the spill's length; and that a value written
@@ -26360,6 +26362,12 @@ def spelled_off_the_real(column, content):
 
     written = set(content)
     folds = {folded(cell) for cell in content} - written
+    merged = set()
+    numbers = set()
+    for cell in content:
+        claims = claims_of(cell)
+        merged.add(claims[0])
+        numbers.add(claims[1])
     moved = {}
     steps = {}
     for cell in content:
@@ -26383,6 +26391,8 @@ def spelled_off_the_real(column, content):
                     trial not in written
                     and folded(trial) not in written
                     and folded(trial) not in folds
+                    and claims_of(trial)[0] not in merged
+                    and claims_of(trial)[1] not in numbers
                     and wears_template(trial, into, convention)
                     and off_the_real(trial)
                     and not reads_as_absent(trial, holes)
@@ -26397,8 +26407,37 @@ def spelled_off_the_real(column, content):
             raise AssertionError("no spelling is left, which no frozen case reaches")
         written.add(candidate)
         folds.add(folded(candidate))
+        merged.add(claims_of(candidate)[0])
+        numbers.add(claims_of(candidate)[1])
         moved[cell] = candidate
     return [moved.get(cell, cell) for cell in content]
+
+
+def claims_of(cell):
+    """The twin person a spelling names: its merged key and its value read as a number (G9.6b, P4-D432).
+
+    Written from the rule statement (lane ID-ROOM's verify, new item 1): a
+    spelling is taken where either is a cell's of the content or a spelling's
+    taken before it. A spelling with no merged key, or read as no number,
+    claims nothing there: its part is a mark no spelling holds.
+    """
+    key = merged_key(cell) or ("(no key)", cell)
+    number = number_read(cell)
+    return key, ("(no number)", cell) if number is None else number
+
+
+def number_read(cell):
+    """A cell's value read as a plain decimal number, exactly, or None (G9.6b, P4-D432).
+
+    Written from the rule statement: a sign, figures with at most one
+    point, and a power of ten; `100005`, `100005.0` and `1.00005e5` are one
+    value. Grouping marks and accounting brackets, which the product's
+    reader also takes, are in no frozen case.
+    """
+    text = cell.strip()
+    if not re.fullmatch(r"[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?", text):
+        return None
+    return fractions.Fraction(text)
 
 
 def whole_places_template(name):
@@ -34716,6 +34755,65 @@ def _identifier_spill_beside_no_census():
         "free filling of its layout widened to the spill's length, `1816`, "
         "`2632`, so no cell is three figures, as every real cell is. This "
         "case's mutant withdraws the final pass and the walk's cells stand.",
+        "column": column,
+        "rows": 24,
+        "identifier_declared": True,
+    }
+
+
+def _identifier_whole_places_two_widths():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=24, n_missing=0, n_distinct=24, n_distinct_folded=24,
+        n_numeric=24, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        min_length=5, max_length=6, all_whole_numbers=True,
+        n_all_digits=0, n_code_alphabet=0,
+        n_distinct_by_occurrences={"1": 24},
+        layout_forms={"%%%.%": 12, "%%%.%%": 12},
+        layout_prefixes={},
+        layout_exclusions={"%%%.%": "%%9.%", "%%%.%%": "%%9.%%", "(spill)": "%%%%%%%"},
+    )
+    return {
+        "why": "a declared record number every value of which is a whole "
+        "number exported as a decimal, half with one nought after the point "
+        "and half with two, each layout's exclusion writing `9` at its third "
+        "figure (contract section 7.12b, lane ID-ROOM's verify, new item 1, "
+        "plan P4-D432). The two excluded templates, `%%9.0` and `%%9.00`, "
+        "are filled from steps of their own that run in step, and `109.0` "
+        "beside `109.00` would be one twin person written two ways: one "
+        "merged key and one number. G9.6b's final pass takes no spelling "
+        "another value's merged key or number holds, so every twin value "
+        "stays its own person. This case's mutant withdraws those claims, "
+        "and the cells move.",
+        "column": column,
+        "rows": 24,
+        "identifier_declared": True,
+    }
+
+
+def _identifier_number_beside_its_decimal():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=24, n_missing=0, n_distinct=24, n_distinct_folded=24,
+        n_numeric=24, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        min_length=6, max_length=6, all_whole_numbers=True,
+        n_all_digits=12, n_code_alphabet=12,
+        n_distinct_by_occurrences={"1": 24},
+        layout_forms={"!!%%%%": 12, "%%%%.%": 12},
+        layout_prefixes={},
+        layout_exclusions={"!!%%%%": "!!%%%9", "%%%%.%": "%%%9.%", "(spill)": "%%%%%%%"},
+    )
+    return {
+        "why": "a declared record number of four figures, half of it written "
+        "six wide with two noughts before it and half exported as a decimal "
+        "with one nought after the point, each layout's exclusion writing `9` "
+        "at its last figure before the point (contract section 7.12b, lane "
+        "ID-ROOM's verify, new item 1, plan P4-D432). `001009` and `1009.0` "
+        "have two merged keys but read as one number, as a table "
+        "reader reads the column, so a join on numbers would make them one "
+        "person. G9.6b's final pass takes no spelling whose number another "
+        "value holds. This case's mutant reads no cell as a number, and the "
+        "cells move.",
         "column": column,
         "rows": 24,
         "identifier_declared": True,
@@ -45892,6 +45990,10 @@ TWENTY_SEVENTH_BRANCH_CASE_BUILDERS = {
     # not taken, and the spill stands beside a census naming no layout.
     "identifier_exclusion_drops_no_nought": _identifier_exclusion_drops_no_nought,
     "identifier_spill_beside_no_census": _identifier_spill_beside_no_census,
+    # ...and its second repair (lane ID-ROOM's verify, new item 1): no
+    # spelling whose merged key or number another twin value holds.
+    "identifier_whole_places_two_widths": _identifier_whole_places_two_widths,
+    "identifier_number_beside_its_decimal": _identifier_number_beside_its_decimal,
     "clock_minutes_slots": _clock_minutes_slots,
     "clock_minutes_seconds": _clock_minutes_seconds,
     "clock_minutes_all_different": _clock_minutes_all_different,
@@ -46836,7 +46938,9 @@ _TWENTY_SEVENTH_BRANCH_ACCOUNT = (
     "its spill's width where no exclusion was found, and one spelled in "
     "three spellings of one block in turn; and its repair: a filling whose "
     "merged key drops a nought not taken, and a spill beside a census "
-    "naming no layout. They "
+    "naming no layout; and its second repair: two widths of a whole number "
+    "exported as a decimal, and a number beside its decimal, each spelled "
+    "where no other twin value's merged key or number is. They "
     "are computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -46939,6 +47043,28 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    # LANE ID-ROOM's second repair (plan P4-D432), method G9.6b, at seeds
+    # 607 and 608, the two after its first repair's.
+    "identifier_whole_places_two_widths": (
+        11893858757288079246, 11824064188932171718, 18233920788225463120,
+        210885556759478314, 4967882421047851947, 6351011511180609260,
+        9683904265307671877, 175351261204959386, 880874728041152705,
+        14306607816203952533, 4081519823440456172, 16631282455119385097,
+        4378638364831597191, 4930587301782240755, 14569936822470492532,
+        5802661676419787055, 13536370066281527036, 3713597828906688624,
+        6297836404788964877, 4064801676249662013, 9092245811306986517,
+        9109843235645071239, 5571252471050213935,
+    ),
+    "identifier_number_beside_its_decimal": (
+        9473324029670434127, 14738427379697201373, 4377748489873500057,
+        7754794010909880673, 18156618142682341909, 15470498063862441612,
+        952653309191700905, 14999991100907167884, 18204640399887998652,
+        11281057015496611070, 14641691786206489127, 4752296306719955558,
+        2607410857639485669, 11959977896339370337, 3345613951299656936,
+        2189599718115860450, 6192215157543183519, 14516003460670863312,
+        6928160706790377337, 16164293190335922277, 4009463484514170929,
+        17112559010646963415, 3925778456891005944,
+    ),
     # LANE ID-ROOM's repair (plan P4-D432), method G9.6b, at seeds 605 and
     # 606, the two after the lane's first three.
     "identifier_exclusion_drops_no_nought": (

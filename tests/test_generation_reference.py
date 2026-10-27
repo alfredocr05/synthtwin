@@ -934,10 +934,12 @@ TWENTY_SEVENTH_BRANCH_CASES = (
     "identifier_exclusion_drops_no_nought",
     "identifier_layout_exclusion",
     "identifier_layout_exclusions_several",
+    "identifier_number_beside_its_decimal",
     "identifier_spill",
     "identifier_spill_beside_no_census",
     "identifier_uid_root",
     "identifier_whole_places",
+    "identifier_whole_places_two_widths",
 )
 
 # THE TWENTY-THIRD FILE: lane G2's width rule, G6.6.8's reach (plan
@@ -1059,6 +1061,9 @@ SEEDS = {
     # ...and its repair the next two.
     "identifier_exclusion_drops_no_nought": 605,
     "identifier_spill_beside_no_census": 606,
+    # ...and its second repair the next two.
+    "identifier_whole_places_two_widths": 607,
+    "identifier_number_beside_its_decimal": 608,
     "clock_minutes_seconds": 443,
     "clock_minutes_all_different": 444,
     "clock_minutes_rung_pins": 445,
@@ -1393,6 +1398,8 @@ DECLARED_IDENTIFIERS = frozenset(
         "identifier_layout_exclusions_several",
         "identifier_exclusion_drops_no_nought",
         "identifier_spill_beside_no_census",
+        "identifier_whole_places_two_widths",
+        "identifier_number_beside_its_decimal",
     }
 )
 
@@ -3882,6 +3889,16 @@ def _keeps_any_nought(_cell: str, _template: str) -> bool:
     return True
 
 
+def _no_claims(cell: str) -> tuple:
+    """G9.6b's claims withdrawn (plan P4-D432): a spelling claims only itself, so two can merge."""
+    return (("(no key)", cell), ("(no number)", cell))
+
+
+def _no_number(_cell: str) -> None:
+    """G9.6b's number claim withdrawn (plan P4-D432): no cell reads as a number."""
+    return None
+
+
 def _uid_arcs_led_by_noughts(candidate: str, template: str, convention: str) -> bool:
     """G9.6a's amendment withdrawn under a UID root (plan P4-D428): an arc may be led by a nought."""
     if gen.layout_of(candidate, convention) != gen.prefix_layout(template, convention):
@@ -4917,6 +4934,22 @@ CASE_MUTANTS = {
         "`100` to `117` stand, and the cells move",
         attribute="spelled_off_the_real",
         replacement=_no_final_pass,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "identifier_whole_places_two_widths": Mutant(
+        branch="G9.6b's claims (plan P4-D432, lane ID-ROOM's verify, new item "
+        "1); the mutant lets a spelling merge with another twin value's, "
+        "`239.0` beside `239.00` are written, and the cells move",
+        attribute="claims_of",
+        replacement=_no_claims,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "identifier_number_beside_its_decimal": Mutant(
+        branch="G9.6b's number claim (plan P4-D432, lane ID-ROOM's verify, new "
+        "item 1); the mutant reads no cell as a number, `003339` beside "
+        "`3339.0` are written, and the cells move",
+        attribute="number_read",
+        replacement=_no_number,
         outcome=CHANGES_THE_CELLS,
     ),
     "identifier_layout_prefixes": Mutant(

@@ -54317,11 +54317,16 @@ def _spelled_off_the_real(
     no nought the template does not, so its merged key holds the written
     characters at their places (`parsing.projected`); or its merged key
     is at least as long as the column's `(spill)`'s, which every real
-    cell's is shorter than. The values of one folded identity -- a fold
-    collision, written again in another case or with a space -- are kept
-    or moved TOGETHER: moved, they take one new core, each in its own case
-    and with its own spaces, so the collision stays one, also where the
-    new core is wider. A value moved is written as the first free spelling
+    cell's is shorter than. The values of one MERGED identity -- a fold
+    collision, written again in another case or with a space, or the
+    walk's one key written two ways (`009891959` beside `9891959`) -- are
+    kept or moved TOGETHER: moved, they take one new merged key, each in
+    its own case and with its own spaces, so the collision stays one, also
+    where the new core is wider, and each value folding otherwise keeps
+    its own spelling with the new key written in it. No spelling is taken
+    whose merged key, or whose value read as a number, another twin value
+    holds, so the pass never writes two twin persons as one (lane
+    ID-ROOM's verify, new item 1). A value moved is written as the first free spelling
     of, nearest its own shape first: its layout's excluded template, so
     the census and the lengths stay met; its layout widened under its own
     prefix until its merged key is as long as the spill's, so its kinds
@@ -54367,7 +54372,12 @@ def _spelled_off_the_real(
         if cell in seen or not parsing.trimmed(cell):
             continue
         seen[cell] = True
-        identity = parsing.folded(cell)
+        # ONE MERGED IDENTITY IS ONE TWIN PERSON (lane ID-ROOM's verify, new
+        # item 1): the values the walk wrote as one merged key are kept or
+        # moved together, each keeping its own spelling.
+        identity = parsing.merged_key(cell)
+        if not identity:
+            identity = "\x00" + parsing.folded(cell)
         if identity not in groups:
             groups[identity] = []
             order += [identity]
@@ -54443,6 +54453,11 @@ def _spelled_off_the_real(
 # template is asked (plan P4-D432); the template's own step goes on.
 _OFF_THE_REAL_TRIES = 4096
 
+# How many fillings a value of one merged identity spelled otherwise than
+# the leading value is offered a template (lane ID-ROOM's second repair):
+# where both exclusions can be worn, one filling in ten or so is.
+_TOGETHER_TRIES = 256
+
 # The longest a widened UID is written: the grammar's own limit (DICOM
 # PS3.5, section 9.1). Every other widened value has no limit but the
 # spill's own length.
@@ -54463,8 +54478,12 @@ class _OffTheReal:
     the merged key, which folds the case); ``stands`` maps each template
     to where its places stand in the merged key (`parsing.merged_places`);
     ``bound`` is the spill's merged length, which every real cell's merged
-    key is shorter than. ``written``, ``folds``, ``steps``, ``missed`` and
-    ``widened`` are filled as the pass goes: ``steps`` keeps one step a
+    key is shorter than. ``written``, ``folds``, ``merged``, ``numbers``,
+    ``steps``, ``missed`` and ``widened`` are filled as the pass goes:
+    ``merged`` and ``numbers`` hold the merged keys and the values read as
+    numbers (`_numeric_identity`) of every twin cell and spelling taken,
+    so no new spelling merges with another twin person (lane ID-ROOM's
+    verify, new item 1); ``steps`` keeps one step a
     template and a reading (a value's class and alphabets), so no class
     spends the fillings another could take; ``missed`` names each search
     that found nothing (its template, its step, its value's reading), so
@@ -54483,6 +54502,8 @@ class _OffTheReal:
     bound: int
     written: "dict[str, bool]"
     folds: "dict[str, bool]"
+    merged: "dict[str, bool]"
+    numbers: "dict[str, bool]"
     steps: "dict[str, int]"
     missed: "dict[str, bool]"
     widened: "dict[str, str]"
@@ -54540,6 +54561,8 @@ def _off_the_real_room(
         bound=taxonomy.spill_bound(exclusions, facts.layout_prefixes),
         written={},
         folds={},
+        merged={},
+        numbers={},
         steps={},
         missed={},
         widened={},
@@ -54550,9 +54573,69 @@ def _off_the_real_room(
 
 
 def _claimed(room: _OffTheReal, spelling: str) -> None:
-    """Record a spelling, and its folded identity, as written."""
+    """Record a spelling, its folded identity, its merged key and its value read as a number, as written."""
     room.written[spelling] = True
     room.folds[parsing.folded(spelling)] = True
+    key = parsing.merged_key(spelling)
+    if key:
+        room.merged[key] = True
+    number = _numeric_identity(spelling)
+    if number:
+        room.numbers[number] = True
+
+
+def _identity_taken(room: _OffTheReal, spelling: str) -> bool:
+    """Whether a spelling names a twin person already written: its merged key or its value as a number taken.
+
+    TWO TWIN PERSONS ARE NEVER WRITTEN AS ONE (lane ID-ROOM's verify, new
+    item 1; the orchestrator's ruling 5 of 2026-10-27): a filling free
+    as written and folded could still merge, by the product's own merged
+    key (`P-48249196` beside `P48249196`, `009891959` beside `9891959`),
+    or read as the same number (`100005.0` beside `100005`, as a table
+    reader reads a column of numbers), with a value another identity
+    holds; it is taken.
+    """
+    key = parsing.merged_key(spelling)
+    if key and key in room.merged:
+        return True
+    number = _numeric_identity(spelling)
+    return bool(number) and number in room.numbers
+
+
+def _numeric_identity(text: str) -> str:
+    """A cell's value read as a number, written exactly in one form, or "" where it reads as no number.
+
+    `100005`, `100005.0`, `+100005` and `1.00005e5` are one value:
+    the figures with no nought before them or after them, the sign and
+    the power of ten (`-12e3`), read off `parsing.number_core` with no
+    rounding, so two values that differ in their last figure stay two
+    however long they are. A fixed function of the text; no I/O.
+    """
+    if parsing.classify_number(text) != parsing.NUMBER:
+        return ""
+    body = parsing.number_core(text)
+    sign = ""
+    if body[:1] == "-":
+        sign = "-"
+    if body[:1] in ("-", "+"):
+        body = body[1:]
+    power = 0
+    for mark in ("e", "E"):
+        if mark in body:
+            body, written_power = body.split(mark, 1)
+            if not written_power.lstrip("+-").isdigit():
+                return ""
+            power = int(written_power)
+    whole, _point, fraction = body.partition(".")
+    figures = whole + fraction
+    if not figures.isdigit() or not figures.isascii():
+        return ""
+    power = power - len(fraction)
+    figures = figures.lstrip("0")
+    if not figures:
+        return "0"
+    trimmed = figures.rstrip("0")
+    return f"{sign}{trimmed}e{power + len(figures) - len(trimmed)}"
 
 
 def _kept_off_the_real(room: _OffTheReal, cell: str) -> bool:
@@ -54742,6 +54825,7 @@ def _appended_off_the_real(
         if (
             written in room.written
             or parsing.folded(written) in room.folds
+            or _identity_taken(room, written)
             or (room.convention == parsing.LAYOUT_PLAIN and _reads_as_hexadecimal(written))
             or not _kept_off_the_real(room, written)
             or _is_a_hole_spelling(written, room.holes)
@@ -54758,18 +54842,90 @@ def _appended_off_the_real(
 def _respelled_together(
     room: _OffTheReal, members: "list[str]"
 ) -> "dict[str, str] | None":
-    """One new core for every value of one folded identity, or None (G9.3's collision kept)."""
+    """One new merged key for every value of one merged identity, or None (G9.3's collision kept).
+
+    Each value's own templates are offered in turn, that value leading:
+    the values folding as it does wear the filling in their own case,
+    and every other value of the identity -- the walk's one person
+    written two ways, `009891959` beside `9891959` -- keeps its own
+    spelling with the new merged key written in it (lane ID-ROOM's
+    verify, new item 1).
+    """
     parts = [_edges(member) for member in members]
     offered: "dict[str, bool]" = {}
-    for _lead, core, _trail, _cell in parts:
+    for index in range(len(parts)):
+        core = parts[index][1]
         for into in _off_the_real_targets(room, core):
             if into in offered:
                 continue
             offered[into] = True
-            found = _next_off_the_real(room, into, parts, True)
+            found = _next_off_the_real(room, into, parts, True, index)
             if found is not None:
                 return found
     return None
+
+
+def _on_its_spelling(spelling: str, core: str) -> str:
+    """``core`` with ``spelling``'s merged key written where its own merged key stands, or "" where it cannot be.
+
+    Place for place: each character of ``core`` that its merged key
+    reads (`parsing.merged_key`: a letter, a figure, the one nought of a
+    run of noughts alone) takes the new key's character there -- a
+    figure for a figure, a letter for a letter, in the case ``core``'s
+    letter wears -- and every other character (a separator, a nought
+    filling a width, a space) stays. "" where the keys are not as long,
+    a figure would stand for a letter, or the spelling written does not
+    read back as the new key. A fixed function of the two texts; no I/O.
+    """
+    key = parsing.merged_key(spelling)
+    stands = _merged_stands_of(core)
+    if stands is None or len(stands) != len(key):
+        return ""
+    written = ""
+    at = 0
+    for place in range(len(core)):
+        character = core[place]
+        if at < len(stands) and stands[at] == place:
+            new = key[at]
+            at = at + 1
+            if ("0" <= character <= "9") != ("0" <= new <= "9"):
+                return ""
+            if "A" <= character <= "Z":
+                new = new.upper()
+            character = new
+        written = written + character
+    if parsing.merged_key(written) != key:
+        return ""
+    return written
+
+
+def _merged_stands_of(core: str) -> "list[int] | None":
+    """The place in ``core`` each character of its merged key comes from, in order; None where a fold changes a length."""
+    stands: "list[int]" = []
+    zeros = False
+    started = False
+    lone = -1
+    for place in range(len(core)):
+        character = core[place].casefold()
+        if len(character) != 1:
+            return None
+        if "0" <= character <= "9":
+            if started or character != "0":
+                stands += [place]
+                started = True
+            elif not zeros:
+                zeros = True
+                lone = place
+            continue
+        if zeros and not started:
+            stands += [lone]
+        zeros = False
+        started = False
+        if "a" <= character <= "z" or character > "\x7f":
+            stands += [place]
+    if zeros and not started:
+        stands += [lone]
+    return stands
 
 
 def _edges(cell: str) -> "tuple[str, str, str, str]":
@@ -54794,11 +54950,18 @@ def _next_off_the_real(
     template: str,
     parts: "list[tuple[str, str, str, str]]",
     strict: bool,
+    lead: int = 0,
 ) -> "dict[str, str] | None":
     """The next filling of ``template`` every one of ``parts`` takes, in its own case and spaces.
 
     Free: neither the filling nor its folded identity is written, and no
-    part's spelling is. Each part's spelling is kept off the real
+    part's spelling is, nor merges with or reads as the number of a twin
+    person written before (`_identity_taken`). Several ``parts`` are one
+    MERGED identity: the part ``lead`` names, and every part folding as
+    it does, wear the filling in their own case; every other part keeps
+    its own spelling with the filling's merged key written in it, place
+    for place (`_on_its_spelling`), so the walk's one person stays one
+    and each spelling keeps its layout. Each part's spelling is kept off the real
     (`_kept_off_the_real`: its merged key drops no nought the template
     does not, skeptic 1 of lane ID-ROOM, item 3 (a)), is no hole spelling
     and no date, and, where ``strict``, reads as that part's own class,
@@ -54817,10 +54980,23 @@ def _next_off_the_real(
     step = start
     search = ""
     if len(parts) == 1:
-        lead, _core, trail, cell = parts[0]
-        search = f"{cursor}|{start}|{len(lead)}|{len(trail)}|{_reading_of(cell)}"
+        spaces, _core, trail, cell = parts[0]
+        search = f"{cursor}|{start}|{len(spaces)}|{len(trail)}|{_reading_of(cell)}"
         if search in room.missed:
             return None
+    anchor = parts[lead][1] if parts else ""
+    budget = _OFF_THE_REAL_TRIES
+    for _lead, core, _trail, _cell in parts:
+        if parsing.folded(core) == parsing.folded(anchor):
+            continue
+        if len(parsing.merged_key(core)) != parsing.merged_length(template):
+            # A spelling of the identity that cannot hold the filling's
+            # merged key place for place: no filling of this template fits.
+            return None
+        # ...and one that can is asked a few fillings only: where its own
+        # layout's exclusion and the template's cannot both be worn, no
+        # filling fits, and each value is then spelled on its own.
+        budget = _TOGETHER_TRIES
     room_of = parsing.layout_room(template)
     # A VALUE WRITTEN WIDER IN A COLUMN OF PLAIN LAYOUTS never holds letters
     # of `a` to `f` alone: two such values of one length, a letter in one
@@ -54835,7 +55011,7 @@ def _next_off_the_real(
     )
     tries = 0
     found: "dict[str, str] | None" = None
-    while step < room_of and tries < _OFF_THE_REAL_TRIES and found is None:
+    while step < room_of and tries < budget and found is None:
         filled = _filled_layout(template, (step + 1) % room_of)
         step = step + 1
         tries = tries + 1
@@ -54850,14 +55026,18 @@ def _next_off_the_real(
         taken: "dict[str, str]" = {}
         spelt_now: "dict[str, bool]" = {}
         fits = True
-        for lead, core, trail, cell in parts:
+        for before, core, trail, cell in parts:
             spelt = filled
             if len(parts) > 1:
                 spelt = _in_its_case(filled, core)
-            written = lead + spelt + trail
+                if parsing.folded(core) != parsing.folded(anchor):
+                    spelt = _on_its_spelling(_in_its_case(filled, anchor), core)
+            written = before + spelt + trail
             if (
-                written in room.written
+                not spelt
+                or written in room.written
                 or written in spelt_now
+                or _identity_taken(room, written)
                 or not _kept_off_the_real(room, written)
                 or _is_a_hole_spelling(written, room.holes)
                 or _reads_as_a_date(written)
