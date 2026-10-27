@@ -620,6 +620,12 @@ PLAN4_REGIONS = {
         "## Decision P4-D33 — the compound role's two halves are checked "
         "by the groups that already check them (landing L8, 2026-09-03)"
     ),
+    # A column's time grain (contract TG1, plan P4-D417), which no group
+    # held until lane S5b: a run's result names a generator miss of it
+    # `universal.time_grain` (plans P4-D437 and P4-D441).
+    "time-grain": (
+        "## Decision P4-D441 — profile's questions and carried become data"
+    ),
 }
 
 # THE ROLE SUB-TABLES OF THE CONTRACT MATRIX. Version 6's section 9
@@ -664,6 +670,7 @@ FACTS_OUTSIDE_THE_CONTRACT_MATRIX = (
     ("datetime", "datetime_separators"),
     ("datetime", "all_at_midnight"),
     ("datetime", "n_at_midnight"),
+    ("universal", "time_grain"),
 )
 
 
@@ -815,6 +822,21 @@ REGISTRY += _facts(
     "n_out_of_range",
     "n_contradictory",
 )
+# A COLUMN'S TIME GRAIN (contract TG1, plan P4-D417), the one key a
+# column block carries only where it says something. It decides how the
+# twin draws the column's values and how the validator reads them, and
+# no group held it until lane S5b (plan P4-D441; the orchestrator's
+# ruling of 2026-10-26 on lane S5a, item 2).
+REGISTRY += [
+    Fact(
+        "universal",
+        "time_grain",
+        EXACT_CONTROL,
+        plan_region="time-grain",
+        plan_words="`time_grain` is EXACT-CONTROL, registered in the "
+        "universal group",
+    )
+]
 REGISTRY += _facts(
     "universal",
     REPORT_ONLY,

@@ -760,8 +760,8 @@ def _fact_head(fact: str) -> str:
 # 1): the column-level counts the disposition registry files under
 # `universal` -- present, missing, out of range -- and the column's time
 # grain, a column-level key the description publishes beside them (plan
-# P4-D415) which the registry holds under no group yet (plan P4-D437
-# names the gap). `tests/test_stage5_gate.py` holds this list to the
+# P4-D417), which the registry files under `universal` too since lane
+# S5b (plan P4-D441). `tests/test_stage5_gate.py` holds this list to the
 # registry and to every key the generator writes.
 _UNIVERSAL_FACTS = ("n_present", "n_missing", "n_out_of_range", "time_grain")
 # A generator key `levels -> field` names a field of the label group's

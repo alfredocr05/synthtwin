@@ -269,14 +269,12 @@ def _groups(folder: pathlib.Path, argv: "tuple[str, ...]") -> "dict[str, str]":
 
 
 # The disposition registry's universal fields: column-level keys, whatever
-# the role. And THE ONE KEY THE GENERATOR WRITES THAT THE REGISTRY HOLDS
-# UNDER NO GROUP: a column's time grain, a column-level key of the
-# description (plan P4-D415), read as the universal keys are; plan P4-D437
-# names the gap.
+# the role, a column's time grain among them since lane S5b (plan P4-D441:
+# plan P4-D437 had named it the one key the generator writes that the
+# registry held under no group).
 _UNIVERSAL_FIELDS = frozenset(
     fact.field for fact in dispositions.REGISTRY if fact.group == "universal"
 )
-_UNREGISTERED_COLUMN_KEYS = frozenset({"time_grain"})
 
 
 def _head(field: str) -> str:
@@ -291,7 +289,7 @@ def _qualified(groups: "dict[str, str]", column: str, fact: str, end: str) -> st
     role publishes under; then `.end` for a ladder end that gave way.
     """
     field = fact.split(" -> ")[-1]
-    if _head(field) in _UNIVERSAL_FIELDS | _UNREGISTERED_COLUMN_KEYS:
+    if _head(field) in _UNIVERSAL_FIELDS:
         group = "universal"
     else:
         group = groups.get(column, "")
@@ -940,9 +938,9 @@ def test_every_miss_fact_is_a_registry_fact(ran: Battery) -> None:
 
     Lane S5a's repair 1: `levels -> variants_withheld` is the label
     group's `variants_withheld`, and the column-level counts (present,
-    missing, out of range) are `universal` whatever the role. The one
-    key the registry holds under no group, the time grain, is named
-    `universal.time_grain` and listed here as the gap plan P4-D437 names.
+    missing, out of range) are `universal` whatever the role, and so is
+    the time grain, which the registry holds in that group since lane S5b
+    (plan P4-D441).
     The validator's two byte rules (`validation.BYTE_RULE_FACTS`) are the
     contract's rules of the file's bytes, named apart from the registry
     as the suite's entry table names them.
@@ -961,7 +959,8 @@ def test_every_key_the_generator_writes_is_named_as_the_registry_names_it() -> N
 
     Its column-level counts are `universal` under every group, and every
     other key is a field of some group's (lane S5a's repair 1); the time
-    grain is the one gap, named `universal.time_grain`.
+    grain is the universal group's since lane S5b (plan P4-D441), so no
+    key the generator writes is outside the registry.
     """
     keys = _generator_keys()
     assert len(keys) >= 60, len(keys)
@@ -970,15 +969,16 @@ def test_every_key_the_generator_writes_is_named_as_the_registry_names_it() -> N
     wrong = []
     for line, key in keys:
         field = key.split(" -> ")[-1]
-        if _head(field) in universal | _UNREGISTERED_COLUMN_KEYS:
+        if _head(field) in universal:
             if any(cli._registry_fact(group, key, "") != f"universal.{field}" for group in groups):
                 wrong += [(line, key, "not universal")]
             continue
         if not any(_in_the_registry(cli._registry_fact(group, key, "")) for group in groups):
             wrong += [(line, key, "in no group")]
     assert not wrong, wrong
-    # cli's list of column-level keys is the registry's, and the gap alone besides
-    assert set(cli._UNIVERSAL_FACTS) - universal == _UNREGISTERED_COLUMN_KEYS
+    # cli's list of column-level keys is the registry's, the time grain among them
+    assert "time_grain" in universal
+    assert set(cli._UNIVERSAL_FACTS) <= universal
     assert {_head(key.split(" -> ")[-1]) for _line, key in keys} & universal <= set(cli._UNIVERSAL_FACTS)
 
 
