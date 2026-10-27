@@ -181,27 +181,35 @@ def _ward(rows: int) -> "tuple[list[str], list[list[str]]]":
 
 
 def _ward_book(rows: int) -> bytes:
-    """The ward's stay, lab, change and gender as a workbook, its records holding nothing formatted blank cells."""
+    """The ward's stay, lab, change, admission date, arrival and gender as a workbook: dates as day counts, clocks as day fractions, its records holding nothing formatted blank cells (lane BT's second repair: a workbook holding date and clock columns too)."""
     _header, body = _ward(rows)
-    names = ["stay", "lab", "change", "gender"]
-    picked = [1, 2, 3, 8]
+    names = ["stay", "lab", "change", "admit_date", "arrival", "gender"]
+    picked = [1, 2, 3, 4, 6, 8]
     strings: "list[str]" = [name for name in names] + ["NA", "F", "M"]
     index_of = {text: place for place, text in enumerate(strings)}
-    letters = "ABCD"
-    sheet_rows = [(1, [workbooks.cell(f"{letters[k]}1", str(k), "s") for k in range(4)])]
+    letters = "ABCDEF"
+    epoch = datetime.date(1899, 12, 30)
+    sheet_rows = [(1, [workbooks.cell(f"{letters[k]}1", str(k), "s") for k in range(6)])]
     for place in range(len(body)):
         number = place + 2
         row = body[place]
         if not any(row):
-            sheet_rows += [(number, [workbooks.cell(f"{letters[k]}{number}", "", "", workbooks.HEADER_STYLE) for k in range(4)])]
+            sheet_rows += [(number, [workbooks.cell(f"{letters[k]}{number}", "", "", workbooks.HEADER_STYLE) for k in range(6)])]
             continue
         cells: "list[str]" = []
-        for k in range(4):
+        for k in range(6):
             text = row[picked[k]]
-            if text in index_of:
-                cells += [workbooks.cell(f"{letters[k]}{number}", str(index_of[text]), "s")]
+            reference = f"{letters[k]}{number}"
+            if names[k] == "admit_date":
+                cells += [workbooks.cell(reference, str((datetime.date.fromisoformat(text) - epoch).days), "", 1)]
+            elif names[k] == "arrival":
+                if text:
+                    hours, minutes = text.split(":")
+                    cells += [workbooks.cell(reference, repr((int(hours) * 60 + int(minutes)) / 1440), "", 3)]
+            elif text in index_of:
+                cells += [workbooks.cell(reference, str(index_of[text]), "s")]
             else:
-                cells += [workbooks.cell(f"{letters[k]}{number}", text)]
+                cells += [workbooks.cell(reference, text)]
         sheet_rows += [(number, cells)]
     return workbooks.package([
         ("[Content_Types].xml", workbooks._content_types(1, True, False, False)),
@@ -210,8 +218,62 @@ def _ward_book(rows: int) -> bytes:
         ("xl/_rels/workbook.xml.rels", workbooks._workbook_rels(1, True)),
         ("xl/styles.xml", workbooks._styles()),
         ("xl/sharedStrings.xml", workbooks._shared_strings(strings)),
-        ("xl/worksheets/sheet1.xml", workbooks.sheet(sheet_rows, dimension=f"A1:D{len(body) + 1}")),
+        ("xl/worksheets/sheet1.xml", workbooks.sheet(sheet_rows, dimension=f"A1:F{len(body) + 1}")),
     ])
+
+
+def _zipf(values: "tuple[str, ...]") -> "tuple[list[str], list[float]]":
+    return [value for value in values], [1.0 / (rank + 1) for rank in range(len(values))]
+
+
+def _codes(rows: int) -> "tuple[list[str], list[list[str]]]":
+    """Invented codes drawn as a payer's files draw them, a dose on a few levels, a score in steps of five, and two keys (the gate's former table, its checks moved here by lane BT's second repair)."""
+    draw = random.Random(17)
+    drg = _zipf(("470", "291", "871", "392", "190", "065", "064", "189", "292", "872"))
+    revenue = _zipf(("0450", "0250", "0300", "0320", "0360", "0636", "0730", "0120"))
+    apc = _zipf(("5012", "5521", "5072", "5302", "5734", "5822", "5113"))
+    classes = _zipf(("98", "49", "108", "127", "205", "106", "59", "651", "101", "53"))
+    amounts = (["250", "500", "750", "1000", "1500", "2000"], [0.20, 0.35, 0.10, 0.25, 0.06, 0.04])
+    serial = [str(1 + step) for step in range(rows)]
+    draw.shuffle(serial)
+    body: "list[list[str]]" = []
+    for place in range(rows):
+        barthel = 5 * min(20, max(0, int(round(draw.gauss(13, 4.5)))))
+        body += [[
+            f"CLM{200000000 + place}",
+            serial[place],
+            draw.choices(drg[0], drg[1])[0],
+            draw.choices(revenue[0], revenue[1])[0],
+            draw.choices(apc[0], apc[1])[0],
+            draw.choices(classes[0], classes[1])[0],
+            draw.choices(amounts[0], amounts[1])[0],
+            str(barthel),
+        ]]
+    return ["claim", "serial", "drg", "revenue_code", "apc", "clinical_class", "dose_mg", "barthel"], body
+
+
+def _sparse(rows: int) -> "tuple[list[str], list[list[str]]]":
+    """Sparse number columns beside a key: a count on about 115 rows, a wide count on about 300, a one-figure reading on about 150, bands of 11 to 24 rows (lane BT's verify, item 1)."""
+    draw = random.Random(1001)
+    body: "list[list[str]]" = []
+    for place in range(rows):
+        few = str(draw.randint(0, 60)) if draw.random() < 115 / rows else ""
+        wide = str(draw.randint(0, 200)) if draw.random() < 300 / rows else ""
+        reading_ = f"{draw.gauss(7, 2):.1f}" if draw.random() < 150 / rows else ""
+        body += [[f"S{place:06d}", few, wide, reading_, draw.choice(["p", "q"])]]
+    return ["key", "sparse_count", "sparse_wide", "sparse_reading", "arm"], body
+
+
+def _lab(rows: int) -> "tuple[list[str], list[list[str]]]":
+    """A laboratory value at one figure with sentinel heaps at 10.0, 600.0 and 650.0, some absent, beside a score and an arm (lane BT's verify, item 1)."""
+    draw = random.Random(77)
+    body: "list[list[str]]" = []
+    for _place in range(rows):
+        w = draw.random()
+        lab = "600.0" if w < 0.015 else "650.0" if w < 0.021 else "10.0" if w < 0.033 else ("" if w < 0.05 else f"{draw.gauss(100, 15):.1f}")
+        score = 3 if draw.random() < 0.22 else min(int(draw.gammavariate(2.5, 1.6)), 20)
+        body += [[lab, str(score), draw.choice(["p", "q"])]]
+    return ["lab_value", "score", "arm"], body
 
 
 @dataclasses.dataclass
@@ -361,7 +423,8 @@ def _tables(
         for spec in health_zoo.TABLES:
             if spec.name in only:
                 out += [(f"zoo.{spec.name}", health_zoo.write_table(spec, folder / "zoo", 20000, 0), [0, 1])]
-        return out
+        if out:
+            return out
 
     def written(name: str, made: "tuple[list[str], list[list[str]]]") -> pathlib.Path:
         path = folder / f"{name}.csv"
@@ -371,12 +434,32 @@ def _tables(
     for rows in rows_list:
         for table_seed in draws:
             out += [(f"ten{rows}@{table_seed}", written(f"ten{rows}-{table_seed}", _ten(rows, table_seed)), [])]
+    if only:
+        # ``only`` names tables of the battery (not of the zoo): those alone.
+        small_only = min(max(rows_list), 20000)
+        builders = {"few": _few, "ward": _ward, "codes": _codes, "sparse": _sparse, "lab": _lab}
+        picked: "list[tuple[str, pathlib.Path, list[int]]]" = [entry for entry in out if entry[0] in only]
+        for name in only:
+            if name in builders:
+                seeds = [0, 1] if name == "codes" else [0, 1, 2, 3, 4] if name in ("sparse", "lab") else []
+                picked += [(name, written(name, builders[name](small_only)), seeds)]
+            if name == "ward-book":
+                book_only = folder / "ward-book.xlsx"
+                book_only.write_bytes(_ward_book(small_only))
+                picked += [("ward-book", book_only, [])]
+        return picked
     small = min(max(rows_list), 20000)
     out += [("few", written("few", _few(small)), [])]
     out += [("ward", written("ward", _ward(small)), [])]
     book = folder / "ward-book.xlsx"
     book.write_bytes(_ward_book(small))
     out += [("ward-book", book, [])]
+    # ...and the shapes lane BT's verify and its gate's former checks hold
+    # (its second repair): sparse codes and keys, sparse columns of bands
+    # of 11 to 24 rows, a laboratory value with sentinel heaps.
+    out += [("codes", written("codes", _codes(small)), [0, 1])]
+    out += [("sparse", written("sparse", _sparse(small)), [0, 1, 2, 3, 4])]
+    out += [("lab", written("lab", _lab(small)), [0, 1, 2, 3, 4])]
     every = folder / "every_role.csv"
     every.write_text(fixtures.every_role_table(n_rows=2000), encoding="utf-8", newline="\n")
     out += [("every_role", every, [0, 1, 2, 3, 4])]
@@ -412,6 +495,7 @@ def measure(
         "keys_checked": 0,
         "edge_values_worse": 0,
         "edge_values_checked": 0,
+        "made_up": 0,
         "twins": 0,
     }
     named: "dict[str, list[str]]" = {
@@ -420,6 +504,7 @@ def measure(
         "shape_regressions_named": [],
         "keys_lost_named": [],
         "edge_values_worse_named": [],
+        "made_up_named": [],
     }
     made_without: "list[str]" = []
     reach: "list[str]" = []
@@ -525,6 +610,15 @@ def measure(
                         value["edge_values_checked"] = int(value["edge_values_checked"]) + 1  # type: ignore[call-overload]
                         if abs(with_counts.get(edge, 0) - held) > abs(bare_counts.get(edge, 0) - held):
                             further += [edge]
+                    # ...REPORTED: values the twin with L0 writes that neither the
+                    # real column nor the twin without L0 holds (the gate's former
+                    # bar on sparse codes; the count rule's free point beside a
+                    # stratum, G5.7c step 3, writes one where none else can keep
+                    # today's count of different values).
+                    made_up = [held for held in with_counts if held not in real[column_name] and held not in bare_counts]
+                    if made_up:
+                        value["made_up"] = int(value["made_up"]) + len(made_up)  # type: ignore[call-overload]
+                        named["made_up_named"] += [f"{name}@{seed}: {column_name} {len(made_up)} value(s), {sorted(made_up)[:4]}"]
                     if further:
                         value["edge_values_worse"] = int(value["edge_values_worse"]) + len(further)  # type: ignore[call-overload]
                         named["edge_values_worse_named"] += [f"{name}@{seed}: {column_name} {len(further)} of {len(edges_of[column_name])}"]
@@ -563,6 +657,8 @@ def _argument(flag: str, default: "list[int]") -> "list[int]":
 
 def main() -> int:
     only = sys.argv[sys.argv.index("--zoo-only") + 1].split(",") if "--zoo-only" in sys.argv else []
+    if "--only-tables" in sys.argv:
+        only = sys.argv[sys.argv.index("--only-tables") + 1].split(",")
     value = measure(
         _argument("--rows", [5000, 20000]),
         _argument("--seeds", [0, 1, 2]),

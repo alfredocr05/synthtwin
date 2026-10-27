@@ -55953,8 +55953,8 @@ def l0_least_move(column, values, sizes, bands, figures):
             count_now += 1
     # ...and no more different values than today's twin held: the smallest
     # stratum no heap proves between two proven heaps, then the smallest
-    # anywhere under the floor (never one kept above, the mode, min, max or
-    # a tail's row)
+    # anywhere under the floor that is no value kept above, the mode, min,
+    # max or a tail's row
     rungs = sorted({l0_rung(column, key) for key in ALL_LADDER_KEYS if l0_rung(column, key) is not None})
     gaps = [(rungs[at], rungs[at + 1]) for at in range(len(rungs) - 1) if rungs[at] in proven and rungs[at + 1] in proven]
     lowest = wire_value(column["percentiles"].get("min"))
@@ -55973,13 +55973,13 @@ def l0_least_move(column, values, sizes, bands, figures):
         best = None
         for index, place in enumerate(holding):
             value = value_of[place]
-            if value in proven or place in kept:
+            if value in proven:
                 continue
             if in_gaps:
                 if not any(low < value < high for low, high in gaps):
                     continue
             else:
-                if now[place] >= CASE_SMALL_CELL_FLOOR or value == mode or value == lowest or value == highest:
+                if place in kept or now[place] >= CASE_SMALL_CELL_FLOOR or value == mode or value == lowest or value == highest:
                     continue
                 if (low_tail is not None and not value > low_tail) or (high_tail is not None and not value < high_tail):
                     continue

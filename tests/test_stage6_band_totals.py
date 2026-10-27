@@ -6,24 +6,37 @@ description a shipped command loads is laid out byte for byte as
 before. This file holds each rule beside a MUTANT of the product (a
 product function replaced by monkeypatch, never an input changed), and
 every mutant test runs the same check its rule's test runs and finds it
-failing:
+failing.
 
-- EACH BAND MET EXACTLY at 20,000 rows on count, continuous, affixed,
-  date and clock columns of the product's own twin, read back the way
-  the profile reads them (`chain.read_column`), against the twin made
-  without L0;
-- THE LEAST MOVE on number columns (G5.7c): sparse codes and a dose column keep
-  every value they hold at the floor's rows or more and write none the
-  real column never held, inside the Kolmogorov-Smirnov distance of
-  today's twin; its proven heaps, its count of different values, its
-  mode, its keys written once a row, its values kept;
-- the method's cases (G14.3a), the oracle's L0 cases
-  (`tests/reference/generation-branch-vectors-28.json`);
-- the date's edge runs and piece (G7.3l) and the clock's halves (G7A.4d);
+ONE CASE PER WRITER AT 20,000 ROWS (the orchestrator's rule of
+2026-10-26: a test file adds at most three minutes to the suite; lane
+BT's second repair, after its verify, item 2): a text file and a
+workbook, each holding count, continuous, date and clock columns, every
+band met exactly, read back the way the profile reads them
+(`chain.read_column`). Every other check of a twin at 20,000 rows or
+more -- sparse codes, the Kolmogorov-Smirnov distance, every within-column
+fact with and without L0, the keys, the mode, the values kept -- is
+K-S6-02's, measured by `tools/measurements/kpi_band_totals.py` under
+`kpi_run --slow`; and each mutant here stands on the smallest fixture on
+which it goes red:
+
+- THE LEAST MOVE on number columns (G5.7c), through the oracle's own
+  cases (`tests/reference/generation-branch-vectors-28.json`): the
+  proven heaps, the two-sided count rule (a sparse count short of today's
+  count and over it), the values kept, the mode, today's twin unmoved;
+  the keys once a row on a column of 5,000 different numbers;
+- the date's edge runs and piece (G7.3l) and the clock's halves and
+  knots (G7A.4d), an edge's rung at a boundary rank among them;
+- the cells as written held inside their pieces (G5.7b, G5.7g);
 - THE RESERVATION of records holding nothing, in a text file and in a
-  workbook, by spelling and by class, its shortfall named, and every
-  workbook cell written by the class G4.2b handed over;
-- THE INTERFACE G16 calls (`cells_by_band`) and G16.5's givers.
+  workbook, by spelling and by class, its shortfall named; every
+  workbook cell written by the class G4.2b handed over, after the sort
+  too, held a byte a row;
+- THE INTERFACE G16 calls (`cells_by_band`): one group per published
+  band in the published order, the columns rule B3 makes, the cost of a
+  column of many levels; and G16.5's givers;
+- the searches a large or crowded column asks: the grid index near
+  `1e30`, the free whole numbers of a piece.
 
 Every table is invented here; the key is a fixed test key.
 """
@@ -34,6 +47,7 @@ import io
 import json
 import pathlib
 import random
+import time
 import zipfile
 
 import pytest
@@ -49,7 +63,6 @@ from synthtwin import (
     dialect,
     errors,
     generation,
-    parsing,
     profile,
     reading,
     rendering,
@@ -118,34 +131,50 @@ def _ward(rows: int) -> "tuple[list[str], list[list[str]]]":
     return ["record", "stay", "lab", "change", "dose", "admit_date", "stamp", "arrival", "given_at", "gender"], body
 
 
-def _zipf(values: "tuple[str, ...]") -> "tuple[list[str], list[float]]":
-    return [value for value in values], [1.0 / (rank + 1) for rank in range(len(values))]
+def _ward_book(rows: int) -> bytes:
+    """The ward's stay, lab, admission date, arrival and gender as a workbook: dates as day counts, clocks as day fractions, its records holding nothing formatted blank cells."""
+    _header, body = _ward(rows)
+    picked = [1, 2, 5, 7, 9]
+    names = ["stay", "lab", "admit_date", "arrival", "gender"]
+    strings = names + ["NA", "F", "M"]
+    index_of = {text: place for place, text in enumerate(strings)}
+    letters = "ABCDE"
+    epoch = datetime.date(1899, 12, 30)
+    sheet_rows = [(1, [workbooks.cell(f"{letters[k]}1", str(k), "s") for k in range(5)])]
+    for place in range(len(body)):
+        number = place + 2
+        row = body[place]
+        if not any(row):
+            sheet_rows += [(number, [workbooks.cell(f"{letters[k]}{number}", "", "", workbooks.HEADER_STYLE) for k in range(5)])]
+            continue
+        cells: "list[str]" = []
+        for k in range(5):
+            text = row[picked[k]]
+            reference = f"{letters[k]}{number}"
+            if names[k] == "admit_date":
+                cells += [workbooks.cell(reference, str((datetime.date.fromisoformat(text) - epoch).days), "", 1)]
+            elif names[k] == "arrival":
+                if text:
+                    hours, minutes = text.split(":")
+                    cells += [workbooks.cell(reference, repr((int(hours) * 60 + int(minutes)) / 1440), "", 3)]
+            elif text in index_of:
+                cells += [workbooks.cell(reference, str(index_of[text]), "s")]
+            else:
+                cells += [workbooks.cell(reference, text)]
+        sheet_rows += [(number, cells)]
+    return _package(strings, sheet_rows, f"A1:E{len(body) + 1}")
 
 
-def _codes(rows: int) -> "tuple[list[str], list[list[str]]]":
-    """Invented codes drawn as a payer's files draw them, a dose on a few levels, a score in steps of five, and two keys."""
-    draw = random.Random(17)
-    drg = _zipf(("470", "291", "871", "392", "190", "065", "064", "189", "292", "872"))
-    revenue = _zipf(("0450", "0250", "0300", "0320", "0360", "0636", "0730", "0120"))
-    apc = _zipf(("5012", "5521", "5072", "5302", "5734", "5822", "5113"))
-    classes = _zipf(("98", "49", "108", "127", "205", "106", "59", "651", "101", "53"))
-    amounts = (["250", "500", "750", "1000", "1500", "2000"], [0.20, 0.35, 0.10, 0.25, 0.06, 0.04])
-    serial = [str(1 + step) for step in range(rows)]
-    draw.shuffle(serial)
-    body: "list[list[str]]" = []
-    for place in range(rows):
-        barthel = 5 * min(20, max(0, int(round(draw.gauss(13, 4.5)))))
-        body += [[
-            f"CLM{200000000 + place}",
-            serial[place],
-            draw.choices(drg[0], drg[1])[0],
-            draw.choices(revenue[0], revenue[1])[0],
-            draw.choices(apc[0], apc[1])[0],
-            draw.choices(classes[0], classes[1])[0],
-            draw.choices(amounts[0], amounts[1])[0],
-            str(barthel),
-        ]]
-    return ["claim", "serial", "drg", "revenue_code", "apc", "clinical_class", "dose_mg", "barthel"], body
+def _package(strings: "list[str]", sheet_rows: "list[tuple[int, list[str]]]", dimension: str) -> bytes:
+    return workbooks.package([
+        ("[Content_Types].xml", workbooks._content_types(1, True, False, False)),
+        ("_rels/.rels", workbooks._root_rels()),
+        ("xl/workbook.xml", workbooks._workbook([("Data", "")])),
+        ("xl/_rels/workbook.xml.rels", workbooks._workbook_rels(1, True)),
+        ("xl/styles.xml", workbooks._styles()),
+        ("xl/sharedStrings.xml", workbooks._shared_strings(strings)),
+        ("xl/worksheets/sheet1.xml", workbooks.sheet(sheet_rows, dimension=dimension)),
+    ])
 
 
 def _ten(rows: int, seed: int) -> "tuple[list[str], list[list[str]]]":
@@ -171,16 +200,12 @@ def _ten(rows: int, seed: int) -> "tuple[list[str], list[list[str]]]":
     return ["id", "age", "pressure", "stay", "few", "visits", "money", "change", "visit_date", "clock", "gender"], body
 
 
-def _few_values() -> "tuple[list[str], list[list[str]]]":
-    """G14.3a case 1 (b): a count of few values with one rare high value, 20,000 rows."""
-    counts = [1568, 8436, 5813, 2464, 1018, 425, 162, 59, 30, 14, 7, 1, 2]
-    cells: "list[str]" = []
-    for value in range(len(counts)):
-        cells += [str(value)] * counts[value]
-    cells += ["16"]
-    draw = random.Random(5)
-    draw.shuffle(cells)
-    return ["id", "count", "group"], [[f"R{place:06d}", cells[place], draw.choice(["a", "b"])] for place in range(len(cells))]
+def _keys(rows: int) -> "tuple[list[str], list[list[str]]]":
+    """A record number of ``rows`` different values, shuffled, beside a binary arm."""
+    draw = random.Random(17)
+    serial = [str(1 + step) for step in range(rows)]
+    draw.shuffle(serial)
+    return ["serial", "arm"], [[serial[at], draw.choice(["p", "q"])] for at in range(rows)]
 
 
 # -- the switched descriptions ------------------------------------------------------
@@ -234,13 +259,16 @@ def ward(tmp_path_factory: pytest.TempPathFactory) -> _Switched:
 
 
 @pytest.fixture(scope="module")
-def codes(tmp_path_factory: pytest.TempPathFactory) -> _Switched:
-    return _table(tmp_path_factory, "codes", _codes(ROWS))
+def ward_book(tmp_path_factory: pytest.TempPathFactory) -> _Switched:
+    folder = tmp_path_factory.mktemp("ward-book")
+    path = folder / "ward-book.xlsx"
+    path.write_bytes(_ward_book(ROWS))
+    return _switched(folder, path)
 
 
 @pytest.fixture(scope="module")
-def ten11(tmp_path_factory: pytest.TempPathFactory) -> _Switched:
-    return _table(tmp_path_factory, "ten", _ten(ROWS, 11))
+def ward_small(tmp_path_factory: pytest.TempPathFactory) -> _Switched:
+    return _table(tmp_path_factory, "ward2000", _ward(2000))
 
 
 @pytest.fixture(scope="module")
@@ -248,15 +276,14 @@ def ten11_small(tmp_path_factory: pytest.TempPathFactory) -> _Switched:
     return _table(tmp_path_factory, "ten5000", _ten(5000, 11))
 
 
-@pytest.fixture(scope="module")
-def few(tmp_path_factory: pytest.TempPathFactory) -> _Switched:
-    return _table(tmp_path_factory, "few", _few_values())
-
-
 def _read_back(switched: _Switched, twin: generation.Twin) -> "dict[str, list[int]]":
     """Each eligible column's L0 totals in the twin, read the way the profile reads the table (contract 4.6b.2)."""
-    out_path = switched.folder / "twin.csv"
-    out_path.write_text("".join(rendering.twin_csv_pieces(twin)), encoding="utf-8", newline="")
+    if switched.loaded.source.workbook is not None:
+        out_path = switched.folder / "twin.xlsx"
+        out_path.write_bytes(_book_members(switched.loaded, twin))
+    else:
+        out_path = switched.folder / "twin.csv"
+        out_path.write_text("".join(rendering.twin_csv_pieces(twin)), encoding="utf-8", newline="")
     back = reading.read_table(str(out_path), small_cell_floor=FLOOR)
     blocks: "dict[str, tuple[int, dict[str, object]]]" = {}
     for place, block in enumerate(switched.document["columns"]):  # type: ignore[arg-type]
@@ -296,36 +323,6 @@ def _published(switched: _Switched) -> "dict[str, list[int]]":
     return {entry["column"]: entry["totals"] for entry in switched.statistical["ladder"]}  # type: ignore[index, union-attr]
 
 
-def _numbers(cells: "list[str] | tuple[str, ...]") -> "dict[float, int]":
-    held: "dict[float, int]" = {}
-    for cell in cells:
-        value = parsing.parse_number(cell) if cell.strip() else None
-        if value is not None:
-            held[value] = held.get(value, 0) + 1
-    return held
-
-
-def _twin_numbers(switched: _Switched, twin: generation.Twin, name: str) -> "dict[float, int]":
-    place = [column.name for column in switched.loaded.columns].index(name)
-    return _numbers(generation.twin_column(twin, place))
-
-
-def _real_numbers(switched: _Switched, name: str) -> "dict[float, int]":
-    return _numbers(reading.column_values(switched.table, switched.table.column_names.index(name)))
-
-
-def _ks(left: "dict[float, int]", right: "dict[float, int]") -> int:
-    """The Kolmogorov-Smirnov distance between two columns of numbers, in rows."""
-    worst = 0
-    up = 0
-    down = 0
-    for value in sorted(set(left) | set(right)):
-        up += left.get(value, 0)
-        down += right.get(value, 0)
-        worst = max(worst, abs(up - down))
-    return worst
-
-
 def _l0_notes(twin: generation.Twin) -> "list[str]":
     return [note.column for note in twin.deviations if note.fact == "band totals"]
 
@@ -336,269 +333,73 @@ def _bands_missed(switched: _Switched, twin: generation.Twin, names: "tuple[str,
     return sum(_rows_off(found[name], published[name]) for name in names)
 
 
-# -- EACH BAND MET EXACTLY AT 20,000 ROWS ----------------------------------------------
+
+
+# -- ONE CASE PER WRITER AT 20,000 ROWS ----------------------------------------------
 
 WARD_RANGED = ("stay", "lab", "change", "dose", "admit_date", "stamp", "arrival", "given_at")
+BOOK_RANGED = ("stay", "lab", "admit_date", "arrival")
 
 
-def test_every_band_holds_its_published_count_at_twenty_thousand_rows(ward) -> None:
-    published = _published(ward)
-    roles = {column.name: column.statistical_type for column in ward.loaded.columns}
-    twin = ward.twin("l0", 0)
-    found = _read_back(ward, twin)
+def _every_band_met(switched: _Switched, names: "tuple[str, ...]") -> None:
+    published = _published(switched)
+    roles = {column.name: column.statistical_type for column in switched.loaded.columns}
+    twin = switched.twin("l0", 0)
+    found = _read_back(switched, twin)
     checked = set()
-    for name in WARD_RANGED:
+    for name in names:
         assert _rows_off(found[name], published[name]) == 0, (name, found[name], published[name])
         checked |= {roles[name]}
-    # (an affixed column's cores are held to their bands by `codes`'s claim key)
     assert checked >= {"count", "continuous", "datetime", "time_of_day"}
     # ...every eligible column laid with its band totals, no rule B3.
     assert _l0_notes(twin) == []
-    # The twin made without L0 misses them, which is why the layer exists.
-    assert _bands_missed(ward, ward.twin("bare", 0), WARD_RANGED) > 0
 
 
-def test_a_band_one_row_off_is_red(ward, monkeypatch: pytest.MonkeyPatch) -> None:
-    """MUTANT: the first cut rank one row high."""
+def test_every_band_holds_its_published_count_in_a_text_file_at_twenty_thousand_rows(ward) -> None:
+    _every_band_met(ward, WARD_RANGED)
+
+
+def test_every_band_holds_its_published_count_in_a_workbook_at_twenty_thousand_rows(ward_book) -> None:
+    _every_band_met(ward_book, BOOK_RANGED)
+    assert ward_book.twin("l0", 0).reserved_rows > 0
+
+
+def test_case_7_a_red_with_the_gap_reaching_the_edges_unit(ward, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTANT: the gap's upper place at the unit's middle and its ordinals up to the edge, which lets a rank below the cut draw the edge: the date column is refused by its internal check or misses its bands."""
+    monkeypatch.setattr(
+        generation, "_date_gap_top", lambda edge: (edge * generation._PIN_STEPS + generation._PIN_STEPS // 2, edge)
+    )
+    try:
+        missed = _bands_missed(ward, generation.generate_held(ward.loaded, 0), ("admit_date", "stamp"))
+    except errors.ProfileError as refused:
+        assert "misses the count of one of its bands" in f"{refused}"
+        return
+    assert missed >= 1
+
+
+def test_a_band_one_row_off_is_red(ward_small, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTANT: the first cut rank one row high: a band misses its count, and the generator refuses the column as an internal check."""
     built = generation._l0_ranks
 
     def shifted(cuts: contract.L0Cuts) -> "list[int]":
         ranks = built(cuts)
         return [ranks[0] + 1] + ranks[1:] if ranks else ranks
 
+    assert _bands_missed(ward_small, ward_small.twin("l0", 0), WARD_RANGED) == 0
     monkeypatch.setattr(generation, "_l0_ranks", shifted)
-    assert _bands_missed(ward, generation.generate_held(ward.loaded, 0), ("stay",)) >= 1
+    with pytest.raises(errors.ProfileError, match="misses the count of one of its bands"):
+        generation.generate_held(ward_small.loaded, 0)
 
 
-def test_red_without_the_least_move(ward, monkeypatch: pytest.MonkeyPatch) -> None:
-    """MUTANT: today's twin unmoved (G5.7c withdrawn): the number columns miss their bands."""
-    monkeypatch.setattr(generation, "_l0_least_move", lambda column, facts, layout, values: (layout, values, []))
-    assert _bands_missed(ward, generation.generate_held(ward.loaded, 0), ("stay", "lab", "change", "dose")) >= 1
-
-
-def test_the_switch_off_is_todays_twin_byte_for_byte(ward) -> None:
+def test_the_switch_off_is_todays_twin_byte_for_byte(ward_small) -> None:
     """K-S6-02 (i): a description whose ladder is empty generates as before."""
     stripped = dataclasses.replace(
-        ward.loaded,
-        relationships=dataclasses.replace(ward.loaded.relationships, ladder=(), families=0),
+        ward_small.loaded,
+        relationships=dataclasses.replace(ward_small.loaded.relationships, ladder=(), families=0),
     )
     left = "".join(rendering.twin_csv_pieces(generation.generate_held(stripped, 3)))
-    right = "".join(rendering.twin_csv_pieces(generation.generate_held(ward.plain, 3)))
+    right = "".join(rendering.twin_csv_pieces(generation.generate_held(ward_small.plain, 3)))
     assert left == right
-
-
-# -- THE LEAST MOVE ON NUMBER COLUMNS (G5.7c) ----------------------------------------------
-
-
-SPARSE = ("drg", "revenue_code", "apc", "clinical_class", "dose_mg", "barthel")
-
-
-def _sparse_kept(switched: _Switched, twin: generation.Twin, bare: generation.Twin, name: str) -> "list[str]":
-    """Every way the twin's column falls short of the statistics skeptic's bar (lane BT, its item 1); empty where it meets it."""
-    real = _real_numbers(switched, name)
-    held = _twin_numbers(switched, twin, name)
-    today = _twin_numbers(switched, bare, name)
-    wrong: "list[str]" = []
-    for value in real:
-        if real[value] >= FLOOR and held.get(value, 0) == 0:
-            wrong += [f"{name}: the real value {value} ({real[value]} rows) emptied"]
-    for value in held:
-        if value not in real and value not in today:
-            wrong += [f"{name}: {value} written, which neither the real column nor today's twin holds"]
-    if len(held) < len(today) or (len(today) == len(real) and len(held) != len(real)):
-        wrong += [f"{name}: {len(held)} different values where today's twin holds {len(today)} and the real column {len(real)}"]
-    bound = max(2 * _ks(today, real), (136 * ROWS) // 10000)
-    if _ks(held, real) > bound:
-        wrong += [f"{name}: Kolmogorov-Smirnov {_ks(held, real)} rows against a bound of {bound}"]
-    return wrong
-
-
-def _all_sparse_kept(switched: _Switched, twin: generation.Twin, bare: generation.Twin) -> "list[str]":
-    wrong: "list[str]" = []
-    for name in SPARSE:
-        wrong += _sparse_kept(switched, twin, bare, name)
-    return wrong
-
-
-def test_sparse_codes_keep_their_values_and_write_none_made_up(codes) -> None:
-    """The statistics skeptic's bar (lane BT, its item 1), on codes drawn as a payer's files draw them."""
-    for seed in (0, 1):
-        twin = codes.twin("l0", seed)
-        assert _bands_missed(codes, twin, SPARSE) == 0
-        assert _all_sparse_kept(codes, twin, codes.twin("bare", seed)) == []
-        assert _l0_notes(twin) == []
-
-
-def test_the_twin_is_never_further_from_the_real_column_than_today(codes, ward, few) -> None:
-    """G5.7c's promise, measured on the gate's tables, where today's twin writes the real value beside each cut: no distance grows."""
-    for switched in (codes, ward, few):
-        roles = {column.name: column.statistical_type for column in switched.loaded.columns}
-        for name in _published(switched):
-            if roles[name] not in ("count", "continuous"):
-                continue
-            real = _real_numbers(switched, name)
-            assert _ks(_twin_numbers(switched, switched.twin("l0", 0), name), real) <= _ks(
-                _twin_numbers(switched, switched.twin("bare", 0), name), real
-            ), name
-
-
-def test_red_without_the_proven_heaps(codes, monkeypatch: pytest.MonkeyPatch) -> None:
-    """MUTANT: step 1 withdrawn. Today's twin writes the dose's commonest level on a few cells, and the band totals alone cannot bring it back."""
-    monkeypatch.setattr(generation, "_l0_proven_heaps", lambda facts, cells: [])
-    assert _all_sparse_kept(codes, generation.generate_held(codes.loaded, 0), codes.twin("bare", 0)) != []
-
-
-def test_red_without_the_count_kept(codes, monkeypatch: pytest.MonkeyPatch) -> None:
-    """MUTANT: step 3's count rule withdrawn. A heap the move restores stands beside a value today's twin made up."""
-    monkeypatch.setattr(generation, "_l0_counted", lambda entries, distinct, gaps: None)
-    assert _all_sparse_kept(codes, generation.generate_held(codes.loaded, 0), codes.twin("bare", 0)) != []
-
-
-def test_red_with_the_smallest_stratum_merged_in_place_of_the_nearest(codes, monkeypatch: pytest.MonkeyPatch) -> None:
-    """MUTANT: the count rule merging the smallest stratum no heap proves wherever it stands, not between two heaps: a real score is dropped."""
-
-    def smallest(entries: "generation._Entries", distinct: int, gaps: "list[tuple[float, float]]") -> None:
-        found = generation._l0_held_count(entries)
-        while found > distinct:
-            order = [at for _value, at in sorted([(entries.values[at], at) for at in range(len(entries.values)) if entries.sizes[at] > 0])]
-            best = -1
-            partner = -1
-            for place in range(1, len(order)):
-                at = order[place]
-                if entries.proven[at] or entries.pieces[order[place - 1]] != entries.pieces[at]:
-                    continue
-                if best < 0 or entries.sizes[at] < entries.sizes[best]:
-                    best = at
-                    partner = order[place - 1]
-            if best < 0:
-                return
-            entries.sizes[partner] = entries.sizes[partner] + entries.sizes[best]
-            entries.sizes[best] = 0
-            found = found - 1
-
-    monkeypatch.setattr(generation, "_l0_counted", smallest)
-    assert _all_sparse_kept(codes, generation.generate_held(codes.loaded, 0), codes.twin("bare", 0)) != []
-
-
-KEYS = ("serial", "claim")
-
-
-def _keys_lost(switched: _Switched, twin: generation.Twin) -> int:
-    lost = 0
-    for name in KEYS:
-        place = [column.name for column in switched.loaded.columns].index(name)
-        lost += ROWS - len(set(generation.twin_column(twin, place)))
-    return lost
-
-
-def test_a_key_every_one_different_is_written_once_a_row(codes) -> None:
-    """The first skeptic's MAJOR 4 and the statistics skeptic's MAJOR 2: no value of an all-different column lost at the floor's size."""
-    for seed in (0, 1):
-        twin = codes.twin("l0", seed)
-        assert _bands_missed(codes, twin, KEYS) == 0
-        assert _keys_lost(codes, twin) == 0
-
-
-def test_red_with_a_key_written_twice(codes, monkeypatch: pytest.MonkeyPatch) -> None:
-    """MUTANT: step 2a withdrawn: the keys a cut hands one entry stand on its value twice."""
-    monkeypatch.setattr(generation, "_l0_spread", lambda facts, walls, entries, held: None)
-    assert _keys_lost(codes, generation.generate_held(codes.loaded, 0)) >= 1
-
-
-def _mode_missed(switched: _Switched, twin: generation.Twin) -> "list[str]":
-    facts = [column for column in switched.loaded.columns if column.name == "age"][0].facts
-    assert isinstance(facts, contract.NumericFacts) and facts.mode is not None
-    wrong = [note.fact for note in twin.deviations if note.column == "age" and note.fact in ("mode", "mode_count")]
-    if _twin_numbers(switched, twin, "age").get(facts.mode, 0) != facts.mode_count:
-        wrong += ["the mode's count"]
-    return wrong
-
-
-def test_the_mode_keeps_its_published_count(ten11) -> None:
-    twin = ten11.twin("l0", 0)
-    assert _mode_missed(ten11, twin) == []
-    assert _bands_missed(ten11, twin, ("age",)) == 0
-
-
-def test_red_without_the_mode_kept(ten11, monkeypatch: pytest.MonkeyPatch) -> None:
-    """MUTANT: step 4 withdrawn: the cut beside the mode moves cells onto it or off it, and the twin's report names the count."""
-    monkeypatch.setattr(generation, "_l0_mode_kept", lambda facts, entries, today: None)
-    assert _mode_missed(ten11, generation.generate_held(ten11.loaded, 0)) != []
-
-
-def _values_lost(pairs: "list[tuple[_Switched, generation.Twin, tuple[str, ...]]]") -> int:
-    lost = 0
-    for switched, twin, names in pairs:
-        for name in names:
-            lost += max(0, len(_twin_numbers(switched, switched.twin("bare", 0), name)) - len(_twin_numbers(switched, twin, name)))
-    return lost
-
-
-MANY = ("pressure", "stay", "money", "change")
-
-
-def test_a_value_the_cut_empties_keeps_a_cell(ten11) -> None:
-    """Step 3: no value of today's twin is lost to the move on a continuous column of many values."""
-    assert _values_lost([(ten11, ten11.twin("l0", 0), MANY)]) == 0
-
-
-def test_red_without_the_values_kept(ten11, monkeypatch: pytest.MonkeyPatch) -> None:
-    """MUTANT: step 3's donor and free point withdrawn: a value whose every cell crossed a cut is lost."""
-    monkeypatch.setattr(generation, "_l0_values_kept", lambda facts, walls, entries, held: None)
-    assert _values_lost([(ten11, generation.generate_held(ten11.loaded, 0), MANY)]) >= 1
-
-
-def _strata_of_change(switched: _Switched, seed: int, value: float, monkeypatch: pytest.MonkeyPatch) -> "tuple[int, int]":
-    """How many strata of today's `change` hold ``value`` before the least move, and how many hold a cell of it after."""
-    seen: "list[tuple[int, int]]" = []
-    built = generation._l0_least_move
-
-    def spy(column, facts, layout, values):  # type: ignore[no-untyped-def]
-        moved = built(column, facts, layout, values)
-        if column.name == "change":
-            before = len([held for held in values if held == value])
-            after = len([at for at in range(len(moved[1])) if moved[1][at] == value and moved[0].sizes[at] > 0])
-            seen.append((before, after))
-        return moved
-
-    monkeypatch.setattr(generation, "_l0_least_move", spy)
-    generation.generate_held(switched.loaded, seed)
-    assert len(seen) == 1
-    return seen[0]
-
-
-def test_a_value_two_strata_hold_is_kept_once(ten11_small, monkeypatch: pytest.MonkeyPatch) -> None:
-    """G5.7c step 3 keeps a VALUE: today's `change` at 5,000 rows holds 0.5 in two strata and the cut at 0.5 empties the first; the value keeps its cells in the second, so the first is given none back."""
-    assert _strata_of_change(ten11_small, 1, 0.5, monkeypatch) == (2, 1)
-
-
-def test_red_with_every_emptied_stratum_a_lost_value(ten11_small, monkeypatch: pytest.MonkeyPatch) -> None:
-    """MUTANT: every emptied stratum counted lost, the step as first built: the emptied 0.5 takes a cell back from a neighbour beside the 0.5 that kept its cells."""
-    monkeypatch.setattr(
-        generation,
-        "_l0_lost_values",
-        lambda entries: [at for at in range(len(entries.values)) if entries.sizes[at] <= 0 and entries.before[at] > 0],
-    )
-    assert _strata_of_change(ten11_small, 1, 0.5, monkeypatch) == (2, 2)
-
-
-# -- G14.3a CASE 1: A COUNT OF FEW VALUES WITH ONE RARE HIGH VALUE ------------------------
-
-
-def test_case_1_every_band_exact_and_the_ones_and_twos_the_real_ones(few) -> None:
-    for seed in (0, 1):
-        twin = few.twin("l0", seed)
-        assert _bands_missed(few, twin, ("count",)) == 0
-        held = _twin_numbers(few, twin, "count")
-        assert (held[0.0], held[1.0], held[2.0]) == (1568, 8436, 5813)
-        top = sum(held[value] for value in held if value >= 3)
-        assert held[3.0] > 0.55 * top
-
-
-def test_case_1_red_without_the_least_move(few, monkeypatch: pytest.MonkeyPatch) -> None:
-    """MUTANT: G5.7c withdrawn, which is today's twin: the count of few values misses its bands."""
-    monkeypatch.setattr(generation, "_l0_least_move", lambda column, facts, layout, values: (layout, values, []))
-    assert _bands_missed(few, generation.generate_held(few.loaded, 0), ("count",)) >= 1
 
 
 # -- THE ORACLE'S CASES (tests/reference/generation-branch-vectors-28.json) ------------------
@@ -658,24 +459,153 @@ def test_the_product_answers_every_oracle_case(name: str, tmp_path: pathlib.Path
 
 
 def test_the_oracle_holds_the_ruled_minimum_of_cell_cases() -> None:
-    """The orchestrator's ruling (a) of 2026-10-25: case 1 (a) and (b)'s count at each value, case 2's and case 7 (a)'s cells, frozen."""
+    """The orchestrator's ruling (a) of 2026-10-25, and lane BT's second repair: the count rule's two sides and the mode, frozen."""
     names = {name for name, case in _oracle_cases().items() if case["rule"] == "cells"}
-    assert names >= {"l0_cells_case_1a", "l0_cells_case_1b", "l0_cells_case_2", "l0_cells_case_7a"}
+    assert names >= {
+        "l0_cells_case_1a", "l0_cells_case_1b", "l0_cells_case_2", "l0_cells_case_7a",
+        "l0_cells_count_short", "l0_cells_count_over", "l0_cells_mode_kept",
+    }
 
 
-# -- G7.3l: THE DATE'S EDGE RUNS AND ITS PIECE --------------------------------------------------
+# -- THE LEAST MOVE'S MUTANTS, ON THE ORACLE'S OWN CASES (G5.7c) ----------------------------------
+
+LEAST_MUTANTS = {
+    # step 1 withdrawn
+    "heaps_off": ("_l0_proven_heaps", lambda facts, cells: []),
+    # step 3's count rule below withdrawn: the one-sided rule the verify found
+    "count_short_off": ("_l0_heap_lost", lambda facts, walls, entries, distinct, heaps: None),
+    # step 3's count rule above withdrawn
+    "count_over_off": ("_l0_counted", lambda facts, entries, distinct, gaps, floor: None),
+    # step 3's first half withdrawn: a value the cut empties keeps no cell
+    "values_kept_off": ("_l0_values_kept", lambda facts, walls, entries, held: None),
+    # step 4 withdrawn
+    "mode_off": ("_l0_mode_kept", lambda facts, entries, today: None),
+    # G5.7c withdrawn: today's twin unmoved
+    "least_move_off": ("_l0_least_move", lambda column, facts, layout, values, floor: (layout, values, [])),
+}
+
+RED_ON = [
+    ("heaps_off", "l0_cells_count_short"),
+    ("count_short_off", "l0_cells_count_short"),
+    ("count_over_off", "l0_cells_count_over"),
+    ("values_kept_off", "l0_cells_count_short"),
+    ("mode_off", "l0_cells_mode_kept"),
+    ("least_move_off", "l0_cells_case_1a"),
+]
 
 
-def test_case_7_a_the_gap_below_an_edge_run_ends_one_unit_short(ward) -> None:
-    assert _bands_missed(ward, ward.twin("l0", 0), ("admit_date", "stamp")) == 0
+@pytest.mark.parametrize("mutant, name", RED_ON)
+def test_each_step_of_the_least_move_is_red_on_its_mutant(mutant: str, name: str, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    case = _oracle_cases()[name]
+    loaded = _case_profile(tmp_path, name, case)
+    function, replaced = LEAST_MUTANTS[mutant]
+    monkeypatch.setattr(generation, function, replaced)
+    cells = tuple(generation.twin_column(generation.generate_held(loaded, int(f"{case['seed']}")), 0))
+    assert _counted(cells) != case["answer"]["counts"]  # type: ignore[index]
 
 
-def test_case_7_a_red_with_the_gap_reaching_the_edges_unit(ward, monkeypatch: pytest.MonkeyPatch) -> None:
-    """MUTANT: the gap's upper place at the unit's middle and its ordinals up to the edge, which lets a rank below the cut draw the edge."""
+def test_the_count_cases_hold_todays_count_of_different_values(tmp_path: pathlib.Path) -> None:
+    """Lane BT's verify, item 1: the twin with L0 holds the count today's twin holds, short or over before the rule."""
+    for name in ("l0_cells_count_short", "l0_cells_count_over"):
+        case = _oracle_cases()[name]
+        loaded = _case_profile(tmp_path, name, case)
+        seed = int(f"{case['seed']}")
+        held = {cell for cell in generation.twin_column(generation.generate_held(loaded, seed), 0) if cell}
+        plain = dataclasses.replace(loaded, relationships=dataclasses.replace(loaded.relationships, ladder=(), families=0))
+        today = {cell for cell in generation.twin_column(generation.generate_held(plain, seed), 0) if cell}
+        assert len(held) == len(today) == 56, name
+
+
+def test_a_key_every_one_different_is_written_once_a_row(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The first skeptic's MAJOR 4 (step 2a): 5,000 different record numbers, every one written once at seed 2; MUTANT: step 2a withdrawn writes one twice."""
+    keyed = _table_at(tmp_path, "keys", _keys(5000))
+    assert len(set(generation.twin_column(generation.generate_held(keyed.loaded, 2), 0))) == 5000
+    monkeypatch.setattr(generation, "_l0_spread", lambda facts, walls, entries, held: None)
+    assert len(set(generation.twin_column(generation.generate_held(keyed.loaded, 2), 0))) < 5000
+
+
+def _table_at(folder: pathlib.Path, name: str, made: "tuple[list[str], list[list[str]]]") -> _Switched:
+    return _switched(folder, _write(folder, f"{name}.csv", made[0], made[1]))
+
+
+def _strata_of_change(switched: _Switched, seed: int, value: float, monkeypatch: pytest.MonkeyPatch) -> "tuple[int, int]":
+    """How many strata of today's `change` hold ``value`` before the least move, and how many hold a cell of it after."""
+    seen: "list[tuple[int, int]]" = []
+    built = generation._l0_least_move
+
+    def spy(column, facts, layout, values, floor):  # type: ignore[no-untyped-def]
+        moved = built(column, facts, layout, values, floor)
+        if column.name == "change":
+            before = len([held for held in values if held == value])
+            after = len([at for at in range(len(moved[1])) if moved[1][at] == value and moved[0].sizes[at] > 0])
+            seen.append((before, after))
+        return moved
+
+    monkeypatch.setattr(generation, "_l0_least_move", spy)
+    generation.generate_held(switched.loaded, seed)
+    assert len(seen) == 1
+    return seen[0]
+
+
+def test_a_value_two_strata_hold_is_kept_once(ten11_small, monkeypatch: pytest.MonkeyPatch) -> None:
+    """G5.7c step 3 keeps a VALUE: today's `change` at 5,000 rows holds 0.5 in two strata and the cut at 0.5 empties the first; the value keeps its cells in the second, so the first is given none back."""
+    assert _strata_of_change(ten11_small, 1, 0.5, monkeypatch) == (2, 1)
+
+
+def test_red_with_every_emptied_stratum_a_lost_value(ten11_small, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTANT: every emptied stratum counted lost, the step as first built: the emptied 0.5 takes a cell back from a neighbour beside the 0.5 that kept its cells."""
     monkeypatch.setattr(
-        generation, "_date_gap_top", lambda edge: (edge * generation._PIN_STEPS + generation._PIN_STEPS // 2, edge)
+        generation,
+        "_l0_lost_values",
+        lambda entries: [at for at in range(len(entries.values)) if entries.sizes[at] <= 0 and entries.before[at] > 0],
     )
-    assert _bands_missed(ward, generation.generate_held(ward.loaded, 0), ("admit_date", "stamp")) >= 1
+    assert _strata_of_change(ten11_small, 1, 0.5, monkeypatch) == (2, 2)
+
+
+# -- THE CELLS AS WRITTEN STAY IN THEIR PIECES (G5.7b, G5.7g; the outside review, item 2) ----------
+
+
+def _widths_table(folder: pathlib.Path) -> _Switched:
+    """600 readings drawn on -2 to 6, each written at one, two or three figures, beside a binary companion."""
+    draw = random.Random(206)
+    rows: "list[list[str]]" = []
+    for place in range(600):
+        value = draw.uniform(-2, 6)
+        width = draw.choice([1, 1, 1, 2, 3])
+        rows += [[f"{value:.{width}f}", "a" if place % 2 else "b"]]
+    # (the table's name keys the chain's draw: under this one it publishes the ladder)
+    return _table_at(folder, "m", (["m", "g"], rows))
+
+
+def _written_bands(switched: _Switched, twin: generation.Twin) -> "tuple[list[int], list[int]]":
+    cut = generation._l0_columns(switched.loaded)["m"][0]
+    assert cut is not None
+    found = [0] * (len(cut.edges) + 1)
+    for cell in generation.twin_column(twin, 0):
+        if cell.strip():
+            value = float(cell)
+            found[sum(1 for edge in cut.edges if value >= edge)] += 1
+    return found, list(cut.counts)
+
+
+def test_a_written_width_never_carries_a_cell_across_a_cut(tmp_path: pathlib.Path) -> None:
+    switched = _widths_table(tmp_path)
+    found, published = _written_bands(switched, generation.generate_held(switched.loaded, 0))
+    assert found == published
+
+
+def test_red_with_the_snap_free_of_the_pieces(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTANT: the width's snap held to no piece: 5.175 written 5.18 crosses the edge 5.1756, and the check on the written cells refuses it."""
+    switched = _widths_table(tmp_path)
+    monkeypatch.setattr(generation, "_l0_snap_leaves", lambda value, width, walls: False)
+    with pytest.raises(errors.ProfileError, match="writes a cell outside its band"):
+        generation.generate_held(switched.loaded, 0)
+    monkeypatch.setattr(generation, "_l0_cells_met", lambda column, walls, layout, values, cells: None)
+    found, published = _written_bands(switched, generation.generate_held(switched.loaded, 0))
+    assert found != published
+
+
+# -- G7.3l AND G7A.4d: THE DATE'S PIECE, THE CLOCK'S HALVES AND KNOTS ---------------------------
 
 
 def _cut_dates(tmp_path: pathlib.Path) -> contract.DatetimeFacts:
@@ -757,6 +687,61 @@ def test_case_9_the_clock_knots_stand_at_the_cut_and_at_the_rung(tmp_path: pathl
     scale = generation._WORD_SCALE
     assert (18000 * scale, edge) in knots
     assert any(position == 20000 * scale for position, _value in knots)
+
+
+
+
+def _older_clock(folder: pathlib.Path) -> contract.Profile:
+    """The outside review's item 3: 400 clock times, every minute from 06:00 to 12:09 once, ten 12:10s and twenty 13:20s, described with no step (an older description), cut at its 95th percentile, 12:10, the high boundary's own rank."""
+    cells = [f"{6 + minute // 60:02d}:{minute % 60:02d}" for minute in range(370)] + ["12:10"] * 10 + ["13:20"] * 20
+    random.Random(1).shuffle(cells)
+    path = _write(folder, "clock-older.csv", ["at"], [[cell] for cell in cells])
+    settings = taxonomy.Settings(small_cell_floor=FLOOR)
+    document = profile.build_document(reading.read_table(str(path), small_cell_floor=FLOOR), settings, [], [], [])
+    block = document["columns"][0]  # type: ignore[index]
+    block["clock_step"] = None
+    for key in ("clock_census", "clock_heaps", "clock_codes", "minute_census", "minute_heaps", "second_census", "second_heaps"):
+        block.pop(key, None)
+    plain = contract.load_profile(str(fixtures.write_profile(folder, "clock-older.json", document)))
+    entry = contract.LadderEntry("at", (((None, "p95"),), (("p95", None),)), (370, 30))
+    return dataclasses.replace(plain, relationships=dataclasses.replace(plain.relationships, ladder=(entry,), families=1))
+
+
+def _below_the_edge(loaded: contract.Profile, seed: int) -> int:
+    return sum(1 for cell in generation.twin_column(generation.generate_held(loaded, seed), 0) if cell < "12:10")
+
+
+def test_an_edges_rung_at_a_boundary_rank_cuts_the_clock(tmp_path: pathlib.Path) -> None:
+    loaded = _older_clock(tmp_path)
+    facts = loaded.columns[0].facts
+    assert isinstance(facts, contract.ClockFacts) and facts.clock_step is None and facts.clock_percentiles["p95"] == "12:10"
+    assert [_below_the_edge(loaded, seed) for seed in (0, 1, 2)] == [370, 370, 370]
+
+
+def test_red_with_the_boundary_rung_left_out_of_the_knots(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTANT: the knots built from the rungs strictly inside the boundaries, as first built: 379 cells below 12:10, which the readings' check refuses."""
+    loaded = _older_clock(tmp_path)
+    built = generation._clock_l0_knots
+
+    def inside_only(facts, parsed, low_rank, high_rank, low_boundary, high_boundary):  # type: ignore[no-untyped-def]
+        return _knots_inside(built, facts, parsed, low_rank, high_rank, low_boundary, high_boundary)
+
+    monkeypatch.setattr(generation, "_clock_l0_knots", inside_only)
+    with pytest.raises(errors.ProfileError, match="misses the count of one of its bands"):
+        generation.generate_held(loaded, 0)
+    monkeypatch.setattr(generation, "_l0_readings_met", lambda column, readings: None)
+    assert _below_the_edge(loaded, 0) == 379
+
+
+def _knots_inside(built, facts, parsed, low_rank, high_rank, low_boundary, high_boundary):  # type: ignore[no-untyped-def]
+    """The knots with every rung at a boundary rank taken out of the ladder first (the first build's exclusion)."""
+    rungs = dict(facts.clock_percentiles)
+    for step in range(1, len(generation._PCT) - 1):
+        name = generation._LADDER_NAMES[step]
+        rank = generation._rung_rank(generation._PCT[step], parsed)
+        if not low_rank < rank < high_rank:
+            rungs[name] = None
+    return built(dataclasses.replace(facts, clock_percentiles=rungs), parsed, low_rank, high_rank, low_boundary, high_boundary)
 
 
 # -- THE RESERVATION: A TEXT FILE -------------------------------------------------------------------
@@ -1139,10 +1124,82 @@ def test_case_13_b_red_with_the_classes_dealt_again_after_the_arrangement(tmp_pa
     assert _classes_moved(tmp_path, monkeypatch, True) != []
 
 
-# -- THE INTERFACE G16 CALLS ---------------------------------------------------------------------------
 
 
-def test_case_13_the_interface_hands_over_every_arranged_cell_once(ward, monkeypatch: pytest.MonkeyPatch) -> None:
+def _sorted_book(folder: pathlib.Path) -> contract.Profile:
+    """The outside review's item 1: 120 rows sorted by x (sixty 1s, then sixty 2s), c alternating the number 3 and the text `north`, 60 cells of each class."""
+    strings = ["x", "c", "g", "north"]
+    sheet_rows = [(1, [workbooks.cell("A1", "0", "s"), workbooks.cell("B1", "1", "s"), workbooks.cell("C1", "2", "s")])]
+    draw = random.Random(1)
+    for row in range(120):
+        number = row + 2
+        second = workbooks.cell(f"B{number}", "3") if row % 2 else workbooks.cell(f"B{number}", "3", "s")
+        sheet_rows += [(number, [
+            workbooks.cell(f"A{number}", "1" if row < 60 else "2"), second, workbooks.cell(f"C{number}", f"{draw.randint(1, 9)}"),
+        ])]
+    path = folder / "sorted.xlsx"
+    folder.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(_package(strings, sheet_rows, "A1:C121"))
+    settings = taxonomy.Settings(small_cell_floor=1)
+    document = profile.build_document(reading.read_table(str(path), small_cell_floor=1), settings, [], [], [])
+    # ...the rows published as sorted by x, as a producer's description may say.
+    document["source"]["dialect"]["row_order"] = {"collation": "number", "column": 1, "direction": "ascending"}  # type: ignore[index]
+    plain = contract.load_profile(str(fixtures.write_profile(folder, "sorted.json", document)))
+    facts = plain.columns[1].facts
+    assert isinstance(facts, contract.LabelFacts)
+    entry = contract.LadderEntry("c", tuple(((level.label,),) for level in facts.levels), tuple(level.count for level in facts.levels))
+    return dataclasses.replace(plain, relationships=dataclasses.replace(plain.relationships, ladder=(entry,), families=1))
+
+
+def _sorted_classes(tmp_path: pathlib.Path) -> "dict[str, int]":
+    loaded = _sorted_book(tmp_path)
+    assert loaded.source.dialect.row_order.column == 1
+    back = _book_back(tmp_path, loaded, generation.generate_held(loaded, 0))
+    found = back["columns"][1]["cell_classes"]  # type: ignore[index]
+    return {name: found[name] for name in ("text", "number")}  # type: ignore[index]
+
+
+def test_the_classes_move_with_the_cells_when_the_rows_are_sorted(tmp_path: pathlib.Path) -> None:
+    assert _sorted_classes(tmp_path) == {"text": 60, "number": 60}
+
+
+def test_red_with_the_classes_left_in_the_unsorted_order(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTANT: the sort moves the cells and not what G4.2a dealt them: 32 numeric cells instead of 60, as the outside review measured."""
+    monkeypatch.setattr(generation, "_sheet_dealt_moved", lambda entry, moved: entry)
+    assert _sorted_classes(tmp_path) == {"text": 88, "number": 32}
+
+
+def test_what_g42a_deals_a_workbook_column_is_held_a_byte_a_row(tmp_path: pathlib.Path) -> None:
+    """The outside review's item 6: each eligible workbook column's classes, format kinds and kinds of date travel as one code byte a row and a short palette, never three tuples of a row's texts."""
+    loaded = _book_profile(tmp_path, "mixed", FLOOR)
+    twin = generation.generate_held(loaded, 0)
+    carried = [entry for entry in twin.sheet_dealt if entry is not None]
+    assert carried
+    for entry in carried:
+        assert isinstance(entry, generation.SheetDealt)
+        assert isinstance(entry.codes, bytes) and len(entry.codes) == twin.n_rows
+        assert len(entry.palette) <= 256
+        assert entry.written is None or isinstance(entry.written, generation.twinstore.HeldColumn)
+
+
+def test_red_with_the_dealt_cells_held_as_tuples(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTANT: the first build's holding, three tuples a row: what travels is no longer a byte a row."""
+    loaded = _book_profile(tmp_path, "mixed", FLOOR)
+    built = generation._sheet_dealt_before
+
+    def tupled(*arguments):  # type: ignore[no-untyped-def]
+        dealt = built(*arguments)
+        return dataclasses.replace(dealt, codes=tuple(dealt.codes))
+
+    monkeypatch.setattr(generation, "_sheet_dealt_before", tupled)
+    twin = generation.generate_held(loaded, 0)
+    assert not all(isinstance(entry.codes, bytes) for entry in twin.sheet_dealt if entry is not None)
+
+
+# -- THE INTERFACE G16 CALLS (G4.2b) ---------------------------------------------------------------------------
+
+
+def _handed(loaded: contract.Profile, monkeypatch: pytest.MonkeyPatch, seed: int = 0) -> "list[tuple[str, generation.BandCells, int]]":
     seen: "list[tuple[str, generation.BandCells, int]]" = []
     built = generation._row_placement
 
@@ -1153,26 +1210,28 @@ def test_case_13_the_interface_hands_over_every_arranged_cell_once(ward, monkeyp
         return built(step, profile_, content, drawn, finished, reserved, readings)
 
     monkeypatch.setattr(generation, "_row_placement", hooked)
+    generation.generate_held(loaded, seed)
+    monkeypatch.setattr(generation, "_row_placement", built)
+    return seen
+
+
+def test_case_13_the_interface_hands_over_every_arranged_cell_once(ward_small, monkeypatch: pytest.MonkeyPatch) -> None:
     # The interface reads its own column's cuts alone (the first skeptic's item 11).
+    _PLANNED.clear()
     monkeypatch.setattr(generation, "_l0_columns", _every_column_read)
-    generation.generate_held(ward.loaded, 0)
-    published = _published(ward)
+    seen = _handed(ward_small.loaded, monkeypatch)
+    published = _published(ward_small)
+    entries = {entry.column: entry for entry in ward_small.loaded.relationships.ladder}
     assert seen
-    blank = chain_rules.records_holding_nothing(ward.document)
+    blank = chain_rules.records_holding_nothing(ward_small.document)
     for name, found, count in seen:
         flat = sorted(cell for group in found.groups for cell in group)
         assert flat == sorted(set(range(count)) - set(found.reserved)), name
-        ranges = [found.sizes[place] for place in range(len(found.names)) if found.names[place] in ("range", "level")]
-        held = [len(found.groups[place]) for place in range(len(found.names)) if found.names[place] in ("range", "level")]
-        assert ranges == held, name
-        assert sum(held) <= sum(published[name])
-        order = {"range": 0, "level": 0, "missing": 1, "other": 2, "labels": 3}
-        kinds = [order[kind] for kind in found.names]
-        assert kinds == sorted(kinds)
-        if found.names[0] == "level":
-            for place in range(len(found.names)):
-                if found.names[place] == "level":
-                    assert len(set(found.readings[place])) == 1
+        # One group per published band, in the published band order.
+        assert len(found.groups) == len(entries[name].bands), name
+        if not found.without:
+            ranged = [found.sizes[place] for place in range(len(found.names)) if found.names[place] in ("range", "level")]
+            assert ranged == [published[name][place] for place in range(len(found.names)) if found.names[place] in ("range", "level")], name
         assert len(found.reserved) == blank
 
 
@@ -1188,6 +1247,129 @@ def _every_column_read(profile_: contract.Profile) -> "dict[str, tuple[contract.
 
 
 _L0_COLUMNS = generation._l0_columns
+
+
+def _merged_table(folder: pathlib.Path) -> _Switched:
+    """The outside review's item 4: 425 A, 375 B and one absent cell beside a binary companion, whose published bands are (missing + B, A)."""
+    cells = ["A"] * 425 + ["B"] * 375 + [""]
+    random.Random(4).shuffle(cells)
+    return _table_at(folder, "merged801", (["c", "g"], [[cells[at], "x" if at % 2 else "y"] for at in range(801)]))
+
+
+def _merged_sizes(folder: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> "tuple[list[int], list[int]]":
+    switched = _merged_table(folder)
+    found = [band for name, band, _count in _handed(switched.loaded, monkeypatch) if name == "c"][0]
+    return list(found.sizes), list(_published(switched)["c"])
+
+
+def test_a_band_joining_missing_cells_is_one_group(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    sizes, published = _merged_sizes(tmp_path, monkeypatch)
+    assert published == [376, 425]
+    assert sizes == published
+
+
+def test_red_with_the_missing_cells_in_a_group_of_their_own(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTANT: the spread bands mapped to no published band, as first built: three groups of 375, 425 and 1."""
+    built = generation._l0_band_groups
+
+    def apart(entry, edges):  # type: ignore[no-untyped-def]
+        band_of, names, lowers, ranged = built(entry, edges)
+        return {key: at for key, at in band_of.items() if not isinstance(key, str)}, names, lowers, ranged
+
+    monkeypatch.setattr(generation, "_l0_band_groups", apart)
+    sizes, published = _merged_sizes(tmp_path, monkeypatch)
+    assert sizes != published
+
+
+def _labelled_table(folder: pathlib.Path) -> _Switched:
+    """The outside review's item 5: 1,200 readings, `NOT DETECTED` on every fifteenth row, beside two binary companions."""
+    rows: "list[list[str]]" = []
+    for at in range(1200):
+        reading_ = "NOT DETECTED" if at % 15 == 7 else f"{(1 + (at * 37) % 4000) / 100:.2f}"
+        rows += [[reading_, "a" if at % 2 else "b", "u" if at % 3 else "v"]]
+    return _table_at(folder, "labelled1200", (["m", "g", "h"], rows))
+
+
+def _labelled_groups(folder: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> "dict[str, int]":
+    switched = _labelled_table(folder)
+    assert switched.loaded.columns[0].statistical_type == "numbers_with_labels"
+    found = [band for name, band, _count in _handed(switched.loaded, monkeypatch) if name == "m"][0]
+    assert found.without
+    held: "dict[str, int]" = {}
+    for place in range(len(found.names)):
+        held[found.names[place]] = held.get(found.names[place], 0) + found.sizes[place]
+    return held
+
+
+def test_a_column_rule_b3_makes_is_handed_over_by_the_bands_its_cells_fall_in(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert _labelled_groups(tmp_path, monkeypatch) == {"labels": 80, "range": 1120}
+
+
+def test_red_with_no_reading_on_a_column_of_numbers_and_labels(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTANT: the joined and the labelled content routes giving no readings, as first built: every cell in `other` or `labels`, no range cell."""
+    monkeypatch.setattr(generation, "_b3_readings", lambda column, cells, readings: readings.extend([None] * len(cells)))
+    assert _labelled_groups(tmp_path, monkeypatch).get("range", 0) == 0
+
+
+def _many_levels(folder: pathlib.Path) -> "tuple[contract.Profile, list[str]]":
+    """1,600 published levels of 25 cells each: a column of words of many levels."""
+    letters = "bcdfghjklmnpqrstvwxz"
+    words = [f"{letters[level // 80]}{letters[(level // 4) % 20]}{'aeio'[level % 4]}" for level in range(1600)]
+    cells: "list[str]" = []
+    for word in words:
+        cells += [word] * 25
+    random.Random(8).shuffle(cells)
+    path = _write(folder, "levels.csv", ["code"], [[cell] for cell in cells])
+    settings = taxonomy.Settings(small_cell_floor=FLOOR)
+    document = profile.build_document(reading.read_table(str(path), small_cell_floor=FLOOR), settings, [], [], [])
+    plain = contract.load_profile(str(fixtures.write_profile(folder, "levels.json", document)))
+    facts = plain.columns[0].facts
+    assert isinstance(facts, contract.LabelFacts) and len(facts.levels) == 1600
+    entry = contract.LadderEntry("code", tuple(((level.label,),) for level in facts.levels), tuple(level.count for level in facts.levels))
+    loaded = dataclasses.replace(plain, relationships=dataclasses.replace(plain.relationships, ladder=(entry,), families=1))
+    return loaded, [level.label for level in facts.levels for _cell in range(level.count)]
+
+
+class _Read(list):  # type: ignore[type-arg]
+    """A list that counts every element read from it (the levels' places `cells_by_band` halves)."""
+
+    reads = 0
+
+    def __getitem__(self, at):  # type: ignore[no-untyped-def]
+        _Read.reads += 1
+        return list.__getitem__(self, at)
+
+
+def _places_read(loaded: contract.Profile, content: "list[str]", monkeypatch: pytest.MonkeyPatch, every: bool) -> int:
+    """How many levels' places `cells_by_band` reads to group ``content``; ``every``: the first build's lookup, every level asked for every cell."""
+    built = generation._places_at_or_below
+    held: "dict[int, _Read]" = {}
+
+    def counted(ordered, value):  # type: ignore[no-untyped-def]
+        if every:
+            _Read.reads += len(ordered)
+            return built(ordered, value)
+        if id(ordered) not in held:
+            held[id(ordered)] = _Read(ordered)
+        return built(held[id(ordered)], value)
+
+    _Read.reads = 0
+    monkeypatch.setattr(generation, "_places_at_or_below", counted)
+    found = generation.cells_by_band(loaded, 0, content, list(range(len(content))), ((), False), None)
+    assert found is not None and len(found.groups) == 1600 and set(found.sizes) == {25}
+    return _Read.reads
+
+
+def test_a_column_of_many_levels_is_grouped_a_few_steps_a_cell(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The outside review's item 8: each cell's level found by halving the levels' places, at most twelve reads a cell over 1,600 levels."""
+    loaded, content = _many_levels(tmp_path)
+    assert _places_read(loaded, content, monkeypatch, False) <= 12 * len(content)
+
+
+def test_red_with_every_level_asked_for_every_cell(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTANT: the level of a cell found by asking every level in turn, as first built: 1,600 reads a cell, 64 million in all."""
+    loaded, content = _many_levels(tmp_path)
+    assert _places_read(loaded, content, monkeypatch, True) > 12 * len(content)
 
 
 def test_case_13_a_reserved_cell_stands_in_no_group(tmp_path: pathlib.Path) -> None:
@@ -1213,6 +1395,85 @@ def test_a_cell_with_no_reading_is_in_other(tmp_path: pathlib.Path) -> None:
     assert found is not None
     others = [found.groups[place] for place in range(len(found.names)) if found.names[place] == "other"]
     assert others and 0 in others[0]
+
+
+# -- THE SEARCHES A LARGE OR CROWDED COLUMN ASKS (the outside review, items 7 and 9) ------------------------------
+
+
+def _holds_asked(folder: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> "tuple[int, int]":
+    """4,000 shuffled consecutive whole numbers beside a binary companion: how many times a point's freedom is asked, and how many different values are written."""
+    values = [str(value) for value in range(100, 4100)]
+    random.Random(7).shuffle(values)
+    switched = _table_at(folder, "consecutive", (["v", "g"], [[values[at], "a" if at % 2 else "b"] for at in range(4000)]))
+    asked = [0]
+    built = generation._l0_holds
+
+    def counted(taken, value):  # type: ignore[no-untyped-def]
+        asked[0] += 1
+        return built(taken, value)
+
+    monkeypatch.setattr(generation, "_l0_holds", counted)
+    twin = generation.generate_held(switched.loaded, 0)
+    return asked[0], len(set(generation.twin_column(twin, 0)))
+
+
+def test_a_free_whole_number_is_sought_inside_its_gap(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    asked, different = _holds_asked(tmp_path, monkeypatch)
+    assert different == 4000
+    assert asked <= 4000
+
+
+def test_red_with_the_search_running_past_its_gap(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTANT: each search unbounded by its gap, as first built: every occupied value beyond the gap asked again, hundreds of thousands of times."""
+    monkeypatch.setattr(generation, "_l0_gap_room", lambda far, start, upward: 1 << 20)
+    asked, _different = _holds_asked(tmp_path, monkeypatch)
+    assert asked > 100000
+
+
+def _stands_asked(value: float, monkeypatch: pytest.MonkeyPatch) -> "tuple[int, int]":
+    asked = [0]
+    built = generation._grid_stands
+
+    def counted(index, figures, value_, strictly):  # type: ignore[no-untyped-def]
+        asked[0] += 1
+        return built(index, figures, value_, strictly)
+
+    monkeypatch.setattr(generation, "_grid_stands", counted)
+    found = generation._grid_index_above(value, 0, False)
+    return found, asked[0]
+
+
+def test_a_grid_index_near_a_large_number_is_found_by_halving(monkeypatch: pytest.MonkeyPatch) -> None:
+    value = float(10**30 + 2 * 10**26)
+    found, asked = _stands_asked(value, monkeypatch)
+    assert generation._grid_float(found, 0) >= value > generation._grid_float(found - 1, 0)
+    assert asked <= 200
+
+
+def test_red_with_the_index_walked_a_unit_at_a_time() -> None:
+    """MUTANT: the first build's walk, a unit at a time across the indices one binary64 rounds them to: past a million steps (stopped there) where halving takes under two hundred."""
+    value = float(10**30 + 2 * 10**26)
+    index = generation._scaled_floor(value, 0)
+    steps = 0
+    while generation._grid_float(index, 0) >= value and steps <= 1000000:
+        index = index - 1
+        steps = steps + 1
+    assert steps > 1000000
+
+
+def test_a_column_of_numbers_near_ten_to_the_thirty_is_laid_at_once(tmp_path: pathlib.Path) -> None:
+    """The outside review's item 9: 600 readings `10**30 + (i % 30) * 10**26` beside a binary companion are planned and made with L0, each band at its count."""
+    switched = _table_at(tmp_path, "large", (["v", "g"], [[str(10**30 + (at % 30) * 10**26), "a" if at % 2 else "b"] for at in range(600)]))
+    cut = generation._l0_columns(switched.loaded)["v"][0]
+    assert cut is not None
+    started = time.process_time()
+    twin = generation.generate_held(switched.loaded, 0)
+    assert time.process_time() - started < 30.0
+    found = [0] * (len(cut.edges) + 1)
+    for cell in generation.twin_column(twin, 0):
+        value = float(cell)
+        found[sum(1 for edge in cut.edges if value >= edge)] += 1
+    assert found == list(cut.counts)
 
 
 # -- G14.3a CASES 14, 15 AND 17: THE PIECE GRID, THE WORD BUDGET, RULE B3 ----------------------------------

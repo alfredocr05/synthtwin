@@ -10054,10 +10054,10 @@ def _l0_whole_free(
             # ...each search held to its own gap (lane BT's second repair,
             # after its outside review, item 7): a walk past the far value
             # looked through every occupied value beyond it again.
-            room = far - int(start) if upward else int(start) - 1 - far
+            room = _l0_gap_room(far, start, upward)
             if room <= 0:
                 break
-            points = _l0_points(facts, wall, 0, start, upward, held, min(room, 1 << 20))
+            points = _l0_points(facts, wall, 0, start, upward, held, room)
             if not points:
                 break
             point = points[0]
@@ -10068,6 +10068,12 @@ def _l0_whole_free(
         if len(found) >= wanted:
             break
     return found
+
+
+def _l0_gap_room(far: int, start: float, upward: bool) -> int:
+    """How many whole numbers `_l0_whole_free` may still look at in its gap, from ``start`` toward ``far``: those left in it, at most `2**20`."""
+    room = far - int(start) if upward else int(start) - 1 - far
+    return min(room, 1 << 20)
 
 
 def _l0_values_kept(
@@ -10474,7 +10480,7 @@ def _l0_counted(
     reading interpolated stands -- and, where none stands there, the
     smallest anywhere holding fewer cells than the floor (lane BT's second
     repair, after its verify, item 1: a sparse count held 53 different
-    values against today's 51). Never one step 3 gave back, nor the
+    values against today's 51), never one step 3 gave back, nor the
     published mode, `min` or `max`, nor a tail's row; and only a value no
     other stratum holds. Nothing changes where none stands, and the count
     gives way, named by the twin's recount (rule B1). The entries are
@@ -10524,13 +10530,13 @@ def _l0_merged_pick(
     for place in range(len(order)):
         at = order[place]
         value = entries.values[at]
-        if entries.proven[at] or at in entries.kept:
+        if entries.proven[at]:
             continue
         if in_gaps:
             if not any(low < value < high for low, high in gaps):
                 continue
         else:
-            if entries.sizes[at] >= floor or value == facts.mode or value == lowest or value == highest:
+            if at in entries.kept or entries.sizes[at] >= floor or value == facts.mode or value == lowest or value == highest:
                 continue
             if (low_tail is not None and not value > low_tail) or (high_tail is not None and not value < high_tail):
                 continue
@@ -66981,30 +66987,7 @@ def cells_by_band(
     # cells of every starting band its band joins -- `missing` joined with a
     # level, `other` with a range -- so a published total of 376 over `B`
     # and the absent cell is one group of 376, not two of 375 and 1.
-    band_of: "dict[object, int]" = {}
-    names: "list[str]" = []
-    lowers: "list[object]" = []
-    ranged_bands = 0
-    for at in range(len(entry.bands)):
-        band = entry.bands[at]
-        ranged = [start for start in band if isinstance(start, tuple) and len(start) == 2]
-        labels = tuple(start[0] for start in band if isinstance(start, tuple) and len(start) == 1)
-        spread = [start for start in band if isinstance(start, str)]
-        if ranged:
-            band_of[("range", ranged_bands)] = at
-            names += ["range"]
-            lowers += [edges[ranged_bands - 1] if 0 < ranged_bands <= len(edges) else None]
-            ranged_bands = ranged_bands + 1
-        elif labels:
-            names += ["level"]
-            lowers += [labels]
-        else:
-            names += [f"{spread[0]}" if spread else "other"]
-            lowers += [None]
-        for label in labels:
-            band_of[("level", label)] = at
-        for name in spread:
-            band_of[name] = at
+    band_of, names, lowers, ranged_bands = _l0_band_groups(entry, edges)
     members: "list[list[int]]" = [[] for _band in entry.bands]
     reads: "list[list[float | None]]" = [[] for _band in entry.bands]
     in_range = [0 for _place in range(ranged_bands)]
@@ -67073,6 +67056,43 @@ def cells_by_band(
         dates=dates,
         without="" if cut is not None else without,
     )
+
+
+def _l0_band_groups(
+    entry: contract.LadderEntry, edges: "list[float]"
+) -> "tuple[dict[object, int], list[str], list[object], int]":
+    """Each starting band's published `L0` band, each band's name and lower end, and how many bands hold a range (`cells_by_band`).
+
+    A range starting band is named `("range", k)` for the k-th band
+    holding a range part, a level `("level", label)`, a spread band by its
+    own name (`missing`, `other`, `labels`, `held back`): each maps to the
+    published band that joins it, in the published band order.
+    """
+    band_of: "dict[object, int]" = {}
+    names: "list[str]" = []
+    lowers: "list[object]" = []
+    ranged_bands = 0
+    for at in range(len(entry.bands)):
+        band = entry.bands[at]
+        ranged = [start for start in band if isinstance(start, tuple) and len(start) == 2]
+        labels = tuple(start[0] for start in band if isinstance(start, tuple) and len(start) == 1)
+        spread = [start for start in band if isinstance(start, str)]
+        if ranged:
+            band_of[("range", ranged_bands)] = at
+            names += ["range"]
+            lowers += [edges[ranged_bands - 1] if 0 < ranged_bands <= len(edges) else None]
+            ranged_bands = ranged_bands + 1
+        elif labels:
+            names += ["level"]
+            lowers += [labels]
+        else:
+            names += [f"{spread[0]}" if spread else "other"]
+            lowers += [None]
+        for label in labels:
+            band_of[("level", label)] = at
+        for name in spread:
+            band_of[name] = at
+    return band_of, names, lowers, ranged_bands
 
 
 def _places_at_or_below(ordered: "list[int] | list[float]", value: float) -> int:
