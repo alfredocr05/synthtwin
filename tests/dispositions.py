@@ -826,14 +826,19 @@ REGISTRY += _facts(
 # column block carries only where it says something. It decides how the
 # twin draws the column's values and how the validator reads them, and
 # no group held it until lane S5b (plan P4-D441; the orchestrator's
-# ruling of 2026-10-26 on lane S5a, item 2).
+# ruling of 2026-10-26 on lane S5a, item 2). LOADER-ONLY, as
+# `datetime.tail_unit` is: the validator reads the grain from the
+# description (clause V14) to measure the date facts at its rung, each of
+# which is checked in its own right, so its whole obligation is the
+# profile's and `validation.INPUT_SIDE_ENTRIES` binds it (lane S5b's
+# repair 1, skeptic 1's item 1).
 REGISTRY += [
     Fact(
         "universal",
         "time_grain",
-        EXACT_CONTROL,
+        LOADER_ONLY,
         plan_region="time-grain",
-        plan_words="`time_grain` is EXACT-CONTROL, registered in the "
+        plan_words="`time_grain` is LOADER-ONLY, registered in the "
         "universal group",
     )
 ]
