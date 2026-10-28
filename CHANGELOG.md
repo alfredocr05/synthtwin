@@ -36,8 +36,9 @@ met; `K-S5-02` 0 of 245 records moved; both restamped on 0420e785
 the prompt, the held section and the file's order).
 The summary is still rendered from the description, not from `carried`
 (the two classify made-up columns by different rules on some tables;
-lane TW owns the sentence), and the gate holds its made-up columns
-equal to the carried ones on the battery.
+the orchestrator confirmed the departure on 2026-10-28, and lane TW owns
+rendering the summary from the result and pins those tables), and the
+gate holds its made-up columns equal to the carried ones on the battery.
 
 ### Lane S5a: results become data -- `synthtwin.cli.run` returns one result a run, its misses ranked once, every byte held (plan P4-D437, 2026-10-26; builds P4-D395)
 
