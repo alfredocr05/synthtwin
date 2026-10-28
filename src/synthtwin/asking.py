@@ -1990,6 +1990,8 @@ _OPENING_FIGURES_AT_MOST = 4
 _OPENING_MARKS = "-_#"
 _CLOSING_MARKS = "-_."
 _SIGNS = "+-"
+# The openings that are no prefix: none, and a minus sign alone.
+_NO_PREFIX = ("", "-")
 _CLOSING_LETTERS_AT_MOST = 2
 # A run in sequence is read only where every number is at most this many
 # figures, so the arithmetic stays far inside any integer conversion limit.
@@ -2192,7 +2194,7 @@ def _each_on_one_row_arm(
             largest = number if number > largest else largest
         # A sign alone is no prefix: a signed measurement that repeats is
         # not reached through arm (c).
-        if (opening.strip(_SIGNS) or closing) and key in wide:
+        if (opening not in _NO_PREFIX or closing) and key in wide:
             prefixed = prefixed + 1
     if repeated == 0:
         return _ARM_DIFFERENT, unread

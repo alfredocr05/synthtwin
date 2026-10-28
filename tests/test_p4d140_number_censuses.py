@@ -540,7 +540,13 @@ def test_plus_signed_padded_keys_keep_their_field(tmp_path: pathlib.Path) -> Non
     characters with nothing missed.
     """
     cells = ["+" + str(10**17 + i * 128).rjust(20, "0") for i in range(800)]
-    run = _round_trip(tmp_path / "plus", ["v"], [[c] for c in cells], "1")
+    # THE COLUMN IS DECLARED A MEASUREMENT (lane HX5, plan P4-D436, its
+    # repair 2): 800 plus-signed keys of eighteen figures, every one
+    # different, are put the identifier question and held until answered;
+    # this case is about the census of the reading they have, so it is
+    # typed as an answer.
+    run = _round_trip(tmp_path / "plus", ["v"], [[c] for c in cells], "1",
+                      flags=("--measurement", "v"))
     assert run["first"]["pad_widths"] == {"20": 800}
     assert run["second"]["pad_widths"] == {"20": 800}
     for row in run["rows"]:
