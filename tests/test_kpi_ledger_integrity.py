@@ -815,6 +815,16 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 870,000 from 785,000, AT THE INTEGRATION OF BATCH 4L (2026-10-27),
+    # the orchestrator's recorded call D15 (the owner may veto), set once
+    # for the batch, a round figure the merged ledger and the batch's
+    # records fit under: lane PS2's `K-HZ-07` (its branch raised its own
+    # cap to 770,000, below), lane E0c's `K-HZ-05` with `K-HZ-01` to
+    # `K-HZ-03` restated, lane S5a's `K-S5-01` and `K-S5-02` and lane
+    # BT's `K-S6-02`, every entry kept by id and the note merged clause
+    # by clause; then the records' stamps on the merged head. A
+    # MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
     # 785,000 from 764,000, AT THE INTEGRATION OF BATCH 4K (2026-10-26),
     # the orchestrator's recorded call D15 (the owner may veto), set once
     # for the batch (its integrator's record 3), a round figure the merged
@@ -828,6 +838,19 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # the merged code, `K-S3-66`'s evidence corrected and the night
     # windows' points written into `K-S4-09`'s and `K-S4-12`'s, 781,460
     # bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
+    # 770,000 from 768,000, AT LANE PS2'S REPAIR ROUND 1 (2026-10-25): K-HZ-07
+    # re-stamped over 54 tables with its dense digests (`dense_moved`) and
+    # repair round 1's shapes named in its rule, 769,274 bytes. The
+    # integrator sets the cap for the batch as a whole. Its repair round 2
+    # (2026-10-26) re-stamps K-HZ-07 over 60 tables, 769,953 bytes, under
+    # the same cap.
+    #
+    # 768,000 from 764,000, ON LANE PS2'S BRANCH (2026-10-25, plan P4-D433),
+    # the least round figure the lane's ledger fits under: `K-HZ-07` (real
+    # dates one to ten people or rows hold, published) with its note
+    # clause, 767,998 bytes. The integrator sets the cap for the batch as a
+    # whole. A MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
     # 764,000 from 760,000, AT THE INTEGRATION OF BATCH 4J (2026-10-24),
     # the orchestrator's recorded call D15 (the owner may veto), set once
@@ -1403,7 +1426,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     #
     # 771,000 from 769,000 (lane CHv's repair 1, 2026-10-24): the three
     # entries' evidence gains the 20,000-row leg and the repair's mutants.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 785_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 870_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

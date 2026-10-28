@@ -6,6 +6,42 @@ exists).
 
 ## [Unreleased]
 
+### Every published date held by the floor, counted in people or else in rows (lane PS2, plan P4-D433, 2026-10-25)
+
+**A table of one row a person, or with no person column, no longer
+publishes dates that one to ten rows hold.** Lane E0c's leak scan found
+the zoo's `patients.csv` printing 11 real birth dates a column (the date
+percentiles and both tail boundaries, each one person's date) at 20,000
+rows, and a registry's birth dates which no question flags. Where no
+subject column counts a column of dates in people, each row is now its
+own holder: every date its description would publish is read as the day
+(month, quarter) it names, and one that one to ten rows fall on sends
+the column down lane PS's ladder -- day, month, quarter, year -- with
+each row a holder, or holds it with valid made-up dates in its own
+layouts. The date is counted, not the instant, so a dense admission day
+stays at the day and a stamp keeps its time of day; their bytes do not
+move. The rule reaches every table the command describes, from the
+table floor of 20,000 rows up; below it `synthtwin profile` refuses the
+table and the library keeps its bytes. Two new evidence sentences say
+rows rather than people (contract NF130 and NF131), and so does the
+summary. New KPI `K-HZ-07` (0 such dates published over the zoo and the
+lane's sweep at 20,000 and 200,000 rows); gate
+`tests/test_dates_held_by_the_floor.py`. Its repair round counts each
+cell on the clock its description publishes (its day at UTC where the
+offsets differ) and a declared count by its true calendar day, so Unix
+seconds in the afternoon and milliseconds just before midnight no
+longer publish one row's date; honours the user's raised floor; lets the
+validator read the grain a description published, so an older
+description is still met by its unchanged source; keeps month-first
+dates month-first under `--day-first`; asks no date question of a
+column it held; and never says a repeating person column does not
+repeat. Its second repair round counts a column of dates in the people
+of every person column that repeats, however few they are against a
+raised `--smallest-group` (2,500 rows of one patient no longer print that
+patient's day under a floor of 2,000), and counts each cell in people on
+the clock the description publishes, not its local text. The gate runs
+at the floor size, the 200,000-row tables in `K-HZ-07`'s slow leg.
+
 ### Batch 4k's records: the Safe Harbor numbers and the chain's validator merged, the environment audit closed to a rebound callee, the night's 2,000,000-row points written in, the ledger cap set once (2026-10-26)
 
 **Records of batch 4k**, which merged lanes SH and CHv (plans P4-D427 and P4-D430) on batch 4j's f677d6a0. Since lane CODES-3 the padded ZIP shapes beside words lane SH's gate answered are held as keys beside words and put the person question, so its two answered cases now answer the Safe Harbor question on `zip_mixed`, a shape lane SH alone holds, and its zoo case hands lane POP's internal keyword through. P4-D427's price is corrected: the zoo's CVX codes answered `code` are top-coded under ruling R2 until `no`, not held; the ZIP and APC codes are held under R1. Lane POP's and lane MIN's checks that no module reads the environment now also fail on a callee the audit trusts rebound before the copy (Codex's review of batch 4j), so batch 4j's entry below holds as written. A key exported as `100001.0` validates since lane CODES-3, and the shapes' validation limits no longer name it. STATE's HIPAA bullet names what is closed and the lanes of what is open (ID-ROOM, PS2, SH2, LISTS'). The night windows' points are written into P4-D415, P4-D423 and the evidence of `K-S4-09` and `K-S4-12`: the workbook route at 1,048,576 x 50 peaked at 1,451 MB resident, which replaces its day projection of 0.78 to 1.02 GB; on batch 4j's head the 2,000,000 x 50 mixed table was described at 2,375 MB and generated at 1,745 MB, and the Gaussian table at 1,330 and 1,155 MB, every run under the 2.5 GB guard. CI's two repairs of batches 4h to 4j, 8cd9b743 and f677d6a0, are in STATE's CI row with their runs (83 and 86 of 86 jobs). Lane SH's rule reaches tables the lanes merged since its base added, by design: 47 of the 880 battery descriptions differ from batch 4j's, each in one column it top-codes or holds, and lane SG's frozen utf16 twin is re-measured for its column of 0 to 100. `K-S3-66` (101 answers) and `K-HZ-02` (102 analyst checks failing), lane SH's, and `K-S6-04`, `K-S6-05` and `K-S6-10`, lane CHv's, are stamped on the merged code, `K-S6-05`'s bounds restated because lane SH's top-code moves today's twin of its table; `K-S3-64` keeps lane SH's stamp. The ledger's cap is 785,000 bytes, set once for the batch (781,460 used). The records move no twin, description or report byte.

@@ -769,6 +769,12 @@ EVIDENCE_COUNTED_DATES_HELD = "evidence_counted_dates_held"
 # NF128): each value it publishes is the start of a span the smallest group
 # size of people hold, named by its `time_grain` record.
 EVIDENCE_POOLED_IN_PEOPLE = "evidence_pooled_in_people"
+# ...and the two a column of dates or stamps takes where no subject column
+# counts it in people -- a table of one row a person, or one with no person
+# column -- and each row is counted as its own holder instead (plan P4-D433,
+# contract NF130 and NF131): held, or described at a coarser grain.
+EVIDENCE_HELD_IN_ROWS = "evidence_held_in_rows"
+EVIDENCE_POOLED_IN_ROWS = "evidence_pooled_in_rows"
 
 # Four fragments that appear inside a longer sentence rather than on
 # their own. They are forms like any other, and they travel as
@@ -1165,6 +1171,8 @@ NOTE_ARITY: "dict[str, int]" = {
     EVIDENCE_HELD_IN_PEOPLE: 0,
     EVIDENCE_COUNTED_DATES_HELD: 0,
     EVIDENCE_POOLED_IN_PEOPLE: 0,
+    EVIDENCE_HELD_IN_ROWS: 0,
+    EVIDENCE_POOLED_IN_ROWS: 0,
     SAID_WRITTEN_AS_NUMBERS: 2,
     SAID_READ_AS_DATES: 2,
     # THE LINE, and nothing else (contract NF60). One argument, and it
@@ -2717,6 +2725,28 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "minute or second, the values before the first such span or "
             "after the last are counted in those two, and the twin writes a "
             "value inside each span, in your column's own form"
+        )
+    if form == EVIDENCE_HELD_IN_ROWS:
+        return (
+            "no column of this table that names a person on several rows "
+            "names as many people as the smallest group size, so each row "
+            "is counted as its own, and a date this column would "
+            "publish falls on fewer rows than the smallest group size, so "
+            "it is described as record numbers and none of its values is "
+            "published"
+        )
+    if form == EVIDENCE_POOLED_IN_ROWS:
+        return (
+            "no column of this table that names a person on several rows "
+            "names as many people as the smallest group size, so each row "
+            "is counted as its own, and this column's dates and "
+            "times are published only at the coarser grain its "
+            "`time_grain` names, where every date published falls on at "
+            "least the smallest group size of rows: each value here is the "
+            "start of its year, quarter, month, day, hour, minute or "
+            "second, the values before the first such span or after the "
+            "last are counted in those two, and the twin writes a value "
+            "inside each span, in your column's own form"
         )
     if form == EVIDENCE_UNANSWERED_IDENTITY:
         return (
@@ -27572,13 +27602,14 @@ def _with_whole_places_absorbed(
     return _a1_written(column, census, {}, shortest, longest, convention, floor)
 
 
-def as_held_in_people(column: ColumnProfile) -> ColumnProfile:
+def as_held_in_people(column: ColumnProfile, in_rows: bool = False) -> ColumnProfile:
     """A record-number description, for a column counted in people (plan P4-D406).
 
     The column was described with ``forced_identifier`` because a value its
     own reading would publish is held by fewer people than the floor. It
     takes `as_unanswered_identity`'s block -- no prefix, the census its
-    published counts imply -- with its own evidence (contract NF126).
+    published counts imply -- with its own evidence (contract NF126), or,
+    ``in_rows``, a column of dates counted in rows (plan P4-D433, NF130).
 
     Guarantees: accepts a column described with ``forced_identifier``;
     returns it with those fields changed, or unchanged where its role is
@@ -27589,16 +27620,23 @@ def as_held_in_people(column: ColumnProfile) -> ColumnProfile:
     if held.role != ROLE_IDENTIFIER:
         return held
     return dataclasses.replace(
-        held, detection_evidence=note(EVIDENCE_HELD_IN_PEOPLE)
+        held,
+        detection_evidence=note(
+            EVIDENCE_HELD_IN_ROWS if in_rows else EVIDENCE_HELD_IN_PEOPLE
+        ),
     )
 
 
-def with_time_grain(column: ColumnProfile, grain: "dict[str, object]") -> ColumnProfile:
+def with_time_grain(
+    column: ColumnProfile, grain: "dict[str, object]", in_rows: bool = False
+) -> ColumnProfile:
     """A column described at a coarser calendar grain (plan P4-D417, contract NF128).
 
     The column was described from its cells written as the starts of their
     buckets (`grains.coarse_cells`); it keeps that description, takes the
-    record of its grain as `time_grain` and the evidence that says so.
+    record of its grain as `time_grain` and the evidence that says so:
+    counted in people (NF128), or, ``in_rows``, in rows (plan P4-D433,
+    NF131).
 
     Guarantees: a fixed function of the two. Raises nothing. No I/O.
     """
@@ -27609,7 +27647,9 @@ def with_time_grain(column: ColumnProfile, grain: "dict[str, object]") -> Column
     return dataclasses.replace(
         column,
         details=details,
-        detection_evidence=note(EVIDENCE_POOLED_IN_PEOPLE),
+        detection_evidence=note(
+            EVIDENCE_POOLED_IN_ROWS if in_rows else EVIDENCE_POOLED_IN_PEOPLE
+        ),
     )
 
 
