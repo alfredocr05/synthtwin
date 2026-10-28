@@ -30,6 +30,13 @@ audited structure:
   audit allows are the functions their spelling names (`dict = lambda
   source: ...` written before the copy read a third key through it, and
   both checks accepted it).
+- nor through another spelling of the same objects (batch 4l's
+  records, Codex's review of batch 4k, its one Medium): no module is
+  imported as `builtins` or from it, nothing stores into an attribute or
+  an item of a name an import binds (`import os as base; base.environ =
+  ...`), of the built-ins' holders (`__builtins__["dict"] = ...`) or of a
+  computed object, so an alias or a subscript write cannot stand in for
+  the rebinding the line above rejects.
 
 Any other shape is a finding: the checks fail on it, and the exemption
 sets nothing aside.
@@ -175,6 +182,20 @@ def _bound_names(node: ast.AST) -> "list[str]":
 def trusted_names_rebound(tree: ast.Module) -> "list[str]":
     """Every way ``tree`` binds a name the audit trusts to something else, or stores into the modules it trusts."""
     problems: "list[str]" = []
+    # Every name an import binds, aliases included: an attribute or an
+    # item stored through one is a store into a module (batch 4l).
+    imported: "set[str]" = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for one in node.names:
+                if one.name.split(".")[0] in _BUILTIN_HOLDERS:
+                    problems += [f"installation.py:{node.lineno}: imports {one.name}"]
+                imported |= {(one.asname or one.name).split(".")[0]}
+        if isinstance(node, ast.ImportFrom):
+            if (node.module or "").split(".")[0] in _BUILTIN_HOLDERS:
+                problems += [f"installation.py:{node.lineno}: imports from {node.module}"]
+            imported |= {one.asname or one.name for one in node.names}
+    holders = set(_TRUSTED) | set(_BUILTIN_HOLDERS) | imported
     allowed: "set[int]" = set()
     for node in tree.body:
         if isinstance(node, ast.Import) and all(
@@ -193,8 +214,12 @@ def trusted_names_rebound(tree: ast.Module) -> "list[str]":
                 problems += [f"installation.py:{line}: binds {bound}, a name the audit trusts"]
         if isinstance(node, ast.Attribute) and isinstance(node.ctx, (ast.Store, ast.Del)):
             root = _dotted(node).split(".")[0]
-            if root in _TRUSTED or root in _BUILTIN_HOLDERS or not root:
+            if root in holders or not root:
                 problems += [f"installation.py:{node.lineno}: stores into {_dotted(node) or 'a computed object'}"]
+        if isinstance(node, ast.Subscript) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            root = _dotted(node.value).split(".")[0]
+            if root in holders or not root:
+                problems += [f"installation.py:{node.lineno}: stores an item into {_dotted(node.value) or 'a computed object'}"]
         if isinstance(node, ast.Call) and _dotted(node.func) in ("setattr", "delattr", "globals", "vars", "exec", "eval"):
             problems += [f"installation.py:{node.lineno}: calls {_dotted(node.func)}"]
     return problems
@@ -219,8 +244,12 @@ def data_folder_set_aside(name: str, tree: ast.Module) -> "tuple[set[int], list[
 # THE NEGATIVE CASES (Codex's condition): each a change to today's
 # `installation.py` that both checks must reject, today's file accepted.
 _ANCHOR = "    where = environ if environ is not None else dict(os.environ)\n"
+# Where a case written at the module's top level goes: after its imports.
+_MODULE_ANCHOR = "import sys\n"
+_THIRD_KEY = 'lambda source: {"XDG_DATA_HOME": source["synthtwin_smallest_group"]}'
 
-MUTANTS: "dict[str, str]" = {
+# Written into `data_folder`, in place of the audited read.
+_IN_THE_FUNCTION: "dict[str, str]" = {
     # A third key, in lower case, read straight from the environment
     # (Codex's own case).
     "a-third-lowercase-key": _ANCHOR + '    extra = os.environ.get("synthtwin_smallest_group")\n',
@@ -238,9 +267,25 @@ MUTANTS: "dict[str, str]" = {
     + _ANCHOR,
 }
 
+# Written at the module's top level, after its imports (Codex's review of
+# batch 4k, its one Medium): the built-ins reached through an alias or an
+# item, and a trusted module's attribute stored through an alias.
+_AT_THE_TOP: "dict[str, str]" = {
+    "the-builtins-through-an-alias": _MODULE_ANCHOR + f"import builtins as base\nbase.dict = {_THIRD_KEY}\n",
+    "the-builtins-through-an-item": _MODULE_ANCHOR + f'__builtins__["dict"] = {_THIRD_KEY}\n',
+    "the-environment-through-an-aliased-module": _MODULE_ANCHOR
+    + 'import os as system\nsystem.environ = {"XDG_DATA_HOME": "third-key"}\n',
+}
+# Each case: the text it replaces and the text written in its place.
+MUTANTS: "dict[str, tuple[str, str]]" = {
+    **{case: (_ANCHOR, text) for case, text in _IN_THE_FUNCTION.items()},
+    **{case: (_MODULE_ANCHOR, text) for case, text in _AT_THE_TOP.items()},
+}
+
 
 def mutated(source: str, case: str) -> str:
-    """Today's `installation.py` with the negative case ``case`` written in after the audited read."""
-    if source.count(_ANCHOR) != 1:
-        raise AssertionError("installation.py no longer holds the audited read once")
-    return source.replace(_ANCHOR, MUTANTS[case])
+    """Today's `installation.py` with the negative case ``case`` written in: in place of the audited read, or after the module's imports."""
+    if source.count(_ANCHOR) != 1 or source.count(_MODULE_ANCHOR) != 1:
+        raise AssertionError("installation.py no longer holds the audited read, or its import of sys, once")
+    anchor, text = MUTANTS[case]
+    return source.replace(anchor, text)

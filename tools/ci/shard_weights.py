@@ -93,6 +93,12 @@ Changed again the same day by the lane's second repair: the leak file,
 which now copies every identifier of the catalogue into a twin three
 ways, 12.64 s on its own.
 
+ROWS ADDED 2026-10-28, at the integration of batch 4l, each file timed
+ON ITS OWN, on a machine other work was loading: lane PS2's gate,
+`tests/test_dates_held_by_the_floor.py`, 738.70 s on the lane's tree at
+its repair 2 (its `g1.log`), and lane BT's gate,
+`tests/test_stage6_band_totals.py`, 124.34 s on the merged tree.
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
 an ordinary small file and runs in its shard from the commit that adds
@@ -127,6 +133,7 @@ SECONDS = {
     "tests/test_contract_loader.py": 8.65,
     "tests/test_contract_self_check.py": 1.95,
     "tests/test_date_spread.py": 448.08,
+    "tests/test_dates_held_by_the_floor.py": 738.7,
     "tests/test_dates_written_forms_disclosed.py": 15.56,
     "tests/test_decontamination.py": 664.17,
     "tests/test_dependencies.py": 2.24,
@@ -386,6 +393,7 @@ SECONDS = {
     "tests/test_stage4_padded_swap_scale.py": 67.35,
     "tests/test_stage4_sign_repairs.py": 18.92,
     "tests/test_stage4_tier2a.py": 88.39,
+    "tests/test_stage6_band_totals.py": 124.34,
     "tests/test_stage6_validate_chain.py": 77.1,
     "tests/test_summary_and_properties.py": 41.37,
     "tests/test_tail_back_solve_without_recursion.py": 14.72,
