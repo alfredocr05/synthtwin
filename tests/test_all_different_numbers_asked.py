@@ -231,6 +231,9 @@ def test_the_linear_count_is_the_pairwise_count_on_every_shape(tmp_path: pathlib
 _DRAW = random.Random(20261025)
 # 450 record numbers, 150 of them on a second row: no run, not all different.
 _ACC = _DRAW.sample(range(100000, 1000000), 450)
+# Repair 2's cases draw apart, so the cases above keep their cells.
+_AGAIN = random.Random(20261027)
+_SIX_FIGURES = _AGAIN.sample(range(100000, 1000000), 582)
 
 
 def _run(start: int, count: int, opening: str = "") -> "list[str]":
@@ -283,6 +286,21 @@ _REACHED = {
     # padded references on about four rows in three.
     "padded references that repeat": [f"RPT{value:06d}" for value in range(1, 451)]
     + [f"RPT{value:06d}" for value in range(1, 151)],
+    # Repair 2, the verify of repair 1, item 1 (red on the mutant "no sign,
+    # no point before the closing letters"): a sign before the figures, a
+    # point and a letter after them.
+    "a run of negative numbers": _run(300001, 600, "-"),
+    "a run after a plus sign": _run(300001, 600, "+"),
+    "negative numbers at random": [f"-{value}" for value in _AGAIN.sample(range(100000, 10000000), 600)],
+    "a point and a letter after the figures": [f"{value}.A" for value in range(300001, 300601)],
+    # Item 2 (b) (red on the mutant "no minus nines"): `-9999` on seven
+    # rows, under the floor's cells, beside a run on about four rows in
+    # three -- read as a number, it would be a second form and end the run.
+    "a repeating run beside -9999 on seven rows": _run(99701, 450) + _run(99701, 143) + ["-9999"] * 7,
+    # A negative placeholder on the floor's rows, beside the same run (red
+    # on the mutant "-1 to -999 only": with a sign read, the one-in-a-
+    # hundred arm reaches the cases above without it).
+    "a repeating run beside -12345 on the floor's rows": _run(99701, 450) + _run(99701, 139) + ["-12345"] * 11,
 }
 
 _NOT_REACHED = {
@@ -307,6 +325,20 @@ _NOT_REACHED = {
     "one value alone": ["12345"] * 600,
     # K-P4-24's decision-7 column: `10` to `99` on 114 rows covers its range.
     "a two-figure run that repeats": [f"{10 + place % 90}" for place in range(114)],
+    # Repair 2, the verify of repair 1, item 2: (a) three values in a
+    # hundred on two rows (red on the mutant "one value in ten"); (c) all
+    # different but under five figures for the most part, 100 to 14,000
+    # (red on the mutant "one five-figure value enough").
+    "six figures, three values in a hundred twice": [f"{value}" for value in _SIX_FIGURES]
+    + [f"{value}" for value in _SIX_FIGURES[:18]],
+    "all different from 100 to 14,000": [f"{value}" for value in _AGAIN.sample(range(100, 14000), 600)],
+    # A sign is no prefix (red on the mutant "a sign counts as letters"):
+    # negative whole numbers on about four rows in three, as plain numbers
+    # on four rows in three are not reached.
+    "negative numbers on four rows in three": [f"-{value}" for value in _SIX_FIGURES[:450]]
+    + [f"-{value}" for value in _SIX_FIGURES[:150]],
+    # A signed measurement with decimals is a measurement.
+    "negative readings with decimals": [f"-{value / 100:.2f}" for value in _AGAIN.sample(range(1000000, 9999999), 600)],
 }
 
 

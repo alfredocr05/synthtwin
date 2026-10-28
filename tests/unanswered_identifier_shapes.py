@@ -273,11 +273,15 @@ LIST_KEYS = 40
 # `refsuffix`, a mark and a letter after the figures (`300001-A` up);
 # `seqnines`, the plain run beside `-9999` on about one row in fifty; and
 # `seqdecimal` and `refstray`, the plain run and `refseq` with one stray
-# cell (`99708.5`, `RPT300008A`).
+# cell (`99708.5`, `RPT300008A`). Its repair 2 (the verify of repair 1,
+# item 1) adds `seqneg`, a run of negative whole numbers (`-300001`
+# down); `seqplus`, a run after a plus sign (`+300001` up); and `refdot`,
+# a point and a letter after the figures (`300001.A` up).
 # Every value is its own patient-free record, so the real values are
 # every cell's but the placeholders'.
 ONE_A_ROW = ("refseq", "refrand", "refacc", "seqcross", "seqdup", "randall", "seqm1",
-             "refspecimen", "refyear", "refsuffix", "seqnines", "seqdecimal", "refstray")
+             "refspecimen", "refyear", "refsuffix", "seqnines", "seqdecimal", "refstray",
+             "seqneg", "seqplus", "refdot")
 # What `seqm1` writes for a row with no reference, and on what share
 # (`seqnines` writes `-9999` on the same share).
 ONE_A_ROW_PLACEHOLDER = ("-1", 0.02)
@@ -412,6 +416,12 @@ def _one_a_row(kind: str, rows: int, draw: random.Random) -> "list[str]":
         return [f"S24-{50001 + row}" for row in range(rows)]
     if kind == "refsuffix":
         return [f"{300001 + row}-A" for row in range(rows)]
+    if kind == "seqneg":
+        return [f"-{300001 + row}" for row in range(rows)]
+    if kind == "seqplus":
+        return [f"+{300001 + row}" for row in range(rows)]
+    if kind == "refdot":
+        return [f"{300001 + row}.A" for row in range(rows)]
     if kind == "seqdecimal":
         cells = [f"{99701 + row}" for row in range(rows)]
         cells[7] = "99708.5"

@@ -1938,9 +1938,12 @@ def _an_arc_naming_an_item(uid: str) -> bool:
 #   cells repeat (lane SH's addenda 2 and 3: `-9999` on one row in fifty
 #   took a run out and published its ladder); and WHOLE NUMBERS: figures
 #   alone as route four reads them (`_key_figures`: `100001`, `100001.0`,
-#   `123,456`), or figures after an opening of one to twelve letters, an
-#   opening of letters, one to four figures and a mark (`S24-`, `AB12_`),
-#   or with a mark and one or two letters after them (`300001-A`;
+#   `123,456`), after a sign (`-300001`, `+300001`: a `+` writes the same
+#   number as none does, a `-` is a form of its own and no prefix for arm
+#   (c); the verify of repair 1, item 1), or figures after an opening of
+#   one to twelve letters, an opening of letters, one to four figures and
+#   a mark (`S24-`, `AB12_`), or with a mark (`-`, `_` or `.`) and one or
+#   two letters after them (`300001-A`, `300001.A`;
 #   `_a_whole_number_after_letters`) -- and at most one present cell in a
 #   hundred that is none of these (`_STRAY_SHARE`; lane HX4's addendum: one
 #   ordinary token must not defeat a hold, so `99708.5` or `RPT300008A`
@@ -1985,7 +1988,8 @@ _EACH_ON_ONE_ROW_ROLES = (
 _OPENING_LETTERS_AT_MOST = 12
 _OPENING_FIGURES_AT_MOST = 4
 _OPENING_MARKS = "-_#"
-_CLOSING_MARKS = "-_"
+_CLOSING_MARKS = "-_."
+_SIGNS = "+-"
 _CLOSING_LETTERS_AT_MOST = 2
 # A run in sequence is read only where every number is at most this many
 # figures, so the arithmetic stays far inside any integer conversion limit.
@@ -2014,9 +2018,10 @@ def _a_whole_number_after_letters(value: str) -> "tuple[str, str, str] | None":
     One of: one to twelve ASCII letters, an optional `-`, `_` or `#`, then
     figures (`RPT300001`, `SPECIMEN300001`, `ACC-123456`); letters, one to
     four figures and one of those marks, then figures (`S24-10001`,
-    `AB12_300001`); either of those, or figures alone, followed by `-` or
-    `_` and one or two letters (`300001-A`). Nothing else: a unit glued
-    to the figures (`12345mg`) has no mark and is not one. The opening
+    `AB12_300001`); either of those, or figures alone, followed by `-`,
+    `_` or `.` and one or two letters (`300001-A`, `300001.A`). Nothing
+    else: a unit glued to the figures (`12345mg`) has no mark and is not
+    one. The opening
     and closing are returned in upper case, so `rpt1` and `RPT1` share one;
     None where the cell is not of this form, or carries no letter at all.
     A fixed function of the text. Raises TypeError for a non-string. No I/O.
@@ -2129,10 +2134,18 @@ def _each_on_one_row_arm(
         ):
             continue
         figures: "str | None" = None
-        if not comma or ("," not in value and "." not in value):
-            figures = _key_figures(value)
         opening = ""
         closing = ""
+        if not comma or ("," not in value and "." not in value):
+            figures = _key_figures(value)
+            if figures is None and value[:1] in _SIGNS:
+                # A SIGN BEFORE THE FIGURES (the verify of repair 1, item
+                # 1: `-300001` down read continuous and `+300001` up read
+                # count, every real value copied): a `+` writes the same
+                # number as none does, and a `-` opens a form of its own.
+                figures = _key_figures(value[1:])
+                if figures is not None and value[:1] == "-":
+                    opening = "-"
         if figures is None:
             lettered = _a_whole_number_after_letters(value)
             if lettered is None:
@@ -2177,7 +2190,9 @@ def _each_on_one_row_arm(
             number = int(figures)
             smallest = number if smallest < 0 or number < smallest else smallest
             largest = number if number > largest else largest
-        if (opening or closing) and key in wide:
+        # A sign alone is no prefix: a signed measurement that repeats is
+        # not reached through arm (c).
+        if (opening.strip(_SIGNS) or closing) and key in wide:
             prefixed = prefixed + 1
     if repeated == 0:
         return _ARM_DIFFERENT, unread
