@@ -2000,11 +2000,12 @@ _LIBRARY_ROWS = 2000
 
 
 def _library_table(kind: str) -> str:
-    """One of four invented tables of 2,000 rows (lane S5b's repair 1).
+    """One of five invented tables of 2,000 rows (lane S5b's repairs 1 and 2).
 
     `stamp`: six-figure stamps `yymmdd`, asked column by column (the
     fixed-width question); `day`: `2024-001` to `2024-366`, which the
     two-numbers question and the days-of-the-year question both reach;
+    `two`: the days beside the stamps, so one prompt puts two questions;
     `held`: a person beside day counts written `42.345`, declared
     `excel-1900` and held (plan P4-D406); `ordered`: dates whose day and
     month are each at most 12 (the question about the file, plan P4-D381)
@@ -2021,6 +2022,14 @@ def _library_table(kind: str) -> str:
             ]
     elif kind == "day":
         found = ["day,ward"] + [f"2024-{1 + index % 366:03d},{battery.WARDS[index % 4]}" for index in range(_LIBRARY_ROWS)]
+    elif kind == "two":
+        found = ["day,stamp,ward"]
+        for index in range(_LIBRARY_ROWS):
+            found += [
+                f"2024-{1 + index % 366:03d},"
+                f"{stream.randint(20, 24):02d}{stream.randint(1, 12):02d}{stream.randint(1, 28):02d},"
+                f"{battery.WARDS[index % 4]}"
+            ]
     elif kind == "held":
         found = ["person,visit,ward"]
         for index in range(_LIBRARY_ROWS):
@@ -2075,7 +2084,8 @@ def test_a_question_put_at_a_prompt_is_said_put_and_counted(
     two-numbers question alone, and the days-of-the-year question the
     final records also hold on that column is not said put. Codex's item
     2: answered at the prompt, the question leaves the file and stays
-    counted as put, since it was.
+    counted as put, since it was. Repair 2: one prompt that puts two
+    questions counts two, not one.
     """
     quiet = _library_profile(tmp_path / "quiet", "stamp", monkeypatch)
     kept = _library_profile(tmp_path / "kept", "stamp", monkeypatch, ask=["", "", ""])
@@ -2093,6 +2103,13 @@ def test_a_question_put_at_a_prompt_is_said_put_and_counted(
         ("day", "figures-that-may-be-days-of-the-year", False),
     ]
     assert days.tally == _profile_tally(2, 1, 0, 0, 2)
+    two = _library_profile(tmp_path / "two", "two", monkeypatch, ask=["", "", "", ""])
+    assert [(one.column, one.reason, one.put) for one in two.questions] == [
+        ("day", "two-numbers", True),
+        ("stamp", "fixed-width", True),
+        ("day", "figures-that-may-be-days-of-the-year", False),
+    ]
+    assert two.tally == _profile_tally(3, 2, 0, 0, 3)
 
 
 def test_the_held_section_s_record_and_the_tally_that_counts_it(
