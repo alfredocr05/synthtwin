@@ -815,6 +815,11 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 768,000 from 767,000 (lane HX5's repair 2, plan P4-D436, 2026-10-27),
+    # the least round figure its ledger fits under: K-S3-64 re-stamped with
+    # the three shapes the repair adds and their chance counts, 767,101
+    # bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
     # 767,000 from 766,000 (lane HX5's repair 1, plan P4-D436, 2026-10-27),
     # the least round figure its ledger fits under: K-S3-64 re-stamped with
     # the six shapes the repair adds and their chance counts, 766,369
@@ -1371,7 +1376,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # round figure the lane's ledger fits under: K-S6-08 new, the chain's
     # tables part, with its note clause. The batch integrator settles this
     # beside the other lanes' raises.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 767_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 768_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

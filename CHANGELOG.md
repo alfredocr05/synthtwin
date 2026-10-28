@@ -44,6 +44,14 @@ The suite's last moves are typed as the measurements they are (800 salaries,
 the study workbook's padded and grouped numbers); a candidate person column
 repeating a few values leaves the real workbook missing its own repetition
 pattern, on the base too (lane PS3's).
+Repair 2 (the verify of repair 1): a sign before the figures (`-300001`,
+`+300001`) and a point before the closing letters (`300001.A`), once 598 of
+600 twin cells real, are read and held, 0 published at 600, 20,000 and
+200,000 rows, at no cost over the battery, the zoo or the goldens; the gate
+pins the three guards that keep measurements out, each red on its mutant;
+P4-D436 states that a whole-number measurement drawn over a range about
+fifty times the rows or wider is asked at every size. K-S3-64 re-stamped at
+01c9421: 184 shapes, nothing real published.
 
 ### Batch 4j's records: the data folder's exemption narrowed, the night's 2,000,000-row points written in, the ledger cap set once (2026-10-24)
 
