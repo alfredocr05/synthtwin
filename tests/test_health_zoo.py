@@ -31,7 +31,12 @@ holds the battery itself to its word, cheaply:
   validate misses reach its verdict;
 * the workbook is read through the suite's cross-check reader, so CI's
   `minimums` cell, which has no openpyxl, skips that part and only it;
-* the slow driver loads where there is no `resource` module (Windows).
+* the slow driver loads where there is no `resource` module (Windows),
+  and runs the catalogue shard by shard at 600 rows and at 20,000;
+* lane E0c's widening (plan P4-D431) is held to all of the above table
+  by table, and the person question is answered for the person column
+  alone (`tests/test_health_zoo_shards.py` holds the floor, the shards,
+  the people and the leak scan).
 """
 
 from __future__ import annotations
@@ -63,6 +68,19 @@ SEED = 20261016
 PLAN_LANES = (
     "DST", "RT1", "RT2", "LM1", "LM2", "R7", "FM", "SCH", "G2T", "G2T2", "MG", "PS", "PS2", "SH", *zoo.ZOO_LANES,
     zoo.NEEDS_OWNER,
+    # Lane E0c (plan P4-D431): the lanes its HIPAA kinds and its computed
+    # total name -- HX (an unanswered question holds, P4-D401), SH (Safe
+    # Harbor numbers, P4-D427) and RD (computed columns, the zoo plan's
+    # row 51).
+    "HX", "SH", "RD",
+    # ...and, since the second repair's scan reads chance only past the
+    # real range and the third reads the twin strictly (LANE E0c RULINGS
+    # 2 (1)), ID-ROOM (twin identifier cells equal to real ones, P4-D432).
+    "ID-ROOM",
+    # ...and the lane the orchestrator opens when SH closes for Safe Harbor
+    # years, places and devices no question reaches (THE ZOO ANSWERS
+    # TRUTHFULLY, 2026-10-25).
+    "SH2",
 )
 
 # The kinds the lane's step names, and the ones its reviews found missing
@@ -80,6 +98,30 @@ REQUIRED_KINDS = (
     # The repair-2 tripwire's item 6: shapes the product asks about that
     # no table seeded.
     "title_rows_above_header", "day_first_dates", "two_digit_years", "true_false_columns",
+)
+# Lane E0c (plan P4-D431): every kind of the zoo plan's section 6 (b)
+# that E0a's catalogue did not hold, and the cases the repository's
+# records name as the lane's, by family (`tests/health_zoo_wide.py`).
+E0C_KINDS = (
+    # the roles the zoo never reached
+    "labelled_results", "lab_instrument_results", "numeric_unrepresentable", "tab_delimited",
+    "ventilator_settings", "compact_and_fraction_clocks",
+    # the clinical domains
+    "all_fields_quoted", "medication_administration", "pharmacy_dispensing", "obstetrics", "social_history",
+    "pediatrics", "cardiology_ecg", "organism_long_tail", "report_text_with_headings", "long_cell",
+    "naaccr_and_trauma_registry", "scheduling", "pipe_delimited", "remittance_835", "adt_bed_movements",
+    "promis_phq9", "pro_multi_select", "vcf_flattened", "wearable_offsets_subsecond",
+    # the coding systems
+    "diagnosis_code_forms", "procedure_and_drg_forms", "icd10_long_tail",
+    # the long and system-shaped exports
+    "omop_cdm", "pcornet_cdm", "i2b2_eav", "fhir_flattened", "hl7v2_flattened", "epic_caboodle", "cerner_ccl",
+    # the file shapes
+    "utf16_text", "cp1252_smart_quotes", "sas_dot_missing", "wide_table", "trailing_delimiter",
+    "excel_mangled_codes", "workbook_1904_dates", "leading_apostrophe",
+    # the HIPAA and de-identified shapes
+    "phi_columns", "undeclared_record_number_long", "numeric_keys_unanswered", "safe_harbor_shapes",
+    # the time edge kinds
+    "dst_zones_and_words", "month_year", "durations", "epoch_stamps", "open_end_dates", "quarters",
 )
 
 
@@ -116,30 +158,42 @@ def _pair(
 
 
 def _csv_tables() -> "list[str]":
-    return [table.name for table in zoo.TABLES if table.suffix == ".csv"]
+    return [table.name for table in zoo.catalogue() if table.suffix != ".xlsx"]
 
 
 def test_every_kind_the_lane_names_is_in_the_catalogue() -> None:
-    """Each kind served by one table; every column by one kind; the named kinds all there."""
+    """Each kind served by one table; every column by one kind; the named kinds all there.
+
+    Over the whole catalogue: E0a's forty kinds and lane E0c's. A kind
+    section 6 (b) names that E0a's catalogue already holds is merged
+    there (`health_zoo_wide.MERGED`), never served twice.
+    """
+    import health_zoo_wide as wide
+
     named = set()
-    for table in zoo.TABLES:
+    for table in zoo.catalogue():
         header, _rows = table.build(150, SEED)
         served = [column for columns in table.kinds.values() for column in columns]
         assert sorted(served) == sorted(set(served)), f"{table.name}: a column serves two kinds"
         assert set(served) <= set(header), f"{table.name}: a kind names a column the table lacks"
         for column in header:
-            assert zoo.kind_of(table, column) in zoo.KINDS, f"{table.name}.{column}"
+            assert zoo.kind_of(table, column) in zoo.all_kinds(), f"{table.name}.{column}"
         assert not named & set(table.kinds), f"{table.name}: a kind is served twice"
         named |= set(table.kinds)
         for check in table.checks:
             assert check.kind in table.kinds, f"{table.name}: {check.name}"
             assert not check.column or check.column in header, f"{table.name}: {check.name}"
-    assert named == set(zoo.KINDS)
+    assert named == set(zoo.all_kinds())
     assert set(REQUIRED_KINDS) == set(zoo.KINDS)
-    assert set(zoo.FILE_KINDS) <= set(zoo.KINDS)
+    assert set(E0C_KINDS) == set(wide.WIDE_KINDS)
+    assert len(zoo.all_kinds()) == len(set(zoo.all_kinds()))
+    assert set(zoo.file_kinds()) <= set(zoo.all_kinds())
+    assert set(wide.MERGED.values()) <= set(zoo.KINDS), "a merged item names a kind of E0a's catalogue"
+    names = [table.name for table in zoo.catalogue()]
+    assert len(names) == len(set(names))
 
 
-@pytest.mark.parametrize("name", [table.name for table in zoo.TABLES])
+@pytest.mark.parametrize("name", [table.name for table in zoo.catalogue()])
 def test_each_table_rebuilds_byte_for_byte_from_its_seed(name: str, tmp_path: pathlib.Path) -> None:
     first = _written(name, tmp_path / "a", 150).read_bytes()
     again = _written(name, tmp_path / "b", 150).read_bytes()
@@ -213,16 +267,16 @@ def test_the_analyst_scripts_run_clean_on_every_real_table(tmp_path: pathlib.Pat
     it is the one that read the real table without a fault. The workbook
     is read last, through the cross-check reader.
     """
-    for table in zoo.TABLES:
-        if table.suffix == ".csv":
+    for table in zoo.catalogue():
+        if table.suffix != ".xlsx":
             _clean(table, tmp_path / table.name)
     crosscheck.reader()
-    for table in zoo.TABLES:
+    for table in zoo.catalogue():
         if table.suffix == ".xlsx":
             _clean(table, tmp_path / table.name)
 
 
-@pytest.mark.parametrize("name", [table.name for table in zoo.TABLES])
+@pytest.mark.parametrize("name", [table.name for table in zoo.catalogue()])
 def test_every_check_goes_red_on_its_spoiled_table(name: str, tmp_path: pathlib.Path) -> None:
     """A spoiled copy of the real table makes each check fail: none of them can be blind.
 
@@ -237,7 +291,7 @@ def test_every_check_goes_red_on_its_spoiled_table(name: str, tmp_path: pathlib.
     blind = []
     for place in range(len(table.checks)):
         check = table.checks[place]
-        failures = _pair(name, tmp_path / f"{place}", zoo.spoil_of(check))
+        failures = _pair(name, tmp_path / f"{place}", zoo.spoil_of(check), check.rewrite)
         if check.name not in [failure[1] for failure in failures]:
             blind += [check.name]
     assert not blind, f"{name}: these checks did not see their spoil: {blind}"
@@ -610,6 +664,34 @@ def test_a_question_about_the_file_is_answered_by_its_subject() -> None:
     assert asked[0]["given"] == "month-first"
 
 
+def test_the_person_question_is_answered_for_the_person_column_only() -> None:
+    """Lane E0c: an encounter number beside its patient is not the people the rows are about.
+
+    The person question's `identifier` means "the people the rows are
+    about", so the zoo's person answers it for the table's person column
+    and `keep` ("not a person: it repeats for some other reason") for
+    another record number; a record-number question that does not ask
+    about people is answered `identifier` as before.
+    """
+    person = {"answer": "identifier", "means": "the people the rows are about -- rows sharing a value of it are one person"}
+    entries = [
+        {"column": "PATID", "answers_you_can_give": [{"answer": "keep"}, dict(person)], "your_answer": ""},
+        {"column": "ENCOUNTERID", "answers_you_can_give": [{"answer": "keep"}, dict(person)], "your_answer": ""},
+        {"column": "DIAGNOSISID", "answers_you_can_give": [
+            {"answer": "code"}, {"answer": "identifier", "means": "record numbers -- a key nothing should publish"},
+        ], "your_answer": ""},
+    ]
+    asked, general = zoo.answer_generally(zoo.table_named("pcornet_diagnosis"), {"asked": entries})
+    assert general
+    assert {entry["column"]: entry["given"] for entry in asked} == {
+        "PATID": "identifier", "ENCOUNTERID": "keep", "DIAGNOSISID": "identifier",
+    }
+    # E0a's tables name no person column, and keep their answers.
+    entry = {"column": "enc_id", "answers_you_can_give": [{"answer": "keep"}, dict(person)], "your_answer": ""}
+    asked, _general = zoo.answer_generally(zoo.table_named("diagnoses_procedures"), {"asked": [entry]})
+    assert asked[0]["given"] == "identifier"
+
+
 def test_the_semicolon_file_says_semicolon() -> None:
     """Skeptic 1's item 6: the semicolon export answers 'semicolon' even where 'comma' is offered first."""
     entry = {"subject": "the separator", "answers_you_can_give": [{"answer": "comma"}, {"answer": "semicolon"}], "your_answer": ""}
@@ -632,7 +714,11 @@ def test_one_table_runs_end_to_end_in_this_process(tmp_path: pathlib.Path) -> No
     assert result["roles"]["patient_id"] == "identifier"
     verdicts = zoo.per_kind([result])
     assert set(verdicts) == {"demographics", "utf8_accents"}
-    assert verdicts["utf8_accents"]["passed"] is True
+    # The accented cities are cities of birth, places smaller than a state
+    # the product publishes asking no question: the one failure of the
+    # kind, LIVE and lane SH2's (THE ZOO ANSWERS TRUTHFULLY, 2026-10-25).
+    assert verdicts["utf8_accents"]["failures"] == ["leak birth_city"]
+    assert verdicts["utf8_accents"]["owners"] == ["SH2"]
 
 
 def test_the_labs_misses_reach_its_verdict(tmp_path: pathlib.Path) -> None:
@@ -800,7 +886,7 @@ def test_a_failure_with_only_a_gap_stated_is_counted_apart(monkeypatch: pytest.M
     owned = zoo.zoo_measures([_result("labs", misses=[["result_value", "mean"]])])
     assert owned["K-HZ-02"]["failures_without_owner"] == 0
     assert owned["K-HZ-02"]["failures_needing_owner"] == 1
-    assert owned["kinds"]["mixed_results"]["needing_owner"] == ["miss result_value"]
+    assert owned["kinds"]["mixed_results"]["needing_owner"] == ["miss result_value -- mean"]
     laned = zoo.zoo_measures([_result("labs", misses=[["ref_range", "styles"]])])
     assert laned["K-HZ-02"]["failures_needing_owner"] == 0
     assert laned["kinds"]["labs"]["owners"] == ["LM1"]
@@ -808,8 +894,8 @@ def test_a_failure_with_only_a_gap_stated_is_counted_apart(monkeypatch: pytest.M
 
 def test_every_owner_is_a_lane_of_the_plan_or_needs_one() -> None:
     assert zoo.OWNERS, "the baseline's failures are owned"
-    for kind, owners in zoo.OWNERS.items():
-        assert kind in zoo.KINDS, kind
+    for kind, owners in zoo.owners().items():
+        assert kind in zoo.all_kinds(), kind
         assert owners, kind
         for owner, gap, covers in owners:
             assert owner in PLAN_LANES, f"{kind}: {owner}"
@@ -823,7 +909,16 @@ def test_the_workbook_is_left_out_where_its_reader_is_absent(monkeypatch: pytest
     monkeypatch.setattr(crosscheck, "present", lambda: False)
     names = [table.name for table in zoo.runnable_tables()]
     assert "surveys" not in names and len(names) == len(zoo.TABLES) - 1
-    assert set(zoo.workbook_kinds()) == {"surveys_pro", "excel_workbook"}
+    every = zoo.runnable_tables(zoo.catalogue())
+    workbooks = [table for table in zoo.catalogue() if table.suffix == ".xlsx"]
+    assert len(every) == len(zoo.catalogue()) - len(workbooks)
+    assert not [table.name for table in every if table.suffix == ".xlsx"]
+    assert set(zoo.workbook_kinds()) == WORKBOOK_KINDS
+
+
+# The catalogue's workbook exports' kinds: E0a's survey workbook, and lane
+# E0c's workbook in the 1904 date system.
+WORKBOOK_KINDS = {"surveys_pro", "excel_workbook", "workbook_1904_dates"}
 
 
 def _driver(monkeypatch: pytest.MonkeyPatch, name: str) -> "object":
@@ -861,20 +956,84 @@ def test_the_driver_prints_only_what_it_measured(
 
     module = _driver(monkeypatch, "kpi_health_zoo_printing")
     monkeypatch.setattr(crosscheck, "present", lambda: reader)
-    monkeypatch.setattr(zoo, "run_zoo", lambda folder, n, seed=0: [_result(t.name) for t in zoo.runnable_tables()])
+    sizes: "list[tuple[int, int]]" = []
+
+    def run_zoo(folder: pathlib.Path, n: int, seed: int = 0, tables: "object" = None) -> "list[dict]":
+        sizes.extend([(n, len(tables))])  # type: ignore[arg-type]
+        return [_result(t.name, rows=n) for t in zoo.runnable_tables(tables)]  # type: ignore[arg-type]
+
+    monkeypatch.setattr(zoo, "run_zoo", run_zoo)
     module.main()  # type: ignore[attr-defined]
     printed = {}
     for line in capsys.readouterr().out.splitlines():
         if line.startswith("KPI "):
             record = json.loads(line[4:])
             printed[record["id"]] = record["value"]
-    delimited = [table for table in zoo.TABLES if table.suffix == ".csv"]
+    shards = zoo.shards()
+    assert sizes == [(600, len(shard)) for shard in shards] + [(20_000, len(shard)) for shard in shards]
+    delimited = [table for table in zoo.catalogue() if table.suffix != ".xlsx"]
     delimited_kinds = sum(len(table.kinds) for table in delimited)
-    assert printed["K-HZ-01"]["kinds_passing_20000_rows_csv"] == delimited_kinds
+    assert printed["K-HZ-01"]["kinds_passing_csv"] == delimited_kinds
     assert printed["K-HZ-03"]["tables_run_csv"] == 2 * len(delimited)
+    assert printed["K-HZ-03"]["shards"] == len(shards)
+    assert all(f"seconds_20000_rows_shard_{k}" in printed["K-HZ-03"] for k in range(1, len(shards) + 1))
+    assert printed["K-HZ-05"]["kinds_refused_by_floor"] == 0
+    assert printed["K-HZ-01"]["kinds_smoke_600_rows_running_csv"] == delimited_kinds
     if reader:
-        assert printed["K-HZ-01"]["kinds_passing_20000_rows"] == len(zoo.KINDS)
-        assert printed["K-HZ-03"]["tables_run"] == 2 * len(zoo.TABLES)
+        assert printed["K-HZ-01"]["kinds_passing"] == len(zoo.all_kinds())
+        assert printed["K-HZ-01"]["kinds_smoke_600_rows_running"] == len(zoo.all_kinds())
+        assert printed["K-HZ-03"]["tables_run"] == 2 * len(zoo.catalogue())
     else:
-        assert "kinds_passing_20000_rows" not in printed["K-HZ-01"]
+        # Codex item 6: the smoke over the delimited exports alone is never
+        # printed as the whole catalogue's.
+        assert "kinds_passing" not in printed["K-HZ-01"]
+        assert "kinds_smoke_600_rows_running" not in printed["K-HZ-01"]
         assert "tables_run" not in printed["K-HZ-03"]
+
+
+def test_a_kind_whose_smoke_stops_does_not_pass(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Skeptic 1 item 7: a kind that passes at 20,000 rows while its 600-row run stops is not counted passing.
+
+    Red on the driver without the smoke conjunct (`and smoke.get(kind)`).
+    """
+    import json
+
+    module = _driver(monkeypatch, "kpi_health_zoo_smoke")
+    monkeypatch.setattr(crosscheck, "present", lambda: True)
+
+    def run_zoo(folder: pathlib.Path, n: int, seed: int = 0, tables: "object" = None) -> "list[dict]":
+        made = [_result(t.name, rows=n) for t in zoo.runnable_tables(tables)]  # type: ignore[arg-type]
+        for result in made:
+            if n == zoo.SMOKE_ROWS and result["table"] == "labs":
+                result["steps"]["generate"] = {"exit": 1, "error": "raised"}
+        return made
+
+    monkeypatch.setattr(zoo, "run_zoo", run_zoo)
+    module.main()  # type: ignore[attr-defined]
+    printed = {}
+    for line in capsys.readouterr().out.splitlines():
+        if line.startswith("KPI "):
+            record = json.loads(line[4:])
+            printed[record["id"]] = record["value"]
+    labs = set(zoo.table_named("labs").kinds)
+    assert printed["K-HZ-01"]["kinds_passing"] == len(zoo.all_kinds()) - len(labs)
+    assert printed["K-HZ-01"]["kinds_smoke_600_rows_running"] == len(zoo.all_kinds()) - len(labs)
+    assert all(kind in printed["K-HZ-01"]["kinds_failing_named"] for kind in labs)
+
+
+def test_the_smoke_rule_reads_every_step_present() -> None:
+    """Skeptic 1 item 7: a step present that exits 1 stops the smoke, as a step missing does.
+
+    Red on the mutant of `smoke_ran` that reads only whether each step is
+    there (its exit test replaced by True).
+    """
+    stopped = _result("labs")
+    stopped["steps"]["generate"] = {"exit": 1, "error": "raised"}
+    assert "validate" in stopped["steps"]
+    assert zoo.smoke_ran([stopped]) == {"labs": False, "mixed_results": False}
+    assert zoo.smoke_ran([_result("labs")]) == {"labs": True, "mixed_results": True}
+    warned = _result("labs")
+    warned["steps"]["validate"] = {"exit": 3, "error": ""}
+    assert zoo.smoke_ran([warned]) == {"labs": True, "mixed_results": True}

@@ -6,6 +6,42 @@ exists).
 
 ## [Unreleased]
 
+### The health data zoo widened to every kind, re-defined at the owner's table floor (plan P4-D431, lane E0c, 2026-10-24, repaired twice 2026-10-25 and a third time 2026-10-26; tests and drivers only)
+
+**Lane E0c of the December plan** (the zoo plan's section 6 (b); the
+owner's Z2 answer (a)). The zoo's catalogue grows from 40 kinds over 25
+exports to 93 over 64: `tests/health_zoo_wide.py` adds the roles the zoo
+never reached, the coding systems' longer forms, eighteen clinical
+domains, seven system exports, twelve file shapes, the HIPAA and
+de-identified shapes and the time edge kinds, each with analyst checks
+that turn red on their own spoils; thirteen items E0a's kinds already
+held are merged there. Its KPI legs run at 20,000 rows through the
+SHIPPED table floor, the 600-row runs are the suite's smoke below it,
+one test item a shard, and the slow driver runs six shards. K-HZ-01's
+pass rule is restated (a kind passes at 20,000 rows with the floor on,
+its 600-row smoke running: 21 of 93 since the twin is read strictly,
+47 before), K-HZ-02 counts failures per kind and check at 20,000 rows
+(261, every one owned; 190 before), K-HZ-03 bounds each
+shard, and K-HZ-05 (new) counts the kinds the floor refuses: none.
+HIPAA first, the lane's repair reads every column answered `identifier`
+and every column that names a Safe Harbor element for its real values,
+each description as soon as it is written (the first before any
+answer), a year of an age of 90 or more included, and the zoo answers
+the Safe Harbor question truthfully, `yes` for a ZIP3 area and an age
+column holding an age over 89, every round of the questions file
+answered; the twin is read strictly, every real value it meets counted
+with no chance allowance, so a verbatim, shuffled or half copy counts
+(repair 3). LIVE on the base: ZIPs, and keys
+published while their question is open (lane SH's); years of an age of
+90 or more, device numbers and cities of birth (lane SH2's); full birth
+dates one person holds (lane PS2's); made-up identifier keys equal to
+real ones (lane ID-ROOM's: 33,705 real keys on 71,331 twin cells over
+75 columns of 58 tables at 20,000 rows, among them a sequential report
+reference under two title rows, answered `identifier` in the second
+round, 400 on 400 cells; with one round only, as repair 2 ran it, it
+was read as a number and its twin wrote 19,998 of 20,000). Nothing
+under `src` changed; no golden, vector or SR battery byte moved.
+
 ### Every published date held by the floor, counted in people or else in rows (lane PS2, plan P4-D433, 2026-10-25)
 
 **A table of one row a person, or with no person column, no longer

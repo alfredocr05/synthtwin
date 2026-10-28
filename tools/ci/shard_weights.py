@@ -81,6 +81,18 @@ Safe Harbor numbers, `tests/test_safe_harbor_numbers.py`, 2,705.80 s on
 the lane's tree at its repair 3, and lane CHv's V12 gate,
 `tests/test_stage6_validate_chain.py`, 77.10 s on the merged tree.
 
+ROWS CHANGED 2026-10-25, by lane E0c's repair (the skeptic's item 8), each
+file timed ON ITS OWN on the lane's head on a machine other work was
+loading: the widened zoo's `tests/test_health_zoo.py`, 75.78 s; its new
+`tests/test_health_zoo_shards.py`, 9.82 s, and
+`tests/test_health_zoo_leaks.py`, 1.31 s; and `tests/test_kpi_ledger.py`,
+whose zoo smoke grew from about 21 s to six shard items of 25 to 43 s
+or less each (161.5 s in all at 600 rows, the lane's own 600-row run),
+weighed at its row of 2026-10-19 less 21 s and plus that 161.5 s.
+Changed again the same day by the lane's second repair: the leak file,
+which now copies every identifier of the catalogue into a twin three
+ways, 12.64 s on its own.
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
 an ordinary small file and runs in its shard from the commit that adds
@@ -130,12 +142,14 @@ SECONDS = {
     "tests/test_final_skeptic_repairs.py": 18.68,
     "tests/test_generation.py": 7.12,
     "tests/test_generation_reference.py": 95.29,
-    "tests/test_health_zoo.py": 22.78,
+    "tests/test_health_zoo.py": 75.78,
+    "tests/test_health_zoo_leaks.py": 21.31,
+    "tests/test_health_zoo_shards.py": 9.82,
     "tests/test_held_unit_search.py": 25.61,
     "tests/test_joined_battery_readings.py": 215.32,
     "tests/test_joined_pair_round_trip.py": 103.91,
     "tests/test_k_p3_03_outer_tail_spread.py": 58.33,
-    "tests/test_kpi_ledger.py": 658.49,
+    "tests/test_kpi_ledger.py": 798.99,
     "tests/test_kpi_ledger_integrity.py": 9.84,
     "tests/test_landing_2b12_identifiers_codes_text.py": 15.77,
     "tests/test_landing_2b13_numbers_beside_labels.py": 5.74,

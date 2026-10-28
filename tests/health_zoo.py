@@ -33,6 +33,16 @@ K-HZ-02, each kind's misses and the step that failed, with the lane
 that owns it (`OWNERS`); K-HZ-03, the battery's own time and memory
 (its driver, `tools/measurements/kpi_health_zoo.py`).
 
+Lane E0c (plan P4-D431) widens the catalogue to every kind of the zoo
+plan's section 6 (b) in `tests/health_zoo_wide.py` (`catalogue()`:
+these twenty-five exports, kept byte for byte, and the widening) and
+re-defines the zoo at or above the owner's table floor (plan P4-D425):
+a kind's KPI leg runs at 20,000 rows through the SHIPPED floor, its
+600-row smoke below it through the command's internal switch, and the
+slow driver runs the catalogue in shards (`shards()`). The columns
+that name a person, a place or a record are read for their real values
+in the description and the twin (`Table.leaks`, `leaked`: HIPAA first).
+
 THIS MODULE MEASURES; IT FIXES NOTHING. A kind that fails is recorded
 with its owner, never repaired here, and every check reads one column
 on its own: what the twin carries between two columns is the stage-6
@@ -131,9 +141,9 @@ GENERAL_ANSWERS = frozenset(
         "first-record", "month-first", "day-first", "missing",
         "real-value", "1969-2068", "1930-2029", "1940-2039",
         "1900-1999", "dates",
-        # The Safe Harbor question (plan P4-D427): whether a value of the
-        # column could name a person, a place, a birth date or a number
-        # given to one person -- what the data is.
+        # The Safe Harbor question (lane SH, plan P4-D427): whether a value
+        # of the column could name a person, a place, a birth date or a
+        # number given to one person -- what the data is.
         "no", "yes",
     }
 )
@@ -1165,7 +1175,8 @@ class Check:
 
     `column` is the column it reads, and `spoil` the change to a real
     table that must make it fail (`tests/test_health_zoo.py` runs every
-    one): by default, the column's first cell written as JUNK.
+    one): by default, the column's first cell written as JUNK; `rewrite`,
+    where given, writes the spoiled copy in place of the table's writer.
     """
 
     kind: str
@@ -1174,6 +1185,10 @@ class Check:
     run: "Callable[[dict[str, object]], object]"
     column: str = ""
     spoil: "Callable[[list[str], list[list[str]]], None] | None" = None
+    # A check of a FILE's shape (lane E0c: every field quoted) is spoiled
+    # by writing the same cells another way: the writer of its spoiled
+    # copy, where it is not the table's own.
+    rewrite: "Callable[[list[str], list[list[str]]], bytes] | None" = None
 
 
 def spoil_cell(column: str, value: str = JUNK, row: int = 0) -> "Callable[[list[str], list[list[str]]], None]":
@@ -1521,6 +1536,22 @@ class Table:
     # What the person knows about the whole file, for the questions about
     # it: where the column names are and how the dates order day and month.
     facts: "tuple[str, ...]" = ("names", "month-first")
+    # Lane E0c (plan P4-D431). The character between the columns, as the
+    # person answers the separator question ('' reads the comma, and the
+    # semicolon for the vitals export, as before).
+    separator: str = ""
+    # The column that names a patient where one patient has several rows
+    # ('' where none does): the owner's table floor counts its people
+    # (plan P4-D425), and K-HZ-05 holds the catalogue to it.
+    person: str = ""
+    # HIPAA FIRST: the columns whose real values must reach neither the
+    # description nor the twin, each with how it is read: 'values' (every
+    # real value but a one-figure placeholder such as '-1', in the
+    # description and the twin), 'printed values' (in the description
+    # only: a date the twin draws in its span meets a real one by chance)
+    # or 'ages over 89' (Safe Harbor: no age past the top-code 90 printed
+    # or written as a number).
+    leaks: "tuple[tuple[str, str], ...]" = ()
 
 
 def _csv_reader(**options: object) -> "Callable[[pathlib.Path], dict[str, object]]":
@@ -1682,6 +1713,7 @@ TABLES: "tuple[Table, ...]" = (
             _bad("utf8_accents", "no cell reads as mojibake", "birth_city", lambda f: _mojibake(f["text"]),
                  spoil_cell("birth_city", "SÃ£o Paulo")),
         ),
+        leaks=(("zip5", "values"), ("zip4", "values"), ("dob_iso", "printed values")),
     ),
     Table(
         "encounters", ".csv", encounters,
@@ -1713,6 +1745,7 @@ TABLES: "tuple[Table, ...]" = (
                  lambda f: _bad_set(_t("department")(f).str.title(), {"Cardiology", "Emergency", "Oncology", "Orthopedics", "Pediatrics", "Neurology", "Medicine"})),  # type: ignore[attr-defined]
             _listed("encounters", "visit types are listed ones", "visit_type", _levels(VISIT_TYPES)),
         ),
+        person="patient_id",
     ),
     Table(
         "diagnoses_procedures", ".csv", diagnoses_procedures,
@@ -1776,6 +1809,7 @@ TABLES: "tuple[Table, ...]" = (
             *_present("mixed_results", "some result is a word", "result_value", r"^[A-Z ]+$",
                      spoil_every("result_value", lambda v: "1.0" if v.replace(" ", "").isalpha() else v)),
         ),
+        person="patient_id",
     ),
     Table(
         "prescriptions", ".csv", prescriptions,
@@ -1791,6 +1825,7 @@ TABLES: "tuple[Table, ...]" = (
             _listed("medication_orders", "routes", "route", _levels(ROUTES)),
             _pattern("medication_orders", "frequencies", "frequency", r"(BID|TID|QID|QD|QHS|PRN|q\d+h)( PRN)?"),
         ),
+        person="patient_id",
     ),
     Table(
         "vitals", ".csv", vitals,
@@ -1824,6 +1859,7 @@ TABLES: "tuple[Table, ...]" = (
             _ranged("vitals", "spo2", r"(?P<n>\d+)%", 0.5),
             _ranged("semicolon_decimal_comma", "mass_index", r"(?P<n>-?\d+(,\d+)?)"),
         ),
+        person="patient_id",
     ),
     Table(
         "flowsheet", ".csv", flowsheet,
@@ -1840,6 +1876,7 @@ TABLES: "tuple[Table, ...]" = (
             _bad("flowsheet_long", "other rows hold numbers (read by row name)", "flo_value",
                  lambda f: _flowsheet_numbers_bad(f["text"]), spoil_first_where("flo_value", _not_bp, JUNK)),
         ),
+        person="patient_id",
     ),
     Table(
         "redcap", ".csv", redcap,
@@ -1866,6 +1903,7 @@ TABLES: "tuple[Table, ...]" = (
             _pattern("redcap", "the calculated total is a whole number", "phq_total", r"\d+"),
             _listed("redcap", "form status 0/1/2", "baseline_complete", {"0", "1", "2"}),
         ),
+        person="record_id",
     ),
     Table(
         "claims", ".csv", claims,
@@ -1896,6 +1934,7 @@ TABLES: "tuple[Table, ...]" = (
             _pattern("claims", "DRG three figures", "drg", r"\d{3}"),
             _pattern("claims", "revenue codes keep the leading zero", "revenue_code", r"0\d{3}"),
         ),
+        person="patient_id",
     ),
     Table(
         "notes", ".csv", notes,
@@ -1957,6 +1996,7 @@ TABLES: "tuple[Table, ...]" = (
                  lambda f: int((_i("steps")(f) < 0).sum()), spoil_cell("steps", "-1")),  # type: ignore[operator]
             _listed("wearables", "activity levels", "activity", {"sedentary", "light", "moderate", "vigorous"}),
         ),
+        person="device_id",
     ),
     Table(
         "genomics", ".csv", genomics,
@@ -2002,6 +2042,7 @@ TABLES: "tuple[Table, ...]" = (
             _dated("dicom_metadata", "TM times parse as %H%M%S.%f", "study_time", "%H%M%S.%f"),
             _pattern("dicom_metadata", "UIDs are dotted figures", "study_uid", r"[0-9]+(\.[0-9]+)+"),
         ),
+        person="patient_id",
     ),
     Table(
         "perioperative", ".csv", perioperative,
@@ -2024,6 +2065,7 @@ TABLES: "tuple[Table, ...]" = (
             _pattern("perioperative", "physical status with its emergency mark", "phys_status", r"(I|II|III|IV|V|VI)( E)?"),
             _pattern("perioperative", "rooms", "or_room", r"OR \d{1,2}"),
         ),
+        person="patient_id",
     ),
     Table(
         "problem_list", ".csv", problem_list,
@@ -2081,6 +2123,7 @@ TABLES: "tuple[Table, ...]" = (
             _ranged("us_unit_vitals", "weight", r"(?P<n>\d+) lb", 0.1),
             _ranged("us_unit_vitals", "temp_f", r"(?P<n>\d+\.\d) F", 2.0),
         ),
+        person="patient_id",
     ),
     Table(
         "sql_server", ".csv", sql_server,
@@ -2129,6 +2172,7 @@ TABLES: "tuple[Table, ...]" = (
             _pattern("immunizations_providers", "UDI with its application identifiers", "udi",
                      r"\(01\)\d{14}\(17\)\d{6}\(10\)[A-Z0-9]+"),
         ),
+        person="patient_id",
     ),
     Table(
         "risk_adjustment", ".csv", risk_adjustment,
@@ -2202,9 +2246,75 @@ TABLES: "tuple[Table, ...]" = (
 )
 
 
+# -- the whole catalogue (lane E0c, plan P4-D431) ---------------------------
+#
+# E0a's twenty-five tables above stay as they are, byte for byte from the
+# same seeds: other KPIs read them by name (K-S3-66 answers every one of
+# them in rounds, K-S3-65's driver counts them in people, and the
+# generator's memory test describes each). Lane E0c widens the catalogue
+# to every kind of the zoo plan's section 6 (b) in `tests/health_zoo_wide.py`,
+# and the zoo's own KPIs (K-HZ-01, K-HZ-02, K-HZ-03 and K-HZ-05) run the
+# whole of it: `catalogue()`.
+
+# The sizes the zoo runs at: the suite's fast smoke, BELOW THE OWNER'S
+# TABLE FLOOR (plan P4-D425: `synthtwin profile` refuses a table under
+# 20,000 rows that hold a value, so its runs pass the command's internal
+# switch off), and the KPI size, at the floor, where the shipped command
+# runs as a person runs it, the refusal on.
+SMOKE_ROWS = 600
+KPI_ROWS = 20_000
+# The people a several-rows-per-patient kind must hold once its
+# identifier is answered: the floor's 1,000 at the KPI size, and 100 at
+# the smoke's 600 rows (the zoo plan's sizing, critic item 15).
+PEOPLE_AT_LEAST = {SMOKE_ROWS: 100, KPI_ROWS: 1_000}
+# The seed the catalogue's tables are drawn from: E0a's table at place k
+# takes SEED + k (as it always has), the widened catalogue's at place k
+# takes SEED + WIDE_SEED_STEP + k.
+SEED = 20261016
+WIDE_SEED_STEP = 100
+
+
+def _wide() -> "object":
+    import health_zoo_wide
+
+    return health_zoo_wide
+
+
+def catalogue() -> "tuple[Table, ...]":
+    """Every table of the catalogue: E0a's, then lane E0c's."""
+    return TABLES + _wide().WIDE_TABLES  # type: ignore[attr-defined]
+
+
+def all_kinds() -> "tuple[str, ...]":
+    """Every kind of the catalogue, in the order the report lists them."""
+    return KINDS + _wide().WIDE_KINDS  # type: ignore[attr-defined]
+
+
+def file_kinds() -> "tuple[str, ...]":
+    """Every kind that is a shape of a whole file."""
+    return FILE_KINDS + _wide().WIDE_FILE_KINDS  # type: ignore[attr-defined]
+
+
+def owners() -> "dict[str, tuple[tuple[str, str, str], ...]]":
+    """Every kind's OWNERS lines: E0a's and lane E0c's."""
+    merged = dict(OWNERS)
+    for kind, lines in _wide().WIDE_OWNERS.items():  # type: ignore[attr-defined]
+        merged[kind] = merged.get(kind, ()) + lines
+    return merged
+
+
+def seed_of(table: Table, seed: int = SEED) -> int:
+    """The seed a catalogue table is drawn from: E0a's keep theirs."""
+    names = [known.name for known in TABLES]
+    if table.name in names:
+        return seed + names.index(table.name)
+    wide = [known.name for known in _wide().WIDE_TABLES]  # type: ignore[attr-defined]
+    return seed + WIDE_SEED_STEP + wide.index(table.name)
+
+
 def table_named(name: str) -> Table:
     """The catalogue table of that name."""
-    for table in TABLES:
+    for table in catalogue():
         if table.name == name:
             return table
     raise KeyError(name)
@@ -2244,17 +2354,21 @@ def generic_mode(table: Table, name: str) -> "tuple[str, str] | None":
         ("dtype ", "same"), ("missing spellings ", "spellings"), ("missing ", "bad"), ("shapes ", "shapes"),
         ("forms ", "forms"), ("levels ", "levels"), ("stand-ins ", "bad"), ("codes ", "codes"),
     )
+    every_column = {column for names in table.kinds.values() for column in names}
     for prefix, mode in columns:
         if name.startswith(prefix):
-            return kind_of(table, name[len(prefix):]), mode
+            column = name[len(prefix):]
+            # A column the reader makes and the export does not name (an
+            # unnamed one after a trailing delimiter) is the file's.
+            return (kind_of(table, column) if column in every_column else _file_kind(table)), mode
     if name == "rows read":
         return _file_kind(table), "same"
     if name == "file: byte-order mark":
-        return _file_kind(table, "byte_order_mark"), "same"
+        return _file_kind(table, "byte_order_mark", "utf16_text"), "same"
     if name == "file: line endings":
         return _file_kind(table, "crlf_line_endings"), "same"
     if name == "file: decodes as UTF-8":
-        return _file_kind(table, "latin1", "utf8_accents"), "same"
+        return _file_kind(table, "latin1", "utf8_accents", "utf16_text", "cp1252_smart_quotes"), "same"
     return None
 
 
@@ -2584,6 +2698,14 @@ def _offered(entry: "dict") -> "list[str]":
     return [f"{choice.get('answer')}" for choice in entry["answers_you_can_give"]]
 
 
+def _asks_for_people(entry: "dict") -> bool:
+    """Whether an entry is the person question: its `identifier` answer means the people the rows are about."""
+    return any(
+        f"{choice.get('answer')}" == "identifier" and "people" in f"{choice.get('means', '')}"
+        for choice in entry["answers_you_can_give"]
+    )
+
+
 # Keys whose strings are names or answers rather than prose a person reads.
 NOT_PROSE = frozenset({"column", "answer", "your_answer", "table", "subject"})
 
@@ -2603,7 +2725,9 @@ def prose(value: object) -> "list[str]":
     return found
 
 
-def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]":
+def answer_generally(
+    table: Table, document: "dict", old_ages: "frozenset[str] | None" = None,
+) -> "tuple[list[dict], bool]":
     """Fill a questions file the way the person who holds the table would.
 
     The answers are GENERAL facts about the data: which column is a
@@ -2621,6 +2745,9 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
     export's SNOMED ids -- is answered `code` there, in the one round.
     Returns what was asked -- column (or subject), the answers offered
     and the answer given -- and whether every question was general.
+    `old_ages` names the age columns of the person's table that hold an
+    age over 89 (`ages_over_89`, for the Safe Harbor question); where it
+    is not given it is read from the table built at the smoke size.
 
     A question is general when every answer it offers is about the data
     AND none of the prose that asks it -- the entry's own sentences
@@ -2631,7 +2758,8 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
     """
     asked: "list[dict]" = []
     general = True
-    file_facts = {"data", "semicolon" if table.name == "vitals" else "comma"} | set(table.facts)
+    separator = table.separator or ("semicolon" if table.name == "vitals" else "comma")
+    file_facts = {"data", separator} | set(table.facts)
     every_column = {column for names in table.kinds.values() for column in names}
     checklist = document.get("checklist") or {}
     framing = " ".join(prose({key: value for key, value in document.items() if key not in ("about_your_file", "asked", "checklist")}))
@@ -2650,13 +2778,24 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
         given = known if known in offered else ""
         if not given and known and "identifier" in offered and "keep" in offered:
             given = "keep"
-        # ...and the Safe Harbor question (plan P4-D427; lane ZR-b's ZS.7):
-        # a column the person knows as anything but a record number or a
-        # place names nobody, so `no`; one they know as a record number,
-        # or a ZIP code -- a place smaller than a state -- `yes`
-        # (`PLACES`, lane SH's third repair).
-        if not given and known and offered == ["no", "yes"]:
-            given = "yes" if known == "identifier" or column in PLACES else "no"
+        # The person question (lane E0c): `identifier` there means "the
+        # people the rows are about", so a record number that is not the
+        # table's person column -- an encounter beside its patient -- is
+        # answered `keep`, "not a person: it repeats for some other reason".
+        if given == "identifier" and table.person and column != table.person and _asks_for_people(entry):
+            given = "keep" if "keep" in offered else ""
+        # THE ZOO ANSWERS TRUTHFULLY (the orchestrator, 2026-10-25 00:56): the
+        # Safe Harbor question is answered as the column truly is -- `yes`
+        # for a ZIP, a city or another place smaller than a state, a device
+        # number, a birth year or date, a name, an address, a telephone or
+        # social security number, and a record, account or person key;
+        # `no` for a measurement, a count, a code or a category. A ZIP3
+        # area ('021**') and an age column holding an age over 89 are
+        # answered `yes` too (LANE E0c RULINGS 2 (2), 2026-10-25 16:36).
+        if not given and column in every_column and sorted(offered) == ["no", "yes"]:
+            if old_ages is None and _is_an_age(column):
+                old_ages = ages_over_89(*table.build(SMOKE_ROWS, seed_of(table)))
+            given = "yes" if names_a_safe_harbor_element(table, column, old_ages) else "no"
         entry["your_answer"] = given
         words = " ".join(prose(entry) + [framing] + ([checklist_words] if id(entry) in listed else []))
         this_general = all(
@@ -2675,17 +2814,20 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
 # -- one table, end to end ---------------------------------------------------
 
 
-def _quietly(arguments: "list[str]") -> "tuple[int, str]":
-    """Run one synthtwin command in this process; its exit code, or the error it raised."""
+def _quietly(arguments: "list[str]", small_tables_refused: bool = False) -> "tuple[int, str]":
+    """Run one synthtwin command in this process; its exit code, or the error it raised.
+
+    ``small_tables_refused`` is passed to `cli.main`'s internal keyword of
+    the same name, always explicitly (plan P4-D425): True at the KPI size,
+    where the zoo runs the shipped command with the owner's table floor
+    on, and False for the suite's 600-row smoke, below the floor.
+    """
     from synthtwin import cli
 
     sink = io.StringIO()
     try:
         with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
-            # The table floor off (plan P4-D425): the zoo keeps measuring
-            # its tables at today's sizes; lane E0c re-defines them at or
-            # above the floor.
-            code = cli.main(arguments, small_tables_refused=False)
+            code = cli.main(arguments, small_tables_refused=small_tables_refused)
     except Exception as failure:  # noqa: BLE001 -- a traceback is a result to record
         return -1, f"{type(failure).__name__}: {failure}"[:300]
     except SystemExit as stop:
@@ -2696,66 +2838,147 @@ def _quietly(arguments: "list[str]") -> "tuple[int, str]":
     return int(code), (said[-1] if said else "")[:300]
 
 
-def run_table(table: Table, folder: pathlib.Path, n: int, seed: int) -> "dict":
-    """profile, the general answers, profile --answers, generate, validate, the analyst.
+def people_in(table: Table, header: "list[str]", rows: "list[list[str]]") -> "int | None":
+    """The people a table's person column names (every spelling its own), or None where it has none."""
+    if not table.person:
+        return None
+    place = header.index(table.person)
+    return len({row[place] for row in rows if row[place].strip()})
+
+
+def _floor_refused(arguments: "list[str]", small_tables_refused: bool, code: int) -> bool:
+    """Whether a step that exited 1 with the floor on runs with it off: the floor refused it."""
+    if not small_tables_refused or code != 1:
+        return False
+    return _quietly(arguments, False)[0] == 0
+
+
+# The rounds of answers `run_table` gives at most: the questions a later
+# round puts follow an earlier answer (P4-D408's rounds), and a file that
+# kept putting new questions past this would be a fault to see, not a
+# loop to wait on.
+ANSWER_ROUNDS_AT_MOST = 6
+
+
+def _question_key(entry: "dict") -> "tuple[str, tuple[str, ...]]":
+    """What makes a question the same question in a later round: what it asks about and the answers it offers."""
+    about = f"{entry.get('column') or entry.get('subject') or entry.get('about') or ''}"
+    return about, tuple(sorted(_offered(entry)))
+
+
+def _keep_the_most(kept: "dict[str, dict]", found: "dict[str, dict]") -> None:
+    """Merge one reading into the leaks kept: each count the most any reading of its entry gave (HIPAA first)."""
+    for key, entry in found.items():
+        if key not in kept:
+            kept[key] = entry
+            continue
+        for count in ("description", "twin", "twin_cells", "twin_by_chance"):
+            if count in entry:
+                kept[key][count] = max(kept[key].get(count, 0), entry[count])
+
+
+def run_table(
+    table: Table, folder: pathlib.Path, n: int, seed: int, small_tables_refused: bool = False,
+) -> "dict":
+    """profile, the general answers and profile --answers round by round, generate, validate, the analyst.
 
     Every step is recorded, and a step that fails stops the ones that
-    need its output. Nothing is retried and nothing is repaired.
+    need its output. Nothing is retried and nothing is repaired: a step
+    the owner's table floor refuses (``small_tables_refused``, plan
+    P4-D425) is run once more with the floor off only to name the refusal
+    (`refused_by_floor`), and the run stops there as it would for the
+    person. The people the person column names are counted on the real
+    table (`people`), and the columns that name a person, a place or a
+    record are read for their real values in the description and the
+    twin (`leaks`, HIPAA first): each description as soon as it is
+    written -- the first, before any answer, under the stage
+    'unanswered' -- and the twin once generate has written it, so what a
+    step published is kept whatever a later step does.
     """
     from synthtwin import validation
 
     folder.mkdir(parents=True, exist_ok=True)
-    source = write_table(table, folder, n, seed)
+    header, rows = table.build(n, seed)
+    source = folder / f"{table.name}{table.suffix}"
+    source.write_bytes(table.write(header, rows))
+    old_ages = ages_over_89(header, rows)
     stem = table.name
     profile_path = folder / f"{stem}-profile.json"
     questions_path = folder / f"{stem}-questions.json"
-    result: "dict" = {"table": table.name, "rows": n, "steps": {}, "misses": [], "analyst": []}
+    result: "dict" = {
+        "table": table.name, "rows": n, "steps": {}, "misses": [], "analyst": [],
+        "floor": small_tables_refused, "people": people_in(table, header, rows),
+    }
+    del header, rows
     steps = result["steps"]
     started = time.perf_counter()
 
-    code, error = _quietly(["profile", f"{source}", "--replace"])
+    arguments = ["profile", f"{source}", "--replace"]
+    code, error = _quietly(arguments, small_tables_refused)
     steps["profile"] = {"exit": code, "error": error}
     if code != 0:
+        if _floor_refused(arguments, small_tables_refused, code):
+            result["refused_by_floor"] = "profile"
         result["seconds"] = time.perf_counter() - started
         return result
-    document = json.loads(questions_path.read_text(encoding="utf-8"))
-    asked, general = answer_generally(table, document)
-    result["asked"] = asked
-    result["general"] = general
-    questions_path.write_text(json.dumps(document, indent=2), encoding="utf-8", newline="\n")
-    code, error = _quietly(["profile", f"{source}", "--replace", "--answers", f"{questions_path}"])
-    steps["answers"] = {"exit": code, "error": error}
-    if code != 0:
-        result["seconds"] = time.perf_counter() - started
-        return result
-    # ...AND THE QUESTION AN ANSWER OPENS (plan P4-D427, the second repair
-    # of lane SH, items 1 and 6): a column the Safe Harbor reach takes,
-    # answered `code`, `measurement` or `keep` to its padded, fixed-width,
-    # date-count, two-numbers or person question, is put the Safe Harbor
-    # question in the run reading that answer; the person answers the new
-    # question as they did the first round's.
-    follow = json.loads(questions_path.read_text(encoding="utf-8"))
-    before = {(one["column"], one["given"]) for one in asked}
-    probe = json.loads(json.dumps(follow))
-    more, more_general = answer_generally(table, probe)
-    opened = [one for one in more if one["given"] and (one["column"], one["given"]) not in before]
-    if opened:
-        more, more_general = answer_generally(table, follow)
-        result["asked"] = asked + opened
-        result["general"] = general and more_general
-        questions_path.write_text(json.dumps(follow, indent=2), encoding="utf-8", newline="\n")
-        code, error = _quietly(["profile", f"{source}", "--replace", "--answers", f"{questions_path}"])
+    # HIPAA FIRST, before any answer (skeptic 1 item 5, Codex item 4): the
+    # first description is kept beside the answered one and read at once,
+    # so a value published while a question is open is counted whatever
+    # the later steps do.
+    unanswered = folder / f"{stem}-profile-unanswered.json"
+    unanswered.write_bytes(profile_path.read_bytes())
+    real_raw = table.read(source)["raw"]
+    result["leaks"] = leaked(table, source, None, unanswered, stage="unanswered", real_raw=real_raw)
+    # EVERY ROUND IS ANSWERED (the orchestrator's LANE E0c RULINGS 2 (3),
+    # AQ's rounds, plan P4-D408): a question the product puts only after
+    # another answer -- the Safe Harbor question that follows a ZIP's
+    # `code` (LANE SH ADDENDUM 7), a column's question once the title
+    # rows are answered -- is answered as the first round's are, until
+    # the questions file puts no new unanswered question, at most
+    # `ANSWER_ROUNDS_AT_MOST` rounds. Each round's description is read
+    # for real values, the most each entry published kept.
+    put: "set[tuple[str, tuple[str, ...]]]" = set()
+    result["asked"] = []
+    result["general"] = True
+    result["answer_rounds"] = 0
+    first = True
+    while result["answer_rounds"] < ANSWER_ROUNDS_AT_MOST:
+        document = json.loads(questions_path.read_text(encoding="utf-8"))
+        entries = _entries(document)
+        new = [entry for entry in entries if _question_key(entry) not in put and not f"{entry.get('your_answer') or ''}"]
+        if not first and not new:
+            break
+        asked, general = answer_generally(table, document, old_ages)
+        result["asked"] += [
+            question for entry, question in zip(entries, asked) if _question_key(entry) not in put
+        ]
+        result["general"] = result["general"] and general
+        put |= {_question_key(entry) for entry in entries}
+        questions_path.write_text(json.dumps(document, indent=2), encoding="utf-8", newline="\n")
+        arguments = ["profile", f"{source}", "--replace", "--answers", f"{questions_path}"]
+        code, error = _quietly(arguments, small_tables_refused)
         steps["answers"] = {"exit": code, "error": error}
+        result["answer_rounds"] += 1
+        first = False
         if code != 0:
+            if _floor_refused(arguments, small_tables_refused, code):
+                result["refused_by_floor"] = "answers"
             result["seconds"] = time.perf_counter() - started
             return result
+        _keep_the_most(result["leaks"], leaked(table, source, None, profile_path, real_raw=real_raw))
 
-    code, error = _quietly(["generate", f"{profile_path}", "--replace", "--seed", "0"])
+    code, error = _quietly(["generate", f"{profile_path}", "--replace", "--seed", "0"], small_tables_refused)
     steps["generate"] = {"exit": code, "error": error}
     twin = folder / f"{stem}-twin{table.suffix}"
+    if not twin.is_file():
+        # A text export ('.txt': tab- or pipe-delimited, or Excel's
+        # Unicode text) is twinned as '.csv' in the source's own dialect.
+        twin = folder / f"{stem}-twin.csv"
     if code != 0 or not twin.is_file():
         result["seconds"] = time.perf_counter() - started
         return result
+    _keep_the_most(result["leaks"], leaked(table, source, twin, profile_path, real_raw=real_raw))
+    del real_raw
 
     seen: "list[object]" = []
     measure = validation.measure
@@ -2767,7 +2990,7 @@ def run_table(table: Table, folder: pathlib.Path, n: int, seed: int) -> "dict":
 
     validation.measure = keep  # type: ignore[assignment]
     try:
-        code, error = _quietly(["validate", f"{profile_path}", "--replace"])
+        code, error = _quietly(["validate", f"{profile_path}", "--replace"], small_tables_refused)
     finally:
         validation.measure = measure  # type: ignore[assignment]
     steps["validate"] = {"exit": code, "error": error}
@@ -2787,6 +3010,432 @@ def run_table(table: Table, folder: pathlib.Path, n: int, seed: int) -> "dict":
     result["analyst"] = [list(failure) for failure in analyst_failures(table, real, made)]
     result["seconds"] = time.perf_counter() - started
     return result
+
+
+# -- HIPAA first: real values in the description and the twin -----------------
+
+# WHICH COLUMNS ARE READ (lane E0c's repair, skeptic 1 item 6 and Codex
+# item 3): the leak list follows from the columns, not from a hand list.
+# A column is read when the person who holds the table answers it
+# `identifier` (`Table.knows`), or when its name says it is one of HIPAA's
+# Safe Harbor elements -- a birth or death date, a birth year, an age, a
+# ZIP code, a device identifier or an instance UID, a person's name, a
+# street address, a telephone number, an e-mail address, a social
+# security number or a medical record number -- each with how it is read
+# (`LEAK_MODES`). A table's own `leaks` adds to that, never takes away;
+# `NOT_READ` names the few columns a rule would reach that hold no
+# person's value, each with its reason. `leak_list` is the inventory, and
+# `leaked` reads every entry of it.
+LEAK_MODES = ("values", "printed values", "ages over 89", "years over 89")
+SENSITIVE_NAMES: "tuple[tuple[re.Pattern[str], tuple[str, ...], str], ...]" = (
+    (re.compile(r"(?i)(^|_)(dob|birth_?date|date_of_birth)(_|$)"), ("printed values", "years over 89"), "a birth date"),
+    (re.compile(r"(?i)birth_?year|(^|_)yob$"), ("years over 89",), "a birth year"),
+    (re.compile(r"(?i)death_?date|date_of_death"), ("printed values",), "a death date"),
+    (re.compile(r"(?i)(^|_)age(_|$)"), ("ages over 89",), "an age"),
+    (re.compile(r"(?i)zip"), ("values",), "a ZIP code"),
+    (re.compile(r"(?i)(^|_)(udi|uid)(_|$)"), ("values",), "a device identifier or an instance UID"),
+    (re.compile(r"(?i)(patient|first|last|middle|given|family|sur)_?name$"), ("values",), "a person's name"),
+    (re.compile(r"(?i)address|street|phone|e_?mail|(^|_)ssn(_|$)|social_sec"), ("values",),
+     "an address, a telephone number, an e-mail address or a social security number"),
+    (re.compile(r"(?i)med_rec|(^|_)m[r]n(_|$)|durable_?key"), ("values",), "a medical record number or a patient key"),
+    (re.compile(r"(?i)(^|_)(city|county|town)(_|$)|birth_?place|place_of_birth"), ("values",),
+     "a person's city, county or town: a place smaller than a state"),
+)
+NOT_READ = {
+    "rsid": "a public dbSNP variant code ('rs' and figures), the same in every person's file",
+    "zip3": "the Safe Harbor form itself: three figures and '**'",
+    "gest_age_plus": "a gestational age in weeks and days, not the person's age",
+    "gest_age_wd": "a gestational age in weeks and days, not the person's age",
+}
+# The zoo's era: its tables are written as of 2024 (the Safe Harbor
+# shapes write a birth year as 2024 less the age), so a year of 1934 or
+# earlier is the year of an age of 90 or more, which Safe Harbor pools
+# (45 CFR 164.514(b)(2)(i)(C): "all elements of dates (including year)
+# indicative of such age").
+REF_YEAR = 2024
+OLDEST_YEAR_SHOWN = REF_YEAR - 90
+
+
+# Columns `NOT_READ` keeps out of the leak scan that still name a Safe
+# Harbor element, so the zoo answers the Safe Harbor question `yes` for
+# them (the orchestrator's LANE E0c RULINGS 2 (2)): a three-figure ZIP
+# area ('021**') names a place smaller than a state; a later Safe Harbor
+# ZIP3 allowlist of areas over 20,000 people is lane CODES-2's.
+SAFE_HARBOR_THOUGH_NOT_READ = frozenset({"zip3"})
+
+
+def _is_an_age(column: str) -> bool:
+    """Whether a Safe Harbor name rule reads the column as an age alone."""
+    return any(pattern.search(column) and modes == ("ages over 89",) for pattern, modes, _what in SENSITIVE_NAMES)
+
+
+def ages_over_89(header: "list[str]", rows: "list[list[str]]") -> "frozenset[str]":
+    """The age columns (`_is_an_age`) whose cells hold an age over 89: a cell whose leading whole years are 90 to 149."""
+    held: "set[str]" = set()
+    for place, column in enumerate(header):
+        if column in NOT_READ or not _is_an_age(column):
+            continue
+        for row in rows:
+            match = re.match(r"\s*(\d{2,3})(?!\d)", row[place]) if place < len(row) else None
+            if match and 90 <= int(match.group(1)) < 150:
+                held |= {column}
+                break
+    return frozenset(held)
+
+
+def names_a_safe_harbor_element(table: Table, column: str, old_ages: "frozenset[str] | None" = None) -> bool:
+    """Whether a column truly holds one of Safe Harbor's elements, as the zoo answers the Safe Harbor question.
+
+    A record, account or person key (answered `identifier`), every
+    column a Safe Harbor name rule reaches, a three-figure ZIP area
+    (`SAFE_HARBOR_THOUGH_NOT_READ`), and an age column that holds an age
+    over 89 (45 CFR 164.514(b)(2)(i)(C): the ages past 89 are Safe
+    Harbor's to pool, so the top-code stays; the orchestrator's LANE E0c
+    RULINGS 2 (2)). An age column whose ages all lie under 90 is a
+    measurement: `no`. `old_ages` names the age columns holding such an
+    age on the table the person holds (`ages_over_89`); where it is not
+    given it is read from the table built at the smoke size.
+    """
+    if column in SAFE_HARBOR_THOUGH_NOT_READ:
+        return True
+    if column in NOT_READ:
+        return False
+    if table.knows.get(column) == "identifier":
+        return True
+    if any(pattern.search(column) and modes != ("ages over 89",) for pattern, modes, _what in SENSITIVE_NAMES):
+        return True
+    if not _is_an_age(column):
+        return False
+    if old_ages is None:
+        old_ages = ages_over_89(*table.build(SMOKE_ROWS, seed_of(table)))
+    return column in old_ages
+
+
+def leak_list(table: Table, header: "list[str]") -> "tuple[tuple[str, str], ...]":
+    """Every (column, how) of a table read for real values: the columns' own inventory, then the table's `leaks`."""
+    entries: "list[tuple[str, str]]" = []
+    for column in header:
+        if column in NOT_READ:
+            continue
+        hows: "list[str]" = []
+        for pattern, modes, _what in SENSITIVE_NAMES:
+            if pattern.search(column):
+                hows += [how for how in modes if how not in hows]
+        if table.knows.get(column) == "identifier" and not hows:
+            hows += ["values"]
+        entries += [(column, how) for how in hows]
+    keys = {_leak_key(column, how) for column, how in entries}
+    entries += [entry for entry in table.leaks if entry[0] in header and _leak_key(*entry) not in keys]
+    return tuple(entries)
+
+
+# Keys of a column's block that hold a count, a share or a width, never a
+# value of the column: a number under them is not read as a real value.
+NOT_A_VALUE_KEY = re.compile(
+    r"count|rows|cells|share|width|figures|places|length|distinct|people|persons|subjects|"
+    r"seen|total|number_of|n_|_n$|digits|size|bins|rank|order|position|index|percent|ratio|fraction|proportion"
+)
+# Blocks keyed by a count or by a part of a clock or a calendar, never by
+# a value of the column (skeptic 1 item 11): `n_distinct_by_occurrences`
+# {"1": 44} says 44 values occur once, the widths say how wide the cells
+# are, a census counts hours, minutes, weekdays or days of the month,
+# and a tail block's `bin_groups` names histogram bins by their number.
+COUNTED_BLOCK = re.compile(r"by_occurrences|widths?$|_census$|^bin_groups$")
+# Blocks keyed by a form, a class, a style or a spelling whose numbers
+# are the rows each holds: their keys are read (a prefix or a spelling
+# may be a value's), their numbers never ('layout_forms' {"%% &&": 149}
+# is 149 rows, not an age; a level's 'variants' {"13 mo": 136} is 136).
+COUNT_VALUED = re.compile(
+    r"^(layout_\w+|missing_by_\w+|numeric_styles|number_spellings|negative_notations|decimal_plus|variants\w*)$"
+)
+PLACEHOLDER = re.compile(r"-\d")
+# Words a column writes for a value it lacks: no person's value, so never
+# counted as one (a ZIP column's 'UNKNOWN', a death date's 'NULL').
+MISSING_WORDS = frozenset((
+    "null", "na", "n/a", "nan", "none", "unknown", "unk", "missing", "homeless", "not recorded", "declined", "-",
+))
+
+
+def _normal(text: str) -> str:
+    """A value as the leak scan compares it (Codex item 2): folded, its spaces single, a number as its value.
+
+    A name read 'Maria Chen' and published 'maria chen' is one value; a
+    whole number loses its leading noughts and its '.0'; a number in
+    scientific notation ('1.23457E+11', as Excel shows an account number)
+    is the number it writes (123457000000), as a published 123457000000.0
+    is.
+    """
+    stripped = " ".join(text.split()).casefold()
+    whole = re.fullmatch(r"(-?)0*(\d+)(\.0+)?", stripped)
+    if whole:
+        return f"{whole.group(1)}{whole.group(2) or '0'}"
+    if re.fullmatch(r"-?\d+(\.\d+)?(e[+-]?\d+)?|-?\.\d+", stripped):
+        number = float(stripped)
+        if number.is_integer() and abs(number) < 1e300:
+            return f"{int(number)}"
+        return f"{number!r}"
+    return stripped
+
+
+def _scalars(value: object, key: str = "") -> "list[str]":
+    """Every string and every number a description block holds, under any key but a count's or a census's."""
+    found: "list[str]" = []
+    if isinstance(value, bool) or value is None:
+        return found
+    if isinstance(value, str):
+        found += [value]
+    elif isinstance(value, (int, float)):
+        if not NOT_A_VALUE_KEY.search(key.casefold()):
+            found += [f"{int(value)}" if float(value).is_integer() else f"{value}"]
+    elif isinstance(value, dict):
+        rows_only = bool(COUNT_VALUED.search(key.casefold()))
+        for inner_key, inner in value.items():
+            if COUNTED_BLOCK.search(f"{inner_key}".casefold()):
+                continue
+            # A dict keyed by values (a census) holds them in its keys.
+            found += [f"{inner_key}"]
+            if rows_only and isinstance(inner, (int, float)):
+                continue
+            found += _scalars(inner, f"{inner_key}")
+    elif isinstance(value, list):
+        for inner in value:
+            found += _scalars(inner, key)
+    return found
+
+
+def _block(described: "dict", column: str) -> "list[str]":
+    """The description's scalars about one column: its block, and the notes that name it."""
+    found: "list[str]" = []
+    for block in described.get("columns", []):
+        if isinstance(block, dict) and f"{block.get('name')}" == column:
+            found += _scalars({key: value for key, value in block.items() if key != "name"})
+    for note in described.get("publication_notes", []) or []:
+        if isinstance(note, dict) and f"{note.get('column')}" == column:
+            found += _scalars(note.get("note"))
+    return found
+
+
+def _over_89(texts: "list[str]") -> "set[str]":
+    """The ages past the Safe Harbor top-code: 90 itself stands for the pooled '90 or older', so past 90."""
+    ages: "set[str]" = set()
+    for text in texts:
+        match = re.fullmatch(r"\s*(\d{2,3})(\.\d+)?\s*(years?)?\s*", text)
+        if match and 90 < float(match.group(1) + (match.group(2) or "")) < 150:
+            ages |= {_normal(match.group(1))}
+    return ages
+
+
+# The written forms of a date the leak scan reads a real cell in, tried
+# in order; the first under which every present cell parses is the
+# column's (skeptic 1 item 3: a US, text or two-figure-year birth date
+# is compared as the ISO date the description prints).
+DATE_FORMS = (
+    "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%m/%d/%Y", "%d/%m/%Y", "%d-%b-%Y", "%d %b %Y",
+    "%b %d, %Y", "%Y%m%d", "%m/%d/%y", "%d/%m/%y", "%d-%b-%y",
+)
+ISO_DATE = re.compile(r"(\d{4})-(\d{2})-(\d{2})(?:[T ][\d:.]+)?")
+
+
+def _date_form(cells: "list[str]") -> str:
+    """The first of `DATE_FORMS` every present cell parses under ('' where none does: not a date column)."""
+    present = [cell.strip() for cell in cells if cell.strip() and not PLACEHOLDER.fullmatch(cell.strip())]
+    present = [cell for cell in present if cell.casefold() not in MISSING_WORDS]
+    if not present:
+        return ""
+    for form in DATE_FORMS:
+        try:
+            for cell in present:
+                datetime.datetime.strptime(cell, form)
+        except ValueError:
+            continue
+        return form
+    return ""
+
+
+def _iso_dates(cells: "list[str]", form: str, century: str = "") -> "list[str]":
+    """Each cell that parses under `form` as its ISO date; a two-figure year in the century the person named."""
+    dates: "list[str]" = []
+    first = int(century[:4]) if re.fullmatch(r"\d{4}-\d{4}", century) else 0
+    for cell in cells:
+        try:
+            moment = datetime.datetime.strptime(cell.strip(), form)
+        except ValueError:
+            continue
+        if first and "%y" in form:
+            moment = moment.replace(year=first + moment.year % 100)
+        dates += [moment.date().isoformat()]
+    return dates
+
+
+def _printed_dates(said: "list[str]") -> "set[str]":
+    """The full dates a block prints, as ISO dates; one at a grain coarser than a day is left out (skeptic 1 item 4).
+
+    A date published at a year grain is written as its year's first day
+    ('1931-01-01'), and at a month grain as its month's first; where the
+    block publishes at that grain such a date is the grain's, not a
+    person's day, and the years mode reads its year instead.
+    """
+    grains = {text.casefold() for text in said}
+    dates: "set[str]" = set()
+    for text in said:
+        match = ISO_DATE.fullmatch(text.strip())
+        if not match:
+            continue
+        year, month, day = match.groups()
+        if day == "01" and (month == "01" and "year" in grains or "month" in grains):
+            continue
+        dates |= {f"{year}-{month}-{day}"}
+    return dates
+
+
+def _old_years(texts: "list[str]", form: str = "", century: str = "") -> "set[int]":
+    """The years of 1934 or earlier (an age of 90 or more in the zoo's era) written as a year or in a date."""
+    years: "set[int]" = set()
+    for text in texts:
+        stripped = text.strip()
+        year = 0
+        if re.fullmatch(r"\d{4}(\.0+)?", stripped):
+            year = int(stripped[:4])
+        elif ISO_DATE.fullmatch(stripped) or re.fullmatch(r"\d{4}-\d{2}", stripped):
+            year = int(stripped[:4])
+        elif form:
+            parsed = _iso_dates([stripped], form, century)
+            year = int(parsed[0][:4]) if parsed else 0
+        if 1800 <= year <= OLDEST_YEAR_SHOWN:
+            years |= {year}
+    return years
+
+
+def _leak_key(column: str, how: str, stage: str = "") -> str:
+    """The name a leak entry is recorded under: the column, ' years' for the years mode, ' unanswered' before the answers."""
+    return f"{column}{' years' if how == 'years over 89' else ''}{f' {stage}' if stage else ''}"
+
+
+def leaked(
+    table: Table, source: pathlib.Path, twin: "pathlib.Path | None", profile: pathlib.Path, stage: str = "",
+    real_raw: object = None,
+) -> "dict[str, dict]":
+    """Per entry of `leak_list`: the real values the description and the twin carry.
+
+    'values': each distinct real value (a one-figure placeholder such as
+    '-1' aside), compared as `_normal` writes it -- found among the
+    scalars of the column's block in the description (and the notes
+    naming it) and among the twin's cells; 'printed values': the same in
+    the description alone, a date column's cells compared as the ISO
+    dates the description prints; 'ages over 89': the distinct ages past
+    the top-code 90 written as numbers there; 'years over 89': the
+    distinct years of 1934 or earlier written there, as years or in
+    dates. Returns {key: {"column", "how", "description": n, "twin": n,
+    "twin_cells": n, "twin_by_chance": n}}, distinct values and the
+    twin's cells holding one, keyed as `_leak_key` names them. With no
+    twin (a description read before the next step, `stage`
+    'unanswered'), only the description is read.
+
+    THE TWIN IS READ STRICTLY (the orchestrator's LANE E0c RULINGS 2
+    (1), 2026-10-25 16:36; E0c verify 2 item 1): every twin cell equal
+    to a real value of its column counts, with NO chance allowance:
+    `twin` is the number of distinct real values the twin meets and
+    `twin_cells` the cells holding one, whatever chance gives. No twin
+    identifier equals a real one by construction (lane ID-ROOM, plan
+    P4-D432), so a made-up key that meets a real key where the real keys
+    fill their room is counted as the copy is. Where every real value is
+    a number, `twin_by_chance` still says what a CONTROL meets
+    (`_by_chance`: the real values moved past the real range, which no
+    real value holds): an informational figure only, which no count
+    subtracts, kept until BATCH 4k retires it when ID-ROOM merges. The
+    description's values are counted exactly.
+    """
+    raw = table.read(source)["raw"] if real_raw is None else real_raw
+    twin_raw = table.read(twin)["raw"] if twin is not None else None
+    described = json.loads(profile.read_text(encoding="utf-8"))
+    found: "dict[str, dict]" = {}
+    for column, how in leak_list(table, [f"{name}" for name in raw.columns]):  # type: ignore[attr-defined]
+        real_cells = [f"{cell}" for cell in raw[column]]  # type: ignore[index]
+        twin_cells = (
+            [f"{cell}" for cell in twin_raw[column]]  # type: ignore[index]
+            if twin_raw is not None and column in twin_raw else []  # type: ignore[operator]
+        )
+        texts = _block(described, column)
+        said = [_normal(text) for text in texts]
+        form = _date_form(real_cells) if how in ("printed values", "years over 89") else ""
+        century = table.knows.get(column, "")
+        entry = {"column": column, "how": how, "description": 0, "twin": 0, "twin_cells": 0, "twin_by_chance": 0}
+        if how == "ages over 89":
+            twin_ages = [_normal(cell) for cell in twin_cells]
+            entry["description"] = len(_over_89(said))
+            entry["twin"] = len(_over_89(twin_ages))
+            entry["twin_cells"] = sum(1 for cell in twin_ages if _over_89([cell]))
+        elif how == "years over 89":
+            entry["description"] = len(_old_years(texts))
+            entry["twin"] = len(_old_years(twin_cells, form, century))
+            entry["twin_cells"] = sum(1 for cell in twin_cells if _old_years([cell], form, century))
+        elif how == "printed values" and form:
+            real_dates = set(_iso_dates(real_cells, form, century))
+            entry["description"] = len(real_dates & _printed_dates(texts))
+        else:
+            real = {
+                _normal(cell) for cell in real_cells
+                if cell.strip() and not PLACEHOLDER.fullmatch(cell.strip()) and _normal(cell) not in MISSING_WORDS
+            }
+            entry["description"] = len(real & set(said))
+            normal_twin = [_normal(cell) for cell in twin_cells] if how == "values" else []
+            in_twin = real & set(normal_twin)
+            # Strict (RULINGS 2 (1)): every real value met counts; the
+            # control's matches are recorded beside it, never subtracted.
+            _drawn, chance = _by_chance(real, normal_twin)
+            cells = sum(1 for cell in normal_twin if cell in in_twin)
+            entry.update({"twin": len(in_twin), "twin_cells": cells, "twin_by_chance": chance})
+        found[_leak_key(column, how, stage)] = entry
+    return found
+
+
+def _by_chance(real: "set[str]", twin: "list[str]") -> "tuple[bool, int]":
+    """Whether a CONTROL is drawn, and the distinct real values the twin meets by chance: the control's matches.
+
+    INFORMATIONAL ONLY since the orchestrator's LANE E0c RULINGS 2 (1):
+    `leaked` records it as `twin_by_chance` and subtracts it from no
+    count (the twin is read strictly); BATCH 4k retires it when lane
+    ID-ROOM merges.
+
+    The control is the real numbers moved past their range -- figures by
+    the range's width, numbers by twice their spread -- so none of it is
+    a real value (Codex item 1: a control shifted by the spread alone
+    would land its lowest value on the highest real one), and its
+    distinct matches in the twin say what chance gives where the twin
+    draws past the real range as often as inside it. Chance is never read
+    from the twin's own values inside the real range (E0c verify of
+    repair 1, item 1): where the real keys fill their range (sequential
+    record numbers 1 to N), every value a verbatim or shuffled copy
+    writes lies there, so a chance taken from them equals the copy and
+    hides it; a twin that draws inside the real range and not past it is
+    counted, as a copy is. The numbers are the values' figures where
+    every value is one run of figures between the same constant marks
+    ('mr4000123', '100023', '31000000'), or else every value read as a
+    number; no control is drawn where they are neither (names, addresses,
+    codes with letters among the figures), and there every match counts.
+    """
+    if not real:
+        return False, 0
+    parts = [re.fullmatch(r"(\D*?)(\d+)(\D*)", value) for value in real]
+    marks = {(part.group(1), part.group(3)) for part in parts if part}
+    control: "set[str]" = set()
+    if all(parts) and len(marks) == 1:
+        (before, after), = marks
+        numbers = [int(part.group(2)) for part in parts if part]
+        places = max(len(part.group(2)) for part in parts if part)
+        width = max(numbers) - min(numbers) + 1
+        control = {f"{before}{number + width:0{places}d}{after}" for number in numbers}
+        if not before:
+            control = {_normal(value) for value in control}
+    else:
+        try:
+            values = [float(value) for value in real]
+        except ValueError:
+            return False, 0
+        spread = max(values) - min(values)
+        shift = 2 * spread if spread else 1.0
+        control = {_normal(f"{value + shift!r}") for value in values}
+    return True, len({cell for cell in twin if cell in control})
 
 
 # -- per kind, and the three KPIs --------------------------------------------
@@ -3025,7 +3674,8 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
 def failure_items(table: Table, result: "dict", kind: str) -> "list[str]":
     """Every way a kind failed in one table's run, named for OWNERS."""
     columns = table.kinds[kind]
-    file_kinds = [name for name in table.kinds if name in FILE_KINDS]
+    whole_file = file_kinds()
+    file_kinds_here = [name for name in table.kinds if name in whole_file]
     items: "list[str]" = []
     steps = result["steps"]
     for step in ("profile", "answers", "generate", "validate"):
@@ -3038,20 +3688,34 @@ def failure_items(table: Table, result: "dict", kind: str) -> "list[str]":
             items += ["questions"]
             break
     for miss in result["misses"]:
-        if miss[0] in columns or (not miss[0] and (kind in file_kinds or not file_kinds)):
-            items += [f"miss {miss[0] or 'the file'}"]
+        if miss[0] in columns or (not miss[0] and (kind in file_kinds_here or not file_kinds_here)):
+            # Each validate check its own failure (Codex item 5): a column
+            # that misses three checks counts three, named by the check.
+            items += [f"miss {miss[0] or 'the file'}" + (f" -- {miss[1]}" if len(miss) > 1 and miss[1] else "")]
     for name in result.get("analyst_real_errors", []):
         if name == "read" or _mode_of(table, name)[0] == kind:
             items += [f"real {name}"]
     items += [failure[1] for failure in result["analyst"] if failure[0] == kind]
+    # HIPAA FIRST (lane E0c): a real value of a column that names a
+    # person, a place or a record, found in the description or the twin,
+    # named by its entry ('leak dob_iso', 'leak dob_iso years', 'leak
+    # zip_lost unanswered').
+    for key, found in result.get("leaks", {}).items():
+        if found.get("column", key) in columns and (found["description"] or found["twin"]):
+            items += [f"leak {key}"]
     return sorted(set(items))
 
 
 def owner_lines(kind: str, item: str) -> "list[tuple[str, str]]":
-    """The OWNERS lines that cover one failure of a kind: (owner, gap)."""
+    """The OWNERS lines that cover one failure of a kind: (owner, gap).
+
+    A validate miss is named with its check ('miss ts -- n_distinct'); a
+    line that covers the column's misses ('miss ts') covers each of them.
+    """
+    base = item.split(" -- ")[0]
     return [
-        (owner, gap) for owner, gap, covers in OWNERS.get(kind, ())
-        if re.fullmatch(covers, item)
+        (owner, gap) for owner, gap, covers in owners().get(kind, ())
+        if re.fullmatch(covers, item) or re.fullmatch(covers, base)
     ]
 
 
@@ -3077,15 +3741,16 @@ def per_kind(results: "list[dict]") -> "dict[str, dict]":
     analyst check held on the twin.
     """
     kinds: "dict[str, dict]" = {}
+    whole_file = file_kinds()
     for result in results:
         table = table_named(result["table"])
-        file_kinds = [kind for kind in table.kinds if kind in FILE_KINDS]
+        file_kinds_here = [kind for kind in table.kinds if kind in whole_file]
         for kind, columns in table.kinds.items():
             items = failure_items(table, result, kind)
             misses = [
                 miss for miss in result["misses"]
                 if miss[0] in columns
-                or (not miss[0] and (kind in file_kinds or not file_kinds))
+                or (not miss[0] and (kind in file_kinds_here or not file_kinds_here))
             ]
             analyst = [failure for failure in result["analyst"] if failure[0] == kind]
             owned = {item: owner_lines(kind, item) for item in items}
@@ -3104,37 +3769,120 @@ def per_kind(results: "list[dict]") -> "dict[str, dict]":
                 "owners": sorted({owner for lines in owned.values() for owner, _gap in lines}),
                 "gaps": sorted({f"{owner}: {gap}" for lines in owned.values() for owner, gap in lines}),
             }
-    return {kind: kinds[kind] for kind in KINDS if kind in kinds}
+    return {kind: kinds[kind] for kind in all_kinds() if kind in kinds}
 
 
-def runnable_tables() -> "tuple[Table, ...]":
-    """The catalogue's tables this machine can read: a workbook needs the cross-check reader.
+def runnable_tables(tables: "tuple[Table, ...] | None" = None) -> "tuple[Table, ...]":
+    """The tables this machine can read (E0a's, unless named): a workbook needs the cross-check reader.
 
     pandas opens an `.xlsx` through openpyxl, which CI's `minimums` cell
-    does not install (`tests/crosscheck.py`); there the workbook export
-    is left out, and its kinds are named as not measured.
+    does not install (`tests/crosscheck.py`); there the workbook exports
+    are left out, and their kinds are named as not measured.
     """
     import crosscheck
 
+    chosen = TABLES if tables is None else tables
     if crosscheck.present():
-        return TABLES
-    return tuple(table for table in TABLES if table.suffix != ".xlsx")
+        return chosen
+    return tuple(table for table in chosen if table.suffix != ".xlsx")
 
 
 def workbook_kinds() -> "tuple[str, ...]":
-    """The kinds the workbook exports serve, measured only where the cross-check reader is."""
-    return tuple(kind for table in TABLES if table.suffix == ".xlsx" for kind in table.kinds)
+    """The kinds the catalogue's workbook exports serve, measured only where the cross-check reader is."""
+    return tuple(kind for table in catalogue() if table.suffix == ".xlsx" for kind in table.kinds)
 
 
-def run_zoo(folder: pathlib.Path, n: int, seed: int = 20261016) -> "list[dict]":
-    """Every catalogue table this machine can read, end to end, each in a folder of its own."""
+def run_zoo(
+    folder: pathlib.Path, n: int, seed: int = SEED, tables: "tuple[Table, ...] | None" = None,
+) -> "list[dict]":
+    """The catalogue's tables (or those named) this machine can read, end to end, each in a folder of its own.
+
+    At the KPI size and above the shipped command runs with the owner's
+    table floor on (plan P4-D425); below it, for the suite's smoke, the
+    internal switch turns it off.
+    """
     results: "list[dict]" = []
-    runnable = runnable_tables()
-    for place in range(len(TABLES)):
-        table = TABLES[place]
+    chosen = catalogue() if tables is None else tables
+    runnable = runnable_tables(chosen)
+    floor_on = n >= KPI_ROWS
+    for table in chosen:
         if table in runnable:
-            results += [run_table(table, folder / table.name, n, seed + place)]
+            results += [run_table(table, folder / table.name, n, seed_of(table, seed), small_tables_refused=floor_on)]
     return results
+
+
+# -- the shards (K-HZ-03's bound, the zoo plan's critic item 16) ---------------
+
+# The slow driver runs the catalogue in shards of at most this many kinds,
+# each judged on its own time; a table's kinds stay in one shard.
+SHARD_KINDS_AT_MOST = 30
+
+
+def shards() -> "tuple[tuple[Table, ...], ...]":
+    """The catalogue in shards: `health_zoo_wide.SHARDS` names each shard's tables, in run order."""
+    return tuple(tuple(table_named(name) for name in names) for names in _wide().SHARDS)  # type: ignore[attr-defined]
+
+
+def smoke_ran(results: "list[dict]") -> "dict[str, bool]":
+    """Per kind: whether its table's run went through every step to exit 0 or 3 (the smoke's own rule)."""
+    ran: "dict[str, bool]" = {}
+    for result in results:
+        steps = result["steps"]
+        whole = all(
+            step in steps and steps[step]["exit"] in (0, 3)
+            for step in ("profile", "answers", "generate", "validate")
+        )
+        for kind in table_named(result["table"]).kinds:
+            ran[kind] = whole
+    return {kind: ran[kind] for kind in all_kinds() if kind in ran}
+
+
+def floor_measures(results: "list[dict]") -> "dict[str, object]":
+    """K-HZ-05: the kinds the owner's table floor refused, and the people each several-rows kind holds.
+
+    A kind is refused when its table's run was stopped by the floor
+    (`refused_by_floor`); the people are the distinct values of its
+    table's person column on the real table, held to PEOPLE_AT_LEAST at
+    the run's size (100 at 600 rows, 1,000 at 20,000).
+    """
+    refused: "list[str]" = []
+    short: "list[str]" = []
+    several = 0
+    fewest: "int | None" = None
+    for result in results:
+        table = table_named(result["table"])
+        if result.get("refused_by_floor"):
+            refused += list(table.kinds)
+        people = result.get("people")
+        if people is None:
+            continue
+        several += len(table.kinds)
+        fewest = people if fewest is None else min(fewest, people)
+        if people < PEOPLE_AT_LEAST.get(int(result["rows"]), PEOPLE_AT_LEAST[KPI_ROWS]):
+            short += list(table.kinds)
+    return {
+        "kinds_refused_by_floor": len(refused),
+        "kinds_refused_by_floor_named": ", ".join(refused) or "none",
+        "several_rows_kinds": several,
+        "fewest_people": fewest if fewest is not None else 0,
+        "several_rows_kinds_under_people_floor": len(short),
+        "several_rows_kinds_under_people_floor_named": ", ".join(short) or "none",
+    }
+
+
+def leak_measures(results: "list[dict]") -> "dict[str, object]":
+    """HIPAA first: the real values of person, place and record columns found published, per column."""
+    published = 0
+    named: "list[str]" = []
+    for result in results:
+        for column, found in sorted(result.get("leaks", {}).items()):
+            if found["description"] or found["twin"]:
+                published += found["description"] + found["twin"]
+                named += [
+                    f"{result['table']}.{column}: {found['description']} in the description, "
+                    f"{found['twin']} in the twin ({found['twin_cells']} cells)"
+                ]
+    return {"real_values_published": published, "real_values_published_named": "; ".join(named) or "none"}
 
 
 def zoo_measures(results: "list[dict]") -> "dict[str, dict]":
@@ -3162,7 +3910,7 @@ def zoo_measures(results: "list[dict]") -> "dict[str, dict]":
         "analyst_errors_on_real": sum(len(r.get("analyst_real_errors", [])) for r in results),
         "roles_reached": len(roles),
         "roles": sorted(roles),
-        "failing": [kind for kind in KINDS if kind in failing],
+        "failing": [kind for kind in all_kinds() if kind in failing],
     }
     second: "dict[str, object]" = {
         "kinds_failing": len(failing),
@@ -3176,4 +3924,6 @@ def zoo_measures(results: "list[dict]") -> "dict[str, dict]":
     for kind, verdict in kinds.items():
         second[f"misses_{kind}"] = verdict["misses"]
         second[f"analyst_failures_{kind}"] = len(verdict["analyst_failures"])
-    return {"K-HZ-01": first, "K-HZ-02": second, "kinds": kinds}
+    second["failures"] = sum(len(verdict["failures"]) for verdict in kinds.values())
+    second.update(leak_measures(results))
+    return {"K-HZ-01": first, "K-HZ-02": second, "K-HZ-05": floor_measures(results), "kinds": kinds}

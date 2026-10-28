@@ -2250,63 +2250,137 @@ def test_k_s8_04(record_property, tmp_path: pathlib.Path) -> None:
     _kpi(record_property, "K-S8-04", value)
 
 
-@pytest.fixture(scope="module")
-def health_zoo_small(tmp_path_factory: pytest.TempPathFactory) -> "dict":
-    """The health data zoo at the suite's 600 rows, run once for K-HZ-01 and K-HZ-02.
+# The health data zoo's shards (`health_zoo.shards()`), each run by a test
+# item of its own below (skeptic 1 item 8 of lane E0c's repair: K-HZ-03's
+# bound of 90 seconds is each shard's, so no one item runs the whole
+# catalogue). A shard once run is kept here for the module's K-HZ tests.
+HEALTH_ZOO_SHARDS = (1, 2, 3, 4, 5, 6)
+_HEALTH_ZOO_RUNS: "dict[int, dict]" = {}
 
-    Where openpyxl is absent (CI's `minimums` cell) the workbook export
-    is left out (`health_zoo.runnable_tables`), and the two tests below
-    judge the keys of the delimited exports and name the rest.
+
+def _health_zoo_shard(place: int, tmp_path_factory: pytest.TempPathFactory) -> "dict":
+    """One shard of the 600-row smoke, run once: its results and its seconds."""
+    import time
+
+    import health_zoo
+
+    if place not in _HEALTH_ZOO_RUNS:
+        folder = tmp_path_factory.mktemp(f"health-zoo-shard-{place}")
+        started = time.perf_counter()
+        results = health_zoo.run_zoo(folder, health_zoo.SMOKE_ROWS, tables=health_zoo.shards()[place - 1])
+        _HEALTH_ZOO_RUNS[place] = {"results": results, "seconds": round(time.perf_counter() - started, 1)}
+    return _HEALTH_ZOO_RUNS[place]
+
+
+def test_the_health_zoo_shards_are_the_suites() -> None:
+    """The shards this file runs one item each are the catalogue's: red when a shard is added and not run here."""
+    import health_zoo
+
+    assert len(health_zoo.shards()) == len(HEALTH_ZOO_SHARDS)
+
+
+@pytest.mark.parametrize("place", HEALTH_ZOO_SHARDS)
+def test_health_zoo_smoke_shard(place: int, record_property, tmp_path_factory: pytest.TempPathFactory) -> None:
+    """One shard of the zoo's 600-row smoke, BELOW THE OWNER'S TABLE FLOOR, as an item of its own (K-HZ-03's 90 s a shard).
+
+    Every runnable table of the shard is run end to end (profile, the
+    general answers, generate, validate, the analyst), its seconds
+    recorded; K-HZ-01 and K-HZ-02 below read the six shards' results.
     """
     import health_zoo
 
-    results = health_zoo.run_zoo(tmp_path_factory.mktemp("health-zoo"), 600)
-    return health_zoo.zoo_measures(results)
+    run = _health_zoo_shard(place, tmp_path_factory)
+    record_property("seconds_600_rows_shard", run["seconds"])
+    shard = health_zoo.shards()[place - 1]
+    assert [result["table"] for result in run["results"]] == [t.name for t in health_zoo.runnable_tables(shard)]
+
+
+@pytest.fixture(scope="module")
+def health_zoo_small(tmp_path_factory: pytest.TempPathFactory) -> "dict":
+    """The health data zoo's 600-row smoke, BELOW THE OWNER'S TABLE FLOOR, for K-HZ-01 and K-HZ-02.
+
+    Lane E0c (plan P4-D431): the catalogue runs shard by shard
+    (`health_zoo.shards()`, at most thirty kinds a shard), each shard an
+    item of its own above (`test_health_zoo_smoke_shard`), with
+    `cli.main`'s internal switch keeping the floor off as the suite does
+    (the 20,000-row legs, the floor on, are the slow driver's); a shard
+    not yet run (a K-HZ test run alone) is run here. Where openpyxl is
+    absent (CI's `minimums` cell) the workbook exports are left out
+    (`health_zoo.runnable_tables`), and the two tests below judge the
+    keys of the delimited exports and name the rest.
+    """
+    import health_zoo
+
+    results: "list[dict]" = []
+    seconds: "list[float]" = []
+    for place in HEALTH_ZOO_SHARDS:
+        run = _health_zoo_shard(place, tmp_path_factory)
+        results += run["results"]
+        seconds += [run["seconds"]]
+    measured = health_zoo.zoo_measures(results)
+    measured["smoke"] = health_zoo.smoke_ran(results)
+    measured["shard_seconds"] = seconds
+    return measured
 
 
 HEALTH_ZOO_WORKBOOK_PART = (
-    "the surveys workbook's two kinds (surveys_pro and excel_workbook), which pandas "
-    "opens through openpyxl: the keys over every export (kinds_passing_600_rows, "
-    "kinds_failing_600_rows, validate_misses, analyst_failures). The delimited exports' "
-    "keys were measured, recorded and judged above."
+    "the workbook exports' kinds (surveys_pro, excel_workbook and workbook_1904_dates), which pandas "
+    "opens through openpyxl: the keys over every export (kinds_passing_600_rows_below_floor, "
+    "kinds_failing_600_rows, validate_misses_600_rows, analyst_failures_600_rows). The delimited "
+    "exports' keys were measured, recorded and judged above."
 )
 
 
 def test_k_hz_01(record_property, health_zoo_small: "dict") -> None:
-    """The kinds of healthcare data that pass end to end, the analyst's code unchanged (lane E0a, plan P4-D399).
+    """The kinds of healthcare data that pass end to end, the analyst's code unchanged (lanes E0a and E0c, plans P4-D399 and P4-D431).
 
-    Twenty-five exports at 600 rows, each profiled, its questions
-    answered with general facts about the data, generated, validated,
-    and read by the analyst's script on the real table and on the twin.
-    The driver measures the same at 20,000 rows. `tests/health_zoo.py`
-    owns the battery.
+    THE SUITE'S PART, AT 600 ROWS, BELOW THE OWNER'S TABLE FLOOR: every
+    catalogue table profiled, its questions answered with general facts
+    about the data, generated, validated and read by the analyst's
+    script on the real table and on the twin. It measures what K-HZ-01's
+    pass rule asks of 600 rows -- each kind's smoke runs every step to
+    exit 0 or 3 -- and the prerequisites there (general questions only,
+    no analyst error on a real table), and records the kinds whose
+    analyst checks all hold at 600 rows as a figure below the floor. A
+    kind PASSES only at 20,000 rows with the shipped floor on, which the
+    driver measures. `tests/health_zoo.py` owns the battery.
     """
+    import health_zoo
+
     measured = health_zoo_small["K-HZ-01"]
     whole = crosscheck.present()
+    workbook = set(health_zoo.workbook_kinds())
+    smoke = health_zoo_small["smoke"]
     value = {
-        "kinds_passing_600_rows_csv": measured["kinds_passing_csv"],
-        "kinds": measured["kinds"],
-        "tables_generated": measured["tables_generated"],
-        "questions_asked": measured["questions_asked"],
+        "kinds_smoke_600_rows_running_csv": sum(1 for kind, ran in smoke.items() if ran and kind not in workbook),
+        "kinds_passing_600_rows_below_floor_csv": measured["kinds_passing_csv"],
+        "kinds_600_rows": measured["kinds"],
+        "tables_generated_600_rows": measured["tables_generated"],
+        "questions_asked_600_rows": measured["questions_asked"],
         "questions_not_general": measured["questions_not_general"],
         "analyst_errors_on_real": measured["analyst_errors_on_real"],
         "roles_reached": measured["roles_reached"],
         "kinds_failing_600_rows_named": ", ".join(measured["failing"]) or "none",
     }
     if whole:
-        value["kinds_passing_600_rows"] = measured["kinds_passing_end_to_end"]
+        value["kinds_smoke_600_rows_running"] = sum(1 for ran in smoke.values() if ran)
+        value["kinds_passing_600_rows_below_floor"] = measured["kinds_passing_end_to_end"]
     _kpi(record_property, "K-HZ-01", value, partial=not whole)
     if not whole:
         crosscheck.part_not_measured(HEALTH_ZOO_WORKBOOK_PART)
 
 
 def test_k_hz_02(record_property, health_zoo_small: "dict") -> None:
-    """Per kind, at 600 rows: the step that fails, its misses and analyst failures, and its owner (lane E0a, plan P4-D399).
+    """Per kind, at 600 rows BELOW THE FLOOR: the step that fails, its failures and owners (lanes E0a and E0c, plans P4-D399 and P4-D431).
 
     Each failure of a kind needs an OWNERS line of its own in
-    `tests/health_zoo.py`; one with none breaks the rule's bound of nought.
-    A failure whose only line reads 'needs owner' has its gap stated and
-    no lane yet: it is counted apart, `failures_needing_owner`.
+    `tests/health_zoo.py` or `tests/health_zoo_wide.py`; one with none
+    breaks the rule's bound of nought. A failure whose only line reads
+    'needs owner' has its gap stated and no lane yet: it is counted
+    apart, `failures_needing_owner`. The real values of person, place
+    and record columns found in a description or a twin are counted
+    (HIPAA first). K-HZ-02's judged count, per (kind, check) at 20,000
+    rows with the floor on, is the driver's.
     """
     measured = health_zoo_small["K-HZ-02"]
     whole = crosscheck.present()
@@ -2316,8 +2390,7 @@ def test_k_hz_02(record_property, health_zoo_small: "dict") -> None:
             per_kind[kind] = "passes"
             continue
         per_kind[kind] = (
-            f"{verdict['failing_step']}: {verdict['misses']} missed, "
-            f"{len(verdict['analyst_failures'])} analyst; "
+            f"{verdict['failing_step']}: {len(verdict['failures'])} failing; "
             f"{', '.join(verdict['owners']) or 'NO OWNER'}"
             + (f"; UNOWNED {verdict['unowned']}" if verdict["unowned"] else "")
             + (f"; NEEDING AN OWNER {verdict['needing_owner']}" if verdict["needing_owner"] else "")
@@ -2327,12 +2400,15 @@ def test_k_hz_02(record_property, health_zoo_small: "dict") -> None:
         "failing_kinds_without_owner": measured["failing_kinds_without_owner"],
         "failures_without_owner": measured["failures_without_owner"],
         "failures_needing_owner": measured["failures_needing_owner"],
-        "per_kind": per_kind,
+        "real_values_published_600_rows": measured["real_values_published"],
+        "real_values_published_600_rows_named": measured["real_values_published_named"],
+        "per_kind_600_rows": per_kind,
     }
     if whole:
         value["kinds_failing_600_rows"] = measured["kinds_failing"]
-        value["validate_misses"] = measured["validate_misses"]
-        value["analyst_failures"] = measured["analyst_failures"]
+        value["failures_600_rows"] = measured["failures"]
+        value["validate_misses_600_rows"] = measured["validate_misses"]
+        value["analyst_failures_600_rows"] = measured["analyst_failures"]
     _kpi(record_property, "K-HZ-02", value, partial=not whole)
     if not whole:
         crosscheck.part_not_measured(HEALTH_ZOO_WORKBOOK_PART)

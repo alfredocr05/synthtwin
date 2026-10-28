@@ -862,6 +862,37 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # evidence given the night of 2026-10-24's two 2,000,000-row points
     # on lane H3's head, and `K-HZ-04` stamped from its re-run on the
     # merged head, 763,347 bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    # 785,000 from 776,000 ON LANE E0c'S BRANCH, ITS REPAIR 3 (plan P4-D431,
+    # 2026-10-26), the least round figure the ledger fits under, 784,842
+    # bytes: K-HZ-01 and K-HZ-02 re-stamped after the twin was read
+    # strictly (the orchestrator's LANE E0c RULINGS 2 (1)), K-HZ-02's value
+    # naming each of the 34,282 real values' entries (its per-entry sum),
+    # repair 2's figures kept as history; 784,928 bytes after K-HZ-05's
+    # re-stamp at 3e96fe5 (verify 3). The batch integrator settles this
+    # beside the other lanes' raises.
+    #
+    # 776,000 from 774,000 ON LANE E0c'S BRANCH, ITS REPAIR 2 (plan P4-D431,
+    # 2026-10-25), the least round figure the ledger fits under, 775,608
+    # bytes: K-HZ-01, K-HZ-02, K-HZ-03 and K-HZ-05 re-stamped after the leak
+    # scan's control was read past the real range only, each with repair
+    # 1's figures kept as history. The batch integrator settles this beside
+    # the other lanes' raises.
+    #
+    # 774,000 from 767,000 ON LANE E0c'S BRANCH, ITS REPAIR 1 (plan P4-D431,
+    # 2026-10-25), the least round figure the repaired ledger fits under,
+    # 773,307 bytes: K-HZ-01, K-HZ-02 and K-HZ-03 restated for the widened
+    # leak scan, each with the figures before the repair kept as history,
+    # K-HZ-05 with its own. The batch integrator settles this beside the
+    # other lanes' raises.
+    #
+    # 767,000 from 760,000 ON LANE E0c'S BRANCH (plan P4-D431, 2026-10-24),
+    # the least round figure the lane's ledger fits under, 766,824 bytes:
+    # the health data zoo's K-HZ-01, K-HZ-02 and K-HZ-03 restated for the
+    # widened catalogue of ninety-three kinds and the new pass rule at the
+    # owner's table floor (K-HZ-02 records each kind's step and owners at
+    # both sizes), K-HZ-05 new, one note clause; the old entries' long
+    # status notes shortened to their figures as history. The batch
+    # integrator settles this beside the other lanes' raises.
     #
     # 760,000 from 754,000, AT THE INTEGRATION OF BATCH 4H (2026-10-23),
     # the orchestrator's recorded call D15 (the owner may veto), set once
