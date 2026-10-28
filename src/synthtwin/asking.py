@@ -6514,7 +6514,7 @@ def question_records(
     listed: "list[Question]",
     about_file: "list[Question] | None" = None,
     held_dates: "list[tuple[str, str]] | None" = None,
-    put: "tuple[str, ...]" = (),
+    put: "tuple[tuple[str, str, str], ...]" = (),
 ) -> "tuple[results.Asked, ...]":
     """Every entry the questions file holds, as records, in the file's order (lane S5b, plan P4-D441).
 
@@ -6524,8 +6524,15 @@ def question_records(
       column asked, each column of the checklist and each column
       declared as counted dates that did not read so (plan P4-D406), in
       that order, each numbered from 1 within its section. ``put`` names
-      the columns put at a prompt in this run; a record of the `asked`
-      section naming one of them says so.
+      the questions put at a prompt in this run, each by its column, role
+      and reason (`question_put`); a record of the `asked` section that
+      is one of them says so, and another question on the same column
+      does not (Codex's review of lane S5b, item 1).
+    - A record's ``column`` is the description's column, empty for a
+      question about the file, whose ``subject`` -- what the file writes
+      under its `column` key -- names what it asks about and no column
+      (Codex's review of lane S5b, item 3); a column's record has its
+      name in both.
     - The words are the ones the file writes: a question's shape, its
       standing reading and each answer it offers with what the
       description then publishes, all composed here once (A-P4-58); a
@@ -6552,13 +6559,14 @@ def question_records(
                 results.Asked(
                     section,
                     order,
-                    question.name,
+                    "" if section == results.SECTION_ABOUT_FILE else question.name,
                     question.role,
                     question.reason,
                     question.shape,
                     question.taken,
                     tuple(offers),
-                    section == results.SECTION_ASKED and question.name in put,
+                    section == results.SECTION_ASKED and question_put(question) in put,
+                    question.name,
                 )
             ]
     order = 0
@@ -6574,9 +6582,20 @@ def question_records(
                 f"you said this column writes its dates as counts "
                 f"({member}), and its cells did not read as such dates",
                 "",
+                subject=name,
             )
         ]
     return tuple(found)
+
+
+def question_put(question: Question) -> "tuple[str, str, str]":
+    """What tells one question put at a prompt from another: its column, role and reason (lane S5b).
+
+    Two questions may stand on one column -- `two-numbers` and the days
+    of the year on `2024-001` -- and only the one put at the prompt was
+    put (Codex's review of lane S5b, item 1).
+    """
+    return (question.name, question.role, question.reason)
 
 
 # WHY A HELD ENTRY STANDS IN THE FILE (plan P4-D406): a column declared as
@@ -6588,7 +6607,7 @@ def _record_entry(record: results.Asked) -> "dict[str, object]":
     """One record as the plain data the file shows: a question's, or a held column's."""
     if record.section == results.SECTION_HELD:
         return {
-            "column": record.column,
+            "column": record.subject,
             "what_synthtwin_saw": record.saw,
             "what_this_run_did": HELD_DATES_SAID,
         }
@@ -6602,7 +6621,7 @@ def _record_entry(record: results.Asked) -> "dict[str, object]":
             }
         ]
     return {
-        "column": record.column,
+        "column": record.subject,
         "what_synthtwin_saw": record.saw,
         "read_as_now": record.read_as_now,
         "answers_you_can_give": offered,

@@ -572,8 +572,10 @@ class _Session:
     left_behind: "list[str]" = dataclasses.field(default_factory=list)
     next_command: "results.NextCommand | None" = None
     questions: "tuple[results.Asked, ...]" = ()
-    # The columns whose question was put at a prompt in this run (lane S5b).
-    put: "list[str]" = dataclasses.field(default_factory=list)
+    # The questions put at a prompt in this run, each by its column, role
+    # and reason, and how many were put, answered there or not (lane S5b).
+    put: "list[tuple[str, str, str]]" = dataclasses.field(default_factory=list)
+    prompted: int = 0
 
 
 @dataclasses.dataclass
@@ -692,17 +694,26 @@ def _wrote(*written: "tuple[str, pathlib.Path]") -> None:
 
 
 def _put_at_a_prompt(questions: "list[asking.Question]") -> None:
-    """Record the columns whose question this run put at a prompt (lane S5b, plan P4-D441)."""
+    """Record the questions this run put at a prompt (lane S5b, plan P4-D441).
+
+    Each by its column, role and reason (`asking.question_put`), so a
+    second question on the same column that no prompt showed is not
+    said put; and their count, answered at the prompt or not, which the
+    questions file cannot give once an answer has taken its question out
+    (Codex's review of lane S5b, items 1 and 2).
+    """
     session = _current()
     if session is None:
         return
     for question in questions:
-        if question.name not in session.put:
-            session.put += [question.name]
+        put = asking.question_put(question)
+        if put not in session.put:
+            session.put += [put]
+    session.prompted = session.prompted + len(questions)
 
 
-def _asked_at_a_prompt() -> "tuple[str, ...]":
-    """The columns whose question this run put at a prompt, in the order put."""
+def _asked_at_a_prompt() -> "tuple[tuple[str, str, str], ...]":
+    """The questions this run put at a prompt, by column, role and reason, in the order put."""
     session = _current()
     return () if session is None else tuple(session.put)
 
@@ -714,8 +725,11 @@ def _questions_put_in_the_result(
 
     One record for each entry of the questions file, in its order, and
     the profile's tally (plan P4-D395 part 1, `tally`): its columns, the
-    questions it asked -- about the file and column by column --, those
-    put at a prompt, the checklist's columns, and the columns held.
+    questions its file asks -- about the file and column by column --,
+    the questions this run put at a prompt, answered there or not (an
+    answer takes its question out of the file, so they are counted as
+    put, not read off the records: Codex's review of lane S5b, item 2),
+    the checklist's columns, and the columns held.
     """
     session = _current()
     if session is None:
@@ -729,7 +743,7 @@ def _questions_put_in_the_result(
     session.tally = (
         ("columns", columns),
         ("questions-asked", len(asked)),
-        ("questions-put", len([one for one in asked if one.put])),
+        ("questions-put", session.prompted),
         (
             "checklist",
             len([one for one in records if one.section == results.SECTION_CHECKLIST]),

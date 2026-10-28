@@ -384,9 +384,9 @@ def _file_entries(written: "dict[str, typing.Any]") -> "list[tuple[str, dict[str
 def _record_as_written(record: results.Asked) -> "dict[str, typing.Any]":
     """A record as the file's entry shows it, by the file's documented keys (the test's own reading)."""
     if record.section == results.SECTION_HELD:
-        return {"column": record.column, "what_synthtwin_saw": record.saw}
+        return {"column": record.subject, "what_synthtwin_saw": record.saw}
     return {
-        "column": record.column,
+        "column": record.subject,
         "what_synthtwin_saw": record.saw,
         "read_as_now": record.read_as_now,
         "answers_you_can_give": [
@@ -406,7 +406,9 @@ def _questions_unmet(run: Ran, result: results.Result) -> "list[str]":
     offering nothing; and, where the run wrote its questions file, each
     entry of the file -- read with `json` -- the record's own words, in
     the same order (a held entry's sentence beside it, `asking`'s
-    constant). The tally counts the records: asked, put, checklist, held.
+    constant). A record names its column in the file's words, and a
+    question about the file names none. The tally counts the records --
+    asked, checklist, held -- and no question is put where nobody is asked.
     """
     case = run.case
     expect = case.expect if case.expect is not None else battery.EXPECTED[case.key]
@@ -425,6 +427,8 @@ def _questions_unmet(run: Ran, result: results.Result) -> "list[str]":
             found += [f"(k) {one.column!r} is said put at a prompt, where nobody is asked"]
         if one.section == results.SECTION_HELD and (one.offers or one.read_as_now):
             found += [f"(k) the held {one.column!r} offers an answer"]
+        if one.column != ("" if one.section == results.SECTION_ABOUT_FILE else one.subject):
+            found += [f"(k) the record of {one.subject!r} in {one.section} names the column {one.column!r}"]
     if results.FILE_QUESTIONS in run.kept:
         document = json.loads(run.kept[results.FILE_QUESTIONS].decode("utf-8"))
         entries = _file_entries(document)
@@ -442,7 +446,7 @@ def _questions_unmet(run: Ran, result: results.Result) -> "list[str]":
         wanted = (
             ("columns", columns),
             ("questions-asked", len([one for one in records if one.section in (results.SECTION_ABOUT_FILE, results.SECTION_ASKED)])),
-            ("questions-put", len([one for one in records if one.put])),
+            ("questions-put", 0),
             ("checklist", len([one for one in records if one.section == results.SECTION_CHECKLIST])),
             ("held", len([one for one in records if one.section == results.SECTION_HELD])),
         )
@@ -1904,7 +1908,7 @@ def _profiled_shape(folder: pathlib.Path, text: str, monkeypatch: pytest.MonkeyP
 
 
 def _record_words(record: results.Asked) -> "list[str]":
-    found = [record.column, record.role, record.reason, record.saw, record.read_as_now]
+    found = [record.column, record.subject, record.role, record.reason, record.saw, record.read_as_now]
     for offer in record.offers:
         found += [offer.answer, offer.means, offer.publishes]
     return found
@@ -1933,6 +1937,10 @@ def test_asked_and_file_questions_render_today_s_file_and_hold_nothing_unpublish
         assert hashlib.sha256(_rendered_questions(result, _kept(result), "t.csv")).hexdigest() == _TODAY_S_FILES[key], key
     sections = {one.section for one in held.questions}
     assert results.SECTION_ASKED in sections, held.questions
+    # Each tally as the records count it, written literally (skeptic 1's
+    # item 3): the dates' one question is about the file.
+    assert held.tally == _profile_tally(2, 0, 1, 0, 4), [(one.section, one.column) for one in held.questions]
+    assert dated.tally == _profile_tally(1, 0, 0, 0, 2), [(one.section, one.column) for one in dated.questions]
     assert {one.section for one in dated.questions} >= {results.SECTION_ABOUT_FILE}, dated.questions
     cells = [line.split(",") for line in _held_table(battery.TABLE_ROWS).split("\n")[1:] if line]
     described = (tmp_path / "held" / "t-profile.json").read_text(encoding="utf-8")
@@ -1981,3 +1989,153 @@ def test_the_summary_s_made_up_columns_are_the_carried_ones(ran: Battery) -> Non
         assert _summary_invented(text) == carried, key
         seen = seen + 1
     assert seen >= 5, seen
+
+
+# THE PROMPT, THE HELD SECTION AND THE FILE'S ORDER, AT THE LIBRARY'S SIZE
+# (lane S5b's repair 1: skeptic 1's items 2 to 4 and Codex's items 1 to 3).
+# Each table is 2,000 rows with the table floor set aside, as the
+# joined-ranking case sets it, and every shape asks what it asks at the
+# floor's size (measured: planning-notes/work-2026-10/wave6/S5b/repair1/).
+_LIBRARY_ROWS = 2000
+
+
+def _library_table(kind: str) -> str:
+    """One of four invented tables of 2,000 rows (lane S5b's repair 1).
+
+    `stamp`: six-figure stamps `yymmdd`, asked column by column (the
+    fixed-width question); `day`: `2024-001` to `2024-366`, which the
+    two-numbers question and the days-of-the-year question both reach;
+    `held`: a person beside day counts written `42.345`, declared
+    `excel-1900` and held (plan P4-D406); `ordered`: dates whose day and
+    month are each at most 12 (the question about the file, plan P4-D381)
+    beside the stamps and a weight of one decimal (the checklist).
+    """
+    stream = random.Random(5)
+    found: "list[str]" = []
+    if kind == "stamp":
+        found = ["stamp,ward"]
+        for index in range(_LIBRARY_ROWS):
+            found += [
+                f"{stream.randint(20, 24):02d}{stream.randint(1, 12):02d}{stream.randint(1, 28):02d},"
+                f"{battery.WARDS[index % 4]}"
+            ]
+    elif kind == "day":
+        found = ["day,ward"] + [f"2024-{1 + index % 366:03d},{battery.WARDS[index % 4]}" for index in range(_LIBRARY_ROWS)]
+    elif kind == "held":
+        found = ["person,visit,ward"]
+        for index in range(_LIBRARY_ROWS):
+            found += [
+                f"P{1000 + index % 500},{stream.randint(40, 45)}.{stream.randint(0, 999):03d},{battery.WARDS[index % 4]}"
+            ]
+    else:
+        found = ["visit,stamp,weight,ward"]
+        for index in range(_LIBRARY_ROWS):
+            weight = 50.0 + 18.0 * (stream.random() + stream.random() + stream.random())
+            found += [
+                f"{stream.randint(1, 12):02d}/{stream.randint(1, 12):02d}/2024,"
+                f"{stream.randint(20, 24):02d}{stream.randint(1, 12):02d}{stream.randint(1, 28):02d},"
+                f"{weight:.1f},{battery.WARDS[index % 4]}"
+            ]
+    return "\n".join(found) + "\n"
+
+
+def _library_profile(
+    folder: pathlib.Path,
+    kind: str,
+    monkeypatch: pytest.MonkeyPatch,
+    *options: str,
+    ask: "list[str | None] | None" = None,
+) -> results.Result:
+    folder.mkdir()
+    (folder / "t.csv").write_text(_library_table(kind), encoding="utf-8", newline="\n")
+    monkeypatch.chdir(folder)
+    result = cli.run(["profile", "t.csv", *options], ask=ask, small_tables_refused=False)
+    assert result.verdict == "no-miss", (kind, result.refusal)
+    return result
+
+
+def _profile_tally(asked: int, put: int, checklist: int, held: int, columns: int) -> "tuple[tuple[str, int], ...]":
+    return (
+        ("columns", columns),
+        ("questions-asked", asked),
+        ("questions-put", put),
+        ("checklist", checklist),
+        ("held", held),
+    )
+
+
+def test_a_question_put_at_a_prompt_is_said_put_and_counted(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`put` and the tally's `questions-put` follow the prompt, question by question (plan P4-D441).
+
+    Skeptic 1's item 2: kept at the prompt with Enter, the stamps' one
+    question is said put and counted; written down with nobody to ask, it
+    is neither. Codex's item 1: on `2024-001` the prompt puts the
+    two-numbers question alone, and the days-of-the-year question the
+    final records also hold on that column is not said put. Codex's item
+    2: answered at the prompt, the question leaves the file and stays
+    counted as put, since it was.
+    """
+    quiet = _library_profile(tmp_path / "quiet", "stamp", monkeypatch)
+    kept = _library_profile(tmp_path / "kept", "stamp", monkeypatch, ask=["", "", ""])
+    for result, put in ((quiet, False), (kept, True)):
+        assert [(one.section, one.column, one.reason, one.put) for one in result.questions] == [
+            (results.SECTION_ASKED, "stamp", "fixed-width", put)
+        ]
+        assert result.tally == _profile_tally(1, 1 if put else 0, 0, 0, 2)
+    answered = _library_profile(tmp_path / "answered", "stamp", monkeypatch, ask=["2"])
+    assert answered.questions == ()
+    assert answered.tally == _profile_tally(0, 1, 0, 0, 2)
+    days = _library_profile(tmp_path / "days", "day", monkeypatch, ask=["", "", ""])
+    assert [(one.column, one.reason, one.put) for one in days.questions] == [
+        ("day", "two-numbers", True),
+        ("day", "figures-that-may-be-days-of-the-year", False),
+    ]
+    assert days.tally == _profile_tally(2, 1, 0, 0, 2)
+
+
+def test_the_held_section_s_record_and_the_tally_that_counts_it(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A column declared as counted dates that did not read so: one `held` record, counted (skeptic 1's item 3; plan P4-D406)."""
+    held = _library_profile(
+        tmp_path / "held", "held", monkeypatch, "--identifier", "person", "--date-count", "visit", "excel-1900"
+    )
+    assert held.questions == (
+        results.Asked(
+            results.SECTION_HELD,
+            1,
+            "visit",
+            "",
+            asking.BECAUSE_HELD_COUNTED_DATES,
+            "you said this column writes its dates as counts (excel-1900), and its cells did not read as such dates",
+            "",
+            subject="visit",
+        ),
+    )
+    assert held.tally == _profile_tally(0, 0, 0, 1, 3)
+
+
+def test_records_stand_in_the_file_s_order_and_a_file_question_names_no_column(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The question about the file, then the columns asked, then the checklist (skeptic 1's item 4; Codex's item 3).
+
+    The question about the file names no column: its record's `column` is
+    empty and its `subject` is what the file writes under `column`, so
+    the file rendered from the records is the file written.
+    """
+    ordered = _library_profile(tmp_path / "ordered", "ordered", monkeypatch)
+    assert [(one.section, one.order, one.column, one.subject) for one in ordered.questions] == [
+        (results.SECTION_ABOUT_FILE, 1, "", "the order of the day and the month in your dates"),
+        (results.SECTION_ASKED, 1, "stamp", "stamp"),
+        (results.SECTION_CHECKLIST, 1, "weight", "weight"),
+    ]
+    assert ordered.tally == _profile_tally(2, 0, 1, 0, 4)
+    written = (tmp_path / "ordered" / "t-questions.json").read_bytes()
+    assert _rendered_questions(ordered, _kept(ordered), "t.csv") == written
+    entries = _file_entries(json.loads(written.decode("utf-8")))
+    assert [(section, entry["column"]) for section, entry in entries] == [
+        (one.section, one.subject) for one in ordered.questions
+    ]

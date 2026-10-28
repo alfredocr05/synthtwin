@@ -333,15 +333,20 @@ class Asked:
 
     ``section`` and ``order`` place it in the file (its order counted
     from 1 within its section); ``column`` is the description's name,
-    empty for a question about the file; ``role`` and ``reason`` are its
-    kind (`asking.Question.role` and `.reason`); ``saw`` the file's
-    `what_synthtwin_saw`, a count, a width or a separator and never a
-    cell; ``read_as_now`` the reading that stands unanswered; ``offers``
-    the answers it offers, in order; ``put`` whether it was put at a
-    prompt in this run, rather than only written down. A held entry
-    offers nothing and stands under no reading. Every text field is the
-    words `asking` composes for the file today, so the file is rendered
-    from these records (`asking.questions_document_of`) byte for byte.
+    empty for a question about the file; ``subject`` the words the file
+    writes under the entry's `column` key -- the column's name, or what
+    a question about the file asks about (``the order of the day and the
+    month in your dates``), which names no column; ``role`` and
+    ``reason`` are its kind (`asking.Question.role` and `.reason`);
+    ``saw`` the file's `what_synthtwin_saw`, a count, a width or a
+    separator and never a cell; ``read_as_now`` the reading that stands
+    unanswered; ``offers`` the answers it offers, in order; ``put``
+    whether it was put at a prompt in this run, rather than only written
+    down -- this question, by its column, kind and reason, and not
+    another one on the same column. A held entry offers nothing and
+    stands under no reading. Every text field is the words `asking`
+    composes for the file today, so the file is rendered from these
+    records (`asking.questions_document_of`) byte for byte.
     """
 
     section: str
@@ -353,6 +358,7 @@ class Asked:
     read_as_now: str
     offers: "tuple[Offer, ...]" = ()
     put: bool = False
+    subject: str = ""
 
 
 @dataclasses.dataclass(frozen=True)
