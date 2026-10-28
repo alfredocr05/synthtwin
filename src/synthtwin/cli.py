@@ -71,10 +71,12 @@ noticed did not hold, twice, because the next sink was written without
 it. So the escaping happens where the text is EMITTED, not where it is
 composed:
 
-* `_say` and `_warn` are the only two places in this module that print
-  anything at all, and both put what they are given through
-  `parsing.visible_lines` first. A sink added later that prints through
-  either of them is covered without its author doing anything;
+* `_say` and `_warn` are the only two places in this module that hand
+  text to the screen, and both put what they are given through
+  `parsing.visible_lines` first. A sink added later that shows text
+  through either of them is covered without its author doing anything.
+  The screen is the run's (`run`'s ``screen``, plan P4-D395 part 3):
+  the terminal's, `_terminal_screen`, is this module's one `print`, and
   `tests/test_p1r6f11_display_boundary.py` reads this file and turns
   red if a `print` appears anywhere else.
 * `_shown` covers one VALUE -- a path, a name, or a whole message some
@@ -104,6 +106,9 @@ from synthtwin import asking, dialect, errors, parsing
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts, a
 # module of the package's own that imports `parsing` alone.
 from synthtwin import date_counts
+# ...and the result a run returns (plan P4-D395, lane S5a): the standard
+# library only, so every branch may import it.
+from synthtwin import results
 from synthtwin.paths import PathValidationError, validate_local_path
 
 _REPO_URL = "https://github.com/alfredocr05/synthtwin"
@@ -518,17 +523,518 @@ def _quoting_said(line: str, windows: "bool | None" = None) -> str:
     return f"\n  (each value {_shell_named(windows)})"
 
 
-def _say(message: str, end: str = "\n") -> None:
-    """Print one message to the screen, through the display boundary.
+# -- the run in progress: its screen, its reader, its result (plan P4-D395) --
+#
+# `run` opens one `_Session` per command line and closes it however the
+# run ends; `_say`, `_warn` and the questions put at a prompt reach the
+# person through it, and the run's result is gathered in it as the run
+# goes, so a run stopped part way still says what it had shown. A
+# helper called with no session open (the suite calls a few directly)
+# shows its text on the terminal, as every helper did before.
+_OUT = "out"
+_ERR = "err"
 
-    One of the two places in this module that print. Whatever it is
-    given goes through `parsing.visible_lines` first, so a value that
-    reached here without being shown safely still cannot instruct the
-    terminal. Line breaks are kept: they are synthtwin's own layout.
-    ``end`` is what follows the message, a line feed unless the caller
-    is printing one message in pieces (`_say_pieces`).
+
+class _Unusable(Exception):
+    """The command line could not be used; its words are already on the screen."""
+
+
+class _HelpShown(Exception):
+    """The help page was asked for, and is already on the screen."""
+
+
+@dataclasses.dataclass
+class _Session:
+    """One run's screen, reader and result as it is gathered.
+
+    ``phase`` is the step a refusal raised from below would stop at
+    (`results.STEPS`); ``step`` the step a refusal named itself where it
+    did. The rest are `results.Result`'s fields as the run fills them.
     """
-    print(parsing.visible_lines(f"{message}"), end=end)
+
+    screen: "list[tuple[str, str]] | str | None"
+    ask: "list[str | None] | str | None"
+    command: str = ""
+    answered: int = 0
+    phase: str = results.STEP_INPUT
+    step: str = ""
+    key: str = ""
+    refusal_words: "list[str]" = dataclasses.field(default_factory=list)
+    on_disk: str = ""
+    misses: "tuple[results.Miss, ...]" = ()
+    unjudged: "tuple[results.Unjudged, ...]" = ()
+    carried: "tuple[results.Carried, ...]" = ()
+    tally: "tuple[tuple[str, int], ...]" = ()
+    floor: "int | None" = None
+    floor_lowered: bool = False
+    warnings: "list[results.Caution]" = dataclasses.field(default_factory=list)
+    files: "list[results.FileWritten]" = dataclasses.field(default_factory=list)
+    left_behind: "list[str]" = dataclasses.field(default_factory=list)
+    next_command: "results.NextCommand | None" = None
+
+
+@dataclasses.dataclass
+class _Open:
+    """The sessions open now, the innermost last: one per call of `run` in progress.
+
+    A list rather than a single slot, so a run started from inside
+    another (no command does that) still finds its own. One list for the
+    whole module, so `run` serves one thread at a time (its docstring
+    states the limit).
+    """
+
+    sessions: "list[_Session]" = dataclasses.field(default_factory=list)
+
+
+_OPEN = _Open()
+
+# WHAT `run` IS HANDED FOR ITS SCREEN AND ITS READER (plan P4-D395 part 3,
+# as lane S5a built it, plan P4-D437): DATA, NEVER A CALLABLE. The offline
+# audit (plan D6.2) admits no call of a function a caller hands in -- such
+# a function could do anything -- so `screen` is `TERMINAL` (the terminal,
+# `main`'s), a list the run adds each (stream, text) it shows to, in
+# order, or None (shown nowhere); `ask` is `TERMINAL` (the person at the
+# terminal), a list of the lines typed, read in order -- None, or the end
+# of the list, where the person ended input -- or None (nobody is asked).
+TERMINAL = "terminal"
+
+
+def _current() -> "_Session | None":
+    """The session of the run in progress, or None where no run is open."""
+    if not _OPEN.sessions:
+        return None
+    return _OPEN.sessions[len(_OPEN.sessions) - 1]
+
+
+def _at(step: str) -> None:
+    """Say which step the run is at, for a refusal raised from below."""
+    session = _current()
+    if session is not None:
+        session.phase = step
+
+
+def _terminal_screen(stream: str, text: str) -> None:
+    """The terminal's screen: this module's one `print` (plan P4-D395 part 3).
+
+    ``stream`` is "out" for standard output and "err" for the error
+    stream; ``text`` is exactly the characters to show, the display
+    boundary already applied by whoever composed it.
+    """
+    if stream == _ERR:
+        print(text, end="", file=sys.stderr)
+    else:
+        print(text, end="", file=sys.stdout)
+
+
+def _terminal_ask(prompt: str) -> "str | None":
+    """The terminal's reader: one typed line, or None where input ended.
+
+    `input` writes ``prompt`` itself, so the prompt's bytes are the
+    reader's and never the screen's. End of input and Ctrl-C at the
+    prompt both mean the person stopped, as they did before results.
+    """
+    try:
+        return input(prompt)
+    except (EOFError, KeyboardInterrupt):
+        return None
+
+
+def _show(stream: str, text: str) -> None:
+    """Hand text to the run's screen: the terminal where no run is open."""
+    session = _current()
+    if session is None or session.screen == TERMINAL:
+        _terminal_screen(stream, text)
+        return
+    if isinstance(session.screen, list):
+        session.screen += [(stream, text)]
+
+
+def _record_floor(floor: int, said_on_no_screen: bool) -> None:
+    """Record the description's smallest group size in the run's result.
+
+    ``floor_lowered`` is true where it lies below `_NOTICE_LINE`
+    (contract `SMALL_GROUP_NOTICE_LINE`), the test by which the summary,
+    the twin's report and the quality report each state a lowered floor.
+    ``said_on_no_screen`` adds the `lowered-floor` caution with no words,
+    for a command whose screen prints none (generate, validate): a file
+    the run writes states it (plan P4-D395 part 1).
+    """
+    session = _current()
+    if session is None:
+        return
+    session.floor = floor
+    session.floor_lowered = floor < _NOTICE_LINE
+    if session.floor_lowered and said_on_no_screen:
+        session.warnings += [results.Caution(results.CAUTION_LOWERED_FLOOR, "", "")]
+
+
+def _stopped_writing(sentence: str) -> None:
+    """Show the write transaction's own account of a stop, as the refusal's words.
+
+    The sentence names what is on disk, so the result carries it as such.
+    """
+    _warn(sentence, step=results.STEP_WRITING)
+    session = _current()
+    if session is not None:
+        session.on_disk = parsing.visible_lines(f"{sentence}")
+
+
+def _wrote(*written: "tuple[str, pathlib.Path]") -> None:
+    """Record files the run wrote, each with its kind, in the order written."""
+    session = _current()
+    if session is None:
+        return
+    for kind, place in written:
+        session.files += [results.FileWritten(kind, f"{place}")]
+
+
+def _left_behind(left: "list[str]", note: str) -> None:
+    """Show the caution for working files left behind, and record them."""
+    _warn(note, caution=results.CAUTION_LEFT_BEHIND)
+    session = _current()
+    if session is not None:
+        session.left_behind += [f"{one}" for one in left]
+
+
+def _in_rank_order(found: "list[results.Miss]") -> "tuple[results.Miss, ...]":
+    """The misses in `(tier, place, arrival)` order, and in no other (part 2)."""
+    keyed = sorted(
+        [
+            (results.TIER_ORDER[miss.tier], miss.place, miss.arrival, index)
+            for index, miss in enumerate(found)
+        ]
+    )
+    return tuple([found[index] for _tier, _place, _arrival, index in keyed])
+
+
+# THE CLASS A COLUMN'S INVENTION TAKES IN A RESULT (contract's
+# `made_up_class`), as `results`' reasons name it.
+_MADE_UP_REASONS = {
+    "everything": results.REASON_MADE_UP,
+    "held-back": results.REASON_HELD_BACK,
+    "uncarried": results.REASON_UNCARRIED,
+}
+
+# The table's one entry while nothing between columns is carried: every
+# description this version loads, whose statistical block is null (the
+# loader refuses a filled one, contract S12; plan P4-D395 part 1).
+_NOT_MODELED = results.Carried(
+    (), "", results.CLASS_NOT_CARRIED, results.REASON_NOT_MODELED
+)
+
+
+def _not_carried(described: object) -> "list[results.Carried]":
+    """Each column the description publishes no value for, or only some, in schema order."""
+    from synthtwin import contract, roles
+
+    if not isinstance(described, contract.Profile):
+        raise TypeError("a loaded description is wanted")
+    found: "list[results.Carried]" = []
+    for column in described.columns:
+        made_up = roles.made_up_class(column)
+        if made_up in _MADE_UP_REASONS:
+            found += [
+                results.Carried(
+                    (column.name,),
+                    "",
+                    results.CLASS_NOT_CARRIED,
+                    _MADE_UP_REASONS[made_up],
+                )
+            ]
+    return found
+
+
+def _fact_head(fact: str) -> str:
+    """A description key's first part: `mean` of `mean`, `length` of `length.p50`."""
+    if not isinstance(fact, str):
+        raise TypeError("a fact is named by text")
+    head = ""
+    for character in fact:
+        if character in ".[":
+            break
+        head = head + character
+    return head
+
+
+# THE FACTS A DEVIATION NAMES OUTSIDE ITS ROLE'S GROUP (lane S5a's repair
+# 1): the column-level counts the disposition registry files under
+# `universal` -- present, missing, out of range -- and the column's time
+# grain, a column-level key the description publishes beside them (plan
+# P4-D415) which the registry holds under no group yet (plan P4-D437
+# names the gap). `tests/test_stage5_gate.py` holds this list to the
+# registry and to every key the generator writes.
+_UNIVERSAL_FACTS = ("n_present", "n_missing", "n_out_of_range", "time_grain")
+# A generator key `levels -> field` names a field of the label group's
+# levels block (`label.variants_withheld`, `label.shape_form_cells`).
+_ARROW = " -> "
+
+
+def _registry_fact(group: str, fact: str, end: str) -> str:
+    """A generator's fact named as the disposition registry names it (plan P4-D395 part 1).
+
+    Guarantees: `group.field`, where the field is the generator's key
+    after its last `levels -> `, and the group is `universal` for the
+    column-level keys of `_UNIVERSAL_FACTS` and ``group`` -- the one the
+    column's role publishes under -- otherwise; then `.end` where
+    ``end`` names the ladder end that gave way. A key on no column
+    (``group`` empty) is the key itself. A pure function of the three;
+    built without a method of the value, for the offline audit's reason.
+    """
+    if not isinstance(fact, str):
+        raise TypeError("a fact is named by text")
+    field = fact
+    place = 0
+    while place + len(_ARROW) <= len(field):
+        if field[place : place + len(_ARROW)] == _ARROW:
+            field = field[place + len(_ARROW) :]
+            place = 0
+            continue
+        place = place + 1
+    if _fact_head(field) in _UNIVERSAL_FACTS:
+        group = "universal"
+    named = f"{group}.{field}" if group else field
+    return f"{named}.{end}" if end else named
+
+
+def _generated(described: object, made: object) -> None:
+    """Put a generated twin's misses, tally and carried entries in the run's result.
+
+    One miss for each deviation, its fact named as the registry names it
+    (`_registry_fact`: the group its column's role publishes under,
+    `universal` for the column-level counts, and a ladder end that gives
+    way by the end the generator pins); its rank read off
+    `results.tier_of`. Every approximation is carried, inside or outside
+    its bound, as the report lists it, its fact named by the same rule so
+    it joins the miss its bound makes, and so is each column the twin
+    made up. No cell of the twin is read (plan P4-D395 part 1, lane SG's
+    seam).
+    """
+    from synthtwin import contract, generation, roles
+
+    if not isinstance(described, contract.Profile):
+        raise TypeError("a loaded description is wanted")
+    if not isinstance(made, generation.Twin):
+        raise TypeError("a twin is wanted")
+    session = _current()
+    if session is None:
+        return
+    places: "dict[str, int]" = {}
+    groups: "dict[str, str]" = {}
+    for column in described.columns:
+        places[column.name] = column.position
+        groups[column.name] = roles.registry_group(column.facts)
+    found: "list[results.Miss]" = []
+    for arrival in range(len(made.deviations)):
+        deviation = made.deviations[arrival]
+        group = groups[deviation.column] if deviation.column in groups else ""
+        fact = _registry_fact(group, deviation.fact, deviation.end)
+        found += [
+            results.Miss(
+                tier=results.tier_of(fact, "", deviation.judged),
+                place=places[deviation.column] if deviation.column in places else 0,
+                arrival=arrival,
+                column=deviation.column,
+                fact=fact,
+                subcheck="",
+                judged=deviation.judged,
+                published=deviation.published,
+                achieved=deviation.achieved,
+                shown=bool(deviation.achieved),
+                note=(deviation.note,) if deviation.note else (),
+            )
+        ]
+    whole = 0
+    part = 0
+    carried = _not_carried(described)
+    for entry in carried:
+        if entry.reason == results.REASON_MADE_UP:
+            whole = whole + 1
+        else:
+            part = part + 1
+    for approximation in made.approximations:
+        group = (
+            groups[approximation.column] if approximation.column in groups else ""
+        )
+        carried += [
+            results.Carried(
+                (approximation.column,),
+                _registry_fact(group, approximation.fact, ""),
+                results.CLASS_APPROXIMATE,
+                results.REASON_APPROXIMATED,
+                measures=(
+                    results.Measure(
+                        approximation.published,
+                        approximation.achieved,
+                        approximation.lowest,
+                        approximation.highest,
+                        approximation.inside,
+                        approximation.covers_published,
+                    ),
+                ),
+            )
+        ]
+    session.misses = _in_rank_order(found)
+    session.carried = tuple(carried + [_NOT_MODELED])
+    session.tally = (
+        ("deviations", len(made.deviations)),
+        ("approximations", len(made.approximations)),
+        (
+            "approximations-inside",
+            len([one for one in made.approximations if one.inside]),
+        ),
+        ("remarks", len(made.remarks)),
+        ("columns-made-up", whole),
+        ("columns-partly-made-up", part),
+    )
+
+
+def _validated(described: object, measured: object) -> None:
+    """Put a validate run's misses, unjudged checks, tally and carried entries in its result.
+
+    One miss for each MISSED check, its rank read off `results.tier_of`;
+    one unjudged entry for each WITHHELD check, keyed by the rule that
+    kept its outcome back and holding no measured value; the census's
+    six counts; and carried, each check judged against a window with the
+    verdict it got and its subcheck, `inside` None where it is WITHHELD
+    or where V5 keeps its measured side back (lane S5a's repair 1). No
+    string read from the measured file enters the result: every field is
+    the validator's own, as the report prints it (plan P4-D395 part 1).
+
+    WHAT IS CARRIED FOLLOWS THE DESCRIPTION (lane S5a's repair 2, Codex's
+    item 5): an approximate entry for each check whose obligation the
+    description grants a window (`Check.approximate`), the column the
+    file lacks, a file of no rows or names and a closed gate included,
+    where such a check's verdict was decided by the absence and its
+    `inside` is None, since nothing of the subject was checked. Each
+    measure carries the window's ends and whether it holds the
+    description's value where the report prints that window (Codex's
+    item 7), so no consumer parses them out of `published`.
+    """
+    from synthtwin import contract, validation
+
+    if not isinstance(described, contract.Profile):
+        raise TypeError("a loaded description is wanted")
+    if not isinstance(measured, validation.Outcome):
+        raise TypeError("a validator's outcome is wanted")
+    session = _current()
+    if session is None:
+        return
+    places: "dict[str, int]" = {}
+    for column in described.columns:
+        places[column.name] = column.position
+    found: "list[results.Miss]" = []
+    unjudged: "list[results.Unjudged]" = []
+    carried = _not_carried(described)
+    for arrival in range(len(measured.checks)):
+        check = measured.checks[arrival]
+        if check.verdict == validation.MISSED:
+            found += [
+                results.Miss(
+                    tier=results.tier_of(check.fact, check.subcheck, check.judged),
+                    place=places[check.column] if check.column in places else 0,
+                    arrival=arrival,
+                    column=check.column,
+                    fact=check.fact,
+                    subcheck=check.subcheck,
+                    judged=check.judged,
+                    published=check.published,
+                    achieved=check.achieved,
+                    shown=bool(check.achieved),
+                    note=check.note,
+                )
+            ]
+        if check.verdict == validation.WITHHELD:
+            unjudged += [
+                results.Unjudged(
+                    check.column,
+                    check.fact,
+                    check.subcheck,
+                    validation.withheld_rule(check),
+                )
+            ]
+        if check.approximate:
+            inside: "bool | None" = None
+            if (
+                check.judged == validation.JUDGED_WINDOW
+                and check.verdict != validation.WITHHELD
+                and check.achieved
+            ):
+                inside = check.verdict != validation.MISSED
+            carried += [
+                results.Carried(
+                    (check.column,) if check.column else (),
+                    check.fact,
+                    results.CLASS_APPROXIMATE,
+                    results.REASON_APPROXIMATED,
+                    subcheck=check.subcheck,
+                    verdict=check.verdict,
+                    measures=(
+                        results.Measure(
+                            check.published,
+                            check.achieved,
+                            check.lowest,
+                            check.highest,
+                            inside,
+                            check.covers,
+                        ),
+                    ),
+                )
+            ]
+    census = measured.census
+    session.misses = _in_rank_order(found)
+    session.unjudged = tuple(unjudged)
+    session.carried = tuple(carried + [_NOT_MODELED])
+    session.tally = (
+        ("held", census.held),
+        ("within-bound", census.within_bound),
+        ("authorized-deviation", census.authorized_deviation),
+        ("withheld", census.withheld),
+        ("missed", census.missed),
+        ("not-checkable", census.not_checkable),
+    )
+
+
+def _next(purpose: str, *words: str) -> "results.NextCommand":
+    """Record the next command in the run's result, and return it to be shown."""
+    command = results.NextCommand(tuple([f"{word}" for word in words]), purpose)
+    session = _current()
+    if session is not None:
+        session.next_command = command
+    return command
+
+
+def _typed_line(command: "results.NextCommand") -> str:
+    """A next command's words as the person types them, quoted for the shell.
+
+    The words are `synthtwin`, the command word, then the one path the
+    command takes where there is one, then options each with its value:
+    the path is `_typed_path`'s and each option `_typed_option`'s, so the
+    line is the one lane TI's teaching lines printed (plan P4-D397).
+    """
+    words = command.words
+    line = f"{words[0]} {words[1]}"
+    rest = words[2:]
+    if len(rest) % 2 == 1:
+        line = f"{line} {_typed_path(rest[0])}"
+        rest = rest[1:]
+    place = 0
+    while place + 1 < len(rest):
+        line = f"{line} {_typed_option(rest[place], rest[place + 1])}"
+        place = place + 2
+    return line
+
+
+def _say(message: str, end: str = "\n") -> None:
+    """Show one message on the screen's ordinary output, through the display boundary.
+
+    One of the two places in this module that hand text to the screen.
+    Whatever it is given goes through `parsing.visible_lines` first, so
+    a value that reached here without being shown safely still cannot
+    instruct the terminal. Line breaks are kept: they are synthtwin's
+    own layout. ``end`` is what follows the message, a line feed unless
+    the caller is showing one message in pieces (`_say_pieces`).
+    """
+    _show(_OUT, parsing.visible_lines(f"{message}") + end)
 
 
 def _say_pieces(pieces: "list[str]") -> None:
@@ -575,17 +1081,35 @@ def _described_columns(
     return found
 
 
-def _warn(message: str) -> None:
-    """Print one refusal or caution to the error stream, likewise.
+def _warn(
+    message: str, caution: str = "", column: str = "", step: str = ""
+) -> None:
+    """Show one refusal or caution on the error stream, likewise.
 
-    The second and last place in this module that print. Same boundary,
-    same reason; only the stream differs.
+    The second and last place in this module that hand text to the
+    screen. Same boundary, same reason; only the stream differs.
+
+    And the run's result records it (plan P4-D395 part 1): a caution
+    under its key ``caution`` (`results.CAUTIONS`), with the column it
+    names where it names one, never moving the verdict; anything else is
+    a refusal's words, and ``step`` names where the run stopped where
+    the call site knows it.
     """
-    print(parsing.visible_lines(f"{message}"), file=sys.stderr)
+    shown = parsing.visible_lines(f"{message}")
+    _show(_ERR, shown + "\n")
+    session = _current()
+    if session is None:
+        return
+    if caution:
+        session.warnings += [results.Caution(caution, column, shown)]
+        return
+    session.refusal_words += [shown]
+    if step and not session.step:
+        session.step = step
 
 
-def _refuse_the_command_line(reason: str) -> None:
-    """Say why the command line could not be used, then stop with code 2.
+def _refuse_the_command_line(reason: str) -> "typing.NoReturn":
+    """Say why the command line could not be used, then stop: the run is `unusable`.
 
     Used instead of argparse's own refusal so that the words reach the
     screen through `_warn` like every other message, and so that the
@@ -593,7 +1117,7 @@ def _refuse_the_command_line(reason: str) -> None:
     """
     _warn(reason)
     _warn("Run  synthtwin --help  to see how the command is used.")
-    sys.exit(2)
+    raise _Unusable()
 
 
 def _version() -> str:
@@ -781,7 +1305,8 @@ def _description_floor_refused(
     _warn(
         errors.description_floor_under_the_minimum(
             _shown(description), floor, building
-        )
+        ),
+        step=results.STEP_CONTENT,
     )
     return True
 
@@ -800,6 +1325,133 @@ def _no_floor_at_all(given: "int | None") -> bool:
         return False
     _warn(errors.floor_not_positive(f"{given}"))
     return True
+
+
+# THE LONG OPTIONS, in the order the parser below is given them, `--help`
+# (argparse's own) first: what a word abbreviating several of them is said
+# to match, in argparse's own order and words (`_ambiguous_at`).
+# `tests/test_stage5_gate.py` holds it to the parser's own list.
+_LONG_OPTIONS = (
+    "--help",
+    "--version",
+    "--twin",
+    "--out-dir",
+    "--seed",
+    "--replace",
+    "--smallest-group",
+    "--identifier",
+    "--code",
+    "--decimal-comma",
+    "--measurement",
+    "--century",
+    "--date-column",
+    "--twelve-hour",
+    "--date-count",
+    "--metadata-rows",
+    "--delimiter",
+    "--answers",
+    "--keep-value",
+    "--missing-value",
+    "--day-first",
+    "--sheet",
+    "--first-row",
+)
+# The words argparse reads as its help option: `-h`, and every prefix of
+# `--help` it takes (no other long option starts with `--h`).
+_HELP_WORDS = ("-h", "--h", "--he", "--hel", "--help")
+# A WORD OF SHORT OPTIONS RUN TOGETHER THAT STARTS WITH `-h`, such as
+# `-hh` or `-hfoo`, may ask for the help page too, as the Python that runs
+# decides (lane S5a's repair 2, Codex's item 2): `-hh` does on every
+# supported Python, and `-hfoo` did on 3.11.15 and 3.13.14 alike. Such a
+# word, and every word of `_HELP_WORDS`, is a candidate; whether argparse
+# takes it as the help option there is asked of argparse itself
+# (`_parse_arguments`).
+_HELP_PREFIX = "-h"
+
+
+def _could_ask_for_help(word: str) -> bool:
+    """Whether argparse could read ``word`` as its help option: a help word, or `-h` run on."""
+    if word in _HELP_WORDS:
+        return True
+    return len(word) > len(_HELP_PREFIX) and word[: len(_HELP_PREFIX)] == _HELP_PREFIX
+
+
+# WHEN ARGPARSE REFUSES A WORD ABBREVIATING SEVERAL OPTIONS (lane S5a's
+# repair 2, Codex's item 3). Python 3.11's argparse sorts every word into
+# an option or a value before it acts on any, and refuses such a word as
+# it sorts it -- printing and exiting whatever it was asked -- so the
+# refusal comes first wherever the word stands, before the help page and
+# before any other refusal. From Python 3.12.7 and 3.13 (CPython's change
+# gh-58573 in their changelogs) it refuses the word only when it reaches
+# it in order, raising the refusal as any other: the help word before it
+# shows the help page, an option before it that wants a value is refused
+# for the value it lacks, and an option of two values takes it as one.
+# The rule this module follows is the one of the Python it runs on, read
+# off its version: measured on 3.11.15 as the first and on 3.12.13,
+# 3.13.14 and 3.14.6 as the second (the gate asks argparse itself on
+# whichever Python runs it). On the first the word is refused here, in
+# argparse's words, before argparse is handed anything; on the second
+# argparse is handed it and raises the refusal, printing nothing.
+_AMBIGUITY_SORTED_FIRST = sys.version_info < (3, 12, 7)
+
+
+def _ambiguous_at(words: "list[str]") -> "tuple[int, str]":
+    """Where the first option abbreviated past one meaning stands, and argparse's words for it.
+
+    A word starting `--` that is no option itself (before any `=`) and
+    begins several of them is refused by argparse as ambiguous, in these
+    words; (-1, "") where none stands before `--`.
+    """
+    for place in range(len(words)):
+        word = words[place]
+        if word == "--":
+            return (-1, "")
+        if not isinstance(word, str) or word[:2] != "--":
+            continue
+        prefix = ""
+        for character in word:
+            if character == "=":
+                break
+            prefix = prefix + character
+        if prefix in _LONG_OPTIONS:
+            continue
+        matches = ""
+        count = 0
+        for option in _LONG_OPTIONS:
+            if option[: len(prefix)] == prefix:
+                matches = option if not matches else matches + ", " + option
+                count = count + 1
+        if count > 1:
+            return (place, f"ambiguous option: {word} could match {matches}")
+    return (-1, "")
+
+
+def _refused_as_argparse_refuses(help_page: str, message: str) -> "typing.NoReturn":
+    """Show argparse's own refusal -- its usage line, then its error -- and stop.
+
+    The usage line is the help page's first block, which is what
+    `format_usage` gives (`tests/test_stage5_gate.py` holds the two
+    equal); the error line is argparse's own shape. Both reach the error
+    stream, as argparse writes them, and the run is `unusable` (exit 2).
+    """
+    if not isinstance(help_page, str):
+        raise TypeError("argparse's help page is text")
+    usage = ""
+    for line in help_page.split("\n"):
+        if not line:
+            break
+        usage = usage + line + "\n"
+    error = f"synthtwin: error: {message}"
+    _show(_ERR, usage)
+    _show(_ERR, error + "\n")
+    # ...AND THE RESULT KEEPS THEM AS THE REFUSAL'S WORDS (lane S5a's
+    # repair 2, Codex's item 4), the characters shown less the last line
+    # feed, as `_warn` keeps a refusal's: without them a run with no
+    # screen would lose its only explanation.
+    session = _current()
+    if session is not None:
+        session.refusal_words += [usage[: len(usage) - 1], error]
+    raise _Unusable()
 
 
 def _parse_arguments(
@@ -845,6 +1497,19 @@ def _parse_arguments(
         ),
         epilog=_HELP_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        # ITS REFUSALS ARE RAISED, NOT PRINTED (plan P4-D395 part 3): a run
+        # prints nothing and never exits, so argparse's words reach the
+        # run's screen from `_refused_as_argparse_refuses`.
+        exit_on_error=False,
+        # ...AND ITS HELP OPTION IS A SWITCH (lane S5a's repair 2): the one
+        # argparse adds prints the page to the process's own output and
+        # exits whatever it is asked, so the same option is added below,
+        # first, under the same two names and words, as a switch that
+        # prints nothing; `_parse_arguments` reads where it is taken.
+        add_help=False,
+    )
+    parser.add_argument(
+        "-h", "--help", action="store_true", help="show this help message and exit"
     )
     parser.add_argument(
         "--version", action="store_true", help="print the version and exit"
@@ -1278,7 +1943,73 @@ def _parse_arguments(
     # boundary cannot reach it (review item P1-R6-F11). Taking the
     # leftovers back lets the refusal go through `_warn` like every
     # other message -- and say something a non-programmer can act on.
-    args, not_understood = parser.parse_known_args(argv)
+    # THE HELP PAGE, AND ARGPARSE'S OWN REFUSALS, REACH THE RUN'S SCREEN
+    # (plan P4-D395 part 3). argparse shows its help page the moment it
+    # reads the help option and stops there, so the words before it are
+    # read first -- a refusal among them is still the run's -- and the
+    # page is then shown; a refusal argparse raises is shown in its own
+    # words; and a word abbreviating several options is refused before
+    # argparse reads it, because Python 3.11's argparse prints and exits
+    # on that one whatever it is asked. That argparse sorts EVERY word into
+    # options and values before it acts on the help option, so there a
+    # word abbreviating several options is refused wherever it stands,
+    # after the help word too (lane S5a's repair 1): `_ambiguous_at` reads
+    # them all, up to `--` (`_AMBIGUITY_SORTED_FIRST`).
+    # ON A PYTHON WHOSE ARGPARSE REFUSES SUCH A WORD ONLY IN ORDER (lane
+    # S5a's repair 2, Codex's item 3), argparse is handed it: it raises that
+    # refusal, as any other, where it reaches the word, the help word before
+    # it is taken first, and an option of two values takes it as a value,
+    # as that Python's argparse did before results existed.
+    words = sys.argv[1:] if argv is None else [f"{word}" for word in argv]
+    help_page = parser.format_help()
+    _place, ambiguous = _ambiguous_at(words)
+    if ambiguous and _AMBIGUITY_SORTED_FIRST:
+        _refused_as_argparse_refuses(help_page, ambiguous)
+    # WHERE ARGPARSE TAKES THE HELP OPTION (lane S5a's repair 2, Codex's
+    # items 2 and 3). It is a plain switch here, so reading it prints
+    # nothing; argparse's own printed the page and stopped the moment it
+    # was taken, refusing nothing after it. So for each candidate word in
+    # order, up to `--`, the words up to and including it are read: where
+    # they read without a refusal and the switch is set, the help option is
+    # taken there, every word before it read as the whole line reads it --
+    # a candidate that is an option's value ends no option's values, and
+    # one cut short makes that reading a refusal, so a value is never taken
+    # for the help word. A candidate whose reading argparse refuses is
+    # passed over: the whole line then answers with that refusal, or reads
+    # on. Here, beside the parser, because the offline policy uses a value
+    # an allowlisted API produced where it was made (plan D6.2).
+    for place in range(len(words)):
+        if words[place] == "--":
+            break
+        if not _could_ask_for_help(words[place]):
+            continue
+        try:
+            before, _rest = parser.parse_known_args(words[: place + 1])
+        except Exception:  # noqa: BLE001,S112 -- the import allowlist (plan
+            # D6.2) admits argparse's parser alone, so its ArgumentError
+            # cannot be named; a refused reading takes no help option.
+            continue
+        if before.help:
+            _show(_OUT, help_page)
+            raise _HelpShown()
+    try:
+        args, not_understood = parser.parse_known_args(words)
+    except Exception as refused:  # noqa: BLE001 -- the import allowlist
+        # (plan D6.2) admits argparse's parser alone, so its ArgumentError
+        # cannot be named; argparse raises nothing else here.
+        _refused_as_argparse_refuses(help_page, f"{refused}")
+    if args.help:
+        # Taken where no candidate stood (none is known): the whole line
+        # read without a refusal, so the page is what argparse showed.
+        _show(_OUT, help_page)
+        raise _HelpShown()
+    # THE COMMAND IS THE ONE ARGPARSE READ (lane S5a's repair 2, Codex's
+    # item 1): a command word standing as an option's value, such as
+    # `--out-dir profile validate`, named the wrong command before, and the
+    # exit status is read off the command.
+    session = _current()
+    if session is not None:
+        session.command = "" if args.command is None else f"{args.command}"
     if not_understood:
         listed = ""
         for word in not_understood:
@@ -1599,6 +2330,22 @@ _WHY_SHOWN = {
 
 
 def _there_is_somebody_to_ask() -> bool:
+    """True where the run has somebody to ask: a reader handed to `run`.
+
+    `main` hands `run` the terminal's reader exactly where
+    `_a_person_at_the_terminal` says somebody is there, so a run of the
+    command asks where it asked before results existed; `run` called
+    without ``ask`` puts no question and reads nothing (plan P4-D395
+    part 3). With no run open (a helper called on its own), the
+    terminal is asked.
+    """
+    session = _current()
+    if session is not None:
+        return session.ask is not None
+    return _a_person_at_the_terminal()
+
+
+def _a_person_at_the_terminal() -> bool:
     """True where a person is at the keyboard to answer.
 
     Guarantees:
@@ -2659,6 +3406,27 @@ def _cleaned(line: str) -> str:
     return line.strip().lower()
 
 
+def _asked(prompt: str) -> "str | None":
+    """One line from the run's reader, or None where the person ended input.
+
+    The reader is `run`'s ``ask`` (the terminal's, `_terminal_ask`, under
+    `main`); with no run open the terminal is read. A run with no reader
+    reads nothing.
+    """
+    session = _current()
+    if session is None or session.ask == TERMINAL:
+        return _terminal_ask(prompt)
+    if not isinstance(session.ask, list):
+        return None
+    if session.answered >= len(session.ask):
+        return None
+    line = session.ask[session.answered]
+    session.answered = session.answered + 1
+    if not isinstance(line, str):
+        return None
+    return line
+
+
 def _read_one_answer(standing: str = asking.ANSWER_MEASUREMENT) -> "str | None":
     """One typed answer, or None where the person ended the run.
 
@@ -2669,9 +3437,8 @@ def _read_one_answer(standing: str = asking.ANSWER_MEASUREMENT) -> "str | None":
     fact the person had stated.
     """
     while True:
-        try:
-            line = input("    > ")
-        except (EOFError, KeyboardInterrupt):
+        line = _asked("    > ")
+        if line is None:
             return None
         typed = _cleaned(line)
         if not typed:
@@ -3534,10 +4301,10 @@ def _chained_description(
     chain_state.notes = chained.notes
     chain_state.statistical = chained.statistical
     if decision.verdict == installation.REFUSE:
-        _warn(decision.words)
+        _warn(decision.words, step=results.STEP_CONTENT)
         return with_chain
     if decision.verdict == installation.WARN:
-        _warn(decision.words)
+        _warn(decision.words, caution=results.CAUTION_CHAIN)
     chain_state.entry = installation.Entry(
         name,
         chained.content,
@@ -3655,7 +4422,7 @@ def _run_profile(
     first_row_typed: bool = False,
     chain: "ChainRun | None" = None,
     small_tables_refused: bool = True,
-) -> int:
+) -> str:
     """Do the work of `synthtwin profile`; return the exit code (`_run_profile_body`).
 
     With the chain's switch (`chain`, which no command-line option sets),
@@ -3699,7 +4466,7 @@ def _run_profile(
     try:
         if opened.refusal:
             _warn(opened.refusal)
-            return 2
+            return results.UNUSABLE
         for line in opened.lines:
             _say(line)
         return _run_profile_body(
@@ -3755,7 +4522,7 @@ def _run_profile_body(
     first_row_typed: bool = False,
     chain_state: "_ChainState | None" = None,
     small_tables_refused: bool = True,
-) -> int:
+) -> str:
     """Do the work of `synthtwin profile`; return the exit code.
 
     ``small_tables_refused`` is `main`'s internal parameter of the same name
@@ -3801,7 +4568,7 @@ def _run_profile_body(
 
     if smallest_group < 1:
         _warn(errors.floor_not_positive(f"{smallest_group}"))
-        return 2
+        return results.UNUSABLE
     # -- 3b.R4 (P4-D384): THE COLUMNS WHOSE DATES ARE WRITTEN AS COUNTS
     # (`--date-count COLUMN SYSTEM`, question Q3). Each system is one of
     # the twelve, refused before the table is opened where it is not, and
@@ -3814,10 +4581,10 @@ def _run_profile_body(
         counted_member = f"{typed_pair[1]}"
         if counted_member not in date_counts.MEMBERS:
             _warn(errors.date_count_system_not_supported(_shown(counted_member)))
-            return 2
+            return results.UNUSABLE
         if counted_name in counted and counted[counted_name] != counted_member:
             _warn(errors.column_declared_twice(counted_name))
-            return 2
+            return results.UNUSABLE
         counted[counted_name] = counted_member
     typed_counted = dict(counted)
     # THE SEVENTH DECLARATION (landing T1, plan P4-D370): the columns
@@ -3845,7 +4612,7 @@ def _run_profile_body(
         found_century = _century_given(typed_century)
         if found_century is None:
             _warn(errors.century_not_supported(_shown(typed_century)))
-            return 2
+            return results.UNUSABLE
         if found_century[1] in parsing.CENTURY_WINDOW_YEARS:
             centuries[found_century[0]] = found_century[1]
             centuries_reset = [
@@ -3873,7 +4640,7 @@ def _run_profile_body(
     if metadata_rows_given:
         if metadata_rows_given not in ("0", "2"):
             _warn(errors.metadata_rows_not_supported(_shown(metadata_rows_given)))
-            return 2
+            return results.UNUSABLE
         metadata_rows = int(metadata_rows_given)
 
     # WHICH CHARACTER SEPARATES THE COLUMNS, WHERE THE PERSON SAID (plan
@@ -3883,7 +4650,7 @@ def _run_profile_body(
     if delimiter_given:
         if delimiter_given not in _DELIMITER_SPELLINGS:
             _warn(errors.delimiter_not_supported(_shown(delimiter_given)))
-            return 2
+            return results.UNUSABLE
         declared_delimiter = _DELIMITER_SPELLINGS[delimiter_given]
 
     # THE ANSWERS ARE READ BEFORE THE TABLE IS OPENED (amendment
@@ -3978,7 +4745,7 @@ def _run_profile_body(
             )
         except ValueError as error:
             _warn(_shown(f"{error}"))
-            return 2
+            return results.UNUSABLE
         # THE FIFTH ANSWER IS READ BEFORE THE TABLE IS OPENED, which is
         # what makes it usable at all (plan P4-D81): it changes the
         # READING of the file, so an answer arriving after the read
@@ -4081,7 +4848,7 @@ def _run_profile_body(
                     [_shown(one) for one in sorted(named_columns)],
                 )
             )
-            return 2
+            return results.UNUSABLE
         reading_changed += [
             one for one in kept_changed if one not in reading_changed
         ]
@@ -4092,7 +4859,7 @@ def _run_profile_body(
                     sorted(named_columns),
                 )
             )
-            return 2
+            return results.UNUSABLE
         # ...AND THE SIXTH, FOR THE SAME REASON (plan P4-D110): which
         # delimiter the file is written with decides how it is read, so
         # the answer has to arrive before the read. It is the newer
@@ -4285,7 +5052,7 @@ def _run_profile_body(
             if not parsing.reads_as_two_numbers(spelling):
                 continue
             _warn(errors.a_declared_value_reads_two_ways(spelling, option))
-            return 2
+            return results.UNUSABLE
 
     clashes = taxonomy.contradictory_declarations(
         tuple(kept_values),
@@ -4300,7 +5067,7 @@ def _run_profile_body(
             f"for you. Decide which one you meant, remove the other, and "
             f"run the command again. Nothing was written."
         )
-        return 2
+        return results.UNUSABLE
     settings = taxonomy.Settings(
         small_cell_floor=smallest_group,
         kept_values=tuple(kept_values),
@@ -4357,6 +5124,9 @@ def _run_profile_body(
         # step below asks its columns of `reading.column_values`.
         in_groups=True,
     )
+    # FROM HERE A REFUSAL IS ABOUT WHAT THE TABLE HOLDS (plan P4-D395:
+    # the step a run's result names).
+    _at(results.STEP_CONTENT)
 
     # A FILE THAT READS EQUALLY WELL UNDER TWO DELIMITERS IS SAID OUT
     # LOUD (review item CODEX-4, plan P4-D110). It is read the way the
@@ -4409,7 +5179,7 @@ def _run_profile_body(
                 "holding record numbers", unknown[0], read.column_names
             )
         )
-        return 2
+        return results.UNUSABLE
 
     # The same refusal for the other declaration, and for the same
     # reason: a misspelt name must not produce a description in which a
@@ -4423,7 +5193,7 @@ def _run_profile_body(
                 "holding codes", unknown_codes[0], read.column_names
             )
         )
-        return 2
+        return results.UNUSABLE
 
     # A column named in BOTH declarations is refused rather than ranked.
     # `--identifier` publishes nothing and `--code` publishes the
@@ -4441,7 +5211,7 @@ def _run_profile_body(
                 read.column_names,
             )
         )
-        return 2
+        return results.UNUSABLE
 
     unknown_twelve = [
         name for name in twelve_hours if name not in read.column_names
@@ -4452,7 +5222,7 @@ def _run_profile_body(
                 "as a 12-hour clock", unknown_twelve[0], read.column_names
             )
         )
-        return 2
+        return results.UNUSABLE
     # -- 3b.R2a (P4-D383)
     unknown_centuries = [
         name for name in sorted(centuries) if name not in read.column_names
@@ -4465,7 +5235,7 @@ def _run_profile_body(
                 read.column_names,
             )
         )
-        return 2
+        return results.UNUSABLE
 
     # -- 3b.R2c (P4-D383)
     unknown_dates = [
@@ -4477,7 +5247,7 @@ def _run_profile_body(
                 "as a column of dates", unknown_dates[0], read.column_names
             )
         )
-        return 2
+        return results.UNUSABLE
 
     unknown_commas = [
         name
@@ -4492,7 +5262,7 @@ def _run_profile_body(
                 read.column_names,
             )
         )
-        return 2
+        return results.UNUSABLE
     # -- 3b.R4 (P4-D384): A COLUMN WHOSE DATES ARE WRITTEN AS COUNTS is a
     # column of this table, and is read one way, as those dates: named
     # beside `--code`, `--identifier`, `--measurement` or `--twelve-hour`
@@ -4508,7 +5278,7 @@ def _run_profile_body(
                 read.column_names,
             )
         )
-        return 2
+        return results.UNUSABLE
     for name in sorted(counted):
         if (
             name in forced_codes
@@ -4517,7 +5287,7 @@ def _run_profile_body(
             or name in twelve_hours
         ):
             _warn(errors.column_declared_twice(name))
-            return 2
+            return results.UNUSABLE
 
     # THE FOURTH DECLARATION IS NOT ONE OF THE THREE, and its refusals
     # are its own (plan P4-D26). It says how a column's numbers are
@@ -4535,12 +5305,12 @@ def _run_profile_body(
                     name, "--identifier"
                 )
             )
-            return 2
+            return results.UNUSABLE
         if name in forced_codes:
             _warn(
                 errors.comma_declaration_would_be_ignored(name, "--code")
             )
-            return 2
+            return results.UNUSABLE
 
     # A column named in two declarations at once is refused rather than
     # ranked: they ask for different readings and there is no reading of
@@ -4554,7 +5324,7 @@ def _run_profile_body(
     ]
     if both:
         _warn(errors.column_declared_twice(both[0]))
-        return 2
+        return results.UNUSABLE
 
     # NO ANSWER AN EARLIER RUN KEPT IS DROPPED IN SILENCE (plan P4-D408).
     # Each still standing must reach the file this run writes, where the
@@ -4575,7 +5345,7 @@ def _run_profile_body(
         and tuple(read.column_names) != answered_under
     ):
         _warn(_answered_under_other_names(_shown(f"{answers_path}")))
-        return 2
+        return results.UNUSABLE
     if carried_answers:
         not_kept = _earlier_answers_dropped(
             carried_answers,
@@ -4597,7 +5367,7 @@ def _run_profile_body(
                     _shown(f"{answers_path}"), [_shown(one) for one in not_kept]
                 )
             )
-            return 2
+            return results.UNUSABLE
     # THE CODES THE QUESTIONS FILE ANSWERED, FOUND AGAIN IN THE TABLE
     # (plan P4-D381). The file names the column and never its codes --
     # it carries no value of the table -- so the codes are read here,
@@ -4620,7 +5390,7 @@ def _run_profile_body(
                 read.column_names,
             )
         )
-        return 2
+        return results.UNUSABLE
     added_missing: "list[str]" = []
     added_kept: "list[str]" = []
     kept_code_shapes: "dict[str, str]" = dict(answered_code_shapes)
@@ -4663,10 +5433,16 @@ def _run_profile_body(
                     name,
                     "--keep-value" if missing else "--missing-value",
                     len(left),
-                )
+                ),
+                caution=results.CAUTION_ANSWER_LEFT_WORDS,
+                column=name,
             )
         if seen is None:
-            _warn(errors.the_date_codes_answer_reached_nothing(name))
+            _warn(
+                errors.the_date_codes_answer_reached_nothing(name),
+                caution=results.CAUTION_ANSWER_REACHED_NOTHING,
+                column=name,
+            )
             continue
         # ...and the file this run writes keeps the answer by the codes
         # found here, which every round finds alike (plan P4-D408), and
@@ -4690,7 +5466,7 @@ def _run_profile_body(
         ):
             if commas and parsing.reads_as_two_numbers(spelling):
                 _warn(errors.a_declared_value_reads_two_ways(spelling, option))
-                return 2
+                return results.UNUSABLE
         # THE ANSWER IS THE NEWER STATEMENT, as it is for a column's
         # role above: a typed value it contradicts gives way to it.
         kept_values = [
@@ -4716,7 +5492,7 @@ def _run_profile_body(
                     _shown(answers_path or ""), _shown(clashes[0])
                 )
             )
-            return 2
+            return results.UNUSABLE
         settings = dataclasses.replace(
             settings,
             kept_values=tuple(kept_values),
@@ -4763,14 +5539,14 @@ def _run_profile_body(
                 settings.small_cell_floor,
             )
         )
-        return 1
+        return results.REFUSED
     if population < parsing.POPULATION_FLOOR:
         _warn(
             errors.the_population_is_too_small(
                 population, unit, _joined(list(person_columns), " and ")
             )
         )
-        return 1
+        return results.REFUSED
     settings = dataclasses.replace(settings, person_columns=person_columns)
     population_notes = profile.notes_for_a_small_population(
         population, unit, parsing.POPULATION_NOTICE_LINE
@@ -4845,7 +5621,9 @@ def _run_profile_body(
             _warn(
                 errors.the_comma_declaration_did_not_reach(
                     name, f"{described_column['role']}"
-                )
+                ),
+                caution=results.CAUTION_DECLARATION_DID_NOT_REACH,
+                column=name,
             )
     # -- 3b.R4 (P4-D384): ...AND A COLUMN DECLARED TO WRITE ITS DATES AS
     # COUNTS WHOSE CELLS DID NOT READ AS SUCH DATES, said here as the
@@ -4861,7 +5639,9 @@ def _run_profile_body(
             _warn(
                 errors.the_date_count_declaration_did_not_reach(
                     name, counted[name]
-                )
+                ),
+                caution=results.CAUTION_DECLARATION_DID_NOT_REACH,
+                column=name,
             )
     # ...AND THE 12-HOUR DECLARATION, WHICH REACHES ONLY AN UNMARKED CLOCK
     # (landing T1, plan P4-D370), said where it reached nothing.
@@ -4882,7 +5662,11 @@ def _run_profile_body(
             if _style_held_back(described_column) and _clocks_on_the_declared_face(
                 reading.column_values(read, column_at)
             ):
-                _warn(errors.the_twelve_hour_style_was_held_back(name))
+                _warn(
+                    errors.the_twelve_hour_style_was_held_back(name),
+                    caution=results.CAUTION_DECLARATION_DID_NOT_REACH,
+                    column=name,
+                )
                 continue
             # A LAYOUT COLUMN READ IN PART is a time of day without a
             # marker the partial reader takes on the 24-hour clock alone
@@ -4890,12 +5674,18 @@ def _run_profile_body(
             if asking.layout_read_in_part(described_column) and parsing.layout_asks_twelve_hours(
                 f"{described_column['format']}"
             ):
-                _warn(errors.the_twelve_hour_declaration_did_not_reach_in_part(name))
+                _warn(
+                    errors.the_twelve_hour_declaration_did_not_reach_in_part(name),
+                    caution=results.CAUTION_DECLARATION_DID_NOT_REACH,
+                    column=name,
+                )
                 continue
             _warn(
                 errors.the_twelve_hour_declaration_did_not_reach(
                     name, f"{described_column['role']}"
-                )
+                ),
+                caution=results.CAUTION_DECLARATION_DID_NOT_REACH,
+                column=name,
             )
 
     # ...AND THE CENTURY, WHICH REACHES ONLY A COLUMN OF DATES WITH A
@@ -4917,7 +5707,9 @@ def _run_profile_body(
             _warn(
                 errors.the_century_declaration_did_not_reach(
                     name, f"{described_column['role']}"
-                )
+                ),
+                caution=results.CAUTION_DECLARATION_DID_NOT_REACH,
+                column=name,
             )
 
     # -- 3b.R2c (P4-D383): ...AND THE DATES DECLARATION, WHICH REACHES A
@@ -4931,7 +5723,9 @@ def _run_profile_body(
             _warn(
                 errors.the_dates_declaration_did_not_reach(
                     name, f"{described_column['role']}"
-                )
+                ),
+                caution=results.CAUTION_DECLARATION_DID_NOT_REACH,
+                column=name,
             )
 
     # A COLUMN DECLARED A MEASUREMENT HAS BEEN ANSWERED TOO, and this
@@ -5017,8 +5811,11 @@ def _run_profile_body(
         if _there_is_somebody_to_ask():
             given = _put_the_questions(asked_about)
             if given is None:
-                _warn(errors.the_questions_were_not_finished())
-                return 1
+                _warn(
+                    errors.the_questions_were_not_finished(),
+                    step=results.STEP_QUESTIONS,
+                )
+                return results.REFUSED
             (
                 new_codes, new_identifiers, new_measured, new_commas,
                 new_twelve, new_counted,
@@ -5108,7 +5905,9 @@ def _run_profile_body(
                 forced_decimal_commas = kept_commas
                 for named in dropped:
                     _warn(
-                        errors.the_comma_declaration_was_answered_away(named)
+                        errors.the_comma_declaration_was_answered_away(named),
+                        caution=results.CAUTION_ANSWERED_AWAY,
+                        column=named,
                     )
                 # THE POPULATION FLOOR AGAIN, WITH THE FINAL SET (plan
                 # P4-D341), and this time it is final: the person has
@@ -5153,7 +5952,7 @@ def _run_profile_body(
                             settings.small_cell_floor,
                         )
                     )
-                    return 1
+                    return results.REFUSED
                 if population < parsing.POPULATION_FLOOR:
                     _warn(
                         errors.the_population_is_too_small(
@@ -5162,7 +5961,7 @@ def _run_profile_body(
                             _joined(list(person_columns), " and "),
                         )
                     )
-                    return 1
+                    return results.REFUSED
                 settings = dataclasses.replace(
                     settings, person_columns=person_columns
                 )
@@ -5207,7 +6006,9 @@ def _run_profile_body(
                         _warn(
                             errors.the_comma_declaration_did_not_reach(
                                 name, f"{rebuilt['role']}"
-                            )
+                            ),
+                            caution=results.CAUTION_DECLARATION_DID_NOT_REACH,
+                            column=name,
                         )
             answered = True
         else:
@@ -5312,7 +6113,8 @@ def _run_profile_body(
         _warn(
             _small_population_notice(
                 f"{spoken}", _joined(list(person_columns), " and ")
-            )
+            ),
+            caution=results.CAUTION_SMALL_POPULATION,
         )
     # AND WHERE NOBODY HAS SAID WHO THE ROWS ARE, THE SCREEN SAYS SO
     # (plan P4-D340). A person asked about a column that might name
@@ -5324,7 +6126,10 @@ def _run_profile_body(
         if question.reason == asking.BECAUSE_REPEATS_AND_MANY:
             person_asked += [question.name]
     if person_asked and not person_columns and not assumptions_said:
-        _warn(_counted_in_rows_notice(person_asked, small_tables_refused))
+        _warn(
+            _counted_in_rows_notice(person_asked, small_tables_refused),
+            caution=results.CAUTION_COUNTED_IN_ROWS,
+        )
 
     # NO VALUE OF A COLUMN WHOSE IDENTITY QUESTION IS STILL OPEN (plan
     # P4-D401). Where nobody was at the keyboard, a column a question
@@ -5435,9 +6240,12 @@ def _run_profile_body(
     published = document
     if withheld or candidates or five_held or harbor_held:
         if withheld:
-            _warn(_withheld_notice(withheld))
+            _warn(_withheld_notice(withheld), caution=results.CAUTION_WITHHELD)
         if five_held:
-            _warn(_safe_harbor_notice(tuple(five_held), True))
+            _warn(
+                _safe_harbor_notice(tuple(five_held), True),
+                caution=results.CAUTION_SAFE_HARBOR,
+            )
         # ...and every column held so -- the candidates of the open
         # person question, and a key held by another identity question,
         # such as a patient number of figures padded with zeros that the
@@ -5466,7 +6274,10 @@ def _run_profile_body(
             counted_in_rows=counted_in_rows,
         )
     if counted_in_rows:
-        _warn(_dates_held_in_rows_notice(tuple(counted_in_rows), settings.small_cell_floor))
+        _warn(
+            _dates_held_in_rows_notice(tuple(counted_in_rows), settings.small_cell_floor),
+            caution=results.CAUTION_DATES_HELD_IN_ROWS,
+        )
     if counted_in_people:
         named_once: "list[str]" = []
         for name in counted_in_people:
@@ -5475,7 +6286,8 @@ def _run_profile_body(
         _warn(
             _counted_in_people_notice(
                 tuple(named_once), settings.small_cell_floor
-            )
+            ),
+            caution=results.CAUTION_COUNTED_IN_PEOPLE,
         )
 
     # THE CHAIN BETWEEN COLUMNS, behind its switch (lane CHa, plan
@@ -5494,7 +6306,7 @@ def _run_profile_body(
             storage,
         )
         if chain_state.entry is None:
-            return 1
+            return results.REFUSED
 
     # The summary crosses the boundary ONCE, here, and the same text is
     # what reaches the screen and what is written to disk. The two
@@ -5507,6 +6319,7 @@ def _run_profile_body(
             _encoding_note(read.encoding, read.used_fallback_encoding),
         )
     )
+    _at(results.STEP_OUTPUTS)
     profile_path, summary_path = profile.default_output_paths(
         pathlib.Path(table), out_dir
     )
@@ -5522,8 +6335,11 @@ def _run_profile_body(
         or profile.is_the_same_file(profile_path, source)
         or profile.is_the_same_file(summary_path, source)
     ):
-        _warn(errors.output_would_replace_the_table(_shown(source)))
-        return 1
+        _warn(
+            errors.output_would_replace_the_table(_shown(source)),
+            step=results.STEP_OUTPUTS,
+        )
+        return results.REFUSED
 
     shown_profile_path = _shown(profile_path)
     shown_summary_path = _shown(summary_path)
@@ -5562,7 +6378,8 @@ def _run_profile_body(
         _warn(
             errors.questions_would_replace_a_file(
                 shown_questions_path, questions_collides
-            )
+            ),
+            caution=results.CAUTION_QUESTIONS_WOULD_REPLACE,
         )
         _say(
             "\nBoth are computed from your real data. Keep them "
@@ -5672,9 +6489,18 @@ def _run_profile_body(
         )
     kept_of_yours = summary.words_of_your_own(published)
     if kept_of_yours:
-        _warn(_declared_words_notice(kept_of_yours, tuple(added_missing)))
+        _warn(
+            _declared_words_notice(kept_of_yours, tuple(added_missing)),
+            caution=results.CAUTION_DECLARED_WORDS,
+        )
     if floor_chosen and smallest_group < _NOTICE_LINE:
-        _warn(_lowered_floor_warning(smallest_group))
+        _warn(
+            _lowered_floor_warning(smallest_group),
+            caution=results.CAUTION_LOWERED_FLOOR,
+        )
+    # THE FLOOR THE DESCRIPTION IS WRITTEN AT, for the run's result.
+    _record_floor(settings.small_cell_floor, False)
+    _at(results.STEP_WRITING)
 
     # The return value is the point of the call, not an afterthought:
     # it is every working file still sitting in the output folder after
@@ -5709,8 +6535,12 @@ def _run_profile_body(
         )
     except BaseException:
         if state.sentence:
-            _warn(_shown(state.sentence))
+            _stopped_writing(_shown(state.sentence))
         elif state.both_files_written:
+            _wrote(
+                (results.FILE_DESCRIPTION, profile_path),
+                (results.FILE_SUMMARY, summary_path),
+            )
             # The other end of the same promise. Both renames finished
             # and then the run stopped -- a person pressing Ctrl-C in
             # that last instant -- so there is no failure of the write to
@@ -5725,8 +6555,12 @@ def _run_profile_body(
                 f"\nWritten:\n  {shown_profile_path}\n  {shown_summary_path}"
             )
             if state.left_behind:
-                _warn(_left_behind_note([state.left_behind]))
+                _left_behind([state.left_behind], _left_behind_note([state.left_behind]))
         raise
+    _wrote(
+        (results.FILE_DESCRIPTION, profile_path),
+        (results.FILE_SUMMARY, summary_path),
+    )
     if left_behind:
         # A caution, not a refusal. The profile is good, so the exit
         # code stays 0; the reader is simply told what to delete.
@@ -5736,7 +6570,7 @@ def _run_profile_body(
         # only one of the two reaches the person, it must be the one
         # naming a file that may hold text taken from their table, not
         # the one confirming what already went well.
-        _warn(_left_behind_note(left_behind))
+        _left_behind(left_behind, _left_behind_note(left_behind))
     _say(f"\nWritten:\n  {shown_profile_path}\n  {shown_summary_path}")
     # THE QUESTIONS FILE, AFTER THE PAIR AND OUTSIDE THEIR TRANSACTION
     # (amendment A-P4-58). The description and its summary are one
@@ -5883,7 +6717,10 @@ def _run_profile_body(
             if question.reason == asking.BECAUSE_SAFE_HARBOR_AGES
         ]
         if top_coded_names:
-            _warn(_safe_harbor_notice(tuple(top_coded_names), False))
+            _warn(
+                _safe_harbor_notice(tuple(top_coded_names), False),
+                caution=results.CAUTION_SAFE_HARBOR,
+            )
     # AND ITS DESTINATION IS GUARDED LIKE ANY OTHER (review item
     # L17b-R1-1). On POSIX a link left at this name resolves to a
     # permitted local path, so the locality gate cannot catch it: what
@@ -5905,9 +6742,12 @@ def _run_profile_body(
         # be the same sentence twice with the run's outcome between
         # them, which reads as two separate troubles.
         if floor_chosen and smallest_group < _NOTICE_LINE:
-            _warn(f"\n{_LOWERED_FLOOR_REMINDER}")
+            _warn(
+                f"\n{_LOWERED_FLOOR_REMINDER}",
+                caution=results.CAUTION_LOWERED_FLOOR_REMINDER,
+            )
         _say(_teaching_generate(profile_path))
-        return 0
+        return results.NO_MISS
     written_questions = True
     questions_state = writing.DiskState()
     left_questions: "list[str]" = []
@@ -5996,15 +6836,20 @@ def _run_profile_body(
         # first, then the stop continues as itself so that `main`'s
         # handler still recognizes it.
         if questions_state.sentence:
-            _warn(_shown(questions_state.sentence))
+            _stopped_writing(_shown(questions_state.sentence))
         elif questions_state.target_written:
+            _wrote((results.FILE_QUESTIONS, questions_path))
             _say(f"  {shown_questions_path}")
             if questions_state.left_behind:
-                _warn(_left_behind_note([questions_state.left_behind]))
+                _left_behind(
+                    [questions_state.left_behind],
+                    _left_behind_note([questions_state.left_behind]),
+                )
         raise
     except BaseException:
         written_questions = False
     if written_questions:
+        _wrote((results.FILE_QUESTIONS, questions_path))
         _say(f"  {shown_questions_path}")
         if left_questions:
             # The same caution the pair above prints, for the same
@@ -6012,21 +6857,28 @@ def _run_profile_body(
             # real-derived file sitting in the person's folder under a
             # name nobody gave them (review item P1-R6-F5). Discarding
             # this list was item L17b-R1-4's other half.
-            _warn(_left_behind_note(left_questions))
+            _left_behind(left_questions, _left_behind_note(left_questions))
     else:
         if questions_state.sentence:
-            _warn(_shown(questions_state.sentence))
+            _warn(
+                _shown(questions_state.sentence),
+                caution=results.CAUTION_QUESTIONS_NOT_WRITTEN,
+            )
         _warn(
             f"\nThe description is written and complete. synthtwin could "
             f"not write its questions beside it at "
             f"{shown_questions_path}, so the columns it could not "
-            f"settle are named on the screen above and nowhere else."
+            f"settle are named on the screen above and nowhere else.",
+            caution=results.CAUTION_QUESTIONS_NOT_WRITTEN,
         )
 
     if floor_chosen and smallest_group < _NOTICE_LINE:
-        _warn(f"\n{_LOWERED_FLOOR_REMINDER}")
+        _warn(
+            f"\n{_LOWERED_FLOOR_REMINDER}",
+            caution=results.CAUTION_LOWERED_FLOOR_REMINDER,
+        )
     _say(_teaching_generate(profile_path))
-    return 0
+    return results.NO_MISS
 
 
 # -- building the twin (plan P2-D10) ----------------------------------
@@ -6172,7 +7024,7 @@ def _run_generate(
     seed_given: str,
     replace: bool,
     least_floor: int,
-) -> int:
+) -> str:
     """Do the work of `synthtwin generate`; return the exit code.
 
     The order of operations is a control here as much as in the profile
@@ -6212,15 +7064,17 @@ def _run_generate(
     seed, refusal = _seed_or_refusal(seed_given)
     if seed is None:
         _warn(refusal)
-        return 2
+        return results.UNUSABLE
     loaded = contract.load_profile(description)
+    _record_floor(loaded.settings.small_cell_floor, True)
     # A DESCRIPTION WRITTEN UNDER A LOWERED FLOOR IS NOT BUILT FROM (plan
     # P4-D426, HIPAA first): the twin would hold every group it names,
     # however small, and decision D7 lets a twin travel freely.
     if _description_floor_refused(
         loaded.settings.small_cell_floor, least_floor, description, True
     ):
-        return 1
+        return results.REFUSED
+    _at(results.STEP_OUTPUTS)
     # A WORKBOOK'S TWIN IS A WORKBOOK, AND IT IS WRITTEN AS ONE (plan
     # P4-D79, which supersedes P4-D78's refusal). The description says
     # which the table was, so the twin's name, its bytes and the rules
@@ -6249,7 +7103,7 @@ def _run_generate(
                 _shown(source), errors.TWIN_WORDS
             )
         )
-        return 1
+        return results.REFUSED
 
     shown_twin_path = _shown(twin_path)
     shown_report_path = _shown(report_path)
@@ -6264,11 +7118,12 @@ def _run_generate(
                     shown_twin_path, shown_report_path, taken
                 )
             )
-            return 1
+            return results.REFUSED
 
     # THE TWIN IS HELD ONCE (plan P4-D415, lane SG): its columns held
     # compactly, never the whole table as Python objects, and its text
     # written from them a piece at a time, never made whole.
+    _at(results.STEP_CONTENT)
     twin = generation.generate_held(loaded, seed)
     # The twin's bytes are NOT put through the display boundary. That
     # boundary is for text a person reads, and a cell that reached it
@@ -6312,17 +7167,24 @@ def _run_generate(
                     dialect.ENCODING_WORDS[loaded.source.encoding]
                 )
             )
-            return 1
+            return results.REFUSED
         twin_stream = rendering.twin_csv_pieces(twin)
     report_text = parsing.visible_lines(rendering.report(loaded, twin))
 
+    # THE RESULT TAKES THE TWIN'S MISSES AS ITS REPORT IS SHOWN (plan
+    # P4-D395 part 1): a run stopped after this keeps them, one stopped
+    # before it (the encoding refusal above) keeps none. No cell of the
+    # twin enters the result.
+    _generated(loaded, twin)
     _say(report_text)
     # ONE LINE ON THE SCREEN NAMING WHAT THE TWIN INVENTED (plan P4-D2
     # item 2). It is a warning rather than an ordinary line because a
     # person who reads one thing before opening the twin should read
     # this one; the exit code does not move for it, because a decline is
     # not a failure and a run that warned still succeeded.
-    _warn(rendering.made_up_warning(loaded))
+    _warn(
+        rendering.made_up_warning(loaded), caution=results.CAUTION_MADE_UP_COLUMNS
+    )
     _say(
         f"These two files will be written:\n"
         f"  {shown_twin_path}\n  {shown_report_path}"
@@ -6343,6 +7205,7 @@ def _run_generate(
     # generator's, so a stop names the twin and the description rather
     # than a profile and a table this run never had (plan P2-D10).
     state = writing.DiskState()
+    _at(results.STEP_WRITING)
     try:
         left_behind = writing.write_both_files(
             twin_path,
@@ -6359,21 +7222,26 @@ def _run_generate(
         )
     except BaseException:
         if state.sentence:
-            _warn(_shown(state.sentence))
+            _stopped_writing(_shown(state.sentence))
         elif state.both_files_written:
+            _wrote((results.FILE_TWIN, twin_path), (results.FILE_TWIN_REPORT, report_path))
             _say(f"\nWritten:\n  {shown_twin_path}\n  {shown_report_path}")
             if state.left_behind:
-                _warn(_left_behind_note([state.left_behind], "twin"))
+                _left_behind(
+                    [state.left_behind],
+                    _left_behind_note([state.left_behind], "twin"),
+                )
         raise
+    _wrote((results.FILE_TWIN, twin_path), (results.FILE_TWIN_REPORT, report_path))
     if left_behind:
         # A caution, not a refusal, and printed BEFORE the confirmation
         # for the same reason as in the profile command: if only one of
         # the two lines reaches the person, it must be the one naming a
         # file that may hold real-derived text.
-        _warn(_left_behind_note(left_behind, "twin"))
+        _left_behind(left_behind, _left_behind_note(left_behind, "twin"))
     _say(f"\nWritten:\n  {shown_twin_path}\n  {shown_report_path}")
     _say(_teaching_validate(description, twin_path))
-    return 0
+    return results.NO_MISS
 
 
 def _teaching_generate(description: pathlib.Path) -> str:
@@ -6388,7 +7256,9 @@ def _teaching_generate(description: pathlib.Path) -> str:
     reads nothing else reads what to type next. The path is the
     description just written, quoted for the shell (`_typed_path`).
     """
-    line = f"synthtwin generate {_typed_path(description)}"
+    line = _typed_line(
+        _next(results.PURPOSE_GENERATE, "synthtwin", "generate", f"{description}")
+    )
     return (
         f"\nNext, build the twin from this description:\n"
         f"  {line}{_quoting_said(line)}"
@@ -6416,9 +7286,15 @@ def _teaching_validate(
     prints, and are quoted for the shell (`_typed_path`, the Codex review
     of lane R1, item 1), which the line then names where it quotes one.
     """
-    line = (
-        f"synthtwin validate {_typed_path(description)} "
-        f"{_typed_option('--twin', twin_path)}"
+    line = _typed_line(
+        _next(
+            results.PURPOSE_VALIDATE,
+            "synthtwin",
+            "validate",
+            f"{description}",
+            "--twin",
+            f"{twin_path}",
+        )
     )
     return (
         f"\nNext, measure the twin against the description:\n"
@@ -6547,7 +7423,7 @@ def _run_validate(
     sheet: str,
     least_floor: int,
     chain: bool = False,
-) -> int:
+) -> str:
     """Do the work of `synthtwin validate`; return the exit code.
 
     The order of operations is a control here as much as in the other
@@ -6595,13 +7471,15 @@ def _run_validate(
         loaded, document = contract.load_profile_document(description)
     else:
         loaded = contract.load_profile(description)
+    _record_floor(loaded.settings.small_cell_floor, True)
     # A DESCRIPTION WRITTEN UNDER A LOWERED FLOOR IS NOT CHECKED AGAINST
     # (plan P4-D426, HIPAA first): the report would quote its small
     # groups and count the checked file's at that size.
     if _description_floor_refused(
         loaded.settings.small_cell_floor, least_floor, description, False
     ):
-        return 1
+        return results.REFUSED
+    _at(results.STEP_OUTPUTS)
     measured = _measured_path(
         description, twin_given, loaded.source.workbook is not None
     )
@@ -6628,18 +7506,21 @@ def _run_validate(
                     _shown(place), noun, errors.QUALITY_WORDS
                 )
             )
-            return 1
+            return results.REFUSED
 
     shown_quality_path = _shown(quality_path)
     if not replace and _already_there(quality_path):
         _warn(errors.quality_target_already_there(shown_quality_path))
-        return 1
+        return results.REFUSED
 
     # `--sheet` REACHES THIS COMMAND TOO (repair of landing 2b.10). The
     # option was accepted here and then dropped on the floor: a person
     # checking a real workbook whose table is not on the first visible
     # sheet named the sheet, was given no error, and had a different
     # sheet measured against their description.
+    # MEASURING STARTS BY OPENING THE FILE: a refusal there is about the
+    # input (a G12 refusal names its own step, `content`).
+    _at(results.STEP_INPUT)
     # THE DEFAULT CALL IS THE CALL IT WAS (skeptic 1 of lane CHv, item 1):
     # a run without the chain's switch hands `measure` the three arguments
     # it always took, so a caller that wraps `measure` with that signature
@@ -6661,8 +7542,11 @@ def _run_validate(
     report_pieces = quality.report_pieces(loaded, outcome)
     for index in range(len(report_pieces)):
         report_pieces[index] = parsing.visible_lines(report_pieces[index])
-    code = 3 if outcome.census.missed else 0
+    verdict = results.MISSED if outcome.census.missed else results.NO_MISS
 
+    # THE RESULT TAKES THE CHECK'S MISSES AS ITS REPORT IS SHOWN (plan
+    # P4-D395 part 1): a run stopped while writing keeps them.
+    _validated(loaded, outcome)
     if outcome.chain is None:
         _say_pieces(report_pieces)
     else:
@@ -6696,6 +7580,7 @@ def _run_validate(
     # validator's, so a stop names the quality report and the description
     # rather than a profile and a table this run never had.
     state = writing.DiskState()
+    _at(results.STEP_WRITING)
     try:
         left_behind = writing.write_one_file(
             quality_path,
@@ -6707,25 +7592,32 @@ def _run_validate(
         )
     except BaseException:
         if state.sentence:
-            _warn(_shown(state.sentence))
+            _stopped_writing(_shown(state.sentence))
         elif state.target_written:
+            _wrote((results.FILE_QUALITY_REPORT, quality_path))
             _say(f"\nWritten:\n  {shown_quality_path}")
             if state.left_behind:
-                _warn(
+                _left_behind(
+                    [state.left_behind],
                     _left_behind_note(
                         [state.left_behind], "quality report", True
-                    )
+                    ),
                 )
         raise
+    _wrote((results.FILE_QUALITY_REPORT, quality_path))
     if left_behind:
         # A caution, not a refusal, and printed BEFORE the confirmation
         # for the reason the other two commands give: if only one of the
         # two lines reaches the person, it must be the one naming a file
         # that may hold real-derived text.
-        _warn(_left_behind_note(left_behind, "quality report", True))
+        _left_behind(
+            left_behind, _left_behind_note(left_behind, "quality report", True)
+        )
     _say(f"\nWritten:\n  {shown_quality_path}")
+    # THE STATUS THE LINES NAME IS THE RESULT'S (plan P4-D395 part 4).
+    code = results.exit_code(results.Result(results.VALIDATE, verdict))
     _say(_verdict_lines(outcome.census.missed, code))
-    return code
+    return verdict
 
 
 # -- checking this computer before a first run (plan P4-D397) ----------
@@ -7119,6 +8011,20 @@ def _weighed(size: int, workbook: bool, memory: "int | None") -> _Check:
     return _passed(f"{said}, which fits this computer's {_size_words(memory)}")
 
 
+# THE KEY OF EACH OF DOCTOR'S CHECKS, in `_doctor_checks`' order: what
+# names a check not made in a run's result (plan P4-D395 part 1).
+_DOCTOR_CHECK_KEYS = (
+    "python",
+    "numpy",
+    "pandas",
+    "pyarrow",
+    "scipy",
+    "output-folder",
+    "memory",
+    "table",
+)
+
+
 def _doctor_checks(table: "str | None", out_dir: "str | None") -> "list[_Check]":
     """Every check `synthtwin doctor` makes, one line each, in order.
 
@@ -7145,50 +8051,66 @@ def _doctor_checks(table: "str | None", out_dir: "str | None") -> "list[_Check]"
     return checks
 
 
-def _run_doctor(table: "str | None", out_dir: "str | None") -> int:
+def _run_doctor(table: "str | None", out_dir: "str | None") -> str:
     """`synthtwin doctor`: one plain line per check, then what to do next.
 
-    Guarantees: returns 0 when every check passed or could not be made,
-    and 1 when any did not pass. Boundary: a named table is never opened
-    -- its size is asked of the file system and nothing else -- and the
-    one file written is the test file in the output folder, removed at
-    once. No network, subprocess, native or dynamic-code operation.
+    Guarantees: returns `no-miss` when every check passed or could not
+    be made, and `refused` (step `environment`) when any made did not
+    pass (exit 0 and 1). The run's result counts the checks, those passed,
+    failed and not made -- a check not made is never counted passed nor
+    failed -- and lists each check not made in `unjudged`, keyed by the
+    check that composes it (plan P4-D395 part 1). Boundary: a named table
+    is never opened -- its size is asked of the file system and nothing
+    else -- and the one file written is the test file in the output
+    folder, removed at once. No network, subprocess, native or
+    dynamic-code operation.
     """
     _say(f"synthtwin {_version()}: checking this computer before a first run.")
     checks = _doctor_checks(table, out_dir)
     failed = 0
     unmade = 0
-    for check in checks:
+    unjudged: "list[results.Unjudged]" = []
+    for place in range(len(checks)):
+        check = checks[place]
         _say(check.line)
         if not check.passed:
             failed += 1
         elif not check.made:
             unmade += 1
+            unjudged += [results.Unjudged("", "", "", _DOCTOR_CHECK_KEYS[place])]
+    session = _current()
+    if session is not None:
+        session.tally = (
+            ("checks", len(checks)),
+            ("passed", len(checks) - failed - unmade),
+            ("failed", failed),
+            ("not-made", unmade),
+        )
+        session.unjudged = tuple(unjudged)
+        session.step = results.STEP_ENVIRONMENT
+        for check in checks:
+            if not check.passed:
+                session.refusal_words += [parsing.visible_lines(check.line)]
     if failed:
         _say(
             f"\n{failed} check(s) did not pass. Do what the line marked "
             f"PROBLEM says, then run this again:\n"
             f"{_doctor_again(table, out_dir)}"
         )
-        return 1
+        return results.REFUSED
     passed = "Every check that could be made passed." if unmade else "Every check passed."
     _say(f"\n{passed} {_teaching_profile(table, out_dir)}")
-    return 0
-
-
-def _typed_with_folder(line: str, out_dir: "str | None") -> str:
-    """A command line, with `--out-dir` as the person typed it when they did."""
-    if out_dir is None:
-        return line
-    return f"{line} {_typed_option('--out-dir', out_dir)}"
+    return results.NO_MISS
 
 
 def _doctor_again(table: "str | None", out_dir: "str | None") -> str:
     """The line a failed `doctor` ends with: the same check, as the person typed it."""
-    line = "synthtwin doctor"
+    words = ["synthtwin", "doctor"]
     if table is not None:
-        line = f"{line} {_typed_path(table)}"
-    line = _typed_with_folder(line, out_dir)
+        words += [f"{table}"]
+    if out_dir is not None:
+        words += ["--out-dir", f"{out_dir}"]
+    line = _typed_line(_next(results.PURPOSE_DOCTOR, *words))
     return f"  {line}{_quoting_said(line)}"
 
 
@@ -7198,8 +8120,10 @@ def _teaching_profile(table: "str | None", out_dir: "str | None" = None) -> str:
     It names the table and the output folder doctor was given, so the
     folder it checked is the one `profile` writes into.
     """
-    named = "my-table.csv" if table is None else _typed_path(table)
-    line = _typed_with_folder(f"synthtwin profile {named}", out_dir)
+    words = ["synthtwin", "profile", "my-table.csv" if table is None else f"{table}"]
+    if out_dir is not None:
+        words += ["--out-dir", f"{out_dir}"]
+    line = _typed_line(_next(results.PURPOSE_PROFILE, *words))
     return (
         f"Next, describe your table:\n"
         f"  {line}{_quoting_said(line)}"
@@ -7273,9 +8197,12 @@ def main(
       plain-language explanation on the error stream; 2 when an option's
       value was not usable, which includes naming one value both with
       `--keep-value` and with `--missing-value`, and a seed that is not a
-      whole number in figures inside the stated range. `SystemExit` with
-      code 2 still ends the run for a word on the command line that
-      synthtwin does not recognize, and with code 0 for `--help`. For
+      whole number in figures inside the stated range, and for a word on
+      the command line that synthtwin does not recognize; 0 for `--help`.
+      Every one is `results.exit_code` of the result `run` returns, and
+      nothing else chooses it (plan P4-D395 part 4); `main` returns it
+      and never raises `SystemExit` (the console entry point exits with
+      what it returns). For
       `profile` and `generate`, 0 always means both files were written: a
       working file that could not be cleared away afterwards is named on
       the error stream as a caution and does not change the code, because
@@ -7354,9 +8281,156 @@ def main(
       must not: they are read by a program, and an escaped cell would be
       a value the description never published.
     """
+    # Whether somebody is there is asked before the run opens, so the
+    # seam the suite patches (`_there_is_somebody_to_ask`) decides here
+    # as it always did. The internal settings are handed on as they came.
+    result = _run(
+        argv,
+        TERMINAL,
+        TERMINAL if _there_is_somebody_to_ask() else None,
+        chain,
+        small_tables_refused,
+        internal_smallest_group,
+    )
+    return results.exit_code(result)
+
+
+def run(
+    argv: "list[str] | None" = None,
+    *,
+    screen: "list[tuple[str, str]] | str | None" = None,
+    ask: "list[str | None] | str | None" = None,
+    chain: "ChainRun | None" = None,
+    small_tables_refused: bool = True,
+    internal_smallest_group: "int | None" = None,
+) -> results.Result:
+    """Run one command line and return what it did, printing nothing (plan P4-D395 part 3).
+
+    Guarantees:
+
+    - Inputs: ``argv`` is the words a person types after `synthtwin`,
+      read by the same parser as `main` (None reads `sys.argv[1:]`).
+      ``screen`` is `TERMINAL` (the terminal: `main`'s), or a list to
+      which the run adds ``(stream, text)`` -- "out" or "err", and
+      exactly the characters the terminal is to show, the display
+      boundary already applied -- at the moment and in the order the
+      command shows them, so the disclosure still reaches the person
+      before the files exist (plan P1-D6) and a run stopped while writing
+      still shows what it shows; None shows it nowhere. ``ask`` is
+      `TERMINAL` (the person at the terminal, `input`'s prompt its own),
+      or the lines a person types, read in order, None or the end of the
+      list where they ended input there; the question and the request to
+      type again reach the person through ``screen``. Without ``ask`` no
+      question is put and nothing is read. Both are data and never a
+      function: the offline audit admits no call of a function a caller
+      hands in (plan D6.2; plan P4-D437). ``chain``, ``small_tables_refused`` and
+      ``internal_smallest_group`` are `main`'s, with the same meanings,
+      and INTERNAL: no option or environment variable sets them.
+    - Given neither ``screen`` nor ``ask``, nothing reaches standard
+      output or the error stream by any route of this package -- a
+      message, argparse's help or usage text -- nothing is read from
+      standard input, `sys.exit` is not called and `SystemExit` is not
+      raised: `--help`, `--version` and no words at all return results,
+      and a word the parser does not know returns `unusable`. The files
+      are written as the command writes them.
+    - Errors raised: Ctrl-C anywhere but at a prompt still ends the run
+      (`KeyboardInterrupt` passes), and an exception no refusal names
+      still surfaces: a defect stays loud. Every refusal the command
+      catches is a `refused` result instead, its words shown as before.
+    - Determinism and boundary: as `main`'s. Each command's modules are
+      still imported inside its own branch (plans P2-D1, P3-D1), so a
+      validate run reaches no generator.
+    - ONE RUN AT A TIME IN A PROCESS (a stated limit, plan P4-D437): the
+      run in progress is found through one module-wide list of open
+      sessions, so two threads calling `run` (or `main`) at once can each
+      receive the other's command, screen text or misses (measured at
+      lane S5a's skeptic 1: 82 of 600 results crossed). Run them one
+      after another, or in separate processes.
+    """
+    return _run(
+        argv, screen, ask, chain, small_tables_refused, internal_smallest_group
+    )
+
+
+def _run(
+    argv: "list[str] | None",
+    screen: "list[tuple[str, str]] | str | None",
+    ask: "list[str | None] | str | None",
+    chain: "ChainRun | None",
+    small_tables_refused: bool,
+    internal_smallest_group: "int | None",
+) -> results.Result:
+    """The run `main` and `run` share: one session opened and closed, one result."""
+    session = _Session(screen, ask)
+    _OPEN.sessions += [session]
+    try:
+        verdict = _dispatch(
+            argv, chain, small_tables_refused, internal_smallest_group
+        )
+    except _Unusable:
+        verdict = results.UNUSABLE
+    except _HelpShown:
+        session.command = results.HELP
+        verdict = results.NO_MISS
+    finally:
+        del _OPEN.sessions[len(_OPEN.sessions) - 1]
+    return _result_of(session, verdict)
+
+
+def _result_of(session: _Session, verdict: str) -> results.Result:
+    """The session's result, under the verdict the run ended with.
+
+    A run that finished with a miss is `missed` whatever its branch
+    returned; a refusal carries its step (the one the call site named,
+    else the step the run was at), its catalog key and its words, and
+    an unusable command line the step `command-line`.
+    """
+    if verdict == results.NO_MISS and session.misses:
+        verdict = results.MISSED
+    refusal: "results.Refusal | None" = None
+    if verdict in (results.REFUSED, results.UNUSABLE):
+        step = session.step or session.phase
+        if verdict == results.UNUSABLE:
+            step = results.STEP_COMMAND_LINE
+        words = ""
+        for line in session.refusal_words:
+            words = line if not words else words + "\n" + line
+        refusal = results.Refusal(step, session.key, words, session.on_disk)
+    return results.Result(
+        command=session.command,
+        verdict=verdict,
+        misses=session.misses,
+        unjudged=session.unjudged,
+        carried=session.carried,
+        tally=session.tally,
+        floor=session.floor,
+        floor_lowered=session.floor_lowered,
+        warnings=tuple(session.warnings),
+        files=tuple(session.files),
+        left_behind=tuple(session.left_behind),
+        next_command=session.next_command,
+        refusal=refusal,
+    )
+
+
+def _dispatch(
+    argv: "list[str] | None",
+    chain: "ChainRun | None",
+    small_tables_refused: bool,
+    internal_smallest_group: "int | None",
+) -> str:
+    """Read the command line and run its command; return the run's verdict.
+
+    The body `main` had before results (plan P4-D395): every refusal it
+    catches is shown as before and answered `refused`, and the step a
+    stop was at is read off the session.
+    """
+    session = _current()
+    assert session is not None
+    session.command = _command_word(argv)
     options = _parse_arguments(argv, internal_smallest_group)
     if _no_floor_at_all(internal_smallest_group):
-        return 2
+        return results.UNUSABLE
     # The least smallest group size a description `generate` or
     # `validate` reads may record (plan P4-D426).
     least_read = (
@@ -7366,16 +8440,19 @@ def main(
     )
 
     if options.version:
+        session.command = results.VERSION
         _say(_version())
-        return 0
+        return results.NO_MISS
 
     if options.command == _DOCTOR:
+        session.command = results.DOCTOR
         return _run_doctor(options.given, options.out_dir)
 
     named = options.given
     if named is None or options.command is None:
+        session.command = results.STATUS
         _say(_STATUS.format(version=_version(), repo=_REPO_URL))
-        return 0
+        return results.NO_MISS
 
     generating = options.command == _GENERATE
     validating = options.command == _VALIDATE
@@ -7431,10 +8508,21 @@ def main(
         # showing the line feed too costs nothing and closes the last
         # way a path can forge a line of its own.
         _warn(_shown(error))
-        return 1
+        return results.REFUSED
     except errors.ProfileError as error:
+        # A refusal of method G12 names its catalog key, and is a refusal
+        # of the description's content wherever it is raised.
+        if isinstance(error, errors.KeyedRefusal):
+            session.key = error.key
+            session.step = session.step or results.STEP_CONTENT
         _warn(_shown(error))
-        return 1
+        # The write transaction's own refusal names what is on disk in its
+        # message, and holds that account apart too: the result carries it
+        # as such (lane S5a's repair 2, Codex's item 8), shown as the words
+        # show it.
+        if isinstance(error, errors.TransactionRefusal) and error.on_disk:
+            session.on_disk = parsing.visible_lines(_shown(error.on_disk))
+        return results.REFUSED
     except MemoryError:
         # Reading is not the only step that can exhaust memory: building
         # the description and rendering it allocate again, and so does
@@ -7454,7 +8542,8 @@ def main(
             _warn(errors.quality_out_of_memory(_shown(named)))
         else:
             _warn(errors.out_of_memory_while_describing(_shown(named)))
-        return 1
+        session.step = results.STEP_MEMORY
+        return results.REFUSED
     except RecursionError:
         # A STEP NESTED PAST PYTHON'S OWN LIMIT ends here and never as a
         # stack trace (plan P4-D380). The pool walk that did it on columns
@@ -7462,7 +8551,22 @@ def main(
         # this is what any step that still reaches the limit says, on the
         # file the person typed, whichever of the three commands it was.
         _warn(errors.stopped_nested_too_deep(_shown(named)))
-        return 1
+        session.step = results.STEP_NESTING
+        return results.REFUSED
+
+
+def _command_word(argv: "list[str] | None") -> str:
+    """The command a command line names, read before it is parsed, or "".
+
+    The first of `profile`, `generate`, `validate` and `doctor` among the
+    words, so a command line refused before its command ran still says
+    which command it was for; the branch that runs sets it again.
+    """
+    words = sys.argv[1:] if argv is None else argv
+    for word in words:
+        if word in (_PROFILE, _GENERATE, _VALIDATE, _DOCTOR):
+            return f"{word}"
+    return ""
 
 
 if __name__ == "__main__":

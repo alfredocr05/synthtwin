@@ -6,6 +6,78 @@ exists).
 
 ## [Unreleased]
 
+### Lane S5a: results become data -- `synthtwin.cli.run` returns one result a run, its misses ranked once, every byte held (plan P4-D437, 2026-10-26; builds P4-D395)
+
+**Stage 5's first build lane.** `src/synthtwin/results.py` (new, the
+standard library only) holds what one run did as frozen records: its
+verdict (`no-miss`, `missed`, `refused`, `unusable`), its misses in
+`(tier, place, arrival)` order with the rank table that decides each
+tier once, what it could not judge, what it carries approximately or not
+at all, its tally, floor, warnings by key, files, next command and
+refusal with its step; `results.exit_code` reads the exit status from
+the command and the verdict alone. `synthtwin.cli.run(argv, *,
+screen=None, ask=None)` returns that result and prints nothing (the
+screen and the reader are data, `cli.TERMINAL`, a list or None, since
+the offline audit admits no call of a function a caller hands in);
+`synthtwin.cli.main` returns `exit_code(run(...))` and no longer raises
+`SystemExit` for `--help` or a word it does not know. The validator and
+the generator mark how each miss was judged; the four G12 refusals carry
+their catalog key; `src/synthtwin/roles.py` (new) keeps the registry
+group and the made-up class where generate's and validate's results read
+them without crossing the profile and generator boundary.
+`tests/stage5_battery.py`'s 45 command lines are recorded once, in the
+lane's first commit, from the base's code (`tests/stage5_goldens.py`,
+245 records), and CI's Ubuntu 3.11 cell reproduces them with
+`tools/goldens/record_stage5_goldens.py` under the provenance guard
+after its negative control. `K-S5-01` (headline, new): 53 of 53 battery
+cases told apart from the result alone, 0 of 21 corrupted results met
+(the page's baseline, 3 of 53, by its rule). `K-S5-02` (new): 0 of 245
+records differ, 0 digests (both stamped on 11612e6, repair 1's head,
+by `kpi_run.py --slow`). `tests/test_stage5_gate.py` (new) runs in 104
+seconds. At the table floor G2's twin gives up the weight's mode count,
+so the battery's good generate run is G2n, the table without its weight
+(`K-S5-01` only). The ledger's cap is 775,000 bytes and the headline
+board holds 36 (stage 5's first headline). No byte of a report, file or screen, and no exit
+status, moves.
+
+**Repair 1 (both skeptics, every item fixed).** The judged and ladder-end
+marks enter no record's text or equality (four suite cases had gone red
+on pinned digests); a word abbreviating several options after the help
+word is refused again with exit 2 and the base's usage and error line,
+where it had shown the help page; the form and mark censuses of a
+writing fact rank `count`; generate names every fact as the disposition
+registry does, its approximations too, and a carried entry holds its
+subcheck; `K-S5-01`'s checker reads each miss's identity, the carried
+entries' subjects and reasons, validate's approximate entries off the
+description, the command, the files and the rule keys, with twenty-one
+corrupted results unmet. Stated limits, each with its owner: the weight's
+mode count given up at the table floor (lane G2T); `cli.run` serves one
+thread at a time; the ambiguous-option line shows a typed word raw (lane
+TW).
+
+**Repair 2 (Codex's review and the verify, every item fixed).** The
+result's command is the one argparse read, so `--out-dir profile validate
+d.json` exits 3 on a miss again. The help option is a switch argparse
+reads without printing, and where it is taken is asked of argparse
+itself, so `-hh`, `-hfoo` and every other help spelling of the running
+Python show the page through the run; a word abbreviating several
+options is refused before parsing only where that Python's argparse
+refuses it so (3.11, and 3.12 before 3.12.7), and handed to argparse
+elsewhere: 68 command lines through `main` keep every byte and exit
+status of the base on Python 3.11, 3.12, 3.13 and 3.14. Argparse's
+refusals keep their words in the result. Validate's approximate entries
+follow the description where the file lacks a column, holds no rows or
+names none (33, where 13 had stood), and each carries the window's ends
+as the report prints them and whether it holds the description's value.
+A joined position's facts rank as a number column's. The write
+transaction's account of the disk is the refusal's `on_disk`. The census
+of cells per missing spelling ranks `count`, as the orchestrator ruled.
+`K-S5-01`'s checker gains two corruptions, twenty-three unmet. Stated
+limits: a twin gives up a number column's mode count at the table floor,
+not only a weight's (owner lane GG, as the orchestrator ruled, where
+repair 1 wrote G2T); the ambiguity rule is read off the Python's version.
+No golden moves.
+
 ### The health data zoo widened to every kind, re-defined at the owner's table floor (plan P4-D431, lane E0c, 2026-10-24, repaired twice 2026-10-25 and a third time 2026-10-26; tests and drivers only)
 
 **Lane E0c of the December plan** (the zoo plan's section 6 (b); the

@@ -906,9 +906,7 @@ def test_the_command_word_is_offered_beside_profile(
 def test_generate_without_a_path_says_what_to_type(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    with pytest.raises(SystemExit) as caught:
-        main(["generate"])
-    assert caught.value.code == 2
+    assert main(["generate"]) == 2  # `main` returns its status since plan P4-D437 (lane S5a)
     told = capsys.readouterr().err
     assert "synthtwin generate my-table-profile.json" in told
 

@@ -644,7 +644,13 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # `tools/reference/oracle_cases.py` through one call, which this guard
 # reads directly, so the floor holds for them as it does for the other
 # forty-five.
-FILES_LOADED_AS_MODULES = 46
+#
+# 47 AT THE INTEGRATION OF BATCH 4L (2026-10-28), which merged lane S5a's
+# own 46 (plan P4-D437) with batch 4k's 46: `tests/test_stage5_gate.py`
+# loads `tools/goldens/record_stage5_goldens.py`, a committed file of
+# tools/ this guard reads directly, so the floor holds for it as it does
+# for the other forty-six.
+FILES_LOADED_AS_MODULES = 47
 
 
 def _files() -> "list[pathlib.Path]":

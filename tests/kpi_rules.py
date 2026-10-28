@@ -86,6 +86,13 @@ MACHINE_KINDS = ("seconds_below", "peak_memory_below")
 # by the analyst battery from its baseline on.
 ID_PATTERN = re.compile(r"^K-(P[0-4]|S[1-8]|2B|HZ|BC)-(\d\d)([a-z])?$")
 HEADLINES_AT_LEAST = 20
+# 36 from 35, LANE S5a OF THE DECEMBER PLAN (2026-10-26, plan P4-D437):
+# stage 5's first entries, and `K-S5-01` -- a caller tells a good run
+# from a bad one from the returned result alone -- is the headline plan
+# P4-D395 names for it and the one every stage with an entry must have.
+# One step, with its reason; nothing is demoted. The batch integrator
+# settles it beside the other lanes' raises.
+#
 # 35 from 33, THE ORCHESTRATOR'S RECORDED CALL D15 OF THE DECEMBER PLAN
 # FOR LANE E0b (2026-10-16, plan P4-D398, settled at the integration of
 # batch 4d on 2026-10-20; the owner may veto it): the broad
@@ -118,7 +125,7 @@ HEADLINES_AT_LEAST = 20
 # stage adds one headline of its own -- `K-S3-38`, time of day comes
 # back -- while `K-S3-31` widens in place to "the calendar comes back".
 # A deliberate raise, never a demotion made to fit.
-HEADLINES_AT_MOST = 35
+HEADLINES_AT_MOST = 36
 
 # Verdict words, printed by the runner and stored in its report.
 PASS = "PASS"

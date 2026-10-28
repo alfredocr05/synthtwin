@@ -107,7 +107,9 @@ def _command(argv: "list[str]") -> "str | None":
             io.StringIO()
         ):
             return cli._parse_arguments(list(argv), 1).command
-    except SystemExit:
+    except (SystemExit, cli._HelpShown, cli._Unusable):
+        # The help page and a refusal end the parsing with an exception
+        # of `cli`'s own since plan P4-D437 (lane S5a), not SystemExit.
         return None
 
 

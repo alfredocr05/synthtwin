@@ -1457,6 +1457,23 @@ def test_the_ledger_file_is_canonical_json() -> None:
     #
     # 771,000 from 769,000 (lane CHv's repair 1, 2026-10-24): the three
     # entries' evidence gains the 20,000-row leg and the repair's mutants.
+    #
+    # 774,000 from 764,000 (lane S5a, plan P4-D437, 2026-10-26), the least
+    # round figure the lane's ledger fits under: K-S5-01 (stage 5's
+    # headline) and K-S5-02, new, each carrying plan P4-D395's
+    # measurement text as its rule, with their note clause, 773,198
+    # bytes. The batch integrator settles this beside the other lanes'
+    # raises. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
+    # 775,000 from 774,000 (lane S5a's repair 1, plan P4-D437,
+    # 2026-10-26), the least round figure it fits under: K-S5-01's rule
+    # gains the checker's strengthened clauses and twelve corruptions,
+    # both entries restamped on the repaired head, 774,719 bytes.
+    #
+    # 776,000 from 775,000 (lane S5a's repair 2, plan P4-D437,
+    # 2026-10-27), the least round figure it fits under: K-S5-01's rule
+    # gains the approximate mark, the carried windows and two
+    # corruptions, both entries restamped on ca9645b, 775,406 bytes.
     assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 870_000
 
 

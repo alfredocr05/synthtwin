@@ -435,9 +435,7 @@ def test_a_repeated_header_name_writes_a_report_and_quotes_nothing(
 def test_a_command_line_that_cannot_be_used_exits_two(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    with pytest.raises(SystemExit) as caught:
-        main(["validate"])
-    assert caught.value.code == 2
+    assert main(["validate"]) == 2  # `main` returns its status since plan P4-D437 (lane S5a)
     told = capsys.readouterr().err
     assert "synthtwin validate my-table-profile.json" in told
     assert "--twin" in told

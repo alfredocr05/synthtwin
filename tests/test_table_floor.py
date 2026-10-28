@@ -320,26 +320,37 @@ def test_the_internal_parameter_is_keyword_only_and_on_by_default() -> None:
 
 
 def test_no_command_line_reaches_the_internal_parameter() -> None:
-    """main hands its own keyword on untouched, and the parser has no such option."""
-    tree = ast.parse(inspect.getsource(cli.main).lstrip())
-    function = tree.body[0]
-    assert isinstance(function, ast.FunctionDef)
-    for node in ast.walk(function):
-        for target in getattr(node, "targets", []) + [getattr(node, "target", None)]:
-            assert not (isinstance(target, ast.Name) and target.id == "small_tables_refused"), (
-                "main assigns small_tables_refused: something other than its caller sets it"
-            )
-    handed = [
-        keyword.value
-        for node in ast.walk(function)
-        if isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Name)
-        and node.func.id == "_run_profile"
-        for keyword in node.keywords
-        if keyword.arg == "small_tables_refused"
-    ]
-    assert len(handed) == 1
-    assert isinstance(handed[0], ast.Name) and handed[0].id == "small_tables_refused"
+    """main hands its own keyword on untouched, and the parser has no such option.
+
+    Since plan P4-D437 (lane S5a) the keyword travels from `main` (and
+    `run`) through `_run` and `_dispatch` to `_run_profile`, each handing
+    on its own parameter of that name and none of them setting it.
+    """
+    for function, callee in (
+        (cli.main, "_run"),
+        (cli.run, "_run"),
+        (cli._run, "_dispatch"),
+        (cli._dispatch, "_run_profile"),
+    ):
+        tree = ast.parse(inspect.getsource(function).lstrip())
+        defined = tree.body[0]
+        assert isinstance(defined, ast.FunctionDef)
+        for node in ast.walk(defined):
+            for target in getattr(node, "targets", []) + [getattr(node, "target", None)]:
+                assert not (isinstance(target, ast.Name) and target.id == "small_tables_refused"), (
+                    f"{defined.name} assigns small_tables_refused: something other than its caller sets it"
+                )
+        handed = [
+            argument
+            for node in ast.walk(defined)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == callee
+            for argument in list(node.args)
+            + [keyword.value for keyword in node.keywords if keyword.arg == "small_tables_refused"]
+            if isinstance(argument, ast.Name) and argument.id == "small_tables_refused"
+        ]
+        assert len(handed) == 1, (defined.name, callee)
     parser_source = inspect.getsource(cli._parse_arguments)
     assert "small_tables_refused" not in parser_source
     assert "table-floor" not in parser_source
@@ -350,9 +361,8 @@ def test_no_command_line_reaches_the_internal_parameter() -> None:
 def test_an_option_naming_the_floor_is_not_recognised(tmp_path: pathlib.Path) -> None:
     table = _rows_table(tmp_path, 50)
     for spelling in ("--table-floor", "--no-table-floor", "--small-tables", "--small_tables_refused"):
-        with pytest.raises(SystemExit) as stopped:
-            cli.main(["profile", f"{table}", spelling], small_tables_refused=True)
-        assert stopped.value.code == 2, spelling
+        # `main` returns its status since plan P4-D437 (lane S5a).
+        assert cli.main(["profile", f"{table}", spelling], small_tables_refused=True) == 2, spelling
 
 
 def test_the_installed_command_has_the_floor_on(tmp_path: pathlib.Path) -> None:

@@ -199,9 +199,7 @@ def test_the_help_says_the_word_itself_is_written(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """A person reads this before deciding what to name."""
-    with pytest.raises(SystemExit) as caught:
-        main(["profile", "--help"])
-    assert caught.value.code == 0
+    assert main(["profile", "--help"]) == 0  # `main` returns its status since plan P4-D437 (lane S5a)
     shown = " ".join(capsys.readouterr().out.split())
     assert "the word itself is written into the description" in shown
     # And it says what that means for the kind of word a researcher
@@ -275,7 +273,9 @@ def test_the_notice_comes_before_the_files_exist(
     seen: list[tuple[str, tuple[str, ...]]] = []
     warn = cli._warn
 
-    def _watch(message: str) -> None:
+    def _watch(message: str, **keywords: str) -> None:
+        # `_warn` takes the caution's key and the refusal's step since
+        # plan P4-D437 (lane S5a); they are handed on untouched.
         # The whole folder, not the two names: a run that had begun
         # writing under a working name would leave real-derived bytes in
         # the same place, and "the file does not exist yet" is not what
@@ -284,7 +284,7 @@ def test_the_notice_comes_before_the_files_exist(
         seen.append(
             (message, tuple(sorted(item.name for item in tmp_path.iterdir())))
         )
-        warn(message)
+        warn(message, **keywords)
 
     monkeypatch.setattr(cli, "_warn", _watch)
     assert main(["profile", f"{table}", "--missing-value", MARKER]) == 0

@@ -80,8 +80,8 @@ def spellings() -> "list[str]":
     import io
 
     shown = io.StringIO()
-    with contextlib.redirect_stdout(shown), pytest.raises(SystemExit):
-        cli.main(["--help"])
+    with contextlib.redirect_stdout(shown):
+        assert cli.main(["--help"]) == 0
     usage = shown.getvalue().split("\n\n")[0]
     others = {
         word
@@ -485,8 +485,7 @@ def test_a_fresh_interpreter_has_the_setting_off(tmp_path: pathlib.Path) -> None
 def test_the_help_says_the_floor_is_raised_and_never_lowered(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    with pytest.raises(SystemExit):
-        cli.main(["--help"])
+    assert cli.main(["--help"]) == 0  # `main` returns its status since plan P4-D437 (lane S5a)
     shown = " ".join(re.sub(r"-\n\s+", "-", capsys.readouterr().out).split())
     assert "never lowered" in shown
     assert "--smallest-group 20" in shown

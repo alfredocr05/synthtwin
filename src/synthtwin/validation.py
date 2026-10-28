@@ -163,7 +163,7 @@ import pathlib
 
 from synthtwin import calendar_clock, calendar_rules, contract, dialect, errors, parsing, profile, reading, taxonomy, workbook
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
-from synthtwin import date_counts, grains
+from synthtwin import date_counts, grains, roles
 
 
 # THE G12.3 WINDOWS ARE WRITTEN ONCE, IN `taxonomy` (plan P4-D353). The
@@ -1570,6 +1570,35 @@ class Check:
     further to say.
 
     NO TEXT FIELD EVER HOLDS A STRING READ FROM THE MEASURED FILE.
+
+    ``judged`` says how the verdict was decided, set where the check is
+    made (plan P4-D395 part 1, lane S5a): `window` exactly where it is
+    judged against a bound the method grants -- the checks `_within`,
+    `_within_clock`, `_within_instant` and `_tail_window_check` make,
+    whose WITHIN-BOUND carries the envelope's citation, and a count of
+    different values judged against the window a corner of distinctness
+    authorizes (`_lesser_or_held`: every check of a count whose corner
+    the description gives a window, held, withheld or judged; and the
+    compound column's window where its two ends differ) -- and `exact`
+    for every other check, the floor censuses of `_written_form_checks`
+    and `_settled_verdict` among them. It moves no verdict and no byte of the report, and it
+    enters neither the record's text nor its equality, so a check reads
+    and compares as it did before results existed (lane S5a's repair 1).
+
+    ``approximate``, ``lowest``, ``highest`` and ``covers`` stand beside
+    it on the same terms (lane S5a's repair 2, Codex's items 5 and 7).
+    ``approximate`` says the description grants this obligation a window,
+    set by `_judged_window` with ``judged`` and KEPT by every copy that
+    puts a verdict no window decided -- a column the file does not carry,
+    a file of no rows or of no names, a closed gate (`_copied`) -- so the
+    inventory of what is carried approximately follows the description
+    whatever the file did; such a copy is ``judged`` `exact`, its verdict
+    decided by the absence. ``lowest`` and ``highest`` are the window's
+    two ends, as the report prints them, and ``covers`` whether the window
+    holds the description's own value (None where the producer says
+    nothing of it), set only where the report prints that window -- in
+    ``published`` or in ``note`` -- so a result carries no end the report
+    keeps back.
     """
 
     column: str
@@ -1580,6 +1609,66 @@ class Check:
     achieved: str = ""
     citation: str = ""
     note: "tuple[str, ...]" = ()
+    judged: str = dataclasses.field(default="exact", repr=False, compare=False)
+    approximate: bool = dataclasses.field(default=False, repr=False, compare=False)
+    lowest: str = dataclasses.field(default="", repr=False, compare=False)
+    highest: str = dataclasses.field(default="", repr=False, compare=False)
+    covers: "bool | None" = dataclasses.field(default=None, repr=False, compare=False)
+
+
+# HOW A CHECK WAS JUDGED (plan P4-D395 part 1): the two words `Check.judged`
+# takes, the same two `synthtwin.results` reads.
+JUDGED_EXACT = "exact"
+JUDGED_WINDOW = "window"
+
+
+def _judged_window(
+    check: Check,
+    lowest: str = "",
+    highest: str = "",
+    covers: "bool | None" = None,
+) -> Check:
+    """The same check, marked as judged against a bound the method grants.
+
+    ``lowest`` and ``highest`` are the window's ends where the report
+    prints them with this check, written as it prints them, and
+    ``covers`` whether that window holds the description's own value,
+    where the producer decided it; all three stay empty elsewhere.
+    """
+    return dataclasses.replace(
+        check,
+        judged=JUDGED_WINDOW,
+        approximate=True,
+        lowest=lowest,
+        highest=highest,
+        covers=covers,
+    )
+
+
+def _copied(check: Check, verdict: str, achieved: str, citation: str = "") -> Check:
+    """The same obligation under a verdict no window decided (lane S5a's repair 2).
+
+    A column the file does not carry, a file of no rows or of no names,
+    a closed gate: the verdict, the measured side and the citation are
+    the caller's, the note goes, and the check is `exact` -- the absence
+    decided it -- while ``approximate`` is kept, so the obligation is
+    still carried approximately as the description grants. The window's
+    ends stay only where the published text the copy keeps still prints
+    them; ends the report printed in the note it drops are dropped too.
+    """
+    window = f"({_shown_window_text(check.lowest, check.highest)})"
+    printed = bool(check.lowest) and check.published[-len(window) :] == window
+    return dataclasses.replace(
+        check,
+        verdict=verdict,
+        achieved=achieved,
+        citation=citation,
+        note=(),
+        judged=JUDGED_EXACT,
+        lowest=check.lowest if printed else "",
+        highest=check.highest if printed else "",
+        covers=check.covers if printed else None,
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4554,6 +4643,11 @@ def _shown_window(low: float, high: float) -> str:
     return f"between {low} and {high}"
 
 
+def _shown_window_text(lowest: str, highest: str) -> str:
+    """`_shown_window`'s words for two ends already written as it writes them."""
+    return f"between {lowest} and {highest}"
+
+
 # -- building one check at a time -------------------------------------
 
 
@@ -4764,7 +4858,7 @@ def _within(
     them.
     """
     if measured is None or window is None:
-        return Check(
+        return _judged_window(Check(
             column,
             fact,
             subcheck,
@@ -4772,11 +4866,11 @@ def _within(
             published,
             "",
             why if why else _GATE_CLOSED,
-        )
+        ))
     low, high = window
     reaches = value is None or low <= value <= high
     if value is not None and measured == value:
-        return Check(
+        return _judged_window(Check(
             column,
             fact,
             subcheck,
@@ -4785,7 +4879,7 @@ def _within(
             _shown_number(measured),
             "",
             () if reaches else _MET_OUTSIDE_ITS_WINDOW,
-        )
+        ))
     verdict = WITHIN_BOUND if low <= measured <= high else MISSED
     lines: "list[str]" = []
     if not reaches:
@@ -4871,15 +4965,20 @@ def _within(
                     "      so the window above is not taken as a pass (V6.1-A2).",
                 ]
     note: tuple[str, ...] = tuple(lines)
-    return Check(
-        column,
-        fact,
-        subcheck,
-        verdict,
-        f"{published} ({_shown_window(low, high)})",
-        _shown_number(measured),
-        citation,
-        note,
+    return _judged_window(
+        Check(
+            column,
+            fact,
+            subcheck,
+            verdict,
+            f"{published} ({_shown_window(low, high)})",
+            _shown_number(measured),
+            citation,
+            note,
+        ),
+        f"{low}",
+        f"{high}",
+        None if value is None else reaches,
     )
 
 
@@ -4995,8 +5094,8 @@ def measure(
     # check write different bytes in different folders (V10).
     measured_name = pathlib.Path(path).name
     if named:
-        raise errors.ProfileError(
-            errors.no_twin_of_this_description_exists(named, shown)
+        raise errors.keyed_refusal(
+            errors.no_twin_of_this_description_exists(named, shown), named
         )
     if not place.exists():
         raise errors.ProfileError(errors.file_missing(shown))
@@ -6826,18 +6925,7 @@ def _withheld_if(
     """
     if not closed:
         return checks
-    return [
-        Check(
-            check.column,
-            check.fact,
-            check.subcheck,
-            WITHHELD,
-            check.published,
-            "",
-            why,
-        )
-        for check in checks
-    ]
+    return [_copied(check, WITHHELD, "", why) for check in checks]
 
 
 def _unaligned_column_checks(
@@ -7180,16 +7268,7 @@ def _no_column_is_named(
         for check in _obligations(
             description, column, [], {}, {}, None, headed
         ):
-            missed += [
-                Check(
-                    check.column,
-                    check.fact,
-                    check.subcheck,
-                    MISSED,
-                    check.published,
-                    _NO_NAMES_HERE,
-                )
-            ]
+            missed += [_copied(check, MISSED, _NO_NAMES_HERE)]
     return missed
 
 
@@ -9007,16 +9086,7 @@ def _nothing_stands_here(
     for check in _obligations(
         description, column, [], {}, {}, names, headed
     ):
-        missed += [
-            Check(
-                check.column,
-                check.fact,
-                check.subcheck,
-                MISSED,
-                check.published,
-                _NO_COLUMN_HERE,
-            )
-        ]
+        missed += [_copied(check, MISSED, _NO_COLUMN_HERE)]
     return missed
 
 
@@ -9048,29 +9118,10 @@ def _nothing_left_to_measure(
         description, column, [], {}, {}, names, headed
     ):
         if check.fact == _POSITION_FACT and names is None:
-            filled += [
-                Check(
-                    check.column,
-                    check.fact,
-                    check.subcheck,
-                    WITHHELD,
-                    check.published,
-                    "",
-                    _GATE_REFUSED,
-                )
-            ]
+            filled += [_copied(check, WITHHELD, "", _GATE_REFUSED)]
             continue
         if check.verdict == WITHHELD and check.citation == _GATE_CLOSED:
-            filled += [
-                Check(
-                    check.column,
-                    check.fact,
-                    check.subcheck,
-                    MISSED,
-                    check.published,
-                    _NO_ROWS_HERE,
-                )
-            ]
+            filled += [_copied(check, MISSED, _NO_ROWS_HERE)]
             continue
         filled += [check]
     return filled
@@ -9716,16 +9767,7 @@ def _governed(
             settled += [closed]
             continue
         if found.verdict == WITHHELD and found.citation == _GATE_CLOSED:
-            settled += [
-                Check(
-                    closed.column,
-                    closed.fact,
-                    closed.subcheck,
-                    MISSED,
-                    closed.published,
-                    _NOT_OF_THAT_KIND,
-                )
-            ]
+            settled += [_copied(closed, MISSED, _NOT_OF_THAT_KIND)]
             continue
         settled += [found]
     return settled
@@ -9926,33 +9968,51 @@ def _distinctness_checks(
                         )
                     ]
                     continue
+                # The window is printed only beside a count it did not
+                # meet exactly, and its ends are carried only there.
+                shown_ends = measured != published
                 checks += [
-                    Check(
-                        name,
-                        fact,
-                        subcheck,
-                        AUTHORIZED_DEVIATION
-                        if measured != published
-                        else HELD,
-                        f"{_shown_count(published)} "
-                        f"({_shown_window(float(low), float(high))})"
-                        if measured != published
-                        else _shown_count(published),
-                        _shown_count(measured),
-                        said if measured != published else "",
+                    _judged_window(
+                        Check(
+                            name,
+                            fact,
+                            subcheck,
+                            AUTHORIZED_DEVIATION
+                            if measured != published
+                            else HELD,
+                            f"{_shown_count(published)} "
+                            f"({_shown_window(float(low), float(high))})"
+                            if measured != published
+                            else _shown_count(published),
+                            _shown_count(measured),
+                            said if measured != published else "",
+                        ),
+                        f"{float(low)}" if shown_ends else "",
+                        f"{float(high)}" if shown_ends else "",
+                        (low <= published <= high) if shown_ends else None,
                     )
                 ]
                 continue
+            # ...judged against the compound window where its two ends
+            # differ, and exactly where they meet (plan P4-D395 part 1).
+            outside = _exact(
+                name,
+                fact,
+                subcheck,
+                _shown_count(published)
+                if low == high
+                else f"{_shown_count(published)} "
+                f"({_shown_window(float(low), float(high))})",
+                None if measured is None else _shown_count(measured),
+            )
             checks += [
-                _exact(
-                    name,
-                    fact,
-                    subcheck,
-                    _shown_count(published)
-                    if low == high
-                    else f"{_shown_count(published)} "
-                    f"({_shown_window(float(low), float(high))})",
-                    None if measured is None else _shown_count(measured),
+                outside
+                if low == high
+                else _judged_window(
+                    outside,
+                    f"{float(low)}",
+                    f"{float(high)}",
+                    low <= published <= high,
                 )
             ]
             continue
@@ -10024,36 +10084,66 @@ def _lesser_or_held(
     would lower an obligation the twin actually held -- which is the
     class of quiet lowering this project refuses by name. So the corner
     is consulted only once the exact comparison has already failed.
+
+    HOW IT IS JUDGED IS READ OFF THE DESCRIPTION, NOT OFF THE OUTCOME (lane
+    S5a's repair 1): where the description gives the corner its window
+    (both ends of the supply settled), every check of the count is
+    marked `window` -- held at the exact bar, withheld, or judged against
+    the window -- so a run's result carries the count as approximate
+    whatever the twin did; where it gives none, every check is `exact`.
+    The verdicts are as before: the window's two ends are read off the
+    published fields alone, so asking for them first moves nothing.
     """
     shown = _shown_count(published)
-    if measured is None:
-        return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
-    if measured == published:
-        return Check(name, fact, subcheck, HELD, shown, _shown_count(measured))
     facts = column.facts
     supply = _spelling_supply(column, facts, published)
     ceiling = _spelling_ceiling(column, facts, published)
     if supply is None or ceiling is None:
+        if measured is None:
+            return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
+        if measured == published:
+            return Check(name, fact, subcheck, HELD, shown, _shown_count(measured))
         return _deviation(name, fact, subcheck, shown, corner)
+    if measured is None:
+        return _judged_window(
+            Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
+        )
+    if measured == published:
+        return _judged_window(
+            Check(name, fact, subcheck, HELD, shown, _shown_count(measured))
+        )
     low = min(supply, published)
     high = max(ceiling, published)
+    # ...AND BEYOND THE EXACT BAR THE COUNT IS JUDGED AGAINST THE
+    # CORNER'S WINDOW (plan P4-D395 part 1: `judged` is `window`).
+    covers = low <= published <= high
     if low <= measured <= high:
-        return Check(
+        return _judged_window(
+            Check(
+                name,
+                fact,
+                subcheck,
+                AUTHORIZED_DEVIATION,
+                f"{shown} ({_shown_window(float(low), float(high))})",
+                _shown_count(measured),
+                CORNER_CITATIONS[corner],
+            ),
+            f"{float(low)}",
+            f"{float(high)}",
+            covers,
+        )
+    return _judged_window(
+        Check(
             name,
             fact,
             subcheck,
-            AUTHORIZED_DEVIATION,
+            MISSED,
             f"{shown} ({_shown_window(float(low), float(high))})",
             _shown_count(measured),
-            CORNER_CITATIONS[corner],
-        )
-    return Check(
-        name,
-        fact,
-        subcheck,
-        MISSED,
-        f"{shown} ({_shown_window(float(low), float(high))})",
-        _shown_count(measured),
+        ),
+        f"{float(low)}",
+        f"{float(high)}",
+        covers,
     )
 
 
@@ -10600,43 +10690,8 @@ def _quantitative(facts: contract.ColumnFacts) -> contract.ColumnFacts:
 
 
 def _group_of(facts: contract.ColumnFacts) -> str:
-    """Which registry group a column's role publishes under."""
-    if isinstance(facts, contract.JoinedFacts):
-        # THIS BRANCH WAS MISSING and the fall-through below answered
-        # for it, so a joined column's two distinctness counts were
-        # reported as `empty.n_distinct` -- the identity of a role that
-        # publishes both as 0 and exactly observable. Found by
-        # measuring a blood-pressure column rather than by any guard,
-        # which is residual R-P4-62's own point.
-        return "joined"
-    if isinstance(facts, contract.CompoundFacts):
-        # AND THIS ONE WAS WRITTEN WITH THE ROLE, not after it. The
-        # branch above records what happens when a role reaches this
-        # dispatch with no answer of its own: the fall-through at the
-        # end returns `empty`, whose registry says both counts are 0
-        # and exactly observable, so a real column's distinctness was
-        # reported under another role's identity. The fifteenth role
-        # publishes both counts over BOTH halves and has its own group.
-        return "compound"
-    if isinstance(facts, contract.ClockFacts):
-        return "clock"
-    if isinstance(facts, contract.AffixedFacts):
-        # Its quantitative block IS the numeric block, read over the
-        # cores, so it takes the numeric group's dispositions entire.
-        return "numeric"
-    if isinstance(facts, contract.NumericFacts):
-        return "numeric"
-    if isinstance(facts, contract.LabelFacts):
-        return "label"
-    if isinstance(facts, contract.DatetimeFacts):
-        return "datetime"
-    if isinstance(facts, contract.IdentifierFacts):
-        return "identifier"
-    if isinstance(facts, contract.TextFacts):
-        return "free_text"
-    if isinstance(facts, contract.UnrepresentableFacts):
-        return "numeric_unrepresentable"
-    return "empty"
+    """Which registry group a column's role publishes under (`roles.registry_group`)."""
+    return roles.registry_group(facts)
 
 
 def _role_checks(
@@ -17897,10 +17952,10 @@ def _tail_window_check(
     distances too -- are dropped. The reason is at `_tail_side_checks`.
     """
     if count == 0:
-        return Check(
+        return _judged_window(Check(
             name, fact, subcheck, MISSED, _tail_figure(published, unit),
             "no cell beyond the boundary",
-        )
+        ))
     measured = top / count
     if rooted:
         measured = math.sqrt(measured)
@@ -17918,15 +17973,15 @@ def _tail_window_check(
     )
     if exact:
         if held_back:
-            return Check(
+            return _judged_window(Check(
                 name, fact, subcheck, HELD, _tail_figure(published, unit)
-            )
-        return Check(
+            ))
+        return _judged_window(Check(
             name, fact, subcheck, HELD, _tail_figure(published, unit), shown
-        )
+        ))
     verdict = WITHIN_BOUND if reaches else MISSED
     if held_back:
-        return Check(
+        return _judged_window(Check(
             name,
             fact,
             subcheck,
@@ -17935,16 +17990,21 @@ def _tail_window_check(
             "",
             ENVELOPE_TAIL_DISTANCE,
             _NOT_SHOWN_IT_IS_A_SUBFLOOR_GROUP_OF_THE_FILE,
-        )
-    return Check(
-        name,
-        fact,
-        subcheck,
-        verdict,
-        _tail_figure(published, unit),
-        shown,
-        ENVELOPE_TAIL_DISTANCE,
-        note,
+        ))
+    return _judged_window(
+        Check(
+            name,
+            fact,
+            subcheck,
+            verdict,
+            _tail_figure(published, unit),
+            shown,
+            ENVELOPE_TAIL_DISTANCE,
+            note,
+        ),
+        f"{low_value!r}",
+        f"{high_value!r}",
+        low_value <= published <= high_value,
     )
 
 
@@ -18440,7 +18500,7 @@ def _within_clock(
             "        around the description's value.",
         )
     if measured is None:
-        return Check(
+        return _judged_window(Check(
             column,
             "clock.clock_percentiles",
             subcheck,
@@ -18448,9 +18508,9 @@ def _within_clock(
             published,
             "",
             _GATE_CLOSED,
-        )
+        ))
     if measured == rung:
-        return Check(
+        return _judged_window(Check(
             column,
             "clock.clock_percentiles",
             subcheck,
@@ -18459,17 +18519,22 @@ def _within_clock(
             _shown_clock_distance(measured, rung, form),
             "",
             () if reaches else _MET_OUTSIDE_ITS_WINDOW,
-        )
+        ))
     verdict = WITHIN_BOUND if low <= measured <= high else MISSED
-    return Check(
-        column,
-        "clock.clock_percentiles",
-        subcheck,
-        verdict,
-        published,
-        _shown_clock_distance(measured, rung, form),
-        ENVELOPE_CLOCK_RUNG,
-        note,
+    return _judged_window(
+        Check(
+            column,
+            "clock.clock_percentiles",
+            subcheck,
+            verdict,
+            published,
+            _shown_clock_distance(measured, rung, form),
+            ENVELOPE_CLOCK_RUNG,
+            note,
+        ),
+        _shown_clock_distance(low, rung, form),
+        _shown_clock_distance(high, rung, form),
+        reaches,
     )
 
 
@@ -21034,7 +21099,7 @@ def _within_instant(
             "        around the description's value.",
         )
     if measured is None:
-        return Check(
+        return _judged_window(Check(
             column,
             "datetime.date_percentiles",
             subcheck,
@@ -21042,9 +21107,9 @@ def _within_instant(
             published,
             "",
             _GATE_CLOSED,
-        )
+        ))
     if measured == rung:
-        return Check(
+        return _judged_window(Check(
             column,
             "datetime.date_percentiles",
             subcheck,
@@ -21053,17 +21118,22 @@ def _within_instant(
             _shown_distance(measured, rung, facts),
             "",
             () if reaches else _MET_OUTSIDE_ITS_WINDOW,
-        )
+        ))
     verdict = WITHIN_BOUND if low <= measured <= high else MISSED
-    return Check(
-        column,
-        "datetime.date_percentiles",
-        subcheck,
-        verdict,
-        published,
-        _shown_distance(measured, rung, facts),
-        ENVELOPE_DATETIME_RUNGS,
-        note,
+    return _judged_window(
+        Check(
+            column,
+            "datetime.date_percentiles",
+            subcheck,
+            verdict,
+            published,
+            _shown_distance(measured, rung, facts),
+            ENVELOPE_DATETIME_RUNGS,
+            note,
+        ),
+        _shown_distance(low, rung, facts),
+        _shown_distance(high, rung, facts),
+        reaches,
     )
 
 
@@ -23671,3 +23741,41 @@ def _zero_row_listings(
             _NOT_CHECKABLE_ZERO_ROWS,
         ),
     ]
+
+
+# THE RULES THAT KEEP A CHECK'S OUTCOME BACK, BY KEY (plan P4-D395 part 1,
+# lane S5a). A WITHHELD check carries the sentence that says why in its
+# `citation`; a run's result names that rule by one of these keys instead,
+# one for each sentence written here, so a caller never reads the
+# sentence. A sentence composed where its check is made has no constant
+# here and is keyed `withheld`, the stated fallback.
+WITHHELD_RULES: "tuple[tuple[str, str], ...]" = (
+    (_GATE_CLOSED, "gate-closed"),
+    (_GATE_POOLED, "gate-pooled"),
+    (_GATE_REFUSED, "gate-refused"),
+    (_GATE_WORKBOOK, "gate-workbook"),
+    (_GATE_TAIL_WITHHELD, "tail-withheld"),
+    (_GATE_TAIL_WITHHELD_EVERY, "tail-withheld-every"),
+    (_GATE_TAIL_WITHHELD_END, "tail-withheld-end"),
+    (_GATE_TAIL_WITHHELD_A_COUNT, "tail-withheld-a-count"),
+    (_GATE_TAIL_WITHHELD_FOR_THE_OTHER, "tail-withheld-for-the-other"),
+    (_GATE_TAIL_WITHHELD_UNSETTLED, "tail-withheld-unsettled"),
+    (_GATE_TAIL_WITHHELD_UNHOLDABLE, "tail-withheld-unholdable"),
+    (_GATE_TAIL_BOUNDS, "tail-bounds"),
+    (_GATE_SHORT_BESIDE, "short-beside"),
+    (_WITHHELD_BY_THE_TAIL_RULE, "tail-rule"),
+)
+WITHHELD_FALLBACK = "withheld"
+
+
+def withheld_rule(check: Check) -> str:
+    """The key of the rule that kept a WITHHELD check's outcome back.
+
+    Guarantees: one of `WITHHELD_RULES`' keys where the check's citation
+    is that rule's sentence, else `WITHHELD_FALLBACK`. A pure function of
+    the check. Raises nothing. No I/O.
+    """
+    for sentence, key in WITHHELD_RULES:
+        if check.citation == sentence:
+            return key
+    return WITHHELD_FALLBACK

@@ -547,6 +547,14 @@ class Deviation:
     exactly as the description spells it -- the report escapes it for
     display at its own boundary, because that is where a name reaches a
     screen.
+
+    `judged` and `end` are for a run's result and no report prints them
+    (plan P4-D395 part 1, lane S5a): `judged` is `window` exactly where
+    `_bound_notes` makes the deviation from an approximation outside its
+    bound, else `exact`; `end` names the ladder end that gave way, `min`
+    or `max`, where the generator pins one, else it is empty. Neither
+    enters the record's text or its equality, so a deviation reads and
+    compares as it did before results existed (lane S5a's repair 1).
     """
 
     column: str
@@ -554,6 +562,8 @@ class Deviation:
     published: str
     achieved: str
     note: str
+    judged: str = dataclasses.field(default="exact", repr=False, compare=False)
+    end: str = dataclasses.field(default="", repr=False, compare=False)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -924,7 +934,13 @@ def _wrong_facts(name: str) -> "errors.ProfileError":
 
 
 def _deviation(
-    column: str, fact: str, published: str, achieved: str, note: str
+    column: str,
+    fact: str,
+    published: str,
+    achieved: str,
+    note: str,
+    judged: str = "exact",
+    end: str = "",
 ) -> Deviation:
     """One measured difference between the description and the twin."""
     return Deviation(
@@ -933,6 +949,8 @@ def _deviation(
         published=published,
         achieved=achieved,
         note=note,
+        judged=judged,
+        end=end,
     )
 
 
@@ -8798,7 +8816,7 @@ def _ladder_layout(
     zeros = facts.n_zero
     positives = numbers - negatives - zeros
     if positives < 0:
-        raise errors.ProfileError(
+        raise errors.CountsContradict(
             _counts_contradict(column.name, zeros, negatives, numbers)
         )
     notes: list[Deviation] = []
@@ -13189,6 +13207,7 @@ def _stratum_values(
                             "The column's count of values that are zero and "
                             "the end of its ladder cannot both hold, and the "
                             "count is the one the twin keeps.",
+                            end="min" if place == 0 else "max",
                         )
                     ]
             continue
@@ -13473,6 +13492,7 @@ def _sign_repairs(
                         "The end of this column's ladder and its counts of "
                         "negative and zero values cannot both hold, so the "
                         "twin keeps the counts and that end moves.",
+                        end="min" if place == 0 else "max",
                     )
                 ]
             if held is not None:
@@ -58798,7 +58818,7 @@ def _text_cells(
             made_held = 0
             if key in made:
                 made_held = made[key]
-            raise errors.ProfileError(
+            raise errors.DomainTooSmall(
                 _domain_too_small(
                     column.name,
                     _shape_words(kind, band, lengths[index]),
@@ -61509,7 +61529,7 @@ def _unrepresentable_cells(
                 _wide_width(kinds[index], room, signs[index]),
             )
             if spelling is None:
-                raise errors.ProfileError(
+                raise errors.DomainTooSmall(
                     _domain_too_small(
                         column.name,
                         _wide_shape_words(kinds[index], signs[index]),
@@ -63050,7 +63070,7 @@ def _word_room(
         held = _word_capacity(length)
         if words <= held:
             continue
-        raise errors.ProfileError(
+        raise errors.WordsExceedLength(
             _words_exceed_length(
                 column.name, shortest, words, length, held, 2 * words - 1
             )
@@ -63160,7 +63180,7 @@ def _whole_number_room(
     readable = _counts_meeting(facts.n_all_digits, column.n_present, floor)
     outside = column.n_present - max(readable)
     if facts.max_length < 2 and outside > 0:
-        raise errors.ProfileError(
+        raise errors.WholeNumbersNeedRoom(
             _whole_numbers_need_room(
                 column.name,
                 False,
@@ -63170,7 +63190,7 @@ def _whole_number_room(
             )
         )
     if facts.min_length < 2 and max(readable) < 1 and column.n_present:
-        raise errors.ProfileError(
+        raise errors.WholeNumbersNeedRoom(
             _whole_numbers_need_room(
                 column.name,
                 True,
@@ -63204,7 +63224,7 @@ def _fold_room(
     if held < partners:
         held = held + _padded_room(_WIDE, shortest, longest, partners - held)
     if held < partners:
-        raise errors.ProfileError(
+        raise errors.DomainTooSmall(
             _domain_too_small(
                 column.name,
                 f"at most {longest} characters long and either hold a "
@@ -69271,6 +69291,7 @@ def _bound_notes(measured: "list[Approximation]") -> "list[Deviation]":
                 f"({found.lowest} to {found.highest}). Treat it as not "
                 "reproduced: a check that depends on it can behave "
                 "differently here than on the real table.",
+                judged="window",
             )
         ]
     return notes

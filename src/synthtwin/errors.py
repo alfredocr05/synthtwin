@@ -72,7 +72,29 @@ class TransactionRefusal(ProfileError):
     It is a subclass, so every caller that catches `ProfileError` --
     including the command -- catches it unchanged, and nothing about
     what the person reads depends on which of the two it is.
+
+    ``on_disk`` IS THE MESSAGE'S ACCOUNT OF THE DISK, apart (lane S5a's
+    repair 2, Codex's item 8): the sentence the transaction composed
+    naming what is at every name after its cleanup, which the message
+    holds after the trouble it names. A run's result carries it as its
+    refusal's `on_disk`. Built by `transaction_refusal` below and not by
+    a constructor of its own, for the reason `ShapeRefusal` states (the
+    offline audit admits no `super`); empty on one raised directly.
     """
+
+    on_disk = ""
+
+
+def transaction_refusal(trouble: str, stated: str) -> TransactionRefusal:
+    """The transaction's refusal: ``trouble``, then ``stated``, the disk's account, kept apart too.
+
+    The message is the two joined by one space, as the transaction
+    always composed it; ``on_disk`` is ``stated``. A fixed function of
+    the two. Raises nothing.
+    """
+    refusal = TransactionRefusal(f"{trouble} {stated}")
+    refusal.on_disk = stated
+    return refusal
 
 
 # WHICH OF THE READER'S REFUSALS ABOUT A FILE'S OWN SHAPE THIS IS.
@@ -2578,6 +2600,58 @@ REFUSAL_COUNTS_CONTRADICT = "generation-counts-contradict"
 REFUSAL_WORDS_EXCEED_LENGTH = "generation-words-exceed-length"
 REFUSAL_WHOLE_NUMBERS_NEED_ROOM = "generation-whole-numbers-need-room"
 REFUSAL_DOMAIN_TOO_SMALL = "generation-domain-too-small"
+
+class KeyedRefusal(ProfileError):
+    """A refusal of method G12 that names its key in this catalog (plan P4-D395).
+
+    The four refusals of a description no twin can hold are raised as one
+    of the four subclasses below by the generator and the validator, so a
+    run's result carries the refusal's key without reading its sentence.
+    The message a person reads is the one the refusal holds, unchanged.
+    It is a subclass of `ProfileError`, so every caller that catches that
+    catches it unchanged. One class a key, because the offline audit
+    admits no constructor of this package's own (`keyed_refusal`).
+    """
+
+    key = ""
+
+
+class CountsContradict(KeyedRefusal):
+    """`REFUSAL_COUNTS_CONTRADICT`."""
+
+    key = REFUSAL_COUNTS_CONTRADICT
+
+
+class WordsExceedLength(KeyedRefusal):
+    """`REFUSAL_WORDS_EXCEED_LENGTH`."""
+
+    key = REFUSAL_WORDS_EXCEED_LENGTH
+
+
+class WholeNumbersNeedRoom(KeyedRefusal):
+    """`REFUSAL_WHOLE_NUMBERS_NEED_ROOM`."""
+
+    key = REFUSAL_WHOLE_NUMBERS_NEED_ROOM
+
+
+class DomainTooSmall(KeyedRefusal):
+    """`REFUSAL_DOMAIN_TOO_SMALL`."""
+
+    key = REFUSAL_DOMAIN_TOO_SMALL
+
+
+def keyed_refusal(message: str, key: str) -> ProfileError:
+    """The refusal holding ``message`` under its G12 key; a plain one for any other key."""
+    if key == REFUSAL_COUNTS_CONTRADICT:
+        return CountsContradict(message)
+    if key == REFUSAL_WORDS_EXCEED_LENGTH:
+        return WordsExceedLength(message)
+    if key == REFUSAL_WHOLE_NUMBERS_NEED_ROOM:
+        return WholeNumbersNeedRoom(message)
+    if key == REFUSAL_DOMAIN_TOO_SMALL:
+        return DomainTooSmall(message)
+    return ProfileError(message)
+
 
 # What is wrong with the description, in the person's own words, one
 # clause per refusal. Each names the TWO published facts that cannot

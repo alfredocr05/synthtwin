@@ -63,7 +63,7 @@ otherwise only from this package.
 
 import typing
 
-from synthtwin import contract, dialect, generation, parsing
+from synthtwin import contract, dialect, generation, parsing, roles
 
 # -- the twin's bytes (method G2) -------------------------------------
 
@@ -703,103 +703,16 @@ def _invented_columns(profile: contract.Profile) -> "frozenset[str]":
     return frozenset(made_up)
 
 
-# THE THREE INVENTION CLASSES (plan P4-D2). A column belongs to at most
-# one of them, and the class decides which sentence its block carries.
-#
-# WHY THREE AND NOT ONE. A single sentence would be false at both edges.
-# "Every value here is invented" is false of a category column that
-# carries its published labels and made up only the withheld tail; and
-# an invention sentence about an EMPTY column is false of a twin that
-# holds no present cell of it at all. So the classes are drawn where the
-# truth changes, and a column that belongs to none of them gets no
-# sentence rather than a hedged one.
-_MADE_UP_NOTHING = ""
-_MADE_UP_EVERYTHING = "everything"
-_MADE_UP_HELD_BACK = "held-back"
-_MADE_UP_UNCARRIED = "uncarried"
-
-
-def _held_back_cells(facts: contract.LabelFacts) -> int:
-    """How many cells of a label column's twin are neutral stand-ins.
-
-    Two kinds, counted together because a reader meets them as one
-    thing: the rows of every level the floor held back entirely, and
-    the rows inside a published level whose SPELLING the floor held
-    back. The second reads its counts through `contract.occurrence_size`
-    because a repetition map's keys are row counts written as text, and
-    that function is the one reader of them.
-    """
-    total = facts.suppressed_rows
-    for level in facts.levels:
-        for key in sorted(level.variants_withheld):
-            size = contract.occurrence_size(key)
-            if size is None:
-                continue
-            total = total + size * level.variants_withheld[key]
-    return total
-
-
-def _made_up_class(column: contract.ColumnBlock) -> str:
-    """Which invention class this column is in (plan P4-D2, A-P4-2).
-
-    THE ROLE OPENS A CLASS; THE CELLS SETTLE IT (plan amendment A-P4-2,
-    review item P4-C1-F3). Reading the role alone put a label column
-    whose every level the floor held back into the partly-invented
-    class -- and such a column has no published spelling at all, so
-    every present cell of its twin is a neutral stand-in and the page
-    told the reader there were values of theirs beside them when there
-    were none. The count the plan asks for is a count of CELLS, so the
-    edge is decided by cells: a column all of whose present cells are
-    invented is in the everything class however its role publishes.
-    """
-    # A column with no present cell has no invented cell either, so it
-    # is in no class whatever its role says -- the empty-column carve-out
-    # the plan states, and the reason this test comes first.
-    if not column.n_present:
-        return _MADE_UP_NOTHING
-    if column.structural_role == "identifier" or column.role in (
-        "free_text",
-        "numeric_unrepresentable",
-    ):
-        return _MADE_UP_EVERYTHING
-    facts = column.facts
-    if isinstance(facts, contract.LabelFacts):
-        return _how_much(column, _held_back_cells(facts), _MADE_UP_HELD_BACK)
-    return _how_much(column, _uncarried_cells(column), _MADE_UP_UNCARRIED)
-
-
-def _how_much(
-    column: contract.ColumnBlock, invented: int, partly: str
-) -> str:
-    """No invented cell, some of them, or the whole column (A-P4-2)."""
-    if not invented:
-        return _MADE_UP_NOTHING
-    if invented >= column.n_present:
-        return _MADE_UP_EVERYTHING
-    return partly
-
-
-def _uncarried_cells(column: contract.ColumnBlock) -> int:
-    """How many cells the description counts but carries no value for.
-
-    On a numeric column these are the three classes beside the numbers
-    themselves -- out of range, contradictory, and not a number at all --
-    which the twin writes as counted stand-ins. On a datetime column it
-    is the cells that did not read as dates. It is deliberately NOT the
-    four universal counts on a datetime column: a written date is not a
-    number, so those counts describe every cell of it and would name the
-    whole column invented.
-    """
-    facts = column.facts
-    if isinstance(facts, contract.DatetimeFacts):
-        return facts.n_unparsed
-    if isinstance(facts, contract.NumericFacts):
-        return (
-            column.n_out_of_range
-            + column.n_contradictory
-            + column.n_not_numeric
-        )
-    return 0
+# THE THREE INVENTION CLASSES (plan P4-D2) live in `roles` (lane S5a,
+# plan P4-D437), so `validate`'s result reads the one rule this report
+# reads; these names are that rule's.
+_MADE_UP_NOTHING = roles.MADE_UP_NOTHING
+_MADE_UP_EVERYTHING = roles.MADE_UP_EVERYTHING
+_MADE_UP_HELD_BACK = roles.MADE_UP_HELD_BACK
+_MADE_UP_UNCARRIED = roles.MADE_UP_UNCARRIED
+_held_back_cells = roles.held_back_cells
+_made_up_class = roles.made_up_class
+_uncarried_cells = roles.uncarried_cells
 
 
 def _made_up_lines(column: contract.ColumnBlock, floor: int) -> "list[str]":
