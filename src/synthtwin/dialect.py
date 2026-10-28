@@ -7140,6 +7140,18 @@ class Arranging:
     placing: bool
     targets: "list[bool]"
     filled: "list[int]"
+    # THE RESERVATION OF RECORDS HOLDING NOTHING (method G4.2a; lane BT,
+    # plan P4-D429), behind the chain's switch alone: the reserved rows
+    # in row order, None where the reservation does not run and every
+    # column is placed as before. Where it runs `targets` marks exactly
+    # these rows, `workbook` says the cells holding nothing are the
+    # workbook's (no text) rather than a text file's (spaces and tabs
+    # too), and `givers` says, column by column, which columns G2.1 step
+    # 2's second walk may take a cell from (G16.5: never an eligible
+    # column, never the row sequence).
+    reserved: "tuple[int, ...] | None" = None
+    workbook: bool = False
+    givers: "tuple[bool, ...]" = ()
 
 
 def arranging(form: Dialect, n_rows: int, width: int) -> Arranging:
@@ -7162,6 +7174,115 @@ def arranging(form: Dialect, n_rows: int, width: int) -> Arranging:
     return Arranging(form, n_rows, width, placing, targets, filled)
 
 
+def holds_nothing(cell: str) -> bool:
+    """Whether a text file's cell holds nothing: empty, or spaces and tabs alone (`_holds_nothing`)."""
+    return _holds_nothing(cell)
+
+
+def sheet_nothing_totals(
+    census: "dict[str, int | None]", count: int
+) -> "tuple[int, int, int]":
+    """How many of a workbook column's ``count`` cells holding no text G2.2 step 1 makes absent, blank and empty.
+
+    Step 1's own dealing, by counts alone (method G4.2a): each of the
+    three classes takes its published count in turn while cells last,
+    and what is left goes to the first class whose count was withheld,
+    or else to the leading one -- the class of the most cells the census
+    publishes, a class published as nought never leading. The writer
+    deals the same counts (`sheetwriting.cell_classes`).
+    """
+    kinds = (SHEET_CELL_ABSENT, SHEET_CELL_BLANK, SHEET_CELL_EMPTY)
+    given = [0, 0, 0]
+    left = count
+    for place in range(3):
+        found = census[kinds[place]] if kinds[place] in census else None
+        wanted = found if isinstance(found, int) and not isinstance(found, bool) else 0
+        take = min(wanted, left)
+        given[place] = take
+        left = left - take
+    if left > 0:
+        chosen = -1
+        for place in range(3):
+            found = census[kinds[place]] if kinds[place] in census else None
+            if not (isinstance(found, int) and not isinstance(found, bool)):
+                chosen = place
+                break
+        if chosen < 0:
+            chosen = 2
+            seen = -1
+            denied = True
+            for place in range(3):
+                found = census[kinds[place]] if kinds[place] in census else None
+                number = found if isinstance(found, int) and not isinstance(found, bool) else 0
+                nought = isinstance(found, int) and not isinstance(found, bool) and found == 0
+                if number > seen:
+                    seen = number
+                    chosen = place
+                    denied = nought
+                    continue
+                if number == seen and denied and not nought:
+                    chosen = place
+                    denied = nought
+        given[chosen] = given[chosen] + left
+    return given[0], given[1], given[2]
+
+
+def reserved_arranging(
+    state: Arranging,
+    rows: "tuple[int, ...]",
+    workbook: bool,
+    givers: "tuple[bool, ...]",
+) -> Arranging:
+    """The arrangement with G4.2a's reservation: ``rows`` reserved, every other row arranged (plan P4-D429).
+
+    The reserved rows are the targets the sort keeps in place and the
+    second walk gives nothing to; every other row, a target beyond the
+    reserved ones included, is arranged like any other.
+    """
+    targets = [False for _row in range(state.n_rows)]
+    for row in rows:
+        targets[row] = True
+    filled = [0 for _row in range(state.n_rows)] if state.placing else []
+    return dataclasses.replace(
+        state, targets=targets, filled=filled, reserved=rows, workbook=workbook, givers=givers
+    )
+
+
+def reserved_cells(
+    cells: "list[str]", count: int, workbook: bool, order: "list[int] | None" = None
+) -> "list[int]":
+    """A column's RESERVED cells, by spelling, in G4.2's order (method G4.2a; plan P4-D429).
+
+    The cells holding nothing, listed: the cells written as the empty
+    text, in row order; then, in a text file, the cells of each spelling
+    made only of spaces and tabs, the shorter spelling first and at one
+    length by code points, each spelling's cells in row order. The first
+    ``count`` of them, as rows. A spelling holding any other character
+    (`NA`, a no-break space) is never reserved. Where ``order`` is given,
+    row `r` holds ``cells[order[r]]``, so no copy of the column is made.
+    """
+    rows = len(order) if order is not None else len(cells)
+    listed: "list[int]" = []
+    spelled: "dict[str, int]" = {}
+    for row in range(rows):
+        cell = cells[order[row]] if order is not None else cells[row]
+        if cell == "":
+            if len(listed) < count:
+                listed += [row]
+        elif not workbook and _holds_nothing(cell):
+            spelled[cell] = 1
+    if len(listed) >= count or workbook:
+        return listed[:count]
+    for _length, spelling in sorted([(len(cell), cell) for cell in spelled]):
+        for row in range(rows):
+            cell = cells[order[row]] if order is not None else cells[row]
+            if cell == spelling:
+                listed += [row]
+                if len(listed) >= count:
+                    return listed
+    return listed
+
+
 def placed_column(state: Arranging, cells: "list[str]") -> "list[str]":
     """One finished column with its cells moved off the all-empty records.
 
@@ -7176,6 +7297,18 @@ def placed_column(state: Arranging, cells: "list[str]") -> "list[str]":
     Guarantees: moves cells only within the column; raises nothing; no
     I/O of any kind.
     """
+    # THE RESERVATION RUNS IN PLACE OF THE FIRST WALK (method G4.2a): the
+    # placement already stood each reserved cell in its reserved row
+    # (`generation._row_placement`), so nothing moves here and the cells
+    # holding something are only counted.
+    if state.reserved is not None:
+        if len(cells) != state.n_rows:
+            raise TypeError("internal check: a twin column was not the table's length")
+        if state.placing:
+            for row in range(state.n_rows):
+                if not _holds_nothing(cells[row]):
+                    state.filled[row] = state.filled[row] + 1
+        return cells
     if not state.placing:
         return cells
     targets = state.targets
@@ -7254,6 +7387,10 @@ def _given_cells(
     for row in needy:
         for place in range(width):
             reading = readings[place]
+            # ...ONLY FROM A COLUMN THAT MAY GIVE, where the reservation
+            # runs (G16.5): never an eligible column, never the sequence.
+            if state.givers and not state.givers[place]:
+                continue
             source = giver[place]
             while source < n_rows and (
                 targets[source]
@@ -7284,7 +7421,9 @@ def _given_cells(
 
 
 def arranged_columns(
-    state: Arranging, columns: "list[twinstore.HeldColumn]"
+    state: Arranging,
+    columns: "list[twinstore.HeldColumn]",
+    rows_moved: "list[int] | None" = None,
 ) -> "list[twinstore.HeldColumn]":
     """The held columns, every one through `placed_column`, with the rows placed.
 
@@ -7293,6 +7432,11 @@ def arranged_columns(
     the rows that are not all-empty records are sorted by the form's sort
     column, whole rows moving together, and a row-sequence column is
     written in place last. One column is text objects at a time.
+
+    ``rows_moved``, where given, receives the sort's rows: row ``r`` of the
+    result holds the cells of row ``rows_moved[r]``; it is left empty where no
+    sort runs (lane BT's second repair: what G4.2a dealt each workbook
+    cell moves with it, `generation.SheetDealt`).
 
     Guarantees: the columns `arranged` gives for the same cells; raises
     nothing; no I/O of any kind.
@@ -7314,6 +7458,12 @@ def arranged_columns(
         key = twinstore.column_cells(made[order.column - 1])
         placed = _permutation([key[row] for row in free], order, len(free))
         key = []
+        if rows_moved is not None:
+            sorted_rows = [row for row in range(n_rows)]
+            for index in range(len(free)):
+                sorted_rows[free[index]] = free[placed[index]]
+            rows_moved += sorted_rows
+            sorted_rows = []
         sorted_columns: "list[twinstore.HeldColumn]" = []
         for place in range(width):
             column = twinstore.column_cells(made[place])

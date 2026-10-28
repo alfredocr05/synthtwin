@@ -459,6 +459,9 @@ ROUTES_THAT_RUN_SOURCE = {
     # of a column of clock times (plan P4-D374): it runs the same oracle by
     # path, as every file above does.
     ("tools/reference/make_generation_branch_vectors_27.py", "runpy.run_path"): 1,
+    # The twenty-eighth file, layer L0's rules (lane BT, plan P4-D429): it
+    # runs the same oracle by path, as every file above does.
+    ("tools/reference/make_generation_branch_vectors_28.py", "runpy.run_path"): 1,
     # anchor 3b-G1 (P4-D375)
     ("tools/reference/make_generation_branch_vectors_14.py", "runpy.run_path"): 1,
     # anchor 3b-G3 (P4-D376)

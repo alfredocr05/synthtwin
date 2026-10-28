@@ -297,6 +297,14 @@ def _percents_of(rungs: "tuple[float, ...]") -> "tuple[int, ...]":
 # is in. A ladder read out of a document is a MAPPING, so a walk over
 # it needs the order written down; taking the mapping's own order would
 # make the twin depend on how a document happened to be serialised.
+# THE NINETY FINER RUNGS BY NAME, in percent order (contract Q19): the keys
+# an L0 edge may name beside the eleven (lane BT, plan P4-D429).
+_FINER_NAMES = tuple(
+    f"p{percent:02d}"
+    for percent in range(1, 100)
+    if percent not in (1, 5, 10, 25, 50, 75, 90, 95, 99)
+)
+
 _LADDER_NAMES = (
     "min",
     "p01",
@@ -728,6 +736,78 @@ class Twin:
     # `columns` and `rows`. Read a twin of either kind through
     # `twin_width`, `twin_column`, `twin_column_blocks` and `twin_rows`.
     held_columns: "tuple[twinstore.HeldColumn, ...] | None" = None
+    # THE RECORDS HOLDING NOTHING RESERVED AT G4 (method G4.2a; lane BT,
+    # plan P4-D429): on a workbook twin made behind the chain's switch,
+    # how many of its first rows the reservation holds, which the writer
+    # deals the classes holding nothing to first and writes cell by cell;
+    # -1 on every other twin, which the writer writes as before.
+    reserved_rows: int = -1
+    # ...AND EACH ELIGIBLE WORKBOOK COLUMN'S CELLS AS G2.2 DEALT THEM BEFORE
+    # THE ARRANGEMENT (method G4.2a steps 1 and 7; lane BT's repair, plan
+    # P4-D429): one entry a column, None for a column the writer deals as
+    # before, else a `SheetDealt` in the twin's FINAL row order (the sort
+    # moves it with the cells, lane BT's second repair, after its outside
+    # review, item 1), held a byte a cell (item 6). The writer writes such
+    # a column by it and deals nothing again, so wherever G16 put a cell
+    # it keeps its class.
+    sheet_dealt: "tuple[SheetDealt | None, ...]" = ()
+
+
+@dataclasses.dataclass(frozen=True)
+class SheetDealt:
+    """One eligible workbook column's cells as G4.2a dealt them, held compactly (method G4.2a; plan P4-D429).
+
+    `palette` lists each different (class, format kind, kind of date) a
+    cell was dealt, and `codes` each row's place in it -- one byte a row
+    where the palette holds at most 256 entries, else a number a row -- so
+    a column of a million rows holds a megabyte, not three tuples of a
+    million references (lane BT's second repair, after its outside
+    review, item 6). `written` is the column as the writer writes it,
+    held by `twinstore`, where the writer's conversion changes a cell;
+    None where it changes none. Every field stands in the twin's final row
+    order.
+    """
+
+    palette: "tuple[tuple[str, str, str], ...]"
+    codes: "bytes | tuple[int, ...]"
+    written: "twinstore.HeldColumn | None"
+
+
+def sheet_dealt_kinds(dealt: SheetDealt) -> "tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]":
+    """A `SheetDealt`'s classes, format kinds and kinds of date, one text a row (for the writer, one column at a time)."""
+    palette = dealt.palette
+    codes = dealt.codes
+    return (
+        tuple([palette[code][0] for code in codes]),
+        tuple([palette[code][1] for code in codes]),
+        tuple([palette[code][2] for code in codes]),
+    )
+
+
+@dataclasses.dataclass(frozen=True)
+class _Piece:
+    """One piece of method G5.7b: ranks between two cuts and the values between them.
+
+    `first` and `cells` are its ranks; `low` and `high` its ends (None
+    where open), `low` included unless `low_open` (the sign cut at nought,
+    above which a positive piece begins) and `high` never included; `zero`
+    marks the zero piece, nought alone; `sign` is the sign band it lies
+    in; `published_low` and `published_high` say whether each end is
+    published (an `L0` edge or the sign cut at nought); `figures` is the
+    PIECE GRID: -1 off a grid, 0 on the whole numbers, `f` on a written
+    grid of `f` figures (G5.7b).
+    """
+
+    first: int
+    cells: int
+    low: "float | None"
+    low_open: bool
+    high: "float | None"
+    zero: bool
+    sign: str
+    published_low: bool
+    published_high: bool
+    figures: int
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4026,8 +4106,15 @@ def _width_places(
     bounds: "dict[float, tuple[float, float]]",
     ends: "tuple[float, float]",
     whole_column: bool,
+    walls: "tuple[_Piece, ...]" = (),
 ) -> "list[int]":
     """Which width each cell is written at, or -1 for the value's own.
+
+    ON A COLUMN LAID WITH ITS L0 BAND TOTALS ``walls`` are its pieces
+    (method G5.7b), and no snap carries a value out of its piece (lane
+    BT's second repair, after its outside review, item 2): a value whose
+    snap at a width would read in another piece takes no such width, as a
+    snap that leaves its stretch takes none.
 
     THE PINNED CELLS ARE SERVED FIRST AND ARE NEVER SNAPPED (plan
     P4-D4.5). The two endpoints and the zero stratum are
@@ -4175,6 +4262,8 @@ def _width_places(
             # one-place cells to be written at two.
             if need > width and _snaps_away(value, width, bounds, ends):
                 continue
+            if need > width and walls and _l0_snap_leaves(value, width, walls):
+                continue
             # ...AND A SNAP NEVER LANDS ON A NUMBER ANOTHER VALUE HOLDS
             # WHERE THE VALUE'S OWN WIDTH IS A PUBLISHED ONE (plan
             # P4-D179). Two values a hundredth apart are two numbers, and
@@ -4209,6 +4298,15 @@ def _width_places(
             places[index] = whole
         landed[_snapped_to(value, whole)] = 1
     return _some_fraction_survives(places, styles, holds, whole_column)
+
+
+def _l0_snap_leaves(value: float, width: int, walls: "tuple[_Piece, ...]") -> bool:
+    """Whether writing ``value`` at ``width`` reads as a number outside the piece holding it (method G5.7b; `_width_places`)."""
+    read = _snapped_to(value, width)
+    for wall in walls:
+        if _piece_takes(wall, value):
+            return not _piece_takes(wall, read)
+    return False
 
 
 def _pinned_width_order(
@@ -9101,6 +9199,1601 @@ def _ladder_layout(
     return layout, notes, max(total - pinned - zeroed, 0)
 
 
+# -- LAYER L0: A NUMBER COLUMN LAID OUT OVER ITS PIECES (method G5.7; lane BT, plan P4-D429)
+
+# A grid index past every point a binary64 reaches, at any width a
+# published census names: the open end of a piece's admitted indices.
+_FAR_INDEX = 1 << 2048
+
+
+def _l0_ranks(cuts: "contract.L0Cuts") -> "list[int]":
+    """The cut rank of every edge, `R_j = c_0 + ... + c_(j-1)` (G5.7a)."""
+    ranks: "list[int]" = []
+    running = 0
+    for place in range(len(cuts.edges)):
+        running = running + cuts.counts[place]
+        ranks += [running]
+    return ranks
+
+
+def _piece_takes(piece: _Piece, value: float) -> bool:
+    """Whether ``value`` lies inside ``piece`` (G5.7b): from its lower end, below its upper one."""
+    if not math.isfinite(value):
+        return False
+    if piece.zero:
+        return value == 0.0
+    if piece.low is not None:
+        if piece.low_open and not value > piece.low:
+            return False
+        if not piece.low_open and value < piece.low:
+            return False
+    if piece.high is not None and not value < piece.high:
+        return False
+    return True
+
+
+def _scaled_floor(value: float, figures: int) -> int:
+    """`floor(value * 10**figures)`, exactly, for a finite binary64 (G5.7b's grid points)."""
+    mantissa, exponent = math.frexp(value)
+    whole = int(math.ldexp(mantissa, 53))
+    shift = exponent - 53
+    scaled = whole * _ten_to(max(figures, 0))
+    if shift >= 0:
+        return scaled << shift
+    return scaled >> (-shift)
+
+
+def _grid_float(index: int, figures: int) -> float:
+    """The grid point `index / 10**figures` as the writer's grid text reads back (G5.7b)."""
+    if figures <= 0:
+        return float(index)
+    unit = _ten_to(figures)
+    size = -index if index < 0 else index
+    value = float(f"{size // unit}.{size % unit:0{figures}d}")
+    return -value if index < 0 else value
+
+
+def _grid_index_above(value: float, figures: int, strictly: bool) -> int:
+    """The first grid index whose point stands above ``value`` (or at it, where not ``strictly``).
+
+    Whether an index's point stands there rises with the index (the grid
+    text reads back correctly rounded), so the index is found by steps
+    that double from `floor(value * 10**figures)` and then by halving,
+    never a unit at a time: near a large binary64 some `10**13`
+    consecutive indices read back as one value, and a walk over them did
+    not end (lane BT's second repair, after its outside review, item 9).
+    """
+    start = _scaled_floor(value, figures)
+    step = 1
+    if _grid_stands(start, figures, value, strictly):
+        high = start
+        low = start - step
+        while _grid_stands(low, figures, value, strictly):
+            high = low
+            step = step * 2
+            low = start - step
+    else:
+        low = start
+        high = start + step
+        while not _grid_stands(high, figures, value, strictly):
+            low = high
+            step = step * 2
+            high = start + step
+    while high - low > 1:
+        middle = (low + high) // 2
+        if _grid_stands(middle, figures, value, strictly):
+            high = middle
+        else:
+            low = middle
+    return high
+
+
+def _grid_stands(index: int, figures: int, value: float, strictly: bool) -> bool:
+    """Whether grid index ``index``'s point stands above ``value`` (or at it, where not ``strictly``)."""
+    point = _grid_float(index, figures)
+    return point > value or (not strictly and point == value)
+
+
+def _grid_index_below(value: float, figures: int, strictly: bool) -> int:
+    """The last grid index whose point stands below ``value`` (or at it, where not ``strictly``)."""
+    index = _grid_index_above(value, figures, not strictly)
+    return index - 1
+
+
+def _l0_bounds(
+    facts: contract.NumericFacts, piece: _Piece, figures: int
+) -> "tuple[int, int]":
+    """The first and the last grid index a piece admits on ``figures``, before the empty stretches.
+
+    Inside the piece, on its side of nought, and inside `min` and `max`
+    where they are published (G5.7e's admissible values); the second
+    below the first where none is admitted.
+    """
+    first = -_FAR_INDEX
+    last = _FAR_INDEX
+    if piece.zero:
+        return 0, 0
+    if piece.low is not None:
+        first = max(first, _grid_index_above(piece.low, figures, piece.low_open))
+    if piece.high is not None:
+        last = min(last, _grid_index_below(piece.high, figures, True))
+    if piece.sign == _BAND_POSITIVE:
+        first = max(first, 1)
+    if piece.sign == _BAND_NEGATIVE:
+        last = min(last, -1)
+    lowest = facts.percentiles.minimum
+    highest = facts.percentiles.maximum
+    if lowest is not None and math.isfinite(lowest):
+        first = max(first, _grid_index_above(lowest, figures, False))
+    if highest is not None and math.isfinite(highest):
+        last = min(last, _grid_index_below(highest, figures, False))
+    return first, last
+
+
+def _l0_admissible(
+    facts: contract.NumericFacts, piece: _Piece, value: float, figures: int
+) -> bool:
+    """Whether a value is ADMISSIBLE in a piece (G5.7e).
+
+    Inside the piece and `min` to `max` where published, on its side of
+    nought, whole where `integer_valued` is true, a point of the piece's
+    grid where it has one, and outside every stretch `empty_edges` names.
+    """
+    if not _piece_takes(piece, value):
+        return False
+    lowest = facts.percentiles.minimum
+    highest = facts.percentiles.maximum
+    if lowest is not None and value < lowest:
+        return False
+    if highest is not None and value > highest:
+        return False
+    if piece.sign == _BAND_POSITIVE and not value > 0.0:
+        return False
+    if piece.sign == _BAND_NEGATIVE and not value < 0.0:
+        return False
+    if facts.integer_valued and not parsing.is_whole_number(value):
+        return False
+    if figures == 0 and not parsing.is_whole_number(value):
+        return False
+    if figures > 0 and parsing.parse_number(_grid_text(value, figures)) != value:
+        return False
+    for below, above in facts.empty_edges:
+        if below < value < above:
+            return False
+    return True
+
+
+def _l0_count(
+    facts: contract.NumericFacts,
+    piece: _Piece,
+    figures: int,
+    below: "float | None",
+    above: "float | None",
+    limit: int,
+) -> int:
+    """How many admissible grid points of a piece lie strictly between ``below`` and ``above``.
+
+    None for an end reads the piece's own end there, which counts its
+    own point where it is closed. At most ``limit`` (G5.7a's (P3) and
+    G5.7b's piece grid ask only whether one is there). Counted by index
+    arithmetic, each empty stretch taken out once, so a wide gap costs no
+    walk.
+    """
+    first, last = _l0_bounds(facts, piece, figures)
+    if below is not None:
+        first = max(first, _grid_index_above(below, figures, True))
+    if above is not None:
+        last = min(last, _grid_index_below(above, figures, True))
+    if last < first:
+        return 0
+    count = last - first + 1
+    for low, high in facts.empty_edges:
+        inside_first = max(first, _grid_index_above(low, figures, True))
+        inside_last = min(last, _grid_index_below(high, figures, True))
+        if inside_last >= inside_first:
+            count = count - (inside_last - inside_first + 1)
+    return max(0, min(count, limit))
+
+
+def _l0_points(
+    facts: contract.NumericFacts,
+    piece: _Piece,
+    figures: int,
+    start: float,
+    upward: bool,
+    taken: "_HeldValues",
+    steps: int,
+) -> "list[float]":
+    """Admissible grid points of a piece from ``start`` outward, nearest first (G5.7e).
+
+    Upward from the first point at or above ``start``, or downward from
+    the last below it, skipping every empty stretch at one jump and every
+    point ``taken`` holds; at most ``steps`` points are offered, so a
+    walk is bounded. On the whole numbers ``figures`` is nought.
+    """
+    first, last = _l0_bounds(facts, piece, figures)
+    found: "list[float]" = []
+    if upward:
+        index = max(first, _grid_index_above(start, figures, False))
+    else:
+        index = min(last, _grid_index_below(start, figures, True))
+    looked = 0
+    while first <= index <= last and looked < steps:
+        value = _grid_float(index, figures)
+        jumped = False
+        for low, high in facts.empty_edges:
+            if low < value < high:
+                index = (
+                    _grid_index_above(high, figures, False)
+                    if upward
+                    else _grid_index_below(low, figures, False)
+                )
+                jumped = True
+                break
+        if jumped:
+            continue
+        looked = looked + 1
+        if not _l0_holds(taken, value) and _l0_admissible(facts, piece, value, figures):
+            found += [value]
+            return found
+        index = index + 1 if upward else index - 1
+    return found
+
+
+def _l0_pieces(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    cuts: "contract.L0Cuts",
+    figures: int,
+) -> "tuple[_Piece, ...]":
+    """The pieces of G5.7b, in rank order: the sign cuts and the edges' cuts taken together.
+
+    The negative band from rank 0 to `G`, cut at each negative edge; the
+    zero piece, nought alone; the positive band from `G + Z` to `K`, cut
+    at each positive edge (an edge at nought IS the sign cut). Each
+    piece's grid is the column's where its stretch holds an admissible
+    point of it, and otherwise the narrowest named width of
+    `fraction_widths` whose grid holds one; -2 where none does, which is
+    precondition (P3) failing.
+    """
+    numbers = cuts.cells
+    negatives = facts.n_negative - facts.n_negative_unrepresentable
+    zeros = facts.n_zero
+    ranks = _l0_ranks(cuts)
+    spans: "list[tuple[int, int, float | None, bool, float | None, str, bool, bool]]" = []
+    start = 0
+    low: "float | None" = None
+    published_low = False
+    for place in range(len(cuts.edges)):
+        edge = cuts.edges[place]
+        if edge < 0.0:
+            spans += [(start, ranks[place], low, False, edge, _BAND_NEGATIVE, published_low, True)]
+            start = ranks[place]
+            low = edge
+            published_low = True
+    spans += [(start, negatives, low, False, 0.0, _BAND_NEGATIVE, published_low, True)]
+    start = negatives + zeros
+    low = 0.0
+    low_open = True
+    published_low = True
+    for place in range(len(cuts.edges)):
+        edge = cuts.edges[place]
+        if edge > 0.0:
+            spans += [(start, ranks[place], low, low_open, edge, _BAND_POSITIVE, published_low, True)]
+            start = ranks[place]
+            low = edge
+            low_open = False
+    spans += [(start, numbers, low, low_open, None, _BAND_POSITIVE, published_low, False)]
+    widths: "list[int]" = []
+    for key in facts.fraction_widths:
+        if key and all(letter in _DIGITS for letter in key) and int(key) > 0:
+            widths += [int(key)]
+    widths = sorted(widths)
+    made: "list[_Piece]" = []
+    zero_placed = zeros <= 0
+    for first, end, below, below_open, above, sign, low_known, high_known in spans:
+        if sign == _BAND_POSITIVE and not zero_placed:
+            made += [_Piece(negatives, zeros, 0.0, False, None, True, _BAND_ZERO, True, True, 0)]
+            zero_placed = True
+        piece = _Piece(first, end - first, below, below_open, above, False, sign, low_known, high_known, figures)
+        if figures > 0 and piece.cells > 0 and _l0_count(facts, piece, figures, None, None, 1) < 1:
+            finer = -2
+            for width in widths:
+                if width > figures and _l0_count(facts, piece, width, None, None, 1) >= 1:
+                    finer = width
+                    break
+            piece = dataclasses.replace(piece, figures=finer)
+        made += [piece]
+    del column
+    return tuple(made)
+
+
+@dataclasses.dataclass(frozen=True)
+class _HeldValues:
+    """The values a column's strata hold, ascending, and the points layer L0 adds (`_l0_least_move`).
+
+    Asked whether it holds a value (`_l0_holds`) by halving `ordered` and
+    looking in `added`, so a walk of at most 64 points over a column of two
+    million different numbers holds no second copy of them.
+    """
+
+    ordered: "list[float]"
+    added: "dict[float, int]"
+
+
+def _l0_holds(taken: _HeldValues, value: float) -> bool:
+    """Whether a stratum of ``taken`` holds ``value`` or layer L0 added it (`_HeldValues`)."""
+    if value in taken.added:
+        return True
+    ordered = taken.ordered
+    low = 0
+    high = len(ordered)
+    while low < high:
+        middle = (low + high) // 2
+        if ordered[middle] < value:
+            low = middle + 1
+        else:
+            high = middle
+    return low < len(ordered) and ordered[low] == value
+
+
+@dataclasses.dataclass
+class _Entries:
+    """A column's strata in ascending order of value, as layer L0 moves them (`_l0_least_move`).
+
+    Parallel lists, one place a stratum: its value, its cells now, the
+    stratum of today's twin it is (-1 for one layer L0 adds), whether a
+    proven heap holds its value, its cells before the band totals moved
+    them, and its piece; `ordered` is how many lead in ascending order (a
+    point `_l0_kept_point` adds stands after them). `today` is each
+    stratum's cells in today's twin, before the proven heaps moved any (0
+    for one layer L0 adds), and `kept` names the places step 3 gave a
+    value back, which its count rule never merges again (lane BT's second
+    repair, after its verify, item 1).
+    """
+
+    values: "list[float]"
+    sizes: "list[int]"
+    places: "list[int]"
+    proven: "list[int]"
+    before: "list[int]"
+    pieces: "list[int]"
+    ordered: int = 0
+    today: "list[int]" = dataclasses.field(default_factory=list)
+    kept: "dict[int, int]" = dataclasses.field(default_factory=dict)
+
+
+def _l0_internal(column: contract.ColumnBlock, what: str) -> str:
+    """The words of an internal check of layer L0 on one column (plan P4-D429)."""
+    return (
+        f"synthtwin internal check: the column '{parsing.visible(column.name)}' "
+        f"{what}. This means a mistake in synthtwin; please report it. "
+        "Nothing has been written."
+    )
+
+
+def _l0_proven_heaps(
+    facts: contract.NumericFacts, cells: int
+) -> "list[tuple[float, int, int]]":
+    """Every HEAP the published ladder proves (method G5.7c, step 1): `(value, first rank, last rank)`, ascending.
+
+    Rung `q` is read by the type-7 rule at `h_q = (K - 1) q / 100`, from
+    the order statistics at `floor(h_q)` and `ceil(h_q)`. Where the
+    published rungs at the percents `q_1 < q_2` are one value `v` (and so,
+    the ladder rising, is every published rung between them), each order
+    statistic from `ceil(h_q1)` to `floor(h_q2)` is at least the one at
+    `ceil(h_q1)`, which is at least `v`, and at most the one at
+    `floor(h_q2)`, which is at most `v`: every one of those ranks holds `v`
+    in the real column, and so, by the type-7 reading of the two end
+    rungs, do the ranks `floor(h_q1)` and `ceil(h_q2)` (`_l0_heap_spans`).
+    Only published rungs are read, never a filled
+    rung or a tail's reading, and only where the ladder was read over the
+    `K` numbers laid out (no number left out of the statistics); empty
+    elsewhere.
+    """
+    if facts.n_left_out_of_statistics or facts.n_used_in_statistics != cells or cells < 2:
+        return []
+    named: "dict[int, float | None]" = {}
+    for place in range(len(contract.LADDER_PERCENTS)):
+        named[contract.LADDER_PERCENTS[place]] = facts.percentiles.rungs[place]
+    for place in range(len(contract.FINER_LADDER_KEYS)):
+        named[int(contract.FINER_LADDER_KEYS[place][1:])] = facts.percentiles_between[place]
+    known: "list[tuple[int, float]]" = []
+    for percent in range(101):
+        rung = named[percent] if percent in named else None
+        if rung is not None and math.isfinite(rung):
+            known += [(percent, rung)]
+    return _l0_heap_spans(known, cells)
+
+
+def _l0_heap_spans(known: "list[tuple[int, float]]", cells: int) -> "list[tuple[float, int, int]]":
+    """The heaps published rungs prove (`_l0_proven_heaps`): ``known`` the `(percent, rung)` pairs, ascending.
+
+    A run of one value `v` over two percents or more, `q_1` to `q_2`, holds
+    every rank from `ceil(h_1)` to `floor(h_2)` (`h = (K - 1) q / 100`);
+    where that is one rank or more, the type-7 reading of each end rung,
+    `v = x[floor(h)] + frac(h) (x[ceil(h)] - x[floor(h)])`, with one of its
+    two order statistics already `v`, makes the other `v` too: the heap
+    holds every rank from `floor(h_1)` to `ceil(h_2)`.
+    """
+    heaps: "list[tuple[float, int, int]]" = []
+    at = 0
+    while at < len(known):
+        end = at
+        while end + 1 < len(known) and known[end + 1][1] == known[at][1]:
+            end = end + 1
+        inner_first = -((-(cells - 1) * known[at][0]) // 100)
+        inner_last = ((cells - 1) * known[end][0]) // 100
+        if end > at and inner_first <= inner_last:
+            heaps += [(known[at][1], ((cells - 1) * known[at][0]) // 100, -((-(cells - 1) * known[end][0]) // 100))]
+        at = end + 1
+    return heaps
+
+
+def _l0_value_order(values: "list[float]") -> "range | list[int]":
+    """Today's strata in ascending order of value, equal values in stratum order (`_l0_least_move`)."""
+    for place in range(len(values) - 1):
+        if values[place] > values[place + 1]:
+            return [place_ for _value, place_ in sorted([(values[at], at) for at in range(len(values))])]
+    return range(len(values))
+
+
+def _l0_least_move(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    values: "list[float]",
+    floor: int,
+) -> "tuple[_NumericLayout, list[float], list[Deviation]]":
+    """LAYER L0 ON A COLUMN OF NUMBERS: today's twin, moved the least the description proves (method G5.7c; lane BT, plan P4-D429).
+
+    THE COLUMN IS MADE AS IT IS TODAY. ``layout`` and ``values`` are the
+    strata every value pass of G5 and G6 left, drawn with the column's
+    own words exactly as on a column with no L0 block. Sorted by value
+    (equal values in stratum order) they hold the ranks `0 .. K - 1`,
+    and each rank's value is then moved, the least, to what the
+    description proves of that rank:
+
+    1. THE PROVEN HEAPS (`_l0_proven_heaps`, `_l0_heaped`). A rank inside
+       a heap's ranks takes the heap's value, a rank before them holding
+       more takes it, and one after them holding less. Every such rank
+       moves toward the real column's value there, so at every value the
+       twin's count of cells at or below it moves toward the real count:
+       no Kolmogorov-Smirnov distance grows.
+    2. THE BAND TOTALS (`_l0_banded`). Each rank belongs to the PIECE
+       (G5.7b: the bands cut once more at the sign cuts) whose two cut
+       ranks hold it. A rank whose value lies below its piece joins the
+       piece's lowest stratum and one above it the highest, so every piece
+       holds exactly its `C_p` cells and no value is made up; a piece
+       holding no stratum takes its cells on one at its fallback
+       (`_l0_fallback`).
+    2a. THE KEYS ONCE A ROW (`_l0_spread`). On a column whose numbers are
+       every one different, a stratum step 2 gave more than one cell
+       keeps one, and each other takes a free admissible point of its
+       piece, the nearest the cut it crossed first.
+    3. THE DIFFERENT VALUES KEPT. A stratum step 2 left with no cell takes
+       one back from the nearest stratum of its own piece holding two or
+       more, the published mode's last (`_l0_donor`); where none can give,
+       on a grid, its cells take the free admissible point of the piece
+       they fell in nearest the cut, at most 64 units in (`_l0_kept_point`); otherwise the count
+       of different values gives way, named by the twin's recount (rule
+       B1). THE COUNT RULE IS TWO-SIDED against today's count of
+       different values (lane BT's second repair, after its verify, item
+       1). Where the move leaves fewer -- a value step 1 emptied into a
+       proven heap, which today's twin wrote and the real column need not
+       hold -- each such value, in value order, takes one cell back from
+       the nearest entry of its own piece holding two or more that no
+       heap proves, the published mode's last, while the count is short
+       (`_l0_heap_lost`). Where it leaves more (a heap step 1 restored,
+       which today's twin wrote nowhere), the smallest stratum no heap
+       proves joins its nearer neighbour of its own piece, until the
+       counts agree (`_l0_counted`): first one standing between two
+       proven heaps with no published rung between them -- the run
+       today's ladder reading made up there -- and then one anywhere
+       holding fewer cells than the floor, never a value step 3 gave
+       back, the published mode, `min`, `max` or a tail's row.
+
+    4. THE MODE KEPT (`_l0_mode_kept`). Where today's twin held the
+       published mode at its published count and the move changed that
+       count, the difference goes to, or comes from, the mode's nearer
+       neighbour of its own piece, so no piece's count moves.
+
+    Returns the layout and values in today's stratum order, each stratum
+    at its new size (one left with no cell dropped; a new one inserted
+    before the first of greater value), and the mode's note made again,
+    `_mode_held` having run before the move. Draws nothing. Raises
+    `errors.ProfileError` (an internal check) where a piece's count is
+    not met. No I/O of any kind.
+    """
+    cut = facts.l0
+    if cut is None:
+        return layout, values, []
+    count = len(values)
+    total = 0
+    for size in layout.sizes:
+        total = total + size
+    if total != cut.cells or count != len(layout.sizes):
+        raise errors.ProfileError(_l0_internal(column, "lays out another count of numbers than its bands"))
+    figures = 0 if facts.integer_valued else _written_grid(column, facts)
+    walls = _l0_pieces(column, facts, cut, figures)
+    order = _l0_value_order(values)
+    today = _Entries(
+        [values[place] for place in order],
+        [layout.sizes[place] for place in order],
+        [place for place in order],
+        [0 for _place in order],
+        [],
+        [],
+    )
+    today.today = [size for size in today.sizes]
+    distinct = _l0_distinct(today)
+    heaps = _l0_proven_heaps(facts, total)
+    entries = _l0_heaped(today, heaps)
+    held = _HeldValues(entries.values, {})
+    entries.pieces = _l0_entry_pieces(column, walls, entries.values)
+    entries = _l0_banded(column, facts, walls, entries, held)
+    if facts.n_distinct_values >= total:
+        held = _HeldValues(
+            [entries.values[at] for at in range(entries.ordered) if entries.sizes[at] > 0], held.added
+        )
+        _l0_spread(facts, walls, entries, held)
+    _l0_values_kept(facts, walls, entries, held)
+    _l0_heap_lost(facts, walls, entries, distinct, heaps)
+    _l0_counted(facts, entries, distinct, _l0_heap_gaps(facts, heaps), floor)
+    _l0_mode_kept(facts, entries, today)
+    _l0_counts_met(column, walls, entries)
+    by_place = [0 for _place in range(count)]
+    added: "list[tuple[float, int]]" = []
+    for at in range(len(entries.values)):
+        if entries.sizes[at] <= 0:
+            continue
+        if entries.places[at] >= 0:
+            by_place[entries.places[at]] = by_place[entries.places[at]] + entries.sizes[at]
+        else:
+            added += [(entries.values[at], at)]
+    added = sorted(added)
+    out_sizes: "list[int]" = []
+    out_values: "list[float]" = []
+    out_bands: "list[str]" = []
+    taken = 0
+    for place in range(count + 1):
+        while taken < len(added) and (
+            place >= count or (by_place[place] > 0 and added[taken][0] < values[place])
+        ):
+            at = added[taken][1]
+            out_sizes += [entries.sizes[at]]
+            out_values += [entries.values[at]]
+            out_bands += [walls[entries.pieces[at]].sign]
+            taken = taken + 1
+        if place < count and by_place[place] > 0:
+            out_sizes += [by_place[place]]
+            out_values += [values[place]]
+            out_bands += [layout.bands[place]]
+    moved = dataclasses.replace(
+        layout,
+        sizes=tuple(out_sizes),
+        starts=tuple(_starts_of(out_sizes)),
+        bands=tuple(out_bands),
+    )
+    return moved, out_values, _mode_again(column, facts, moved, out_values)
+
+
+def _l0_heaped(entries: _Entries, heaps: "list[tuple[float, int, int]]") -> _Entries:
+    """Step 1 of `_l0_least_move`: every rank held between the proven heaps around it.
+
+    The entries ascend by value and hold the ranks in turn. A rank `r` of
+    value `w` takes `min(max(w, L(r)), U(r))`, `L(r)` the value of the last
+    heap starting at or before `r` and `U(r)` that of the first heap ending
+    at or after it: inside a heap both are its value. A rank raised joins
+    the first entry holding the heap's value, one lowered the last, or one
+    new entry for the heap where today's twin holds none. Returns the
+    entries ascending by value, each holding a heap's value marked proven.
+    """
+    if not heaps:
+        return entries
+    bounds: "list[int]" = []
+    heap_values: "dict[float, int]" = {}
+    for value, first, last in heaps:
+        bounds += [first, last + 1]
+        heap_values[value] = 1
+    owner: "dict[float, list[int]]" = {}
+    for at in range(len(entries.values)):
+        found = entries.values[at]
+        if found in heap_values:
+            if found in owner:
+                owner[found][1] = at
+            else:
+                owner[found] = [at, at]
+    added: "dict[float, int]" = {}
+    gained: "dict[int, int]" = {}
+    lost: "dict[int, int]" = {}
+    start = 0
+    lower = 0
+    upper = 0
+    bound_at = 0
+    for at in range(len(entries.values)):
+        value = entries.values[at]
+        end = start + entries.sizes[at]
+        cursor = start
+        while cursor < end:
+            while lower < len(heaps) and heaps[lower][1] <= cursor:
+                lower = lower + 1
+            while upper < len(heaps) and heaps[upper][2] < cursor:
+                upper = upper + 1
+            while bound_at < len(bounds) and bounds[bound_at] <= cursor:
+                bound_at = bound_at + 1
+            stop = min(end, bounds[bound_at]) if bound_at < len(bounds) else end
+            target = value
+            if lower > 0 and target < heaps[lower - 1][0]:
+                target = heaps[lower - 1][0]
+            if upper < len(heaps) and target > heaps[upper][0]:
+                target = heaps[upper][0]
+            if target != value:
+                lost[at] = (lost[at] if at in lost else 0) + (stop - cursor)
+                if target in owner:
+                    taker = owner[target][0] if target > value else owner[target][1]
+                    gained[taker] = (gained[taker] if taker in gained else 0) + (stop - cursor)
+                else:
+                    added[target] = (added[target] if target in added else 0) + (stop - cursor)
+            cursor = stop
+        start = end
+    extra = sorted([value for value in added])
+    out = _Entries([], [], [], [], [], [])
+    taken = 0
+    for at in range(len(entries.values) + 1):
+        while taken < len(extra) and (at >= len(entries.values) or extra[taken] < entries.values[at]):
+            out.values += [extra[taken]]
+            out.sizes += [added[extra[taken]]]
+            out.places += [-1]
+            out.proven += [1]
+            out.today += [0]
+            taken = taken + 1
+        if at >= len(entries.values):
+            break
+        value = entries.values[at]
+        size = entries.sizes[at] - (lost[at] if at in lost else 0) + (gained[at] if at in gained else 0)
+        out.values += [value]
+        out.sizes += [size]
+        out.places += [entries.places[at]]
+        out.proven += [1 if value in heap_values else 0]
+        out.today += [entries.today[at]]
+    return out
+
+
+def _l0_distinct(entries: _Entries) -> int:
+    """How many different values the entries hold with a cell, ascending by value."""
+    found = 0
+    last = 0.0
+    for at in range(len(entries.values)):
+        if entries.sizes[at] <= 0:
+            continue
+        if found == 0 or entries.values[at] != last:
+            found = found + 1
+            last = entries.values[at]
+    return found
+
+
+def _l0_entry_pieces(
+    column: contract.ColumnBlock,
+    walls: "tuple[_Piece, ...]",
+    values: "list[float]",
+) -> "list[int]":
+    """The piece each value lies in (`_l0_least_move`), the values ascending."""
+    pieces = [0 for _value in values]
+    at = 0
+    for place in range(len(values)):
+        while at < len(walls) and not _piece_takes(walls[at], values[place]):
+            at = at + 1
+        if at >= len(walls):
+            raise errors.ProfileError(_l0_internal(column, "holds a value outside every band"))
+        pieces[place] = at
+    return pieces
+
+
+def _l0_banded(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    walls: "tuple[_Piece, ...]",
+    entries: _Entries,
+    held: _HeldValues,
+) -> _Entries:
+    """Step 2 of `_l0_least_move`: every piece holds exactly its cells.
+
+    A rank of piece `p` whose entry's value lies in `p` stays; one below
+    joins `p`'s lowest entry and one above its highest; a piece holding
+    no entry takes its cells on one at its fallback (`_l0_fallback`).
+    Returns the entries ascending by value, each with its cells before
+    this step beside its cells after it.
+    """
+    starts = [0 for _value in entries.values]
+    running = 0
+    for at in range(len(entries.values)):
+        starts[at] = running
+        running = running + entries.sizes[at]
+    first_of = [-1 for _wall in walls]
+    last_of = [-1 for _wall in walls]
+    for at in range(len(entries.values)):
+        piece = entries.pieces[at]
+        if entries.sizes[at] <= 0:
+            continue
+        if first_of[piece] < 0:
+            first_of[piece] = at
+        last_of[piece] = at
+    new = [0 for _value in entries.values]
+    added: "list[tuple[float, int, int]]" = []
+    for wall_at in range(len(walls)):
+        wall = walls[wall_at]
+        low = wall.first
+        high = wall.first + wall.cells
+        if high <= low:
+            continue
+        if first_of[wall_at] < 0:
+            point = _l0_fallback(column, facts, wall, held)
+            added += [(point, high - low, wall_at)]
+            held.added[point] = 1
+            continue
+        first = first_of[wall_at]
+        last = last_of[wall_at]
+        for at in range(first, last + 1):
+            new[at] = new[at] + max(0, min(starts[at] + entries.sizes[at], high) - max(starts[at], low))
+        new[first] = new[first] + max(0, min(starts[first], high) - low)
+        new[last] = new[last] + max(0, high - max(starts[last] + entries.sizes[last], low))
+    extra = sorted(added)
+    out = _Entries([], [], [], [], [], [])
+    taken = 0
+    for at in range(len(entries.values) + 1):
+        while taken < len(extra) and (at >= len(entries.values) or extra[taken][0] < entries.values[at]):
+            out.values += [extra[taken][0]]
+            out.sizes += [extra[taken][1]]
+            out.places += [-1]
+            out.proven += [0]
+            out.before += [0]
+            out.pieces += [extra[taken][2]]
+            out.today += [0]
+            taken = taken + 1
+        if at >= len(entries.values):
+            break
+        out.values += [entries.values[at]]
+        out.sizes += [new[at]]
+        out.places += [entries.places[at]]
+        out.proven += [entries.proven[at]]
+        out.before += [entries.sizes[at]]
+        out.pieces += [entries.pieces[at]]
+        out.today += [entries.today[at]]
+    out.ordered = len(out.values)
+    return out
+
+
+def _l0_spread(
+    facts: contract.NumericFacts,
+    walls: "tuple[_Piece, ...]",
+    entries: _Entries,
+    held: _HeldValues,
+) -> None:
+    """Step 2a of `_l0_least_move`, on a column whose numbers are every one different: no value twice.
+
+    Step 2 hands the cells crossing a cut to the lowest or the highest
+    entry of the piece they cross into, which then holds a value twice.
+    Each cell beyond its first takes instead a FREE admissible point of
+    that piece, the nearest the cut it crossed first: on the whole
+    numbers, walking the piece's own values from that cut inward, the
+    points in each gap between two of them nearest the cut first, then
+    past the far end; off the whole numbers, at most 64 units in from the
+    cut. So a key the real column held once a row is written once a row.
+    Where no point is free the cell stays. The entries are changed in
+    place; a point added stands after the ordered ones.
+    """
+    first_of = [-1 for _wall in walls]
+    last_of = [-1 for _wall in walls]
+    for at in range(entries.ordered):
+        piece = entries.pieces[at]
+        if entries.sizes[at] <= 0:
+            continue
+        if first_of[piece] < 0:
+            first_of[piece] = at
+        last_of[piece] = at
+    for at in range(entries.ordered):
+        extra = entries.sizes[at] - 1
+        if extra <= 0:
+            continue
+        piece = entries.pieces[at]
+        wall = walls[piece]
+        if wall.figures < 0 or (at != first_of[piece] and at != last_of[piece]):
+            continue
+        upward = at == first_of[piece]
+        if wall.figures == 0:
+            points = _l0_whole_free(facts, wall, entries, first_of[piece], last_of[piece], upward, extra, held)
+        else:
+            points = []
+            start = wall.low if upward else wall.high
+            while start is not None and len(points) < extra:
+                found = _l0_points(facts, wall, wall.figures, start, upward, held, 64)
+                if not found:
+                    break
+                points += [found[0]]
+                held.added[found[0]] = 1
+        for point in points:
+            entries.sizes[at] = entries.sizes[at] - 1
+            entries.values += [point]
+            entries.sizes += [1]
+            entries.places += [-1]
+            entries.proven += [0]
+            entries.before += [0]
+            entries.pieces += [piece]
+            entries.today += [0]
+            held.added[point] = 1
+
+
+def _l0_whole_free(
+    facts: contract.NumericFacts,
+    wall: _Piece,
+    entries: _Entries,
+    first: int,
+    last: int,
+    upward: bool,
+    wanted: int,
+    held: _HeldValues,
+) -> "list[float]":
+    """Up to ``wanted`` free admissible whole numbers of a piece, nearest its lower end (``upward``) or its upper end first (`_l0_spread`).
+
+    The piece's own values are walked from that end inward: the points
+    between the end and the first value, then each gap between two
+    neighbouring values, nearest the end first, then the points past the
+    far value up to the piece's other end. A point is free where no entry
+    holds it and no point already added does (``held``), admissible as
+    G5.7e says.
+    """
+    found: "list[float]" = []
+    own: "list[float]" = []
+    for at in range(first, last + 1):
+        if entries.sizes[at] > 0 and entries.pieces[at] == entries.pieces[first]:
+            own += [entries.values[at]]
+    if not own:
+        return found
+    low_index, high_index = _l0_bounds(facts, wall, 0)
+    stops: "list[int]" = []
+    if upward:
+        stops += [low_index - 1]
+        for value in own:
+            stops += [int(value)]
+        stops += [high_index + 1]
+    else:
+        stops += [high_index + 1]
+        for at in range(len(own) - 1, -1, -1):
+            stops += [int(own[at])]
+        stops += [low_index - 1]
+    for gap in range(len(stops) - 1):
+        near = stops[gap]
+        far = stops[gap + 1]
+        if near >= _FAR_INDEX or near <= -_FAR_INDEX:
+            continue
+        start = float(near + 1) if upward else float(near)
+        while len(found) < wanted:
+            # ...each search held to its own gap (lane BT's second repair,
+            # after its outside review, item 7): a walk past the far value
+            # looked through every occupied value beyond it again.
+            room = _l0_gap_room(far, start, upward)
+            if room <= 0:
+                break
+            points = _l0_points(facts, wall, 0, start, upward, held, room)
+            if not points:
+                break
+            point = points[0]
+            if (upward and not point < far) or (not upward and not point > far):
+                break
+            found += [point]
+            start = point + 1.0 if upward else point
+        if len(found) >= wanted:
+            break
+    return found
+
+
+def _l0_gap_room(far: int, start: float, upward: bool) -> int:
+    """How many whole numbers `_l0_whole_free` may still look at in its gap, from ``start`` toward ``far``: those left in it, at most `2**20`."""
+    room = far - int(start) if upward else int(start) - 1 - far
+    return min(room, 1 << 20)
+
+
+def _l0_values_kept(
+    facts: contract.NumericFacts,
+    walls: "tuple[_Piece, ...]",
+    entries: _Entries,
+    held: _HeldValues,
+) -> None:
+    """Step 3 of `_l0_least_move`, first half: a value the band totals emptied keeps a cell where it can.
+
+    A VALUE is lost where every entry holding it was emptied
+    (`_l0_lost_values`: today's twin can hold one value in two strata, and
+    one of them emptied while the other keeps cells loses nothing). Its
+    first emptied entry takes one cell back from the nearest entry of its
+    own piece holding two or more, the published mode's last
+    (`_l0_donor`). Where none can give, on a grid, its cells take the free
+    admissible point of the piece they fell in nearest the cut, at most 64
+    units in, from the entry that took them (`_l0_kept_point`). The
+    entries are changed in place; one added stands after the others, out
+    of order.
+    """
+    first_of = [-1 for _wall in walls]
+    last_of = [-1 for _wall in walls]
+    spare = [0 for _wall in walls]
+    for at in range(len(entries.values)):
+        piece = entries.pieces[at]
+        if entries.before[at] > 0:
+            if first_of[piece] < 0:
+                first_of[piece] = at
+            last_of[piece] = at
+        if entries.sizes[at] >= 2:
+            spare[piece] = spare[piece] + 1
+    starts = [0 for _value in entries.values]
+    running = 0
+    for at in range(len(entries.values)):
+        starts[at] = running
+        running = running + entries.before[at]
+    for at in _l0_lost_values(entries):
+        piece = entries.pieces[at]
+        if spare[piece] > 0:
+            donor = _l0_donor(facts, entries, first_of[piece], last_of[piece], at)
+            if donor >= 0:
+                entries.sizes[donor] = entries.sizes[donor] - 1
+                if entries.sizes[donor] < 2:
+                    spare[piece] = spare[piece] - 1
+                entries.sizes[at] = 1
+                entries.kept[at] = 1
+                continue
+        _l0_kept_point(facts, walls, entries, first_of, last_of, starts[at], at, held)
+
+
+def _l0_lost_values(entries: _Entries) -> "list[int]":
+    """The entries step 3 of `_l0_least_move` keeps a value for: per value no entry still holds, its first emptied entry.
+
+    An entry emptied by the band totals (it held cells before them and
+    holds none now) loses its value only where no other entry still holds
+    that value with a cell, and a value is kept once however many of its
+    entries were emptied, so step 3 never moves a cell or adds a point for
+    a value today's twin still holds (lane BT's repair: the ten-column
+    table's `change` at 5,000 rows, table draw 11, seed 1, holds 0.5 in two
+    strata, and the cut at 0.5 empties the first).
+    """
+    dealt: "dict[float, int]" = {}
+    for at in range(len(entries.values)):
+        if entries.sizes[at] > 0:
+            dealt[entries.values[at]] = 1
+    lost: "list[int]" = []
+    for at in range(len(entries.values)):
+        if entries.sizes[at] > 0 or entries.before[at] <= 0 or entries.values[at] in dealt:
+            continue
+        dealt[entries.values[at]] = 1
+        lost += [at]
+    return lost
+
+
+def _l0_donor(
+    facts: contract.NumericFacts,
+    entries: _Entries,
+    first: int,
+    last: int,
+    lost: int,
+    unproven: bool = False,
+) -> int:
+    """The entry of a lost stratum's own piece that gives it a cell back, or -1.
+
+    The nearest in value order holding two cells or more, the lower on a
+    tie, and the published mode's only where no other can give; where
+    ``unproven``, never one a proven heap holds (`_l0_heap_lost`).
+    """
+    mode = facts.mode
+    held_mode = -1
+    for reach in range(1, last - first + 1):
+        for at in (lost - reach, lost + reach):
+            if at < first or at > last or entries.sizes[at] < 2:
+                continue
+            if unproven and entries.proven[at]:
+                continue
+            if mode is not None and entries.values[at] == mode:
+                if held_mode < 0:
+                    held_mode = at
+                continue
+            return at
+    return held_mode
+
+
+def _l0_kept_point(
+    facts: contract.NumericFacts,
+    walls: "tuple[_Piece, ...]",
+    entries: _Entries,
+    first_of: "list[int]",
+    last_of: "list[int]",
+    start: int,
+    lost: int,
+    held: _HeldValues,
+) -> None:
+    """A lost stratum's cells on a free point of the piece they fell in (`_l0_values_kept`).
+
+    Only on a grid, and only where every one of its cells fell in one other
+    piece and the entry there that took them keeps a cell of its own: the
+    free admissible point of that piece nearest the cut, at most 64 units
+    in. Nothing changes otherwise.
+    """
+    size = entries.before[lost]
+    end = start + size
+    own = entries.pieces[lost]
+    landed = -1
+    for wall_at in range(len(walls)):
+        if walls[wall_at].first <= start and end <= walls[wall_at].first + walls[wall_at].cells:
+            landed = wall_at
+    if landed < 0 or landed == own or first_of[landed] < 0:
+        return
+    wall = walls[landed]
+    upward = landed > own
+    edge = wall.low if upward else wall.high
+    if wall.figures < 0 or edge is None:
+        return
+    taker = first_of[landed] if upward else last_of[landed]
+    if entries.sizes[taker] - size < 1:
+        return
+    found = _l0_points(facts, wall, wall.figures, edge, upward, held, 64)
+    if not found:
+        return
+    point = found[0]
+    entries.sizes[taker] = entries.sizes[taker] - size
+    entries.values += [point]
+    entries.sizes += [size]
+    entries.places += [-1]
+    entries.proven += [0]
+    entries.before += [0]
+    entries.pieces += [landed]
+    entries.today += [0]
+    entries.kept[len(entries.values) - 1] = 1
+    held.added[point] = 1
+
+
+def _l0_heap_lost(
+    facts: contract.NumericFacts,
+    walls: "tuple[_Piece, ...]",
+    entries: _Entries,
+    distinct: int,
+    heaps: "list[tuple[float, int, int]]",
+) -> None:
+    """Step 3 of `_l0_least_move`, its count rule below: a value step 1 emptied keeps a cell while the count is short.
+
+    Step 1 moves every rank inside a proven heap onto the heap's value, so a
+    value today's twin wrote only there -- `38.0` beside a lab's sentinel
+    heap at `10.0`, `4.2` beside a sparse column's heap at `4.3` -- holds no
+    cell after it. The real column need not hold it, but today's twin held
+    the published count of different values with it (lane BT's verify,
+    item 1: 893 against 892 on such a lab). So while the entries hold
+    fewer different values than ``distinct``, today's count, each value
+    step 1 emptied, in value order, takes one cell back from the nearest
+    entry of its own piece holding two or more, the published mode's only
+    where no other can give, and only where NO PROVEN HEAP LEAVES ITS
+    RANKS (`_l0_heap_donor`): a giving heap gives a cell it holds beyond
+    its proven ranks on the side facing the value, and a heap between the
+    two, whose ranks shift by one, holds one beyond them on the side it
+    shifts from. So no piece's count moves and every proven rank keeps
+    its value. Where none can give, a cell stands on a free grid point
+    beside a stratum (`_l0_count_points`), and off a grid the count gives
+    way, named by the twin's recount (rule B1). A value the band totals
+    emptied is step 3's first half's (`_l0_values_kept`). The entries are
+    changed in place.
+    """
+    found = _l0_held_count(entries)
+    if found >= distinct:
+        return
+    first_of: "dict[int, int]" = {}
+    last_of: "dict[int, int]" = {}
+    for at in range(entries.ordered):
+        piece = entries.pieces[at]
+        if piece not in first_of:
+            first_of[piece] = at
+        last_of[piece] = at
+    dealt: "dict[float, int]" = {}
+    holders: "dict[float, int]" = {}
+    for at in range(len(entries.values)):
+        if entries.sizes[at] > 0:
+            dealt[entries.values[at]] = 1
+            holders[entries.values[at]] = (holders[entries.values[at]] if entries.values[at] in holders else 0) + 1
+    spans: "dict[float, tuple[int, int]]" = {}
+    for value, first, last in heaps:
+        spans[value] = (first, last)
+    # Each entry's first rank, as the strata stand sorted by value.
+    starts = [0 for _value in entries.values]
+    running = 0
+    for _value, at in sorted([(entries.values[at], at) for at in range(len(entries.values)) if entries.sizes[at] > 0]):
+        starts[at] = running
+        running = running + entries.sizes[at]
+    for at in range(entries.ordered):
+        if found >= distinct:
+            return
+        value = entries.values[at]
+        if entries.sizes[at] > 0 or entries.today[at] <= 0 or entries.before[at] > 0 or value in dealt:
+            continue
+        dealt[value] = 1
+        piece = entries.pieces[at]
+        donor = _l0_heap_donor(facts, entries, first_of[piece], last_of[piece], at, spans, starts, holders)
+        if donor < 0:
+            continue
+        # The ranks between the two shift by one toward the giver; a giver
+        # above gives its first rank. (Only a heap's ranks are read again,
+        # and every heap stands among the ordered entries.)
+        if donor > at:
+            for between in range(at + 1, donor):
+                starts[between] = starts[between] + 1
+            starts[donor] = starts[donor] + 1
+        else:
+            for between in range(donor + 1, at):
+                starts[between] = starts[between] - 1
+        entries.sizes[donor] = entries.sizes[donor] - 1
+        entries.sizes[at] = 1
+        entries.kept[at] = 1
+        holders[value] = 1
+        found = found + 1
+    if found < distinct:
+        _l0_count_points(facts, walls, entries, distinct - found)
+
+
+def _l0_count_points(
+    facts: contract.NumericFacts,
+    walls: "tuple[_Piece, ...]",
+    entries: _Entries,
+    wanted: int,
+) -> None:
+    """The last of `_l0_heap_lost`: a cell on a free grid point beside a stratum, while the count is short.
+
+    Where no value step 1 emptied can take a cell back (every entry of its
+    piece holds one cell, or a heap's ranks stand in the way: a sparse
+    column's 4.2 below its heap at 4.3, lane BT's verify, item 1), the
+    stratum no heap proves holding the most cells, two or more, not the
+    published mode (the lower on a tie), gives one cell to the free
+    admissible point of its piece's grid nearest it (the lower on a tie)
+    that stands strictly between it and its neighbours holding cells, so
+    no other stratum's ranks move; an emptied stratum of that value takes
+    it back, else one new stratum. Off a grid nothing is added and the
+    count gives way (rule B1). The entries are changed in place.
+    """
+    order = [at for _value, at in sorted([(entries.values[at], at) for at in range(len(entries.values)) if entries.sizes[at] > 0])]
+    neighbours: "dict[int, tuple[float | None, float | None]]" = {}
+    for place in range(len(order)):
+        below = entries.values[order[place - 1]] if place > 0 else None
+        above = entries.values[order[place + 1]] if place + 1 < len(order) else None
+        neighbours[order[place]] = (below, above)
+    emptied: "dict[float, int]" = {}
+    for at in range(entries.ordered):
+        if entries.sizes[at] <= 0 and entries.values[at] not in emptied:
+            emptied[entries.values[at]] = at
+    givers = sorted([(-entries.sizes[at], entries.values[at], at) for at in order if entries.sizes[at] >= 2 and not entries.proven[at] and entries.values[at] != facts.mode])
+    taken: "dict[float, int]" = {}
+    for _size, value, at in givers:
+        if wanted <= 0:
+            return
+        wall = walls[entries.pieces[at]]
+        if wall.figures < 0 or entries.sizes[at] < 2:
+            continue
+        below, above = neighbours[at]
+        point = _l0_beside(facts, wall, value, below, above, taken)
+        if point is None:
+            continue
+        taken[point] = 1
+        entries.sizes[at] = entries.sizes[at] - 1
+        if point in emptied:
+            entries.sizes[emptied[point]] = 1
+            entries.kept[emptied[point]] = 1
+        else:
+            entries.values += [point]
+            entries.sizes += [1]
+            entries.places += [-1]
+            entries.proven += [0]
+            entries.before += [0]
+            entries.pieces += [entries.pieces[at]]
+            entries.today += [0]
+            entries.kept[len(entries.values) - 1] = 1
+        wanted = wanted - 1
+
+
+def _l0_beside(
+    facts: contract.NumericFacts,
+    wall: _Piece,
+    value: float,
+    below: "float | None",
+    above: "float | None",
+    taken: "dict[float, int]",
+) -> "float | None":
+    """The admissible grid point of ``wall`` nearest ``value`` strictly between ``below`` and ``above`` (`_l0_count_points`), or None.
+
+    One grid unit each way, the lower first: the nearest point, and so
+    the least move of the cell.
+    """
+    figures = wall.figures
+    index = _grid_index_above(value, figures, False)
+    candidates = [index - 1, index + 1] if _grid_float(index, figures) == value else [index - 1, index]
+    for candidate in candidates:
+        point = _grid_float(candidate, figures)
+        if point == value or point in taken:
+            continue
+        if (below is not None and not point > below) or (above is not None and not point < above):
+            continue
+        if _l0_admissible(facts, wall, point, figures):
+            return point
+    return None
+
+
+def _l0_heap_donor(
+    facts: contract.NumericFacts,
+    entries: _Entries,
+    first: int,
+    last: int,
+    lost: int,
+    spans: "dict[float, tuple[int, int]]",
+    starts: "list[int]",
+    holders: "dict[float, int]",
+) -> int:
+    """The entry that gives a value step 1 emptied its cell back, or -1 (`_l0_heap_lost`).
+
+    The nearest in value order of the piece's entries ``first`` to
+    ``last`` holding two cells or more, the lower on a tie, the published
+    mode's only where no other can give, such that no proven heap leaves
+    its ranks (``spans``, each heap's first and last proven rank;
+    ``starts``, each entry's first rank now): a giver above the value
+    gives its first rank and the entries between shift up a rank, a giver
+    below gives its last and those between shift down. A heap held by two
+    strata neither gives nor is crossed. A side's search ends at the first
+    heap that cannot shift.
+    """
+    mode = facts.mode
+    held_mode = -1
+    open_below = True
+    open_above = True
+    for reach in range(1, last - first + 1):
+        for at in (lost - reach, lost + reach):
+            upward = at > lost
+            if at < first or at > last or (upward and not open_above) or (not upward and not open_below):
+                continue
+            size = entries.sizes[at]
+            value = entries.values[at]
+            if size <= 0:
+                continue
+            proven = value in spans
+            if proven:
+                if holders[value] > 1:
+                    fits = False
+                else:
+                    span_first, span_last = spans[value]
+                    # It gives (or shifts off) its first rank where it stands
+                    # above the value, its last where it stands below.
+                    fits = starts[at] < span_first if upward else starts[at] + size - 1 > span_last
+                if not fits:
+                    if upward:
+                        open_above = False
+                    else:
+                        open_below = False
+                    continue
+            if size < 2:
+                continue
+            if mode is not None and value == mode:
+                if held_mode < 0:
+                    held_mode = at
+                continue
+            return at
+        if not open_below and not open_above:
+            break
+    return held_mode
+
+
+def _l0_counted(
+    facts: contract.NumericFacts,
+    entries: _Entries,
+    distinct: int,
+    gaps: "list[tuple[float, float]]",
+    floor: int,
+) -> None:
+    """Step 3 of `_l0_least_move`, its count rule above: no more different values than today's twin held.
+
+    Today's twin holds the published count of different values, so where
+    step 1 restored a heap it wrote nowhere, it also holds a value the
+    real column does not. While the entries hold more different values
+    than ``distinct``, one stratum no heap proves joins its nearer
+    neighbour of its own piece (the lower on a tie), and no piece's count
+    moves: the smallest standing strictly inside one of ``gaps`` -- the
+    stretches between two published rungs that are both proven heaps,
+    with no published rung between them, where the run today's ladder
+    reading interpolated stands -- and, where none stands there, the
+    smallest anywhere holding fewer cells than the floor (lane BT's second
+    repair, after its verify, item 1: a sparse count held 53 different
+    values against today's 51), never one step 3 gave back, nor the
+    published mode, `min` or `max`, nor a tail's row; and only a value no
+    other stratum holds. Nothing changes where none stands, and the count
+    gives way, named by the twin's recount (rule B1). The entries are
+    changed in place.
+    """
+    found = _l0_held_count(entries)
+    while found > distinct:
+        best, partner = _l0_merged_pick(facts, entries, gaps, floor, True)
+        if best < 0:
+            best, partner = _l0_merged_pick(facts, entries, gaps, floor, False)
+        if best < 0:
+            return
+        entries.sizes[partner] = entries.sizes[partner] + entries.sizes[best]
+        entries.sizes[best] = 0
+        found = found - 1
+
+
+def _l0_tail_bounds(facts: contract.NumericFacts) -> "tuple[float | None, float | None]":
+    """A tail block's two boundary rungs (`_l0_counted` merges no row at or beyond one); None where a side has no tail."""
+    tails = facts.tails
+    if tails is None:
+        return None, None
+    named: "dict[int, float | None]" = {}
+    for place in range(len(contract.LADDER_PERCENTS)):
+        named[contract.LADDER_PERCENTS[place]] = facts.percentiles.rungs[place]
+    for place in range(len(contract.FINER_LADDER_KEYS)):
+        named[int(contract.FINER_LADDER_KEYS[place][1:])] = facts.percentiles_between[place]
+    low = named[tails.low.percent] if tails.low is not None and tails.low.percent in named else None
+    high = named[tails.high.percent] if tails.high is not None and tails.high.percent in named else None
+    return low, high
+
+
+def _l0_merged_pick(
+    facts: contract.NumericFacts,
+    entries: _Entries,
+    gaps: "list[tuple[float, float]]",
+    floor: int,
+    in_gaps: bool,
+) -> "tuple[int, int]":
+    """The stratum `_l0_counted` merges and the neighbour it joins, or (-1, -1)."""
+    order = [at for _value, at in sorted([(entries.values[at], at) for at in range(len(entries.values)) if entries.sizes[at] > 0])]
+    lowest = facts.percentiles.minimum
+    highest = facts.percentiles.maximum
+    low_tail, high_tail = (None, None) if in_gaps else _l0_tail_bounds(facts)
+    best = -1
+    partner = -1
+    for place in range(len(order)):
+        at = order[place]
+        value = entries.values[at]
+        if entries.proven[at]:
+            continue
+        if in_gaps:
+            if not any(low < value < high for low, high in gaps):
+                continue
+        else:
+            if at in entries.kept or entries.sizes[at] >= floor or value == facts.mode or value == lowest or value == highest:
+                continue
+            if (low_tail is not None and not value > low_tail) or (high_tail is not None and not value < high_tail):
+                continue
+        below = order[place - 1] if place > 0 else -1
+        above = order[place + 1] if place + 1 < len(order) else -1
+        if (below >= 0 and entries.values[below] == value) or (above >= 0 and entries.values[above] == value):
+            continue
+        if below >= 0 and entries.pieces[below] != entries.pieces[at]:
+            below = -1
+        if above >= 0 and entries.pieces[above] != entries.pieces[at]:
+            above = -1
+        if below < 0 and above < 0:
+            continue
+        near = below
+        if above >= 0 and (below < 0 or entries.values[above] - value < value - entries.values[below]):
+            near = above
+        if best >= 0 and entries.sizes[at] >= entries.sizes[best]:
+            continue
+        best = at
+        partner = near
+    return best, partner
+
+
+def _l0_heap_gaps(facts: contract.NumericFacts, heaps: "list[tuple[float, int, int]]") -> "list[tuple[float, float]]":
+    """Each stretch between two published rungs that are both proven heaps, no published rung between them (`_l0_counted`)."""
+    values: "list[float]" = []
+    for place in range(len(contract.LADDER_PERCENTS)):
+        rung = facts.percentiles.rungs[place]
+        if rung is not None and math.isfinite(rung):
+            values += [rung]
+    for rung_between in facts.percentiles_between:
+        if rung_between is not None and math.isfinite(rung_between):
+            values += [rung_between]
+    distinct = sorted({value for value in values})
+    proven = {value for value, _first, _last in heaps}
+    gaps: "list[tuple[float, float]]" = []
+    for place in range(len(distinct) - 1):
+        if distinct[place] in proven and distinct[place + 1] in proven:
+            gaps += [(distinct[place], distinct[place + 1])]
+    return gaps
+
+
+def _l0_held_count(entries: _Entries) -> int:
+    """How many different values the entries hold with a cell: the ordered lead, then each added point."""
+    found = 0
+    last = 0
+    for at in range(entries.ordered):
+        if entries.sizes[at] <= 0:
+            continue
+        if found == 0 or entries.values[at] != entries.values[last]:
+            found = found + 1
+        last = at
+    for at in range(entries.ordered, len(entries.values)):
+        if entries.sizes[at] > 0:
+            found = found + 1
+    return found
+
+
+def _l0_mode_kept(facts: contract.NumericFacts, entries: _Entries, today: _Entries) -> None:
+    """Step 4 of `_l0_least_move`: the published mode at its published count, where today's twin held it so.
+
+    Where today's twin's first stratum on the mode held exactly
+    `mode_count` cells and the move left the mode's entry another count,
+    the cells over the count go to its nearer neighbour of its own piece
+    (the lower on a tie), and the cells short of it come from that
+    neighbour and then the other, each keeping one: the published pair
+    is held as today's twin held it, and no piece's count moves. Nothing
+    changes elsewhere. The entries are changed in place.
+    """
+    mode = facts.mode
+    wanted = facts.mode_count
+    if mode is None or wanted < 1:
+        return
+    held_today = -1
+    for at in range(len(today.values)):
+        if today.values[at] == mode:
+            held_today = today.sizes[at]
+            break
+    if held_today != wanted:
+        return
+    own = -1
+    for at in range(entries.ordered):
+        if entries.values[at] == mode and entries.sizes[at] > 0:
+            own = at
+            break
+    if own < 0 or entries.sizes[own] == wanted:
+        return
+    piece = entries.pieces[own]
+    below = own - 1
+    while below >= 0 and (entries.sizes[below] <= 0 or entries.values[below] == mode):
+        below = below - 1
+    above = own + 1
+    while above < entries.ordered and (entries.sizes[above] <= 0 or entries.values[above] == mode):
+        above = above + 1
+    sides: "list[int]" = []
+    if below >= 0 and entries.pieces[below] == piece:
+        sides += [below]
+    if above < entries.ordered and entries.pieces[above] == piece:
+        sides += [above]
+    if not sides:
+        return
+    if len(sides) == 2 and entries.values[sides[1]] - mode < mode - entries.values[sides[0]]:
+        sides = [sides[1], sides[0]]
+    over = entries.sizes[own] - wanted
+    if over > 0:
+        entries.sizes[sides[0]] = entries.sizes[sides[0]] + over
+        entries.sizes[own] = wanted
+        return
+    for side in sides:
+        given = min(-over, entries.sizes[side] - 1)
+        if given <= 0:
+            continue
+        entries.sizes[side] = entries.sizes[side] - given
+        entries.sizes[own] = entries.sizes[own] + given
+        over = over + given
+        if over >= 0:
+            return
+
+
+def _l0_fallback(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    wall: _Piece,
+    held: _HeldValues,
+) -> float:
+    """A piece's FALLBACK (method G5.7e): the value a piece holding no stratum of today's twin takes.
+
+    On a grid the first admissible grid point at or above its lower end,
+    or, on the piece with no lower end, the last below its upper end; a
+    point another stratum holds is passed over for at most 64 units, and
+    where every one within reach is held the first is taken. Off a grid
+    its lower end where admissible (or the upper end of the empty stretch
+    holding it), else `1` or `-1`, else half or twice its upper end,
+    whichever is admissible first. Raises `errors.ProfileError` (an
+    internal check) where none is, which G5.7a's (P3) rules out.
+    """
+    upward = wall.low is not None
+    start = wall.low if wall.low is not None else wall.high
+    if wall.figures >= 0 and start is not None:
+        found = _l0_points(facts, wall, wall.figures, start, upward, held, 64)
+        if not found:
+            found = _l0_points(facts, wall, wall.figures, start, upward, _HeldValues([], {}), 1 << 20)
+        if found:
+            return found[0]
+    if wall.figures < 0:
+        candidates: "list[float]" = []
+        if wall.low is not None and not wall.low_open:
+            candidates += [wall.low]
+            for below, above in facts.empty_edges:
+                if below < wall.low < above:
+                    candidates += [above]
+        candidates += [1.0, -1.0]
+        if wall.high is not None:
+            candidates += [wall.high * 0.5, wall.high * 2.0]
+        for candidate in candidates:
+            if _l0_admissible(facts, wall, candidate, -1):
+                return candidate
+    raise errors.ProfileError(_l0_internal(column, "has a band that holds no value it may write"))
+
+
+def _l0_counts_met(
+    column: contract.ColumnBlock, walls: "tuple[_Piece, ...]", entries: _Entries
+) -> None:
+    """The internal check of `_l0_least_move`: every piece holds exactly its count, each value inside it."""
+    held = [0 for _wall in walls]
+    for at in range(len(entries.values)):
+        if entries.sizes[at] < 0:
+            raise errors.ProfileError(_l0_internal(column, "holds a stratum of fewer than no cells"))
+        if entries.sizes[at] == 0:
+            continue
+        piece = entries.pieces[at]
+        if not _piece_takes(walls[piece], entries.values[at]):
+            raise errors.ProfileError(_l0_internal(column, "holds a value outside its band"))
+        held[piece] = held[piece] + entries.sizes[at]
+    for wall_at in range(len(walls)):
+        if held[wall_at] != walls[wall_at].cells:
+            raise errors.ProfileError(_l0_internal(column, "misses the count of one of its bands"))
+
+
+def _l0_walls(column: contract.ColumnBlock, facts: contract.NumericFacts) -> "tuple[_Piece, ...]":
+    """An eligible number column's pieces (method G5.7b), on the grid `_l0_least_move` reads; empty off L0."""
+    if facts.l0 is None:
+        return ()
+    figures = 0 if facts.integer_valued else _written_grid(column, facts)
+    return _l0_pieces(column, facts, facts.l0, figures)
+
+
+def _l0_cells_met(
+    column: contract.ColumnBlock,
+    walls: "tuple[_Piece, ...]",
+    layout: "_NumericLayout",
+    values: "list[float]",
+    cells: "list[str]",
+) -> None:
+    """G5.7g read on the cells as written: each number cell reads in its stratum's piece (lane BT's second repair).
+
+    ``cells`` are the number cells in stratum order, as `_number_cells`
+    writes them, each read as the profile reads a cell
+    (`taxonomy.spelling_read` where the plain reader finds no number).
+    Raises `errors.ProfileError` (an internal check) where one reads
+    outside it, which `_width_places`' walls rule out.
+    """
+    at = 0
+    for place in range(len(layout.sizes)):
+        value = values[place]
+        piece = -1
+        for wall_at in range(len(walls)):
+            if _piece_takes(walls[wall_at], value):
+                piece = wall_at
+                break
+        for _cell in range(layout.sizes[place]):
+            read: "float | None" = None
+            if at < len(cells):
+                read = parsing.parse_number(cells[at])
+                if read is None:
+                    read = taxonomy.spelling_read(cells[at])[1]
+            at = at + 1
+            if piece < 0 or (read is not None and not _piece_takes(walls[piece], read)):
+                raise errors.ProfileError(_l0_internal(column, "writes a cell outside its band"))
+
+
+def _mode_again(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    values: "list[float]",
+) -> "list[Deviation]":
+    """`_mode_held`'s note read again on the strata layer L0 moved (`_l0_least_move`)."""
+    mode = facts.mode
+    if mode is None or facts.mode_count < 1 or len(values) < 3:
+        return []
+    for place in range(len(values)):
+        if values[place] == mode:
+            if layout.sizes[place] == facts.mode_count:
+                return []
+            return _mode_note(column, facts, layout.sizes[place])
+    return _mode_note(column, facts)
+
+
 def _core_view(column: "contract.ColumnBlock") -> "contract.ColumnBlock":
     """The affixed column as the numeric machinery needs to see it.
 
@@ -10666,7 +12359,7 @@ def _joined_content(
 
 
 def _affixed_content(
-    plan: "_ColumnPlan", words: "list[int]"
+    plan: "_ColumnPlan", words: "list[int]", readings: "list[float | None] | None" = None
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of an affixed column (contract 6.12).
 
@@ -10689,7 +12382,10 @@ def _affixed_content(
         # shipped, to the line: the plan carries the layout, the cores
         # are built from it, and the pair goes on afterwards.
         core_plan = dataclasses.replace(plan, column=_core_view(column))
-        cores, notes = _numeric_content(core_plan, words)
+        if readings is None:
+            cores, notes = _numeric_content(core_plan, words)
+        else:
+            cores, notes = _numeric_content(core_plan, words, readings)
         for step in range(len(cores)):
             cells += [
                 f"{facts.affix_prefix}{cores[step]}{facts.affix_suffix}"
@@ -12058,7 +13754,7 @@ def _wears_a_published_hole(text: str, holes: "tuple[str, ...]") -> bool:
 
 
 def _numeric_content(
-    plan: "_ColumnPlan", words: "list[int]"
+    plan: "_ColumnPlan", words: "list[int]", readings: "list[float | None] | None" = None
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a column of numbers (method G5, G6, G10.3).
 
@@ -12091,9 +13787,14 @@ def _numeric_content(
         # published beside the census was computed from exactly these
         # cells. The words G4.3 budgets for the numbers are still drawn,
         # so the stream a later column reads does not move.
-        return _numeric_tail(
-            column, facts, layout, _spelled_census(facts.number_spellings), []
-        )
+        spelled = _spelled_census(facts.number_spellings)
+        if readings is not None:
+            for cell in spelled:
+                # ...a cell that reads as no number has no reading, and G4.2b
+                # puts it in `other` (lane BT's repair, after its first
+                # skeptic, item 11).
+                readings += [parsing.parse_number(cell)]
+        return _numeric_tail(column, facts, layout, spelled, [])
     notes: list[Deviation] = []
     rungs = _merged_rungs(facts)
     # A RUNG WITHHELD BY THE TAIL RULE IS NOT A RUNG THAT HOLDS NOTHING
@@ -12144,6 +13845,13 @@ def _numeric_content(
             drawn = held
     layout, values, drawn_notes, kept = drawn
     notes = notes + drawn_notes
+    # LAYER L0 (method G5.7c; lane BT, plan P4-D429): on an eligible column
+    # today's twin is moved the least the description proves -- its proven
+    # heaps and its band totals -- and the mode's note is read again on
+    # what the move left.
+    if facts.l0 is not None:
+        layout, values, mode_notes = _l0_least_move(column, facts, layout, values, floor)
+        notes = [note for note in notes if note.fact not in ("mode", "mode_count")] + mode_notes
     # AND THE SHORTFALL NEEDS NO NOTE OF ITS OWN (residual R-P4-69). A
     # second report was written here and withdrawn on measurement: the
     # style recount already names exactly this, as "at least 34 cell(s)
@@ -12154,10 +13862,27 @@ def _numeric_content(
     # PAST THE WIDTH (method G6.3, G6.6.8): the sides its own width walk
     # left cells on, and none where the second reading stands, which is
     # 110cb46's (Codex's review of lane G2, item 2).
-    cells, style_notes = _number_cells(
-        column, facts, layout, values, floor, kept
-    )
+    walls: "tuple[_Piece, ...]" = ()
+    if facts.l0 is not None:
+        walls = _l0_walls(column, facts)
+    if walls:
+        cells, style_notes = _number_cells(
+            column, facts, layout, values, floor, kept, walls
+        )
+        # ...AND THE BAND TOTALS ARE CHECKED ON THE CELLS AS WRITTEN (lane
+        # BT's second repair, after its outside review, item 2): each cell
+        # reads in its stratum's piece, or the column is refused as an
+        # internal check (G5.7g).
+        _l0_cells_met(column, walls, layout, values, cells)
+    else:
+        cells, style_notes = _number_cells(
+            column, facts, layout, values, floor, kept
+        )
     notes = notes + style_notes
+    # EACH NUMBER'S READING is its stratum's value (method G4.2b).
+    if readings is not None:
+        for place in range(len(layout.sizes)):
+            readings += [values[place] for _cell in range(layout.sizes[place])]
     # ...AND THE STRETCHES, RECOUNTED FROM THOSE CELLS. It is asked
     # here because it is a fact about the finished TEXT: which width a
     # cell is written at is decided inside `_number_cells`, and a
@@ -20701,8 +22426,12 @@ def _number_cells(
     values: "list[float]",
     floor: int,
     kept: "tuple[bool, ...]" = (),
+    walls: "tuple[_Piece, ...]" = (),
 ) -> "tuple[list[str], list[Deviation]]":
     """Write every cell that reads as a number (method G6.4, G6.6).
+
+    ``walls``, on a column laid with its L0 band totals, are its pieces,
+    which no width's snap leaves (`_width_places`).
 
     Styles are shared out over the cells in stratum order by largest
     remaining quota, narrowed to the styles each cell's own value can
@@ -20799,6 +22528,7 @@ def _number_cells(
         _segment_bounds(column, facts, layout, values),
         _published_ends(facts, values),
         facts.integer_valued,
+        walls,
     )
     pads = _pad_places(
         facts.pad_widths, styles, holds, facts.integer_valued,
@@ -22269,6 +23999,9 @@ class _ClockLayout:
     apart: bool
     ramp: int
     census: "_ClockCensus | None" = None
+    # LAYER L0'S CUTS on an eligible column (method G7A.4d; lane BT, plan
+    # P4-D429), which every step holding a rank inside its piece reads.
+    cuts: "contract.L0Cuts | None" = None
 
 
 def _clock_tail_plan(
@@ -22509,12 +24242,24 @@ def _clock_census_laid(
             heaped[place] = spots
             skips[place] = skipped
         low_plan, high_plan = plans[0], plans[1]
-    blocks = calendar_clock.clock_body_blocks(
-        parsed, tails, body, facts.clock_census, heaps, form, stride, absent
-    )
-    windows = calendar_clock.clock_rank_windows(
-        parsed, tails, body, facts.clock_census, heaps, form, stride, absent
-    )
+    # ...EACH `L0` EDGE CUTTING THE DIAL on an eligible column (method
+    # G7A.4d; lane BT, plan P4-D429): its groups' halves.
+    cuts = _clock_cut_pairs(facts)
+    if cuts:
+        blocks = calendar_clock.clock_body_blocks(
+            parsed, tails, body, facts.clock_census, heaps, form, stride, absent, cuts
+        )
+        windows = calendar_clock.clock_rank_windows(
+            parsed, tails, body, facts.clock_census, heaps, form, stride, absent,
+            cuts=cuts,
+        )
+    else:
+        blocks = calendar_clock.clock_body_blocks(
+            parsed, tails, body, facts.clock_census, heaps, form, stride, absent
+        )
+        windows = calendar_clock.clock_rank_windows(
+            parsed, tails, body, facts.clock_census, heaps, form, stride, absent
+        )
     if blocks is None or windows is None:
         raise errors.ProfileError(_INTERNAL_CLOCK)
     pins: "list[tuple[int, int]]" = []
@@ -22718,6 +24463,7 @@ def _clock_census_content(
     layout: "_ClockLayout",
     census: "_ClockCensus",
     words: "list[int]",
+    readings: "list[float | None] | None" = None,
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a census-laid column of clock times (G7A.4b).
 
@@ -22873,6 +24619,8 @@ def _clock_census_content(
     # (3b.C2, P4-D374).
     for at in census.minutes.wide if census.minutes is not None else ():
         stood += [at]
+    if readings is not None:
+        readings += [float(value) for value in ordinals]
     cells = _clock_cells_written(ordinals, facts, holes, stood)
     used: "dict[str, int]" = {cell: 1 for cell in cells}
     for spelling, count in census.codes:
@@ -23723,7 +25471,137 @@ def _clock_knots_laid(
                 (parsed * _PCT[step] * _WORD_SCALE, _clock_ordinal_of(rung, form))
             ]
     knots += [(100 * (high_rank + 1) * _WORD_SCALE, high.boundary)]
-    return _ClockLayout(parsed, low, high, tuple(knots), apart, ramp)
+    # ON AN ELIGIBLE COLUMN THE RUNGS STAND AT G7A.4d'S KNOTS (layer L0;
+    # lane BT, plan P4-D429).
+    if facts.l0 is not None:
+        knots = _clock_l0_knots(facts, parsed, low_rank, high_rank, low.boundary, high.boundary)
+    return _ClockLayout(parsed, low, high, tuple(knots), apart, ramp, cuts=facts.l0)
+
+
+def _clock_cut_pairs(facts: contract.ClockFacts) -> "tuple[tuple[int, int], ...]":
+    """An eligible clock column's edges as ordinals, each with its cut rank (G7A.4d); empty elsewhere."""
+    cuts = facts.l0
+    if cuts is None:
+        return ()
+    ranks = _l0_ranks(cuts)
+    return tuple((int(cuts.edges[place]), ranks[place]) for place in range(len(ranks)))
+
+
+def _clock_piece(layout: "_ClockLayout", rank: int) -> "tuple[int, int]":
+    """A clock rank's PIECE, by its cut ranks: its band's lower edge to one unit below its upper one (G7A.4d).
+
+    The whole dial on a column without cuts; the top piece ends one unit
+    below the high boundary, as the all-different clamp did before.
+    """
+    lowest = 0
+    highest = 1 << 62
+    if layout.high is not None:
+        highest = layout.high.boundary - 1
+    cuts = layout.cuts
+    if cuts is None:
+        return lowest, highest
+    ranks = _l0_ranks(cuts)
+    for place in range(len(ranks)):
+        if rank >= ranks[place]:
+            lowest = int(cuts.edges[place])
+        else:
+            highest = min(highest, int(cuts.edges[place]) - 1)
+            break
+    return lowest, highest
+
+
+def _clock_l0_knots(
+    facts: contract.ClockFacts,
+    parsed: int,
+    low_rank: int,
+    high_rank: int,
+    low_boundary: int,
+    high_boundary: int,
+) -> "list[tuple[int, int]]":
+    """The body's knots of an eligible clock column laid by G7A.4 (method G7A.4d; plan P4-D429).
+
+    In G7A.4's units, hundredths of a rank times `2**64`. The two
+    boundaries keep their positions. Edge `e_j`, with `i_j` the smallest
+    index of `PCT` from 1 to 9 whose rung is `e_j` and `q_j = PCT[i_j]`,
+    stands at its LOWER KNOT `100 R_j 2**64` and its UPPER KNOT
+    `P q_j 2**64`, held between that and the next fixed knot. Every other
+    published rung between two knots is respaced between them in
+    proportion to its own position, as G5.7c respaces a ladder. A rank
+    below `R_j` then reads a time earlier than `e_j` by G7A.4's floor
+    reading, and every rank from `R_j` on reads `e_j` or later.
+    """
+    cuts = facts.l0
+    form = facts.clock_form
+    scale = _WORD_SCALE
+    if cuts is None:
+        return []
+    ranks = _l0_ranks(cuts)
+    edges = [int(edge) for edge in cuts.edges]
+    # The rungs between the two boundaries: (own coordinate, value, edge place or -1).
+    rungs: "list[tuple[int, int, int]]" = []
+    seen_edges: "dict[int, int]" = {}
+    for step in range(1, len(_PCT) - 1):
+        rung = facts.clock_percentiles[_LADDER_NAMES[step]]
+        if rung is None:
+            continue
+        rank = _rung_rank(_PCT[step], parsed)
+        value = _clock_ordinal_of(rung, form)
+        # ...AN EDGE'S RUNG READ AT A BOUNDARY RANK CUTS TOO (lane BT's
+        # second repair, after its outside review, item 3): a rung at the
+        # high boundary's own rank is no rung of the body, but where it is
+        # an edge its cut must still stand, or 370 cells below `12:10` came
+        # back 379 on a column whose step an older description leaves out.
+        if not low_rank < rank < high_rank and not (value in edges and low_rank <= rank <= high_rank):
+            continue
+        place = -1
+        if value in edges and value not in seen_edges:
+            for edge_place in range(len(edges)):
+                if edges[edge_place] == value and place < 0:
+                    place = edge_place
+            seen_edges[value] = place
+        rungs += [(parsed * _PCT[step], value, place)]
+    # The fixed knots, in order: (coordinate, position, value).
+    fixed: "list[tuple[int, int, int]]" = [(100 * low_rank, 100 * low_rank * scale, low_boundary)]
+    for coordinate, value, place in rungs:
+        if place >= 0:
+            fixed += [(coordinate, 100 * ranks[place] * scale, value)]
+            fixed += [(coordinate, coordinate * scale, value)]
+    fixed += [(100 * (high_rank + 1), 100 * (high_rank + 1) * scale, high_boundary)]
+    # Each upper knot held between its own lower knot and the next lower knot.
+    held: "list[tuple[int, int, int]]" = []
+    at = 0
+    while at < len(fixed):
+        held += [fixed[at]]
+        if 0 < at < len(fixed) - 1 and fixed[at][0] == fixed[at + 1][0] and at + 2 < len(fixed):
+            lower = fixed[at]
+            upper = fixed[at + 1]
+            following = fixed[at + 2]
+            position = min(max(upper[1], lower[1]), following[1])
+            held += [(upper[0], position, upper[2])]
+            at = at + 2
+            continue
+        at = at + 1
+    knots: "list[tuple[int, int]]" = []
+    below = 0
+    for coordinate, value, place in rungs:
+        if place >= 0:
+            continue
+        while below + 1 < len(held) and held[below + 1][0] <= coordinate:
+            below = below + 1
+        # the knot below is the last fixed knot at or below the coordinate
+        # (an edge's upper knot), the knot above the first beyond it
+        # (an edge's lower knot).
+        above = below + 1
+        start = held[below]
+        stop = held[above] if above < len(held) else held[below]
+        if stop[0] > start[0]:
+            position = start[1] + ((stop[1] - start[1]) * (coordinate - start[0])) // (stop[0] - start[0])
+        else:
+            position = start[1]
+        knots += [(position, value)]
+    for coordinate, position, value in held:
+        knots += [(position, value)]
+    return sorted(knots)
 
 
 def _clock_body_at(layout: "_ClockLayout", position: int) -> int:
@@ -23745,7 +25623,7 @@ def _clock_body_at(layout: "_ClockLayout", position: int) -> int:
 
 
 def _clock_content(
-    plan: "_ColumnPlan", words: "list[int]"
+    plan: "_ColumnPlan", words: "list[int]", readings: "list[float | None] | None" = None
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a column of clock times (method G7A).
 
@@ -23781,7 +25659,9 @@ def _clock_content(
     layout = _clock_layout(column, facts, plan.small_cell_floor, _all_holes_of(plan))
     # A column laid on its census, heaps and step (3b.C1, P4-D373).
     if layout.census is not None:
-        return _clock_census_content(plan, layout, layout.census, words)
+        if readings is None:
+            return _clock_census_content(plan, layout, layout.census, words)
+        return _clock_census_content(plan, layout, layout.census, words, readings)
     parsed = layout.parsed
     ordinals = [0 for _rank in range(parsed)]
     taken = 0
@@ -23824,10 +25704,24 @@ def _clock_content(
                     ordinal = last + 1
                 if ordinal >= high.boundary:
                     ordinal = high.boundary - 1
+                # ...AND ON AN ELIGIBLE COLUMN HELD INSIDE ITS PIECE (layer
+                # L0, method G7A.4d): one unit below the piece's upper edge.
+                piece = _clock_piece(layout, rank)
+                if ordinal > piece[1]:
+                    ordinal = piece[1]
             last = ordinal
             ordinals[rank] = ordinal
         ordinals[low_rank] = low.boundary
         ordinals[high_rank] = high.boundary
+        # ...and where the upward step reached a piece's clamp, a pass
+        # downward from it gives each earlier rank of the piece one unit
+        # less than the rank above it (layer L0, method G7A.4d).
+        if layout.apart and facts.l0 is not None:
+            for rank in range(high_rank - 2, low_rank, -1):
+                if ordinals[rank] >= ordinals[rank + 1] and _clock_piece(
+                    layout, rank
+                ) == _clock_piece(layout, rank + 1):
+                    ordinals[rank] = ordinals[rank + 1] - 1
         for side, mine in ((low, low_words), (high, high_words)):
             spots = _tail_spots(side, mine)
             for index in range(side.rows):
@@ -23838,6 +25732,9 @@ def _clock_content(
     # one and the twin would write a cell its own reader counts as no
     # value at all -- one more absent cell and one fewer present one.
     ordinals = _clock_off_the_holes(layout, ordinals, form, _all_holes_of(plan))
+    # EACH CLOCK TIME'S READING is its ordinal on the clock (method G4.2b).
+    if readings is not None:
+        readings += [float(value) for value in ordinals]
     cells = _clock_cells_written(ordinals, facts, _all_holes_of(plan))
     # THE STAND-INS, which are outside the obligation to reproduce a
     # clock value and are counted rather than described. Each is
@@ -23915,10 +25812,15 @@ def _clock_off_the_holes(
             continue
         if lows[rank] >= highs[rank]:
             continue
+        # ...THE WINDOW CUT TO THE RANK'S PIECE on an eligible column (layer
+        # L0, method G7A.4d), so the step never carries a cell across a cut.
+        piece = _clock_piece(layout, rank)
         found = -1
         for away in range(1, reach + 1):
             for other in (moved[rank] - away, moved[rank] + away):
                 if other < lows[rank] or other > highs[rank]:
+                    continue
+                if layout.cuts is not None and (other < piece[0] or other > piece[1]):
                     continue
                 if layout.apart and other in held and held[other] > 0:
                     continue
@@ -24756,6 +26658,11 @@ class _DateLayout:
     # minute, where every value either tail publishes stands on it, and
     # one elsewhere, as every tail drew before (`_tail_unit`).
     tail_unit: int = 1
+    # LAYER L0 (method G7.3l; lane BT, plan P4-D429): each edge run's first
+    # rank with its edge, on an eligible column. The gap below a run ends
+    # one unit short of its edge, so its draws never reach it. Empty
+    # everywhere else.
+    cut_starts: "tuple[tuple[int, int], ...]" = ()
 
 
 def _tail_step(facts: contract.DatetimeFacts) -> "tuple[int, int]":
@@ -25343,6 +27250,7 @@ def _date_layout(
     if parsed <= 0:
         return _DateLayout(0, {}, {}, (), (), None, None, {})
     space = _ordinal_space(facts)
+    cut_starts: "tuple[tuple[int, int], ...]" = ()
     low_facts = facts.low_tail
     high_facts = facts.high_tail
     pins: "dict[int, int]" = {}
@@ -25390,6 +27298,11 @@ def _date_layout(
             if low_rank < rank < high_rank and rank not in pins:
                 pins[rank] = _ordinal_of(rung, space)
                 texts[rank] = rung
+        # LAYER L0'S EDGE RUNS (method G7.3l; lane BT, plan P4-D429): on an
+        # eligible column every rank from an edge's cut rank `R_j` to the
+        # rank its rung is read off, `k_j`, is pinned on the edge -- the
+        # real column held it at every one of them -- and spends no word.
+        cut_starts = _date_edge_runs(facts, parsed, space, pins, texts)
         body = {rank: pins[rank] for rank in pins}
         for side in (low, high):
             spots = _tail_spots(side, {})
@@ -25430,6 +27343,16 @@ def _date_layout(
                 highest = highest + plan.half - 1
             lows[rank] = lowest
             highs[rank] = highest
+    # ...AND THE GAP BELOW AN EDGE RUN ENDS ONE UNIT SHORT OF ITS EDGE
+    # (G7.3l), so every pass that keeps a rank inside its gap keeps it on
+    # its side of the cut.
+    starts = cut_starts if low_facts is not None and high_facts is not None else ()
+    for start, edge in starts:
+        before = start - 1
+        while before >= 0 and before not in body:
+            lows_kept = lows[before]
+            highs[before] = min(highs[before], max(_date_gap_top(edge)[1], lows_kept))
+            before = before - 1
     # -- the body's cells and the census line the drawing rule reads (3b.T3)
     cells = parsed - (low.rows if low is not None else 0) - (high.rows if high is not None else 0)
     line = parsing.census_floor(floor)
@@ -25438,6 +27361,7 @@ def _date_layout(
         _draw_unit(facts, cells, line),
         # -- the tail's drawing unit (3b.T3, P4-D372)
         tail_unit=_tail_unit(facts, cells, line),
+        cut_starts=starts,
     )
     # THE DATES THAT STAND OUT, PINNED (3b.D4, P4-D369; plan P4-D364's
     # seam): unchanged until that landing fills `_heavy_layout`.
@@ -25451,6 +27375,87 @@ def _date_layout(
             column, facts, listing, column.n_present, parsed, floor
         ),
     )
+
+
+def _date_edge_rank(facts: contract.DatetimeFacts, edge: int, parsed: int, space: str) -> "tuple[int, str]":
+    """`k_j` and its text: the rank an edge's rung is read off, the smallest where several rungs read it (G7.3l)."""
+    rungs = facts.date_percentiles.rungs
+    for step in range(1, len(_PCT) - 1):
+        rung = rungs[step]
+        if rung is not None and _ordinal_of(rung, space) == edge:
+            return _rung_rank(_PCT[step], parsed), rung
+    return -1, ""
+
+
+def _date_edge_runs(
+    facts: contract.DatetimeFacts,
+    parsed: int,
+    space: str,
+    pins: "dict[int, int]",
+    texts: "dict[int, str]",
+) -> "tuple[tuple[int, int], ...]":
+    """Every edge run of an eligible column of dates, pinned (method G7.3l; plan P4-D429).
+
+    Ranks `R_j` to `k_j` each stand on `e_j`, with the rung's text; a rank
+    already pinned keeps its pin. Returns each run's first rank with its
+    edge, which the gap below it reads. Nothing on a column without cuts.
+    """
+    cuts = facts.l0
+    if cuts is None:
+        return ()
+    starts: "list[tuple[int, int]]" = []
+    ranks = _l0_ranks(cuts)
+    for place in range(len(cuts.edges)):
+        edge = int(cuts.edges[place])
+        last, text = _date_edge_rank(facts, edge, parsed, space)
+        for rank in range(ranks[place], last + 1):
+            if rank not in pins:
+                pins[rank] = edge
+                texts[rank] = text
+        starts += [(ranks[place], edge)]
+    return tuple(starts)
+
+
+def _date_gap_top(edge: int) -> "tuple[int, int]":
+    """Where the gap below an edge run stops (method G7.3l): the START of the edge's unit, and its last ordinal.
+
+    Its upper place is `X_b = e_j * 2**20` and its ordinals are kept at
+    `e_j - 1` or before, so no rank below the cut draws the edge's own
+    unit, which would carry a row across the cut.
+    """
+    return edge * _PIN_STEPS, edge - 1
+
+
+def _date_windows_cut(
+    facts: contract.DatetimeFacts, rank: int, windows: "list[tuple[int, int]]"
+) -> "list[tuple[int, int]]":
+    """The spelling step's windows cut to a rank's PIECE (method G7.3l; plan P4-D429).
+
+    The piece is the rank's band by its cut ranks: from the band's lower
+    edge up to the unit before its upper edge. A window left empty is
+    dropped, so where no unit of the piece qualifies the allocated form
+    stands. The windows as they came on a column without cuts.
+    """
+    cuts = facts.l0
+    if cuts is None:
+        return windows
+    ranks = _l0_ranks(cuts)
+    lowest: "int | None" = None
+    highest: "int | None" = None
+    for place in range(len(ranks)):
+        if rank >= ranks[place]:
+            lowest = int(cuts.edges[place])
+        elif highest is None:
+            highest = int(cuts.edges[place]) - 1
+    out: "list[tuple[int, int]]" = []
+    for low, high in windows:
+        if lowest is not None:
+            low = max(low, lowest)
+        if highest is not None:
+            high = min(high, highest)
+        if low <= high:
+            out += [(low, high)]
+    return out
 
 
 def _draw_unit(facts: contract.DatetimeFacts, body: int = -1, line: int = 0) -> int:
@@ -25585,6 +27590,7 @@ def _heavy_layout(
         frozenset(_published_holes(column, facts, ())),
         (facts.weekday_census, facts.day_of_month_census),
         _heavy_budget(column, facts, layout, listed),
+        layout.cut_starts,
     )
     if planned is None:
         return layout
@@ -25622,6 +27628,7 @@ def _heavy_plan(
     holes: "frozenset[int]",
     censuses: "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int, int], ...]]",
     budget: int,
+    cuts: "tuple[tuple[int, int], ...]" = (),
 ) -> "tuple[dict[int, tuple[int, int]], tuple[_HeavyPart, ...], tuple[tuple[int, ...], ...]] | None":
     """G7.3j steps 1 to 3 on plain numbers: where every body rank may stand.
 
@@ -25638,7 +27645,7 @@ def _heavy_plan(
     ranks and the days between the boundaries; each flow is bounded by
     the parts and the groups. Raises nothing. No I/O of any kind.
     """
-    segments = _heavy_segments(knots, listed, holes)
+    segments = _heavy_segments(knots, listed, holes, cuts)
     if segments is None:
         return None
     groups = _heavy_censuses(censuses[0], censuses[1])
@@ -25730,14 +27737,29 @@ def _heavy_segments(
     knots: "tuple[tuple[int, int], ...]",
     listed: "tuple[tuple[int, int], ...]",
     holes: "frozenset[int]",
+    cuts: "tuple[tuple[int, int], ...]" = (),
 ) -> "list[_HeavySegment] | None":
     """The body's segments and parts (G7.3j step 1), or None where no rank
-    order holds the list (`calendar_rules.heavy_runs`)."""
+    order holds the list (`calendar_rules.heavy_runs`).
+
+    ON AN ELIGIBLE COLUMN (layer L0, method G7.3l; lane BT, plan P4-D429)
+    ``cuts`` names each edge run's first rank with its edge: a listed
+    date on an edge is a covered knot whose run starts at that rank, and
+    the part below an unlisted edge's run ends one day short of the edge,
+    so its day is a day of the part above it only.
+    """
     runs = calendar_rules.heavy_runs(knots, listed, holes)
     if runs is None:
         return None
     count_of = {day: count for day, count in listed}
     start_of = {listed[index][0]: runs[index] for index in range(len(listed))}
+    cut_at = {start: edge for start, edge in cuts}
+    for start, edge in cuts:
+        if edge in start_of:
+            first, last = start_of[edge]
+            if first > start or last < start:
+                return None
+            start_of[edge] = (start, start)
     knot_days = {day for _rank, day in knots}
     low_rank, low_day = knots[0]
     high_rank, high_day = knots[len(knots) - 1]
@@ -25775,6 +27797,8 @@ def _heavy_segments(
         for part in range(len(covered) + 1):
             lo = max(day_a, low_day) if part == 0 else covered[part - 1] + 1
             hi = min(day_b, high_day) if part == len(covered) else covered[part] - 1
+            if part == len(covered) and real_b and rank_b in cut_at:
+                hi = min(hi, cut_at[rank_b] - 1)
             lows += [lo]
             highs += [hi]
             loose += [
@@ -36870,6 +38894,7 @@ def _datetime_content(
     plan: "_ColumnPlan",
     words: "list[int]",
     settled: "list[list[int]] | None" = None,
+    readings: "list[float | None] | None" = None,
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a column of dates (method G7, G10.4).
 
@@ -37043,12 +39068,19 @@ def _datetime_content(
     if layout.listed:
         given, bare = _heavy_given_way(plan, words, ordinals, layout)
         if given is not None:
+            # ...the ranks of the twin listing no date are the readings
+            # then (method G4.2b).
+            if readings is not None and bare is not None:
+                readings += [float(value) for value in bare[0:parsed]]
             return given
         weekday_notes = _heavy_kept_notes(
             plan, words, ordinals, layout, weekday_notes, bare
         )
     if settled is not None:
         settled += [ordinals]
+    # EACH DATE'S READING is its rank's ordinal (method G4.2b).
+    if readings is not None:
+        readings += [float(value) for value in ordinals[0:parsed]]
     # HOW EVERY RANK IS SPELLED (landing 2b.6, the reversal of owner
     # decision 5). Allocated after the instants and the offsets, because
     # which conventions a cell can show depends on the day it writes and
@@ -37155,6 +39187,10 @@ def _datetime_content(
                 windows += [
                     (layout.body[min(layout.body)], layout.body[max(layout.body)])
                 ]
+            # ...EACH CUT TO THE RANK'S PIECE on an eligible column (layer
+            # L0, method G7.3l): the units from its band's lower edge to the
+            # unit before its upper edge, so the step never crosses a cut.
+            windows = _date_windows_cut(facts, rank, windows)
             for low, high in windows:
                 # THE RANK'S PUBLISHED GROUPS FIRST (G7.3i): the nearest
                 # day of the window keeping its day of the month's group
@@ -41290,9 +43326,18 @@ def _spread_ordinals(layout: "_DateLayout", words: "list[int]") -> "list[int]":
     places, steps = ([], []) if layout.listed else _pin_places(layout.body)
     if layout.listed:
         taken = _heavy_drawn(layout, words, taken, ordinals)
+    # ...AND THE GAP BELOW AN EDGE RUN ENDS AT THE START OF ITS EDGE'S UNIT
+    # (layer L0, method G7.3l), its ordinals kept one unit short of it.
+    edge_at = {start: edge for start, edge in layout.cut_starts}
     for step in range(len(places) - 1):
         below = places[step]
         above = places[step + 1]
+        stop = steps[step + 1]
+        ceiling = ordinals[above]
+        if above in edge_at:
+            top_place, top_value = _date_gap_top(edge_at[above])
+            stop = min(stop, top_place)
+            ceiling = max(min(ceiling, top_value), ordinals[below])
         drawn: "list[int]" = []
         for _rank in range(below + 1, above):
             word = words[taken]
@@ -41301,9 +43346,9 @@ def _spread_ordinals(layout: "_DateLayout", words: "list[int]") -> "list[int]":
                 _body_draw(
                     layout,
                     steps[step],
-                    steps[step + 1],
+                    stop,
                     ordinals[below],
-                    ordinals[above],
+                    ceiling,
                     word,
                 )
             ]
@@ -62670,8 +64715,17 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
     plans: list[_ColumnPlan] = []
     words = 0
     everywhere = _every_hole_spelling(profile)
+    # LAYER L0 (method G5.7a; lane BT, plan P4-D429): the cuts of each
+    # eligible column of a description loaded behind the chain's switch,
+    # or the precondition that failed (rule B3). Empty on every other.
+    cut_columns = _l0_columns(profile)
     for place in range(len(profile.columns)):
         column = profile.columns[place]
+        made_without = ""
+        if column.name in cut_columns:
+            cut, made_without = cut_columns[column.name]
+            if cut is not None:
+                column = _l0_attached(column, cut)
         # THE LONG-TAIL DETECTION LINE reaches the free-text walk from
         # here, because only the profile carries the settings and only
         # the walk can act on them (residual R-P4-36).
@@ -62693,6 +64747,10 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
             column.name in profile.settings.forced_codes,
             _counted_holes(column, profile),
         )
+        if made_without:
+            plan = dataclasses.replace(
+                plan, notes=plan.notes + (_l0_made_without(column, made_without),)
+            )
         plans += [plan]
         words = (
             words
@@ -62701,6 +64759,430 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
             + _grain_words(column, profile.n_rows)
         )
     return GenerationPlan(columns=tuple(plans), words_planned=words)
+
+
+def _records_holding_nothing(profile: contract.Profile) -> int:
+    """`E`: the records holding nothing a description places (contract 4.6b.5; method G4.2a)."""
+    form = profile.source.workbook
+    if form is not None:
+        inside = form.empty_rows_inside
+        return inside if inside is not None else 0
+    shape = profile.source.dialect
+    return shape.empty_rows_leading + shape.empty_rows_interior + shape.empty_rows_trailing
+
+
+def _l0_columns(
+    profile: contract.Profile,
+) -> "dict[str, tuple[contract.L0Cuts | None, str]]":
+    """Each eligible number column's cuts, or the precondition it fails (method G5.7a; plan P4-D429).
+
+    Read only where the description's chain is published (behind the
+    switch no shipped command sets): `relationships.ladder` names the
+    eligible columns and their `L0` bands. A `count` or `continuous`
+    column takes its cuts here; every other role is laid out as before
+    and named, where it is eligible, as made without L0.
+    """
+    out: "dict[str, tuple[contract.L0Cuts | None, str]]" = {}
+    entries = profile.relationships.ladder
+    if not entries or profile.relationships.families <= 0:
+        return out
+    blank = _records_holding_nothing(profile)
+    by_name = {column.name: column for column in profile.columns}
+    for entry in entries:
+        if entry.column not in by_name:
+            continue
+        found = _l0_entry_cut(by_name[entry.column], entry, blank)
+        if found is not None:
+            out[entry.column] = found
+    return out
+
+
+def _l0_entry_cut(
+    column: contract.ColumnBlock, entry: contract.LadderEntry, blank: int
+) -> "tuple[contract.L0Cuts | None, str] | None":
+    """One eligible column's cuts or the precondition it fails (`_l0_columns`); None for a role L0 does not cut.
+
+    The interface G16 calls reads its own column's alone this way
+    (`cells_by_band`), never every column's (lane BT's repair, after its
+    first skeptic, item 11).
+    """
+    facts = column.facts
+    if isinstance(facts, contract.DatetimeFacts):
+        return _l0_date_cuts(column, facts, entry, blank)
+    if isinstance(facts, contract.ClockFacts):
+        return _l0_clock_cuts(column, facts, entry, blank)
+    if isinstance(facts, contract.AffixedFacts):
+        # THE CORES ARE G5 AND G6 UNCHANGED (method G6A.2, G5.7f): the
+        # cuts read on the cores, the other cells (no affixes, or a
+        # core that is no number) standing in `other`. A column
+        # wearing several pairs of affixes lays each pair's cores on
+        # its own, which no one band count divides: made without L0.
+        if facts.affix_variants:
+            return None, "its cores are written in several pairs of affixes, laid one pair at a time"
+        viewed = dataclasses.replace(
+            _core_view(column), n_missing=column.n_missing, n_present=column.n_present
+        )
+        return _l0_number_cuts(viewed, facts.numbers, entry, blank)
+    if isinstance(facts, (contract.JoinedFacts, contract.CompoundFacts)):
+        return None, "this landing lays a column of joined numbers or of numbers and labels without its band totals"
+    if column.statistical_type not in ("count", "continuous") or not isinstance(
+        facts, contract.NumericFacts
+    ):
+        return None
+    return _l0_number_cuts(column, facts, entry, blank)
+
+
+def _l0_ranges(
+    entry: contract.LadderEntry, spread: "dict[str, int]"
+) -> "tuple[list[tuple[object, object, int]], str]":
+    """Each `L0` band's RANGE part, `(lower key, upper key, count)`, or why there is none (G5.7a).
+
+    A band's range part is the union of the starting ranges it joins, and
+    its count the band's total less the spread cells it joins.
+    """
+    ranges: "list[tuple[object, object, int]]" = []
+    for place in range(len(entry.bands)):
+        band = entry.bands[place]
+        total = entry.totals[place] if place < len(entry.totals) else 0
+        lower: object = None
+        upper: object = None
+        ranged = False
+        for start in band:
+            if isinstance(start, tuple) and len(start) == 2:
+                if not ranged:
+                    lower = start[0]
+                upper = start[1]
+                ranged = True
+            elif isinstance(start, str) and start in spread:
+                total = total - spread[start]
+            else:
+                return [], "a band this column's role does not hold"
+        if ranged:
+            ranges += [(lower, upper, total)]
+        elif total != 0:
+            return [], "(P1): its spread bands' counts are not its own"
+    if not ranges or ranges[0][0] is not None or ranges[len(ranges) - 1][1] is not None:
+        return [], "(P1): its bands do not cover every reading"
+    for place in range(len(ranges)):
+        if ranges[place][2] < 0:
+            return [], "(P1): a band's count is below nought"
+        if place and ranges[place][0] != ranges[place - 1][1]:
+            return [], "(P1): its bands do not meet"
+    return ranges, ""
+
+
+def _l0_clock_cuts(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    entry: contract.LadderEntry,
+    blank: int,
+) -> "tuple[contract.L0Cuts | None, str]":
+    """A clock column's `L0` cuts, the edges as ordinals of its own clock, or the failed precondition (G7A.4d).
+
+    G7.3l's (D1) and (D2) read for this role's pins: the two boundaries
+    and, on a column laid by G7A.4b, every heap. A column with no tail on
+    a side is laid on its ramp, which reads no rung (rule B3).
+    """
+    parsed = column.n_present - facts.n_unparsed
+    spread = {
+        "missing": max(column.n_missing - blank, 0),
+        "other": facts.n_unparsed,
+        "labels": 0,
+    }
+    ranges, why = _l0_ranges(entry, spread)
+    if why:
+        return None, why
+    if facts.low_tail is None or facts.high_tail is None:
+        return None, "(D2): the column is laid on its ramp, which reads no rung"
+    form = facts.clock_form
+    edges: "list[float]" = []
+    counts: "list[int]" = []
+    for place in range(len(ranges)):
+        counts += [ranges[place][2]]
+        if not place:
+            continue
+        key = ranges[place][0]
+        rung = facts.clock_percentiles[key] if isinstance(key, str) and key in facts.clock_percentiles else None
+        if rung is None:
+            return None, "an edge is no published rung"
+        value = _clock_ordinal_of(rung, form)
+        if edges and not value > int(edges[len(edges) - 1]):
+            return None, "its edges do not rise"
+        edges += [float(value)]
+    if sum(counts) != parsed:
+        return None, "(D1): its band counts do not sum to its parsed cells"
+    cut = contract.L0Cuts(tuple(edges), tuple(counts), parsed)
+    ranks = _l0_ranks(cut)
+    low_rank = facts.low_tail.rows
+    high_rank = parsed - 1 - facts.high_tail.rows
+    pinned: "list[tuple[int, int]]" = [
+        (low_rank, _clock_ordinal_of(facts.low_tail.boundary, form)),
+        (high_rank, _clock_ordinal_of(facts.high_tail.boundary, form)),
+    ]
+    for place in range(len(edges)):
+        edge = int(edges[place])
+        for rank, value in pinned:
+            if value < edge and rank >= ranks[place]:
+                return None, "(D2): a pinned rank before an edge stands at or above its cut"
+            if value >= edge and rank < ranks[place]:
+                return None, "(D2): a pinned rank at or after an edge stands below its cut"
+    if facts.clock_step is not None:
+        if facts.minute_census:
+            return None, "the column is laid on its minute census, whose plan this landing does not cut"
+        unit = parsing.clock_step(form)
+        stride = max(1, facts.clock_step // unit)
+        heaps = tuple((_clock_ordinal_of(value, form), count) for value, count in facts.clock_heaps)
+        body = (pinned[0][1], pinned[1][1])
+        absent = calendar_clock.absent_places(_hole_spellings(column), form)
+        pairs = tuple((int(edges[place]), ranks[place]) for place in range(len(edges)))
+        laid = calendar_clock.clock_body_blocks(
+            parsed, (facts.low_tail.rows, facts.high_tail.rows), body,
+            facts.clock_census, heaps, form, stride, absent, pairs,
+        )
+        if laid is None:
+            return None, "(D2): an edge cuts a census group into halves whose counts do not fit"
+    return cut, ""
+
+
+def _l0_date_cuts(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    entry: contract.LadderEntry,
+    blank: int,
+) -> "tuple[contract.L0Cuts | None, str]":
+    """A date column's `L0` cuts, the edges as ordinals of its own space, or the failed precondition (G7.3l).
+
+    (D1): the range counts sum to the parsed cells `P`. (D2): every pinned
+    rank of G7.3 -- the two boundaries and the rungs between them --
+    stands below `R_j` where its value is below `e_j`, and at or above it
+    where its value is `e_j` or later; an edge equal to the low boundary
+    has `R_j` equal to the low tail's rows. A column with no tail on a
+    side is laid on G7.3d's made-up ramp, which reads no rung, so it is
+    made without L0 (rule B3).
+    """
+    parsed = column.n_present - facts.n_unparsed
+    spread = {
+        "missing": max(column.n_missing - blank, 0),
+        "other": facts.n_unparsed,
+        "labels": 0,
+    }
+    ranges, why = _l0_ranges(entry, spread)
+    if why:
+        return None, why
+    if facts.low_tail is None or facts.high_tail is None:
+        return None, "(D2): the column is laid on its made-up ramp, which reads no rung"
+    space = _ordinal_space(facts)
+    edges: "list[float]" = []
+    counts: "list[int]" = []
+    for place in range(len(ranges)):
+        counts += [ranges[place][2]]
+        if not place:
+            continue
+        key = ranges[place][0]
+        place_of = _ladder_key_place(key, _LADDER_NAMES)
+        if place_of < 0:
+            return None, "an edge is no published rung"
+        rung = facts.date_percentiles.rungs[place_of]
+        if rung is None:
+            return None, "an edge is no published rung"
+        value = _ordinal_of(rung, space)
+        if edges and not value > int(edges[len(edges) - 1]):
+            return None, "its edges do not rise"
+        edges += [float(value)]
+    if sum(counts) != parsed:
+        return None, "(D1): its band counts do not sum to its parsed cells"
+    cut = contract.L0Cuts(tuple(edges), tuple(counts), parsed)
+    ranks = _l0_ranks(cut)
+    low_rank = facts.low_tail.rows
+    high_rank = parsed - 1 - facts.high_tail.rows
+    pinned: "list[tuple[int, int]]" = [
+        (low_rank, _ordinal_of(facts.low_tail.boundary, space)),
+        (high_rank, _ordinal_of(facts.high_tail.boundary, space)),
+    ]
+    rungs = facts.date_percentiles.rungs
+    for step in range(1, len(_PCT) - 1):
+        rung = rungs[step]
+        if rung is None:
+            continue
+        rank = _rung_rank(_PCT[step], parsed)
+        if low_rank < rank < high_rank:
+            pinned += [(rank, _ordinal_of(rung, space))]
+    for place in range(len(edges)):
+        edge = int(edges[place])
+        for rank, value in pinned:
+            if value < edge and rank >= ranks[place]:
+                return None, "(D2): a pinned rank before an edge stands at or above its cut"
+            if value >= edge and rank < ranks[place]:
+                return None, "(D2): a pinned rank at or after an edge stands below its cut"
+        if edge == pinned[0][1] and ranks[place] != low_rank:
+            return None, "(D2): an edge at the low boundary does not cut at the low tail"
+        last, _text = _date_edge_rank(facts, edge, parsed, space)
+        if last < ranks[place]:
+            return None, "(D2): an edge's rung stands below its cut"
+    return cut, ""
+
+
+def _l0_attached(column: contract.ColumnBlock, cut: "contract.L0Cuts") -> contract.ColumnBlock:
+    """The column with its `L0` cuts on its numeric block (plan P4-D429)."""
+    facts = column.facts
+    if isinstance(facts, contract.AffixedFacts):
+        return dataclasses.replace(
+            column,
+            facts=dataclasses.replace(facts, numbers=dataclasses.replace(facts.numbers, l0=cut)),
+        )
+    if not isinstance(
+        facts, (contract.NumericFacts, contract.DatetimeFacts, contract.ClockFacts)
+    ):
+        return column
+    return dataclasses.replace(column, facts=dataclasses.replace(facts, l0=cut))
+
+
+def _l0_made_without(column: contract.ColumnBlock, reason: str) -> Deviation:
+    """RULE B3's note: an eligible column made without its band totals, and why (method G5.7h)."""
+    return _deviation(
+        column.name,
+        "band totals",
+        "every band of the column at its published count",
+        "made without its band totals",
+        "The description's bands for this column cannot be laid out as "
+        f"published ({reason}), so the column is made as it would be "
+        "without them and the counts of its bands may differ.",
+    )
+
+
+def _rung_by_key(facts: contract.NumericFacts, key: object) -> "float | None":
+    """A published rung of a numeric block by its key (`p10`, `p25`, ...), or None."""
+    named = _ladder_key_place(key, _LADDER_NAMES)
+    if named >= 0:
+        return facts.percentiles.rungs[named]
+    finer = _ladder_key_place(key, _FINER_NAMES)
+    if finer >= 0:
+        return facts.percentiles_between[finer]
+    return None
+
+
+def _ladder_key_place(key: object, names: "tuple[str, ...]") -> int:
+    """Where a rung key (`p10`, `p25`, ...) stands among ``names``, or -1."""
+    if not isinstance(key, str):
+        return -1
+    for place in range(len(names)):
+        if names[place] == key:
+            return place
+    return -1
+
+
+def _l0_number_cuts(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    entry: contract.LadderEntry,
+    blank: int,
+) -> "tuple[contract.L0Cuts | None, str]":
+    """A number column's `L0` cuts from its ladder entry, or the failed precondition (G5.7a).
+
+    Each `L0` band's RANGE part is the union of the starting ranges it
+    joins, and its count is the band's total less the spread cells it
+    joins (`missing`, the absent cells less the records holding nothing;
+    `other`, the present cells holding no reading). The edges are the
+    lower ends of every range band but the first. Then (P1) to (P5), the
+    edges standing on the column's own ladder, and (P3) on the pieces.
+    """
+    numbers = column.n_numeric
+    spread = {
+        "missing": max(column.n_missing - blank, 0),
+        "other": column.n_present - numbers,
+        "labels": 0,
+    }
+    ranges: "list[tuple[object, object, int]]" = []
+    for place in range(len(entry.bands)):
+        band = entry.bands[place]
+        total = entry.totals[place] if place < len(entry.totals) else 0
+        lower: object = None
+        upper: object = None
+        ranged = False
+        for start in band:
+            if isinstance(start, tuple) and len(start) == 2:
+                if not ranged:
+                    lower = start[0]
+                upper = start[1]
+                ranged = True
+            elif isinstance(start, str) and start in spread:
+                total = total - spread[start]
+            else:
+                return None, "a band this column's role does not hold"
+        if ranged:
+            ranges += [(lower, upper, total)]
+        elif total != 0:
+            return None, "(P1): its spread bands' counts are not its own"
+    if not ranges or ranges[0][0] is not None or ranges[len(ranges) - 1][1] is not None:
+        return None, "(P1): its bands do not cover every reading"
+    edges: "list[float]" = []
+    counts: "list[int]" = []
+    for place in range(len(ranges)):
+        if ranges[place][2] < 0:
+            return None, "(P1): a band's count is below nought"
+        counts += [ranges[place][2]]
+        if place:
+            if ranges[place][0] != ranges[place - 1][1]:
+                return None, "(P1): its bands do not meet"
+            value = _rung_by_key(facts, ranges[place][0])
+            if value is None or not math.isfinite(value):
+                return None, "an edge is no published rung"
+            if edges and not value > edges[len(edges) - 1]:
+                return None, "its edges do not rise"
+            edges += [value]
+    if sum(counts) != numbers:
+        return None, "(P1): its band counts do not sum to its numbers"
+    cut = contract.L0Cuts(tuple(edges), tuple(counts), numbers)
+    negatives = facts.n_negative - facts.n_negative_unrepresentable
+    zeros = facts.n_zero
+    ranks = _l0_ranks(cut)
+    for place in range(len(edges)):
+        edge = edges[place]
+        rank = ranks[place]
+        if edge < 0.0 and rank > negatives:
+            return None, "(P2): a cut below nought holds more cells than the negatives"
+        if edge == 0.0 and rank != negatives:
+            return None, "(P2): the cut at nought is not the sign cut"
+        if edge > 0.0 and rank < negatives + zeros:
+            return None, "(P2): a cut above nought holds fewer cells than the negatives and zeros"
+    plain = _merged_rungs(facts)
+    if plain is None:
+        return None, "its ladder holds nothing"
+    filled = [float(rung) for rung in plain]
+    for edge in edges:
+        if edge not in filled:
+            return None, "an edge stands on no rung of its ladder"
+    if isinstance(plain, contract.ShapedLadder) and plain.low is not None and plain.high is not None:
+        low = plain.low
+        high = plain.high
+        for place in range(len(edges)):
+            edge = edges[place]
+            if edge < low.boundary or edge > high.boundary:
+                return None, "(P4): an edge lies inside a tail"
+            if edge > low.boundary and ranks[place] < low.rows:
+                return None, "(P4): a cut leaves the low tail's rows above it"
+            if edge < high.boundary and numbers - ranks[place] < high.rows:
+                return None, "(P4): a cut leaves the high tail's rows below it"
+    holding = [place for place in range(len(counts)) if counts[place] > 0]
+    lowest = facts.percentiles.minimum
+    highest = facts.percentiles.maximum
+    if holding and lowest is not None:
+        first = holding[0]
+        if (first > 0 and lowest < edges[first - 1]) or (first < len(edges) and lowest >= edges[first]):
+            return None, "(P5): the published min lies outside the band holding the first rank"
+    if holding and highest is not None:
+        last = holding[len(holding) - 1]
+        if (last > 0 and highest < edges[last - 1]) or (last < len(edges) and highest >= edges[last]):
+            return None, "(P5): the published max lies outside the band holding the last rank"
+    figures = 0 if facts.integer_valued else _written_grid(column, facts)
+    for piece in _l0_pieces(column, facts, cut, figures):
+        if piece.cells <= 0 or piece.zero:
+            continue
+        if piece.figures == -2:
+            return None, "(P3): a band holds no value the column's written widths can write"
+        if piece.figures >= 0 and _l0_count(facts, piece, piece.figures, None, None, 1) < 1:
+            return None, "(P3): a band holds no value the column may write"
+    return cut, ""
 
 
 def _kept_inside_the_day(
@@ -63323,6 +65805,7 @@ def _content_of(
     plan: "_ColumnPlan",
     words: "list[int]",
     short: "list[int] | None" = None,
+    readings: "list[float | None] | None" = None,
 ) -> "tuple[list[str], list[Deviation]]":
     """Build one column's present cells, dispatching on the AXES.
 
@@ -63332,6 +65815,10 @@ def _content_of(
     name is never one of them (plan P2-D3).
 
     ``short`` reaches the label roles only: see `_label_content`.
+    ``readings``, where given, receives the READING of each cell that
+    holds one, in content order -- a number's value, a date's or a clock
+    time's ordinal -- which layer L0's interface hands to G16 (method
+    G4.2b; lane BT, plan P4-D429). Nothing else reads it.
     """
     column = plan.column
     if column.quality_state == "empty":
@@ -63348,23 +65835,58 @@ def _content_of(
     # the axis table a bijection while leaving one construction.
     if kind == "long_tail_labels":
         return _label_content(plan, short)
+    # (``readings`` is handed on only where it is asked, so every call
+    # without it is the call it always was.)
     if kind == "count" or kind == "continuous":
-        return _numeric_content(plan, words)
+        if readings is None:
+            return _numeric_content(plan, words)
+        return _numeric_content(plan, words, readings)
     if kind == "affixed_number":
-        return _affixed_content(plan, words)
+        if readings is None:
+            return _affixed_content(plan, words)
+        return _affixed_content(plan, words, readings)
     if kind == "joined_numbers":
-        return _joined_content(plan, words)
+        joined = _joined_content(plan, words)
+        if readings is not None:
+            _b3_readings(column, joined[0], readings)
+        return joined
     if kind == "numbers_with_labels":
-        return _compound_content(plan, words)
+        compound = _compound_content(plan, words)
+        if readings is not None:
+            _b3_readings(column, compound[0], readings)
+        return compound
     if kind == "time_of_day":
-        return _clock_content(plan, words)
+        if readings is None:
+            return _clock_content(plan, words)
+        return _clock_content(plan, words, readings)
     if kind == "datetime":
-        return _datetime_content(plan, words)
+        if readings is None:
+            return _datetime_content(plan, words)
+        return _datetime_content(plan, words, None, readings)
     if kind == "code":
         return _plan_cells(plan), []
     if kind == "text":
         return _plan_cells(plan), []
     raise _wrong_facts(column.name)
+
+
+def _b3_readings(column: contract.ColumnBlock, cells: "list[str]", readings: "list[float | None]") -> None:
+    """The READING of each cell of a column rule B3 makes without its band totals, as the profile reads it (method G4.2b).
+
+    A column of numbers and labels reads a number cell as its number and a
+    label as none (its band is `labels`); a column of joined numbers reads
+    its first number (lane BT's second repair, after its outside review,
+    item 5: every cell had gone to `other`, so G16.6 met no band).
+    """
+    facts = column.facts
+    separator = facts.separator if isinstance(facts, contract.JoinedFacts) else ""
+    for cell in cells:
+        text = cell
+        if separator:
+            parts = taxonomy.splits_into_numbers(cell, separator)
+            text = parts[0] if parts else ""
+        kind, number = taxonomy.spelling_read(text) if text else ("", None)
+        readings += [float(number) if kind == parsing.NUMBER and number is not None else None]
 
 
 def generate(profile: contract.Profile, seed: int) -> Twin:
@@ -63430,6 +65952,22 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
     arranging = dialect.arranging(
         profile.source.dialect, profile.n_rows, len(plan.columns)
     )
+    # THE ONE RESERVATION OF RECORDS HOLDING NOTHING (method G4.2a; lane
+    # BT, plan P4-D429), behind the chain's switch alone: the reserved
+    # rows are fixed before any column is placed, each column's cells
+    # holding nothing are taken by spelling into them, and nothing after
+    # the placement moves a cell of an eligible column.
+    reservation = _reservation(profile, plan.columns, arranging)
+    eligible_names = {entry.column for entry in profile.relationships.ladder} if reservation is not None else set()
+    reserved_rows = -1
+    short_notes: "list[Deviation]" = []
+    if reservation is not None:
+        arranging = dialect.reserved_arranging(
+            arranging, reservation[0], reservation[1], reservation[2]
+        )
+        if reservation[1]:
+            reserved_rows = len(reservation[0])
+        short_notes = _reservation_shortfall(profile, plan.columns, reservation)
     # EACH COLUMN'S PLAN LET GO ONCE ITS COLUMN IS DONE (plan P4-D415, lane
     # SG). Every plan is made before the first column, and a plan holds
     # what its column's values are drawn from -- a column of numbers its
@@ -63437,10 +65975,11 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
     # B0's mixed table, held to the end of the run: here each is handed
     # over once, and nothing of it outlives its column but its outcome.
     plans: "list[_ColumnPlan | None]" = [each for each in plan.columns]
+    sheet_dealt: "list[SheetDealt | None]" = [None for _each in plan.columns]
     plan = GenerationPlan((), plan.words_planned)
     finished: "list[twinstore.HeldColumn]" = []
     outcomes: list[ColumnOutcome] = []
-    deviations: list[Deviation] = []
+    deviations: list[Deviation] = short_notes
     approximated: list[Approximation] = []
     remarked: "list[Remark]" = []
     drawn = 0
@@ -63469,7 +66008,15 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
             ]
         drawn = drawn + len(words)
         short: "list[int]" = []
-        content, notes = _content_of(each, words, short)
+        # EACH ELIGIBLE COLUMN'S READINGS, for layer L0's interface (method
+        # G4.2b), held for this column alone and let go at its placement.
+        readings: "list[float | None] | None" = [] if column.name in eligible_names else None
+        if readings is None:
+            content, notes = _content_of(each, words, short)
+        else:
+            content, notes = _content_of(each, words, short, readings)
+        if readings is not None:
+            _l0_readings_met(column, readings)
         if len(content) != column.n_present:
             raise errors.ProfileError(
                 f"synthtwin internal check: the twin column for "
@@ -63507,9 +66054,22 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
                 )
             ]
         drawn = drawn + len(places)
-        order = _row_placement(
-            step, profile, content, _arrangement(places, profile.n_rows), finished
-        )
+        before_order: "list[int]" = []
+        if reservation is None:
+            order = _row_placement(
+                step, profile, content, _arrangement(places, profile.n_rows), finished
+            )
+        else:
+            arranged = _arrangement(places, profile.n_rows)
+            if reservation[1] and column.name in eligible_names:
+                # G4.2's order before G16 moves a cell: what G2.2 step 1
+                # and step 7 deal and write this column by (G4.2a).
+                before_order = _reserved_order(reservation[0], True, content, arranged)
+            order = _row_placement(
+                step, profile, content, arranged, finished,
+                (reservation[0], reservation[1]), readings,
+            )
+        readings = None
         places = []
         written = [content[order[place]] for place in range(profile.n_rows)]
         content = []
@@ -63642,6 +66202,9 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
                         "or times do.",
                     )
                 ]
+        if before_order:
+            sheet_dealt[step] = _sheet_dealt_before(profile, step, leaving, order, before_order, len(reservation[0]) if reservation is not None else 0)
+        before_order = []
         left = []
         order = []
         # THE CELLS IN THE READING THE DESCRIPTION WAS MADE FROM, which
@@ -63838,7 +66401,18 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
     # in place. Whole rows move for the sort and cells move only within
     # one column for the empty records, so nothing measured above moves.
     # One column at a time (plan P4-D415).
-    finished = dialect.arranged_columns(arranging, finished)
+    moved_rows: "list[int]" = []
+    finished = dialect.arranged_columns(arranging, finished, moved_rows)
+    # ...AND WHAT G4.2a DEALT EACH ELIGIBLE WORKBOOK CELL MOVES WITH IT (lane
+    # BT's second repair, after its outside review, item 1): the sort that
+    # moved whole rows above moves each column's classes, kinds and written
+    # cells the same way, so a sorted twin writes each cell by its own.
+    if moved_rows:
+        for step in range(len(sheet_dealt)):
+            entry = sheet_dealt[step]
+            if entry is not None:
+                sheet_dealt[step] = _sheet_dealt_moved(entry, moved_rows)
+    moved_rows = []
     return Twin(
         names=tuple([column.name for column in profile.columns]),
         write_header=profile.source.header_source == "file",
@@ -63853,7 +66427,200 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
         seed=seed,
         form=profile.source.dialect,
         held_columns=tuple(finished),
+        reserved_rows=reserved_rows,
+        sheet_dealt=tuple(sheet_dealt) if any(entry is not None for entry in sheet_dealt) else (),
     )
+
+
+def _l0_readings_met(column: contract.ColumnBlock, readings: "list[float | None]") -> None:
+    """G5.7g on a date or clock column laid with its L0 band totals: its readings fill each band exactly (lane BT's second repair).
+
+    A column whose cuts a later step missed is refused as an internal
+    check rather than written: an older clock description's high cut
+    went missing without a word (the outside review, item 3). Nothing
+    elsewhere.
+    """
+    facts = column.facts
+    if not isinstance(facts, (contract.DatetimeFacts, contract.ClockFacts)) or facts.l0 is None:
+        return
+    edges = list(facts.l0.edges)
+    held = [0 for _band in range(len(edges) + 1)]
+    for reading in readings:
+        if reading is not None:
+            band = _places_at_or_below(edges, reading)
+            held[band] = held[band] + 1
+    if held != list(facts.l0.counts):
+        raise errors.ProfileError(_l0_internal(column, "misses the count of one of its bands"))
+
+
+def _sheet_dealt_moved(entry: SheetDealt, moved: "list[int]") -> SheetDealt:
+    """A `SheetDealt` with its rows moved as the sort moved the cells: row ``r`` takes row ``moved[r]``'s."""
+    codes = entry.codes
+    if isinstance(codes, bytes):
+        laid: "bytes | tuple[int, ...]" = bytes([codes[moved[row]] for row in range(len(moved))])
+    else:
+        laid = tuple([codes[moved[row]] for row in range(len(moved))])
+    written = entry.written
+    if written is not None:
+        cells = twinstore.column_cells(written)
+        written = twinstore.held_column([cells[moved[row]] for row in range(len(moved))])
+        cells = []
+    return SheetDealt(entry.palette, laid, written)
+
+
+def _sheet_dealt_before(
+    profile: contract.Profile,
+    step: int,
+    leaving: "list[str]",
+    order: "list[int]",
+    before: "list[int]",
+    reserved: int,
+) -> SheetDealt:
+    """One eligible workbook column dealt in G4.2's order and handed back in the twin's row order (method G4.2a).
+
+    ``leaving`` is the column's cells as they leave, in the twin's row
+    order, ``order`` the place each row's cell came from after G16 and
+    ``before`` the place each row's cell stood at before it (the
+    reservation's placement). G2.2 steps 0a to 2 deal the column's
+    classes, format kinds and kinds of date once, over the cells in
+    ``before``'s order, exactly as the writer deals them over a twin no
+    arrangement moved (`sheetwriting.column_dealt_cells`), and each cell
+    then carries what it was dealt to the row G16 put it on. Draws
+    nothing. No I/O of any kind.
+    """
+    from synthtwin import sheetwriting
+
+    count = len(leaving)
+    row_of = [0 for _place in range(count)]
+    for row in range(count):
+        row_of[order[row]] = row
+    given = tuple([leaving[row_of[before[row]]] for row in range(count)])
+    own, dated, dealt, kinds = sheetwriting.column_dealt_cells(profile, step, given, reserved)
+    at_of = [0 for _place in range(count)]
+    for row in range(count):
+        at_of[before[row]] = row
+    picked = [at_of[order[row]] for row in range(count)]
+    palette: "list[tuple[str, str, str]]" = []
+    place_of: "dict[tuple[str, str, str], int]" = {}
+    numbers: "list[int]" = []
+    changed = False
+    for row in range(count):
+        at = picked[row]
+        dealt_as = (dealt[at], kinds[at] if at < len(kinds) else "", dated[at] if at < len(dated) else "")
+        if dealt_as not in place_of:
+            place_of[dealt_as] = len(palette)
+            palette += [dealt_as]
+        numbers += [place_of[dealt_as]]
+        if own[at] != leaving[row]:
+            changed = True
+    sheetwriting.class_codes(tuple([entry[0] for entry in palette]))
+    held: "twinstore.HeldColumn | None" = None
+    if changed:
+        held = twinstore.held_column([own[picked[row]] for row in range(count)])
+    codes: "bytes | tuple[int, ...]" = bytes(numbers) if len(palette) <= 256 else tuple(numbers)
+    numbers = []
+    return SheetDealt(tuple(palette), codes, held)
+
+
+def _reservation(
+    profile: contract.Profile,
+    plans: "tuple[_ColumnPlan, ...]",
+    arranging: "dialect.Arranging",
+) -> "tuple[tuple[int, ...], bool, tuple[bool, ...], tuple[int, int]] | None":
+    """The reserved rows of method G4.2a, whether they are a workbook's, and the columns that may give.
+
+    Runs only where the description's chain is published (behind the
+    switch no shipped command sets); None elsewhere, and every column is
+    placed as before. `E` is the records holding nothing the description
+    places -- in a text file the targets G2.1 step 2's arithmetic places,
+    in a workbook `empty_rows_inside` -- and `E_eff` the fewest cells
+    holding nothing any column's list holds, at most `E`: in a text file
+    the absent cells written empty or as a spelling of spaces and tabs,
+    in a workbook the cells holding no text that G2.2 step 1 makes
+    `absent` or `blank`. The reserved rows are the first `E_eff` targets
+    in row order (a workbook's first `E_eff` rows). A table of one column
+    reserves none.
+
+    THE SHORTFALL IS NAMED (lane BT's repair, after its first skeptic,
+    item 10): the fourth item is `E` and the place of the first column
+    holding the fewest cells holding nothing, which `generate_held` names
+    in the twin's report wherever `E_eff` falls short of `E`.
+
+    THE GIVERS (G16.5): a column may give a cell to G2.1 step 2's second
+    walk only where it is not eligible and not the row sequence. G16.5
+    also keeps every column a carried rule computes or reads; no
+    description this version loads carries a rule (S28: `rules` is
+    empty), so no column is kept on that account until the lane that
+    reads the first carried rule (lane CHb) names them.
+
+    Guarantees: a fixed function of the description; draws no word;
+    raises nothing. No I/O of any kind.
+    """
+    if not profile.relationships.ladder or profile.relationships.families <= 0:
+        return None
+    width = len(plans)
+    n_rows = profile.n_rows
+    form = profile.source.workbook
+    eligible = {entry.column for entry in profile.relationships.ladder}
+    givers: "list[bool]" = []
+    for place in range(width):
+        column = plans[place].column
+        givers += [column.name not in eligible and _sequence_start(profile, column) < 0]
+    if width < 2:
+        return (), form is not None, tuple(givers), (0, 0)
+    fewest = n_rows
+    limiting = 0
+    for place in range(width):
+        each = plans[place]
+        column = each.column
+        absent = _absent_cells(column, each.decimal_comma)
+        if form is not None:
+            census = form.columns[place].cell_classes if place < len(form.columns) else {}
+            empty = len([cell for cell in absent if cell == ""])
+            totals = dialect.sheet_nothing_totals(census, empty)
+            holding = totals[0] + totals[1]
+        else:
+            holding = len([cell for cell in absent if dialect.holds_nothing(cell)])
+        if holding < fewest:
+            fewest = holding
+            limiting = place
+    if form is not None:
+        wanted = form.empty_rows_inside if form.empty_rows_inside is not None else 0
+        count = min(wanted, fewest, n_rows)
+        return tuple(range(count)), True, tuple(givers), (wanted, limiting)
+    targets = [row for row in range(n_rows) if arranging.targets[row]] if arranging.placing else []
+    count = min(len(targets), fewest)
+    return tuple(targets[:count]), False, tuple(givers), (len(targets), limiting)
+
+
+def _reservation_shortfall(
+    profile: contract.Profile,
+    plans: "tuple[_ColumnPlan, ...]",
+    reservation: "tuple[tuple[int, ...], bool, tuple[bool, ...], tuple[int, int]]",
+) -> "list[Deviation]":
+    """The twin's report on reserved rows short of `E` (method G4.2a; lane BT's repair, plan P4-D429).
+
+    Where `E_eff` falls short of `E`, the column holding the fewest cells
+    holding nothing names it beside the published count; nothing
+    elsewhere.
+    """
+    rows, workbook, _givers, (wanted, limiting) = reservation
+    if len(rows) >= wanted or not plans:
+        return []
+    column = plans[limiting].column
+    published = "empty_rows_inside" if workbook else "empty_rows"
+    return [
+        _deviation(
+            column.name,
+            published,
+            f"{wanted} record(s) holding nothing in every column",
+            f"{len(rows)} record(s) holding nothing in every column",
+            "The description publishes how many records hold nothing in "
+            "every column, and this column holds fewer cells holding nothing "
+            "than that, so the twin keeps only as many such records as the "
+            "column's own cells allow.",
+        )
+    ]
 
 
 def _grain_words(column: contract.ColumnBlock, rows: int) -> int:
@@ -64120,6 +66887,8 @@ def _row_placement(
     content: "list[str]",
     drawn: "list[int]",
     finished: "list[twinstore.HeldColumn]",
+    reserved: "tuple[tuple[int, ...], bool] | None" = None,
+    readings: "list[float | None] | None" = None,
 ) -> "list[int]":
     """THE PLACEMENT HOOK (plan P4-D415, lane SG): which of a column's cells
     stands on each row -- ``order[row]`` is the place in ``content`` of the
@@ -64144,11 +66913,361 @@ def _row_placement(
     earlier columns only through `twinstore`, and draws no word of its
     own, so the one random stream stays as method G3 writes it.
 
+    BEHIND THE CHAIN'S SWITCH (lane BT, plan P4-D429) ``reserved`` holds
+    G4.2a's reserved rows and whether they are a workbook's, and
+    ``readings`` an eligible column's readings: the placement then stands
+    each reserved cell in its reserved row and every other cell, in
+    G4.2's order, on the arranged rows in row order (`_reserved_order`) --
+    the arrangement until G16 decides an eligible column's, which it does
+    with `cells_by_band` and changes nothing else.
+
     Guarantees: returns a list of ``profile.n_rows`` places, each once.
     Raises nothing. No I/O of any kind.
     """
-    del step, content, finished
-    return drawn
+    del step, finished, readings
+    if reserved is None:
+        return drawn
+    return _reserved_order(reserved[0], reserved[1], content, drawn)
+
+
+@dataclasses.dataclass(frozen=True)
+class BandCells:
+    """One eligible column's cells in the ARRANGED rows, one group per `L0` band (method G4.2b; plan P4-D429).
+
+    What G16 (lane CHb) reads to choose the arranged row each cell stands
+    in, and nothing more. Every cell is named by its PLACE in the
+    column's cell list (`content`, which holds its text exactly as
+    written). `names` says what each group is -- `range` for a range band
+    of a number, date or clock column, `level` for a level band of a label
+    column, else `missing`, `other` or `labels` -- in BAND ORDER: the
+    range bands ascending by their lower edge, then `missing`, `other`
+    and `labels`. `lowers` is each range group's lower edge (None for the
+    lowest) or each level group's labels, None for the others; `groups`
+    each group's cells in G4.2's order, ascending by the row the placement
+    wrote each in, and `readings` each one's READING (a range band's
+    value, ordinal or level place; None on the others), which G16 sorts a
+    band's cells by. `sizes` is each group's size: the published count of
+    its band where the column holds its band totals. `nothing` marks, a
+    byte a place, every cell holding nothing by G4.2a's test; `reserved`
+    names the reserved cells, the k-th standing in the k-th reserved row,
+    and they stand in no group. On a workbook `classes`, `kinds` and
+    `dates` are each place's class, format kind and kind of date, fixed
+    before the arrangement; empty for a text file. `without` says why
+    the column was made without its band totals (rule B3), "" where it
+    holds them.
+    """
+
+    column: str
+    names: "tuple[str, ...]"
+    lowers: "tuple[object, ...]"
+    groups: "tuple[tuple[int, ...], ...]"
+    readings: "tuple[tuple[float | None, ...], ...]"
+    sizes: "tuple[int, ...]"
+    nothing: bytes
+    reserved: "tuple[int, ...]"
+    classes: "tuple[str, ...]" = ()
+    kinds: "tuple[str, ...]" = ()
+    dates: "tuple[str, ...]" = ()
+    without: str = ""
+
+
+def cells_by_band(
+    profile: contract.Profile,
+    step: int,
+    content: "list[str]",
+    drawn: "list[int]",
+    reserved: "tuple[tuple[int, ...], bool] | None",
+    readings: "list[float | None] | None",
+) -> "BandCells | None":
+    """THE INTERFACE G16 CALLS: an eligible column's cells, grouped by `L0` band (method G4.2b; plan P4-D429).
+
+    Called once a column, at the placement hook (`_row_placement`),
+    after the column's content and placement (G4.2), the reservation
+    (G4.2a) and its `L0` passes (G5.7, G7.3l, G7A.4d): ``content`` is the
+    column's cell list, ``drawn`` the arrangement its placement words
+    drew, ``reserved`` the reserved rows and whether they are a
+    workbook's, ``readings`` the column's readings in content order.
+
+    WHAT IT PROMISES, each a function of the description and the seed:
+    (1) each range group holds exactly its band's published count, the
+    `missing` group `n_missing - E_eff` cells and `other` and `labels`
+    the class counts they stand for, the groups summing to the arranged
+    rows `n'` -- where the column was made without L0 (rule B3) the
+    groups its cells fell into, with their own sizes, and `without` says
+    why; (2) the same cells: every cell but the reserved ones, once;
+    (3) no word, reading only the column's own cells and its published
+    `L0` block; (4) one column at a time: one column's places and one
+    reading a parsed cell.
+
+    Returns None for a column the description's ladder does not name
+    (it is not eligible, so G16 places it as G4.2 did). Raises
+    `errors.ProfileError` (an internal check) where a promise breaks.
+    No I/O of any kind.
+    """
+    column = profile.columns[step]
+    entry: "contract.LadderEntry | None" = None
+    for listed in profile.relationships.ladder:
+        if listed.column == column.name:
+            entry = listed
+    if entry is None:
+        return None
+    count = len(drawn)
+    rows: "tuple[int, ...]" = ()
+    workbook = profile.source.workbook is not None
+    if reserved is not None:
+        rows, workbook = reserved
+    kept = dialect.reserved_cells(content, len(rows), workbook, drawn) if rows else []
+    reserved_places = tuple(drawn[row] for row in kept)
+    taken = {place: True for place in reserved_places}
+    classes: "tuple[str, ...]" = ()
+    kinds: "tuple[str, ...]" = ()
+    dates: "tuple[str, ...]" = ()
+    nothing = bytearray(count)
+    if workbook and profile.source.workbook is not None:
+        from synthtwin import sheetwriting
+
+        order = _reserved_order(rows, True, content, drawn) if rows else drawn
+        dealt, laid_kinds, laid_dates = sheetwriting.column_dealt_kinds(
+            profile, step, tuple(content[order[row]] for row in range(count)), len(rows) if rows else -1
+        )
+        by_class = ["" for _place in range(count)]
+        by_kind = ["" for _place in range(count)]
+        by_date = ["" for _place in range(count)]
+        for row in range(count):
+            by_class[order[row]] = dealt[row]
+            by_kind[order[row]] = laid_kinds[row] if row < len(laid_kinds) else ""
+            by_date[order[row]] = laid_dates[row] if row < len(laid_dates) else ""
+        classes = tuple(by_class)
+        kinds = tuple(by_kind)
+        dates = tuple(by_date)
+        for place in range(count):
+            nothing[place] = 1 if by_class[place] in (dialect.SHEET_CELL_ABSENT, dialect.SHEET_CELL_BLANK) else 0
+    else:
+        for place in range(count):
+            nothing[place] = 1 if dialect.holds_nothing(content[place]) else 0
+    cut: "contract.L0Cuts | None" = None
+    without = "this landing lays the role without its band totals"
+    found_cut = _l0_entry_cut(column, entry, _records_holding_nothing(profile))
+    if found_cut is not None:
+        cut, without = found_cut
+    facts = column.facts
+    parsed = 0 if readings is None else len(readings)
+    edges: "list[float]" = [] if cut is None else list(cut.edges)
+    if cut is None and readings is not None:
+        edges = _l0_published_edges(column, entry)
+    starts_of: "list[int]" = []
+    ends_of: "list[int]" = []
+    if isinstance(facts, contract.LabelFacts):
+        # A LABEL COLUMN HOLDS ITS BAND TOTALS BY CONSTRUCTION (G8 writes
+        # each published level at its count), and a cell's band is its
+        # LEVEL, read off its place in G8.4's content list, never its text.
+        without = ""
+        start = 0
+        for place in range(len(facts.levels)):
+            starts_of += [start]
+            start = start + facts.levels[place].count
+            ends_of += [start]
+    # ONE GROUP PER PUBLISHED L0 BAND, IN THE PUBLISHED BAND ORDER (lane BT's
+    # second repair, after its outside review, item 4): each group holds the
+    # cells of every starting band its band joins -- `missing` joined with a
+    # level, `other` with a range -- so a published total of 376 over `B`
+    # and the absent cell is one group of 376, not two of 375 and 1.
+    band_of, names, lowers, ranged_bands = _l0_band_groups(entry, edges)
+    members: "list[list[int]]" = [[] for _band in entry.bands]
+    reads: "list[list[float | None]]" = [[] for _band in entry.bands]
+    in_range = [0 for _place in range(ranged_bands)]
+    compound = isinstance(facts, contract.CompoundFacts)
+    for row in range(count):
+        cell = drawn[row]
+        if cell in taken:
+            continue
+        key: object = "missing"
+        reading: "float | None" = None
+        if cell >= column.n_present:
+            key = "missing"
+        elif isinstance(facts, contract.LabelFacts):
+            # ...found by halving the levels' places, so a column of many
+            # levels costs a row a few steps, not one a level (the outside
+            # review, item 8).
+            level = _places_at_or_below(starts_of, cell) - 1
+            if 0 <= level < len(ends_of) and cell < ends_of[level]:
+                key = ("level", facts.levels[level].label)
+                reading = float(level)
+            else:
+                # ...a cell G8.3 writes for a WITHHELD level has no published
+                # level: it stands in the held-back pool (contract 4.6b.2).
+                key = "held back"
+        elif readings is not None and cell < parsed and readings[cell] is not None:
+            reading = readings[cell]
+            ranged_at = _places_at_or_below(edges, reading if reading is not None else 0.0)
+            key = ("range", ranged_at)
+            if ranged_at < len(in_range):
+                in_range[ranged_at] = in_range[ranged_at] + 1
+        else:
+            # ...a present cell with no reading: the labels of a column of
+            # numbers and labels, `other` elsewhere (the outside review,
+            # item 5).
+            key = "labels" if compound else "other"
+        if key not in band_of:
+            band_of[key] = len(names)
+            names += [key if isinstance(key, str) else "range"]
+            lowers += [None]
+            members += [[]]
+            reads += [[]]
+        group = band_of[key]
+        members[group] += [cell]
+        reads[group] += [reading]
+    if cut is not None:
+        for ranged_at in range(len(in_range)):
+            wanted = cut.counts[ranged_at] if ranged_at < len(cut.counts) else 0
+            if in_range[ranged_at] != wanted:
+                raise errors.ProfileError(
+                    "synthtwin internal check: an L0 band of the column "
+                    f"'{parsing.visible(column.name)}' holds {in_range[ranged_at]} cells "
+                    f"where its published count is {wanted}. This means a "
+                    "mistake in synthtwin; please report it. Nothing has been written."
+                )
+    return BandCells(
+        column=column.name,
+        names=tuple(names),
+        lowers=tuple(lowers),
+        groups=tuple(tuple(group) for group in members),
+        readings=tuple(tuple(read) for read in reads),
+        sizes=tuple(len(group) for group in members),
+        nothing=bytes(nothing),
+        reserved=reserved_places,
+        classes=classes,
+        kinds=kinds,
+        dates=dates,
+        without="" if cut is not None else without,
+    )
+
+
+def _l0_band_groups(
+    entry: contract.LadderEntry, edges: "list[float]"
+) -> "tuple[dict[object, int], list[str], list[object], int]":
+    """Each starting band's published `L0` band, each band's name and lower end, and how many bands hold a range (`cells_by_band`).
+
+    A range starting band is named `("range", k)` for the k-th band
+    holding a range part, a level `("level", label)`, a spread band by its
+    own name (`missing`, `other`, `labels`, `held back`): each maps to the
+    published band that joins it, in the published band order.
+    """
+    band_of: "dict[object, int]" = {}
+    names: "list[str]" = []
+    lowers: "list[object]" = []
+    ranged_bands = 0
+    for at in range(len(entry.bands)):
+        band = entry.bands[at]
+        ranged = [start for start in band if isinstance(start, tuple) and len(start) == 2]
+        labels = tuple(start[0] for start in band if isinstance(start, tuple) and len(start) == 1)
+        spread = [start for start in band if isinstance(start, str)]
+        if ranged:
+            band_of[("range", ranged_bands)] = at
+            names += ["range"]
+            lowers += [edges[ranged_bands - 1] if 0 < ranged_bands <= len(edges) else None]
+            ranged_bands = ranged_bands + 1
+        elif labels:
+            names += ["level"]
+            lowers += [labels]
+        else:
+            names += [f"{spread[0]}" if spread else "other"]
+            lowers += [None]
+        for label in labels:
+            band_of[("level", label)] = at
+        for name in spread:
+            band_of[name] = at
+    return band_of, names, lowers, ranged_bands
+
+
+def _places_at_or_below(ordered: "list[int] | list[float]", value: float) -> int:
+    """How many of ``ordered`` (ascending) are at most ``value``: found by halving (`cells_by_band`)."""
+    low = 0
+    high = len(ordered)
+    while low < high:
+        middle = (low + high) // 2
+        if ordered[middle] <= value:
+            low = middle + 1
+        else:
+            high = middle
+    return low
+
+
+def _l0_published_edges(column: contract.ColumnBlock, entry: contract.LadderEntry) -> "list[float]":
+    """The `L0` edges of a column made without its band totals, in its readings' own space (G4.2b)."""
+    facts = column.facts
+    edges: "list[float]" = []
+    keys: "list[object]" = []
+    for band in entry.bands:
+        ranged = [start for start in band if isinstance(start, tuple) and len(start) == 2]
+        if ranged and ranged[0][0] is not None:
+            keys += [ranged[0][0]]
+    for key in keys:
+        if not isinstance(key, str):
+            continue
+        if isinstance(facts, contract.NumericFacts):
+            value = _rung_by_key(facts, key)
+            if value is not None:
+                edges += [value]
+        elif isinstance(facts, contract.AffixedFacts):
+            value = _rung_by_key(facts.numbers, key)
+            if value is not None:
+                edges += [value]
+        elif isinstance(facts, contract.CompoundFacts):
+            # ...a column of numbers and labels by its numbers' ladder, and
+            # a column of joined numbers by its first number's, as the
+            # profile reads them (the outside review, item 5).
+            value = _rung_by_key(facts.numbers, key)
+            if value is not None:
+                edges += [value]
+        elif isinstance(facts, contract.JoinedFacts) and facts.parts:
+            value = _rung_by_key(facts.parts[0], key)
+            if value is not None:
+                edges += [value]
+        elif isinstance(facts, contract.DatetimeFacts) and _ladder_key_place(key, _LADDER_NAMES) >= 0:
+            rung = facts.date_percentiles.rungs[_ladder_key_place(key, _LADDER_NAMES)]
+            if rung is not None:
+                edges += [float(_ordinal_of(rung, _ordinal_space(facts)))]
+        elif isinstance(facts, contract.ClockFacts):
+            rung = facts.clock_percentiles[key] if key in facts.clock_percentiles else None
+            if rung is not None:
+                edges += [float(_clock_ordinal_of(rung, facts.clock_form))]
+    return edges
+
+
+def _reserved_order(
+    rows: "tuple[int, ...]", workbook: bool, content: "list[str]", drawn: "list[int]"
+) -> "list[int]":
+    """The placement with G4.2a's reservation (method G4.2a; lane BT, plan P4-D429).
+
+    The column's cells holding nothing are listed by spelling in G4.2's
+    order (`dialect.reserved_cells`); the k-th of the first `E_eff`
+    stands in the k-th reserved row, and every other cell, in G4.2's
+    order, in the arranged rows in row order.
+    """
+    count = len(drawn)
+    kept = dialect.reserved_cells(content, len(rows), workbook, drawn)
+    if len(kept) != len(rows):
+        # Every column lists at least `E_eff` cells holding nothing
+        # (`_reservation`), so a column short of them is a mistake.
+        raise errors.ProfileError(
+            "synthtwin internal check: a column holds fewer cells holding "
+            "nothing than the records it reserves. This means a mistake in "
+            "synthtwin; please report it. Nothing has been written."
+        )
+    reserved_row = {row: True for row in rows}
+    taken = {row: True for row in kept}
+    order = [0 for _row in range(count)]
+    for place in range(len(rows)):
+        order[rows[place]] = drawn[kept[place]]
+    others = [drawn[row] for row in range(count) if row not in taken]
+    at = 0
+    for row in range(count):
+        if row in reserved_row:
+            continue
+        order[row] = others[at]
+        at = at + 1
+    return order
 
 
 def materialised(twin: Twin) -> Twin:

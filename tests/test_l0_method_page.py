@@ -17,21 +17,29 @@ the page at 11dd0b6b. The verify of that repair found three places that
 read the first of them as always failing (P3), where it only can; their
 checks are red on the repair as that verify read it.
 
-WHAT IS COMPUTED HERE, NOT READ. The share over pieces is run as G5.7d
-item 3 writes it, with and without its ceiling `hi_p`, on the oracle's
-three share cases; the ranks a heaped median can stand below its rung
-are enumerated; the bands and deciles of the two fixed columns of oracle
-case 1 are worked out from their counts; every row of G5.7i's table of
-the count of few values is checked for its rows off; the twin's counts
-of case 1 are read back without the lift; the window test of G12.15 is
-checked against the exact positions it stands for; and the workbook
-reader's own test of a record holding nothing is read from its source.
-The rest pins wording, where the finding was a missing or wrong
-sentence.
+LANE BT'S REPAIR (plan P4-D429, 2026-10-25) rebuilt the number columns'
+half of G5.7 after its statistics skeptic measured the band map erasing
+real codes: the column is made as today and moved the least the
+description proves (G5.7c). The checks of the band map's layout (the
+share over pieces held to `hi_p`, the strata beyond the runs in the
+widest eligible gap, a heaped median's knot, the whole-unit window
+extension beside a cut) went with it; each withdrawal is checked as
+stated on the page, and the least move's proof is computed in their
+place.
 
-WHAT IS NOT HERE. No L0 code exists to run, so nothing here says a twin
-meets its band totals. The oracle's cases (G14.3a) and K-S6-02 are where
-lane BT runs the method.
+WHAT IS COMPUTED HERE, NOT READ. The ranks two equal published rungs
+prove (G5.7c step 1) are checked over every column of up to nine cells
+on three values, and a span one rank wider is shown unsound; the bands
+and deciles of the two fixed columns of oracle case 1 are worked out
+from their counts; every row of G5.7i's table of the count of few
+values is checked for its rows off; the twin's counts of case 1 are read
+back without the lift; and the workbook reader's own test of a record
+holding nothing is read from its source. The rest pins wording, where
+the finding was a missing or wrong sentence.
+
+WHAT IS NOT HERE. Whether a twin meets its band totals: the gate
+(`tests/test_stage6_band_totals.py`), the oracle's cases (G14.3a) and
+K-S6-02 run the method.
 """
 import pathlib
 import re
@@ -138,122 +146,100 @@ def _figure(text):
     return int(text.replace(",", ""))
 
 
-# ------------------------------------------------- the share over pieces
+# ------------------------------------------------- the least move (lane BT's repair)
 
 
-def _share(runs, ceilings, strata):
-    """G5.7d item 3: every piece starts at one stratum, and the rest go one
-    at a time to the piece below its ceiling with the largest
-    `A_p / (2 m_p + 1)`, compared without division, the lower piece on a
-    tie. Strata no piece can take are not made."""
-    given = [1 for _ in runs]
-    for _ in range(strata - len(runs)):
-        best = -1
-        for p in range(len(runs)):
-            if given[p] >= ceilings[p]:
-                continue
-            if best < 0 or runs[p] * (2 * given[best] + 1) > runs[best] * (
-                2 * given[p] + 1
-            ):
-                best = p
-        if best < 0:
-            break
-        given[best] = given[best] + 1
-    return given
+def _type7_at(cells, percent):
+    h = Fraction((len(cells) - 1) * percent, 100)
+    low = int(h)
+    high = min(low + 1, len(cells) - 1)
+    return cells[low] + (cells[high] - cells[low]) * (h - low), h
 
 
-def _dhondt(runs, strata):
-    given = [1 for _ in runs]
-    for _ in range(strata - len(runs)):
-        best = 0
-        for p in range(1, len(runs)):
-            if runs[p] * (given[best] + 1) > runs[best] * (given[p] + 1):
-                best = p
-        given[best] = given[best] + 1
-    return given
+def _ceil(fraction):
+    return -((-fraction.numerator) // fraction.denominator)
 
 
-def _free_points(points, read, low_published, high_published):
-    """G5.7d item 3's F_p on whole numbers: the points of the piece no run
-    reads, between two runs, or between a run and an end that is
-    published."""
-    lowest, highest = min(read), max(read)
-    free = 0
-    for point in points:
-        if point in read:
-            continue
-        if lowest < point < highest:
-            free = free + 1
-        elif point < lowest and low_published:
-            free = free + 1
-        elif point > highest and high_published:
-            free = free + 1
-    return free
+def _heap_ranks(h_1, h_2, wider=0):
+    """G5.7c step 1: two equal published rungs at `h_1 < h_2` prove the
+    ranks from `floor(h_1)` to `ceil(h_2)`, where `ceil(h_1) <= floor(h_2)`;
+    `wider` widens the span, the mutant."""
+    if _ceil(h_1) > int(h_2):
+        return None
+    return range(int(h_1) - wider, _ceil(h_2) + 1 + wider)
 
 
-SHARE_CASE_B = (
-    # (whole numbers of the piece, the values its runs read)
-    (range(1, 2), {1}),
-    (range(2, 4), {2, 3}),
-    (range(4, 5), {4}),
-    (range(5, 19), {5, 6, 7, 8, 9, 10, 11, 18}),
-)
-SHARE_CASE_C = (
-    (range(1, 2), {1}),
-    (range(2, 3), {2}),
-    (range(3, 17), {3, 4, 5, 16}),
-)
-MANY_CELLS = 10_000
+def _proven_heaps_hold(wider):
+    """Every column of up to nine cells on three values, every pair of
+    percents in steps of five: the ranks two equal rungs prove hold the
+    rungs' value. False at the first column where one does not."""
+    percents = range(0, 101, 5)
+    for size in range(2, 10):
+        for low in range(size + 1):
+            for high in range(size - low + 1):
+                cells = [0] * low + [1] * high + [2] * (size - low - high)
+                readings = [_type7_at(cells, q) for q in percents]
+                for first in range(len(readings)):
+                    for second in range(first + 1, len(readings)):
+                        (v_1, h_1), (v_2, h_2) = readings[first], readings[second]
+                        if v_1 != v_2:
+                            continue
+                        span = _heap_ranks(h_1, h_2, wider)
+                        if span is None:
+                            continue
+                        for rank in span:
+                            if 0 <= rank < size and cells[rank] != v_1:
+                                return False
+    return True
 
 
-def _ceilings(pieces):
-    return [
-        min(MANY_CELLS, len(read) + _free_points(points, read, True, True))
-        for points, read in pieces
-    ]
+def test_two_equal_rungs_prove_the_ranks_the_page_says_and_no_more():
+    """The statistics skeptic, item 1 (lane BT's repair): the band map read
+    values the real column never held between a heap and a cut; the least
+    move reads only what two equal rungs prove. Computed over every small
+    column: the proven span holds the rungs' value, and a span one rank
+    wider does not."""
+    assert _proven_heaps_hold(0)
+    assert not _proven_heaps_hold(1)
+    least = _flat(_between(METHOD, "#### G5.7c ", "#### G5.7d "))
+    assert "every order statistic from `ceil(h_1)` to `floor(h_2)`" in least
+    assert "the real column holds `v` at every rank from `floor(h_1)` to `ceil(h_2)`: a PROVEN HEAP" in least
+    assert "`min(max(w, L(r)), U(r))`" in least
+    assert "Only published rungs are read, never a filled rung or a tail's reading" in least
 
 
-def test_a_piece_is_never_given_more_strata_than_its_runs_and_free_points():
-    """Skeptic 1, item 2, and the statistics skeptic, item 2 (b): held only
-    to its cells, a piece of one whole number took two strata and a piece
-    of two took three, strata no step can separate."""
-    method = _g57d()
-    assert "`hi_p = min(C_p, A_p + F_p)`" in method
-    assert "**Strata that no piece can take are not made**" in method
-    assert "`hi_p` is raised to `lo_p`" in method
-    case = _case(6)
-    for pieces, strata, held, today in (
-        (SHARE_CASE_B, 18, [1, 2, 1, 14], [2, 3, 1, 12]),
-        (SHARE_CASE_C, 15, [1, 1, 13], [3, 2, 10]),
+def test_the_band_map_is_withdrawn_and_the_least_move_says_why():
+    """The statistics skeptic, item 1: on the zoo's claims the band map
+    emptied the code 871 and wrote 788, a code nobody wrote; the repair
+    withdraws the layout over pieces, its share, its gap and its last
+    guard, and states the least move's four steps."""
+    least = _flat(_between(METHOD, "#### G5.7c ", "#### G5.7d "))
+    for step in (
+        "1. **THE PROVEN HEAPS.**",
+        "2. **THE BAND TOTALS.**",
+        "2a. **THE KEYS ONCE A ROW.**",
+        "3. **THE DIFFERENT VALUES KEPT.**",
+        "4. **THE MODE KEPT.**",
     ):
-        runs = [len(read) for _, read in pieces]
-        assert _share(runs, _ceilings(pieces), strata) == held
-        assert _share(runs, [MANY_CELLS for _ in runs], strata) == today
-    assert "share 1, 2, 1 and 14" in case
-    assert "share 1, 1 and 13" in case
-    assert "`hi_p = C_p`, which gives 2, 3, 1 and 12, and 3, 2 and 10" in case
-    assert "runs 1, 2, 1 and 8" in case and "`M_rest = 18`" in case
-    assert "runs 1, 1 and 4" in case and "`M_rest = 15`" in case
-
-
-def test_the_share_rounds_to_the_nearest_share_and_not_down():
-    """The oracle's first share case, kept: Sainte-Lague against d'Hondt."""
-    case = _case(6)
-    assert _share([10, 3], [MANY_CELLS, MANY_CELLS], 7) == [5, 2]
-    assert _dhondt([10, 3], 7) == [6, 1]
-    assert "`M_rest = 7` share 5 and 2 strata" in case
-    assert "`m_p + 1`, which gives 6 and 1" in case
-
-
-def test_the_strata_beyond_the_runs_go_into_a_gap_and_lift_no_run():
-    """Skeptic 1, item 1, and the statistics skeptic, item 2: walls alone
-    move the division of the longest run and the lift above it into the
-    top piece, which keeps the band totals and moves the threes onto 4."""
-    method = _g57d()
-    assert "3a. **WHERE THE STRATA BEYOND THE RUNS GO.**" in method
-    assert "step 3 of G5.2a does NOT divide the piece's longest run" in method
-    assert "the gap's free point NEAREST the divided stratum's value" in method
-    assert "That was all but 416 of the 29,676 rows off" in method
+        assert step in least
+    assert "**THE COLUMN IS MADE AS IT IS TODAY.**" in least
+    assert "today's value nearest the piece, never a value made up" in least
+    assert "And a rank moves toward the real column, save in one case." in least
+    assert "Held to the band totals and to no value made up, no twin of that piece does better." in least
+    assert "`hi_p`" not in least and "Sainte-Lague" not in least
+    withdrawn = _g57d()
+    assert "(withdrawn by lane BT's repair)" in withdrawn
+    why = _g57()
+    assert "**Why the least move, and not the band map the first build read the" in _between(
+        METHOD, "### G5.7 The L0 band totals", "#### G5.7a "
+    )
+    assert "872" in why and "788, a code nobody wrote" in why
+    assert "2,232 rows of the Kolmogorov-Smirnov distance" in why
+    assert "today's twin's 70" in why and "the distance is 26 rows" in why
+    passes = _flat(_between(METHOD, "#### G5.7f ", "#### G5.7g "))
+    assert "runs on an eligible column exactly as on any other" in passes
+    assert "So no pass needs a wall" in passes
+    assert "16. *(Withdrawn by lane BT's repair" in _g143a()
 
 
 # ------------------------------------------------- the count of few values
@@ -318,9 +304,9 @@ def test_oracle_case_one_is_the_count_whose_twin_lifts_its_values():
         share = Fraction(counts[3], bands[3])
         assert share > Fraction(55, 100)
         assert "{:.1f}".format(float(share) * 100) in case
-    assert "The vector freezes the twin's count AT EACH VALUE" in case
+    assert "The vectors freeze the twin's count AT EACH VALUE" in case
     assert "more than 55 per cent of the top band" in case
-    assert "G6.5a's ascending fill kept inside the top piece" in case
+    assert "Mutant: G5.7c withdrawn, which is today's twin, its bands missed" in case
     assert "1,000-row column" not in case
 
 
@@ -417,66 +403,37 @@ def test_k_s6_02_counts_every_b1_miss_and_names_its_yardstick():
     clause (iv) passed every miss rule B1 names, and named no window."""
     facts = _g57h()
     assert "save the misses rule B1 names" not in facts
-    assert "4. 0 within-column facts that the twin made without L0 HOLDS and the twin made with it MISSES" in facts
-    assert "at G12.2's half unit, extended only beside a cut as G12.15 says" in facts
+    assert ("4. 0 checks of the quality report, on any column or on the file, that "
+            "the twin made without L0 holds and the twin made with it misses") in facts
+    assert "(today's windows of G12.2, G12.3 and G12.3a at G12.2's half unit)" in facts
+    assert "the mode's among them" in facts
     assert "a count above 0 is a named residual in the plan, never a pass" in facts
-    assert "it is not an allowance of this KPI" in facts
-    assert "5. within the bands, on every count column" in facts
+    assert "Rule B1 is how the generator behaves, and it excuses nothing" in facts
+    assert "5. on every eligible column of numbers, the Kolmogorov-Smirnov distance" in facts
     assert "0 regressions" in facts
+    assert "6. on every eligible column whose real cells all differ" in facts
+    assert "the health zoo's 25 exports" in facts
     decision = _decision()
     assert "save rule B1's named misses" not in decision
     assert "never a pass" in decision
 
 
-def _reaches_above(k, K, g, cut):
-    return k * K + (g + 2) * (K - 1) >= cut * (K - 1)
-
-
-def _reaches_below(k, K, g, cut):
-    return k * K - (g + 2) * (K - 1) <= cut * (K - 1)
-
-
-def test_g1215_keeps_the_half_unit_and_extends_only_beside_a_cut():
-    """The statistics skeptic, item 1: one whole unit on both ends of every
-    window widened the mean windows of whole-number columns by 9 to 20 per
-    cent, where the piece repair acts only beside a cut."""
+def test_g1215_keeps_todays_windows_and_owes_the_clock_mirror_before_chc():
+    """The statistics skeptic of lane BTp, item 1: one whole unit on both
+    ends of every window widened the mean windows of whole-number columns
+    by 9 to 20 per cent. Lane BT's repair withdraws the band map, so a
+    number column's windows are today's; the orchestrator's ruling (b) of
+    2026-10-25 puts the clock's quality-report mirror in G12.15's own text."""
     windows = _g1215()
     assert "each end widens by ONE unit of the grid, not half" not in windows
-    assert "**The half unit stays G12.2's; only an end beside a cut is extended.**" in windows
-    assert "A[k] = min(A[k], hf_p) where k * K + (g_max + 2) * (K - 1) >= R_hi * (K - 1)" in windows
-    assert "B[k] = max(B[k], lf_p) where k * K - (g_max + 2) * (K - 1) <= R_lo * (K - 1)" in windows
+    assert "**On an eligible number column the windows are today's.**" in windows
     assert "**Why not one whole unit on both ends everywhere**" in windows
-    for K in (5, 12, 40):
-        for g in (0, 1, 3):
-            for k in range(K):
-                position = Fraction(k * K, K - 1)
-                for cut in range(K + 1):
-                    assert _reaches_above(k, K, g, cut) == (position + g + 2 >= cut)
-                    assert _reaches_below(k, K, g, cut) == (position - g - 2 <= cut)
-    case = _case(5)
-    assert "every window widened by a whole unit" in case
-    assert "the extension withdrawn" in case
+    assert "**The quality report's mirror of the clock's knots is OWED BY LANE BT2**" in windows
+    assert "BUILT BEFORE THE LANDING THAT LETS `validate` READ A CHAIN (lane CHc)" in windows
+    assert "`validate` refuses a description whose `statistical` slot is filled (S12)" in windows
 
 
 # ------------------------------------------------- the two small corrections
-
-
-def test_a_heaped_median_stands_at_most_eight_ranks_below_its_rung():
-    """Skeptic 1, item 5: the type-7 median of 1,000 rows reads ranks 499 and
-    500, so a heap of nine rows holding it starts at rank 492 at the
-    lowest."""
-    K, heap = 1000, 9
-    h = Fraction(K - 1, 2)
-    rung_rank = K * 50 // 100
-    gaps = []
-    for start in range(K - heap + 1):
-        held = range(start, start + heap)
-        if int(h) in held and int(h) + 1 in held:
-            gaps += [rung_rank - start]
-    assert max(gaps) == 8 and min(gaps) == 1
-    case = _case(4)
-    assert "`R_j` lies up to eight ranks below `P_j = 500`" in case
-    assert "nine ranks" not in case
 
 
 def test_a_half_groups_derived_count_is_never_printed():
@@ -513,8 +470,8 @@ def test_the_interface_hands_over_a_workbook_cells_class():
             "with its format kind and its date or clock kind, never by a class "
             "handed out again after the arrangement") in reservation
     case = _case(13)
-    assert ("the class not handed over, step 1 run again in row order after "
-            "the arrangement") in case
+    assert ("Mutant: the classes not carried (`Twin.sheet_dealt` empty), the "
+            "writer dealing them again in row order") in case
 
 
 def _half_before(cut, others_before):
@@ -568,8 +525,8 @@ def test_the_absent_spelling_steps_never_cross_a_cut():
     assert "both ranges are cut to the rank's L0 piece" in _g75()
     assert "the window is cut to the rank's piece" in _g7a4()
     assert "**The absent-spelling step keeps the piece.**" in _g7a4d()
-    assert "which writes February 1 and moves a row across the cut" in _case(7)
-    assert "Mutant: the window uncut" in _case(9)
+    assert ("Mutant: the windows uncut, which lets a rank below the cut be "
+            "stepped onto the edge or after it") in _case(7)
 
 
 CASE_14 = {Fraction(k, 10): 100 for k in range(1, 7)}
@@ -604,7 +561,7 @@ def test_p3_reads_the_widest_grid_and_a_piece_takes_a_finer_one():
     assert "NARROWEST named width of `fraction_widths`" in _g57b()
     case = _case(14)
     assert "150 at `1.01`, 150 at `1.02`" in case
-    assert "which makes the column without L0 (rule B3)" in case
+    assert "which fails (P3) and makes the column without L0 (rule B3)" in case
 
 
 CASE_15 = {Fraction(1): 800, Fraction(2): 100}
@@ -626,93 +583,13 @@ def test_the_word_budget_is_the_columns_without_l0():
     budget = _g43()
     assert ("**On an eligible column (layer L0, G5.7) `S`, `pinned` and `zeroed` "
             "are read as G5.2 gives them to the column WITHOUT L0**") in budget
-    layout = _g57d()
-    assert "**Neither moves the word budget.**" in layout
-    assert "G4.3's word budget reads the lowered `M`" not in layout
-    assert "as if its word were `2**63`" in layout
+    least = _flat(_between(METHOD, "#### G5.7c ", "#### G5.7d "))
+    assert ("**What it promises.** No word: the column draws exactly the words "
+            "G4.3 budgets for it, in today's order, so no later column moves") in least
+    assert "G4.3's word budget reads the lowered `M`" not in _g57()
     case = _case(15)
-    assert "`M = 102` without L0 is lowered to at most 11" in case
-    assert "still draws its 100 words" in case
-
-
-def _gap_taken(strata, low_end, high_end, eligible_only, empty_is_gap=False):
-    """G5.7d item 3a's choice of gap on whole numbers: the widest, the
-    lowest on a tie; None where no gap qualifies (`M` lowered)."""
-    taken = {v for v, _ in strata}
-    best = None
-    for i in range(len(strata) + 1):
-        below = strata[i - 1] if i > 0 else None
-        above = strata[i] if i < len(strata) else None
-        low = below[0] + 1 if below else low_end
-        high = above[0] - 1 if above else high_end
-        free = [v for v in range(low, high + 1) if v not in taken]
-        sides = [s for s in (below, above) if s is not None]
-        if not free and not empty_is_gap:
-            continue
-        if eligible_only and max(c for _, c in sides) < 2:
-            continue
-        if best is None or len(free) > best[0]:
-            best = (len(free), i, free)
-    return best
-
-
-def _make_in_gap(strata, low_end, high_end, eligible_only):
-    """G5.7d item 3a on whole numbers: make one stratum in the widest gap,
-    the lowest on a tie, dividing the stratum of more cells beside it;
-    None where no gap is eligible."""
-    best = _gap_taken(strata, low_end, high_end, eligible_only)
-    if best is None:
-        return None
-    _, i, free = best
-    below = strata[i - 1] if i > 0 else None
-    above = strata[i] if i < len(strata) else None
-    if below is None or (above is not None and above[1] > below[1]):
-        value, cells = above
-        point, at = free[-1], i
-    else:
-        value, cells = below
-        point, at = free[0], i - 1
-    kept, moved = cells - cells // 2, cells // 2
-    out = list(strata)
-    out[at] = (value, kept)
-    out.insert(at + 1 if point > value else at, (point, moved))
-    return sorted(out)
-
-
-def test_a_stratum_is_made_only_in_an_eligible_gap():
-    """Codex item 5: the widest gap between two strata of one cell each
-    divided a single cell into strata of none and one."""
-    strata = [(1, 1), (10, 1), (11, 100), (13, 100)]
-    made = _make_in_gap(strata, 1, 13, True)
-    assert made == [(1, 1), (10, 1), (11, 50), (12, 50), (13, 100)]
-    assert min(c for _, c in made) >= 1
-    mutant = _make_in_gap(strata, 1, 13, False)
-    assert min(c for _, c in mutant) == 0
-    layout = _g57d()
-    assert "in the piece's WIDEST ELIGIBLE GAP" in layout
-    assert "a gap no stratum beside which can be divided is never taken" in layout
-    case = _case(16)
-    assert "the 100 cells at 11 divided into 50 and 50" in case
-    assert "strata of 0 and 1" in case
-
-
-def test_a_stretch_of_no_free_point_is_not_a_gap():
-    """Verify of 11dd0b6b, finding 2: item 3a did not say whether a stretch
-    holding no free point is a gap, and read literally it took one and
-    divided a stratum with nowhere to put the new part."""
-    strata = [(1, 1), (10, 1), (11, 100), (12, 100)]
-    assert _gap_taken(strata, 1, 12, False) == (8, 1, list(range(2, 10)))
-    assert _gap_taken(strata, 1, 12, True) is None
-    assert _make_in_gap(strata, 1, 12, True) is None
-    mutant = _gap_taken(strata, 1, 12, True, empty_is_gap=True)
-    assert mutant == (0, 2, [])
-    layout = _g57d()
-    assert "**A GAP holds at least one free point; a stretch of none is not a gap.**" in layout
-    assert "so they are no gaps: none is eligible, the stratum is not made" in layout
-    case = _case(16)
-    assert "(b) The strata `(1, 1), (10, 1), (11, 100), (12, 100)`" in case
-    assert "so the stratum is not made and `M` is lowered by one" in case
-    assert "Mutant: a stretch of no free point read as a gap" in case
+    assert "the first column draws its 100 words" in case
+    assert "byte for byte its cells without L0" in case
 
 
 CASE_17_SPELLINGS = []
@@ -805,8 +682,8 @@ def test_p3_fails_where_a_band_was_written_only_at_unnamed_widths():
     assert "1.0222" not in case
     assert "ten each written at two, three, four and five figures" in case
     assert "`fraction_widths` `{\"1\": 400}`" in case
-    assert "made without L0 under rule B3, named" in case
-    assert "Mutant: (P3) passed on the widest named width's grid alone" in case
+    assert "the column is made without L0 under rule B3, named in the twin's report" in case
+    assert "Mutant: (P3) passed whatever the band holds" in case
     decision = _decision()
     assert "**A stated limit, owned by lane BT**, which may lift it later with a measured cost" in decision
     assert "(G14.3a case 17, expected outcome B3)" in decision
@@ -831,7 +708,7 @@ def test_a_label_cells_band_is_its_level_never_its_text():
     assert "A cell G8.3 writes for a WITHHELD level has no published level and lies in `other`" in interface
     assert "the place of its level in the block's published order, counted from nought" in interface
     case = _case(13)
-    assert "two level groups of 60 each, by level and not by text" in case
+    assert "a label column's cells grouped by level and not by text (each level group one reading)" in case
 
 
 def test_a_short_text_reservation_reserves_the_first_targets():
@@ -855,6 +732,7 @@ def test_a_short_text_reservation_reserves_the_first_targets():
     case = _case(11)
     assert "the first eleven target rows in row order are reserved" in case
     assert "which declares 109 arranged rows with 108 left" in case
+    assert "the twin's report names the shortfall" in case
 
 
 PCT = (0, 1, 5, 10, 25, 50, 75, 90, 95, 99, 100)
@@ -880,3 +758,58 @@ def test_the_clock_knots_name_index_and_percent_apart():
     assert "they stand at `18000 * 2**64` and `20000 * 2**64`" in clocks
     case = _case(9)
     assert "the upper knot at `20000 * 2**64`" in case
+
+
+# -- LANE BT'S SECOND REPAIR (2026-10-26): its verify and the outside review of 07aaed4e ------------
+# Each check is red on the page at 07aaed4e, which said none of these.
+
+
+def test_the_interface_hands_one_group_per_published_band_in_its_order():
+    """The outside review's items 4, 5 and 8: a band joining `missing` with a level is one group; a column rule B3 makes is grouped by its readings; a level found by halving."""
+    text = _g42b()
+    assert "ONE GROUP PER PUBLISHED L0 BAND, IN THE PUBLISHED BAND ORDER" in text
+    assert "one group of its 376 cells, not a group of the 375 `B` cells and one of the absent cell" in text
+    assert "a column of numbers and labels by its numbers' readings and its labels in `labels`" in text
+    assert "found by halving the levels' places" in text
+    # ...and the old order, spread bands last, is gone.
+    assert "then `missing`, `other` and `labels`, wherever the column has them" not in text
+
+
+def test_the_workbook_classes_travel_a_byte_a_row_and_move_with_the_sort():
+    """The outside review's items 1 and 6."""
+    text = _g42b()
+    assert "moves them with its rows where the description publishes a sort" in text
+    assert "32 of 60 numeric cells" in text and "a byte a row" in text
+
+
+def test_the_count_rule_is_two_sided_against_todays_twin():
+    """Lane BT's verify, item 1: a value step 1 empties keeps a cell while the count is short; a count over today's merges outside the heap gaps too."""
+    text = _g57()
+    assert "THE COUNT RULE IS TWO-SIDED, AGAINST TODAY'S TWIN'S COUNT" in text
+    assert "**Short of it**" in text and "NO PROVEN HEAP LEAVES ITS RANKS" in text
+    assert "**Over it**" in text and "holding fewer cells than the floor" in text
+    # ...and the residual the one-sided rule left is no longer a rule.
+    assert "nothing changes where none stands, and the twin then holds one different value more" not in text
+
+
+def test_the_cells_as_written_stay_in_their_pieces():
+    """The outside review's items 2 and 3: the snap held to the piece; the written cells and a date's or clock's readings checked."""
+    text = _g57()
+    assert "AND ON THE CELLS AS WRITTEN" in text
+    assert "`5.175` written `5.18`, across the published edge `5.1756`" in text
+    assert "`_l0_cells_met`" in text and "`_l0_readings_met`" in text
+
+
+def test_an_edges_rung_at_a_boundary_rank_cuts_the_clock():
+    """The outside review's item 3."""
+    text = _g7a4d()
+    assert "An edge's rung read at a boundary's own rank cuts too" in text
+    assert "379 cells below `12:10` where the band publishes 370" in text
+
+
+def test_the_searches_are_bounded():
+    """The outside review's items 7 and 9."""
+    text = _g57()
+    assert "THE SEARCHES ARE BOUNDED" in text
+    assert "doubled" in text or "steps that double" in text
+    assert "80,200 checks for one free point" in text

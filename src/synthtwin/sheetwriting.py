@@ -400,6 +400,39 @@ def cell_classes(
     return tuple(out)
 
 
+def reserved_cell_classes(
+    census: "dict[str, int | None]",
+    cells: "tuple[str, ...]",
+    value_class: "str | None",
+    reserved: int,
+) -> "tuple[str, ...]":
+    """Each cell's class where G4.2a's reservation holds the first ``reserved`` rows (lane BT, plan P4-D429).
+
+    Step 1 hands out the three classes holding nothing by exactly the
+    counts it gives them (`dialect.sheet_nothing_totals`), but to the
+    RESERVED cells first -- `absent` while the absent cells last, then
+    `blank` -- and only then, in G4.2's order (row order here, the
+    reservation having laid every other cell in it), what is left of the
+    three to the column's other cells holding no text. No reserved cell is
+    ever `empty`, and each class keeps its count. The cells holding text
+    take their classes as `cell_classes` deals them.
+    """
+    out = list(cell_classes(census, cells, value_class))
+    empty_order = [index for index in range(len(cells)) if cells[index] == ""]
+    totals = dialect.sheet_nothing_totals(census, len(empty_order))
+    left = [totals[0], totals[1], totals[2]]
+    for index in empty_order:
+        place = 0
+        if index < reserved:
+            place = 0 if left[0] > 0 else 1
+        else:
+            while place < 2 and left[place] <= 0:
+                place = place + 1
+        out[index] = _NOTHING_CLASSES[place]
+        left[place] = left[place] - 1
+    return tuple(out)
+
+
 def _date_cells_first(
     kind: str, fitting: "list[int]", wanted: int, cells: "tuple[str, ...]"
 ) -> "list[int]":
@@ -1927,6 +1960,97 @@ def _members(
     return members
 
 
+def _column_dealt(
+    profile: "contract.Profile",
+    index: int,
+    given: "tuple[str, ...]",
+    reserved: int,
+) -> "tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]":
+    """One workbook column's cells as written, the kind of date each came with, and its classes (G2.2).
+
+    The storage class is allocated before the conversion and settled
+    after it (plan P4-D284): the census says which cells are stored as
+    ISO date text, every other date becomes the day count a workbook
+    stores, and the classes are dealt over the cells as they will be
+    written -- in row order, or, where G4.2a's reservation holds the
+    first ``reserved`` rows (behind the chain's switch; lane BT, plan
+    P4-D429), to the reserved cells first. ``reserved`` is -1 elsewhere.
+    """
+    form = profile.source.workbook
+    if form is None:
+        raise TypeError("internal check: a workbook column was asked of a description that records no workbook")
+    column = form.columns[index]
+    epoch_1904 = form.date_system == dialect.SHEET_DATE_SYSTEM_1904
+    written = given
+    stores_dates = _stores_dates(column)
+    if stores_dates:
+        told: "frozenset[str]" = frozenset()
+        if index < len(profile.columns):
+            told = _published_spellings(profile.columns[index])
+        written = _onto_the_calendar(written, told)
+    held = cell_classes(column.cell_classes, written, column.value_class)
+    own, dated = _dates_as_day_counts(
+        column, written, epoch_1904, held if stores_dates else (),
+    )
+    own = _clocks_as_day_fractions(column, own)
+    if reserved >= 0:
+        dealt = reserved_cell_classes(column.cell_classes, own, column.value_class, reserved)
+    else:
+        dealt = cell_classes(column.cell_classes, own, column.value_class)
+    return own, dated, dealt
+
+
+def class_codes(kinds: "tuple[str, ...]") -> bytes:
+    """A column's cell classes as one code byte a cell, the way this writer holds them (`_class_codes`)."""
+    return _class_codes(kinds)
+
+
+def column_dealt_cells(
+    profile: "contract.Profile",
+    index: int,
+    cells: "tuple[str, ...]",
+    reserved: int,
+) -> "tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...], tuple[str, ...]]":
+    """One workbook column's cells as written, its kinds of date, classes and format kinds, dealt over ``cells`` in order.
+
+    What G4.2a has the generator fix for an eligible column before the
+    arrangement (lane BT's repair, plan P4-D429): the writer's own
+    dealing of `_column_dealt` and `cell_format_kinds`, over the cells in
+    G4.2's order, the reserved cells on the first ``reserved`` rows.
+    """
+    form = profile.source.workbook
+    if form is None:
+        raise TypeError("internal check: a workbook column was asked of a description that records no workbook")
+    own, dated, dealt = _column_dealt(profile, index, cells, reserved)
+    column = form.columns[index]
+    kinds = cell_format_kinds(column.format_kinds, dealt, column.format_code, dated)
+    return own, dated, dealt, tuple(kinds)
+
+
+def column_dealt_kinds(
+    profile: "contract.Profile",
+    index: int,
+    cells: "tuple[str, ...]",
+    reserved: int,
+) -> "tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]":
+    """Each cell's class, format kind and kind of date, as this writer deals them over ``cells`` in row order.
+
+    What layer L0's interface hands G16 for a workbook column (method
+    G4.2b; lane BT, plan P4-D429): the cells in the order the
+    reservation lays them -- the reserved cells on the first ``reserved``
+    rows, then every other cell in G4.2's order -- dealt exactly as the
+    writer deals them, so a cell keeps the class it is written by
+    wherever an arrangement puts it.
+    """
+    form = profile.source.workbook
+    if form is None:
+        raise TypeError("internal check: a workbook column was asked of a description that records no workbook")
+    _own, dated, dealt = _column_dealt(profile, index, cells, reserved)
+    column = form.columns[index]
+    kinds = cell_format_kinds(column.format_kinds, dealt, column.format_code, dated)
+    return dealt, tuple(kinds), dated
+
+
 def _package(
     profile: "contract.Profile", twin: "generation.Twin"
 ) -> "list[tuple[str, int, typing.Iterable[str]]]":
@@ -1969,38 +2093,38 @@ def _package(
     classes: "list[bytes]" = []
     cells: "list[twinstore.HeldColumn]" = []
     dates: "list[twinstore.HeldColumn | None]" = []
-    epoch_1904 = form.date_system == dialect.SHEET_DATE_SYSTEM_1904
     # THE STORAGE CLASS IS ALLOCATED BEFORE THE CONVERSION, AND SETTLED
-    # AFTER IT (plan P4-D284). The first pass asks the census which
-    # cells are stored as ISO date text, because only their own
-    # spelling can answer that; those cells keep it, every other date
-    # becomes the day count a workbook stores, and the second pass
-    # settles the classes over the cells as they will be written.
+    # AFTER IT (plan P4-D284), one column at a time (`_column_dealt`).
+    # ...AND AN ELIGIBLE COLUMN BY WHAT G4.2a DEALT IT BEFORE THE
+    # ARRANGEMENT (lane BT's repair, plan P4-D429): its classes, format
+    # kinds and kinds of date travelled with each cell to the row G16 put
+    # it on, so none is dealt again here (`generation._sheet_dealt_before`).
+    # ...each held a byte a cell (`generation.SheetDealt`), its format kinds
+    # read out one column at a time where the styles are worked out below.
+    carried_kinds: "dict[int, generation.SheetDealt]" = {}
     for index in range(width):
-        column = form.columns[index]
+        carried = twin.sheet_dealt[index] if index < len(twin.sheet_dealt) else None
+        if carried is not None:
+            classes_of, _kinds_of, dated_of = generation.sheet_dealt_kinds(carried)
+            if carried.written is None:
+                cells += [twin.held_columns[index] if twin.held_columns is not None else twinstore.held_column(list(generation.twin_column(twin, index)))]
+            else:
+                cells += [carried.written]
+            dates += [_held_tags(dated_of)]
+            classes += [_class_codes(classes_of)]
+            classes_of = ()
+            dated_of = ()
+            _kinds_of = ()
+            carried_kinds[index] = carried
+            continue
         given = generation.twin_column(twin, index)
-        written = given
-        stores_dates = _stores_dates(column)
-        if stores_dates:
-            told: "frozenset[str]" = frozenset()
-            if index < len(profile.columns):
-                told = _published_spellings(profile.columns[index])
-            written = _onto_the_calendar(written, told)
-        held = cell_classes(
-            column.cell_classes, written, column.value_class
-        )
-        own, dated = _dates_as_day_counts(
-            column, written, epoch_1904, held if stores_dates else (),
-        )
-        own = _clocks_as_day_fractions(column, own)
+        own, dated, dealt = _column_dealt(profile, index, given, twin.reserved_rows)
         if twin.held_columns is not None and own == given:
             cells += [twin.held_columns[index]]
         else:
             cells += [twinstore.held_column(list(own))]
         dates += [_held_tags(dated)]
-        classes += [
-            _class_codes(cell_classes(column.cell_classes, own, column.value_class))
-        ]
+        classes += [_class_codes(dealt)]
 
     items: "list[str]" = []
     places: "dict[str, int]" = {}
@@ -2012,10 +2136,19 @@ def _package(
     wanted_empty = 0
     if form.empty_rows_inside is not None:
         wanted_empty = form.empty_rows_inside
-    classes, cells, dates = _aligned_held(
-        classes, cells, dates, n_rows, wanted_empty
-    )
-    empty_places = _empty_row_places_held(classes, n_rows, wanted_empty)
+    # ...AND WHERE G4.2a'S RESERVATION RAN (behind the chain's switch;
+    # lane BT, plan P4-D429) the records holding nothing already stand on
+    # the first rows: no cell is exchanged after the arrangement, and each
+    # reserved row is written cell by cell by its classes -- an absent
+    # cell as no cell, a blank one as a blank cell in its style -- so a
+    # reserved blank reads back blank, not absent.
+    if twin.reserved_rows >= 0:
+        empty_places: "dict[int, bool]" = {}
+    else:
+        classes, cells, dates = _aligned_held(
+            classes, cells, dates, n_rows, wanted_empty
+        )
+        empty_places = _empty_row_places_held(classes, n_rows, wanted_empty)
 
     # ONE STYLE PER CELL, worked out after the cells have settled: a
     # column may hold a mixture of format kinds and the census publishes
@@ -2024,10 +2157,13 @@ def _package(
     styles: "list[bytes | tuple[int, ...]]" = []
     for index in range(width):
         column = form.columns[index]
-        kinds = cell_format_kinds(
-            column.format_kinds, _class_names(classes[index]), column.format_code,
-            _tags_of(dates[index], n_rows),
-        )
+        if index in carried_kinds:
+            kinds = generation.sheet_dealt_kinds(carried_kinds[index])[1]
+        else:
+            kinds = cell_format_kinds(
+                column.format_kinds, _class_names(classes[index]), column.format_code,
+                _tags_of(dates[index], n_rows),
+            )
         row_styles: "list[int]" = []
         for row in range(len(kinds)):
             code = _code_for_kind(kinds[row], column.format_code)

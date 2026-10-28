@@ -247,6 +247,11 @@ THIRTEENTH_BRANCH_VECTORS = (
 # its own vectors file and its maker below its own line.
 # anchor 3b-D1 (P4-D365)
 # anchor 3b-D0 (P4-D366)
+# THE TWENTY-EIGHTH FILE (layer L0's rules, lane BT, plan P4-D429): answers
+# of rules, not columns, held by tests/test_stage6_band_totals.py.
+TWENTY_EIGHTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_28.py"
+)
 # THE FIFTEENTH FILE (landing 3b.D0's shared steps of G7.3f, plan P4-D366):
 # states of ranks, not columns, held by tests/test_stage3b_shared_steps.py.
 FIFTEENTH_BRANCH_GENERATOR = (
@@ -1793,6 +1798,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         EIGHTEENTH_BRANCH_GENERATOR,
         NINETEENTH_BRANCH_GENERATOR,
         TWENTY_SEVENTH_BRANCH_GENERATOR,
+        TWENTY_EIGHTH_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )
