@@ -62,8 +62,13 @@ def _round_trip(
     flags: "tuple[str, ...]" = (),
     seed: str = "4",
     by_command: bool = True,
+    walk_only: bool = False,
 ) -> dict:
     """Describe, build, validate the twin AND the table; hand back all four.
+
+    ``walk_only`` builds from the description with its exclusions emptied
+    (`fixtures.profile_without_exclusions`, plan P4-D432): the walk's own
+    cells, for a column whose real values fill their layouts' rooms.
 
     A second column stands beside a column under test unless the caller
     gives one, because a one-column table holding an empty cell is
@@ -100,6 +105,8 @@ def _round_trip(
     else:
         describe_with_the_producer(table, folder / "real-profile.json", flags)
     described = folder / "real-profile.json"
+    if walk_only:
+        fixtures.profile_without_exclusions(described)
     generated = _exit_of(
         ["generate", str(described), "--out-dir", str(folder), "--seed", seed,
          "--replace"]
@@ -458,6 +465,11 @@ def test_a_whole_number_identifier_holding_nought_keeps_its_layout(
     result = _round_trip(
         tmp_path, {"value": cells},
         ("--identifier", "value", "--smallest-group", "10"),
+        # THE WALK'S OWN CELLS (plan P4-D432): every number of the column's
+        # lengths is a real value, so the final pass of method G9.6b writes
+        # each twin value wider than every real one; the lone nought is the
+        # walk's, read from the description without its exclusions.
+        walk_only=True,
     )
     assert _column(result)["layout_forms"] == {"%%%": 20}
     three = [cell for cell in result["twin"]["value"] if len(cell) == 3]
@@ -481,7 +493,14 @@ def test_a_column_counted_from_one_is_not_written_holding_nought(
     cells as well.
     """
     cells = [f"{number}" for number in range(1, rows + 1)]
-    result = _round_trip(tmp_path, {"value": cells}, ("--identifier", "value"))
+    result = _round_trip(
+        tmp_path, {"value": cells}, ("--identifier", "value"),
+        # THE WALK'S OWN CELLS (plan P4-D432): every number of the column's
+        # lengths is a real value, so the final pass of method G9.6b writes
+        # each twin value wider than every real one; the lone nought is the
+        # walk's, read from the description without its exclusions.
+        walk_only=True,
+    )
     twin = result["twin"]["value"]
     assert "0" not in twin
     assert [
@@ -521,6 +540,11 @@ def test_the_oracle_and_the_product_walk_the_lone_nought_alike(
         tmp_path, {"value": cells},
         ("--identifier", "value", "--smallest-group", floor),
         by_command=rows >= parsing.POPULATION_FLOOR,
+        # THE WALK'S OWN CELLS (plan P4-D432): every number of the column's
+        # lengths is a real value, so the final pass of method G9.6b writes
+        # each twin value wider than every real one; the lone nought is the
+        # walk's, read from the description without its exclusions.
+        walk_only=True,
     )
     _both_pass(result)
     written = sorted(set(result["twin"]["value"]))

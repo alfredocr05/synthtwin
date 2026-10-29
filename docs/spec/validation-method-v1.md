@@ -2392,6 +2392,49 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   own domain cannot supply that many no packing of the other two
   repairs it. The summed reach can miss that, because it lets the
   smallest published groups answer for every band at once.
+- **V4.1-A1 (lane ID-ROOM, plan P4-D432, 2026-10-24): one more lowering,
+  a record number's corner, beside the four and not one of them** -- it
+  lowers no count to an envelope; it names facts the twin gives up by
+  construction. Where an identifier column publishes `layout_exclusions`
+  (contract 7.12b), `validation.moved_off_the_real` reads, off the
+  description alone and as this validator's own second opinion: every
+  named layout no exclusion is published for, whose twin values the
+  generator writes wider than every real cell (method G9.6b) -- its
+  census entry, subcheck `forms.published.<layout>`, is
+  REPORT-ONLY; and the shortest and longest lengths, subchecks
+  `length.min` and `length.max`, are REPORT-ONLY with it wherever such a
+  layout is named, wherever the census holds a `(withheld)` pool, or
+  wherever it counts fewer cells than the column holds (cells outside the
+  named layouts, whose twin values are written wider or by the G1 floor).
+  `layout_exclusions` itself is REPORT-ONLY wherever it
+  is published, subcheck `layout_exclusions`: it says what no real cell
+  holds, and no written file is checked against it. Each is a listing
+  entry citing the plan, never a check that cannot fail; every other
+  identifier check stands as before, the census entries of the layouts
+  carrying an exclusion among them. A description publishing no
+  exclusion lowers nothing. A real table validated against its own
+  description holds every one of these facts and is simply not asked
+  them here.
+- **V4.1-A2 (lane ID-ROOM's repair, plan P4-D432, 2026-10-25): a record
+  number written wider**, measured, never assumed. Every real cell's
+  merged key is shorter than the spill's (contract 7.12b), so a measured
+  cell whose merged key is as long (`taxonomy.written_wider`) is one the
+  twin wrote wider -- a value of a class or a date its layout's excluded
+  template could not take, or a value of a layout the census leaves
+  unnamed. THE EXACT BAR IS TRIED FIRST. A census entry of a layout
+  carrying an exclusion MISSED by holding fewer cells than published is
+  an AUTHORIZED-DEVIATION, citing the plan, where the measured file
+  holds cells written wider and every such shortfall together is no more
+  than them; a surplus, or a shortfall they do not cover, stays MISSED.
+  `length.min` and `length.max` MISSED are an AUTHORIZED-DEVIATION where
+  the file holds cells written wider and every other cell lies inside the
+  published lengths. And where every named layout publishes its own
+  prefix and the column none, a cell written wider wears no named
+  layout, so one more silent check, subcheck `prefix.(spill)`, holds it
+  to one of the published prefixes (Codex's review of the lane, item 4).
+  A real table holds no cell written wider and is asked every fact
+  exactly.
+
 - **datetime-offsets-withheld** (P2-D9): a datetime column whose
   `utc_offsets` map is the single `(withheld)` key. Then `utc_offsets`
   and `datetimes_read_at` are REPORT-ONLY, and the two TAILS are not:

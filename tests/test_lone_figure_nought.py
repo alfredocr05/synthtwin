@@ -69,6 +69,13 @@ def test_a_record_number_counting_from_nought_meets_its_layout_census(
         "--smallest-group", "10",
     ]) == 0
     described = tmp_path / "pairs-profile.json"
+    # THE WALK'S OWN CELLS (plan P4-D432): every number of `0` to `119` is
+    # a real value, so the final pass of method G9.6b writes each twin
+    # value wider than every real one; the lone nought is the walk's, read
+    # from the description without its exclusions.
+    from tests import fixtures
+
+    fixtures.profile_without_exclusions(described)
     assert _exit_of([
         "generate", str(described), "--out-dir", str(tmp_path), "--seed", "4",
     ]) == 0

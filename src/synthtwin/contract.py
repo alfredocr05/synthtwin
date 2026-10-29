@@ -892,6 +892,13 @@ IDENTIFIER_KEYS = (
     # The owner ruled a constant prefix published where the column
     # clears the smallest group size; invariants LP1 and LP2 hold it.
     "layout_prefixes",
+    # THE NINTH KEY, AND THE ONE THAT SAYS WHAT THE COLUMN DOES NOT HOLD
+    # (lane ID-ROOM, plan P4-D432). Beside each named layout, the layout
+    # with places written as characters no real cell's merged key holds
+    # there, and the spill, longer than every real cell: the twin writes
+    # every cell with one of them, so no twin cell names a real one.
+    # Invariants LX1 to LX3 hold it.
+    "layout_exclusions",
     "max_length",
     "min_length",
     "n_all_digits",
@@ -2404,6 +2411,23 @@ INVARIANTS = {
         "from at least the column's different values plus the smallest "
         "group size, once the prefix's own characters are fixed"
     ),
+    # -- lane ID-ROOM (plan P4-D432): what no real cell of a record number
+    # holds, and the layout no real cell wears.
+    "LX1": (
+        "an exclusion is published for a layout the census names, or as "
+        "the spill, which every identifier block may publish beside any "
+        "census, an empty one included"
+    ),
+    "LX2": (
+        "an exclusion is its layout with one place or more written as a "
+        "character of that place's own alphabet, every one a place the "
+        "twin fills after the layout's prefix"
+    ),
+    "LX3": (
+        "the spill is the column's own prefix and then figures alone, a "
+        "layout the census does not name, longer than the column's longest "
+        "value"
+    ),
     # -- lane PS (plan P4-D417): the grain a column of dates or times was
     # pooled at, and the record a held one keeps.
     "TG1": (
@@ -3443,6 +3467,15 @@ class IdentifierFacts:
     # one fragment of the table this block may carry, by that ruling,
     # which amends I3 for this case only. Empty on every other column.
     layout_prefixes: "dict[str, str]"
+    # WHAT NO REAL CELL HOLDS (7.12b; lane ID-ROOM, plan P4-D432). Each
+    # named layout mapped to its exclusions -- itself with places written
+    # as characters no real cell's merged key holds there, one or several
+    # spellings of one block -- and `(spill)` to the column's prefix and
+    # figures, longer than every real cell, one entry. Empty on a document
+    # whose producer published none, which the twin then writes as before.
+    layout_exclusions: "dict[str, tuple[str, ...]]" = dataclasses.field(
+        default_factory=dict
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -18738,6 +18771,121 @@ def _layout_prefixes(
     return prefixes
 
 
+def _layout_exclusions(
+    mapping: "dict[str, object]",
+    where: str,
+    layouts: "dict[str, int]",
+    prefixes: "dict[str, str]",
+    longest: int,
+    all_whole: bool,
+) -> "dict[str, tuple[str, ...]]":
+    """What no real cell of a declared column holds, checked (7.12b, plan P4-D432).
+
+    LANE ID-ROOM. Each entry is checked as text, because it is text: a
+    key that is neither `(spill)` nor a named layout (LX1); an exclusion
+    that is not its layout with places written as characters of their own
+    alphabets, each a place the twin fills -- after the layout's prefix,
+    never a whole number's nought after the point -- and one left (LX2);
+    a spill that is not the column's prefix and figures alone, that the
+    census names, or no longer than the longest value (LX3). The spill
+    stands beside any census, an empty one included (skeptic 1 of lane
+    ID-ROOM, item 2). What it cannot check is the producer's promise that
+    no real cell holds the written characters: that is
+    `taxonomy.with_layout_exclusions`'s, read off the cells.
+
+    NO REFUSAL QUOTES AN EXCLUSION; it names the key and the rule.
+    Raises ProfileError for a wrong type and LX1 to LX3.
+    """
+    found = _mapping(mapping["layout_exclusions"], "layout_exclusions", where)
+    exclusions: "dict[str, tuple[str, ...]]" = {}
+    for scope in sorted(found):
+        entry = found[scope]
+        texts: "list[str]" = []
+        if isinstance(entry, str):
+            texts = [entry]
+        elif (
+            isinstance(entry, list)
+            and 2 <= len(entry) <= parsing.EXCLUSIONS_AT_MOST
+            and scope != parsing.EXCLUSION_SPILL
+        ):
+            for each in entry:
+                if isinstance(each, str) and each not in texts:
+                    texts += [each]
+            if len(texts) != len(entry):
+                texts = []
+        if not texts:
+            raise _out_of_range(
+                "layout_exclusions",
+                where,
+                "an entry that is neither text nor a list of different texts",
+                "a layout with places written out, several of one layout, or the "
+                "spill's layout",
+            )
+        exclusions[scope] = tuple(texts)
+    if not exclusions:
+        return exclusions
+    named: "list[str]" = []
+    for name in sorted(layouts):
+        if name != WITHHELD:
+            named += [name]
+    convention = _layout_census_convention(layouts)
+    whole = (
+        prefixes[parsing.PREFIX_OF_THE_COLUMN]
+        if parsing.PREFIX_OF_THE_COLUMN in prefixes
+        else ""
+    )
+    whole_places = all_whole and any(
+        parsing.whole_places_layout(name) != name for name in named
+    )
+    opening = parsing.prefix_layout(whole, convention) if whole else ""
+    for scope in sorted(exclusions):
+        text = exclusions[scope][0]
+        if scope != parsing.EXCLUSION_SPILL and scope not in named:
+            raise _broken(
+                "LX1",
+                where,
+                "an exclusion published for a layout the census does not name",
+                f"the census names {len(named)} layout(s)",
+            )
+        if scope == parsing.EXCLUSION_SPILL:
+            figures = len(text) - len(opening)
+            if (
+                not parsing.is_a_spill_layout(text)
+                or text in layouts
+                or len(text) <= longest
+                or figures < 1
+                or text[: len(opening)] != opening
+                or text[len(opening):] != parsing.LAYOUT_DIGIT * figures
+            ):
+                raise _broken(
+                    "LX3",
+                    where,
+                    f"a spill of {len(text)} characters",
+                    f"the longest value is {longest} characters",
+                )
+            continue
+        prefix = prefixes[scope] if scope in prefixes else whole
+        template = parsing.layout_template(scope, prefix, whole_places)
+        fits = True
+        for each in exclusions[scope]:
+            if not parsing.excludes_the_layout(scope, each):
+                fits = False
+                continue
+            for place in range(len(each)):
+                if each[place] != scope[place] and not parsing.exclusion_alphabet(
+                    template[place]
+                ):
+                    fits = False
+        if not fits:
+            raise _broken(
+                "LX2",
+                where,
+                f"the exclusion published for the layout '{scope}'",
+                "a place written out must be one the twin fills",
+            )
+    return exclusions
+
+
 def _holds_a_placeholder(text: str) -> bool:
     """Whether a stretch of a layout marks at least one figure or letter."""
     for character in text:
@@ -19701,6 +19849,7 @@ def _identifier_facts(
     )
     _pattern_closes(pairs, where, "I2", n_distinct, n_present)
     layouts = _layout_forms(mapping, where, floor)
+    prefixes = _layout_prefixes(mapping, where, layouts, n_distinct, floor)
     return IdentifierFacts(
         min_length=smallest,
         max_length=largest,
@@ -19717,8 +19866,14 @@ def _identifier_facts(
         ),
         n_distinct_by_occurrences=pattern,
         layout_forms=layouts,
-        layout_prefixes=_layout_prefixes(
-            mapping, where, layouts, n_distinct, floor
+        layout_prefixes=prefixes,
+        layout_exclusions=_layout_exclusions(
+            mapping,
+            where,
+            layouts,
+            prefixes,
+            largest,
+            _truth(mapping["all_whole_numbers"], "all_whole_numbers", where),
         ),
     )
 

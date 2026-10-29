@@ -562,6 +562,13 @@ KEYS_THAT_CARRY_NO_VALUE = (
     # prefix `parsing.is_a_literal_prefix` refuses and any key that is
     # neither `(column)` nor a layout, whatever built it.
     "layout_prefixes",
+    # THE EXCLUSIONS ARE ADMITTED ON A CHECKED PROPERTY TOO (lane ID-ROOM,
+    # plan P4-D432). Each is a named layout with a placeholder or a few
+    # written as a character that NO real cell of that layout holds there,
+    # or the spill layout, longer than every real cell: what it publishes
+    # is what the column does NOT hold, never a character any value has at
+    # its place (`with_layout_exclusions`, `contract._layout_exclusions`).
+    "layout_exclusions",
     "max_length",
     "min_length",
     "n_all_digits",
@@ -27199,6 +27206,9 @@ def _identifier_verdict(
             # published, so a pattern written against the twin selects
             # the rows it selects on the table. See `_layout_prefixes`.
             "layout_prefixes": _layout_prefixes(cells, layouts),
+            # WHAT NO REAL CELL HOLDS (lane ID-ROOM, plan P4-D432): written
+            # once the census is final, by `with_layout_exclusions`.
+            "layout_exclusions": {},
             # The shape of repetition, with no value attached to it: the
             # one fact a generator needs to rebuild a column of codes
             # that repeat, and the one this block did not carry (review
@@ -27520,6 +27530,558 @@ def _a1_written(
     details["min_length"] = shortest
     details["max_length"] = longest
     return dataclasses.replace(column, details=details)
+
+
+# -- WHAT NO REAL CELL HOLDS (lane ID-ROOM, plan P4-D432) ----------------
+#
+# A nought is never written at the OPENING OF A RUN OF FIGURES -- the
+# opening of a cell (a record number of figures alone would recount as a
+# zero fill), of a UID arc (the grammar leads no arc but `0` with a
+# nought), after a sign, a zero fill's noughts or a prefix's letters
+# (`rs0...` spells an rsID no source writes): the marks that continue a
+# run are these.
+_EXCLUSION_RUN_MARKS = (
+    parsing.LAYOUT_DIGIT + parsing.LAYOUT_LOWER_HEX + parsing.LAYOUT_UPPER_HEX
+    + "0123456789"
+)
+# The placeholders an exclusion writes out: a figure's, the two
+# hexadecimal marks, and a letter's.
+_EXCLUDED_MARKS = (
+    parsing.LAYOUT_DIGIT + parsing.LAYOUT_LOWER_HEX + parsing.LAYOUT_UPPER_HEX
+)
+_LETTER_MARKS = parsing.LAYOUT_UPPER + parsing.LAYOUT_LOWER
+
+
+def with_layout_exclusions(
+    column: ColumnProfile, cells: "list[str]", floor: int
+) -> ColumnProfile:
+    """A record-number block with what no real cell holds (lane ID-ROOM, plan P4-D432).
+
+    NO TWIN IDENTIFIER CELL NAMES A REAL ONE, BY CONSTRUCTION. Asked once
+    the block's census and prefixes are final, of the column's own cells,
+    it publishes `layout_exclusions` (contract 7.12b), READ ON THE MERGED
+    KEY (`parsing.merged_key`, the form `profile.subject_keys` counts a
+    person by): beside each named layout where one is found, the layout
+    with places written out that no real cell's merged key holds at the
+    place the layout's fillings stand there (`parsing.merged_places`),
+    among the real keys as long as those fillings' -- ONE place, the first
+    the twin fills, left to right, whose alphabet read from its greatest
+    character down reaches one no such key holds before one that 1 to
+    ``floor`` - 1 keys hold (no nought opening a run of figures, never a
+    rootless UID's first arc); else the BLOCK, every other place the twin
+    fills from the last, the fewest from one that some spelling no such
+    key holds there leaves, while the room left holds the layout's cells
+    or the column's different values, written as the greatest such
+    spellings (`_exclusion_of`). And on EVERY identifier block holding a
+    present cell, the SPILL (`(spill)`): the column's prefix and figures,
+    one character longer than the published longest value (a length that
+    says nothing, `parsing.LAYOUT_FORM_LIMIT` and one, where some real
+    cell is longer than the longest published), so its merged key is
+    longer than every real cell's. The twin writes every value either in
+    an excluded template, its merged key read place for place, or at
+    least as long, merged, as the spill (method G9.6b), so no twin cell's
+    merged key is a real cell's -- and no twin cell is spelled as a real
+    one either.
+
+    WHAT IT PUBLISHES IS WHAT THE COLUMN DOES NOT HOLD. A one-place
+    exclusion's character is held by no real key at its place, and a
+    block's spelling by none at its places TOGETHER -- each of its
+    characters alone may well be held there (Codex's review of lane
+    ID-ROOM, item 6); every character the one-place choice passed over at
+    that place is held by at least ``floor`` keys, and every spelling a
+    block passed over at its places by at least ``floor`` keys too (the
+    orchestrator's ruling 3 of 2026-10-25, item 2, option (b)); a block's
+    spellings stand at every other place, so no two written characters
+    are neighbours and no fragment of a value is read off it; no exclusion is a
+    real cell's text; and the spill's length is the published longest
+    value's and one. No real identifier, no extreme of one and no count
+    below the floor is published.
+
+    Guarantees: accepts a described column and its cells; returns it with
+    `layout_exclusions` written, or unchanged where it is no record
+    number. Determinism: a fixed function of the arguments. Raises
+    nothing. No I/O.
+    """
+    if column.role != ROLE_IDENTIFIER or "layout_exclusions" not in column.details:
+        return column
+    forms = (
+        column.details["layout_forms"] if "layout_forms" in column.details else None
+    )
+    prefixes = (
+        column.details["layout_prefixes"]
+        if "layout_prefixes" in column.details
+        else None
+    )
+    published_longest = (
+        column.details["max_length"] if "max_length" in column.details else None
+    )
+    if (
+        not isinstance(forms, dict)
+        or not isinstance(prefixes, dict)
+        or not isinstance(published_longest, int)
+    ):
+        return column
+    absent: "dict[str, bool]" = {}
+    for spelling in column.absent_spellings:
+        absent[spelling] = True
+    present = [
+        value for value in cells if parsing.trimmed(value) and value not in absent
+    ]
+    named: "list[str]" = []
+    for layout in sorted(forms):
+        if layout != SUPPRESSED_LABEL:
+            named += [f"{layout}"]
+    exclusions: "dict[str, object]" = {}
+    if present:
+        convention = parsing.layout_convention(present)
+        # THE REAL KEYS, BY THEIR MERGED LENGTH: two cells naming one
+        # person written two ways -- zero filled or not, with a hyphen or
+        # without, in either case -- are one key, and a twin key equal to
+        # a real one is as long as it.
+        keyed: "dict[int, list[str]]" = {}
+        texts: "dict[str, bool]" = {}
+        uids: "dict[str, bool]" = {}
+        longest = 0
+        for value in present:
+            longest = max(longest, len(value))
+            key = parsing.merged_key(value)
+            if len(key) not in keyed:
+                keyed[len(key)] = []
+            keyed[len(key)] += [key]
+            texts[parsing.folded(value)] = True
+            core = parsing.trimmed(value)
+            layout = parsing.folded_layout(parsing.layout_form(core, convention))
+            uids[layout] = (uids[layout] if layout in uids else True) and (
+                parsing.is_a_uid(core)
+            )
+        whole = ""
+        if parsing.PREFIX_OF_THE_COLUMN in prefixes:
+            whole = f"{prefixes[parsing.PREFIX_OF_THE_COLUMN]}"
+        all_whole = (
+            column.details["all_whole_numbers"]
+            if "all_whole_numbers" in column.details
+            else False
+        )
+        whole_places = all_whole is True and any(
+            parsing.whole_places_layout(layout) != layout for layout in named
+        )
+        # THE ROOM A FOLDED LAYOUT SHARES: a layout and its case flip
+        # (`REC` and `rec` and seven figures) take their fillings from one
+        # folded room, since no two twin values may fold to one, so each is
+        # asked the room of both.
+        sharing: "dict[str, int]" = {}
+        for layout in named:
+            folded = parsing.folded_layout(layout)
+            sharing[folded] = (sharing[folded] if folded in sharing else 0) + int(
+                f"{forms[layout]}"
+            )
+        for layout in named:
+            prefix = f"{prefixes[layout]}" if layout in prefixes else whole
+            template = parsing.layout_template(layout, prefix, whole_places)
+            length = parsing.merged_length(template)
+            folded = parsing.folded_layout(layout)
+            found = _exclusion_of(
+                keyed[length] if length in keyed else [],
+                layout,
+                template,
+                prefix,
+                floor,
+                int(f"{forms[layout]}"),
+                min(sharing[folded], column.n_distinct),
+                parsing.first_arc_places(template)
+                if folded in uids and uids[folded]
+                else 0,
+                texts,
+            )
+            if len(found) == 1:
+                exclusions[layout] = found[0]
+            elif found:
+                exclusions[layout] = found
+        exclusions[parsing.EXCLUSION_SPILL] = spill_of(
+            whole, convention, published_longest, longest
+        )
+    details: dict[str, object] = {}
+    for key in sorted(column.details):
+        details[key] = column.details[key]
+    details["layout_exclusions"] = exclusions
+    return dataclasses.replace(column, details=details)
+
+
+def spill_of(whole: str, convention: str, published: int, longest: int) -> str:
+    """The spill: the column's prefix and figures, one longer than the published longest value (P4-D432).
+
+    Built off the PUBLISHED longest value (skeptic 1 of lane ID-ROOM,
+    item 6), so it adds no fact: where every real cell is that long or
+    shorter, `published` + 1 characters; where some real cell is longer
+    (rule A1 counted it in a shorter layout), `parsing.LAYOUT_FORM_LIMIT`
+    + 1, a length that says nothing of any cell, since every cell a
+    layout census counts is at most that long. Every real cell opens with
+    the column's prefix where it publishes one, so the spill's merged key
+    is longer than every real cell's. A fixed function of the four.
+    Raises nothing. No I/O.
+    """
+    wanted = published + 1
+    if longest > published:
+        wanted = max(parsing.LAYOUT_FORM_LIMIT + 1, longest + 1)
+    opening = parsing.prefix_layout(whole, convention) if whole else ""
+    return opening + parsing.LAYOUT_DIGIT * max(wanted - len(whole), 1)
+
+
+def spill_bound(
+    exclusions: "dict[str, tuple[str, ...]]", prefixes: "dict[str, str]"
+) -> int:
+    """How long, merged, the spill's fillings are: every real cell's merged key is shorter (P4-D432).
+
+    0 where the description publishes no spill. Read off the description
+    alone, by the generator and the validator alike. Raises nothing. No
+    I/O.
+    """
+    if parsing.EXCLUSION_SPILL not in exclusions:
+        return 0
+    whole = ""
+    if parsing.PREFIX_OF_THE_COLUMN in prefixes:
+        whole = prefixes[parsing.PREFIX_OF_THE_COLUMN]
+    return parsing.merged_length(
+        parsing.layout_template(exclusions[parsing.EXCLUSION_SPILL][0], whole, False)
+    )
+
+
+def written_wider(
+    exclusions: "dict[str, tuple[str, ...]]",
+    prefixes: "dict[str, str]",
+    cells: "list[str]",
+) -> int:
+    """How many present cells are written wider than every real cell: merged, at least the spill's length.
+
+    No real cell is (contract 7.12b), so on a real table this is 0 and
+    on a twin it counts the values the final pass wrote wider (method
+    G9.6b). Raises nothing. No I/O.
+    """
+    bound = spill_bound(exclusions, prefixes)
+    if not bound:
+        return 0
+    wider = 0
+    for cell in cells:
+        if parsing.trimmed(cell) and len(parsing.merged_key(cell)) >= bound:
+            wider = wider + 1
+    return wider
+
+
+def widened_layouts_of(
+    layouts: "dict[str, int]",
+    prefixes: "dict[str, str]",
+    exclusions: "dict[str, tuple[str, ...]]",
+    all_whole: bool,
+    convention: str,
+) -> "dict[str, list[str]]":
+    """The layouts a record number's twin writes its named layouts' values wider in, each with the layouts it comes from (P4-D432).
+
+    Read off the description alone, as the generator widens (method
+    G9.6b, `parsing.widened_layout`): each named layout under its own
+    prefix, figures inserted until its merged key is the spill's length,
+    and one placeholder more where it holds a letter; and the spill's
+    layout, which a value of any named layout may take. The validator
+    holds a measured cell of one of these to a published prefix (Codex's
+    review of lane ID-ROOM, item 4) and counts a census entry's shortfall
+    against the cells that can have come from it (V4.1-A2). Raises
+    nothing. No I/O.
+    """
+    whole_places = all_whole and any(
+        parsing.whole_places_layout(layout) != layout
+        for layout in layouts
+        if layout != SUPPRESSED_LABEL
+    )
+    bound = spill_bound(exclusions, prefixes)
+    found: "dict[str, list[str]]" = {}
+    if not bound:
+        return found
+    whole = (
+        prefixes[parsing.PREFIX_OF_THE_COLUMN]
+        if parsing.PREFIX_OF_THE_COLUMN in prefixes
+        else ""
+    )
+    named: "list[str]" = []
+    for layout in sorted(layouts):
+        if layout == SUPPRESSED_LABEL:
+            continue
+        named += [layout]
+        prefix = prefixes[layout] if layout in prefixes else whole
+        opening = len(parsing.prefix_layout(prefix, convention)) if prefix else 0
+        wanted = bound - parsing.merged_length(
+            parsing.layout_template(layout, prefix, whole_places)
+        )
+        for more in range(0, 9):
+            wide = parsing.widened_layout(
+                layout, opening, wanted + more, 1 << 30, not whole_places
+            )
+            if wide:
+                if wide not in found:
+                    found[wide] = []
+                if layout not in found[wide]:
+                    found[wide] += [layout]
+    spill = exclusions[parsing.EXCLUSION_SPILL][0]
+    found[spill] = named
+    return found
+
+
+def moved_by_the_exclusions(
+    forms: "dict[str, int]",
+    exclusions: "dict[str, tuple[str, ...]]",
+    n_present: int,
+    grained: bool = False,
+) -> "tuple[tuple[str, ...], bool]":
+    """What a record number's twin gives up so no cell is spelled as a real one (plan P4-D432).
+
+    THE COLUMN'S OWN CORNER, read off its description alone, as owner
+    decision 6's is: the named layouts carrying no exclusion, whose values
+    the twin writes wider than every real cell (method G9.6b), and whether
+    the shortest and longest lengths go with them -- they do where such a
+    layout is named. The validator lists these REPORT-ONLY and the twin's
+    report names the values moved instead of a miss; the lengths go with
+    them too where a pool stands or the census counts fewer cells than
+    the column holds, the cells outside the named layouts written wider or
+    by the G1 floor. A layout carrying an exclusion whose twin writes some
+    values wider all the same is the validator's AUTHORIZED-DEVIATION,
+    measured (`written_wider`). Nothing is moved on a description
+    publishing no exclusion. A fixed function of the three. Raises
+    nothing. No I/O.
+    """
+    if not exclusions or grained:
+        # ...and a column of dates or times at a grain gives up nothing:
+        # its twin moves values only inside their own excluded templates
+        # (method G9.6b).
+        return (), False
+    moved: "list[str]" = []
+    counted = 0
+    for layout in sorted(forms):
+        counted = counted + int(f"{forms[layout]}")
+        if layout != SUPPRESSED_LABEL and layout not in exclusions:
+            moved += [layout]
+    # ...AND THE LENGTHS WHEREVER SOME REAL CELL STANDS OUTSIDE THE NAMED
+    # LAYOUTS -- a pool, or cells the census counts in no layout -- whose
+    # twin values are written wider, or by the G1 floor (P4-D417).
+    pooled = SUPPRESSED_LABEL in forms or counted < n_present
+    return tuple(moved), bool(moved) or pooled
+
+
+def _greatest_last(alphabet: str, alone: bool) -> str:
+    """The characters an exclusion may write at a place, in the order read from the end.
+
+    A HEXADECIMAL place, where ``alone`` says some real cell of the layout
+    is figures alone, takes a FIGURE and never a letter, so such a value --
+    a number, by its class -- still wears the excluded template and the
+    class and alphabet counts stay met there. Where no real cell of the
+    layout is figures alone, its letters are read first and its figures
+    after: a letter written in the column's own case keeps the case most
+    of the twin's letters wear, which is the case its convention reads
+    (`parsing.layout_convention`), beside a prefix of the other case.
+    Every other alphabet is read whole. The room the template keeps is
+    still counted over the whole alphabet.
+    """
+    letters = ""
+    figures = ""
+    for character in alphabet:
+        if "0" <= character <= "9":
+            figures = figures + character
+        else:
+            letters = letters + character
+    if figures and letters and alone:
+        return figures
+    return figures + letters
+
+
+def _room_left(room: int, template: str, fixed: "list[int]", opening: "list[int]") -> int:
+    """The fillings a template keeps with ``fixed`` places written: no nought opening a run (P4-D432)."""
+    left = room
+    for place in fixed:
+        left = left // len(parsing.exclusion_alphabet(template[place]))
+    for place in opening:
+        if place not in fixed:
+            left = left * 9 // 10
+    return left
+
+
+def _exclusion_of(
+    keys: "list[str]",
+    layout: str,
+    template: str,
+    prefix: str,
+    floor: int,
+    published: int,
+    need: int,
+    first: int,
+    texts: "dict[str, bool]",
+) -> "list[str]":
+    """One layout's exclusions (`with_layout_exclusions`): one, several of one block, or none.
+
+    ``keys`` are the merged keys of the real cells as long as the merged
+    key of the template's fillings; a place written stands at
+    `parsing.merged_places`'s place in them. THE ROOM ASKED HOLDS
+    ``need`` (the layout's cells or the column's values, whichever is
+    fewer), counted without a nought at a place that opens a run of
+    figures, which the twin never writes there (`_room_left`). ``first``
+    places open a rootless UID's first arc and are never written; an
+    exclusion spelled as a real cell (``texts``, folded) is none, and the
+    layout then carries no exclusion (Codex's review of lane ID-ROOM,
+    item 2).
+    """
+    need = max(need, 1)
+    stands = parsing.merged_places(template)
+    root = prefix if parsing.is_a_uid_root(prefix) else ""
+    room = (
+        parsing.uid_room(template[len(root):]) if root else parsing.layout_room(template)
+    )
+    # A NUMBER'S FIGURES AFTER ITS ONE POINT ARE NEVER WRITTEN: they say
+    # whether a value is whole, and a twin value whole or not as the walk
+    # wrote it must still wear the template.
+    point = len(template)
+    first_point = len(template)
+    points = 0
+    numbered = True
+    for at in range(len(template)):
+        if template[at] == ".":
+            points = points + 1
+            if points == 1:
+                first_point = at
+        elif template[at] not in "%!-+,":
+            numbered = False
+    if numbered and points == 1:
+        point = first_point
+    places: "list[int]" = []
+    for place in range(len(template)):
+        if place > point:
+            break
+        if place < first or stands[place] < 0:
+            continue
+        if template[place] in _EXCLUDED_MARKS or template[place] in _LETTER_MARKS:
+            places += [place]
+    # The places that open a run of figures, which take no nought.
+    opening_figures: "list[int]" = []
+    if not root:
+        for place in places:
+            if template[place] == parsing.LAYOUT_DIGIT and (
+                place == 0 or template[place - 1] not in _EXCLUSION_RUN_MARKS
+            ):
+                opening_figures += [place]
+    # Whether some real key of the length is figures alone (`_greatest_last`).
+    alone = False
+    for key in keys:
+        figures = 0
+        for character in key:
+            if "0" <= character <= "9":
+                figures = figures + 1
+        if key and figures == len(key):
+            alone = True
+    short = False
+    for place in places:
+        if short:
+            break
+        held: "dict[str, int]" = {}
+        for key in keys:
+            character = key[stands[place]]
+            held[character] = (held[character] if character in held else 0) + 1
+        alphabet = _greatest_last(parsing.exclusion_alphabet(template[place]), alone)
+        leads = place == 0 or template[place - 1] not in _EXCLUSION_RUN_MARKS
+        for at in range(len(alphabet) - 1, -1, -1):
+            character = alphabet[at]
+            if character == "0" and leads:
+                continue
+            # The keys are folded: a letter is counted in either case.
+            lowered = parsing.folded(character)
+            count = held[lowered] if lowered in held else 0
+            if count == 0:
+                # ...ONLY WHERE THE ROOM LEFT HOLDS THE LAYOUT'S VALUES: a
+                # layout whose real values fill all but less than that
+                # asks the block, whose several spellings may.
+                if _room_left(room, template, [place], opening_figures) < need:
+                    short = True
+                    break
+                written = layout[:place] + character + layout[place + 1:]
+                if parsing.folded(written) in texts:
+                    return []
+                return [written]
+            if count < floor:
+                # A CHARACTER FEWER THAN THE FLOOR'S CELLS HOLD IS NEVER
+                # PASSED OVER: the place is left, so what the choice says
+                # about a character it passed is that the floor's cells hold it.
+                break
+    # THE BLOCK: every other place the twin fills, counted from the last,
+    # k of them, k the FEWEST from one at which spellings no real key
+    # holds there leave the room the layout's cells or values need -- ONE
+    # spelling where the room one leaves is enough, else as few as are, at
+    # most `parsing.EXCLUSIONS_AT_MOST` -- every other place, so no two
+    # written characters are neighbours and no fragment of a value is read
+    # off a spelling, written or passed over (the orchestrator's ruling 1
+    # of 2026-10-25, item 2 (a)). Its spellings are read from the greatest
+    # down and the first free ones are written. A block of ANY size passes
+    # over only spellings the floor's keys hold, as the one-place choice
+    # does (the orchestrator's ruling 3 of 2026-10-25, item 2, option (b)):
+    # a spelling 1 to 10 keys hold ends that size and the next is tried. A
+    # layout of one place carries its free characters as several spellings
+    # (skeptic 1 of lane ID-ROOM, item 1 (c)).
+    chosen: "list[int]" = []
+    for at in range(len(places) - 1, -1, -2):
+        chosen += [places[at]]
+    for size in range(1, len(chosen) + 1):
+        block = chosen[:size]
+        spellings = 1
+        choices = 1
+        for place in block:
+            spellings = spellings * len(parsing.exclusion_alphabet(template[place]))
+            choices = choices * len(_greatest_last(parsing.exclusion_alphabet(template[place]), alone))
+        each = _room_left(room, template, block, opening_figures)
+        if each < 1:
+            return []
+        wanted = (need + each - 1) // each
+        if wanted > parsing.EXCLUSIONS_AT_MOST:
+            continue
+        worn: "dict[str, int]" = {}
+        for key in keys:
+            spelt = ""
+            for place in block:
+                spelt = spelt + key[stands[place]]
+            worn[spelt] = (worn[spelt] if spelt in worn else 0) + 1
+        if len(worn) >= spellings:
+            continue
+        found: "list[str]" = []
+        for number in range(choices - 1, -1, -1):
+            if len(found) >= wanted:
+                break
+            spelt = ""
+            rest = number
+            for place in block:
+                alphabet = _greatest_last(parsing.exclusion_alphabet(template[place]), alone)
+                spelt = spelt + alphabet[rest % len(alphabet)]
+                rest = rest // len(alphabet)
+            leads = False
+            for at in range(len(block)):
+                place = block[at]
+                if spelt[at] == "0" and (
+                    place == 0 or template[place - 1] not in _EXCLUSION_RUN_MARKS
+                ):
+                    leads = True
+            if leads:
+                continue
+            lowered = parsing.folded(spelt)
+            if lowered in worn:
+                # A SPELLING FEWER THAN THE FLOOR'S KEYS HOLD ENDS THE
+                # BLOCK SIZE, as it ends the one-place scan (the
+                # orchestrator's ruling 3 of 2026-10-25, item 2, option
+                # (b)): a spelling passed over is held by the floor's keys
+                # or more, so no count of 1 to 10 is read off the block.
+                if worn[lowered] < floor:
+                    break
+                continue
+            written = layout
+            for at in range(len(block)):
+                place = block[at]
+                written = written[:place] + spelt[at] + written[place + 1:]
+            if parsing.folded(written) in texts:
+                return []
+            found += [written]
+        if len(found) >= wanted:
+            return found
+    return []
 
 
 def whole_places_of(value: str) -> int:

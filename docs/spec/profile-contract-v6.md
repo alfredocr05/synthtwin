@@ -13957,12 +13957,13 @@ taking: when the guess was right it published no more than free text
 publishes, and when it was wrong it destroyed a distribution the twin
 exists to reproduce.
 
-**Added keys** — eight, beyond the universal keys of section 5.1:
+**Added keys** — nine, beyond the universal keys of section 5.1:
 
 | key | JSON type | range | meaning |
 |---|---|---|---|
 | `layout_forms` | object | section 7.12 | how many present cells were written in each shared LAYOUT, under the floor, with the pooled key `(withheld)` |
 | `layout_prefixes` | object | section 7.12a | the literal text every present cell opens with, under the key `(column)`, or the text every cell of one named layout opens with, under that layout; `{}` where there is none (owner ruling of 2026-09-17, item 1) |
+| `layout_exclusions` | object | section 7.12b | beside a named layout, that layout with places written as characters NO real cell's merged key holds there (one text, or a list of several spellings of one block), and under `(spill)` the column's prefix and figures, longer than every present cell; `{}` where the producer published none (lane ID-ROOM, plan P4-D432) |
 | `min_length` | integer ≥ 1 | ≤ `max_length` | the shortest present value's length in characters |
 | `max_length` | integer ≥ 1 | ≥ `min_length` | the longest present value's length in characters |
 | `all_whole_numbers` | boolean | — | true when every present cell is a whole number and there is at least one |
@@ -14358,7 +14359,7 @@ one row of the table below:
 |---|---|---|
 | labels | `constant`, `binary`, `categorical`, `long_tail_labels` | the values themselves appear, folded, with counts, and only when at least `small_cell_floor` rows share them |
 | ranges | `count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`, `joined_numbers` | no spelling appears; order statistics computed from the values do. TWO named exceptions, each confined by section 6.11 to its own keys: C6-9's, at `affix_prefix`, `affix_suffix` and the `prefix`/`suffix` of each `affix_variants` entry — a column may wear a SET of wrappers (C6-7a) and every member of the vocabulary is published on the same terms as the commonest, which is what the exception was always about — and section 6.15's, at `separator` |
-| nothing | `numeric_unrepresentable`, `identifier`, `free_text` | no value, no spelling, no fragment of one, anywhere — not in levels, not in `missing_by_source`, not in the evidence, not in a remark, not in a publication note, not in a sentinel verdict. ONE named exception, by the owner's ruling of 2026-09-17 (item 1): the literal prefix of section 7.12a, confined by section 6.11 to `layout_prefixes` on `identifier` |
+| nothing | `numeric_unrepresentable`, `identifier`, `free_text` | no value, no spelling, no fragment of one, anywhere — not in levels, not in `missing_by_source`, not in the evidence, not in a remark, not in a publication note, not in a sentinel verdict. ONE named exception, by the owner's ruling of 2026-09-17 (item 1): the literal prefix of section 7.12a, confined by section 6.11 to `layout_prefixes` on `identifier`. The exclusions of section 7.12b are no exception: each written character is one NO real cell's merged key holds at its place |
 | **no value-publishing class** | `empty` | it has no value to publish, and it is NOT thereby a nothing-publishing column (C6-51) |
 
 The three value-publishing classes carry exactly twelve of the
@@ -14575,6 +14576,7 @@ rather than a list of its own, so the two cannot part again.
 | `all_whole_numbers` | | | | | | | | | | | | ● | | | |
 | `layout_forms` | | | | | | | | | | | | ● | | | |
 | `layout_prefixes` | | | | | | | | | | | | ● | | | |
+| `layout_exclusions` | | | | | | | | | | | | ● | | | |
 | `length` | | | | | | | | | | | | | ● | | |
 | `words` | | | | | | | | | | | | | ● | | |
 | `n_all_digits` | | | | | | | | | | | | ● | ● | | |
@@ -14597,11 +14599,11 @@ rather than a list of its own, so the two cannot part again.
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**One hundred and twelve rows, two hundred and two marked cells**,
+**One hundred and thirteen rows, two hundred and three marked cells**,
 distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
 `binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 28,
 `time_of_day` 10, `count` 32, `continuous` 31, `affixed_number` 41,
-`identifier` 8, `free_text` 6, `joined_numbers` 8,
+`identifier` 9, `free_text` 6, `joined_numbers` 8,
 `numbers_with_labels` 8. The counts are stated so that a reader can
 check a column of the matrix against the role's own section without
 counting twice.
@@ -14609,7 +14611,10 @@ counting twice.
 **RESTATED AT THE SECOND KEY CUT** (plan P4-D386): `count_form` is one
 row and one mark on `datetime`, so the rows go from a hundred and eleven
 to a hundred and twelve, the marked cells from two hundred and one to
-two hundred and two, and `datetime` from 27 to 28.
+two hundred and two, and `datetime` from 27 to 28. **RESTATED FOR
+`layout_exclusions`** (lane ID-ROOM, plan P4-D432): one row and one mark
+on `identifier`, so the rows go to a hundred and thirteen, the marked
+cells to two hundred and three, and `identifier` from 8 to 9.
 
 **RESTATED AT THE KEYS STAGE 3B RESERVES** (plan P4-D364): seven rows
 and seven marks on `datetime`, and four rows and five marks on
@@ -18787,11 +18792,113 @@ declared identifier draws its free arcs and figures in the column's own
 rooms and reads no real value, so where the real values fill a room
 densely a twin cell can equal a real one by chance (1,022 of 20,000
 under `1.2.752.24.7.`; P4-D428's stated limit (4)); making that
-impossible by construction is lane ID-ROOM's (plan P4-D432).
+impossible by construction is lane ID-ROOM's (plan P4-D432), and 7.12b
+does it.
 
----
+### 7.12b `layout_exclusions` (lane ID-ROOM, plan P4-D432, 2026-10-24; repaired 2026-10-25)
 
-<!-- a7i: the spellings of a count column -->
+NO TWIN IDENTIFIER CELL NAMES A REAL IDENTIFIER OF ITS COLUMN, BY
+CONSTRUCTION. Every block of the `identifier` role carries
+`layout_exclusions`, which the producer writes LAST, once the census and
+the prefixes of 7.12 and 7.12a are final, reading the column's present
+cells. It is read on each cell's MERGED KEY (`parsing.merged_key`, the
+form `profile.subject_keys` counts a person by, plan P4-D406): the cell
+folded, every ASCII character that is neither a letter nor a figure
+dropped, and every nought opening a run of figures dropped (a run of
+noughts alone kept as one), so `P0013736` and `P13736`, `009297784` and
+`9297784`, `P-1` and `p1` are one key. A place of a layout's TEMPLATE
+(the layout with its prefix written in, a whole number's noughts after
+the point) stands at one place of its fillings' merged key
+(`parsing.merged_places`), read with every placeholder a figure other
+than a nought or a letter.
+
+1. **Beside each named layout, an exclusion, where one is found**: the
+   layout with one place or more written as a character of that place's
+   own alphabet (`%` a figure, `~` and `^` a hexadecimal character of
+   their case, `@` and `&` a letter of theirs; never the zero fill `!`),
+   such that NO present cell's merged key as long as the template's
+   fillings' holds those characters where those places stand, letters
+   compared in either case. First ONE place: the places the twin fills
+   (after the layout's prefix, never a whole number's nought after the
+   point, never a figure after the one point of a number, which says
+   whether a value is whole, and never the first arc of a layout of UIDs
+   with no published root, which the grammar holds to `0`, `1` or `2`)
+   are read left to right, and at each the characters of its alphabet
+   from the greatest down (at a hexadecimal place, its figures alone
+   where some such key is figures alone, and else its letters first; its
+   room is counted over all sixteen) -- never a nought that would open a
+   run of figures -- until one no such key holds, which is written where
+   the spellings it leaves hold the layout's cells or the column's
+   different values, whichever is fewer -- THE ROOM, counted without a
+   nought at a place that opens a run of figures -- else the block is
+   asked; a character held by at least one key and fewer than
+   `small_cell_floor` is never passed over: the place is left for the
+   next. Where no place gives one, the BLOCK: every other place the twin
+   fills, counted from the last, k of them, k the fewest from ONE at
+   which spellings held by no such key leave the room, at most
+   `parsing.EXCLUSIONS_AT_MOST` (32) of them; its spellings are read from
+   the greatest down, none opening a run of figures with a nought, and
+   the first no such key holds at those places are written: ONE text
+   where one leaves the room, else a LIST of two or more, in that order
+   (else the layout carries none). A block of ANY size passes over only
+   spellings `small_cell_floor` keys or more hold at its places, as the
+   one-place choice does: a spelling held by at least one key and fewer
+   than `small_cell_floor` ends that block size, and the next size is
+   asked (the orchestrator's ruling 3 of 2026-10-25, item 2, option (b));
+   so a layout of one place carries its free characters as several
+   spellings. An exclusion spelled as a present cell's text is none, and
+   the layout then carries no exclusion. A layout carrying no exclusion
+   has every value of its twin written wider than every real cell, and
+   its census entry and the lengths are then the real table's, listed by
+   the validator and named by the twin's report (method G9.6b, validation
+   method V4.1-A1).
+2. **Under `(spill)`, on every block holding a present cell, the spill**:
+   the `(column)` prefix's layout where one is published, and then
+   figures alone, `max_length` and one characters long where every
+   present cell is at most `max_length` long, else -- rule A1 counted a
+   longer cell in a shorter layout -- `LAYOUT_FORM_LIMIT` (64) and one, a
+   length that says nothing of any cell, since every cell a census
+   counts is at most that long. It stands beside any census, an empty one
+   included: one stray cell that empties the census leaves the rule on.
+   Every present cell opens with the prefix, so every present cell's
+   merged key is shorter than the spill's.
+3. **What it publishes is what the column does not hold.** A written
+   character is held by no real key at its place; every character the
+   one-place choice passed over at that place, and every spelling a
+   block passed over at its places, is held by at least
+   `small_cell_floor` keys (the orchestrator's ruling 3 of 2026-10-25,
+   item 2, option (b)); a block writes every other place, so no two
+   written characters are neighbours, and no spelling read off the choice
+   -- written or passed over -- holds two neighbouring characters of a
+   value: none is a fragment; no exclusion is a real cell's text; and the spill's
+   length is `max_length`'s and one, or a constant. No value, no
+   fragment of one, no extreme of one and no count below the floor is
+   published. What the choice can say beyond that is stated: a place it
+   left holds a character on 1 to `small_cell_floor` - 1 keys, or every
+   character on the floor's keys or more; and each block spelling it
+   passed over -- the spellings together, never each character alone,
+   which may be absent from every key at its place -- is held at the
+   block's places, every other one, by `small_cell_floor` real keys or
+   more; a block size it left holds some spelling on 1 to
+   `small_cell_floor` - 1 keys.
+
+Invariants: **LX1** an exclusion is published for a layout the census
+names, or as the spill, which every identifier block may publish beside
+any census, an empty one included; **LX2** an exclusion is its layout
+with one place or more written as a character of that place's own
+alphabet, every one a place the twin fills after the layout's prefix --
+one text, or a list of two to 32 different texts of one layout, never
+under `(spill)`; **LX3** the spill is the column's own prefix and then
+figures alone, a layout the census does not name, longer than
+`max_length`. The loader checks the text; that no real key holds the
+written characters is the producer's promise, read off the cells. The
+generator writes every value either with its merged key read place for
+place in an excluded template, or at least as long, merged, as the spill
+(method G9.6b), so no twin cell's merged key is a real cell's. The
+validator reads the key to know what the twin gives up: a real table's
+cells hold none of the written characters, by construction, and a twin's
+cells written wider than every real cell are named where the census and
+the lengths are checked.
 
 ### 7.13 `number_spellings`
 
@@ -20103,11 +20210,13 @@ not modeled, exactly as a two-humped numeric column's valley is not.
 
 | field | disposition |
 |---|---|
-| `min_length`, `max_length`, `n_all_digits`, `n_code_alphabet` | EXACT-OBSERVABLE in every case, since owner decision 6 keeps the length |
+| `min_length`, `max_length` | EXACT-OBSERVABLE, since owner decision 6 keeps the length; REPORT-ONLY in a record number's corner (plan P4-D432): where a named layout carries no exclusion, a pool stands, or the census counts fewer cells than the column holds, the twin writes values wider than every real one (7.12b, validation method V4.1-A1); and in a record number written wider (plan P4-D432), where the measured file holds cells written wider than every real one, a length those cells move is an AUTHORIZED-DEVIATION while every other cell keeps the published lengths (V4.1-A2) |
+| `n_all_digits`, `n_code_alphabet` | EXACT-OBSERVABLE in every case, since owner decision 6 keeps the length |
 | `all_whole_numbers` | EXACT-OBSERVABLE in every case, since owner decision 6 keeps the length. A published length range in which a value that must stand outside the figures can be no whole number at all — one character cannot be both — is a document whose own facts cannot all hold, and generation is refused before any cell is built (G12, `generation-whole-numbers-need-room`). No producer-written profile carries that pair |
 | `n_distinct`, `n_distinct_folded`, `n_distinct_by_occurrences` | EXACT-OBSERVABLE outside owner decision 6's infeasible corner; all THREE REPORT-ONLY inside it, with the report naming the achieved value beside the published one |
 | `layout_prefixes` | EXACT-OBSERVABLE: every cell a published prefix governs — every present cell under `(column)`, every cell wearing the layout otherwise — opens with it (7.12a, owner ruling of 2026-09-17, item 1). Owed inside owner decision 6's infeasible corner as well as outside it, for the reason `layout_forms` is |
-| `layout_forms` | EXACT-OBSERVABLE against the recount identity 7.12 states, on the same terms the form census stands on: a recounted layout numbers at least its published count and at most that count plus the pooled remainder. It is owed INSIDE owner decision 6's infeasible corner as well as outside it, because that corner lowers three DISTINCTNESS facts and says nothing about what a cell LOOKS like — a twin whose record numbers repeat still writes every one of them to a published layout |
+| `layout_forms` | EXACT-OBSERVABLE against the recount identity 7.12 states, on the same terms the form census stands on: a recounted layout numbers at least its published count and at most that count plus the pooled remainder. It is owed INSIDE owner decision 6's infeasible corner as well as outside it, because that corner lowers three DISTINCTNESS facts and says nothing about what a cell LOOKS like — a twin whose record numbers repeat still writes every one of them to a published layout. In a record number's corner (plan P4-D432) the entry of each named layout carrying no exclusion is REPORT-ONLY, and in a record number written wider an entry the twin's cells written wider than every real one leave short, by no more than them, is an AUTHORIZED-DEVIATION (V4.1-A2); every other entry stays exact |
+| `layout_exclusions` | REPORT-ONLY (7.12b, plan P4-D432): what no real cell's merged key holds; the twin writes every value with it or wider, the validator reads it only to know what the twin gives up, and no measured cell is checked against it |
 
 Two shapes a real table produces used to cost `all_whole_numbers`, and
 neither does now (Phase 3 plan P3-D8.1, owner decision 1). A length

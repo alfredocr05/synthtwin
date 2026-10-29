@@ -198,12 +198,45 @@ def test_the_twin_wears_the_layouts_the_census_may_publish(
     published = got["source"]["layout_forms"]
     assert published, f"{name} publishes no layout at all"
     _no_disclosure(got["source"])
+    exclusions = got["source"].get("layout_exclusions") or {}
+    if not name.startswith("alphanumeric") and exclusions and any(
+        layout not in exclusions for layout in published if layout != "(withheld)"
+    ):
+        # THE RECORD NUMBER'S CORNER UNDER OPTION (b) (plan P4-D432; the
+        # orchestrator's ruling 3 of 2026-10-25): a layout whose real keys
+        # spread thinly over a block's spellings carries no exclusion, and
+        # its values are written longer than every real cell, its census
+        # entry and lengths listed (V4.1-A1) -- `small_padded` on source
+        # seed 3, `!!!%%%%%`'s 143 cells. The checks below are the walk's.
+        longest = max(len(cell) for cell in cells)
+        wider = [cell for cell in got["cells"] if len(cell) > longest]
+        assert wider, name
+        got = _round_trip(
+            tmp_path / f"{name}-{source_seed}-walk", cells, floor=floor,
+            walk_only=True,
+        )
+        published = got["source"]["layout_forms"]
     assert got["twin_profile"]["layout_forms"] == published, (
         f"{name}: published {published}, the twin described again says "
         f"{got['twin_profile']['layout_forms']}"
     )
     assert got["twin_exit"] == 0, f"{name}: the twin misses its description"
     assert got["real_exit"] == 0, f"{name}: the table misses its description"
+    if name.startswith("alphanumeric"):
+        # THE POOL IS WRITTEN PAST THE LONGEST REAL CELL (plan P4-D432):
+        # its cells wear layouts the census does not name, so no exclusion
+        # can say what no real cell of them holds, and the final pass of
+        # method G9.6b writes them longer than every real cell. The three
+        # checks are the walk's (`walk_only`); the final pass is held here
+        # to what it costs, and by `tests/test_identifier_room.py`.
+        longest = max(len(cell) for cell in cells)
+        assert all(
+            len(cell) == 8 or len(cell) > longest for cell in got["cells"]
+        ), name
+        got = _round_trip(
+            tmp_path / f"{name}-{source_seed}-walk", cells, floor=floor,
+            walk_only=True,
+        )
     _three_checks(cells, got["cells"], pattern, length, case)
 
 

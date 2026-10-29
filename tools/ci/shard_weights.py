@@ -98,6 +98,16 @@ ON ITS OWN, on a machine other work was loading: lane PS2's gate,
 `tests/test_dates_held_by_the_floor.py`, 738.70 s on the lane's tree at
 its repair 2 (its `g1.log`), and lane BT's gate,
 `tests/test_stage6_band_totals.py`, 124.34 s on the merged tree.
+ONE ROW ADDED 2026-10-25, on lane ID-ROOM's branch: its gate,
+`tests/test_identifier_room.py`, 877.61 s, timed ON ITS OWN on the
+lane's tree under the machine-wide guard, on a machine other work was
+loading -- sixty-six shapes profiled and generated at 20,000 rows, which no
+default weighs. RE-TIMED at the lane's repair round 1 the same day,
+1,089.82 s, the same way: ninety-one shapes, eleven of them validated at
+20,000 rows. RE-TIMED 2026-10-26, 152.84 s, the same way, after the
+orchestrator's rule of 11:06 (a file adds at most three minutes): every
+shape at 600 rows and one case a writer at 20,000 rows, the rest in
+`K-HZ-06`'s driver.
 
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
@@ -153,6 +163,7 @@ SECONDS = {
     "tests/test_health_zoo_leaks.py": 21.31,
     "tests/test_health_zoo_shards.py": 9.82,
     "tests/test_held_unit_search.py": 25.61,
+    "tests/test_identifier_room.py": 152.84,
     "tests/test_joined_battery_readings.py": 215.32,
     "tests/test_joined_pair_round_trip.py": 103.91,
     "tests/test_k_p3_03_outer_tail_spread.py": 58.33,

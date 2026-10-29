@@ -2522,6 +2522,7 @@
       "column": {
         "all_whole_numbers": false,
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_exclusions": {},
         "layout_forms": {
           "@@": 20
         },
@@ -2652,6 +2653,7 @@
       "column": {
         "all_whole_numbers": false,
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_exclusions": {},
         "layout_forms": {
           "&%%": 11,
           "@%%": 22

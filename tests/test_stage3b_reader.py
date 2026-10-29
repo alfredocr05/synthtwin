@@ -449,6 +449,18 @@ def _clock_census_reserved(document: "dict[str, object]") -> None:
                 block[key] = []
 
 
+def _layout_exclusions_out(document: "dict[str, object]") -> None:
+    """Lane ID-ROOM's key taken out of every block (plan P4-D432).
+
+    Measured at that lane: the golden description differs from the tree it
+    branched from by `layout_exclusions` on `record_code` alone, so with
+    the key taken out it still hashes as before T1.
+    """
+    for block in document["columns"]:  # type: ignore[union-attr]
+        if "layout_exclusions" in block:
+            del block["layout_exclusions"]
+
+
 def test_r7_no_byte_moves(tmp_path: pathlib.Path) -> None:
     """Both goldens, the new settings key taken out, hash as they did before T1.
 
@@ -461,6 +473,9 @@ def test_r7_no_byte_moves(tmp_path: pathlib.Path) -> None:
     fill them on the one clock column of each: measured at that landing,
     both descriptions differ from the tree it branched from by those keys
     alone, so with them reserved again both still hash as before T1.
+
+    AND WITH LANE ID-ROOM's `layout_exclusions` TAKEN OUT (plan P4-D432),
+    the one key that lane adds, measured the same way.
     """
     from synthtwin import profile as producer, reading
     import tests.test_profile_document as demo
@@ -471,6 +486,7 @@ def test_r7_no_byte_moves(tmp_path: pathlib.Path) -> None:
     _without_the_second_cut(document)
     del document["settings"]["forced_twelve_hour_clocks"]
     _clock_census_reserved(document)
+    _layout_exclusions_out(document)
     assert hashlib.sha256(producer.serialize(document).encode("utf-8")).hexdigest() == (
         "17f1d514335b2eb06005f32357cd42c96c7b42036d5d1f71e23aee62ce08912f"
     )
@@ -485,6 +501,7 @@ def test_r7_no_byte_moves(tmp_path: pathlib.Path) -> None:
     _without_the_second_cut(described)
     del described["settings"]["forced_twelve_hour_clocks"]
     _clock_census_reserved(described)
+    _layout_exclusions_out(described)
     written = fixtures.write_profile(folder, "table-profile.json", described)
     assert hashlib.sha256(written.read_bytes()).hexdigest() == (
         "c126adc7722a717079b62801c73d02de97e2f65de624b0be82faffeb022f0eda"

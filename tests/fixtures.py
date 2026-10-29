@@ -16,6 +16,7 @@ wrongly. Its docstring says what goes wrong when they are decided
 anywhere else.
 """
 
+import json
 import pathlib
 import random
 
@@ -173,6 +174,35 @@ def write(folder: pathlib.Path, name: str, text: str) -> pathlib.Path:
     target = folder / name
     target.write_text(text, encoding="utf-8", newline="\n")
     return target
+
+
+def without_exclusions(document: dict) -> dict:
+    """``document`` with every record number's `layout_exclusions` emptied, in place (plan P4-D432).
+
+    THE WALK ALONE, as an older or hand-written description reads it.
+    Lane ID-ROOM's final pass (method G9.6b) spells again every twin
+    record number no exclusion keeps off the real values, and on a
+    column whose real values fill their layouts' rooms -- the floor-one
+    columns of a few values these cases are built from -- it moves cells
+    the walk of G9.2 to G9.6 wrote at their published counts. The walk
+    is unchanged, so a case pinning the walk's own counts reads the
+    description without the exclusions; tests/test_identifier_room.py
+    holds the final pass and its guarantee. Returns the document.
+    """
+    for block in document["columns"]:
+        if "layout_exclusions" in block:
+            block["layout_exclusions"] = {}
+    return document
+
+
+def profile_without_exclusions(path: pathlib.Path) -> pathlib.Path:
+    """A description file rewritten by `without_exclusions`, as synthtwin writes one; its path.
+
+    For a case that runs `synthtwin profile` and then pins what the walk
+    writes (plan P4-D432; see `without_exclusions`).
+    """
+    document = json.loads(path.read_text(encoding="utf-8"))
+    return write_profile(path.parent, path.name, without_exclusions(document))
 
 
 def write_profile(

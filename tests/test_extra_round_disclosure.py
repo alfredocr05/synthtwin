@@ -78,7 +78,7 @@ import pathlib
 import random
 
 from synthtwin import parsing, taxonomy
-from tests import cost_rule_window, workbooks
+from tests import cost_rule_window, fixtures, workbooks
 from tests.test_final_review_labels import _round_trip
 from tests.test_stage2_round_trip import _exit_of
 
@@ -1229,6 +1229,9 @@ def _blank_file(
     document = json.loads(
         (folder / "real-profile.json").read_text(encoding="utf-8")
     )
+    # The file's own lines: the 120 record numbers' final pass (P4-D432)
+    # moves the cells of their filled layouts, which the identifier gate holds.
+    fixtures.profile_without_exclusions(folder / "real-profile.json")
     assert _exit_of(
         [
             "generate", str(folder / "real-profile.json"), "--out-dir",

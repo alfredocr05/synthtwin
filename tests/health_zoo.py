@@ -3683,6 +3683,13 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
                 "answering every round is lane E0c's (its rulings 2, item 3)",
          covers("report references")),
     ),
+    "sql_server_export": (
+        ("ID-ROOM", "record numbers written wider so no twin key is a real one (plan P4-D432; by design): "
+                    "random keys zero-filled to nine figures spread thinly over every block of their places, "
+                    "so no exclusion passes over only spellings the floor's keys hold (the orchestrator's "
+                    "ruling 3 of 2026-10-25, option (b)), and the twin writes them ten figures long",
+         covers("record numbers nine figures with their leading zeros")),
+    ),
 }
 
 

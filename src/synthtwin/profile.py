@@ -995,6 +995,12 @@ _LAYOUT_FORM = "a-layout-a-record-number-could-not-be-spelled-with"
 # prefix `parsing.is_a_literal_prefix` admits.
 _PREFIX_SCOPE = "the-column-or-a-layout-a-record-number-could-not-be-spelled-with"
 _LITERAL_PREFIX = "a-literal-prefix-of-letters-and-marks-with-no-figure"
+# The two kinds `layout_exclusions` carries (lane ID-ROOM, plan P4-D432):
+# its keys, `(spill)` or a layout, and its values, a layout with places
+# written out (`parsing.is_a_layout_exclusion`), a list of several, or, for
+# the spill, a layout.
+_EXCLUSION_SCOPE = "the-spill-or-a-layout-a-record-number-could-not-be-spelled-with"
+_LAYOUT_EXCLUSION = "a-layout-with-places-written-as-characters-no-real-cell-holds"
 _MOMENT_TEXT = "canonical-datetime"
 _OFFSET = "utc-offset"
 _SENTINEL = "numeric-sentinel-spelling"
@@ -1932,6 +1938,13 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "layout_prefixes"): _OBJECT,
     ("columns", _EACH, "layout_prefixes", _KEY_OF): _PREFIX_SCOPE,
     ("columns", _EACH, "layout_prefixes", _ANY_KEY): _LITERAL_PREFIX,
+    # What no real cell holds (lane ID-ROOM, plan P4-D432): keyed by a
+    # named layout, that layout with places written out as characters no
+    # real cell of it holds there; keyed `(spill)`, a layout no real cell
+    # wears.
+    ("columns", _EACH, "layout_exclusions"): _OBJECT,
+    ("columns", _EACH, "layout_exclusions", _KEY_OF): _EXCLUSION_SCOPE,
+    ("columns", _EACH, "layout_exclusions", _ANY_KEY): _LAYOUT_EXCLUSION,
     ("columns", _EACH, "n_distinct_by_occurrences"): _OBJECT,
     ("columns", _EACH, "n_distinct_by_occurrences", _KEY_OF): _DIGITS,
     ("columns", _EACH, "n_distinct_by_occurrences", _ANY_KEY): _COUNT,
@@ -2932,6 +2945,25 @@ def _leaf_is_published(
         return value != taxonomy.SUPPRESSED_LABEL and _is_layout_form(value)
     if kind == _LITERAL_PREFIX:
         return isinstance(value, str) and parsing.is_a_literal_prefix(value)
+    if kind == _EXCLUSION_SCOPE:
+        if value == parsing.EXCLUSION_SPILL:
+            return True
+        return value != taxonomy.SUPPRESSED_LABEL and _is_layout_form(value)
+    if kind == _LAYOUT_EXCLUSION:
+        if isinstance(value, list):
+            # SEVERAL SPELLINGS OF ONE LAYOUT'S BLOCK (plan P4-D432), each
+            # an exclusion, two to `parsing.EXCLUSIONS_AT_MOST`.
+            if not 2 <= len(value) <= parsing.EXCLUSIONS_AT_MOST:
+                return False
+            for each in value:
+                if not isinstance(each, str) or not parsing.is_a_layout_exclusion(each):
+                    return False
+            return True
+        return isinstance(value, str) and (
+            parsing.is_a_layout_exclusion(value)
+            or _is_layout_form(value)
+            or parsing.is_a_spill_layout(value)
+        )
     if kind == _LAYOUT_FORM:
         return _is_layout_form(value)
     if kind == _MOMENT_TEXT:
@@ -4927,6 +4959,13 @@ def build_document(
                 if _a_small_group(real_census, settings.small_cell_floor)
                 else None,
             )
+        # WHAT NO REAL CELL HOLDS, read last, off the census as published
+        # (lane ID-ROOM, plan P4-D432): beside each named layout of a
+        # record number, places no real cell of it holds, and the spill no
+        # real cell wears, so no twin cell is spelled as a real one.
+        described = taxonomy.with_layout_exclusions(
+            described, cells, settings.small_cell_floor
+        )
         # ...and the walk's own name lets go of the column it described,
         # so no column of one group outlives it while the next is read.
         cells = []
@@ -5844,8 +5883,12 @@ def subject_keys(
 
 
 def _subject_key(cell: str) -> str:
-    """One subject cell's merged form (`subject_keys`; `parsing.subject_key`)."""
-    return parsing.subject_key(cell)
+    """One subject cell's merged form (`subject_keys`): `parsing.merged_key`, the one rule.
+
+    Lane ID-ROOM reads its exclusions on the same form (plan P4-D432),
+    so the rule lives once, in `parsing`, and both ask it.
+    """
+    return parsing.merged_key(cell)
 
 
 def _holding(

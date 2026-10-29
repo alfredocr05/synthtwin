@@ -6,6 +6,56 @@ exists).
 
 ## [Unreleased]
 
+### Lane ID-ROOM: no twin identifier cell equals a real one, by construction (plan P4-D432, 2026-10-25; repair round 1 the same day; repair round 2, 2026-10-27)
+
+**The class lane CODES-3's stated limit (4) names, closed.** A declared or
+answered identifier's twin drew its free figures, letters and arcs in its
+column's own layouts and read no real value, so where the real values
+filled a layout densely a twin cell equalled a real one by chance: on
+CODES-3's final head 1,022 of 20,000 cells under `1.2.752.24.7.1.`, 11,110
+for record numbers `1` to `20,000`, 19,980 for a person on twenty rows,
+and 328 and 50,594 cells of the health data zoo's identifier columns at
+600 and 20,000 rows. The profile, which reads the real column, now
+publishes `layout_exclusions` (contract 7.12b), read on each real cell's
+MERGED KEY -- the form the product counts a person by, so `P0013736` and
+`P13736`, `009297784` and `9297784` are one key: beside each named
+layout, the layout with one place, or every other place of a block,
+written as a character no real key holds there -- several spellings
+where one leaves too little room, at most 32 -- never passing over a
+character or a block's spelling 1 to 10 keys hold; and on every identifier block, whatever its
+census, a spill of the column's prefix and figures one longer than the
+published longest value. The generator's walks are unchanged; a final
+pass (method G9.6b) keeps a value whose merged key holds the written
+characters or is as long as the spill's, and spells every other one in
+its layout's excluded templates, else wider under its own prefix, each
+class from its own step, a folded identity together, so no twin cell's
+merged key is a real cell's. Where the real values fill a layout's room
+its values are written wider, and its census entry and the two lengths
+are listed (V4.1-A1); where a layout keeping an exclusion still has
+values written wider, the entries and lengths they leave are an
+AUTHORIZED-DEVIATION, measured (V4.1-A2). The repair round closed
+skeptic 1's and Codex's items: a stray cell switching the rule off,
+noughts after a prefix and numbers written two ways naming real people
+by the merged key, a rootless UID's first arc written, dense layouts
+failing their own validation, the spill printing an outlier's length,
+identifiers past 64 characters, prefixes lost to the spill, a folded
+identity widened apart; `(unnamed)` is withdrawn. New `K-HZ-06`:
+0 equal and 0 merging over 89 shapes at 600 rows and 85 at 20,000, the
+answered shapes, `P` and five figures at 200,000 rows and the zoo's 66
+identifier columns, the nine validated shapes at exit 0. A block now
+passes over no spelling 1 to 10 keys hold (the orchestrator's option (b)),
+so thinly spread keys -- random seven or eight figures at 20,000 rows --
+are written wider. Repair round 2: the final pass claimed a spelling by
+its fold alone, so two layouts filling in step wrote one twin person two
+ways (`9891959` beside `009891959`, `100005` beside `100005.0`: 600
+persons written as 317 to 333 at 600 rows); each spelling's merged key
+and its number are now claimed too, and one merged identity is moved
+together, each value keeping its spelling, so the twin keeps the walk's
+persons (the walk's own merges at 20,000 rows are lane CODES-1 part C's).
+Gate: `tests/test_identifier_room.py`. The demonstration's
+goldens move on `record_code` alone, and vectors file 27 gains seven
+cases.
+
 ### Whole numbers each on one row, or in sequence, are asked the identifier question (lane HX5, plan P4-D436, 2026-10-25)
 
 **Lane HX5** closes the live exposure lane E0c's strict twin scan measured

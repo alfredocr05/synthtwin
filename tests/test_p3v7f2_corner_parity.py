@@ -105,6 +105,7 @@ Every table is built at test time by seeded neutral builders; no
 data-format file enters the repository (plan D13).
 """
 
+import dataclasses
 import os
 import pathlib
 import random
@@ -2180,8 +2181,25 @@ def test_a_pooled_layout_census_holds_a_file_inside_its_window(
         census = facts.layout_forms
         if taxonomy.SUPPRESSED_LABEL not in census or len(census) < 2:
             continue
+        # THE WINDOW IS READ ON THE DESCRIPTION WITHOUT ITS EXCLUSIONS (plan
+        # P4-D432). With them, the twin writes the pool's values wider than
+        # every real one, and a shortfall those values cover is an
+        # AUTHORIZED-DEVIATION, so the window's low edge is no longer the
+        # pool rule's alone; `_form_checks`' window is the same rule either
+        # way, and a description publishing no exclusion -- an older one --
+        # is written and checked as before. So the probe is built again on
+        # its description with `layout_exclusions` withdrawn.
+        plain = dataclasses.replace(
+            probe.column, facts=dataclasses.replace(facts, layout_exclusions={})
+        )
+        described = dataclasses.replace(probe.described, columns=(plain,))
+        twin = generation.generate(described, SEED)
+        written = fixtures.write(
+            folder, f"{probe.stem}-plain-twin.csv", rendering.twin_csv(twin)
+        )
+        outcome = validation.measure(described, str(written))
         pool = census[taxonomy.SUPPRESSED_LABEL]
-        present = [cell for cell in probe.twin.columns[0] if cell]
+        present = [cell for cell in twin.columns[0] if cell]
         convention = parsing.layout_convention(present)
         for layout in sorted(census):
             if layout == taxonomy.SUPPRESSED_LABEL:
@@ -2189,7 +2207,7 @@ def test_a_pooled_layout_census_holds_a_file_inside_its_window(
             reached = reached + 1
             published = census[layout]
             subcheck = f"forms.published.{layout}"
-            assert _verdicts(probe.outcome, subcheck) == [validation.HELD]
+            assert _verdicts(outcome, subcheck) == [validation.HELD]
             wearing = [
                 cell for cell in present
                 if parsing.layout_form(cell, convention) == layout
@@ -2218,7 +2236,7 @@ def test_a_pooled_layout_census_holds_a_file_inside_its_window(
                     f"{probe.stem}-{count}.csv",
                     _one_column_text(made),
                 )
-                outcome = validation.measure(probe.described, str(path))
+                outcome = validation.measure(described, str(path))
                 assert _verdicts(outcome, subcheck) == [edges[count]], (
                     probe.stem,
                     layout,

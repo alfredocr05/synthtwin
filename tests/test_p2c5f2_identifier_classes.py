@@ -138,7 +138,10 @@ def _described(
         folder, "table.csv", fixtures.single_column_table("code", values)
     )
     table = reading.read_table(str(path), small_cell_floor=_FLOOR_ONE)
-    document = profile.build_document(table, taxonomy.Settings(small_cell_floor=_FLOOR_ONE), ["code"])
+    # The walk's own counts (P4-D432's final pass is gated elsewhere).
+    document = fixtures.without_exclusions(
+        profile.build_document(table, taxonomy.Settings(small_cell_floor=_FLOOR_ONE), ["code"])
+    )
     target = fixtures.write_profile(folder, "table-profile.json", document)
     return document, contract.load_profile(str(target))
 

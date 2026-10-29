@@ -56609,6 +56609,925 @@ def _templated_facts(
     return dataclasses.replace(facts, layout_forms=templated)
 
 
+def _spelled_off_the_real(
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    cells: "list[str]",
+    holes: "tuple[str, ...]",
+) -> "tuple[list[str], list[Remark]]":
+    """Every cell of a record number written where no real cell is (lane ID-ROOM, plan P4-D432).
+
+    NO TWIN IDENTIFIER CELL NAMES A REAL ONE, BY CONSTRUCTION, and the
+    walks above are left as they are: every published count they meet is
+    met first. Then each different value is KEPT where its MERGED KEY
+    (`parsing.merged_key`, the form `profile.subject_keys` counts a person
+    by) is one no real cell's can be: its core (the value trimmed of the
+    spaces around it) wears its own layout's EXCLUDED TEMPLATE (the
+    layout's template with the places its exclusion writes out) and drops
+    no nought the template does not, so its merged key holds the written
+    characters at their places (`parsing.projected`); or its merged key
+    is at least as long as the column's `(spill)`'s, which every real
+    cell's is shorter than. The values of one MERGED identity -- a fold
+    collision, written again in another case or with a space, or the
+    walk's one key written two ways (`009891959` beside `9891959`) -- are
+    kept or moved TOGETHER: moved, they take one new merged key, each in
+    its own case and with its own spaces, so the collision stays one, also
+    where the new core is wider, and each value folding otherwise keeps
+    its own spelling with the new key written in it. No spelling is taken
+    whose merged key, or whose value read as a number, another twin value
+    holds, so the pass never writes two twin persons as one (lane
+    ID-ROOM's verify, new item 1). A value moved is written as the first free spelling
+    of, nearest its own shape first: its layout's excluded template, so
+    the census and the lengths stay met; its layout widened under its own
+    prefix until its merged key is as long as the spill's, so its kinds
+    and its prefix stay; the spill; and, where none has one left, the
+    spill widened a figure at a time. No value is moved into ANOTHER named
+    layout, so every count of a layout carrying an exclusion stays as the
+    walks met it. A spelling is taken first only where it reads as the
+    value's own class and alphabets (`parsing.classify_number`,
+    `is_digit_text`, `is_code_text`), each class reading its templates
+    from its own step so no class spends the fillings another could take,
+    and only then of any class. A value moves whole, so a key repeated on
+    one twin person's rows stays one key. The lengths and the census a
+    value written wider moves are the validator's AUTHORIZED-DEVIATION,
+    measured, and the report's remark here.
+
+    It reads nothing but the description: the exclusions are the
+    profile's, read off the real column; the cells are the twin's. Where
+    the description publishes no exclusion -- a hand-written or older
+    document -- nothing moves and the column is written byte for byte as
+    before.
+
+    Guarantees: returns the cells and a remark naming how many values
+    moved. Raises ProfileError where no free spelling is left. No I/O.
+    """
+    exclusions = facts.layout_exclusions
+    if not exclusions:
+        return cells, []
+    room = _off_the_real_room(facts, holes)
+    for cell in cells:
+        if cell not in room.written:
+            _claimed(room, cell)
+    # A COLUMN OF DATES OR TIMES AT A PUBLISHED GRAIN (plan P4-D417): the
+    # G1 floor writes its made-up values as dates or times drawn inside the
+    # record's spans, in their own layouts, after this pass -- a made-up
+    # date names no person (the orchestrator's ruling 1 of 2026-10-25, item
+    # 3) -- so a value is moved only inside its own layout's excluded
+    # templates, never wider, and its layout stays the one the floor reads.
+    grained = column.time_grain is not None
+    groups: "dict[str, list[str]]" = {}
+    order: "list[str]" = []
+    seen: "dict[str, bool]" = {}
+    for cell in cells:
+        if cell in seen or not parsing.trimmed(cell):
+            continue
+        seen[cell] = True
+        # ONE MERGED IDENTITY IS ONE TWIN PERSON (lane ID-ROOM's verify, new
+        # item 1): the values the walk wrote as one merged key are kept or
+        # moved together, each keeping its own spelling.
+        identity = parsing.merged_key(cell)
+        if not identity:
+            identity = "\x00" + parsing.folded(cell)
+        if identity not in groups:
+            groups[identity] = []
+            order += [identity]
+        groups[identity] += [cell]
+    moved: "dict[str, str]" = {}
+    wider = 0
+    for identity in order:
+        members = groups[identity]
+        if all(_kept_off_the_real(room, member) for member in members):
+            continue
+        if grained:
+            inside: "dict[str, str]" = {}
+            for member in members:
+                layout = parsing.layout_form(parsing.trimmed(member), room.convention)
+                if _kept_off_the_real(room, member) or layout not in room.templates:
+                    continue
+                for into in room.templates[layout]:
+                    if member in inside:
+                        break
+                    found = _next_off_the_real(room, into, [_edges(member)], True)
+                    if found is not None:
+                        inside[member] = found[member]
+            for member in sorted(inside):
+                moved[member] = inside[member]
+                _claimed(room, inside[member])
+            continue
+        together = _respelled_together(room, members) if len(members) > 1 else None
+        if together is None:
+            together = {}
+            for member in members:
+                if not _kept_off_the_real(room, member):
+                    together[member] = _respelled(room, member)
+                    if not together[member]:
+                        raise errors.ProfileError(
+                            f"synthtwin internal check: the twin column "
+                            f"'{parsing.visible(column.name)}' has no spelling "
+                            f"left that the table's record numbers leave free. This "
+                            f"means a mistake in synthtwin; please report it. "
+                            f"Nothing has been written."
+                        )
+        for member in sorted(together):
+            moved[member] = together[member]
+            _claimed(room, together[member])
+            if len(together[member]) > len(member):
+                wider = wider + 1
+    if not moved:
+        return cells, []
+    rows = 0
+    for cell in cells:
+        if cell in moved:
+            rows = rows + 1
+    return [moved[cell] if cell in moved else cell for cell in cells], [
+        Remark(
+            column=column.name,
+            subject="values spelled off the table's record numbers",
+            held=(
+                f"{len(moved)} different values on {rows} rows, {wider} of "
+                f"them written wider"
+            ),
+            note=(
+                "No twin record number is spelled as a real one, or as a "
+                "real one written another way (plan P4-D432): these values "
+                "were spelled again with what no real cell of their layout "
+                "holds, and where the real values fill a layout's room, "
+                "written longer than the longest real value, so a length or "
+                "layout test meets those rows otherwise."
+            ),
+        )
+    ]
+
+
+# How many fillings of one template a value is offered before the next
+# template is asked (plan P4-D432); the template's own step goes on.
+_OFF_THE_REAL_TRIES = 4096
+
+# How many fillings a value of one merged identity spelled otherwise than
+# the leading value is offered a template (lane ID-ROOM's second repair):
+# where both exclusions can be worn, one filling in ten or so is.
+_TOGETHER_TRIES = 256
+
+# The longest a widened UID is written: the grammar's own limit (DICOM
+# PS3.5, section 9.1). Every other widened value has no limit but the
+# spill's own length.
+_UID_AT_MOST = 64
+_NO_LIMIT = 1 << 30
+# How many figures the spill is widened by, at most, as a last resort.
+_SPILL_WIDENED_AT_MOST = 8
+
+
+@dataclasses.dataclass(frozen=True)
+class _OffTheReal:
+    """What `_spelled_off_the_real` reads and spends: the templates, the steps, the spellings taken.
+
+    ``templates`` maps each named layout carrying an exclusion to its
+    excluded templates, one for each of its exclusions; ``lowered`` maps
+    each folded layout to those templates in lower case (a case flip of a
+    value kept is kept too: contract 7.12b reads a layout's exclusion on
+    the merged key, which folds the case); ``stands`` maps each template
+    to where its places stand in the merged key (`parsing.merged_places`);
+    ``bound`` is the spill's merged length, which every real cell's merged
+    key is shorter than. ``written``, ``folds``, ``merged``, ``numbers``,
+    ``steps``, ``missed`` and ``widened`` are filled as the pass goes:
+    ``merged`` and ``numbers`` hold the merged keys and the values read as
+    numbers (`_numeric_identity`) of every twin cell and spelling taken,
+    so no new spelling merges with another twin person (lane ID-ROOM's
+    verify, new item 1); ``steps`` keeps one step a
+    template and a reading (a value's class and alphabets), so no class
+    spends the fillings another could take; ``missed`` names each search
+    that found nothing (its template, its step, its value's reading), so
+    the same search is not run again.
+    """
+
+    facts: contract.IdentifierFacts
+    holes: "tuple[str, ...]"
+    convention: str
+    whole: str
+    whole_places: bool
+    templates: "dict[str, list[str]]"
+    lowered: "dict[str, list[str]]"
+    stands: "dict[str, tuple[int, ...]]"
+    spill: str
+    bound: int
+    written: "dict[str, bool]"
+    folds: "dict[str, bool]"
+    merged: "dict[str, bool]"
+    numbers: "dict[str, bool]"
+    steps: "dict[str, int]"
+    missed: "dict[str, bool]"
+    widened: "dict[str, str]"
+    lengths: "dict[str, dict[int, bool]]"
+
+
+def _off_the_real_room(
+    facts: contract.IdentifierFacts, holes: "tuple[str, ...]"
+) -> _OffTheReal:
+    """The room `_spelled_off_the_real` spends, read off the description alone."""
+    exclusions = facts.layout_exclusions
+    convention = _layout_convention(facts)
+    whole = ""
+    if parsing.PREFIX_OF_THE_COLUMN in facts.layout_prefixes:
+        whole = facts.layout_prefixes[parsing.PREFIX_OF_THE_COLUMN]
+    whole_places = facts.all_whole_numbers and _any_whole_places(facts.layout_forms)
+    templates: "dict[str, list[str]]" = {}
+    lowered: "dict[str, list[str]]" = {}
+    stands: "dict[str, tuple[int, ...]]" = {}
+    for layout in _named_layouts(facts):
+        if layout in exclusions:
+            # EVERY EXCLUSION OF THE LAYOUT, in the order published: one,
+            # or several spellings of one block (contract 7.12b).
+            templates[layout] = []
+            folded = parsing.folded_layout(layout)
+            if folded not in lowered:
+                lowered[folded] = []
+            for exclusion in exclusions[layout]:
+                excluded = parsing.written_excluded(
+                    parsing.layout_template(layout, _prefix_of(facts, layout), whole_places),
+                    exclusion,
+                )
+                templates[layout] += [excluded]
+                low = parsing.folded(parsing.folded_layout(excluded))
+                lowered[folded] += [low]
+                stands[excluded] = parsing.merged_places(excluded)
+                stands[low] = parsing.merged_places(low)
+    spill = ""
+    if parsing.EXCLUSION_SPILL in exclusions:
+        spill = parsing.layout_template(
+            exclusions[parsing.EXCLUSION_SPILL][0], whole, whole_places
+        )
+    return _OffTheReal(
+        facts=facts,
+        holes=holes,
+        convention=convention,
+        whole=whole,
+        whole_places=whole_places,
+        templates=templates,
+        lowered=lowered,
+        stands=stands,
+        spill=spill,
+        # Every real cell's merged key is shorter than the spill's
+        # (contract 7.12b).
+        bound=taxonomy.spill_bound(exclusions, facts.layout_prefixes),
+        written={},
+        folds={},
+        merged={},
+        numbers={},
+        steps={},
+        missed={},
+        widened={},
+        # The lengths widened values holding a letter, and holding none,
+        # are written at (`_widened_template`), the spill's among the second.
+        lengths={"letters": {}, "figures": {len(spill): True} if spill else {}},
+    )
+
+
+def _claimed(room: _OffTheReal, spelling: str) -> None:
+    """Record a spelling, its folded identity, its merged key and its value read as a number, as written."""
+    room.written[spelling] = True
+    room.folds[parsing.folded(spelling)] = True
+    key = parsing.merged_key(spelling)
+    if key:
+        room.merged[key] = True
+    number = _numeric_identity(spelling)
+    if number:
+        room.numbers[number] = True
+
+
+def _identity_taken(room: _OffTheReal, spelling: str) -> bool:
+    """Whether a spelling names a twin person already written: its merged key or its value as a number taken.
+
+    TWO TWIN PERSONS ARE NEVER WRITTEN AS ONE (lane ID-ROOM's verify, new
+    item 1; the orchestrator's ruling 5 of 2026-10-27): a filling free
+    as written and folded could still merge, by the product's own merged
+    key (`P-48249196` beside `P48249196`, `009891959` beside `9891959`),
+    or read as the same number (`100005.0` beside `100005`, as a table
+    reader reads a column of numbers), with a value another identity
+    holds; it is taken.
+    """
+    key = parsing.merged_key(spelling)
+    if key and key in room.merged:
+        return True
+    number = _numeric_identity(spelling)
+    return bool(number) and number in room.numbers
+
+
+def _numeric_identity(text: str) -> str:
+    """A cell's value read as a number, written exactly in one form, or "" where it reads as no number.
+
+    `100005`, `100005.0`, `+100005` and `1.00005e5` are one value:
+    the figures with no nought before them or after them, the sign and
+    the power of ten (`-12e3`), read off `parsing.number_core` with no
+    rounding, so two values that differ in their last figure stay two
+    however long they are. A fixed function of the text; no I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a cell reached the numeric identity as something else")
+    if parsing.classify_number(text) != parsing.NUMBER:
+        return ""
+    return _numeric_identity_of_core(parsing.number_core(text))
+
+
+def _numeric_identity_of_core(body: str) -> str:
+    """`_numeric_identity` of a cell's `parsing.number_core`; "" where its figures read as no number."""
+    if not isinstance(body, str):
+        raise TypeError("a number's core reached the numeric identity as something else")
+    sign = ""
+    if body[:1] == "-":
+        sign = "-"
+    if body[:1] in ("-", "+"):
+        body = body[1:]
+    power = 0
+    at = body.find("e")
+    if at >= 0:
+        written_power = body[at + 1:]
+        body = body[:at]
+        if not written_power.lstrip("+-").isdigit():
+            return ""
+        power = int(written_power)
+    at = body.find("E")
+    if at >= 0:
+        written_power = body[at + 1:]
+        body = body[:at]
+        if not written_power.lstrip("+-").isdigit():
+            return ""
+        power = int(written_power)
+    whole = body
+    fraction = ""
+    point = body.find(".")
+    if point >= 0:
+        whole = body[:point]
+        fraction = body[point + 1:]
+    figures = f"{whole}{fraction}"
+    if not figures.isdigit() or not figures.isascii():
+        return ""
+    power = power - len(fraction)
+    figures = figures.lstrip("0")
+    if not figures:
+        return "0"
+    trimmed = figures.rstrip("0")
+    return f"{sign}{trimmed}e{power + len(figures) - len(trimmed)}"
+
+
+def _kept_off_the_real(room: _OffTheReal, cell: str) -> bool:
+    """Whether a twin cell's merged key is one no real cell's can be (method G9.6b)."""
+    core = parsing.trimmed(cell)
+    key = parsing.merged_key(core)
+    if room.bound and len(key) >= room.bound:
+        return True
+    layout = parsing.layout_form(core, room.convention)
+    if layout in room.templates:
+        for template in room.templates[layout]:
+            if _wears_template(core, template, room.convention) and (
+                parsing.projected(core, room.stands[template]) == key
+            ):
+                return True
+    folded = parsing.folded_layout(layout)
+    if folded in room.lowered:
+        low = parsing.folded(core)
+        for template in room.lowered[folded]:
+            if _wears_template(low, template, room.convention) and (
+                parsing.projected(low, room.stands[template]) == key
+            ):
+                return True
+    return False
+
+
+def _off_the_real_targets(room: _OffTheReal, core: str) -> "list[str]":
+    """The templates a value of this core is offered, nearest its own shape first."""
+    layout = parsing.layout_form(core, room.convention)
+    offered: "list[str]" = []
+    if layout in room.templates:
+        for template in room.templates[layout]:
+            offered += [template]
+    if layout and room.bound:
+        wide = _widened_template(room, layout)
+        if wide:
+            offered += [wide]
+    if room.spill:
+        offered += [room.spill]
+    return offered
+
+
+def _widened_template(room: _OffTheReal, layout: str) -> str:
+    """A layout's template widened under its own prefix until its merged key is the spill's length, or "".
+
+    KEEPS THE LAYOUT'S KINDS AND ITS PREFIX (Codex's review of lane
+    ID-ROOM, item 4): the figures go in after the prefix or the UID root,
+    and a rootless UID's in its second arc (`parsing.widened_layout`). A
+    value holding a letter is written one character wider still where
+    that fits, so a widened value of letters and figures does not share
+    its length with the widened values of figures alone: the column's
+    convention is read off the cells of one length
+    (`parsing.layout_convention`). A UID is never written past the
+    grammar's 64 characters; nothing else has a limit.
+    """
+    if layout in room.widened:
+        return room.widened[layout]
+    prefix = _prefix_of(room.facts, layout)
+    opening = len(parsing.prefix_layout(prefix, room.convention)) if prefix else 0
+    base = parsing.layout_template(layout, prefix, room.whole_places)
+    wanted = room.bound - parsing.merged_length(base)
+    uid = _opens_with_a_uid_root(base) or parsing.first_arc_places(base) > 0
+    limit = _UID_AT_MOST if uid else _NO_LIMIT
+    lettered = False
+    for mark in layout:
+        if mark in (
+            parsing.LAYOUT_UPPER, parsing.LAYOUT_LOWER,
+            parsing.LAYOUT_LOWER_HEX, parsing.LAYOUT_UPPER_HEX,
+        ):
+            lettered = True
+    # NO LENGTH HOLDS WIDENED VALUES OF LETTERS AND OF FIGURES ALONE TOGETHER:
+    # a position holding a letter in one cell and a figure in another, of
+    # one length, is what makes a column read as hexadecimal
+    # (`parsing.layout_convention`), so a widened layout takes the first
+    # length past the spill's (one more where it holds a letter) that the
+    # other kind's widened values do not hold.
+    mine = "letters" if lettered else "figures"
+    other = room.lengths["figures" if lettered else "letters"]
+    found = ""
+    # A NUMBER THAT IS NOT WHOLE is widened after its last figure, so its
+    # magnitude and its fraction stay (P4-D298's held counts beside one
+    # decimal stand-in: widened before its point, `1284849894788933081.6`
+    # read as a whole number).
+    at_the_end = not room.whole_places
+    for more in range(1 if lettered else 0, 9):
+        if found or wanted + more < 1:
+            continue
+        wide = parsing.widened_layout(layout, opening, wanted + more, limit, at_the_end)
+        if wide and len(wide) not in other:
+            template = parsing.layout_template(wide, prefix, room.whole_places)
+            if parsing.merged_length(template) >= room.bound:
+                found = template
+    if not found and lettered and wanted + 1 >= 1:
+        wide = parsing.widened_layout(layout, opening, wanted, limit, at_the_end)
+        if wide:
+            template = parsing.layout_template(wide, prefix, room.whole_places)
+            if parsing.merged_length(template) >= room.bound:
+                found = template
+    if found:
+        room.lengths[mine][len(found)] = True
+    room.widened[layout] = found
+    return found
+
+
+def _respelled(room: _OffTheReal, cell: str) -> str:
+    """One value's new spelling, its own spaces kept, or "" where none is left."""
+    parts = [_edges(cell)]
+    targets = _off_the_real_targets(room, parts[0][1])
+    layout = parsing.layout_form(parts[0][1], room.convention)
+    own = len(room.templates[layout]) if layout in room.templates else 0
+    for strict in (True, False):
+        # ...and only then of any class, past the value's own templates: its
+        # layout widened under its prefix, then the spill, so a prefix is
+        # kept wherever a wider spelling of its layout is left.
+        for into in targets if strict else targets[own:]:
+            found = _next_off_the_real(room, into, parts, strict)
+            if found is not None:
+                return found[cell]
+        if strict and not layout:
+            # A VALUE NO LAYOUT DESCRIBES (a character outside ASCII, a
+            # placeholder's mark, past the layout limit) keeps its class:
+            # it is written as itself followed by letters, until its merged
+            # key is as long as the spill's.
+            appended = _appended_off_the_real(room, parts[0])
+            if appended:
+                return appended
+    widening = room.spill
+    uid = _opens_with_a_uid_root(room.spill)
+    wider_by = 0
+    while (
+        room.spill
+        and not (uid and len(widening) >= _UID_AT_MOST)
+        and wider_by < _SPILL_WIDENED_AT_MOST
+    ):
+        # THE LAST RESORT: the spill a figure wider, and wider again -- at
+        # most `_SPILL_WIDENED_AT_MOST` figures, past which the pass says it
+        # has no spelling left rather than search on.
+        wider_by = wider_by + 1
+        widening = parsing.widened_layout(widening, len(room.whole), 1, _NO_LIMIT)
+        if not widening:
+            break
+        found = _next_off_the_real(room, widening, parts, False)
+        if found is not None:
+            return found[cell]
+    return ""
+
+
+def _appended_off_the_real(
+    room: _OffTheReal, part: "tuple[str, str, str, str]"
+) -> str:
+    """A value no layout describes, followed by letters until its merged key is the spill's length, or "".
+
+    The letters are stepped from `A`, in the case of the value's own last
+    letter (upper where it holds none), so the value's class and alphabets
+    stay (`_reads_alike`): a code stays a code and a word of characters
+    outside ASCII stays one. Free as `_next_off_the_real`'s fillings are:
+    written by nothing, no hole spelling, no date, and kept off the real.
+    """
+    lead, core, trail, cell = part
+    if not room.bound:
+        return ""
+    wanted = max(room.bound - len(parsing.merged_key(core)), 1)
+    # ...at a length no widened value of figures alone holds (`_widened_template`).
+    while len(core) + wanted in room.lengths["figures"] and wanted < 64:
+        wanted = wanted + 1
+    room.lengths["letters"][len(core) + wanted] = True
+    letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    for character in core:
+        if "a" <= character <= "z":
+            letters = "abcdefghijklmnopqrstuvwxyz"
+        elif "A" <= character <= "Z":
+            letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    cursor = f"(appended)|{wanted}|{letters[0]}|{_reading_of(cell)}"
+    step = room.steps[cursor] if cursor in room.steps else 0
+    tries = 0
+    while tries < _OFF_THE_REAL_TRIES:
+        tail = ""
+        rest = step
+        for _place in range(wanted):
+            tail = letters[rest % 26] + tail
+            rest = rest // 26
+        step = step + 1
+        tries = tries + 1
+        if rest:
+            break
+        written = lead + core + tail + trail
+        if (
+            written in room.written
+            or parsing.folded(written) in room.folds
+            or _identity_taken(room, written)
+            or (room.convention == parsing.LAYOUT_PLAIN and _reads_as_hexadecimal(written))
+            or not _kept_off_the_real(room, written)
+            or _is_a_hole_spelling(written, room.holes)
+            or _reads_as_a_date(written)
+            or not _reads_alike(written, cell)
+        ):
+            continue
+        room.steps[cursor] = step
+        return written
+    room.steps[cursor] = step
+    return ""
+
+
+def _respelled_together(
+    room: _OffTheReal, members: "list[str]"
+) -> "dict[str, str] | None":
+    """One new merged key for every value of one merged identity, or None (G9.3's collision kept).
+
+    Each value's own templates are offered in turn, that value leading:
+    the values folding as it does wear the filling in their own case,
+    and every other value of the identity -- the walk's one person
+    written two ways, `009891959` beside `9891959` -- keeps its own
+    spelling with the new merged key written in it (lane ID-ROOM's
+    verify, new item 1).
+    """
+    parts = [_edges(member) for member in members]
+    offered: "dict[str, bool]" = {}
+    for index in range(len(parts)):
+        core = parts[index][1]
+        for into in _off_the_real_targets(room, core):
+            if into in offered:
+                continue
+            offered[into] = True
+            found = _next_off_the_real(room, into, parts, True, index)
+            if found is not None:
+                return found
+    return None
+
+
+def _on_its_spelling(spelling: str, core: str) -> str:
+    """``core`` with ``spelling``'s merged key written where its own merged key stands, or "" where it cannot be.
+
+    Place for place: each character of ``core`` that its merged key
+    reads (`parsing.merged_key`: a letter, a figure, the one nought of a
+    run of noughts alone) takes the new key's character there -- a
+    figure for a figure, a letter for a letter, in the case ``core``'s
+    letter wears -- and every other character (a separator, a nought
+    filling a width, a space) stays. "" where the keys are not as long,
+    a figure would stand for a letter, or the spelling written does not
+    read back as the new key. A fixed function of the two texts; no I/O.
+    """
+    if not isinstance(spelling, str):
+        raise TypeError("a spelling reached the merged writer as something else")
+    if not isinstance(core, str):
+        raise TypeError("a core reached the merged writer as something else")
+    key = str(parsing.merged_key(spelling))
+    stands = _merged_stands_of(core)
+    if stands is None or len(stands) != len(key):
+        return ""
+    written = ""
+    at = 0
+    for place in range(len(core)):
+        character = core[place]
+        if at < len(stands) and stands[at] == place:
+            new = key[at]
+            at = at + 1
+            if ("0" <= character <= "9") != ("0" <= new <= "9"):
+                return ""
+            if "A" <= character <= "Z":
+                new = new.upper()
+            character = new
+        written = written + character
+    if parsing.merged_key(written) != key:
+        return ""
+    return written
+
+
+def _merged_stands_of(core: str) -> "list[int] | None":
+    """The place in ``core`` each character of its merged key comes from, in order; None where a fold changes a length."""
+    if not isinstance(core, str):
+        raise TypeError("a core reached the merged places as something else")
+    stands: "list[int]" = []
+    zeros = False
+    started = False
+    lone = -1
+    for place in range(len(core)):
+        character = core[place].casefold()
+        if len(character) != 1:
+            return None
+        if "0" <= character <= "9":
+            if started or character != "0":
+                stands += [place]
+                started = True
+            elif not zeros:
+                zeros = True
+                lone = place
+            continue
+        if zeros and not started:
+            stands += [lone]
+        zeros = False
+        started = False
+        if "a" <= character <= "z" or character > "\x7f":
+            stands += [place]
+    if zeros and not started:
+        stands += [lone]
+    return stands
+
+
+def _edges(cell: str) -> "tuple[str, str, str, str]":
+    """A cell's spaces before, its core, its spaces after, and the cell itself."""
+    if not isinstance(cell, str):
+        raise TypeError("a cell reached the final pass as something else")
+    core = cell.strip()
+    lead = cell[: len(cell) - len(cell.lstrip())]
+    return lead, core, cell[len(lead) + len(core):], cell
+
+
+def _reading_of(cell: str) -> str:
+    """A value's class, wholeness and alphabets, as one key (`_reads_alike`)."""
+    return (
+        f"{parsing.classify_number(cell)}|{parsing.numeric_whole(cell)}|"
+        f"{parsing.is_digit_text(cell)}|{parsing.is_code_text(cell)}"
+    )
+
+
+def _next_off_the_real(
+    room: _OffTheReal,
+    template: str,
+    parts: "list[tuple[str, str, str, str]]",
+    strict: bool,
+    lead: int = 0,
+) -> "dict[str, str] | None":
+    """The next filling of ``template`` every one of ``parts`` takes, in its own case and spaces.
+
+    Free: neither the filling nor its folded identity is written, and no
+    part's spelling is, nor merges with or reads as the number of a twin
+    person written before (`_identity_taken`). Several ``parts`` are one
+    MERGED identity: the part ``lead`` names, and every part folding as
+    it does, wear the filling in their own case; every other part keeps
+    its own spelling with the filling's merged key written in it, place
+    for place (`_on_its_spelling`), so the walk's one person stays one
+    and each spelling keeps its layout. Each part's spelling is kept off the real
+    (`_kept_off_the_real`: its merged key drops no nought the template
+    does not, skeptic 1 of lane ID-ROOM, item 3 (a)), is no hole spelling
+    and no date, and, where ``strict``, reads as that part's own class,
+    wholeness and alphabets. The fillings are read from the first, the
+    nought filling (every place at its lowest) last, each reading from its
+    OWN step (skeptic 1, item 5 (b)): a filling one class cannot take is
+    left for another. A search that finds nothing GIVES ITS STEP BACK, so
+    the same search from the same step is not run twice.
+    """
+    reading = ""
+    if strict:
+        for _lead, _core, _trail, cell in parts:
+            reading = reading + "|" + _reading_of(cell)
+    cursor = f"{template}|{strict}{reading}"
+    start = room.steps[cursor] if cursor in room.steps else 0
+    step = start
+    search = ""
+    if len(parts) == 1:
+        spaces, _core, trail, cell = parts[0]
+        search = f"{cursor}|{start}|{len(spaces)}|{len(trail)}|{_reading_of(cell)}"
+        if search in room.missed:
+            return None
+    anchor = parts[lead][1] if parts else ""
+    budget = _OFF_THE_REAL_TRIES
+    for _lead, core, _trail, _cell in parts:
+        if parsing.folded(core) == parsing.folded(anchor):
+            continue
+        if len(parsing.merged_key(core)) != parsing.merged_length(template):
+            # A spelling of the identity that cannot hold the filling's
+            # merged key place for place: no filling of this template fits.
+            return None
+        # ...and one that can is asked a few fillings only: where its own
+        # layout's exclusion and the template's cannot both be worn, no
+        # filling fits, and each value is then spelled on its own.
+        budget = _TOGETHER_TRIES
+    room_of = parsing.layout_room(template)
+    # A VALUE WRITTEN WIDER IN A COLUMN OF PLAIN LAYOUTS never holds letters
+    # of `a` to `f` alone: two such values of one length, a letter in one
+    # where a figure stands in the other, would make the column read as
+    # hexadecimal and rename every layout of it (`parsing.
+    # layout_convention`; lane ID-ROOM's repair, measured on P4-D298's case
+    # 16, where `738886e6` beside `9330816.` did).
+    wider = (
+        room.convention == parsing.LAYOUT_PLAIN
+        and template not in room.stands
+        and all(parsing.classify_number(cell) == parsing.NOT_A_NUMBER for _l, _c, _t, cell in parts)
+    )
+    tries = 0
+    found: "dict[str, str] | None" = None
+    while step < room_of and tries < budget and found is None:
+        filled = _filled_layout(template, (step + 1) % room_of)
+        step = step + 1
+        tries = tries + 1
+        if (
+            filled in room.written
+            or parsing.folded(filled) in room.written
+            or parsing.folded(filled) in room.folds
+            or not _wears_template(filled, template, room.convention)
+            or (wider and _reads_as_hexadecimal(filled, template))
+        ):
+            continue
+        taken: "dict[str, str]" = {}
+        spelt_now: "dict[str, bool]" = {}
+        fits = True
+        for before, core, trail, cell in parts:
+            spelt = filled
+            if len(parts) > 1:
+                spelt = _in_its_case(filled, core)
+                if parsing.folded(core) != parsing.folded(anchor):
+                    spelt = _on_its_spelling(_in_its_case(filled, anchor), core)
+            written = before + spelt + trail
+            if (
+                not spelt
+                or written in room.written
+                or written in spelt_now
+                or _identity_taken(room, written)
+                or not _kept_off_the_real(room, written)
+                or _is_a_hole_spelling(written, room.holes)
+                or _reads_as_a_date(written)
+                or (strict and not _reads_alike(written, cell))
+            ):
+                fits = False
+                break
+            taken[cell] = written
+            spelt_now[written] = True
+        if fits and taken:
+            found = taken
+    if found is None:
+        room.steps[cursor] = start
+        if search:
+            room.missed[search] = True
+        return None
+    room.steps[cursor] = step
+    return found
+
+
+def _reads_as_hexadecimal(spelling: str, template: str = "") -> bool:
+    """Whether a spelling holds a letter where ``template`` holds a placeholder, and every such letter is one of `a` to `f`.
+
+    A letter the template writes itself -- a published prefix's -- stands
+    in every cell of its layout and trades places with no figure, so it is
+    not asked; with no template every letter is.
+    """
+    letters = 0
+    for place in range(len(spelling)):
+        character = spelling[place]
+        if template and place < len(template) and template[place] == character:
+            continue
+        if "a" <= character <= "z" or "A" <= character <= "Z":
+            if character not in "abcdefABCDEF":
+                return False
+            letters = letters + 1
+    return letters > 0
+
+
+def _reads_alike(spelling: str, cell: str) -> bool:
+    """Whether two spellings read as one class, as whole or not alike, and in the same two alphabets (G9.6b)."""
+    return (
+        parsing.classify_number(spelling) == parsing.classify_number(cell)
+        and parsing.numeric_whole(spelling) == parsing.numeric_whole(cell)
+        and parsing.is_digit_text(spelling) == parsing.is_digit_text(cell)
+        and parsing.is_code_text(spelling) == parsing.is_code_text(cell)
+    )
+
+
+def _in_its_case(spelling: str, cell: str) -> str:
+    """``spelling`` with each letter in the case ``cell``'s letter wears.
+
+    Place for place where the two are as long; otherwise letter for
+    letter, in order, each letter past ``cell``'s last taking that last
+    letter's case (a widened core, Codex's review of lane ID-ROOM, item 3:
+    `x` and `X` widened to five letters are `abcde` and `ABCDE`); a
+    ``cell`` holding no letter leaves ``spelling`` as it stands.
+    """
+    if not isinstance(spelling, str):
+        raise TypeError("a spelling reached the case rule as something else")
+    if not isinstance(cell, str):
+        raise TypeError("a cell reached the case rule as something else")
+    lower = spelling.lower()
+    upper = spelling.upper()
+    if len(spelling) == len(cell):
+        written = ""
+        for place in range(len(spelling)):
+            character = spelling[place]
+            if "a" <= cell[place] <= "z":
+                character = lower[place]
+            elif "A" <= cell[place] <= "Z":
+                character = upper[place]
+            written = written + character
+        return written
+    cases: "list[str]" = []
+    for character in cell:
+        if "a" <= character <= "z" or "A" <= character <= "Z":
+            cases += [character]
+    if not cases:
+        return spelling
+    written = ""
+    at = 0
+    for place in range(len(spelling)):
+        character = spelling[place]
+        if "a" <= character <= "z" or "A" <= character <= "Z":
+            case = cases[min(at, len(cases) - 1)]
+            character = lower[place] if "a" <= case <= "z" else upper[place]
+            at = at + 1
+        written = written + character
+    return written
+
+
+def _not_moved_off_the_real(
+    column: contract.ColumnBlock, notes: "list[Deviation]", cells: "list[str]"
+) -> "list[Deviation]":
+    """The notes of a record number's twin, those its final pass gives up set aside (plan P4-D432).
+
+    `taxonomy.moved_by_the_exclusions` names them -- the census of a
+    layout carrying no exclusion, and the lengths with it -- and the
+    validator lists them REPORT-ONLY; and where the twin writes values
+    wider all the same (`taxonomy.written_wider` counts them on the
+    cells), the census entries and the lengths those values leave are the
+    validator's AUTHORIZED-DEVIATION. The remark `_spelled_off_the_real`
+    files says what moved instead.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.IdentifierFacts):
+        return notes
+    moved, lengths = taxonomy.moved_by_the_exclusions(
+        facts.layout_forms, facts.layout_exclusions, column.n_present,
+        column.time_grain is not None,
+    )
+    wider = taxonomy.written_wider(
+        facts.layout_exclusions, facts.layout_prefixes, cells
+    )
+    if column.time_grain is not None:
+        wider = 0
+    if not moved and not lengths and not wider:
+        return notes
+    dropped: "dict[str, bool]" = {}
+    for layout in moved:
+        dropped[f"layout_forms.{layout}"] = True
+    if wider:
+        # Only the entries of layouts whose values were widened: a cell
+        # written wider in a layout that layout's values widen into
+        # (`taxonomy.widened_layouts_of`), as the validator reads it.
+        present = [cell for cell in cells if parsing.trimmed(cell)]
+        convention = parsing.layout_convention(present)
+        widened = taxonomy.widened_layouts_of(
+            facts.layout_forms, facts.layout_prefixes, facts.layout_exclusions,
+            facts.all_whole_numbers, convention,
+        )
+        bound = taxonomy.spill_bound(facts.layout_exclusions, facts.layout_prefixes)
+        for cell in present:
+            layout = parsing.layout_form(cell, convention)
+            if layout in widened and len(parsing.merged_key(cell)) >= bound:
+                for source in widened[layout]:
+                    dropped[f"layout_forms.{source}"] = True
+    if lengths or wider:
+        dropped["min_length"] = True
+        dropped["max_length"] = True
+    return [note for note in notes if note.fact not in dropped]
+
+
+def _prefix_of(facts: contract.IdentifierFacts, layout: str) -> str:
+    """The published prefix a layout's template opens with: its own, else the column's."""
+    if layout in facts.layout_prefixes:
+        return facts.layout_prefixes[layout]
+    if parsing.PREFIX_OF_THE_COLUMN in facts.layout_prefixes:
+        return facts.layout_prefixes[parsing.PREFIX_OF_THE_COLUMN]
+    return ""
+
+
 def _any_whole_places(census: "dict[str, int]") -> bool:
     """Whether any layout of a census is one `parsing.whole_places_layout` writes with noughts."""
     for layout in sorted(census):
@@ -56631,6 +57550,10 @@ def _wears_template(candidate: str, template: str, convention: str) -> bool:
     whole number's nought after the point (`parsing.whole_places_layout`), and no
     layout holds one, so on every other template this adds nothing.
     """
+    if len(template) > parsing.LAYOUT_FORM_LIMIT:
+        # A SPILL LONGER THAN ANY LAYOUT (plan P4-D432), which the census's
+        # reader does not describe: read place by place.
+        return _wears_a_long_template(candidate, template)
     if parsing.layout_form(candidate, convention) != parsing.prefix_layout(
         template, convention
     ):
@@ -56647,6 +57570,28 @@ def _wears_template(candidate: str, template: str, convention: str) -> bool:
     return True
 
 
+def _wears_a_long_template(candidate: str, template: str) -> bool:
+    """Whether a cell fills a template past `parsing.LAYOUT_FORM_LIMIT`, place by place (P4-D432).
+
+    As long; each placeholder holding a character of its alphabet, the
+    zero fill a nought, every other character itself; a UID's arcs led by
+    no nought.
+    """
+    if len(candidate) != len(template):
+        return False
+    for place in range(len(template)):
+        mark = template[place]
+        if mark == parsing.LAYOUT_LEADING_ZERO:
+            if candidate[place] != "0":
+                return False
+        elif parsing.exclusion_alphabet(mark):
+            if candidate[place] not in parsing.exclusion_alphabet(mark):
+                return False
+        elif candidate[place] != mark:
+            return False
+    return not (_opens_with_a_uid_root(template) and not parsing.uid_unled(candidate))
+
+
 def _opens_with_a_uid_root(template: str) -> bool:
     """Whether a template opens with a published UID root (plan P4-D428).
 
@@ -56659,6 +57604,10 @@ def _opens_with_a_uid_root(template: str) -> bool:
         if not ("0" <= mark <= "9" or mark == "."):
             break
         opening = opening + mark
+    # ...read to its last point: an exclusion's figure may stand after the
+    # root, at the opening of the first arc drawn (plan P4-D432).
+    while opening and opening[len(opening) - 1] != ".":
+        opening = opening[: len(opening) - 1]
     return bool(opening) and parsing.is_a_uid_root(opening)
 
 
@@ -65418,6 +66367,11 @@ def _plan_column(
         cells, notes = _identifier_cells(
             column, groups, _holes_reserved(column, all_holes), floor
         )
+        # NO CELL SPELLED AS A REAL ONE (lane ID-ROOM, plan P4-D432).
+        cells, spilled = _spelled_off_the_real(
+            column, facts, cells, _holes_reserved(column, all_holes)
+        )
+        remarks = remarks + spilled
     elif isinstance(facts, contract.TextFacts):
         groups = _groups_of(facts.n_distinct_by_occurrences)
         _word_room(column, facts)
@@ -66338,6 +67292,7 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
         # filter cannot drift from itself.
         notes = _not_settled_by_a_bound(notes, approximated_here)
         notes = notes + _bound_notes(approximated_here)
+        notes = _not_moved_off_the_real(column, notes, spelled)
         approximated = approximated + approximated_here
         deviations = deviations + notes
         # WHAT THIS COLUMN HOLDS THAT MISSED NOTHING (P4-G2-R4-F1).

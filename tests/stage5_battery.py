@@ -632,10 +632,11 @@ EXPECTED: "dict[str, Expect]" = {
     "R4": _refused("validate", "outputs", 11),
     "R7": _refused("validate", "input", 11),
     # G6 puts its questions in the file and on the screen; at 20,000 rows
-    # every record number is different and no question offering
-    # `identifier` holds the column; the weight's Safe Harbor question,
+    # every record number is different, `REC` and six figures one a row,
+    # so lane HX5's question holds the column until it is answered (plan
+    # P4-D436), which G7's file does; the weight's Safe Harbor question,
     # answered in G7's file as in G6's, gives the one caution.
-    "G6": _profiled("safe-harbor"),
+    "G6": _profiled("withheld-until-answered", "safe-harbor"),
     "G7": _profiled("safe-harbor"),
     # The table floor (plan P4-D425) refuses the page's 150-row table.
     "G8": _refused("profile", "content"),

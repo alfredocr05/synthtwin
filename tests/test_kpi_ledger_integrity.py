@@ -925,6 +925,12 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # window's six time entries named in their stamps and in the note,
     # 759,465 bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
+    # 760,000 from 757,000, ON LANE ID-ROOM'S BRANCH (2026-10-25, plan
+    # P4-D432), the least round figure the lane's ledger fits under:
+    # `K-HZ-06` (twin identifier cells spelled as a real one) with its note
+    # clause, 759,992 bytes. The integrator sets the cap for the batch as
+    # a whole. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
     # 757,000 from 754,000, ON LANE CODES-3'S BRANCH (2026-10-23, plan
     # P4-D428), the least round figure the lane's ledger fits under:
     # `K-HZ-04` (the zoo's identifier cells out of pattern) with its note

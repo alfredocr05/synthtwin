@@ -148,6 +148,9 @@ def _generated_and_validated(folder: pathlib.Path, stem: str) -> "tuple[set[str]
     NF126 states; every other miss is named.
     """
     quiet = io.StringIO()
+    # The dates' own counts: the record numbers' final pass (P4-D432) moves
+    # cells of the held values' dense layouts, which the identifier gate holds.
+    fixtures.profile_without_exclusions(folder / f"{stem}-profile.json")
     with contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
         made = cli.main(["generate", f"{folder / (stem + '-profile.json')}", "--out-dir",
                          f"{folder}", "--seed", "0", "--replace"])
@@ -987,6 +990,9 @@ def test_a_published_layout_no_date_wears_is_written_as_made_up(tmp_path: pathli
     read either and leave as made up, every other cell is a valid date, and
     the one miss left is the longest length, a withheld form's, named in
     the twin's report as the G1 floor's limit (P4-D417, repair round 2).
+    Since plan P4-D432 the made-up cells of `&&&&&&&` are spelled inside
+    that layout's excluded template, so none is a real cell's spelling; a
+    column of dates at a grain gives nothing else up (method G9.6b).
     """
     described = _profiled(tmp_path, "unread", persons_counted.unread_dates_table(), "--identifier", "patient")
     block = _block(described, "visit_date")
@@ -1003,6 +1009,10 @@ def test_a_published_layout_no_date_wears_is_written_as_made_up(tmp_path: pathli
     missed = sorted({f"{check.subcheck}" for check in outcome.checks if check.verdict == validation.MISSED})
     assert missed == ["length.max"], missed
     assert "max_length" in (tmp_path / "unread-twin-report.txt").read_text(encoding="utf-8")
+    # ...and every made-up cell of `&&&&&&&` wears the layout's excluded template (plan P4-D432).
+    written = block["layout_exclusions"]["&&&&&&&"]
+    place = [at for at in range(7) if written[at] != "&"][0]
+    assert all(cell[place] == written[place] for cell in unread), (written, unread)
 
 
 @pytest.mark.parametrize("shape", ("pending", "short"))

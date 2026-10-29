@@ -620,6 +620,12 @@ PLAN4_REGIONS = {
         "## Decision P4-D33 — the compound role's two halves are checked "
         "by the groups that already check them (landing L8, 2026-09-03)"
     ),
+    # What no real cell of a record number holds (lane ID-ROOM): the one
+    # key it adds, and a record number's corner, are disposed there.
+    "id-room": (
+        "## Decision P4-D432 — no twin identifier cell equals a real "
+        "identifier of its column, by construction"
+    ),
 }
 
 # THE ROLE SUB-TABLES OF THE CONTRACT MATRIX. Version 6's section 9
@@ -2031,29 +2037,77 @@ _CORNER = (
     "**In that decision's infeasible corner, THREE distinctness facts are "
     "REPORT-ONLY, not one**"
 )
+# A RECORD NUMBER'S CORNER (lane ID-ROOM, plan P4-D432, 2026-10-24): no
+# twin identifier cell may be spelled as a real one, so where a layout's
+# real values leave no exclusion, its values are written wider than every
+# real value. The lesser outcome is the plan's, quoted here, and reaches
+# the three facts below and no other.
+_RECORD_CORNER = "a record number's corner"
+_RECORD_CORNER_SAID = (
+    "**In a record number's corner, the census entry of each named layout "
+    "carrying no exclusion, `min_length` and `max_length` are REPORT-ONLY**"
+)
+# ...AND A RECORD NUMBER WRITTEN WIDER (lane ID-ROOM's repair, plan P4-D432,
+# 2026-10-25): where a layout carrying an exclusion still has values the
+# twin writes wider than every real one, the entries and lengths they
+# leave are APPROXIMATED, bounded by those cells, measured (V4.1-A2).
+_WIDER_CORNER = "a record number written wider"
+_WIDER_CORNER_SAID = (
+    "**In a record number written wider, the census entry of a layout "
+    "carrying an exclusion, `min_length` and `max_length` are APPROXIMATED**"
+)
 REGISTRY += _facts(
     "identifier",
     EXACT_OBSERVABLE,
-    "min_length",
-    "max_length",
     "all_whole_numbers",
     "n_all_digits",
     "n_code_alphabet",
-    # THE CENSUS OF LAYOUTS (contract 7.12, landing 2b.18, plan
-    # P4-D120). EXACT-OBSERVABLE on exactly the terms the form census
-    # is: a person opens the twin, reads the layout off each cell and
-    # gets the published census back, with the pooled remainder
-    # widening the bar. It is owed INSIDE owner decision 6's infeasible
-    # corner as well as outside it -- that corner lowers three
-    # DISTINCTNESS facts and says nothing about what a cell LOOKS
-    # like -- so it carries no `authorized` entry.
-    "layout_forms",
     # THE LITERAL PREFIX (contract 7.12a, owner ruling of 2026-09-17,
     # item 1, plan P4-D202). EXACT-OBSERVABLE: a person opens the twin
     # and finds every cell the prefix governs opening with it. Owed
     # inside the infeasible corner for the reason the layouts are.
     "layout_prefixes",
 )
+REGISTRY += [
+    Fact(
+        "identifier",
+        field,
+        EXACT_OBSERVABLE,
+        authorized=(
+            (_RECORD_CORNER, _RECORD_CORNER_SAID),
+            (_WIDER_CORNER, _WIDER_CORNER_SAID),
+        ),
+    )
+    for field in (
+        "min_length",
+        "max_length",
+        # THE CENSUS OF LAYOUTS (contract 7.12, landing 2b.18, plan
+        # P4-D120). EXACT-OBSERVABLE on exactly the terms the form census
+        # is: a person opens the twin, reads the layout off each cell and
+        # gets the published census back, with the pooled remainder
+        # widening the bar. It is owed INSIDE owner decision 6's
+        # infeasible corner as well as outside it -- that corner lowers
+        # three DISTINCTNESS facts and says nothing about what a cell
+        # LOOKS like -- and lowered only in a record number's corner, for
+        # the entries of the layouts no exclusion holds.
+        "layout_forms",
+    )
+]
+# WHAT NO REAL CELL HOLDS (contract 7.12b): the twin carries it, the real
+# table holds none of it by construction, so nothing a measured file
+# holds can be checked against it.
+REGISTRY += [
+    Fact(
+        "identifier",
+        "layout_exclusions",
+        REPORT_ONLY,
+        plan_words=(
+            "`layout_exclusions` is REPORT-ONLY: the validator reads it to "
+            "know what the twin gives up and checks no cell against it"
+        ),
+        plan_region="id-room",
+    )
+]
 REGISTRY += [
     Fact(
         "identifier",
@@ -2192,6 +2246,15 @@ AUTHORIZED_BY: "dict[tuple[str, str, str], tuple[str, str]]" = {
         "raw-versus-folded",
         APPROXIMATED,
     ),
+    # A record number's corner (plan P4-D432): the census entry of a
+    # layout no exclusion holds, and the two lengths beside it.
+    ("identifier", "min_length", _RECORD_CORNER): ("id-room", REPORT_ONLY),
+    ("identifier", "max_length", _RECORD_CORNER): ("id-room", REPORT_ONLY),
+    ("identifier", "layout_forms", _RECORD_CORNER): ("id-room", REPORT_ONLY),
+    # ...and a record number written wider (V4.1-A2), measured.
+    ("identifier", "min_length", _WIDER_CORNER): ("id-room", APPROXIMATED),
+    ("identifier", "max_length", _WIDER_CORNER): ("id-room", APPROXIMATED),
+    ("identifier", "layout_forms", _WIDER_CORNER): ("id-room", APPROXIMATED),
     # The one corner P2-D9 gives a column of dates: offsets the
     # disclosure rules withheld cannot be put back without making them
     # up. It reaches the offset fields, never the two ends.

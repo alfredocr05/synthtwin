@@ -3072,6 +3072,65 @@ def battery() -> list[Mutation]:
             edit("record_code", layout_prefixes={"(column)": "R0"}),
             names="layout_prefixes",
         ),
+        # WHAT NO REAL CELL HOLDS (contract 7.12b, lane ID-ROOM, plan
+        # P4-D432). `record_code`'s base description publishes an
+        # exclusion beside `@%%%%%` and the spill `@%%%%%%`.
+        Mutation(
+            "LX1",
+            "an exclusion for a layout the census does not name",
+            edit("record_code", layout_exclusions={"@@%%%%": "@@9%%%"}),
+        ),
+        Mutation(
+            "LX1",
+            "an exclusion for a layout beside a layout census that names no layout",
+            edit(
+                "record_code",
+                layout_forms={},
+                layout_prefixes={},
+                layout_exclusions={"@%%%%%": "@9%%%%", "(spill)": "%%%%%%%"},
+            ),
+        ),
+        Mutation(
+            "LX2",
+            "an exclusion writing a place the prefix holds",
+            edit("record_code", layout_exclusions={"@%%%%%": "Z%%%%%"}),
+        ),
+        Mutation(
+            "LX2",
+            "an exclusion not as long as its layout",
+            edit("record_code", layout_exclusions={"@%%%%%": "@9%%%%%"}),
+        ),
+        Mutation(
+            "LX2",
+            "an exclusion writing a letter where its layout holds a figure",
+            edit("record_code", layout_exclusions={"@%%%%%": "@A%%%%"}),
+        ),
+        Mutation(
+            "LX3",
+            "a spill no longer than the longest value",
+            edit("record_code", layout_exclusions={"(spill)": "@%%%%"}),
+        ),
+        Mutation(
+            "LX3",
+            "a spill the census names",
+            edit("record_code", layout_exclusions={"(spill)": "@%%%%%"}),
+        ),
+        Mutation(
+            "LX3",
+            "a spill not opening with the column's prefix",
+            edit("record_code", layout_exclusions={"(spill)": "%%%%%%%"}),
+        ),
+        Mutation(
+            "LX3",
+            "a spill holding more than figures after the column's prefix",
+            edit("record_code", layout_exclusions={"(spill)": "@%%%%%@"}),
+        ),
+        Mutation(
+            "R16",
+            "an exclusion that is not text",
+            edit("record_code", layout_exclusions={"(spill)": 7}),
+            names="layout_exclusions",
+        ),
         # A WIDTH CENSUS SPEAKING FOR A HELD-BACK FORM (plans P4-D221 and
         # P4-D222). The pool of eleven stands alone and passes the census's
         # own line, so only P8 refuses it: the forms map holds every form
