@@ -815,6 +815,13 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 870,000 KEPT AT BATCH 4L PART B (2026-10-29), the cap set once for
+    # the batch: lanes HX5 (its branch's 768,000), ID-ROOM and S5b merged
+    # entry by entry, then part b's stamps on the merged code (K-S3-64,
+    # K-HZ-06, K-S5-01, K-S5-02, K-HZ-01 and K-HZ-02) and the night's
+    # K-BC-12, 851,454 bytes at its records: the zoo's smaller values left
+    # the room. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
     # 870,000 from 785,000, AT THE INTEGRATION OF BATCH 4L (2026-10-27),
     # the orchestrator's recorded call D15 (the owner may veto), set once
     # for the batch, a round figure the merged ledger and the batch's

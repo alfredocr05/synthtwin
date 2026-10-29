@@ -6,6 +6,35 @@ exists).
 
 ## [Unreleased]
 
+### Batch 4l's records, part b: all-different numbers asked, no twin identifier equal to a real one, profile's questions as data (2026-10-29)
+
+**Records of batch 4l, part b**, which merged lanes HX5, ID-ROOM and S5b
+(plans P4-D436, P4-D432 and P4-D441) on part a's 19da269b, nothing
+pushed. At the merges: lane HX5's question holds every open column it
+offers `identifier` to, as lane SH's rule does; `parsing.subject_key`
+returns lane ID-ROOM's `merged_key`, one rule for the people count and
+the exclusions; lane S5b's records take lane SH's held ZIP columns. THE
+STAGE-5 GOLDENS were recorded again at lane ID-ROOM's merge: 103 records
+of 29 cases, nine lane HX5's (G6's record number, `REC` and six figures
+one a row, now asked and held) and 94 lane ID-ROOM's (the record
+number's exclusions in the descriptions, its twin spelled off the real
+ones), no verdict, step or exit status moved; lane S5b moves none. Seams,
+test-only: the stage-5 battery's weight is asked lane SH's Safe Harbor
+question and its record number lane HX5's; two of lane SH's ages held as
+record numbers miss `n_distinct` by the final pass's merge of two walk
+values (lane HB's); lane HX4's `reglistmixR` at 20,000 rows writes 4
+twin cells carrying a real key's six figures beside another letter, none
+equal to a real key, bounded by that count in the list gate: a chance
+case the orchestrator confirmed (made-up list members are not yet kept
+off real figure runs, about 40 in 900,000 a member; `K-S3-64` OPEN-held
+until lane HB's item 12); S5b's
+pinned key, ZIP and age questions file moves by lane SH's age question.
+"Two twin persons are never written as one" is restated to the measured
+case (79 and 54 at 20,000 rows, lane HB's). STATE's HIPAA bullet closes
+lane HX5's all-different column and lane ID-ROOM's chance-equal
+identifiers, the width price stated. On the merged code (d50d05c7), each by its driver: `K-S3-64` OPEN-held (0 values and 0 fragments described over 306 shapes; the one list case); `K-HZ-06` 0 equal and 0 merging over 186 shapes and 72 zoo identifier columns; `K-S5-01` and `K-S5-02` met (257 records, 0 differing); `K-HZ-01` 47 of 93 kinds passing at 20,000 rows and `K-HZ-02` 186 failures over 46 kinds, 900 real values published (21, 261 over 72 and 34,282 on lane E0c's head), seven failures over five kinds without an owner when measured and named at these records: four form checks lane ID-ROOM's width price, by design, and `partial_dates`' three lane HB's; lane SR's 880-description battery, read one column a group: 788 byte-identical to part a's, 89 moved only by lane ID-ROOM's layout exclusions in the description and 3 by lane HX5's question; `K-BC-12` written in from the orchestrator's night of 2026-10-29 on part a's head. The ledger's cap stays at part a's 870,000, set once for the batch: the merged ledger with part b's stamps fits under it.
+The records move no twin, description or report byte.
+
 ### Lane S5b: profile's questions and carried become data, and the questions file is rendered from them (plan P4-D441, 2026-10-27; builds P4-D395)
 
 **Stage 5's second build lane, on lane S5a's head.** A profile run's
@@ -85,7 +114,10 @@ ways (`9891959` beside `009891959`, `100005` beside `100005.0`: 600
 persons written as 317 to 333 at 600 rows); each spelling's merged key
 and its number are now claimed too, and one merged identity is moved
 together, each value keeping its spelling, so the twin keeps the walk's
-persons (the walk's own merges at 20,000 rows are lane CODES-1 part C's).
+persons but where its per-member fallback writes two as one number (79
+and 54 at 20,000 rows on two shapes, 0 cells real; lane HB's items 15 and
+16, restated at batch 4l's merge; the walk's own merges at 20,000 rows are
+lane HB's too).
 Gate: `tests/test_identifier_room.py`. The demonstration's
 goldens move on `record_code` alone, and vectors file 27 gains seven
 cases.

@@ -3450,5 +3450,36 @@ for _kind, _columns in STRICT_KEYS_RED.items():
     )
 for _kind, _lines in LEAK_OWNERS.items():
     WIDE_OWNERS[_kind] = WIDE_OWNERS.get(_kind, ()) + _lines
+# AT 20,000 ROWS ON BATCH 4l PART B's MERGED CODE (2026-10-29, measured
+# by K-HZ-02's driver on d50d05c7, each re-read by the integrator's
+# probe_zoo.py on part a's 19da269b and the merged code): five kinds whose
+# strict leak check lane ID-ROOM closed fail another check instead.
+# (1) THE WIDTH PRICE: the real keys fill their layout's room, or spread
+# thinly over a block's spellings, so the twin writes them longer and the
+# analyst's form check meets a form the real never wrote (the
+# orchestrator's ID-ROOM ruling 7: no twin key equal to a real one, by
+# construction, the width its price; by design). (2) A DATE COLUMN HELD
+# AS RECORD NUMBERS while its identifier question is open: lane ID-ROOM's
+# final pass writes `partial_dates`' year-only cells (3,999 of 20,000) as
+# eleven-figure values, where the orchestrator's HB RULINGS 2 (1) has a
+# date column read as identifier write valid made-up dates in its own
+# forms, ID-ROOM's exclusion not applied: lane HB's.
+ROOM_WIDENED = (
+    "record numbers written wider so no twin key is a real one (plan P4-D432; by design, the orchestrator's "
+    "ID-ROOM ruling 7): at 20,000 rows the real keys fill their layout's room, or spread thinly over a block's "
+    "spellings, so the twin writes them longer and the form check meets a form the real never wrote"
+)
+HELD_DATES_SPILLED = (
+    "a date column held as record numbers while its identifier question is open: at 20,000 rows lane ID-ROOM's "
+    "final pass writes its year-only cells (3,999 of 20,000) eleven figures long, not as valid made-up dates in "
+    "the column's own forms (the orchestrator's HB RULINGS 2 (1)), so no cell is known to the year only"
+)
+for _kind, _column in (("microbiology", "isolate_id"), ("surveys_pro", "respondent_id"),
+                       ("tumor_registry", "tumor_id"), ("wearables", "device_id")):
+    WIDE_OWNERS[_kind] = WIDE_OWNERS.get(_kind, ()) + (("ID-ROOM", ROOM_WIDENED, covers(f"forms {_column}")),)
+WIDE_OWNERS["partial_dates"] = WIDE_OWNERS.get("partial_dates", ()) + (
+    ("HB", HELD_DATES_SPILLED, covers("forms dx_date", "some date is known to the year only",
+                                      "some date is known to the year only, as a share")),
+)
 
 _UNUSED = (JUNK, _bad_pattern, _i, _r, _zipf, covers)

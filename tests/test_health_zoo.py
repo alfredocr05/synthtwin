@@ -88,6 +88,9 @@ PLAN_LANES = (
     # years, places and devices no question reaches (THE ZOO ANSWERS
     # TRUTHFULLY, 2026-10-25).
     "SH2",
+    # ...and lane HB, the held blocks' made-up values in valid layouts (the
+    # orchestrator's HB RULINGS 2 (1)), named at batch 4l part b's merge.
+    "HB",
 )
 
 # The kinds the lane's step names, and the ones its reviews found missing

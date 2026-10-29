@@ -813,7 +813,8 @@ _PERSON_FIRST = ("reglist6", "reglist7", "reglistR", "reglisttrail6", "reglistgr
 # list question is put, and nothing needs holding.
 _FREE_TEXT_AT_600 = ("reglisttrail6", "reglistgrouped")
 # ...and ONE CASE OF CHANCE since batch 4l's merge of lane ID-ROOM (plan
-# P4-D432), an integration decision for the orchestrator to confirm: at
+# P4-D432), CONFIRMED by the orchestrator on 2026-10-29 (batch notes,
+# BATCH 4l OWES 11) on its conditions (a) to (e), lane HB's to close: at
 # 20,000 rows `reglistmixR`'s made-up list members carry a real key's six
 # figures beside another letter in 4 twin cells (one counted a fragment),
 # none equal to a real key as written or by the merged key (0 members,
@@ -837,6 +838,9 @@ def _check_list_held(seen: "dict[str, object]", rows: int, kind: str) -> None:
     assert seen["twin_cells"] <= cells, seen
     assert seen["twin_fragments"] <= fragments, seen
     assert seen.get("twin_cells_equal", 0) == 0, seen
+    # OWES 11 (a): no made-up member equals a real record number, as
+    # written or by the merged key, at every shape and size.
+    assert seen["twin_members_equal"] == 0 and seen["twin_members_merging"] == 0, seen
     if rows == _ROWS and kind in _FREE_TEXT_AT_600:
         assert seen["role"] == taxonomy.ROLE_TEXT
     else:

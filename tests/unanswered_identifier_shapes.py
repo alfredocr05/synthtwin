@@ -62,7 +62,7 @@ import random
 import re
 import time
 
-from synthtwin import cli
+from synthtwin import cli, parsing
 
 import persons_counted
 
@@ -885,6 +885,21 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
         # plan P4-D436), beside `twin_cells`' search for its figures inside.
         "twin_cells_equal": len([cell for cell in written if cell in real_written]),
     }
+    if _base(kind) in LISTED:
+        # ...and a register list's MEMBERS (the orchestrator's BATCH 4l
+        # OWES 11 (a), 2026-10-29): the twin cells holding a member equal to
+        # a real record number as written, or whose merged key (the form
+        # the product counts a person by, `parsing.merged_key`) is a real
+        # one's, each cell split at its marks with a comma read both ways.
+        merged_real = {parsing.merged_key(value) for value in real}
+        members_equal = 0
+        members_merging = 0
+        for cell in written:
+            members = {*re.split(r"[;|\s\[\]']+", cell), *re.split(r"[;|,\s\[\]']+", cell)} - {""}
+            members_equal += int(any(member in real_written for member in members))
+            members_merging += int(any(parsing.merged_key(member) in merged_real for member in members))
+        seen["twin_members_equal"] = members_equal
+        seen["twin_members_merging"] = members_merging
     seen.update(counted)
     seen["product_seconds"] = round(product_seconds, 1)
     seen["counting_seconds"] = round(time.perf_counter() - started - product_seconds, 1)
