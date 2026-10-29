@@ -278,6 +278,11 @@ _UNIVERSAL_FIELDS = frozenset(
     fact.field for fact in dispositions.REGISTRY if fact.group == "universal"
 )
 _UNREGISTERED_COLUMN_KEYS = frozenset({"time_grain"})
+# AND ONE KEY WRITTEN ONLY BEHIND THE CHAIN'S SWITCH, which no shipped command
+# sets: lane BT's note of a column made without its band totals (RULE B3,
+# plan P4-D429), merged beside this gate at batch 4l's integration; its
+# registry group is owed by lane BT2 with the stage-5 registry's groups.
+_SWITCHED_ONLY_KEYS = frozenset({"band totals"})
 
 
 def _head(field: str) -> str:
@@ -969,7 +974,11 @@ def test_every_key_the_generator_writes_is_named_as_the_registry_names_it() -> N
     universal = {field for group, field in _registry_pairs() if group == "universal"}
     groups = sorted({group for group, _field in _registry_pairs()} - {"universal", "document"})
     wrong = []
+    switched = [key for _line, key in keys if key in _SWITCHED_ONLY_KEYS]
+    assert switched == ["band totals"], switched
     for line, key in keys:
+        if key in _SWITCHED_ONLY_KEYS:
+            continue
         field = key.split(" -> ")[-1]
         if _head(field) in universal | _UNREGISTERED_COLUMN_KEYS:
             if any(cli._registry_fact(group, key, "") != f"universal.{field}" for group in groups):
