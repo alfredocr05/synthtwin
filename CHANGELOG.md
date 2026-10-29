@@ -6,6 +6,45 @@ exists).
 
 ## [Unreleased]
 
+### Batch 4l's records: the date floor, the widened zoo, results as data and layer L0 merged; the environment audit closed to aliases; night 1027's describe points written in (2026-10-28)
+
+**Records of batch 4l**, which merged lanes PS2, E0c, S5a and BT (plans
+P4-D433, P4-D431, P4-D437 and P4-D429) on batch 4k's 589f3d72. At the
+merges: lane SH's top-code keywords and lane PS2's count in rows meet in
+`profile.build_document` and `cli.py`; the zoo keeps lane E0c's truthful
+answers, and the ADT export's `out_ts`, counted in people since lane PS2,
+names lane DST for the ladder rung its twin misses at 600 rows; lane
+S5a's results give lane SH's and lane PS2's notices a caution, never a
+refusal's words, and its golden battery is recorded again (151 records
+moved by lanes SH and PS2, none by its code); lane BT's gate spreads its
+ward's days so lane PS2's floor keeps them at the day. With the chain's
+switch at its default the merged head writes what it writes without lane
+BT: the zoo's 128 tables at 600 rows, each described and twinned at two
+seeds, 896 files and every word printed, byte for byte. SR's 880
+descriptions read one column a group are batch 4k's but 10, each a date
+column beside a person column that lane PS2's count in people holds or
+sends a rung coarser (layouts with month names, offsets), the same bytes
+on the merge of lane PS2 alone. Lane POP's and lane MIN's environment checks now also fail
+on the built-ins reached through an alias or an item, and on a trusted
+module stored through an alias (Codex's review of batch 4k), so batch
+4k's entry below is corrected. STATE's HIPAA bullet names what is closed
+(lane PS2's dates) and the lanes of what is open: lane SH2's rung and
+mean above 89 beside placeholders, its typed date count that frees a ZIP
+column, its places, coordinates and devices; lane HX5's references whose
+values all differ; ID-ROOM's chance-equal identifiers; LISTS'. `K-S4-09`
+and `K-S4-11` take night 1027's run on 589f3d72 (OPEN-WORSE, 20.3 traced
+bytes a cell against 17.7; PASS); the merged head's own reading at
+200,000 rows is owed to a window, its one traced run having taken over 92
+minutes of CPU without finishing. Stamped on the merged code: `K-S5-01`
+and `K-S5-02`, PASS, and `K-S6-02`, its two counts of at least restated
+because lane PS2's floor publishes three of the zoo's date columns at
+20,000 rows at the month, 16 bands fewer, every clause of the layer as
+it was. The ledger's cap is
+870,000 bytes, set once for the batch (847,894 used). Owed: the two gate
+files over the three-minute rule, lane SH's (about 45 minutes) and lane
+PS2's (about 12), their 20,000-row grids to `K-S3-64`'s and `K-HZ-07`'s
+slow legs. The records move no twin, description or report byte.
+
 ### Layer L0 built behind the chain's switch: each eligible column meets its band totals, today's twin moved the least (lane BT, 2026-10-24, repaired 2026-10-25 and 2026-10-26)
 
 **Lane BT** (plan P4-D429, the build of P4-D404). Behind the switch no
@@ -205,7 +244,7 @@ at the floor size, the 200,000-row tables in `K-HZ-07`'s slow leg.
 
 ### Batch 4k's records: the Safe Harbor numbers and the chain's validator merged, the environment audit closed to a rebound callee, the night's 2,000,000-row points written in, the ledger cap set once (2026-10-26)
 
-**Records of batch 4k**, which merged lanes SH and CHv (plans P4-D427 and P4-D430) on batch 4j's f677d6a0. Since lane CODES-3 the padded ZIP shapes beside words lane SH's gate answered are held as keys beside words and put the person question, so its two answered cases now answer the Safe Harbor question on `zip_mixed`, a shape lane SH alone holds, and its zoo case hands lane POP's internal keyword through. P4-D427's price is corrected: the zoo's CVX codes answered `code` are top-coded under ruling R2 until `no`, not held; the ZIP and APC codes are held under R1. Lane POP's and lane MIN's checks that no module reads the environment now also fail on a callee the audit trusts rebound before the copy (Codex's review of batch 4j), so batch 4j's entry below holds as written. A key exported as `100001.0` validates since lane CODES-3, and the shapes' validation limits no longer name it. STATE's HIPAA bullet names what is closed and the lanes of what is open (ID-ROOM, PS2, SH2, LISTS'). The night windows' points are written into P4-D415, P4-D423 and the evidence of `K-S4-09` and `K-S4-12`: the workbook route at 1,048,576 x 50 peaked at 1,451 MB resident, which replaces its day projection of 0.78 to 1.02 GB; on batch 4j's head the 2,000,000 x 50 mixed table was described at 2,375 MB and generated at 1,745 MB, and the Gaussian table at 1,330 and 1,155 MB, every run under the 2.5 GB guard. CI's two repairs of batches 4h to 4j, 8cd9b743 and f677d6a0, are in STATE's CI row with their runs (83 and 86 of 86 jobs). Lane SH's rule reaches tables the lanes merged since its base added, by design: 47 of the 880 battery descriptions differ from batch 4j's, each in one column it top-codes or holds, and lane SG's frozen utf16 twin is re-measured for its column of 0 to 100. `K-S3-66` (101 answers) and `K-HZ-02` (102 analyst checks failing), lane SH's, and `K-S6-04`, `K-S6-05` and `K-S6-10`, lane CHv's, are stamped on the merged code, `K-S6-05`'s bounds restated because lane SH's top-code moves today's twin of its table; `K-S3-64` keeps lane SH's stamp. The ledger's cap is 785,000 bytes, set once for the batch (781,460 used). The records move no twin, description or report byte.
+**Records of batch 4k**, which merged lanes SH and CHv (plans P4-D427 and P4-D430) on batch 4j's f677d6a0. Since lane CODES-3 the padded ZIP shapes beside words lane SH's gate answered are held as keys beside words and put the person question, so its two answered cases now answer the Safe Harbor question on `zip_mixed`, a shape lane SH alone holds, and its zoo case hands lane POP's internal keyword through. P4-D427's price is corrected: the zoo's CVX codes answered `code` are top-coded under ruling R2 until `no`, not held; the ZIP and APC codes are held under R1. Lane POP's and lane MIN's checks that no module reads the environment now also fail on a callee the audit trusts rebound before the copy (Codex's review of batch 4j), so batch 4j's entry below holds as written. (Corrected at batch 4l's records: an alias of the built-ins or of a trusted module, or an item written into the built-ins, still passed both checks until then, Codex's review of batch 4k; the offline scanner rejected those forms and no product module holds one.) A key exported as `100001.0` validates since lane CODES-3, and the shapes' validation limits no longer name it. STATE's HIPAA bullet names what is closed and the lanes of what is open (ID-ROOM, PS2, SH2, LISTS'). The night windows' points are written into P4-D415, P4-D423 and the evidence of `K-S4-09` and `K-S4-12`: the workbook route at 1,048,576 x 50 peaked at 1,451 MB resident, which replaces its day projection of 0.78 to 1.02 GB; on batch 4j's head the 2,000,000 x 50 mixed table was described at 2,375 MB and generated at 1,745 MB, and the Gaussian table at 1,330 and 1,155 MB, every run under the 2.5 GB guard. CI's two repairs of batches 4h to 4j, 8cd9b743 and f677d6a0, are in STATE's CI row with their runs (83 and 86 of 86 jobs). Lane SH's rule reaches tables the lanes merged since its base added, by design: 47 of the 880 battery descriptions differ from batch 4j's, each in one column it top-codes or holds, and lane SG's frozen utf16 twin is re-measured for its column of 0 to 100. `K-S3-66` (101 answers) and `K-HZ-02` (102 analyst checks failing), lane SH's, and `K-S6-04`, `K-S6-05` and `K-S6-10`, lane CHv's, are stamped on the merged code, `K-S6-05`'s bounds restated because lane SH's top-code moves today's twin of its table; `K-S3-64` keeps lane SH's stamp. The ledger's cap is 785,000 bytes, set once for the batch (781,460 used). The records move no twin, description or report byte.
 
 ### The chain's families checked by `validate`, behind the chain's switch (2026-10-24)
 
@@ -310,6 +349,10 @@ column of five-figure whole numbers beside a few words is held whole until
 that question is answered `no`. On b85200be, 20,000 ages published 95 to
 103 and five-figure ZIP codes beside one `UNKNOWN` printed 38 to 44 real
 ZIPs; now 0 in every file and in the twin, at 600 and 20,000 rows.
+(Corrected at batch 4l's records: no real age over 89 is printed, but
+beside a placeholder such as `999` a top-coded column still publishes a
+rung or a mean above 89 -- at 20,000 rows 200 cells of `999` give `p99`
+99.09 and 1,000 a mean of 115.6 -- lane SH2's to close, its addendum 1.)
 `yes` holds a column as an open question does; `no` gives back today's
 description. `K-S3-64` gains the eight shapes; the zoo answers `no` for
 its pulse, its verdicts unchanged. Owed: the analyst battery's slow KPIs
