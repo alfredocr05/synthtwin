@@ -429,7 +429,18 @@ def test_a_large_workbook_keeps_every_workbook_fact_in_its_twin(
     path = _written(
         tmp_path, f"{shape}.xlsx", workbooks.study_book(n_rows, seed, shape)
     )
-    assert _quiet(["profile", str(path)]) == 0
+    # THE PADDED AND GROUPED NUMBERS ARE DECLARED MEASUREMENTS (lane HX5,
+    # plan P4-D436, its repair 1): at these sizes their six-figure values
+    # are all different but a few, the shape record numbers take, so
+    # undeclared they are put the identifier question and held; and one
+    # of them repeating a few values makes it a candidate person column,
+    # under which the other number columns are held in people (plan
+    # P4-D406) and the real workbook then misses its own repetition
+    # pattern -- the same with `--identifier grouped` on the base, a
+    # limit of that hold the plan decision names. `--measurement` is the
+    # answer `keep`, the reading this gate is about.
+    declared = ["--measurement", "padded", "--measurement", "grouped"]
+    assert _quiet(["profile", str(path)] + declared) == 0
     described = tmp_path / f"{shape}-profile.json"
     first = _block_of(described)
     assert _quiet(["generate", str(described), "--seed", f"{seed}"]) == 0
@@ -455,7 +466,7 @@ def test_a_large_workbook_keeps_every_workbook_fact_in_its_twin(
 
     third = tmp_path / "third"
     third.mkdir()
-    assert _quiet(["profile", str(twin), "--out-dir", str(third)]) == 0
+    assert _quiet(["profile", str(twin), "--out-dir", str(third)] + declared) == 0
     second = _block_of(third / f"{shape}-twin-profile.json")
     for index in range(len(first["columns"])):
         assert (

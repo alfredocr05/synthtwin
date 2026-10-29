@@ -205,21 +205,29 @@ cannot get worse unseen.
   question put and the column held until `no`; full birth dates and
   other dates one to ten people, or rows where no person column counts
   them, hold, lane PS2 (batch 4l, P4-D433): pooled or held, 0 over the
-  zoo and the lane's sweep (`K-HZ-07`). OPEN, each with its lane:
+  zoo and the lane's sweep (`K-HZ-07`); whole numbers each on one row or
+  in sequence, mostly five figures or letters and five figures (the
+  zoo's `RPT` references: 19,998 of 20,000 copied into the twin on
+  `ccebc947`), asked P4-D401's question and held, 0 published at 600,
+  20,000 and 200,000 rows, lane HX5 (batch 4l, P4-D436; its stated
+  limits -- runs under five figures, mixed widths on one to two rows a
+  value, a letter glued to every key, held runs beside `-1` or `-9999`
+  failing their own validation -- lane HB's, P4-D442; its price, a
+  whole-number measurement over a range fifty times the rows asked until
+  `keep`). OPEN, each with its lane:
   beside a placeholder such as `999` a top-coded age column still
   publishes a rung or a mean above 89 (no real age; at 20,000 rows 200
   cells give `p99` 99.09, 1,000 a mean of 115.6), a typed
   `--date-count` on a ZIP-shaped column releases its hold (the
   orchestrator's SH2 ruling 1 (5)), years indicative of an age over 89,
   places smaller than a state, coordinates, device numbers (UDIs) and
-  ages written `104Y`, lane SH2 (P4-D434); a reference column whose
-  values all differ, asked nothing, copied into the twin (`RPT`: 19,998
-  of 20,000 at 20,000 rows), lane HX5 (P4-D436); a made-up identifier
+  ages written `104Y`, lane SH2 (P4-D434); a made-up identifier
   equal to a real one by chance (up to 1,022 of 20,000 UIDs; 214 and
   348 record numbers; 9 made-up ZIPs of a held ZIP+4 column), lane
   ID-ROOM (P4-D432); keys under five figures beside words over one
   value in three, which ZR-a's page would read as a list, lane LISTS'
-  (ZR.9).
+  (ZR.9); a candidate person column repeating a few values leaves the
+  real table missing its own repetition pattern, lane PS3's.
 - ~~**The description still names individuals.**~~ **CLOSED by landing
   3, 2026-09-23** (`K-P4-22`, `K-S3-11`). Its residual is open again by
   choice since plan P4-D375 publishes every pair: `K-S3-11` records 14

@@ -779,8 +779,12 @@ def test_a_plus_signed_padded_column_reads_its_pad_off_too(
     """
     cells = _canonical_wide_keys(1, sign="+")
     folder = tmp_path / "plus"
+    # THE COLUMN IS DECLARED A MEASUREMENT (lane HX5, plan P4-D436, its
+    # repair 2): 800 plus-signed keys of nineteen figures, every one
+    # different, are put the identifier question and held until answered;
+    # this case is about the reading they have, so it is typed as an answer.
     first, second, written, twin_exit, real_exit = _round_trip(
-        folder, cells, "1"
+        folder, cells, "1", ("--measurement", "code")
     )
     assert first["numeric_styles"] == {"leading_plus": ROWS}, first[
         "numeric_styles"

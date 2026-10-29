@@ -6,6 +6,53 @@ exists).
 
 ## [Unreleased]
 
+### Whole numbers each on one row, or in sequence, are asked the identifier question (lane HX5, plan P4-D436, 2026-10-25)
+
+**Lane HX5** closes the live exposure lane E0c's strict twin scan measured
+on ccebc947: the zoo's `titled_report.report_ref`, `RPT` and six figures
+one a row counting up, was read as an affixed number and asked nothing,
+and its twin wrote 598 of 600 real references at 600 rows and 19,998 of
+20,000 at 20,000. A column read as plain or affixed whole numbers, words
+and placeholders aside, standing on fewer than two rows a value and every
+one different, in sequence (five figures or more) or letters and five
+figures or more, is now put P4-D401's question (`keep`, `code`,
+`identifier`) where no other question is put to it, and held until
+answered; decimals, units, suffixes and values that repeat are not
+reached. K-S3-64 gains seven shapes (0 values published at 600, 20,000
+and 200,000 rows; the twin's chance equalities counted apart, lane
+ID-ROOM's) and reads its counts, from 20,000 cells, by a counter linear in
+the data (each text and each different twin cell read once).
+Moved, with the reason: three twin digests of the generate-memory gate
+(key columns now held), K-HZ-01 and K-HZ-02 by one kind (the zoo's title
+table, answered in one round; owner lane E0c), and the reading page's
+rule I names the question. Gate: `tests/test_all_different_numbers_asked.py`.
+Repair 1 (skeptic 1 and Codex): the five-figure line binds every arm and a
+writer's row index is left out, so the 66 suite cases the first head moved
+stand again or are typed with their reason; the reach gains openings of up
+to twelve letters, `S24-` and `-A` forms, `-9999` and repeated negatives
+set aside, one stray cell in a hundred and one repeated value in a hundred
+(each escape measured 0 published at 600 and 20,000 rows, once 97 to 100
+values and nearly every twin cell); the codes question and Q6 carry this
+question where both reach a column, one question; a declared decimal comma
+is read; placeholders close a run's gaps only inside it; written width is
+kept for the five-figure line. Stated limits, lane CODES-1 part C's: runs
+mostly under five figures that repeat, mixed-width keys on one to two rows
+a value, all-different numbers under five figures, glued letters, and the
+held runs beside `-1` and `-9999` missing their own validation at 200,000
+rows. K-S3-64 re-stamped at 04cfb00: 178 shapes, nothing real published.
+The suite's last moves are typed as the measurements they are (800 salaries,
+the study workbook's padded and grouped numbers); a candidate person column
+repeating a few values leaves the real workbook missing its own repetition
+pattern, on the base too (lane PS3's).
+Repair 2 (the verify of repair 1): a sign before the figures (`-300001`,
+`+300001`) and a point before the closing letters (`300001.A`), once 598 of
+600 twin cells real, are read and held, 0 published at 600, 20,000 and
+200,000 rows, at no cost over the battery, the zoo or the goldens; the gate
+pins the three guards that keep measurements out, each red on its mutant;
+P4-D436 states that a whole-number measurement drawn over a range about
+fifty times the rows or wider is asked at every size. K-S3-64 re-stamped at
+01c9421: 184 shapes, nothing real published.
+
 ### Batch 4l's records: the date floor, the widened zoo, results as data and layer L0 merged; the environment audit closed to aliases; night 1027's describe points written in (2026-10-28)
 
 **Records of batch 4l**, which merged lanes PS2, E0c, S5a and BT (plans

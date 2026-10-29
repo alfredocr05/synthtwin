@@ -852,6 +852,23 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # clause, 767,998 bytes. The integrator sets the cap for the batch as a
     # whole. A MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
+    # 768,000 from 767,000 (lane HX5's repair 2, plan P4-D436, 2026-10-27),
+    # the least round figure its ledger fits under: K-S3-64 re-stamped with
+    # the three shapes the repair adds and their chance counts, 767,101
+    # bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
+    # 767,000 from 766,000 (lane HX5's repair 1, plan P4-D436, 2026-10-27),
+    # the least round figure its ledger fits under: K-S3-64 re-stamped with
+    # the six shapes the repair adds and their chance counts, 766,369
+    # bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
+    # 766,000 from 764,000 (lane HX5, plan P4-D436, 2026-10-26), the least
+    # round figure the lane's ledger fits under: K-S3-64 re-stamped with the
+    # seven one-a-row shapes and their three chance counts, and K-HZ-01 and
+    # K-HZ-02 moved by one kind with the reason, 765,415 bytes. The batch
+    # integrator settles this beside the other lanes' raises. A MEASUREMENT
+    # IS NEVER TRIMMED TO FIT.
+    #
     # 764,000 from 760,000, AT THE INTEGRATION OF BATCH 4J (2026-10-24),
     # the orchestrator's recorded call D15 (the owner may veto), set once
     # for the batch, the least round figure the merged ledger and the

@@ -470,7 +470,10 @@ def test_the_twin_table_carries_no_trace_of_the_notice(
     folder = tmp_path / "with"
     folder.mkdir()
     table = _table(folder, parsing.POPULATION_FLOOR)
-    assert main(["profile", f"{table}"]) == 0
+    # `subject_id` (`P00001` up, every one different) is a key: declared so
+    # on both sides, since unanswered it is held by the command alone (lane
+    # HX5, plan P4-D436), which is not the note this case compares.
+    assert main(["profile", f"{table}", "--identifier", "subject_id"]) == 0
     assert main(["generate", f"{folder / 'clinic-profile.json'}"]) == 0
     noticed = (folder / "clinic-twin.csv").read_bytes()
 
@@ -481,8 +484,9 @@ def test_the_twin_table_carries_no_trace_of_the_notice(
         f"{table}", "auto", small_cell_floor=settings.small_cell_floor
     )
     # ...described as the command describes it, the Safe Harbor top-code
-    # included (plan P4-D427): its ages of 90 or more are read as 90.
-    plain = profile.build_document(read, settings, [], top_code=True)
+    # included (plan P4-D427): its ages of 90 or more are read as 90; and
+    # `subject_id` declared, as on the command's side (lane HX5, P4-D436).
+    plain = profile.build_document(read, settings, ["subject_id"], top_code=True)
     notes = plain["publication_notes"]
     assert isinstance(notes, list)
     assert not [note for note in notes if note["column"] == ""]

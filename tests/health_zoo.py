@@ -3668,6 +3668,21 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     "wearables": (
         ("PS2", POOLED_FEW_HOURS, covers("miss ts")),
     ),
+    # HELD UNTIL ANSWERED (lane HX5, plan P4-D436): `report_ref`, `RPT` and
+    # six figures one a row, is put the identifier question since that plan,
+    # but only in the run that answers the title rows, whose questions this
+    # zoo does not answer (one round): held, its twin writes made-up record
+    # numbers with no opening, and the pattern `RPT\d{6}` misses on every
+    # cell. Answered in every round (lane E0c's rulings 2, item 3, of
+    # 2026-10-25) it is answered `identifier` and the check holds at 600 and
+    # 20,000 rows (`wave6/HX5/zoo-two-rounds-*.out`).
+    "title_rows_above_header": (
+        ("E0c", "the reference column is put its identifier question only in the run that answers the "
+                "title rows, which the zoo answers in one round: held until answered, its twin writes "
+                "made-up record numbers with no 'RPT' opening (lane HX5, plan P4-D436; HIPAA first); "
+                "answering every round is lane E0c's (its rulings 2, item 3)",
+         covers("report references")),
+    ),
 }
 
 

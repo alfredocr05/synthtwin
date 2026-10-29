@@ -155,13 +155,28 @@ _TABLES: "dict[str, tuple[str, typing.Callable[[], bytes], tuple[str, ...]]]" = 
 # that question is answered no). The frozen assembly still writes the merged
 # command's bytes, and the other seven digests stand (batch 4j's
 # f677d6a0 wrote dd69f453... for this one).
+#
+# `texts` RE-MEASURED BY LANE HX5 (plan P4-D436, 2026-10-25; its repair 1):
+# its key column -- `RC` and seven figures drawn at random, each value on
+# one row -- is put the identifier question since that plan and held
+# unanswered, so the twin writes made-up record numbers in the column's
+# layouts where it wrote its affixed numbers' draw; the frozen assembly
+# still writes the same bytes as the command. The other columns' cells do
+# NOT all stand where they stood: the held column draws differently from
+# the shared random stream, so later rows place their values elsewhere
+# (Codex's review of lane HX5, item 8, measured on `latin` at seed 7 under
+# the first head: 44 `town` cells and 11 `score` cells equal at their
+# places, each column's multiset of values unchanged). Base ccebc947 wrote
+# 2ac127f2.... `latin` (`P000` up) and `utf16` (`C000` up) are three
+# figures wide, under the rule's five-figure line since repair 1, and
+# write base ccebc947's bytes again.
 _BEFORE_SHA256 = {
     "latin": "c5a78f1a7c2980c4913bfe4e220cd321f70cb28d0305df1898b02ba4519bc09c",
     "sorted": "f88db8f7772084ce124ba6569786b8313e6a59a1aa88bb53944e098847b50592",
     "sorted_floor_one": "2b9a8ad0672a409a26b9eb4f4260c280348ae0b553f744d78ee050c8fda41b46",
     "sparse": "829f54e6618b56cd54b38be8f1fedc660a4fa6c4f55037969ee802aa622b7e3e",
     "sparse_floor_one": "d32dc86c471fa47d5a7d68a8118ae7c2871540f18b7adf2fbcd170f830725b27",
-    "texts": "2ac127f20cb24c19a4c3b92b2ebe90049df4dffdf5a5e8a7743c19ba6f65064d",
+    "texts": "aca86e0fc620d84fe0ea348371c924cf13fba2c603b8bbb939d77e72111d66ba",
     "utf16": "35d626ec1e295044f0faea922fd44528d03ffecc957fcab515f996b763484adc",
     "wide": "edaee2c842fa47c880123a55c7b195416b4a7d63334cf1165be690dfc5f84097",
 }

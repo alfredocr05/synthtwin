@@ -3205,6 +3205,10 @@ def _assumptions_notice(
     # ...AND A COLUMN OF LISTS WRITTEN AS RECORD NUMBERS (plan P4-D424),
     # which is read as labels or text, and is asked what its values are.
     records: list[asking.Question] = []
+    # ...AND WHOLE NUMBERS EACH ON ONE ROW OR IN SEQUENCE (lane HX5, plan
+    # P4-D436), held until answered: told what the hold is, never that it
+    # is averaged.
+    singles: list[asking.Question] = []
     # -- 3b.R4 (P4-D384): ...AND A COLUMN OF NUMBERS LYING WHERE A COUNTING
     # SYSTEM WRITES DATES (question Q3), which is told what it would gain
     # as dates and the option that reads it so.
@@ -3225,6 +3229,8 @@ def _assumptions_notice(
             people += [question]
         elif question.reason == asking.BECAUSE_LISTED_RECORD_NUMBERS:
             records += [question]
+        elif question.reason == asking.BECAUSE_EACH_ON_ONE_ROW:
+            singles += [question]
         else:
             numeric += [question]
 
@@ -3381,6 +3387,30 @@ def _assumptions_notice(
             f"Only you know which they are.\n\n"
             f"If they are codes, run the command again naming them:\n  "
             f"{codes}{_quoting_said(codes)}\n"
+            f"If they are record numbers, name them so instead:\n  "
+            f"{flags}{_quoting_said(flags)}"
+        ]
+    if singles:
+        codes = _joined(
+            [_typed_option("--code", one.name) for one in singles], " "
+        )
+        flags = _joined(
+            [_typed_option("--identifier", one.name) for one in singles], " "
+        )
+        blocks += [
+            f"THESE COLUMNS HOLD WHOLE NUMBERS THAT EACH STAND ON ONE ROW, "
+            f"RUN IN SEQUENCE, OR CARRY LETTERS BEFORE FIVE FIGURES OR MORE, "
+            f"AS RECORD NUMBERS DO.{_listing(singles, False)}"
+            f"\n\n"
+            f"Each column above is written the way record numbers are -- "
+            f"one value a row, numbers counting up, or letters and five "
+            f"figures or more on fewer than two rows a value -- and also the "
+            f"way some measurements are. Until you say which, no value of it is "
+            f"published and its twin writes made-up record numbers. Only "
+            f"you know which it is.\n\n"
+            f"If they are measurements or counts, answer `keep` in the "
+            f"questions file. If they are codes, run the command again "
+            f"naming them:\n  {codes}{_quoting_said(codes)}\n"
             f"If they are record numbers, name them so instead:\n  "
             f"{flags}{_quoting_said(flags)}"
         ]

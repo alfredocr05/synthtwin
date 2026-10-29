@@ -60,6 +60,7 @@ import json
 import pathlib
 import random
 import re
+import time
 
 from synthtwin import cli
 
@@ -252,6 +253,40 @@ LISTED = ("reglist6", "reglist7", "reglistR", "reglist6_beside",
 # The register lists of one record number a cell (lane HX4's repair 2).
 LISTED_ONE = ("reglistone6", "reglistoneR", "reglistquoted6", "reglistword6")
 LIST_KEYS = 40
+# ONE VALUE A ROW, OR IN SEQUENCE (lane HX5, plan P4-D436): a reference
+# column of whole numbers, alone or after letters, standing on fewer than
+# two rows a value, which no route of the person rule reaches (each asks
+# from two rows a value) and the width question reaches only at one width
+# of plain figures. Lane E0c's strict twin scan measured the first on
+# ccebc947: `RPT` and six figures counting up, one a row, read as an
+# affixed number and asked nothing -- its percentile ladder published, the
+# twin writing the sequence again (598 of 600 real references, 19,998 of
+# 20,000). `refseq` is that shape; `refrand` its references drawn at random;
+# `refacc` `ACC` and six figures on about four rows in three (letters and
+# five figures or more); `seqcross` plain figures counting up across a
+# power of ten (99,701 up), so no width question is put; `seqdup` that run
+# with its first number on the last row too (a run in sequence, not all
+# different); `randall` plain figures of six and seven, drawn at random,
+# one a row; and `seqm1` the plain run beside `-1` on about one row in
+# fifty. Lane HX5's repair 1 (skeptic 1, items 2 to 4) adds the shapes that
+# escaped its first head: `refspecimen`, eight letters before the figures;
+# `refyear`, a pathology accession with its year (`S24-50001` up);
+# `refsuffix`, a mark and a letter after the figures (`300001-A` up);
+# `seqnines`, the plain run beside `-9999` on about one row in fifty; and
+# `seqdecimal` and `refstray`, the plain run and `refseq` with one stray
+# cell (`99708.5`, `RPT300008A`). Its repair 2 (the verify of repair 1,
+# item 1) adds `seqneg`, a run of negative whole numbers (`-300001`
+# down); `seqplus`, a run after a plus sign (`+300001` up); and `refdot`,
+# a point and a letter after the figures (`300001.A` up).
+# Every value is its own patient-free record, so the real values are
+# every cell's but the placeholders'.
+ONE_A_ROW = ("refseq", "refrand", "refacc", "seqcross", "seqdup", "randall", "seqm1",
+             "refspecimen", "refyear", "refsuffix", "seqnines", "seqdecimal", "refstray",
+             "seqneg", "seqplus", "refdot")
+# What `seqm1` writes for a row with no reference, and on what share
+# (`seqnines` writes `-9999` on the same share).
+ONE_A_ROW_PLACEHOLDER = ("-1", 0.02)
+ONE_A_ROW_NINES = "-9999"
 # The STATED shapes: a name, a street address and a full birth date on a
 # long table with NO subject column -- the value is the only thing that
 # says who the rows are, nothing is declared and no person question is
@@ -274,7 +309,8 @@ STATED = ("name", "address", "dob")
 # value and is held by nothing: its twin misses `free_text.shape_forms` at
 # exit 3 on the tree before lane HX4 too (measured on 4682d6ad), the forms
 # lane FM's limit STATE names.
-VALIDATION_LIMITS = ("durable", "key_m1_40", "phone_plus", "reglistonce6", "reglistgrouped")
+VALIDATION_LIMITS = ("durable", "key_m1_40", "phone_plus", "reglistonce6", "reglistgrouped",
+                     "seqm1")
 
 # What each key shape writes for an unknown patient, and on what share
 # of its rows (`write_table`).
@@ -357,9 +393,65 @@ def _cell(value: str) -> str:
     return f'"{value}"' if "," in value else value
 
 
+def _one_a_row(kind: str, rows: int, draw: random.Random) -> "list[str]":
+    """The column of a `ONE_A_ROW` table, a cell a row (lane HX5, plan P4-D436)."""
+    if kind == "refseq":
+        return [f"RPT{300001 + row}" for row in range(rows)]
+    if kind == "refrand":
+        return [f"RPT{value}" for value in draw.sample(range(100000, 1000000), rows)]
+    if kind == "seqdup":
+        cells = [f"{99701 + row}" for row in range(rows)]
+        cells[rows - 1] = cells[0]
+        return cells
+    if kind == "refacc":
+        people = draw.sample(range(100000, 1000000), (rows * 3) // 4)
+        return [f"ACC{people[draw.randrange(len(people))]}" for _row in range(rows)]
+    if kind == "seqcross":
+        return [f"{99701 + row}" for row in range(rows)]
+    if kind == "randall":
+        return [f"{value}" for value in draw.sample(range(100000, 10000000), rows)]
+    if kind == "refspecimen":
+        return [f"SPECIMEN{300001 + row}" for row in range(rows)]
+    if kind == "refyear":
+        # From 50001, so no count the description publishes about the
+        # held column at 20,000 rows (its rows, 20000; its lines, 20001)
+        # equals one by coincidence, as from 10001 two do.
+        return [f"S24-{50001 + row}" for row in range(rows)]
+    if kind == "refsuffix":
+        return [f"{300001 + row}-A" for row in range(rows)]
+    if kind == "seqneg":
+        return [f"-{300001 + row}" for row in range(rows)]
+    if kind == "seqplus":
+        return [f"+{300001 + row}" for row in range(rows)]
+    if kind == "refdot":
+        return [f"{300001 + row}.A" for row in range(rows)]
+    if kind == "seqdecimal":
+        cells = [f"{99701 + row}" for row in range(rows)]
+        cells[7] = "99708.5"
+        return cells
+    if kind == "refstray":
+        cells = [f"RPT{300001 + row}" for row in range(rows)]
+        cells[7] = "RPT300008A"
+        return cells
+    unknown, share = ONE_A_ROW_PLACEHOLDER
+    if kind == "seqnines":
+        unknown = ONE_A_ROW_NINES
+    return [unknown if draw.random() < share else f"{99701 + row}" for row in range(rows)]
+
+
 def write_table(folder: pathlib.Path, kind: str, rows: int) -> "tuple[pathlib.Path, list[str]]":
     """The table, written as a CSV file; its path and its different identifiers."""
     draw = random.Random(SEED + len(kind))
+    if kind in ONE_A_ROW:
+        column = _one_a_row(kind, rows, draw)
+        lines = [f"{kind},test,value"]
+        for cell in column:
+            test = ("Sodium", "Potassium", "Glucose")[draw.randrange(3)]
+            lines += [f"{cell},{test},{draw.uniform(3, 150):.1f}"]
+        path = folder / f"{kind}_long.csv"
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+        return path, sorted({cell for cell in column
+                             if cell not in (ONE_A_ROW_PLACEHOLDER[0], ONE_A_ROW_NINES)})
     beside = _beside(kind)
     patients = (PATIENTS_BESIDE if kind.endswith("_beside") or kind.endswith("_keyzero")
                 else PATIENTS)
@@ -524,15 +616,141 @@ def _opening_in(opening: str, text: str) -> bool:
     return re.search(f"(?<![A-Za-z]){re.escape(opening)}(?![A-Za-z])", text) is not None
 
 
-def count_real(
+# THE PAIRWISE SEARCH IS QUADRATIC (lane HX5, plan P4-D436): a column of a
+# value a row holds as many real values as rows, and every real value was
+# searched for in every twin cell -- 20,000 by 20,000 regular expressions,
+# about three and a half hours a table, and 26 of a 600-row run's 28
+# seconds. At 20,000 cells or real values, or past this many pairs, the
+# same counts are read by a counter LINEAR IN THE DATA (`_count_real_
+# linear`, the orchestrator's rule of 2026-10-26): the real values and
+# their fragments in two lookups, and each text and each different twin
+# cell scanned once, through its own runs of figures and its own pieces
+# of the lengths the lookups hold. The gate holds it equal to the
+# pairwise search on every shape of this file.
+_PAIRWISE_AT_MOST = 50_000
+_LINEAR_FROM_ROWS = 20000
+
+
+def _figure_runs(text: str) -> "set[str]":
+    """The runs of figures a figures-only needle can stand as in `_found_in`.
+
+    `(?<![0-9.])N(?![0-9])` with N figures alone holds exactly where N is a
+    whole run of figures with no point before it.
+    """
+    found: "set[str]" = set()
+    run = ""
+    before = ""
+    for character in text + " ":
+        if "0" <= character <= "9":
+            run = run + character
+            continue
+        if run and before != ".":
+            found.add(run)
+        run = ""
+        before = character
+    return found
+
+
+def _keys_of(needle: str) -> "tuple[bool, set[str]]":
+    """Whether `_found_in` searches the needle as text, and the figure runs it stands as."""
+    keys: "set[str]" = set()
+    as_text = not (needle.isascii() and needle.isdigit())
+    if not as_text:
+        keys.add(needle)
+    number = _as_number(needle)
+    if number:
+        keys.add(number)
+    else:
+        figures = _longest_figures(needle)
+        if figures:
+            keys.add(figures)
+    return as_text, keys
+
+
+def _count_real_linear(
     real: "list[str]", texts: "list[str]", cells: "list[str]"
+) -> "dict[str, int]":
+    """`count_real`'s counts, each text and each different twin cell read once."""
+    fragments: "dict[str, bool]" = {}
+    for value in real:
+        for run_of in _runs(value):
+            fragments[run_of] = True
+    opening = _opening(real) if real else ""
+    # Each needle -- a real value ("real") or a fragment ("fragment") --
+    # under the text `_found_in` looks for and under the runs of figures
+    # it stands as.
+    by_text: "dict[str, list[tuple[str, str]]]" = {}
+    by_key: "dict[str, list[tuple[str, str]]]" = {}
+    for group, needles in (("real", real), ("fragment", list(fragments))):
+        for needle in needles:
+            as_text, keys = _keys_of(needle)
+            if as_text:
+                listed = by_text.setdefault(needle, [])
+                listed += [(group, needle)]
+            for key in keys:
+                listed = by_key.setdefault(key, [])
+                listed += [(group, needle)]
+    sizes = sorted({len(needle) for needle in by_text})
+
+    def needles_in(text: str) -> "set[tuple[str, str]]":
+        hits: "set[tuple[str, str]]" = set()
+        for key in _figure_runs(text):
+            hits.update(by_key.get(key, ()))
+        for size in sizes:
+            for start in range(len(text) - size + 1):
+                found = by_text.get(text[start:start + size])
+                if found:
+                    hits.update(found)
+        return hits
+
+    published: "set[tuple[str, str]]" = set()
+    for text in texts:
+        published |= needles_in(text)
+    whole = len([1 for group, _needle in published if group == "real"])
+    in_texts = len([1 for group, _needle in published if group == "fragment"])
+    if opening and any(_opening_in(opening, text) for text in texts):
+        in_texts += 1
+    twin_cells = 0
+    twin_fragments: "dict[str, bool]" = {}
+    holds_real: "dict[str, bool]" = {}
+    for cell in cells:
+        if cell not in holds_real:
+            hits = needles_in(cell)
+            holds_real[cell] = any(group == "real" for group, _needle in hits)
+            for group, needle in hits:
+                if group == "fragment":
+                    twin_fragments[needle] = True
+            if opening and _opening_in(opening, cell):
+                twin_fragments[opening] = True
+        if holds_real[cell]:
+            twin_cells += 1
+    return {
+        "description_values": whole,
+        "description_fragments": in_texts,
+        "twin_cells": twin_cells,
+        "twin_fragments": len(twin_fragments),
+    }
+
+
+def count_real(
+    real: "list[str]", texts: "list[str]", cells: "list[str]", linear: "bool | None" = None
 ) -> "dict[str, int]":
     """What of the real values the published texts and the twin's cells carry.
 
     ``texts``: the description, its summary, the questions file and the
     screen; ``cells``: the twin's column. Every comparison is by
     substring, so a value wrapped in other characters is still found.
+    ``linear`` reads the same counts by the counter linear in the data
+    (`_count_real_linear`): by default at 20,000 cells or real values or
+    more, or where the pairs pass `_PAIRWISE_AT_MOST`.
     """
+    if linear is None:
+        linear = (
+            max(len(real), len(cells)) >= _LINEAR_FROM_ROWS
+            or len(real) * max(len(cells), len(texts)) > _PAIRWISE_AT_MOST
+        )
+    if linear:
+        return _count_real_linear(real, texts, cells)
     fragments: "dict[str, bool]" = {}
     for value in real:
         for run_of in _runs(value):
@@ -593,6 +811,10 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
     beside = _beside(kind)
     declared = ["--identifier", "patient"] if kind.endswith("_beside") else []
     screen = io.StringIO()
+    # THE PRODUCT'S OWN TIME, apart from the counting (the orchestrator's
+    # rule of 2026-10-26, point 5): profile, generate and validate, then
+    # the count of what is real.
+    started = time.perf_counter()
     with nobody_at_the_keyboard():
         with contextlib.redirect_stdout(screen), contextlib.redirect_stderr(screen):
             profiled = cli.main(["profile", f"{table}", "--out-dir", f"{folder}",
@@ -606,6 +828,7 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
             validated = cli.main(["validate", f"{described}", "--twin",
                                   f"{folder / (kind + '_long-twin.csv')}",
                                   "--out-dir", f"{folder}", "--replace"])
+    product_seconds = time.perf_counter() - started
     texts = {
         name: (folder / name).read_text(encoding="utf-8")
         for name in (f"{kind}_long-profile.json", f"{kind}_long-profile.txt",
@@ -617,6 +840,7 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
     asked = [entry for entry in questions["asked"] if entry["column"] == kind]
     cells = _csv_column(folder / f"{kind}_long-twin.csv", 1 if beside else 0)
     written = cells
+    real_written = set(real)
     # A COLUMN OF DATES DESCRIBED AT A GRAIN OR HELD WITH VALID DATES (plan
     # P4-D417): its published points are the STARTS of buckets the floor's
     # number of people hold, and its twin's cells are draws inside them or
@@ -657,8 +881,13 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
         "twin_sample": sorted(set(written))[:3],
         "twin_cells_drawn": drawn,
         "bucket_starts_published": len(starts),
+        # ...and the twin cells EQUAL to a real value as written (lane HX5,
+        # plan P4-D436), beside `twin_cells`' search for its figures inside.
+        "twin_cells_equal": len([cell for cell in written if cell in real_written]),
     }
     seen.update(counted)
+    seen["product_seconds"] = round(product_seconds, 1)
+    seen["counting_seconds"] = round(time.perf_counter() - started - product_seconds, 1)
     return seen
 
 

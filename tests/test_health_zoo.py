@@ -64,9 +64,14 @@ SEED = 20261016
 # held-back mean at 20,000 rows (batch 4e's records); lane PS2, lane PS's
 # follow-up, what PS left held or pooled (the orchestrator, 2026-10-23;
 # batch 4g's records); lane SH the HIPAA price of a ZIP code held by its
-# Safe Harbor question (plan P4-D427).
+# Safe Harbor question (plan P4-D427). Lane E0c (the zoo widened, the
+# December plan's launch list) owns what the zoo's one round of answers
+# leaves unanswered: the orchestrator's E0c rulings 2, item 3, of
+# 2026-10-25 (run_table answers every round), lane HX5's title-row
+# reference (plan P4-D436).
 PLAN_LANES = (
-    "DST", "RT1", "RT2", "LM1", "LM2", "R7", "FM", "SCH", "G2T", "G2T2", "MG", "PS", "PS2", "SH", *zoo.ZOO_LANES,
+    "DST", "RT1", "RT2", "LM1", "LM2", "R7", "FM", "SCH", "G2T", "G2T2", "MG", "PS", "PS2", "SH", "E0c",
+    *zoo.ZOO_LANES,
     zoo.NEEDS_OWNER,
     # Lane E0c (plan P4-D431): the lanes its HIPAA kinds and its computed
     # total name -- HX (an unanswered question holds, P4-D401), SH (Safe

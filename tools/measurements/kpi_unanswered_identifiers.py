@@ -13,8 +13,14 @@ and counts what is real:
   street address and a birth date beside a patient key whose person
   question is open), and the register lists (`LISTED`, plan P4-D424: one
   to three record numbers a cell, six figures, six padded to seven, `R` and
-  six figures, and the first beside a declared person column): real values
-  written whole, or as a number, in the
+  six figures, and the first beside a declared person column), and the
+  columns of a value a row (`ONE_A_ROW`, plan P4-D436: `RPT` and six
+  figures counting up, at random, `ACC` and six figures on about four rows
+  in three, plain figures counting up across a power of ten, that run with
+  one number twice, plain figures at random, and the run beside `-1`; and,
+  from lane HX5's repair 1, `SPECIMEN`, `S24-` and `-A` references, the run
+  beside `-9999`, and the run and `RPT` references with one stray cell): real
+  values written whole, or as a number, in the
   description, its summary, the questions file or the screen, fragments
   of them anywhere there, twin cells holding a real value and fragments
   inside twin cells. Target 0 each. And the twins of those shapes that
@@ -72,10 +78,18 @@ SIZES = (600, 20000)
 held = {"description_values": 0, "description_fragments": 0, "twin_cells": 0, "twin_fragments": 0,
         "twins_failing_validation": 0}
 stated = {"stated_description_values": 0, "stated_twin_cells": 0}
+# CHANCE IN A FILLED ROOM (lane HX5, plan P4-D436): a held column of a value
+# a row publishes nothing, and its twin's made-up record numbers carry the
+# figures of a real one where the real values fill the layout's room (20,000
+# references counting up among a million six-figure spellings). Counted apart,
+# owner lane ID-ROOM (plan P4-D432, held blocks included by its rulings 2):
+# twin cells whose figures stand in a real value, and cells equal to one.
+chance = {"one_a_row_twin_cells": 0, "one_a_row_twin_fragments": 0, "one_a_row_twin_cells_equal": 0}
 lines = []
 with tempfile.TemporaryDirectory() as scratch:
     for rows in SIZES:
-        for kind in shapes.HELD + shapes.BESIDE + shapes.COUNTED + shapes.LISTED + shapes.STATED:
+        for kind in (shapes.HELD + shapes.BESIDE + shapes.COUNTED + shapes.LISTED + shapes.ONE_A_ROW
+                     + shapes.STATED):
             folder = pathlib.Path(scratch) / f"{kind}-{rows}"
             folder.mkdir()
             seen = shapes.run(folder, kind, rows)
@@ -86,8 +100,18 @@ with tempfile.TemporaryDirectory() as scratch:
                       f"{seen['description_values']} of {seen['different']} real values in the "
                       f"description, {seen['description_fragments']} fragments published, "
                       f"{seen['twin_cells']} twin cells real, {seen['twin_fragments']} twin fragments, "
-                      f"validate {seen['validate_exit']}"]
-            if kind not in shapes.STATED:
+                      f"{seen['twin_cells_equal']} twin cells equal, validate {seen['validate_exit']}; "
+                      f"profile, generate and validate {seen['product_seconds']} s, counting "
+                      f"{seen['counting_seconds']} s"]
+            if kind in shapes.ONE_A_ROW:
+                held["description_values"] += int(seen["description_values"])
+                held["description_fragments"] += int(seen["description_fragments"])
+                chance["one_a_row_twin_cells"] += int(seen["twin_cells"])
+                chance["one_a_row_twin_fragments"] += int(seen["twin_fragments"])
+                chance["one_a_row_twin_cells_equal"] += int(seen["twin_cells_equal"])
+                if seen["validate_exit"] != 0 and kind not in shapes.VALIDATION_LIMITS:
+                    held["twins_failing_validation"] += 1
+            elif kind not in shapes.STATED:
                 for key in held:
                     if key != "twins_failing_validation":
                         held[key] = held[key] + int(seen[key])
@@ -153,10 +177,11 @@ for line in lines:
     print(line)
 value = dict(held)
 value.update(stated)
+value.update(chance)
 held_shapes = (len(shapes.HELD) + len(shapes.BESIDE) + len(shapes.COUNTED)
                + len(shapes.LISTED)
                + len(shapes.SAFE_HARBOR_NUMBERS) + len(shapes.SAFE_HARBOR_ANSWERED)
-               + len(shapes.ZOO_ZIPS))
+               + len(shapes.ZOO_ZIPS) + len(shapes.ONE_A_ROW))
 value["shapes"] = len(SIZES) * (held_shapes + len(shapes.STATED))
 kpi_rules.emit("K-S3-64", value, f"{len(SIZES)} sizes x {held_shapes} held and "
                f"{len(shapes.STATED)} stated shapes")

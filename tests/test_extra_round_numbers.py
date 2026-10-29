@@ -833,8 +833,12 @@ def test_an_absorbed_leading_zero_does_not_fail_its_grouped_source(
     """
     cells = ["%d,%03d" % (10 + step, 100 + step) for step in range(30)]
     cells += ["0,472"]
+    # THE COLUMN IS DECLARED A MEASUREMENT (lane HX5, plan P4-D436): thirty
+    # grouped counts of five figures, every one different, are put the
+    # identifier question and held until answered; this case is about the
+    # style census of the reading they have, so it is typed as an answer.
     block, _written, twin_exit, real_exit = _round_trip(
-        tmp_path / "grouped", cells, ("--smallest-group", floor)
+        tmp_path / "grouped", cells, ("--smallest-group", floor, "--measurement", "value")
     )
     assert block["numeric_styles"] == {"plain": 31}
     assert block["thousands_marks"] == {}

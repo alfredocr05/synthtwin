@@ -283,6 +283,17 @@ BECAUSE_REPEATS_AND_MANY = "repeats-and-many-different-values"
 # it offers `keep`, `code` and `identifier`, and holds the column as record
 # numbers until it is answered.
 BECAUSE_FIGURES_JOINED_BY_POINTS = "whole-numbers-joined-by-points"
+# WHOLE NUMBERS EACH ON ONE ROW, OR IN SEQUENCE, OR PREFIXED IDS OF FIVE
+# FIGURES (lane HX5, plan P4-D436): a column read as plain or affixed
+# whole numbers, words and placeholders aside, whose values repeat on
+# fewer than two rows each on average -- the line every route of the
+# person rule asks from, so the two never meet -- and are every one
+# different, or run in sequence, or are letters and five figures or more
+# (`_whole_numbers_each_on_one_row`). One more shape of HX's question about
+# figures (plan P4-D401), never a second question: it offers `keep`,
+# `code` and `identifier`, and holds the column as record numbers until it
+# is answered.
+BECAUSE_EACH_ON_ONE_ROW = "whole-numbers-each-on-one-row-or-in-sequence"
 # QUESTION Q3, "NUMBER OR DATE?" (landing R4, plan P4-D384): a column of
 # numbers whose values lie where a counting system writes dates -- Excel's
 # serials, SAS's and Stata's days and seconds, Unix seconds -- read as
@@ -1047,7 +1058,9 @@ def _date_count_question(
 ) -> Question:
     """Question Q3 for one column, merged with the fixed-width question where it is asked too."""
     fixed = ""
-    if reason == BECAUSE_FIXED_WIDTH:
+    if reason == BECAUSE_FIXED_WIDTH or reason == BECAUSE_EACH_ON_ONE_ROW:
+        # ...and lane HX5's shape (plan P4-D436), held as the width
+        # question's is (`unanswered_identities`).
         fixed = _shape_of(reason, present, floor)
     return Question(
         name,
@@ -1575,6 +1588,27 @@ def questions_and_splits_for(
             ]
             position = position + 1
             continue
+        # -- lane HX5 (plan P4-D436): affixed numbers and numbers beside
+        # labels, whole numbers each on one row, in sequence, or letters
+        # and five figures; the numeric roles are asked below, after the
+        # width questions, which keep their own.
+        comma = name in decimal_commas
+        if (
+            role not in NUMERIC_ROLES
+            and _whole_numbers_each_on_one_row(present, role, comma, name)
+        ):
+            asked += [
+                Question(
+                    name,
+                    role,
+                    BECAUSE_EACH_ON_ONE_ROW,
+                    _each_on_one_row_said(present, comma, name),
+                    _each_on_one_row_choices(role, settings.small_cell_floor),
+                    ANSWER_KEEP,
+                )
+            ]
+            position = position + 1
+            continue
         if role not in NUMERIC_ROLES and role not in JOINED_ROLES:
             position = position + 1
             continue
@@ -1630,6 +1664,15 @@ def questions_and_splits_for(
                 )
         if reason == BECAUSE_POINT_THOUSANDS and name in decimal_commas:
             reason = None
+        # ...AND WHOLE NUMBERS EACH ON ONE ROW OR IN SEQUENCE (lane HX5,
+        # plan P4-D436), where no width question is put: `9701` up, one a
+        # row, crosses a power of ten and was a count asked nothing.
+        if (
+            reason is None
+            and role in NUMERIC_ROLES
+            and _whole_numbers_each_on_one_row(present, role, comma, name)
+        ):
+            reason = BECAUSE_EACH_ON_ONE_ROW
         # -- 3b.R4 (P4-D384): QUESTION Q3, where the description's own
         # remarks say the column's numbers lie where a counting system
         # writes dates (NF113) -- one question with the fixed-width one
@@ -1663,6 +1706,11 @@ def questions_and_splits_for(
             elif reason == BECAUSE_POINT_THOUSANDS:
                 choices = _point_choices(role, settings.small_cell_floor)
                 taken = ANSWER_MEASUREMENT
+            elif reason == BECAUSE_EACH_ON_ONE_ROW:
+                # Lane HX5 (plan P4-D436): `keep` first, the reading in
+                # force, as the list question puts it.
+                choices = _each_on_one_row_choices(role, settings.small_cell_floor)
+                taken = ANSWER_KEEP
             else:
                 choices = _numeric_choices(
                     ANSWER_MEASUREMENT, role, settings.small_cell_floor
@@ -1677,15 +1725,19 @@ def questions_and_splits_for(
                 False, True,
             ) == taxonomy.SAFE_HARBOR_AGES:
                 shaped = taxonomy.top_coded_cells(shaped)
+            said = _shape_of(
+                reason, shaped, settings.small_cell_floor, mark, remainder
+            )
+            if reason == BECAUSE_EACH_ON_ONE_ROW:
+                # ...said under the column's own decimal comma and name,
+                # as the rule read it (Codex's review of lane HX5, item 4).
+                said = _each_on_one_row_said(present, comma, name)
             asked += [
                 Question(
                     name,
                     role,
                     reason,
-                    _shape_of(
-                        reason, shaped, settings.small_cell_floor, mark,
-                        remainder,
-                    )
+                    said
                     + _signs_said(signs, len(present), settings.small_cell_floor)
                     + noughts,
                     choices,
@@ -1866,6 +1918,408 @@ def _an_arc_naming_an_item(uid: str) -> bool:
     if not isinstance(uid, str):
         raise TypeError("a cell to ask about must be text")
     return bool(parsing.uid_after_the_organisation(uid))
+
+
+# A COLUMN OF WHOLE NUMBERS EACH ON ONE ROW IS ASKED (lane HX5, plan
+# P4-D436; the live exposure lane E0c's strict twin scan measured on
+# ccebc947). The zoo's `titled_report.report_ref` -- `RPT` and six figures,
+# one a row, in sequence -- was read as an affixed number and asked nothing:
+# its description published the run's percentile ladder and the twin wrote
+# the sequence again, 598 of 600 real references at 600 rows and 19,998 of
+# 20,000 at 20,000. Plain figures crossing a power of ten (`99701` up, one
+# a row) were a count publishing the same ladder, and `ACC` and six figures
+# on about four rows in three were affixed numbers printing 50 real record
+# numbers as rungs. Every route of the person rule asks from two rows a
+# value on average (`PERSON_ROWS_PER_VALUE`), and the width question asks
+# plain figures of one width only, so nothing reached them. So a column is
+# asked where:
+#
+# * it is read as a count, a measurement, numbers too large for a float, an
+#   affixed number or numbers beside labels (`_EACH_ON_ONE_ROW_ROLES`), and
+#   is not the row index a writer put in front of the table (`Unnamed: 0`
+#   or `rownames` holding 0, 1, 2, ... or 1, 2, 3, ... in file order: the
+#   file's own numbering, which carries no fact beyond the row count and
+#   which the twin writes as the row sequence, plan P4-D76);
+# * its present cells are WORDS (no figure) and PLACEHOLDERS, set aside
+#   whatever their share as route two's arm sets them aside (plan
+#   P4-D428): `-1` to `-999`, a lone `0`, nines alone, minus nines of any
+#   width (`-9999`), and any negative whole number at least the floor's
+#   cells repeat (lane SH's addenda 2 and 3: `-9999` on one row in fifty
+#   took a run out and published its ladder); and WHOLE NUMBERS: figures
+#   alone as route four reads them (`_key_figures`: `100001`, `100001.0`,
+#   `123,456`), after a sign (`-300001`, `+300001`: a `+` writes the same
+#   number as none does, a `-` is a form of its own and no prefix for arm
+#   (c); the verify of repair 1, item 1), or figures after an opening of
+#   one to twelve letters, an opening of letters, one to four figures and
+#   a mark (`S24-`, `AB12_`), or with a mark (`-`, `_` or `.`) and one or
+#   two letters after them (`300001-A`, `300001.A`;
+#   `_a_whole_number_after_letters`) -- and at most one present cell in a
+#   hundred that is none of these (`_STRAY_SHARE`; lane HX4's addendum: one
+#   ordinary token must not defeat a hold, so `99708.5` or `RPT300008A`
+#   among references is set aside, never the column's reach);
+# * the whole numbers fill the floor's cells (`_KEY_CELLS_AT_LEAST`), over
+#   two different values or more, stand on FEWER than
+#   `PERSON_ROWS_PER_VALUE` rows a value on average, and at least half of
+#   the different values are WRITTEN with five figures or more, leading
+#   noughts counted (`RPT000001` is six; the line of route four, of the
+#   person rule's data-only route and of CODES-3's plain keys, P4-D428
+#   (d)) -- one number written two ways is still one number for every
+#   count (lane POP's ruling: `00123` and `123`);
+# * and they are (a) every one different, or all but one value in a
+#   hundred (`_NEARLY_ALL_DIFFERENT`), or (b) a run in sequence under one
+#   opening (each the last one plus one, judged by the smallest, the
+#   largest and the count, in time linear in the cells), through a set-
+#   aside `0` or nines alone only where it stands inside the run, or (c)
+#   more than half of them letters and five figures or more.
+#
+# NOT REACHED, on purpose (the owner's principle: true measurements are not
+# asked): more than one present cell in a hundred carrying a decimal
+# (`72.5`), a unit glued or spaced after its figures (`120 mg`, `12345mg`),
+# a currency sign (`$1200`) or anything else no arm reads; a column whose
+# values repeat (two rows a value on average or more, or more than one
+# value in a hundred on two rows or more, outside a run or a prefixed
+# key) -- the person rule's; numbers under five figures for the most part
+# (scores, ages, years, row numbers of a short table: a column of one
+# opening holding 20,000 different whole numbers, the owner's table floor,
+# is five figures wide for the most part, so this line leaves out only
+# what the command refuses); and a column a declared decimal comma reads
+# as decimals (`9,701` under `--decimal-comma`). A measurement of whole
+# numbers drawn from a wide range can be all different (charges in cents,
+# Unix seconds) and is asked, one question whose `keep` restores it byte
+# for byte: the price plan P4-D436 measures.
+_EACH_ON_ONE_ROW_ROLES = (
+    taxonomy.ROLE_COUNT,
+    taxonomy.ROLE_CONTINUOUS,
+    taxonomy.ROLE_UNREPRESENTABLE,
+    taxonomy.ROLE_AFFIXED,
+    taxonomy.ROLE_COMPOUND,
+)
+_OPENING_LETTERS_AT_MOST = 12
+_OPENING_FIGURES_AT_MOST = 4
+_OPENING_MARKS = "-_#"
+_CLOSING_MARKS = "-_."
+_SIGNS = "+-"
+# The openings that are no prefix: none, and a minus sign alone.
+_NO_PREFIX = ("", "-")
+_CLOSING_LETTERS_AT_MOST = 2
+# A run in sequence is read only where every number is at most this many
+# figures, so the arithmetic stays far inside any integer conversion limit.
+_SEQUENCE_FIGURES_AT_MOST = 18
+_PREFIXED_FIGURES_AT_LEAST = 5
+# At most one present cell in this many is read by no arm and set aside.
+_STRAY_SHARE = 100
+# At most one different value in this many stands on two rows or more for
+# the column to count as all different.
+_NEARLY_ALL_DIFFERENT = 100
+# What each arm saw, for the words of the question (no count, no value).
+_ARM_DIFFERENT = "different"
+_ARM_NEARLY = "nearly"
+_ARM_SEQUENCE = "sequence"
+_ARM_PREFIXED = "prefixed"
+
+
+def _ascii_letter(character: str) -> bool:
+    """Whether one character is an ASCII letter."""
+    return ("a" <= character <= "z") or ("A" <= character <= "Z")
+
+
+def _a_whole_number_after_letters(value: str) -> "tuple[str, str, str] | None":
+    """The opening, figures and closing of a cell written as a whole number with letters (P4-D436).
+
+    One of: one to twelve ASCII letters, an optional `-`, `_` or `#`, then
+    figures (`RPT300001`, `SPECIMEN300001`, `ACC-123456`); letters, one to
+    four figures and one of those marks, then figures (`S24-10001`,
+    `AB12_300001`); either of those, or figures alone, followed by `-`,
+    `_` or `.` and one or two letters (`300001-A`, `300001.A`). Nothing
+    else: a unit glued to the figures (`12345mg`) has no mark and is not
+    one. The opening
+    and closing are returned in upper case, so `rpt1` and `RPT1` share one;
+    None where the cell is not of this form, or carries no letter at all.
+    A fixed function of the text. Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(value, str):
+        raise TypeError("a cell to ask about must be text")
+    end = len(value)
+    closing = ""
+    # The closing: a mark and one or two letters after the figures.
+    back = end
+    while back > 0 and end - back < _CLOSING_LETTERS_AT_MOST and _ascii_letter(value[back - 1]):
+        back = back - 1
+    if (
+        back < end
+        and back >= 2
+        and value[back - 1] in _CLOSING_MARKS
+        and "0" <= value[back - 2] <= "9"
+    ):
+        closing = value[back - 1:].upper()
+        end = back - 1
+    place = 0
+    while place < end and place < _OPENING_LETTERS_AT_MOST and _ascii_letter(value[place]):
+        place = place + 1
+    if place < end and _ascii_letter(value[place]):
+        return None
+    if place > 0:
+        # ...letters, one to four figures and a mark, then the figures.
+        figured = place
+        while figured < end and figured - place < _OPENING_FIGURES_AT_MOST and (
+            "0" <= value[figured] <= "9"
+        ):
+            figured = figured + 1
+        if figured > place and figured < end and value[figured] in _OPENING_MARKS:
+            place = figured + 1
+        elif place < end and value[place] in _OPENING_MARKS:
+            place = place + 1
+    if place == 0 and not closing:
+        return None
+    figures = value[place:end]
+    if not _is_plain_whole_number(figures):
+        return None
+    return value[:place].upper(), figures, closing
+
+
+def _without_leading_noughts(figures: str) -> str:
+    """Figures with their leading noughts off, `0` where nothing else is left (P4-D436)."""
+    if not isinstance(figures, str):
+        raise TypeError("a cell to ask about must be text")
+    return figures.lstrip("0") or "0"
+
+
+def _minus_nines(value: str) -> bool:
+    """Whether a cell is a minus sign and nines alone, of any width (`-9999`)."""
+    if len(value) < 2 or value[0] != "-":
+        return False
+    for character in value[1:]:
+        if character != "9":
+            return False
+    return True
+
+
+def _the_row_sequence(name: str, present: "list[str]") -> bool:
+    """Whether a column is the row index a writer put in front of the table (P4-D436).
+
+    Named as the reader names a written index (`dialect.INDEX_NAMES`) and
+    holding 0, 1, 2, ... or 1, 2, 3, ... in file order on every row.
+    """
+    if name not in dialect.INDEX_NAMES or not present:
+        return False
+    for start in dialect.SEQUENCE_STARTS:
+        place = 0
+        while place < len(present) and present[place] == f"{start + place}":
+            place = place + 1
+        if place == len(present):
+            return True
+    return False
+
+
+def _each_on_one_row_arm(
+    present: "list[str]", comma: bool = False, name: str = ""
+) -> "tuple[str, bool]":
+    """Which arm of lane HX5's rule reaches the cells, and whether a cell was set aside unread (P4-D436).
+
+    ("", False) where none does. See the note above. A fixed function of
+    the cells, the column's declared decimal comma and its name, in time
+    linear in the cells. Raises nothing. No I/O, and no cell reaches what
+    it returns.
+    """
+    if _the_row_sequence(name, present):
+        return "", False
+    negatives: "dict[str, int]" = {}
+    for value in present:
+        if value[:1] == "-" and _is_plain_whole_number(value[1:]):
+            negatives[value] = negatives[value] + 1 if value in negatives else 1
+    numbers: "dict[tuple[str, str, str], int]" = {}
+    wide: "dict[tuple[str, str, str], bool]" = {}
+    # A lone `0` and nines alone are set aside as what a key writes for
+    # nobody, and are also numbers a run in sequence passes through
+    # (`99999` between `99998` and `100000`): kept apart for that test.
+    nines: "dict[str, bool]" = {}
+    cells = 0
+    stray = 0
+    for value in present:
+        if _set_aside_beside_keys(value):
+            if _is_plain_whole_number(value):
+                nines[value] = True
+            continue
+        if value in negatives and (
+            _minus_nines(value) or negatives[value] >= _KEY_CELLS_AT_LEAST
+        ):
+            continue
+        figures: "str | None" = None
+        opening = ""
+        closing = ""
+        if not comma or ("," not in value and "." not in value):
+            figures = _key_figures(value)
+            if figures is None and value[:1] in _SIGNS:
+                # A SIGN BEFORE THE FIGURES (the verify of repair 1, item
+                # 1: `-300001` down read continuous and `+300001` up read
+                # count, every real value copied): a `+` writes the same
+                # number as none does, and a `-` opens a form of its own.
+                figures = _key_figures(value[1:])
+                if figures is not None and value[:1] == "-":
+                    opening = "-"
+        if figures is None:
+            lettered = _a_whole_number_after_letters(value)
+            if lettered is None:
+                stray = stray + 1
+                continue
+            opening, figures, closing = lettered
+        cells = cells + 1
+        # ONE NUMBER WRITTEN TWO WAYS IS ONE NUMBER (lane POP's ruling):
+        # `00123` and `123` are the same value here -- and its WRITTEN
+        # width is what the five-figure line reads (Codex's review, item
+        # 2: `RPT000001` is six figures wide).
+        key = (opening, _without_leading_noughts(figures), closing)
+        if key in numbers:
+            numbers[key] = numbers[key] + 1
+        else:
+            numbers[key] = 1
+        if len(figures) >= _PREFIXED_FIGURES_AT_LEAST:
+            wide[key] = True
+    if stray * _STRAY_SHARE > len(present):
+        return "", False
+    if cells < _KEY_CELLS_AT_LEAST or len(numbers) < 2:
+        return "", False
+    if cells >= PERSON_ROWS_PER_VALUE * len(numbers):
+        return "", False
+    if len(wide) * 2 < len(numbers):
+        return "", False
+    unread = stray > 0
+    repeated = 0
+    forms: "dict[tuple[str, str], bool]" = {}
+    short_enough = True
+    prefixed = 0
+    smallest = -1
+    largest = -1
+    for key in numbers:
+        opening, figures, closing = key
+        if numbers[key] > 1:
+            repeated = repeated + 1
+        forms[(opening, closing)] = True
+        if len(figures) > _SEQUENCE_FIGURES_AT_MOST:
+            short_enough = False
+        elif len(forms) == 1:
+            number = int(figures)
+            smallest = number if smallest < 0 or number < smallest else smallest
+            largest = number if number > largest else largest
+        # A sign alone is no prefix: a signed measurement that repeats is
+        # not reached through arm (c).
+        if (opening not in _NO_PREFIX or closing) and key in wide:
+            prefixed = prefixed + 1
+    if repeated == 0:
+        return _ARM_DIFFERENT, unread
+    if repeated * _NEARLY_ALL_DIFFERENT <= len(numbers):
+        return _ARM_NEARLY, unread
+    if len(forms) == 1 and short_enough:
+        # A RUN: the smallest, the largest and the count of different
+        # values say it in one pass (Codex's review, item 6) ...
+        if largest - smallest + 1 == len(numbers):
+            return _ARM_SEQUENCE, unread
+        if ("", "") in forms:
+            # ...through a set-aside `0` or nines alone standing INSIDE
+            # the run, where they close its gaps (Codex's review, item 1:
+            # a `0` or `999999` outside it is no gap of the run).
+            closed = len(numbers)
+            for value in nines:
+                if len(value) > _SEQUENCE_FIGURES_AT_MOST:
+                    continue
+                number = int(value)
+                if smallest < number < largest and ("", _without_leading_noughts(value), "") not in numbers:
+                    closed = closed + 1
+            if largest - smallest + 1 == closed:
+                return _ARM_SEQUENCE, unread
+    if prefixed * 2 > len(numbers):
+        return _ARM_PREFIXED, unread
+    return "", False
+
+
+def _whole_numbers_each_on_one_row(
+    present: "list[str]", role: str, comma: bool = False, name: str = ""
+) -> bool:
+    """Lane HX5's trigger (plan P4-D436); see the note above.
+
+    Guarantees: accepts the present cells, the column's role, whether a
+    decimal comma was declared for it and its name; returns a truth value.
+    A fixed function of them. Raises nothing. No I/O, and no cell reaches
+    what it returns.
+    """
+    if role not in _EACH_ON_ONE_ROW_ROLES:
+        return False
+    return _each_on_one_row_arm(present, comma, name)[0] != ""
+
+
+def _each_on_one_row_said(present: "list[str]", comma: bool = False, name: str = "") -> str:
+    """What `_whole_numbers_each_on_one_row` saw, in words carrying no value or count (P4-D436)."""
+    arm, unread = _each_on_one_row_arm(present, comma, name)
+    if arm == _ARM_DIFFERENT:
+        said = "and every one is different, so each stands on one row"
+    elif arm == _ARM_NEARLY:
+        said = (
+            "and all but a few of them are different, so nearly each stands "
+            "on one row"
+        )
+    elif arm == _ARM_SEQUENCE:
+        said = (
+            "standing on fewer than two rows each on average and running in "
+            "sequence, each the last one plus one"
+        )
+    else:
+        said = (
+            "standing on fewer than two rows each on average, most of them "
+            "letters and five figures or more"
+        )
+    aside = ""
+    if unread:
+        aside = "; a few cells that read as none of these are set aside"
+    return (
+        f"{_EACH_ON_ONE_ROW_OPENING} (words and placeholders aside), most "
+        f"of them written with five figures or more, {said}{aside}"
+    )
+
+
+def _each_on_one_row_choices(role: str, floor: int) -> "list[Choice]":
+    """The three answers lane HX5's question takes (plan P4-D436): `keep`, `code`, `identifier`.
+
+    About the data and nothing else, in the words of the list question
+    (plan P4-D424): `keep` says what the reading the column has now
+    publishes -- a column read as numbers its numbers' statistics, and a
+    column of numbers beside labels both its numbers' statistics and its
+    words (Codex's review, item 5) -- never its values.
+    """
+    kept = _publishes_under(ANSWER_KEEP, role, floor)
+    if role in NUMERIC_ROLES or role == taxonomy.ROLE_AFFIXED:
+        kept = f"what it publishes now: {_publishes_under(ANSWER_MEASUREMENT, role, floor)}"
+    elif role == taxonomy.ROLE_COMPOUND:
+        kept = (
+            f"what it publishes now: its numbers described as numbers -- "
+            f"{_publishes_under(ANSWER_MEASUREMENT, role, floor)} -- and "
+            f"its words: {_publishes_under(ANSWER_CODE, role, floor)}"
+        )
+    return [
+        Choice(
+            ANSWER_KEEP,
+            "measurements or counts -- quantities somebody counted or "
+            "measured, and the reading it has now is right",
+            kept,
+        ),
+        Choice(
+            ANSWER_CODE,
+            "codes of a coding system, where each value stands for a "
+            "thing rather than counting one",
+            _publishes_under(ANSWER_CODE, role, floor),
+        ),
+        _each_on_one_row_identifier_choice(role, floor),
+    ]
+
+
+def _each_on_one_row_identifier_choice(role: str, floor: int) -> Choice:
+    """The answer `identifier` of lane HX5's question, also offered where Q2 or Q6 takes its place (P4-D436)."""
+    return Choice(
+        ANSWER_IDENTIFIER,
+        "record numbers -- each value names one record, report, "
+        "sample, visit or person, and it is a key nothing should "
+        "publish",
+        _publishes_under(ANSWER_IDENTIFIER, role, floor),
+    )
 
 
 def _holds_no_figure(value: str) -> bool:
@@ -2531,6 +2985,9 @@ def _shape_of(
             f"{len(different)} different value(s) over {len(present)} "
             f"cell(s), so they stand on more than one row each on average"
         )
+    if reason == BECAUSE_EACH_ON_ONE_ROW:
+        # Lane HX5's words (plan P4-D436): the shape, and no count.
+        return _each_on_one_row_said(present)
     if reason == BECAUSE_FIGURES_JOINED_BY_POINTS:
         # Q-ID's words (plan P4-D419's ZR.2): the shape, and a made-up
         # example that is no cell (plan P4-D428).
@@ -3120,15 +3577,20 @@ def date_columns_seen_in_a_walk(
             reason = BECAUSE_DAYS_OF_THE_YEAR
         else:
             reason = BECAUSE_MOSTLY_DATES
+        dated_said = _shape_of(reason, present, floor, example, n_read)
+        dated_choices = _date_column_choices(role, floor, example)
+        # ONE QUESTION, NOT TWO (lane HX5, plan P4-D436; Codex's review,
+        # item 3): where lane HX5's rule reaches the column too, this
+        # question takes its place, saying its shape and offering its
+        # `identifier`, and holds the column until answered
+        # (`unanswered_identities`); HX5's own is not put
+        # (`without_merged_questions`).
+        comma = name in decimal_commas
+        if _whole_numbers_each_on_one_row(present, role, comma, name):
+            dated_said = f"{_each_on_one_row_said(present, comma, name)}; and {dated_said}"
+            dated_choices += [_each_on_one_row_identifier_choice(role, floor)]
         found += [
-            Question(
-                name,
-                role,
-                reason,
-                _shape_of(reason, present, floor, example, n_read),
-                _date_column_choices(role, floor, example),
-                ANSWER_KEEP,
-            )
+            Question(name, role, reason, dated_said, dated_choices, ANSWER_KEEP)
         ]
         # ...and the reading it proposes, for Q1 and Q5 in the same file.
         if reading in _MONTH_FIRST_MEMBERS or _month_first_layout(reading):
@@ -4225,6 +4687,9 @@ HOLDING_REASONS = (
     # record numbers until it is answered, though its free-text reading
     # publishes no value either.
     BECAUSE_FIGURES_JOINED_BY_POINTS,
+    # ...and whole numbers each on one row or in sequence (plan P4-D436,
+    # lane HX5).
+    BECAUSE_EACH_ON_ONE_ROW,
 )
 
 # THE QUESTIONS ABOUT DATES AND TIMES HOLD NOTHING where the run read
@@ -4251,6 +4716,41 @@ _READ_AS_DATES_OR_TIMES = (taxonomy.ROLE_DATETIME, taxonomy.ROLE_CLOCK)
 # where every value was also one width; it now holds at every width, as
 # every question offering `identifier` holds (the orchestrator's LANE SH
 # ADDENDUM 6).
+# The width question's opening words, where every value is also one
+# width (lane HX5's gate reads them).
+_FIGURES_ALL_ONE_WIDTH = "every value is written in figures alone, all "
+# ...and lane HX5's (plan P4-D436): whole numbers each on one row or in
+# sequence, inside a counting band, are held as the width question holds.
+_EACH_ON_ONE_ROW_OPENING = "its values are whole numbers, alone or with letters"
+# The date questions that take lane HX5's place where both reach a column
+# (plan P4-D436): the codes question (Q2) and Q6.
+_TAKING_EACH_ON_ONE_ROW = (
+    BECAUSE_DATE_CODES,
+    BECAUSE_MOSTLY_DATES,
+    BECAUSE_DAYS_OF_THE_YEAR,
+)
+
+
+def without_merged_questions(asked: "list[Question]") -> "list[Question]":
+    """``asked`` less lane HX5's question of a column a date question took it into (plan P4-D436).
+
+    One question a column, never two (Codex's review of lane HX5, item
+    3): where Q2 or Q6 carries HX5's shape and `identifier`, HX5's own is
+    not put. Guarantees: the list in its own order, less those. A
+    function of it. Raises nothing. No I/O.
+    """
+    merged: "dict[str, bool]" = {}
+    for question in asked:
+        if (
+            question.reason in _TAKING_EACH_ON_ONE_ROW
+            and question.shape[: len(_EACH_ON_ONE_ROW_OPENING)] == _EACH_ON_ONE_ROW_OPENING
+        ):
+            merged[question.name] = True
+    return [
+        question
+        for question in asked
+        if not (question.reason == BECAUSE_EACH_ON_ONE_ROW and question.name in merged)
+    ]
 
 
 def offers_identifier(question: "Question") -> bool:
@@ -5436,6 +5936,9 @@ class DateCodes:
     codes: "tuple[tuple[str, int], ...]"
     n_read: int
     n_present: int
+    # Lane HX5's words where its rule reaches the column too (plan
+    # P4-D436): the codes question then takes its place, and holds.
+    each_on_one_row: str = ""
 
 
 def _declared_identity(
@@ -6557,6 +7060,13 @@ def date_codes_pending_in_a_walk(
         if confirmed is None:
             continue
         codes = confirmed
+        # ...and lane HX5's shape, where its rule reaches the column too
+        # (plan P4-D436; Codex's review, item 3): one question, the codes
+        # question, offering `identifier` and holding until answered.
+        if _whole_numbers_each_on_one_row(present, role, comma, name):
+            codes = dataclasses.replace(
+                codes, each_on_one_row=_each_on_one_row_said(present, comma, name)
+            )
         pending += [(name, role, position - 1, codes)]
         if codes.reading in _MONTH_FIRST_MEMBERS or _month_first_layout(
             codes.reading
@@ -6585,16 +7095,18 @@ def date_codes_found(
     found: "list[Question]" = []
     for name, role, place, codes in pending.pending:
         elsewhere = elsewhere_of[place] if place in elsewhere_of else ()
+        coded_said = _date_codes_shape(codes, settings.small_cell_floor, elsewhere)
+        coded_choices = _date_code_choices(
+            role, settings.small_cell_floor, codes, elsewhere
+        )
+        if codes.each_on_one_row:
+            coded_said = f"{codes.each_on_one_row}; and {coded_said}"
+            coded_choices += [
+                _each_on_one_row_identifier_choice(role, settings.small_cell_floor)
+            ]
         found += [
             Question(
-                name,
-                role,
-                BECAUSE_DATE_CODES,
-                _date_codes_shape(codes, settings.small_cell_floor, elsewhere),
-                _date_code_choices(
-                    role, settings.small_cell_floor, codes, elsewhere
-                ),
-                ANSWER_KEEP,
+                name, role, BECAUSE_DATE_CODES, coded_said, coded_choices, ANSWER_KEEP
             )
         ]
     return DateCodesSeen(
@@ -6614,6 +7126,9 @@ _ANSWERED_BY_THE_CODES_QUESTION = (
     BECAUSE_FIXED_WIDTH,
     BECAUSE_GROUPED_FIXED_WIDTH,
     BECAUSE_POINT_THOUSANDS,
+    # ...and lane HX5's (plan P4-D436), whose shape and `identifier` the
+    # codes question then carries, holding the column as HX5's would.
+    BECAUSE_EACH_ON_ONE_ROW,
 )
 
 
@@ -7352,6 +7867,11 @@ def answers_in(document: object, shown: str) -> Answers:
             # carried so the question is not put again. Measured on
             # 45191fa: the run reading that answer asked Q6 once more.
             date_columns_kept += [name]
+            # ...carrying lane HX5's `identifier` too (plan P4-D436): the
+            # column is no longer held back for want of an answer.
+            if ANSWER_IDENTIFIER in offered:
+                identities_kept += [name]
+                identities_kept_answered += [name]
         elif written == ANSWER_SAFE_HARBOR_YES:
             # The Safe Harbor question answered `yes` (plan P4-D427): the
             # column is held, P4-D401's held block.
