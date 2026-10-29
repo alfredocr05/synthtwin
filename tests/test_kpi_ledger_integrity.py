@@ -1518,6 +1518,11 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # round figure the lane's ledger fits under: K-S6-02 new, layer L0's
     # band totals, with its note clause. The batch integrator settles this
     # beside the other lanes' raises. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
+    # 777,000 from 776,000 (lane S5b, plan P4-D441, 2026-10-27), the
+    # least round figure it fits under: K-S5-01's rule gains clause (k)
+    # and seven corruptions, both entries restamped on 067aedda,
+    # 776,237 bytes.
     assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 870_000
 
 

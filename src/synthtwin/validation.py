@@ -468,6 +468,13 @@ INPUT_SIDE_ENTRIES = (
     # for once -- which is what makes the whole of its obligation the
     # profile's.
     ("datetime", "tail_unit"),
+    # ...AND A COLUMN'S TIME GRAIN, LOADER-ONLY on the same terms (contract
+    # TG1, plan P4-D417; registered in the universal group by lane S5b,
+    # plan P4-D441): the validator reads the grain from the description
+    # (clause V14) to measure the date facts at its rung, and each of
+    # those facts is checked in its own right, so a verdict under this
+    # name would be a second reading of theirs.
+    ("universal", "time_grain"),
     # THE KEYS STAGE 3B RESERVES (plan P4-D364), LOADER-ONLY on the same
     # terms: each is `[]` -- `clock_step` null -- on every block and the
     # loader refuses anything else, so none of them puts anything on the

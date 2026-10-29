@@ -626,6 +626,12 @@ PLAN4_REGIONS = {
         "## Decision P4-D432 — no twin identifier cell equals a real "
         "identifier of its column, by construction"
     ),
+    # A column's time grain (contract TG1, plan P4-D417), which no group
+    # held until lane S5b: a run's result names a generator miss of it
+    # `universal.time_grain` (plans P4-D437 and P4-D441).
+    "time-grain": (
+        "## Decision P4-D441 — profile's questions and carried become data"
+    ),
 }
 
 # THE ROLE SUB-TABLES OF THE CONTRACT MATRIX. Version 6's section 9
@@ -670,6 +676,7 @@ FACTS_OUTSIDE_THE_CONTRACT_MATRIX = (
     ("datetime", "datetime_separators"),
     ("datetime", "all_at_midnight"),
     ("datetime", "n_at_midnight"),
+    ("universal", "time_grain"),
 )
 
 
@@ -821,6 +828,26 @@ REGISTRY += _facts(
     "n_out_of_range",
     "n_contradictory",
 )
+# A COLUMN'S TIME GRAIN (contract TG1, plan P4-D417), the one key a
+# column block carries only where it says something. It decides how the
+# twin draws the column's values and how the validator reads them, and
+# no group held it until lane S5b (plan P4-D441; the orchestrator's
+# ruling of 2026-10-26 on lane S5a, item 2). LOADER-ONLY, as
+# `datetime.tail_unit` is: the validator reads the grain from the
+# description (clause V14) to measure the date facts at its rung, each of
+# which is checked in its own right, so its whole obligation is the
+# profile's and `validation.INPUT_SIDE_ENTRIES` binds it (lane S5b's
+# repair 1, skeptic 1's item 1).
+REGISTRY += [
+    Fact(
+        "universal",
+        "time_grain",
+        LOADER_ONLY,
+        plan_region="time-grain",
+        plan_words="`time_grain` is LOADER-ONLY, registered in the "
+        "universal group",
+    )
+]
 REGISTRY += _facts(
     "universal",
     REPORT_ONLY,

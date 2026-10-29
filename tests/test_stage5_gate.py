@@ -32,10 +32,12 @@ the misses that report showed.
 
 import dataclasses
 import datetime
+import hashlib
 import importlib.util
 import json
 import os
 import pathlib
+import random
 import re
 import subprocess
 import sys
@@ -47,7 +49,7 @@ import pytest
 import dispositions
 import stage5_battery as battery
 import stage5_goldens as goldens
-from synthtwin import cli, errors, generation, rendering, results, validation, writing
+from synthtwin import asking, canonical, cli, errors, generation, rendering, results, validation, writing
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 _RECORDER_PATH = ROOT / "tools" / "goldens" / "record_stage5_goldens.py"
@@ -79,6 +81,9 @@ class Ran:
     outcome: "validation.Outcome | None" = None
     twin: "generation.Twin | None" = None
     checks: "list[typing.Any] | None" = None
+    # A profile's files as the run left them, by kind (lane S5b): a later
+    # case in the same folder (G7 in G6's) writes over them.
+    kept: "dict[str, bytes]" = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass
@@ -95,6 +100,14 @@ class _Produced:
         self.outcome: "validation.Outcome | None" = None
         self.twin: "generation.Twin | None" = None
         self.checks: "list[typing.Any] | None" = None
+        self.kept: "dict[str, bytes]" = {}
+
+
+def _kept(result: results.Result) -> "dict[str, bytes]":
+    """A profile's files as the run left them, by kind; nothing for another command."""
+    if result.command != results.PROFILE:
+        return {}
+    return {one.kind: pathlib.Path(one.path).read_bytes() for one in result.files}
 
 
 def _spied(patch: pytest.MonkeyPatch, produced: "list[_Produced]") -> None:
@@ -175,6 +188,7 @@ def run_battery(root: pathlib.Path, slow: bool) -> Battery:
             produced.extend([_Produced()])
             screen: "list[tuple[str, str]]" = []
             result = cli.run(argv, screen=screen, small_tables_refused=True)
+            produced[-1].kept = _kept(result)
             for stream, text in screen:
                 write(stream, text)
             made.extend([result])
@@ -196,6 +210,7 @@ def run_battery(root: pathlib.Path, slow: bool) -> Battery:
                 produced[place].outcome,
                 produced[place].twin,
                 produced[place].checks,
+                produced[place].kept,
             )
         for case in battery.UNRECORDED:
             folder = battery.lay_unrecorded(case, root)
@@ -215,6 +230,7 @@ def run_battery(root: pathlib.Path, slow: bool) -> Battery:
                         small_tables_refused=True,
                         **internal,
                     )
+                    produced[-1].kept = _kept(result)
                     for stream, text in screen:
                         write(stream, text)
                     made.extend([result])
@@ -229,6 +245,7 @@ def run_battery(root: pathlib.Path, slow: bool) -> Battery:
                 produced[-1].outcome,
                 produced[-1].twin,
                 produced[-1].checks,
+                produced[-1].kept,
             )
     return Battery(root, records, runs)
 
@@ -270,14 +287,12 @@ def _groups(folder: pathlib.Path, argv: "tuple[str, ...]") -> "dict[str, str]":
 
 
 # The disposition registry's universal fields: column-level keys, whatever
-# the role. And THE ONE KEY THE GENERATOR WRITES THAT THE REGISTRY HOLDS
-# UNDER NO GROUP: a column's time grain, a column-level key of the
-# description (plan P4-D415), read as the universal keys are; plan P4-D437
-# names the gap.
+# the role, a column's time grain among them since lane S5b (plan P4-D441:
+# plan P4-D437 had named it the one key the generator writes that the
+# registry held under no group).
 _UNIVERSAL_FIELDS = frozenset(
     fact.field for fact in dispositions.REGISTRY if fact.group == "universal"
 )
-_UNREGISTERED_COLUMN_KEYS = frozenset({"time_grain"})
 # AND ONE KEY WRITTEN ONLY BEHIND THE CHAIN'S SWITCH, which no shipped command
 # sets: lane BT's note of a column made without its band totals (RULE B3,
 # plan P4-D429), merged beside this gate at batch 4l's integration; its
@@ -297,7 +312,7 @@ def _qualified(groups: "dict[str, str]", column: str, fact: str, end: str) -> st
     role publishes under; then `.end` for a ladder end that gave way.
     """
     field = fact.split(" -> ")[-1]
-    if _head(field) in _UNIVERSAL_FIELDS | _UNREGISTERED_COLUMN_KEYS:
+    if _head(field) in _UNIVERSAL_FIELDS:
         group = "universal"
     else:
         group = groups.get(column, "")
@@ -348,6 +363,101 @@ def recorded_fields_unmet(run: Ran, result: results.Result) -> "list[str]":
             found += ["(j) an unjudged entry's key is not its producer check's rule"]
         if wanted.count(validation.WITHHELD_FALLBACK) != expect.fallback_keys:
             found += ["(j) an unjudged entry falls to the fallback key the row does not write"]
+    return found
+
+
+# THE QUESTIONS FILE'S ENTRIES, read with `json` alone (lane S5b, plan
+# P4-D441): each section's list of entries, in the file's order.
+_FILE_SECTIONS = (
+    (results.SECTION_ABOUT_FILE, ("about_your_file",)),
+    (results.SECTION_ASKED, ("asked",)),
+    (results.SECTION_CHECKLIST, ("checklist", "columns")),
+    (results.SECTION_HELD, ("held",)),
+)
+
+
+def _file_entries(written: "dict[str, typing.Any]") -> "list[tuple[str, dict[str, typing.Any]]]":
+    """Every entry of a written questions file with its section, in the file's order."""
+    found: "list[tuple[str, dict[str, typing.Any]]]" = []
+    for section, path in _FILE_SECTIONS:
+        node: typing.Any = written
+        for key in path:
+            node = node.get(key, []) if isinstance(node, dict) else []
+        found += [(section, entry) for entry in node]
+    return found
+
+
+def _record_as_written(record: results.Asked) -> "dict[str, typing.Any]":
+    """A record as the file's entry shows it, by the file's documented keys (the test's own reading)."""
+    if record.section == results.SECTION_HELD:
+        return {"column": record.subject, "what_synthtwin_saw": record.saw}
+    return {
+        "column": record.subject,
+        "what_synthtwin_saw": record.saw,
+        "read_as_now": record.read_as_now,
+        "answers_you_can_give": [
+            {"answer": offer.answer, "means": offer.means, "then_the_description_publishes": offer.publishes}
+            for offer in record.offers
+        ],
+        "your_answer": "",
+    }
+
+
+def _questions_unmet(run: Ran, result: results.Result) -> "list[str]":
+    """Clause (k), lane S5b (plan P4-D441): a profile's questions are its file's entries, one for one.
+
+    The (section, column) of each record as the row writes them; each
+    numbered from 1 within its section; none put at a prompt (no case of
+    the battery but Q1 has a reader, and Q1 refuses); a held entry
+    offering nothing; and, where the run wrote its questions file, each
+    entry of the file -- read with `json` -- the record's own words, in
+    the same order (a held entry's sentence beside it, `asking`'s
+    constant). A record names its column in the file's words, and a
+    question about the file names none. The tally counts the records --
+    asked, checklist, held -- and no question is put where nobody is asked.
+    """
+    case = run.case
+    expect = case.expect if case.expect is not None else battery.EXPECTED[case.key]
+    found: "list[str]" = []
+    if expect.questions is None:
+        return found
+    placed = tuple((one.section, one.column) for one in result.questions)
+    if placed != expect.questions:
+        found += [f"(k) questions {placed}, the row writes {expect.questions}"]
+    counted: "dict[str, int]" = {}
+    for one in result.questions:
+        counted[one.section] = counted.get(one.section, 0) + 1
+        if one.order != counted[one.section]:
+            found += [f"(k) {one.column!r} stands at {one.order} in {one.section}, not {counted[one.section]}"]
+        if one.put:
+            found += [f"(k) {one.column!r} is said put at a prompt, where nobody is asked"]
+        if one.section == results.SECTION_HELD and (one.offers or one.read_as_now):
+            found += [f"(k) the held {one.column!r} offers an answer"]
+        if one.column != ("" if one.section == results.SECTION_ABOUT_FILE else one.subject):
+            found += [f"(k) the record of {one.subject!r} in {one.section} names the column {one.column!r}"]
+    if results.FILE_QUESTIONS in run.kept:
+        document = json.loads(run.kept[results.FILE_QUESTIONS].decode("utf-8"))
+        entries = _file_entries(document)
+        mine = [(one.section, _record_as_written(one)) for one in result.questions]
+        theirs = [
+            (section, {key: entry[key] for key in mine[place][1]} if place < len(mine) else entry)
+            for place, (section, entry) in enumerate(entries)
+        ]
+        if mine != theirs:
+            found += ["(k) the questions file's entries are not the result's records"]
+    if result.command == results.PROFILE and result.verdict == results.NO_MISS:
+        records = result.questions
+        described = run.kept.get(results.FILE_DESCRIPTION)
+        columns = json.loads(described.decode("utf-8"))["n_columns"] if described else -1
+        wanted = (
+            ("columns", columns),
+            ("questions-asked", len([one for one in records if one.section in (results.SECTION_ABOUT_FILE, results.SECTION_ASKED)])),
+            ("questions-put", 0),
+            ("checklist", len([one for one in records if one.section == results.SECTION_CHECKLIST])),
+            ("held", len([one for one in records if one.section == results.SECTION_HELD])),
+        )
+        if result.tally != wanted:
+            found += ["(f) the profile's tally is not its records counted"]
     return found
 
 
@@ -488,6 +598,7 @@ def unmet(run: Ran, result: results.Result) -> "list[str]":
         )
         if not_carried != expect.carried:
             found += [f"(h) not carried {not_carried}, the row writes {expect.carried}"]
+    found += _questions_unmet(run, result)
     approximate = [one for one in result.carried if one.kind == results.CLASS_APPROXIMATE]
     groups = _groups(run.folder, case.argv)
     if run.twin is not None and result.verdict != "refused":
@@ -717,6 +828,21 @@ def _corruptions(ran: Battery) -> "list[tuple[str, Ran, results.Result]]":
     found += [("an unjudged entry's rule key changed", five, dataclasses.replace(five.result, unjudged=(dataclasses.replace(five.result.unjudged[0], key="gate-pooled"),) + five.result.unjudged[1:]))]
     refused = ran.runs["R3"]
     found += [("a miss kept on a refused run that showed no report", refused, dataclasses.replace(refused.result, misses=two.result.misses[:1]))]
+    # Lane S5b (plan P4-D441): a profile's questions, its carried entries
+    # and its tally.
+    six = ran.runs["G6"]
+    asked = six.result.questions
+    assert len(asked) >= 2 and asked[0].offers, "G6 lists two columns"
+    offer = asked[0].offers[0]
+    reworded = dataclasses.replace(asked[0], offers=(dataclasses.replace(offer, publishes=offer.publishes + " and more"),) + asked[0].offers[1:])
+    found += [("a question's offer reworded", six, dataclasses.replace(six.result, questions=(reworded,) + asked[1:]))]
+    found += [("a question dropped", six, dataclasses.replace(six.result, questions=asked[1:]))]
+    found += [("two questions exchanged", six, dataclasses.replace(six.result, questions=(asked[1], asked[0]) + asked[2:]))]
+    found += [("a question said put at a prompt", six, dataclasses.replace(six.result, questions=(dataclasses.replace(asked[0], put=True),) + asked[1:]))]
+    found += [("a question's standing reading changed", six, dataclasses.replace(six.result, questions=(dataclasses.replace(asked[0], read_as_now="code"),) + asked[1:]))]
+    one = ran.runs["G1"]
+    found += [("a profile's made-up column dropped from carried", one, dataclasses.replace(one.result, carried=one.result.carried[1:]))]
+    found += [("a profile's tally miscounted", one, dataclasses.replace(one.result, tally=one.result.tally[:-1] + (("held", 1),)))]
     return found
 
 
@@ -946,9 +1072,9 @@ def test_every_miss_fact_is_a_registry_fact(ran: Battery) -> None:
 
     Lane S5a's repair 1: `levels -> variants_withheld` is the label
     group's `variants_withheld`, and the column-level counts (present,
-    missing, out of range) are `universal` whatever the role. The one
-    key the registry holds under no group, the time grain, is named
-    `universal.time_grain` and listed here as the gap plan P4-D437 names.
+    missing, out of range) are `universal` whatever the role, and so is
+    the time grain, which the registry holds in that group since lane S5b
+    (plan P4-D441).
     The validator's two byte rules (`validation.BYTE_RULE_FACTS`) are the
     contract's rules of the file's bytes, named apart from the registry
     as the suite's entry table names them.
@@ -967,7 +1093,8 @@ def test_every_key_the_generator_writes_is_named_as_the_registry_names_it() -> N
 
     Its column-level counts are `universal` under every group, and every
     other key is a field of some group's (lane S5a's repair 1); the time
-    grain is the one gap, named `universal.time_grain`.
+    grain is the universal group's since lane S5b (plan P4-D441), so no
+    key the generator writes is outside the registry.
     """
     keys = _generator_keys()
     assert len(keys) >= 60, len(keys)
@@ -980,15 +1107,16 @@ def test_every_key_the_generator_writes_is_named_as_the_registry_names_it() -> N
         if key in _SWITCHED_ONLY_KEYS:
             continue
         field = key.split(" -> ")[-1]
-        if _head(field) in universal | _UNREGISTERED_COLUMN_KEYS:
+        if _head(field) in universal:
             if any(cli._registry_fact(group, key, "") != f"universal.{field}" for group in groups):
                 wrong += [(line, key, "not universal")]
             continue
         if not any(_in_the_registry(cli._registry_fact(group, key, "")) for group in groups):
             wrong += [(line, key, "in no group")]
     assert not wrong, wrong
-    # cli's list of column-level keys is the registry's, and the gap alone besides
-    assert set(cli._UNIVERSAL_FACTS) - universal == _UNREGISTERED_COLUMN_KEYS
+    # cli's list of column-level keys is the registry's, the time grain among them
+    assert "time_grain" in universal
+    assert set(cli._UNIVERSAL_FACTS) <= universal
     assert {_head(key.split(" -> ")[-1]) for _line, key in keys} & universal <= set(cli._UNIVERSAL_FACTS)
 
 
@@ -1633,6 +1761,63 @@ def test_a_window_s_ends_and_cover_reach_the_result(ran: Battery) -> None:
     ]
 
 
+def _compound_count(result: results.Result, field: str) -> results.Carried:
+    found = [
+        one
+        for one in result.carried
+        if one.kind == "approximate" and one.subject == ("value",) and one.fact == f"compound.{field}"
+    ]
+    assert len(found) == 1, result.carried
+    return found[0]
+
+
+def test_a_compound_count_carries_its_window_s_ends_only_beside_a_count_it_missed(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A numbers-with-labels column's count of different values, met and missed inside its window (S5a verify 2, new item 1).
+
+    `validation._distinctness_checks`' compound branch prints the window
+    only beside a count the twin did not meet exactly, so its ends are
+    carried only there. Measured at 2,000 rows (the library's size, the
+    table floor set aside as the joined-ranking case sets it): readings
+    0.0 to 29.9 beside `<0.1` and `>99` publish 242 different values in
+    G12.8's corner, a window of two different ends (242 and 1602). The
+    table itself as the twin meets 242 exactly: HELD, no end carried and
+    no cover. Eight readings more, 250: AUTHORIZED-DEVIATION, the ends
+    those the quality report prints and the cover true.
+    """
+    rows = [f"{index},{(index % 300) / 10:.1f}" if index % 5 else f"{index},{'<0.1' if index % 2 else '>99'}" for index in range(2000)]
+    more = list(rows)
+    for extra in range(8):
+        more[5 * extra + 1] = f"{5 * extra + 1},{30 + extra / 10 + 0.1:.1f}"
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "t.csv").write_text("id,value\n" + "\n".join(rows) + "\n", encoding="utf-8", newline="\n")
+    (tmp_path / "more.csv").write_text("id,value\n" + "\n".join(more) + "\n", encoding="utf-8", newline="\n")
+    assert cli.run(["profile", "t.csv", "--identifier", "id"], small_tables_refused=False).verdict == "no-miss"
+    document = json.loads((tmp_path / "t-profile.json").read_text(encoding="utf-8"))
+    described = [column for column in document["columns"] if column["name"] == "value"][0]
+    assert described["role"] == "numbers_with_labels"
+    loaded = rendering.contract.load_profile(f"{tmp_path / 't-profile.json'}")
+    column = [one for one in loaded.columns if one.name == "value"][0]
+    assert isinstance(column.facts, rendering.contract.CompoundFacts)
+    mine = validation.corners_of(loaded)["value"]
+    low, high, _said = validation._compound_window(column, column.facts, mine, "n_distinct")
+    assert (low, high, column.n_distinct) == (242, 1602, 242)
+    met = cli.run(["validate", "t-profile.json", "--twin", "t.csv"], small_tables_refused=False)
+    held = _compound_count(met, "n_distinct")
+    assert held.verdict == validation.HELD, held
+    assert (held.measures[0].lowest, held.measures[0].highest, held.measures[0].covers_published) == ("", "", None)
+    assert "between" not in held.measures[0].published
+    missed = cli.run(["validate", "t-profile.json", "--twin", "more.csv"], small_tables_refused=False)
+    inside = _compound_count(missed, "n_distinct")
+    assert inside.verdict == validation.AUTHORIZED_DEVIATION, inside
+    assert inside.measures[0].achieved == "250", inside
+    printed = re.search(r"\(between (\S+) and (\S+)\)$", inside.measures[0].published)
+    assert printed is not None, inside.measures[0].published
+    assert (inside.measures[0].lowest, inside.measures[0].highest) == printed.groups() == ("242.0", "1602.0")
+    assert inside.measures[0].covers_published is True
+
+
 def test_joined_positions_rank_as_columns_of_numbers(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A joined position's type miss ranks `writing`, ahead of an earlier column's counts (Codex's item 6).
 
@@ -1693,3 +1878,347 @@ def test_a_write_the_transaction_refused_names_what_is_on_disk(
     assert result.refusal.words.endswith(result.refusal.on_disk)
     assert result.refusal.words.startswith("The battery's injected stop")
     assert result.files == () and result.misses == ran.runs["M7"].result.misses
+
+
+# -- lane S5b (plan P4-D441): profile's questions and carried as data ----
+
+
+def _rendered_questions(result: results.Result, kept: "dict[str, bytes]", table_name: str) -> bytes:
+    """The questions file rendered from the result's records (plan P4-D441).
+
+    The file's other words are the run's: the table's name, the
+    description's sentences about the whole table (its notes naming no
+    column, read from the written description), and the answers the run
+    acted on, written back for the file handed back (plans P4-D401 and
+    P4-D408), which are answers and no question, read from the file.
+    """
+    notes = json.loads(kept[results.FILE_DESCRIPTION].decode("utf-8"))["publication_notes"]
+    about = [note["note"] for note in notes if note["column"] == ""]
+    answers: "dict[str, typing.Any]" = (
+        json.loads(kept[results.FILE_QUESTIONS].decode("utf-8")) if results.FILE_QUESTIONS in kept else {}
+    )
+    document = asking.questions_document_of(
+        table_name,
+        result.questions,
+        about,
+        answers.get(asking.ANSWERED_BEFORE),
+        answers.get(asking.ANSWERED_BEFORE_COLUMNS),
+    )
+    return canonical.serialize(document).encode("utf-8")
+
+
+def _golden_digest(key: str, name: str) -> str:
+    found = [record[3] for record in goldens.RECORDS if record[:3] == (key, "file", name)]
+    assert len(found) == 1, (key, name)
+    return typing.cast(str, found[0])
+
+
+def test_the_questions_file_rendered_from_the_result_is_today_s_file(ran: Battery) -> None:
+    """G6's questions, G1's and G7's: rendered from the result's records, the goldens' bytes (plan P4-D441).
+
+    The goldens were recorded from the code before lane S5b (at batch 4l's
+    merge of lane ID-ROOM, before this lane's merge, P4-D395 part 5), so
+    the records reproduce today's file byte for byte, not merely the file
+    this run wrote from them.
+    """
+    for key in ("G6", "G1", "G7"):
+        result = ran.runs[key].result
+        assert result.questions, key
+        rendered = _rendered_questions(result, ran.runs[key].kept, "t.csv")
+        assert hashlib.sha256(rendered).hexdigest() == _golden_digest(key, "t-questions.json"), key
+
+
+# THE QUESTIONS FILES OF TWO TABLES THE BATTERY DOES NOT HOLD, as the code
+# before lane S5b wrote them (S5a's head 87dc440e, measured by lane S5b's
+# planning-notes/work-2026-10/wave6/S5b/shapes_probe.py at 20,000 rows):
+# a patient key, ZIP codes and ages, whose key and ZIP codes HX's literal
+# rule holds (plan P4-D401) and whose questions are asked column by column;
+# and dates whose day and month are each at most 12, which raise the
+# question about the file of plan P4-D381 (plan P4-D81's section).
+_TODAY_S_FILES = {
+    "held": "8343dd05b0c747497d9374a924ea77d26166d0972d7523027f4a214dd4081b39",
+    "filequestion": "f9a69d985e8802fb2016a7933542441c473467716dc69027ce292203506d199e",
+}
+
+
+def _held_table(rows: int) -> str:
+    """A patient key of six figures (2,000 people), a five-figure ZIP code (40), an age 18 to 103, a ward."""
+    stream = random.Random(11)
+    people = [f"{100000 + stream.randint(0, 899999)}" for _ in range(2000)]
+    zips = [f"{52240 + k}" for k in range(40)]
+    found = ["patient_key,zip,age,ward"]
+    for index in range(rows):
+        found += [
+            f"{people[index % 2000]},{zips[stream.randint(0, 39)]},{stream.randint(18, 103)},"
+            f"{battery.WARDS[index % 4]}"
+        ]
+    return "\n".join(found) + "\n"
+
+
+def _day_or_month_table(rows: int) -> str:
+    """Dates whose day and month are each at most 12, beside a ward: no value says which comes first."""
+    stream = random.Random(7)
+    found = ["visit,ward"]
+    for index in range(rows):
+        found += [f"{stream.randint(1, 12):02d}/{stream.randint(1, 12):02d}/2024,{battery.WARDS[index % 4]}"]
+    return "\n".join(found) + "\n"
+
+
+def _profiled_shape(folder: pathlib.Path, text: str, monkeypatch: pytest.MonkeyPatch) -> results.Result:
+    folder.mkdir()
+    (folder / "t.csv").write_text(text, encoding="utf-8", newline="\n")
+    monkeypatch.chdir(folder)
+    return cli.run(["profile", "t.csv"], small_tables_refused=True)
+
+
+def _record_words(record: results.Asked) -> "list[str]":
+    found = [record.column, record.subject, record.role, record.reason, record.saw, record.read_as_now]
+    for offer in record.offers:
+        found += [offer.answer, offer.means, offer.publishes]
+    return found
+
+
+def _tokens(text: str) -> "set[str]":
+    return set(re.findall(r"[0-9A-Za-z][0-9A-Za-z.]*[0-9A-Za-z]|[0-9A-Za-z]", text))
+
+
+def test_asked_and_file_questions_render_today_s_file_and_hold_nothing_unpublished(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Asked questions, a question about the file and held columns, at the table floor (plan P4-D441).
+
+    Each file rendered from the result's records is the file the code
+    before this lane wrote (its digest above). HIPAA FIRST: no record and
+    no carried entry holds a value of the table the description does not
+    publish -- the held patient key and ZIP codes publish none, so none
+    of theirs stands in a record at all -- and the held columns are
+    carried as made up.
+    """
+    held = _profiled_shape(tmp_path / "held", _held_table(battery.TABLE_ROWS), monkeypatch)
+    dated = _profiled_shape(tmp_path / "filequestion", _day_or_month_table(battery.TABLE_ROWS), monkeypatch)
+    for key, result in (("held", held), ("filequestion", dated)):
+        assert result.verdict == "no-miss", (key, result.refusal)
+        assert hashlib.sha256(_rendered_questions(result, _kept(result), "t.csv")).hexdigest() == _TODAY_S_FILES[key], key
+    sections = {one.section for one in held.questions}
+    assert results.SECTION_ASKED in sections, held.questions
+    # Each tally as the records count it, written literally (skeptic 1's
+    # item 3): the dates' one question is about the file.
+    assert held.tally == _profile_tally(2, 0, 1, 0, 4), [(one.section, one.column) for one in held.questions]
+    assert dated.tally == _profile_tally(1, 0, 0, 0, 2), [(one.section, one.column) for one in dated.questions]
+    assert {one.section for one in dated.questions} >= {results.SECTION_ABOUT_FILE}, dated.questions
+    cells = [line.split(",") for line in _held_table(battery.TABLE_ROWS).split("\n")[1:] if line]
+    described = (tmp_path / "held" / "t-profile.json").read_text(encoding="utf-8")
+    published = _tokens(described)
+    words = [word for record in held.questions for word in _record_words(record)]
+    words += [entry.words for entry in held.carried] + [part for entry in held.carried for part in entry.subject]
+    found = set()
+    for word in words:
+        found |= _tokens(word)
+    for place, name in ((0, "patient_key"), (1, "zip")):
+        real = {row[place] for row in cells}
+        assert not real & published, name
+        assert not real & found, name
+        assert ((name,), "not-carried", "made-up") in [(one.subject, one.kind, one.reason) for one in held.carried], name
+    ages = {row[2] for row in cells}
+    assert not (ages & found) - published
+
+
+_INVENTED_LEAD = "  twin has to invent what it writes --"
+
+
+def _summary_invented(text: str) -> "list[str]":
+    """The columns the summary says a twin makes up whole, read from its words (the test's own reading)."""
+    lines = text.split("\n")
+    if _INVENTED_LEAD not in lines:
+        return []
+    named = lines[lines.index(_INVENTED_LEAD) + 1].strip()
+    return [name for name in named.split(", ") if name]
+
+
+def test_the_summary_s_made_up_columns_are_the_carried_ones(ran: Battery) -> None:
+    """On every profile case that wrote one, the summary names as made up exactly the carried `made-up` columns (plan P4-D441).
+
+    The summary is rendered from the description as before (its list by
+    role and by labels held back, `carried`'s by cells, A-P4-2); on the
+    battery the two agree, so a result read in place of the page says
+    what the page says.
+    """
+    seen = 0
+    for key, run in ran.runs.items():
+        result = run.result
+        if result.command != results.PROFILE or results.FILE_SUMMARY not in run.kept:
+            continue
+        text = run.kept[results.FILE_SUMMARY].decode("utf-8")
+        carried = [one.subject[0] for one in result.carried if one.reason == results.REASON_MADE_UP]
+        assert _summary_invented(text) == carried, key
+        seen = seen + 1
+    assert seen >= 5, seen
+
+
+# THE PROMPT, THE HELD SECTION AND THE FILE'S ORDER, AT THE LIBRARY'S SIZE
+# (lane S5b's repair 1: skeptic 1's items 2 to 4 and Codex's items 1 to 3).
+# Each table is 2,000 rows with the table floor set aside, as the
+# joined-ranking case sets it, and every shape asks what it asks at the
+# floor's size (measured: planning-notes/work-2026-10/wave6/S5b/repair1/).
+_LIBRARY_ROWS = 2000
+
+
+def _library_table(kind: str) -> str:
+    """One of five invented tables of 2,000 rows (lane S5b's repairs 1 and 2).
+
+    `stamp`: six-figure stamps `yymmdd`, asked column by column (the
+    fixed-width question); `day`: `2024-001` to `2024-366`, which the
+    two-numbers question and the days-of-the-year question both reach;
+    `two`: the days beside the stamps, so one prompt puts two questions;
+    `held`: a person beside day counts written `42.345`, declared
+    `excel-1900` and held (plan P4-D406); `ordered`: dates whose day and
+    month are each at most 12 (the question about the file, plan P4-D381)
+    beside the stamps and a weight of one decimal (the checklist), under
+    90 since batch 4l's merge: lane SH's Safe Harbor question asks a
+    weight that reaches past 89 (plan P4-D427).
+    """
+    stream = random.Random(5)
+    found: "list[str]" = []
+    if kind == "stamp":
+        found = ["stamp,ward"]
+        for index in range(_LIBRARY_ROWS):
+            found += [
+                f"{stream.randint(20, 24):02d}{stream.randint(1, 12):02d}{stream.randint(1, 28):02d},"
+                f"{battery.WARDS[index % 4]}"
+            ]
+    elif kind == "day":
+        found = ["day,ward"] + [f"2024-{1 + index % 366:03d},{battery.WARDS[index % 4]}" for index in range(_LIBRARY_ROWS)]
+    elif kind == "two":
+        found = ["day,stamp,ward"]
+        for index in range(_LIBRARY_ROWS):
+            found += [
+                f"2024-{1 + index % 366:03d},"
+                f"{stream.randint(20, 24):02d}{stream.randint(1, 12):02d}{stream.randint(1, 28):02d},"
+                f"{battery.WARDS[index % 4]}"
+            ]
+    elif kind == "held":
+        found = ["person,visit,ward"]
+        for index in range(_LIBRARY_ROWS):
+            found += [
+                f"P{1000 + index % 500},{stream.randint(40, 45)}.{stream.randint(0, 999):03d},{battery.WARDS[index % 4]}"
+            ]
+    else:
+        found = ["visit,stamp,weight,ward"]
+        for index in range(_LIBRARY_ROWS):
+            weight = 50.0 + 12.0 * (stream.random() + stream.random() + stream.random())
+            found += [
+                f"{stream.randint(1, 12):02d}/{stream.randint(1, 12):02d}/2024,"
+                f"{stream.randint(20, 24):02d}{stream.randint(1, 12):02d}{stream.randint(1, 28):02d},"
+                f"{weight:.1f},{battery.WARDS[index % 4]}"
+            ]
+    return "\n".join(found) + "\n"
+
+
+def _library_profile(
+    folder: pathlib.Path,
+    kind: str,
+    monkeypatch: pytest.MonkeyPatch,
+    *options: str,
+    ask: "list[str | None] | None" = None,
+) -> results.Result:
+    folder.mkdir()
+    (folder / "t.csv").write_text(_library_table(kind), encoding="utf-8", newline="\n")
+    monkeypatch.chdir(folder)
+    result = cli.run(["profile", "t.csv", *options], ask=ask, small_tables_refused=False)
+    assert result.verdict == "no-miss", (kind, result.refusal)
+    return result
+
+
+def _profile_tally(asked: int, put: int, checklist: int, held: int, columns: int) -> "tuple[tuple[str, int], ...]":
+    return (
+        ("columns", columns),
+        ("questions-asked", asked),
+        ("questions-put", put),
+        ("checklist", checklist),
+        ("held", held),
+    )
+
+
+def test_a_question_put_at_a_prompt_is_said_put_and_counted(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`put` and the tally's `questions-put` follow the prompt, question by question (plan P4-D441).
+
+    Skeptic 1's item 2: kept at the prompt with Enter, the stamps' one
+    question is said put and counted; written down with nobody to ask, it
+    is neither. Codex's item 1: on `2024-001` the prompt puts the
+    two-numbers question alone, and the days-of-the-year question the
+    final records also hold on that column is not said put. Codex's item
+    2: answered at the prompt, the question leaves the file and stays
+    counted as put, since it was. Repair 2: one prompt that puts two
+    questions counts two, not one.
+    """
+    quiet = _library_profile(tmp_path / "quiet", "stamp", monkeypatch)
+    kept = _library_profile(tmp_path / "kept", "stamp", monkeypatch, ask=["", "", ""])
+    for result, put in ((quiet, False), (kept, True)):
+        assert [(one.section, one.column, one.reason, one.put) for one in result.questions] == [
+            (results.SECTION_ASKED, "stamp", "fixed-width", put)
+        ]
+        assert result.tally == _profile_tally(1, 1 if put else 0, 0, 0, 2)
+    answered = _library_profile(tmp_path / "answered", "stamp", monkeypatch, ask=["2"])
+    assert answered.questions == ()
+    assert answered.tally == _profile_tally(0, 1, 0, 0, 2)
+    days = _library_profile(tmp_path / "days", "day", monkeypatch, ask=["", "", ""])
+    assert [(one.column, one.reason, one.put) for one in days.questions] == [
+        ("day", "two-numbers", True),
+        ("day", "figures-that-may-be-days-of-the-year", False),
+    ]
+    assert days.tally == _profile_tally(2, 1, 0, 0, 2)
+    two = _library_profile(tmp_path / "two", "two", monkeypatch, ask=["", "", "", ""])
+    assert [(one.column, one.reason, one.put) for one in two.questions] == [
+        ("day", "two-numbers", True),
+        ("stamp", "fixed-width", True),
+        ("day", "figures-that-may-be-days-of-the-year", False),
+    ]
+    assert two.tally == _profile_tally(3, 2, 0, 0, 3)
+
+
+def test_the_held_section_s_record_and_the_tally_that_counts_it(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A column declared as counted dates that did not read so: one `held` record, counted (skeptic 1's item 3; plan P4-D406)."""
+    held = _library_profile(
+        tmp_path / "held", "held", monkeypatch, "--identifier", "person", "--date-count", "visit", "excel-1900"
+    )
+    assert held.questions == (
+        results.Asked(
+            results.SECTION_HELD,
+            1,
+            "visit",
+            "",
+            asking.BECAUSE_HELD_COUNTED_DATES,
+            "you said this column writes its dates as counts (excel-1900), and its cells did not read as such dates",
+            "",
+            subject="visit",
+        ),
+    )
+    assert held.tally == _profile_tally(0, 0, 0, 1, 3)
+
+
+def test_records_stand_in_the_file_s_order_and_a_file_question_names_no_column(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The question about the file, then the columns asked, then the checklist (skeptic 1's item 4; Codex's item 3).
+
+    The question about the file names no column: its record's `column` is
+    empty and its `subject` is what the file writes under `column`, so
+    the file rendered from the records is the file written.
+    """
+    ordered = _library_profile(tmp_path / "ordered", "ordered", monkeypatch)
+    assert [(one.section, one.order, one.column, one.subject) for one in ordered.questions] == [
+        (results.SECTION_ABOUT_FILE, 1, "", "the order of the day and the month in your dates"),
+        (results.SECTION_ASKED, 1, "stamp", "stamp"),
+        (results.SECTION_CHECKLIST, 1, "weight", "weight"),
+    ]
+    assert ordered.tally == _profile_tally(2, 0, 1, 0, 4)
+    written = (tmp_path / "ordered" / "t-questions.json").read_bytes()
+    assert _rendered_questions(ordered, _kept(ordered), "t.csv") == written
+    entries = _file_entries(json.loads(written.decode("utf-8")))
+    assert [(section, entry["column"]) for section, entry in entries] == [
+        (one.section, one.subject) for one in ordered.questions
+    ]

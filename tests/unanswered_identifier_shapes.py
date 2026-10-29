@@ -1013,13 +1013,13 @@ AGE_CEILING = 125
 # census line absorbs the one), and the held generator writes whole
 # numbers only, so the twin misses that one fact (exit 3); owner CODES-1
 # part C, as `VALIDATION_LIMITS` are.
-SAFE_HARBOR_HELD_LIMITS_AT_20000 = ("zip5word_unknown", "zip5word52_unknown", "ages4ph")
+SAFE_HARBOR_HELD_LIMITS_AT_20000 = ("zip5word_unknown", "zip5word52_unknown", "ages4ph", "age_padded07")
 # ...and at 600 rows ZIP codes beside twenty ZIP+4 cells are held by
 # P4-D401's person question, whose held twin writes the ZIP+4 layout and
 # too few cells of the five-figure one (`forms.published.%%%%%`): the
 # same exit 3 on b85200be, before this lane (wave6/SH/r1/base-zip4.log);
 # owner CODES-1 part C, as above.
-SAFE_HARBOR_HELD_LIMITS_AT_600 = ("zip_plus4", "ages4ph", "agescomma")
+SAFE_HARBOR_HELD_LIMITS_AT_600 = ("zip_plus4", "ages4ph", "agescomma", "age_person", "age_padded07")
 # ...and ages beside four placeholders, each on 6 % of the rows
 # (`ages4ph`): the twin misses the published `p90`, which lies among the
 # placeholders, top-coded or not -- the same exit 3 answered `no` and on
@@ -1029,7 +1029,16 @@ SAFE_HARBOR_HELD_LIMITS_AT_600 = ("zip_plus4", "ages4ph", "agescomma")
 # misses `n_numeric`, `n_not_numeric` and the form `%%,%` -- the same
 # three on the table written with every age above 89 as `90,0`, which
 # no top-code touches (wave6/SH/r2), a label generation limit outside
-# lane SH.
+# lane SH. And, since batch 4l's merge of lane ID-ROOM (plan P4-D432),
+# ages held as record numbers (`age_person` at 600 rows, its person
+# question open; `age_padded07` at 600 and 20,000, one `07` asked the
+# person question): their two-figure room is full of real ages, so the
+# twin writes them a figure wider, and the final pass writes two walk
+# values as one (at 600 rows `age_person` writes 69 different values
+# and `age_padded07` 72, against 70 and 74 with the pass withdrawn), so
+# the twin misses `n_distinct` and its folded and
+# repeated counts, as the control table's twin does (exit 3); owner lane
+# HB, its items (15) and (16) (the per-member fallback).
 
 def _an_age(draw: random.Random) -> int:
     """18 to 89, or 90 to 103 for 3 % of draws."""
