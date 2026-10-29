@@ -49,7 +49,7 @@ import pytest
 import dispositions
 import stage5_battery as battery
 import stage5_goldens as goldens
-from synthtwin import asking, canonical, cli, errors, generation, rendering, results, validation, writing
+from synthtwin import asking, canonical, cli, errors, generation, rendering, results, taxonomy, validation, writing
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 _RECORDER_PATH = ROOT / "tools" / "goldens" / "record_stage5_goldens.py"
@@ -1935,8 +1935,15 @@ def test_the_questions_file_rendered_from_the_result_is_today_s_file(ran: Batter
 # rule holds (plan P4-D401) and whose questions are asked column by column;
 # and dates whose day and month are each at most 12, which raise the
 # question about the file of plan P4-D381 (plan P4-D81's section).
+# MEASURED AGAIN AT BATCH 4L'S MERGE OF LANE S5b (plan P4-D441), by the
+# same probe on the merged code without lane S5b (d47ed2b3) and with it
+# (921265c7), the same bytes on both: the ages (18 to 103) are asked lane
+# SH's Safe Harbor question and top-coded since batch 4k (plan P4-D427),
+# a third column asked where 87dc440e listed them in the checklist
+# (8343dd05... then); the dates' file is 87dc440e's byte for byte (lane
+# PS2's floor counted in rows, P4-D433, holds none of its days).
 _TODAY_S_FILES = {
-    "held": "8343dd05b0c747497d9374a924ea77d26166d0972d7523027f4a214dd4081b39",
+    "held": "12104a5364cf775a2c55d51f26f13ab51b18af09f2ed8700c51030d4e329d7cf",
     "filequestion": "f9a69d985e8802fb2016a7933542441c473467716dc69027ce292203506d199e",
 }
 
@@ -2003,7 +2010,7 @@ def test_asked_and_file_questions_render_today_s_file_and_hold_nothing_unpublish
     assert results.SECTION_ASKED in sections, held.questions
     # Each tally as the records count it, written literally (skeptic 1's
     # item 3): the dates' one question is about the file.
-    assert held.tally == _profile_tally(2, 0, 1, 0, 4), [(one.section, one.column) for one in held.questions]
+    assert held.tally == _profile_tally(3, 0, 0, 0, 4), [(one.section, one.column) for one in held.questions]
     assert dated.tally == _profile_tally(1, 0, 0, 0, 2), [(one.section, one.column) for one in dated.questions]
     assert {one.section for one in dated.questions} >= {results.SECTION_ABOUT_FILE}, dated.questions
     cells = [line.split(",") for line in _held_table(battery.TABLE_ROWS).split("\n")[1:] if line]
@@ -2020,7 +2027,14 @@ def test_asked_and_file_questions_render_today_s_file_and_hold_nothing_unpublish
         assert not real & found, name
         assert ((name,), "not-carried", "made-up") in [(one.subject, one.kind, one.reason) for one in held.carried], name
     ages = {row[2] for row in cells}
-    assert not (ages & found) - published
+    # ...the Safe Harbor question's own words aside (lane SH, P4-D427,
+    # merged before this lane at batch 4l): the rule's citation (`45` CFR)
+    # and its ages (`89`, `90`, `125`), written for every column it asks,
+    # are no value of the table.
+    fixed = _tokens(str(asking.SAFE_HARBOR_CLASSES)) | {
+        str(taxonomy.TOP_CODE_LAST_AGE), str(taxonomy.TOP_CODE), str(taxonomy.TOP_CODE_REACH_CEILING)
+    }
+    assert not (ages & found) - published - fixed
 
 
 _INVENTED_LEAD = "  twin has to invent what it writes --"
