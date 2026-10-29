@@ -109,6 +109,18 @@ orchestrator's rule of 11:06 (a file adds at most three minutes): every
 shape at 600 rows and one case a writer at 20,000 rows, the rest in
 `K-HZ-06`'s driver.
 
+ROWS ADDED 2026-10-29, at the integration of batch 4l part b, each
+file's pytest durations summed (setup, call and teardown) in ONE run of
+the merged lanes' files under Python 3.11 on the merged tree, on a
+machine other work was loading: `tests/test_zoo_identifiers.py`,
+1,122.72 s (batch 4k's owed row for lane E0c's leak scan, about nine
+minutes on lane ID-ROOM's base); `tests/test_stage4_generate_memory.py`,
+662.93 s; `tests/test_stage5_gate.py`, 272.08 s;
+`tests/test_answers_across_rounds.py`, 214.49 s;
+`tests/test_dates_pooled_in_people.py`, 192.20 s;
+`tests/test_all_different_numbers_asked.py`, lane HX5's gate, 89.30 s;
+and `tests/test_stage3b_reader.py`, 32.78 s.
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
 an ordinary small file and runs in its shard from the commit that adds
@@ -123,6 +135,8 @@ and which costs the packing nothing worth another decimal.
 DEFAULT_SECONDS = 2.0
 
 SECONDS = {
+    "tests/test_all_different_numbers_asked.py": 89.3,
+    "tests/test_answers_across_rounds.py": 214.49,
     "tests/test_ap311_lowered_floor.py": 22.69,
     "tests/test_ap312_fold_repair.py": 198.16,
     "tests/test_ap313_stated_limit.py": 0.56,
@@ -144,6 +158,7 @@ SECONDS = {
     "tests/test_contract_self_check.py": 1.95,
     "tests/test_date_spread.py": 448.08,
     "tests/test_dates_held_by_the_floor.py": 738.7,
+    "tests/test_dates_pooled_in_people.py": 192.2,
     "tests/test_dates_written_forms_disclosed.py": 15.56,
     "tests/test_decontamination.py": 664.17,
     "tests/test_dependencies.py": 2.24,
@@ -393,6 +408,7 @@ SECONDS = {
     "tests/test_stage3b_hour_review.py": 8.36,
     "tests/test_stage3b_joint.py": 120.05,
     "tests/test_stage3b_layout.py": 145.56,
+    "tests/test_stage3b_reader.py": 32.78,
     "tests/test_stage3b_route2.py": 26.16,
     "tests/test_stage3b_shared_clock.py": 34.16,
     "tests/test_stage3b_shared_steps.py": 26.37,
@@ -401,9 +417,11 @@ SECONDS = {
     "tests/test_stage3b_weekday_review.py": 295.32,
     "tests/test_stage3b_width.py": 122.91,
     "tests/test_stage4_allocator_walk.py": 18.04,
+    "tests/test_stage4_generate_memory.py": 662.93,
     "tests/test_stage4_padded_swap_scale.py": 67.35,
     "tests/test_stage4_sign_repairs.py": 18.92,
     "tests/test_stage4_tier2a.py": 88.39,
+    "tests/test_stage5_gate.py": 272.08,
     "tests/test_stage6_band_totals.py": 124.34,
     "tests/test_stage6_validate_chain.py": 77.1,
     "tests/test_summary_and_properties.py": 41.37,
@@ -417,4 +435,5 @@ SECONDS = {
     "tests/test_window_agreement.py": 192.39,
     "tests/test_workbook_dates.py": 26.02,
     "tests/test_workbook_round_trip.py": 267.81,
+    "tests/test_zoo_identifiers.py": 1122.72,
 }

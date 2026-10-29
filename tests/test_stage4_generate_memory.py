@@ -170,13 +170,20 @@ _TABLES: "dict[str, tuple[str, typing.Callable[[], bytes], tuple[str, ...]]]" = 
 # 2ac127f2.... `latin` (`P000` up) and `utf16` (`C000` up) are three
 # figures wide, under the rule's five-figure line since repair 1, and
 # write base ccebc947's bytes again.
+#
+# `texts` RE-MEASURED AT BATCH 4L PART B'S MERGE OF LANE ID-ROOM (plan
+# P4-D432, 2026-10-29): generation's final pass spells every made-up
+# record number off the real ones, so the held `record` column moves on
+# 579 of its 600 cells (`XO2002955` became `ZX1633130`) and every other
+# column keeps its bytes; the frozen assembly still writes the command's
+# bytes. The merge of lane HX5 alone (f2fb4a52) wrote aca86e0f....
 _BEFORE_SHA256 = {
     "latin": "c5a78f1a7c2980c4913bfe4e220cd321f70cb28d0305df1898b02ba4519bc09c",
     "sorted": "f88db8f7772084ce124ba6569786b8313e6a59a1aa88bb53944e098847b50592",
     "sorted_floor_one": "2b9a8ad0672a409a26b9eb4f4260c280348ae0b553f744d78ee050c8fda41b46",
     "sparse": "829f54e6618b56cd54b38be8f1fedc660a4fa6c4f55037969ee802aa622b7e3e",
     "sparse_floor_one": "d32dc86c471fa47d5a7d68a8118ae7c2871540f18b7adf2fbcd170f830725b27",
-    "texts": "aca86e0fc620d84fe0ea348371c924cf13fba2c603b8bbb939d77e72111d66ba",
+    "texts": "b723a9c5ed91cca010b3ec333b74b153b96eb7905d273ca595c7bb14552c8f87",
     "utf16": "35d626ec1e295044f0faea922fd44528d03ffecc957fcab515f996b763484adc",
     "wide": "edaee2c842fa47c880123a55c7b195416b4a7d63334cf1165be690dfc5f84097",
 }
@@ -1495,16 +1502,22 @@ def _dated_visits(rows: int, patients: int, first: datetime.date, days: int, see
 # cells, its words drawn and its outcomes' text: measured on batch 4h's
 # fc25bae4, which keeps `seen` and `inside`, through the same calls
 # (`planning-notes/work-2026-10/wave3/merge-4i/owes1-digests.log`).
+# RE-MEASURED AT BATCH 4L PART B'S MERGE OF LANE ID-ROOM (plan P4-D432,
+# 2026-10-29): the declared patient key's twin values are spelled off the
+# real ones by generation's final pass (270 of 300 cells move on `pooled`,
+# 272 on `held`, `REC67412636` becoming `REC98697912`), the date and the
+# two numbers keep every cell; the merge of lane HX5 before it (f2fb4a52)
+# still wrote 1d46a0ab... and c293b54a....
 _GRAINED: "dict[str, tuple[typing.Callable[[], bytes], str, str]]" = {
     "pooled": (
         lambda: _dated_visits(300, 150, datetime.date(2023, 1, 1), 5 * 365, 7),
         "year",
-        "1d46a0ab098d24f1d694e1a8da80f24720e80fea703d46a37255089b4ffcef74",
+        "43749d64d37c2edc2a42a9a6747aa33d745a127ec94970f02f502b2b3804a9ef",
     ),
     "held": (
         lambda: _dated_visits(300, 150, datetime.date(1925, 1, 1), 100 * 365, 19),
         "held",
-        "c293b54af0004e6c3f2e3269aa6594894d4059f2c0200527da1dccabd7976fd3",
+        "51c494f5bc7e77a5cde6678d77c2472f6dea8d7a6eca754e920d67bed5df7728",
     ),
 }
 
