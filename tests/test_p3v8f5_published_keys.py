@@ -154,6 +154,12 @@ def _at_the_lost_key(
         column["min_length"] = 1
         column["max_length"] = 1
     document["n_rows"] = _ROWS
+    # The written form moves with the rows (plan P4-D86): one line ending
+    # for the header and one for each record, or the loader refuses the
+    # forgery for its line endings before this test's own rule is asked.
+    document["source"]["dialect"]["line_endings"] = [
+        {"ending": "lf", "lines": _ROWS + 1}
+    ]
     document["publication_notes"] = []
     written = fixtures.write_profile(
         folder, f"{stem}-profile.json", document

@@ -6,6 +6,7770 @@ exists).
 
 ## [Unreleased]
 
+### Batch 4l's records, part b: all-different numbers asked, no twin identifier equal to a real one, profile's questions as data (2026-10-29)
+
+**Records of batch 4l, part b**, which merged lanes HX5, ID-ROOM and S5b
+(plans P4-D436, P4-D432 and P4-D441) on part a's 19da269b, nothing
+pushed. At the merges: lane HX5's question holds every open column it
+offers `identifier` to, as lane SH's rule does; `parsing.subject_key`
+returns lane ID-ROOM's `merged_key`, one rule for the people count and
+the exclusions; lane S5b's records take lane SH's held ZIP columns. THE
+STAGE-5 GOLDENS were recorded again at lane ID-ROOM's merge: 103 records
+of 29 cases, nine lane HX5's (G6's record number, `REC` and six figures
+one a row, now asked and held) and 94 lane ID-ROOM's (the record
+number's exclusions in the descriptions, its twin spelled off the real
+ones), no verdict, step or exit status moved; lane S5b moves none. Seams,
+test-only: the stage-5 battery's weight is asked lane SH's Safe Harbor
+question and its record number lane HX5's; two of lane SH's ages held as
+record numbers miss `n_distinct` by the final pass's merge of two walk
+values (lane HB's); lane HX4's `reglistmixR` at 20,000 rows writes 4
+twin cells carrying a real key's six figures beside another letter, none
+equal to a real key, bounded by that count in the list gate: a chance
+case the orchestrator confirmed (made-up list members are not yet kept
+off real figure runs, about 40 in 900,000 a member; `K-S3-64` OPEN-held
+until lane HB's item 12); S5b's
+pinned key, ZIP and age questions file moves by lane SH's age question.
+"Two twin persons are never written as one" is restated to the measured
+case (79 and 54 at 20,000 rows, lane HB's). STATE's HIPAA bullet closes
+lane HX5's all-different column and lane ID-ROOM's chance-equal
+identifiers, the width price stated. On the merged code (d50d05c7), each by its driver: `K-S3-64` OPEN-held (0 values and 0 fragments described over 306 shapes; the one list case); `K-HZ-06` 0 equal and 0 merging over 186 shapes and 72 zoo identifier columns; `K-S5-01` and `K-S5-02` met (257 records, 0 differing); `K-HZ-01` 47 of 93 kinds passing at 20,000 rows and `K-HZ-02` 186 failures over 46 kinds, 900 real values published (21, 261 over 72 and 34,282 on lane E0c's head), seven failures over five kinds without an owner when measured and named at these records: four form checks lane ID-ROOM's width price, by design, and `partial_dates`' three lane HB's; lane SR's 880-description battery, read one column a group: 788 byte-identical to part a's, 89 moved only by lane ID-ROOM's layout exclusions in the description and 3 by lane HX5's question; `K-BC-12` written in from the orchestrator's night of 2026-10-29 on part a's head. The ledger's cap stays at part a's 870,000, set once for the batch: the merged ledger with part b's stamps fits under it.
+The records move no twin, description or report byte.
+
+### Lane S5b: profile's questions and carried become data, and the questions file is rendered from them (plan P4-D441, 2026-10-27; builds P4-D395)
+
+**Stage 5's second build lane, on lane S5a's head.** A profile run's
+result (`synthtwin.cli.run`) now holds one record for each entry of its
+questions file (`results.Asked`: its section -- about the file, asked,
+the checklist, or held -- its order, column, kind, what synthtwin saw,
+the reading that stands unanswered, each answer offered with what the
+description then publishes, and whether that question was put at a
+prompt; a question about the file names no column, its words in
+`subject`), its tally (the questions put at a prompt counted whether
+answered there or not), and what the description it wrote carries (each column whose
+twin cells are made up, and the table's `not-modeled` entry), read back
+through the loader `generate` uses. The questions file is rendered from
+those records (`asking.questions_document_of`), so a caller reads the
+questions without reading the file. Also: a column's `time_grain` is
+registered in the disposition registry's universal group as
+LOADER-ONLY (an input-side entry of the validator, as `tail_unit` is;
+repair 1, after the whole suite read it bound by nothing), and the stage-5 gate pins a compound column's window
+ends (lane S5a's verify 2). No byte of a report, a file or a screen,
+and no exit status, moves: the goldens hold (`K-S5-02`), the questions
+file rendered from a result is the goldens' file for G6, G1 and G7, and
+at 20,000 rows the file the code before this lane wrote for a table with
+held identifier and ZIP columns and for dates that raise the question
+about the file; no question or carried entry holds a value of a held
+column. `K-S5-01` 53 of 53 cases met and 0 of 30 corrupted results
+met; `K-S5-02` 0 of 245 records moved; both restamped on 0420e785
+(repair 1: skeptic 1's and Codex's items, gate cases at 2,000 rows for
+the prompt, the held section and the file's order).
+The summary is still rendered from the description, not from `carried`
+(the two classify made-up columns by different rules on some tables;
+the orchestrator confirmed the departure on 2026-10-28, and lane TW owns
+rendering the summary from the result and pins those tables), and the
+gate holds its made-up columns equal to the carried ones on the battery.
+
+### Lane ID-ROOM: no twin identifier cell equals a real one, by construction (plan P4-D432, 2026-10-25; repair round 1 the same day; repair round 2, 2026-10-27)
+
+**The class lane CODES-3's stated limit (4) names, closed.** A declared or
+answered identifier's twin drew its free figures, letters and arcs in its
+column's own layouts and read no real value, so where the real values
+filled a layout densely a twin cell equalled a real one by chance: on
+CODES-3's final head 1,022 of 20,000 cells under `1.2.752.24.7.1.`, 11,110
+for record numbers `1` to `20,000`, 19,980 for a person on twenty rows,
+and 328 and 50,594 cells of the health data zoo's identifier columns at
+600 and 20,000 rows. The profile, which reads the real column, now
+publishes `layout_exclusions` (contract 7.12b), read on each real cell's
+MERGED KEY -- the form the product counts a person by, so `P0013736` and
+`P13736`, `009297784` and `9297784` are one key: beside each named
+layout, the layout with one place, or every other place of a block,
+written as a character no real key holds there -- several spellings
+where one leaves too little room, at most 32 -- never passing over a
+character or a block's spelling 1 to 10 keys hold; and on every identifier block, whatever its
+census, a spill of the column's prefix and figures one longer than the
+published longest value. The generator's walks are unchanged; a final
+pass (method G9.6b) keeps a value whose merged key holds the written
+characters or is as long as the spill's, and spells every other one in
+its layout's excluded templates, else wider under its own prefix, each
+class from its own step, a folded identity together, so no twin cell's
+merged key is a real cell's. Where the real values fill a layout's room
+its values are written wider, and its census entry and the two lengths
+are listed (V4.1-A1); where a layout keeping an exclusion still has
+values written wider, the entries and lengths they leave are an
+AUTHORIZED-DEVIATION, measured (V4.1-A2). The repair round closed
+skeptic 1's and Codex's items: a stray cell switching the rule off,
+noughts after a prefix and numbers written two ways naming real people
+by the merged key, a rootless UID's first arc written, dense layouts
+failing their own validation, the spill printing an outlier's length,
+identifiers past 64 characters, prefixes lost to the spill, a folded
+identity widened apart; `(unnamed)` is withdrawn. New `K-HZ-06`:
+0 equal and 0 merging over 89 shapes at 600 rows and 85 at 20,000, the
+answered shapes, `P` and five figures at 200,000 rows and the zoo's 66
+identifier columns, the nine validated shapes at exit 0. A block now
+passes over no spelling 1 to 10 keys hold (the orchestrator's option (b)),
+so thinly spread keys -- random seven or eight figures at 20,000 rows --
+are written wider. Repair round 2: the final pass claimed a spelling by
+its fold alone, so two layouts filling in step wrote one twin person two
+ways (`9891959` beside `009891959`, `100005` beside `100005.0`: 600
+persons written as 317 to 333 at 600 rows); each spelling's merged key
+and its number are now claimed too, and one merged identity is moved
+together, each value keeping its spelling, so the twin keeps the walk's
+persons but where its per-member fallback writes two as one number (79
+and 54 at 20,000 rows on two shapes, 0 cells real; lane HB's items 15 and
+16, restated at batch 4l's merge; the walk's own merges at 20,000 rows are
+lane HB's too).
+Gate: `tests/test_identifier_room.py`. The demonstration's
+goldens move on `record_code` alone, and vectors file 27 gains seven
+cases.
+
+### Whole numbers each on one row, or in sequence, are asked the identifier question (lane HX5, plan P4-D436, 2026-10-25)
+
+**Lane HX5** closes the live exposure lane E0c's strict twin scan measured
+on ccebc947: the zoo's `titled_report.report_ref`, `RPT` and six figures
+one a row counting up, was read as an affixed number and asked nothing,
+and its twin wrote 598 of 600 real references at 600 rows and 19,998 of
+20,000 at 20,000. A column read as plain or affixed whole numbers, words
+and placeholders aside, standing on fewer than two rows a value and every
+one different, in sequence (five figures or more) or letters and five
+figures or more, is now put P4-D401's question (`keep`, `code`,
+`identifier`) where no other question is put to it, and held until
+answered; decimals, units, suffixes and values that repeat are not
+reached. K-S3-64 gains seven shapes (0 values published at 600, 20,000
+and 200,000 rows; the twin's chance equalities counted apart, lane
+ID-ROOM's) and reads its counts, from 20,000 cells, by a counter linear in
+the data (each text and each different twin cell read once).
+Moved, with the reason: three twin digests of the generate-memory gate
+(key columns now held), K-HZ-01 and K-HZ-02 by one kind (the zoo's title
+table, answered in one round; owner lane E0c), and the reading page's
+rule I names the question. Gate: `tests/test_all_different_numbers_asked.py`.
+Repair 1 (skeptic 1 and Codex): the five-figure line binds every arm and a
+writer's row index is left out, so the 66 suite cases the first head moved
+stand again or are typed with their reason; the reach gains openings of up
+to twelve letters, `S24-` and `-A` forms, `-9999` and repeated negatives
+set aside, one stray cell in a hundred and one repeated value in a hundred
+(each escape measured 0 published at 600 and 20,000 rows, once 97 to 100
+values and nearly every twin cell); the codes question and Q6 carry this
+question where both reach a column, one question; a declared decimal comma
+is read; placeholders close a run's gaps only inside it; written width is
+kept for the five-figure line. Stated limits, lane CODES-1 part C's: runs
+mostly under five figures that repeat, mixed-width keys on one to two rows
+a value, all-different numbers under five figures, glued letters, and the
+held runs beside `-1` and `-9999` missing their own validation at 200,000
+rows. K-S3-64 re-stamped at 04cfb00: 178 shapes, nothing real published.
+The suite's last moves are typed as the measurements they are (800 salaries,
+the study workbook's padded and grouped numbers); a candidate person column
+repeating a few values leaves the real workbook missing its own repetition
+pattern, on the base too (lane PS3's).
+Repair 2 (the verify of repair 1): a sign before the figures (`-300001`,
+`+300001`) and a point before the closing letters (`300001.A`), once 598 of
+600 twin cells real, are read and held, 0 published at 600, 20,000 and
+200,000 rows, at no cost over the battery, the zoo or the goldens; the gate
+pins the three guards that keep measurements out, each red on its mutant;
+P4-D436 states that a whole-number measurement drawn over a range about
+fifty times the rows or wider is asked at every size. K-S3-64 re-stamped at
+01c9421: 184 shapes, nothing real published.
+
+### Batch 4l's records: the date floor, the widened zoo, results as data and layer L0 merged; the environment audit closed to aliases; night 1027's describe points written in (2026-10-28)
+
+**Records of batch 4l**, which merged lanes PS2, E0c, S5a and BT (plans
+P4-D433, P4-D431, P4-D437 and P4-D429) on batch 4k's 589f3d72. At the
+merges: lane SH's top-code keywords and lane PS2's count in rows meet in
+`profile.build_document` and `cli.py`; the zoo keeps lane E0c's truthful
+answers, and the ADT export's `out_ts`, counted in people since lane PS2,
+names lane DST for the ladder rung its twin misses at 600 rows; lane
+S5a's results give lane SH's and lane PS2's notices a caution, never a
+refusal's words, and its golden battery is recorded again (151 records
+moved by lanes SH and PS2, none by its code); lane BT's gate spreads its
+ward's days so lane PS2's floor keeps them at the day. With the chain's
+switch at its default the merged head writes what it writes without lane
+BT: the zoo's 128 tables at 600 rows, each described and twinned at two
+seeds, 896 files and every word printed, byte for byte. SR's 880
+descriptions read one column a group are batch 4k's but 10, each a date
+column beside a person column that lane PS2's count in people holds or
+sends a rung coarser (layouts with month names, offsets), the same bytes
+on the merge of lane PS2 alone. Lane POP's and lane MIN's environment checks now also fail
+on the built-ins reached through an alias or an item, and on a trusted
+module stored through an alias (Codex's review of batch 4k), so batch
+4k's entry below is corrected. STATE's HIPAA bullet names what is closed
+(lane PS2's dates) and the lanes of what is open: lane SH2's rung and
+mean above 89 beside placeholders, its typed date count that frees a ZIP
+column, its places, coordinates and devices; lane HX5's references whose
+values all differ; ID-ROOM's chance-equal identifiers; LISTS'. `K-S4-09`
+and `K-S4-11` take night 1027's run on 589f3d72 (OPEN-WORSE, 20.3 traced
+bytes a cell against 17.7; PASS); the merged head's own reading at
+200,000 rows is owed to a window, its one traced run having taken over 92
+minutes of CPU without finishing. Stamped on the merged code: `K-S5-01`
+and `K-S5-02`, PASS, and `K-S6-02`, its two counts of at least restated
+because lane PS2's floor publishes three of the zoo's date columns at
+20,000 rows at the month, 16 bands fewer, every clause of the layer as
+it was. The ledger's cap is
+870,000 bytes, set once for the batch (847,894 used). Owed: the two gate
+files over the three-minute rule, lane SH's (about 45 minutes) and lane
+PS2's (about 12), their 20,000-row grids to `K-S3-64`'s and `K-HZ-07`'s
+slow legs. The records move no twin, description or report byte.
+
+### Layer L0 built behind the chain's switch: each eligible column meets its band totals, today's twin moved the least (lane BT, 2026-10-24, repaired 2026-10-25 and 2026-10-26)
+
+**Lane BT** (plan P4-D429, the build of P4-D404). Behind the switch no
+shipped command sets, an eligible number, date or clock column of the
+twin now makes its cells so that each of its published L0 bands holds
+exactly its published count. A number column is made exactly as today
+and then moved the least the description proves: the values two equal
+published rungs pin, the band totals, an all-different column's keys
+once a row, the values and the count of different values today's twin
+holds, and its mode. The first build's band map is withdrawn: on the
+health zoo it emptied real codes and wrote codes nobody wrote. One
+reservation of records holding nothing is made before the arrangement,
+by spelling in a text file and by class in a workbook, a workbook's
+classes now travel with each cell to the writer, a reservation short of
+its records is named, and nothing after it moves a cell; the interface
+lane CHb's chain generator will call hands over each eligible column's
+cells grouped by band. Measured on invented tables and the health zoo
+(`K-S6-02`, restated, OPEN on two clauses): 10,918 bands of 528 column
+twins, none a row off, where the same columns made without the layer
+miss by 56,932 rows; no check of the quality report lost, no column of
+that battery further from the real one, and no column whose values all
+differ short of one. At 200,000 rows every band holds its count at five
+seeds and no key is lost. The second repair keeps today's count of
+different values both ways: a value the proven heaps empty takes a cell
+back while the column is short (a laboratory value holds its 893
+different values, 892 before; a sparse reading its 66, 64 or 65 before), and a
+column over today's count merges a small made-up run outside two heaps
+too, so no column of the battery now gains a note of its own report
+(two did). It also keeps every written cell inside its band where a
+narrower width would round it across a cut, cuts an older clock
+description at a rung standing on its boundary's rank, refuses a date
+or clock column whose readings miss a band rather than write it, moves
+a workbook's classes with a sorted twin's rows and holds them a byte a
+row, hands the chain's generator one group per published band in the
+published order with a column of numbers and labels grouped by its
+numbers, and bounds three searches a large or crowded column asked.
+`K-S6-02`, stamped again on a battery grown by sparse codes, sparse
+columns, a laboratory value and a workbook with dates and clocks:
+11,463 bands of 590 column twins, none a row off, where the same columns
+without the layer miss by 61,993 rows; nothing of the quality report or
+of the twin's own report lost. Three limits are stated with their
+owners: on a uniform whole-number column the cells a cut crosses join
+the value beside the edge (the age's edge value 73 holds 157 cells
+against a real 210, 238 without the layer); at 200,000 rows, where the
+layer restores a value today's twin skipped and no small run is left to
+merge, a column can still hold one different value more than published;
+and where today's twin skipped a value beside a cut, the cut's cells
+pass it, so one column at one seed of 200,000 rows sits further from the
+real one. The gate runs one case a
+writer at 20,000 rows and pins every other rule on a small table. The
+one oracle freezes the cells of seven of the method's cases through its
+own pipelines. Every shipped twin is the same file, byte for byte.
+
+### Lane S5a: results become data -- `synthtwin.cli.run` returns one result a run, its misses ranked once, every byte held (plan P4-D437, 2026-10-26; builds P4-D395)
+
+**Stage 5's first build lane.** `src/synthtwin/results.py` (new, the
+standard library only) holds what one run did as frozen records: its
+verdict (`no-miss`, `missed`, `refused`, `unusable`), its misses in
+`(tier, place, arrival)` order with the rank table that decides each
+tier once, what it could not judge, what it carries approximately or not
+at all, its tally, floor, warnings by key, files, next command and
+refusal with its step; `results.exit_code` reads the exit status from
+the command and the verdict alone. `synthtwin.cli.run(argv, *,
+screen=None, ask=None)` returns that result and prints nothing (the
+screen and the reader are data, `cli.TERMINAL`, a list or None, since
+the offline audit admits no call of a function a caller hands in);
+`synthtwin.cli.main` returns `exit_code(run(...))` and no longer raises
+`SystemExit` for `--help` or a word it does not know. The validator and
+the generator mark how each miss was judged; the four G12 refusals carry
+their catalog key; `src/synthtwin/roles.py` (new) keeps the registry
+group and the made-up class where generate's and validate's results read
+them without crossing the profile and generator boundary.
+`tests/stage5_battery.py`'s 45 command lines are recorded once, in the
+lane's first commit, from the base's code (`tests/stage5_goldens.py`,
+245 records), and CI's Ubuntu 3.11 cell reproduces them with
+`tools/goldens/record_stage5_goldens.py` under the provenance guard
+after its negative control. `K-S5-01` (headline, new): 53 of 53 battery
+cases told apart from the result alone, 0 of 21 corrupted results met
+(the page's baseline, 3 of 53, by its rule). `K-S5-02` (new): 0 of 245
+records differ, 0 digests (both stamped on 11612e6, repair 1's head,
+by `kpi_run.py --slow`). `tests/test_stage5_gate.py` (new) runs in 104
+seconds. At the table floor G2's twin gives up the weight's mode count,
+so the battery's good generate run is G2n, the table without its weight
+(`K-S5-01` only). The ledger's cap is 775,000 bytes and the headline
+board holds 36 (stage 5's first headline). No byte of a report, file or screen, and no exit
+status, moves.
+
+**Repair 1 (both skeptics, every item fixed).** The judged and ladder-end
+marks enter no record's text or equality (four suite cases had gone red
+on pinned digests); a word abbreviating several options after the help
+word is refused again with exit 2 and the base's usage and error line,
+where it had shown the help page; the form and mark censuses of a
+writing fact rank `count`; generate names every fact as the disposition
+registry does, its approximations too, and a carried entry holds its
+subcheck; `K-S5-01`'s checker reads each miss's identity, the carried
+entries' subjects and reasons, validate's approximate entries off the
+description, the command, the files and the rule keys, with twenty-one
+corrupted results unmet. Stated limits, each with its owner: the weight's
+mode count given up at the table floor (lane G2T); `cli.run` serves one
+thread at a time; the ambiguous-option line shows a typed word raw (lane
+TW).
+
+**Repair 2 (Codex's review and the verify, every item fixed).** The
+result's command is the one argparse read, so `--out-dir profile validate
+d.json` exits 3 on a miss again. The help option is a switch argparse
+reads without printing, and where it is taken is asked of argparse
+itself, so `-hh`, `-hfoo` and every other help spelling of the running
+Python show the page through the run; a word abbreviating several
+options is refused before parsing only where that Python's argparse
+refuses it so (3.11, and 3.12 before 3.12.7), and handed to argparse
+elsewhere: 68 command lines through `main` keep every byte and exit
+status of the base on Python 3.11, 3.12, 3.13 and 3.14. Argparse's
+refusals keep their words in the result. Validate's approximate entries
+follow the description where the file lacks a column, holds no rows or
+names none (33, where 13 had stood), and each carries the window's ends
+as the report prints them and whether it holds the description's value.
+A joined position's facts rank as a number column's. The write
+transaction's account of the disk is the refusal's `on_disk`. The census
+of cells per missing spelling ranks `count`, as the orchestrator ruled.
+`K-S5-01`'s checker gains two corruptions, twenty-three unmet. Stated
+limits: a twin gives up a number column's mode count at the table floor,
+not only a weight's (owner lane GG, as the orchestrator ruled, where
+repair 1 wrote G2T); the ambiguity rule is read off the Python's version.
+No golden moves.
+
+### The health data zoo widened to every kind, re-defined at the owner's table floor (plan P4-D431, lane E0c, 2026-10-24, repaired twice 2026-10-25 and a third time 2026-10-26; tests and drivers only)
+
+**Lane E0c of the December plan** (the zoo plan's section 6 (b); the
+owner's Z2 answer (a)). The zoo's catalogue grows from 40 kinds over 25
+exports to 93 over 64: `tests/health_zoo_wide.py` adds the roles the zoo
+never reached, the coding systems' longer forms, eighteen clinical
+domains, seven system exports, twelve file shapes, the HIPAA and
+de-identified shapes and the time edge kinds, each with analyst checks
+that turn red on their own spoils; thirteen items E0a's kinds already
+held are merged there. Its KPI legs run at 20,000 rows through the
+SHIPPED table floor, the 600-row runs are the suite's smoke below it,
+one test item a shard, and the slow driver runs six shards. K-HZ-01's
+pass rule is restated (a kind passes at 20,000 rows with the floor on,
+its 600-row smoke running: 21 of 93 since the twin is read strictly,
+47 before), K-HZ-02 counts failures per kind and check at 20,000 rows
+(261, every one owned; 190 before), K-HZ-03 bounds each
+shard, and K-HZ-05 (new) counts the kinds the floor refuses: none.
+HIPAA first, the lane's repair reads every column answered `identifier`
+and every column that names a Safe Harbor element for its real values,
+each description as soon as it is written (the first before any
+answer), a year of an age of 90 or more included, and the zoo answers
+the Safe Harbor question truthfully, `yes` for a ZIP3 area and an age
+column holding an age over 89, every round of the questions file
+answered; the twin is read strictly, every real value it meets counted
+with no chance allowance, so a verbatim, shuffled or half copy counts
+(repair 3). LIVE on the base: ZIPs, and keys
+published while their question is open (lane SH's); years of an age of
+90 or more, device numbers and cities of birth (lane SH2's); full birth
+dates one person holds (lane PS2's); made-up identifier keys equal to
+real ones (lane ID-ROOM's: 33,705 real keys on 71,331 twin cells over
+75 columns of 58 tables at 20,000 rows, among them a sequential report
+reference under two title rows, answered `identifier` in the second
+round, 400 on 400 cells; with one round only, as repair 2 ran it, it
+was read as a number and its twin wrote 19,998 of 20,000). Nothing
+under `src` changed; no golden, vector or SR battery byte moved.
+
+### Every published date held by the floor, counted in people or else in rows (lane PS2, plan P4-D433, 2026-10-25)
+
+**A table of one row a person, or with no person column, no longer
+publishes dates that one to ten rows hold.** Lane E0c's leak scan found
+the zoo's `patients.csv` printing 11 real birth dates a column (the date
+percentiles and both tail boundaries, each one person's date) at 20,000
+rows, and a registry's birth dates which no question flags. Where no
+subject column counts a column of dates in people, each row is now its
+own holder: every date its description would publish is read as the day
+(month, quarter) it names, and one that one to ten rows fall on sends
+the column down lane PS's ladder -- day, month, quarter, year -- with
+each row a holder, or holds it with valid made-up dates in its own
+layouts. The date is counted, not the instant, so a dense admission day
+stays at the day and a stamp keeps its time of day; their bytes do not
+move. The rule reaches every table the command describes, from the
+table floor of 20,000 rows up; below it `synthtwin profile` refuses the
+table and the library keeps its bytes. Two new evidence sentences say
+rows rather than people (contract NF130 and NF131), and so does the
+summary. New KPI `K-HZ-07` (0 such dates published over the zoo and the
+lane's sweep at 20,000 and 200,000 rows); gate
+`tests/test_dates_held_by_the_floor.py`. Its repair round counts each
+cell on the clock its description publishes (its day at UTC where the
+offsets differ) and a declared count by its true calendar day, so Unix
+seconds in the afternoon and milliseconds just before midnight no
+longer publish one row's date; honours the user's raised floor; lets the
+validator read the grain a description published, so an older
+description is still met by its unchanged source; keeps month-first
+dates month-first under `--day-first`; asks no date question of a
+column it held; and never says a repeating person column does not
+repeat. Its second repair round counts a column of dates in the people
+of every person column that repeats, however few they are against a
+raised `--smallest-group` (2,500 rows of one patient no longer print that
+patient's day under a floor of 2,000), and counts each cell in people on
+the clock the description publishes, not its local text. The gate runs
+at the floor size, the 200,000-row tables in `K-HZ-07`'s slow leg.
+
+### Batch 4k's records: the Safe Harbor numbers and the chain's validator merged, the environment audit closed to a rebound callee, the night's 2,000,000-row points written in, the ledger cap set once (2026-10-26)
+
+**Records of batch 4k**, which merged lanes SH and CHv (plans P4-D427 and P4-D430) on batch 4j's f677d6a0. Since lane CODES-3 the padded ZIP shapes beside words lane SH's gate answered are held as keys beside words and put the person question, so its two answered cases now answer the Safe Harbor question on `zip_mixed`, a shape lane SH alone holds, and its zoo case hands lane POP's internal keyword through. P4-D427's price is corrected: the zoo's CVX codes answered `code` are top-coded under ruling R2 until `no`, not held; the ZIP and APC codes are held under R1. Lane POP's and lane MIN's checks that no module reads the environment now also fail on a callee the audit trusts rebound before the copy (Codex's review of batch 4j), so batch 4j's entry below holds as written. (Corrected at batch 4l's records: an alias of the built-ins or of a trusted module, or an item written into the built-ins, still passed both checks until then, Codex's review of batch 4k; the offline scanner rejected those forms and no product module holds one.) A key exported as `100001.0` validates since lane CODES-3, and the shapes' validation limits no longer name it. STATE's HIPAA bullet names what is closed and the lanes of what is open (ID-ROOM, PS2, SH2, LISTS'). The night windows' points are written into P4-D415, P4-D423 and the evidence of `K-S4-09` and `K-S4-12`: the workbook route at 1,048,576 x 50 peaked at 1,451 MB resident, which replaces its day projection of 0.78 to 1.02 GB; on batch 4j's head the 2,000,000 x 50 mixed table was described at 2,375 MB and generated at 1,745 MB, and the Gaussian table at 1,330 and 1,155 MB, every run under the 2.5 GB guard. CI's two repairs of batches 4h to 4j, 8cd9b743 and f677d6a0, are in STATE's CI row with their runs (83 and 86 of 86 jobs). Lane SH's rule reaches tables the lanes merged since its base added, by design: 47 of the 880 battery descriptions differ from batch 4j's, each in one column it top-codes or holds, and lane SG's frozen utf16 twin is re-measured for its column of 0 to 100. `K-S3-66` (101 answers) and `K-HZ-02` (102 analyst checks failing), lane SH's, and `K-S6-04`, `K-S6-05` and `K-S6-10`, lane CHv's, are stamped on the merged code, `K-S6-05`'s bounds restated because lane SH's top-code moves today's twin of its table; `K-S3-64` keeps lane SH's stamp. The ledger's cap is 785,000 bytes, set once for the batch (781,460 used). The records move no twin, description or report byte.
+
+### The chain's families checked by `validate`, behind the chain's switch (2026-10-24)
+
+**Lane CHv** (plan P4-D430; validation method V12, layer L1). `synthtwin
+validate` handed the chain's switch, which no option reaches, now reads a
+description's chain and checks the file against it: each column's band
+totals and each family table at the published bands, HELD or MISSED, a
+family judged only where its columns' totals hold and the file's own
+facts let the published tables stand; every pair of columns with the
+word the description gives it, a pair the chain only implies printed as
+the published families imply it, never as a check. No line prints a
+number the checked file holds. The written quality report holds the
+section; the screen prints one line for it. Every run without the switch,
+and every description carrying no chain, is checked and reported as
+before, byte for byte. `K-S6-04`, `K-S6-05` and `K-S6-10` are new: every
+pair one word, every family one line and V12's six data mutants as
+stated; whole real rows in a chain-arranged twin rising from 9.7 to
+17.45 in 1,000 rows on K-S6-01's table, for the owner; and the
+death-rate difference at age 70 recorded as the chain carries it. Repair
+1: the default run calls the measurement as it did (the health zoo's
+battery runs again); the file is read for people and for its calendar
+censuses before a family is judged; implied tables are carried along the
+chain's junction tree within bounds the description sets, every one of
+1,124 on 50 columns worked out; each column's codes take one byte a row;
+and the report's verdict, limits and handling paragraph say what the
+between-columns lines found, in plain words. At 20,000 rows the
+chain-arranged twin's whole real rows rise from 652.1 to 939.55, for the
+owner. Repair 2: the verdict says how many of its NOT CHECKABLE
+obligations no CSV can evidence and how many are between-columns lines
+the file cannot be checked for, and where each kind is named; the clock
+census, each source of the people rule, the walk's held bound and RULE
+WE's room are each pinned by a case red on its mutant.
+
+### Lane SH, repair round 3: no code answer frees a ZIP code or an age over 89, and the zoo answers the Safe Harbor question truthfully (2026-10-25)
+
+**Verify 2's open items closed** (plan P4-D427, its repair round 3, under
+the orchestrator's rulings R1 and R2 of 2026-10-25). A column of
+ZIP-shaped numbers answered or declared `code` now stays held and is put
+the Safe Harbor question in that run, as `measurement` and `keep`
+already were: only `no` frees it (40 of 40 real ZIPs were printed at
+20,000 rows, and the zoo's own `patients.zip5` 12 of 12 on every twin
+cell). A column in the age reach answered or declared `code` is
+top-coded and asked as for `measurement` (NAACCR's three-figure ages
+printed 93 and 100 to 105). The zoo answers that question truthfully:
+`yes` for a ZIP code, a place smaller than a state, so its `levels zip5`
+check is the HIPAA price, owned by this lane. `K-S3-64` counts 246
+shapes, 0 on every key. The price, by design: `K-S3-66` reads 100
+answers and 3 zoo tables that need the Safe Harbor question's second
+round, and `K-HZ-02` 105 analyst failures; no golden moves and no
+battery column is newly top-coded.
+
+### Lane SH, repair round 2: no measurement or keep answer frees an age over 89 or a ZIP, one question a column, decimal commas and nine-figure ZIPs (2026-10-24)
+
+**The combined verify's open items closed** (plan P4-D427, its repair
+round 2). Three-figure ages answered `measurement` to the padded question
+(NAACCR's Age at Diagnosis printed 91 to 105) are top-coded, `090` as
+wide as the column pads, and put the Safe Harbor question; a column of
+ZIP-shaped numbers answered `measurement` or `keep` to another question,
+or so declared, stays held and is put the Safe Harbor question, since
+only `no` frees it (a column answered `code` stays CODES-2's, as lane
+HX's ruling of 2026-10-16 gave it). Every open question offering
+`identifier` counts as the one put, so ZIP+4 cells are asked one
+question; ages written `94,8` with no decimal comma declared are read
+and top-coded `90,0`; a nine-figure number is a ZIP+4 written without
+its hyphen; and the twin keeps the declared missing cells of a top-coded
+column. `K-S3-64` counts 230 shapes, 0 on every key. The price, each
+freed by `no`: whole-number charges, costs and step counts of four and
+five figures held as ZIP-shaped even answered `measurement`, kilograms
+written with an undeclared decimal comma top-coded.
+
+### Lane SH, repair round 1: the Safe Harbor numbers in every role, judged on the bulk, and the hold follows the identifier offer (2026-10-23)
+
+**Every escape measured on the lane's first head closed** (plan P4-D427,
+its repair round 1). The age top-code and the ZIP hold now reach every
+role that prints a value (two values, one value, labels such as `95
+years`), set aside words, the column's missing values, nines, one-figure
+negatives and up to three repeated placeholders whatever their share, and
+judge the rest on its bulk: ages within 0 to 125 but for a few strays,
+ZIPs two in three of five figures, padded or not, signed or ZIP+4, or of
+four (a ZIP that lost its zero) as levels or all of one width. A
+cell keeps its own form in the description and the twin, the twin keeps
+how many cells each value holds, and ages held as record numbers keep the
+key validation reads. Every open question offering `identifier` now holds
+its column, the date-count question at any width among them. `no` reads
+"none of these: the values are measurements, counts, codes or categories
+that name no person, place, date or record". `K-S3-64` rises to 206
+shapes, 0 on every key. The price, each freed by `no`: weights, CRP and
+Fahrenheit temperatures top-coded; five-figure procedure codes, incomes in
+hundreds, years and four-figure codes held.
+
+### Lane SH: ages over 89 read as 90, and five-figure numbers beside a few words held, while the Safe Harbor question is open (2026-10-23)
+
+**Two live Safe Harbor exposures closed** (plan P4-D427; 45 CFR
+164.514(b)(2)(i)). A number column whose present numbers lie within 0 to
+125 and include an age over 89 -- all-nines placeholders of either sign
+set aside, at most one cell in three -- is put the owner's Safe Harbor
+question in the questions file, and while it is open every value of 90 or
+more is read as 90 for the whole description (`top_coded`, contract
+TC1), the twin writes none above 90 (method G7.14), and `synthtwin
+validate` reads the real table the same way (validation V15). A number
+column of five-figure whole numbers beside a few words is held whole until
+that question is answered `no`. On b85200be, 20,000 ages published 95 to
+103 and five-figure ZIP codes beside one `UNKNOWN` printed 38 to 44 real
+ZIPs; now 0 in every file and in the twin, at 600 and 20,000 rows.
+(Corrected at batch 4l's records: no real age over 89 is printed, but
+beside a placeholder such as `999` a top-coded column still publishes a
+rung or a mean above 89 -- at 20,000 rows 200 cells of `999` give `p99`
+99.09 and 1,000 a mean of 115.6 -- lane SH2's to close, its addendum 1.)
+`yes` holds a column as an open question does; `no` gives back today's
+description. `K-S3-64` gains the eight shapes; the zoo answers `no` for
+its pulse, its verdicts unchanged. Owed: the analyst battery's slow KPIs
+re-measured by the batch integrator (its ages are top-coded under the
+command).
+
+### Batch 4j's records: the data folder's exemption narrowed, the night's 2,000,000-row points written in, the ledger cap set once (2026-10-24)
+
+**Records of batch 4j**, which merged lanes H3 and CODES-3 (plans
+P4-D423 and P4-D428) on batch 4i. Lane POP's and lane MIN's checks that
+no module reads the environment now set aside only the one copy of the
+environment `installation.data_folder` makes, and only while it reads
+that copy by LOCALAPPDATA or XDG_DATA_HOME, written out, to choose the
+folder (Codex's review of batch 4i): a third key, a computed key or the
+environment used past the folder fails both checks, and batch 4i's entry
+below says what they set aside until now. Lane H3's two points at
+2,000,000 x 50 from the night of 2026-10-24, 1,420 MB with every
+candidate open and 1,386 MB with a declared person column, resident,
+are written into P4-D423, STATE and `K-S4-09`'s evidence; that entry's
+stamp by its own driver on the merged code stays a night window's.
+`K-HZ-04` is stamped on the merged head. P4-D428 names the held `.0`
+beside `31000000.00` among its gate's bounds. Three ZIP shapes lane
+ZR-b's page measured printing (padded ZIPs beside one word, or beside
+`-99` x 7,000) are held since lane CODES-3, and its test and P4-D422
+say so; the shapes that still print stay lane SH's. The ledger's cap is
+764,000 bytes, set once for the batch (763,347 used). No twin,
+description or report byte moves.
+
+### Lane CODES-3: identifiers with numeric roots, record numbers written as decimals, prefixed ids of several lengths, plain keys beside a word (plan P4-D428, 2026-10-23; repair rounds 2 and 3, 2026-10-24)
+
+**The health data zoo's identifier rows 19, 42 and 43, and push critic
+13's MAJOR 5.** A column whose every cell, words aside, is a DICOM UID --
+every value different, or repeating with an arc of five figures or more
+-- is put Q-ID, one more shape of HX's question (`keep`, `code`,
+`identifier`), never a second question, and held until answered.
+Declared, it publishes its organisation's root (cut before the first arc
+of five figures or more, the arc after `1.2.840.` aside: no study, series
+or scanner serial is named), its twin writes no arc led by a nought, and
+the validator checks the grammar. A declared record number publishing
+`all_whole_numbers true` (Cerner's `31000000.00`, grouped too) writes `0`
+after the point, and such a layout is named only where its figures before
+the point leave room. A declared record number of one opening and
+figures (VCF's `rs`, UID roots) counts the cells of its unnamed or
+room-refused layouts in its commonest layout, built on its published
+census (rule A1). Route two of the person rule and route four's padded
+arm set aside up to a third of any word or placeholder beside keys, and
+a whole record number ending in noughts after a point is read as its
+figures, so `R1000`, `AB100` or `0100` keys beside `OTHER`, `Not known.`,
+`-1` or `N.K.`, and `31000000.00` unanswered, publish 0 values at 600 and
+20,000 rows. New `K-HZ-04`: 1,799 identifier cells out of pattern on
+af69aaef, 0 now. No golden moves; the pinned C6-142 limit closes and
+P4-D406's stated limit 8 closes for `.0` by turns. Gate:
+`tests/test_zoo_identifiers.py`. The ledger's cap is 757,000.
+
+**Repair round 2 (the lane's combined verify, 2026-10-24).** A UID root
+now ends three arcs after its organisation arc at the latest, so a study
+UID of short arcs is never published as the root of its instances (332
+of 600 real instance UIDs in the twin before, 0 now); Q-ID reads
+repeating UIDs by the arcs after that root and never asks a column under
+the DICOM standard's root (SOP Class and Transfer Syntax UIDs). Words and
+placeholders beside keys or UIDs are set aside whatever their share
+where the floor's key cells remain (`Unknown` on two cells in five
+printed 24 keys). A whole record number of several widths at 20,000 rows
+keeps its noughts after the point (2,864 cells off `\d+\.00` before):
+rule A1 without a prefix. The oracle mirrors G9.6a's amended templates,
+with two frozen cases in vectors file 27, and method G9.6a gains step 7.
+
+**Repair round 3 (the lane's verify 2, 2026-10-24).** A UID root keeps
+only arcs of three figures or fewer after its organisation arc, and ends
+at the fifth arc where no organisation arc is found: instances under
+`1.2.276.0.12.34.56` no longer publish that study UID as their root (332
+of 600 real UIDs in the twin before; 0 of 600 now, and 1 of 20,000 by
+chance), and a vendor's single product arc no longer lets a site arc
+and a month-day into it. The gate pins four short roots, Siemens' among
+them, at 600 and 20,000 rows, each red on its mutant, and asserts 0 real
+UIDs in the twin for every node but `noorg` at 20,000 rows, which it
+bounds; P4-D428 names the any-share rule's false alarms (HCPCS codes and
+ward labels beside words) and widens stated limit (1).
+
+**The orchestrator's ruling (2026-10-24, 17:25).** A declared
+identifier's twin draws its free arcs and figures in the column's own
+rooms and reads no real value, so where the real values fill a room
+densely a twin cell can equal a real one by chance: 1,022 of 20,000
+under `1.2.752.24.7.`, 348 for Cerner numbers of two widths, about 250
+at 2,000,000 rows for `1.2.276.0.12.`. P4-D428's stated limit (4) names
+the class with verify 3's counts, OPEN and owned by lane ID-ROOM (plan
+P4-D432: no twin identifier cell equals a real one, by construction), as
+is the fidelity note that IANA enterprise roots now publish `1.3.6.1.4.`.
+
+### Lane H3: a column whose values all differ, and free text, described with fewer objects a row (2026-10-21, repaired 2026-10-22 and 2026-10-23)
+
+**Describing a column whose values never repeat, or free text, holds
+fewer objects a row** (plan P4-D423 and its repair rounds 1 and 2, answering
+P4-D400's stated limits (a) and (b)). A cell's record holds three slots;
+exact numbers, the mode, different spellings, tail runs, a date reading's
+texts, days and moment order are counted off sorted values or the tally's
+counts; the width censuses keep three lists. The repair keys each label
+by its first spelling (no folded copy of a label written in capitals),
+counts a slashed stamp column's one written clock by hour, figures and
+face (no halves, parts or pair a stamp), counts the weekday census's
+units along the ascending instants, ranks stamps with offsets by one
+whole number a pair, and stops the affix reading once a column proposes
+more pairs than any reading can stand on. Traced bytes a row above the
+column, past the memos' bound as at 2,000,000 rows (Python 3.11, 20,000
+rows): record numbers written `V` and nine figures 824 on 4682d6ad, 418
+on the build, 339 now; stamps to the second 587, 431, 342 (and 342 at
+80,000 rows); the K-S4-09 table's `check_at`, `MM/DD/YYYY hh:mm AM`, 775
+on the build, 337 now, and its `order_at` 627 to 337; stamps with offsets
+620 to 481; eight figures 503 to 170. Notes (2,000 and 4,000 rows): the
+gate's lower-case 60-word notes 138 to 148, notes beginning with a capital
+179 (565 on the build), notes of a 30,000-word vocabulary each holding a
+dose and a date 182 to 184 (769 to 1,343), all under 200; about 1.0 ms a
+note untraced (0.6 for the large vocabulary) against 1.4 to 1.7 on
+4682d6ad. The mixed table's traced peak at 20,000 rows is its reading's,
+unmoved; its heaviest describe is now a clock column, 370 bytes a row,
+where `check_at` held 821 on 4682d6ad. The second repair answers
+Codex's review: the mode reads each run of equal values once (a value
+16,000 exact numbers share took 0.1 s, not the square of them), the
+affix runs are counted a band of sizes a walk (512 wrapper pairs whose
+kept hash bits collide, 7.9 s where 6d4cb0b2 took 16.0), and a value its
+cells write as one exact number is counted by its run with no map
+(10,000 numbers written twice, 130 traced bytes a row where 6d4cb0b2
+held 307 and 4682d6ad 249). With a declared person column the date
+questions described the answer's nine held columns of dates and stamps
+beside a walk of groups (14.2 MB traced at 20,000 rows, above every
+describe); each column is now described beside its own group alone (9.8
+MB), at six more readings of the file. Every description,
+summary and twin is the same bytes: lane SR's 880-description battery
+read whole and one column a group, the health data zoo, skeptic 1's 144
+adversarial descriptions with generate and validate, and the lane's
+digests. The 100 bytes a row asked of record numbers and stamps is not
+met (stated limit 1); the 2,000,000-row points are the night window's
+(`wave6/H3/night-h3.sh`, steps `big` and `person`; resident, against the
+2,500 MB watchdog).
+
+### Batch 4i's records: the two floors merged, a grained column's working set let go (2026-10-23)
+
+**Records of batch 4i**, which merged lanes POP, MIN and ZR-b (plans
+P4-D425, P4-D426 and P4-D422) on batch 4h. `synthtwin generate` lets a
+grained column's words and its leaving cells go after their last use
+(Codex's review of batch 4h, P4-D415): on a 300-row table a date column
+pooled at the year, or held, no longer keeps 10,724 bytes of words into
+the next column and 17,700 bytes of cells through the final
+arrangement, and the twin, its words drawn and its report are the same
+bytes. `cli.main` takes the chain's switch and the two internal
+keywords, `small_tables_refused` and `internal_smallest_group`, each
+keyword only, off by default and set by no option; the suite's bridge
+hands either switch on, and lane SG's two gate cases at a smallest group
+of 1 describe through it, writing the same twins and descriptions as
+before. The package reads one environment variable pair, the chain's
+data folder (LOCALAPPDATA, XDG_DATA_HOME, behind the chain's switch);
+both lanes' checks set aside the whole of `installation.data_folder`
+(corrected at batch 4j's records: since then they set aside only its
+one copy of the environment, read by those two names written out to
+choose the folder). STATE's ruling line of
+2026-09-22 now says the floor of 11 is raised and never lowered. No
+twin, description or report byte moves at a floor of 11 or more.
+
+### The zoo-fix stand-ins page: stand-ins, rare values named, few-valued numbers (plan P4-D422, lane ZR-b, 2026-10-22; specified, NOT BUILT)
+
+**A method page, no product code.** Lanes CODES-1, CODES-2, CODES-3 and
+GG own twelve of the health data zoo's failing kinds and write into one
+generator path, one publication and one questions file, so the page in
+`docs/plans/phase-4-columns.md` settles them before any is built. Rule U
+says what "unanswered" means for every name, value and census. Rules A1
+to A3: a form or layout under the floor absorbed into the commonest
+published one, producer and validator alike (the VCF `rs` layouts); for
+the label class, a floored positional census per published form after
+the Safe Harbor `no`, counted in people beside a subject column, keeping a
+vocabulary prefix such as `ICD10CM:`, its stand-ins stepped through the
+lists in balanced order, then the characters the published levels wear,
+then the alphabet widened from the last place (the zoo's TNM: 0 of 81
+cells out of grammar, 11 of 11 levels real), and unanswered reading no
+held-back cell; held-back numbers keeping their own form and width
+(PCORnet `DX`: `%%%.%` 24 against a published 21 today). CODES-1 part C: a
+held column's twin meets its published forms. CODES-2 under the owner's Z1
+(B): rare names published only through an allowlist, after the owner's
+question "Could a value of this column name a person, a place smaller
+than a state, a birth date, or a record, account or device number?",
+answered `no`; the question put in the first round to every label column
+in one entry, its explanation covering ages over 89, three-figure ZIPs
+and any other number or code given to one person; a column answered
+`code`, and a label column with a figure in every present cell, held
+until then, and on every other label column each level holding a figure
+pooled until then, so a five-figure ZIP, a ZIP+4 and a device UDI publish
+none of their values, one `UNKNOWN` cell beside them included (9 of 59
+ZIPs and 12 of 49 UDIs printed answered `code` today, 9 of 363 ZIPs with
+nothing asked, 6 beside one word cell); `yes` acted on at once, `no`
+waiting for every identity question of the table; a column of words such
+as a birth city keeps its common word levels unanswered, a stated limit;
+the Safe Harbor top-code, a column of any role that prints a value
+(`binary`, `constant`, a count, a measurement, and the number part of
+numbers with labels and of affixed numbers) at least two thirds of whose
+numbers lie within 0 to 125, one above 89, read with those values as 90
+until its question is answered, words and placeholders (all-nines of
+either sign, `-1`, and any value outside 0 to 125 that the floor's rows
+repeat) set aside whatever their share, so neither one `999` cell, one
+outlier `130`, nor `999`, `-1` or `888` on 7,000 of 20,000 rows defeats
+it (three ages over 89 printed today at 2,000 rows; `95` printed at
+20,000 rows as a `binary` and a `constant` level, beside `130` and
+beside `999`, `-1` or `888` x 7,000, 90 to 104 beside 8,000 `-1`, and
+`max` 104.99 on ages written ` years` once the person question is
+answered `keep`), and a label column of such numbers, every word set
+aside whatever its share, read with its levels above 89 pooled into one
+written as 90 (the levels `90 years` to `104 years`, and `95` beside
+`UNK` x 7,000 or beside 800 different words, printed today); the five-figure hold, such a column at least two thirds
+of whose whole numbers have four or five figures, one of five, its words
+and placeholders (all-nines of other than four or five figures, and any
+value of other than four or five figures that the floor's rows repeat)
+set aside whatever their share, `9999` and `99999` counted toward "one of
+five", held whole until `no`, so ZIPs that lost their leading zeros are held too
+(9 real ZIPs printed today beside one `UNKNOWN` cell, 4 of 4 for
+`[2100, 2107, 52240, 52247]`, 40 of 40 padded ZIPs beside `-99` x 7,000,
+40 of 40 four-figure ZIPs beside `99999`), and four-figure ZIPs beside any
+other placeholder or a word named a live exposure owned by CODES-2, and
+four-figure ZIPs of one or two values (`binary`: 2 printed; `constant`:
+1) a live exposure owned by lane SH; both live in today's product and built now
+by lane SH (P4-D427), whose gate holds Codex's four cases, the
+third verify's five shapes, the fourth verify's four, the fifth
+verify's `V5-1` and the sixth verify's `V6-1` and `V6-2`; short result
+words by a shape screen that refuses every word holding a letter and a
+figure, a word holding a figure (`#4521`) named only after `no`, lone
+names its named residual;
+named levels' sizes allocated jointly with the published form debts; lane HX3's `code` offered on code-form
+long tails in the same question; names beside a person column only where
+the column is not attached to it. GG: a few-valued number column, after
+the same `no`, writes only its own values, rare ones included;
+unanswered it keeps today's twin, and `yes` holds its ladder, mode and
+tails. Each rule's floor argument, with the chain's RULE W1 reading a
+named level and every printed rare value as an own-fact group; the
+validator's rule of each; what moves (no golden, checked on the
+fixtures; the frozen vectors each lane names); the KPIs the four lanes
+stamp and the kinds each turns. Measured on 4682d6ad
+(`planning-notes/work-2026-10/wave6/ZRb/`). `tests/test_zoo_stand_ins_page.py`
+(314 cases) pins the page's figures and its reading of the product, red on
+each of 314 page mutants after close 6 (close 6 re-ran the 21 whose text it
+touched), on the combined review, the one outside review, the second to
+sixth verifies and Codex's second outside round.
+
+### The floor of 11 is a minimum: `--smallest-group` raises it and never lowers it (lane MIN, 2026-10-23)
+
+**Lane MIN** (plan P4-D426), on the owner's answer of 2026-10-23, "Only
+raise it". Every command refuses `--smallest-group` under 11, or text
+that is no whole number, in plain words, with code 2, writing nothing,
+under every spelling argparse takes for the option; 11 and more behave as
+before. `generate` and `validate` refuse, with code 1 and nothing
+written, a description an earlier version wrote under a lowered floor,
+saying to describe the table again: a twin is meant to be shared freely
+(decision D7), so none is built from groups that small. Lower floors are
+reached only by `cli.main`'s internal keyword `internal_smallest_group`
+(named without "floor", so the default-floor check stays whole), which
+the test suite (through `tests/lowered_floor.py`) and the measurement
+drivers pass and no option, environment variable, questions file or
+settings file reaches; under 1 it is refused on every command. The help,
+README, STATUS, SECURITY and the contract say so, the user-facing pages
+naming no library keyword; the refusal says what the floor counts (rows,
+and people where the person column is known), and rebuilding an old
+description is not promised to keep code running, since levels it named
+under 11 may be withheld. Measured: at floors 1, 2, 5, 10, 11 and 20 and
+with none, every file and screen of 441 runs is byte for byte what
+b85200be wrote typing the same floor (3,717 digests); no golden, frozen
+vector or ledger file moves.
+
+
+### No twin of a small table: the owner's table floor (2026-10-22)
+
+**`synthtwin profile` refuses, writing nothing, a table with fewer than
+20,000 rows that hold a value, or one in which a declared or answered
+person column repeats but fewer than 1,000 people appear** (lane POP,
+plan P4-D425, amending P4-D341; the owner, 2026-10-22: "we don't make
+twins of small tables"). People are counted with one person's
+spellings merged (`P00001` and `P-00001` are one person), as the
+description counts them. The message gives both minimum sizes, the
+table's own rows and people, why -- a count is published only when it
+covers at least the run's smallest group, and the fewer rows or people,
+the more counts fall under it, so an analysis on the twin stands less
+well, and small groups are where a fact can point to one person -- and
+what to do: describe the whole extract, or combine sites or years. A column the questions file only
+asks about never refuses a table; the screen says the people floor
+applies once it is answered. No option turns the floor off: `cli.main`
+takes an internal `small_tables_refused` keyword that the suite's helpers and the
+measurement drivers use for their small tables, so the earlier 100-row
+floor and its notice under 1,000 are reached only there. No byte written
+for a table at or above the floor changes, and the library applies no
+floor, so the written summary and the twin's report still say 100 rows is
+the smallest table (owner: lane FLW). The message never suggests lowering
+the smallest group of 11; `--smallest-group` may only raise it. CI's demonstration checks the installed command refuses its
+240-row table.
+
+### Batch 4h's records: the record-number exposure closed and measured on the merged head, every twin the same bytes, owners for the chain's open items (2026-10-23)
+
+**Records of batch 4h**, which merged lanes HX4 and SG (plans P4-D424 and
+P4-D415). The register lists of the exposure found on 2026-10-23 -- keys
+`R100000`, `R1000`, `AB100` and padded `0100` in singles, pairs and
+triples, pure and with one `;OTHER` -- are put the list question and
+publish 0 of 40 keys in any file, with 0 twin cells holding one, at 600
+and 20,000 rows on the merged head; ages over 89 and the ZIP holds stay
+open with lane SH, beside the exposures found later that day
+(placeholder shares, ages in label roles, four-figure ZIPs, binary and
+constant roles). Against the batch's base `af69aaef`, every file the
+three commands write is the same, byte for byte, on lane SG's seeded
+wide tables at 600 to 20,000 rows and two seeds and on the health data
+zoo at 600 rows: 247 files, 43 of them twins. Two seams in lane SG's
+gate: its sorted table's twin had been moved on purpose by lane G2T's
+merge (P4-D405), so that digest is measured again on the batch's base;
+and beside its identifier candidates the mixed table's dates are now
+pooled by lanes HX2 and PS, so the gap-index cases read its date and
+stamp columns alone. Lane ZR-a's page test now pins lane HX4's list
+question among the holding questions, as the page's rule I says.
+`K-S3-64` is run again on the merged head and stamped there.
+`tests/test_chain_oracle.py`'s switched test writes the oracle's test key
+into the installation, so RULE W5's draw is the same on every run and a
+run publishing no chain still fails (Codex's review of batch 4g). The
+records name what really ran beside the night window's six time entries
+on 2026-10-23 (a pytest over a whole tests folder; the PASS verdicts
+stand), `K-S4-12`'s evidence its load and its pairs' sources, P4-D421's
+and STATE's measured chain yield (115 of 287 estimates at 200,000 rows,
+no moment and no slope) with the moment comparison never yet run (lanes
+MPp and CHb), P4-D418's owners (RULE ONE_BAND lane CHa2, `w_te` lane
+A0b's 200,000-row leg, the several-rows-a-subject question lanes MG, GR
+and ST, the row hash's independent check lane CHb), ZR.9's keys under
+five figures (lanes LISTS and CODES-3: a plain column of `R1000` or
+`AB100` keys, held while pure, publishes all 40 beside one word cell,
+measured on the batch's base and on the merged head), and correct the
+batch 4g entry's oracle wording. The ledger's byte cap is set once for the batch.
+
+OWED, NOT DONE HERE: lane SG's night measurements (`night-sg.sh` a and c
+and `night-sg-e.sh` in night 1024, b and d in the windows after;
+`K-S4-12` and `K-S4-09`'s generate part stamped from them); lane SG's
+gate cases `sorted_floor_one` and `sparse_floor_one`, which pass
+`--smallest-group 1`, moved to lane MIN's internal setting when MIN
+merges, their digests measured again from their own base.
+
+### `synthtwin generate` holds the twin once (2026-10-21)
+
+**Lane SG** (plan P4-D415). Generating a twin held the whole table as
+Python objects twice over, every column's plan for the whole run and
+each column's working set beside them: lane B0 projected about 8 to
+9 GB at 2,000,000 rows by 50 columns, more than three times the
+2.5 GB one process may hold. Each finished column is now held packed
+(2.6 to 2.9 bytes a cell against 6 to 9 bytes of text), made, measured
+and let go one at a time with its plan, and the twin's text is written
+a piece at a time, never made whole; a workbook twin's cells, classes
+and styles are held the same way. Every twin is the same file, byte for
+byte, as before. On lane B0's two tables of fifty columns generate
+peaks, on Python 3.11, at 156 and 120 MB at 100,000 rows, where it
+held 548 and 609, and at 478 and 361 MB at 500,000: 0.8 to 1.6 GB
+projected at 2,000,000 rows over Python 3.11 and 3.13 and two ways of
+projecting, under the 2.5 GB. A workbook twin's shared strings are
+written a piece at a time too: a twin of lane XW's wide book whose
+record numbers differ on every row is written at 568 MB at 500,000
+rows, 0.8 to 1.0 GB projected at 1,048,576. A double-spaced file, or
+one whose line endings are mixed, is written a piece at a time as well,
+and the twin's report counts the cells a spreadsheet reads as formulas
+in every column, one holding the character U+0000 included. Generate's
+seconds are recorded (`K-S4-12`): about as before at 100,000 rows, and
+18 to 27 % more CPU at 150,000 and 250,000 rows in one day's pairs,
+which the night's pairs settle. One placement hook, `_row_placement`,
+is where lane CHb's chain generator will put a column's cells in rows.
+The offline scan admits zlib's `compress` and `decompress` in the
+twin's store alone.
+
+### A column of lists written as record numbers is held until answered (lane HX4, 2026-10-22)
+
+**Lane HX4** (plan P4-D424, amending P4-D401's stated limits). A column
+whose cells hold one to three record numbers separated by `;` was read
+as a long tail and published two of them on 11 rows or more, with no
+question put (lane ZR-a's measurement). A column whose cells are lists --
+values separated by `;`, `|`, `,`, spaces (a tab, a line break or a
+no-break space read as one) or any of them at once, in at least one
+cell, brackets, quotes and closing marks taken off, so that one value
+`185380;`, `[185380]` or `'185380'` is a list too, every mark judged --
+every value of which, but at most one in two, holds a run of five
+figures or more, or which the padded route or routes two to four of the
+person rule reach taken over its values, each setting one value in
+three aside, is now put one question about the data: do its
+cells hold several codes or labels, or several record numbers? It offers
+`keep`, `code` and `identifier`, and is put only where no question
+offering `identifier` was and nothing, a decimal comma included, is
+declared. Until answered, the column is held as an unanswered identifier
+column is: no value published, made-up values in the twin. `keep` and
+`code` read it as before, byte for byte; `identifier` keeps it held; the
+questions file keeps the answer. On fourteen measured shapes -- among
+them the marks mixed cell by cell, one list cell among single record
+numbers, a closing mark, space-separated grouped keys, one record number
+a cell in a wrapping and a record number beside a word in every cell,
+which the reviews found publishing up to 40 of 40 -- 0 record numbers
+are published and 0 twin cells hold one at 600 and 20,000 rows. A list
+of three-figure codes is left to the person question, as before; a list
+split by `/`, `.` or `;;` is lane LISTS'. Keys such as `R1000`,
+`AB100` or `0100` in lists with one word beside them, which 20,000 rows
+published whole, are held too. A column of five-figure whole
+numbers with one cell `a;b` is held until answered, the price. No column
+of lane S4d's description battery or of the health data zoo is reached.
+`K-S3-64` gains the fourteen shapes.
+
+### Batch 4g's records: the chain met by its oracle, the six time entries stamped, owners for every stated limit, a shorter STATE (2026-10-23)
+
+**Records of batch 4g**, which merged lanes CHa, CHo and ZR-a (plans
+P4-D418, P4-D421 and P4-D419). Lane CHo's product test meets lane CHa's
+product for the first time: handed the chain's switch alone it still
+skips, because the trial table's `ward` is held by lane HX's open
+identifier question and no chain is published beside a held column that
+repeats, so a second test answers `ward` `keep` in a second round with
+the switch on; each column's bands, the family tables, their anchors
+and the structural words equal the oracle's, the floor holds, and RULE
+W1 holds on the oracle's reading over the merge's sub-bands (the
+producer's other own-fact groups are not listed; corrected at batch
+4h's records), and the test fails rather than skips when no chain is
+published. With the switch
+off, lane SR's 880 descriptions and every golden are byte for byte batch
+4f's. The six time entries (`K-P3-12`, `K-S1-01`, `K-S1-05`, `K-S1-06`,
+`K-S1-07`, `K-2B-38`) are stamped from the orchestrator's night window
+of 2026-10-23 under the floor interpreter, five passing and `K-S1-06`
+open as before. `K-S3-64`, `K-S3-65`, `K-P4-06` and `K-S6-08` are run
+again on the merged head and stamped there, each value as its earlier
+tree read it. `K-S4-09`'s and `K-S4-11`'s evidence names lane H3 as the
+owner of the keyed subject cells and the person-column run since
+2026-10-22, the earlier assignment to lane SR-A kept as history, and
+lane SR-A's percentage reads 32.5 % where it read 24.5 % (here and in
+P4-D414). Owners: the G1 floor over a length, lane CODES-1 part C; a
+pooled column's missing spellings and whatever "lane PS's follow-up"
+named, lane PS2 (P4-D417, STATE and the zoo's owner lines). The zoo's
+SNOMED ids write 2 codes the real never writes on 14 cells at 600 rows
+at the zoo's own seed on lane HX3's head as on the merges: HX3's 7 came
+from another fixture seed. STATE names the live HIPAA exposures found on
+2026-10-23 with their owners (ages over 89 and a ZIP column with one
+word, lane SH; register lists at 20,000 rows, lane HX4), CI's three
+bundle jobs and the three landings, and holds its clock and calendar
+limits in one bullet by owner, every owner and limit kept: 829 lines
+after batch 4f, 741 now. SECURITY.md no longer offers an ordinary
+`pip install` (the owner's D3). The ledger's byte cap is set once for
+the batch.
+
+OWED, NOT DONE HERE: `K-S4-09` and `K-S4-11` re-stamped on lane SR-A's
+merged code in a night window (`wave6/SRA/night-sra.sh <head> kpi`), and
+lane H3's person-column run; the wall-time assertion of
+`tests/test_stage4_counted_in_persons.py::test_a_raised_floor_asks_a_set_of_subjects`
+watched on CI's first run; and lane HX2's stated limit (2), a table of
+ten people or fewer whose person question is open still publishing per
+rows, the orchestrator's to decide (listed at batch 4h's records).
+
+### The zoo-fix reading page: where each new reading stands in the classifier, the questions it adds, what it may publish (lane ZR-a, plan P4-D419, 2026-10-21; NOT BUILT)
+
+**A method page, written before the code of the health data zoo's fix
+lanes UN-1a, UN-1b, TR, LISTS, UN-2 and NOTES and of CODES-3's question**
+(`docs/plans/phase-4-columns.md`, "The zoo-fix reading page"). It fixes
+the classifier's order for every new reading -- clock times written as
+figures before the numeric rule, read only on the answer `clock-figures`,
+four new stand-asides of the categories rule, a templated reading from a
+closed list and a list reading both ahead of the long tail, and a share
+line of a quarter of the rows for a long tail NOTES' trigger reaches until
+its question is answered -- the eight questions they add, none naming a
+value of the table, the keys of the templated reading and of a new role
+for several values in one cell, why each prints no count of one to ten,
+how `synthtwin validate` reads each, and the KPIs each lane stamps, with
+the zoo kinds each can turn. No new reading lifts a hold of plan P4-D401:
+its exemption for dates and times covers only what today's reader reads
+so, because padded keys numbered in order stay on the clock's grid and a
+month-year register reads as dates (read unanswered, 9 to 12 real keys and
+13 of 180 cases published, measured by the lane's skeptics). Measured on
+98c0fce6: templated notes cover 13.3 % of rows at 20,000 and 24.1 % at
+200,000, and spaced label tails 7.5 to 22.5 %, so the trigger NOTES keeps,
+not the line, holds whole notes out of every description, and the line
+waits on the answer. Repair 2 (the verify and Codex's review): a list of
+three-figure codes, which today's reader takes for grouped thousands, is
+asked before the numeric rule; rare list lengths are pooled with the
+total of their values, so a twin meeting the list margins always exists
+(Gale and Ryser's condition; the censuses beside them are carried to
+lane LISTS); a zone word moves no instant (`CST` names two offsets); a
+clock declaration that does not read holds its column; and a list whose
+values look like record numbers is held until answered, as measured today
+a long tail of such a list publishes two of them. Repair 3 (the verify
+of repair 2): fees heaped on round steps are asked as a list may be,
+and a clock with a few hours past 23 is read as durations only on the
+answer or the declaration. Repair 4 (Codex's second round): the codes
+`-1` and `-2` beside compact dates are read for that column alone, as
+the table-wide declaration took 240 of a change score's 600 values; a
+declared list is read before the numeric rule; the twin's list writes
+as many stand-ins as values were held back, so its description
+publishes the same counts again, and the count of cells holding one,
+which no construction is proven to meet, is withdrawn; a missing-code
+answer is acted on only for the table it was given for; and the
+list role's pool counts may be 1 to 10, as a label column's are.
+Repair 5 (Codex's third round; the owner chose two of its six items to
+fix here): the register-list hold is lane HX4's rule, so one ordinary
+word beside 40 record numbers no longer lets a list reading publish
+them, and no list is read over a record number beyond that rule; a
+missing-code answer stays on the value it was given for when the same
+file is read again with two rows confirmed as metadata; the other four
+items are carried to lanes LISTS and UN-2 with Codex's cases, and each
+sentence they touch is marked open. Close 4 (the lane's internal verify
+of repair 5): one ordinary word no longer undoes any route of that rule,
+not only the five-figure one, so keys such as `R1000`, `AB100` or a
+padded `0100` beside one `OTHER` are not read as a list at 600 or 20,000
+rows, and lane LISTS' gate holds those three with the question put.
+Measured in the same close: at 20,000 rows today's reader prints such
+keys inside whole-cell levels, lane HX4's to close. No product code,
+golden, vector or KPI moves; `tests/test_zoo_reading_page.py` pins the
+page's computed figures and each rule's operative sentence.
+### Between columns: the exact oracle, and the class its route decides (2026-10-21, repaired twice 2026-10-22)
+
+**Lane CHo (plan P4-D421); tools and tests only, no product code.** An
+independent oracle of stage 6's between-columns pages, written from
+contract sections 4.6b and 4.6d and method G16 alone, in Python integers
+and exact fractions, binary64 emulated where a page asks for it:
+`tools/reference/chain_oracle.py` (each column's three levels, a date
+and a clock cut at their nine interior rungs, family tables, the score,
+RULES W3, NE, W1 and WE, the keyed draw, the walk with each family's
+target taken on its parent cells, the moved target, a computed column,
+the cell index, stray rows) and `tools/reference/moment_oracle.py`,
+the exact route that decides the moment witness's clauses (a) to (c).
+Its cases are frozen in `tests/reference/chain-oracle-vectors.json`,
+each beside its mutant, and `tests/test_chain_oracle.py` and
+`tests/test_moment_oracle.py` check them, RULE W1 across the chain,
+through a derived family and member by member among them. Contract
+4.6d.10's `witness` setting now names the route's class, `cho1`: at most
+50,000 groups, 10,000,000 transitions, 40,000,000 entries written and
+read and 1,000,000 whole numbers laid out before the first pass, all
+read from published sizes before any search, and no slope; MEASURED up
+to 9.3 seconds and 0.37 GB (an instance reaching both caps: 6 groups of
+count 11 under 24 constraints, 9,772,308 transitions, 39,089,160
+entries), MY ARITHMETIC about 15 seconds and under 1.3 GB at the worst
+instance the caps admit, and equal to the closed form `CF1` on all
+8,949 cells of 22 to 40 rows. MEASURED, it decides none of the regions
+the measured chains form (each joins every number column), so under the owner's
+strict-proof ruling the layer publishes no moment and, by ruling R12,
+no slope: 115 of lane `A0b`'s 287 analysis results at 200,000 rows on
+lane `A0c`'s seeded chain, against 202 polished and 213 for a fresh
+sample, the loss the page's stated limit 3 foresaw, now measured. By
+the `classes` setting's own words `correlation` joins the list with
+`cho1` (contract 4.6d.10), and on the measured chains it publishes
+nothing either (written in at batch 4h's records).
+
+### Lane CHa: the chain's profile side, built behind a switch no user reaches (2026-10-21)
+
+**The first code of the broad between-columns program** (plan P4-D418,
+contract 4.6b). Behind a switch that only a caller can turn on (a
+parameter of the entry point and of `chain.describe`, no command-line
+option), `synthtwin profile` now cuts each column
+into three nested levels of bands, counts every pair's and family's
+table on all rows, draws the chain with the installation's private key
+(rule W5, keyed by the key, the table's name and the step), refuses by
+RULE W1 every option that would confine a small group of another column,
+offers the triple screen's seeds and time-and-event pairs as weights
+only, computes the moment layer's inputs without publishing them, keeps
+the key and a private record of each table's name beside it, and loads a
+description carrying the chain under invariants S23 to S28. No shipped
+description, summary or twin moves: S12 stands. `K-S6-08`'s tables part
+is new and green: no description the draw can publish fixes or bounds a
+count of 1 to 10 over 3,154,474 tables. Measured on A0b's 50-column
+table: 106 s and 217 MB at 20,000 rows, 725 s and 582 MB at 200,000.
+Points for the orchestrator: columns of few values whose median is
+their lowest value are left out (`one_band`), and `w_te` 1 cost
+estimates at 20,000 rows.
+
+**Repair 1.** RULE W1 now finds a column's small groups on its own
+values: a slice of six rows between two published percentiles, or the
+one row a clock census leaves of a band, is refused beside a column it
+would confine, and `K-S6-08` holds both cases. A follow-up capped at the
+study's end keeps its pair with the event: W1 now costs nothing on lane
+E0b's battery and A0b's table, except the registry at 5,000 rows, where a
+real group of 9 censor dates is confined. A label column with a few
+blank cells keeps its bands, a row blank in every column no longer makes
+a second table to the record, the key never prints, and the suite and
+Windows failures the lane caused are repaired.
+
+**Repair 2.** A column whose values all differ but for a published mode
+or a heap of noughts no longer lets a five-row percent slice be fixed
+beside another column: before, 8 of 8 keys published such a slice
+confined to one gender on a 501-row table; now none does, at no cost
+on lane E0b's battery or A0b's table (`K-S6-08` holds the case). The
+loader refuses more broken descriptions (a level left out, a merged
+band miscounted, an anchor written as `false`, a column written as a
+list, a computed column with no rule) in plain words. The content hash
+is taken cell by cell, so a table read in groups is no longer held
+whole in memory to hash it (about 3.2 GB at 2,000,000 x 50 before). A
+column of dates written as Excel day numbers keeps the chain. The
+questions file's pairs to add or drop are now read, applied and kept.
+A data folder other accounts can change, a damaged key file and a disk
+full while the key is written each get plain words or clean up after
+themselves, and the installation is imported only behind the switch.
+### Batch 4f's records: the zoo measured on the merged code, `K-P4-06`'s ceiling, a shorter STATE (2026-10-22)
+
+**Records of batch 4f**, which merged lanes DEP-2, SR-A, HX3 and PS
+(plans P4-D416, P4-D414, P4-D420 and P4-D417). `K-HZ-01` and `K-HZ-02`
+are measured on the merged code by a real run and never taken from
+either lane: 20 of 40 kinds pass at 600 rows and 28 of 40 at 20,000,
+and 104 analyst checks fail on the twins where lane PS's head read 105
+and lane HX3's 117 on its own base, every failure owned. `K-P4-06`'s
+ceiling moves to the 552 outside and none missed that batch 4e's head
+measured, and the pin's derivation is an equality again. The zoo's
+diagnoses owner line says what the SNOMED ids still miss since lane HX3:
+codes the real never writes, their levels kept. The ledger's byte cap
+is set once for the batch. STATE drops passages its plan decisions and
+ledger notes carry -- closed items and done landings' histories --
+keeping every owner and stated limit, and names the four landings.
+
+OWED, NOT DONE HERE: the six time entries (`K-P3-12`, `K-S1-01`,
+`K-S1-05`, `K-S1-06`, `K-S1-07`, `K-2B-38`) re-timed under floor311 in a
+quiet night window, and the wall-time assertion of
+`tests/test_stage4_counted_in_persons.py::test_a_raised_floor_asks_a_set_of_subjects`
+watched on CI's first run: the orchestrator's (night 1023 and the push);
+`K-S4-09` and `K-S4-11` re-stamped on lane SR-A's merged code in a night
+window.
+
+### Dates and times beside a person column pooled in people at a coarser grain, and a held one's twin written in valid dates (lane PS, 2026-10-21)
+
+**Lane PS** (plan P4-D417; contract NF128, NF129 and TG1; method G7.13;
+validation V14). Where counting in people (P4-D406) would hold a column
+of dates, stamps, clock times or counted dates beside a person column,
+the column is now described at a coarser calendar grain -- year,
+quarter, month, day, then hour, minute and second; a clock by blocks of
+four hours first -- with its tails pooled into the first and last bucket
+the floor's number of people hold, every point still counted in people.
+The grain is chosen by published facts alone (the present rows, the
+people and the spans), never by which finer points fail; the plan
+writes the proof. Where no grain serves, the column is held and its
+twin now writes valid dates and times in the column's own layouts,
+never made-up figures, so code that parses the column runs on the twin.
+The health data zoo passes 20 of 40 kinds at 600 rows again (14 at
+batch 4e) and 28 at 20,000 rows (24); every check that parses a date
+or a time beside a person column holds at both sizes. `K-HZ-01` and
+`K-HZ-02` are restamped and their bounds moved back; `K-S3-65` stays 0.
+A table with no subject column is described byte for byte as before.
+Stated limits: a stamp of a few evenly filled hours misses its count of
+different values (`wearables` at 20,000 rows, lane PS's follow-up, lane
+PS2 since batch 4g's records); a measurement attached to its person is
+held as before (lane PS2 likewise); P4-D406's limit (2), a table of ten
+people or fewer, stays open.
+
+**Repair round 1** (the lane's two skeptics). A description at a grain
+no longer leaves a count of one to ten people to subtraction: every
+bucket inside its span holds nobody or eleven people, and so do the
+cells no date reads and every written form and offset of those that do.
+Where the rung the walk reaches cannot keep that, the walk steps back to
+a coarser rung instead of holding the column, with the proof in the
+plan; the walk reads the finer rung's own span, so a 70-minute session
+is described by the hour. A refused grain record names its rule instead
+of raising an error, and a held column whose layouts are all withheld
+now writes valid dates in place of made-up stand-ins. Stated limits with
+owners: the time of day and the weekday of a stamp pooled at the day or
+coarser (a new lane PS2), the pooled tails drawn inside their end bucket
+(PS2), a stamp with UTC offsets publishing no count at its rung (lane
+DST).
+
+**Repair round 2** (the combined verify and Codex's review). A spelling
+of no value that reads as a date -- one declared with `--missing-value`,
+or `1900-01-01` -- stays absent: before, it was pooled into a present
+date and the description could not be loaded. A held column's twin
+draws from the first published span wide enough for its different
+values, so it never leaves a made-up cell where a valid date exists, and
+a published layout no date wears (a word such as `pending`) stays as the
+real cells are. Filling the count of different values never moves a row
+into or out of a tail; the twin's report is measured on the cells it
+writes; a description naming more people than rows is refused. Stated
+limits with owners: a held column's length that no valid date has (three
+people's `pending`) is missed and named in the twin's report; a birth
+date beside few people a year is drawn from the method's fixed span
+(lane PS2).
+
+**Repair round 3** (the second verify). A date standing in for nobody
+that too few people write for the description to name it (three
+patients' `1900-01-01`) now stays absent when `synthtwin validate`
+checks the real table, which before missed its presence and its tails
+against its own description. A held column with more different values
+than the months (or days) of 2000 to 2029 can hold -- 530 birth months
+written `%Y-%m` -- draws from a span widened by whole decades until it
+has room for twice that count, measured at the column's finest written
+detail, so the twin keeps every value different and every cell valid.
+The twin's report names no deviation for a spelling of no value that
+reads as a date.
+
+### Route four's person question offers `code` in its first round (2026-10-21)
+
+**A key of figures the person question asks can be answered `code` at
+once** (plan P4-D420, lane HX3 of the December plan). Route four of the
+person rule asks a column of whole numbers five figures wide or more that
+repeat -- a patient key, or a register of codes such as SNOMED concept
+ids -- the person question, which offered `keep` and `identifier` only;
+`code` came a round later, on the checklist. The question now offers
+`code` beside them, worded about the data alone, and the answer is the
+checklist's own: the same description, summary and twin, byte for byte,
+as answering `keep` and then the checklist's `code`. Every other answer
+writes what it wrote before, and an unanswered column stays held. On the
+health data zoo the diagnoses export's SNOMED ids are answered `code` in
+its one round, so their levels come back and 7 twin cells hold a code the
+real never writes, not 132: `K-HZ-02`'s analyst failures fall from 118 to
+117. The zoo's prescriptions export, whose `rxnorm` route four also asks,
+is answered in one round too, so `K-S3-66`'s tables answered over
+rounds fall from 5 to 4, no answer lost and no byte differing. Enter at
+the keyboard keeps `keep`, and a blank in the file leaves the column
+held, as before; neither declares `code`.
+
+### A big table's groups are read again by pyarrow's reader (2026-10-21)
+
+**`synthtwin profile` reads each group of a big table again with
+pyarrow's CSV reader** (plan P4-D414, lane SR-A of the December plan),
+parsing on one thread (its I/O read-ahead runs on pyarrow's own I/O
+thread), the group's columns alone, from a path validated beside the
+call, with no temporary file. It is never trusted: each walk of the
+reading folds every column's values -- as the survey, the standard reader
+and pandas agreed on them -- to a digest, and pyarrow's reading of a group
+is handed over only where it read as many records and every column folds
+to that digest. Otherwise the group is read by the standard reader, as
+before, and so is every column of a form pyarrow reads otherwise
+(comma-space, short rows, a closing delimiter, an end-of-file mark); a
+file pyarrow cannot read, or reads with another record count, is not
+asked of it again. A file changed anywhere -- a name, a column not
+asked, the way it is written, the size and the moment kept -- or gone is
+refused as changed on either route: once pyarrow's reading matches, the
+whole file is read a line at a time against its first reading. A group
+whose values pyarrow would hold more than 256 MiB of (one long note on
+every row, which the standard reader holds once) is read by the standard
+reader. No description byte moves: lane
+S4d's 880 descriptions read one column a group equal the merged head's
+read whole, and the health data zoo's 25 tables write the same 150 files
+and print the same words. A group is read again 2.2 to 2.3 times faster
+at 250,000 rows, that line walk included (0.43 to 0.44 against 0.98 s), about
+9 % of describe's CPU there. `K-S4-09` stays open: lane SR's 2,204.5 MB was an
+under-projection from 100,000 to 500,000 rows, and every projection that
+uses the night's 1,000,000-row point gives 2,481 to 2,694 MB at
+2,000,000 x 50. The peak is probably describing one column whose values
+all differ (lane H3's); the lane's night script measures its phase at
+2,000,000 rows. pandas keeps its check.
+
+### The offline bundle is the only way synthtwin is installed (2026-10-21)
+
+**synthtwin installs from one offline bundle per kind of computer, with
+every file checked by its hash and no network at all** (plan P4-D416,
+lane DEP-2 of the December plan; the owner's decision of 2026-10-20: never
+PyPI). CI builds a bundle for Linux, Windows and Macs with an Apple chip
+on macOS 12 or later, `synthtwin-<version>-<platform>.zip`, holding every
+library for Python 3.11 to 3.14, the install script, a plain-words guide
+(`INSTALL.txt`), the libraries' notices and `SHA256SUMS`, and installs it
+on a clean runner of each under each Python with the network denied
+before it runs the golden tests on what it installed; a copy with one
+changed byte is refused there before anything is made. `sh
+scripts/install.sh` and `scripts\install.bat` take no folder and have no
+route over the internet: they take a Python the bundle serves, 3.11 to
+3.14, even beside a newer one, and name Python 3.14 when there is none;
+check every file of the bundle, every line of its lock as pip reads it
+(a comment ending in a backslash hides no line), and that it
+fits this computer's chip, macOS or Linux and its Python's kind and
+holds every library they need, before they change anything (an
+incomplete bundle leaves an earlier install as it was); install with
+`--isolated --no-index --require-hashes`, synthtwin by its name, so a
+folder named with a semicolon installs; and end with `synthtwin
+doctor`. Windows users are told how to type in Command Prompt the
+PowerShell commands synthtwin prints, a doubled single quote once. A
+`numba-vectors` CI job holds the numba polish kernel to plain Python's
+bytes on every system and Python, each kernel run on its own copy of
+the arguments, before lane MPn may adopt it, and the offline scanner enters the eight
+float powers of P4-D409 by site, each with its measurement, and refuses
+any new one it can see. Nothing is published yet: the first release
+hands the bundles out. No twin, description or report byte moves.
+
+### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
+
+**Records of batch 4e**, which merged lanes MG, MPOL, G2T and HX2 (plans
+P4-D412, P4-D413, P4-D405 and P4-D406). Lane HX2's count in people reads
+each subject column through lane SR's column access, so a table read one
+column a group is described byte for byte as one read whole. It costs the
+health data zoo: thirteen date and time columns beside a person column
+are held whole and their twins written as made-up figures, two person
+censuses are pooled in people and two code columns held whole, so 14 of
+40 kinds pass at 600 rows where 20 did, and 23 of the delimited exports'
+kinds at 20,000 rows where 28 did. Each failure is owned -- pooling in
+subject units by lane PS, the census in subject bands by lane MG, a held
+column's missed forms by CODES-1 part C -- and `K-HZ-01` and `K-HZ-02`
+move to the measured bounds, KEPT by the orchestrator, 2026-10-21 (HIPAA first: the floor counted in people); lane PS (P4-D417) owns the held dates and times, the valid-layout floor first. On `K-S3-14`'s shapes `synthtwin profile` publishes 2
+of the 68 values the library call publishes (plan P4-D348). The
+orchestrator's night window of 2026-10-21 stamped the four time entries
+with `K-S1-07` and `K-2B-38` on batch 4d's head, nothing heavy beside it;
+`K-P0-09` and `K-HZ-02` are restamped from real runs, and lane G2T's
+spread entries `K-P3-03`, `K-S3-22` and `K-P2-07` re-run on the merged
+head, the first two a little nearer the published spread and moments.
+Owners named: the eight float powers to lane DEP-2 (plans P4-D409 and
+P4-D410); lane AQ's two limits to CODES-1 part C and lane AQ2 (P4-D408);
+the grouped describe's peak, under 0.6 of the whole table's and not
+half, to lane H3 (P4-D400); what stage 5 reads for the chain to lane CHv
+(P4-D395); a declared date column with no cell, named nowhere, to lane
+ST (P4-D406). Dated paragraphs record lane DEP-1's read window (not
+worse: 7.92 s against 7.87 s), lane XW's largest workbook (1,048,576 rows
+by 50: the sheet alone written at 1.35 GB, the whole route stopped at
+1.9 GB as expected) and Codex's review of lane HX item by item. The
+chain's polish row now says `P` = 2 scored 172 of 287 against 188 at `P`
+= 4; STATE mirrors ruling R12 (no chain slope published in December
+while the moment layer's gate stays closed) and counts 13,275 cases and
+245 KPIs.
+
+**Records 2 (2026-10-21, push critic 11's items).** The zoo's price of
+lane HX2 is recorded as KEPT by the orchestrator (HIPAA first: the floor
+counted in people), lane PS (P4-D417) owning the held dates and times,
+the valid-layout floor first, in `K-HZ-01`, `K-HZ-02`, STATE and
+P4-D406. `K-S4-09` and `K-S4-11` are stamped from the orchestrator's
+night window of 2026-10-21 on 8a02faa3 under Python 3.11: `K-S4-09`
+OPEN-WORSE (the mixed describe peak projected 2,694.2 MB at 2,000,000 x
+50, 19.6 traced bytes a cell over 17.7, the Gaussian 2,215.9 MB),
+`K-S4-11` passing (the mixed describe 6,151.6 s projected); lane SR-A
+(P4-D414) owns them, the subject columns' keyed cells held for the whole
+describe and `K-S4-09` with a person column, unmeasured (P4-D400).
+STATE's limits carry lane HX2's stated limits 1 to 4, each with its
+owner; the HX2 entry's lead and P4-D406's title, by a dated amendment
+line, name the rungs of a column not attached to its subject, still
+judged in rows. `K-P4-06` is restamped on d90d16b4 at 552 and 0 under
+its ceiling of 579 and 3; STATE's `K-P3-03` sentence reads the merged
+head's figures; the mixed result column's held-back mean at 20,000 rows,
+the zoo's one 'needs owner' line, is lane G2T2's in OWNERS; P4-D407
+points forward to ruling R12's amendment and P4-D413's point (v) is
+closed. The ledger's byte cap is raised once.
+
+OWED, NOT DONE HERE: the six time entries (`K-P3-12`, `K-S1-01`,
+`K-S1-05`, `K-S1-06`, `K-S1-07`, `K-2B-38`), stamped with the
+repository's Python 3.13 interpreter, re-timed under floor311 in a quiet
+night window: the orchestrator's (push critic 11's MAJOR 5). The
+wall-time assertion of
+`tests/test_stage4_counted_in_persons.py::test_a_raised_floor_asks_a_set_of_subjects`,
+watched on CI's first run of the push: the orchestrator's (MINOR 5).
+
+### On a table of several rows a person, every published value is counted in persons, save an unattached column's rungs (2026-10-19)
+
+**A value fewer than 11 people hold is not published, however many rows hold it, except the rungs and tail boundaries of a measurement or code column not attached to its subject, which are still judged in rows** (plan P4-D406, lane HX2 of the December plan; the orchestrator's ruling of 2026-10-19, item 2: on `K-S3-14`'s repeated-measures table two rungs of a score are published, each on 11 rows of 10 people). The floor
+counted rows, so a value one patient holds on fourteen rows passed it:
+beside a declared person column, health plan and account numbers were
+published (139 and 137 of 150 at 20,000 rows), and beside a patient key
+whose person question was open, names, street addresses and birth
+dates. Now, where a person column is declared or answered, or a question
+offering `identifier` is open on a column that repeats (the person
+question's candidates, or a patient number padded with zeros that the
+codes-or-measurements question is put to), each value another column
+would publish is counted in different people under every such column,
+one person's key written `REC-0007`, `rec7` or `Rec 7` counted once; a column that would publish
+one held by fewer than 11 of them is described as record numbers
+(contract NF126), its twin writes made-up values in its layouts, and the
+screen names it. A column with one value a person (a birth date, a name)
+and a column of dates or times of day count every value they publish;
+any other counts the values eleven rows or more hold, and keeps its
+points along the range as on a table of one row a person. Written forms,
+the remainder the floor merges and a column's present rows are counted
+in people too, and a record number's layouts worn by fewer than eleven
+people are pooled, a person column's own under every other person column,
+until the pool itself is held by eleven people or more. A person
+column's census of rows a person keeps each entry of eleven people or
+more and spreads the rest evenly, never back into a real group of fewer;
+written in two layouts or more, it publishes the census its published
+counts imply, layout by layout, which its twin can meet. A table with no such column, or whose person
+column is different on every row, is described exactly as before; a key
+of fewer than eleven values put the person question counts only the
+columns attached to it that tell its values apart, so the names and
+birth dates of ten patients are held and a filler code blanks nothing.
+KPI `K-S3-65` (new): 0 published values in the rule's scope over the long
+tables of K-S3-64, the gate and the healthcare catalogue; `K-S3-64` now
+holds the nine counted shapes at 0. Held date columns' twins write figures in the
+dates' layout that do not read as dates (lane PS pools them). Measured
+costs and the limits left to lanes MG, PS, CODES-1 part C and CODES-2
+are in P4-D406.
+
+**People are counted as the run reads them** (lane HX2's third repair,
+after its combined verify and Codex's review). A patient key written in twelve
+cases is one person, and every spelling of nobody (`NA`, `null`,
+`#DIV/0!`, a blank) is one unknown person, so a label five patients hold
+on 60 rows is no longer published. Every candidate of an open person
+question counts, even one read as free text, so the birth dates beside it
+are held. A cell is matched to the value its column prints as the column
+reads it: `8:30` is the `08:30` of a clock column, `19000` the date a
+declared count of days names, `10,07` the number a declared decimal
+comma writes. Dates declared as counts that do not read as dates (`42.345`
+for an Excel day) are held on every table, one row a person or several,
+instead of being published as plain numbers (contract NF127); the
+screen, the summary and a new `held` section of the questions file name
+them, and never a declared column that read as dates and is held because
+too few people hold its values, and say to write the dates one way and describe the table again. A declared
+person column's census of
+rows a person never prints a real group of one to ten people, even where
+too few rows stand past one a value for any census without a small
+entry, and is always one its twin can deal into the column's layouts; a record
+number's layouts are pooled in people even when only its pool is
+printed. A run of four hundred figures in a note no longer stops the
+profile, and pooling many layouts, or counting under a raised floor,
+costs a sort and a set rather than a scan a value. KPI `K-S3-65` now
+fails when a table is lost to the count. The costs and the limits left
+to lanes MG, PS and CODES-1 part C are in P4-D406.
+
+### A big table's numbers keep their spread, their tails and their range (2026-10-19)
+
+**Stage 4 lane G2T** (plan P4-D405). On a column that repeats its
+numbers -- readings written to one or two places, counts, amounts -- the
+twin used to place each row of a tail on a number of its own, so on big
+tables a tail stretched far past where the real one stands: fifty columns
+of bell-shaped readings at 250,000 rows came back with every spread about
+12 per cent too wide, and `validate` named all fifty; a count of a few
+values put almost its whole top tail on one number above the real
+largest. Rows of a tail now share their numbers the way the real rows do,
+and the furthest few stand apart only as far as the column's published
+count of different numbers asks.
+
+**Where it applies.** A tail is read this new way when the column is on a
+grid (whole numbers, or one number of decimal places), holds at least two
+cells for each different number, its tail is not a short list of named
+values, the old reading stood more than half a grid step past the tail's
+published distance, and no width or end rule moved its end. There the
+twin meets its published spread to within a few parts per thousand on
+the columns measured, holds each tail's summed distance to within half a
+grid step wherever a row can move one step onto a neighbouring value, and
+writes nothing past the range the description publishes. On the
+batteries measured: average spread error 0.45 per cent at 20,000 rows
+(64 columns; 9.1 per cent before), every `validate` clean.
+
+**Where it does not, measured.** A column whose every number is different,
+such as one counting upward, keeps one number a row; at 200,000 rows and
+more its far values are now placed where its description says, and the
+reports measure its average, spread, skew and tail weight against windows
+that hold the twin that was built. A tail held by a field width or by the
+reach rule keeps the old reading, the same twin as before (150 two-figure
+readings beside one `185` write 38 cells on `97` and `98` against the
+source's 5; lane G2T2). At 2,000 rows a whole-number tail's mean distance
+can stand up to 52 per cent off, the shape fitted to few rows a point. A
+column whose nought end holds several zeros keeps every one of them there,
+as the source does. The twin may write one cell on an end the description
+only implies, one step past the source's own largest (`13` against `12`),
+which no description publishes.
+
+No description changes; twins of columns whose tails already met their
+description are the same bytes. Its repair (2026-10-19): the furthest rows
+stand apart without pulling the tail outward -- a heavy-tailed count's
+tail had drifted 11 per cent -- and as far as the number of different
+spellings asks, so a column of readings written both `4` and `4.0` keeps
+every number; and a tail that names its values gives each the rows a
+value needs to be named. Its second repair (2026-10-20): a tail that
+crosses nought keeps the column's counts of negatives and zeros at their
+ranks, so a column of a few negatives keeps its median and its count; the
+work is near-linear in the tail's rows again (one Pareto column's tail at
+250,000 rows in 0.17 s, where the first repair took over five minutes);
+a tail of a few whole numbers meets its mean distance (a negated count
+stood 21 per cent short); grid points of up to 25 decimal places are read
+exactly; and the twin of eight-figure dates beside labels meets its 75th
+percentile again.
+
+### Between columns: the moment page, written before its code (2026-10-20)
+
+**Nothing is built by this entry, and no twin carries any structure
+between columns yet.** It writes, before any code, how averages,
+spreads and correlations read on each number column's 8-bit code inside
+the chain's family cells are to be published and met (lane MPOL of the
+December plan; plan P4-D413). The profile contract's section 4.6d
+specifies them as exact whole-number sums, published for each group of
+columns they tie together only where an exact integer test shows that
+every group of rows they describe could hold at least the floor's
+number of rows, or none, and chosen by a drawn step whose option to
+publish none is always open, so that a refusal tells a reader nothing.
+It proves that, for a table with one row per patient, these numbers let
+no group of 1 to 10 rows be worked out beyond each column's own facts,
+under one premise it names, and names what stays checked rather than
+proven. The solver may only propose; every verdict is an exact
+whole-number one. On a table with several rows per patient no average or
+correlation reads a repeated measurement in December. The generation
+method's G17 specifies the exchanges inside each band that bring the
+twin's sums towards the published ones, with the arithmetic a compiled
+kernel must keep; the validation method's V13 prints the moments as
+reports, never as verdicts. Two ways to carry a number's slope that
+differs by a yes/no column are written and kept off until measured.
+After two reviews the page states plainly what it covers and what it
+does not. Every published number needs a proof (the owner's decision
+of 2026-10-20), so the page has no rule-checked class, and nothing of
+it is published beside a slope outside its groups of columns. Under
+that decision the orchestrator ruled, and the page writes as an
+explicit, dated amendment of the chain page's slope clause, that a
+slope the chain would publish is published only inside a group of
+columns that publishes, where the page's proof covers it, and withheld
+everywhere else: until the moment layer's gate opens no slope is
+published, and what that costs in estimates is unmeasured, owed by two
+later lanes on the test battery. A small group of rows in one column beside another group's
+codes can give a count of 1 to 3 rows, which the orchestrator's ruling
+counts among that column's own facts; inside one group the exact test
+now refuses the measured cases where that reading would publish a count
+of two columns, and the orchestrator confirmed that reading: the ruling
+reaches only a count that splits such a small group, and the exact test
+keeps its clause over every case. As written, the exact test December can run publishes
+almost no averages on the measured 50-column table: the estimates
+measured without it (127 of 287 for the chain alone, 188 polished, 202
+with the screen's seeds) are reference measurements, not bounds, and
+the yield with the test on is unmeasured, the main risk to fidelity,
+resting on the exact solver lane CHo writes. The validation report
+prints only whether each published sum is met, never a measured number,
+and says when a measure is undefined; the polish reads each count on
+its own table, keeps a weight wherever an exchange can move a sum,
+rounds a band's targets so they keep its total, and keeps four passes
+at every size.
+
+### Between columns: the patient page, several rows per patient written before its code (2026-10-20)
+
+**Nothing is built by this entry, and no twin carries several rows per
+patient as patients yet.** It writes, before any code, how the patient
+layer of the broad between-columns design is to be described,
+generated and checked, beside the chain's page of 2026-10-19 (plan
+P4-D412; contract section 4.6c; generation method G16.13 to G16.17;
+validation V12.7 to V12.9), and its first review round's repairs:
+
+- **Change over visits, first.** One integer a patient cell, the trend
+  over visit position halved (`Q`), behind a certificate read on
+  published facts alone, with its proof; the exact sum is never
+  published, and the trend is offered only where no published fact of
+  the column fixes its cells' total: the second review round found that
+  the column's exact mean and its tails fix that total on every
+  description, so the trend now needs at least `f` rows outside its
+  cells with free codes. Its run 3, with the floor enforced on every
+  patient-level family, recovered the arm-by-visit trend at 0.968 to
+  0.998 of the real one on 22 of 24 runs up to 100,000 rows (a table
+  where every patient holds every visit now publishes no trend); the
+  design study's 100,000-row figures, measured on a description the
+  floor forbids, are restated.
+- **The within-patient correlation.** A patient's own level and first
+  date become patient-level parents of the repeated readings; the row
+  family under an own mean takes its child at the median and a floored
+  split found by exact integer search, and the generator's patient
+  weight is read on that published table. Run 3: within 0.0317 of the real
+  on 24 runs (0.0091 on the test table at 100,000 rows) and within
+  0.0093 on the long table with PWIT judging its row family, where the
+  first build's route was 0.076 to 0.081 low.
+- **When the layer is on, and what it replaces.** At least `f` extra
+  rows, one person column, no row without a person, and a drawn census
+  of rows per patient (the draw may take "off" on any table, so the gate
+  never reads the person census another lane pools); that census then
+  replaces the person column's exact repetition census, and every other
+  census of the same rows is withheld or counted in patients. On the
+  health data zoo the layer is on for 14 of 25 tables, and the two new
+  conditions turn none off.
+- **Classes beside the row families.** A column's class read on a
+  threshold (position-like, patient-fixed) is published only beside a
+  world that keeps it, which the review showed was missing (330 leaking
+  descriptions on its probe, all refused now).
+- **Stated limits, each with its owner:** the trend is not carried on
+  long tables (0.012 to 0.019 of the real on run 3's long tables;
+  January's stretch); on a table where every patient has every visit,
+  change over visits is not published in December (run 3 holds one
+  such table, its trend at 0.003 and 0.006 of the real, and 22 of 24
+  runs still meet the clauses; lane GR in January, a certificate for
+  the trend's cells that hold every row); the correlation on long tables was
+  0.076 to 0.081 below the real under the study's route, its cause the
+  patient weight, its route the published weight (within 0.0093 in run
+  3 with PWIT judging, OPEN until lane CHa measures the floored split
+  there and lane GR confirms on the built generator); the tighter clause
+  of the correlation where run 3 still misses it (January's stretch,
+  widened); counts of patients by their exact readings beside a trend
+  or an own mean, measured to leak on the fixtures' worst cases (the
+  orchestrator's ruling and lane CHa's product-scale run); the third
+  candidate, the ICC and the trend carried by moments, measured by the
+  design study's run 3c (on the long table the trend at 0.903 to 0.931
+  of the real and the correlation +0.005 to +0.034 off) and not
+  adopted: no existing witness covers its moments, which pin small
+  counts of patients on exhaustive fixtures, so it waits for its
+  certificate (January's stretch unless it is proven in December).
+- **The second review round** (its verify and one outside review)
+  also bounded every search the page asks for, scored a census by its
+  patients so that the layer turns off only by the draw's uniform share
+  (the first build's scores let it turn off 3.8 to 50 per cent of the
+  time on the health data zoo's tables), defined the grain family where rows per patient are
+  constant, required every patient-level family holding the row count
+  to hold its other members in the grain family (a counterexample of
+  248 patients fixed a count at 6 without it), read a patient-fixed
+  column's row census on the patient table, let the first-date repair
+  move dates across bands, and made the patient scores and the weight
+  reproducible bit for bit.
+
+### The questions file keeps every answer across rounds (2026-10-19)
+
+**An answer given in one run of the questions file is kept by every later
+run** (plan P4-D408, lane AQ of the December plan). A person who answered
+the file in two rounds lost the first round's answers -- the file the
+first `--answers` run wrote held only the questions still open -- so a
+person column, a 12-hour clock, a column of dates, the order of day and
+month or the row of the column names answered in round one was
+unanswered after round two, and the two runs the refusal of a reading
+answer beside column answers asks for put the second run's answer on
+another column. Now the file every run writes keeps, under
+`answered_before`, every answer that run acted on -- from the file, from
+an earlier round or typed on the command line -- and a kept answer
+stands until a later one replaces it: an answer to the same question in
+the file, a new answer written beside it, or a declaration typed. The
+same answers given in one round or in several write the same
+description, summary, questions file and twin, byte for byte (`K-S3-66`,
+new: 0 answers lost and 0 differing files over the health data zoo's 25
+tables and twelve answered cases, every twin written on both routes,
+where lane HX's head read 14 and 21). A
+run that would drop a kept answer refuses in plain words and writes
+nothing, and so does one that would read the table another way than the
+run that wrote the file -- a kept answer about the first row or the
+delimiter changed, typed over or deleted -- while the file names columns:
+before the repair, that put a kept `identifier` on another column and
+published 200 of 200 real subject codes. A later answer replaces a kept
+one only where the two really conflict (Codex's review of the lane): a
+comma before the decimals is kept beside a measurement -- 200 cells
+written `1.200` to `1.399` keep their mean of 1299.5, where the file
+handed back read 1.2995 -- and beside dates written as day counts, which
+a typed comma had turned into a number column publishing 98 day counts;
+`--century NAME=1969` and `--first-row auto` typed replace a kept answer,
+the first kept as the standing window; and a column named like a
+question about the file is no longer read as one. Where answers are
+given once, only the questions file changes, and the comma no longer
+removes a date count typed beside it.
+
+### Batch 4d's records: stated limits given owners, the zoo answering under the identifier hold (2026-10-20)
+
+**Records of batch 4d** (the orchestrator's namings of 2026-10-19 and
+2026-10-20, the owner may reverse any). Nothing a command prints,
+writes or exits changes. The clone install's unpinned build backend and
+the install scripts run only in CI are lane DEP's; `doctor` weighing
+total memory is lane TT's (plan P4-D397). The register's peak growing
+about 245 MB a million rows, and texts more than 8,192 new texts apart
+answered once a row, pass from lane SR, which closed here, to lane H3
+(plan P4-D390); so do describe's cost on a column whose values all
+differ, `K-S4-09` still OPEN with describe's part RED, and one wide
+note column, while workbooks at scale are lane XL's (plan P4-D400).
+`analyst_kit.chi2_sf`'s 500-term cap, 0.7 % off at 69,295 degrees of
+freedom and p 0.5, is lane E0L's (plan P4-D398). The health data zoo's
+person now answers `keep` where a question offers `identifier` and it
+knows the column as something else, since a blank holds such a column
+under lane HX's rule; the zoo's SNOMED ids still wait a round for their
+`code` answer, so `K-HZ-02`'s analyst bound moves from 100 to 101, the
+integrator's call, which the orchestrator kept, naming lane HX3 to
+restore 100 (plan P4-D401); re-measured at lane AQ's merge it stays 101, since the zoo
+answers one round and the `code` question comes in the next file.
+`K-S3-41` and `K-S3-62` are restamped on the merged head, each value
+as before; `K-P0-09` names the four runtime libraries. STATE says
+stage 8, the screen, was dropped on 2026-10-15, names CI's Python 3.11
+to 3.14, and counts 13,086 cases and 242 KPIs with lane AQ's, 35 of
+them headlines (two more for the analyst battery's `K-BC-01` and `K-BC-02`,
+the orchestrator's call D15).
+
+### Python 3.11 and later, four runtime libraries held to their zones (lane DEP-1, 2026-10-19)
+
+**The libraries' mechanics** (plan P4-D410, building P4-D409; the owner's
+"3.11 and later" and numba "Yes, gated" of 2026-10-19). synthtwin now
+needs Python 3.11 or later and declares four runtime dependencies --
+numpy, pyarrow, scipy and pandas -- pinned by hash in locks compiled for
+3.11; numba is the optional `polish` extra, absent on Intel Macs;
+statsmodels and scikit-learn join the development lock as test-only
+libraries. The offline scanner admits each new library call one name at
+a time with its capability audit, and holds every library to the zones
+it may run in: the modules the generator, the loader and the twin's
+writers reach by import (zone G) use no library but the one random
+stream; pyarrow's reader is fenced like pandas' and runs one thread;
+HiGHS is silenced and budgeted in a node count written in the call,
+and its result, bound to a name inside a function alone and never at
+module or class level, goes nowhere until a lane enters what it reads;
+numba is one decorator form in one module, over a top-level function
+that is called and nothing else and makes no function of its own, in a
+module that is no bare value (one statement writing into numba's
+dispatcher switched fast-math on); every call with an argument rule is
+written in place, never handed to map; the package's `__init__` is on
+the generation path; the twin's writers import no library; `n_jobs` is
+refused everywhere, as a keyword and as text. `read_table` sets pandas'
+string storage itself (left to pandas, reading 500,000 rows took 19 %
+longer with pyarrow installed), and `synthtwin doctor` names every
+library's version. CI runs 3.11 to 3.14 and the minimums job 3.11. Every
+twin, description and report is byte-identical on the old and new
+environments (29 tables, 203 files).
+
+### The workbook twin is written as a stream (2026-10-19)
+
+**Lane XW** (plan P4-D411). A workbook twin's sheet was built as one
+text grown a row at a time, a copy of the whole sheet per row: the
+library study saw it killed at 1.9 GB writing 20,000 rows of fifty
+columns. The sheet is now made a row at a time and written straight
+into the file, each part told its size first, so every twin is the
+same file, byte for byte, as before (31 workbooks compared, `K-S4-22`)
+and writing it holds about one row: a 177 MB sheet of 100,000 rows is
+written with about 0.34 MB held. On zlib-ng (Python 3.14 on Windows)
+the compressed bytes may differ while every member's text and every
+header field but the compressed size and the offsets the zip64 field
+carries are the same, which the gate checks there instead. 20,000 and
+100,000 rows of fifty columns write in 12.2 and 63.1 s at a peak of 145
+and 357 MB, reached making the parts, not writing them (measured on a
+loaded machine; recorded); `K-S4-22`'s driver also runs on Windows,
+where it records no memory. The offline scan admits the zip member
+writer's `write` and `close`, in `writing` only.
+
+### `synthtwin profile` describes a big table one group of columns at a time (2026-10-18; repair 1, 2026-10-19)
+
+**A table of 2,000,000 rows by 50 columns is described a group of
+columns at a time** (plan P4-D400, lane SR of the December plan; the
+owner's big table, TRACKED T5). `synthtwin profile` no longer holds the
+file's text whole: it reads the file a line at a time as it is decoded,
+and a file it must walk more than once is read again, line by line, for
+each walk. A table whose cells would cost more than 256 MiB held at
+once is read one group of columns at a time -- groups and walks cut by
+what each column's own cells cost, each text at its own width -- walked,
+checked by the standard reader and by pandas, described, counted one
+column at a time and asked its questions a walk at a time, and the
+file is read again for each group a later step needs. Nothing is
+written to disk, and a file that changes between two readings, or
+whose records move, is refused in plain words. Every description,
+summary, questions file and refusal is the same bytes as before.
+`reading.column_values` is the one way to ask a table for a column, and
+`reading.hold_columns` holds any set of columns in one reading, for every
+lane to come. Describe's peak at 2,000,000 x 50 is not yet shown under the 2.5 GB watchdog on the mixed health table: projected 2,204.5 MB before this repair, but 2,572 MB taken linearly from the largest doubling measured, and its re-measure at 1,000,000 rows is scheduled for a night window. Each size of both tables is now the largest of three hash seeds. A file that stops decoding between two readings is refused as changed, and a declared identifier is read once by the census. CPU is about a third more than before, inside the owner's twelve hours. KPIs `K-S4-09` (OPEN: the peak of each
+step at 2,000,000 x 50; describe's part measured and not yet met) and
+`K-S4-11` (recorded).
+
+### No real identifier is published while its question is open (2026-10-16)
+
+**A column synthtwin asked whether it holds record numbers, and nobody
+answered, publishes no value of it** (plan P4-D401, lane HX of the
+December plan, applied literally by the orchestrator's ruling of
+2026-10-16). On a long table -- several rows per patient -- a record
+number on each patient's rows was read as labels while its question went
+unanswered, and the description named every one shared by 11 rows or
+more (26 of 44 on the critic's 600-row table) and the twin wrote them
+back. Now, where nobody is at the keyboard, a column put the person
+question, the two-numbers question or the question answered by a
+measurement, a code or a record number (padded figures, figures all one
+width or grouped, a date count all one width) is described as record
+numbers until it is answered: no level name, rung, percentile, mode,
+tail value, form or prefix, the twin writes made-up record numbers, and
+the screen names the column. Dates and times are never held. The
+question is still asked, and any answer gives back exactly the
+description that answer made before; a questions file's `keep` is
+carried, also when the file it wrote is handed back blank. Repeating
+registers of e-mail addresses, telephone or social security numbers and
+Medicare beneficiary identifiers are asked the person question, also
+beside a declared person column, and a key's `-1` no longer silences its
+width question. A scripted run holds 158 column readings of the suite's
+batteries until they are answered, the price the ruling accepted, and
+the price grows with the table: income in whole thousands, one row a
+person, is held at 600 rows; daily steps and charges in cents from
+200,000 rows; and at 1,000,000 rows any repeating whole-number
+measurement mostly five figures or more is held until its question is
+answered, `keep` giving back the description as it was. In the health
+data zoo the SNOMED ids of a diagnoses export are asked the person
+question in place of the checklist, so the `code` answer comes a round
+later (batch 4d's integration; answering in two rounds is lane AQ's).
+Names, street addresses and birth dates stay published and are stated
+limits owned by lane HX2. A numeric patient key that repeats on its
+patients' rows -- five figures or more, beside `0`, `-99` or `UNKNOWN`
+for nobody, or exported as `100001.0` -- is asked the person question and
+held too, and so are registers of telephone numbers with an extension,
+spaced social security numbers, internet and web addresses, card
+numbers and e-mail addresses after a name, even with a stray cell among
+them. An answer written in a questions file survives the file the run
+writes being handed back, and a held column's twin meets its own
+validation. KPI `K-S3-64` (new): real identifier values over 49 shapes
+at 600 and 20,000 rows, 3,809 in what is published and 884,739 twin
+cells before, 0 now.
+
+### The analyst battery: what an analysis of the twin gives back, measured (2026-10-16)
+
+**Lane E0b** (plan P4-D398). A battery in the tests asks of a twin what
+researchers ask of a real table -- subgroup rates, correlations, linear,
+logistic, Poisson and Cox regression, a random-intercept mixed model, a
+model trained on a twin and tested on real rows, a discriminator of real
+rows from twin rows -- on six seeded tables with known truths (a patient
+cohort, several rows per subject, a registry with dates, claims, a null
+table, curves that turn), each built at run time from its seed and read
+with `pandas.read_csv` as an analyst's script reads it. Each answer is
+scored against how far a second half of the real table stands from the
+first, beside a fresh replicate and a shuffled twin in every run; a run
+whose controls do not behave as controls is void. Thirteen KPIs, K-BC-01
+to K-BC-13, all OPEN, two of them on the owner's board (its cap moves
+from 31 to 33, the orchestrator's call, which the owner may veto).
+Today's twin, which carries no relation between columns, stands where
+the shuffle stands: at 20,000 rows, three table seeds and five twin
+seeds, 40 % of 2,897 supported estimates inside against the replicate's
+78 % and the shuffle's 41 % (K-BC-01); 6 of 96 seeded truths recovered,
+each a truth of no effect, against the replicate's 84 (K-BC-02); 18 % of
+1,272 real-significant estimates kept against 92 % (K-BC-03); the ICC
+0.72 off (K-BC-06); and 15 analyses that run on the real table stop on
+the twin -- a wide table by subject and visit, a subject table merged
+back, and survival on an end date before its entry date (K-BC-10). The
+twin's report has no line per analysis family yet (K-BC-11). The suite
+runs the battery's fast part in about 30 s; the rest runs through
+`tools/measurements/kpi_run.py --slow`
+(`tools/measurements/kpi_analyst_battery.py`); at 200,000 rows each of
+the six tables took 4 to 21 minutes and at most 1,062 MB in a process of
+its own (K-BC-13). Nothing in the product changes.
+
+After two reviews (2026-10-18) every control of every KPI is tested by
+name, a family whose shuffle meets its target voids K-BC-01, and every
+target is one a perfect twin meets: a seeded truth is charged only where
+the replicate gets it back, judged by McNemar's paired comparison; the
+automatic panel holds each number to the real table's range, so a fresh
+sample no longer stops it; the null table tests a label against a
+many-valued number by ranks; and twin-seed stability (K-BC-12) counts
+only estimates that are also inside, where the shuffle fails. Restamped
+at 20,000 rows, today's twin still stands where the shuffle stands: 40 %
+of 2,930 supported estimates inside against the replicate's 78 %.
+
+A second review (2026-10-19) hardened the kit and the scoring: least
+squares and the mixed model keep their digits for an outcome far from
+zero, Cox's model is the same fit for a term moved by a constant and
+holds no rows for a tied day, a steep slope that settles is a fit
+rather than a separation, and a curve at exactly one half has its
+median; a mixed model over a few repeated subjects stops rather than
+report an arbitrary ICC; an estimate thin in either half of a split is
+not scored; a rule the real table keeps on every row (the dose formula,
+an event date present exactly where the status is not censored) is
+scored; a model or a discriminator that cannot be fitted on the twin
+counts against it; and automatic models carry pair products. Restamped
+at 20,000 rows: 40 % of 2,913 supported estimates inside against the
+replicate's 77 %.
+
+### Between columns: the chain's method page, written before its code (2026-10-19)
+
+**Nothing is built by this entry, and no twin carries any structure
+between columns yet.** It writes, before any code, how the first layer
+of the between-columns work is to carry links between columns (lane MBC
+of the December plan; plan P4-D407, which supersedes the held page of
+P4-D394). The profile contract's section 4.6b specifies what is to be
+published: each column cut at nested levels of rungs it already
+publishes, and a chain of small family tables, each column with up to
+three related columns, every printed cell 0 or at least the floor, zeros
+included, never a hidden cell. Which families are placed is drawn with a
+private key kept once per installation, keyed by the table's name, so
+that the choices tell a reader nothing the numbers do not; the section
+proves that no group of 1 to 10 rows can be worked out from the
+published tables, levels and words, for a table with one row per
+patient, and states what it does not promise (several descriptions of
+one table, a reader who guesses, the averages and correlations of the
+next page, several rows per patient). The generation method's G16
+specifies the arrangement: each column's cells made as today, only their
+rows chosen, family by family, so every family table comes back cell for
+cell. The validation method's V12 checks each family cell for cell. The
+shared report the twin carries prints one structural word a pair; the
+private report of the person who runs synthtwin prints both grades and
+says which twin to use for which analyses.
+
+The page's first review round repaired it before any code. A rule
+between two columns, such as admission before discharge, is now carried
+only by a drawn step that may always leave it out, and is tested once on
+the facts published whether or not it is carried, in a form a solver can
+compute and the page proves. A length of stay the profiler derives is
+published only inside its table with the admission column, so it can no
+longer fix how many rows hold an admission and no discharge (the review
+found 7 of 1,000 fixed). Describing the same table again after an
+answer changed what would be published is refused unless the person
+says the first description was never shared. A validation report prints
+nothing measured for a pair outside a family and no cell of a table
+holding a small one, since a distance at four decimals gave a small cell
+back. The settings and the targets are restated against what was
+actually measured, the stage-6 gate's measured risk is told, and
+`tests/test_chain_method_page.py` holds every repaired item.
+
+A second review round, with one outside review, repaired it again. A
+column a rule computes now publishes its name, place and role only,
+since its counts of written forms gave back how many rows held a
+discharge and no admission (2, 5 and 9 of 1,000). The file's own count
+of empty records is read beside the tables, so it can no longer fix a
+count the tables leave free (one case fixed 6 rows). Each step checks
+its safety rule across the whole chain, a rule carried by a recorded
+difference is promised only where the twin keeps it, and leaving the
+chain out no longer drops a rule already carried. A validation report
+prints no measured number between columns, judges each table against
+the one published, and gives a verdict only where the file's own
+description would allow it, because "differs, with no number" told a
+small difference. The self-test sample takes exactly the rows it names
+even when many rows repeat, the content fingerprint can no longer be
+imitated by a cell's text, the record of earlier descriptions compares
+whole descriptions and lets one run at a time, and the hours no
+longer quote Python 3.10, which the new oldest version, 3.11, retires.
+
+The page's settings were then decided on 2026-10-20 from measurements
+at 200,000 rows and 50 columns. The screen of three columns at once is
+on: it ranks every triple, and separately the triples of yes/no and
+few-category columns, and offers its best ones to the keyed draw as a
+small weight, never forcing them. Measured, it brings back a yes/no
+three-way pattern exactly and the diabetes by current smoking effect on
+death inside its margin (-1.33 against -1.44), and 202 of 287 estimates
+inside their margins (a fresh sample 213), with every published count
+still 0 or at least 11. The follow-up time and its event stay first,
+three related columns stay the most, and the finer fifth-percentile cut
+stays off. A number whose slope on another number changes with a
+yes/no column is named as the next page's work.
+
+### The method for twins whose columns meet their band counts exactly, written before its code (2026-10-18)
+
+**Lane BTp of the December plan** (plan P4-D404). Nothing synthtwin
+does changes yet: this entry records a method written before its code.
+When the relationships between columns land, a column that takes part
+in them will make its cells so that each of its published bands, the
+stretches between the rungs its description publishes, holds exactly
+the count the real column held. Every other published fact of the
+column is still met, or, where this method cannot meet both, the band
+count is kept and the other fact is named in the twin's report.
+Measured on today's twins of invented tables, every number, date and
+clock column missed its band counts, by 2 to 375 rows at 20,000 rows,
+and a count of few values with one rare high value by 29,676 rows of
+100,000, with 30,000 rows on a value the real column held 12,465
+times; the method stops that count's values from being lifted one step
+up. The same method takes the records holding nothing, rows empty in
+every column, from each column's empty cells before any other cell is
+placed, by their spelling in a text file and by their kind of cell in a
+workbook, so no step after the placement moves a cell and a workbook's
+formatted blank records come back blank, each cell keeping its kind
+of cell wherever the arrangement puts it. A column's draws are the
+ones it has today, so no other column of the twin moves because one
+takes part. A column whose cells inside one band were all written with
+more decimal places than its description names, each such number of
+places too rare to be counted on its own, can fail one of the checks
+the method makes before it places a cell; where it does, the column is
+made as today and named in the twin's report. A twin made from a
+description without relationships between columns stays the same
+bytes.
+
+### The dependency page: the December libraries on Python 3.11 and later, and what no library float may decide (2026-10-19)
+
+**Lane MDEP of the December plan; nothing a command prints, writes or
+exits changes, and no dependency, lock or scanner table moves yet.**
+Plan P4-D409 writes, before any library enters the product, the rules
+it enters under, after the owner's direction of 2026-10-19 (any offline
+Python library, used where it measures better; no AI service; a fully
+offline, pinned, hash-checked bundle) and the owner's choices that
+evening: Python 3.11 and later, numba only behind a gate. The runtime
+set is numpy, pyarrow, scipy and pandas (pandas while lane SR-A
+decides), with numba gated and pyreadstat only for the light
+native-format stretch; statsmodels, scikit-learn, scipy and openpyxl
+are for tests; polars, duckdb, python-calamine, xlsxwriter, lifelines,
+networkx and statsmodels in the product are not adopted, each for a
+measured reason. Five zones say where a library may run: generation
+keeps integers and elementwise + - * / and sqrt in a fixed order, so
+the twin stays the same bytes on every computer; a published statistic
+keeps P1-D11's exact whole-number sums, rounded once; a score that only
+chooses what is published adds over cells in code order, never over
+rows, or uses `math.fsum`; and no transcendental or float power decides
+either, because a library's float sum made published statistics depend
+on row order and no standard rounds `pow` or `log` correctly (P1's ban
+on numpy is reversed only for integer-exact counting); library floats
+run only in the custodian's private report and the tests, on one
+thread; reading cross-checks every library cell for cell and never
+prints a library's error text on validate's path; pyreadstat only
+converts a native file, value labels applied, to a CSV the person
+keeps; writing stays the standard library's. The offline scanner is to
+enforce the zones module by module, operators included, with every
+numpy operator in generation and description written inside one audited
+helper that checks dtypes and bounds (the shifts and bitwise operators
+among them, and uint64 admitted only for the multiply-high by 32-bit
+limbs), because numpy's int64 wraps without a word (lane DEP-1);
+CLAUDE.md's principle 3 is restated for one numba kernel whose twin
+bytes CI must prove identical to the plain-Python polish over a whole
+schedule on every system and Python, with its integer bounds checked
+before each call; and an integer solver never changes what the
+between-columns design's exact tests ask (every group can reach the
+floor, or the groups that cannot are zero together, so a possible
+arrangement with a group of 1 to 10 rows is no reason to refuse): it
+only finds arrangements that Python re-checks, an absence is proven
+only by an exact closed form or the exact oracle, and the verdict is
+that exact route's, the same on every computer, so lane MR's 24 rules
+at 20,000 and 200,000 rows are re-priced first. The delegated choices
+D-L1 to D-L5 are recorded, and lanes DEP-1 and DEP-2 build the
+mechanics and the bundle. Today's code reaches the platform's `pow`
+through `**` on a float in eight places (on this Mac `x ** 0.5` differs
+from `math.sqrt(x)` on 2,672 of 2,000,000 doubles): a stated limit
+owned by lane DEP-1; exact powers of two stay allowed.
+
+### Batch 4c's records: more stated limits given owners, three KPI drops owned (2026-10-19)
+
+**Records of batch 4c** (push critic 8 and the push critic of lane
+CF4b; the orchestrator's rulings, the owner may reverse any). Nothing a
+command prints, writes or exits changes. L3's other stated limits are
+the forms lane FM's; J3's six published pairs that still miss are lane
+RT1's; a column whose values never repeat holding a record a row past
+3,000,000 rows, and reading holding the file's bytes and decoded text,
+are lane SR's, and lane SV's where `validate` describes the file again;
+on Windows PowerShell 5.1 a printed command drops an empty value, a new
+stated limit owned by the terminal track's lane TT (plan P4-D397, whose
+sentence on the times-of-day notice now says the quoting rule decides
+which names are quoted). Three KPI drops older than batch 4b are owned:
+`K-2B-47`'s date remainder (9 against 6) by lane RT2 and `K-S3-44`'s one
+census miss by lane S4bc2, each entry still OPEN; and `K-2B-42`, which
+read GREEN while its run read 297 of 873 oracle functions against a
+count of 176 (set over 371 scored), is now bounded by a share, a
+changed policy and not the count restated: at most 0.363, 176 of the
+485 of a later stamp chosen as the reference and rounded up, which at
+today's 873 allows up to 316 close functions where the count allowed
+176, an allowance the orchestrator accepted and named after Codex's
+merge review; it reads 0.340 (plans P4-D299, P4-D320 and P4-D368).
+After Codex's merge review and push critic 9 (the orchestrator's
+rulings of 2026-10-19): the health data zoo's one failure at 20,000
+rows that had no lane, the mixed result column's mean, is lane G2T's
+on the generation side and lane SV's for `validate`'s miss; answering
+the questions file in two rounds is lane AQ's (plan P4-D399); lane
+H2's signed-change style miss is the forms lane FM's (plan P4-D403);
+plan P4-D395 records its ratification of 2026-10-16; and the KPI
+counts in plans P4-D397 and P4-D403 are marked as their lanes' branch
+figures. Six fast entries whose
+counts had drifted are restamped from one run of the merged head
+(`K-P2-01`, `K-P3-02`, `K-P4-23`, `K-S2-02`, `K-S4-03`, `K-S4-08`); the
+seconds of `K-S1-07`, `K-2B-38` and the four time entries wait for a
+quiet window. STATE counts 12,572 cases and 224 KPIs, 33 of them
+headlines.
+
+### A column of signed changes no longer stalls generate (2026-10-17)
+
+**Lane H2 of the December plan.** `synthtwin generate` never finished on
+a number column of signed changes -- values written `+3.25`, `+12`, `12`,
+`-1.50` and `-4` -- at 4,000 or 5,000 rows: the question of which
+spelling each made-up value wears had no answer, and the walk that packs
+them tried every way of filling one spelling's count before saying so.
+It now reads the counts one column's spellings owe together, and refuses
+such a question at once: in the lane's build run the twin built in
+0.88 s at 5,000 rows, and 30 of 30 such columns from 3,000 to 10,000
+rows finished in 0.66 to 2.60 s, where 21 took more than 30
+(`K-S4-19`'s stamp, a run on e170a24 at a load average of 18.1, reads
+1.42 s at 5,000 rows and the slowest of the 30 at 4.35 s). Every twin
+and report is the same
+bytes as before (plan P4-D403). New KPIs: `K-S4-18`, the refusal's
+counts of work, and `K-S4-19`, the seconds, recorded; its driver counts
+a column as finished only when it took under 30 s, even where no alarm
+stops a slow one. A packing question that holds enough rows but no fill
+of whole groups can still walk a long time (`K-S4-04`, open).
+### Padded code and record-number columns generate in linear time (2026-10-16)
+
+**Generating a numeric column whose description publishes field widths
+no longer grows with the square of its rows** (plan P4-D402, lane H1 of
+the December plan). Postal codes, MRNs, zero-padded record numbers and
+numeric procedure and laboratory codes go through the padded exchange,
+which asked for every partner by scanning the column from its first
+cell; generate grew x3.0 to x3.4 a doubling there, and one postal-code
+column projected to about 3,630 s at 2,000,000 rows. The exchange now
+walks forward over a roster per style with a next-alive list, a reach
+per trial and a cursor per wearing key, and the plus exchange beside it
+the same way; every partner is the one the scan chose, so no twin byte
+changes (seed-0 twins of three such columns at 50,000 to 200,000 rows
+identical to 68dae22f's). Measured in lane H1's window, loaded, by
+lane B0's runner: post_code's generate took 7.2, 17.6 and 35.1 s at
+100,000, 250,000 and 500,000 rows (16.0, 84.4 and 269.3 s before);
+`K-S4-17`'s driver, a run of its own on 167a609 in the same window,
+read 7.0, 20.7 and 37.8 s, a growth of 2.084 a doubling, and projects
+about 164 s at 2,000,000. New KPIs: `K-S4-16`, the exchange's
+predicate calls
+and its walk's own lines 200,000 over 100,000 cells, x2.0 each, and the
+point-free form asked once (68dae22f's calls: x3.65 from 12,500 to
+25,000 cells); `K-S4-17`, the
+projected 2,000,000-row generate of one padded code column, judged only
+in a measurement window. Its repair round counts the walk's own lines
+and the point-free form's asks too: four walks that pick the same
+partners and ask the predicates no more often were quadratic and passed
+every check, and each is now red.
+### The health data zoo: every kind of healthcare data, run end to end (2026-10-16)
+
+**Lane E0a of the December plan** (plan P4-D399; the owner, 2026-10-16:
+"we should be able to ingest all ... and reconstruct the twin"). A test
+battery, nothing under `src` changed: `tests/health_zoo.py` builds forty
+kinds of healthcare data at run time from seeds, over twenty-five
+exports -- demographics, encounters with daylight-saving offsets,
+ICD-10-CM, ICD-9, SNOMED CT and procedure codes, labs with units,
+censored values and one mixed result column, medication orders, vitals
+in metric and US units, flowsheet rows, a REDCap export, claims, risk
+and comorbidity codes, notes, surveys with missing codes, a wearable's
+series, genomic fields and identifiers, imaging with DICOM's date, time
+and UID, an operating-room log with times of day, a problem list with
+several codes in a cell, a tumor registry with partial dates, a SQL
+Server export, microbiology, immunizations and providers, an empty and a
+constant column, a registry extract with day-first dates, two-figure
+years and true/false columns, and the file shapes they arrive in (UTF-8
+accents, Latin-1, a byte-order mark, CRLF, semicolons with decimal
+commas, spreadsheet serial dates, title lines above the header, a
+workbook). Each is profiled, its questions answered with general facts
+about the data, generated, validated, and read by an analyst's pandas
+script on the real table and on the twin; every column is also checked
+for missing cells and their spellings, stand-ins, codes the real never
+writes, text shapes and per-character forms, values, rows and the file's
+bytes, and unit, decimal-comma and censored columns for their range.
+Measured on today's product: every export is described and generated,
+all 96 questions asked are about the data, and 20 of the 40 kinds pass
+end to end at 600 rows, 29 at 20,000. Each failure is named with its
+owner, the December plan's lanes and its zoo-fix track's: DST (offsets
+not in force on their date), LM1 (a joined range's spelling), UN-1a and
+UN-1b (numbers beside a unit, decimal commas), CODES-1, CODES-2 and
+CODES-3 (codes and rare levels written as `group-N` or made up, a DICOM
+UID), GG (a missing code inside a score's range), TR (DICOM's time,
+partial dates), LISTS (several codes in one cell), UN-2 (feet and
+inches), NOTES (notes without their breaks, tokens and lengths) and KV
+(the flowsheet's long form); one failure at 20,000 rows had no lane
+(lanes G2T's and SV's since batch 4c's records). Measured beside it,
+not repaired: answering the questions file in two rounds loses the
+first round's answers (lane AQ's since batch 4c's records). The
+workbook is read through
+the suite's cross-check reader, so CI's `minimums` cell skips that part
+alone. New KPIs: `K-HZ-01` (headline; the cap goes from 32 to 33 by the
+orchestrator's recorded call D15, the owner may veto), `K-HZ-02` and
+`K-HZ-03`, the battery taking 21.4 s at 600 rows in the suite and
+520.8 s and 238.4 MB at 20,000 rows through
+`tools/measurements/kpi_health_zoo.py` on 3f2b4b5, at a one-minute load
+under 3.0.
+### Stage 5's method written, before its code: every run returns its result (2026-10-16)
+
+**Nothing is built by this entry, and no command prints, writes or
+exits otherwise.** It writes, before any code, how stage 5 turns what a
+run did into data (plan P4-D395): one result object per run, holding
+its verdict (no-miss, missed, refused or unusable), with its counts
+beside it and every obligation whose outcome it could not say listed,
+since "no miss" never means every obligation was judged; every miss,
+ranked once by what else it brings down -- the file's form, then which
+spellings a column may wear, then a fact decided exactly (a date's
+width census among them), then one judged outside a bound the method
+grants -- and then by the description's own order;
+what the run holds only approximately or does not carry, each with its
+class and its reason, stage 6's pairs under that stage's own names,
+where only an exact pair can miss; its floor, flagged where it is
+lowered; its warnings, the files it wrote and the command to type next,
+a doctor's checks it could not make counted apart, never as passed.
+On a refusal it keeps exactly the misses whose report was shown.
+`cli.run` is to return that object and print nothing unless it is
+handed a screen; the exit status is to be computed from the result
+alone, with today's values case for case (validation method V6.5-A1).
+And every byte is to stay put: a battery of about fifty good and bad
+command lines whose files, screens and exit statuses are recorded, at a
+fixed terminal width, in a generated module that carries digests of its
+own records as consistency checks, recorded again only by a new
+recorder, and only by a landing that changes those bytes on purpose or
+by a method landing that moves them, naming each one; on every CI run
+that recorder reproduces each record under the provenance guard's hook,
+after proving the hook refuses. Measured first: the provenance
+guard's hook refuses `ctypes`, which numpy imports, so the product
+cannot run as the guard runner's script; installed after the product's
+imports, the same hook held a whole profile, generate and validate run
+of 300 rows (0.44 s), which came back byte for byte in a second folder;
+argparse's help page comes out in 332, 219 or 146 lines at 80, 120 or
+200 columns.
+
+### Python 3.10 lets each census reading go, and the lines to type on Windows stay PowerShell's (2026-10-16)
+
+**A follow-up to batch 4b** (lane CF4b of the December plan; CI run
+38916841931 on 68dae22f, 9 of 69 jobs red). On Python 3.10,
+`synthtwin profile` let each census reading go only once the whole table
+was described, because 3.10 keeps a call's arguments until the call
+returns; the description now takes the readings out of their box itself,
+so what lane S4d measured holds on every Python synthtwin supports, in
+the first description and in the one rebuilt after you answer a question
+on the screen (plan P4-D390). On Windows, the commands synthtwin prints for you to type stay
+quoted for PowerShell, as before; the Windows test that failed now
+expects that form, and support for the Command Prompt is a design
+question for the terminal track (plan P4-D397). The notice about columns
+read as times of day now quotes the column it names in its
+`--twelve-hour` and `--measurement` lines, so a name with a space or an
+`&` is typed as one word; every other printed line, and every
+description, twin and report, is the same bytes as before.
+
+### Stated limits of last week given owners, and the largest tables' work is counted (2026-10-16)
+
+**Records of batch 4b** (push critic 7; the orchestrator's rulings of
+2026-10-16, the owner may reverse any). `validate` describing the file
+again (2,000 MB and 585 s at 2,990,700 rows before lane S4d, 1,662 MB and
+493 s after) is lane SV's; G2's dense tail at 1,000,000 rows missing the
+column's mean, skew and kurtosis is lane G2T's; the push's work as the
+strata times the pushes, its walks each way where a collision's holders
+are of two kinds, and the identity walk's column text (111 MB at
+1,000,000 rows) belong to the scale track's hot-spot lanes, chosen from
+lane B0's cost table; the 1,000,000-row decimal-code twin's exit 3 on the
+`%%%.%%` count is lane LM1's; R6's six plain-cell twins beside quoted
+closings are the forms lane FM's; R6's blank header name written bare and
+a one-column fallback described before R6 missing at exit 3 are lane
+LM2's; and J3's two carried classes are lane RT1's, 3b-REST's clock half,
+as batch 4a recorded them provisionally. Each is written in STATE's
+limits and in the plan paragraph that states it, and STATE's landing
+lists gain J3, R6 and L2. Lane S4b-num's work counts have a KPI,
+`K-S4-15` (plan P4-D390; the id the December plan gives it, so
+`K-S4-13` stays free for the scale measure reserved there): 1,001
+spellings asked by the identity walk on the Codex column at 100,000 rows,
+32,951 census forms for 1,936 groups of decimal codes and 2,401 width
+questions for 400 groups (17.02 and 6.0025 a group), and 1,670 entries in
+the push's heap on an upward run of 1,602 strata, each inside the claim
+the lane measured. Each ratio is judged unrounded, so a count under its
+bound is never failed by its rounding (Codex's review of the batch's
+integration fixes).
+
+### Installing in one command, `python -m synthtwin`, and `synthtwin doctor` (2026-10-15)
+
+**synthtwin installs with one command and checks the computer before a
+first run** (plan P4-D397, lane TI of the December plan).
+`sh scripts/install.sh` on a Mac or Linux and `scripts\install.bat` on
+Windows make a fresh private environment, `.venv`, inside the synthtwin
+folder, install numpy and pandas from `requirements-install.lock` with
+every hash checked -- from a wheel folder, with README's two offline pip
+commands flag for flag, run with this computer's pip settings set aside
+-- and end by running `synthtwin doctor`. The new command prints one
+line per check (Python 3.10 or later, numpy and pandas, the output
+folder, the computer's total memory, and a named table's size against
+it, a workbook at the reader's measured bound) and exits 0 when none
+fails, 1 otherwise, a check it could not make marked `note`; it never
+opens the table, and a folder it may not look into is a line saying
+what to do, not a stack trace, on Python 3.10 to 3.14 alike. Run again,
+a script says it replaces the earlier environment, and it closes by
+teaching how to switch the environment on in the same window. `python -m synthtwin` now runs the command, where it stopped with
+an error, and `profile` ends by printing the `generate` command to type
+next, as README promised. README gains "Before you start" (getting Python
+3.10 or later on a Mac, on Windows and on Linux) and an "Installing"
+section built on the scripts; CI runs the install script from a wheel
+folder on Ubuntu, Windows and macOS. The offline scanner admits
+`os.sysconf`, which reads the memory and nothing else. KPIs `K-S8-01`
+(the terminal's headline, OPEN: 1 install command where the base took 2,
+5 run commands, 1 file edited by hand) and `K-S8-04` (GREEN, its CI half
+configured until the first push runs it); the headline cap goes from 31
+to 32 by the orchestrator's recorded call D15, which the owner may veto.
+
+### A date and a time in one cell keep their shape beside a few words (2026-10-15)
+
+**Lane L3** (plan P4-D393). A stamp such as `2024-01-05 9:15 AM`,
+`01/05/2024 09:15`, `1/5/2024 9:15` with U+202F before `PM`, REDCap's
+`05-01-2024 09:15` or `2024-01-05T09:15:30.123456` now has a written form
+that keeps the one space between its date and its clock (and the gap
+before its marker), so a column of such stamps beside a few words such as
+`pending` or `unknown`, as labels or as codes, publishes its forms and its
+twin writes every stamp in the source's shape: 969 of 969 where it wrote 0,
+with the `T` and the `AM` or `PM` written as such and U+202F never written as
+a plain space. A year-first stamp ending in a zone, as FHIR and JavaScript
+write `2024-01-05T09:15:30Z`, or an offset (`-05:00`, PostgreSQL's `+00`),
+is written with its `T` and its `Z` where the twin wrote stepped letters
+(`7040-00-00T01:28:35Z` for `7040-00-00A06:43:99N`). On the lane's battery of 384 stamp columns every stamp of
+the 288 not read as dates is written in its shape and every twin and
+table validates; on lane L2's battery of 220 tables the 200 holding no
+such stamp keep every byte of their description and twin. Descriptions
+written before still load and validate as before, and every one generates
+the same twin byte for byte save one kind: a description of stamps parted
+by a letter (`T`, or `t` where every one is lower case) and of 24
+characters or fewer (`2024-01-05T09:15`, `2024-01-05t09:15`,
+`2024-01-05T9:15AM`, `2024-01-05T09:15:30Z`), whose form it already
+published, now generates another twin, written with `T` (or `t`), the `AM`
+or `PM` word and the zone's `Z` where it wrote a stepped letter
+(`7040-00-01T28:35` where it wrote `7040-00-06C28:35`).
+Stated: the twin's stamps are in the source's shape but are not real
+dates (`7000-00-01 26:23`), as every made-up cell of a text column reads
+as no date; a `T` stamp whose marker alone is lower case
+(`2024-01-05T9:15 am`) is written `AM`, and a mixed-case zone (`T…z`)
+`Z`; a stamp with a month word, a compact date, an offset after a space,
+more than 32 characters or a comma after the date (`1/5/2024, 9:15 AM`)
+still has no form; a zone after a year-last date keeps no stamp form
+(spaced, no form at all; parted by a letter and of 24 characters or
+fewer, the form it had before L3, its letters filled by the step); and a
+free-text column of zoned stamps all at the longest length beside
+shorter words can miss `length.mean` at a floor of eleven, one made-up
+word written at that length (as at 7d27335 for `…Z`): the cause is
+G9.5's length pin, not the forms: a stated limit owned by the forms lane
+FM (the orchestrator's ruling of 2026-10-16; `T` stamps written straight
+on beside short rare words at floors 2 and 11 miss `length.mean` only).
+The other limits are lane FM's too (recorded at batch 4c). Since the
+lane's Codex review, a
+column writing its stamps or clock times in both cases of the marker
+(`9:15 AM` and `9:15 am`) keeps every marker a whole word in its twin --
+where it wrote `9:15 aM`, 199 of 388 for 194 stamps written both ways
+beside twelve rare words -- and meets every count it publishes: on 110
+such columns the twin now meets them on all 110 and validates on 106
+(10 and 6 before; the four left miss `length.mean` as before).
+### Describe at millions of rows: one answer per spelling (2026-10-15)
+
+**Stage 4 lane S4d** (plan P4-D390). `synthtwin profile` held one cell
+record a row, a folded copy of each text, a map of spellings for every
+label, a date pair, a sort key and a day number a row, and the census's
+reading of a column until the whole table was described. The rows that
+write one spelling now share one answer -- the cell record, the date
+pair, the sort key, the day number and the survey's text -- each memo
+bounded at 65,536 texts unless it has answered as many rows, and past
+that bound taking a text it meets again from its second sighting (after
+Codex's review: 65,536 different numbers and then one number on every
+later row had made a record a row); the record is
+slotted, a folded label equal to its text is the text itself, the map
+of spellings holds only the labels written otherwise than themselves
+(`taxonomy._label_spellings` answers the rest), and each census reading
+is let go once its column is described. Every description, summary and
+questions file compared with 66bca69's -- a battery of 800 and the
+large tables wherever 66bca69 ran -- is the same bytes, a zero mode
+written both "0" and "-0" keeping the sign of its last cell as before. The register of 997,770, 1,994,180
+and 2,990,700 rows describes in 289, 544 and 780 MB where it took 881
+to 901, 1,663 and 2,389, and of 4,983,120 rows in 1,270 MB; 1,000,000
+rows of free text beside dates and numbers in 564 MB where they took
+1,333 to 1,573 (1,527 MB at 3,000,000); G2's dense tail, every number
+different, in 786 MB where it took 1,025 to 1,176, and 2,287 MB at
+3,000,000 rows, past the machine's 2 GB rule (stated in plan P4-D390).
+`synthtwin validate`, which describes the file again, holds 654, 1,158
+and 1,662 MB on the three registers where it held 798, 1,557 and 2,000.
+Past the bound a repeated row now adds 8.5 bytes of records where it
+added 256.5 (2,640 with a 301-figure numeral), and six such tables of
+1,000,000 rows, numbers and days, describe in 293 to 613 MB where they
+took 568 to 694, the files the same bytes. Pinned by `tests/test_stage4_describe_memory.py`
+and the new `K-S4-08`.
+### Repeated grids of timestamps meet their counts (2026-10-15)
+
+**A column of timestamps on a regular grid that starts off midnight, or
+is written four times beside a published count at midnight, no longer
+publishes minute and second facts its twin misses, in the grids swept,
+which held a value in every lattice slot, save the five-minute class
+carried below** (plan P4-D391, stage 3b lane J3). The rule that withholds those facts where a column's values
+crowd the lattice they pin read the lattice as it stands on midnight, so
+stamps fifteen minutes apart from 07:13 looked like a one-minute lattice
+a fifteenth full, and their twins came back as few as 940 of 1,000
+values; stamps written four times looked like a uniform draw. A sweep of
+512 grids (1 to 60 minutes apart, from midnight, 00:37, 07:13 and
+07:13:20, written once to four times, 500 to 5,000 values, floors 11 and
+36, three twins each) found 258 of 777 published pairs missing a fact.
+The rule now counts the lattice at its own phase: 254 of those pairs
+withhold their clock facts and meet, as do 370 that met with them; every
+twin of the 624 meets. Drawn on midnight, the same grids met in 96 of 100
+published pairs, so drawing off-midnight grids on their own phase could
+keep those facts: untested, inferred from those 96; it is not built
+here. Two classes are carried: 500 stamps five minutes apart, every one
+different, at floor 36, still come back 496 to 500 values; and 1,000
+stamps half an hour apart from 07:13 with 60 % of the slots empty, each
+written two to four times, at floor 36, fill 0.41 of their lattice, are
+not crowded and publish, and one twin in 8 writes 1,001 values for
+1,000, the same before this change (withheld, all 8 meet).
+Its Codex review: the exceptions first asked only that share, so a grid
+filling its lattice no more than a uniform draw lost facts it met --
+1,500 of 2,000 quarter-hour slots from 00:13, each written twice, gave
+up a second's heap at 0 that every twin met, and 77 of 3,000 cells came
+back at second 0 in place of 2,994 -- and its notes said the values fill
+more places than random draws would. The fill must now stand above that
+draw, counted on the places the published counts leave (its verifier: a
+grid written only by day, or with every third slot empty, had its empty
+night or phase counted, stood below the draw and missed -- fifteen
+minutes apart from 00:13 by day came back 918 to 947 of 1,000 values --
+and now withholds and meets). Over the verifier's 231 grids, floors 11
+and 36, three twins each, 25 of the 31 pairs that missed with their
+facts now withhold (21 meet every fact; 4 written by day miss the hour
+census in some twins either way, as before), 15 that met withhold too,
+and 6 published pairs still miss: 2,500 stamps five minutes apart, 3 %
+of the slots empty, each written four times, at floor 11, just below the
+draw, in 3 twins of 3 from 07:13 and 2 of 3 from 00:13; and four grids
+fifteen minutes apart written four times, in one twin of three (two of
+them as before lane J3). Grids holding a value on every hour and phase
+decide as before (Codex's keeps its facts, as do 70 pairs of 103 partial
+grids and 71 of the skeptic's); on the 512-grid sweep the 254 stay withheld,
+and 8 pairs that met (two and three minutes apart from 07:13:20 at floor
+36) withhold and meet.
+Still so, as before the lane (the orchestrator's ruling of 2026-10-15,
+owner lane 3b-REST): a daytime grid with 25 to 60 night stamps at floor
+11 publishes and misses its count of different values (P4-D391).
+
+### A clock written with a space before AM or PM keeps its shape (2026-10-14)
+
+**Lane L2** (plan P4-D392). A cell such as `9:15 AM`, `08:15:30.123 a.m.`
+or `9:15` with the narrow no-break space U+202F before `AM`, as Excel and
+macOS write it, now has a written form that keeps that one space or U+202F
+(`%:%% @@`), so a column of such times beside rare words, or as codes,
+publishes its forms and its twin writes every such cell in that form, in
+the source's own spelling: 969 of 969 where it wrote 0, and U+202F is never
+written as a plain space. Where a column of text must not be read back as
+clock times, the cells written past that line keep their space and their
+`AM` or `PM` (`6:74 AM`), so the twin still validates; before the lane's
+repair round they were written `0:00 AA`, and 11 of 28 such tables at
+1,000 and 3,000 rows were MISSED a form count. No other space gives a form: names, `Ward 7` and
+stamps such as `2024-01-05 9:15 AM` are as before, and on the lane's battery
+of 220 tables the 148 holding no spaced meridiem keep every byte of their
+description and twin. Descriptions written before still load and generate
+as before -- labels and codes too, since the lane's Codex review, which
+also keeps the form on times written both `AM` and `am` (388 of 388 where
+the twin wrote 206) and gives codes holding every dial time all 4,000 of
+their form's rows (where it wrote 2,303 and 1,697 `group-N`), with either
+gap (written with U+202F it wrote 2,314 and 1,686 `group-N`). Stated: a
+stamp with a date beside rare words still publishes no form, owed to lane
+L3.
+
+### A trailing delimiter closed with `""` is read and written back (2026-10-14)
+
+**Lane R6** (plan P4-D387). A table whose header is `site;dx`, whose first
+record is `0100;1E22;""` and whose other 119 records are `0100;1E22;` was
+described as one comma-delimited column; it is now its two columns closed
+by the semicolon. A line may close its trailing delimiter bare or with
+`""`, on the header, on some records or on all of them, and the
+description says how: `trailing_delimiter` takes `true` (bare, as every
+description before this), `"quoted"`, or on the rows the closings' runs,
+published only where each run and each closing's total reach the census
+line, as line endings are; otherwise the commonest closing is written
+throughout. The twin closes each line that way, the loader reads it (and
+refuses runs below the line, FD2), and the validator checks it. Files the
+reader read as more than one column are read exactly as before: on a
+battery of 193 tables the 89 read so are byte-identical, and the 104 that
+were refused or read as one fall-back column are read. A description
+written before of such a one-column reading still loads and writes the
+same twin, but the real table now misses it at exit 3, being read as its
+columns: describe that table again. Measured on the codex table at 1,000,000 rows:
+98 s and 1,013 MB to describe. After Codex's review of the lane: a file the
+reader read from a delimiter before keeps that reading and its questions
+(`a;b|c;` over `1;Y|Z|""` is the semicolon's `a` and `b|c` again), because a
+reading lined up only by `""` now comes last; every spacing and escaping is
+tried before a `""` is read as a closing (`1,x\,""` is `x,""` again); and the
+loader refuses a header ending in its delimiter over records all closed `""`
+(FD10) and closing runs beside a run closed the same way or past 64 (FD2),
+descriptions whose own twins were read back otherwise; it refuses as well
+a trailing delimiter on records under no header read from the file (FD10)
+and a closing run of no records (FD2).
+
+### Numbers at a million rows: the report in pieces, and a dense tail's mean (2026-10-14)
+
+**Stage 4 lane S4c** (plans P4-D390 and P4-D377). `synthtwin validate`
+no longer makes its quality report whole: `quality.report_pieces` hands
+the same text over in runs of at most 4,096 lines, the command prints
+them in turn and writes them as one buffer of the file's size
+(`writing.write_text_file`'s new `pieces`). Joined in halves, each level
+of the join had left its size class mapped. The reports and the screen
+are the same bytes; validate of a register of 997,770 rows holds 798 MB
+where it held 1,317, of 1,994,180 rows 1,557 MB where it held 2,128,
+and of 2,990,700 rows 2,000 MB, beneath the 2,389 MB `describe` of the
+same table takes. And a dense tail now meets its published mean
+distance (method G6.6.8 rule 4): where every number is different and
+the tail's rows crowd its grid, the strata past the crowded run are
+placed so the tail's distances sum to the published mean, the far ones
+together where the squares come nearest the published spread. G2's
+dense tail at 1,000,000 rows wrote a mean distance of 5,412.8 against a
+published 5,780.5 and missed six checks; its twin now writes five far
+cells at 2,558,000 to 2,558,004 (the source's stand at 2,559,999 to
+2,560,003), meets the mean, and misses three -- the column's mean, skew
+and kurtosis, whose
+G12.3 windows do not reach the published values there. The checker
+reads such a tail's mean against the hull of G12.13's window and the
+one the construction draws. The oracle carries the rule too, and its one
+frozen case on a dense tail, `tail_shape_ends`, moves with it.
+`K-S4-06` and `K-S4-07` hold both. Every case rule 4 leaves a side as
+it stood in, and the twin report's hull, has a test red on its mutant.
+
+Codex's review of the lane raised six items, each fixed. Rule 4 no
+longer writes a placed cell narrower than a width the census needs or
+moves the count of cells reaching a thousand: five-figure fields from
+`00000` came back with two four-figure cells, and eleven grouped cells
+as nine. It reads a staircase's mean near the largest double without
+overflowing, where `generate` raised an error. A far run crossing the
+stand-in `9999.0` lands on the published distance sum, where it stood
+two steps past it. It writes the column in place rather than copying it.
+The method now says the far strata's count is weighed before the
+remainder moves them. Pieces of the quality report are written in UTF-8
+only: in UTF-16, UTF-32 or UTF-8 with a signature each piece had carried
+its own byte-order mark. No frozen vector moves, and of the lane's 192
+battery twins only one four-figure shape's two seeds change. The fix's
+verifier found two more cases rule 4 now leaves as they stood: a
+column publishing a thousands separator but no census of marks had a
+grouped cell moved under a thousand, and the separator's check fell
+under the floor; and a grid of more than 308 decimal figures raised an
+overflow in `generate`.
+
+### Numbers and codes at a million rows, without their square (2026-10-14)
+
+**Stage 4 lane S4b-num** (plans P4-D377, P4-D387 and P4-D390). Four paths
+whose work grew faster than the table now grow with it on the shapes
+STATE named, and none writes a different byte: every twin, twin report
+and quality report measured is the one 3434682 wrote. G6.5a's push
+finds its collisions in a heap and its strata by grid unit, and walks
+each way only as far as could still be taken: consecutive whole numbers
+beside five far ones, declared a measurement, generate in 13.7 s at
+100,000 rows where they took 494 s, and in 207 s at 1,000,000. The push
+still moves each stratum it passes one point at a time, so on long runs
+its work is the strata times the pushes (about 4 times a doubling,
+measured to 4,000 strata), and where a collision's holders are of two
+kinds each way is walked in full. G6.6's identity walk begins each cell's
+walk where the last one of its kind stopped: 1,001 spellings asked at
+100,000 rows of the Codex column where 501,501 were. G8.3c's pooled
+placement keeps one memory an offer, so each place's rules are asked
+once: 1,000,000 rows of decimal codes generate in 32.6 s where they took
+803. And the quality report grows its lines in place and joins them in
+halves: a register of 50,000 consecutive codes validates in 59.5 s and
+815 MB where it was killed at 960 s and 1.7 GB, and one of 997,770 rows
+in 123.5 s. Each is pinned by a count that needs no clock, up to a
+million rows, in `tests/test_stage4_numbers_and_codes.py`, where the
+replaced functions are kept as frozen text and must give the same
+answers. After Codex's review of the lane, the push's heap is rebuilt
+from its live entries once it holds twice as many and 64 more, where
+stale entries had piled up below a lasting collision (118,804 at 402
+strata, 1,915,204 at 1,602; now 470 and 1,670), and the pooled
+placement reads the width's largest place off at once rather than
+halving for it at every group (800,801 whole-figure counts and powers
+of ten for 200 groups of codes of 300 places; now 1,001), the twins the
+same bytes.
+Merged beside lane L1 (batch 4a), the pooled search keeps L1's three
+rules of the stepping (the width cap, no published value, the codes'
+width) as fixed rules, so it answers as the stepping does (P4-D390).
+
+### The joint midnight guard is checked as the product ships it, and every stated limit of the week has an owner (2026-10-15)
+
+**The sixth push's critic** (plans P4-D369, P4-D374, P4-D378, P4-D387,
+P4-D390, P4-D391). A column of 100 whole dates beside 299 day stamps on
+minutes 0 to 55 and one midnight, at a floor of one, keeps its count at
+midnight withheld and its twin passes; with the joint reading of that
+silence withdrawn alone, the twin misses it at 100, so the guard is now
+checked with the minute and second facts published. Each limit stated
+this week names an open lane -- D5 for daylight-saving offsets on the
+shared clock, 3b-REST for the calendar's remainders, R6 and R7 for the
+reader -- or is accepted with its measured reason.
+
+### The minute's census no longer bends a clock column's hours, and the shared clock keeps its minute and its tails (2026-10-15)
+
+**The Codex review of batch 3b part 2d's integration, four items** (plans
+P4-D374, P4-D378). On clock-only columns the test of how the minute
+follows the hour now asks the fine table after the coarse one, as on
+timestamps: a morning at every minute beside an evening on even minutes
+only had its census published and came back with the morning's even
+minutes at 66 per cent against 50 and the evening's at 68 against 100,
+with no deviation and nothing missed; the census is now withheld and the
+morning comes back at 51. The cost, stated as a limit: the design's
+clinic column at 1,000 rows is withheld too, and at a floor of 36 its
+twins hold 52 per cent on `:00` or `:30` against the table's 71 (67 under
+the published census); at a floor of 11 its slots stand as heaps and it
+holds 71. On the shared clock, a block the layout fixes now takes an
+offset that keeps its written minute and second inside the minute's and
+second's facts (976 cells on minute 0 against a published 978, now 978);
+tail ranks moved to keep the count at midnight keep their move when the
+passes' frame is taken back (501 at midnight against 500, now 500), the
+rank whose gap ends first served first and a bare date's own place held
+for it (stamps at -08:00 beside +09:00 came back 501 against 500, and
+bare dates beside -06:00 and +05:30 stamps 101 to 103 stamps at midnight
+against 100, now 500 and 100); and
+the reference oracle reads the minute's pass on each value's own clock,
+as the method says.
+
+### Stage 3b's minutes and seconds integrated: lanes J2 and C2 and landing 3b.7's widening (2026-10-14)
+
+**The minute and second of a timestamp, met beside its weekday census
+through lane J2, the minute of the hour on clock-only columns through
+lane C2, and both censuses on each value's own clock** (plans P4-D391,
+P4-D374, P4-D378). Landing 3b.7's widening of the minute and second
+censuses to columns of two offsets and of dates beside moments (MC3,
+SE3), which waited for lane T3, is re-applied on J2's code: each cell
+counted on the clock it is written on, bare dates pinned at their
+midnight. C2's six frozen minute cases move to seeds 442 to 447, as
+436 to 441 were taken. On clock-only columns the test of how the minute
+follows the hour stays one coarse table, measured before it was kept (reversed 2026-10-15, Codex I3b2d item 1):
+T3's two witnesses, written as times without dates, come back with the
+table's share by hour under it (600 of 1,800 morning cells on minutes 00
+to 19, as the table), since the ten-minute census holds each hour's
+bins; asking the fine table too would withhold that census and, on the
+design's clinic column at 1,000 rows, its minutes (on `:00` or `:30`
+0.52 against the table's 0.71, where the census gives 0.67).
+
+### The minute of the hour comes back on clock-only columns (2026-10-13)
+
+**A column of clock times publishes the minute of the hour its cells fall
+on, and its twin meets it** (plan P4-D374, stage 3b landing 3b.5's second
+step). Appointment times typed on `:00` or `:30` at a fifth to a quarter
+of their rows came back at 8 to 16 per cent there; now within 0.005 of
+the table at 1,000 rows (method G7A.4c, validation V5-C2). Columns whose
+minutes are flat off their heaps publish nothing and write the twin they
+wrote before. Rare words beside clock times stay in the twin as words,
+never blanks, and twelve real `8:00` beside `08:00` declared missing come
+back as `8:00`. A label column's twin still steps its held-back times
+round the whole day, its hour of day 0.11 off at 1,000 rows: no label
+publishes hours. Its repair round draws the checker's windows over a
+census group's whole span, as the twin is laid (a p75 at the second was
+MISSED in 5 of 420 small twins), and lets the rounding meet every table
+any rounding meets, a whole path's worth of cells at a time. Its Codex
+review keeps a twin of clock times beside rare words and other clock
+forms clock times (30 of 288 such twins came back as free text), and
+counts a time of day written on many rows as many events, so night
+readings repeated a hundred times no longer hide how the minute follows
+the hour (the twin's day cells on minute 0: 589 of 4,320 against 72). Its
+verification holds each hour to the cells off the heaps, which the twin
+draws the same in every hour, so a heap on every hour no longer makes a
+flat day publish its minutes (252 of 4,800 day cells on minute 0 against
+72), and lets a twin past 2.27 million rows keep its clock type by
+writing its stand-in times again, each fewer times than the floor.
+
+### The minutes and seconds of a timestamp, met beside its weekday census (2026-10-13)
+
+**A column of moments publishing a weekday census beside its minutes' and
+seconds' facts now meets both and its count of different values** (plan
+P4-D391, stage 3b lane J2). Lane T3's minutes and seconds, merged beside
+lane D2's weekday census and lane J's round, moved a rank only to a day of
+its own weekday where a census stands, so the count of different values
+came back short or long: 16 of 480 battery twins at 1,000 rows (bursts of
+check-ins 288 to 295 for 285, nightly batches, noon stamps, eleven
+`23:59:60` a date), and a ten-week clinic of 10,000 visits 1,563 to 1,609
+of 2,175. The minute and second passes now put the count back by moves to
+days of another weekday paid for by whole-day moves the other way, every
+weekday count and clock kept, and by a swap on the rank's own hour where
+no such day has room. All 520 twins of the lanes' batteries at floors 11
+and 36, seeds 0 to 4, now miss nothing; 458 of the 480 at 1,000 rows are
+byte for byte as before. The minute and second checks count whole dates a
+column's description folded into its moments, which made an unchanged
+source miss its heap at minute 0, and the minute and second passes keep
+off a column of counted dates' placeholder days. Three limits older than
+this change are measured and carried: beside a weekday census the hour
+pass leaves small bursty tables' count long (85 of 105 such twins before
+this change, 83 after); a column nine in ten at midnight with a heap at
+minute 0 wrote 989 or 983 cells at midnight where its count withheld for its
+size asks 990 -- such a column, fewer cells than the line off midnight,
+now publishes no minute or second facts (contract NF123, NF124), as
+before lane T3, and every column of a battery of dates written as
+datetimes that the pushed line met is met;
+and the unit-room rule withholds a noon census these twins
+now meet. **Stamps at a regular step whose different values crowd the
+lattice their minutes and seconds would pin** -- vital signs every five
+minutes, hourly observations, filling half of that lattice or more, a
+third where every value differs, and a twentieth of it more than their
+rows drawn at random would --
+**publish no minute or second facts** (contract NF121, NF122):
+with them, every such series measured from one minute to an hour apart
+and 1,000 to 100,000 rows came back short of its count (903 to 947 of
+1,000 five minutes apart) and, from 3,800 rows, missed its heap at second
+0; without them the 160 twins measured miss nothing, as before lane T3.
+Random times on the hour or on 5-, 15- or 30-minute slots, and stamps
+written to the minute with `:00` seconds, fill their lattice no more than
+such a draw and keep their heaps: withheld, their twins wrote seconds
+other than 0 on 92 to 98 % of cells. A
+count the clock pass still leaves short is reported with that cause.
+After its Codex review: the payers' exclusions hold before 1970; grids
+no value of which is written once, that publish no count at midnight and
+hold at most 1,000 different values keep their clock facts (1,000 stamps
+five minutes apart each written twice), others withholding them -- each
+looser bound published grids that missed their count (the last, 1,171
+values, at 1,000 to 1,171 values with some written once), and of 276
+grids with no value written once swept with them at any size, one to
+sixty minutes apart, the first to miss held 1,250 values (1,000 is 80 %
+of it; 93 grid-and-floor pairs of 1,001 to 2,500 values that met with
+the fifth now withhold); still missed under every rule and carried to
+lane J3: grids starting off midnight (07:13, 00:37), and grids written
+four times with a count at midnight; the paid
+searches grow with the rows however far the unit to join or the payers stand, and behind a wall of payers whose
+moves keep no count (more than 1,024 of them still end a search, as
+before); a column nearly all at midnight says its own reason
+(NF123, NF124); and stamps every fifteen minutes, half the slots kept,
+meet their count at midnight and their second's heap.
+`K-S3-41`, `K-S3-42` and `K-S3-62` are restamped.
+
+### Codes and long cells written as the source wrote them (2026-10-13)
+
+**Lane L1** (plans P4-D390 and P4-D384; `K-S3-61`). Made-up figure codes
+keep the source's width and leading noughts (`0414`, not `414`) where every
+published code of figures shares one width; a number wearing no named form
+steps from the published numbers written without an exponent, so codes
+such as `5E77` no longer make the twin write integers of 78 to 300 figures;
+a code form of one letter among figures (`12A345`, `52E638`) is worn by the
+words and the numbers too large to hold as well as by the numbers, so its
+count is met and no `1e999` stands in for such a code; free text keeps its
+form past 4,096 different values (10,000 durations `HH:MM:SS` written once,
+5,904 of which were written `!!!!!!"N`) and is written in a form no more often than its
+count; a column written to 5,000 places no longer stops `synthtwin
+generate`, and Excel serials written to 50 places, or a nought written
+`0E15588`, meet `styles.spelled` on their own source. On the lane's battery
+of 38 code, number and duration tables at floors 11 and 36 and seeds 0 to 4,
+no twin or table misses a check 45191fa met, 35 twins and four tables stop
+missing one, and 330 of 380 twins are byte for byte as before. Stated: a
+column of numbers beside labels still writes its number half's exponent
+codes by G6, as integers or in G6.3's own spelling. Its repair round: each
+class takes a shared code form first where its own published labels wear
+it, so held-back words keep their only form; durations beside notes written
+in two cases keep their `HH:MM:SS` form at 30,000 rows (24,572 of 27,037
+before), and their form and average at 50,000 and 100,000 rows, where the
+fold partner search now costs what it finds (100,000 rows in 29 s, where
+7b28976 did not finish in 900 s); a truth value is never written as a fold
+partner; long whole numbers are written faster. Its Codex review (2026-10-14): a
+made-up code never takes a value a published code holds, however it is
+written (`0` beside `0E2` on the walk, `100` beside `1E2` in the pooled
+placement), a pooled code is no wider than the longest published label, a
+fold slot asks its planned words first at its planned length and again in
+its whole window, frees a parent of its planned length and words before it
+takes a partner of other words, and the words still off are made up by
+other made-up cells (100,000 durations beside three-word notes wrote 11,234
+words over, now none; durations beside `ok N` and `call back N`, 27 words
+short at 800 rows, now none), and the statement of what `styles.spelled` admits past binary64
+names the seventeen-figure cells it leaves outside.
+
+### The calendar comes back on columns of two offsets and of dates beside moments (2026-10-13)
+
+**Landing 3b.7, the shared clock and the joint member** (plan P4-D378).
+A column whose dates wear two UTC offsets -- a clinic across a change of
+daylight saving time, two sites, an instrument writing `Z` beside a ward
+-- and a column mixing bare dates with moments published no weekday,
+day-of-month or hour census, and their twins came back up to 0.29 of the
+cells off by weekday and 0.54 by hour. Now each census is published
+there, every cell counted at the day and hour it is WRITTEN at on its
+own clock, a bare date at its midnight; the twin writes every cell at
+its source's offset and form, the offset counts and the counts of bare
+dates and moments exact, and meets every census: on the landing's
+battery of 21 columns at 1,000 and 10,000 rows, floors 11 and 36, seeds
+0 to 4, every published weekday and hour census is met, the weekday at
+most 0.035 off at 1,000 rows and 0.0011 at 10,000. The twin of a column
+of dates beside moments now writes its bare dates, where it wrote every
+one as a `00:00:00` stamp, so `resolution_mix` and `format` are checked
+exactly there, every bare date written as one save where the hour
+census's cap at hour 0 leaves it no midnight day (bare dates at both
+ends of a span of noon stamps: 98 of 100, `resolution_mix` missed and
+named, the hour census held), and spread evenly over the span where
+dates and stamps share days; an all-different column
+of 200 dates beside 800 stamps comes back all different, where 881 of
+1,000 came back before, its count checked inside G12.5's envelope as
+before and any shortfall said in the twin's report. A twin of a
+daylight-saving column writes the offset not in force on its date for
+about half its rows (about a third before): the censuses are met at the
+cost of pairing season and offset. Two columns of C1's battery that missed their
+withheld count at midnight hold it. The minute and second censuses of
+lane T3 are not widened: T3 is not merged, and its merge beside lane
+D2's weekday census on moments is a question of its own. Its Codex
+review found three columns whose twins still missed a census, each now
+met at floors 11 and 36, every other battery twin unchanged byte for
+byte: a block of identical cells two rungs fix, which two offsets
+share, is now split between them (an hour census 132, 251, 297, 298 for
+150, 150, 339, 339 before); bare dates beside `-03:00` midnight stamps,
+all on the 15th, now move as days (654 on the 15th and 622 elsewhere
+for 1,276 and nought before); and a leap second `23:59:60Z` beside
+`+00:00` stamps, which the description publishes at its instant,
+midnight, is written at `:60` again (251 cells at midnight in hour 0 and on a
+Sunday before, where the census counts hour 23 and the Saturday).
+
+### Partial dates that step stay inside the column's dates, and Q6 answered `keep` stays answered (2026-10-13)
+
+**The fifth push's critic** (plan P4-D383; the orchestrator's rulings of
+2026-10-13). A partial-date column whose values are all different, 120
+ISO dates of 2024 beside 80 different years 1900 to 1979, came back with
+years 1984 to 2063, 39 of them after the column's last date, and
+`validate` said nothing was missed. A partial cell that has to step now
+looks inside the span the full dates cover first, then before it, then
+after it: the years come back 1945 to 2024, all 200 values different.
+Where the source's own partial dates lay is published nowhere, so the
+twin does not put them there. A column whose question Q6 was answered
+`keep` is no longer asked Q6 again by the run reading that answer. The
+records now name an owner, or an acceptance, for every stated limit of
+the week: lane S4b, lane J2, lane L1, lane L2, landing 3b.7 and lane D4.
+
+### A trailing delimiter on one side is read as the table's delimiter (2026-10-13)
+
+**Lane R5, reading** (plan P4-D387). A semicolon, tab or bar table whose
+rows end in the delimiter and whose header does not, or whose header
+ends in it and whose rows do not, was read as ONE column named by its
+whole header line, or refused where decimal commas split it again;
+`profile` asked nothing, and code written on the twin could not run on
+the real table. Detection now lines such a header up with its records
+(`dialect.opening_lines_up`), the table is read as its columns, and the
+twin writes each line's trailing delimiter where the source wrote one.
+A one-column table whose cells end in `;` stays one column. A column
+whose first or a later cell is a whole number of more than 4,300
+figures no longer crashes the reader (`dialect._sequence_of`). On a
+battery of 63 made-up tables the 39 the change does not reach keep
+byte-identical descriptions, questions and twins; the reference
+generator mirrors the rule and the document vectors gain four files
+and a mutant.
+
+A class of files goes from described to refused. Any semicolon, tab or
+bar table whose rows (or header alone) end in the delimiter and that
+holds a row the reading cannot read was described as one column at exit
+0 before; it is now refused at exit 1, as the same file without trailing
+delimiters is, except where a row inside the sample holds a value after
+the closing delimiter: detection then does not line up and the file is
+still read as one column at exit 0, as on 0ecc82d (row 51 `...;x`, alone
+or beside a row 61 of two values). That covers a row that does not end in
+the delimiter, or
+that holds a value after it (row 501, past the sample, too), the header
+and some row alone ending in it, and a row of too few or too many values
+(row 51 `P0051;age;arm;`, row 51 ending `;;`, or an unclosed row 51 with
+a row 61 of two values), measured on seven such made-up tables. The
+refusal names the row and the trailing delimiter it lacks or carries
+(`errors.trailing_delimiter_uneven`) and asks that every row end the same
+way, where the ragged-rows sentence had said "names 4 columns, but row 51
+has 4" and blamed quotation marks. A ragged row is counted by its own
+values, the closing delimiter left out ("row 51 has 3"), and a row that
+only lacks the closing delimiter is not listed beside a ragged one. A
+quoted empty last value is a value, not the closing delimiter
+(`P0051;30;F;""` reads "row 51 does not end in a semicolon"), and a short
+row that does not close reads by its count ("row 51 has 2").
+
+Codex's review of the landing, four items. A reading whose first row
+has its width comes before one lined up by a trailing delimiter, so a
+comma table with a short row and a header ending in a semicolon reads
+as before and the semicolon is asked about. A quoted empty last field
+(`1;2;""`, `a;b;""`) is a value and lines nothing up, so it is no
+longer written back as `1;2;`, in the sample or past it; a quoted empty
+where the other lines close is refused with that reason, and a
+header-closed table's row 51 `31,72,Q,""` is refused as holding 4
+values, not as ending in the delimiter. A comma-space table whose rows end in the semicolon
+(`"1"; "alpha";`) reads with its spaces skipped, as without the
+trailing semicolon. The 63-table battery's descriptions, questions and
+twins are byte-identical before and after.
+
+### The count pass splits the tails first (2026-10-12)
+
+**Logs just above one row an open day keep their count beside a weekday
+census** (stage 3b lane D4s, plan P4-D369 part one). Where a column's
+different days were too few, the twin's count pass split ranks nearest
+first, so a body rank a day from a free day split before a high tail
+rank whose free day stood further; the body then passed what the weekday
+census lets it reach and the day pass took those days back. P4-D388's
+pinned clinic log came back 154 or 155 values for 156 at seven seeds of
+ten, and the same log at midnight a day or two short with nothing named
+on an ISO member (P4-D367). The pass now splits the two tails' ranks
+first, then the body's (method G7.3, the oracle and the frozen case
+`tails_split_first` with it). Measured at seeds 0 to 9: of the 24
+censuses whose twins missed the count at two seeds or more, 22 meet it
+at every seed, and the two left miss where the pass merges, the twin
+drawing past the rules' expectation; on the near-one logs written ISO at
+midnight the silent short twins fall from 81 of 2,360 to 5, and with
+both marks from 21 of 549 to 2. No description changes, and a twin
+changes only where the pass splits and the order moves a rank. The body splits only once
+no tail rank sharing a day can split directly, which is not the most the
+tails could hold: a chain moving another tail rank onto a free day first
+could free one more, a move the pass does not make (its Codex review: a
+Monday-to-Friday log at 36, seed 3, keeps its high tail on 35 of the 36
+days its strata hold, its twin the column's 130 under either order;
+`tests/test_stage3b_split_order.py`). On D0's
+26 date batteries at the four floors (6,512 censuses, 59,485 twins),
+D1b's 296 family logs and 26 cases, D3's day-of-month battery and D2's
+two-mark battery, no twin misses a check its base twin met, and the
+long twins P4-D388 recorded at 36 and 50 beside a census (fewdates, the
+hunt batteries, the Tuesday clinics) are each the twin of a3c1b33, the
+order moving no rank in any. Stated, each
+held by a strict expected failure with its measured cause: seven-day
+logs holding every day stay one to three values short (a rebuilt tail's
+end a day inside the real one, no step moving a tail rank past its
+stratum where the count is short), fifteen Mondays at 36 stay long
+(their tails rebuilt on at least 30 days), and a clinic whose body draws
+past the rules' expectation stays a value or two short at four seeds in
+ten.
+
+### The dates that stand out (2026-10-12)
+
+**A column of dates lists the dates that stand out, and its twin holds
+each at its exact count** (stage 3b landing 3b.6, plan P4-D369). Before,
+the day-of-month census brought back the 1st, the 15th and the 10th, but
+a 28-day cycle's days came back 0.245 to 0.266 of the cells against
+0.900, 1 January's births 0.012 to 0.015 against 0.066 to 0.076, and the
+cycle's heaviest date 180 to 190 rows against 378. Now a column of whole
+dates, or of moments every value of which stands at midnight on the
+local clock, publishes `heavy_dates`: every date between its tail
+boundaries holding at least eleven rows (or the census line) and at
+least three times the mean of the three days either side, each with its
+exact count (HD1 to HD5; NF105). The twin pins every listed date's rows
+and draws the rest part by part and key by key (method G7.3j), the
+validator counts the file's cells on each listed date (V5-D1), and the
+oracle and the nineteenth vectors file freeze the plan. Lane D3's two
+limits are lifted: quarter ends and one month a year at 10,000 rows meet
+every check, and six Mays generate in 96 s at 1,000,000 rows where the
+discarded joint plan took about 640 s. What gives way follows the
+orchestrator's rulings of 2026-10-13: beside a list the count of
+different values gives way, named as its cause; against a census the
+twin standing fewer rows off the census and the listed dates stands, a
+tie keeping the list; and the count is read as the validator judges it,
+exactly only inside G12.5's envelope (one test, stated in the contract
+module). Over the batteries every one of 1,395 listing twins holds its
+list: of the 19 that had given theirs way, 8 now give the count way and
+9 a census, each named, and 2 miss nothing (`K-S3-46`). Stated
+limits: clocked moments list nothing; the twin may heap dates it does
+not list, said in its report (`K-S3-47`). KPIs `K-S3-45` to `K-S3-47`.
+Its Codex review: a rank on a listed date whose spelling the table
+declares missing now trades its spelling rather than its date (G7.3j
+step 8), where 3 May's 52 rows had come back 31 under a report saying
+every listed count was met, and the listed counts are recounted on the
+written cells; HD3 bounds the list by the different values less one
+where any cell is unread, not less every unread row, so five copies of
+one unread text no longer withdraw a list of 57 dates; and V5-D1 prints
+80,000 listed dates in 0.04 s, where it took 2.4. The trade passes a
+refused date in one step: its work grows with the rows, not their square. Merged on the integration branch, the count is held
+exactly where lane R2c's rule holds it, counted columns step off their
+placeholder days before the list is judged, and lane D3's spelling
+repair never offers a listed date. After the merge's Codex review a
+tail date alone in its stratum whose other spelling is declared missing
+trades that spelling too (step 8), where since before this landing its
+rows had been written in it and read back as no value.
+
+### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
+
+**Landing R2c, the layout reader's questions and partial dates** (plan
+P4-D383). A FHIR `date` column writing `2023`, `2023-03` and
+`2023-03-17`, a Medidata export writing `UN MAR 2023` beside `17 MAR
+2023`, an HL7 feed whose stamps stop at the minute or the hour, and an
+Oracle export some of whose stamps leave out the seconds were labels,
+counts or free text; each now reads under its layout, every cell at its
+own precision. A partial cell is counted in `n_unparsed` and under its
+form in `resolution_mix`, and nothing else is taken from it, so the
+spread, the tails and every fact of the day are the full dates' own; the
+twin writes each partial cell in its source's spelling, each form at its
+published count. A column one reading reads on half its cells or more but
+not enough, or written as a year and its day of the year (`2023076`,
+which an accession number writes alike), is asked in the questions file
+whether it holds dates (Q6, `--date-column`, `forced_date_columns`), and
+answered so it is read at half its cells, the rest left unread; a column
+of dates beside a few codes is asked R1's codes question instead. The
+reach battery's other 168 columns kept every file byte for byte but six
+questions files that now ask Q6 (measured before its second review, whose
+made-up figures for a date column's unread cells move, on purpose, the
+twins of columns that owe their count of numbers). A partial-date column is described in 0.73 to 1.09 times the
+CPU time ISO's spelling of the same moments takes at 300,000 rows, and a
+column that is no date costs what it cost. After its review, a partial
+form on fewer cells than the census line no longer counts toward the
+date rule's line, so no such column is read as dates whose twin is not;
+a declared column beside a repeated word such as `pending` keeps its
+different dates (149 of 240 had come back as 70); and Q6 is worked out
+once a run. After its second review, a date column's unread figures are
+written as made-up figures, a declared column keeps a layout's named
+months, and repeating partial or declared dates keep near their count of
+different values (27 had come back as 275), without partial dates that
+do not repeat rising past theirs. After its Codex review, every published
+partial form is checked exactly; no made-up figure or partial cell is
+one a partial form reads or the table declared missing; a partial column
+whose values are all different keeps them so; row order no longer hides
+a column of partial dates or a column mostly of dates from Q6; Q6 is
+asked beside the century and day-or-month questions its answer raises;
+the twin's report and the validator agree on the range of different
+values; and R1's codes question follows the classifier on a column of
+clock times. After its verification, a column of different stamps
+beside different partial days generates in time linear in its rows
+again (60,000 rows: 4.7 seconds, not 36.6), writing the same twin.
+
+### Clock times no member read are read by their shape too (2026-10-09)
+
+**Landing R2b, the clock half of the layout reader** (plan P4-D383).
+A date followed by an hour in one figure below ten (`2023-03-17 9:05`,
+`3/17/23 9:05`), by a 12-hour clock with `AM` or `PM`
+(`2023-03-17 03:56 PM`, `Mar 17, 2023 3:56 PM`), by JavaScript's narrow
+no-break space before its marker, by Oracle's TIMESTAMP
+(`17-MAR-23 02.05.37.123456 PM`) or by SQL Server's style 100
+(`Mar  1 2021  1:52PM`) used to be described as free text. Each is now read under a
+layout and its twin writes every cell in the source's own spelling,
+the hour at its width and on its dial. A layout column whose every hour
+lies 1 to 12 is asked whether it is a 12-hour clock written without AM
+or PM; Enter keeps the 24-hour reading, and `--twelve-hour` reads it on
+the dial. When nothing is declared, no column R2a's layouts or T1's stamps read moves: R2a's
+reach battery of 169 columns moved those seven alone, and the other 162
+kept every file byte for byte. A column named with `--twelve-hour`
+whose layout writes an hour of 0 or 13 to 23 is read as T1 reads such
+a stamp: not on the dial, so as free text, and the command names it;
+R2a read it on the 24-hour clock. A description written before this
+landing of a column named with `--twelve-hour` and read on the 24-hour
+clock still loads and is checked on that clock. A declared dial's twin
+is drawn on landing T2's half day since batch 3's integration, as a
+declared stamp's is: 1,000 such stamps at seeds 0 to 2 had missed their
+tails and both censuses at exit 3, and miss nothing now. After the Codex
+review of that integration the half day is taken only on a column read
+at its own wall clock: a dial beside two offsets is read at UTC, where a
+morning written at -0500 is an afternoon, and 1,000 such stamps taken
+onto the UTC morning missed 15 obligations at seed 0; drawn over their
+UTC day, as before the integration, they miss nothing at seeds 0 to 2,
+and the report states T1's limit for them. A column read in part
+(landing R2c) is read on the 24-hour clock whatever is declared, so it
+is no longer asked the 12-hour question, and `--twelve-hour` naming it
+says why it reached nothing. A column mixing
+the narrow and the ordinary space before its marker is not read. After the Codex review, a column R2a's layouts
+read at the line keeps R2a's layout even where the clock half would read
+a few more of its cells: 990 SAS stamps at hour 14 beside ten at hour 4
+stay at `{HH}` with ten cells unread, and R2a's own description of them
+again validates its unchanged source. A clock column writing a space or
+a narrow space before its marker (`9:15 AM`) beside more than one cell
+in fifty of rare words stays free text whose twin is made-up text: such
+a cell has no written form, since a form holds no space.
+
+### The day-of-month census (2026-10-09)
+
+**A column of dates publishes which days of the month it falls on**
+(stage 3b landing 3b.3, plan P4-D368). Before, the twin drew each gap
+evenly and lost every day-of-month heap: billing on the 1st and the 15th
+came back 0.068 to 0.089 of the cells against a real 0.456, a monthly
+visit on the 10th 0.080 to 0.154 against 0.915, month ends 0.027 to
+0.065 against 0.609. Now a column of whole dates, or of moments every
+value of which stands at midnight on the local clock, publishes
+`day_of_month_census` -- its body counted over thirty-four bins on a
+cycle, the month's last day apart by its month's length -- beside its
+weekday census where the day of the month departs beyond the weekday,
+or, with no weekday census, from the calendar; the weekday census is
+never withdrawn. A short middle half (DM4), a hole under a body day, a
+group of too few dates, or too few days left for the count of different
+values keeps it back, said in one note (NF104); a published census says
+NF102 or NF103. The loader holds DM1 to DM5. The generator meets both
+censuses by the joint day plan (method G7.3i); where the plan would
+cost the weekday census or the count of different values, the column
+keeps the weekday pass's days and the twin names the day of the month
+given way. The validator counts the file per bin (V5-W2), and the
+oracle and the eighteenth vectors file freeze the plan. On the lane's
+battery at 1,000 rows each heap comes back exactly, no twin misses a
+check, and every twin of a column publishing no census is the base's
+byte for byte; at 10,000 rows the heaps come back exactly, and quarter
+ends keep their count at every seed but miss their day-of-month census
+at three of five, named, until lane D4's heavy dates, as do columns of
+one month a year (six and ten Mays: 13 of 24 twins), each such twin the
+base's byte for byte. Where the generator so keeps the weekday pass's
+days, the joint plan's time is spent for nothing: six Mays take about
+three times the base's time to generate at 100,000 and 400,000 rows.
+Stated limits: a heap beside a stronger weekday pattern (Monday
+billing, first Mondays) is not published; nor are three or four Mays at
+a floor of 36, a group holding fewer than four dates; business-day
+heaps come back at about four fifths of their joint share; a clocked
+column publishes none. After the Codex review, a date moved off a
+spelling the run declares absent keeps its published groups, and the
+finished cells are recounted, so a census missed after the day pass is
+named and never said met; a column over centuries no longer stores
+every weekend day or every day's bin (1,000 rows over two thousand
+years: 85.7 MB traced to 4.2 MB, the same twin); and the note on a
+census kept back says it could cost a fact, or that a conservative rule
+keeps it back.
+
+At integration (batch 3's first part), the day pass hands the weekday
+pass a counted column's placeholder days and holds them itself, beside
+lane R4's numbers that are dates.
+
+### The weekday and the hour of a moment, met together (2026-10-12)
+
+**Twins of a column of moments publishing both a weekday census and an
+hour census now meet both** (plan P4-D379, stage 3b lane J). The hour
+pass kept each rank's day standing, so a rank the weekday pass left on
+its gap's end day, before a noon rung, stayed off its hour: five noon
+stamps a day for 118 days, two clocks a day, D2's leap column and T2's
+column of eleven `23:59:60` a date came back short at 4, 7, 5 and 10
+seeds of 10. Method G7.3g step 3 now lets such a rank take the nearest
+day of another standing while as many ranks of that standing move by
+whole days onto days of its own, so every weekday count and every
+clock is kept. With these four, OR starts, admissions and a clinic of
+10,000 rows meet both at seeds 0 to 9 and floors 11 and 36, and every
+twin with one census alone is byte for byte as before. At a million
+rows a column whose needed hours hold no free value anywhere in a
+rank's gap still comes back short, now 767 ranks of a clinic's million
+where it was 2,070, a limit the hour pass has without a weekday census
+too. Where the new move would leave the count of different values
+further off than the pass without it -- ward rounds at a million rows
+came back with 260 of a published 150 -- it is given back, and that
+column misses its hour census alone, as before. The tails' recount reads the whole dates a column's own
+description folded into its moments, which made the unchanged source
+miss its low tail. Codex's review of the lane found three faults, each
+fixed: a unit one of whose ranks had paid another's move was later moved
+whole across weekdays (an internal state of 108 ranks came back with
+Monday 24 and Sunday 60 as 36 and 48), so a unit is now asked as it
+stands; a whole date folded into moments was read in the tails at
+midnight UTC, not at its column's absorbed offset, which reported a low
+tail HELD outside its window and made an unchanged source miss its low
+tail; and finding payers cost the square of a unit's size, 6.3 CPU
+seconds for 32,000 ranks, now 0.14. The lane's 880 battery twins are byte
+for byte as before. `K-S3-62` holds it.
+
+At integration (batch 3's first part), the hour pass holds a column of
+counted dates' placeholder days as holes too, as the weekday pass and
+the reference do, since the round moves ranks by whole days.
+
+### Numbers that are dates are read as dates and written back as the same numbers (2026-10-07)
+
+**Landing R4** (plan P4-D384), with its review's nine items, its
+second review's seven, the two its verification found, Codex's nine and
+the two the verification of those found repaired.
+Excel serials, SAS and Stata days, seconds and milliseconds, Unix seconds
+and milliseconds, Epic day numbers and the other counting systems of a
+closed table of twelve were described as numbers: the twin kept each
+number's spelling and lost the calendar, its weekdays 0.13 to 0.16 away
+from the source's, and the remark NF51 read SAS and Stata counts a decade
+late and said nothing about the twin changed. A column named with
+`--date-count NAME SYSTEM`, or by an answer to the new question Q3 in the
+questions file, is now read exactly as the dates its counts name,
+described as dates, and twinned as the same counts written the way the
+column writes them (`count_form`); `validate` holds every count of the
+checked file to that form. A column whose figures no unit of time keeps
+-- one to three figures of a day, tenths of a second -- is not read as
+dates and says so, and question Q3 no longer asks about it, where the
+build lost its figures or wrote a twin that missed its own description.
+Q3 asks 13 of the 14 shapes of `K-S3-60`, still asks 12 or 13 with a
+stray `0`, `-1`, placeholder day or up to five keying slips among the
+cells, and still offers each column the system that wrote it, with its
+true years, when a placeholder is common enough to be the column's
+published end, or two placeholders are heaped at one end, every system
+it offers reading the column's own dates; it names a set-aside number
+only where the census line of cells holds it, and raises no question the
+fixed-width question did not already raise on the chance battery's
+ordinary columns, money in cents and lengths of time among them, beside
+eight kinds of column it states and pins. Epic contact numbers are spread
+evenly over the twin's rows, and an Epic column whose contact numbers are
+each rarer than the line no longer leaves a twin failing its own check or
+stops `profile`. A counted column crossing 1 January 1900 no longer draws
+that day, which it reads as no value -- dates nor moments: no tail of
+the twin reaches the days before a spreadsheet's first count, which an
+Excel twin of births from 1900 wrote as text, and a tail running across
+1 January 1900 in SAS, Stata or Unix counts keeps its values either
+side of the day and none on it -- and one cell written with more
+figures than the rest no longer refuses the column, while spreadsheet
+date-times whose few longer cells carry the time of day are read as
+dates again. NF51 is no longer written. A declared column whose cells
+write some dates as text beside the counts is no longer twinned as
+numbers alone: it is described as written, and the run says to write
+every date one way; a column whose counts no single form holds -- whole
+counts written bare and with `.0` by turns, Python's `%e` -- is declined
+the same way instead of publishing a form its own source missed. A
+column is read no finer than the twin can write it back, so Excel serials
+written to fourteen figures no longer twin moments that read back as
+another; a rare count read as no value is no longer held to the form;
+`17e+8` is a count; a cell `1e+9999` no longer costs kilobytes, nor
+`45042.` with four thousand zeros an internal fault; and Q3 asks Unix
+counts at midnight written `.0` or crossing from nine figures to ten.
+A stated limit: whole counts written with a needless exponent,
+`1704067200e+0` or `1704067200000e-3`, come back written in full,
+`1704067200`, owned by lane L1 (the orchestrator, 2026-10-13).
+
+At integration (batch 2b's second part), the weekday census on moments
+holds both placeholder days of a column of counted dates as holes, as the
+oracle did: 1,000 SAS seconds across 1 January 1900 had missed it.
+
+### G5.5's sign repairs without the square of the strata (2026-10-09)
+
+**No published fact and no twin byte moves** (plan P4-D387, stage 4).
+On a column written at one width, G5.5 gives a stratum drawn with the
+wrong sign, when it is not pinned, the nearest grid point on its side of
+nought that no other stratum holds, or the first such step where every
+one within reach is held, and 564c61a gathered what every other stratum held again
+for each such stratum, building the list of all their values once for
+every one it read: the twin of the Codex review's column took 21.1 s of
+CPU at 8,000 rows and had not finished 32,000 after fifteen minutes.
+What the strata hold is now counted once and kept as they are repaired,
+and each band's walk starts where its last one stopped, and from its
+first step again where a value its steps read back as is let go, nought
+included, which the first steps of a grid of 324 places or more read
+back as: 1.2 s at 8,000 rows, 5.7 at 32,000, 27.6 at 128,000 and 647 at
+1,000,000, of which the repairs take under a second. `K-S4-05` holds
+the lines the repairs run to the strata, and the same lines on values
+that run a line each time a builtin hashes or compares one, so a
+repair that hashes, searches or sorts the values every stratum holds
+inside a builtin at each repair is seen too, though one that only
+copies them is not.
+
+### The weekday census on timestamp columns (2026-10-06)
+
+**A column of dates and times publishes its weekday census** (stage 3b
+landing D2, plan P4-D367). Read on the local clock, not in the joint
+member, with both tails, a column of moments now publishes the census a
+column of whole dates does, its body cut by instant and each cell
+counted on the weekday of its day; before, it published `[]` and its
+twin drew each gap evenly, so clinic visits on weekdays alone came back
+24 to 31 per cent on weekends. The loader widens WC3 to moments and asks
+WC10, the middle half spanning four weeks; the producer asks the
+few-dates rule of the moments' days, the few-units rule beside it (eight
+different written units a non-empty group on average) and, at every
+floor, the unit-room rule (lane D1b's count-room rule in written units)
+-- or, where every value stands at midnight, the count-room and
+count-reach rules of a column of dates (lane D1b's, P4-D388) -- and
+every withholding but one without tails says NF74's sentence. The
+generator moves a moment by whole days, keeping its clock, through
+G7.3f's shared pass; its new step 7c lets a moment whose
+clock stands outside its gap on the gap's end day take another clock
+there, through a group at its total where step 7b leads on from it, and
+its new step 8.7 puts a count of different values left short back at
+another clock on each moment's own day, neither ever onto or off a
+midnight. The validator counts a file of moments by instant. On the lane's battery of 1,258 tables against 9cb2eb5, 994 censuses
+publish at a floor of 11 and 862 at 36 where none did, no twin
+misses a check its base twin met, every source table meets its own
+description, and the published columns' bodies come back on the real
+weekend share exactly (0.238 and 0.205 from it before); columns of
+whole dates are byte-identical to the base on 9,030 twins, and a
+million arrivals spend 5.1 s describing and 6.9 s generating on it.
+`tests/reference/generation-branch-vectors-17.json` freezes steps 7c and
+8.7, one state of the fifteenth file now ends with step 8.7's move, and
+`tests/test_stage3b_weekday_moments.py` holds the landing's clauses. The
+two strict xfails the shared pass left to this landing and to D3 on
+states steps 7c and 8.7 now meet are tests, and a census keeps every
+twin value off a day declared absent, so a column of moments at
+midnight publishing one no longer gives such a day's values another
+mark.
+Its skeptic's repair round (2026-10-07): the unit-room rule, asked above
+the floor of 11 alone, let lane D1b's moved `_hunt(690)` publish at 11
+and its twins come back 26 values for 24 at noon and 25 to 27 at
+midnight -- a clocked column asks it at every floor now, and a column at
+midnight, which the twin moves in days, the count-room and count-reach
+rules of a column of dates through the one helper the date path asks,
+lane D1b's fix stream merged at its second round for them, so D1b's
+business year written `MM/DD/YYYY 00:00` no longer comes back 259 values
+for 260 at 11 and 20, nor written ISO with a `T` the column never wrote.
+The price is D1b's, as ruled: 14, 16 and 3 of 273, 261 and 230 censuses
+of D1b's logs at midnight at 11, 20 and 36, of which 10, 14 and 3 kept
+every day at nine seeds of ten or more and six left twins short at two
+to nine; 37 censuses the unit-room rule withheld at 20 and 36 publish,
+met at seeds 0 to 9; and on clocked columns one of 62 hunt shapes at
+noon at 11, met before. The ruling's residual, one twin in ten of 1, 5
+and 2 published logs at 11, 20 and 36 a day or more short, is stated in
+P4-D367: on a column at midnight G7.9's unnamed mark makes up its count
+of texts and validation does not name it. Each producer rule withholds a
+shape of its own, withdrawn one at a time; the hole clauses, step 7c's
+width kind (a thirteenth state of the seventeenth file) and the short
+cause on a full day of moments have nodes.
+Its second skeptic (2026-10-08): lane D1b's near-one risk, ruled to
+stand that day, reaches midnight moments -- of the 236 censuses that 90
+near-one logs written ISO at midnight publish at 11, 20 and 36, 18 leave
+twins a day or two short at two to seven seeds of ten -- and validation
+names the miss on a month-first or 12-hour member only: on an ISO one
+G7.9 makes up the count of texts with a cell in a mark the census leaves
+unnamed: one the column never wrote, or one it wrote too seldom for the
+census to name, where nothing shows at all. P4-D367 states it, a node
+pins D1b's near-one log at midnight as it stands, and whether the ruling
+stands there is put to the orchestrator; so is the noon trade, recorded
+head against base on seven logs (the business year's weekend share 0.24
+to 0.31 at the base and 0 to 0.02 here, the real 0; its days 211 to 236
+of 260 at the base, 179 to 202 here). Nodes pin midnight moments
+deciding as the same days written as dates, and the unit-room rule's
+count of a tail at the floor's number.
+Its Codex review (one round, every item fixed): a sixtieth second is
+counted on the day it is written on, never its instant's -- fifty
+`2016-12-31 23:59:60` beside noon stamps published Saturday 80 and
+Sunday 130 where the source wrote 130 and 80, and twins wrote 81 and 129
+with validate saying HELD; producer, validator and the weekday pass now
+read the written day, and the twins hold 130 and 80. Whole dates folded
+into midnight moments are recounted (ten bare `2024-03-05` published
+Tuesday 90, and the unchanged source was told 80, MISSED); dates left
+unparsed stay out. WC10 compares whole local instants in the producer
+and the loader: 27 days and 70 seconds no longer pass as 28 days, which
+withholds 3 censuses at 11 and 4 at 36 of the lane's battery, their
+twins met before; every other twin of its 6,224 a floor is unchanged.
+The near-one risk on ISO midnight moments stands, ruled by the
+orchestrator on 2026-10-09: validate cannot report it, and lane D4's
+split order owes the fix.
+At its integration (2026-10-12) the weekday pass counts as written the
+ranks the clock pass does: one definition, `generation._sixtieth_seconds`
+(lane T2's), so a rank two pins of one sixtieth second leave between
+them is counted on the day it is written on too, and the oracle asks
+the same set. The hour census's recount now asks the same fold of whole
+dates (ten bare `2024-03-05` among noon stamps had the unchanged source
+miss its hours, 560 for 570). Where both censuses stand, a twin can miss
+its hour census, said by a deviation: five noon stamps a day, 4 twins of
+10; two clocks a day, 7 of 10; eleven `23:59:60` a date, every twin, its
+count of values and its count at midnight too; none without the weekday
+census.
+A stated limit in P4-D367, owed to a lane still to be named -- closed by
+lane J (P4-D379).
+KPIs `K-S3-36` (new) and `K-S3-37` (new, an accepted limit, status only).
+
+### The minutes and seconds of a timestamp come back (2026-10-12)
+
+**A column of moments publishes its minutes and seconds, and the twin
+meets them with the hour** (plan P4-D372, stage 3b landing 3b.4). The
+twin drew a timestamp's minutes and seconds evenly: clinic slots seven in
+ten on :00 or :30 came back at 3 to 4 per cent, cells written `HH:MM:00`
+at random seconds. A column that may publish its hours now publishes the
+minutes and seconds its cells stand out on, and how the rest fall, in
+groups of at least the census line; the twin draws on the lattice those
+facts pin and moves its cells onto them inside their gaps, keeping each
+hour group, weekday and its count of different values, each hour group
+taking its own share of every minute that stands out, as in the real
+column (method G7.3h), and validation recounts them (V5-M1, V5-S1). On the lane's battery of sixteen
+columns at 1,000 and 10,000 rows, floors 11 and 36, seeds 0 to 4, all 320
+twins validate with nothing missed; at 10,000 rows the minute TVD falls
+from 0.3 to 0.9 to 0.0005 to 0.0092. Columns whose minutes follow the hour
+so far that one count over every hour would mislead some hour more than an
+even draw, whose middle half is shorter than four hours, whose census of
+the rest stands on a few values, or whose cells at midnight
+could leave the body too few others for its counts -- days at midnight
+beside a few timed cells -- publish nothing and say why; a column written
+finer than the second publishes no seconds, its twin writing none; every
+column publishing no such fact writes the twin it wrote before. Its review
+round kept 200,000 cells written `HH:MM:00` at their published count at
+midnight (602 against 385 before), no rank moved onto a midnight there, each hour's share of the heaps rounded
+over the whole column rather than gap by gap, and small bursty tables and
+randomly drawn columns at their count of different values. Its second review round
+moves a burst of cells written alike whole, so small bursty tables keep
+their count where a whole move can meet the minute census, and say in the
+twin's report that the census stood where none can; a column written finer
+than the second publishes its minutes only where cutting it to the second
+keeps its count. Its Codex round withholds minutes that follow the hour
+however often each stamp repeats and however thinly they spread (a
+morning share the twin had doubled now comes back at 572 of 1,800
+against 600), balances each hour's share of the heaps by what it holds,
+keeps a tail's end off a midnight the count leaves no room for (a column
+on the hour now meets its minute 0 at every seed), and keeps two of the
+pass's searches growing with the rows rather than their square; it also
+counts each written value once when asking whether minutes follow the
+hour, asks each hour against the rest, gives no hour a share of minutes
+its stamps can never reach (an hour shut out of minute 0 in every gap no
+longer leaves the next hour 200 of minute 0's cells to the one after's
+40), and keeps an hour owed its share from the hours before it.
+
+### Time of day comes back on moments (2026-10-06)
+
+**A column of moments publishes its hours, and the twin meets them**
+(plan P4-D371, stage 3b landing 3b.2-H). The twin drew the time of day
+evenly: lab draws heaped between 06:00 and 08:00 came back at 8 per cent
+of the twin against 43 of the real column, discharges between 10:00 and
+14:00 at 17 against 63, an hour TVD of 0.18 to 0.65. A column of moments
+read on its own clock now publishes `hour_census`, how many cells
+between its two tail boundaries fall on each hour of the written clock,
+an hour alone or merged with its neighbours -- never across midnight --
+wherever it would name fewer than the census line, in all or besides the
+cells the description places in it for certain, and the twin puts its
+cells on those hours, every rank inside its gap and keeping its weekday
+-- or, where a weekday census stands, its weekday's group -- and keeps
+the column's count of different values (method G7.3g); validation
+counts the file's body against the published groups (V5-H1). The pass
+is the one clock pass for every field of the written clock, so the
+minutes and seconds still to come are instances of it. On the
+lane's battery of 25 columns at floors 11 and 36, seeds 0 to 4, all 250
+twins validate with nothing missed (and so do the design skeptic's
+sixteen other shapes, OR starts at 07:30 on weekdays alone among them
+once a unit with no place but a full hour takes one there when another
+unit of that hour leaves it), lab draws come back at 43.3 per cent
+between 06:00 and 08:00 against 43.3 real and discharges at 62.6
+against 62.6 between 10:00 and 14:00, and the hour TVD falls to 0.0002
+to 0.0020 at 10,000 rows. The pass takes 0.4 s at 40,000 arrivals and
+13 s of a 180 s generate at 1,000,000; a million daytime visits, half
+of whose draws land in hours the census counts empty, take 18 s of a
+130 s generate, where the same column with no hour census takes 126 s
+in the same window, since the shared steps' CHAIN and exchange file
+their cells once a call and the shares ask each gap once, every answer
+the same -- before, 397 s of 546 against 210 in another window. A census is withheld, each reason
+said in a sentence of its own, where the column has no tails, its middle
+half spans fewer than four days or is not published, a workbook stores it
+two ways, or the merge rule, holding each group to the cells the
+description places in its hours for certain, leaves one group over the
+whole day. Where no weekday census stands, a
+cell whose own day and weekday leave it no place in its gap, or a value
+no merge keeping the weekday can put back, may at last take the nearest
+day of another weekday. A stamp declared a 12-hour clock
+with no AM or PM is drawn on the dial's half day, tails and body, so its
+twin validates clean (T1's carve-out, P4-D370), its count at midnight
+held by the body alone, and a tail's tie group no
+longer stands at a midnight the tails listing only midnight values
+already hold. Where the column's count is out of the construction's
+reach, the count of different moments it drew is put back -- the first
+ranks in rank order that share a moment split off it -- only where that
+count is not above the published count of values: 20,000 lab draws to
+the minute, written two ways, came back 18 to 19 per cent too many
+values when it was put back whatever the published count, and within
+about one per cent of it now, and a million such draws spend 1.1 s
+putting it back where they spent 51. A 12-hour stamp whose census
+is withheld comes back with its dial's late morning heavier than the
+real one, a stated limit. `K-S3-38` (a headline, with a timed node of
+100,000 daytime moments), `K-S3-40` and `K-S3-41` are new.
+
+**Its review's four repairs** (Codex, one round). A sixtieth second,
+`23:59:60`, counts in the hour it is written in: the census, the loader,
+the twin's pass and the validator all counted it in the next hour, so
+eleven a date over 100 dates published every body cell in hour 0, the
+real file said HELD and the twin wrote 1,069 of its 1,078 body cells
+there; the twin now writes them all in hour 23, the ranks two published
+23:59:60 leave between them written as that second. A markerless 12-hour stamp's twin is no longer
+MISSED by a validator window narrower than the one its construction
+draws. PUT BACK sorts its runs once: a million movable ranks in runs of
+every size from 1 to 1,000 took 15.7 s to put one value back, and take
+0.58 s. And a census withheld says a middle half that is not published
+apart from one that is short (NF117), and names the cells the
+description places in an hour for certain where they are what leaves no
+grouping (NF92). Its verification found NF92 still saying no grouping
+met the floor and those cells where the merge rule, which searches for
+none, had left one group: 49 moments meet both as hours 0 to 17 and 18
+to 23. NF92 now says what the rule leaves, one group over the whole
+day, and a published census's remark names those cells as a reason an
+hour is joined (NF88).
+
+### A rare label is pooled, never blanked but for route 1's rare words beside clock times, and a held-back code keeps its form past the old bounds (2026-10-06)
+
+**The subtraction guard is dropped** (plan P4-D390, under the owner's
+principle of 2026-10-01; the orchestrator sets aside the owner's ruling
+of 2026-09-17, item 5). The producer no longer counts as missing the
+cells of a held-back level whose pool a reader could read a count of one
+off by subtraction: its level pass, with its pool, class and form
+readings and `parsing.pool_names_a_level`, is deleted, and the loader's
+B4b and B4c are retired (contract 6.3). A held-back level is pooled
+whatever its size. Every description written before still loads, and its
+twin is written and validated as before, except where a walk the bounds
+lifted below reach now writes a held-back code in its form, or a number
+as a number, that the old bounds wrote `group-N` or as a word: 100 codes
+on twelve rows each beside 5,000 written once, all `@%%%.%%`, are
+described alike before and now, and that description's twin at seed 7
+held 904 `group-N` cells and missed the form's count, and holds none.
+But its source table, validated
+against it, misses the counts of each column the retired pass reached,
+because the table is described again without the pass: describe the
+table again.
+On the measurement's seeded tables at a floor of eleven the 30,000-code
+register at 100,000 rows came back with 22,220 blank cells and 729
+distinct codes for the real 12,196, read as categories; it now comes
+back with none and 12,196, every top code's prevalence the real file's
+and its entropy 6.14 against 6.11, read as the long tail it is. A 0/1 coding of a column
+the guard had cut to two values, and procedure codes read as integers,
+now fail on the twin, where the code is written, instead of on the real
+file, and `dropna` keeps every row where it kept 68 to 78 per cent. `K-S3-12` falls from 65 to 61, P4-D334's restating
+sentences rise from 20 to 22, `K-2B-28` reads the pooled label's one
+row off the pool, `K-2B-20` is retired, and `K-2B-26`, `K-2B-52` and
+`K-S4-03` lose what measured the pass (`K-2B-26` and `K-2B-52`
+re-stamped on 6d5a86c, 2026-10-09). Counted block by block against
+493f6f8 rather than over a table, at a floor of eleven or more, a column
+not declared an identifier may now print a count of one to ten that
+493f6f8 did not in the pool's own keys, its counts of different values
+(of the column, or of the label half of numbers beside labels) and its
+four class totals with their two remarks, each counting cells the pass
+had blanked, in its missing counts, which now count its own absent cells
+alone, and in `n_present`, which now counts the present cells the pass
+had blanked, so a column of ten or fewer present cells prints its own
+count; in no other key, and a declared identifier prints none. A
+column's role may move up the order empty, constant, binary, categories,
+long tail, and never down it, or across numbers beside labels where the
+pass had blanked a note written once: numbers beside labels may now read
+as a long tail, as 493f6f8 read that table at a floor of one, and a
+column read as continuous, as a count or as dates may now read as
+numbers beside labels, whose twin of dates written as eight figures then
+misses `ladder.p25` at a floor of eleven, as 493f6f8's twin of that
+table did at a floor of one. So twelve words beside `77`, `1e999` and
+`(+5)` print `n_numeric`, `n_out_of_range` and `n_contradictory` 1 where
+nought was printed, and the twin writes those three cells; the
+orchestrator's ruling keeps both, since withheld they would let code run
+on the twin and crash on the real file
+(`tests/test_p4d390_counts_per_block.py` compares every block and role
+of 86 tables with 493f6f8's).
+
+**A held-back code keeps its form, and a held-back number stays a
+number, past the old bounds** (methods G8.3 and G8.3a). The form walk
+gave a form up after 4,096 spellings in all, so a register holding back
+more codes of one form wrote the rest `group-N` and its twin missed that
+form's census count, which the guard had hidden inside its own window.
+A walk now goes on while it has refused fewer spellings than it has
+taken plus 4,096, never past the form's room, and the oracle mirrors it;
+no frozen vector or fixture moves. The class walk of G8.3a carries what
+it has taken on both of its branches, and a whole generation pins it:
+5,000 accounting brackets around a minus beside sixty labels are all
+written in their form, where a caller dropping the count wrote 904 at
+shorter widths. The same register now has every twin
+cell in the code's form where 89,908 of 100,000 were, and validates at
+exit 0 where it missed; 300,000 codes held back over 600,000 rows have
+every cell in the form where 112,288 were, generated in 57 s and 197 MB
+where it took 34 s and 245 MB. The landing's review found the guard had
+hidden a second bound: the made-up numbers of G8.3a stopped at 32,768
+steps of their ladder, so ten-figure codes over 1,000,000 rows holding
+95,770 back wrote 32,768 of them as numbers and the rest as words. That
+walk's bound is on what it refuses too, and that table's twin now holds
+every cell as a number and validates at exit 0. A position holding no
+value, such as a number the column published, is not counted against
+that bound, so a register of consecutive codes, whose gaps the walk
+reaches only past every published code nearer an end, is walked to the
+end of its span: 50,000 seven-figure codes on eleven rows each, 2,011
+of them written once, came back with 579 of those as words and now with
+none. Each form's supply is now counted only up to what the form owes,
+which moves no byte: counted to the number of held-back codes, it walked
+every one of them once for each form owing a cell, and 24,610 codes held
+back in 126 forms over 200,000 rows took 131.1 s of processor time to
+generate where they take 11.4. One kind of form is still missed: a code
+form with one letter among figures reads as a number by its exponent
+filling, so where the column also owes numbers its held-back words are
+written in no form, and the twin misses the form's count, which the
+table meets (`K-S3-61`, OPEN).
+
+At its merge (2026-10-08) the first of the two routes to clock times
+landing 3b.5 built inside the deleted pass, a few rare words beside clock
+times counted missing, stands as a pass of its own. The second, which
+counted out the levels below the floor no clock form reads beside a
+column of times, is dropped: over lane C1's 112 columns of times beside
+one-off notes or beside a minority on another face or precision it wrote
+37,632 cells blank where the source holds a note or another face's time.
+Those columns are labels again and their twins write no such blank; 13
+of them then missed the count of the `HH:MM` form their table meets by a
+cell or two, because a column holding back more than 256 labels was
+arranged in one pass that could give a form a label covering more cells
+than it still owed. That pass no longer does so where the smaller
+labels after it can finish the count exactly, and the 13 meet it
+(method G8.3; plans P4-D390, P4-D373).
+
+Its repair round (2026-10-09): where the route had written blanks, those
+label twins also wrote clock times no clock reads, such as `44:89` and
+`9:75`, on which code parsing the real column's times stops: 63 cells in
+4 of the 112 columns, and 200,134 in 47 tables of a skeptic's battery. A
+held-back label written in a clock's form is now a time, but where the
+form is past its times (below): the walk of a clock's form ends with its
+times and the neutral spelling stands past them, a clock's form takes no
+more labels than it has times left, a form short of spellings is settled
+first, and past the clock line only a label a census form is owed is
+filled figure by figure (method G8.3). The clock
+line's own price stays, 63 cells on the 112 and 1,096 on those 47 tables,
+beside a minority of at most one cell in fifty that wears no form. On
+those batteries no twin misses a check it met; on 18 of a second
+skeptic's 50 duration tables the round's twins did (below). Their
+held-back times are still spread round the whole day, where the table's
+lie inside its hours: an hour-of-day distance of 0.44 on average at 300
+rows (0.37 to 0.53), 0.11 at 1,000 and a floor of eleven (0.07 to 0.15)
+and 0.05 to 0.12 from 3,000 (0.04 to 0.17).
+
+Its leftover (2026-10-09): a duration written in a clock's form, minutes
+and seconds over the hour or an emergency stay past a day, holds that
+form's spellings no clock reads, such as `26:07`, as its own values.
+Where its held-back labels outnumbered the times its form could still
+write, the round wrote the rest `group-N`: 18 of the 50 duration tables
+missed the count of `%%:%%` they met before, and code reading each cell
+as a duration stopped on the twin. Such a form is now past its times: its
+largest held-back labels take times and the rest a duration's spellings,
+hours 24 to 59 first. The 18 meet every check again, `group-N` is back to
+the notes' count, and no twin of the other batteries moves (method G8.3).
+
+### The packing walk is offered only what the cells after it can finish (2026-10-06)
+
+**Stage 4, the allocator walk** (plan P4-D389). Codex's declared
+identifier of the review of landing S1 -- `7` written 2k + 1 times
+beside k values written 2, 4, ... 2k times -- built its twin at k = 80
+in 69.5 s and 925 MB, and at k = 100, 10,301 rows the producer and the
+loader accept, the machine's watchdog stopped it at 3.4 GB: method
+G9.5's walk tried every set of the even sizes before the lone odd group
+that finishes the cell of numbers written in figures alone, writing each
+failed state down. On entering a cell the walk now reads five necessary
+conditions -- what each later cell may hold with every count read
+together, where each size can still stand, whether every count can be
+made, which totals the cell may take, and what the later cells must
+still find among the groups it leaves, read again wherever the cell
+takes a size they read -- and holds each failed state as one number in a
+memory bounded at 64 MB. Every answer is the old walk's, which
+`tests/stage4_as_built.py` keeps frozen as the oracle, and every twin it
+finished is byte-identical; k = 100 builds in about a second and k = 200
+in under four, and an identifier of 300 values in four forms that
+493f6f8 could not build within 1.6 GB in about three. A seeded
+identifier on which one cell tried every way of taking the smaller
+sizes, past 2,000,000 readings of what the later cells must find without
+leaving one state, builds in 34 s. `K-S4-04`, new and open: two of sixty
+seeded identifiers written in mixed forms, and seven of sixty more drawn
+after the walk was written, still take it a long time, which STATE's
+broken list now says.
+
+Its review measured the walk at a million rows: on a declared
+identifier of 1,414 values held by 1 to 1,414 rows each, it took 47 s,
+nearly all of them reading which totals some groups can make, where
+493f6f8's took 16. From 4,096 rows on, two readings that need no number
+as wide as the total come first, and in reading which totals a cell may
+take, the run of smallest sizes is set at once; only what these leave
+open is read as before, and on that identifier they leave nothing open:
+that walk takes 2.6 s, its twin 82.7 s of CPU against 95.3 on 493f6f8,
+every twin the same. Described at a floor of 36 rather than 11, 12 of
+the 120 seeded identifiers take the walk a long time.
+
+Its Codex review found two things. A cell's reserve was read again
+over every size left each time the cell took one more: on a declared
+identifier of 998,991 rows, value i held by i rows, the twin's first
+packing question took 5.2 s of CPU where 493f6f8's walk took 0.64. A
+reserve of 4,096 rows or more now remembers where it found a total and
+is read again only once the cell decides a size from there on: that
+question takes 0.15 s and the twin's whole walk 0.5 s, against
+10.7 on 489c783 and 849 on 493f6f8, every answer and twin the same, and
+a test counts the walk's arithmetic beside its states (`K-S4-04`). And
+the least and the most of each later cell were narrowed for at most one
+round more than there are cells, where method G9.5 says until no end
+moves: on Codex's grid of 4,150 rows, which no filling meets, the walk
+entered 706 states where the narrowing carried on refuses on entering.
+It now settles, as G9.5 says. Measured, it runs past that cutoff only
+where it then refuses, and that grid at a million rows is refused in
+4.1 s of CPU where the cutoff's walk took 8.1.
+
+Its verify found the same reading again where only a small size
+completes a reserve's total: on one value held by 3 rows beside values
+held by 2, 4, ... 2,000 rows, 1,001,003 rows, the place a reserve
+remembers is the 3-row size's, and the twin's walk took 12 s where
+493f6f8's took 0.45. A reserve whose totals the walk has gone over
+twice as many sizes as it reads, while it stands in one cell, is now
+read from a table of what its undecided sizes leave owed, built once
+and worked out a stretch at a time, so each reading folds in only what
+the decided sizes leave: that walk takes 0.8 s, every answer and twin
+the same, and `K-S4-04` holds the walk's arithmetic on that question
+beside 493f6f8's.
+
+### Dates no member read are read by their shape, and written back as written (2026-10-05)
+
+**Landing R2a, the date half of the layout reader** (plan P4-D383).
+SAS's `17MAR2024`, Stata's `17mar2024`, SPSS, HL7's stamps with and
+without offsets, REDCap's hyphenated dates, Oracle's `17-MAR-24`, DB2,
+PostgreSQL and SQL Server offsets, Excel's long dates, unpadded dotted
+dates and the en-GB and en-AU month words were free text, counts or an
+affixed number, and their twins made-up strings. They now read under a
+layout, a closed grammar of date fields and marks published as the
+column's `format`, and the twin writes every cell back in its source's
+own spelling: the thirty-nine spellings of `K-S3-58` all read, are
+written back and validate, where none read before. Two-figure years are
+asked their century in the questions file (Q5, `--century`,
+`century_windows`), an option the refusal of an older description now
+names and prices, and a layout nothing in its cells tells from a code
+-- a version's dotted spelling among them -- is asked whether it is one.
+The reach battery's 120 other columns are byte for byte as they were but
+for three questions files. Describing a column written in a layout costs
+what ISO's spelling of the same moments costs: `K-S3-58`'s two scale
+nodes put the slowest of four layouts at 1.00 times ISO's time at
+100,000 rows and 1.11 at 300,000, under bounds of 1.3 and 1.6.
+
+**Its repair round** (skeptic 1). Answering Q5 on a column a two-figure
+member read no longer loses the cells written with a space round them,
+which had dropped 1,000 births to free text. An HL7 column a few of
+whose stamps end in an offset reads every stamp, and its twin writes the
+offsets its count of cells that are not numbers owes, each below the
+line, where it had missed `counts.n_numeric` (method G7.9b). A
+description made before this landing that published SAS dates as
+categories misses `axes.role` against its own twin, which is now read as
+dates: describe the table again.
+
+**Its second skeptic.** An HL7 column whose census names an offset --
+300 of 1,000 stamps at `+0000` -- beside a few rarer ones no longer has
+the rare ones written at the named offset, which had cost its twin the
+offsets census at every seed. Where no offset is owed the pass now looks
+at each cell once and stops. Fourteen- and twelve-figure identifiers a
+few of which end in a suffix read as an offset (`-0001`, `-01`) are
+asked again whether they hold dates, codes or record numbers. Every rule
+of the repair round that no test turned red now has one, red on its own
+mutant.
+
+**Its Codex review**, eight items. SAS dates written `1MAR2023` to
+`28MAR2023` read as dates whichever day comes first, where one order
+stopped the describe on an internal error and the other gave labels.
+A layout column of five dates beside blank cells loads the description
+it was given. Identifiers every one of which ends in a suffix read as an
+offset are asked whether they hold dates. Stamps repeated ten times
+each, a few of them with an offset, keep the cells that are not numbers
+in the twin (method G7.9b step 5). A column of dates read as labels
+until its codes are answered is asked its century in the same file, so
+one answering run reads 1931 rather than 2031. The loader refuses a
+zulu offset on a signed field, a fraction past nine figures, and dates
+outside the years or the seconds the layout reads. G7.9b says that an
+offset it writes may be one some real cells wore. `K-S3-58` pins the
+round's eleven clauses and is stamped again.
+
+**Its Codex review's verification.** Repeated stamps owing more offsets
+than one offset holds -- 11 of 1,000 cells, where the twin wrote ten and
+missed both class counts -- now wear every one; a rest of one cell
+beside the texts standing alone is written by leaving one of them bare
+and writing a text of two whole; a respelling that would be an absent
+spelling bars only that offset; and the step costs 1.1 CPU seconds at
+300,000 rows whatever is owed, where 20.6 were measured. Five rules of
+the Codex round that no test turned red have a clause each, and
+`K-S3-58` pins the round and is stamped again.
+
+### A weekday census is withheld where the twin's count of different values has no room for it (2026-10-05)
+
+**Landing 3b.D1b** (plan P4-D388, `K-S3-59`). At a raised floor a tail
+that publishes its two distances is rebuilt with up to the floor's
+number of different days, the count pass leaves the body what is left
+of the column's count, and a published weekday census then asked the
+body for more days than that: D0's repair found twins at the floor of
+36 holding more different values than their column. The producer now
+withholds the census where the column's different days, less the most
+the twin's tails can hold, leave the body less room than the census
+needs between its pins (`calendar_rules.count_room_short`, with
+`body_pins`, and `tails_most` until the ruling below), said in NF74's
+one sentence. On the 26
+date batteries of D0's identity run (4,781 tables, seeds 0 to 4) the
+twins left long by their census fall from 86, 87 and 158 at the floors
+of 20, 36 and 50 to none, and no twin misses a check its 493f6f8 twin
+met. The price: 189, 84 and 110 censuses withheld, 166, 65 and 76 of
+them met by their twins, where thresholds scaled with the census line
+withheld 618, 509 and 553. At its review a room equal to the need
+publishes the census again: 19 at the floor of 20 and one at 50, every
+twin of which met it.
+
+**At every floor, and either way** (its Codex review, items 1 and 2).
+The rule was asked above the floor of 11 alone, and a column it
+withholds at 12 with one cell moved published its census at 11 and left
+a twin 27 different values for 24 at seed 17: it is asked at every
+floor now, and withholds 15 more censuses of the batteries at 11, every
+twin of which met them. And a rebuilt tail can hold FEWER days than the
+real one: fourteen days from 29 January 2024 whose high tail the twin
+rebuilds on three days where the real one held four came back with 11
+different values for 12 at every seed, the census keeping the body off
+the empty weekend that would have made the day up. The producer now
+withholds a census where it keeps the body from the days the count
+leaves it (`calendar_rules.count_reach_short`): the tails at their most
+where the twin's count pass only splits, and where the pass merges, the
+days the body drew, no more than the tails at their fewest leave
+(`tails_fewest` and `tails_most_rebuilt`, method G7.3b written a second
+time beside the generator's and held equal to it). On the batteries it
+withholds 3, 2, 2 and 3 censuses at 11, 20, 36 and 50, every one that
+left its twins a value short and no other; over 2,000 short spans 0, 2,
+4 and 2 at 11, 21, 36 and 50, every one short; over 25 weekday-only
+logs 6 of 83, one short and five met; and a log of about two rows a
+business day over two years at every floor, its twins meeting it. That
+was its price until the ruling below, and it fell on columns holding a
+row on every day their census allows, or on all but one to three of
+them, where it read every merge the twin's count pass may make as taken
+from the tails: of the censuses 4a4b901 published, each log at the
+floors of 11 and 20, it withheld 21 of 52 over 28 Monday-to-Friday logs
+holding every business day, 18 of them met by their twins, and 10 of 47
+over 24 clinics holding every Monday, Wednesday and Friday, 9 of them
+met, but 2 of 72 over 36 such business-day logs with the federal
+holidays closed and none of 51 over 28 whose rows a day are Poisson
+draws; with business days closed at random inside the span, 18 of 48
+with one closed, all met, 4 of 32 with three and none of 48 with six or
+twelve. One row a business
+day keeps its census at every floor, as the gate requires: reading the
+tails at their fewest whatever the draw, as the repair first did,
+withheld it. At a million rows the description takes what it took
+(54.5 s against 59.7 s), and a column whose two tails tie 200,000 rows
+on a day each, whose twin held 524 different values for 541 beside its
+census, keeps all 541 without it.
+
+**What is claimed is what was measured** (its Codex review, item 3).
+`K-S3-59`'s name, this entry's heading and the tests' opening lines said
+every census published keeps its twins' count, and fifteen Mondays at
+the floor of 36 say otherwise: they come back with 33 different values
+for 15 with or without their census, their tails rebuilt long whatever
+it says, and the twin's report and validation name that inside the
+window its tails allow -- a stated limit the count rules do not claim
+to repair.
+`tests/test_stage3b_count_room.py` holds both rules, their scope, the
+copy of G7.3b against the generator, Codex's three columns and that
+limit, and, since an extra review of the lane, the producer's call on
+columns whose two tails, and whose days and published count, tell them
+apart.
+
+**Its price, ruled** (2026-10-07). A census its twins meet at nine seeds
+in ten or more stands: the orchestrator's ruling under the owner's
+principle. Read at the most and the fewest the twin's tails could hold,
+the two count rules withheld 573 censuses their twins met, of the 7,730
+measured. Both rules now read the tails as the twin's count pass leaves
+them, at all but a tenth of seeds (`calendar_rules.tails_kept`): the
+reach rule the fewest they keep, the low tail merged to its fewest
+beside the days the high tail draws, a law worked out exactly from the
+tail's shape (`tail_days_law`); the room rule the most, the days the two
+draw with no merge counted; where the pass splits, both tails' most,
+which the high tail reaches only where the body's nearer splits run out
+first. Measured at seeds 0 to 9 over the 7,730 censuses that reach the two
+rules (6,704 of the 26 batteries, 1,026 of the logs), 4a4b901, 3841dd8
+and this code publish 7,344, 7,066 and 7,440; withhold 312, 573 and 199
+whose twins meet them at nine seeds in ten; and publish 17, 0 and 0
+whose census costs their twins the count at two seeds or more. The price
+left falls where the twin's low tail keeps more days than its fewest
+(35, all on the logs) or where merges the room rule does not count take
+days from the tails (164, all on the batteries); the risk accepted is 16
+censuses whose twins miss at one seed in ten, each miss named by
+validation. Its second verification found, out of sample, the census of
+a log just above one row an open day published while its twins come back
+one to four values short at two to seven seeds of ten -- 21 of 313 such
+censuses, and 3 of 523 of fresh logs, 22 of them where the pass splits
+the body's nearer ranks before the high tail's; the orchestrator's
+ruling of 2026-10-08 lets that risk stand beside the first, since a
+withheld census lets the twin write up to 85 per cent of a column's rows
+on days it never uses, and P4-D388 names the fix it waits on. A node
+holds one such
+log as it stands, and three more how the body's draw reads published
+holes. Seven-day logs holding every day come back one to three
+values short with or without their census, a limit recorded for lane
+D4. The tails' law is walked reading a rank only where it can meet the
+distance last drawn: read at every distance, one column of 20,000
+admission dates with half a per cent spread over two centuries spent
+280.7 s in its weekday decision at the floor of 100; walked so, 0.03 s.
+
+### Mostly whole columns walked, and large tables read, without the square of their rows (2026-10-05)
+
+**No published fact and no twin byte moves** (plan P4-D387, stage 4's
+tier 2a). The walk that gives a column's strata their whole numbers
+worked out every later stratum's share for each stratum it visited, so
+one column of mostly whole charges took 18.8 s to twin at 2,000 rows and
+more than five minutes at 4,000, and a column of day counts with a
+visit's fraction on some rows 62.7 s at 4,000 rows and more than five
+minutes at 10,000: they take 0.4, 1.3, 0.6 and 1.3 s now, and rounds of
+the reach step that come back to a division they reached are stepped
+past. Reading the made-up 50-column health table of 200,000 rows takes
+33.8 s of CPU for 45.4 and peaks 901 MB above its start for 1,299, and
+500,000 rows 2,111 MB for 2,914: reading cuts one list of lines where
+it cut 31 (the first megabyte 29 times, the whole text twice), a
+column's row order is read only until it is settled, and the pandas
+check reads the file a piece at a time, in the steps pandas' own reader
+takes, rather than holding a second copy of the table, and reads it
+whole again only to refuse it in the words it always used. `K-S4-02`
+records the reader's peak memory a row. A
+column whose ladder is crowded onto fewer whole numbers than strata
+still spends minutes in the reach rounds from about 10,000 rows, and
+500,000 charges did not get through them in fifteen minutes: the next
+item of stage 4, which the plan names.
+After its Codex review, a column whose shares step back between two
+rungs a unit in the last place apart is walked without the square of its
+rows as well (1,283,479,890 steps read at 64,000 rows before, 700,780
+now), and a file whose lines end in carriage returns alone, or hold a
+run of them after the last line feed, no longer keeps a list of every
+such line at the survey's peak (3,644.6 bytes a row against 3,140.6 with
+line feeds, 3,139.1 now); `K-S4-02` holds that peak to the line feeds'.
+
+### The second key cut repaired at its review (2026-10-05)
+
+**A long reserved declaration is refused in step with its length** (plan
+P4-D386, review item 1). The search for a column named twice in
+`century_windows` or `forced_date_counts`, and S8d's search for a
+counted column under another reading, each went through a list once per
+entry, so a description holding 80,000 different counted pairs took
+17.2 s to be refused and twice the pairs four times as long. Each name
+is now looked up in a set: the same description is refused in 0.57 s,
+and every refusal names the entry it named before. Section 6.6.2 of the
+contract counts the datetime block's added keys as twenty-eight and
+names `count_form` among them (review item 2).
+
+### Clock-only columns keep their time of day (2026-10-03)
+
+**A column of clock times is read as clock times, and its hour, heaps
+and codes come back** (plan P4-D373, stage 3b landing 3b.5). The clock
+reading is asked before the categories rule wherever that rule would
+claim the column, so shift starts, clinic slots and coded shifts are no
+longer labels whose rare times the twin wrote blank or as `57:95`;
+`--code` still reads them as labels, and the questions file asks where
+both readings fit. A clock block publishes the step its values stand on
+(`clock_step`), the values that stand out from their neighbours with
+their counts over every cell (`clock_heaps`), a census of ten-minute
+bins nested in hours over the rest (`clock_census`) and the codes at
+least the line's rows wrote (`clock_codes`); the twin lays its ranks on
+them, every rung its run holds pinned (method G7A.4b), and the checker
+counts them back (V5-C1, V5-C2). On seventeen battery columns at 1,000
+rows the hour of day came back 0.016 to 0.333 off and now 0.013 at most,
+at 10,000 rows 0.001 at most; every heap is exact; and no twin writes a
+cell a clock reader refuses where its table wrote a time. A label
+column's held-back levels of a clock's shape are written as clock
+times -- `7:30 AM` among them -- but only while its twin is still read
+back as labels, a line held for the one precision and face a reading as
+clock times takes: a column of appointment times beside six `99:99` in
+250 rows used to read back as clock times and fail its own check, and
+none of 36 such small tables or 80 columns beside codes near the line
+does now, nor does a twin half `HH:MM` and half `HH:MM:SS` write a
+made-up time (204 in 10,000 rows before). Where the level pass counts
+levels out of a column whose other cells are clock times -- a few rare
+words, one-off notes, times of another precision or face -- it counts
+out only what the clock's form does not read and the column is clock
+times, so its twin reads back the same way: 32 of 48 columns beside 2.2
+to 10 % one-off notes, past one cell in fifty, and 23 of 64 beside a
+minority of `HH:MM:SS` or `h:mm AM` failed their own check before, and
+none does now; where every rule would not then read what is left as
+clock times -- one time on every row, or on every row but one, or two
+times beside the notes -- the pass counts out what it always did. The
+clock-or-labels question was asked only of columns whose shared times
+hold every cell; its review, below, widens that. `K-S3-48` and
+`K-S3-49` are new; vectors file 21 freezes fifteen cases.
+
+Since the route-2 correction (2026-10-09, plan P4-D390) those columns
+are labels again, with no cell counted missing; only a few rare words
+beside clock times (route 1) are still counted missing, and their 198
+blank cells over 2 columns are to be removed by lane C2 under the
+corrected ruling that no cell is blank that the source never left blank.
+
+**Its one review** (Codex at 90466b2, every item fixed, nothing sent
+back). A published rung of a column whose values all differ stays at its
+rank: the run's pins were left out of its knots and stepped over, so the
+median of 100 different minutes, `09:43`, came back `09:49`, and vectors
+file 21 froze the same error; every pin is now a knot and a wall,
+product and oracle alike, and that one frozen case is rebuilt. Where the
+12-hour question fits a column the clock-or-labels question also fits,
+it offers `code` too, and the clock-or-labels question is asked of a
+column few enough for labels wherever every time inside its range is
+written by at least the line's rows, so twelve neighbouring minutes on
+20 rows each, which publish a census and no heap, are asked about. The generation report counts a code
+once, as validation does, where beside 100 `UNK` it called both the
+table's and the twin's count of different values outside its range. The
+loader refuses a block with no census whose body cell on no heap has no
+step to stand on, and a listing tail its heap leaves without a row for
+another value or its mean, where generation stopped on an internal error
+or lost the value; and it looks heaps up through a set, where a list
+grew with their square. NF107 no longer calls a time written another
+way no time of day, and `K-S3-49` names G8.3's clock line, past which a
+label column's stand-in stays text. And one more, found by lane R2a's
+reach battery: a SQL Server `time(7)` column, every cell a time and seven
+figures of fraction, is free text, and its twin wrote `44:40:00.0023504`
+and 855 more cells that are no time of day; a form whose seconds a point
+and figures follow is now a clock's form, filled with times at whole
+seconds first, and its walks no longer stop at 4,096 different values, so
+every cell of such a twin is a time in its own spelling, at 1,000 rows
+and at 100,000, and no other twin of the battery moves. And one its
+verification caught in the landing itself: a tail listing its values
+sorted them as text, so on a 12-hour clock, a one-figure hour or the
+declared half-day face the producer could write a description its own
+loader refused, and `synthtwin generate` stopped and said the file had
+been changed; such a tail lists its values in the order of the day now,
+and every other description keeps every byte.
+
+**Its second verification** found a time declared missing written back
+as present cells: beside `00:00` or `12:00` written for an unknown time
+and declared with `--missing-value`, 16 of 150 clock columns on a five-
+to sixty-minute grid failed their own check at every seed, and 14 of 100
+at the minute. A run of the body whose only step was the absence took a
+share of its group's cells (285 `12:00` against 279), and a tail's draw
+could land on it (21 `00:00` against 20, at its outer end) -- in another
+column too, where one column wrote the absence and the other's tail
+reached midnight. The times any column's absent spellings name now hold
+no cell of a run, a tail is drawn past them, the checker draws its
+windows the same way, and the loader refuses a hand-edited group or
+drawn tail left with no step to stand on -- since its third
+verification, below, a step only the hour's other width can still write
+counting as one. None of those columns misses
+now, every real table still passes, and a twin with no absence inside a
+run or on a tail's reach keeps every byte; vectors file 21 freezes
+sixteen cases.
+
+**And the verification of that round** found a present time written as
+no value. A column of `hh:mm` holding real times at midnight written
+`0:00` beside `00:00` declared missing -- its reader reads both at one
+place, and its description stands the present ones there as `00:00` --
+had every twin write all of them `00:00`, cells its own check counts
+missing, and fail eleven checks at every seed; where such cells were a
+census group's only step, the loader refused the producer's own
+description and said it had been changed since it was written. A present
+time the description stands on a place a declared-missing spelling names
+-- a heap, a tail's boundary or listed value, a pinned rung, or such a
+group -- is now written in the hour's other width, as the table wrote
+it: of 80 such columns 40 failed at every seed and 2 were refused, and
+none is now. Where the description stands nothing present on such a
+place, those cells are written in the column's width on another step
+of their group, as every cell of the other hour width is: a stated
+limit, held by a strict xfail, which lane C2, the clock role's next
+landing, owns. The remark on values of the other hour width now says
+which of them keep their own figures. Two rules of the round -- the loader reading every
+column's absent spellings, and an absent marker typed in lower case --
+are held by clauses that fail without them, `K-S3-49` pins the round's
+clauses, and the tail-leak measurement draws its clock windows as the
+checker does.
+
+**And its third verification** found the producer writing a description
+its own loader refused, so the table had no twin at all: 70 `00:30` and
+one real `0:00` beyond a low boundary at `01:00`, beside `00:00`
+declared missing, make a tail drawn through its shape whose only steps
+past its boundary are its heap's and `00:00`, and the loader counted
+neither as room. Where every such step is a time the table calls
+absent, the tail now draws on those the hour's other width can still
+write, and writes them in that width, as the table did: every twin keeps
+the one `0:00` and its 40 `00:00` and misses nothing, and the table is
+checked clean, alone and beside a second column. A census group whose
+every step is a time the table calls absent stands on those the other
+width can still write the same way: five `09:00 AM` and six `03:00 PM`
+merged across noon, beside `9:00 AM`, `12:00 PM` and `3:00 PM` declared
+missing, were refused too, and every twin now keeps them. A battery of
+1,300 random tables of clock columns holds every description
+`synthtwin profile` writes of them to `synthtwin generate` at seeds 0
+and 1, every exit 0, where 12 tables had no twin before. The stated
+limit also names a place the description stands only a rung on, and
+cells of the other hour width beyond a drawn tail's boundary, drawn
+onto a step there in the column's width. Its fourth verification
+found no clause holding the checker to the room it counts beside such
+a tail; one does now, and fails where the checker counts none.
+
+Merged beside landing T1's scripted notice, a column of few shared
+times that nobody is there to ask is said to be read as times of day
+and is offered `--code`, where it was said to be read as measurements;
+a 12-hour column offered `code` is offered `--code` beside
+`--twelve-hour`.
+
+Merged beside the T1 review's rule, a column of clock times keeps the
+hour width most of its cells show where a present time's spelling in
+that width is declared missing, and its twin writes that time in its
+own width, as round 2 does: T1's rule had published such a column in
+the other width, so a twin of 15 `0:00` beside 20 `00:00` declared
+missing wrote its 269 padded hours unpadded. A slashed stamp keeps
+T1's rule.
+
+### A timestamp column's count pass stops rebuilding on every attempt (2026-10-03)
+
+**No published fact and no twin byte moves** (plan P4-D376, stage 3b
+lane G3). Where a timestamp twin holds more different instants than its
+description publishes, the count pass's paid merge rebuilt its offers
+from every row on each attempt and walked every row again for each
+payment. It now keeps them between attempts, looks for a payment only
+among the rows that can give one, stops asking a row that has nowhere to
+go, and keeps its offers sorted in blocks of at most a few hundred, so that
+putting one in or taking one out no longer moves every offer after it. A
+made-up column of 40,000 clinic appointments took 119 s of CPU to
+generate and now takes about 4, one of 80,000 took 298 s and takes 10,
+and a quarter-hour grid of 40,000 took 126 s and takes 4; 20,000
+appointments of which one in fifty is booked by the day alone, at
+midnight, took 40 s and take 2, and 160,000 of them take 23. Every twin
+and report compared is byte-identical, and a new test keeps the old pass
+as its reference. `K-S3-51` holds the rows the pass reads at two to four
+per row where it read 159 to 1,922, its searches on the day-booked
+appointments at five or six per row where it made 197, and the offers it
+moves there at 762 and 1,352 per row at 40,000 and 160,000 rows. On such
+a column the pass still grows faster than the rows, and the plan says by
+how much: a little over two minutes of it at a million rows. What it
+holds in memory comes to half a kilobyte or two thirds of one a row.
+
+**The review of this landing found two costs, both repaired; no twin
+byte moves.** On a column holding a few instants thousands of times
+each, the pass's lists of rows moved their tails for every row a merge
+moved, 515 million entries at 28,096 rows and four times as many at
+each doubling, and it brought its record up to date after the last
+merge it owed, just before dropping it. The lists are now held in
+blocks of a few hundred, so a moved row moves one block's entries,
+and the last merge goes without that upkeep. And the record kept the
+room of every emptied map of an instant a merge left, 6.6 MB on 40,000
+day-booked appointments; such a map now goes once empty. `K-S3-51`
+holds the entries the lists move at 72 to 554 per row, where they
+moved up to 18,345. Such a column still reads its rows more often
+as it grows, and the plan says by how much.
+
+### A description written before the published pairs loads again (2026-10-03)
+
+**The review of landing 3b.G1, its four items** (plan P4-D375). A
+description 668f276 wrote -- the last pushed tree whose tails withheld a
+pair -- was refused by every command that reads one: it lacks the twelve
+stage 3b reserves and `forced_twelve_hour_clocks`, and the loader
+required them. Each of those thirteen keys is now read as empty where it
+is absent, and only then (contract C6-45a); 668f276's own document for a
+table of dates, clocks and numbers loads, generates and validates with
+nothing missed, its withheld sides still withheld and its twin's report
+saying why, and so do 132 of its descriptions over all fifteen roles.
+`K-S3-50` gains two evenly spaced columns, whose twins reach up to 64.7
+per cent of the span past the real maximum against the 35.7 it recorded,
+every moment inside its window: recorded, not repaired, and its target
+asks them inside the range as well. What puts them there is method
+G5.3b's outward move, made whatever a tail's fitted power; the docstring
+that still made it wait for a power of 2 now says so, and the constant
+beside it, which nothing read, is gone. A checked file's tail too large
+for binary64 is explained by that alone, not by the rules the landing
+withdrew. STATE, `K-S3-13` and the tail producer's docstring no longer
+describe the withdrawn protection as current, and keep the sorted-table
+exception.
+
+### A tail pair that proves a wider cell lets the end past the width (2026-10-02, repaired 2026-10-06 to 08)
+
+**The width census no longer caps a tail its own pair proves wider**
+(plan P4-D377, method G6.6.8, lane G2 of stage 3b). The census counts a
+width fewer than the floor's worth wrote into its commonest, so `1000`
+to `1398` beside one `99999` published one width of four figures, the
+twin's furthest cell stopped at `9998`, and its mean and spread were
+missed. A published tail pair puts the furthest row at least
+`rms**2 / d1` from its boundary; where a width hold lowers the end
+inside that reach, the hold stands aside and the end is the first whole
+number at or past it. The width walk then leaves past every named width
+only the tail's outermost strata that fit the floor's line less one and
+what the pair's totals leave, and moves every other stratum of that
+tail under the width before serving any demand, the end's own among
+them; the cells it leaves there stand only where they read the
+published mean and spread, together, no further off than none. Where
+the end moved, the values are read a second time with the rule
+withdrawn -- 110cb46's twin, on a division the plan makes once -- and
+the column keeps whichever reads the published mean and spread nearer,
+together. A far cell the walk leaves past every named pad is written
+plain, so a column of five-character codes stays five characters wide;
+one the draw left there keeps its pad, as 110cb46 wrote it. And
+`validate` holds the mean, the spread, the tails' distances and the
+rungs the rule moved of such a column to the windows drawn with the rule
+withdrawn as well, whether or not those reach the published value
+(validation method V6.1-A2): the
+rule's own windows, drawn through the further end, reached the published
+values where 110cb46's did not, and twins written as 110cb46 wrote them,
+their spread 0.37 to 0.50 of the real one, passed. Nothing new is
+published; a skew or kurtosis window the rule's reading draws over the
+whole range is listed rather than checked, so 175 of 3,459 twins lose
+such a check that 110cb46 gave and that held.
+
+One checker, this one, reads 110cb46's twin and this landing's over
+3,636 twins of eleven batteries, at seeds 0, 4 and 9: `K-S3-22`'s
+column-floors miss 21 mean and spread checks where 110cb46's twins miss
+114, codes beside plain numbers 205 checks where 605, the skeptics'
+shapes 27 where 234, and 1,500 random shapes 6 where 57; the twins more
+than 0.05 of the real spread off the real mean or a tenth off its spread
+number 1,500 of 3,459 where 110cb46's number 1,875. The rule changes 695
+twins; two newly miss a check -- random shapes at fifty whose far
+tail's mean distance stands at twice and at one and a half times the
+real one -- and none writes a
+cell wider than both the source's and 110cb46's (25 write a far value
+past the real end a figure wider than every source cell, as 110cb46's
+do), writes its own
+width census further from the source's or stands further from the real
+mean and spread taken together. What it still costs: 99 twins stand further
+from the real mean alone and 22 from the real spread alone, all where
+the reach stands barely past the width, each nearer on the other by
+more; and 186
+write cells past the width where 110cb46 wrote none, further from the
+source's count than none -- up to 15 where it holds one -- because the
+reach is the nearest the furthest row can stand and the pair's squares
+are carried from there. `K-S3-22` counts each of these, so none may
+grow. The first repair round fixed the four faults the first skeptic
+measured -- 40 cells written on a single far value, a far value written
+twice, a row left at `09998`, a code padded to `012280` -- and five more
+of its own; the second skeptic's round fixed the checker, rule 3 asked
+where it could change nothing -- 5.8 s of every 24.3 generating 200,000
+six-figure numbers -- and four clauses no test held, two of them its
+own. Its one Codex review raised three more, each corrected here and
+pinned by a test red on f6a24db. The second window asked nothing where
+it reached the published value, so a file whose spread stood at three
+times the real one -- one far cell moved, on readings 1000 to 1900 a
+hundred and fifty times beside `99900` -- missed none of seventy checks;
+it now bounds the file's distance from the value either way, half its
+width for the mean and spread and the furthest it admits for a tail's
+distances, and its own ends too, or where it stops short of the value
+the stretch from it to the value, but within a band of the value --
+`K-S3-22`'s line for the mean and spread, three tenths of a tail's
+distance -- so the file misses its spread and both far-tail distances,
+as on 110cb46, and so do one at 1.49 times the real spread, which the
+distance alone had passed (the verifier of these corrections), and one
+at 1.45 times it on the leftover round's own column, readings 1000 to
+1900 a hundred times beside `99900`, past a window that stops just short
+of the value (their second verifier); each rung the rule moved answers
+to its own second window the same way. A far cell was written plain
+wherever a pair proved its side, so `-00001` to `-00150` beside ten
+`-099999` came back with eleven
+cells plain and four checks missed where every value was 110cb46's; the
+plain spelling now follows the walk the block takes, and 21 battery
+twins whose walk does not stand are 110cb46's again, byte for byte, as
+are 87 of 120 padded twins measured beside them: on 9 the pair alone
+had newly missed checks, and on 72 it wrote every cell at the source's
+width where 110cb46's far cell is a figure wider, nothing missed. That
+give-back is a stated limit: over 1,080 padded twins 382 write a far
+cell a figure wider than every source cell, ten of them twins the rule
+moves, and 25 more the rule moves on the batteries write a far value
+past the real end a figure wider, none wider than 110cb46's twin and
+none missing a check, so code reading such a column at a fixed width
+may meet one wider far cell on the twin. And
+a run widening inward over dense values began its search for free values
+again for every stratum it took in -- 11,881 checks on a tail of 160
+strata -- and now resumes it, 166 checks and the same twins.
+`K-S3-22`, re-measured with the corrected checker, holds every count it
+held. The walk, the second reading and the checker's second window are
+pinned by `tests/test_stage3b_width.py`; one frozen case opens
+`tests/reference/generation-branch-vectors-23.json` for the end rule.
+
+### The second key cut (2026-10-02)
+
+**Three declarations and one date key are reserved, empty** (plan
+P4-D386), so the layout reader's and the counted dates' landings fill
+them without recording the frozen files again. Every description's
+settings carry `century_windows`, `forced_date_columns` and
+`forced_date_counts` as empty lists, twenty-seven keys in all, and every
+date column carries `count_form` as `null`; a description holding
+anything else under one of them is refused as written by a newer
+synthtwin. A column named as writing its dates as counts and also under
+another reading is refused first (S8d). No twin, report or description
+changes but for those four keys, and a description written before the
+cut, which carries none of them, reads each as empty (contract C6-45a).
+
+### One weekday pass for every census of bins (2026-10-02)
+
+**At the default floor no twin moves** (plan P4-D366, stage 3b landing
+D0). The day pass of method G7.3f is one pass over any census of bins,
+so the landings that put the hour, the day of the month and the weekday
+of timestamps on their twins build on it rather than writing it again:
+it takes a unit of any size (a date's day, a moment's day, an hour, a
+minute), the written unit the count of different values is counted in,
+the bin a value falls in and what a move must keep, such as the day an
+hour stands on. Steps 5 and 6 find a rank's destination through an index
+of its gap instead of walking up to 400 days each way (at 40,000 rows
+the pass takes 2.4 to 14.1 s on the stage 3b gate battery's three
+tables, where it took 3.8 to 26.6), step 8.3's search of cycles is
+bounded above seven groups, and four steps are added for the censuses to
+come: a chain of moves through a third group (7b), whole values merged
+at their own clock first (8.4), pairs of moves across two gaps where the
+count is long (8.5), and a trade that keeps a second census (8.6). At
+the default floor of 11 every twin of 4,782 tables of 26 date batteries
+(15,152 twins) is the one before this landing, and the frozen vectors
+pass unchanged; at a floor of 36 eight are not, each a count of
+different values already left long brought one or two values nearer the
+published one. The four steps, and every clause the landing's review
+asked about, are frozen on 40 stated states of ranks in a fifteenth
+vectors file, each red on its own mutant. A count the pass leaves long
+is named as long in the report, where the general sentence was printed
+over it; a cycle of step 8.3 is made whole or not at all on units wider
+than one ordinal; and steps 8.2, 8.4 and 8.5 no longer count the column
+again for every unit or pair (step 8.5 on 20,000 lone moments 400 too
+long: 0.09 s where it took 16).
+
+**Step 8.3 counts the written values a move can reach** (its Codex
+review, item 1). The gain of an exchange asked whether a whole unit of a
+group stood free, while a move keeps a rank's place inside its unit and
+the count is of written values: forty values each at 00:15, 01:15 and
+02:30, asked for eighty in hour 1, forty in hour 2 and three values,
+came back as two, though 01:30 and 02:15 stood free. The gain now asks
+the rank its move takes for the places it can reach; that state keeps
+three values and the census, and the fifteenth vectors file holds it
+among 47 states. A date's day is one written value, so no date moves:
+every twin of the date batteries is the one before.
+
+**Where every move keeps the day, a search asks that day alone** (its
+Codex review, item 2). Step 8.3 built every hour of a gap for each of
+its days, 24 entries a day squared: 393,216 over 128 days. It builds 24
+a day now, and the other searches of the pass ask the same day only.
+
+**Steps 8.4 and 8.5 and the index grow with the rows, not their square**
+(its Codex review, items 3 to 5). Where every move keeps the day, step
+8.4 walked every day of a gap for each value it might merge, and step
+8.5, where no pair could be made, asked every two days: 461,280 and
+640,800 reads at 480 rows. They ask the value's own day and only the
+days that can serve a pair now, 26 and 27 reads a row. The index of
+steps 5 and 6 could hold 801 places for each value and a kind for each
+place, 102,528 of each for 128 values; it is built now only where it
+holds at most 801 places or four a value, and a kind is kept once a
+day. No twin moves.
+
+**Step 8.3's search of cycles is bounded, and says so** (its Codex
+review, item 6). Above seven groups only cycles of three groups or
+fewer are asked, so a count left short there may be below what the
+census allows: ten groups of days of the month whose one gaining cycle
+has four groups keep four values where eight are reachable. The method
+and its docstrings no longer say that finding no cycle shows the count
+is the most it can be; the bound stays.
+
+**Each move of a cycle takes the value its gain was asked of** (its
+Codex review, item 1, as verified). Step 8.3 asked each group's gain of
+the value it would move, then moved whichever value led that group once
+the moves before had been made, and a move can make the value it puts on
+a group that group's leader: on a day holding 00:14 three times and
+01:07 once, the cycle hour 0 to hour 1 and back moved a value from 00:14
+to 01:14 and straight back, and the count stayed one short where moving
+01:07 to 00:07 met it. Each move now takes the value its gain was asked
+of, so every move finds its place and no cycle is undone; the
+verification's two states, of hours and of moments, meet the census and
+the count, and the fifteenth vectors file holds 49 states. No date
+moves: every twin of the date batteries is the one before. Where a
+second census is kept, which no column publishes yet, a cycle can now
+leave the trade of step 8.6 no way back on rare states; the landing
+that first publishes one decides what to do about it.
+
+**A chain of step 7b is made whole as well** (its Codex review, item 1,
+as verified, carried to step 7b). A chain links two groups by the value
+its move would take, but moved whichever value led that group once the
+moves before it had been made, and on hours and moments a move can make
+the value it puts on a group that group's leader at a place with no
+room in the next: in a gap closing at 10:39, the chain hour 0 to hours
+1 to 9 to hour 10 moved 00:47 to 01:47 and stopped there, its hour 10
+place past the close, while 08:37 had 10:37. Where the leader has no
+place, the move now takes the value the link was asked of, so no chain
+is left half made: on 100,000 random states 13 more meet their census
+and none fewer. No date moves. Where a second census is kept, a chain
+asked of each cell's leader alone can still miss a group the value
+beside the leader reaches, on one state of those 100,000; the landing
+that first publishes such a census decides on it with the other. A
+census met or nearer can cost a value: of 140,000 random states, seven
+now meet a census they missed with one value more or fewer, and on one
+day of moments, whose census and count no placement keeping every clock
+meets together, a chain made whole halves the census's miss and keeps
+12 different minutes where 13 were asked and kept; the landing that
+first publishes a weekday census of moments decides on it. Of 200,000
+later random states, every one that loses a fact the pass met before,
+unless it meets or nears a census the pass missed, keeps a second
+census, which no column publishes yet: the census is lost on four, the
+count on three, and four of the seven met both before; the landing
+that first publishes such a census decides on them with the others.
+The fifteenth vectors file holds 51 states.
+
+### Stage 4's first tier repaired at its review (2026-10-02)
+
+**A twin of a description the producer writes today moves no byte**
+(plan P4-D385, its review). An identifier search knows a repeated shape
+before it builds that shape's permissions: 441 where it built 8,421 at
+461 rows. The made-up spellings of one label are bounded -- 4,096 case
+flips and 64 trailing spaces -- and their walk resumes where it
+stopped, so a level that holds back a million spellings of one label,
+as the producer wrote one before P4-D275, no longer asks for spellings
+a million spaces long: past the bound a group is written in its level's commonest
+spelling, and the twin's report says how many were. Nine lists that
+copied a comprehension in grow in place, and the guard sees that form.
+`K-S4-03` measures the lines the pair search runs and the bytes the
+class pass allocates, and its tests compare against frozen copies of
+the replaced functions.
+
+### Codex's review of the typed workbook cells, repaired (2026-10-02)
+
+**Five items of the review of plan P4-D382, each reproduced by a test
+before its repair** (`K-S3-57`, now thirty-five pinned nodes). Text
+dates beside day counts and ISO date cells keep their text, the date
+count going first to the cells holding a `T` clock, so pandas reads the
+twin's column as dates as it reads the source's (method G2.2 steps 0 and
+1 and the oracle; no frozen vector moves). Stored dates are counted
+among the PRESENT cells, so missing words such as `NA` beside them no
+longer turn the column into free text (contract 6.6.2). A time format
+over numbers both inside one day and outside it -- a day or more, or
+below nought -- is refused, naming the column, where its twin changed
+which cells a reader returns as date-times without a miss
+(`errors.MIXED_DAYS`, contract 4.3b). A description made before P4-D382
+that read clocks as numbers is asked to be made again rather than
+reported as missing on its own table
+(`errors.checked_clocks_described_as_numbers`, validation method V9). A
+format writing fewer figures after the second than the description
+records is said to write fewer, not none. And the two other ways a
+column of clocks fell back to numbers are closed (the third pass over
+item 3): clocks beside a word the run reads as no value -- `NA`, or one
+named with `--missing-value` -- are read as clocks, the word counted
+missing; clocks beside any other word, where they are most of the
+column, are refused with a message naming `--missing-value`
+(`errors.MIXED_CLOCKS`, contract 4.3b); and a column of time-format
+numbers holding a fraction of a second keeps its twin inside the day it
+stood in, so a reader gets times of day back from the twin where it got
+them from the source (method G2.2 and the oracle; no frozen vector
+moves).
+
+### The date questions promise what their answers give (2026-10-02)
+
+**A codes question is put only where the answer reads the column as
+dates or times, and says every cell it takes** (plan P4-D381, the Codex
+review of lane R1). The reading a question promises is asked of the
+classifier itself with the codes declared missing, so stamps on two
+clock faces, three spellings of one date and stamps marked on every
+other row are no longer promised dates and answered as labels, while
+`9:30`, `9:30 AM` and a declared 12-hour clock beside `UNK` -- every
+clock form of landing T1 -- are now asked and answered as times of day.
+A code's rows are every cell its declaration takes in its column (20
+`UNK` beside 5 `unk` are 25 rows), and a declaration that would also
+take a real date (`20,230,101` is the number 20230101) is no code; the
+few cells that read as neither are said rather than called codes, and
+they are the cells the answer leaves unread, so a stand-in date such as
+`1900-01-01`, which the classifier sets aside, is counted among the
+dates. The
+line that repeats a run, and every other line a person is told to type,
+quotes every value for the shell and says which shell -- a code written
+`$(...)` is text, `NOT RECORDED` one word, `-UNK` joined with `=`, `a=~`
+no home folder to bash, a `"` handed whole through Windows PowerShell,
+and the backslashes ending a value beside any white space .NET counts --
+and the repeat line names the typed options an answer replaced. `real-value`
+answered beside a typed `--missing-value` keeps every code the question
+counted, while a word typed on both runs, which it never counted, stays
+as typed; one column answered both ways is refused, the question pass
+grows with the columns and not their square, and `K-S3-56`'s driver
+fails where a case cannot be described. The cost: each asked column is read once more by the classifier --
+describing thirty asked columns of 20,000 rows takes 66.2 s of CPU
+where it took 43.2.
+
+### The weekday guards dropped (2026-10-02)
+
+**The weekday census is published unless a conservative rule withholds
+it** (plan P4-D365, under the owner's principle of 2026-10-01). The full-fill
+certificate, its bands, its 20,000-arrangement cap, its ties refusal and
+the loader's WC5, WC7, WC8 and WC9 are gone with `calendar_certificate.py`;
+the loader holds a census to its shape alone (WC1 to WC4, WC6). The
+producer withholds a census where a group holds fewer than three
+different dates, or fewer than seven and a half a group on average, and
+where a published hole other than a width hole (May's, a placeholder
+day or a declared day) leaves a group no free day for a one-row date. Over
+twenty-one batteries (1,867 date columns, seeds 0 to 4): 983 censuses
+published become 1,390, no twin misses a check that 668f276's did not,
+the weekday-share error falls from 0.096 to 0.044 and describing takes
+200 s instead of 1,505. NF71 is reworded, NF73 retired; a moment the
+date pass folds into the dates is counted where the census counted it,
+and one left unparsed is not, so the source meets its own census.
+`K-S3-32` is floor-only, `K-S3-33` retired, `K-S3-35` new, and
+`K-S3-39`, `K-2B-13` and `K-2B-48` hold.
+
+**A census the twin misses is no longer said to be met** (its Codex
+review, item 1). The twin report's sentence on how a column of dates is
+spread said "the published counts per day of the week are met" wherever
+a census was published, even beside the line naming `weekday_census` as
+a fact the twin could not hold: a census edited to put the whole body on
+Sundays between a Thursday and a Saturday boundary loads, and no twin can
+meet it. The sentence is now read off the day pass's own measurement and
+says such a census is not met. No twin byte moves.
+
+**The two rules that withhold a census are called conservative, which
+they are** (its Codex review, item 2). The contract said they withheld
+"what no twin can meet". They do not: 1 to 21 January 2024, a hundred
+rows a date, is withheld by the few-dates rule, and its census restored
+is met at seeds 0 to 2 with all 21 dates and no deviation. The contract
+and the rules' own text now say each is set on the cases measured where
+a twin missed and withholds some censuses a twin would meet; the
+thresholds stay.
+
+### Four paths of the largest tables grow with their rows (2026-10-01)
+
+**No published fact and no twin byte moves** (plan P4-D385, stage 4's
+first tier). The twin of an all-different column of free text or record
+numbers no longer lists every pair of its groups, the square of its
+rows: the twin of a made-up 50-column health table of 10,000 rows
+reached 5.8 GB before a guard stopped it, and is built in 114 MB now.
+The levels the floor holds back are looked up instead of walked, a
+column of labels grows in place instead of being copied once per level,
+and a column's role is worked out once per question and remembered by
+its own tally: describing that table takes 40.2 s of CPU for 96.4, and
+checking its twin 94.0 for 195.0. `K-S4-03` holds the four growth
+ratios, and the tests beside it require each replaced function to grow
+as the square on the same shapes.
+
+### Workbook cells read as what they store (2026-10-01)
+
+**Dates, moments and clocks a workbook stores come back as themselves**
+(plan P4-D382, `K-S3-57`). A column stored mostly as dates is read as
+dates beside its few text cells, which are counted unparsed (5 % of text
+dates, or 3 % of `UNK`, made the column free text or labels and its twin
+failed its own description); a date format hiding a time reads every
+cell of its column as a moment, so its cells at midnight are no longer
+bare dates written as text, where more than one dated cell in a hundred
+holds a time (a column of days beside one timed cell in a hundred or
+fewer stays days, with its weekday census, each timed cell read as the
+day it shows, so its twin passes its own validation); a date beside a date with a time, or two date,
+date-and-time or clock codes, is read rather than refusing the table; a
+column whose every value cell is a time-format number at a whole second
+under one day is read as clock times, its stored seconds kept, and
+written back as day fractions (method G2.2 step 0b), where it was
+continuous numbers and, with seconds, a crash; a locale tag such as
+`[$-409]` is published and worn; a date or clock the census stores as
+text keeps its text in the twin. The mixes still refused name their
+kinds, and the cell cap names a .csv file as the route past a million
+cells. Columns read beside text cells publish no weekday census (WC6). The
+census hands its reading of a stored-date column to the description, so
+`synthtwin profile` CPU on typed dates stays within 2 % of before. On the
+reach skeptic's cases every twin now passes its own validation, and every
+case the lane does not reach is byte-identical.
+
+### Two date questions, asked and answered in the questions file (2026-10-01)
+
+**Which comes first, the day or the month, and what a column's few codes
+mean** (plan P4-D381, lane R1). A column of dates whose every cell reads
+both ways is asked, in the file and on the screen, with what each
+reading makes of it -- month starts `01/03/2023` read month first put
+every date in one month of the year -- and `day-first` is `--day-first`.
+A column of dates or times beside one to five codes, each on at least
+eleven rows and together at most a tenth of it (`UNK`, `00/00/0000`,
+`0000-00-00`, Caboodle's `-1` and `-2`, `99:99`), is asked that and
+nothing else: `missing` is `--missing-value` naming each code,
+`real-value` is `--keep-value`, the codes found again in the table by the
+run that reads the answer, so the file names none. Before, the five
+day-first columns' twins parsed 41 to 74 in 100 under the person's own
+format, seven of the eight with codes 0 to 59, and the eighth, which the
+date rule read, 99.5, its codes written as made-up text; answered, all
+fourteen parse whole, their codes come back as often, and nothing is
+missed. Each code question names the other columns its answer reaches
+and how many of their rows (a column of scores holding -1 lost 552 rows
+to an unnamed `missing`), counted as the declaration takes them there --
+`-1,0` in a column declared `--decimal-comma` among them -- and in one
+pass over the table for every question; a column answered `real-value`
+is asked no question of what kind its values are, but keeps its
+checklist line where it is read as a measurement; and codes beside
+dates read either way are asked the order in the same file.
+`K-S3-56`; no new profile key.
+
+### Numbers written in full describe, and an unread column is split once (2026-10-01)
+
+**No more stack trace on computed numbers** (plan P4-D380, landing R0).
+A column a program computed and wrote in full -- hours between two times
+as seconds over 3,600, a ratio, a time as a fraction of a day, as Python
+and pandas write a float -- stopped `synthtwin profile` with a
+`RecursionError` and no file, as did workbook times holding seconds:
+the walk asking whether its fraction widths may pool nested once per
+width. It carries its own stack now, a reading of the free cells is
+worked out as the sum it is, and the walk still answers by its steps
+counted one each while the work each step does is counted against a
+second ceiling, four times the budget, so the answer it gives on
+stopping short takes over where the work is too large. A table of
+widths by values already past the budget is not built. Any step that
+still nests too deep ends in a sentence and exit 1. **A column nothing
+reads is split once per different text**, not sixteen times a cell,
+about 236 bytes kept per different text. On every column measured
+where the old code finished, profiles and twins are byte-identical to
+its own. Two drafts changed a column, and each is pinned now: the first
+charged the work against the steps and changed one column's fraction
+widths in 668; the second charged the table for values the walk drops
+unread, and a column of values each written two ways (`7.5` and `7.50`)
+was counted at one width from 25,001 rows, where the walk shows its
+pool standing. The table is still charged before a step for every value
+handed to the walk, so a caller handing in thousands of values that
+bound nothing over thousands of widths is answered as stopped short
+where the old walk finished; the census of widths hands in none of
+them. `K-S3-54`, `K-S3-55`.
+
+**The Codex review's three items** (on 110cb46). The walk asks its two
+budgets after every reading of a leaf, where it asked them only after
+the leaf: at a smallest group raised with the rows a million rows of
+`7.5` and `7.50` took a reading past the work's ceiling and time growing
+with the square of the rows, and now stop at it. The first split of each
+different text reads its spans once from each start instead of asking
+every substring: `+` written 800 times took about 11 CPU seconds and
+takes a thousandth of one, every split the same as before, and a cell
+whose search would still read more than twenty million characters -- a
+run of figures thousands long -- stops the run with a sentence rather
+than search on. A run of spaces, line feeds or a declared column's
+points is read once from where it starts: read again from every place
+inside it, a note holding 7,000 line feeds and no figure stopped the run
+with that sentence. And `K-S3-55` judges whether the unread 10,000-row
+column was described, so a failed run is red. Its verification found
+that the first fix had moved three callers -- one it showed failing,
+two it pointed at -- that asked False of a walk which, on one kind with
+no value, had always finished: the loader refused a pool the walk lets
+stand once the walk stopped short, and the twin lowered the cells its
+pooled marks hold one cell a walk stopped short, which at a smallest
+group of 300,001 would have taken about 50,000 walks of three seconds
+where the walk before the fix took one. They ask
+`parsing.lone_pool_stands` now -- two sums every reading meets, then
+the walk, True where it stops short -- and answer as they did on
+110cb46 at every floor: the 350,000 cells marked after one walk, and a
+pool past what six marks hold refused at once.
+
+### Excel's hour and the 12-hour clock, read and written back (2026-10-01)
+
+**The reader** (plan P4-D370, landing T1). `3/17/2024 6:42`, `6:42 PM`,
+`6:42pm`, `6:42 p.m.` and `12:00:00 AM` were free text; they read now, on
+the slashed stamps and as clock times, and the twin writes each column's
+own clock back -- the hour's width and the marker -- published as a value
+of `clock_form` and of the stamp's one `datetime_separators` word.
+Validation holds it by fit. An unmarked clock whose hours all lie in 1 to
+12 is asked 24- or 12-hour (`--twelve-hour`, the settings list
+`forced_twelve_hour_clocks`), a one-figure clock keeps its colon question,
+and slashed dates no value can settle ask which comes first. G7.5 step 5
+writes a width census's unnamed remainder on whole days. `K-S3-52`;
+vectors file 22. **One new settings key**, `forced_twelve_hour_clocks`:
+the settings block is twenty-four keys, and the refusal of an older
+description names `--twelve-hour` among the options to give again. The
+loader words its new rule D12a (a description breaking it stopped the
+loader with an error of its own), and the twin report of a stamp declared
+a 12-hour clock reads its cells on that face and names what it misses --
+the stated limit: after noon the dial reads twelve hours early. The
+12-hour answer is typed as `6` at the terminal (before, the question
+stopped the run with an error), and an answered `day-first` is printed on
+the line that repeats the run. A key of an answer the question did not
+offer is asked again: `6` typed at a column of codes had recorded a
+12-hour clock on it. That stated limit is landing T2's to close: its hour
+census confines a declared 12-hour stamp's draws to the half day.
+
+**Its one review** (Codex at 110cb46; items 4 and 5 are landing R1's).
+A cell of the other hour width is never rewritten into a value declared
+missing: 180 `1:00` beside a declared `01:00` had come back as 191 holes
+where the source has eleven, and the column now keeps the width that
+spells none; where both widths would, those cells are counted unread.
+Every recount validation makes of a clock or a stamp -- its tails, its
+census of date widths, the fit of its clock -- reads only the cells the
+producer read, and the day-or-month comparison weighs each reading on
+its column's face, so a source with three 24-hour stamps among 300
+marked ones no longer misses four checks, and 990 month-first stamps no
+longer lose to 999 day-first ones of which ten are then dropped. G7.5
+step 5 keeps the walk it had and, where that falls short, searches the
+days most ranks first within a bound of 100,000 states, product and
+oracle alike: a remainder of 13 goes on days of 6 and 7 where the walk
+gave up, a census built so that no assignment exists is settled at
+once, or stopped at the bound in about half a second, where the first
+form of the search ran 99 seconds, and the report
+says synthtwin found no set rather than that none exists. The loader
+refuses a 12-hour face no declaration names, and a declared clock with
+no AM or PM left on the 24-hour face (S8c). A scripted run offers
+`--twelve-hour` to the 12-hour question and calls a clock column a
+clock; a declared stamp whose written clock was pooled is told the
+declaration was used where its clocks write no AM or PM, and that it
+changed nothing where they do; the 12-hour and colon questions no
+longer say "every value" of a column holding cells they did not read,
+the colon one counting the cells that are not numbers joined by a
+colon; and the contract, the method and the comments of the code no
+longer refuse `9:30`, order clock text as written or speak of two clock
+forms: G7.5 says a 12-hour clock and Excel's unpadded hour are read on a
+slashed stamp and not after an ISO date, and G7A.5 steps a stand-in past
+a clock time in any of the forty forms.
+
+### Every tail publishes its pair (2026-10-01)
+
+**No tail pair is withheld but one binary64 cannot hold** (plan P4-D375,
+under the owner's principle of P4-D363): the back-solve withholding, the
+cost rule and the other-side closure, and the widening walk are gone. A
+pair can give back a tail's own outer values, never another column, and
+never a row except on a table sorted by that column, whose description
+publishes the order (`row_order`). A description written before still loads and says why a side is
+silent. **A date or clock tail's end stands at least at the Bhatia-Davis
+reach of its pair** (method G7.3b step 5), which keeps the two end days
+that 105 dates over 21 days lost without it; three frozen cases hold it
+and the slack it gives up to binary64's rounding.
+Validating the twins of follow-up A's 37 shapes takes 143 s where it took
+549, and of 19 date and clock shapes 102 s where it took 2,104. No twin
+misses a check it met before but one joined pair's agreement
+(`K-P4-06`), and twins write past the real range where a pair's shape
+puts the end (`K-S3-50`).
+
+### The base the rest of stage 3b builds on (2026-10-01)
+
+**Twelve calendar keys reserved, empty** (plan P4-D364): `hour_census`,
+`minute_census`, `second_census`, `minute_heaps`, `second_heaps`,
+`day_of_month_census` and `heavy_dates` on every date block, and
+`clock_census`, `clock_heaps`, `clock_step`, `clock_codes` and
+`minute_census` on every clock block, `[]` (the step `null`) until the
+landing that fills each; the loader refuses anything else. One inert
+stub per landing at every call site, the drawing-unit and listed-date
+seams, one anchor per landing in every shared block, and the census
+rules every landing shares (`calendar_floor_ok`, `merged_groups`,
+`standing_out`, `census_breach`, `_census_lines`). No twin moves; the
+frozen vectors and goldens differ only by the new keys.
+
+### The weekday certificate's cap, measured (2026-09-30)
+
+**The cap stays at 20,000 arrangements** (plan P4-D359, the owner's
+"Measure, then raise"; asked again, the owner answered with the
+principle of P4-D363, under which the orchestrator keeps it in this
+push). It holds 13 of 369
+Tuesday clinics of 212 rows, 12 of which 2af1f03 published, and 24 of
+489 with the skeptic's 120. Caps of 40,000, 80,000 and 160,000 free 3, 5
+and 12 of them, at up to 220,246, 620,136 and 1,369,300 network solves a
+column, and publish the weekly Wednesday sessions at 1,393,635, about
+5.5 to 6 minutes: 3.75 times their cost before the band was searched a
+half at a time. No cap frees them all at about a minute a column: 40,000
+frees three so, but spends about 5.5 minutes on the sessions and 3.3 on
+a clinic it still withholds. **`K-S3-33`'s ladder empties all three of
+the certificate's caches before each size**: emptying the census's
+verdicts alone left the withholding the battery had asked at 10,000
+rows, and the ladder read a describe growth of 1.521 where each size
+counted afresh reads 1.085.
+
+### Every new commit message is scanned (2026-09-30)
+
+**The owner's "Push now, add a guard"** (plan P4-D362). `tools/hooks/check_messages.py`
+reads commit messages with the attested scanner's own functions: a commit-msg hook, a
+pre-push hook, and CI's decontam job over every commit past the grandfather `82b1f1a`.
+The 134 commits pushed there carry 14 matches in 13 messages; they stay as published by
+that answer, and the 104 before them by the orchestrator's call (P4-D362).
+
+### Each half of the week's band on its own (2026-09-30)
+
+**The weekday census's band is searched a half at a time** (plan
+P4-D359, the skeptic of its second round). One width for both halves
+past the capped stretches kept real censuses back: a weekend market
+beside thirty Wednesday rows held 28 Monday-to-Friday rows inside a band
+of 18 to 35. Each half's width is its own now, from its least, and the
+pair taken is the certified one of least summed width, fewer
+Monday-to-Friday rows first on a tie. Over the skeptic's 80 markets,
+logs and clinics and 120 markets, 2af1f03 publishes 51 and 69, one width
+47 and 65, the halves 50 and 69. The loader refuses a half at its least
+alone, which every band holds, so it never refuses the producer's own
+census. The brute force finds no unsound outcome over 459 tiny fact
+sets, and bands taken at the least uncertified give 4. Describing a
+residue column costs about twice the networks. The owner's rulings are
+recorded: the certificate keeps its 20,000-arrangement cap, and a
+withheld census may say a half of the week holds 1 to 10 rows
+(`K-S3-34`).
+
+### The oracle reads a missing day under every member (2026-09-30)
+
+**A missing spelling names the day its column's own member reads, and
+nothing else** (plan P4-D361). The oracle read a missing day only on ISO
+and month-first columns, and named days no member reads -- a 29th of
+February 2019, a thirteenth month, year nought, a clock on an ISO date;
+it now reads every member by the contract's format table, and G7.3b
+step 7 names the day of any moment the member reads. No twin moves.
+**Recorded**: where the twin writes a stuck tail rank's missing day in
+another width than the absent spelling, that day is a present one, one
+more than published, both distinct counts MISSED.
+
+### A day-first column a month-first reading barely reaches is described (2026-09-30)
+
+**`synthtwin profile` no longer stops on it** (plan P4-D361). 144
+day-first dates beside one to the census line less one (one to ten at
+the default floor) cells a month-first reading also parses raised an
+internal fault, and so did `validate` on a twin whose description
+reached that shape: the remark comparing
+the two readings' reaches was handed "fewer than 11" where it compares
+them. Where either reach may not be printed the remark is withdrawn,
+as contract NF36 says; the evidence sentence still names the reading.
+
+### A band of marks over every present cell says "some" (2026-09-29)
+
+**Decision (i) applied where every cell is grouped** (plan P4-D356, the
+owner's ruling P4-D347). 210 cells grouped thirty to each of seven marks
+at a floor of 31 pinned their pool, and the table writing all 210 with a
+comma reads every one either way, where "some but not all" is false, so
+the census stayed silent beside "fewer than 31". Where the census of
+marks is the comma alone within a band's reach and counts every present
+cell, the comma warning now says NF87, "some", and the census names the
+comma.
+
+### The unpadded field widths are asked too (2026-09-29)
+
+**The skeptic of follow-up B's final fix** (plan P4-D356). `123` and
+`4567` on ten rows each beside 5,880 `5.5` and a hundred `9999.5`
+published `field_widths {"(withheld)": 20}`: two plain spellings on two
+widths under eleven, ten each. A field-width pool's unpadded part is now
+asked of its own spellings and placed values, and counted at the
+commonest unpadded width every placed value stands at where it may not
+stand; the loader asks it (P6c). Tests now hold the room clause alone on
+a census of marks, and the loader's answer where a walk stops short.
+
+### A lone pool is asked of every value a reader can count (2026-09-29)
+
+**The final fix of follow-up B** (plan P4-D356). The producer asks a pool
+of marks, notations or forms of the own rows and spellings of every value
+a reader can place -- the mode, each value of a tail, each value a body
+rung reads: the finer rungs count 1234 on twenty rows and a listed tail
+with the rungs -50 on nineteen, and each had pinned a pool while only the
+mode and each tail taken whole were asked. Two values may share a convention in a
+reading, so a pool of repeated values no reader pins stands. The loader
+places the values the rungs, a listed tail and the mode count. The
+decimals' widths, the padded widths and the offsets are asked of their
+own spellings too, and a pool they pin is counted at one width every
+cell can be written at, or under the commonest offset. A band of forms
+is a form every value can wear, and its widths are those of the table
+writing every cell in it. A band under the comma keeps the comma warning
+and drops its number (P4-D347 applied).
+
+### The review of follow-up A, finished (2026-09-29)
+
+**A stand-in a block publishes as held is written, in every role** (plan
+P4-D357 A). A compound column's numeric half and a joined column's
+positions publish no decision about `-999` or `9999`, so a heap of 49
+rows published only as the half's mode came back in no cell. Every
+numeric block now keeps a stand-in it publishes as held -- by a
+`kept_as_a_number` decision, its mode, a tail block's end or two
+adjacent equal rungs -- in the oracle too, and one no block names is
+still refused; the reader's derived tail end and its staircase rows keep
+a stand-in the block itself publishes as held, never one only a decision
+names. **No sentence on a withheld pair says more than the pair
+fixes**: the report's line on every withheld distance said the pair
+would give "the tail's own cells back" where it fixes only the
+outermost value or a count; and the report's line on a withheld rung,
+its account of what it checks, the twin's report, the summary page and
+the measurement answer's promise named a tail's distances as published
+beside a tail publishing neither.
+
+### The weekday census's third review, repaired (2026-09-28)
+
+**Being told a census is withheld says nothing a count may not** (plan
+P4-D359). A withholding the table's own numbers decide is said in one
+sentence and certified like a publication, around a band of weekend and
+weekday totals it always keeps; the certificate's baseline holds no
+census information, its empty weekdays included. A report keeps a short
+count back from its complements too, and beside a short written form
+shows a verdict only where the ranges it prints settle it. The producer,
+loader, day pass, validator and oracle hold one set of published holes,
+so the twin of a May-only column stays in May and a straddling column
+keeps its count of different days. One spelling per day is asked of the
+cells' own texts, the loader holds workbook storage, and a refusal on
+the published numbers walks no day. Over 56 date columns one census
+moved, the review's own attack. The withholding's band search moves a
+part's cells across stretches and halves, and its certificate asks a
+class a stretch's half of the week, the classes it can tell apart: 80
+sparse schedules publish 45 as 2af1f03 did, and 120 seeded schedules 78
+where 2af1f03 published 79.
+
+**Its second round (2026-09-29).** The day pass puts the count of
+different days back across groups (G7.3f step 8.3): of the review's 505
+heaped twins, ten had lost a day to the census, none now, and a count
+that gives way to the census says so. The quality report's hole note
+says what it counts. The band is the narrowest one width past the capped
+stretches whose withheld tables certify, where it always reached the
+census line: over 269 schedules,
+clinics, weekend markets and business logs 165 censuses publish where
+2af1f03 published 166 and the widest band 162. The loader's band
+refusal states the capped stretches it counts, and its certificate
+refusal the days the rank facts already hold below the line.
+
+### The review of follow-up A: the cost rule, stand-ins and the withheld-tail sentences (2026-09-28)
+
+Plan P4-D357 A, six items of the one review round. **The cost rule asks
+the block the loader reads**: an affixed column set its two
+cell-population keys after the rule had run, so `1 mg` to `99 mg`, `210
+mg` and one text cell published a pinned pair whose withholding costs
+nothing; a test now holds, for every nested numeric role, that the block
+each cost-rule call returns is the block published, read as the loader
+reads it. **A side binary64 cannot hold closes the other side's pair**,
+as any withheld side does. **No value pass writes `-9999`, `-999` or
+`9999`** where the column does not hold it: G6.5a's fills, walk, push and
+last resort, the carrier walk, the twice-written fill, the clearing walk,
+the grouping run and the grid step of sign pass them over, and on a grid
+finer than binary64 a stand-in moves to the next binary64 rather than a
+step that reads back as itself, in the oracle too (82 stand-in cells over
+102 twins of 17 shapes to none). **A pinned side says what its pair gives
+back** -- every value, at least the outermost, or at least a count -- in
+six new remarks, held against brute-force enumeration and the review's
+competing multisets. **"Every value in this column is different" only
+where every value is**; a near-unique column says so without a count.
+**At its second review** the refusal stopped reaching a stand-in the
+column's decisions publish as kept: those heaps (44 to 196 rows) had
+vanished from every twin and are written again. A sign band whose grid
+holds a refused stand-in is left to the walk instead of filled without
+it, which had moved a heap several units and missed two rungs.
+
+### A lone pool stands only where no reader of the whole block pins it (2026-09-28)
+
+**The two reviews of follow-up B** (plan P4-D356). A census that pools
+because no name reaches the line -- marks, notations, forms, the marks
+between day and clock -- stands only where every convention could be
+absent and no count is in every reading the block admits: no more
+conventions than the pooled cells' own spellings, and the mode's and a
+tail's rows on no more conventions than their own spellings
+(`parsing.mixture_pool_holds`, read by the producer and the loader); a
+pool that may not stand is counted under one convention. The loader
+refuses a pool beside a named convention. G6.1 spends a lone pool of
+marks over as few marks as let it stand and no more than the spelling
+count allows, no value filling a mark alone. Held by
+`tests/test_mixture_reader_bounds.py`, whose reader over 300 seeded
+columns, counting the mode's rows, finds 25 pinned pools at 2af1f03, 8
+at 178bde2 and none now.
+
+### The review of landing 3b.0: no count offers a missing day (2026-09-28)
+
+**No count pass puts a rank on a day an absent spelling names** (plan
+P4-D358, the review's items 2 and 4). The stack put two present ranks on
+a declared-missing day to reach 24 days, the spelling step moved them
+apart, and the twin held 25: every pass of method G7.3 and G7.3b step 9
+now skips such a day, whichever column's absent spelling names it; a
+rank drawn onto one leaves it before the passes count; and a tail rank
+stuck on one is counted as the absent cell it is. A month or a quarter
+a missing spelling names is offered no rank either, and a tail steps off
+a missing day, month or quarter (G7.3b step 7). One frozen case moves a
+cell. **The envelope of
+a date column's distinct count follows the pass** (item 1): counted in
+the strata alone its lower end stood at 39 above a published 35 the pass
+meets past them, and a file of 60 was WITHIN-BOUND; the validator and the
+twin's report now draw it over the windows the pass may use and hold the
+count exactly -- MISSED where the pass's splits break a tail's summed
+window and it moves nothing, 6 of 1,200 twins of a floor-50 family, a
+limit recorded. **A filled range comes back day for day** (item 3):
+where each tail's derived end is the real end the twin holds the real
+days, and where one stands a unit past it, that unit in place of a real
+one inside; about three in ten small filled columns still come back
+with fewer days.
+
+### A count no placement inside the gaps reaches is met past the strata (2026-09-28)
+
+**A tail rank leaves its stratum by the least amount that meets the
+count** (the orchestrator's call of 2026-09-28, not an owner ruling; the
+owner may reverse it). Where the count passes leave the distinct count
+over and even the stack holds more units than it, the ranks take the
+stack and give units up one at a time: a run of the stack's ranks, none
+pinned and alone on its unit, splits onto the instants of the ranks just
+below and above it, each rank inside its gap or, being an unpinned rank
+of a shape-drawn tail, strictly beyond its boundary; the split whose rank
+stands least far outside its gap first, then the fewest ranks outside;
+and the ranks take the result only where the count is met and every
+tail's summed distance and square lie inside G12.14's window (method
+G7.3, plan P4-D354). The five twins of the gap rule's cost below meet
+both counts with 1, 2 and 1 tail ranks one day outside their strata.
+Over the fifth skeptic's 1,860 twins 32 misses go and none is new
+against d3d794f, 140 and 146 go against e4a5d34 and d93fd43; over the
+fourth skeptic's 2,400 twins 4 go; over the third skeptic's 1,600 nothing
+moves; no twin of the three batteries gains a miss against e4a5d34 or
+d93fd43. The pass acts on 140 of the 1,860 twins and puts 3,035 tail
+ranks outside their strata there, most of them on clock-pool columns
+counted in seconds or minutes, whose neighbouring held instants lie
+hours apart;
+every tail window holds and every twin validates. Two frozen cases move
+and now hold their published counts: `date_distinct_reached` 12 (it held
+15) and `date_gap_places` 10 (13). The raise's nearest FREE unit gains a
+`run` row and an oracle mutant (the landing's sixth skeptic). The gap
+rule's cost below is repaired. `K-S3-39`.
+
+### No stratum read between the tails is a stand-in number (2026-09-28)
+
+**A stratum the convex form of G5.3 reads between the two tails** now
+steps off `-9999`, `-999` and `9999` to the neighbouring point of its
+grid toward nought (method G5.4's last rule), as a derived tail end, a
+staircase row and G6.6's width walk already did; the oracle carries the
+step and no frozen case moves. On skeptic Ad's 899 whole numbers -1400
+to -1000 and -998 to -501 every twin wrote `-999` deep in its interior
+at floors 11, 20, 36 and 50, seeds 0, 4 and 9; now no stratum is drawn
+on it and the twin at seed 0 writes none, while at seeds 4 and 9 G6.5a's
+walk, which is not held to the rule, still takes that one free point.
+Over 37 shapes at those floors and seeds, 90 twins drew a stand-in and
+none does now; 4 twins changed and none misses more. The gate's guard
+on sentences that deny a row is named now reads three words between the
+negation and "which row", and its self-test holds `nor`, the word limit
+and the closeness window.
+
+### The gap rule's cost is recorded, and the raise is witnessed clause by clause (2026-09-28)
+
+**A count no placement inside every gap reaches stays missed.** Over
+1,860 twins of the fifth skeptic's 310 date and clock columns, five
+twins of three columns miss both distinct counts that shipped stage 3
+met and validated: 123 ISO dates over 56 days, 24 different, hold 26 at
+floor 36 and two seeds; 123 month-first dates, 35 different, hold 38 the
+same way; 114 midnight moments, 43 different, hold 46 at floor 50, one
+seed. Shipped stage 3 met them only with 3, 8 and 12 tail ranks a day
+below their strata, and the fewest days any placement inside every gap
+holds is 25, 37 and 44. They have missed since the gap rule (604ebbd), and
+meeting them trades a tail's strata against the column's distinct count,
+which no one has ruled on, so the cost is recorded as open (plan
+P4-D354, STATE) and held by the stage-3b gate. "No twin gains a miss"
+below held on the third and fourth skeptics' batteries only. The raise
+of the stack gains four `run` rows and four oracle mutants -- inside its
+gap, of its standing, only a rank sharing its unit, a pinned rank passed
+by -- that no row had parted in either road. `K-S3-39`.
+
+### The ranks are stacked afresh where no one run can give a unit up (2026-09-28)
+
+**Where tail ranks stand in pairs on alternate days**, their two-day
+strata shifted by one rank each, each pair's room is its own day and its
+neighbours stand two days off, so neither the merge nor the split below
+takes any pair, while every pair moving one day onto the next frees a
+day: 123 midnight moments over 111 days, 52 different, came back holding
+54 at floor 50 and two seeds, and 77 month-first dates, 33 different,
+held 35 at floor 36, both distinct counts MISSED where shipped stage 3
+met them, though a placement inside every gap holding the count existed.
+Once a round's merges, trades and split move nothing, the ranks are now
+stacked afresh on the fewest units their gaps and standings allow,
+raised to the count, and taken only where that meets it (method G7.3,
+plan P4-D354). Over 2,400 twins of the fourth skeptic's 400 columns and
+1,600 of the third's 800, six twins meet their counts, no twin gains a
+miss, only those six twins' bytes move and no rank leaves its gap; no
+frozen case moves. `K-S3-39`. (On those batteries only: see the gap
+rule's cost above.)
+
+### A tail withheld for the other tail's sake says so (2026-09-27)
+
+**The summary and the quality report said of every tail without a pair
+that its own two distances would give its values back one by one.**
+False on a side withheld only because the other side's pair is (plan
+P4-D353 part 2), unproven on a side whose back-solve did not finish,
+false on one binary64 cannot hold. Each such side now carries a remark
+saying its reason (contract NF62 to NF67; dates and clocks say an
+unsettled side), both pages read it, and a block that says no reason --
+a joined part, a wrapper's numbers -- gets the whole rule, and the
+report's census line for a withheld tail key states it too (the golden
+quality digest moves with that one sentence, four lines of 2,296, the
+census unchanged). `K-S3-25`
+counts the misstated sides at 0 of 64 over 48 column-floors, where the
+base misstated 20.
+
+### A column of dates keeps its weekday: the census, certified (2026-09-27)
+
+**A column of dates came back with its days of the week spread evenly.**
+On the loss battery's two years of admissions the weekend held 14.7 per
+cent of the real rows and 28.5 of the twin's, and a weekly Monday clinic
+came back with a weekend, because no published fact carried a weekday. A
+column of whole dates read on the local clock, with both tails and one
+text per date, now publishes `weekday_census` -- the cells between its
+two tail boundaries counted per group of weekdays, the grouping chosen
+by the census line alone from a menu of three -- and only where the
+FULL-FILL CERTIFICATE holds: every class of a counted weekday (a boundary
+or rung day; the days of one stretch between two of them falling on one
+weekday, less its holes -- the days a declared missing value names, the
+days the censuses of written forms leave empty and a placeholder day
+read as missing) has a witness
+table meeting the whole description that puts the line on one of its
+days, or is residue the rank facts already cap, whose every arrangement
+stage 3 allows the census allows too (contract WC1 to WC8, plan
+P4-D355). The loader asks the same certificate on the reader's bounds
+and refuses what fails it; the producer publishes only what its loader
+accepts. The twin meets the census by moving body ranks inside their own
+gaps (method G7.3f), keeping every tail, rung, width kind and hole;
+validation counts the file's body against the published groups and
+never produces one. After: all twelve censuses of the loss battery
+publish and the admissions twin's weekend share reads 14.8 against 14.7
+with a weekday distance of 0.002 where it was 0.139, nothing missed on
+60 twins; two checkers that import nothing of the calendar code hold
+it -- the verifier passes every witness of 98 published censuses over
+232 fixtures day by day, and the brute force finds no published census
+confining a set of days over 600 tiny bodies -- and the three privacy
+readers report 0 pins. Frozen as seven `weekday_*` cases (G14.3 counts
+138); `K-S3-31` to `K-S3-33`. Found on the way: G7.3f step 3's prior
+gave the calendar a trace beside the drawn ranks, so a clinic's few
+Tuesday cells piled into one gap and the repair could not put the count
+of different days back (39 of 306 seeded twins missed it); the ranks
+and the calendar now weigh the same, and 0 miss. Found at review: a
+census of written forms can tell a reader which days hold no cell --
+`{first-field-unpadded}` on `m/d/yyyy` leaves the first to the ninth of
+every month empty, a month name of length `either` every day outside
+May -- and the certificate had put witnesses on those days, so 104
+visits past the ninth and 149 dates over three Mays published counts
+that held every open day below the line. Those days are now holes on
+both sides of the certificate, in WC7, in the loader and in the
+verifier, and both columns are withheld. A placeholder day the
+description reads as missing between the two boundaries is a hole too,
+where every witness had stood on it. The mutation record is the gate's
+docstring. Not in this landing (design SECTION 9): low-tie
+columns, few-date schedules whose squeezed stretches are wide, dense
+logs the census would narrow and groupings beyond the menu are withheld
+and say why; timestamp columns publish `[]` until 3b.2.
+
+### A sorted table's rebuilt values are placed in their rows, said where the surfaces denied it (2026-09-26)
+
+**Every sentence saying a description never names which row holds a
+value** now says what a table sorted by that column publishes: its
+order, `source.dialect.row_order`, so row k holds the k-th value. On
+`heap_then_one_far` at a floor of eleven the whole description gives
+all 1,101 values back and the order places each, the one-row maximum in
+row 1,101. The owner's answer 8 (2026-09-26) answered a question that
+said "never which row holds them"; told of this exception on
+2026-09-30, the owner answered "Yes, it stands" (plan P4-D353). A gate
+test describes that table and fails on any surface stating the denial
+without `row_order` near it. Three stand-in guards of the previous
+entry had no test: G6.6's refusal of `-9999`, the fitted staircase's
+refusal and the staircase's refusal of `-9999`; each now turns a test
+red when withdrawn. `complement_reader.whole_description` names a
+withheld mode as its own reason for giving up, which is why 9 of
+`K-S3-24`'s column-floors are not read, and README lists the sign
+counts among what gives values back.
+
+### A run no merge can take is split across its neighbours (2026-09-26)
+
+**Where a run of tail ranks has only its own day as room**, the repair
+below left it where it stood: two tail ranks whose strata meet on one day
+can move together nowhere, and 83 dates over 59 days, 37 different, at
+floor 36 came back holding 41 and 43 different days at two seeds, both
+distinct counts MISSED, where shipped stage 3 met them with ranks outside
+their gaps. Such a run now gives its day up rank by rank, onto the days
+of the ranks just below and just above it, each inside its own gap
+(method G7.3, plan P4-D354). Over 2,665 twins of 1,131 seeded date and
+clock columns the five twins it had made miss meet their counts, no twin
+gains a miss and no rank leaves its gap; three frozen cases move.
+`K-S3-39`.
+
+### A signed decimal beside a trailing minus takes its whole negatives nearest zero too (2026-09-26)
+
+Where `decimal_plus` and a trailing minus are both named, G6.4's walk
+over the negative strata alone took the whole negatives it owed from
+the most negative strata, so 30 negatives written `-007` beside 40
+written `12.34-` and 30 written `+12.34` came back with 14 of 30 padded
+cells at seed 0 and five checks missed at every seed. That walk now takes them nearest
+zero first, as the last walk does, and a walk's count after a chain
+move covers only the strata it walks, which had let a whole positive
+meet the negatives' demand and cost a `decimal_plus` cell (plan P4-D352
+(7)). That count repairs every walk that is not over every stratum, not
+the trailing minus's alone: 40 `+NN` beside 30 `-NN` and 90 decimals,
+no trailing minus, wrote 36 pluses of 40 with five checks missed at
+every seed and writes 40 with none, and over a 138-twin battery the
+recount alone moves 11 twins, 9 with no trailing minus -- eight losing
+five or six missed checks and one dense signed decimal, missing five
+checks either way, gaining `styles.spill` (the orchestrator accepted
+it). Over 2,322 more twins the recount alone moves 252, 6 of them to
+more missed checks and none from pass to fail. On columns whose 75 to
+117 different values outnumber the whole numbers between their ends, 20
+of the 252 miss `widths.published.2`, a tail's values or a percentile
+rung where they held them, 16 at floor 1 and 4 at the default floor of
+11, none of them a twin that held every check: at one draw and seed,
+40 `+N.dd` beside 40 `N`, 40 `-N` and 40 `-N.dd` on 1..9 writes 13
+whole values with a point, such as `-9.0`, and misses
+`widths.published.2` beside the one check it missed before. Accepting
+that full reach is the orchestrator's call of 2026-09-28 (not an owner
+ruling; the owner may reverse it). The walks over the side that is not
+negative keep stratum order. New
+`trailing_values` rows hold the walk beside's demand, the order of the
+side that is not negative and the negative walk's order; the gate's
+`plus-beside-whole-negatives` holds the plus walk's count, a third
+hand-worked chain row the negative walk's order, and a hand-worked row
+for each walk its count again after a chain, over the strata it walks,
+which nothing held. The
+ledger note names its entries, their trees and what took them, and no
+longer restates their values; a test holds that, and reads a numeral
+glued to a unit of any case or length.
+
+### A run the count pass merges keeps every rank inside its gap (2026-09-26)
+
+**Where the count of different dates is too high**, G7.3 merges a run of
+ranks on one day onto a day ranks already hold, and asked only the run's
+first rank whether that day lay inside its gap. A tail rank's gap is its
+own stratum, so the rest of a tail run went past theirs: 2,469 dates
+over 392 days at floor 36 MISSED their low tail's root-mean-square
+distance at two seeds of two, and two session tables missed a tail
+distance the same way. A run now moves only where every rank of it may
+go (method G7.3, plan P4-D354). Over 600 twins of 300 random date and
+clock columns, 18 ranks outside their gaps and 2 misses go to none, with
+no new miss on those; on 1,600 more twins it made five, which the split of
+a run no merge can take repairs; nine frozen cases move. `K-S3-39`.
+
+### Whole negatives beside a trailing minus are the ones nearest zero (2026-09-26)
+
+The repair above made the side that is not negative carry the whole
+values and then took the rest from the most negative strata, so 20
+negatives written `-007` beside 25 written `12.34-` came back with 9
+padded cells and five checks missed. G6.4's last walk now takes the
+negatives nearest zero first, and the P2-C5-F3 guard follows the walk's
+order (plan P4-D352 (6)); where the other side can carry the count no
+negative is made whole and the notations spread over the band. The
+exchange is frozen as `trailing_minus_exchange` and the order in a
+reworked `trailing_minus_points`; G14.3 counts 132; a test reads the
+ledger note's count beside each commit and the entries each clause
+names. The `trailing_values` witness holds the oracle's walk beside a
+trailing minus, which no frozen case reached, and a hand-worked chain
+holds R-P4-69's holders to the walk's order. Where the real whole
+negatives are the large ones the separation by notation is reversed:
+minus cells' mean -1157.5 against a real -4890.0.
+
+### A filled range comes back with as many days: a tail's tie group gives way (2026-09-26)
+
+**Where a date column holds a value on every day of its range** the twin
+wrote a day or two fewer: two years of admissions came back with 730 of
+731 days and billing dates with 729, both distinct counts MISSED at every
+seed, because a tail's tie group stood on one distance the count pass
+could not split; on moments the lost unit was bought back as a spelling
+the real column never wrote, and validation passed. Where the count is
+still short, the group now gives ranks to free units inside its reach
+(method G7.3b step 9, plan P4-D354), and G12.14's window widens with it;
+the order it takes them in is stated exactly, and every clause has a
+witness but two bounds no description found reaches. After: nothing missed on the 25 of 240 twins that missed, and
+the two shapes that hid it write every unit. Stage 3b's gate opens with
+`test_every_day_filled`; frozen as `every_day_group` (G14.3 counts 131);
+`K-S3-30`. Not repaired: real outermost units past a tail's derived end,
+several a side and on both sides at once -- a year whose first and last
+weeks hold a cell a day comes back 363 and 359 of 365 days at floors 11
+and 36 -- and hidden on moments by a bought spelling (898 or 899 of 900
+seconds at floor 36), where two drawn ranks landing on one unit also lose one.
+
+### A withheld tail pair that costs the twin its mean or spread is published (2026-09-26)
+
+**Where withholding a tail's pair would leave the description's own
+G12.3 window of the column's mean or spread short of the published
+value**, the producer now publishes a pinned tail's pair (the owner's
+answers 3 and 4 of 2026-09-25, "Only where it costs"), and -- plan
+P4-D353's own reading, not the owner's words -- an unsettled side's
+too, offered in the plan's order: the other side's own first, then an
+unsettled side before a pinned one, the first that keeps both moments,
+else the one that keeps the most. Where it publishes nothing, one
+withheld tail withholds the other's pair unless the other lists its
+values, and beside such a list the exact moments still give the withheld
+tail back (`K-S3-23`); with no pair at all the whole description gives
+every value of some columns back, 0 to 1,100 among them
+(`complement_reader.whole_description`, `K-S3-24`). The owner accepted
+both on 2026-09-26 ("Accept both"), and README, SECURITY.md, `CLAUDE.md`
+and the gate no longer say a withheld pair closes every reading. A derived tail end, a staircase row and a value
+G6.6's width walk moves are no longer a stand-in for "no value": an end
+on `9999`, `-999` or `-9999` moves one grid step inside, a row one point
+outward, and the walk no longer takes a width's ceiling when it is one
+(method G5.3b step 5, G6.6). Passes not held to the refusal still can,
+two of them measured -- G6.5a's fill of a grid with no spare point and
+its walk to the published count of different numbers -- where the
+stand-in is a gap between two values the column holds and is no outlier: 9000 to 9998 beside 10000 and 10001 writes `9999` in its
+high tail, -998 to 0 beside -1001 and -1003 writes `-999` in its low
+tail, -9998 to -9000 beside -10000 and -10003 writes `-9999` in its low
+tail, and -1300 to -1000 beside -998 and -997 writes `-999` in its high
+tail between -1000 and -998, each in one cell at a floor of eleven and
+seeds 0, 4 and 9, nothing missed. Before, 145 four-figure numbers beside five of five figures wrote
+`9999` inside the twin's high tail and missed seven obligations at seeds
+0, 4 and 9; now none (`tail_pad_partial` regenerated). The oracle reads
+steps 2a, 4 and 5 in functions of their own, so `K-2B-42` is back at its
+ceiling of 176 close copies, where the first mirror of step 5 had put it
+at 178. The G12.3 windows are written once,
+in `taxonomy`, and `validation` reads them. `K-S3-15` is GREEN at (19,
+0, 12); at a floor of 36 no twin of 37 shapes misses an obligation
+(`K-S3-20`); what the pairs give back is `K-S3-17`, `K-S3-18` and
+`K-S3-21`, and what no pair keeps is `K-S3-22`.
+
+### A trailing minus is written on as many negatives as the census counts (2026-09-26)
+
+A trailing minus stands only on figures with a point, and the twin made
+its whole values from the most negative strata up, so a census counting
+negatives under `trailing_minus` -- named, or a band counted there by
+P4-D352 -- came back with 0 or 1 of 37 and both notation checks missed.
+G6.4's values step now keeps that many negatives pointed, an exchange
+gives `decimal` to a negative the ladder made whole, and the trailing
+minus takes its count first (method G6.1, plan P4-D352 (5)); every twin
+of five such shapes at five seeds writes the count and is HELD. Where the
+published forms leave too few pointed negatives the shortfall stays
+named: `12-` reads as text. Frozen as `trailing_minus_points`; G14.3
+counts 131; the `trailing` witness; the ledger note's count of entries
+off its base commit said 39 of 40, and a test now reads it.
+
+### A census of marks that is only a pool is written, named and checked (2026-09-25)
+
+**Where no thousands mark reached the floor** the census published only
+`(withheld)` and the twin wrote every groupable cell bare with no check
+filed: 0 of 230 twins over 46 seeded shapes wrote a mark. The pool is now
+spent by whole runs, each under the floor, over all seven marks wherever
+it holds seven cells or more, and over the first marks in the method's
+order where it holds fewer -- every lone pool at a floor of 2 (method
+G6.1, plan P4-D352); the report names the pool against the groupable cells
+where they differ by less than the floor; `validate` files it as one
+count. A pool over more cells than six marks (three notations) hold below
+the floor said every convention was written, and is now counted under the
+commonest, the majority key following it, and refused by the loader
+(TM1, NS2). After: 201 twins HELD, 29 WITHHELD and named, nothing MISSED;
+the 29 band shapes lose 10,560 real grouped cells' marks to the commonest.
+The P4-D265 recount counts only groupable cells, so 70 grouped cells beside
+130 under a thousand no longer report 200 published against 70. Frozen as `pool_alone_marks` in a fourteenth file; G14.3 counts 130;
+`K-S3-16`; K-2B-42 reads 176 of 478 (`marks_of_a_lone_pool` 0.42). The
+gate and the `lone_pool` witness hold the cells left bare to the spread
+(plan P4-D149): taken packed instead, all nineteen bare cells of one
+shape sit above every marked one, and both turn red.
+
+### The owner's rulings of 2026-09-21 recorded, and `K-S3-15` never put to the owner (2026-09-25)
+
+**Three answers of 2026-09-21 were in no record.** The owner accepted
+whole real rows through a coincident identifier ("Yes, it may be a real
+row!", `K-2B-45`), which the record had dated 2026-09-25, the day it was
+asked again by mistake and confirmed; accepted the readings trade on
+three- and four-number cells at 609 and 3 ("Accepted", `K-P4-06`, still
+OPEN at its target); and kept the spread fix in stage 3 (`K-P3-03`).
+**`K-S3-15` is OPEN**: the fix pass accepted it and never put it to the
+owner, whose trade it is; stage 3's follow-up A comes first, and what it
+leaves goes to the owner. `K-2B-28` is no longer called an owner
+acceptance anywhere. Plan P4-D351. STATE's KPI row no longer says every
+open entry has a stage: three have none set.
+
+### CI's demonstration check reads the floor it checks (2026-09-25)
+
+**Stage 3's first CI run was red in the build job** (run 36121790821),
+and every test cell was skipped behind it. The end-to-end profiling
+check written into `ci.yml` still asserted the default floor of ONE
+(amendment A-P4-37): that nothing is withheld and that the 7-row label
+`outlying` is named. Stage 3 put the default back to eleven (P4-D316), so
+the description rightly pooled that label and the check called it a
+defect. It had gone stale the same way twice before, because that block
+runs on no developer machine. It now reads the default floor from the
+package and each label's rows from the table it built, and asserts the
+rule itself: a label below the floor is withheld and reaches neither
+output file, one at or above it is named. `tests/test_ci_demo_steps.py`
+runs the workflow's own MAKE, CHECK and TWIN blocks against this tree in
+the suite, and was watched red on the old `ci.yml` with CI's own words.
+
+### A derived end's two divergences from the method, settled (2026-09-25)
+
+**A `(withheld)` pool in `thousands_marks` counts marked cells**
+(contract C6-87, C6-88), so the product's mark clamp now counts it with
+the named marks, as G5.3b step 4 does. Measured on 210 amounts of 1,000
+to 60,000, seven marks on thirty cells each at a floor of 31
+(`{"(withheld)": 210}`), the twin wrote `1` at seeds 1, 4, 7 and 13
+with nothing named; now it writes nothing under a thousand. **A partly
+padded block is held to `10**w - 1`** where one field width `w` covers
+every cell, as the product already did: G5.3b step 4 now states it and
+the oracle carries it (the high end 9999, where the oracle gave 15536).
+Frozen as `tail_marks_pooled` (twelfth file) and `tail_pad_partial`
+(thirteenth); G14.3 counts 129; every earlier case is byte-identical.
+Step 4's order example now names `tail_width_after_sign`. Both entry
+points send the next case to a fourteenth file, since the twelfth and
+thirteenth stand past plan P4-D295's 200000-byte line.
+
+### The census reads by one route, and its row check is held (2026-09-25)
+
+The two points the hand-over's second skeptic left. After the
+hand-over the census read through `taxonomy._census_reading` while
+`present_spellings_after_the_rules` -- which the test holding the census
+equal to the description asks -- read `_read_the_column` by a path of
+its own, so a later edit to one could drift from the other with that
+test green. It now answers through `_census_reading` too; putting the
+review's own defect back into that route (the census's spellings from
+`split_missing` alone) turns six tests red. And the guard's row-count
+case changed the list as well as the count, so `_same_reading`'s row
+check could be deleted with it green; it keeps the list now and goes red.
+
+### The census's reading is handed over, not taken twice (2026-09-24)
+
+**`K-S1-05` went from 14.1 s to 19-20 s over stage 3, and all of it was
+two repeats.** The population census read a column under the finished
+reading and `profile_column` read the same column again with the same
+arguments; `person_questions` split every column `questions_for` had
+just split. Both answers are now handed over explicitly:
+`taxonomy.population_census` returns the one reading it keeps
+(`HeldReading`, with every argument it was read under),
+`profile.build_document` passes it to `profile_column`, which takes it
+only where every argument matches; `asking.questions_and_splits_for`
+returns its splits for `person_questions`. The census keeps ONE
+reading: keeping all of them raised peak memory from 218 MB to 599 MB
+on 50,000 rows by 20 columns with an empty row. cProfile calls on
+`labels2` fall from 190.4 M to 140.0 M at 50,000 rows and from
+746.2 M to 544.8 M at 200,000 (541.7 M on `caf3079`). Every output file, exit code and message is
+byte-identical to `68be599` over a battery of 22 shapes.
+`tests/test_census_reading_handed_over.py` counts the readings and
+splits. A reading taken over is given the description's own settings
+(they differ in `person_columns` alone), so it is field for field the
+reading `_read_the_column` returns there; the test file pins that and
+both conditions under which a split is taken over.
+
+### The oracle's derived end takes the method's order (2026-09-24)
+
+**The reference oracle held a derived end to the one field width BEFORE
+the sign rule and had no mark between thousands** (stage 3's review,
+verdict item 10), where G5.3b step 4 orders the sign rule, the two width
+clamps, then the mark. On sixty five-figure whole numbers whose low tail
+reaches past nought the oracle derived 1 where the product derives
+10,000; on forty-four cells written with a comma, 1 where the product
+derives 1,000. It now takes that order, with the padded ceiling, the
+mark clamp and the stand-aside inside the tail's mean distance, written
+from the clause. On sixty readings `i * 1e-200` it placed both ends on a
+grid of 1e-17 and put each on its boundary rung; it leaves them off that
+grid and holds the low end at 5e-324, as G5.3b and G5.5a say, and puts
+each row of a tail with no grid at the middle of its own share.
+
+Five cases freeze it, each watched red against the product with its
+rule withdrawn: `tail_mark_held` in the eleventh file;
+`tail_width_after_sign` and `tail_extreme_magnitude` in a twelfth,
+`tests/reference/generation-branch-vectors-10.json`; and, after a
+skeptic found the padded ceiling and the stand-aside could be withdrawn
+with every byte unchanged, `tail_pad_ceiling` (high end 999, where the
+old oracle gave 1380) and `tail_width_stands_aside` in a thirteenth,
+`-11.json`, since neither fits in the twelfth under the cap. The
+proof-floor table now covers the eleventh to thirteenth files. Every
+case frozen before is byte-identical; every other file moves only by
+the sentence naming the new files. No product code changed. Two places where the product
+and the method part company, and no case reaches, are reported rather
+than changed: the product's mark clamp stands aside on a census with a
+`(withheld)` pool, and it holds a partly padded column under `10**w`, a
+ceiling the method does not state.
+
+### The one case CI skips is held where CI runs, and a failing suite names its failures (2026-09-24)
+
+**One process and the five shards differ by exactly one case**, found
+node by node: the claim inventory's check of `docs/STATE.md`'s stated
+suite size, which skips on every selected run, and every shard is one.
+CI holds that count only in its shard-coverage job, through
+`tools/ci/shards.py --prove`, and nothing held THAT: a workflow edit
+dropping the step would have left the count checked nowhere in CI with
+every job green. `tests/test_ci_shards.py` now reads the job and fails
+if it stops collecting the whole suite, stops running the prover, or
+runs under a condition, watched red on `ci.yml` with the prover removed.
+The skip now says where the count is held.
+
+**`a7bbc21` was red in one process, and the record said only `exit 1`.**
+The failing case was the ledger's own note check (`K-S3-02` stamped at
+`6c2b2d8`, a commit the note did not name), which `5bbb0be` repaired;
+it fails at `a7bbc21` in every layout, so no green five-shard run can
+have been taken on that commit's own tree. `kpi_suite_time.py` now
+prints each failing case by name.
+
+### Two stale records re-measured at the close of stage 3 (2026-09-24)
+
+**`K-P0-10` recorded the suite exiting 1, and `K-P4-06` recorded 556
+and 1 where its own ceiling already said 579 and 3.** Both were
+re-measured on `1578bee`, after the whole suite passed there in five
+shards (7,601 passed, 50 skipped, 3 xfailed, 0 failed, 7,654
+collected). One process: **3,963.9 s, exit 0**, 7,602 passed and 49
+skipped, quiet machine. The one case between those two counts is the
+claim inventory's check of `docs/STATE.md`'s stated suite size, which stands
+down on every selected run and which CI's shard-coverage job carries.
+The joined battery: 579 of 2,160 agreements outside the window and 3
+above-counts missed, both pinned nodes passing. `K-P4-06`'s rule text
+now states the ceiling its `expected` already held.
+
+`docs/STATE.md` stops restating seconds the ledger holds (`K-P0-10`,
+`K-P3-12`, `K-S1-01`), and names `K-S3-13` to `K-S3-15` beside the
+stage's gate test.
+
+### The tail's back-solve walks its own stack (2026-09-24)
+
+**`synthtwin profile` CRASHED ON AN ORDINARY TABLE.**
+`taxonomy._lattice_fill` -- the walk that decides whether a tail's
+published pair would give the tail's own cells back (plan P4-D349) --
+called itself once per distance still to place. A tail holds about a
+hundredth of its column, so the walk nested once per hundred rows and
+raised a bare `RecursionError` past the interpreter's own limit.
+Measured here on ONE Gaussian numeric column at two decimal places and
+the default floor of eleven, seed 20260913: **98,456 rows described
+cleanly and 98,457 rows raised.** The step budget bounded the WORK and
+could not bound the STACK, exactly as it could not in
+`generation._settles`. The tool refused nothing and crashed, which is
+the worst of both.
+
+**What changed, and it is not a behaviour change.** The same walk
+carries an explicit stack. `_lattice_enter` is one call -- its step of
+the budget and every bound and short answer that stood at the top of
+`_lattice_fill` -- and `_lattice_onward` is one turn of its candidate
+loop; pushing a frame is entering a call and popping one is returning
+from it. The candidate order, the memo of dead remainders, the step
+budget and **its accounting** are untouched: the budget is charged once
+per `_lattice_enter`, which is once per call, so a search spends its
+steps on exactly the sub-problems it spent them on before.
+
+**Proved, not asserted** (`tests/test_tail_back_solve_without_recursion.py`,
+which carries the pre-repair text whole as its reference). Over 4,002
+seeded shapes -- few cells, heavy ties, all-different distances, a heap
+with one far cell, a wide range, a tail big enough to make the walk
+work, plus the review's own eleven distances summing to 24 with squares
+104 -- each asked at the shipped budget and at three budgets small
+enough to run out, the two forms return the same multiset, take the same
+number of steps, spend the budget in the same place, mark the same
+remainders dead, give `_tail_pinned` the same verdict and publish the
+same tail side: the same rows, the same mean and root-mean-square
+distance, the same listed values. 32,016 fill comparisons, 16,008
+verdict comparisons and 4,002 published sides, no difference. A shape
+that spends the SHIPPED
+budget of its own accord -- twenty-six all-different distances three
+units apart -- agrees there too, at step 131,073.
+
+**The regression is sized by the walk's own bound**, not by a number
+somebody typed: a floor of `sys.getrecursionlimit() + 64` and the
+`2 * units + 1` rows that take the widest boundary percent the tail rule
+allows give a 1,064-row tail on a 2,129-row column, which describes in
+0.4 s and raises `RecursionError` under the recursive form. Five
+mutations were watched turning the file red -- the candidate step, the
+budget charged twice, an exhausted remainder left unmarked, the barred
+distance allowed, and `_lattice_onward` naming `_lattice_fill` again --
+and a no-op edit left it green.
+
+**And the cost of the walk at scale is now a measured number.** One
+Gaussian numeric column described at the default floor, quiet machine:
+100,000 rows 15.9 s, 200,000 rows 31.4 s, 1,000,000 rows 163.1 s. The
+back-solve itself is 0.168 s of the 200,000-row describe (0.53 per cent,
+14 calls, deepest tail 2,000 rows, 2,024 steps) and 1.274 s of the
+1,000,000-row one (0.78 per cent, deepest tail 10,000 rows, 10,063
+steps). The walk finds its witness in about one step per tail row, so
+the shipped budget of 131,072 is not approached until a tail of about
+130,000 rows -- a column of about thirteen million -- and past that the
+existing fail-closed answer stands: the walk gives up and the tail
+publishes neither distance. **No new rule was needed and none was
+added**; there is no hidden cliff between here and landing 4's two
+million rows.
+
+`K-S1-06`'s INTEGRITY cause is closed: its driver runs again.
+
+### The ten governance items of stage 3's review, and the close of the round (2026-09-24)
+
+**THE ROUND DOES NOT RUN AGAIN**, so every repair here is proved by
+measurement in this tree and every new or changed guard was watched
+failing under the arithmetic it replaced.
+
+**What changed.**
+
+- **The oracle allocated a listed tail the way the shipped rule
+  stopped allocating it** (item 1). For boundary `4`, values
+  `[0, 1, 2, 3]`, twelve rows, a mean distance of `2.25` and a
+  root-mean-square of `2.5` it gave `[1, 5, 2, 4]` where method G5.3e
+  gives `[2, 3, 3, 4]`, which puts one row on a value the listing
+  rule excludes. The clause now states the floor `q` under each listed value
+  and the oracle reads it; the frozen case `tail_listed_floor` is the
+  first that tells the two allocations apart, since every case frozen
+  before it answers the same counts either way.
+- **The oracle's tail arithmetic failed at supported scales** (item 2).
+  `tail_bound` squared the root-mean-square, which underflows below
+  about 1e-162: with twelve rows, a mean of `1e-200` and a
+  root-mean-square of `2e-200` it returned `1e-200` against the clause's
+  `6.74456e-200`. It takes the form G5.3b step 4 already fixed, `rms`
+  times a fraction. `tests/tail_rule.py`'s `rounded_root` took a
+  whole-number square root at a FIXED sixty-four guard bits and returned
+  0.0 for every value below about 1e-39, so
+  `rounded_root(Fraction(1, 10**40))` was nought where the root is
+  `1e-20`; the guard now grows with the exponent. Both carry scale
+  witnesses with mutants.
+- **The back-solve measured the wrong thing** (item 3). It asked whether
+  the published facts leave ONE multiset of distances; what the floor
+  protects is the outermost value and its count. Eleven distances
+  summing to 24 with squares 104 admit two multisets and BOTH put the
+  largest distance at 8 with one row on it -- at a low clock boundary of
+  `00:20` that names the minimum `00:12` and says one cell holds it --
+  and `pinned` read nought. It asks whether the extreme and its count
+  vary across the solutions now.
+- **The literal-leak measurement could not see a value inside a
+  sentence** (item 4). A withheld `2024-02-02 12:34:56` after
+  `Earliest:` split at its space and scored nought; a withheld `00:12`
+  in `The earliest is 00:12.` wore the full stop and scored nought. The
+  split joins adjacent tokens and offers each with a trailing point
+  removed, so a renderer-only regression cannot leave the headline
+  green.
+- **The gate's listing mutation covered one shape only** (item 5). The
+  exemption's premise is the listing rule itself and has been since plan
+  P4-D349; what was missing is the mutant that would have caught it
+  otherwise, so the unauthorized listing is now driven at ONE, TWO and
+  THREE values on both tails of the 600-row charges fixture.
+- **`K-S3-05` recorded a population it had stopped measuring** (item 6).
+  Its battery moved to 1,800 rows when the listing rule began asking its
+  premise; the record still said 900 rows and "6 of 6 keep their scale",
+  and STATE put the smaller-scale residual against `K-S3-09`, which
+  measures a count column beside a heap of zeros. The record names 1,800
+  now, and the 900-row cost is bounded rather than described: four of
+  twelve tail sides refused, 31 cells written off the scale and a worst
+  column mean 11.33 per cent out, each held at a ceiling.
+- **Disposition completeness stopped at the tail containers** (item 7).
+  `unregistered_fact` injected into a numeric or a temporal tail left
+  the completeness test green. The walk reaches the leaves, and a
+  container the matrix disposes as a CONTAINER -- it says so in its own
+  row -- no longer answers for a child it does not name.
+- **The plan of record was outside the seal** (item 8). An in-memory
+  edit to `docs/STATE.md` permitting sentences to disclose withheld
+  counts passed all four seal and coverage checks, because none of them
+  opened it. It is a governing document now, `docs/` is walked so a
+  second page cannot appear beside it unsealed, and two of its raising
+  sentences are anchored.
+- **Two green records omitted evidence their own rule bounds** (item 9).
+  `K-S3-01` and `K-S3-02` bound `pinned_nodes_failing` and recorded no
+  answer for it, and ledger integrity excused exactly that key. It does
+  not any more, and judging such a record is watched calling it a drop.
+- **The contract commanded removed behaviour** (item 10). Section 9.6's
+  prose still required exact endpoint CELLS and said D11 ties the ladder
+  ends to the endpoint text, over a version that removed both. It states
+  the boundary obligations instead, and two guards hold the governing
+  contract to naming no removed endpoint AND to still stating the
+  obligation that replaced it.
+
+**And the close of the round.** Every frozen vector was rebuilt from the
+merged oracle through the provenance guard runner and every digest
+updated; `tail_withheld_pair` freezes the construction that publishes
+NEITHER distance, which the oracle could not read at all; G14.3's case
+count is recomputed off the committed sets (122, the tenth file nine and
+the eleventh five); and the five goldens are re-recorded, each beside a
+line-by-line reading of what moved in its artifact.
+
+
+### The numeric tail's robustness: six repairs from stage 3's review (2026-09-24)
+
+**THE ROUND RETURNED REJECT ON ALL FOUR PASSES AND DOES NOT RUN AGAIN**,
+so each of these six is proved by measurement here, in
+`tests/test_stage3_review_numeric_robustness.py`, with the reviewer's own
+reproduction and the number it gave before the repair. They are the six
+the reviewer classed as ROBUSTNESS: inputs that used to work and now
+crash, lose values, or pass a check they should fail.
+
+**What changed.**
+
+- **An overflowing tail distance withholds the PAIR, not the ladder**
+  (verdict item 2, HIGH). Every tail distance is computed exactly and
+  rounded once, and a column reaching across the whole range has
+  distances past the largest number binary64 holds: 11 cells of
+  `-1.7e308` beside 89 around `1.68e308` put the low tail's mean at
+  about `3.4e308`. The block used to withdraw EVERY rung and publish its
+  four moments alone, and the reader of that block then read
+  `mean + sqrt(3) std` past the range too and fell back to the ladder of
+  a block BELOW ITS FLOOR -- at seed 4 the twin held numbers between -11
+  and 88, with its mean and its spread both failing the check. TL5's
+  tail publishing NEITHER distance is the shape such a tail takes now,
+  so the ladder and the published scale both stand. And where the moment
+  ladder itself is past the range (22 such cells, a mean of `-9.75e305`
+  and a spread of `1.73e308`), its reach is held at
+  `LARGEST_FINITE - |mean|`: the widest stretch the format holds about
+  the published mean, and never another block's ramp.
+- **The tail shape is fitted to the ROWS and not to an integral**
+  (verdict item 3, HIGH). G5.3b said that reading the fitted shape at the
+  rows' midpoints gave it the published mean and root-mean-square. It
+  does not: midpoint sampling is exact for a straight line and for
+  nothing else. Measured: 1,199 cells just above 100 beside one
+  `100000100.0` gave a twin mean 14 per cent low and a spread 24 per
+  cent low, at seeds 0, 4 and 9, with every numeric window passed and no
+  deviation named. The clause's five constants are now the shape's
+  moments over the tail's OWN row shares, so both moments are exact; the
+  power is searched upward from the smooth one, because the row-wise
+  ratio climbs to the ROW COUNT instead of without bound. The same
+  column now comes back at 83,433.8321 and 2,886,751.3315 against a
+  source 83,433.8325 and 2,886,751.3315.
+- **A representable grid with SPARE points is filled** (verdict item 4,
+  MEDIUM). G6.5a's last resort ran only where the two ends hold exactly
+  as many representable numbers as the column has strata, and stage 3's
+  derived ends leave spare numbers: 100 cells of `i * 5e-324` came back
+  holding 82 different numbers against the 100 published, where the
+  pre-tail code held 100. Each stratum now takes the point nearest the
+  value the ladder gave it that the order still allows. The frozen case
+  `representable_with_room` holds the new road up; `saturated_representable`
+  keeps the old one, and the 120-cell case beside it goes from 101
+  different numbers to 120.
+- **The below-floor ramp is built from the sign counts** (verdict item 5,
+  MEDIUM). The ramp ran from `-G u` to `(K - G - 1) u` whatever the block
+  published, so nought was one of its points on every block: 100 rows
+  holding the numbers 1 to 8 and 92 blanks came back as SEVEN different
+  numbers, because the sign repair moved the invented nought onto a
+  number another stratum held -- and the report named `percentiles` as a
+  fact the twin missed, printing `0.0` as what "the description says" on
+  a block whose every rung is withheld. The ramp is `G` negatives, `Z`
+  noughts and `P` positives now, and the eight numbers come back as
+  eight with no line in the report.
+- **An infinite stratum width no longer stops generation** (verdict item
+  8, MEDIUM). 20 cells of `-1.7e308` beside 80 near `1.68e308` gave a
+  stratum a share spanning `(-1.7e308, 1.004e308)`, whose width overflows
+  to infinity, and `int(width / unit)` raised OverflowError before the
+  search count was capped at all. The cap is read before the conversion.
+- **Constancy is decided by the count of different numbers, not by a
+  rounded spread** (verdict item 9, MEDIUM). 98 cells of `5e-324` beside
+  `1e-323` and `1.5e-323` publish three different numbers, a skew of
+  7.863539654706267 and a spread of about `4e-325`, which underflows and
+  is published as `0.0`. Read as constancy it made Q5 refuse the
+  producer's own file, at floors 1, 5 and 11, and describing the table
+  again wrote the same file. `n_distinct_values` answers the question
+  exactly.
+
+**And one found beside them.** `generation._style_strata` packs the
+styles over whole strata where the cell walk would spend more spellings
+than the column publishes. One form per stratum is the FEWEST spellings a
+column can hold, so where the published count stands above the number of
+strata the packing missed `n_distinct` from below -- the same trade the
+rule exists to refuse, taken the other way. It is not taken there now.
+
+**Where the words moved.** `docs/spec/generation-method-v1.md` G5.3b
+(the five constants and the power search), G5.3c (the stretch held
+inside the range), G5.3d (the ramp from the sign counts) and G6.5a (the
+representable grid with spare points); `docs/spec/profile-contract-v6.md`
+6.7a (a tail whose distances the format cannot hold) and the Q5 test.
+Three vector files were rebuilt through the guard runner and one frozen
+case was added.
+
+### The date and clock repairs of stage 3's review round (2026-09-24)
+
+**STAGE 3'S ONE ADVERSARIAL ROUND RETURNED REJECT ON ALL FOUR PASSES,
+and these are the seven items of its dates pass that are ROBUSTNESS
+rather than disclosure**: inputs that used to work and now crash, lose
+values, or pass a check they should fail. Each one is repaired with the
+review's own reproduction as a test and a mutation that puts the old
+behaviour back (`tests/test_stage3_review_dates.py`, 31 cases).
+
+- **The all-different obligation is no longer abandoned in silence**
+  (item 4). Method G7.3's count pass ran on `date` and `datetime` alone,
+  so 100 unique months from `2000-01` came back holding 74 different
+  values at seed 4 with nothing reported, and 100 consecutive quarters
+  the same; a month and a quarter are ordinal units of one like a day,
+  and the pass reaches them now -- 100 of 100 at seeds 0, 1 and 4. The
+  same clause asked for NO offset at all, which is stricter than its own
+  reason: one offset written after every moment leaves one spelling per
+  instant, so a 200-value column publishing `{"+02:00": 200}` in full is
+  inside the pass too, where a file holding 29 of those values used to
+  meet every obligation. And on a column of CLOCK times, where G7A.4
+  makes the obligation exact, validation held the count to an envelope
+  that a file of 99 different times against a published 100 passed:
+  G11's own reading now decides it (`contract.all_different_binds`,
+  validation clause V6.1-A3).
+- **Clock generation invents no declared missing cell** (item 5). The
+  parsed clock values were never asked whether their spelling is one the
+  table calls absent -- only the stand-ins were -- so with `08:00`
+  declared missing and eleven such cells, seeds 0, 3 and 7 wrote twelve,
+  leaving 98 present against a published 99. G7A.4 now steps each BODY
+  rank off such a spelling, inside the window it was built in.
+- **A sparse column keeps the separator census it publishes** (item 6).
+  G7.9's spend kept the mark it INVENTS below the census line and never
+  asked what the mark it spends FROM was left holding: 22 dates in 2,000
+  rows publish `{"upper_t": 11}` at a floor of eleven, seed 4 spent one
+  of the eleven, and ten beside one is a census no description may
+  print. The spend stops at the line.
+- **A calendar edge no longer produces a description its own loader
+  rejects** (item 7). Twelve `0001-01-01T01:00:00+14:00` convert to an
+  instant outside the years the canonical form can spell, and the LOCAL
+  text was left standing in the ordered sequence while the sort used the
+  instant: the low tail published a mean distance of **minus 3,600** and
+  a listed value above its own boundary, and the strict loader refused
+  it under DT3. `parsing.utc_moment` publishes the nearest instant the
+  form can spell instead, on both sides of the wall.
+- **Generation no longer reports published offsets as withheld**
+  (item 8). The offsetless member is a published member: a column
+  publishing `{"(none)": 50, "+01:00": 50}` was told every offset it
+  carried had been held back, on a twin that wrote both exactly.
+- **An exactly conforming clock twin gets no false percentile failure**
+  (item 9). Every minute of a day, 1,440 rows: seeds 0 and 1 reproduce
+  the whole multiset and the report marked p99 outside its window --
+  published `23:44`, achieved `23:44`, allowed `23:41` to `23:43`. The
+  window now carries G7A.4's all-different step, in both reports, and
+  the twin's report takes the same equality reading the quality report
+  has taken since plan amendment A-P3-40.
+- **The loader refuses tail moments no tail could hold** (item 10).
+  Setting a valid 100-date profile's distances to `1e308` loaded and
+  generation then raised `ValueError: cannot convert float NaN to
+  integer`; mean `1` beside that root raised `OverflowError`. DT3 now
+  carries the feasible bounds and the moment relationship the supported
+  calendar and the clock domain allow.
+
+**Two frozen cases were added** for the two new construction branches --
+`clock_declared_hole` for G7A.4's hole step and `mark_spend_at_the_line`
+for G7.9's refused spend -- and the existing `month_span` and `quarter`
+cases move seven cells each, which is the count pass reaching a
+resolution it never ran on.
+
+### The tail that would be read back publishes neither distance (2026-09-23)
+
+**STAGE 3'S ONE ADVERSARIAL ROUND RETURNED REJECT ON ALL FOUR PASSES,
+and this is the fix pass for the finding that is the heart of the
+stage** (plan P4-D349). The integers `0` to `1100`, once each, published
+a low boundary of `11` and a high boundary of `1089`, eleven rows a
+side, a mean distance of `6` and a root-mean-square of root-46, with
+`percentiles.min` and `percentiles.max` null -- and the same description
+says **every value in this column is different**. Eleven DIFFERENT whole
+distances summing to 66 can only be 1 to 11, because 66 is the least
+eleven different whole numbers can sum to, so all twenty-two withheld
+values came back exactly. 240 consecutive dates and 240 unique minutes
+did the same.
+
+**Measured with a reader's own arithmetic** before anything was changed:
+with the all-different remark in hand, each tail of the integer column
+admits exactly ONE multiset of distances; without it, 64.
+
+**What changed.**
+
+- **A tail whose published pair would give its own cells back publishes
+  NEITHER distance.** Its boundary and its row count stand; `values`,
+  `mean_distance` and `rms_distance` are all null. Contract DT1 and TL5
+  admit that shape on both roles -- both distances or neither, never a
+  mean alone.
+- **The back-solve knows what the description publishes** and runs on
+  the numeric role for the first time: the all-different remark, the
+  published grid, the space's edges, and the smallest distance a reader
+  cannot rule out -- one on a date tail, measured from a value a cell
+  holds, and NOUGHT on a numeric tail whose boundary rung falls between
+  two grid points.
+- **The tie is withdrawn from the back-solve.** It assumed a tail wider
+  than the floor is wider because its innermost cells are tied, which
+  stopped being true when a boundary learned to move inward. Worse, it
+  could not reach the real multiset: on 240 consecutive days widened to
+  eighteen rows the tied search answered NOT PINNED on the very tail the
+  review reconstructed by hand.
+- **The widening walk fails closed.** It no longer runs a question of
+  its own with a budget of its own; it builds the side and reads the
+  answer off it, so every place it can stop leaves a tail that withholds
+  its pair where it is still pinned.
+- **P4-D346's SECOND LISTING ROAD is withdrawn.** It named values ONE
+  CELL HOLDS -- `[1089, 1100]` where one row holds 1100, `06:59` beside
+  ten cells at `06:58` -- and its premise went with the fail-closed
+  rule, because a pinned tail now publishes no pair for a list to say
+  nothing more than.
+- **A quality report no longer prints a subfloor tail measurement.** The
+  cells counted are the file's own cells beyond the DESCRIPTION's
+  boundary, so one cell at a distance of eleven days named January 1
+  exactly; the verdicts stand and the numbers are dropped.
+- **The root-mean-square distance no longer certifies an endpoint
+  bound.** `boundary - rms >= min` reported HELD for a published minimum
+  of 10 against a file whose own minimum is 9, because a LOWER bound on
+  the largest distance was read as an upper one. Both ends had it.
+- **An overflowing moment window no longer removes an exact
+  obligation.** A file replacing twelve cells of `1.7e308` with
+  `1.6e308` reported no miss and appeared in no not-checkable listing;
+  the three keys are decided one at a time now.
+- **The summary no longer contradicts itself**: "the 12 smallest values
+  are not published" was printed over a block that then printed `0.0,
+  1.0`.
+
+**HOW A WITHHELD TAIL IS READ.** Its rows stand `rows` steps of the
+column's own grid out from the boundary -- the narrowest tail the
+description still asks for. On the integers 0 to 1100 that puts the
+twin's two ends on 0.0 and 1100.0, the column's OWN smallest and largest
+values, reached without either being published; on 200 `1 000` to `1 199`
+beside 100 `3 000` to `3 099` it keeps the twin inside 1000 to 3099 and
+the census of 200 spaces and 100 narrow spaces comes back exactly. Two
+wider readings were measured and rejected: the ends of the uniform
+stretch with the column's own two published moments, which put twelve
+cells below 1000 on that second column where no thousands mark can be
+written, and Cauchy-Schwarz's bound on the mean of `m` of `K` cells.
+
+**WHAT IT COSTS, measured** (`K-S3-15`): over the fix pass's ten shapes,
+17 tail sides publish neither distance and their twins miss FOUR
+obligations in total -- `moments.mean` and `moments.std`, at both seeds,
+on one shape: 399 consecutive record numbers beside a single `12345`.
+None of the three readings can average to that column's mean, because
+that mean is what the far cell puts in it.
+
+**The gate could not see any of this**, for three reasons at once: no
+battery shape is a column of consecutive values, the back-solve read
+`low_tail` and `high_tail` and so measured a numeric block as having no
+tail, and neither used the all-different remark.
+`tests/test_stage3_gate.py` now carries every one of the round's
+reproductions as a case, with a mutation that puts the pair back.
+
+### The answer paths, and the population census (stage 3's review, floor items 1-4, 2026-09-23)
+
+**Stage 3's one review round returned REJECT on all four passes. These
+are the four items of the floor pass that are routes by which the command
+did something the person did not ask for, or counted a population it did
+not have.** Each has the reviewer's own reproduction as a test and a
+mutation that puts the old behaviour back.
+
+**1. AN IDENTIFIER ANSWER LANDED ON THE WRONG COLUMN.** The column names
+in a questions file are the names of the reading that WROTE it, and an
+answer that changes the reading gives those names to different columns.
+Measured: a header of `column_2,column_1` over 360 records whose first
+field held twelve repeating subject codes, with `names` answered for the
+first row and `identifier` for `column_1` -- the FIRST field under the
+reading in force -- reached all three writers with the declaration on the
+SECOND field, counted 350 people and published the twelve real subject
+codes with counts of thirty, where declaring the field the person meant
+refuses the table as thirteen people. **Refused rather than mapped**
+(`cli._answers_that_change_the_reading`,
+`errors.answers_change_the_reading_and_name_columns`): `column_1` is a
+column name under both readings of that file, so nothing can tell which
+was meant. Two of the three file questions move a column name -- which
+row holds the names, and which character separates the columns -- and
+either beside a `code`, `identifier`, `measurement` or `decimal-comma`
+answer is refused, with the question named, the columns named, and two
+runs to do it in. An answer that AGREES with the option typed is the
+reading already in force and is not a change. The delimiter half is not
+in the review: it is the same defect one question along.
+
+**2. AN EXPLICIT `first-record` ANSWER WAS IGNORED.** It was called "the
+reading that already stands", which it is only while nothing else moves.
+Measured: a first record of `12,HEADER|LABEL` over 360 records of
+`i,code{i}|other{i}`, answered `first-record` and `vertical-bar`,
+described 360 records and published `12,HEADER` and `LABEL` as two column
+names, where `--first-row data --delimiter '|'` keeps all 361 records and
+names the columns `column_1` and `column_2`. Both answers are applied
+now, in both directions: a typed `--first-row names` answered
+`first-record` gives the record reading, because the file is the newer
+statement.
+
+**3. THE POPULATION CENSUS READ AN UNFINISHED COLUMN.** It asked
+`taxonomy.split_missing`, the FIRST of five passes that decide what a
+column holds, and stopped there. Measured on five paddings of twenty
+readings to a hundred lines, one per pass: `-999` declared with
+`--missing-value=-999`, `-999.0` declared the same way, `-999` with
+nothing declared, `9999-12-31` in a column of dates and `-999 mg` in a
+column of amounts. Every one cleared the hundred-row floor as a hundred
+rows, and every one produced a description recording twenty present cells
+and eighty missing. **One reading, in one place:** `profile_column`'s own
+prologue is now `taxonomy._read_the_column`, the census asks it through
+`taxonomy.present_spellings_after_the_rules`, `taxonomy.Declarations`
+carries the four column declarations down to it because each of them
+changes what a column holds, and a test holds the census's surviving
+spellings equal to the description's `n_present` on all five paddings. All
+five files are refused now with nothing written, and the refusal says what
+"holds no value" covers instead of naming blanks alone.
+
+**4. AN IDENTIFIER DECLARATION SILENCED THE PERSON QUESTION.** A
+declaration is only an answer to "who are the rows about" when it settles
+that, and an identifier different on every row settles nothing: it names
+a ROW. Measured: 1,196 visits over twelve people with a unique-per-row
+`visit_id` declared left `person_columns` correctly EMPTY -- the
+population was counted in rows -- while the declaration silenced the
+question, so the run published the twelve subject codes, asked nothing,
+and printed neither the population notice nor the notice that it had
+counted rows. The gate is `settings.person_columns` now, so the question
+is asked exactly where the count is still in rows. **And one
+single-visit subject silenced it by the other route:** route two of
+`asking._names_people` asked "every different value on two rows or more",
+which one row of 1,196 made false, and the limit had been recorded beside
+the rule rather than repaired. Both routes now share route one's average,
+counted and never divided, and a per-row key still fails it by a factor
+of two whether or not one value of it repeats. The sentence the questions
+file says was SEEN moves with the rule: "so each one stands on more than
+one row" is now "on average", and both notices that say the population
+was counted in ROWS stop opening "Nothing was named with --identifier",
+which is false the moment a unique-per-row key is declared and the count
+stays in rows.
+
+Plan P4-D232, P4-D340 and P4-D341 carry the four amendments; ledger
+`K-S3-02` keeps its 4 false positives of the same 33 columns, with the
+amendment and the re-measurement in its `status_note`, two nodes added to
+its pin and one renamed where its expectation reversed.
+
+### Six sentences stage 3 left behind, each measured (2026-09-23)
+
+**A SENTENCE CLAIMING MORE THAN THE CODE CARRIES FAILS THE PRODUCT'S JOB
+AS SURELY AS A CRASH**, and stage 3's one adversarial round found six of
+them. Nothing crashed, 7,469 tests passed, and the claim inventory passed
+too, because what those checks ask is whether a page's arithmetic adds up
+and what these six got wrong is what the arithmetic is ABOUT. Each repair
+is measured, and each has a test that turns red on the wording that
+shipped (`tests/test_stage3_review_sentences.py`, seven tests, every one
+mutation-verified against the old clause).
+
+**`--code` promised a rollup the floor does not leave named.** README
+said "every rollup of that column reproduces exactly" of a column named
+with `--code`. **Measured** on 100 codes `1000` to `1099`, one row each,
+at the default floor: the description publishes no code at all, and a
+prefix `10` that all 100 source rows carried came back on 20 twin rows at
+seed 4. The promise is now stated of the codes the description PUBLISHES,
+with the pooling that decides them and that measurement beside it.
+
+**THE TWO FLOORS ARE COUNTED IN DIFFERENT UNITS, and every page that
+sets out either now says which.** The population notice read "Every count
+here is a count over that population" where the population is PEOPLE and
+every count is ROWS (plan P4-D348, an accepted limit). **Measured** on
+100 declared people of twelve visits each: a value one person holds
+publishes the count 12 at the default floor, beside 1,188. Repaired in
+the notice itself, the twin's report, the quality report, the
+lowered-floor alarm, the floor refusal, README, SECURITY and the
+governing contract -- which said the floor "is the whole of what keeps a
+published group too large to point at one person", and now says it keeps
+a group larger than the count it names, counts rows, and does not follow
+to people.
+
+**FOUR PAGES AND THREE ANSWER CHOICES PROMISED ENDS AND CHECKS STAGE 3
+TOOK AWAY.** **Measured** on 100 readings `0.125` to `99.125`: the
+description publishes `p25`, `p50` and `p75` and withholds `min`, `max`
+and six interior rungs. The summary announced "Real smallest and largest
+values"; the quality report promised "the smallest and largest exactly,
+the nine steps between them"; the twin's report said every one of the
+nine interior steps "was measured on this twin"; the measurement,
+joined-number and decimal-comma choices each offered "a smallest and a
+largest" as what an answer would publish. All of them now name the rungs
+a description carries and the tails that stand where the rest did. **The
+inverse error beside them:** a tail opened "the 12 smallest values are
+not published" two lines above naming one of them, and there are TWO
+ways it names one -- a bounded scale LISTS the values it holds (each
+whole number 0 to 10 held ten times publishes `[0, 1]` and printed `0.0,
+1.0` under that sentence) and a heaped END is published as itself where
+at least a tail's rows hold it. Either way the opening now says the outer
+values are not published ONE BY ONE and points at what is named below
+it, in one wording rather than two, because a published end is a listed
+value on every shape measured and a branch nothing reaches is a branch
+nobody reads.
+**And where the review named one site there were three.** The
+empty-edges line called its values "the same kind of fact as the
+smallest and the largest values of this column"; the finer-ladder
+listing put its ninety rungs "between the eleven your description names"
+and said those eleven "are still checked for", where a ladder names
+eleven AT MOST and published three on the measurement above; and the
+ambiguous-column remark, the no-reading-fits remark, the `--code` help,
+the code and decimal-comma screens and `asking`'s own docstrings all
+carried the same promise. SECURITY's endpoint inventory is corrected
+with them: it counted TWO exact values per numeric ladder, and the
+measurement above puts that at NONE.
+
+**A FOLDED SPELLING COUNT WAS DESCRIBED AS AN ORIGINAL SPELLING COUNT.**
+**Measured** on four labels each written nine times lower case, eight
+upper and eight with a leading space: every published `variants` map
+holds one spelling counted 25, `variants_withheld` is empty, and no
+spelling the file wrote reaches eleven. Ruling 6 of 2026-09-17 counts a
+sub-floor spelling into the label's commonest, so above a floor of one
+`variants_withheld` is always empty and the number beside a named
+spelling is not a count of that spelling. The behaviour is kept; the
+summary, README and SECURITY now describe it.
+
+**THE FLOOR WAS DESCRIBED AS UNIVERSAL beside an accepted exception.**
+The quality report said "a group fewer than 11 rows carry is named in no
+description written under it". **Measured** on 99 decimal cells beside
+one word: the description publishes `n_not_numeric` 1 and a remark
+carrying that 1. The report and README now name the scope -- the floor
+governs the naming of a VALUE -- and both exceptions: a count of cells by
+kind names no value and is published whatever its size, and the floor
+counts rows.
+
+**FIVE FILES WERE SIX, AND BOTH CLAIM-INVENTORY GUARDS PASSED ANYWAY.**
+The lowered-floor alarm, README's opening line, SECURITY and the quality
+report each counted five where a full run leaves six, and the count of
+written pages that stamp themselves said four where three say it in words
+beside a description that records the floor. The guards missed all of it
+four different ways, and all four are closed: `_text` now joins adjacent
+string literals across source lines, not only the comma-separated report
+line -- which is what hid a sentence wrapped inside one f-string, and
+means every ban in that file was one line break from being defeated;
+`pages` is a countable of its own with its total derived from the shipped
+output names (the outputs that are not the twin's own table); and two new
+reaches read a count whose subject is the commands or a full run, and a
+count standing before "written pages" or "readable files". `both pages`
+stays a true pair claim on nine surfaces and is not read, by design and
+with the reason written beside the rule. The stale artifact inventory in
+`cli.py`'s report-name docstring went with them: four endings where five
+artifacts exist by the time `validate` runs.
+
+**THREE TESTS THAT QUOTED A REPAIRED SENTENCE ARE DERIVED FROM THE RULE
+INSTEAD OF RE-QUOTED**, because copying the new output into a test is not
+fixing it: the joined column's answer choice is asked for the property
+(each number described on its own, and no end named without the floor it
+has to clear), the summary's label block is read to its own end rather
+than to 400 characters, and the population note's docstring names the
+unit it now carries.
+
+**RE-RECORDED, each with the diff read line by line first:** the
+demonstration description and the demonstration profile (ONE leaf moves,
+the first remark of the column no reading fits, with nothing arriving and
+nothing leaving), the twin's report golden (18 lines, two paragraphs) and
+the quality report golden (56 lines over four kinds of place, ten of them
+the same finer-ladder pair, with no verdict and no census count moved).
+**The twin's own bytes did not move**, so not one cell of it changed for
+any of this.
+
+### Stage 3's gate, asked of a whole description in its own words (2026-09-23)
+
+**A STAGE IS NOT DONE UNTIL A TEST LITERALLY IMPLEMENTS THE GATE ITS
+PLAN NAMES.** Stage 3's gate is "no published number is held by fewer
+than the floor, and a one-row table is refused". Pieces of it were held
+in three places -- the tail rule's own guard, the sentence-argument
+guard and the population floor's tests -- and nothing walked a whole
+description and asked the gate's own question, so a landing that
+published something NEW would have landed outside all three.
+`tests/test_stage3_gate.py` is that walk.
+
+**THE CLASSIFICATION IS CLOSED, and that is what makes the gate
+survive a landing nobody foresaw.** 323 of `profile.PUBLICATION_RULES`'
+669 stated paths can carry a number, and every one of them is in
+exactly one of ten classes -- GROUP, POOLED, SETTLED, DISTINCT,
+WRITTEN_FORM, VALUE, STRUCTURAL, WORD_BY_COUNT, SENTENCE, INDEX --
+resolved through the three mirrors the rules table is built with, so
+one decision is written once. **A path with no class fails the test.**
+
+| the class | what the gate asks of it |
+|---|---|
+| GROUP | nought or at the line, and so is every complement against a population `GATE_POPULATIONS` names; a census asked whole, through `parsing.census_nameable` |
+| VALUE | names no outer cell the tail rule withholds, unless `parsing.tail_may_list` admits it -- asked of the column, never of a list of paths |
+| SENTENCE | every whole-number argument obeys `taxonomy.ARGUMENT_BINDINGS` |
+| WORD_BY_COUNT | a non-default word stands only where the census line of the column's own cells wear it |
+| SETTLED, WRITTEN_FORM | exempt BY NAME, each with the entry that settled it |
+| POOLED, DISTINCT, STRUCTURAL, INDEX | exempt, with the reason written beside the class |
+
+At a floor of eleven the walk puts **12,724 published numbers** of the
+battery into those classes: VALUE 4,817, INDEX 1,997, SETTLED 1,895,
+GROUP 1,706, STRUCTURAL 1,616, POOLED 310, DISTINCT 294, WRITTEN_FORM
+89, beside the sentence arguments and the two words a count moves. The
+battery is sixty-seven tables at each of floors 1, 5 and 11: the forty-six
+seeded shapes of `tests/stage3_battery.py`, every role with its joined
+column, the four realistic families as delimited text AND as workbooks,
+three bounded clinical scales, two heavy tails, a sparse block, a
+repeated-measures table with a declared identifier, a blank-line-heavy
+file, and tables at 99, 100, 999 and 1,000 rows. **0 breaches**, and
+the refusal half beside it: a one-row table, a 99-row table and 500
+rows of 99 people refused through `cli.main` with nothing written; 100
+and 999 rows carrying the notice on every written page; 1,000 carrying
+none. Ledger `K-S3-13`.
+
+**FIVE MUTATIONS, EACH A TEST OF ITS OWN**, because a guard that passes
+is not a guard: a level count re-published at 1; a sentence argument one
+greater than the key it restates; the column's exact minimum put back
+into `percentiles.min`; a tail listing three values one row holds
+apiece; and `parsing.POPULATION_FLOOR` halved. Each turns the gate red.
+
+**WHAT THE GATE FOUND WHILE IT WAS BEING BUILT**, each recorded where it
+belongs rather than worked around: a band read by VALUE rather than by
+position called a boundary rung a leak on `two_readings_fit`, where five
+rows hold 3.2 at the sorted positions 9 to 13 and the ladder publishes
+the thirteenth; a second back-solve written here reported
+`boundary + mean_distance` over a TWELVE-row tail as a disclosure when
+the mean of twelve unequal distances names no row, so the gate asks the
+tail-leak driver's own walk instead; reading a census's complement off
+`n_present` called the withheld `thousands_marks` of 1,199 grouped
+prices a breach of a word rule W holds at 1,199 cells; and splitting a
+table's text on its delimiter turned `"1,234.56"` into two cells.
+
+**THE LIMIT THE OWNER ACCEPTED TODAY (plan P4-D348): the disclosure
+floor counts ROWS, not people.** On a repeated-measures table a value
+held by twelve visits of ONE patient clears a floor of eleven and is
+published with its count. It is not changed here; it is MEASURED, and
+held at a ceiling by `K-S3-14`: over three seeded repeated-measures
+shapes, **177** published values are held by fewer than eleven of the
+table's PEOPLE and **68** of those stand on eleven rows or more -- the
+rest being ordinary ladder rungs a handful of rows hold either way. It
+concentrates where plan P4-D340 said it would: 12 patients over 1,196
+visits leave 66 of the 68, the worst a rung of 65.0 on 11 rows of 5
+people. The POPULATION floor beside it does count people, so the two
+halves of stage 3 count different units on purpose.
+
+**The KPI ledger's cap is 300,000 bytes, from 275,000**, authorized by
+the orchestrator. The ledger stood at 274,933 with 67 to spare, and
+what spent the last raise is stage 3's twelve entries `K-S3-01` to
+`K-S3-12`. No measurement was trimmed to fit.
+
+### Stage 3's close: one listing rule, and six sentences that were not true (2026-09-23)
+
+**ONE RULE DECIDES WHICH TAIL MAY LIST ITS VALUES, and every role asks
+it** (plan P4-D346). `parsing.tail_may_list` is the whole statement of
+the owner's ruling of 2026-09-22 and of its premise: a tail lists only
+where every value it would name stands on at least two of that tail's
+cells AND the column's values are a small fixed set -- at most 256
+different ones, standing under at least two cells apiece on average --
+or where every listed value is held by a whole smallest group. The date
+and clock role had carried that premise since P4-D342 and the numeric
+role had carried none, so the two drifted: a continuous column of 599
+rows on a tenth-unit grid published `88.0`, its own maximum held by ONE
+row, in the same block that withheld `percentiles.max`, and a second of
+609 rows listed five values whose counts in the column were 1, 1, 1, 1
+and 9. Both are closed. A tail the rule does not admit may still list
+where its own published rows and two distances SETTLE what it would
+name -- at most two different values, which the pair leaves one
+arithmetic for -- because the description names those either way.
+
+| at a floor of eleven | before | after |
+|---|---|---|
+| six bounded scales at 1,800 rows: tail sides listing | 12 of 12 | 12 of 12 |
+| the same six at 900 rows, where a scale's top step is one cell | 12 of 12 | 7 of 12 |
+| whole-year ages at 2,000 and 5,000 rows | both sides | both sides |
+| continuous columns, 600 to 640 rows | none | none |
+| 609-row column listing `87.54, 87.8, 89.21, 90.68, 99.99` | listed | says its shape |
+| 640 readings on a hundredth grid, every tail value shared | listed | says its shape |
+| twin cells outside a Glasgow coma scale, 900 rows | 0 | 13 of 900 |
+| twin cells outside an age column, 600 rows | 0 to 2 | 7 to 9 of 600 |
+| a count of children at 900 rows: the twin's mean | -0.82% | +2.71% |
+
+The cost is stated rather than argued away, and it is paid only where a
+scale's own outer step stands on ONE cell: at 1,800 rows and above every
+one of these scales lists both sides, writes no cell outside itself and
+keeps its mean within 0.52 per cent. Every twin still writes the
+column's own smallest and largest value, and nothing of the battery
+misses a checkable obligation.
+
+**THE COUNTS OF A LISTED TAIL ARE RECOVERABLE, and six places said they
+were not.** This package SHIPS the arithmetic that works them out --
+`contract._listed_counts`, which the generator needs -- and over the
+ordinal battery it recovered 22 of 22 exactly. `README.md`,
+`SECURITY.md`, this file, the contract's 6.7a, `summary.py` and
+`quality.py` said "without how many rows hold each" and "never with a
+count beside them"; they say what is true now: a listed tail names WHICH
+values it holds and writes no count, and how many rows hold each follows
+from those values and the distances beside them -- which is what the
+owner accepted for bounded scales, and why the rule asks first whether
+the column is one.
+
+**`synthtwin validate` no longer prints the checked file's own tail
+values.** A missed `tails.<side>.values` printed the file's list beside
+the description's -- values a row may hold alone, the outermost of them
+the file's own end -- which is the one thing the report's own note
+promises never happens under any verdict. The comparison is made in full
+and the measured side is kept back, as the date and clock role has
+always done it. The reason is a fourth constant of `validation.py`, and
+`tests/test_p3v12f2_a_miss_says_what_it_found.py` holds every one of the
+four to the same bar.
+
+**NF49 WAS A LIVE FALSE SENTENCE.** A tail block publishes its histogram
+as `bin_groups` and leaves `value_histogram` empty on purpose, and the
+note "the shape of this column's numbers is not published" asked only
+the empty key -- so the demonstration's `visits`, `reading` and `amount`
+each published 9 to 14 bin groups AND said their shape was not
+published. The note asks both keys now, and a test fails on any block
+that publishes groups and says otherwise.
+
+**THE GUARD AND THE HEADLINE KPI COULD NOT SEE EITHER.** Both exempted a
+listed value because the tail had listed it, so neither could fail on a
+listing rule that had moved; the exemption is the rule's own conditions
+now, asked from the column's own cells. `tests/test_stage3_tail_rule.py`
+no longer skips `tails.*.values` by its path, and where it reads a
+page it tells a VALUE from a distance and from a construction window,
+each with the reason written beside it.
+
+**`K-S3-11`'s `edge_pinned` IS CLOSED, not accepted** (plan P4-D346). On
+an all-different clock column the two published distances, the day's
+edge and the column's own "every value different" remark left ONE
+multiset -- naming all eleven outermost times including the column's
+minimum. The boundary now moves inward while the pair still settles the
+tail, which DT2 allows, and the walk that decides it must PROVE the
+tail settled inside its budget. Four sides of the battery moved, 11 rows
+withheld per side becoming 15 or 17 of 900, and `edge_pinned` is **4 to
+0** with `literal`, `pinned` and `missed` still nought.
+
+**A WARNING WHOSE COUNT IS WITHHELD KEEPS THE WARNING** (owner,
+2026-09-23; plan P4-D347). P4-D334 withdrew such a remark whole, and
+1,199 comma-grouped prices beside one bare cell lost the decimal-comma
+warning entirely. The warning is back with no number in it -- NF61,
+which carries no argument at all -- and no sentence is withdrawn any
+more. At a census line of two, where "fewer than 2" is the count of one
+in other words, NF61 stands in NF60's place.
+
+**The time-band remark says what it reads.** It rendered "this column
+runs from X to Y" off the two tail boundaries, which understates the
+span now that the ends are withheld; it says "with the outermost values
+at each end set aside, this column reaches from X to Y". Its arity,
+its seven argument classes and every other clause are unchanged.
+
+**K-2B-47's refusal is a key now.** Two of its keys were nought by
+construction whenever `build_document` refused the low-floor read, with
+nothing structured saying so, so neither could ever fail again.
+`read_floor_refused` says which of the two states the nought means.
+
+
+### Merged: stage 3's five landings in one tree (2026-09-23)
+
+**Nothing new is built here.** Stage 3 was built as five landings on
+five branches cut from one base, each with its own skeptic and repair
+pass, and this is the last of the five merged into the other four. What
+it adds is the answer to every question a branch could not answer on its
+own, because each branch could only see itself.
+
+**Four names were claimed twice, and each landing's own text is kept.**
+Two plan decision numbers (`P4-D321`, `P4-D332`), one published sentence
+form (NF59), all twelve stage-3 KPI ids, and the loader's tail
+invariants. In every case but the last the landing that arrived LAST
+takes a new number and the rule it states does not change: landing 3.3's
+"The numeric tail" is `P4-D344`, landing 3.4's "An advisory remark may
+not outlive the facts it quotes" is `P4-D345`, the two fragments the
+sentence landing added are NF60 and NF61 while the small-table note
+keeps NF59, and stage 3's KPIs are `K-S3-01` to `K-S3-12` in landing
+order. The exception is the loader's invariants, where landing 3.4 named
+the date and clock tail's TL1 to TL4 and landing 3.3 the numeric tail's
+TL1 to TL6 in ONE dictionary -- so every date-tail refusal quoted the
+numeric rule's words. The date and clock family is **DT1 to DT4** now,
+because `tails` and section 6.7a make TL the numeric family's name
+everywhere else in the code.
+
+**TWO KPIs HAD BEEN LOST, not renumbered.** Landing 3.2's population
+battery and landing 3.4's tail-leak battery were dropped by earlier
+merges of this stage: their tests and their driver stayed in the tree
+with nothing naming them. Both are back, and the board's 30-headline cap
+is kept by making ONE of stage 3's twelve a headline -- `K-S3-11`, the
+tail leak -- and demoting the rest.
+
+**The two tail rules now stand in one tree, and the second one binds the
+first.** The time-band remark (NF51) quoted a `count` column's smallest
+and largest values a second way, as two calendar days. The numeric tail
+rule withdraws those values, so the remark now reads the two ends the
+block PUBLISHES -- a heaped end where a group of eleven rows holds one,
+and the side's boundary rung otherwise -- and a block that publishes
+neither an end nor a boundary carries no remark at all (plan P4-D345).
+The loader refuses a description whose ends are gone and whose remark
+still names them.
+
+**Nine definitions had silently shadowed one another.** Both landings
+added a `TailFacts`, a `TAIL_KEYS`, a `_tail_strata`, a
+`_tail_checks`, a `_tail_approximations` and a `_tail_fields`, and
+because the two branches touched different lines the merge took both and
+the later one won every time. Each pair is two different things with one
+name now separated. The oracle also carried a second
+`TWO_FIGURE_MEMBERS` that shadowed the real one, naming a format member
+this contract does not have and dropping one it does; there is one list
+again, and it is the shipped `parsing.TWO_FIGURE_MEMBERS`.
+
+**The reference vectors are regenerated from the merged oracle**, all
+eleven files, and the tenth carries six cases and the eleventh three.
+The contract's note-grammar census is recomputed from the code: 61
+forms, 99 argument positions, and the small-table note's two arguments
+are bound where they had never been bound at all.
+
+**A landing cut before the default floor moved brought eleven literal
+floor defaults back in with it.** Landing 3.1 had taken them out (plan
+P4-D317): a parameter named for a floor defaults to
+`parsing.DEFAULT_SMALL_CELL_FLOOR` or to nothing, because a default of 1
+reads a file at a floor nobody has chosen since the default became 11.
+The date and clock tail landing was cut from the base before that
+repair, so eleven of its functions arrived carrying `floor: int = 1` --
+`generation._clock_approximations` and ten in `validation`, among them
+`_universal_checks`, `_clock_checks`, `_rank_windows` and
+`_pin_bounds_of` -- and landing 3.1's two AST guards were red on the
+branch this merge lands on as well as after it. THE SITES ARE REPAIRED,
+NOT THE GUARDS: the default is gone where the signature allows it and
+names `parsing.DEFAULT_SMALL_CELL_FLOOR` where an earlier parameter's
+own default keeps one. Four helpers in the tests and the tools were
+reading a table at the default beside a floor of their own, which the
+same landing's second guard names; each passes its own floor now.
+
+**Two tests were written against a table a later landing refuses, and
+five more asserted a rule as though its sibling did not exist.** Each is
+repaired from the rule rather than from the new output. The numeric
+tail's moment-window witness was twenty rows, which the population floor
+refuses, so it asks the same question at a hundred rows with the floor
+raised to fifty -- the size the command will take, and the floor at
+which no percent clears two tails; landing 3.1's counted double-spaced
+file was seventy records, and it takes the plain tail its own sibling
+case already took (plan P4-D341), which leaves its seventy-one blank
+places exactly where they stood. The empty-bin
+witness asserted a per-bin census at a floor of one, where a tail block
+publishes none at any floor; it now asserts the GROUPS, thirty-two at a
+floor of one and eight at eleven. The twin's obligation census asserted
+that only `numeric.tails` files the tail subchecks; both roles file
+them, under their own field names, and it now says so and checks that
+all three roles do. And the three time-band tests read the column's own
+smallest and largest value; they read the block's two published edges
+now, worked out through `tests/tail_rule.py`.
+
+**Five golden digests are re-recorded, and THREE OF THEM WERE ALREADY
+STALE** before this merge: the date and clock tail landing re-recorded
+the twin and the quality report and left the demonstration profile, the
+description the twin is built from, and the twin's own report behind, so
+the branch this merge lands on was red on all three. Each is re-recorded
+against a read of the artifact and not of the hash: the description
+gains 329 leaves and loses 10, the twin moves 212 of 3,360 cells and
+every one of them is in a numeric column, the report's count of
+approximated facts rises from 122 to 134 and NAMES one new miss, and the
+quality report's census grows from 533 checkable obligations to 541 with
+33 more listed as not checkable and none lost.
+
+### Changed: the numeric tail (stage 3, landing 3.3, 2026-09-22)
+
+**A numeric column no longer publishes a number that one row holds.**
+Until now every numeric block published its smallest and largest values
+exactly, and the rungs beside them read the rows next to those. A
+description now WITHHOLDS every rung whose type-7 reading touches one of
+the outermost max(`--smallest-group`, 3) values, on each side, and
+publishes what those rows look like as a GROUP instead: how many there
+are, how far from the last published rung they lie on average, the
+root-mean-square of that distance, and -- on a column whose values stand
+on a grid, whose tail the listing rule admits and which holds a handful
+of them -- the tail's own values, with no count written beside them
+(contract 6.7a, method G5.3b to G5.3e; plans P4-D322 to P4-D327,
+P4-D344 and P4-D346). An end is still published where a group of at
+least that many rows holds it.
+
+| on sixteen shapes at a floor of eleven                    | before | after |
+|-----------------------------------------------------------|--------|-------|
+| published numbers equal to a value fewer than 11 rows hold | 13-46 per shape | 0 |
+| a 2,000-row age column: the twin's mean                    | +1.31% | +0.01% |
+| a 500-row Pareto charges column: the twin's spread         | +9.72% | -1.13% |
+| a pain score of 0-10: cells written outside the scale      | 50     | 0     |
+| the same column's twin mean                                | +25%   | +0.2% |
+| a 20,000-row normal column: real cells outside the twin's range | 16 | 0 |
+| twenty gauss columns at 5,000 rows: the twin's spread       | +1.07% to +3.11% | +0.04% to +0.20% |
+
+**Every consumer reads one ladder.** The rungs a tail withholds are
+filled by that tail's own reading, and the two ends the twin pins are
+DERIVED from the published facts alone (`contract.tail_ladder`), so the
+generator, the validator, both reports and the summary all read the same
+hundred and one rungs. A block too thin for two tails publishes its
+moments alone and is read as the uniform with that mean and spread; one
+below the floor publishes neither and is read as a ramp of one grid step
+a value.
+
+**What a reader is told instead.** The summary prints, per side, how
+many values are not published, how far from the boundary rung they lie
+and what that rung is; the twin's report and the quality report name the
+two distances as approximated facts with their windows; and `validate`
+checks a published (heaped) end ONE-SIDED and silently, so a check never
+prints a file's own extreme.
+
+**Found and repaired while building it**: a count column of small whole
+numbers beside a heap of zeros published the value 1 in 317 cells and
+its twin wrote 4 (the ranks of a band are now read at that band's own
+sign, method G5.2a step 1a); a derived end held to a single published
+field width pulled the low end of `0`-to-`59` from 0 up to 10; a tail's
+smooth reading rounded onto a grid put two of its rows on one value,
+which cost a 500-row column five of its thirty-one numbers; a derived
+end above what a PADDED column can write -- 1006 on 1,200 offsets
+written `+0123` and `0123` -- cost the twin's own description its
+padded census, 482 cells of 1,200 against its source's 1,200 (method
+G5.3b step 4); a joined position whose end is heaped had that one value
+named twice, as `ends.number 2 max` and again by the ladder walk; and a
+band whose every run lay inside a listed tail had no run left to
+divide, which raised an error out of an empty list on twenty-four
+offsets over eight values (method G5.3e).
+
+**And one more found by the ledger itself.** A tail's innermost listed
+value is commonly the column's value just inside the boundary as well,
+and the ladder then reads one number across the edge. Such a run lay
+wholly inside nothing, so the rule that keeps a listed tail's runs
+whole passed over it, the layout joined it to its neighbours and the
+stratum that swallowed it read its own share instead: on the 240
+clinical codes of `K-P4-11`'s ClinVar column the twin wrote five cells
+at `920759` where the table holds `920760`, `tails.high.values` MISSED,
+and one of eighteen coding systems stopped validating clean. A run that
+REACHES INTO a tail's rows is now one of the runs kept whole, where the
+band's runs must be joined at all, and the band is still levelled after
+it (method G5.3e). Each qualification was measured: cutting the run at
+the edge instead spends one of the band's strata on the tail's own part
+and took that stratum off a published MODE, 210 cells written nowhere
+on 1,140 readings; protecting such a run on a band that had a stratum
+for every run already split fifty published pluses across two values,
+so a twin wrote four spellings of three numbers; and holding the
+protected run STILL, rather than letting the levelling even the band,
+gave 49, 53 and 48 cells where the source holds fifty of each. It costs
+a seed of one battery one number: on a 4,000-row column of halves the
+twin holds 16 of its 17 different values at seed 1 where it held all
+17, because the run kept whole is one stratum where the walk could have
+divided it.
+
+**And a pooled census may not cross a checked fact.** A census of
+widths and a census of marks count a group of fewer cells than the
+smallest group into the commonest, so a column of 1 to 30 publishes the
+one field width two although nine of its cells wear one. Read as a
+ceiling, that census moved a derived low end from under 1 up to 10: on
+the 30-row reading column of a macro workbook the twin wrote five cells
+at 10 and none below it, its mean stood 5.3 above the published 15.5,
+and `validate` MISSED `ladder.p50` and `moments.mean`. Neither spelling
+clamp now pulls an end inside the tail's own published mean distance,
+which no set of rows can meet from nearer than that (method G5.3b step
+4).
+
+**A withheld end is listed under its own name.** The rungs the tail
+rule withholds are LISTED rather than checked, and an end is listed
+under the field its check bound before -- `percentiles.min` and
+`percentiles.max` -- so the same obligation goes quiet under its own
+name and no subcheck binds two registry facts. Ten lines of the
+demonstration's quality report say so and nothing else in it moved.
+
+**One obligation goes quiet for a new reason, and the report still says
+why** (validation amendment V2.4-A11). A file holding a different
+number of values describes ITSELF with its ladder and its tails at a
+different percent, so it publishes nothing at the percent the
+description names, and the rungs and tail facts there are withheld --
+beside `counts.n_used_in_statistics` MISSING in the same report, which
+is the published fact that decides it. And a coarser description
+widens G12.3's windows: on a blood-pressure column of 120 rows
+`moments.skew` now reaches the range every sample of that size lies in,
+so it is a census line rather than a pass -- which is what a skew of
+that shape already was on the second position.
+
+**Not repaired, with the number**: nine twins of a forty-twin battery of
+one-place readings still hold one or two numbers fewer than their
+description publishes, each named in the twin's own report. The tail's
+rows are described by two moments rather than named, so a tail of seven
+different values on a grid cannot always be given seven.
+
+**The KPI ledger.** Eight new entries, `K-S3-03` to `K-S3-10`: no
+published page names a value too few rows hold (the headline), the
+published facts do not solve for a withheld end, a bounded scale keeps
+its own values and ends, every twin and table of the battery is checked
+clean, the real cells outside the twin's range, a listed tail's solved
+counts, a count column beside a heap of zeros, and the histogram that
+survives a raised floor in groups. Two targets are MET and their entries
+are GREEN at their own measurements: `K-P3-03` (nothing missed at 5,000
+or 20,000 rows, the twin's spread 0.04 to 0.22 per cent from the
+published one against 1.07 to 3.83) and `K-2B-05` (0 verdicts flip of
+1,058). `K-2B-47` improves on every key -- the heavy tail misses nothing
+where it missed two checks, the band split is short of no value where it
+was short of four, a record layout misses none where it missed three.
+`K-P4-06`'s ceiling comes DOWN, from 609 agreements outside the window
+and 3 missed above-counts to 556 and 1. `K-P4-07` keeps its exact 0 with
+its rule restated. Two entries read worse and are recorded so:
+`K-2B-49`'s point-free style misses rise from 30 to 33 -- one grid at
+three seeds, whose listed tail's values the strata sizes cannot meet --
+while its distinct-count misses fall from 12 to 3; and `K-S1-01` and
+`K-P3-12` were taken on a LOADED machine, so their seconds are recorded
+and not judged (31.2 s to generate 20,000 by 20 against 23.3, 126.2 s to
+validate against 70.2) while their machine-free ratios are judged and
+hold at 3.40 and 3.89, against 3.47 and 3.97 before, on a bound of 8.
+
+**The independent oracle was re-written where it had drifted.** The
+frozen vectors are built by an oracle written from the method's own
+statements, and `K-2B-42` measures how close its functions sit to the
+shipped code: the tail cases took it from 176 functions at or above
+0.60 similarity to 190, every one of the fourteen a tail function. Each
+was re-written from the clause it implements -- the shape's
+coefficients read as one tuple, the staircase as a walk over its own
+rows, the grid text as exact arithmetic on a fraction rather than a
+format string -- and every vector file comes back byte for byte
+identical through the provenance guard. The measure is back at 176 over
+443 scored functions, where it was over 409.
+### Fixed: a table with blank lines in more places than a description can name passes its own description (stage 3, 2026-09-22)
+
+**`synthtwin validate` reported a real table as missing an obligation it
+meets.** Where a file holds blank lines in more than 64 places, the
+description stops naming the places and records how many blank lines
+there are instead. That count was taken AFTER the rule that writes a
+rare kind of blank line as the common kind -- a rule that exists to keep
+a rare kind from pointing at the one record it stands beside -- so it
+could be a number the file does not hold, while `validate` counts the
+checked file's own blank lines. Past that cap the description names no
+place and no kind, so there is nothing there for that rule to protect:
+the count is now the file's own. Both sides of the check ask one
+question at every smallest group size, and it is also the count a twin
+writes back.
+
+| blank-line-heavy files past the cap on places | before | after |
+|---|---|---|
+| the real table missing its own description, 300 seeded files | 16 | 0 |
+| 70 records each followed by a blank line, one of them preceded by a line of spaces: `profile` / `generate` / `validate` against the real table | 0 / 0 / 3 | 0 / 0 / 0 |
+| that file's 71 blank lines, as the description records them | 70 | 71 |
+
+Counting the checked file after that same rule instead -- the other
+obvious repair -- cleared those 16 and made 2 of the 300 TWINS miss: a
+count spread evenly over its places writes runs of one line beside runs
+of two, and the rarer run length is absorbed back, so 87 lines were read
+back as 81. A count of the file's own blank lines is the one number both
+a real table and its twin give back.
+
+**A description of such a file also keeps its line endings where they
+are.** The record of the line endings collapses to a single run wherever
+a description keeps fewer lines than the file holds, because the runs'
+positions would otherwise say where the missing line stood. Past the cap
+the description now keeps every blank line, so nothing collapses: a
+70-record file whose first 30 lines end with a carriage return and a
+newline records `[{crlf: 30}, {lf: 112}]` where it recorded one run of
+141.
+
+**The seeded blank-line fuzz now checks the real table as well as the
+twin**, and never writes fewer records than the cap, so the counted path
+is covered: 18 of its 40 files take it, and all 18 failed on the real
+table before this. The entry below records 27 of 40 descriptions refused
+by their own reader before plan P4-D319; that was measured on the
+narrower recipe (15 to 120 records) this pass replaced, and the same
+measurement on the new recipe is 16 of 40.
+
+### Fixed: the population floor counts the rows that hold a value, and the person question reaches the case it was built for (stage 3, landing 3.2's repair pass, 2026-09-23)
+
+**A table padded with empty rows no longer walks past the floor.** The
+population was counted on the rows the reader returned, so twenty real
+records followed by eighty `,,` lines -- or eighty `NA,NA,NA` lines --
+read as a hundred-row table, cleared the floor and were described. The
+description that came out published the mean, the spread and every
+percentile over the twenty; three numbers padded to a hundred printed
+all three back verbatim. **A row whose every cell is blank, or is one
+of this format's spellings for "no value", is now counted nowhere** --
+neither as a row of the population, nor as part of the one unknown
+person where an identifier is declared. The refusal says which rows it
+counted, and the published notice then names the population the
+description's counts actually rest on.
+
+**The person question now reaches a subject column read as a set of
+categories.** Its rule asked for more different values than a set of
+categories could hold -- which is the exact complement of the rule that
+makes a column `categorical`, so it could fire only on a column that
+publishes no labels, and never on the case plan P4-D340 cites as its
+reason for existing: 12 subjects over 1,196 rows, with every subject's
+identifier published beside its visit count. A second route asks where
+every value stands on two rows or more AND every cell is written as a
+code -- inside the code alphabet, carrying both a letter and a figure.
+The letter is what keeps a two-value `0`/`1` column, a group coded
+1/2/3 and an ordinal scale out; the figure is what keeps `site`, `arm`
+and `yes`/`no` out. `K-S3-02`'s battery gained the four label shapes
+the rule mis-fires on and now reads 4 false positives over 33 columns,
+accepted with the measurement in its `status_note`: route one alone
+read 2 of those 4, and the battery simply did not hold them.
+
+**Corrected, in three places: a description written before landing 3.2
+does NOT still load.** The settings block gained a required key, and
+contract rule C6-20 makes all twenty-three required, so the loader
+refuses an earlier build's v6 description and names the entry that is
+missing. The break is sanctioned by A-P4-41; the sentence saying it had
+not happened was not. What IS still true, and stays: the floor is the
+command's, `build_document` still describes a five-row table and
+`synthtwin validate` still checks a 50-row file.
+
+**And four smaller repairs.** `K-P0-10`'s `status_note` records that
+this landing raised the suite's tables, that the seconds were not
+re-taken and that the sharded sums suggest the suite grew by about a
+quarter, so the next quiet-machine run re-stamps it. The subject counts
+in `tests/test_p4d341_population_floor.py` and in the KPI test are
+derived from the floor and the categories ceiling instead of stated, as
+is the cell count in `tests/test_extra_round_numbers.py`.
+`describe_with_the_producer` raises on a flag it does not implement
+rather than dropping it. A stray `.;` left the ledger's measurement
+note.
+
+**What it cost the suite.** A one-column shape padded with absent cells
+is now a population of its present cells, which is the repair working;
+the harnesses that padded that way add a keeper column holding a value
+on every row, exactly where the shape's own present cells fall short.
+Twenty-three cases across six files moved that way, each still driving
+the command.
+
+### Recorded: landing 3.2's two KPIs against its own commit (stage 3, 2026-09-22)
+
+`K-S3-01` and `K-S3-02` are re-measured on `52b9eee`, the commit that
+built them: the population floor's thirteen-case battery reads 4
+refused, 6 noticed, 3 silent and 0 files written after a refusal, and
+the person question reads 0 false positives over 25 columns with the
+one `subject_id` column asked about. The measurement note names both
+beside the twelve entries already standing off `caf3079`, so
+`tests/test_kpi_ledger_integrity.py` holds the note and that set equal.
+
+### Added: synthtwin will not describe a table of fewer than 100, and says so from 100 to 999 (stage 3, 2026-09-22)
+
+**`synthtwin profile` now refuses a table that is too small to describe
+as a population.** Under 100 it writes nothing at all and tells you the
+count, the line and what to do. From 100 to 999 it describes the table
+and says so, in one plain sentence that cannot be turned off: on the
+screen, in the description, in the plain-language summary, in the
+questions file, in the twin's report and in the quality report. The
+sentence says what it means, and it does not say that a small table is
+excused anything -- the same rules produced the description, the same
+smallest group size applies, and every obligation it states is the same
+obligation. **The twin's own table carries no trace of it**, so code
+you write against the twin runs exactly as it ran before (plan
+P4-D341).
+
+**The count is taken in PEOPLE where you have said who the rows are.**
+Name a column with `--identifier` and, if its values repeat, rows
+sharing a value of it are one person; rows holding no value of it count
+as one person between them. An identifier that is different on every
+row names a row rather than a person and is never counted by -- which
+is what stops a table of 150 subjects being refused because a sparse
+sample number sat beside the subject number. Where you have named
+nothing and a column looks like it names people -- its values repeat,
+and there are more of them than a set of categories could have -- the
+questions file asks you about it, and the screen says the count was
+taken in rows (plan P4-D340). The choice is written into the
+description under a new settings key, `person_columns`.
+
+| a table of                                    | before                     | after                              |
+|-----------------------------------------------|----------------------------|------------------------------------|
+| 1 row                                         | described, 3 files written | refused, nothing written           |
+| 99 rows                                       | described, 3 files written | refused, nothing written           |
+| 100 rows                                      | described, silently        | described, with the notice on all 5 pages |
+| 999 rows                                      | described, silently        | described, with the notice         |
+| 1,000 rows                                    | described, silently        | described, silently (unchanged)    |
+| 500 visits by 99 subjects, `--identifier` given | described, silently      | refused, nothing written           |
+| 500 visits by 100 subjects, `--identifier` given | described, silently     | described, with the notice, counted in people |
+
+**What has NOT changed.** The floor is the command's and not the
+format's: `build_document` still describes a five-row table, a
+description of a small table still loads, and `synthtwin validate`
+still checks a 50-row file against one. New KPIs `K-S3-01` and
+`K-S3-02` hold the bands over a battery of thirteen sizes and person
+shapes, and hold the person question to no false positive on the
+realistic shapes.
+
+**The worked example moved with the floor.** Every page that explained
+how meeting a published count exactly can force a twin row to match a
+real one used an 11-row table -- a table synthtwin now refuses. It is
+stated at 100 rows.
+
+### Changed: no sentence of a description carries a count its keys withhold (stage 3, 2026-09-22)
+
+**A count in a key was held to the smallest group size; the same count
+in a sentence was held to nothing.** A column with one grouped cell in
+four hundred read "1 of this column's values are written with a comma
+inside the number" -- a count of one, naming one row, in the plain
+prose part of the description. Over 56 descriptions at a smallest group
+size of eleven there were 252 sentences and 145 of them carried
+numbers: 9 printed a count no key of the block beside them published at
+all, and 38 more restated a count the key itself published below that
+line.
+
+Every argument of every sentence is now bound to what it is. Most of
+them restate a count the block already publishes, and those are checked
+against it, so the key's own rule covers the sentence. Thirteen do not
+restate anything: they are the sentence's own count -- how far a
+reading got, how many cells wore a mark -- and those now say "fewer
+than 11" where the group is too small to name. The description is
+refused before it is written if any sentence breaks either rule.
+
+Three more changes came with it. The words a count moves -- how the
+negatives were written, the mark between thousands, whether wide runs
+of figures are their own values' text -- are held to the same line as
+the counts, so one cell can no longer move a word about a whole column.
+The commonest number and its count are withheld where the cells that
+are NOT the commonest number are too few to name: 395 zeros among 400
+values used to publish 395 beside 400, which names the other five.
+And the counts this release deliberately leaves published -- how many
+cells were not numbers, out of range, contradictory, unparsed, zero or
+negative -- are now held at a ceiling in the KPI ledger, so they cannot
+quietly grow.
+
+Why those last ones stay: flooring them made code developed on the twin
+run clean where the real table raises, in 7 of 7 shapes measured, and
+the count could still be worked out from the published count of missing
+cells. This is a reversible call and goes to the owner.
+
+| a column of 400 values | before | after |
+|---|---|---|
+| one grouped cell, in the remark | "1 of this column's values..." | "fewer than 11 of this column's values..." |
+| a reading that reached 4 cells, in the remark | "4 of its values are numbers wearing..." | "Fewer than 11 of its values are numbers wearing..." |
+| 395 zeros: commonest number | `mode 0.0`, `mode_count 395` | both withheld |
+| one bracketed negative, `--smallest-group 1` | `negative_form: brackets` | `negative_form: minus` |
+| one grouped cell, `--smallest-group 1` | `group_separator: ","` | `group_separator: ""` |
+| cells that were not numbers | published | published (unchanged, and held at a ceiling) |
+
+**And a sentence may not hand back the cells it does NOT count.** A
+count is a disclosure from either end. A column of 1,200 prices with
+1,199 of them written `1,795` and one written plain said "1199 of this
+column's values are written with a comma inside the number" beside a
+published row count of 1,200 -- and 1,200 less 1,199 is the one cell,
+named exactly as a key holding 1 would name it. This is the shape the
+tool already refuses in its key censuses, in prose. Four sentence
+counts are counts of cells bearing one spelling, and each of those is
+now held to the cells it leaves over as well as to itself: below the
+line either way, the sentence is not written. Where the sentence is one
+a column cannot lose -- the line that says how the column was read --
+it is written without the number at all.
+
+| a column whose small group is on the OTHER side | before | after |
+|---|---|---|
+| 1,199 grouped prices, 1 written plain | "1199 of this column's values are written with a comma..." | the remark is not written |
+| 390 dates, 10 cells no reading fits | "390 read as dates written as 2024-03-17" | "some but not all read as dates written as 2024-03-17" |
+| 59 cells wearing ` mg`, 1 wearing ` MG` | "59 of its values are numbers wearing one shared piece of text" | the remark is not written |
+
+**What the first row costs, said plainly:** that column loses its
+decimal-comma warning, which is a warning about 1,199 cells that may
+each be a thousand times their real size. One ungrouped cell withdraws
+it. The warning is worth keeping and the subtraction is not acceptable,
+so whether such a remark should be kept with no count in it -- the way
+the read-as line now is -- goes to the owner rather than being decided
+here.
+
+### Fixed: files with blank lines of two kinds describe and build again at the default (stage 3, 2026-09-22)
+
+**A description `profile` wrote could be refused by `generate` and
+`validate` as "changed since it was written".** It happened where a
+record was followed by a line holding only spaces and then an empty
+line. The default floor of 11 writes a rare kind of blank line as the
+common kind, and that left two identical blank-line entries after the
+same record, which the reader of descriptions refuses. The two are now
+one entry, as a file written that way reads, and the same order rule is
+checked before a description is written as when it is read (plan
+P4-D319).
+
+| blank-line-heavy test files                           | before     | after   |
+|-------------------------------------------------------|------------|---------|
+| refused by their own reader, 40 seeded files          | 27         | 0       |
+| a record followed by spaces, then an empty line: `profile` / `generate` / `validate` exit codes | 0 / 1 / 1 | 0 / 0 / 0 |
+
+**What the default of 11 costs elsewhere, now held by name** (plan
+P4-D320). The joined-number battery misses 4 above-counts at the
+default against 3 at a floor of one, because the default publishes less
+about each position; the ledger's ceiling moves to 4 in its own commit
+and stays with stage 6. A declared record-number column of 49 rows still
+fails its own check at the default, and one column of the fold-repair
+battery still takes minutes to generate; both are pinned so a repair
+shows. Two carried misses -- a heavy-tailed column's average and one
+record-number layout -- disappear at the default only because it
+withholds more, so they are measured at a floor of one as well.
+
+**Every test and tool that names a floor now reads the table at that
+floor** (plan P4-D321), and a check keeps it so. The `--code` help no
+longer promises every code's count, since the default pools the rare
+ones.
+
+**The KPI ledger.** `K-P4-06`, `K-2B-05`, `K-2B-47`, `K-2B-49`,
+`K-2B-50` and `K-2B-51` are re-measured on f521955, the repair's own
+commit, and written in. `K-2B-47` gains three keys -- the declared
+identifier's miss at the default, and the heavy tail and the record
+layout at a floor of one -- and holds the read-floor hole closed at
+nought. `K-2B-05` reaches its target of no flipped verdicts only
+because the default withholds more, so it stays open, and its note says
+so.
+
+### Changed: a column of dates or clock times publishes tails, not ends (stage 3, 2026-09-22)
+
+**No date or time a description publishes is one of the column's
+outermost cells any more.** `earliest`, `latest`, `earliest_utc_offset`
+and `latest_utc_offset` are gone from the `datetime` role, `earliest`
+and `latest` from `time_of_day`, and each ladder publishes `null` at
+`min` and `max` and at every rung whose rank falls inside a tail. Each
+side of such a column publishes a TAIL instead: the boundary -- the
+smallest value with at least a smallest group's worth of cells strictly
+below it, mirrored above -- the count of rows beyond it, and how far
+those rows stand, as a mean and a root-mean-square distance in the
+column's own `tail_unit`. A tail holding few different values, or one
+whose two distances would settle a count below the floor, publishes
+those values instead, with no count written beside them -- but only
+where EVERY value it would list is shared by at least two of its cells
+and the column's own values come from a small fixed set rather than a
+fine grid, or where every listed value is held by the floor's own
+number of cells. A column of all-different clock times lists nothing
+and publishes its shape (plans P4-D328 to P4-D331, P4-D342, P4-D343 and P4-D345). A
+column too small or too tied for a boundary on each side publishes no
+value of the table at all, and its twin is a made-up ramp from
+1970-01-01.
+
+MEASURED ON ONE NAMED SHAPE, so that the rows can be re-run: the tail
+battery's `uniform` column, 400 days drawn over three years at seed 0,
+described at a floor of eleven on `13fa831` and on this tree.
+
+| `uniform`, 400 rows, seed 0, floor eleven            | before | after |
+|------------------------------------------------------|--------|-------|
+| different date values published                      | 11     | 9     |
+| of those, held by exactly one row                    | 8      | 6     |
+| of those, naming one of the 11 outermost cells        | 4      | 0     |
+| rungs published between the two boundaries           | 9      | 7     |
+| checkable obligations the twin misses                | 0      | 0     |
+
+The six that a single row still holds are interior ladder rungs and the
+two boundaries: this landing's half is the EXTREMES, and a rung read
+from the middle of a column of all-different dates is one row's date
+whatever else changes. The numeric sibling landing owns the rest.
+
+**And the twin's own spread is repaired by the same change**, measured
+on the battery's `lone_far` column -- a column with one value a long
+way out -- over both sizes and every seed, as the population standard
+deviation of the twin's dates against the real column's: +7.92% to
++40.47% before, -0.96% to +0.18% after.
+
+**What it costs.** The ladder loses both of its ends on every column,
+and every interior rung whose rank falls inside a tail. MEASURED on
+all-different day-resolution columns at a floor of eleven: a column of
+fewer than twenty-three rows publishes no date at all; from
+twenty-three it publishes one rung (`p50`), from forty-two a second
+(`p75`), from forty-five a third (`p25`), seven at four hundred rows,
+and all nine from one thousand one hundred and one -- the row count at
+which `p01`'s own rank, `floor((P - 1) / 100)`, first reaches the low
+tail's eleven cells. It also costs the lone-far-value column its listed
+dates: those were nine dates one row each held, which the rule of
+P4-D342 now refuses, so that column is described by its shape like any
+other. What it buys is that a column's rarest dates -- a date of death,
+a date of birth at the edge of a cohort -- are no longer written down in
+a file that travels.
+
+**And one window was drawn tighter than its own construction.** The
+checker built a date column's tail window with "every value different"
+hard coded FALSE, while the generator reads the column's own
+distinctness and lays the tail out accordingly -- a validator that
+rejects conforming twins, which is the failure that whole class of
+windows exists to avoid. It went unseen while such a column published
+its tail's VALUES instead of its shape; with the rule above closing
+that road, a column of 120 different months missed both of its low
+tail's distances, its twin standing at a mean of 7.0 months against a
+window of 5.64 to 6.45 whose own construction reaches 7.0. The checker
+now reads distinctness exactly as the generator does.
+
+**What is measured, and where it stays measured.** The KPI ledger's new
+`K-S3-11` walks twenty-one shapes at two sizes and up to three seeds --
+105 columns, each described, generated and checked -- and holds three
+numbers at nought: values named, values settled by back-solve, and
+obligations missed by the twin or by the real table. It records four
+more as bounds that may not slip. How much room the battery's tightest
+tail leaves a reader trying to back-solve it: 2 different multisets of
+distances, on a column of quarters. How many tails still LIST their
+values rather than publish a shape: 12, all of them quarters, months or
+the forty-cell `0001-01-01` heap. How many of the real table's own
+published distances the checker's window does not reach: 2, on a
+quarters column at 400 rows and a months column at 1,500, and those are
+the two places where the real table meets an obligation by holding the
+published value exactly and the window around it is no help. And how many tails the published pair settles to ONE arithmetic
+once a reader also uses the column's own all-different remark and the
+tail's own edge: 4 when this was written, every one of them a side of
+an all-different clock column of 900 rows whose tail is pressed against
+the end of the day. **That number is 0 since plan P4-D346**, which
+moves such a boundary inward until the pair no longer settles the tail;
+what stands here is what it was, so that the entry above can be read
+against it. A
+fifth, `unsearched`, says where the measurement itself could not
+finish: 35 tails counted in SECONDS, whose sums run past what an
+exhaustive walk can enumerate, so their room is not measured rather
+than measured and found roomy.
+
+### Changed: the default smallest group is 11 (stage 3, 2026-09-22)
+
+**A description made without `--smallest-group` no longer names a group
+of fewer than eleven rows.** The owner returned the default to 11, the
+value it had before 25 August and the same number as the line under
+which every page says a description names small groups. A smaller
+number is still accepted and still alarms the screen and every page.
+The number is written once, in `parsing`, and every module reads it
+from there (plan P4-D316).
+
+| on the every-role table (240 rows, 14 columns)   | floor 1, the old default | floor 11, the default now |
+|--------------------------------------------------|--------------------------|---------------------------|
+| labels published                                 | 192                      | 9                         |
+| labels held by one row                           | 147                      | 0                         |
+| labels held by fewer than eleven rows            | 183                      | 0 (183 pooled, 224 rows)  |
+| numeric columns publishing a histogram           | 4                        | 1                         |
+| description size                                 | 100,210 bytes            | 50,517 bytes              |
+| facts the twin's own report names as unmet       | 4                        | 4                         |
+| subchecks the twin misses                        | 0                        | 0                         |
+
+The histogram is all or nothing, so a bell-shaped column with thin
+outer bins loses it until the tail landing re-anchors it. Exact minima
+and maxima are still published; that is the tail landing's too.
+
+**Three places read a file at the wrong floor, and one rule lived in
+the producer alone** (plan P4-D317). The survey's second walk after a
+broken trailing-delimiter guess, the quality check of a zero-row
+description, and the test suite's shape describer each read a file at
+the default whatever floor was asked. Blank lines, blank lines counted
+past the cap and counts of empty records were held to the disclosure
+rule by the producer alone. A hand-edited description that names one of them below
+the line is now refused by the loader and by the guard that runs before
+a description is written.
+
+**Found and not repaired, with the numbers** (plan P4-D316): at the new
+default the twin of the 49-row declared-identifier column of plan
+P4-D182 fails its own check, because the made-up spellings of its
+pooled groups read as hexadecimal; one column of the fold-repair battery
+takes 269 seconds to generate against under one second at a floor of
+one; and a whole-number column whose rarer width is pooled names
+`field_widths` in its twin's report. The tests that measure those
+mechanisms now ask for a floor of one and say why.
+
+**The KPI ledger.** `K-P4-20` pins the default at 11 and is re-measured
+on `3f6cd9f`, the landing's own commit. The fast tier of the runner
+reads no drop there (120 green, 9 open and 4 accepted limits held). The
+joined-number battery's driver, measured at the new default on the same
+commit, reads `K-P4-06` WORSE: 609 agreements outside the window, as
+recorded, and 4 rows-above counts missed against a ceiling of 3. The
+in-suite pin of that battery is measured at a floor of one, where its
+ceilings were taken.
+
+### Changed: the owner accepted the twin rebuilding 63 held-back cells, not 55 (2026-09-22)
+
+The mean-only landing of 21 September moved `K-2B-19` from 55 to 63 of
+251 held-back cells that the twin writes exactly as the table held them,
+with one column of nineteen still rebuilt whole. The owner accepted the
+new ceiling: "just showing that the value exists is not an issue; what
+matters is not showing the relation in a descriptive file." Nothing in
+the code moved. The ledger entry records the decision, and the state
+page no longer lists it as waiting.
+
+### Changed: stage 2 is closed, and the twin writes each column the way the source wrote it (2026-09-15 to 2026-09-18)
+
+**Until this stage, code that ran on the twin could still fail on the
+real table because the twin spelled things its own way.** Dates came
+back in ISO form, a declared record number came back as
+`A----------------------------------J`, a European price came back as
+punctuation, and a workbook could not be read at all. On 2026-09-15 the
+owner ruled that the twin writes everything as the source wrote it. The
+entries below are grouped by what a researcher now gets. The eighteen
+landings of stage 2b were built on separate branches, merged into one,
+reviewed three times, and closed under the owner's rulings of
+2026-09-17 and 2026-09-18.
+
+| suite, at each close                        | collected | failed |
+|---------------------------------------------|-----------|--------|
+| first review round's fixes, merged and repaired | 6,056 | 3      |
+| stage 2 closed, before the extra round      | 6,397     | 1      |
+| extra round merged and landed               | 6,626     | 57     |
+| stage 2b closed                             | 7,083     | 0          |
+
+At every close, one of the failures was the state page's own record of
+the suite size. That page is written separately.
+
+**The closing run.** On the merged tree at `fd93100`: 7,083 collected,
+7,033 passed, 49 skipped, and one failure — this page's companion, the
+state page's own record of the suite size, which moves in the commit
+that carries this entry. Four review rounds reached this point, and the
+last of them is below.
+
+### Fixed: a twin's numbers stay much closer to the column's own distribution (stage 2b, 2026-09-15 to 2026-09-18)
+
+**A twin could hold one number far more often than the real column ever
+did, move a column's published mode, or place held-back values
+nowhere near the table's own.** Some of these failed the twin's own
+validation and some passed every check while wrong; the table gives
+both.
+
+| case                                                    | before           | after                  |
+|---------------------------------------------------------|------------------|------------------------|
+| 4,000 rows, published mode count 62: most copies of one number | 760       | at most 62             |
+| 2,000 tenths publishing 517 numbers: numbers held       | 479              | 517                    |
+| the same: cells at full binary precision                | 227              | none                   |
+| 96 twins of spreadsheet decimals: checked with nothing missed | 4          | 70                     |
+| the same: leading zeros invented                        | 736              | 16                     |
+| floor of 11: most copies of one number, 30 twins        | 45 (4,000 amounts) | 10 or fewer          |
+| two reports on 44 columns: windows printed differently  | 923 of 985       | none                   |
+| readings beside labels (skeptic's case): twin spread / table | 1.9 (up to 4.9) | 0.99               |
+| six narrow-width shapes: twins failing, of 48           | 19               | none                   |
+| readings written both `4` and `4.0`: misses, of 240     | 61               | 1                      |
+| signed grouped twins: marks census misses, of 80        | 36               | 0                      |
+| published mode `-0.6` over 210 rows: twin holds it      | 0 times          | 210 times              |
+| held-back number shapes: twins failing, of 30           | 17               | 0                      |
+
+- **Numbers beside labels keep their numbers.** A column of one-decimal
+  readings beside two labels published 853 numbers at 1,200 rows and a
+  floor of twenty, and its twin held 359. Over 242 runs every twin now
+  meets its class counts and validates. Where the column published a
+  number (222 runs), the twin's mean stays within 0.42 of the table's
+  standard deviation, and the spread is within a fifth of the table's
+  in 217 runs.
+- **A column of a few levels keeps its levels.** 2,000 quantities of
+  eleven levels, and 1,423 discounts of six, wrote a whole level at a
+  number the source never held in six twins of eight (`7.4` 225 times,
+  `1.3` 199 times). The twin now uses the published levels. A level too
+  rare to be named on the published ladder can still move.
+- **A held-back number stays inside the numbers the column has.** An
+  exponent-written column's made-up cells came back `9.6E6`. The twin's
+  mean was 2,450,000 against the table's 1,173,077, its spread was 43
+  times the table's, and validation passed. A made-up number now lies
+  between the smallest and largest published values. On an amounts
+  column published from 1,100,000 to 8,800,000, the twin's mean is
+  4,957,692 against the table's 5,034,615, where it had been 4,188,462.
+- **Grouped and bare amounts are spread across the column.** The bare
+  cells had always been the largest amounts. The twin's grouped and
+  bare means are now 486k and 485k against the real 493k and 476k,
+  where they had been 289k and 795k.
+- **The twin's report and the quality report print the same window.**
+  A twin scaled by 1.03 or 1.05 is still reported MISSED, so the check
+  lost none of its power.
+
+**Cost, stated rather than hidden.** Where a held-back level lies outside
+the published span, the census is met at the statistics' expense. On
+one measured column the twin's mean was 17.9% high and its spread 34.0%
+low, and the twin's report says the placement is synthtwin's own.
+
+**Measured and left open, each held at a ceiling in the KPI ledger.**
+
+- **On columns shaped like a bell curve, the twin's spread is 1.4 to
+  3.7% too wide.** Measured on potassium, sodium, systolic pressure,
+  haemoglobin, body mass and saturation from 5,000 rows. At 20,000 rows
+  by 20 columns, 19 of 1,021 checks miss on the standard deviation; at
+  5,000 rows none do. The cause is how the twin fills the outermost 1% of
+  a column: a straight line out to the exact published minimum and
+  maximum, where the real column reaches those ends only with its last
+  few cells. The repair is known and needs only published facts. It is
+  left for stage 3, which replaces the exact extremes with a published
+  tail shape and so rewrites this same step. Until then a test holds
+  four bell-shaped columns at 5,000 rows within 2.2% of their published
+  spread, and the ledger records the rest: +1.07 to +3.11% at 5,000
+  rows and +1.74 to +3.83% at 20,000 across its twenty columns.
+- **Cells holding three or four numbers.** 597 of 2,160 pair agreements
+  fall outside their window, and 7 counts of rows where one number
+  exceeds another are missed. When recorded, the figures were 550 and 0.
+  The cause is the walk that pairs the numbers. A repair was tried and
+  withdrawn, because it moved length of stay's mean 12% further off.
+  After the merge the figures are 609 and 3: the repair of a nearly full
+  band (below) trades 12 agreements for 4 exact counts, and the
+  orchestrator accepted that trade.
+
+### Fixed: the common ways a number is spelled come back (stage 2b, 2026-09-15 to 2026-09-18)
+
+**Four spellings of a number were lost with no error.** A charge grouped
+with a space, an apostrophe or a thin space was read as free text. An
+accounting negative `(1,234.56)` came back as `-1,234.56`, and the real
+table then failed its own description. A plus on a decimal was dropped.
+`1,483.65-` and `−6.09` were published with no negatives. A bare copy
+of a grouped twin also validated at exit 0.
+
+- **Seven thousands marks, four negative notations and the signed
+  decimal are read, published and written back.** A mixed column is
+  written as a mix. 600 charges, 480 written with a minus and 120 in
+  brackets, had come back as 600 minuses. 200 cells grouped with a space
+  beside 100 grouped with a narrow no-break space had come back as 300
+  ordinary spaces. Both now come back exact at three seeds.
+- **A German count column is asked whether its point is a thousands
+  mark.** It is asked on 6 of 6 runs, where 3 of 3 seeds had asked
+  nothing, and the answered mean equals the true mean. The signed
+  decimal is exact on 6 of 6 seeds.
+- **A declared European price is read as money.** `795,64 EUR` had been
+  read as free text, with a twin of `)!!!!! !!!!!` and both files
+  passing. It now comes back as `624,60 EUR`. `92.959,11 EUR` had lost
+  its grouping point on 800 of 800 twin cells, and now keeps it on 800
+  of 800.
+- **A real export meets its own description.** Excel, SAS, Stata, SPSS
+  and Fortran exports (`4.60E+03`, `6E9`, `.05`, seventeen-figure
+  numbers) had failed their own description on 14 runs of 14, and now
+  pass. A Fortran column written with a `D` exponent still comes back as
+  stand-ins. A ledger of signed seventeen-figure keys had 398 of 800 cells
+  refused, and now passes at both seeds.
+- **Wide keys say how they were written.** 800 seventeen-figure keys,
+  790 of them respelled into neighbours a computer cannot tell apart,
+  had checked out at exit 0. The description now records whether the
+  column wrote its numbers the way the numbers write themselves, and a
+  respelled file is caught. Zero-padded keys are included: 786 of 800
+  respelled had passed, and they are now reported at exit 3.
+- **A whole-number column written `44.0` stays whole.** 23 cells of 800
+  had moved to values such as `25.6`. None move now.
+- **An undeclared blood pressure is read as two numbers.** `128/79` had
+  been free text without `--measurement`. Near the long-tail line, 22 of
+  80 round trips had been reported MISSED, and none are now.
+- Offsets written both `+0123` and `0123` keep their spellings: 917 of
+  917, where there had been 776. A zero-filled code no longer gains a
+  sixth figure in a five-figure field (`099613`).
+
+**Not yet fixed.** A column mixing notations can write `101.88` beside
+`0101.88` and hold one different number fewer than published. The twin
+fails at exit 3 and its report names it.
+
+### Fixed: timestamps and dates are written as the source wrote them (stage 2b, 2026-09-15 to 2026-09-18)
+
+**The twin wrote every date in ISO form.** `strptime('%m/%d/%Y')` parsed
+400 of 400 real cells of a month-first export and none of its twin's.
+`'%d-%b-%Y'` failed the same way on a SAS export. `2024-q1` came back as
+`2024-Q4`. A compact `YYYYMMDD` column's twin failed synthtwin's own
+validation. On eighteen export shapes at three seeds, 240 of 240 twin
+cells now parse under the export's own format, none is written as ISO,
+and the twin and the real table both validate.
+
+| case                                                | before                  | after              |
+|-----------------------------------------------------|-------------------------|--------------------|
+| per-day count variance, twin / real (54 runs)       | 0.057 to 0.514          | 0.52 to 1.41       |
+| interior percentile dates exact (54 runs)           | none (one day early)    | 54 of 54           |
+| 2,000 rows, 1,900 bare dates beside moments at midnight       | written as moments      | written bare       |
+| partly-midnight columns: midnight cells kept        | 2 of 361; 1 of 1,429    | 361; 1,429         |
+| CET/CEST export at local midnight                   | 2 of 900, a day early   | exact              |
+| midnight under three offsets: invented times        | 11 of 120 cells         | none               |
+| exact distinct-date counts                          | 4 came back as 7; 3 as 6 | 4; 3              |
+| 400 `05-Mar-2021` dates over 250 days               | 246 different dates     | 250                |
+| export of 1,077 distinct dates                      | 1,065 or 1,107          | 1,077              |
+
+- **Each spelling detail is kept:** field order, delimiter, field widths,
+  month-name case and length, quarter and zulu case, and the mark
+  between day and clock. A mark written by fewer rows than the floor is
+  the exception: under ruling 6 it is counted into the commonest mark, so
+  a rare lower-case `t` beside many `T` comes back as `T`.
+- **A twin's dates spread across days as real dates do.** The first
+  review round found a shape the table above missed: 3,000 dates over
+  60 days piled onto the published percentile days, and the twin's
+  day-to-day variance was 4.8 to 6.6 times the table's. It is now 0.61
+  to 1.02 times. The first attempt at that fix made a week of thinning
+  dates come back 0.32 standard deviations late; its repair returned
+  them to +0.06 to +0.10, where they had been.
+- **A declared day-first column is judged in its own order.** Twenty
+  January dates had been removed as placeholders, leaving 380 of 400
+  values. All 400 are now kept.
+- **A table no longer fails its own description on a placeholder day.**
+  20 judged `1900-01-01 00:00:00` beside 30 declared placeholders had
+  left the real table missing thirteen obligations. Five kept
+  `01/01/1900` cells below the floor had left it missing fourteen. Both
+  now validate.
+
+**Accepted as a limit (2026-09-18).** Fractions of a second are written
+as nought. 240 of 240 source cells held a thousandth and the twin held
+none, while both files validated. The twin's report now says so.
+Generating at the millisecond is a landing of its own.
+
+**Deferred.** The time of day inside a timestamp is not reproduced. On a
+clinical table, 932 of 2,000 twin discharges fell outside the real 07:00
+to 19:00 range. This is stage 3b.
+
+**A slowdown this stage caused, found by the KPI ledger and fixed.** One
+of the extra round's date repairs added a search that stepped one second
+at a time. Generating a 2,000-row date-time column took 28.5 s where it
+had taken 0.16 s. The search now sorts the column once and walks that
+order. Medians of three on a shared machine:
+
+| column | before | after |
+|---|---|---|
+| 400 date-times, partly at midnight | 55.3 s | 0.12 s |
+| 2,000 date-times, partly at midnight | 63.5 s | 0.52 s |
+| 20,000 US-style dates | 2.7 s | 1.3 s |
+
+The twins are byte-identical to the slow ones. A test counts the
+search's steps, so the suite fails if the one-second walk comes back.
+
+### Fixed: labels, free text and missing values keep their own spellings (stage 2b, 2026-09-15 to 2026-09-18)
+
+**A cell holding only a space was published and written as an empty
+cell.** A 500-row readings column published 315 blanks when 177 of them
+held a space, two spaces or a no-break space. `pandas.to_numeric` then
+ran on the twin and raised on the real table. Each whitespace spelling
+is now published at its own count, and the twin writes it back.
+
+- **Free text names the missing-value words it used.** A 500-row note
+  column with 101 blanks and 174 `NA` or `N/A` had its twin write 275
+  empty cells. The real table also failed its own description. The twin
+  now writes `N/A` 95 times and `NA` 79 times, and both files validate.
+  The real table of a declared identifier with 59 `NA` cells now meets
+  its own description, where it had exited 3.
+- **Codes wear their own shapes.** 800 rows whose description names
+  forty forms came back wearing none of them, 405 cells short. They now
+  meet every form at three seeds. A notes column mixing codes and prose
+  went from 320, 310, 138, 117 and 114 cells short to none. A
+  two-convention telephone column had worn its form on 531 of 532 cells
+  that owed it, and now wears it on all 532.
+- **Lower-case codes stay lower case**: 800 of 800, where none had been.
+  Held-back codes wear their column's shape instead of `group-N`: the
+  mean length is 7.204 against the table's 7.204, where it had been
+  9.907.
+- **Missing words pooled below a raised floor count as absent (ruling
+  4).** 280 record numbers beside ten `NA` and ten `N/A` at a floor of
+  twenty now validate, where the real table had exited 3.
+
+**A `-999` that synthtwin judges to mean "no value" is written as the
+source wrote it.** It used to be written blank, so pandas read the twin's
+column as decimals (`float64`) where the real column is whole numbers
+(`int64`). On the twin, `df.reading == -999` found nothing; on the table
+it found 13 rows. The twin now writes the judged spelling at its
+published count. The column reads `int64` on both files at every seed
+and floor tried. Of 16 judged shapes, none now gives a column a
+different type in pandas, where 9 did before. A judged spelling below
+the floor is still absorbed, like any spelling below the floor, and that
+column still reads as decimals. This supersedes the Phase 4 decision
+that wrote judged placeholders blank.
+
+### Fixed: record numbers and codes keep their layout (stage 2b, 2026-09-16 to 2026-09-18)
+
+**A declared record number came back as a row of hyphens.** A UUID
+column matched its own pattern on 800 real rows and 0 twin rows. A site
+code `NYC-2033` came back as `A------J`. A zero-filled `02254257` came
+back as `10000020`. A column mixing two numbering systems had its length
+mix `{10: 573, 7: 227}` collapse to `{7: 799, 10: 1}`. Both files
+validated at exit 0.
+
+The description now publishes each record number's layout: what kind of
+character stood at each position, never which one, apart from a prefix
+every record shares (ruling 1). The twin writes to that layout.
+
+| twin cells matching the source's pattern, 800 rows | before | after |
+|----------------------------------------------------|--------|-------|
+| UUID, braced GUID, site code                        | 0      | 800   |
+| `%08d` zero fill opening `00`                       | 78     | 800   |
+| `^P\d{5}$`                                          | 30     | 800   |
+| `^REC\d{7}$`                                        | 0      | 800   |
+| `^ABC-\d{4}$`                                       | 0      | 800   |
+| two systems `^(REC\d{7}|E\d{6})$`                   | 9      | 800   |
+| hexadecimal `DE-[0-9a-f]{6}`                        | 0      | 800   |
+
+- **A shared prefix is published and written (ruling 1), per system on a
+  two-system column (ruling 7).**
+- Made-up identifiers no longer lean on the figure nought: 11% noughts
+  on a 13-figure code, where there had been 45%. On the identifier test
+  battery, the runs short of a layout fell from 488 to 200 of 800.
+- **One exact rebuild of real record numbers is closed; one is not.**
+  `REC000` to `REC999` published a prefix and a layout with one
+  solution, and the twin held all 1,000 original rows. The prefix is now
+  withheld there, and the twin holds none of them. 900 record numbers
+  from `100` to `999` no longer publish their layout, but the lengths
+  and counts that remain still pin the set, and the twin still holds all
+  900 real numbers (see the limit below).
+- **The twin's report no longer says its made-up values "are not your
+  data".** 40 of 2,000 made-up subject numbers matched real ones, which
+  is the chance rate, and the report now says this can happen.
+
+**Accepted as a limit (2026-09-18).** When a column's layout has little
+room to spare, real record numbers still reach the twin. At 1,000 rows,
+`REC` plus four figures leaves 100 real record numbers in the twin,
+plus five leaves 10, plus six leaves 1, and plus seven leaves none.
+Withholding the layout does not help: `100` to `999` leaves all 900,
+and 989 numbers from `000` to `988` leave 978.
+
+### Fixed: the file itself, and Excel workbooks (stage 2b, 2026-09-15 to 2026-09-18)
+
+**synthtwin now reads Excel workbooks and writes each twin in the same
+form as its source file.** Following the owner's ruling of 2026-09-15,
+it reads Excel and delimited text only. Workbooks are read and written
+with Python's standard library. openpyxl is used only by the tests, as
+an independent check.
+
+- **The delimited form is kept:** the delimiter (including Excel's
+  `sep=` line), line endings, encoding and byte-order mark, quoting,
+  blank lines, preamble lines, index columns, padding and row order. A
+  line ending or blank line too rare to publish is not reproduced. When
+  the file form landed, five ordinary UTF-8 comma files with LF endings
+  gave twins byte-identical to before; the number, date and label fixes
+  above change twin cells where they apply.
+- **Three ordinary spreadsheets now make usable twins:** a table behind
+  a hidden notes sheet, a sheet named like "Cohort extract", and a
+  macro-enabled workbook. None of the three had worked before. Numbers
+  stored as text are read. Format codes are written as the source wrote
+  them where they use only the format language's own tokens. The twin's
+  report names the sheet it writes.
+- **A workbook twin can always be opened.** A column stored as dates
+  had its twin hold `2006-06-32` and `8204-84-03`. openpyxl could not
+  open the twin at all, while validation passed on both files. Every
+  date cell now names a real day, and openpyxl reads 118 dates and 2
+  strings. *Cost:* those made-up cells pile up at the top of each
+  field's range, and 108 of 118 fall in December.
+- **A file that reads two ways is asked about.** `id,measure|low|high`
+  had silently been read with the bar, and code splitting on the comma
+  read `029` where the column holds 100 to 103. The competing reading is
+  now recorded and asked about, and `--delimiter` declares it. The
+  twin's cells are made up under the reading taken, so code splitting
+  the twin by the other character can still find ragged rows.
+- **Other fixes.** A quoted title line, a regression of this stage
+  caught before it merged, had left a twin failing about 120
+  obligations that synthtwin could not read back. Two number formats
+  of one kind (`0%` beside `0.0`) had collapsed into one, and are now
+  refused by name. ISO dates stored as text had come back as `45315`.
+  Empty strings had become blank cells. A hostile cell reference had
+  taken 2.592 s to refuse, and now takes 0.000 s. A spreadsheet packing
+  a million cells into 5 MB had been read in 4 s and 630 MB, and is now
+  refused in 3 s at a peak of 539 MB, under the 600 MB the ledger holds
+  it to.
+
+**Accepted as a limit (2026-09-18).** The reader still accepts a workbook
+date cell that names no day, when another program wrote it.
+
+### Fixed: far fewer published counts can single out one row (stage 2b, 2026-09-16 to 2026-09-18)
+
+**Many published counts could single out one row, either directly or
+by subtraction.** In one example, 400 five-figure numbers, 399 codes
+and one `hello` published counts from which 800 − 400 − 399 = 1. The
+rule that no count, remainder or difference may name a row had been
+written out four separate times. It is now stated once and applied to
+every census of how the table was written, and since the extra review
+round to the file's own lines. A lone CRLF at record 57 had been
+published as runs of 57, 1 and 63 lines, and no longer is. It does not
+yet reach everything: the exact smallest and largest values are still
+published, and one row can hold them (stage 3), and the counts of one
+accepted as limits below still stand.
+
+**The owner's eight rulings of 2026-09-17, all built:**
+
+1. **A record number's shared prefix is published.** Results are in the
+   table above.
+2. **Held-back label levels publish a pooled total only.** On 2,000
+   Zipf codes at a floor of 11, the held-back single-row levels fell
+   from 215 to 151 and the largest held-back level from 10 to 4. The
+   distinct count of 414 was unchanged.
+3. **A workbook with a second table stays refused**, and the message now
+   asks which sheet is the table.
+4. **Missing words pooled below a raised floor count as absent.**
+5. **A label row recoverable by subtraction counts as missing.**
+   `F` 480, `M` 519 and one `U` at a floor of eleven now publish two
+   levels and one missing cell. Work at the close and in the extra
+   review round closed four more shapes that forced a count of one. These were a clinical site column with
+   three one-patient sites, one lower-case `f` beside 490 `F`, 201 − 100
+   − 100 = 1 across sibling totals, and 120 site codes written once each
+   beside `NORTH` and `SOUTH`.
+6. **A spelling below the floor counts into the commonest.** 400 stamps
+   with one `t` publish `{"upper_t": 400}`. The first repair pooled the
+   rare spellings instead, and made one `T` among 5,000 space-separated
+   stamps turn 4,998 of the twin's stamps into `T`. It was replaced.
+7. **The prefix is published per system.**
+8. **An ambiguous first row gets placeholder names and a question.** A
+   headerless export whose first record was `CASE-ZEBRA-471,Northfield
+   Clinic 3,<0.10` had published that record as the column names,
+   described 239 rows where the file holds 240, and written the record
+   into the twin. It now describes 240 rows under `column_1` to
+   `column_3` and asks the question. The same holds for `R001,North
+   Unit,<0.10` with no title above it.
+
+**Costs.** A file with fewer than the floor's number of respelled cells
+describes, and validates, as the file without them. A column name such
+as `2019_total` over numbers now gets placeholder names and a question.
+A spelling common enough to publish can be held back to hide a single
+stray cell beside it.
+
+### Fixed: what three review rounds found, and how each was closed (2026-09-16 to 2026-09-18)
+
+**Every round found real defects, and some fixes had to be repaired
+again after a second look.** Each fix was reproduced before it was made,
+pinned by a test built from that reproduction, and checked by
+withdrawing it to confirm a test turns red.
+
+- **The final Codex round of stage 2b (2026-09-16): 52 items.** These
+  were 7 on dates, 8 on numbers, 10 on labels, 19 on files and 8 on the
+  merge. They were fixed on four branches and merged. An independent
+  check re-ran all 52: 50 fixed, one partly (row order kept, but 119
+  distinct numbers of 120, closed in the repair that followed), and one
+  waiting on the owner, which became ruling 4. The check of the merge
+  found one blocker, six major and five minor items. The blocker, three
+  of the majors and two of the minors were repaired; the time of day,
+  heavy tails, a repeated count of one and three minor workbook and
+  date items were measured and carried. The round's verdict files were
+  lost in a restart. The round was not re-run, under the rule of one
+  round per landing.
+- **The independent review of the close (2026-09-18): nine items,
+  four of them blockers.** Rulings 5 and 8 held only on their sharpest
+  cases, and each broke on a common shape. Both were widened, and the
+  extra round then broke each once more on another shape; both were
+  closed again there, apart from the autofilter limit accepted below. A
+  spelling written by one row, a comma in a made-up value, and the "not
+  your data" sentence were also fixed. A separator census at a raised
+  floor was only partly fixed, and a percent column that writes two
+  fraction widths still misses both (carried). One finding stays with
+  the owner: a
+  timestamp column whose rare mark is absorbed can publish a description
+  no file satisfies. Its twin fails and describes itself again as a
+  two-value column, and the quality report names all three missed
+  obligations.
+- **The extra Codex round (2026-09-18): 39 items, nine of them
+  blockers.** These were 10 on dates, 10 on numbers, 10 on files and 9 on
+  disclosure, and all four passes rejected the tree. Each area was fixed
+  on its own branch, and each fix was checked by a second reader, which
+  found more on every branch. The four were then merged. A final check
+  re-ran all 39: 35 closed with numbers on their own reproductions, and
+  the 4 that still reproduced were confirmed as never closed rather than
+  lost in the merge. Of
+  those four, one is now fixed and the loss of fractions of a second is
+  now named in the twin's report. The other two went to the owner: the
+  identifier room ratio, since accepted as a limit, and the scale of a
+  pooled population of numbers. The same check then spent an hour on
+  realistic tables of its own and found one blocker, five major and two
+  minor problems. Four are fixed above: the headerless first record,
+  month-name dates, a count of one in the census of missing values, and
+  workbook date cells no reader could open. The notation mix and the
+  delimiter residue are not, and the red tests are the placeholder
+  below.
+
+**The four fix branches of the extra round had each run only their own
+area's tests.** Together they left 56 tests failing elsewhere, and each
+one was resolved on its own. A skeptic then worked out every changed
+number again from its rule, without looking at the fixer's number:
+
+| resolution | tests |
+|---|---|
+| a real defect, fixed in the code | 14 |
+| a number a ruling deliberately moved, re-derived from the rule | 18 |
+| a guard that had stopped catching its defect, re-armed and mutation-checked | 39 |
+
+The counts include neighbouring tests the repairs reached. No assertion
+was loosened, and no expected value was copied from the tool's output.
+The merged suite came to 6,763 collected, with one failure: the state
+page's own count.
+
+**Paid back.** Two frozen reference cases for the date merge rules had
+stopped reaching the rules they were written for. The rules were not
+dead: a census naming one width word over fewer cells than the column
+holds reaches both. Two new frozen cases reach them, each with a mutant
+that moves its cells.
+
+### Fixed: what the owner asked for on 21 September, and what the second CI run found (2026-09-21)
+
+**A pooled column of numbers beside labels now publishes its MEAN and not its spread** (owner, 2026-09-21). The first attempt at this published both, and that was worse than the defect: on the owner's own shape the published spread was exactly the smallest a pool of ten different whole numbers can have, which forces them to be ten consecutive numbers, and the mean then says which ten. The description gave away the ten values the floor was holding back. Publishing the mean alone is one equation over as many unknowns as the pool has levels.
+
+| | before | after |
+|---|---|---|
+| the twin's numeric mean, where the table's is 187.08 | 100 | 187.08 |
+| the reader's smallest number of surviving arrangements, over 72 shapes | 1 | 1,224 |
+| what the validator checks | the mean and the spread | the mean alone |
+
+Four earlier refusals gave way to one counted rule: the published mean must leave the values room to move, counted exactly — how many sets of the pool's own different numbers, on the grid its values stand on, inside the width the column shows, add up to what the mean and the count say. The bound is a thousand. It catches a shape the old rules never saw: six one-figure numbers beside a published one-figure number passed all four and the mean pinned them to sixteen answers. **The cost, stated:** a pool's spread is no longer verified, so a twin whose pooled numbers are too tightly or too widely spread is no longer caught by that check. The twin's pooled spread runs about 2 out on the owner's shape.
+
+**A twin no longer fails a description its own absorbed mark produced.** Ruling 6 counts a mark worn by five rows into the commonest, which is right; what was wrong is that the description then promised three distinct values the twin could not hold, so the tool called the twin wrong for obeying it. A new rule, G7.9, buys back the distinct count within the floor's own budget. The first attempt overshot — a twin that had been clean came back holding six values where five were published and missing two checks — and the repair lands it exactly: five held, nothing missed, the real file clean throughout. One narrower shape, a census mixing upper and lower `t`, still misses one check where it used to miss three.
+
+**The suite costs less, and CI costs far less.** Nothing was deleted, skipped or weakened: the collected set is identical. Three files stopped rebuilding the same corpus for every case — one battery of three walks went from 129 + 119 + 115 seconds to 131 + 0.06 + 0.06 — and the suite is now split five ways in CI with a job that proves the shards are exactly the collected set, no file twice and none missing. One process: 50 min 47 s for 7,174 tests. Heaviest shard: about 13 minutes, against cells that had been costing 1 h 20 m to 3 h.
+
+**The second CI run was red again, on a layer under the first.** Every one of these is a test that could only pass in the arrangement it was written in:
+
+| what CI saw | the cause |
+|---|---|
+| two failures on every cell, including the ones where nothing else failed | two tests asserted the answer for the machine they ran on rather than testing the rule; on a runner the policy answered before their patched answers were read |
+| `TypeError: read_text() got an unexpected keyword 'newline'` on 3.10, 3.11 and 3.12 | that keyword arrived in 3.13 and the floor is 3.10 |
+| seventeen Windows-only failures | the refusal message legitimately names the file, and a Windows temporary path contains `AppData`, which contains `Data` — the sheet name the test was checking had NOT leaked |
+| about 25 failures in the `minimums` cell | openpyxl is not installed there, and the tests failed instead of skipping |
+
+Each carries a guard against the next one: a reader that scans the tree for standard-library spellings newer than the floor, beside the one that already scans for platform-gated calls, and one named skip for the cross-check reader. That skip lands at the point of use — 59 of the 62 cases run synthtwin's whole half first and skip only the second reader, so a regression still turns them red where openpyxl is absent.
+
+**And the oracle was caught copying the code it checks, twice.** `K-2B-42` allows no more than 176 of its functions to score 0.60 or above against their closest shipped function. A landing added one at 0.67 — same name, same shape — and the bound was not moved: the function was rewritten from the method's statement of its rule, which had to be COMPLETED first, because three of its clauses existed only in the shipped code and one frozen case. Its skeptic then found those newly written clauses were witnessed by nothing, and added seven mutants that are now red.
+
+### Fixed: the first CI run of stages 1, 2 and 2b, and the three defects it found (2026-09-20)
+
+**Every static check passed and every test cell failed** — lint, types,
+the offline scan, provenance, decontamination, sensitive paths and build
+all green; five Pythons across Ubuntu, Windows and macOS all red (pull
+request #6, run 35508922164). None of the three was a defect in the
+product: each was a test that could only pass in the arrangement it was
+written in, and `src/synthtwin` is untouched by this landing.
+
+| what CI saw | the cause | what the suite does now |
+|---|---|---|
+| `a network operation was attempted` | the readings battery ran its twelve columns over a process pool, whose machinery takes a socket, in a suite that is network-dead by design | three columns, serially — 25 s of the battery's 95 — holding all three of its missed counts and the two columns the accepted trade moved; the whole battery stays with the driver the ledger already names |
+| `peak_mb=703 vs at_most 600` (539 here) | peak memory was judged in the ordinary suite, and it moves with the platform, the Python and the allocator | the refusal, and the cap that produced it, are judged everywhere, word for word against the sentence the cap builds; peak memory is recorded everywhere and judged only on the quiet reference machine, never on a runner |
+| `SystemExit: 2` from the KPI guard | CI installs the wheel built from the commit and tests THAT, on purpose, so the package does not sit under `src/` | the guard asks whether the imported package IS this tree's code, byte for byte, rather than where it sits — and still refuses a worktree that imports another checkout's source, which is the mistake it exists to catch |
+
+**The suite costs 54 minutes here and up to three hours on a two-core
+runner**, and one cell ended at 3 h 00 m 06 s. That is measured and left
+for the owner to decide: the twenty slowest cases are 54% of the run and
+the top three are 33.5%, two of them fixture setup shared by many tests,
+so the lever is sharing a fixture rather than deleting a test.
+
+### Fixed: what a fourth review round found, and an oracle that copied the code it checks (2026-09-20)
+
+**A missing value reopened the worst defect of the stage.** One `NA`
+anywhere in a numeric column defeated the rule that stops a headerless
+file publishing its first real record as the column names: 240 records
+described as 239, the record's own text published as the header, and no
+question asked. Two independent passes found it, in delimited text and
+in Excel. The rule now drops recognised spellings of no value from its
+evidence and reads a censored reading as a reading, and both formats are
+pinned by the reviewer's own reproduction.
+
+**The round raised 28 items across five passes, all rejected, all
+closed.** The rest of the disclosure pass: a judged placeholder's
+occurrences, less its named spellings, gave a count of one; label form
+censuses bypassed the ruling that a level recoverable by subtraction is
+missing; a mixed date and timestamp census exposed a singleton; a
+plus-sign census omitted a population you could subtract; formula counts
+revealed a lone literal cell. Numbers and dates: the mode repair
+accepted the wrong frequency; absorbed identifier counts changed a
+column's usable type; exponent spelling stayed broken; the calendar
+repair corrupted published text labels.
+
+**Five of the items were measurements that did not measure.** The
+decontamination driver counted the files it listed rather than the files
+it scanned, so an empty scan read PASS; the KPI runner printed a failed
+driver's exit status and then discarded it, so a broken driver could
+produce a complete PASS; one KPI survived the removal of UTF-16 support
+outright. A measure that cannot fail is worse than none, because it is
+believed.
+
+**And the merge caught what no branch could see.** The oracle exists to
+check the generator without being it, and `K-2B-42` measures that: no
+more than 176 of its functions may score 0.60 or above against their
+closest shipped function. One of the round's new rules was a
+line-by-line transcription of the code it checks — the same three early
+returns in the same order, the same names, the same final expression —
+and the count crossed to 177. It was rewritten from the method's own
+statement of the rule, not by moving the bound. All ten vector files
+rebuild byte-identical, so no frozen cell moved, and 324,576 measured
+pairs disagree nowhere with the transcription it replaced.
+
+### Added: a ledger of measured outcomes, with a one-command runner (2026-09-19)
+
+**Six thousand tests passing do not tell you that a UUID column still
+comes back 800 of 800, or that a 20,000-row twin still builds in
+seconds.** Every phase and stage now has its outcomes recorded as
+measured numbers, and one command re-measures all of them:
+
+    .venv/bin/python tools/measurements/kpi_run.py          # about 2 minutes
+    .venv/bin/python tools/measurements/kpi_run.py --slow   # timings and scale
+
+`tests/kpi/ledger.json` holds 147 KPIs across phases 0 to 4
+and stages 1, 2 and 2b, 29 of them headlines. Each has its
+value, the commit it was measured on, and a fixed rule for passing.
+132 are green, 11 are open with the stage that owns
+them, and 4 are limits the owner accepted. The runner prints
+every KPI against its rule and exits non-zero if any drops, even when
+every test passes. It is run at every stage close.
+
+| a few headlines | before | now |
+|---|---|---|
+| generate 20,000 rows x 20 numeric columns | 1,113 s | 23 s |
+| most copies of one number, where the real mode is 62 | 760 | 62 |
+| US dates parsed by the source's own format | 0 twin cells | every cell |
+| `^REC\d{7}$` on a prefixed record number | 0 of 800 | 800 of 800 |
+| eight realistic shapes: real tables and twins passing | twins 6 of 8 | 8 of 8 each, floors 1 and 11 |
+| twin columns whose pandas type differs from the real one | 1 | 0 |
+| cases where the generator matches the independent oracle | 95 | 107 |
+
+An open KPI asserts a ceiling rather than its target. The suite stays
+green while the ledger shows the KPI open, and fails if it gets worse.
+The ledger checks itself: every test it names must exist and be
+collected, a skipped test counts as a failure, and a mutation shows that
+each of those checks can fail.
+
+**Building it found five things the tests had missed.** Four are above:
+the speed regression, the judged `-999`, the spread, and the readings.
+The fifth concerns privacy. The headline "no twin row is a real row"
+passed only because its table's made-up record number made every row
+differ. On two of four realistic shapes, 1 twin row in 400 equals a
+real row, record number included. That happens when a made-up number
+coincides with a real one, which the owner accepted, and the rest of the
+row coincides with that record's own values. This is open, and it is
+one question for the owner.
+
+### The owner's decisions recorded in this stage
+
+- **2026-09-15.** The twin writes everything as the source wrote it,
+  which reverses the earlier decision to write dates in ISO form.
+  synthtwin reads Excel and delimited text only, and openpyxl is a test
+  dependency only.
+- **2026-09-17.** Rulings 1 to 8, as listed above.
+- **2026-09-18.** Five limits accepted and two counts left as is after
+  the owner's questions; fractions of a second written as nought is the
+  orchestrator's call (below).
+
+**Accepted by the owner (2026-09-18), in the owner's words:**
+
+- real record numbers can reach the twin when a declared identifier has
+  little spare room: 100 of 1,000 at `REC` plus four figures, and all
+  900 when `100` to `999` are declared ("Identifier room: no worries.
+  Fine");
+- the twin can rebuild a held-back rare value: 55 of 251 held-back cells
+  on a fresh sweep, 1 of 19 columns rebuilt exactly ("Rare values: ok.
+  Fine");
+- an autofilter can still make an ambiguous first row the header ("I
+  wouldn't care");
+- the count of unreadable cells can be one, which subtraction gives
+  anyway ("If makes no difference, don't loose your time");
+- the reader accepts a workbook date cell that names no day ("wouldn't
+  be worried about").
+
+**Left as they are after the owner asked what they change.** Free text
+publishes that one cell is numeric. The missing count that ruling 5
+sends a pooled label to can be one. Neither changes the owner's code or
+results. Closing the first would move every numeric column's
+description. Closing the second would withhold missing counts on every
+column.
+
+**The orchestrator's calls under the owner's rule, each open to
+reversal:**
+
+- fractions of a second are written as nought;
+- the spread fix waits for stage 3;
+- the readings trade is accepted;
+- descriptions written by hand that no producer writes are left as they
+  are;
+- a record number's class counts can show that one record below the
+  line exists, but not its value;
+- the column-wide fill keeps its trade on grids of whole numbers.
+
+**Still with the owner:**
+
+- whether a made-up record number that coincides with a real one may
+  carry that real row whole;
+- a pooled population of numbers beside labels loses its scale: a mean
+  and standard deviation of 187.08 and 39.03 came back as 100 and 3.03,
+  and the twin's report says the placement is not a fact about the
+  table;
+- the timestamp column whose absorbed mark leaves a description no file
+  satisfies.
+
+### What later stages inherit
+
+- **Stage 3:** the exact smallest and largest values that one row can
+  hold, and the disclosure floor. At the shipped floor of 1, the
+  every-role table publishes 147 labels held by one row. Stage 3 also
+  inherits the spread of bell-shaped columns, and the mean and spread of
+  heavy-tailed columns: on one 5,000-row column the twin's mean was 41%
+  high and its spread 161% high.
+- **Stage 3b:** the time of day inside timestamps.
+- **Stage 4:** the largest tables. 100,000 rows by 20 columns runs in
+  264 s; 1 million and 2 million rows have not been measured.
+- **Stage 6:** relationships between columns (a rank correlation of
+  0.747 comes back as 0.027), and the walk that pairs the numbers of a
+  three- or four-number cell.
+- **Also carried, named one by one in the ledger's known-miss entry and
+  held there at a ceiling:**
+  - two date-width allocations;
+  - one record-number layout, `(-%)`;
+  - a sign band given more slots than it has numbers;
+  - the read floor of hand-built descriptions;
+  - two generator passes the oracle does not yet mirror;
+  - a column that mixes notations can lose one distinct number;
+  - a Fortran `D` exponent written as stand-ins;
+  - a percent column with two fraction widths.
+
+### Fixed: what a confirmation review found after stage 2 closed (2026-09-15)
+
+**An independent review of the committed stage 2 answered "not fixed",
+and six verifiers reproduced every finding.** Five are fixed here; two
+older ones are carried.
+
+- **A column of dates could still read back as a column of two values.**
+  The census repair guarded literal spellings, so it handed the last copy
+  of a day a `t` beside that day's `T`, and ten cells of three values,
+  case ignored, came back binary with nothing said, on every seed. The
+  repair now never leaves a column one value fewer once case is ignored,
+  the oracle mirrors it, and a twin whose values fall to two where the
+  description counts three or more is named.
+- **Decimal-comma recounts mixed two readings.** The generator's own
+  report and the validator read absence and class in the ordinary
+  grammar, so labels beside decimal-comma numbers were counted as numbers
+  and a grouped `-999.000` as the absent `-999,000`: the report listed
+  false deviations, and the real table failed its own description. Both
+  now read a declared column in its own grammar and translate only what
+  is left. This predates stage 2.
+- **A lost thousands mark on a currency, unit or labelled column was
+  silent.** The warning now covers the cores of every wrapper of an
+  affixed column and the numeric half of a column of numbers and labels.
+- **The round-trip tests could not see a failed check.** `cli.main()`
+  returns its exit code, and the helpers dropped it, so a validation that
+  missed an obligation passed. They read it now, and a test fails if any
+  test drops a command's result again. That is how the decimal-comma
+  failure above came to light.
+- **A day declared absent in every spelling still received values.** A
+  whole-unit rank that lands on such a day now steps to the nearest
+  present day inside its own window, and the oracle mirrors it.
+
+Each fix is pinned by a test built from the review's reproduction and
+mutation-checked by withdrawing it.
+
+**Carried, confirmed older than stage 2:**
+
+- the validator estimates the widest stratum of a numeric column from the
+  description while the generator uses the real one, so it can call a
+  faithful twin's percentile rung MISSED -- on a 2,000-row column, 6 seeds
+  of 8; this bears on the reliability of statistics and belongs to a
+  later stage;
+- a small column of numbers and labels that falls to a free-text or
+  long-tail role writes stand-ins that cannot reproduce its numeric forms.
+
+### Fixed: stage 2 closed after an independent audit (2026-09-14)
+
+**The audit found stage 2 was not done.** Five probes and a verifier who
+re-ran every reproduction measured that grouped whole numbers below a
+million, such as `12,345`, `$12,345` or `+1,234`, still came back bare:
+400 cells of 400. The rule counted a lone group as settling nothing,
+although the statistics already read it as thousands. And the stage's
+own gate, "a round-trip test per shape", had no test behind it: the
+comma witness passed with one grouped cell in six hundred.
+
+**What changed:**
+
+- a lone group now proves the comma, so whole numbers keep it;
+- the mark is published where the proving cells reach the smallest
+  group and outnumber the bare ones, so five bare cells no longer strip
+  it from 395 grouped cells; one grouped cell among many still
+  publishes nothing;
+- an accounting bracket such as `(123.45)` is no longer counted as a
+  figure, which had stripped the mark from a column of grouped charges;
+- a declared decimal-comma column grouped with points, `42.037,34`,
+  publishes `.` and its twin writes it, where the points were dropped
+  although the help promised the twin writes numbers as the table did;
+  the loader refuses a point anywhere else and a comma there (GS1);
+- the checker offers grouped spellings whatever the published mark, so
+  a real table is never missed for commas the description could not
+  prove;
+- the absent-spelling exception offers the marks the column's own
+  census names first, so a column of spaces and `t` never gains a `T`;
+- the census repair allows a repeated spelling, which it had refused on
+  every column of midnight dates, and runs in linear time (80,000 rows
+  had taken 18.9 s against 2.9 s);
+- a value left wearing a spelling the table declares absent is named in
+  the twin's report, and so is a column of moments whose absent cells
+  were pooled below the group size, where no spelling can be avoided;
+- report sentences that overstated are corrected: the marks each
+  written "as often as the description records it" on a column with a
+  pooled or mixed census, and dates reading "the same" on a column that
+  mixes bare dates with moments;
+- the describe-time summary names the mark, the census and the midnight
+  statement, and the claim guard catches contractions and near-synonyms
+  of the exemption it bans.
+
+**One review round then rejected the closure, and was right four times.**
+Allowing a repeated spelling in the census repair could erase the last
+copy of one, and five cells of three spellings came back as a column of
+two values; the repair now never leaves a column one spelling fewer.
+The decimal-comma exchange decided from the text which cells were
+numbers, so a label such as `1,234,567` beside the numbers became a
+measurement and a grouped end matching an absent spelling was left
+unexchanged and lost; the exchange now touches exactly the cells the
+numeric machinery wrote. A small column at a raised floor could lose
+the mark in its twin with nothing said; that is now a named deviation.
+And the warning about pooled absent cells fired on an ordinary blank; it
+is now a remark, raised only where missing values were declared. The
+oracle trims absent spellings as the reader does, a departure test that
+never departed now does, the claim guard lets "does not necessarily
+satisfy" stand, and the contract's GS1 scope matches the loader.
+
+**Measured.** `tests/test_stage2_round_trip.py` describes the twin again
+for 19 shapes -- whole, currency, signed, decimal, straggling, bracketed
+and decimal-comma numbers, millions, the three marks and their mix,
+midnight at three precisions, with a `T` and with an offset -- and finds
+every stage-2 fact returned, the twin checked with nothing missed and,
+where its spelling is a published one, the real table too. The shapes
+designed not to return -- a pooled mark, dates mixed with moments, a day
+declared absent -- are pinned beside it with what they do instead. Each
+new rule is mutation-checked: put back, it turns a test red.
+
+**Carried, not fixed:**
+
+- a number grouped with a space or an apostrophe is read as free text;
+- an accounting bracket or a plus sign on a decimal is not a published
+  number style, so the twin writes a minus and drops the plus, and a
+  real table with brackets misses its own spelling check;
+- a column mixing bare dates with midnight moments is written wholly as
+  moments, and a slashed format is written in ISO form;
+- a column only partly at midnight, or at midnight on the shared clock,
+  still gets invented times;
+- at a raised floor, a withheld mark can be attributed by elimination
+  when only one mark is left unnamed;
+- twins of date columns spread values across days more evenly than real
+  tables (predates stage 2);
+- continuous integration has not run on this branch.
+
+### Fixed: a moment keeps its own separator, and a date held at midnight stays a date (stage 2, part two, 2026-09-14)
+
+**A stamp written `2025-09-04 06:16:00` came back from the twin as
+`2025-09-04T06:16:00`**, so code that split or searched on the space
+worked on the twin and silently did nothing on the real table. **A date stored as the date
+plus `00:00:00` came back with invented times of day**: 800 of 800 real
+rows at midnight became 2 of 800.
+
+Every datetime block now publishes two more facts (plan P4-D39), both
+REPORT-ONLY and listed in the quality report:
+
+- **`datetime_separators`**, the census of marks between day and clock
+  (`upper_t`, `space`, `lower_t`), floored like `utc_offsets` with a
+  `(withheld)` pool. The generator spends it by an evenly spread
+  rotation that draws no random word, so each mark is written its
+  published number of times and no link is invented between how early a
+  moment is and how it was spelled. A withheld pool is written with the
+  commonest mark and named in the twin's report.
+- **`all_at_midnight`**, true only for a local column whose every parsed
+  moment stands exactly at midnight, fraction included, and whose parsed
+  cells reach the smallest group size. Such a column is generated and
+  checked in whole days and written back with a midnight clock. The
+  twin's report recounts the midnight cells it wrote and names any miss,
+  because the checker's day-counted windows could not see one.
+
+**Measured on five 400-row shapes.** A space column comes back 400 of
+400 with a space. A column mixing 300 spaces, 50 `T` and 50 `t` comes
+back with exactly those counts, about 75 spaces in every quarter of its
+dates. A date column at midnight keeps 400 of 400 cells at midnight. The
+twin and the real table both pass the checker with nothing missed.
+
+**The loader** refuses a census name outside the vocabulary, a named
+count below the floor (D12), a census whose total is not the cells that
+write a clock or that gives a slashed format a mark other than a space
+(D13), and a midnight statement on the shared clock, below the floor, or
+beside a published moment that is not at midnight (D14).
+
+**The oracle mirrors both rules** in the same commit (A-P4-59), written
+from the statement rather than the implementation, and two frozen branch
+cases pin them: `midnight_days` and `mixed_marks`, each with a mutant
+that moves its cells. A new test holds the two writings to agreeing over
+6,000 censuses and 9,000 cells, and each of three in-memory mutants
+turns it red. Every earlier frozen cell is unchanged; both vector files
+gained the two keys on their datetime cases.
+
+**One review round rejected the first build, and was right twice.** A
+generated moment could equal a spelling ANOTHER column declares absent,
+so a present value read back as missing; the writer now checks every
+column's absent spellings. And where a cell's mark had to change to step
+around an absent spelling, the census was left one short in one name
+and one over in another with nothing said; another rank now takes the
+owed mark back, the finished marks are recounted, and a shortfall no
+rank can absorb is named. The loader also refuses a withheld pool larger
+than the unnamed marks could hold, the claim guard catches clearance
+said with a preposition, and the oracle mirrors the absent-spelling
+exception and its repair, held to the generator over 4,000 columns.
+
+**Also in this landing.** The claim guard's seventh family now names
+regimes by their acronyms and catches an exemption claimed by clearing a
+regime, not only by lifting it. The sentence saying analysis code
+developed on the twin runs is qualified on all four surfaces that
+shipped it: running unchanged is the aim, and nothing guarantees it.
+
+**Carried, not fixed:**
+
+- a column grouped with a space or an apostrophe is read as free text,
+  so its twin writes stand-in text; a strict expected failure pins it;
+- a column only partly at midnight, or at midnight on the shared clock,
+  still gets invented times;
+- neither new fact is an obligation a file can miss;
+- at a floor of one, a census name can stand for one row's spelling, the
+  same posture as `utc_offsets`, until landing 3 raises the floor;
+- the two published ends take their marks from the rotation, not from
+  the real ends' own cells;
+- on a midnight column, a calendar placeholder day inside the range is
+  now hit by whole-day ranks far more often than before;
+- the assembled contract gains two more keys its build folder does not
+  hold (residual R-P4-113).
+- no frozen case declares an absent spelling, so the exception and its
+  census repair are pinned by the agreement test, not by committed
+  cells.
+
+### Fixed: a thousands comma is written back (stage 2, part one, 2026-09-14)
+
+**A column written `2,198.92` came back from the twin as `2198.92`.**
+Code built on the twin then met the comma for the first time on the
+real table and silently dropped every value above a thousand. The
+profile now publishes `group_separator` on every numeric block (`""`
+or `","`), and the generator writes the comma back.
+
+**The evidence rule** (`taxonomy._group_separator`). The mark is `","`
+only when all of these hold:
+
+- no decimal comma is declared for the column;
+- every `plain`, `leading_plus` or `decimal` cell with four or more
+  whole figures carries a comma;
+- no padded or exponent cell carries one;
+- the cells proving the grouping reach `small_cell_floor`.
+
+Otherwise it is `""`. The generator groups `plain` cells always, and
+`leading_plus` and `decimal` cells only where no leading zeros were
+written. The validator accepts grouped spellings of each permitted
+form, and the independent oracle carries the same rule. The quality
+report lists the mark on every numeric-family column as a fact no file
+is held to.
+
+**Measured.** A naive parser gives a mean of 409.97 on the twin against
+412.11 on the real table, where the true mean is 917.93. The defect now
+shows up on the twin, where it can be fixed. The twin and the real
+table both validate with nothing missed. A declared decimal-comma
+column, a column mixing grouped and bare cells, and a padded column
+all publish `""`. Three independent groupers agree on 30,000 spellings.
+
+**One review round** found nine defects, all corrected here:
+
+- the comma leaked into decimal-comma columns;
+- one grouped cell grouped a whole column;
+- padded and exponent cells were grouped;
+- the generator grouped spent zeros (`+0,001,234`);
+- the loader accepted values other than `""` and `","`;
+- the reference profiles, including the joined case's two parts,
+  lacked the key;
+- the contract's key counts and role matrix were stale.
+
+A moment-separator and midnight census built in the same pass broke
+profiling and was backed out whole; it returns as part two.
+
+**Frozen artefacts moved, by one key only.** The profile golden and
+the twin golden's description hash were re-recorded after a diff showed
+`group_separator: ""` as the only addition. Both reference vector
+files gained the empty key and no cell moved. Contract v6 gained its
+table rows, a matrix row, and a place in the post-freeze list, all
+under plan P4-D38.
+
+**Carried, not fixed:**
+
+- the validator accepts a grouped spelling but does not require one, so
+  a twin written bare still passes;
+- no frozen reference case publishes `","`;
+- at a floor of one, a single grouped cell is enough to publish the
+  mark;
+- a column grouped with a space or an apostrophe is read as free text
+  (measured after this entry was written; it said "the wrong number");
+- a moment's own separator and a date held at midnight: part two.
+
+### Fixed: describing and generating were quadratic, and it was one idiom (stage 1, 2026-09-13)
+
+**Describing a table and building a twin both grew with the SQUARE of
+the row count**, and no guard in the suite looked at growth at all.
+Measured on the tree this landed on:
+
+| case                                | before  | after |
+|-------------------------------------|---------|-------|
+| build a twin, 20,000 rows x 20 numeric | 1,113 s | 19 s |
+| describe, 200,000 rows x 2 labels      |   390 s | 10 s |
+| describe, 100,000 rows x 20 numeric    | (hours) | 96 s |
+
+A 100,000-row table now runs end to end in about three and a half
+minutes. Before this it could not be done at all.
+
+**Two causes, in two places.** Every list in the package was grown with
+`x = x + [item]`, which rebuilds the whole list on each pass, in 669
+places -- 661 with a plain name as the target and 8 more where the list
+sits in a slot of another container. `tools/offline_scan` refuses
+`list.append`, so that quadratic form was what the rules left standing;
+`x += [item]` is accepted and is amortised constant. And
+`generation._shape_sizes` reduced runs by calling `_merge_nearest` once
+per merge, which rescans every adjacent pair and rebuilds both lists; it
+now calls `_merge_down`, a binary heap over a linked list, written
+without a new import because `heapq` is not on the allowlist.
+
+**Nothing the tool produces changed.** The profile, the twin and the
+twin's report were hashed for three tables before and after: identical.
+`_merge_down` was checked against `_merge_nearest` on 4,200 randomised
+cases over six adversarial families -- all-equal values, whole and
+fractional mixes, the 1e308 and 1e-320 magnitudes that exercise the
+overflow rescale, signed zeros, and the ladder's own
+plateau-and-transition shape -- agreeing on every length and on the
+`repr` of every value. Review independently reproduced this over
+267,330 exhaustive small cases and 6,000 seeded ones.
+
+**A new guard, `tests/test_no_quadratic_list_growth.py`.** It reads the
+source and names any list grown by copying, file and line. It is static
+rather than timed because the first version was timed and review killed
+it: with the defect restored the wall-clock ratios were 2.5 and 2.2,
+under the threshold, so the guard accepted a quadratic tree, while a
+single 0.6-second pause made repaired code fail. Counting the defect
+beats timing its symptom.
+
+**Review found three blocking items and all three were repaired**: the
+eight container-slot sites above, the timing guard, and a recorded test
+count that guaranteed a gate failure.
+
+Suite: 4,407 passed, 51 skipped. Lint, strict types, the offline import
+scan, provenance, decontamination and the signed attestation all clean.
+
+
 ### Phase 4 is closed (2026-09-11)
 
 **Every column type a real table holds is read, or declined with an

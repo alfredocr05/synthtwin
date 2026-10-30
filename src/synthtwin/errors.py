@@ -72,7 +72,29 @@ class TransactionRefusal(ProfileError):
     It is a subclass, so every caller that catches `ProfileError` --
     including the command -- catches it unchanged, and nothing about
     what the person reads depends on which of the two it is.
+
+    ``on_disk`` IS THE MESSAGE'S ACCOUNT OF THE DISK, apart (lane S5a's
+    repair 2, Codex's item 8): the sentence the transaction composed
+    naming what is at every name after its cleanup, which the message
+    holds after the trouble it names. A run's result carries it as its
+    refusal's `on_disk`. Built by `transaction_refusal` below and not by
+    a constructor of its own, for the reason `ShapeRefusal` states (the
+    offline audit admits no `super`); empty on one raised directly.
     """
+
+    on_disk = ""
+
+
+def transaction_refusal(trouble: str, stated: str) -> TransactionRefusal:
+    """The transaction's refusal: ``trouble``, then ``stated``, the disk's account, kept apart too.
+
+    The message is the two joined by one space, as the transaction
+    always composed it; ``on_disk`` is ``stated``. A fixed function of
+    the two. Raises nothing.
+    """
+    refusal = TransactionRefusal(f"{trouble} {stated}")
+    refusal.on_disk = stated
+    return refusal
 
 
 # WHICH OF THE READER'S REFUSALS ABOUT A FILE'S OWN SHAPE THIS IS.
@@ -201,6 +223,22 @@ def _listed(items: list[str]) -> str:
     return text
 
 
+def _quoted(items: list[str]) -> str:
+    """The same list as `_listed`, with each item in quotation marks.
+
+    A column name reads as part of the sentence without them -- "and
+    also names dose" -- and a name with a space in it reads as two.
+    """
+    text = ""
+    for item in items:
+        shown = f"'{_shown(item)}'"
+        if not text:
+            text = shown
+        else:
+            text = f"{text}, {shown}"
+    return text
+
+
 def file_missing(path: str) -> str:
     """Message for a table path that names nothing on disk."""
     return (
@@ -228,24 +266,33 @@ def file_unreadable(path: str, detail: str) -> str:
     )
 
 
-def not_utf8_or_latin1(path: str) -> str:
-    """Message for a file that is not text in either supported encoding."""
+def file_changed_while_read(path: str) -> str:
+    """Message for a file that changed between two readings of it (lane SR, plan P4-D400).
+
+    A large table is read once for each group of its columns, and the
+    readings must be readings of one file: its size, the moment it was
+    last changed and a digest of what was read are compared after each,
+    and two versions are never mixed.
+    """
     return (
-        f"The file {path} is not readable as text. synthtwin reads CSV "
-        f"files saved as UTF-8 (the usual choice) and, as a fallback, "
-        f"Western European text (Latin-1). If this file came from a "
-        f"spreadsheet, open it and save it again choosing 'CSV UTF-8'."
+        f"The file {path} changed while synthtwin was reading it: a large "
+        f"table is read more than once, and it was not the same file each "
+        f"time. Nothing was written. Wait until no other program is "
+        f"writing to it, or copy it somewhere it will not change, and "
+        f"run the command again."
     )
 
 
 def looks_like_utf16(path: str) -> str:
-    """Message for a UTF-16/UTF-32 file (or a binary file) given as CSV."""
+    """Message for a UTF-32 file, a marked-less UTF-16 one, or a binary file."""
     return (
-        f"The file {path} looks like it was saved as UTF-16 or UTF-32 "
-        f"text, or is not a text file at all: it contains "
-        f"the zero bytes those formats use. synthtwin reads UTF-8 CSV "
-        f"files. Open the file in your spreadsheet program and save it "
-        f"again choosing 'CSV UTF-8'."
+        f"The file {path} looks like it was saved as UTF-32 text, or as "
+        f"UTF-16 text without the byte-order mark that says so, or is not "
+        f"a text file at all: it contains the zero bytes those formats "
+        f"use. synthtwin reads delimited text saved as UTF-8, as UTF-16 "
+        f"with its byte-order mark (Excel's 'Unicode Text'), and as "
+        f"Western European text. Open the file in your spreadsheet "
+        f"program and save it again choosing 'CSV UTF-8'."
     )
 
 
@@ -267,62 +314,17 @@ def no_data_rows(path: str) -> str:
     )
 
 
-def header_looks_like_data(path: str, reason: str) -> str:
-    """Message for a first row that does not look like column names."""
-    return (
-        f"The first row of {path} does not look like column names: "
-        f"{_shown(reason)}. synthtwin needs the first row to be the names of "
-        f"the columns. Add a first row with a name for every column, "
-        f"then run the command again. If that row is the first record "
-        f"and the table has no column names at all, run the command "
-        f"again with --first-row data: synthtwin will name the columns "
-        f"column_1, column_2, and so on and keep every record."
-    )
-
-
-def first_row_could_be_a_record(
-    path: str, columns: int, found: str = ""
-) -> str:
-    """Message for a first row the file shows could be a record.
-
-    ``found`` is what the reader actually found, in words, naming the
-    column by its POSITION -- one of the clauses `reading` builds. Left
-    out, the message states only the general shape of the trouble, which
-    is what a caller with no detail to hand can honestly say.
-
-    The wording says exactly what was found and nothing more. The
-    version this replaces claimed that "none of them stands out as a
-    name, and at least one has exactly the shape every other value in
-    its column has". Neither half was what the reader had checked: the
-    first is a claim no test can support, because nothing about a value
-    makes it a name, and the second could be false of every column in
-    the file while the refusal was raised for a different reason
-    entirely (review item P1-R6-F6).
-
-    The message deliberately quotes nothing from the row, and nothing
-    from below it. If the row is a record, printing it would print
-    somebody's data to the screen in order to ask a question about it,
-    and in an unsettled file the "column name" IS that row.
-    """
-    stated = (
-        _shown(found)
-        if found
-        else (
-            "at least one value in that row belongs among the values of "
-            "the column below it"
-        )
-    )
-    return (
-        f"synthtwin cannot tell whether the first row of {path} holds "
-        f"the names of the {columns} columns or the first record of the "
-        f"table, because {stated}. Guessing would either drop a whole "
-        f"record from the description or publish a record as if it were "
-        f"a set of column names, so synthtwin stops instead. Please run "
-        f"the command again with --first-row names if that row holds the "
-        f"column names, or with --first-row data if it is the first "
-        f"record. With --first-row data the columns are named column_1, "
-        f"column_2, and so on, and every record is kept."
-    )
+# WHERE THE TWO FIRST-ROW REFUSALS WENT (the owner's ruling of
+# 2026-09-17, item 8; plan P4-D232). `header_looks_like_data` and
+# `first_row_could_be_a_record` stood here. A first row that reads as a
+# record no longer stops the run and asks on the screen: the columns are
+# named `column_1`, `column_2` and so on, every row of the file is kept,
+# no text of that row is published anywhere, and the question is put in
+# the questions file, where `--first-row names` is the answer that takes
+# the other reading. So there is nothing left for either message to say,
+# and a message no code path raises is what `tests/test_failure_catalog.py`
+# exists to refuse. The words the reader found are not lost: they are the
+# questions file's account of what was SEEN (`reading._record_evidence`).
 
 
 def readers_disagree_about_a_name(
@@ -451,59 +453,18 @@ def checked_file_unreadable_as_csv(path: str) -> str:
     )
 
 
-def checked_file_repeats_a_column_name(path: str) -> str:
-    """Message for a repeated name in a checked file, naming neither.
-
-    The profiler's form of this QUOTES the repeated name, and on the
-    checking path that name is a string out of a file nobody promised
-    was the reader's (V9).
-
-    AND IT NAMES NO POSITION EITHER (review item P3-V4-F3; plan
-    amendment A-P3-10 clause 2). The version this replaces put the two
-    column numbers in the name's place, on the reasoning that a number
-    publishes strictly less than a string. That reasoning was wrong, and
-    the way it was wrong is the point: `dup,a,dup` and `a,dup,dup` are
-    two files `synthtwin profile` refuses with the SAME sentence, and
-    the positions tell them apart. What the profiler's refusal
-    publishes about such a file is that one of its names is used twice,
-    so that is what this says.
-    """
-    return (
-        f"The first row of {path} uses one column name twice. Every "
-        f"column needs its own name, so that the description of one "
-        f"column can never be confused with another's. Rename the "
-        f"repeat and run the command again. synthtwin does not print "
-        f"what it found in the file, or where: this file may not be "
-        f"your own table."
-    )
-
-
-def duplicate_column_names(names: list[str]) -> str:
-    """Message for repeated column names in the header row."""
-    listed = _listed(names)
-    return (
-        f"The first row repeats the same column name more than once "
-        f"({listed}). Every column needs its own name, so that the "
-        f"description of one column can never be confused with "
-        f"another's. Rename the repeats and run the command again."
-    )
-
-
-def empty_column_name(position: int) -> str:
-    """Message for a header cell with no name in it."""
-    return (
-        f"Column number {position} has no name in the first row. Every "
-        f"column needs a name. Add one and run the command again."
-    )
-
-
 def ragged_rows(
-    path: str, expected: int, offenders: list[tuple[int, int]], total: int
+    path: str,
+    expected: int,
+    offenders: list[tuple[int, int]],
+    total: int,
+    delimiter: str = "a comma",
 ) -> str:
     """Message for rows whose value count differs from the header's.
 
     ``offenders`` holds up to three (data-row number, value count)
-    pairs; ``total`` is the full count of such rows.
+    pairs; ``total`` is the full count of such rows; ``delimiter`` names
+    the character the file's fields were read as separated by.
     """
     described = [f"row {number} has {count}" for number, count in offenders]
     listed = _listed(described)
@@ -513,8 +474,126 @@ def ragged_rows(
         f"values. The first row names {expected} columns, but {listed}"
         f"{tail}. Rows are counted after the first row, leaving out "
         f"blank lines. A row with too few or too many values usually "
-        f"means a value contains a comma and needs quotation marks "
+        f"means a value contains {delimiter} and needs quotation marks "
         f"around it. {_CHECK_AND_RETRY}"
+    )
+
+
+# The ways one row can differ from the others only by the delimiter
+# that closes it (plan P4-D387), for `trailing_delimiter_uneven`.
+ROW_LACKS_THE_TRAILING_DELIMITER = 0
+ROW_HAS_A_VALUE_AFTER_THE_LAST_DELIMITER = 1
+ROW_CARRIES_A_TRAILING_DELIMITER = 2
+# A row whose last field, where the other rows close, is an empty value
+# in quotation marks (Codex's review of landing R5, item 2).
+ROW_ENDS_IN_A_QUOTED_EMPTY_VALUE = 3
+
+
+def trailing_delimiter_uneven(
+    path: str,
+    offenders: list[tuple[int, int]],
+    total: int,
+    delimiter: str = "a comma",
+) -> str:
+    """Message for rows that differ from the others only by a trailing delimiter.
+
+    A TRAILING DELIMITER THE ROWS DO NOT ALL CARRY (plan P4-D387, lane
+    R5's repair). Where the rows end in a delimiter with nothing after
+    it (or the first row does and the rows do not), the reader takes
+    that delimiter as closing the row, not as opening a column. A row
+    that breaks the pattern used to be refused as `ragged_rows`, whose
+    sentence -- "names 4 columns, but row 51 has 4", "needs quotation
+    marks" -- contradicted itself and gave the wrong reason. This one
+    names the real reason. ``offenders`` holds up to three (data-row
+    number, kind) pairs, the kind one of the three constants above;
+    ``total`` is the full count of such rows.
+    """
+    described: list[str] = []
+    header_side = False
+    quoted = False
+    # "a semicolon" names the character; "the semicolon" points at one.
+    bare = delimiter[2:] if delimiter[:2] == "a " else delimiter
+    for number, kind in offenders:
+        if kind == ROW_LACKS_THE_TRAILING_DELIMITER:
+            described += [f"row {number} does not end in {delimiter}"]
+        elif kind == ROW_HAS_A_VALUE_AFTER_THE_LAST_DELIMITER:
+            described += [
+                f"row {number} has a value after the {bare} "
+                f"that ends the other rows"
+            ]
+        elif kind == ROW_ENDS_IN_A_QUOTED_EMPTY_VALUE:
+            quoted = True
+            described += [
+                f'row {number} ends in an empty value in quotation marks ("")'
+            ]
+        else:
+            header_side = True
+            described += [f"row {number} ends in {delimiter}"]
+    listed = _listed(described)
+    tail = "" if total <= len(offenders) else f" ({total} rows in total)"
+    if quoted:
+        # A QUOTED EMPTY VALUE WHERE THE OTHER ROWS CLOSE (Codex's
+        # review of landing R5, item 2): `""` is a value, so the row
+        # holds one more than the rows that close, and a twin, which
+        # writes an empty value bare, would end it like them.
+        return (
+            f"Rows of {path} end in {delimiter} with nothing after it, "
+            f"which reads as ending the row, but {listed}{tail}. That "
+            f"empty value cannot be told apart from the rows that end in "
+            f"{delimiter} once it is written without its quotation marks. "
+            f"Rows are counted after the first row, leaving out blank "
+            f'lines. Make every row end the same way: take the "" off, or '
+            f"name a column for it in the first row and write it on every "
+            f"row. {_CHECK_AND_RETRY}"
+        )
+    if header_side:
+        lead = (
+            f"The first row of {path} ends in {delimiter} and the rows "
+            f"after it do not, so that delimiter was read as ending the "
+            f"row rather than starting a column, but {listed}"
+        )
+    else:
+        lead = (
+            f"The rows of {path} end in {delimiter} with nothing after "
+            f"it, so that delimiter was read as ending each row rather "
+            f"than starting a column, but {listed}"
+        )
+    return (
+        f"{lead}{tail}. Rows are counted after the first row, leaving out "
+        f"blank lines. Make every row end the same way, with {delimiter} "
+        f"at the end of every row or of none. {_CHECK_AND_RETRY}"
+    )
+
+
+def quoted_empty_name_over_an_empty_column(path: str, delimiter: str = "a comma") -> str:
+    """Message for a first row ending in a quoted empty name no row fills.
+
+    A QUOTED EMPTY NAME OVER NOTHING (Codex's review of landing R5, item
+    2). `a;b;""` over rows `1;2;` or `1;2` names a third column that
+    holds no value. Read that way, its twin writes the empty name
+    without its quotation marks, `a;b;`, which reads as the delimiter
+    that ends the row: the twin would read as two columns and the table
+    as three. Read the other way, the quotation marks would be lost. The
+    file is refused with the reason rather than read either way.
+    """
+    return (
+        f'The first row of {path} ends in an empty name in quotation '
+        f'marks (""), and no row after it holds a value under that name. '
+        f"Written without the quotation marks, that row would end in "
+        f"{delimiter} with nothing after it, which reads as ending the "
+        f"row, so a twin could not be read the way this file is. Give "
+        f'the last column a name, or take the "" off the end of the first '
+        f"row. {_CHECK_AND_RETRY}"
+    )
+
+
+def twin_not_writable_in_encoding(encoding: str) -> str:
+    """Message for a twin holding a character its table's encoding lacks."""
+    return (
+        f"The twin could not be written as {encoding}, the encoding your "
+        f"table was read with: one of its cells holds a character that "
+        f"encoding has no byte for. This means a mistake in synthtwin; "
+        f"please report it. Nothing has been written."
     )
 
 
@@ -591,6 +670,55 @@ def out_of_memory_while_describing(path: str) -> str:
         f"people were, the first rows describe only one part of it and "
         f"the twin would be wrong in the same way. Describing very "
         f"large files in pieces is planned but not built yet."
+    )
+
+
+def stopped_nested_too_deep(path: str) -> str:
+    """Message for a run that one of synthtwin's own steps stopped from too deep inside.
+
+    Python stops a program whose work is nested deeper than a fixed
+    limit, and until plan P4-D380 a column of numbers written to full
+    precision -- the hours between two times as seconds over 3,600 --
+    reached that limit inside the description, and the person got a
+    stack trace and no files. That step no longer nests, but a stack
+    trace is never the way a run ends, so any step that still reaches
+    the limit ends here: on the file the person typed, saying the fault
+    is synthtwin's, because it is, and what to do next.
+    """
+    return (
+        f"synthtwin stopped before it finished with {path}: one of its own "
+        f"steps went deeper than the Python it runs on allows, and Python "
+        f"stopped it. This is a fault in synthtwin itself, not in your "
+        f"file, and running the same command again will stop the same "
+        f"way. Please report it to the synthtwin maintainers with the "
+        f"command you ran and how many rows the table has -- and please do "
+        f"not include your data. Until it is repaired, describing a "
+        f"smaller extract of the table, with rows spread through the whole "
+        f"file rather than the first rows, may get past it."
+    )
+
+
+def cell_too_long_to_search(limit: int) -> str:
+    """Message for a cell whose search for the number it holds was stopped at its bound.
+
+    A cell reading as a number with text around it -- `14.2 g/dL`,
+    `$1,250` -- is split into the text and the number by a search over
+    its runs of figures, signs and marks (`taxonomy.affixed_split`), and
+    since the Codex review of 3b-R0, item 2, that search reads at most
+    ``limit`` characters of one cell rather than search on for minutes.
+    Only a run of figures many thousands long reaches the bound. No
+    character of the cell is placed here, and neither is its length.
+    """
+    return (
+        f"synthtwin stopped before it finished describing the table: one "
+        f"cell holds a run of figures, signs and spaces so long that "
+        f"searching it for the number it holds would read more than "
+        f"{limit:,} characters, which is the most synthtwin reads of one "
+        f"cell. Nothing was written. Please check the table for a column "
+        f"holding thousands of figures in one cell -- a long series of "
+        f"readings or a code written into a single cell -- and describe "
+        f"the table without that column, or with those cells split or "
+        f"shortened, and run the command again."
     )
 
 
@@ -1221,16 +1349,302 @@ def unknown_column_named(purpose: str, name: str, known: list[str]) -> str:
     )
 
 
+def delimiter_not_supported(given: str) -> str:
+    """Message for a --delimiter value this format cannot read (plan P4-D110)."""
+    return (
+        f"--delimiter takes one of four characters, but {given} was "
+        f"given. It says which character separates the columns of your "
+        f"file: a comma, a semicolon, a vertical bar, or a tab. Please "
+        f"run the command again with --delimiter followed by ',' or "
+        f"';' or '|', or by the word tab, each in quotation marks where "
+        f"your command line needs them. Nothing was read and nothing "
+        f"was written."
+    )
+
+
+def delimiter_declared_against_the_file(
+    path: str, declared: str, written: str
+) -> str:
+    """Message for a --delimiter the file's own separator line contradicts."""
+    return (
+        f"You said the columns of {path} are separated by {declared}, "
+        f"and the file's first line says they are separated by "
+        f"{written}: that line is the separator line a spreadsheet "
+        f"writes to name the character it used. synthtwin will not "
+        f"choose between the two. If the file is right, run the command "
+        f"again without --delimiter; if it is not, the file itself "
+        f"needs correcting first. Nothing was written."
+    )
+
+
+def delimiter_declared_on_a_workbook(path: str) -> str:
+    """Message for a --delimiter given on a workbook (plan P4-D110)."""
+    return (
+        f"{path} is a workbook, and a workbook keeps its values in "
+        f"cells, so there is no character between its columns to "
+        f"declare. Please run the command again without --delimiter. "
+        f"Nothing was written."
+    )
+
+
+def metadata_rows_not_supported(given: str) -> str:
+    """Message for a --metadata-rows value this format cannot carry."""
+    return (
+        f"--metadata-rows takes 0 or 2, but {given} was given. It says "
+        f"how many rows immediately under your column names DESCRIBE "
+        f"those columns rather than holding a record -- the two rows a "
+        f"survey export writes, a question wording and a row of "
+        f"ImportId markers. A description can carry two such rows or "
+        f"none, so those are the two answers. Please run the command "
+        f"again with --metadata-rows 2, or with the option left out "
+        f"altogether: every row under your column names is then read as "
+        f"a record of your table, which is what it is unless you say "
+        f"otherwise."
+    )
+
+
 def floor_not_positive(given: str) -> str:
-    """Message for a small-cell floor that is not a positive whole number."""
+    """Message for a small-cell floor that is not a positive whole number.
+
+    IT SAYS WHAT THE DEFAULT BUYS IN THE UNIT IT IS COUNTED IN (review of
+    2026-09-23, finding 6). It read "so none is small enough to point at
+    one person", and the floor counts ROWS (plan P4-D348): twelve visits
+    of one patient clear a floor of eleven. The sentence now names the
+    rows the default covers and stops there.
+    """
     return (
         f"The smallest group size must be a whole number of 1 or more, "
         f"but {given} was given. Give a whole number, or leave the "
-        f"option out altogether to use the default of 1: every value "
-        f"your table holds is then named in the profile, together with "
-        f"how many rows shared it. Raise it -- for instance to 11 -- "
-        f"where no group named in the profile may be small enough to "
-        f"point at one person."
+        f"option out altogether to use the default of "
+        f"{parsing.DEFAULT_SMALL_CELL_FLOOR}: no group named in the "
+        f"profile then covers fewer than "
+        f"{parsing.DEFAULT_SMALL_CELL_FLOOR} rows. That counts rows and "
+        f"not people, so where your table holds several rows per person "
+        f"a group of {parsing.DEFAULT_SMALL_CELL_FLOOR} rows can still "
+        f"be one person's."
+    )
+
+
+def the_table_is_below_the_floor(
+    rows: int, people: int, column: str, floor: int
+) -> str:
+    """Message for a table under the owner's table floor (plan P4-D425).
+
+    The owner, 2026-10-22: "we don't make twins of small tables". THE
+    MINIMUM SIZES AS THE OWNER'S POLICY, THIS TABLE'S ROWS AND PEOPLE,
+    WHY, WHAT TO DO, AND THAT NOTHING WAS WRITTEN, in words a person who
+    is not a statistician can act on and that a statistician would sign.
+    The why claims no more than holds (skeptic 1 of lane POP, item 5;
+    Codex's review, item 1): a count is published only when it covers at
+    least the smallest group of this run (``floor``: 11, or more if the
+    person raised it with --smallest-group; never lower, the owner,
+    2026-10-23), counted in people where a column names the person and
+    in rows where none does; the fewer rows or people, the MORE counts
+    fall under it -- not "most", which is false
+    just under the floor for a column of a few common levels.
+
+    ``people`` and ``column`` are given where a declared or answered
+    person column repeats (``column`` names it, as the person typed or
+    answered it); 0 and empty where the rows were counted. ``people`` is
+    the floor's count, spellings merged (`parsing.subject_key`).
+
+    Guarantees: a fixed function of the four; one paragraph. Raises
+    nothing. No I/O of any kind.
+    """
+    held = f"{rows:,} rows that hold a value"
+    if column:
+        held = (
+            f"{held} and {people:,} people, counted by "
+            f"'{_shown(column)}': rows whose values of it are written "
+            f"alike, apart from case, spaces, punctuation and leading "
+            f"zeros, are one person, and rows holding no value of it "
+            f"count as one person between them"
+        )
+    return (
+        f"synthtwin makes twins of large tables only, and this table is "
+        f"below its floor. The floor, a policy for every table synthtwin "
+        f"twins, is {parsing.TABLE_ROW_FLOOR:,} rows that hold a value "
+        f"and, where one person has several rows, "
+        f"{parsing.TABLE_PEOPLE_FLOOR:,} people. This table holds "
+        f"{held}. Why: synthtwin publishes a count only when it covers "
+        f"at least the smallest group, {floor} (11, or more if you raised "
+        f"it with --smallest-group), counted in people where a column names "
+        f"the person and in rows where none does; the fewer rows or people "
+        f"a table has, the more of its counts -- rare categories, and cells of "
+        f"two or more columns taken together -- fall under it and are "
+        f"pooled or withheld, so an analysis run on the twin stands less "
+        f"well on the real table, and small groups are where a published "
+        f"fact can point to one person. What you can do: describe the "
+        f"whole extract rather than a sample of it, or combine sites or "
+        f"years into one table, and run the command again. A row counts "
+        f"only when it holds a value: one whose every cell this run reads "
+        f"as no value -- a blank, a spelling that means no value, a "
+        f"number declared with --missing-value, or a stand-in such as "
+        f"-999 -- is counted nowhere. Nothing was written."
+    )
+
+
+def floor_under_the_minimum(given: str) -> str:
+    """Message for `--smallest-group` typed under the floor of 11.
+
+    THE OWNER'S FLOOR OF 11 IS A MINIMUM (plan P4-D426, the owner's
+    answer of 2026-10-23): the option may raise the floor, never lower
+    it, so that every file a run writes keeps decision D7's promise that
+    the twin may be shared freely. IT NAMES THE UNIT THE FLOOR COUNTS
+    (Codex's review of lane MIN, item 2; plan P4-D348's qualification,
+    which SECURITY.md requires of every such sentence): rows, and people
+    as well where the person column is known (plan P4-D406), so where one person has
+    several rows and nobody has said whose they are, a group of 11 rows
+    can still be one person's. The command is refused before
+    anything is read or written, with code 2, as every other unusable
+    option is. ``given`` is the number as typed, already shown through
+    the display boundary. Nothing of any table reaches it.
+    """
+    return (
+        f"The smallest group size can be raised but not lowered: {given} "
+        f"was given, and the least it can be is "
+        f"{parsing.DEFAULT_SMALL_CELL_FLOOR}. synthtwin names no group "
+        f"smaller than {parsing.DEFAULT_SMALL_CELL_FLOOR} in what it "
+        f"writes. A group is counted in rows, and in people as well where "
+        f"synthtwin knows which column names the person (you named it "
+        f"with --identifier, or answered its question) -- so where one "
+        f"person has several rows and no column says whose they are, a "
+        f"group of "
+        f"{parsing.DEFAULT_SMALL_CELL_FLOOR} rows can still be one "
+        f"person's. Nothing was read or written. Give a whole number of "
+        f"{parsing.DEFAULT_SMALL_CELL_FLOOR} or more -- for example "
+        f"--smallest-group 20 leaves out every group of fewer than 20 -- "
+        f"or leave the option out to use "
+        f"{parsing.DEFAULT_SMALL_CELL_FLOOR}."
+    )
+
+
+def floor_not_a_whole_number(given: str) -> str:
+    """Message for `--smallest-group` followed by something not a number.
+
+    It was argparse's own line ("invalid int value") until plan P4-D426,
+    which copied the text as typed past the display boundary and named
+    no next step. ``given`` is the text as typed, already shown through
+    the display boundary; nothing of any table reaches it.
+    """
+    return (
+        f"The smallest group size must be a whole number written in "
+        f"figures, but {given} was given. Nothing was read or written. "
+        f"Give a whole number of {parsing.DEFAULT_SMALL_CELL_FLOOR} or "
+        f"more, or leave the option out to use "
+        f"{parsing.DEFAULT_SMALL_CELL_FLOOR}."
+    )
+
+
+def description_floor_under_the_minimum(
+    shown: str, floor: int, building: bool
+) -> str:
+    """Message for a description written under a floor lowered below 11.
+
+    A description written by a version before plan P4-D426 may record a
+    smallest group size under 11, which `--smallest-group` allowed then.
+    It MAY name such groups -- a column whose every value many rows share
+    names none -- so the message says "may" (Codex's review of lane MIN,
+    item 2); the number it records is what is judged, because only a
+    walk of the real table could say more. HIPAA FIRST, the plan's
+    decision: `generate` will not build a twin from it, because the twin
+    would hold every group it names, however small, and the owner's
+    decision D7 lets a twin be shared freely; and
+    `validate` will not check a file against it, because its report
+    would quote those groups and the checked file's own counts at that
+    size. Both are refused before anything is written. ``shown`` is the
+    description's path through the display boundary, ``floor`` the size
+    it records, ``building`` True for `generate`. Nothing of the table
+    reaches it beyond that number.
+    """
+    refused = "build a twin from it" if building else "check a file against it"
+    return (
+        f"{shown} was written with the smallest group size lowered to "
+        f"{floor}, which an earlier version of synthtwin allowed and this "
+        f"one does not: it may name groups smaller than "
+        f"{parsing.DEFAULT_SMALL_CELL_FLOOR}, which can be small enough to "
+        f"point at one person, so synthtwin will not {refused}. Nothing was "
+        f"written. "
+        f"Describe the table again with  synthtwin profile  (the smallest "
+        f"group size is then {parsing.DEFAULT_SMALL_CELL_FLOOR}, or the "
+        f"larger number you give) and use the new description; delete "
+        f"this description and every file made from it before any of "
+        f"them goes anywhere."
+    )
+
+
+def the_population_is_too_small(count: int, unit: str, column: str) -> str:
+    """Message for a table with too few rows, or too few people, to describe.
+
+    WHAT HAPPENED, THE COUNT AND THE LINE, WHAT TO DO, AND THAT NOTHING
+    WAS WRITTEN (plan P4-D341). The population floor is the one refusal
+    that is about the SIZE of somebody's table rather than about
+    anything they typed, so it has to say why a size is the reason:
+    every count a description publishes is a count over the population
+    it was taken from, and under a hundred there are not enough people
+    in the table for those counts to describe a population at all
+    rather than the individuals in it.
+
+    IT NAMES THE COLUMN WHERE THE PEOPLE WERE COUNTED, or nothing where
+    the rows were counted. That name is one the person typed after
+    `--identifier`, so it carries nothing of the table that they did
+    not put on the command line themselves.
+
+    AND IT SAYS WHICH ROWS WERE COUNTED (repair of landing 3.2). The
+    count is the rows that HOLD A VALUE and not the rows the reader
+    returned, so somebody looking at a file of a hundred lines and
+    reading "20 rows" here is owed the reason in the same breath: the
+    other eighty hold nothing this run READS as a value, and every count
+    a description would publish over them is a count over twenty.
+
+    "NOTHING THIS RUN READS AS A VALUE" IS WIDER THAN BLANK, and the
+    sentence said blank until the review of stage 3 (floor item 3). The
+    census now asks the same five passes the description asks, so the
+    eighty rows may be blank, may hold a spelling this format reads as
+    "no value", may hold a number the person named with
+    `--missing-value`, or may hold a stand-in this run judged for itself
+    -- `-999` among readings, `9999-12-31` among dates, `-999 mg` among
+    amounts. A person told only about blanks would look at eighty cells
+    of `-999` and think the message was about another file.
+
+    Guarantees: accepts the population, the word it was counted in, and
+    the column the people were counted by (empty where the rows were
+    counted); returns one paragraph. Determinism: a fixed function of
+    the three. Raises nothing. No I/O of any kind.
+    """
+    counted = f"{count} {unit}"
+    by = (
+        " Check that this is the table you meant to describe and that "
+        "it was read the way you expect: the count above is the rows "
+        "that HOLD A VALUE, and a row counts nowhere when this run "
+        "reads every cell of it as no value -- a blank, a spelling that "
+        "means no value, a number declared with --missing-value, or a "
+        "stand-in this run judged for itself, such as -999 among "
+        "readings or 9999-12-31 among dates -- and --first-row data "
+        "adds one where your first line is a record rather than the "
+        "column names."
+    )
+    if column:
+        by = (
+            f" The people were counted by '{_shown(column)}', the "
+            f"column you named with --identifier: rows sharing a value "
+            f"of it are one person, rows holding no value of it count "
+            f"as one person between them, and a row that holds no value "
+            f"in ANY column counts as nobody at all. Check that this is "
+            f"the column you meant, and that the values in it are "
+            f"written the same way on every row of one person."
+        )
+    return (
+        f"This table holds {counted}, and synthtwin describes a table "
+        f"of {parsing.POPULATION_FLOOR} {unit} or more.{by} Every count "
+        f"a description publishes is a count over the population it was "
+        f"taken from, and below {parsing.POPULATION_FLOOR} {unit} those "
+        f"counts describe the individuals in the table rather than a "
+        f"population: a larger smallest group size cannot repair that, "
+        f"because the whole table is already smaller than the groups a "
+        f"description is meant to be read as. Then describe the fuller "
+        f"table, or pool it with the rest of the data it belongs to, "
+        f"and run the command again. Nothing was written."
     )
 
 
@@ -1322,6 +1736,261 @@ def the_comma_declaration_was_answered_away(name: str) -> str:
     )
 
 
+def the_twelve_hour_declaration_did_not_reach(name: str, role: str) -> str:
+    """Message when `--twelve-hour` names a column it cannot change (landing T1).
+
+    NOT A REFUSAL, for the comma declaration's reason: the declaration
+    reaches a column read as clock times, or as dates with a clock, whose
+    clock writes no AM or PM, and which columns those are is known only
+    once the table is read.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with --twelve-hour, but "
+        f"synthtwin read it as {role}, and that declaration only changes "
+        f"a column of times of day -- alone, or after a date -- written "
+        f"without AM or PM. Nothing about this column was read on a "
+        f"12-hour clock. The description that was written is correct "
+        f"about everything else, and says which columns were declared. "
+        f"Check that the name is the column you meant, and run the "
+        f"command again without --twelve-hour for this one."
+    )
+
+
+def the_twelve_hour_declaration_did_not_reach_in_part(name: str) -> str:
+    """Message when `--twelve-hour` names a layout column read in part (the Codex review of landing I3a, item 2).
+
+    NOT A REFUSAL, for the same reason as
+    `the_twelve_hour_declaration_did_not_reach`: which cells are written
+    short of a full date and time is known only once the table is read.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with --twelve-hour, and "
+        f"synthtwin read it as dates with a time of day written without AM "
+        f"or PM, but some of its cells are written short of the full date "
+        f"and time -- without their seconds, say -- and a column read that "
+        f"way is read on the 24-hour clock only: a 12-hour reading of it is "
+        f"not supported, so 12:15 in it is a quarter past noon, in the "
+        f"description and in its twin. The description that was written is "
+        f"correct about everything else, and says which columns were "
+        f"declared. Run the command again without --twelve-hour for this "
+        f"one."
+    )
+
+
+def century_not_supported(given: str) -> str:
+    """Message for a --century value that is not COLUMN=YEAR with a window it offers (landing R2a)."""
+    return (
+        f"--century takes a column's name, an equals sign and the first "
+        f"year of the century its two-figure years lie in, but {given} was "
+        f"given. The years it can take are 1930 (years 1930 to 2029), 1940 "
+        f"(1940 to 2039) and 1900 (1900 to 1999); without the option a "
+        f"two-figure year is read in 1969 to 2068. Please run the command "
+        f"again with, for example, --century birth_date=1930. Nothing was "
+        f"read and nothing was written."
+    )
+
+
+def the_dates_declaration_did_not_reach(name: str, role: str) -> str:
+    """Message when `--date-column` names a column it cannot read as dates (landing R2c).
+
+    NOT A REFUSAL, for the century declaration's reason: whether half of a
+    column's values read as dates is known only once the table is read.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with --date-column, but "
+        f"fewer than half of its values read as dates written one way, so "
+        f"synthtwin read it as {role}. The description that was written is "
+        f"correct about everything else, and says which columns were "
+        f"declared. Check that the name is the column you meant, and run "
+        f"the command again without --date-column for this one."
+    )
+
+
+def the_century_declaration_did_not_reach(name: str, role: str) -> str:
+    """Message when `--century` names a column it cannot change (landing R2a).
+
+    NOT A REFUSAL, for the comma declaration's reason: which columns write
+    their dates with two-figure years is known only once the table is read.
+
+    IT SAYS WHAT THE RUN TOOK AND NOTHING IT DID NOT MEASURE (skeptic 1 of
+    landing R2a, item 1): the column was not read as dates written with
+    two-figure years, and it was read as ``role``. It said "with no
+    two-figure year" before, which was false of a column of such dates the
+    declaration had moved off the member that read them; since that repair
+    a declared century reads every cell the member read, and this is said
+    only of a column the run did not read as such dates at all.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with --century, but "
+        f"synthtwin did not read it as dates whose years are written with "
+        f"two figures: it read it as {role}, and that declaration only "
+        f"changes a column of such dates. Nothing about this column was "
+        f"read in the century you gave. The description that was written "
+        f"is correct about everything else, and says which columns were "
+        f"declared. Check that the name is the column you meant, and run "
+        f"the command again without --century for this one."
+    )
+
+
+def the_twelve_hour_style_was_held_back(name: str) -> str:
+    """Message when `--twelve-hour` was honoured but its written clock is pooled (the T1 review's item 9).
+
+    NOT A REFUSAL, and not the notice of a declaration that reached
+    nothing: the cells were read as the person declared, and only the
+    word naming how the column writes its clock was held back, because
+    too few rows write it -- the stated limit of plan P4-D370, under
+    which that twin writes the 24-hour clock.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with --twelve-hour, and its "
+        f"times were read that way. Too few of its rows write a time for "
+        f"the description to name how they are written, so it does not "
+        f"say which clock that is, and the twin writes these times on a "
+        f"24-hour clock. Keep --twelve-hour: it was used. Check that code "
+        f"reading this column's times on the twin allows for either "
+        f"clock."
+    )
+
+
+def the_date_codes_answer_reached_nothing(name: str) -> str:
+    """Message when an answer about a column's codes finds none (plan P4-D381).
+
+    The questions file names a column and not its codes, so the codes
+    are found again in the table the run opens -- and where the table or
+    the other options changed since the file was written, the column may
+    no longer read as dates or times beside a few repeated codes. NOT A
+    REFUSAL, for the comma declaration's reason: nothing is wrong with
+    the person's file, and the column is described as it reads.
+    """
+    return (
+        f"You answered in the questions file about the codes in the "
+        f"column '{_shown(name)}', but synthtwin no longer sees that "
+        f"column as dates or times beside a few repeated spellings, so "
+        f"that answer declared nothing and the column is described the "
+        f"way it reads. If your table or your options changed since the "
+        f"questions file was written, run the command again without "
+        f"--answers and read the questions file it writes."
+    )
+
+
+def the_date_codes_answer_left_typed_words(
+    name: str, option: str, count: int
+) -> str:
+    """Message when an answer about a column's codes leaves typed words as they were.
+
+    The run that reads the answer finds the column's codes again, and
+    takes the reading whose codes are the ones the question described --
+    under the declarations typed on its own command line, or with the
+    typed words a code of the column would match taken out
+    (`asking.date_codes_answered`). Where neither is described, the
+    table or the options changed since the file was written, and the
+    typed words stand: one typed after ``option`` that says the opposite
+    of the answer, which the question may have counted, is left as typed
+    and the person is told so (the Codex review of lane R1, item 5,
+    where thirty cells stayed missing without a word). NOT A REFUSAL,
+    for `the_date_codes_answer_reached_nothing`'s reason. It names how
+    many words, and no word: the person typed them.
+    """
+    words = "a word" if count == 1 else f"{count} words"
+    them = "it" if count == 1 else "them"
+    return (
+        f"Your answer in the questions file about the codes in the column "
+        f"'{_shown(name)}' did not reach {words} you typed after {option}, "
+        f"so {them} stayed as you typed {them}: the codes in that column no "
+        f"longer look as the question described them, so synthtwin cannot "
+        f"tell whether your answer was about {them}. If it was, take {them} "
+        f"out of the command and run the command again with --answers."
+    )
+
+
+def answered_codes_contradict_each_other(path: str, clash: str) -> str:
+    """Message when two answers make one spelling a value and 'no value' (plan P4-D381).
+
+    One column's codes answered `missing` and another's `real-value` can
+    name the same spelling, and `--missing-value` and `--keep-value`
+    both reach every column of the table -- so the pair is the same
+    contradiction the command line refuses, arriving by the questions
+    file, and it is refused the same way rather than ranked.
+    """
+    return (
+        f"Your answers in {path} say one spelling is both a value and "
+        f"'no value': {clash}. One column's codes were answered 'missing' "
+        f"and another's 'real-value', and a spelling is read the same way "
+        f"in every column of your table. Change one of the two answers "
+        f"and run the command again. Nothing was written."
+    )
+
+
+def one_column_answered_both_ways(path: str, name: str) -> str:
+    """Message when one column's codes are answered `missing` AND `real-value`.
+
+    An edited questions file can carry two entries for one column (the
+    Codex review of lane R1, item 8): one answered that its codes stand
+    for a missing date, the other that they are values of their own.
+    The run took the first and dropped the second without a word, so
+    the pair is refused as the command line refuses `--missing-value`
+    beside `--keep-value` on one spelling, rather than ranked.
+    """
+    return (
+        f"Your answers in {path} say two things about the codes in the "
+        f"column '{_shown(name)}': one entry answers 'missing' and another "
+        f"answers 'real-value'. synthtwin will not choose between them. "
+        f"Leave one of the two answers blank and run the command again. "
+        f"Nothing was written."
+    )
+
+
+def date_count_system_not_supported(given: str) -> str:
+    """Message for a `--date-count` system that is not one of the twelve (landing R4).
+
+    Refused before the table is opened, and it takes what the person
+    typed, which is theirs already.
+    """
+    return (
+        f"--date-count takes a column's name and then the system its "
+        f"dates are counted in, but {given} is not one of the systems "
+        f"synthtwin reads. They are excel-1900, excel-1904, "
+        f"days-since-1960, seconds-since-1960, milliseconds-since-1960, "
+        f"days-since-1970, seconds-since-1970, milliseconds-since-1970, "
+        f"microseconds-since-1970, nanoseconds-since-1970, "
+        f"days-since-1840 and seconds-since-1582. Please run the command "
+        f"again with, for example, --date-count visit_day excel-1900. "
+        f"Nothing was read and nothing was written."
+    )
+
+
+def the_date_count_declaration_did_not_reach(name: str, member: str) -> str:
+    """Message when `--date-count` names a column whose cells did not read as such dates (landing R4).
+
+    NOT A REFUSAL, for the comma declaration's reason: whether a column's
+    cells are counts that name dates is known only once the table is
+    read. AND THE COLUMN IS HELD (plan P4-D406, contract NF127; the
+    orchestrator's ruling on lane HX2's second verify, item 3): read
+    without the declaration its numbers would be those dates published
+    as plain numbers, so on every table it publishes none of its values,
+    and the description and the questions file say so too. The answer
+    is the person's: the column's name, the system, or one way of
+    writing its dates.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with --date-count as "
+        f"dates counted as {member}, but its cells did not read as such "
+        f"dates -- too few of them are counts that name a date, the "
+        f"dates they name are too few to describe as dates, or the "
+        f"figures after the point step between the units a date is "
+        f"written to, as one to three figures of a day or tenths of a "
+        f"second do, some cells are written as dates in text beside the "
+        f"counts, or the counts are not written one way. A count that "
+        f"names a date is that date all the same, so the column is held: "
+        f"none of its values is published, the description treats it as "
+        f"record numbers, and the twin writes made-up values there. The "
+        f"description that was written is correct about everything else. "
+        f"Check the column's name and the system; where its dates are "
+        f"written two ways, write every one the same way -- all as counts "
+        f"in one spelling, or all as text -- and run the command again."
+    )
+
+
 def the_comma_declaration_did_not_reach(name: str, role: str) -> str:
     """Message when `--decimal-comma` lands on a role it cannot help.
 
@@ -1343,20 +2012,21 @@ def the_comma_declaration_did_not_reach(name: str, role: str) -> str:
         f"but synthtwin read it as {role}, and the comma reading is "
         f"only used for columns read as plain numbers. Its numbers "
         f"were NOT read with the comma as a decimal point, and its "
-        f"twin will not be written with one. This happens where a "
-        f"cell holds a number inside a larger spelling -- a unit or a "
-        f"currency mark around it, or a separator between two numbers "
-        f"-- because then synthtwin cannot tell which mark in the cell "
-        f"is the decimal point. The description that was written is "
-        f"correct about everything else, and says which columns were "
-        f"declared. If this column really does hold plain numbers, "
-        f"check whether something else in each cell -- a unit, a "
-        f"currency mark, a second number after a slash or a dash -- is "
-        f"being read as part of it, and run the command again with "
-        f"that column as it should be. If the cells really are that "
-        f"shape, leave the option off for this column: synthtwin "
-        f"cannot yet read a comma inside one of them, and the "
-        f"description is the same either way."
+        f"twin will not be written with one. A number wearing one "
+        f"shared unit or currency mark, such as '795,64 EUR', IS "
+        f"read that way; what is not is a cell holding two numbers "
+        f"with a separator between them, or a value published as the "
+        f"text it was written in, because then synthtwin cannot tell "
+        f"which mark in the cell is the decimal point. The description "
+        f"that was written is correct about everything else, and says "
+        f"which columns were declared. If this column really does hold "
+        f"numbers, check whether something else in each cell -- a "
+        f"second number after a slash or a dash, a word beside the "
+        f"figures -- is being read as part of it, and run the command "
+        f"again with that column as it should be. If the cells really "
+        f"are that shape, leave the option off for this column: "
+        f"synthtwin cannot yet read a comma inside one of them, and "
+        f"the description is the same either way."
     )
 
 
@@ -1535,7 +2205,30 @@ def profile_version_is_older(found: int, reads: int) -> str:
     value" the person named -- and what to do, which is to describe the
     table again UNDER THE SAME OPTIONS.
 
-    IT NAMES TEN OPTIONS. It named two until 2026-08-17, five after
+    IT NAMES SEVENTEEN OPTIONS. `--date-column` joined with landing R2c
+    (plan P4-D383): left out, a column holding dates beside values written
+    another way, or written as a year and a day of the year, is described
+    as text or numbers, and none of its dates is published; question Q6
+    answers it, so the `--answers` clause names it too. Before it named
+    sixteen. `--date-count` joined with landing R4 (plan
+    P4-D384): left out, a column whose dates are written as counts is
+    described as numbers, so its twin keeps how they spread and loses the
+    day of the week and the time of day each date falls on; question Q3
+    answers it, so the `--answers` clause names it too. Before it named
+    fifteen. `--century` joined with landing R2a (plan
+    P4-D383): left out, a two-figure year is read as one of 1969 to
+    2068, so a birth date of 1931 written 31 is read as 2031 and the
+    published dates move a century; question Q5 answers it, so the
+    `--answers` clause names it too. Before it named fourteen.
+    `--twelve-hour` joined with landing T1
+    (plan P4-D370): left out, the hour from twelve o'clock is read as
+    noon, and the published times move. Before it named thirteen.
+    `--metadata-rows` (plan P4-D81) and
+    `--sheet` (plan P4-D77) reached the command line without reaching
+    this sentence, and the test that derives the owed set from the
+    shipped parser was red for both; landing 2b.17's repair pass added
+    them with `--delimiter` (plan P4-D110), each priced by what leaving
+    it out publishes. Before that it named ten. It named two until 2026-08-17, five after
     that, gained `--code` on 2026-08-25 with the declaration itself
     (plan amendment A-P4-38), and gained `--answers` on 2026-09-10 with
     the hand-back (amendment A-P4-60). `--answers` belongs here for a
@@ -1581,9 +2274,13 @@ def profile_version_is_older(found: int, reads: int) -> str:
     * `--missing-value`. Sixty readings and five cells holding `-100`,
       named as "no value". Described that way the five are absent, five
       is under the floor and the number is published nowhere. Left out,
-      `-100` is a reading: it is the smallest one, so the description
-      publishes it as the column's minimum and as its first two
-      percentiles.
+      `-100` is a reading, and every moment and both tail groups of the
+      column move with it; with TWELVE such cells the end is heaped and
+      the number itself is published, as the column's minimum and as
+      the value its low tail lists. Hence the sentence's "CAN be
+      published": since stage 3 the tail rule withholds that rung where
+      too few rows hold the end (contract 6.7a), and before it the
+      smallest reading was published whatever its count.
     * `--keep-value`. Sixty readings and twelve cells holding a word,
       named as real data. Described that way the column reads as free
       text -- twelve of its values are not numbers -- and free text
@@ -1626,16 +2323,19 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"exactly. Please make the "
         f"description again by running 'synthtwin profile' on your "
         f"table, giving it every option you gave the first time: "
-        f"--keep-value, --missing-value, --identifier, --code, "
+        f"--keep-value, --missing-value, --identifier, --code, --date-count, "
         f"--measurement, --decimal-comma, --smallest-group, --first-row, "
-        f"--day-first and --answers. "
+        f"--day-first, --twelve-hour, --century, --date-column, "
+        f"--metadata-rows, --sheet, "
+        f"--delimiter and "
+        f"--answers. "
         f"Every one of them changes what the "
         f"description PUBLISHES about your table, so any option you "
         f"leave out can put something into the new description that the "
         f"old one held back: without the --smallest-group you gave, a "
         f"value that fewer rows share can be named; without the "
         f"--identifier you gave, a column of record numbers is "
-        f"described like any other column; without the --code you gave, a column of codes is described as measurements, so its smallest and largest values \u2014 which are real codes \u2014 are published and its twin loses any leading zeros; without the --measurement you gave, a column of readings written as two numbers in one cell, such as a blood pressure, is described as text and its twin holds no readings at all; without the --decimal-comma you gave, a column whose numbers are written with a comma where the decimal point goes is read by the ordinary rules, so a column of quantities is described as text and every number in it is lost, or a value such as 1,234 is published as one thousand two hundred and thirty-four; without the --missing-value "
+        f"described like any other column; without the --code you gave, a column of codes is described as measurements, so its values are described by a ladder and by the two groups beyond it, and an end a group of rows shares \u2014 which is a real code \u2014 is published; its twin loses any leading zeros; without the --measurement you gave, a column of readings written as two numbers in one cell, such as a blood pressure, is described as text and its twin holds no readings at all; without the --decimal-comma you gave, a column whose numbers are written with a comma where the decimal point goes is read by the ordinary rules, so a column of quantities is described as text and every number in it is lost, or a value such as 1,234 is published as one thousand two hundred and thirty-four; without the --date-count you gave, a column whose dates are written as counts -- days, seconds or milliseconds from a fixed day -- is described as numbers, so the twin keeps how the numbers spread but loses the day of the week and the time of day each date falls on; without the --missing-value "
         f"you gave, a stand-in is read as a real reading, and the "
         f"stand-in itself can be published as the column's smallest "
         f"value; without the --keep-value you gave, a word you had "
@@ -1648,9 +2348,38 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"with slashes, with dots, or with a two-figure year \u2014 can "
         f"be read the other way round, which changes "
         f"the dates the description publishes and can leave the column "
-        f"described as text instead; and without the --answers you "
+        f"described as text instead; without the --twelve-hour you "
+        f"gave, a column of times written on a 12-hour clock with no "
+        f"AM or PM is read as a 24-hour clock, so the hour from twelve "
+        f"o'clock is read as noon instead of the hour after midnight, "
+        f"which changes the times the description publishes; without "
+        f"the --century you gave, a date whose year is written with "
+        f"two figures is read as one of 1969 to 2068, so a birth date "
+        f"of 1931 written 31 is read as 2031, which changes the dates "
+        f"the description publishes; without the --date-column you gave, "
+        f"a column holding dates beside values written another way, or "
+        f"dates written as a year and a day of the year, is described as "
+        f"text or numbers, so none of its dates is published and its twin "
+        f"writes none; without "
+        f"the --metadata-rows you "
+        f"gave, the rows under your column names that describe your "
+        f"columns are read as records of your table, so their text is "
+        f"counted and described as data and every count is two rows "
+        f"out; without the --sheet you gave, another sheet of your "
+        f"workbook can be described, and everything the new description "
+        f"publishes is then about that sheet's table; without the "
+        f"--delimiter you gave, a file that reads equally well with two "
+        f"delimiters can be split the other way, which changes every "
+        f"column name the description publishes and every value it "
+        f"describes; and without the --answers you "
         f"gave, every answer you wrote in the questions file is gone \u2014 "
-        f"each of them was a --code, an --identifier or a --measurement, "
+        f"each of them was a --code, an --identifier, a --date-count, a "
+        f"--measurement, "
+        f"a --decimal-comma, a --metadata-rows, a --delimiter, a "
+        f"--twelve-hour, a --century, a --date-column, a --day-first, "
+        f"a --missing-value "
+        f"or a "
+        f"--keep-value, "
         f"so leaving the file out costs whichever of those you had "
         f"given, and this same sentence says what each one costs. If "
         f"you do not hold the table "
@@ -1871,6 +2600,58 @@ REFUSAL_COUNTS_CONTRADICT = "generation-counts-contradict"
 REFUSAL_WORDS_EXCEED_LENGTH = "generation-words-exceed-length"
 REFUSAL_WHOLE_NUMBERS_NEED_ROOM = "generation-whole-numbers-need-room"
 REFUSAL_DOMAIN_TOO_SMALL = "generation-domain-too-small"
+
+class KeyedRefusal(ProfileError):
+    """A refusal of method G12 that names its key in this catalog (plan P4-D395).
+
+    The four refusals of a description no twin can hold are raised as one
+    of the four subclasses below by the generator and the validator, so a
+    run's result carries the refusal's key without reading its sentence.
+    The message a person reads is the one the refusal holds, unchanged.
+    It is a subclass of `ProfileError`, so every caller that catches that
+    catches it unchanged. One class a key, because the offline audit
+    admits no constructor of this package's own (`keyed_refusal`).
+    """
+
+    key = ""
+
+
+class CountsContradict(KeyedRefusal):
+    """`REFUSAL_COUNTS_CONTRADICT`."""
+
+    key = REFUSAL_COUNTS_CONTRADICT
+
+
+class WordsExceedLength(KeyedRefusal):
+    """`REFUSAL_WORDS_EXCEED_LENGTH`."""
+
+    key = REFUSAL_WORDS_EXCEED_LENGTH
+
+
+class WholeNumbersNeedRoom(KeyedRefusal):
+    """`REFUSAL_WHOLE_NUMBERS_NEED_ROOM`."""
+
+    key = REFUSAL_WHOLE_NUMBERS_NEED_ROOM
+
+
+class DomainTooSmall(KeyedRefusal):
+    """`REFUSAL_DOMAIN_TOO_SMALL`."""
+
+    key = REFUSAL_DOMAIN_TOO_SMALL
+
+
+def keyed_refusal(message: str, key: str) -> ProfileError:
+    """The refusal holding ``message`` under its G12 key; a plain one for any other key."""
+    if key == REFUSAL_COUNTS_CONTRADICT:
+        return CountsContradict(message)
+    if key == REFUSAL_WORDS_EXCEED_LENGTH:
+        return WordsExceedLength(message)
+    if key == REFUSAL_WHOLE_NUMBERS_NEED_ROOM:
+        return WholeNumbersNeedRoom(message)
+    if key == REFUSAL_DOMAIN_TOO_SMALL:
+        return DomainTooSmall(message)
+    return ProfileError(message)
+
 
 # What is wrong with the description, in the person's own words, one
 # clause per refusal. Each names the TWO published facts that cannot
@@ -2154,4 +2935,611 @@ def answers_answer_is_not_offered(
         f"the answers that question offers. Write one of these instead: "
         f"{_listed(offered)}. Leave it blank to keep the reading "
         f"synthtwin made. {_ANSWER_IT_AGAIN}"
+    )
+
+
+def answers_change_the_reading_and_name_columns(
+    path: str, changed: list[str], named: list[str]
+) -> str:
+    """An answer that changes the reading stands beside one naming a column.
+
+    REFUSED RATHER THAN RANKED (review of stage 3, floor item 1). The
+    column names in a questions file are the names of the reading that
+    WROTE it. An answer that changes the reading gives those names to
+    different columns, so a declaration applied by name afterwards
+    reaches a column the person was not looking at -- measured, an
+    `identifier` answer meant for the first field landed on the second,
+    and the run published twelve real subject codes with their counts.
+    Which column a name means under the corrected reading is exactly
+    what nothing here can tell, so the pair is refused and the person
+    answers the file's own question first.
+    """
+    return (
+        f"The questions file at {path} answers a question about how the "
+        f"file is read -- {_listed(changed)} -- and also names "
+        f"{_quoted(named)}. synthtwin will not act on both at once. The "
+        f"column names in that file are the names your table had when "
+        f"the file was written, and answering the question above changes "
+        f"which column each name stands for, so a declaration made by "
+        f"name would reach a column you were not looking at. Do it in "
+        f"two runs: clear the answers that name columns, leave the one "
+        f"about how the file is read, and run the command again -- then "
+        f"answer the columns in the questions file that run writes, "
+        f"where the names are the ones your table really has. Nothing "
+        f"was written."
+    )
+
+
+# -- reading a workbook: what a spreadsheet file refuses --------------
+#
+# Plan P4-D77. Every one of these is a refusal about a file the person
+# pointed at, and each says which limit was passed and what to do about
+# it. None of them quotes a cell: a workbook synthtwin refuses may not
+# be the reader's own table, and a refusal travels as freely as a
+# report does.
+
+
+def workbook_unreadable(path: str) -> str:
+    """Message for a file that begins as a package but is not one."""
+    return (
+        f"The file {path} begins like a spreadsheet workbook but the "
+        f"rest of it could not be opened: the package is damaged or "
+        f"incomplete. Please open it in your spreadsheet program, save "
+        f"it again as .xlsx, and run the command again."
+    )
+
+
+def workbook_part_unreadable(path: str) -> str:
+    """Message for a workbook part that is not well-formed markup."""
+    return (
+        f"The file {path} is a spreadsheet workbook whose inside is "
+        f"damaged: one of its parts is not readable as the markup a "
+        f"workbook is made of. Please open it in your spreadsheet "
+        f"program, save it again as .xlsx, and run the command again."
+    )
+
+
+def workbook_declares_a_document_type(path: str) -> str:
+    """Message for a workbook part carrying a document type declaration."""
+    return (
+        f"The file {path} contains a document type declaration, which "
+        f"no spreadsheet program writes and which is how a file is "
+        f"built to make a reader fetch something or expand without "
+        f"limit. synthtwin will not read it. Please open the workbook "
+        f"in your spreadsheet program, save it again as .xlsx, and use "
+        f"that path."
+    )
+
+
+def workbook_is_a_compound_file(path: str) -> str:
+    """Message for a legacy .xls file or an encrypted workbook."""
+    return (
+        f"The file {path} is an older Excel workbook, or one protected "
+        f"with a password. synthtwin reads the .xlsx and .xlsm formats "
+        f"only. Please open it in your spreadsheet program, remove any "
+        f"password, choose 'Save As' and pick 'Excel Workbook (.xlsx)', "
+        f"then run the command again on the saved file."
+    )
+
+
+def workbook_is_markup(path: str) -> str:
+    """Message for an HTML or XML export wearing a spreadsheet name."""
+    return (
+        f"The file {path} is named like a spreadsheet workbook but it "
+        f"holds a web page or markup rather than a workbook: many "
+        f"systems export a table this way and call it .xls. Please open "
+        f"it in your spreadsheet program, choose 'Save As' and pick "
+        f"'Excel Workbook (.xlsx)', then run the command again on the "
+        f"saved file."
+    )
+
+
+def workbook_expands_too_far(path: str, limit: int) -> str:
+    """Message for a package whose parts expand past the total cap."""
+    return (
+        f"The file {path} is a spreadsheet workbook whose contents "
+        f"expand to more than {limit // 1_000_000} megabytes, which is "
+        f"more than synthtwin will open at once. A workbook this large "
+        f"is usually one built to exhaust a reader. Please check that "
+        f"the file is the table you meant to describe."
+    )
+
+
+def workbook_part_expands_too_far(path: str, limit: int) -> str:
+    """Message for one member whose expansion ratio passes the cap."""
+    return (
+        f"The file {path} is a spreadsheet workbook holding a part that "
+        f"expands to more than {limit} times its packed size, which no "
+        f"ordinary workbook does and which is how a file is built to "
+        f"exhaust a reader. Please check that the file is the table you "
+        f"meant to describe."
+    )
+
+
+def workbook_too_many_parts(path: str, limit: int) -> str:
+    """Message for a package holding more members than the cap allows."""
+    return (
+        f"The file {path} is a spreadsheet workbook holding more than "
+        f"{limit} parts, which is far more than a workbook of a table "
+        f"has. Please check that the file is the table you meant to "
+        f"describe."
+    )
+
+
+def workbook_is_packaged_unreadably(path: str) -> str:
+    """Message for a workbook packed a way this reader cannot expand.
+
+    WHY THIS IS A REFUSAL OF ITS OWN (plan P4-D289, the repair of review
+    item 10 of the files review of 2026-09-18). A workbook is a zip
+    package, and two shapes of member cannot be expanded at all: one
+    that is encrypted -- a password on the file, which Excel writes for
+    a protected workbook -- and one packed by a method the standard
+    library does not implement. Both used to escape the reader as a raw
+    `RuntimeError` or `NotImplementedError` with no message a person
+    could act on. Which of the two it was is not named: it is a fact
+    about the packaging rather than about the table, and both have the
+    same answer.
+    """
+    return (
+        f"The file {path} is a spreadsheet workbook whose contents are "
+        f"packed in a way synthtwin cannot open -- it is protected by a "
+        f"password, or it is packed by a method this reader does not "
+        f"know. Please open the workbook in your spreadsheet program, "
+        f"take the password off it or save it again as an ordinary "
+        f".xlsx file, and run the command again. Alternatively, save "
+        f"the sheet holding your table as a .csv file and describe "
+        f"that instead."
+    )
+
+
+def workbook_part_named_away(path: str) -> str:
+    """Message for a member named outside the package."""
+    return (
+        f"The file {path} is a spreadsheet workbook holding a part "
+        f"named as though it belonged outside the file. No spreadsheet "
+        f"program writes one, and synthtwin will not read it. Please "
+        f"check that the file is the table you meant to describe."
+    )
+
+
+def workbook_cell_too_long(path: str, limit: int) -> str:
+    """Message for one cell's text past the cap."""
+    return (
+        f"The file {path} holds a cell with more than {limit} "
+        f"characters of text in it, which is more than a spreadsheet "
+        f"cell can hold. Please check that the file is the table you "
+        f"meant to describe."
+    )
+
+
+def workbook_holds_too_many_cells(path: str, limit: int) -> str:
+    """Message for a sheet holding more cells than the walk will read.
+
+    THE CAP THAT ANSWERS THE MEASURED ATTACK. A workbook may sit well
+    inside every other limit and still cost a reader minutes: the
+    study's own package packs 5.2 megabytes into 46, which is an
+    ordinary ratio, and spends it all on one sheet of a million styled
+    rows. Capping the cells read is what bounds the work whatever the
+    ratio, so this refusal exists beside the size ones rather than
+    instead of them.
+
+    SAVING AS DELIMITED TEXT IS THE ROUTE PAST IT, and the message said
+    to delete rows (plan P4-D382). A table of more than a million cells
+    is an ordinary table -- the owner's run past a million rows -- and
+    deleting rows hands synthtwin a different table. A delimited file
+    has no cell cap, so the message names that route first, and the
+    trimming only for a sheet whose stray cells are not the table's.
+    """
+    return (
+        f"The sheet in {path} holds more than {limit} cells, which is "
+        f"more than synthtwin will read from a workbook. If your table "
+        f"really is that large, save the sheet holding it as a .csv file "
+        f"(comma-separated text) and describe that file instead: "
+        f"synthtwin reads a .csv file of any size. If the sheet holds "
+        f"cells that are not part of your table, open the workbook, "
+        f"delete them, save it again, and run the command again."
+    )
+
+
+def workbook_too_many_shared_strings(path: str, limit: int) -> str:
+    """Message for a shared-string table past the cap."""
+    return (
+        f"The file {path} is a spreadsheet workbook whose table of "
+        f"stored text runs to more than {limit} entries, which is more "
+        f"than synthtwin will read at once. Please check that the file "
+        f"is the table you meant to describe."
+    )
+
+
+def workbook_too_many_rows(path: str, limit: int) -> str:
+    """Message for a sheet claiming more rows than a spreadsheet holds."""
+    return (
+        f"The file {path} has a sheet reaching past row {limit}, which "
+        f"is further than a spreadsheet goes. Please open the workbook, "
+        f"delete the rows below your table, save it again, and run the "
+        f"command again."
+    )
+
+
+def workbook_too_many_columns(path: str, limit: int) -> str:
+    """Message for a sheet claiming more columns than a spreadsheet holds."""
+    return (
+        f"The file {path} has a sheet reaching past column {limit}, "
+        f"which is further than a spreadsheet goes. Please open the "
+        f"workbook, delete the columns to the right of your table, save "
+        f"it again, and run the command again."
+    )
+
+
+def workbook_has_no_sheet(path: str) -> str:
+    """Message for a workbook whose sheets are all hidden, or absent."""
+    return (
+        f"The file {path} is a spreadsheet workbook with no sheet "
+        f"synthtwin can read: it has none at all, or every one of them "
+        f"is hidden. Please open it, unhide the sheet holding your "
+        f"table, save it again, and run the command again."
+    )
+
+
+def workbook_sheet_not_found(path: str, named: str, known: list[str]) -> str:
+    """Message for --sheet naming a sheet the workbook does not have."""
+    return (
+        f"The file {path} has no sheet called '{_shown(named)}'. Its "
+        f"sheets are: {_listed(known)}. Please check the spelling and "
+        f"run the command again with one of those names after --sheet."
+    )
+
+
+def workbook_other_sheet_holds_a_table(
+    path: str, named: str, chosen: str
+) -> str:
+    """Message for a second sheet holding a table synthtwin cannot twin.
+
+    WHY THIS IS A REFUSAL AND NOT A NOTE (plan P4-D82). synthtwin
+    describes ONE table, and the twin of a workbook writes every other
+    sheet with nothing of the person's on it. Measured with pandas: a
+    sheet holding one text cell reads back as one column and no rows on
+    the real file, and as nothing at all on the twin -- and a sheet
+    holding a whole table would read back as a frame of empty cells, so
+    code developed on the twin would run against a table that is not
+    there and statistics taken from it would be false. There is no
+    writing of that sheet this product may produce: its values are
+    somebody's rows.
+
+    AND IT NO LONGER NAMES `--sheet` (review of landing 2b.17, MAJOR).
+    This sentence used to ask "Which sheet holds the table you want
+    described?" and tell the person to run the command again with
+    `--sheet` -- and the remedy it named is refused too. Measured on a
+    workbook holding a table on each of two sheets: plain `profile`
+    exits 1, `--sheet Data` exits 1 and `--sheet Codebook` exits 1,
+    all three with this message. That is not a defect in `--sheet`,
+    which is honoured elsewhere: it settles which sheet is DESCRIBED,
+    and whichever of the two is named, the OTHER is then a sheet
+    holding a table the twin cannot carry. So no naming of a sheet can
+    settle this refusal, and a message that sends a person back to the
+    command line for a second refusal costs them a run and their
+    confidence in the first. The sentence names the one thing that
+    does settle it: one table per workbook.
+
+    AND IT ASKS WHICH SHEET IS THE TABLE AGAIN, BY THE OWNER'S RULING OF
+    2026-09-17 (item 3, plan P4-D203). The workbook stays refused --
+    contract rule WB7 stands -- and the refusal names the sheet it found
+    and asks which sheet is the table, pointing to `--sheet`. What
+    the review measured still holds, so the question is put with the
+    step that makes the answer work: naming a sheet of THIS workbook is
+    refused again whichever is named, so the person is asked to save a
+    copy without the other table's sheet and name their table's sheet
+    on that copy, and the sentence says why naming it here is not
+    enough. The refusal stops at the FIRST other sheet holding a table,
+    so a workbook may hold more than the two it names: the question does
+    not say "the two sheets", and the copy is asked to keep only the
+    table's sheet among those holding a table (measured on a workbook of
+    Visits, Labs and Codebook, repair pass of 2026-09-17).
+    """
+    return (
+        f"The file {path} holds a table on the sheet '{_shown(named)}' as "
+        f"well as on '{_shown(chosen)}', and synthtwin describes one "
+        f"table per workbook, so it cannot describe this workbook as it "
+        f"stands: its twin would carry '{_shown(named)}' with nothing on "
+        f"it, and anybody who opened that sheet would find rows on your "
+        f"workbook and an empty sheet on the twin. Which sheet is your "
+        f"table? Please save a copy of the workbook with every other "
+        f"sheet that holds a table deleted or moved to a workbook of its "
+        f"own, and run the command again on that copy with --sheet "
+        f"followed by the name of the sheet that is your table. Naming a "
+        f"sheet on this workbook as it stands is not enough: whichever "
+        f"sheet you name, another one still holds a table."
+    )
+
+
+def workbook_sheet_is_empty(path: str, named: str) -> str:
+    """Message for a chosen sheet holding no cell at all."""
+    return (
+        f"The sheet '{_shown(named)}' of {path} holds no cells at all, "
+        f"so there is nothing to describe. Please run the command again "
+        f"naming a sheet that holds your table, with --sheet followed "
+        f"by its name."
+    )
+
+
+def workbook_table_spans_too_many_cells(path: str, limit: int) -> str:
+    """Message for a table whose rectangle passes the cell cap (P4-D165).
+
+    THE CAP ON CELLS STORED WAS NOT A CAP ON THE WORK. A sheet holding
+    two stored cells -- `A1` and `ALM1001` -- passed it and then became a
+    table of 1,001,000 cells, because every place between the first and
+    the last cell of a table is a cell of it whether the sheet stores it
+    or not. So the rectangle is measured before a single column is
+    built.
+
+    AND A TABLE THAT REALLY IS THAT LARGE IS TOLD ITS ROUTE (plan
+    P4-D382): the message spoke only of a stray value, and a table of a
+    million rows holds none -- saving it as delimited text, which has no
+    cell cap, is what lets it be described.
+    """
+    return (
+        f"The table on a sheet of {path} stretches across more than "
+        f"{limit} cells from its first row and column to its last, and "
+        f"every place in between becomes a cell of the table even where "
+        f"the sheet leaves it empty. That is more than synthtwin will "
+        f"read from a workbook. If a stray value stands far below or to "
+        f"the right of your table, open the workbook, delete it, save it "
+        f"again, and run the command again. If your table really is that "
+        f"large, save the sheet holding it as a .csv file "
+        f"(comma-separated text) and describe that file instead: "
+        f"synthtwin reads a .csv file of any size."
+    )
+
+
+def checked_clocks_described_as_numbers(path: str, position: int) -> str:
+    """A checked workbook column read as clocks that the description gives numbers.
+
+    REVIEW ITEM 4 OF LANDING R3. Plan P4-D382 reads a column whose every
+    value cell is a time-format number at a whole second under one day
+    as clock times, where the reading before read those cells as
+    numbers, and a description written before still loads. Checked
+    against its own unchanged table, such a description missed its
+    role, its type and its counts: a verdict on the file for a change
+    in the reading. So the check stops and says to describe the table
+    again. The column is named by POSITION, as every refusal on the
+    validate path is (V9): this file may not be the person's own table.
+    """
+    return (
+        f"Column number {position} of {path} holds numbers shown as times "
+        f"of day, which synthtwin reads as clock times, but the description "
+        f"publishes numbers for that column. Either the "
+        f"description was made by an earlier version of synthtwin, which "
+        f"read those cells as plain numbers, or it describes another "
+        f"table. synthtwin did not check the file, because every line "
+        f"about that column would be about the change in reading and not "
+        f"about the file. Please describe the table again with synthtwin "
+        f"profile, make the twin again from the new description, and run "
+        f"the check against the new description."
+    )
+
+
+def checked_workbook_sheet_not_found(path: str, sheets: int) -> str:
+    """The same refusal for a workbook `validate` was pointed at (V9).
+
+    A sheet's name is text out of the file, which a refusal on the
+    validate path may not print, so the sheets are counted, not named.
+    """
+    return (
+        f"The file {path} has no sheet by the name given after --sheet; "
+        f"it has {sheets} sheet(s). Please check the spelling and run the "
+        f"command again. synthtwin does not print the names it found: "
+        f"this file may not be your own table."
+    )
+
+
+def checked_workbook_sheet_is_empty(path: str, position: int) -> str:
+    """The empty-sheet refusal by position, for the validate path (V9)."""
+    return (
+        f"Sheet number {position} of {path} holds no cells at all, so "
+        f"there is nothing to check. Please run the command again naming "
+        f"the sheet that holds the table, with --sheet followed by its "
+        f"name. synthtwin does not print the sheet's name: this file may "
+        f"not be your own table."
+    )
+
+
+def checked_workbook_other_sheet_holds_a_table(
+    path: str, position: int, chosen: int
+) -> str:
+    """The second-table refusal by position, for the validate path (V9).
+
+    REVIEW ITEM 9 OF THE FILES REVIEW (plan P4-D170). The validator asks
+    the reader for positional refusals and the workbook branch dropped
+    the request, so a checked workbook whose second sheet was called
+    `PERSON-ZEBRA-471` printed that name twice.
+    """
+    return (
+        f"The file {path} holds a table on sheet number {position} as "
+        f"well as on sheet number {chosen}, and synthtwin checks one "
+        f"table per workbook. Which sheet is the table you want checked? "
+        f"Please save a copy of the workbook with every other sheet that "
+        f"holds a table deleted or moved to a workbook of its own, and run "
+        f"the command again on that copy with --sheet followed by the name of "
+        f"the sheet that holds the table. synthtwin does not print the "
+        f"sheets' names: this file may not be your own table."
+    )
+
+
+# THE TWO WAYS A WORKBOOK COLUMN CAN MIX HOW ITS CELLS ARE STORED THAT A
+# TWIN CANNOT CARRY (plan P4-D166), named for the sentence below.
+MIXED_FORMATS = "formats"
+# ...and the mix one level down, which the kind census cannot carry
+# either (plan P4-D283): two number format CODES of the same kind, each
+# worn by the line. `workbook.mixed_number_formats` names it.
+MIXED_CODES = "codes"
+# ...and a time format over numbers both inside one day and outside it
+# -- a day or more, or below nought -- which a reader such as openpyxl
+# returns as two kinds of value (review item 3 of landing R3).
+# `workbook.mixed_storage` names it.
+MIXED_DAYS = "days"
+# ...and clock times stored as numbers beside present cells holding
+# another kind of value, such as a word the person has not named with
+# `--missing-value`: the clocks are read as numbers there, and their
+# twin is not clocks (the repair of review item 3 of landing R3).
+# `workbook.mixed_storage` names it.
+MIXED_CLOCKS = "clocks"
+
+
+def workbook_column_mixes_number_formats(path: str, column: str) -> str:
+    """Message for a column wearing two number formats of the same kind.
+
+    WHY THIS IS A REFUSAL (plan P4-D283). A description publishes ONE
+    number format code per column, so a column wearing two codes of one
+    kind -- `0%` on some cells and `0.0` on others -- gets a twin
+    wearing the commoner of them everywhere: the values a person reads
+    off the two files differ, and code selecting cells by their format
+    finds a different population. `workbook.mixed_number_formats` asks
+    it, and asks it only where each code is worn by the line, so the one
+    cell somebody reformatted is counted into the column's commonest
+    format as the owner's sixth ruling of 2026-09-17 says.
+
+    NO CODE IS NAMED IN THE MESSAGE. A custom format code can hold text
+    somebody typed -- a unit, a label, a department's name -- so the
+    refusal names the column and says what to do, and never what the
+    column's cells are dressed in.
+
+    TWO DATE, DATE-AND-TIME OR CLOCK CODES NO LONGER REACH IT (plan
+    P4-D382), and the sentence gives its two shapes as examples rather
+    than as the whole list: two codes of plain numbers or of lengths of
+    time can differ in other ways -- leading zeros, grouping -- and a
+    date column refused here was told it differed in decimal places.
+    """
+    return (
+        f"The column '{_shown(column)}' of {path} holds cells wearing "
+        f"more than one number format of the same kind -- for example "
+        f"some shown with a different number of decimal places, or as "
+        f"percentages beside plain numbers. A description carries one "
+        f"number format for a column, so a twin would put one of them on "
+        f"every cell, and the values you read off the two files would not "
+        f"match. Please open the workbook, give every cell of that column "
+        f"one number format, save it again, and run the command again."
+    )
+
+
+# WHAT EACH KIND OF NUMBER FORMAT SHOWS A NUMBER AS, in the words the
+# storage refusal names a column's mix with (plan P4-D382). The kinds
+# are synthtwin's own six words (`dialect.SHEET_FORMAT_KINDS`), so no
+# code a person wrote reaches the message.
+_SHOWN_AS = {
+    "plain": "plain numbers",
+    "date": "dates",
+    "datetime": "dates with a time of day",
+    "time": "times of day",
+    "elapsed": "lengths of time",
+    "text": "text",
+}
+
+
+def workbook_column_mixes_storage(
+    path: str, column: str, mixed: str, kinds: "tuple[str, ...]" = ()
+) -> str:
+    """Message for a column whose numbers wear two kinds of number format.
+
+    WHY THIS IS A REFUSAL (review item 6 of the files review, plan
+    P4-D166). A workbook column can hold some numbers wearing a date
+    format and others none. The description publishes how many cells wear
+    each kind, and the column's values as one distribution -- nothing that
+    says WHICH values were the dates. So such a column is refused, by
+    name, rather than twinned wrong. ``mixed`` names the mix, and
+    `MIXED_FORMATS` is the one left: numbers stored as text are read since
+    plan P4-D187.
+
+    ``kinds`` are the kinds the column's numbers wear, and the message
+    names them (plan P4-D382): it said "some shown as dates or times and
+    others not" of every mix, which was false of a column of dates beside
+    dates with a time -- a mix that is now read, not refused -- and is
+    false of dates beside times of day, which still is. Left empty, the
+    message speaks of the mix it names most often.
+
+    ``mixed`` of `MIXED_DAYS` is a column whose numbers all wear a time
+    format, some inside one day and some outside it -- a day or more, or
+    below nought (review item 3 of landing R3): a reader such as
+    openpyxl returns the first as a time of day and the others as a date
+    with a time, so the message says that, and that the cure is a format
+    showing the date on the cells holding one, or a format for a length
+    of time on a column of lengths of time. It does not say EVERY
+    reader: some hand back a date with a time for each of them.
+
+    ``mixed`` of `MIXED_CLOCKS` is a column of clock times stored as
+    numbers, most of its present cells, beside cells holding something
+    else that the run does not read as no value (the repair of review
+    item 3 of landing R3). The message says that those cells may be
+    named as missing with `--missing-value`, which reads the column as
+    clocks and counts them as missing values, and otherwise how to give
+    the column one kind of value. NO CELL IS QUOTED: the cells
+    beside the clocks are the person's own text, and the refusal names
+    the column and what to do, as every other refusal here does.
+    """
+    if mixed == MIXED_CLOCKS:
+        return (
+            f"The column '{_shown(column)}' of {path} holds times of day "
+            f"stored as numbers, and beside them cells holding something "
+            f"else -- text, or another kind of value. A twin of that "
+            f"column cannot keep both: its times would come back as plain "
+            f"numbers, with seconds they never had, so code reading that "
+            f"column would get different values from the twin and from "
+            f"your table. If those other cells mean that no time was "
+            f"recorded, run the command again with --missing-value "
+            f"followed by the word they hold (once for each such word): "
+            f"the column is then read as times of day, with those cells "
+            f"counted as missing values. Otherwise, please open the "
+            f"workbook, give that column one kind of value, save it "
+            f"again, and run the command again."
+        )
+    if mixed == MIXED_DAYS:
+        return (
+            f"The column '{_shown(column)}' of {path} holds numbers all "
+            f"shown as times of day, some of them from nought up to one day "
+            f"and others a whole day or more -- a date with a time, of which "
+            f"the format shows only the time -- or below nought. A reader such "
+            f"as pandas hands the first back as a time of day and the others "
+            f"as a date with a time, and a twin cannot keep which values "
+            f"were which, so code reading that column would get different "
+            f"kinds of value from the twin and from your table. Please open "
+            f"the workbook, give the cells of that column that hold a date a "
+            f"format that shows the date as well, or take the date out of "
+            f"them -- or, if the column holds lengths of time, give it a "
+            f"format such as [h]:mm -- save it again, and run the command "
+            f"again."
+        )
+    if mixed != MIXED_FORMATS:
+        raise ValueError("internal check: an unknown kind of mixed column")
+    words: "list[str]" = []
+    for kind in kinds:
+        if kind in _SHOWN_AS:
+            words += [_SHOWN_AS[kind]]
+    if len(words) < 2:
+        words = [_SHOWN_AS["date"], _SHOWN_AS["plain"]]
+    shown = f"some shown as {words[0]}"
+    for word in words[1 : len(words) - 1]:
+        shown = f"{shown}, some as {word}"
+    shown = f"{shown} and others as {words[len(words) - 1]}"
+    return (
+        f"The column '{_shown(column)}' of {path} holds numbers wearing more "
+        f"than one kind of number format -- {shown}. A twin cannot keep "
+        f"which values were stored which way, so code that picks out one "
+        f"kind would get different answers on the twin and on your table. "
+        f"Please open the workbook, give every cell of that column one "
+        f"number format, save it again, and run the command again."
+    )
+
+
+def profile_chain_broken(invariant: str, where: str, detail: str) -> str:
+    """S23 to S28 (contract 4.6b.11, lane CHa): the chain between columns breaks one of its invariants.
+
+    Reached only where a loader was asked to read the chain, which no
+    shipped command does (invariant S12 stands until the landing that
+    ships stage 6).
+    """
+    return (
+        f"The description's chain between columns breaks its rule "
+        f"{invariant} at '{_shown(where)}': {detail}. A description "
+        f"synthtwin writes always keeps this rule, so this file was changed "
+        f"by hand or written by another version of synthtwin. Describe the "
+        f"table again with this version, then run the command again."
     )

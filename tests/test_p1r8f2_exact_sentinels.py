@@ -52,9 +52,23 @@ READINGS = [f"{index}" for index in range(1, 200)]
 COPIES = 15
 
 
-def _written(tmp_path: pathlib.Path, name: str, values: list[str]) -> str:
-    """One column on disk, and its path as a person would type it."""
-    text = fixtures.single_column_table(name, values)
+def _written(
+    tmp_path: pathlib.Path,
+    name: str,
+    values: list[str],
+    options: "list[str] | None" = None,
+) -> str:
+    """One column on disk, and its path as a person would type it.
+
+    WITH A KEEPER COLUMN where the shape's own present cells fall under
+    the population floor (repair of landing 3.2): the command refuses a
+    table on the rows that HOLD A VALUE, so a shape padded with `NA` is
+    a population of its real readings and would be refused. The column
+    under test is still the first, and its values are untouched.
+    """
+    text = fixtures.kept_column_table(
+        name, values, fixtures.declared_missing_in(list(options or []))
+    )
     return f"{fixtures.write(tmp_path, f'{name}.csv', text)}"
 
 
@@ -79,7 +93,7 @@ def _run(
     capsys: pytest.CaptureFixture[str],
 ) -> dict:
     """Profile one column through the command; return its block."""
-    table = _written(tmp_path, "reading", values)
+    table = _written(tmp_path, "reading", values, options)
     assert main(["profile", table] + options) == 0, capsys.readouterr().err
     capsys.readouterr()
     document = json.loads(
@@ -265,7 +279,19 @@ def test_a_neighbour_counts_as_one_of_the_other_numbers(
     # numbers, which is the fewest the rule will judge against; while
     # the neighbour was mistaken for the candidate there were three,
     # and the rule declined to judge at all.
+    # THREE PLAIN READINGS PLUS THE NEIGHBOUR is the shape this pins:
+    # four other numbers, the fewest the rule will judge against. The
+    # command refuses a table under the population floor (plan
+    # P4-D341), so the table is padded to it with cells this format
+    # reads as "no value" -- `NA` is one of the eighteen spellings of
+    # section 14.4, it enters no numeric population, and it is a ROW
+    # where an empty line in a one-column file is only a blank line.
+    # The four other numbers stay four and every verdict below is the
+    # verdict this shape produced before. Padding with readings instead
+    # would move the quartiles and make the candidate an outlier, which
+    # is a different case with a different answer.
     values = ["1", "2", "3", neighbour] + [sentinel] * COPIES
+    values = values + ["NA"] * (parsing.POPULATION_FLOOR - len(values))
     column = _run(tmp_path, values, [], capsys)
     verdict = _verdict_for(column, sentinel)
     assert verdict != {}, "the sentinel is present, so it is a candidate"

@@ -286,7 +286,11 @@ def test_p1r6f11_a_column_name_with_an_escape_sequence_reaches_no_sink(
 ) -> None:
     """The screen and the summary file are both human-facing sinks."""
     header = "reading" + _CLEAR_THE_SCREEN
-    rows = [[f"{n}", "north"] for n in range(12)]
+    # AT THE POPULATION FLOOR (plan P4-D341): the command refuses a
+    # smaller table and writes nothing, and what this asserts is about
+    # the COLUMN NAME reaching a sink, not about how many rows are
+    # under it.
+    rows = [[f"{n}", "north"] for n in range(parsing.POPULATION_FLOOR)]
     text = fixtures.rows_to_csv([header, "region"], rows)
     table = fixtures.write(tmp_path, "clinic.csv", text)
     assert cli.main(["profile", f"{table}"]) == 0
@@ -308,9 +312,7 @@ def test_p1r6f11_a_word_the_command_line_did_not_understand_is_shown(
     the value, so the words are taken back and refused here instead.
     """
     table = fixtures.write(tmp_path, "clinic.csv", "a\n1\n")
-    with pytest.raises(SystemExit) as caught:
-        cli.main(["profile", f"{table}", "extra" + _CLEAR_THE_SCREEN])
-    assert caught.value.code == 2
+    assert cli.main(["profile", f"{table}", "extra" + _CLEAR_THE_SCREEN]) == 2  # `main` returns its status since plan P4-D437 (lane S5a)
     error = capsys.readouterr().err
     assert _ESC not in error.encode("utf-8", "surrogatepass")
     assert "\\x1b[2J" in error
@@ -327,9 +329,7 @@ def test_p1r6f11_an_option_value_the_parser_refuses_is_shown(
     so those messages are already safe; recording it here means a later
     change to the option set cannot quietly undo that.
     """
-    with pytest.raises(SystemExit) as caught:
-        cli.main(["--first-row", _CLEAR_THE_SCREEN, "profile", "x.csv"])
-    assert caught.value.code == 2
+    assert cli.main(["--first-row", _CLEAR_THE_SCREEN, "profile", "x.csv"]) == 2  # `main` returns its status since plan P4-D437 (lane S5a)
     error = capsys.readouterr().err
     assert _ESC not in error.encode("utf-8", "surrogatepass")
 
@@ -359,24 +359,34 @@ def _every_print(tree: ast.Module) -> list[tuple[str, int]]:
     return found
 
 
-def test_p1r6f11_only_the_two_emitters_print_in_the_command_module() -> None:
+def test_p1r6f11_only_the_terminal_screen_prints_in_the_command_module() -> None:
     """The defect that kept coming back was a sink written without the
-    escaping. A sink cannot skip a boundary it cannot reach around: if
-    the only calls to print live inside `_say` and `_warn`, every
-    message is covered whether or not its author thought about it.
+    escaping. A sink cannot skip a boundary it cannot reach around: the
+    only call to print lives in `_terminal_screen`, the terminal's screen
+    (plan P4-D395 part 3, lane S5a), and the only text handed to it comes
+    from `_say` and `_warn`, both of which apply the boundary (the test
+    below) -- or from argparse's own help page and refusals, shown as
+    argparse composes them, which quote a typed value with `repr` -- so
+    every message is covered whether or not its author thought about
+    it. ONE REFUSAL DOES NOT, a stated limit (plan P4-D437): the
+    ambiguous-option line (`cli._ambiguous`, composed as argparse
+    composes it) shows the typed word raw, so `--d=` followed by an
+    escape sequence reaches the error stream as typed, on the base as on
+    lane S5a, which may move no screen byte; the next landing allowed
+    to move screen bytes (lane TW's words) owns it.
     """
     printing = _every_print(_command_module_tree())
     assert printing, "the command module must still print something"
     outside = [
         (name, line)
         for name, line in printing
-        if name not in ("_say", "_warn")
+        if name != "_terminal_screen"
     ]
     assert not outside, (
-        "cli.py prints outside its two emitters, so that message skips "
+        "cli.py prints outside its terminal screen, so that message skips "
         "the display boundary: "
         + ", ".join(f"{name} (line {line})" for name, line in outside)
-        + ". Print through _say or _warn instead."
+        + ". Show it through _say or _warn instead."
     )
 
 

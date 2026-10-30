@@ -1,6 +1,6 @@
 # synthtwin
 
-> **Status: early (Phase 4 closed; Phase 5 next).** synthtwin is **not on PyPI**. What
+> **Status: early (Phase 4 reopened 2026-09-12; Phase 5 waits on it).** synthtwin is **not on PyPI**. What
 > exists today is the whole workflow -- the profiler, which reads a CSV
 > table on your computer and describes it; the generator, which builds
 > the synthetic twin from that description and nothing else; and the
@@ -36,15 +36,19 @@ rely on a twin.
 
 ## What synthtwin does today [built]
 
-Given one table of real data, three commands produce five files, of
-four kinds:
+Given one table of real data, three commands produce the six files a
+full run leaves behind, of four kinds:
 
 1. **A synthetic twin** - a table of the same shape whose columns each
    behave like the matching column of the original, every cell of it
    worked out from the description rather than taken from your file.
 2. **A schema file** - a plain description of every column: its type, its
    range or its categories, and how the twin version of it was built.
-   You get it twice, once for a program to read and once in words.
+   You get it twice, once for a program to read and once in words - and
+   beside the pair, on every run, a **questions file** naming the columns
+   synthtwin could read more than one way, what it saw in each and the
+   answers you can give. That file is how the description gets settled
+   rather than a kind of its own, which is how six files are four kinds.
 3. **A generation report** - written beside every twin, saying which of
    the description's facts the twin holds exactly, which it holds only
    approximately (with the value the twin actually reached printed
@@ -78,8 +82,11 @@ next.
 
 ## What works today
 
-Three commands, run one after the other. Each one ends by printing the
-next.
+Three commands, run one after the other. `profile` ends by printing
+the `generate` command to type next, `generate` ends by printing the
+`validate` command, and `validate` ends by saying what its verdict
+means. To install synthtwin, and to check a computer before a first run
+with `synthtwin doctor`, see "Before you start" and "Installing" below.
 
 ```
 synthtwin profile my-table.csv
@@ -116,20 +123,79 @@ on its own, it asks you rather than guessing.
 **Read that last part before you move the profile anywhere.** The
 profile is computed from your real data. It contains no rows of your
 table, and it never contains a value from a column you named with
-`--identifier` or a line of free text -- but it does contain the
-smallest and largest values of your numeric and date columns, the points
-in between that describe their shape, and, for each label, the exact
-spellings your file used for it together with how many rows wrote it
-that way. **By default that includes labels only one row held.** A twin
-is not a twin if a rare finding never reaches it, so synthtwin names
-every value and says how many rows shared it. What a named rare value
-tells anybody is that somebody in your table had it -- synthtwin
-publishes nothing that crosses two columns, so it says nothing about
-who, or about anything else that person's row holds. If your review
-board or a data-use agreement needs groups kept above a size,
-`--smallest-group 11` pools everything under eleven rows and the whole
-workflow runs on the result. What each setting costs is written out
-under the options below. It is
+`--identifier` or a line of free text -- apart from the text every
+value of such a column opens with, like `REC` or `ABC-`, where enough
+rows share it -- but it does contain the
+steps that describe the shape of your numeric, date and clock columns
+and, for each label, the spellings your file used for it together with
+how many rows are counted into each. **That number is not a count of
+that spelling.** A spelling fewer rows than the smallest group wrote is
+not named on its own: its rows are counted into the commonest spelling
+of the same label, so the number beside a named spelling covers every
+row whose own spelling settled to it. Measured: four labels each written
+nine times lower case, eight upper and eight with a leading space
+publish one spelling counted 25, while no spelling the file wrote
+reaches eleven. **Since stage 3 no column of
+numbers, dates or clock times names either of its ends.** A numeric
+column's ladder stops short of both: every step that would read one of
+the outermost eleven values is withheld, and what stands there instead
+is how many rows lie beyond the last published step and how far from it
+they lie, on average and root-mean-square. **And where even those two
+numbers would give back the outermost of the outer values, or how many
+rows hold one of them, they are published all the same** -- a column of
+consecutive whole numbers has eleven rows a side at eleven different
+whole distances summing to the least eleven different whole numbers can
+sum to, and that arithmetic has one answer -- because your twin needs
+them for its spread, and what they let a reader work out is a tail's
+own outer values, never another column, and never a row except on a
+table sorted by that column, whose description publishes the order
+(`row_order`) (plan P4-D375, the owner's principle of 2026-10-01). **What a description names is not all a
+reader can work out from it.** On some shapes the rest of it -- the
+column's exact mean, spread, skew and kurtosis beside its steps, its
+count of different values, how many rows hold its commonest one and its
+sign counts -- gives some or all of that column's own values back, its
+outermost among them: every value of the whole numbers 0 to 1,100
+written once comes back that way. It says nothing about any other
+column, and never which row holds a value except on a table sorted by
+that column, whose description publishes the order (`row_order`), so row
+k holds the k-th value; the owner accepted each of these limits on 2026-09-25
+and 2026-09-26, `K-S3-23` and `K-S3-24` on a question that said "never which
+row holds them", and, told of the sorted table on 2026-09-30, answered "Yes,
+it stands". The KPI ledger holds each case at a ceiling (`K-S3-17`,
+`K-S3-21`, `K-S3-23`, `K-S3-24`). A column of dates or clock
+times is described the same way, from a BOUNDARY -- the earliest date
+with at least a smallest group's worth of cells before it, and its
+mirror at the other end -- so the rarest dates in the column, a date of
+death or a birthday at the edge of a cohort, are not written down. An
+end AT LEAST ELEVEN ROWS SHARE is published as itself, because it is a
+value of a group and not of a person. And a tail may be described by
+the values it holds instead of by its shape. **ONE RULE decides that,
+and it is the same rule for numbers, dates and clock times**: a tail
+lists only where every value it would list is held by at least two of
+its own cells AND the column's values come from a small fixed set
+rather than a fine grid -- quarters, months, a pain score, a grade, a
+scale a reader could enumerate -- or where every listed value is held
+by a whole smallest group. A tail whose values are one row's own
+apiece, a column of clock times, a column of days spread over years and
+any fine numeric grid are described by their shape and never by a list.
+Where the rule admits a tail, each kind of column has its own reason to
+list: a handful of different values, or a shape that would settle the
+tail's outermost value anyway, so that the list says less than the
+shape would. A listed tail writes down no count -- and how many rows
+hold each of its values follows from those values and the distances
+beside them, which is arithmetic this package itself does to build your
+twin. That is what the owner accepted for bounded scales, and it is
+why the rule asks first whether the column is one.
+**By default no label fewer than eleven rows held is named**:
+synthtwin pools every group under eleven rows into a count that names
+none of them, so a label rarer than that does not reach your twin by
+name. `--smallest-group` can raise that number -- `--smallest-group 20`
+pools every group under twenty rows -- and never lower it: a number
+under eleven is refused and nothing is written. What a named value tells
+anybody is that somebody in your table had it -- synthtwin publishes
+nothing that crosses two columns, so it says nothing about who, or
+about anything else that person's row holds. What each setting costs
+is written out under the options below. It is
 real-derived material, and your institution's rules for such material
 apply to it. The same is true of every other file a full run produces:
 the profile, the plain-language summary beside it, the questions file,
@@ -180,7 +246,7 @@ synthtwin profile my-table.csv --out-dir reports
 synthtwin profile my-table.csv --identifier participant_number
 synthtwin profile my-table.csv --code vaccine_code
 synthtwin profile my-table.csv --measurement blood_pressure
-synthtwin profile my-table.csv --smallest-group 11
+synthtwin profile my-table.csv --smallest-group 20
 synthtwin profile my-table.csv --keep-value -999
 synthtwin profile my-table.csv --missing-value NA
 synthtwin profile my-table.csv --first-row data
@@ -202,7 +268,10 @@ than being quietly dropped.
 
 `--identifier` names a column whose values are record numbers or codes
 rather than measurements, so that none of them are published anywhere in
-that column's description. It takes a column name -- any column, whatever
+that column's description. The one thing of theirs the description does
+carry is text every value opens with, like `REC` or `ABC-`, where at
+least your smallest group of rows shares it, so the twin's values open
+with it too. It takes a column name -- any column, whatever
 that column holds -- and it is the only way a column is ever read that
 way. Repeat it to name more than one column. A name that is not in your
 table stops the run before anything is written.
@@ -213,7 +282,15 @@ ventilator ratio such as `1:1.5`.
 synthtwin reads each number separately and publishes a range and an
 average for each one, so the twin's cells hold believable readings
 instead of digits in the right shape. Without it such a column is
-described as text and its twin carries no readings at all. Use it only
+described as text and its twin carries no readings at all -- except two
+whole numbers joined by a slash (`128/79`), which are read this way from
+their values and are still asked about, as long as no one reading repeats
+in eleven rows or more (or in as many rows as your publication floor, if
+that is higher). A long column of such readings, or readings rounded to
+the nearest 5, usually repeats past that line and is described as labels
+instead, so name it here. An unpadded month and year (`4/2020`) or a
+register number (`2019/4821`) is read the same way, so answer `code` for
+those in the questions file. Use it only
 where the numbers are quantities: a lab code such as `1923-1` and a drug
 code such as `00052-0052-52` are written exactly the same way and are
 codes, so name those with `--code`. A column of plain single numbers
@@ -236,12 +313,14 @@ systolic.
 
 `--code` names a column that holds a **coding system** rather than
 measurements -- vaccine codes, procedure codes, revenue codes, provider
-numbers, risk-group codes. Its values are still published, because which
-codes are common is the point of the column; what changes is that
+numbers, risk-group codes. Its common values are still published,
+because which codes are common is the point of the column; what changes
+is that
 synthtwin stops reading them as numbers, so `08` stays `08` instead of
 coming back as `8`, and the column gets a count per code instead of an
-average, a smallest and a largest -- which for a code are meaningless
-and are real codes besides. You need it only for a column written in
+average, a spread and points along a range -- which for a code are
+meaningless, and whose published boundaries are real codes besides.
+You need it only for a column written in
 **digits alone**: one written with a letter or a dash, like `E11.9` or
 `0002-8215-01`, is already read as codes. Repeat it to name more than
 one column, and use `--identifier` instead for a record number nothing
@@ -250,13 +329,26 @@ should publish.
 **Naming a column here also makes it publish at all.** A column of many
 different codes, none of them repeated much -- a laboratory code, a drug
 code, a gene variant -- is otherwise read as free text, which publishes
-no value whatever. Named with `--code` it publishes every code with the
-number of rows that held it, and the twin holds the same codes in the
-same proportions. That is what makes counting on the twin come out
-right: because it holds the same codes the same number of times, **every
-rollup of that column reproduces exactly** -- the prefix a hierarchy
-groups by, the segment a reader splits on, the length. synthtwin knows
-no coding system and does not need to.
+no value whatever. Named with `--code` it publishes every code that at
+least `--smallest-group` rows share, with the number of rows that held
+it, and the twin holds those codes in those proportions.
+
+**What that buys, and what it does not -- because the floor decides it.**
+A rollup over the codes the description PUBLISHES reproduces exactly --
+the prefix a hierarchy groups by, the segment a reader splits on, the
+length -- because the twin holds each published code the same number of
+times. A rollup over the codes it does not publish does not: a code
+fewer than `--smallest-group` rows share is counted into a pooled
+remainder that names none of them, and the twin fills those rows with
+codes of its own making. The default floor of 11 is where that bites
+hardest on exactly the columns this option was made for. **Measured** on
+a column of 100 codes `1000` to `1099`, one row each: at the default
+floor the description publishes no code at all, and a prefix `10` that
+every one of the 100 source rows carried came back on 20 rows of the
+twin at seed 4. So the promise is worth what the floor leaves named --
+count the rows per code before relying on a rollup. The floor cannot be
+lowered below 11, so a code fewer than eleven rows share is never named.
+synthtwin knows no coding system and does not need to.
 
 **synthtwin asks you about this rather than guessing.** A column of
 `08`, `20`, `213` is vaccine codes or it is counts, and the two are
@@ -270,33 +362,86 @@ keyboard -- a script, a pipeline, CI -- it never stops: it names those
 columns on screen, says what it assumed, and prints the `--code` line
 that corrects it.
 
-**`--smallest-group`, and what raising it does.** It changes how many
-rows a group needs before the profile names it. **The default is 1,
-which holds nothing back**: every value your table holds is named,
-together with how many rows shared it, so a rare finding reaches your
-twin. Any whole number of 1 or more is accepted end to end: `profile`, `generate` and `validate` all run
-on the file it produces. Raising it publishes less -- `--smallest-group
-11` pools every group under eleven rows, which is what a review board or
-a data-use agreement usually means by a small-cell rule. **At the
-default of 1 the profile publishes small groups and their counts**, and
-that is worth reading slowly, because the count is the disclosure rather
-than a route to one. At a smallest group size of two, the profile names values that
-two rows shared and says that two rows shared them; at one, it names a
-value one row held and says that one row held it. If one row of your
-table is one person, somebody who already knows one true thing about
-someone in it -- that they are in it at all -- can find the small group
-that person must be in and read off everything else the profile says
-about that group. Eleven is the number that keeps a published group too
-big for that.
+**How small a table synthtwin will describe.** synthtwin makes twins
+of large tables only. `synthtwin profile` refuses, and writes nothing
+at all, a table with fewer than **20,000 rows that hold a value**, and a
+table in which one person has several rows (a column you named with
+`--identifier`, or answered in the questions file, repeats) but fewer
+than **1,000 people** appear (one person written two ways, such as
+`P00001` and `P-00001`, is one person). This is synthtwin's policy for
+every table. A count is published only when it covers at least the
+smallest group, 11, or more if you raised it with `--smallest-group`,
+counted in people where a column names the person and in rows where
+none does. The fewer rows or people a table has, the more of its counts
+fall under that and are pooled or withheld, so an analysis run on the
+twin stands less well on the real table, and small groups are where a
+published fact can point to one person. So describe the
+whole extract rather than a sample of it, or combine sites or years
+into one table. A column the questions file only ASKS about is not
+counted in people until you answer it, so an unanswered question never
+refuses a table. No option turns the floor off (plan P4-D425).
+
+**The population is counted in PEOPLE where you say who the rows are.**
+Name a column with `--identifier` and, if its values REPEAT, rows
+sharing a value of it are one person and rows holding no value of it
+count as one person between them -- so a table of 500 visits by 80
+subjects is 80, and is refused. An identifier that is different on
+every row names a row rather than a person and is not counted by.
+Where nothing is declared, the population is counted in rows, and
+where a column looks like it names people -- its values repeat, and
+there are more of them than a set of categories could have -- the
+questions file asks you about it and the screen says the count was
+taken in rows.
+
+**`--smallest-group` raises the floor and never lowers it.** It changes
+how many rows a group needs before the profile names it. **The default
+is 11, and 11 is also the least**: no VALUE named anywhere in the
+profile is held by fewer than eleven rows, so a value fewer than eleven
+rows share is pooled into a count that names none of them, and does not
+reach your twin by name. Any whole number of 11 or more is accepted end
+to end -- `profile`, `generate` and `validate` all run on the file it
+produces -- and a larger one publishes less. A number under 11, or
+anything that is not a whole number, is refused in plain words and
+nothing is written, whichever command it is typed with. That is the
+owner's decision of 2026-10-23 (plan P4-D426): below 11 a profile would
+publish small groups and their counts, and the count is the disclosure
+rather than a route to one -- at one, it would name a value one row held
+and say that one row held it, and if one row of your table is one
+person, somebody who already knows that person is in it could find the
+small group they must be in and read off everything else the profile
+says about it. A twin is meant to be shared freely, so no file synthtwin
+writes names a group that small. A description written by an earlier
+version with the number lowered is refused the same way by `generate`
+and `validate`: describe the table again and delete the old files.
+
+**The two floors are counted in different units, and the difference
+matters.** The SIZE of your table is counted in people where a declared
+`--identifier` repeats, as the paragraph above says. `--smallest-group`
+counts ROWS. Where your table holds several rows per person those are
+not the same number: twelve visits of one patient are twelve rows, so a
+value only that patient has is published with the count twelve even at
+the default of eleven. That is an accepted limit of this version and not
+an oversight - the alternative was to count people per value, which is
+designed and shelved - and the notices say so rather than leaving you to
+find it.
+
+**And the floor governs the naming of a VALUE, which is narrower than
+"no count under eleven".** Two kinds of number are published whatever
+their size, because neither names a value of anybody's. A count of CELLS
+BY KIND is one: 99 decimal cells beside one word publish "1 value is not
+a number" and a remark carrying that 1. The other is the count of rows
+in a group at the floor, which counts rows and not people as just said.
+Where a count WOULD hand back a value the floor withheld, the warning
+that needed it keeps the warning and drops the number.
 
 The counts do not stop at the profile: the twin is built to hold them
 exactly, and the summary, the questions file, the twin's report and the
 quality report quote them back, so all six files of a run carry them.
-synthtwin does not
-refuse the option -- it is your table and your institution's rules -- but
-a run at a lowered number prints an unmissable warning before either file
-exists, and each of the four readable files says on its own face that it
-was made that way, so that a colleague handed one of them alone can tell.
+That is why the floor stops at eleven: every value those files name is
+held by at least eleven rows, or the larger number you chose, so every
+count the floor governs is at least that number -- the counts of cells
+by kind above are not governed by it -- and the description records the
+floor it was made at.
 
 `--keep-value` names a value your table means as real data even though
 synthtwin would otherwise read it as "no value" -- a region genuinely
@@ -391,9 +536,11 @@ twin: not a taller person weighing more, not a later date costing more,
 not a code that only ever appears beside one region, not a column that
 is another column times twelve, not two columns that are empty in the
 same rows, and not one event date always falling before another.
-Analysis code you develop on the twin **runs**, which is what the twin
-is for; a number that code computes from two columns of the twin means
-nothing about your table.
+Analysis code you develop on the twin is **meant to run unchanged** on
+your table, and nothing here guarantees that it will: a step that depends
+on more than the description publishes, such as a cut into quartiles, can
+succeed on the twin and fail on your table. A number that code computes
+from two columns of the twin means nothing about your table.
 
 **Rows are treated as independent, and the grain is undescribed.** The
 description never says what one row of your table is. If your table
@@ -444,10 +591,11 @@ run, whether or not anything else went wrong.
   describes each column on its own, and the twin therefore carries no
   cross-column structure at all; how columns move together arrives in a
   later phase (Phase 5).
-- **[planned]** PyPI publication - with signed, reproducible, attested
-  releases. Phase 3 named it that phase's earliest-possible deliverable
-  and Phase 3 closed on 2026-08-19 without it, so no phase carries it
-  now: it is release engineering, waiting on its own checklist in
+- **[planned]** The release: signed, reproducible, attested offline
+  bundles, one per kind of computer, which CI already builds and tests
+  (plan P4-D416). It is never published on PyPI: the owner decided on
+  2026-10-20 that the offline bundle is the only way synthtwin is
+  installed. It waits on its own checklist in
   `docs/plans/phase-3-product.md` and on the owner's go decision.
 
 ## The security architecture, in plain language
@@ -488,14 +636,22 @@ whole command run at it. The boundary this architecture keeps is that
 GENERATION reads a description and nothing else -- not that only one
 command opens a file.
 
-**Dependencies are governed [built].** synthtwin has exactly two direct
-runtime dependencies. pandas is justified in writing in
+**Dependencies are governed [built].** synthtwin has four direct
+runtime dependencies, on Python 3.11 and later: numpy, pyarrow, scipy
+and pandas. pandas is justified in writing in
 `docs/plans/phase-1-profiler.md` and reduced by the import scanner to
-exactly one function of it, `read_csv`; numpy is justified in
-`docs/plans/phase-2-generator.md` and reduced to
+`read_csv` and the one setting that fixes how it stores text; numpy is
+justified in `docs/plans/phase-2-generator.md` and reduced to
 `numpy.random.default_rng` plus the single drawing call on the random
-stream it returns -- membership in an allowed library grants nothing on
-its own. numpy is used only by the generator's one random stream: the
+stream it returns; pyarrow (a fast reader, and text held as exact
+bytes) and scipy (a solver that searches, and the private self-test's
+fits) are justified in `docs/plans/phase-4-columns.md` (P4-D409) and
+reduced to a few enumerated names each -- membership in an allowed
+library grants nothing on its own. Each library is also held to the
+ZONES it may run in, so that no library's floating-point arithmetic
+decides a byte of the twin or of anything published, and numba, which
+may compile one audited piece of the generator once CI proves it gives
+the same bytes, is optional. numpy is used only by the generator's one random stream: the
 profiler, which is the half that reads your table, imports it nowhere.
 (It was declared directly in Phase 1 too, until review round 1 showed
 that its reductions made published statistics depend on the order of the
@@ -523,10 +679,14 @@ That is a statement about where the twin's values come from. It is not a
 promise that no row of the twin can equal a row of yours, and an earlier
 version of this page said otherwise, which was wrong. The profile
 publishes exact counts, and meeting them exactly can force a twin row to
-match a real one. The plainest case: a table of eleven rows with one
-column, whose single label is shared by all eleven rows, publishes that
-label with the count eleven -- so the twin writes that label in all
-eleven of its rows, and each of those rows is the row you have. Nothing
+match a real one. The plainest case: a table of 100 rows with one
+column, whose single label is shared by all 100 rows, publishes that
+label with the count 100 -- so the twin writes that label in all 100 of
+its rows, and each of those rows is the row you have. It is stated at
+100 rows because it is the shortest true example; `synthtwin profile`
+now refuses any table under 20,000 rows (plan P4-D425), and the same
+arithmetic holds there for any column whose published facts pin it
+completely. Nothing
 was copied. The arithmetic left no other answer, and any tool that
 reproduces published counts exactly lands in the same place.
 
@@ -548,10 +708,10 @@ inside the environment that already holds it and never reaches an
 assistant. That is a strong claim and it is the one to make. What it
 does not buy is a finding about your obligations -- being synthetic is
 not by itself the answer to a privacy rule, to your institution's own
-rules, or to an approval your study needed, and the five files above
-are the reason. Whether an obligation is met is for the people who set
-it to say, and what this project gives them to decide with is the
-written account of exactly which real facts each file carries.
+rules, or to an approval your study needed, and the six files a full run
+leaves are the reason. Whether an obligation is met is for the people
+who set it to say, and what this project gives them to decide with is
+the written account of exactly which real facts each file carries.
 
 ## Honest limits
 
@@ -564,7 +724,7 @@ These are design limits, stated up front so nobody discovers them late:
 | One row at a time | Rows are treated as independent and the grain is undescribed: the description never says what one row of your table is, so a table with several rows per subject yields a twin that misdescribes the subject-level picture. |
 | Only what the description publishes is reproduced | A pattern the profiler does not publish is not in the twin, whether or not the profiler could in principle have seen it. |
 | No free text | Narrative or note columns are described by their length and word counts only; their values are never published, and the twin will not invent sentences. A column of CODES that reaches this role -- short cells, no spaces, marks from a small list -- also publishes the SHAPE its values were written in, so its twin's cells split and measure the way the real ones do. A shape carries no letter and no figure of any value: `4548-4` says `9999-9`. |
-| CSV only, for now | The profiler reads comma-separated files saved as UTF-8 (or, as a fallback, Western European text). Spreadsheets, databases and columnar formats come later. |
+| Delimited text only, for now | The profiler reads delimited text files -- comma, semicolon, tab or vertical bar -- saved as UTF-8, as UTF-16 with its byte-order mark, or as Western European text, and the twin is written the same way the table was. Native spreadsheet, statistics-package, database and columnar formats come later. |
 | The table has to fit in memory | A table is read into memory whole; reading very large files in pieces is planned but not built. A file of a few hundred megabytes is comfortable on an ordinary machine; several gigabytes is not, and you are told so in words rather than by a crash. |
 | The file is read twice | Once to check its shape and once to read its values, by two different readers whose results must agree. That costs a second pass over the file and buys the guarantee that a malformed row is refused rather than quietly turned into missing values. |
 | Small tables degrade | With few rows, the statistics the profiler measures are noisy, and the twin's fidelity drops accordingly. Two files say where: the generation report names each approximate fact with the value the twin reached beside the published one, and `synthtwin validate` writes the quality report, which is where a small table shows as missed obligations rather than as a feeling. |
@@ -577,41 +737,166 @@ same synthtwin version, and the same locked dependency set produce
 byte-identical output **on the same platform**. Cross-platform equality
 is verified empirically by golden-hash tests on every cell of the CI
 matrix and is reported as a tested result - it is never promised beyond
-the tested matrix. One documented consequence of the single-stream design:
+the tested matrix. What keeps it true as libraries arrive is a rule the
+offline scanner enforces (plan P4-D409): the code that builds the twin
+uses whole numbers, the four arithmetic operations and square roots in
+a fixed order and the one seeded random stream, never a library's sums
+or solvers, whose last digit may differ from one computer to the next. One documented consequence of the single-stream design:
 changing the schema shifts the random streams that follow it at the same
 seed, so byte-stability is promised only across identical inputs.
 
+## Before you start
+
+synthtwin runs on Python 3.11, 3.12, 3.13 or 3.14 -- not yet on 3.15 or
+later -- on a Mac with an Apple chip (M1 or later) running macOS 12
+(Monterey) or later, on Windows on a 64-bit Intel or AMD computer, or on
+Linux on a 64-bit Intel or AMD computer whose system library is glibc
+(Ubuntu, Debian, Fedora, Red Hat and most others; not Alpine). A Mac
+with an Intel chip, and
+a Windows or Linux computer with an Arm processor, have no bundle yet;
+the install script says so in plain words. You need nothing else
+installed first: the bundle below holds everything else. To see which
+Python a computer has (Ubuntu 22.04's own Python is 3.10, which is too
+old):
+
+**On a Mac.** Open Terminal (Applications, then Utilities) and type
+`python3 --version`. If it prints `Python 3.11`, `3.12`, `3.13` or
+`3.14`, you are ready. If it prints another number, or a window offers
+to install "command line developer tools", go to python.org, choose
+Downloads, then the newest Python 3.14 release, and download its
+installer for macOS. Open the file you downloaded and follow its steps.
+Then close Terminal, open it again and type `python3.14 --version`: it
+should print `Python 3.14`. The install script finds it even when a
+newer Python is there too.
+
+**On Windows.** Open Command Prompt (type `cmd` in the Start menu) and
+type `python --version`. If it prints `Python 3.11`, `3.12`, `3.13` or
+`3.14`, you are ready. If it prints another number, says the command is
+not recognized, or opens the Microsoft Store, go to python.org, choose
+Downloads, then the newest Python 3.14 release, and download its
+"Windows installer (64-bit)". Run it and, on its first screen, tick
+"Add python.exe to PATH" before you choose "Install Now". Then close
+Command Prompt, open a new one and type `py -3.14 --version`: it should
+print `Python 3.14`.
+
+**On Linux.** Type `python3 --version` in a terminal. On Debian and
+Ubuntu the private environment the script makes needs one more package,
+which the person who looks after the computer can add with
+`sudo apt install python3-venv`.
+
+**Then get the synthtwin bundle for your computer.** synthtwin is
+installed from one file and nothing else: an offline bundle, one per
+kind of computer -- `synthtwin-<version>-macos_arm64.zip` for a Mac with
+Apple silicon, `synthtwin-<version>-win_amd64.zip` for Windows,
+`synthtwin-<version>-linux_x86_64.zip` for Linux. It holds every library
+synthtwin needs for Python 3.11 to 3.14, each pinned to an exact version
+and checked by its hash, the install script and a plain-words guide,
+`INSTALL.txt`. Unzip it: it holds one folder of the same name, and you
+install from that folder. It is never published on PyPI (the owner's
+decision of 2026-10-20, plan P4-D416). **[planned]** The bundles are
+built and tested by CI on every change, with the network denied, and
+are handed out with the first release. Until then a person with access
+to the repository's CI can take one from a CI run: on the run's page,
+under Artifacts, `synthtwin-bundle-<platform>` holds the zip for 5 days
+after the run. GitHub hands it over zipped once more, so unzip twice:
+first the download, then the `synthtwin-<version>-<platform>.zip`
+inside it. A copy of this repository is not a bundle: the install
+script run in it says so and sends you here.
+
 ## Installing
 
-synthtwin is **not on PyPI** yet. To use all three commands from a
-clone:
+It installs with one command, typed in the bundle's folder (`cd` into
+it first; `INSTALL.txt` in the bundle says how, step by step).
+
+On a Mac or Linux:
 
 ```
-git clone https://github.com/alfredocr05/synthtwin
-cd synthtwin
-pip install -e .
-synthtwin profile my-table.csv
-synthtwin generate my-table-profile.json
-synthtwin validate my-table-profile.json
+sh scripts/install.sh
 ```
 
-On a machine that must install everything by hash, and that may have no
-network at all, the procedure has two parts. The first needs a machine
-that does have network access; the second does not.
-
-**On a connected machine**, collect the exact files, verifying every
-hash as they arrive, and copy the folder across:
+On Windows, in Command Prompt:
 
 ```
-pip download --require-hashes --only-binary=:all: \
-    --dest wheelhouse -r requirements-install.lock
+scripts\install.bat
 ```
 
-Put the synthtwin wheel (`synthtwin-<version>-py3-none-any.whl`, from a
-release) into that same folder.
+The script takes no folder and needs no internet. It finds a Python the
+bundle serves, 3.11 to 3.14 -- the one you type first (`python3` or
+`python`), then each of those versions by its own name, newest first,
+so a Python 3.15 beside a 3.14 takes the 3.14, and only the usual
+Python from python.org, not its free-threaded build -- and says in plain
+words which Python to install if there is none; checks every file of the
+bundle against the bundle's `SHA256SUMS`, every library against the
+hashes `requirements-install.lock` pins, and that the bundle was made
+for this computer -- its system, its chip and, on a Mac, its macOS
+version -- and this Python, and that it holds every library this
+computer needs, before it changes anything; makes a fresh private environment named
+`.venv` inside the bundle's folder so nothing else on the computer
+changes (an earlier one there is replaced, so every file in it is
+checked again, and a package you installed into it yourself must be
+installed again afterwards); installs the four libraries synthtwin
+needs -- numpy, pandas, pyarrow and scipy -- and synthtwin itself from
+the bundle and nothing else; and ends by running `synthtwin doctor`
+(below). It is a `.bat` file on Windows, not a PowerShell script,
+because many managed computers refuse to run PowerShell scripts.
 
-**On the locked-down machine**, install from the folder and nothing
-else:
+After the script, in the same window, and each time you open a new
+terminal window to use synthtwin, switch its private environment on
+first, in the bundle's folder:
+
+```
+source .venv/bin/activate
+```
+
+On Windows, in Command Prompt, that is `.venv\Scripts\activate`. Then
+type the commands as this page writes them, starting with
+`synthtwin profile my-table.csv`. The command synthtwin prints at the
+end of a run is written the same way, so it works as printed in that
+window. `python -m synthtwin` does exactly what `synthtwin` does, with
+the same options and the same exit codes.
+
+On Windows, synthtwin writes the commands it prints for PowerShell. In
+Command Prompt, type a path it shows between single quotes between
+double quotes instead: where it printed
+`synthtwin generate 'C:\Users\Ana Maria\clinic-profile.json'`, type
+`synthtwin generate "C:\Users\Ana Maria\clinic-profile.json"`. Where two
+single quotes stand together inside such a name, type one: where it
+printed `'Crohn''s disease'`, type `"Crohn's disease"`.
+
+### Checking the computer: `synthtwin doctor`
+
+`synthtwin doctor` prints one line per check: that Python is 3.11 or
+later, that numpy, pandas, pyarrow and scipy can be loaded, each with
+the version installed, that the output folder takes a file, and this
+computer's total memory. Named a table, as in
+`synthtwin doctor my-table.csv`, it also weighs the file against that
+memory: a table of plain text takes roughly ten times its size to read,
+a guess from the size alone, and a workbook up to about 632 MB whatever
+its size, since a packed file's size does not say how many cells it
+holds; the line warns when that is more than half the memory. It
+**never opens the table**; it asks the computer for the file's size and
+nothing else. A check it could not make is marked `note` -- on Windows
+the standard library cannot read the memory -- and is no failure. It
+exits 0 when no check failed and 1 when any did, and each line marked
+PROBLEM says what to do next. The output folder is the one
+`--out-dir` names, else the table's folder, else the current folder; the
+check writes a small test file there and removes it at once.
+
+### What the install does, every file checked by hash
+
+The bundle is made for a computer with no network at all. Its folder
+holds `wheelhouse/` (every library file for Python 3.11 to 3.14 on that
+kind of computer, and the synthtwin file itself),
+`requirements-install.lock`, `scripts/`, `INSTALL.txt`, `LICENSE`,
+`THIRD-PARTY-NOTICES.txt` (the libraries' own licences, gathered when
+the bundle was built) and `SHA256SUMS`, the SHA-256 of every other file.
+`scripts/check_bundle.py` checks them all first. The script then runs
+exactly these two pip commands inside its private environment, which
+you can also type yourself, then `synthtwin doctor`. It runs them with
+this computer's own pip settings set aside (`--isolated`, and
+`PIP_CONFIG_FILE` naming the null device), so a place to fetch from
+named in a pip configuration file or a `PIP_` variable is not added to
+the folder:
 
 ```
 pip install --no-index --find-links wheelhouse \
@@ -621,18 +906,14 @@ pip install --no-index --no-deps wheelhouse/synthtwin-<version>-py3-none-any.whl
 
 Both pip commands are barred from the network by `--no-index`, and the
 first checks every hash. `--no-deps` on the second is what keeps the
-verified versions in place.
+verified versions in place. When a file is missing, pip stops, and so
+does the script: there is no way round the bundle.
 
-Do **not** substitute `pip install .` from a source folder for the
-second command. It runs a build backend that pip fetches from the
-network, `requirements-install.lock` does not pin that backend, and on a
-machine with no network it simply fails. CI runs exactly the two pip
-commands above on every build, against the wheel produced inside a
-container with no network.
-
-From Phase 3's visibility flip onward the repository is public and
-these commands work for anyone, with no account and no authentication;
-the hash-verified procedure itself is the same either way.
+CI builds the bundle on each kind of computer's own runner, from the
+lock with every hash checked, and installs it on a clean runner of each
+under each Python, with the network denied, before it runs the golden
+tests on what it installed -- the twin's bytes against the committed
+reference vectors (plan P4-D416).
 
 Running `synthtwin` with no arguments prints the version and what the
 tool can do today.

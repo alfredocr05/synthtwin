@@ -85,7 +85,7 @@ import pathlib
 import pytest
 
 import fixtures
-from synthtwin import cli, summary, taxonomy
+from synthtwin import cli, parsing, summary, taxonomy
 from synthtwin.cli import main
 
 FLOOR = taxonomy.Settings().small_cell_floor
@@ -173,7 +173,7 @@ def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _table(folder: pathlib.Path, markers: int) -> pathlib.Path:
     """Sixty ordinary numbers and ``markers`` cells wearing MARKER."""
-    values = [str(row) for row in range(60)] + [MARKER] * markers
+    values = [str(row) for row in range(parsing.POPULATION_FLOOR)] + [MARKER] * markers
     return fixtures.write(
         folder, "reading.csv", fixtures.single_column_table("reading", values)
     )
@@ -199,9 +199,7 @@ def test_the_help_says_the_word_itself_is_written(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """A person reads this before deciding what to name."""
-    with pytest.raises(SystemExit) as caught:
-        main(["profile", "--help"])
-    assert caught.value.code == 0
+    assert main(["profile", "--help"]) == 0  # `main` returns its status since plan P4-D437 (lane S5a)
     shown = " ".join(capsys.readouterr().out.split())
     assert "the word itself is written into the description" in shown
     # And it says what that means for the kind of word a researcher
@@ -209,16 +207,17 @@ def test_the_help_says_the_word_itself_is_written(
     # what a person is deciding about.
     assert "a diagnosis, a code or an identifier named here travels" in shown
     # THE BOUND IS STATED BESIDE THE EXPOSURE, NOT INSTEAD OF IT, and
-    # what the bound IS moved on 2026-08-25 (plan amendment A-P4-37).
-    # The help used to say "at least 11 rows hold it", which was the
-    # default. The default is 1, at which the sentence would have read
-    # "at least 1 rows hold it" -- bad English, and worse, it would
-    # have understated nothing while sounding like a threshold. The
-    # help says how wide the exposure actually is instead, and both
-    # halves are asserted: that a bound is named at all, and that the
-    # default one is named exactly.
+    # what the bound IS has moved twice. The help said "at least 11 rows
+    # hold it" until 2026-08-25 (plan amendment A-P4-37), then "by
+    # default one row is enough" while the default was 1, and names the
+    # default of 11 again since 2026-09-22 (plan P4-D316). Both halves
+    # are asserted: that a bound is named at all, and that the default
+    # one is named exactly -- read from the one place it is written.
     assert "where enough rows hold it" in shown
-    assert "by default one row is enough" in shown
+    assert (
+        f"by default at least {parsing.DEFAULT_SMALL_CELL_FLOOR} "
+        "-- and that column publishes"
+    ) in shown
 
 
 # -- 2. before either file exists --------------------------------------
@@ -274,7 +273,9 @@ def test_the_notice_comes_before_the_files_exist(
     seen: list[tuple[str, tuple[str, ...]]] = []
     warn = cli._warn
 
-    def _watch(message: str) -> None:
+    def _watch(message: str, **keywords: str) -> None:
+        # `_warn` takes the caution's key and the refusal's step since
+        # plan P4-D437 (lane S5a); they are handed on untouched.
         # The whole folder, not the two names: a run that had begun
         # writing under a working name would leave real-derived bytes in
         # the same place, and "the file does not exist yet" is not what
@@ -283,7 +284,7 @@ def test_the_notice_comes_before_the_files_exist(
         seen.append(
             (message, tuple(sorted(item.name for item in tmp_path.iterdir())))
         )
-        warn(message)
+        warn(message, **keywords)
 
     monkeypatch.setattr(cli, "_warn", _watch)
     assert main(["profile", f"{table}", "--missing-value", MARKER]) == 0
@@ -394,7 +395,7 @@ def _two_spellings(
     two spellings of one word.
     """
     values = (
-        [str(row) for row in range(60)]
+        [str(row) for row in range(parsing.POPULATION_FLOOR)]
         + [MARKER] * FLOOR
         + [f" {MARKER.upper()} "] * FLOOR
     )
@@ -474,7 +475,7 @@ def test_two_real_declarations_are_still_counted_as_two(
     """
     second = "another-marker-of-my-own"
     values = (
-        [str(row) for row in range(60)]
+        [str(row) for row in range(parsing.POPULATION_FLOOR)]
         + [MARKER] * FLOOR
         + [second] * FLOOR
     )

@@ -54,7 +54,8 @@ def _described(folder: pathlib.Path):
     rows = _readings()
     path = fixtures.write(folder, "bp.csv", "bp\n" + "\n".join(rows) + "\n")
     table = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(path), first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=FLOOR,
     )
     document = profile.build_document(
         table,
@@ -87,12 +88,42 @@ def test_each_position_publishes_a_block_that_is_now_measured(
     for owed in (
         "number 1 moments.mean",
         "number 1 moments.std",
-        "number 1 moments.skew",
         "number 1 ladder.p50",
         "number 2 moments.mean",
         "number 2 ladder.p50",
     ):
         assert owed in subchecks, sorted(subchecks)
+    # THE SHAPE OF A POSITION IS NAMED, AND THE RULE SAYS WHICH WAY.
+    # `moments.skew` was checked at position 1 and listed at position 2
+    # before landing 3.3; the tail rule published a group where the
+    # outer rungs stood, the description went coarser there, and
+    # G12.3's window widened to the range EVERY sample of this many
+    # values lies in -- so BOTH were listed as not checkable, which is
+    # this repository's answer to a window that admits everything.
+    #
+    # POSITION 1 IS CHECKED AGAIN SINCE PLAN P4-D346, and that is the
+    # listing rule paying something back: a tail the rule admits is one
+    # every value of which stands on at least two cells, so the counts
+    # `contract._listed_counts` solves for now start from that number
+    # too -- the twin's own first position is finer for it, and G12.3's
+    # window is narrow enough to fail on again. It comes back
+    # WITHIN-BOUND here. Position 2's window still admits every value
+    # and is still named as not checkable. The rule
+    # `_skew_admits_every_value` is asked of each, so neither side of
+    # this is asserted from the outcome alone.
+    listed = {one.subcheck for one in outcome.listings}
+    numbers = described.columns[0].facts.parts[0]
+    assert not validation._skew_admits_every_value(
+        described.columns[0], numbers, FLOOR
+    ), "position 1's window admits every value again"
+    assert "number 1 moments.skew" in subchecks
+    assert "number 1 moments.skew" not in listed
+    numbers = described.columns[0].facts.parts[1]
+    assert validation._skew_admits_every_value(
+        described.columns[0], numbers, FLOOR
+    ), "position 2's window no longer admits every value"
+    assert "number 2 moments.skew" not in subchecks
+    assert "number 2 moments.skew" in listed, sorted(listed)
 
     # AND EACH IS BOUND TO ITS OWN POSITION'S FACT, so two positions
     # cannot hide behind one identity.
@@ -113,6 +144,17 @@ def test_no_obligation_of_a_joined_column_is_named_twice(
     would name one obligation twice under two identities -- the defect
     this residual is an instance of, made a second time by its own
     repair.
+
+    A HEAPED END IS THE SAME DEFECT IN NEW WORDING (stage 3, contract
+    6.7a). The tail rule withholds a position's ends unless a group of
+    rows shares one, and where one IS published the walk files it as
+    `ladder.max (heaped end, one-sided)`. A skip that matched the bare
+    name let that through, and this column -- whose diastolic readings
+    heap on their largest -- had its largest reading named twice. So
+    the two ends are read off the description here, position by
+    position, rather than named: an end the description withholds is
+    checked nowhere, and an end it publishes is checked once, under
+    this role's own name for it.
     """
     _document, described = _described(tmp_path)
     twin = generation.generate(described, SEED)
@@ -124,8 +166,29 @@ def test_no_obligation_of_a_joined_column_is_named_twice(
     for one in outcome.checks:
         seen[one.subcheck] = seen.get(one.subcheck, 0) + 1
     assert not [key for key in seen if seen[key] > 1], seen
-    assert "ends.number 1 min" in seen
-    assert "number 1 ladder.min" not in seen
+    published = 0
+    for place, numbers in enumerate(described.columns[0].facts.parts):
+        for index, end in ((0, "min"), (10, "max")):
+            walked = [
+                key
+                for key in seen
+                if key.startswith(f"number {place + 1} ladder.{end}")
+            ]
+            own = [
+                key
+                for key in seen
+                if key.startswith(f"ends.number {place + 1} {end}")
+            ]
+            assert walked == [], walked
+            if numbers.percentiles.rungs[index] is None:
+                assert own == [], own
+            else:
+                published = published + 1
+                assert len(own) == 1, own
+    assert published == 1, (
+        "this column is the witness because ONE of its four ends is "
+        "heaped and published; with none, nothing here is measured"
+    )
 
 
 def test_a_position_that_moved_is_reported(tmp_path: pathlib.Path) -> None:

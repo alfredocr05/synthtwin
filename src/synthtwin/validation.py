@@ -161,109 +161,30 @@ import math
 from synthtwin.paths import validate_local_path
 import pathlib
 
-from synthtwin import contract, errors, parsing, profile, reading, taxonomy
+from synthtwin import calendar_clock, calendar_rules, contract, dialect, errors, parsing, profile, reading, taxonomy, workbook
+# -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
+from synthtwin import date_counts, grains, roles
 
 
-# ONE UNIT IN THE LAST PLACE, AWAY FROM ZERO (review item P4-G6-R6-F1).
-#
-# The universal bounds a moment is held to -- the largest skew a sample
-# of this size can take, the largest tail weight -- are stated as exact
-# expressions and computed in binary64, where two roundings can land the
-# endpoint one place INSIDE the true limit. `(3 - 2) / sqrt(3 - 1)`
-# comes out 0.7071067811865475 while the true limit rounds to
-# ...76, so a column whose skew IS the maximum is outside a bound it
-# exactly meets. Reproduced on the three cells `-1e20`, `0` and `1`:
-# the description publishes -0.7071067811865476, the twin holds
-# -0.7071067811865476, and the report said OUTSIDE and told the reader
-# to treat the fact as not reproduced.
-#
-# A bound stated as a limit must therefore be widened by one place
-# before it is compared against anything. The direction is always
-# outward, so the widening can never turn a real miss into a pass: it
-# admits exactly the values the limit itself admits.
-#
-# `math.nextafter` is not among the names this package's offline audit
-# allows, and widening the audit to admit one is the wrong way round --
-# `frexp` and `ldexp` are allowed and say the same thing.
-# The smallest positive number this format holds, which is also the gap
-# between any two neighbouring subnormals.
-_SMALLEST = math.ldexp(1.0, -1074)
-
-
-def _stepped(bound: float, upward: bool) -> float:
-    """The number this format holds next to ``bound``, in one direction.
-
-    THE GAP IS NOT THE SAME ON BOTH SIDES OF A VALUE, and the first
-    version of this function assumed it was (review item P4-G6-R7-F2).
-    It added a fixed `2 ** -53` to the fraction `frexp` returns, which
-    is the gap ABOVE a value whose fraction is exactly one half and
-    twice the gap BELOW it -- so `_lowered(1.0)` returned
-    0.9999999999999998 where the number next to 1.0 is
-    0.9999999999999999, stepping two places instead of one. It also
-    moved no subnormal at all, because the gap it computed there
-    underflows to nothing, and it raised `OverflowError` on the largest
-    number the format holds.
-
-    Two of those three only ever widened a bound further than intended,
-    which weakens a check without breaking it; the third was a crash
-    and the second left the very smallest bounds unwidened, which is
-    the case the widening exists for.
-
-    So the gap is worked out on the side being moved toward: `2 ** (e -
-    53)` going away from zero, and half of that going toward zero from
-    a value sitting exactly on the edge of its binade. Subnormals take
-    the one gap they have. A bound already at the edge of the range is
-    returned unchanged, since there is no number beyond it to widen to
-    and it already admits everything this format can write.
-
-    `math.nextafter` says all of this in one call and is not among the
-    names this package's offline audit allows. Widening that audit to
-    admit one would be the wrong way round; `frexp` and `ldexp` are
-    allowed and say the same thing. `tests/` checks this against
-    `math.nextafter` over the whole range, which is what an audit's
-    allowlist costing a line of arithmetic is supposed to look like.
-    """
-    if not math.isfinite(bound):
-        return bound
-    if bound == 0.0:
-        return _SMALLEST if upward else -_SMALLEST
-    magnitude = abs(bound)
-    growing = (bound > 0.0) == upward
-    fraction, exponent = math.frexp(magnitude)
-    gap = math.ldexp(1.0, exponent - 53)
-    if not growing and fraction == 0.5:
-        gap = math.ldexp(1.0, exponent - 54)
-    if gap < _SMALLEST:
-        gap = _SMALLEST
-    stepped = magnitude + gap if growing else magnitude - gap
-    if not math.isfinite(stepped):
-        return bound
-    if bound < 0.0:
-        return -stepped
-    return stepped
-
-
-def _raised(bound: float) -> float:
-    """The smallest number this format holds above ``bound``.
-
-    An UPPER limit is widened with this, so a value that is correctly
-    rounded onto the limit itself cannot fall outside it.
-    """
-    return _stepped(bound, True)
-
-
-def _lowered(bound: float) -> float:
-    """The largest number this format holds below ``bound``.
-
-    A LOWER limit is widened with this, for the same reason -- and the
-    direction is what makes it a widening rather than a shift. Moving
-    an upper limit away from zero and a lower limit away from zero are
-    the same thing only when the pair straddles zero, which the skew
-    bound does and the tail weight's does not: its two ends are both
-    positive, and widening its low end AWAY from zero moved that end
-    UP, past the very value the window was drawn to admit.
-    """
-    return _stepped(bound, False)
+# THE G12.3 WINDOWS ARE WRITTEN ONCE, IN `taxonomy` (plan P4-D353). The
+# producer asks them before it withholds a tail pair, and the producer
+# cannot import this module, so the writing moved there and every name
+# below reads it; none of them is a second copy.
+_stepped = taxonomy.window_stepped
+_raised = taxonomy.window_raised
+_lowered = taxonomy.window_lowered
+_filled_ladder = taxonomy.window_filled_ladder
+_ladder_read = taxonomy.window_ladder_read
+_rounded_up = taxonomy.window_rounded_up
+_numeric_cells = taxonomy.window_numeric_cells
+_stratum_bound = taxonomy.window_stratum_bound
+_window_stratum = taxonomy.window_stratum
+_one_grid = taxonomy.window_one_grid
+_half_unit = taxonomy.window_half_unit
+_windows_of = taxonomy.windows_of
+_moment_windows = taxonomy.window_moments
+_sample_deviation = taxonomy.window_sample_deviation
+_population_deviation = taxonomy.window_population_deviation
 
 
 # -- the five verdicts (V6.1) -----------------------------------------
@@ -294,8 +215,6 @@ CORNER_IDENTIFIER_INFEASIBLE = "identifier-infeasible"
 CORNER_DATETIME_OFFSETS_WITHHELD = "datetime-offsets-withheld"
 CORNER_LABEL_VARIANTS_SHORT = "label-variants-short"
 CORNER_NUMERIC_SPELLINGS_SHORT = "numeric-spellings-short"
-# THE ONE KEY OF `missing_by_source` A TWIN MAY NOT WRITE (R-P4-60).
-CORNER_JUDGED_HOLE = "judged-hole"
 
 CORNERS = (
     CORNER_IDENTIFIER_INFEASIBLE,
@@ -329,13 +248,6 @@ CORNER_CITATIONS = {
         "withheld-variant multiset do not supply enough spellings "
         "(docs/spec/generation-method-v1.md G12.7)"
     ),
-    CORNER_JUDGED_HOLE: (
-        "phase-4 plan P4-D6.1 and contract C6-116, as the disposition "
-        "registry cites it: a spelling a JUDGED PASS put there is "
-        "REPORT-ONLY for that key, because the twin writes it blank -- "
-        "reproducing it would make the twin's own measurement depend "
-        "on a re-judgement of the same number"
-    ),
     CORNER_NUMERIC_SPELLINGS_SHORT: (
         "phase-2 plan P2-D6: falling back to the two-sided envelope "
         "only where even the permitted spellings cannot supply the "
@@ -354,6 +266,9 @@ ENVELOPE_NUMERIC_RUNGS = (
     "two-sided rung envelope"
 )
 ENVELOPE_MOMENTS = "docs/spec/generation-method-v1.md G12.3"
+# THE WINDOW ON A TAIL'S TWO DISTANCES (stage 3, plan P4-D344), drawn from
+# G5.6's rank form over the one ladder the construction reads.
+ENVELOPE_TAILS = "docs/spec/generation-method-v1.md G12.13"
 ENVELOPE_DATETIME_RUNGS = "docs/spec/generation-method-v1.md G12.4"
 ENVELOPE_DATETIME_DISTINCT = "docs/spec/generation-method-v1.md G12.5"
 # The clock role's two, cited and never restated. Both point at the
@@ -361,6 +276,10 @@ ENVELOPE_DATETIME_DISTINCT = "docs/spec/generation-method-v1.md G12.5"
 # in the same landing as the construction it bounds.
 ENVELOPE_CLOCK_RUNG = "docs/spec/generation-method-v1.md G12.10"
 ENVELOPE_CLOCK_DISTINCT = "docs/spec/generation-method-v1.md G12.11"
+# The window a date or clock tail's two distances are met inside (stage
+# 3): the construction's own, every drawn rank at the smallest word at one
+# end and at the largest at the other.
+ENVELOPE_TAIL_DISTANCE = "docs/spec/generation-method-v1.md G12.14"
 # The window a joined column's rank agreement is met inside. It is
 # published rounded to four figures and reached by a walk that stops
 # once it is close enough, so it is approximated and not exact -- and
@@ -381,6 +300,13 @@ _AGREEMENT_SLACK = parsing.RANK_AGREEMENT_WINDOW
 
 ENVELOPE_TEXT_SHAPE = "docs/spec/generation-method-v1.md G12.6"
 ENVELOPE_LABEL_DISTINCT = "docs/spec/generation-method-v1.md G12.7"
+# The window the scale of a column's held-back numbers is met inside.
+# The placement of method G8.3c puts the pool's cells on the published
+# MEAN -- the owner's decision of 2026-09-21 withdrew the spread that
+# stood beside it -- and then rounds each onto a written place, so the
+# one aggregate is approximated and not exact, and G12.12 says by how
+# much.
+ENVELOPE_POOLED_SCALE = "docs/spec/generation-method-v1.md G12.12"
 ENVELOPE_NUMERIC_DISTINCT = "docs/spec/generation-method-v1.md G12.8"
 
 # -- the refusals of method G12 (V4.3, V9) ----------------------------
@@ -471,6 +397,12 @@ _SATURATION = 1 << 62
 # fact a check names is one the registry carries. A third name added to
 # this tuple is a fact somebody took out of the registry's reach, which
 # is a decision a reviewer reads in the diff.
+# SINCE PLAN P4-D86 THE DESCRIPTION DOES STATE THEM: `source.encoding`
+# and `source.dialect` record how the table's file is written, and the
+# method writes the twin that way. The two names are kept for the four
+# rules that stood here before -- the encoding, the byte-order mark, the
+# line endings and the final newline -- and every rule added with them is
+# filed under the registry fact `source.dialect`.
 BYTE_RULE_FACTS = ("document.encoding", "document.line-endings")
 
 INPUT_SIDE_ENTRIES = (
@@ -482,7 +414,28 @@ INPUT_SIDE_ENTRIES = (
     ("document", "columns"),
     ("document", "source"),
     ("numeric", "n_rows"),
+    # THE PLACE OF EACH TAIL (stage 3, contract 6.7a, TL1 and TL4). The
+    # percent and the rows follow from the count of values and the
+    # smallest group size, and the loader refuses a description whose
+    # own do not: they put nothing on the written file, and a file of
+    # the same count of values re-describes them identically, so a
+    # check here would repeat `counts.n_used_in_statistics` under
+    # another name.
+    ("numeric", "tails"),
+    ("numeric", "tails.low.percent"),
+    ("numeric", "tails.high.percent"),
+    ("numeric", "tails.low.rows"),
+    ("numeric", "tails.high.rows"),
     ("label", "level_ceiling"),
+    # THE POOL'S OWN SCALE, on the same terms (contract 6.3.3, plan
+    # P4-D302). The container key carries no VALUE obligation -- its
+    # membership is the two keys inside it -- and `n_cells` is the
+    # count the LOADER reads to ask the disclosure rule of the pool
+    # against the column's numbers (invariant B4d), which puts nothing
+    # on the written file. The one aggregate inside it DOES, and it is
+    # checked below against G12.12's window.
+    ("label", "suppressed_numbers"),
+    ("label", "suppressed_numbers.n_cells"),
     ("free_text", "length"),
     ("free_text", "words"),
     # The joined role's own container, on the same terms as the two
@@ -497,19 +450,215 @@ INPUT_SIDE_ENTRIES = (
     # block it is (contract 9.4b, plan P4-D33).
     ("compound", "numbers"),
     ("compound", "labels"),
+    # THE TWO TAIL BLOCKS OF A DATE OR CLOCK COLUMN, on the same terms
+    # (stage 3, plan P4-D328): the container carries no VALUE obligation
+    # of its own -- its membership is the five keys inside it, each
+    # checked or listed under its own name -- so it is bound here and
+    # nowhere else.
+    ("datetime", "low_tail"),
+    ("datetime", "high_tail"),
+    ("clock", "low_tail"),
+    ("clock", "high_tail"),
+    # ...AND THE UNIT THOSE TAILS ARE COUNTED IN, which is LOADER-ONLY:
+    # contract DT4 settles it from the block's own resolution, precision
+    # and midnight fields when the description is READ, and the loader
+    # refuses one that publishes another. Each of the three fields it
+    # follows from is checked in its own right, so a verdict here would
+    # be a second reading of theirs under a name the registry can answer
+    # for once -- which is what makes the whole of its obligation the
+    # profile's.
+    ("datetime", "tail_unit"),
+    # ...AND A COLUMN'S TIME GRAIN, LOADER-ONLY on the same terms (contract
+    # TG1, plan P4-D417; registered in the universal group by lane S5b,
+    # plan P4-D441): the validator reads the grain from the description
+    # (clause V14) to measure the date facts at its rung, and each of
+    # those facts is checked in its own right, so a verdict under this
+    # name would be a second reading of theirs.
+    ("universal", "time_grain"),
+    # THE KEYS STAGE 3B RESERVES (plan P4-D364), LOADER-ONLY on the same
+    # terms: each is `[]` -- `clock_step` null -- on every block and the
+    # loader refuses anything else, so none of them puts anything on the
+    # written file until the landing that fills it takes its own entry
+    # out, below its own line.
+    # -- 3b.T2 (P4-D371)
+    # -- 3b.T3 (P4-D372)
+    # -- 3b.D3 (P4-D368)
+    # -- 3b.D4 (P4-D369)
+    # -- 3b.C1 (P4-D373)
+    # -- 3b.C2 (P4-D374): filled, `minute_census.groups` (V5-C2).
+    # -- 3b.R4 (P4-D384), reserved by the second cut (P4-D386)
 )
 
 # -- what a listing entry says, in one fixed sentence each ------------
 
+_NOT_CHECKABLE_MOVED_OFF_THE_REAL = (
+    "no twin record number is spelled as a real one (plan P4-D432): the "
+    "values of a layout no real cell leaves room in are written wider than "
+    "every real value, so this fact is the real table's and is not one the "
+    "twin holds"
+)
+_NOT_CHECKABLE_EXCLUSIONS = (
+    "the description records, for each layout, what none of the table's "
+    "record numbers holds there (plan P4-D432), and the twin is written "
+    "off it; no written file is checked against it"
+)
 _NOT_CHECKABLE_REPORT_ONLY = (
     "no CSV can evidence this fact: the description records how the "
     "real table was read, and a written file cannot show it"
 )
+# THE MEMBER OF A COLUMN READ JOINTLY was a listing until landing 3b.7
+# (plan P4-D378), its twin writing every value with a time of day
+# (residual R-P4-12); the twin writes the published count of bare dates
+# now, and `format` is held there as everywhere.
 _NOT_CHECKABLE_RESOLUTION_MIX = (
     "the description records which written form each of the real "
     "table's dates wore, and how many wore each, and it asks no file "
     "to write them the same way: a file that writes them all one way "
     "misses no obligation this description makes"
+)
+# THE MARKS AND MIDNIGHT WERE LISTINGS UNTIL LANDING 2b.3, and the two
+# sentences they carried are kept here as the record of what changed:
+# "the twin writes those marks without being held to them: a file is read
+# the same way whichever mark its moments wear" and "the twin keeps a
+# column that did at midnight without being held to it". Rewriting every
+# twin cell of a space column to a `T` and moving every interior clock of
+# a midnight column to 09:30 both passed with nothing missed, so code
+# splitting on the space, or reading a date-only field, met a column the
+# real table does not have. Goal 1 of the owner's 2026-09-12 ruling --
+# code developed on the twin runs unchanged on the real table -- is what
+# makes them obligations: `_mark_checks` and `_midnight_checks`. What is
+# still LISTED is where the description sets no obligation at all.
+# What a written form the file's own description does not name prints as,
+# in place of a count that description withholds (plan P4-D134).
+_FORM_NOT_NAMED = (
+    "not named by this file's own description, which names a written "
+    "form only where enough of its values wrote it"
+)
+_NOT_CHECKABLE_NO_WRITTEN_FORM = (
+    "the description records how the real column's dates were written "
+    "-- how wide their fields were, how their month names were cased, "
+    "how their markers were cased -- and this column's dates write "
+    "nothing of the kind, so there is none of it for a file to carry"
+)
+# ...and for a column whose dates CAN show the convention but whose census
+# is empty (plan P4-D131): no value showed one, or the census was held
+# back whole. The two are one sentence because a reader may not be told
+# which -- telling them would publish what the census holds back.
+_NOT_CHECKABLE_WRITTEN_FORM_HELD_BACK = (
+    "the description records how the real column's dates were written "
+    "-- how wide their fields were, how their month names were cased, "
+    "how their markers were cased -- and for this column it records "
+    "none of this kind: no value showed one, or a count of it would have "
+    "named too few values or left too few over, so the whole census was "
+    "held back and there is none of it for a file to carry"
+)
+# WHAT A MISSED CENSUS SHOWS WHERE THE FILE'S OWN DESCRIPTION NAMES NO
+# COUNT (plan P4-D142): the count it holds is one the disclosure rule
+# keeps off every page, so the line says that and prints no number.
+_NO_NAMEABLE_COUNT = "no count its own description can name"
+_NOT_CHECKABLE_NO_MIXTURE = (
+    "the description names no notation or mark for this column's "
+    "numbers, because none of them wore one or because naming the count "
+    "would have told a reader about fewer people than the smallest group "
+    "size, so there is no count for a file to carry and the one "
+    "convention the column publishes is checked beside it"
+)
+_NOT_CHECKABLE_NO_CLOCK = (
+    "the description records the marks and the values at midnight of a column's "
+    "moments only where they write a time of day, and this column's "
+    "values write none, so there is nothing of either for a file to carry"
+)
+# A WORKBOOK WHOSE OWN FORMAT CODE CANNOT WRITE THE FIGURES (plan
+# P4-D259.1; the skeptic of the repair of the extra review's item 9). A
+# workbook stores a moment as a day count and writes its subsecond
+# figures in the FORMAT CODE, so a column published at `subsecond` under
+# a code showing fewer figures than it names can carry them only in the
+# stored fraction -- and the generation method writes the twin's
+# fractional digits as ZEROS, because the description publishes how many
+# there are and nothing about their values, so any other digit would be
+# an invented fact (`docs/spec/generation-method-v1.md`, G7.3). A whole
+# second stored under a figure-free code is what no figures store, so
+# neither obligation is one a conforming twin can meet and neither is
+# checked.
+_NOT_CHECKABLE_SUBSECOND_UNWRITABLE = (
+    "the description records this column's moments to a fraction of a "
+    "second and records the number format its cells wear, and that "
+    "format writes no figures after the second: a workbook shows those "
+    "figures in the format, and a twin writes them as zeros -- which a "
+    "day count stores as the whole second it is -- so no workbook "
+    "wearing this format can carry them"
+)
+# ...AND WHERE THE CODE DOES WRITE SOME FIGURES, BUT FEWER (review item 5
+# of landing R3). Two codes of a date with a time are read and the twin
+# wears the commonest (plan P4-D382), so a column of 160 moments under
+# `yyyy-mm-dd hh:mm:ss.0` beside 40 under `.000` publishes three figures
+# and wears a code writing one: the sentence above said that code
+# "writes no figures after the second", which was false of it.
+_NOT_CHECKABLE_SUBSECOND_FEWER = (
+    "the description records this column's moments to a fraction of a "
+    "second and records the number format its cells wear, and that "
+    "format writes fewer figures after the second than the description "
+    "records: a workbook shows those figures in the format, and a twin "
+    "writes the ones it cannot show as zeros, so no workbook wearing this "
+    "format can carry as many figures as the description records"
+)
+# WHY THE SCALE OF A COLUMN'S HELD-BACK NUMBERS IS NOT CHECKED, in the
+# two cases there are (contract 6.3.3, method G12.12). The first is the
+# state the block reaches where it says nothing at all, which is what a
+# column whose held-back levels hold no number publishes AND what the
+# disclosure rule leaves behind where it refuses to speak -- the two
+# being deliberately indistinguishable, this sentence has to cover both
+# and name neither.
+_NOT_CHECKABLE_NO_POOLED_SCALE = (
+    "the description publishes no average for the numbers among this "
+    "column's held-back values, so it asks no file for one"
+)
+# THERE IS NO SECOND CASE SINCE THE REPAIR PASS OF 2026-09-21. A scale
+# of no spread used to be one: every cell of the pool held one value, a
+# window of nought width would admit that value and nothing else, and a
+# check that cannot be met is not a check. It is now refused where it is
+# made -- the producer does not publish a pool of one value, because
+# publishing it names the value of every held-back cell.
+#
+# AND THE SPREAD ITSELF IS GONE SINCE THE OWNER'S DECISION OF THE SAME
+# DAY (plan P4-D302): what the pool publishes is a count and a mean, so
+# there is one obligation here and not two. WHAT IS NO LONGER CHECKED,
+# said plainly: no check of this module, and no line of any report it
+# writes, now says anything about how far apart a file's held-back
+# numbers lie. A twin whose pool sits at the right average and is
+# spread a tenth as wide as the real one meets every check here. The
+# spread of a twin's made-up numbers is the generator's own choice of
+# spacing (method G8.3c step 2), and the held-back note of the
+# generation report is where a person is told so.
+#
+_NOT_CHECKABLE_NOT_ALL_AT_MIDNIGHT = (
+    "the description does not say that every moment of the real column "
+    "stood at midnight, so it asks nothing of the time of day a file's "
+    "moments name as a whole"
+)
+_NOT_CHECKABLE_NO_MIDNIGHT_COUNT = (
+    "the description publishes no count of the values at midnight, "
+    "because too few stood there, or too few did not, for a count to be "
+    "published without naming a single person, so it asks no file for a "
+    "number of them"
+)
+# WHAT A FILE HOLDS WHEN ITS OWN COUNT IS NOT PUBLISHABLE (landing 2b.6).
+# The description publishes a count of at least two that leaves at least
+# two off midnight. A checked file whose OWN description withholds that
+# count holds none, one, or all but one -- and not one of those three can
+# be the published number, so this is a MISS and not a closed gate.
+#
+# Reading it as a closed gate is a defect this landing nearly shipped: a
+# file with every one of 480 published values at midnight moved to 12:00
+# re-described as withholding its count, and the check came back WITHHELD
+# while the file had plainly missed the obligation.
+#
+# It is said WITHOUT A NUMBER on purpose. Which of the three the file
+# holds is a fact about a single row of it, and this report is written to
+# be readable by somebody holding no copy of the file at all.
+_COUNT_OUTSIDE_THE_BAND = (
+    "a count too near nought, or too near every value, for a description "
+    "to publish"
 )
 # THE COUNT OF DIFFERENT NUMBERS WAS A LISTING UNTIL 2026-09-04, and
 # the sentence it carried is kept here as the record of what changed:
@@ -519,13 +668,20 @@ _NOT_CHECKABLE_RESOLUTION_MIX = (
 # by and counts distinct on numeric columns, so a twin holding fewer
 # different numbers than the description records is a twin that column
 # cannot be developed against. It is a CHECK now, in `_numeric_checks`.
+# AND IT NO LONGER SAYS THE LADDER NAMES ELEVEN (the review of
+# 2026-09-23, item 7). It read "which the eleven named rungs beside them
+# are still checked for", and since stage 3 a ladder names ELEVEN AT MOST
+# and normally fewer: measured on 100 readings 0.125 to 99.125, three of
+# the eleven are published and `min`, `max` and six interior rungs are
+# withheld. What is checked is the rungs the description does name,
+# however many those are, so that is what this line says.
 _NOT_CHECKABLE_FINER_LADDER = (
     "the description records the ninety percentile rungs its named "
     "ladder does not carry, as ONE fact rather than ninety: no file is "
     "held to any of them, and holding one to each would mean ninety "
     "obligations whose red cases could not honestly be written. What "
-    "they buy is where a twin PLACES its values, which the eleven "
-    "named rungs beside them are still checked for. A file whose finer "
+    "they buy is where a twin PLACES its values, which the rungs the "
+    "ladder does name are still checked for. A file whose finer "
     "rungs differ misses no obligation this description makes"
 )
 _NOT_CHECKABLE_MODE = (
@@ -534,9 +690,38 @@ _NOT_CHECKABLE_MODE = (
     "that many: a twin allots its cells to values by the runs of the "
     "published ladder rather than by any published count of them, and "
     "the only value given a group of its own sized to a published "
-    "count is zero. A file whose "
+    "count is zero. The twin does write that number where its ladder, "
+    "its widths and the stretches your table leaves empty leave room "
+    "for it, and the report beside the twin says so when they do not. "
+    "A file whose "
     "commonest number differs, or whose count of it differs, misses no "
     "obligation this description makes"
+)
+# THE TAIL RULE'S THREE LISTINGS (stage 3, plan P4-D344). A rung the rule
+# withholds is named and never compared: a null against a null cannot
+# fail on a twin of the same size, and a check that cannot fail is the
+# vacuity V3.4 refuses by name.
+_WITHHELD_BY_THE_TAIL_RULE = (
+    "the description withholds this rung by its tail rule: the rung "
+    "would read one of the rows beyond the tail's boundary, and the "
+    "description says of those rows how many there are and, where its "
+    "tail rule lets it, how far they lie from the boundary or which "
+    "values they hold -- never one by one (contract TL1, TL5 and TL6, "
+    "generation method G5.3b)"
+)
+_NOT_CHECKABLE_BIN_GROUPS = (
+    "the description records how many of the real column's numbers fall "
+    "in each group of bins between its two tails, and the twin follows "
+    "its ladder without being held to that census: the cells are "
+    "allotted to values by the runs of the published ladder, not by the "
+    "groups. A file whose numbers fall in different groups misses no "
+    "obligation this description makes"
+)
+_NOT_CHECKABLE_TAIL_HISTOGRAM = (
+    "a column described by its tails publishes no census of every bin at "
+    "all: the bins divide the stretch between its two boundary rungs and "
+    "the shape is published as groups of them, which is the line beside "
+    "this one. There is nothing here for a file to be held to"
 )
 _NOT_CHECKABLE_HISTOGRAM = (
     "the description records the SHAPE of the real column's numbers -- "
@@ -582,6 +767,16 @@ _NOT_CHECKABLE_FIELD_WIDTHS = (
     "reached, and a file whose cells fall at different widths misses "
     "no obligation this description makes"
 )
+# THE MARK BETWEEN THOUSANDS WAS A LISTING UNTIL LANDING 2b.2
+# (2026-09-15), and the sentence it carried is kept here as the record
+# of what changed: "the twin writes that mark without being held to it:
+# a file is read the same way whether its large numbers carry the mark
+# or not". The owner's first goal contradicts that sentence -- code
+# developed on the twin must run unchanged on the real table, and code
+# that strips a comma before converting reads a bare file and a grouped
+# one differently -- and a bare copy of a grouped twin validated with
+# exit 0. It is a CHECK now, in `_spelling_checks`, beside the notation
+# of a negative and the count of signed decimals the same landing added.
 _NOT_CHECKABLE_HEADERLESS_ORDER = (
     "the description says the column names were generated, so the file "
     "carries no header line and nothing in it can evidence the order "
@@ -595,14 +790,6 @@ _NOT_CHECKABLE_NO_LADDER = (
     "the published ladder is null at every rung, so the description "
     "carries no shape for these values and there is no window to "
     "measure against"
-)
-_NOT_CHECKABLE_JUDGED_HOLE = (
-    "this spelling is one synthtwin JUDGED to be a stand-in for 'no "
-    "value' rather than one your description names outright, so the "
-    "twin writes those cells empty: reproducing the number would make "
-    "the twin's own reading of it depend on judging it the same way a "
-    "second time. Every other spelling of an absent cell is written at "
-    "exactly its published count and is checked"
 )
 _NOT_CHECKABLE_NO_WINDOW = (
     "the published ladder for this column reaches so far across the "
@@ -644,6 +831,22 @@ _NOT_CHECKABLE_STYLE_CEILING = (
     "rows, so every cell the file can carry in it is already accounted "
     "for and there is no unnamed cell left for this ceiling to govern"
 )
+# THE TWO STATES THE WIDE-RUN CEILING CANNOT BITE IN (landing 2b.13,
+# plan P4-D90). The fact is published on every numeric column, so on the
+# columns where it settles nothing it is a LISTING and never a silence:
+# a fact that is neither checked nor listed is a fact the report lost.
+_NOT_CHECKABLE_NO_WIDE_RUNS = (
+    "the description says this column wrote fewer runs of figures past "
+    "what a double keeps every figure of than the smallest group size "
+    "it was described at, so this ceiling has no published cell to "
+    "govern"
+)
+_NOT_CHECKABLE_WIDE_RUNS_RESPELLED = (
+    "the description says this column's runs of figures past what a "
+    "double keeps are not all the text their own values write, so a "
+    "file writing any of them another way writes what the description "
+    "already licenses"
+)
 # THE THREE FACTS THE SPLIT RULE ITSELF SETTLES (landing L8). A cell
 # joins a compound column's numeric half only if it reads as a plain
 # number, so that half holds no cell that is out of range, none that
@@ -670,11 +873,43 @@ _NOT_CHECKABLE_IDENTIFIER_CORNER = (
     "the report states rather than one a file is measured against. "
     "Authorized by "
 )
-_NOT_CHECKABLE_ENDPOINT_WITHHELD = (
-    "the publication floor held this end's own offset back, so the "
-    "description names no offset for it and no file can carry one "
-    "either way. The offsets the description does name are checked, "
-    "and are the whole of what a CSV can evidence here"
+_NOT_CHECKABLE_RUNG_WITHHELD = (
+    "the description withholds this rung by its tail rule: the rank it "
+    "would be read from holds one of the column's outer values, so the "
+    "description publishes nothing there and no file can hold anything "
+    "either way (docs/spec/profile-contract-v6.md D11 and T2)"
+)
+_NOT_CHECKABLE_NO_TAIL = (
+    "the column holds too few values, or too many of them tied at an "
+    "end, for a tail boundary to exist on each side, so the description "
+    "publishes no tail and no rung; its counts are still checked "
+    "(docs/spec/profile-contract-v6.md TL2)"
+)
+_NOT_CHECKABLE_TAIL_KEY_WITHHELD = (
+    "the description's tail publishes nothing under this key: the values "
+    "a tail holds are published only where it holds few of them or where "
+    "its distances would settle a count below the floor, and the two "
+    "distances are withheld only where this file format cannot hold them "
+    "(a description written before plan P4-D375 also withheld them where "
+    "they would give back an outer cell or how many outer cells hold one "
+    "value, where the check of that could not finish, or where beside the "
+    "column's exact mean and spread they could give the other tail's "
+    "withheld distances back by subtraction, unless withholding them would "
+    "cost the column its mean or spread; such a description says which on "
+    "the side itself) (docs/spec/profile-contract-v6.md TL1, TL5 and 6.7a)"
+)
+# A LISTED DATE OR CLOCK TAIL is the one shape the sentence above does
+# not describe: it publishes the values it holds in place of its pair,
+# never its root-mean-square distance, and its mean only where that mean
+# would not settle a count below the floor (contract DT1; the taxonomy's
+# `_values_mean_pins`). Its two absent distances are listed with this
+# reason, and every other absent tail key keeps the one above.
+_NOT_CHECKABLE_LISTED_TAIL_DISTANCE = (
+    "the description's tail lists the values it holds in place of its "
+    "shape: a listed date or clock tail publishes no root-mean-square "
+    "distance, and no mean where the mean beside the listed values would "
+    "settle a count below the floor of the rows holding one of them "
+    "(docs/spec/profile-contract-v6.md DT1 and 6.7a)"
 )
 _NOT_CHECKABLE_SPELLING_ENVELOPE = (
     "the description's own permitted spellings settle nothing about how "
@@ -766,6 +1001,10 @@ _GATE_CLOSED = (
     "measures, so neither the measurement nor its outcome is shown"
 )
 
+# The same sentence where the chain's lines stand in V5.3's place (V12.3;
+# lane CHv, plan P4-D430): one sentence for one rule, named once.
+CHAIN_GATE_CLOSED = _GATE_CLOSED
+
 # THE SECOND WAY THE GATE CLOSES, AND WHY IT NEEDED ITS OWN SENTENCE
 # (review item P3-V2-D-F2; V5.3, V5.4).
 #
@@ -829,6 +1068,158 @@ _GATE_REFUSED = (
     "so neither the measurement nor its outcome is shown"
 )
 
+# THE THIRD WAY THE GATE CLOSES (plan P4-D77, validation method
+# V6.2-A2). The rules above describe how a DELIMITED file is written --
+# its delimiter, the space after it, its escaping, its line endings, its
+# quoting per column. A table read from a spreadsheet workbook has none
+# of them: the file is a package of markup, and the description says so
+# by carrying a workbook block. Measured against such a file these rules
+# are not failed, they are unanswerable, and calling them MISSED would
+# accuse the file of breaking a promise its description never made about
+# it.
+_GATE_WORKBOOK = (
+    "the description records that this table was read from a "
+    "spreadsheet workbook, and these rules describe how a delimited "
+    "text file is written, so neither the measurement nor its outcome "
+    "is shown"
+)
+
+# THE GATE ON A PUBLISHED END, AND WHY IT CLOSES WHERE IT DOES (plan
+# P4-D349). A published end is a value a group of rows holds, so the file
+# is asked whether it holds a cell beyond it -- and the file's own
+# extreme may be one row's value, so the question is put to the file's own
+# DESCRIPTION rather than to its cells. Where that description publishes
+# its own end, or lists its outer values, the answer is exact. Where it
+# publishes only a tail's shape, the two sums bound the file's extreme
+# from both sides and settle the question wherever either bound reaches
+# the published end; between the two bounds they settle nothing, and this
+# is what the report says instead of the false HELD it used to report from
+# reading a lower bound as an upper one.
+# THE SILENCE A FILE'S OWN TAIL RULE BUYS, and it is its own sentence
+# (plan P4-D349). A tail whose published rows and two distances would give
+# back an outer cell or how many outer cells hold one value publishes
+# NEITHER distance, so a file whose own tail
+# is settled that way carries no number here for the description's to be
+# compared with -- and no MISSED check of that column decides it, because
+# what decides it is the file's own values and no published obligation
+# counts them. The reason is therefore complete in itself, which is the
+# shape `_GATE_POOLED` has: the report says what happened rather than
+# leaving a reader to infer it from a neighbouring verdict.
+_GATE_TAIL_WITHHELD = (
+    "the file's own description publishes nothing about this tail beyond "
+    "the count of cells past its boundary -- neither distance, and so no "
+    "list of the values it holds: its rows and those two numbers together "
+    "would give back something of the file's own outer cells that the "
+    "smallest group protects -- the outermost of them, or how many hold one "
+    "value -- which is the same rule this description follows. There is "
+    "nothing here for the comparison, and neither it nor its outcome is "
+    "shown"
+)
+# ...AND WHAT THE FILE'S OWN PAIR WOULD GIVE BACK, where its description
+# says (plan P4-D357 A): every outer cell, the outermost, or a count.
+_GATE_TAIL_WITHHELD_EVERY = (
+    "the file's own description publishes nothing about this tail beyond "
+    "the count of cells past its boundary -- neither distance, and so no "
+    "list of the values it holds: its rows and those two numbers together "
+    "would give the file's own outer cells back one by one, which is the "
+    "same rule this description follows. There is nothing here for the "
+    "comparison, and neither it nor its outcome is shown"
+)
+_GATE_TAIL_WITHHELD_END = (
+    "the file's own description publishes nothing about this tail beyond "
+    "the count of cells past its boundary -- neither distance, and so no "
+    "list of the values it holds: its rows and those two numbers together "
+    "would give back at least the file's own outermost cell, which is the "
+    "same rule "
+    "this description follows. There is nothing here for the comparison, "
+    "and neither it nor its outcome is shown"
+)
+_GATE_TAIL_WITHHELD_A_COUNT = (
+    "the file's own description publishes nothing about this tail beyond "
+    "the count of cells past its boundary -- neither distance, and so no "
+    "list of the values it holds: its rows and those two numbers together "
+    "would give back at least how many of the file's own outer cells hold "
+    "one value, "
+    "which is the same rule this description follows. There is nothing here "
+    "for the comparison, and neither it nor its outcome is shown"
+)
+# ...AND THE SAME SILENCE FOR EVERY OTHER REASON THE FILE'S OWN TAIL HAS
+# (plan P4-D353). The file's description says which, in a remark per side
+# (`taxonomy.tail_withheld_because`), and the report says the reason true
+# of it: a side withheld beside the other tail's, one whose check did not
+# finish, one binary64 cannot hold. SINCE PLAN P4-D375 THE LAST IS THE ONE
+# REASON THE PRODUCER HAS, and the file's own description is always this
+# producer's, so a block whose role carries no such remark is withheld for
+# it alone (review of landing 3b.G1, item 3): the sentence that named the
+# withdrawn rules there -- an outer cell, a count, the other tail by
+# subtraction -- described protection this producer no longer applies.
+_GATE_TAIL_WITHHELD_FOR_THE_OTHER = (
+    "the file's own description publishes nothing about this tail beyond "
+    "the count of cells past its boundary -- neither distance, and so no "
+    "list of the values it holds: on their own those two numbers would not "
+    "give the file's outer cells back, but beside the file's exact mean and "
+    "spread they could give back the other tail's, whose own two distances "
+    "that description withholds, which is the same rule this description "
+    "follows. There is nothing here for the comparison, and neither it nor "
+    "its outcome is shown"
+)
+_GATE_TAIL_WITHHELD_UNSETTLED = (
+    "the file's own description publishes nothing about this tail beyond "
+    "the count of cells past its boundary -- neither distance, and so no "
+    "list of the values it holds: whether its rows and those two numbers "
+    "together would give the file's own outer cells back could not be "
+    "settled, and the rule this description follows withholds them where "
+    "that cannot be ruled out. There is nothing here for the comparison, "
+    "and neither it nor its outcome is shown"
+)
+_GATE_TAIL_WITHHELD_UNHOLDABLE = (
+    "the file's own description publishes nothing about this tail beyond "
+    "the count of cells past its boundary -- neither distance, and so no "
+    "list of the values it holds: the two numbers are too large for this "
+    "file format to hold. There is nothing here for the comparison, and "
+    "neither it nor its outcome is shown"
+)
+_GATE_TAIL_WITHHELD_BY_CAUSE = {
+    taxonomy.TAIL_PINNED: _GATE_TAIL_WITHHELD,
+    taxonomy.TAIL_PINS_EVERY: _GATE_TAIL_WITHHELD_EVERY,
+    taxonomy.TAIL_PINS_END: _GATE_TAIL_WITHHELD_END,
+    taxonomy.TAIL_PINS_A_COUNT: _GATE_TAIL_WITHHELD_A_COUNT,
+    taxonomy.TAIL_WITHHELD_FOR_THE_OTHER: _GATE_TAIL_WITHHELD_FOR_THE_OTHER,
+    taxonomy.TAIL_WITHHELD_UNSETTLED: _GATE_TAIL_WITHHELD_UNSETTLED,
+    taxonomy.TAIL_WITHHELD_UNHOLDABLE: _GATE_TAIL_WITHHELD_UNHOLDABLE,
+}
+# The roles whose producer says each side's reason in a remark
+# (`taxonomy._numeric_verdict`); any other block holding a numeric tail --
+# a compound column's numbers, a wrapper, a joined part -- says none.
+_ROLES_SAYING_TAIL_REASONS = (taxonomy.ROLE_COUNT, taxonomy.ROLE_CONTINUOUS)
+
+
+def _tail_withheld_reason(block: "dict[str, object]", side: str) -> str:
+    """The sentence for a file's own tail that publishes neither distance.
+
+    Guarantees: accepts the file's own description block and `"low"` or
+    `"high"`; returns the `_GATE_TAIL_WITHHELD_*` sentence for the reason
+    that block's remarks give for that side, and
+    `_GATE_TAIL_WITHHELD_UNHOLDABLE` where the block is not one whose
+    producer says a reason: the file's own description is this producer's,
+    and since plan P4-D375 a pair binary64 cannot hold is the one side it
+    withholds (review of landing 3b.G1, item 3). Determinism: a function
+    of the two. Raises nothing. No I/O.
+    """
+    role = block["role"] if "role" in block else None
+    if role not in _ROLES_SAYING_TAIL_REASONS:
+        return _GATE_TAIL_WITHHELD_UNHOLDABLE
+    remarks = block["remarks"] if "remarks" in block else None
+    return _GATE_TAIL_WITHHELD_BY_CAUSE[taxonomy.tail_withheld_because(remarks, side)]
+
+
+_GATE_TAIL_BOUNDS = (
+    "the file's own description withholds its end under the same tail "
+    "rule this description follows, and the shape it publishes instead "
+    "bounds that end from both sides without reaching the value this "
+    "check compares, so neither the measurement nor its outcome is shown"
+)
+
 # The fact whose whole evidence is the header line, named once because
 # two places have to agree about which check that is.
 _POSITION_FACT = "universal.position"
@@ -882,8 +1273,11 @@ _MET_OUTSIDE_ITS_WINDOW = (
 # missed obligation is printed with what the file was found to hold.
 #
 # So the found value is shown, or the line says why it is not. Below
-# are the two reasons there are, each written as the rule that keeps
-# the value back and what a person can do about it.
+# are the three reasons there are, each written as the rule that keeps
+# the value back and what a person can do about it. The third arrived
+# with stage 3's tail rule (landing 3.3): a published END is checked
+# ONE-SIDED, and the value it is checked against is the file's own
+# smallest or largest -- which may be one row's.
 _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE = (
     "      what this file holds here is NOT SHOWN, and this is why: it",
     "      is text written in the file itself, and no text read out of",
@@ -892,6 +1286,61 @@ _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE = (
     "      does not hold that file. The comparison above was made in",
     "      full and the verdict is its outcome; only the measured side",
     "      is kept back. Open the file itself to read what stands here.",
+)
+
+_NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE = (
+    "      the file's own extreme is NOT SHOWN here, and this is why:",
+    "      it is the smallest or largest number the file holds, which",
+    "      may be one row's value, and no such value is printed in this",
+    "      report under any verdict -- which is what lets one report be",
+    "      handed to a person who does not hold that file. What was",
+    "      compared is whether the file reaches past the published end,",
+    "      and the verdict above is that comparison's outcome. To read",
+    "      the file's own extreme, describe the file itself with",
+    "      `synthtwin profile` and read what that description",
+    "      publishes.",
+)
+
+# THE FOURTH, which this pass added (plan P4-D346). A LISTED tail's
+# values were compared by printing the file's own list beside the
+# description's -- which prints numbers of the file that one row may
+# hold apiece and, on the high side, the file's own largest. The note
+# above promises that no such value is printed under any verdict, and
+# the date and clock role had always kept its own listed values back;
+# this is the same withholding for the numeric one.
+_NOT_SHOWN_THEY_ARE_THE_TAIL_VALUES_OF_THE_FILE = (
+    "      the values this file's own tail holds are NOT SHOWN here,",
+    "      and this is why: they are numbers of the file, the outermost",
+    "      of them its smallest or its largest, and a tail may stand one",
+    "      row on a value -- and no such value is printed in this report",
+    "      under any verdict, which is what lets one report be handed to",
+    "      a person who does not hold that file. The comparison above",
+    "      was made in full and the verdict is its outcome; only the",
+    "      measured side is kept back. To read them, describe the file",
+    "      itself with `synthtwin profile` and read the tail that",
+    "      description publishes.",
+)
+
+# THE FIFTH, which THIS pass added (plan P4-D349). The cells beyond the
+# DESCRIPTION's boundary are not the cells beyond the file's own, so this
+# walk can measure a group the file's own description would never publish
+# a number for -- one cell, at a distance that names the day it stands on.
+# The verdict is kept and the numbers that would hand that cell back are
+# dropped, which is the owner's ruling of 2026-09-23 about a warning whose
+# count would do the same thing.
+_NOT_SHOWN_IT_IS_A_SUBFLOOR_GROUP_OF_THE_FILE = (
+    "      what this file holds here is NOT SHOWN, and this is why: the",
+    "      cells counted are the file's own cells beyond the boundary",
+    "      this description publishes, and there are fewer of them than",
+    "      the smallest group size -- so their count would be a number",
+    "      for a group smaller than any description publishes one for,",
+    "      and how far they lie from that boundary a measurement of that",
+    "      same group. The comparison above was made in full and the",
+    "      verdict is its outcome; only the measured side is kept back.",
+    "      To read what stands there, describe the file itself with",
+    "      `synthtwin profile` and read the tail that description",
+    "      publishes -- which draws its own boundary and holds its own",
+    "      floor.",
 )
 
 _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE = (
@@ -983,6 +1432,23 @@ _MEASURED_FROM_THE_CELLS = (
     "styles.spelled",
     f"styles.canonical.{parsing.STYLE_DECIMAL}",
     f"styles.canonical.{parsing.STYLE_EXPONENT_LOWER}",
+    # ...and the canonical question for a run of figures past what a
+    # double keeps (landing 2b.13), which is measured from the cells for
+    # the same reason the two above are.
+    "styles.canonical.wide",
+    # ...and the three spellings landing 2b.2 holds, which are clauses
+    # over the written cells of the same kind: a mark, a notation or a
+    # plus that fewer cells could wear than the floor names is one no
+    # description of the file publishes.
+    "spelling.group_separator",
+    "spelling.negative_form",
+    "spelling.decimal_plus",
+    # ...and the two MIXED CONVENTIONS landing 2b.7 holds, clauses over
+    # the written cells of exactly the same kind: a notation or a mark
+    # counted for fewer cells than the census floor names is one no
+    # description of the file publishes.
+    "spelling.negative_notations",
+    "spelling.thousands_marks",
 )
 
 # THE SPELLINGS THE MEASUREMENT SIDE KEEPS AS DATA (V2.4).
@@ -1067,11 +1533,8 @@ _STAND_IN_SPELLINGS = tuple(
     [(value, f"{value:g}") for value in parsing.NUMERIC_SENTINELS]
 )
 
-# The eleven ladder positions as probabilities, in ladder order.
-_LADDER_SHARES = tuple(
-    [number / denominator for _name, number, denominator in taxonomy.LADDER]
-)
-# ...and as the WHOLE PERCENTAGES method G7.3 and G12.4 are written in.
+# The eleven ladder positions as the WHOLE PERCENTAGES method G7.3 and
+# G12.4 are written in, and G5.3's exact reading of a numeric ladder.
 # Every datetime step is exact integer arithmetic in the ordinal space of
 # G7.1 -- "no float is formed anywhere in G7" is the method's own
 # sentence -- so the rung selection and the interpolation take the
@@ -1125,6 +1588,35 @@ class Check:
     further to say.
 
     NO TEXT FIELD EVER HOLDS A STRING READ FROM THE MEASURED FILE.
+
+    ``judged`` says how the verdict was decided, set where the check is
+    made (plan P4-D395 part 1, lane S5a): `window` exactly where it is
+    judged against a bound the method grants -- the checks `_within`,
+    `_within_clock`, `_within_instant` and `_tail_window_check` make,
+    whose WITHIN-BOUND carries the envelope's citation, and a count of
+    different values judged against the window a corner of distinctness
+    authorizes (`_lesser_or_held`: every check of a count whose corner
+    the description gives a window, held, withheld or judged; and the
+    compound column's window where its two ends differ) -- and `exact`
+    for every other check, the floor censuses of `_written_form_checks`
+    and `_settled_verdict` among them. It moves no verdict and no byte of the report, and it
+    enters neither the record's text nor its equality, so a check reads
+    and compares as it did before results existed (lane S5a's repair 1).
+
+    ``approximate``, ``lowest``, ``highest`` and ``covers`` stand beside
+    it on the same terms (lane S5a's repair 2, Codex's items 5 and 7).
+    ``approximate`` says the description grants this obligation a window,
+    set by `_judged_window` with ``judged`` and KEPT by every copy that
+    puts a verdict no window decided -- a column the file does not carry,
+    a file of no rows or of no names, a closed gate (`_copied`) -- so the
+    inventory of what is carried approximately follows the description
+    whatever the file did; such a copy is ``judged`` `exact`, its verdict
+    decided by the absence. ``lowest`` and ``highest`` are the window's
+    two ends, as the report prints them, and ``covers`` whether the window
+    holds the description's own value (None where the producer says
+    nothing of it), set only where the report prints that window -- in
+    ``published`` or in ``note`` -- so a result carries no end the report
+    keeps back.
     """
 
     column: str
@@ -1135,6 +1627,66 @@ class Check:
     achieved: str = ""
     citation: str = ""
     note: "tuple[str, ...]" = ()
+    judged: str = dataclasses.field(default="exact", repr=False, compare=False)
+    approximate: bool = dataclasses.field(default=False, repr=False, compare=False)
+    lowest: str = dataclasses.field(default="", repr=False, compare=False)
+    highest: str = dataclasses.field(default="", repr=False, compare=False)
+    covers: "bool | None" = dataclasses.field(default=None, repr=False, compare=False)
+
+
+# HOW A CHECK WAS JUDGED (plan P4-D395 part 1): the two words `Check.judged`
+# takes, the same two `synthtwin.results` reads.
+JUDGED_EXACT = "exact"
+JUDGED_WINDOW = "window"
+
+
+def _judged_window(
+    check: Check,
+    lowest: str = "",
+    highest: str = "",
+    covers: "bool | None" = None,
+) -> Check:
+    """The same check, marked as judged against a bound the method grants.
+
+    ``lowest`` and ``highest`` are the window's ends where the report
+    prints them with this check, written as it prints them, and
+    ``covers`` whether that window holds the description's own value,
+    where the producer decided it; all three stay empty elsewhere.
+    """
+    return dataclasses.replace(
+        check,
+        judged=JUDGED_WINDOW,
+        approximate=True,
+        lowest=lowest,
+        highest=highest,
+        covers=covers,
+    )
+
+
+def _copied(check: Check, verdict: str, achieved: str, citation: str = "") -> Check:
+    """The same obligation under a verdict no window decided (lane S5a's repair 2).
+
+    A column the file does not carry, a file of no rows or of no names,
+    a closed gate: the verdict, the measured side and the citation are
+    the caller's, the note goes, and the check is `exact` -- the absence
+    decided it -- while ``approximate`` is kept, so the obligation is
+    still carried approximately as the description grants. The window's
+    ends stay only where the published text the copy keeps still prints
+    them; ends the report printed in the note it drops are dropped too.
+    """
+    window = f"({_shown_window_text(check.lowest, check.highest)})"
+    printed = bool(check.lowest) and check.published[-len(window) :] == window
+    return dataclasses.replace(
+        check,
+        verdict=verdict,
+        achieved=achieved,
+        citation=citation,
+        note=(),
+        judged=JUDGED_EXACT,
+        lowest=check.lowest if printed else "",
+        highest=check.highest if printed else "",
+        covers=check.covers if printed else None,
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1200,9 +1752,136 @@ class Outcome:
     listings: "tuple[Listing, ...]"
     census: Census
     measured_name: str
+    # THE CHAIN'S LINES (V12, layer L1; lane CHv, plan P4-D430; NOT IN
+    # FORCE). None on every run but one made with the chain's switch on a
+    # description that carries a chain, so every other outcome, report and
+    # exit code is what it was (invariant S12).
+    chain: "ChainLines | None" = None
+
+
+# -- V12: the chain's lines, layer L1 (lane CHv, plan P4-D430; NOT IN FORCE) --
+
+
+@dataclasses.dataclass(frozen=True)
+class ChainLegend:
+    """One eligible column's published ladder, as the chain's lines name its bands.
+
+    ``bands`` names each `L0` band by the starting bands it joins, in
+    the description's own words; ``l1`` and ``l2`` list each coarser
+    band's `L0` bands. All of it is published; nothing is measured.
+    """
+
+    column: str
+    bands: "tuple[str, ...]"
+    l1: "tuple[tuple[int, ...], ...]"
+    l2: "tuple[tuple[int, ...], ...]"
+
+
+@dataclasses.dataclass(frozen=True)
+class ChainTotal:
+    """V12.2's `L0` band-total line of one column: its verdict and the published totals.
+
+    ``verdict`` is HELD or MISSED, or "" where the line is NOT CHECKABLE
+    (``reason`` then says why). No measured number is held here.
+    """
+
+    column: str
+    verdict: str
+    totals: "tuple[int, ...]"
+    reason: str = ""
+
+
+@dataclasses.dataclass(frozen=True)
+class ChainFamily:
+    """V12.2's line of one published family: its verdict and its published table.
+
+    ``verdict`` is HELD or MISSED; WITHHELD where V12.3 lets no verdict
+    stand (``reason`` holds its fixed words); "" where NOT CHECKABLE.
+    ``parents`` are `(column, level)` in schema order, ``table`` the
+    published table's rows. No measured cell is held here.
+    """
+
+    index: int
+    child: str
+    level: int
+    parents: "tuple[tuple[str, int], ...]"
+    table: "tuple[tuple[int, ...], ...]"
+    verdict: str
+    reason: str = ""
+
+
+@dataclasses.dataclass(frozen=True)
+class ChainPair:
+    """One candidate pair's line: its published word and, where it reads `implied`, what the chain implies.
+
+    ``family`` is the first family holding both columns (`exact`).
+    ``shares`` is the implied table at the two columns' chain levels
+    (``levels``), each share an exact fraction `(numerator,
+    denominator)` of the tabled rows, and ``spread`` V12.2's dealing
+    spread written to four decimals: REPORT-ONLY, a function of the
+    published families alone, never compared with the file (V12.3).
+    """
+
+    columns: "tuple[str, str]"
+    word: str
+    family: "int | None"
+    levels: "tuple[int, int]"
+    shares: "tuple[tuple[tuple[int, int], ...], ...]"
+    spread: str
+    # Why an implied table is not worked out (`chain_validation`'s bounds;
+    # its fixed words), "" where it is.
+    reason: str = ""
+
+
+@dataclasses.dataclass(frozen=True)
+class ChainLines:
+    """Every V12 line of one switched run (`chain_validation.lines_of`), and their census."""
+
+    legends: "tuple[ChainLegend, ...]"
+    totals: "tuple[ChainTotal, ...]"
+    families: "tuple[ChainFamily, ...]"
+    pairs: "tuple[ChainPair, ...]"
+    held: int
+    missed: int
+    withheld: int
+    not_checkable: int
+    # Of the withheld, the family lines V12.3's "not judged" words stand
+    # on (a member's band totals missed), not V5.3's rule.
+    not_judged: int = 0
 
 
 # -- V2.2: the settings the file is re-described under ----------------
+
+
+def declared_twelve_hour_clocks(description: contract.Profile) -> "tuple[str, ...]":
+    """The 12-hour declaration a checked file is read under (landing R2b, plan P4-D383).
+
+    The block's own names, less every layout column whose published
+    fields name the 24-hour face (`{HH}:{MI}`, `{HH}{MI}`): a layout names
+    its face in its own fields, so such a column was read on the 24-hour
+    face whatever was declared, and reading the checked file under the
+    declaration would take its `{HH}` onto the dial, `{hh}`, and miss the
+    column's format. R2a's producer wrote such descriptions -- a SAS
+    column named with `--twelve-hour` and read at `{HH}`, the notice
+    saying the declaration reached nothing -- and R2b's never does.
+    Guarantees: a function of the description; the block's order is kept.
+    Raises nothing. No I/O of any kind.
+    """
+    held: "dict[str, int]" = {}
+    for column in description.columns:
+        facts = column.facts
+        if not isinstance(facts, contract.DatetimeFacts):
+            continue
+        if not parsing.is_layout_name(facts.parser_family):
+            continue
+        style = parsing.layout_clock_style(facts.parser_family)
+        if style is not None and parsing.clock_face(style) == "":
+            held[column.name] = 1
+    found: "list[str]" = []
+    for name in description.settings.forced_twelve_hour_clocks:
+        if name not in held:
+            found += [name]
+    return tuple(found)
 
 
 def settings_for(description: contract.Profile) -> taxonomy.Settings:
@@ -1223,10 +1902,12 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
       Nothing is guessed. The read mode is NOT a settings key and is
       not decided here; it comes from `source.header_source`.
 
-    Every one of the fifteen keys the settings block carries is used,
-    and no sixteenth is invented: a skipped key would describe the file
-    under rules the description was not written under, which is the one
-    way the disclosure gate can be walked past.
+    Every key of the settings block that names a rule is used, and none
+    is invented: a skipped key would describe the file under rules the
+    description was not written under, which is the one way the
+    disclosure gate can be walked past. The count is not restated here,
+    because `contract.SETTINGS_KEYS` is where it is measured and a
+    count copied into a docstring is a count that goes stale.
 
     WHAT CONTRACT VERSION 5 CHANGED HERE, AND IT IS THE WHOLE OF THIS
     FUNCTION'S JOB (plan amendments A-P3-27, A-P3-28 and A-P3-29;
@@ -1278,7 +1959,189 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
         near_threshold_slack=block.near_threshold_slack,
         day_first=block.day_first,
         long_tail_minimum_level=block.long_tail_minimum_level,
+        # WHO THE DESCRIBED TABLE'S ROWS WERE ABOUT (plan P4-D340).
+        # Carried like every other key of the block: a re-description
+        # made under settings missing one key is a re-description under
+        # rules the description was not written under, which is the one
+        # way the disclosure gate can be walked past. It changes no
+        # count today -- the floor is counted in rows everywhere -- and
+        # it is here so that the landing which counts the floor in
+        # people finds it already travelling.
+        person_columns=block.person_columns,
+        # THE 12-HOUR DECLARATION (landing T1, plan P4-D370), so a checked
+        # file reads its clocks on the face the description read them on.
+        # -- 3b.R2b (P4-D383): less the layouts whose fields name the
+        # 24-hour face, which the description read on that face.
+        forced_twelve_hour_clocks=declared_twelve_hour_clocks(description),
+        # The second cut's three declarations (plan P4-D386): the landing
+        # that fills each carries it here, below its own line.
+        # -- 3b.R2a (P4-D383)
+        # THE CENTURIES THE PERSON CHOSE (question Q5), so a checked file's
+        # two-figure years are read in the windows the description's were.
+        century_windows=block.century_windows,
+        # -- 3b.R2c (P4-D383)
+        # THE COLUMNS THE PERSON SAID HOLD DATES (question Q6), so a
+        # checked file's are read at the half line, and under the ask-first
+        # layouts, as the description's were.
+        forced_date_columns=block.forced_date_columns,
+        # -- 3b.R4 (P4-D384)
+        # THE COLUMNS WHOSE DATES ARE WRITTEN AS COUNTS (question Q3), each
+        # read in its system -- at the precision its description published,
+        # which `counted_units` hands the re-description.
+        forced_date_counts=block.forced_date_counts,
     )
+
+
+def counted_units(description: contract.Profile) -> "dict[str, int]":
+    """The unit each column of counted dates was published at (landing R4).
+
+    Each column the settings declare whose block carries its form of
+    counts, mapped to that unit, so a checked file's counts are read at the
+    precision the description published rather than at one worked out
+    from its own figures -- the validator's reading of a description's
+    own source is then the profiler's, cell for cell. A declared column
+    whose description carries no form of counts -- whose cells, it says
+    in NF115, did not read as such dates -- is mapped to -1, and the
+    checked file's column is read without the declaration, as its source
+    was (the Codex review of landing R4, items 1 and 3).
+    """
+    declared: "dict[str, int]" = {}
+    for name, _member in description.settings.forced_date_counts:
+        declared[name] = 1
+    units: "dict[str, int]" = {}
+    for column in description.columns:
+        facts = column.facts
+        if column.name not in declared:
+            continue
+        if not isinstance(facts, contract.DatetimeFacts) or facts.count_form is None:
+            units[column.name] = -1
+            continue
+        units[column.name] = contract.counted_unit(facts)
+    return units
+
+
+def _form_of_counts_said(form: "date_counts.CountForm", contacts: bool = False) -> str:
+    """A form of counts in words, naming no value: how its figures are written.
+
+    On a member with contacts (``contacts``), a day count and a contact
+    number of at most `places` figures, or none -- the rule
+    `date_counts.form_holds` asks of it.
+    """
+    if contacts:
+        said = f"a day count, with or without a contact number of at most {form.places} figures after the mark"
+    elif form.exponent:
+        said = "fifteen significant figures, in exponent form where shorter"
+    elif form.significant is not None:
+        said = f"{form.significant} significant figures, trailing zeros dropped"
+    elif form.trimmed:
+        said = f"at most {form.places} figures after the mark, trailing zeros dropped"
+    else:
+        said = f"exactly {form.places} figures after the mark"
+    mark = "a point" if form.mark == date_counts.POINT else "a comma"
+    return f"{said}, the mark {mark}"
+
+
+def _census_said(census: "dict[str, int]") -> str:
+    """A census of contact numbers in words: each word and its count, in sorted order."""
+    said = ""
+    for word in sorted(census):
+        here = f"{word} {census[word]}"
+        said = here if not said else f"{said}, {here}"
+    return said
+
+
+def _count_form_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    member: str = "",
+    absent: "list[bool] | None" = None,
+) -> "list[Check]":
+    """How a column of counted dates writes its counts, held (landing R4, V5-CF).
+
+    `form.count_form` is HELD where the file was read as counted dates at
+    all and every cell of it written as a count is one the published form
+    can write (`date_counts.form_holds`): a twin written as ISO dates, or
+    with other figures after the mark, MISSES it, and a twin in another
+    member misses the dates it then names. A cell spelled as one of the
+    column's published absent spellings is not a count of a date, and is
+    not asked. A `days-since-1840` column's cells are held by its contact
+    rule -- a day count and at most `places` figures after the point --
+    whether or not a census is published (the second review of landing
+    R4, item 1), and `form.contacts` holds the census, where published,
+    exactly as the file's own description counts it. No value of the file is printed: the measured side is the form's
+    own words, or that a cell is written another way. A cell that is no
+    count OF ``member`` (`date_counts.counted`) -- an Epic day written with
+    a binary64's tail of more than nine figures -- is text the date role's
+    own line took, and is not asked, as the profiler did not read it. A
+    cell written with MORE figures than the form is a stray, and as many
+    stand as the profiler sets beside the usual counts -- one in a
+    hundred, one at least (`date_counts.strays_stand`; the second review
+    of landing R4, item 5).
+
+    A CELL THE FILE'S OWN DESCRIPTION READS AS NO VALUE IS NOT ASKED
+    (``absent``, one mark per cell from `_holes_by_the_description`; the
+    Codex review of landing R4, item 4): a lone `1` among Excel serials
+    written `%.6f` is set aside by the counted reading, and a lone `9999`
+    the person named with `--missing-value` is declared absent, and
+    neither spelling is published under the floor -- so asked of its
+    published absent spellings alone, the source missed its own form.
+
+    Guarantees: accepts the column, its facts, the file's own block, its
+    cells and which of them the description reads as holes; returns the
+    checks, none where the column publishes no form of counts. Raises
+    nothing. No I/O of any kind.
+    """
+    form = facts.count_form
+    if form is None:
+        return []
+    name = column.name
+    contacts = date_counts.TABLE[member].contacts if member else form.contacts is not None
+    published = _form_of_counts_said(form, contacts)
+    found_form = block["count_form"] if "count_form" in block else None
+    holes: "dict[str, int]" = {}
+    for spelling in column.missing_by_source:
+        holes[spelling] = 1
+    measured = published
+    if not isinstance(found_form, dict):
+        measured = "no form of counts: the file's cells were not read as such dates"
+    else:
+        # A CELL WRITTEN WITH MORE FIGURES THAN THE FORM IS A STRAY, and as
+        # many stand as the profiler set beside the usual counts (the second
+        # review of landing R4, item 5): one in a hundred, one at least.
+        counts = 0
+        strays = 0
+        for place in range(len(cells)):
+            cell = cells[place]
+            if not cell or cell in holes:
+                continue
+            if absent is not None and place < len(absent) and absent[place]:
+                continue
+            written = (
+                date_counts.counted(member, cell, form.mark)
+                if member
+                else date_counts.written_count(cell, form.mark)
+            )
+            if written is None:
+                continue
+            counts = counts + 1
+            if date_counts.form_holds(member, form, written):
+                continue
+            if not date_counts.written_finer(form, written):
+                measured = "a cell written another way"
+                break
+            strays = strays + 1
+        if measured == published and not date_counts.strays_stand(strays, counts):
+            measured = "more cells written with more figures than may stand"
+    checks = [_exact(name, "datetime.count_form", "form.count_form", published, measured)]
+    if form.contacts is not None:
+        wanted = _census_said(form.contacts)
+        seen = "none counted"
+        if isinstance(found_form, dict) and isinstance(found_form["contacts"], dict):
+            seen = _census_said(found_form["contacts"])
+        checks += [_exact(name, "datetime.count_form", "form.contacts", wanted, seen)]
+    return checks
 
 
 def settings_over_the_split(
@@ -1379,8 +2242,20 @@ def settings_over_the_split(
     sentinel rule under the settings the description was written with
     (`settings_for`). So the split description reaches the verdict the
     description publishes because it is the same rule over the same
-    cells, and no second reading of `sentinel_verdicts` is implemented
-    here -- V2.1 is met exactly as it is for every other measurement.
+    cells.
+
+    AND SINCE PLAN P4-D6.4 THE VERDICT ITSELF IS HANDED OVER, PER
+    COLUMN. The owner's ruling of 2026-09-15 has the twin write a judged
+    stand-in's cells as the source wrote them, and a twin's generated
+    values need not fire the outlier rule a second time: 400 whole
+    numbers whose fence stood a few units inside `-999`, with twelve
+    `-999` cells, gave five twins in eight that read the twelve as values
+    and missed obligations while the real table passed. So
+    `_judged_candidates_here` hands the producer the candidates this
+    description published as `read_as_missing` in each column, and the
+    producer reads them as missing there without asking the arithmetic
+    again -- the file the description came from reaches the same verdict
+    either way, which is why the real table is unmoved.
 
     WHY THE ANSWER IS TAKEN PER DOCUMENT WHEN THE VERDICT IS PER COLUMN.
     `taxonomy.Settings` names kept values for the whole table, so the pin
@@ -1432,9 +2307,11 @@ def settings_over_the_split(
     either the spelling is published, and it is unpinned here, or the
     column pools it and `_governed` takes that column's verdicts from
     the file's own description instead. The one place a pooled spelling
-    still reaches a number is the two presence COUNTS, which ask the
-    weaker publication question of A-P3-5 clause 1, and that residual is
-    stated at its size in the plan (R-P3-11) rather than papered over.
+    still reached a number was the two presence COUNTS, which ask the
+    weaker publication question of A-P3-5 clause 1 -- residual R-P3-11,
+    closed by the owner's ruling of 2026-09-17 (option A, plan P4-D200):
+    `_pooled_words_absent` counts the pooled words as holes up to the
+    published pool's total.
 
     WHAT IT COSTS, and it is R-P2-13's own shape on the FIRST class of
     marker -- the class the residual was written about. A twin holding a
@@ -1682,12 +2559,18 @@ def _vocabulary_spellings(
         for value, spelling in _STAND_IN_SPELLINGS:
             if number == value:
                 found[spelling] = 1
-    # AND THE THIRD LIST (plan amendment A-P4-1 item 3). A placeholder
-    # day the person named is a value they kept, and a reconstruction
-    # that stopped at two lists could not rebuild the reading rule of a
-    # column whose placeholder they rescued.
-    for day in record.built_in_dates:
-        found[day] = 1
+    # THE THIRD LIST IS NOT SPENT HERE, and that is the difference
+    # between a declaration that reaches every column and one that
+    # reached the columns the person's own spelling touched (plan
+    # P4-D252). A placeholder day the person named is a value they
+    # kept, and `_kept_placeholders_here` carries it COLUMN BY COLUMN,
+    # skipping a column whose own description judged that day -- which
+    # is the account the producer itself gives, because a month-first
+    # column's `01/01/1900` never named an ISO column's `1900-01-01`.
+    # Spent here, it made the checked table's other columns keep a day
+    # their description counts as absent: measured on thirty
+    # `01/01/1900` beside thirty `1900-01-01` in a second column, the
+    # unchanged table missed fourteen obligations there.
     return tuple(sorted(found))
 
 
@@ -1841,6 +2724,15 @@ def _named_in_the_columns(
     found: dict[str, int] = {}
     for column in description.columns:
         for spelling in sorted(column.missing_by_source):
+            # A JUDGEMENT IS NOT A DECLARATION (landing 2b.3). A spelling
+            # a column's own calendar placeholder or stand-in pass read as
+            # absent was never typed after `--missing-value`, and reading
+            # it as a table-wide declaration made the REAL table fail its
+            # own description: a birth column holding 187 present cells
+            # of the discharge column's judged `1900-01-01 00:00:00` had
+            # them re-described as absent, and 24 obligations missed.
+            if _judged_here_alone(column, spelling, description):
+                continue
             # The membership question is asked in ONE place for the whole
             # package (`taxonomy.is_published_vocabulary`), because the
             # summary and the command line now ask it too: they tell a
@@ -1852,6 +2744,43 @@ def _named_in_the_columns(
                 continue
             found[spelling] = 1
     return tuple(sorted(found))
+
+
+def _judged_here_alone(
+    column: contract.ColumnBlock,
+    spelling: str,
+    description: contract.Profile,
+) -> bool:
+    """Whether a published hole spelling is ONE column's judgement only.
+
+    THE GENERATOR'S RULE, WRITTEN OUT HERE (V1.4 forbids the import, and
+    a test walks both writings together). A decision of this column
+    names the published spellings its own pass took out (contract V5),
+    and a spelling one of them names is that column's judgement;
+    everything else a column publishes among its absent cells was made
+    absent by something that reaches the whole table.
+
+    IT USED TO BE A COUNT, AND A COUNT CANNOT ANSWER IT (repair pass of
+    landing 2b.6). The version landing 2b.3 wrote asked whether the keys
+    denoting the candidate -- with the column's pooled hole spellings
+    added -- held more cells than the verdict's `n_occurrences`. Two
+    keys writing one placeholder day are the case it cannot read: 20
+    judged `1900-01-01 00:00:00` beside 30 `1900-01-01T00:00:00` the
+    person declared put 50 cells against a verdict of 20, the judged
+    spelling was promoted to a declaration of the whole table, and a
+    second column's 80 ordinary values were re-read as absent -- so the
+    REAL table missed 13 obligations of its own description, including
+    both presence counts and seven rungs of its date ladder.
+
+    Guarantees: accepts one column, a spelling it publishes and the
+    description; returns a bool. Determinism: a function of the three.
+    Raises nothing. No I/O of any kind.
+    """
+    comma = False
+    for named in description.settings.forced_decimal_commas:
+        if named == column.name:
+            comma = True
+    return _one_judged_candidate(column, spelling, comma)
 
 
 def _own_declarations_recovered(description: contract.Profile) -> int:
@@ -1909,7 +2838,7 @@ def _own_declarations_recovered(description: contract.Profile) -> int:
         if exact is None:
             words[parsing.folded(spelling)] = 1
         elif not _named(numbers, exact):
-            numbers = numbers + [exact]
+            numbers += [exact]
     return len(words) + len(numbers)
 
 
@@ -2158,15 +3087,34 @@ def _core_rescue_not_recorded(kept: int) -> str:
 
 
 def _publishes_no_source_accounting(column: contract.ColumnBlock) -> bool:
-    """Whether this column's publication class empties its accounting.
+    """Whether this column's publication class narrows its accounting.
 
-    Contract 5 section 6.10 as carried, and its C5-N6: on a column whose
-    role publishes no value of the table -- free text, declared
-    identifiers, record numbers, numbers this format cannot represent --
-    `missing_by_source` is empty and both new counts are zero, whatever
-    made the cells absent. The class is derivable from two fields every
-    block publishes, so "this column publishes no source accounting" is
-    always tellable from "this column had nothing to account for".
+    Contract 6.10: a column whose role publishes no value of the table
+    -- free text, declared identifiers, record numbers, numbers this
+    format cannot represent -- is decided from two fields every block
+    publishes, so "this column publishes no value" is always tellable
+    from "this column had nothing to account for".
+
+    WHAT SUCH A COLUMN EMPTIED IS NARROWER SINCE PLAN P4-D85, and this
+    docstring said the old rule. It said `missing_by_source` is empty
+    and both absence counts are zero whatever made the cells absent.
+    That is no longer true and was the defect LTM-2 named: such a column
+    now names the members of synthtwin's OWN published vocabulary its
+    holes wore -- `NA`, `N/A`, `NULL` -- and counts its blanks like any
+    other column. What it still publishes none of is a spelling of the
+    PERSON'S own, declared or not, because no loader holding one
+    document could tell one from a value of the column, and those cells
+    are counted by nothing (C6-126).
+
+    The answer this returns is unchanged, because the question it is
+    asked is about the CLASS and not about the cells: the one caller
+    uses it to decide whether the count-against-count test can be relied
+    on for a column, and on such a column it still cannot be relied on
+    in general -- a person's own declared word leaves holes no key
+    accounts for. Where the word is one of synthtwin's own the test
+    would now pass on its own, so skipping it is conservative rather
+    than necessary, which is the honest description of what this
+    decides.
     """
     if column.structural_role == "identifier":
         return True
@@ -2294,15 +3242,15 @@ def corners_of(
         if isinstance(
             facts, contract.IdentifierFacts
         ) and _identifier_is_infeasible(column, facts):
-            corners = corners + [CORNER_IDENTIFIER_INFEASIBLE]
+            corners += [CORNER_IDENTIFIER_INFEASIBLE]
         if isinstance(
             facts, contract.DatetimeFacts
         ) and _offsets_are_withheld(facts):
-            corners = corners + [CORNER_DATETIME_OFFSETS_WITHHELD]
+            corners += [CORNER_DATETIME_OFFSETS_WITHHELD]
         if isinstance(
             facts, contract.LabelFacts
         ) and _label_variants_are_short(column, facts):
-            corners = corners + [CORNER_LABEL_VARIANTS_SHORT]
+            corners += [CORNER_LABEL_VARIANTS_SHORT]
         # G12.8's corner is asked of the QUANTITATIVE facts, so a column
         # whose numbers are held inside its own facts reaches it: an
         # affixed column's cells stand one for one with its cores under
@@ -2312,7 +3260,7 @@ def corners_of(
         if isinstance(
             quantitative, contract.NumericFacts
         ) and _numeric_spellings_are_short(column, quantitative):
-            corners = corners + [CORNER_NUMERIC_SPELLINGS_SHORT]
+            corners += [CORNER_NUMERIC_SPELLINGS_SHORT]
         # AND A COMPOUND COLUMN'S LABEL HALF, which this asked of an
         # OUTER `LabelFacts` alone -- so the half's own G12.7 corner was
         # never found, and the check that needed it was handed an empty
@@ -2321,7 +3269,7 @@ def corners_of(
             if _label_variants_are_short(
                 contract.compound_labels_view(column), facts.labels
             ):
-                corners = corners + [CORNER_LABEL_VARIANTS_SHORT]
+                corners += [CORNER_LABEL_VARIANTS_SHORT]
         if corners:
             found[column.name] = tuple(corners)
     return found
@@ -2436,12 +3384,12 @@ def _identifier_is_infeasible(
     supply: list[int] = []
     for band, cells in split:
         if cells < 1:
-            supply = supply + [0]
+            supply += [0]
             continue
         room = _identifier_capacity(column, facts, band, whole)
         if _band_falls_short(cells, widest, room):
             return True
-        supply = supply + [room]
+        supply += [room]
     reach = 0
     for place, pair in enumerate(split):
         if pair[1] < 1:
@@ -2497,7 +3445,7 @@ def _group_sizes(occurrences: "dict[str, int]") -> "tuple[tuple[int, int], ...]"
         size = contract.occurrence_size(key)
         if size is None:
             continue
-        found = found + [(size, occurrences[key])]
+        found += [(size, occurrences[key])]
     return tuple(sorted(found))
 
 
@@ -2570,8 +3518,10 @@ def _identifier_capacity_at(
     Where every value IS a whole number, G9.6 fixes one family per band
     and each is far narrower than the alphabet:
 
-    - figures alone open with a digit that is not zero, so a value's
-      length is its count of figures;
+    - figures alone open with a digit that is not zero wherever the
+      value is longer than one figure, so a value's length is its count
+      of figures, and the lone figure `0` is one of ten one-figure
+      values (plan P4-D155);
     - inside the code alphabet the form is `<digits>e0`, which needs
       two characters beyond its digits and has nothing at all to write
       at one character -- one character that reads as a whole number IS
@@ -2591,6 +3541,8 @@ def _identifier_capacity_at(
     """
     if whole:
         if band == _BAND_DIGITS:
+            if length == 1:
+                return _DIGIT_SIZE
             return (_DIGIT_SIZE - 1) * _to_the_power(_DIGIT_SIZE, length - 1)
         if band == _BAND_CODE:
             if length == 2:
@@ -2790,9 +3742,23 @@ def refusal_of(description: contract.Profile) -> str:
         if isinstance(facts, contract.IdentifierFacts) and (
             facts.all_whole_numbers
         ):
-            if facts.max_length == 1 and facts.n_all_digits < column.n_present:
+            # THE FIGURES COUNT IS READ AS IT WAS PUBLISHED (plan
+            # P4-D298): `n_all_digits` is absorbed, so the pair
+            # contradicts itself only where every count the producer
+            # publishes the same way does. `7` beside twenty `-3`
+            # publishes nought figures-only cells at a shortest length of
+            # one, and the table is its own witness.
+            readable = parsing.counts_absorbed_to(
+                facts.n_all_digits,
+                column.n_present,
+                description.settings.small_cell_floor,
+            )
+            most = facts.n_all_digits
+            for count in readable:
+                most = max(most, count)
+            if facts.max_length == 1 and most < column.n_present:
                 return REFUSAL_WHOLE_NUMBERS_NEED_ROOM
-            if facts.min_length == 1 and facts.n_all_digits == 0:
+            if facts.min_length == 1 and most == 0:
                 return REFUSAL_WHOLE_NUMBERS_NEED_ROOM
     return ""
 
@@ -3023,73 +3989,6 @@ def _read_fallback(place: pathlib.Path) -> str:
     return str(data, "latin-1")
 
 
-def _starts_with_a_mark(data: bytes) -> bool:
-    """True when the file's first bytes are a UTF-8 byte-order mark.
-
-    A column name that genuinely begins with U+FEFF is written QUOTED,
-    so the file's first byte is the quote and the mark that follows is
-    inside a field rather than in front of the file. That exception is
-    why this looks at the file's first three bytes and at nothing else.
-    """
-    return data[:3] == b"\xef\xbb\xbf"
-
-
-def _a_return_ends_a_line(text: str) -> bool:
-    """True when a carriage return in this file ends one of its lines.
-
-    THE OBLIGATION IS ABOUT LINE ENDINGS, AND A QUOTED RETURN IS NOT ONE
-    (review item P3-V3-F5's second witness, re-derived). This was
-    `\\r in the bytes`, and the method writes a carriage return inside a
-    quoted field whenever a published name or label holds one -- so the
-    twin the shipped renderer writes for such a description was reported
-    as carrying carriage returns, which is a conforming file told it
-    broke a rule it kept. What is checked is what V6.2 names: that the
-    file's RECORDS are ended by line feeds.
-
-    The walk is the CSV quoting rule and nothing more: a field is quoted
-    when it opens with a quote character, a doubled quote inside one is
-    a quote and not the end of the field, and everything outside a
-    quoted field is the file's own punctuation. A carriage return found
-    there ends a line.
-    """
-    if not isinstance(text, str):
-        raise TypeError("internal check: a file's text was not text")
-    # A file with no carriage return in it at all has none ending a
-    # line, and that is nearly every file: the walk below is a character
-    # at a time and this settles the ordinary case in one pass at the
-    # language's own speed.
-    if text.find(_CARRIAGE_RETURN) < 0:
-        return False
-    inside = False
-    opening = True
-    skip = False
-    for index in range(len(text)):
-        if skip:
-            skip = False
-            continue
-        character = text[index]
-        if inside:
-            if character != _QUOTE:
-                continue
-            if text[index + 1 : index + 2] == _QUOTE:
-                skip = True
-                continue
-            inside = False
-            opening = False
-            continue
-        if character == _QUOTE and opening:
-            inside = True
-            opening = False
-            continue
-        if character == _CARRIAGE_RETURN:
-            return True
-        if character == _COMMA or character == _LINE_FEED:
-            opening = True
-            continue
-        opening = False
-    return False
-
-
 # WHAT USED TO STAND HERE, and why it does not (review item P3-V3-F5).
 # `_first_line` returned the text up to the first line feed, and it was
 # the whole of the zero-row byte check: one physical line, ending in a
@@ -3178,7 +4077,9 @@ def _cut_at_returns(piece: str, cut_at_a_feed: bool) -> "list[str]":
     return lines
 
 
-def _records_of(text: str) -> "list[list[str]]":
+def _records_of(
+    text: str, form: "dialect.Dialect | None" = None
+) -> "list[list[str]]":
     """Every record the file holds, read as `reading` reads them.
 
     WHY THIS IS A RECORD WALK AND NOT A LINE (review items P3-V2-D-F1
@@ -3207,11 +4108,13 @@ def _records_of(text: str) -> "list[list[str]]":
     - Determinism: a fixed function of that text.
     - Errors raised: none.
     """
-    records, _whole = _walked(text)
+    records, _whole = _walked(text, form)
     return records
 
 
-def _walked(text: str) -> "tuple[list[list[str]], bool]":
+def _walked(
+    text: str, form: "dialect.Dialect | None" = None
+) -> "tuple[list[list[str]], bool]":
     """The records, and whether the walk reached the end of the file.
 
     THIS STANDS IN FOR THE READER, SO IT READS UNDER THE READER'S OWN
@@ -3247,7 +4150,14 @@ def _walked(text: str) -> "tuple[list[list[str]], bool]":
     try:
         csv.field_size_limit(reading.FIELD_SIZE_LIMIT)
         try:
-            for row in csv.reader(_split_lines(text)):
+            backslash = form is not None and form.escape == dialect.ESCAPE_BACKSLASH
+            for row in csv.reader(
+                _split_lines(text),
+                delimiter="," if form is None else form.delimiter,
+                doublequote=not backslash,
+                escapechar="\\" if backslash else None,
+                skipinitialspace=form is not None and form.initial_space,
+            ):
                 if not row:
                     # A blank line carries no values, exactly as
                     # `reading._read_streamed` drops it.
@@ -3260,7 +4170,9 @@ def _walked(text: str) -> "tuple[list[list[str]], bool]":
     return (records, True)
 
 
-def _first_record(text: str) -> "list[str]":
+def _first_record(
+    text: str, form: "dialect.Dialect | None" = None
+) -> "list[str]":
     """The names the file's first RECORD holds, as the READER reads it.
 
     It has to reach the answer `read_table` would reach, which is why
@@ -3272,10 +4184,19 @@ def _first_record(text: str) -> "list[str]":
     (V9) -- with a measured name in the refusal, which is the fault
     review item P3-V2-D-F1 was found on.
     """
-    records = _records_of(_without_a_mark(text))
-    if not records:
+    records = _records_of(_without_a_mark(text), form)
+    lead = _lead_records(form)
+    if len(records) <= lead:
         return []
-    return records[0]
+    return records[lead]
+
+
+def _lead_records(form: "dialect.Dialect | None") -> int:
+    """How many non-blank records stand before the header: hint and preamble."""
+    if form is None:
+        return 0
+    lead = 1 if form.separator_line else 0
+    return lead + dialect.preamble_lines_written(form.preamble)
 
 
 def _without_the_last_break(text: str) -> str:
@@ -3303,7 +4224,9 @@ def _without_the_last_break(text: str) -> str:
 # over every class of name the loader admits.
 
 
-def _canonical_record(cells: "list[str]") -> str:
+def _canonical_record(
+    cells: "list[str]", form: "dialect.Dialect | None" = None
+) -> str:
     """One record as method G2 writes it, without its line ending.
 
     Fields are joined by a comma; each is written by `_canonical_field`;
@@ -3315,16 +4238,23 @@ def _canonical_record(cells: "list[str]") -> str:
     """
     if len(cells) == 1 and not cells[0]:
         return _QUOTE + _QUOTE
+    delimiter = _COMMA if form is None else form.delimiter
+    separator = delimiter
+    if form is not None and form.initial_space:
+        separator = delimiter + " "
+    every = form is not None and form.header_quoting == dialect.QUOTE_ALWAYS
     text = ""
     for place in range(len(cells)):
         if place:
-            text = text + _COMMA
-        always = place == 0 and cells[place][:1] == _BYTE_ORDER_MARK
-        text = text + _canonical_field(cells[place], always)
+            text = text + separator
+        always = every or (place == 0 and cells[place][:1] == _BYTE_ORDER_MARK)
+        text = text + _canonical_field(cells[place], always, delimiter)
+    if form is not None and form.header_trailing_delimiter:
+        text = text + delimiter
     return text
 
 
-def _canonical_field(cell: str, always: bool) -> str:
+def _canonical_field(cell: str, always: bool, delimiter: str = _COMMA) -> str:
     """One cell as method G2 writes it.
 
     Quoted when and only when it holds a comma, a quote character, a
@@ -3338,7 +4268,7 @@ def _canonical_field(cell: str, always: bool) -> str:
         if character == _QUOTE:
             quoted = True
             special = True
-        elif character in _MUST_BE_QUOTED:
+        elif character in _MUST_BE_QUOTED or character == delimiter:
             special = True
     if not special and not always:
         return cell
@@ -3405,22 +4335,6 @@ def _window_named(
 # -- the ladder, read as a function of a share ------------------------
 
 
-def _ladder_points(
-    rungs: "tuple[float | None, ...]",
-) -> "list[tuple[float, float]]":
-    """The published ladder as (share, value) points, nulls dropped.
-
-    A null rung is a rung the format cannot hold, carrying no
-    obligation (contract rule L3), so it is not a point the window can
-    be drawn through.
-    """
-    points: list[tuple[float, float]] = []
-    for index, value in enumerate(rungs):
-        if value is not None:
-            points = points + [(_LADDER_SHARES[index], float(value))]
-    return points
-
-
 def _fine_ladder_points(
     facts: contract.NumericFacts,
 ) -> "list[tuple[float, float]]":
@@ -3459,188 +4373,8 @@ def _fine_ladder_points(
     for percent in range(101):
         value = named[percent] if percent in named else finer[percent]
         if value is not None:
-            points = points + [(percent / 100.0, float(value))]
+            points += [(percent / 100.0, float(value))]
     return points
-
-
-def _longest_plateau(
-    facts: contract.NumericFacts, numbers: int
-) -> int:
-    """The most cells the ladder puts on one value, read off the ladder.
-
-    THE WIDEST STRATUM UNDER THE ALLOTMENT OF G5.2a, which is what the
-    rung window's displacement is made of. That allotment sizes a
-    stratum by the run of ranks the ladder gives one value, so the
-    widest stratum a column can have is its longest such run -- and a
-    column of two hundred and forty cells holding one value thirty
-    times has a stratum of thirty where the even split had two.
-
-    Read from the DESCRIPTION and never from the generator, which this
-    module may not import: the ladder is published and the rank count
-    is published, and between them they say where the plateaus are.
-
-    Used only to WIDEN, never to narrow. A window too wide can fail to
-    catch a twin that missed; a window too narrow accuses a conforming
-    one, and this module may never do the second.
-    """
-    points = _fine_ladder_points(facts)
-    if not points or numbers <= 0:
-        return 0
-    longest = 0
-    run = 0
-    previous: "float | None" = None
-    for rank in range(numbers):
-        share = rank / numbers if numbers > 0 else 0.0
-        value = _ladder_at(points, share)
-        if previous is not None and value == previous:
-            run = run + 1
-        else:
-            run = 1
-        previous = value
-        if run > longest:
-            longest = run
-    return longest
-
-
-def _ladder_at(points: "list[tuple[float, float]]", share: float) -> float:
-    """The ladder's value at ``share``, read piecewise-linearly.
-
-    The convex form of method G5.3: between two published rungs the
-    ladder is a straight line, and outside the published ends it is
-    flat, because no rung beyond them says otherwise.
-
-    THE CONVEX FORM, AND NOT THE DIFFERENCE FORM (review item
-    P4-G6-R1-F2). This function said "convex" and computed `low + (high
-    - low) * t`, which is the form the generator's own `_interpolated`
-    docstring rules out in as many words: two rungs at opposite ends of
-    the representable range make that difference an infinity. An
-    accepted description whose `p49` is `-1.5e308` and whose `p50` is
-    `1.5e308` holds nothing but finite numbers, and at share 0.495 the
-    generator returns a value near zero while this returned an infinity
-    -- which then reached `_longest_plateau` and every rung and moment
-    window, so a conforming twin could be reported MISSED and a wrong
-    one given a bound with no width to it. The validator may not import
-    the generator, so the two arithmetics can only be held together by
-    being written the same way; this is now written the same way.
-    """
-    if share <= points[0][0]:
-        return points[0][1]
-    last = len(points) - 1
-    if share >= points[last][0]:
-        return points[last][1]
-    index = 0
-    while index < last:
-        low_share, low_value = points[index]
-        high_share, high_value = points[index + 1]
-        if share <= high_share:
-            width = high_share - low_share
-            if width <= 0.0:
-                return high_value
-            part = (share - low_share) / width
-            rest = 1 - part
-            value = rest * low_value + part * high_value
-            # The same clamp `_interpolated` takes, and for the same
-            # reason: `1 - part` rounds, so the pair can leave the
-            # segment by one unit in the last place.
-            value = max(value, min(low_value, high_value))
-            return min(value, max(low_value, high_value))
-        index = index + 1
-    return points[last][1]
-
-
-def _rounded_up(number: int, divisor: int) -> int:
-    """``number`` divided by ``divisor``, rounded up, in whole numbers."""
-    if divisor <= 0:
-        return 0
-    return -((-number) // divisor)
-
-
-def _numeric_cells(facts: contract.NumericFacts) -> int:
-    """How many cells of this column read as a number the format holds."""
-    return max(
-        1, facts.n_used_in_statistics + facts.n_left_out_of_statistics
-    )
-
-
-def _largest_stratum(
-    facts: contract.NumericFacts, present: int, distinct_folded: int
-) -> int:
-    """How many cells the largest of method G5.2's strata can hold.
-
-    The strata are what the rung window's displacement is made of: a
-    cell landing at a recomputed rank comes from the stratum covering
-    that rank, so the widest stratum is the widest displacement the
-    construction can produce. Every term here is read off the
-    description -- the sign counts, the numeric count, and how many
-    different folded spellings the numbers may use -- and never off the
-    generator, which this module may not import.
-
-    THE BUDGET IS TAKEN AT ITS SMALLEST DEFENSIBLE READING, and the
-    direction is the point. Cells of every other class are allowed a
-    folded spelling each before the numbers get one, so a column whose
-    cells are not all numbers is credited with fewer different values,
-    larger strata, and a WIDER window. Wide is the safe direction: a
-    window too wide can fail to catch a twin that missed, while a window
-    too narrow would accuse a conforming one, and this module may never
-    do the second.
-    """
-    numbers = _numeric_cells(facts)
-    zeros = min(facts.n_zero, numbers)
-    negatives = min(facts.n_negative, numbers)
-    positives = max(0, numbers - zeros - negatives)
-    # Every cell of another class may need a folded spelling of its own
-    # before the numbers may spend one (method G6.5).
-    spent = max(0, present - numbers)
-    budget = max(1, distinct_folded - spent)
-    values = min(numbers, budget)
-    zero_values = 1 if zeros > 0 else 0
-    rest = min(values - zero_values, negatives + positives)
-    if negatives > 0 and positives > 0:
-        # The sign facts win where fewer values are permitted than they
-        # require: both bands keep a value (method G5.2, rule 4).
-        rest = max(rest, 2)
-    elif negatives + positives > 0:
-        rest = max(rest, 1)
-    else:
-        rest = 0
-    if rest <= 0:
-        return max(1, zeros)
-    if negatives > 0 and positives > 0:
-        total = negatives + positives
-        share = (2 * rest * negatives + total) // (2 * total)
-        negative_values = min(max(share, 1), rest - 1)
-    elif negatives > 0:
-        negative_values = rest
-    else:
-        negative_values = 0
-    positive_values = rest - negative_values
-    widest = zeros
-    if negative_values > 0:
-        widest = max(widest, _rounded_up(negatives, negative_values))
-    if positive_values > 0:
-        widest = max(widest, _rounded_up(positives, positive_values))
-    return max(1, widest)
-
-
-def _half_unit(facts: contract.NumericFacts) -> float:
-    """The half unit method G12.2 lets exactly two rules spend.
-
-    A column publishing whole numbers rounds each value once, and a
-    column whose own style map holds a point-free form may take a
-    stratum to the nearest whole number so that form can be written at
-    all. Either way the widening is one half unit and nothing more, and
-    a column whose map holds none of the three keeps the tighter window.
-    """
-    if facts.integer_valued:
-        return 0.5
-    for style in (
-        parsing.STYLE_PLAIN,
-        parsing.STYLE_LEADING_ZERO,
-        parsing.STYLE_LEADING_PLUS,
-    ):
-        if style in facts.numeric_styles:
-            return 0.5
-    return 0.0
 
 
 # -- reading the re-description ---------------------------------------
@@ -3710,7 +4444,7 @@ def _variant_set(
             return None
         if not isinstance(many, int) or isinstance(many, bool):
             return None
-        read = read + [(front, behind)]
+        read += [(front, behind)]
     return tuple(sorted(read))
 
 
@@ -3733,7 +4467,7 @@ def _published_set(
     # the right ones the wrong number of times.
     said: "list[tuple[str, str]]" = []
     for one in facts.affix_variants:
-        said = said + [(one.prefix, one.suffix)]
+        said += [(one.prefix, one.suffix)]
     return tuple(sorted(said))
 
 
@@ -3927,6 +4661,11 @@ def _shown_window(low: float, high: float) -> str:
     return f"between {low} and {high}"
 
 
+def _shown_window_text(lowest: str, highest: str) -> str:
+    """`_shown_window`'s words for two ends already written as it writes them."""
+    return f"between {lowest} and {highest}"
+
+
 # -- building one check at a time -------------------------------------
 
 
@@ -3982,6 +4721,19 @@ def _silent(
     return Check(column, fact, subcheck, MISSED, published, "", "", kept_back)
 
 
+# HOW NEAR THE PUBLISHED VALUE A FILE OUTSIDE A SECOND WINDOW STILL
+# PASSES -- either side of the value where the window reaches it, and past
+# it on the side away from the window where it does not (validation method
+# V6.1-A2; the verifier of the corrections to Codex's review of lane G2,
+# and its second verifier), as a share of the published
+# spread for the mean, the spread and a rung -- `K-S3-22`'s own line for a
+# twin on the real moments, the mean's for a rung -- and of the published
+# distance itself for a tail's two distances. See `_within`.
+_MEAN_NEAR = 0.05
+_SPREAD_NEAR = 0.10
+_TAIL_NEAR = 0.30
+
+
 def _within(
     column: str,
     fact: str,
@@ -3991,6 +4743,11 @@ def _within(
     window: "tuple[float, float] | None",
     citation: str,
     value: "float | None" = None,
+    anchored: bool = False,
+    why: str = "",
+    held: "tuple[float, float] | None" = None,
+    held_whole: bool = False,
+    held_near: float = 0.0,
 ) -> Check:
     """One approximated obligation, against both ends of its envelope.
 
@@ -4018,13 +4775,120 @@ def _within(
     definitions overlap here rather than conflict -- HELD is "the exact
     obligation was met" and it WAS met -- so the exact one is taken and
     the window is left to explain itself in the note.
+
+    AND WHERE ``anchored`` IS SET, A WINDOW THAT MISSES THE VALUE IS NOT
+    A PASS FOR A FILE FAR FROM IT (validation method V6.1-A2; repair of
+    the stage-2b integration). The mean and the standard deviation are
+    the statistics analysis code reads, and the owner ruled that
+    statistics on the twin must be reliable. A window drawn from the
+    construction can sit wholly away from the published value, and a
+    file inside it was then WITHIN-BOUND however far from that value it
+    stood: measured on a 5,000-row column of amounts with one far value,
+    the twin's mean was 1485.25 against a published 1049.66 and its
+    standard deviation 7040.63 against 2697.30, both WITHIN-BOUND, exit
+    0. So where the window does not reach the published value, the file
+    must ALSO stand within the window's own width of that value -- half
+    of it either side -- or the obligation is MISSED. Nothing changes
+    where the window reaches the value.
+
+    AND ``held`` IS THE SAME WINDOW DRAWN WITH METHOD G6.6.8'S RULE 1
+    WITHDRAWN, handed in only where that rule moved a derived end: the
+    mean's and the spread's (`_moment_checks`), each tail's two
+    distances (`_tail_checks`) and each published rung's whose window
+    the rule moved (`_tail_block_checks`). The rule draws the window
+    through a further end, which widens it until it reaches the
+    published value, and the generator may still write the column on the
+    ladder with the rule withdrawn (its rule 3), so the half-width test
+    above stopped applying where it had always applied: 1,001 readings
+    1000 to 1900 beside one `99900`, at a floor of eleven, written byte
+    for byte as 110cb46 wrote them, their spread 0.38 of the real one,
+    were MISSED by 110cb46's report and passed by the repair round's, the
+    standard deviation's window having gone from 0 to 3,090.8 to 0 to
+    36,011.8 against a published 3,124.9 (the second skeptic of plan
+    P4-D377's repair, item 1). So the file must also stand within a
+    distance of the value that ``held`` sets, or the obligation is MISSED
+    -- WHETHER OR NOT ``held`` REACHES IT (Codex's review of lane G2,
+    item 1). Asked only where it did not, the test asked nothing where it
+    did, and the rule's wide window was then the only bound: readings
+    1000 to 1900, each 150 times, beside one `99900`, at eleven, draw the
+    spread's second window 0 to 3,020.28 around a published 2,557.30, and
+    a file whose last cell is `300000`, its spread 7,711.31, passed all
+    seventy checks, where 110cb46 missed its spread and both of its high
+    tail's distances. For the mean and the spread the distance is half
+    ``held``'s width, V6.1-A2's own. For a tail's distances and a rung,
+    ``held_whole``, it is the furthest any value ``held`` admits stands
+    from the published one: those windows were never a margin around the
+    value, and the rule exists because the tail stands past them, so half
+    their width would refuse the rule's own twins -- 150 different Pareto
+    readings, at a floor of 36, are written with their far tail's
+    root-mean-square distance at 569 against a published 666, and the
+    second window, 304 to 425, is 122 wide -- while the furthest it
+    admits, 362 from the value, still refuses a far tail three times the
+    real one's.
+
+    AND WHERE ``held`` REACHES THE VALUE, ITS OWN ENDS HOLD THE FILE TOO,
+    widened only by ``held_near`` either side of the value (the verifier
+    of the corrections to Codex's review of lane G2). A distance alone
+    fell short of the bound 110cb46 drew there: half the spread's window
+    of 0 to 3,020.28 around 2,557.30 runs to 4,067.44, and the same
+    column with its far cell `149100`, its spread 3,821.84 -- 1.49 times
+    the real one -- passed every check at floors of 11, 20 and 36 where
+    110cb46 missed its spread; and a tail's bound, the furthest any value
+    of its window stands from the published one, always takes in the
+    whole window, so a far tail's mean distance 1.9 times the published
+    one passed too. So a file outside a reaching ``held`` that stands further
+    than ``held_near`` from the value is MISSED: there the check passes
+    no file 110cb46's own window missed unless it stands that near the
+    value. The caller says how near -- for the mean and the spread
+    `K-S3-22`'s line for a twin on the real moments, 0.05 and a tenth of
+    the published spread, for a tail's distances three tenths of the
+    published distance, for a rung the mean's line -- because the rule's
+    own twins stand just past ``held`` where the value sits near its end:
+    `00001` to `00149` beside one `50000`, at 36, are written with a
+    mean of 412.11 against a published 407.83, past the second window's
+    411.70.
+
+    AND WHERE ``held`` MISSES THE VALUE, IT HOLDS THE FILE BETWEEN ITS
+    FURTHER END AND THE VALUE, widened only by ``held_near`` past the
+    value (the second verifier of those corrections). Its own ends alone
+    would miss a file holding all but exactly the value itself, but the
+    distance alone held the side away from the window only to half its
+    width: the leftover round's own column, 1000 to 1900, each 100
+    times, beside one `99900`, at eleven, draws the spread's second
+    window 0 to 3,090.81 against a published 3,124.94, and a file whose
+    last cell is `144180`, its spread 4,520.40 -- 1.45 times the real
+    one -- passed every check at floors of 11, 20 and 36 where 110cb46
+    missed its spread. So the file must stand inside the hull of
+    ``held`` and the band -- from the nearer of ``held``'s low end and
+    ``held_near`` below the value to the further of its high end and
+    ``held_near`` above it -- whether or not ``held`` reaches the value,
+    and within the distance above as well, or the obligation is MISSED;
+    where ``held`` reaches it that hull is the window and the band
+    together, as before. The note says which side the file stands on, and
+    never calls a window that misses the value one that reaches it. The
+    window printed and the WITHIN-BOUND test stay the first one's.
+
+    ``why`` NAMES WHICH SILENCE THIS IS, where the caller knows and the
+    gate's general sentence would be less than the truth (plan P4-D349).
+    A report that goes quiet owes a reader the reason, and "describing
+    this file on its own would not publish what this check measures" is
+    true of every silence and so says nothing about the one in front of
+    them.
     """
     if measured is None or window is None:
-        return Check(column, fact, subcheck, WITHHELD, published, "", _GATE_CLOSED)
+        return _judged_window(Check(
+            column,
+            fact,
+            subcheck,
+            WITHHELD,
+            published,
+            "",
+            why if why else _GATE_CLOSED,
+        ))
     low, high = window
     reaches = value is None or low <= value <= high
     if value is not None and measured == value:
-        return Check(
+        return _judged_window(Check(
             column,
             fact,
             subcheck,
@@ -4033,11 +4897,11 @@ def _within(
             _shown_number(measured),
             "",
             () if reaches else _MET_OUTSIDE_ITS_WINDOW,
-        )
+        ))
     verdict = WITHIN_BOUND if low <= measured <= high else MISSED
-    note: tuple[str, ...] = ()
+    lines: "list[str]" = []
     if not reaches:
-        note = (
+        lines += [
             (
                 "      this window does NOT reach the description's own "
                 "value. It is"
@@ -4045,16 +4909,94 @@ def _within(
             "      what the method allows the file here, worked out from",
             "      the description and the size of this column; it is not",
             "      a margin around that value.",
+        ]
+    if anchored and not reaches and value is not None:
+        half = (high - low) / 2.0
+        if not value - half <= measured <= value + half:
+            verdict = MISSED
+            lines += [
+                "      and the file stands farther from the description's",
+                "      own value than half this window's width, so the",
+                "      window is not taken as a pass (V6.1-A2).",
+            ]
+    if held is not None and value is not None:
+        held_low, held_high = held
+        bound = (held_high - held_low) / 2.0
+        if held_whole:
+            bound = max(abs(value - held_low), abs(held_high - value))
+        reaching = held_low <= value <= held_high
+        strayed = not (
+            min(held_low, value - held_near)
+            <= measured
+            <= max(held_high, value + held_near)
         )
-    return Check(
-        column,
-        fact,
-        subcheck,
-        verdict,
-        f"{published} ({_shown_window(low, high)})",
-        _shown_number(measured),
-        citation,
-        note,
+        if strayed or not value - bound <= measured <= value + bound:
+            verdict = MISSED
+            lines += [
+                "      the description's own tail distances put this column's",
+                "      far end past the widest field width it names, and that",
+                "      widens the window above. Drawn with that end held at the",
+                "      widest named width, the window runs",
+            ]
+            if strayed and reaching and held_near > 0.0:
+                lines += [
+                    f"      {_shown_window(held_low, held_high)}, which reaches the",
+                    "      description's own value, and the file stands outside it",
+                    "      and farther from that value than",
+                    f"      {_shown_number(held_near)}, so the window above is not taken",
+                    "      as a pass (V6.1-A2).",
+                ]
+            elif strayed and reaching:
+                lines += [
+                    f"      {_shown_window(held_low, held_high)}, which reaches the",
+                    "      description's own value, and the file stands outside it,",
+                    "      so the window above is not taken as a pass (V6.1-A2).",
+                ]
+            elif strayed and value - bound <= measured <= value + bound:
+                lines += [
+                    f"      {_shown_window(held_low, held_high)}, which does not",
+                    "      reach the description's own value, and the file stands",
+                    "      past that value, on the side away from that window,",
+                    "      farther from it than",
+                    f"      {_shown_number(held_near)}, so the window above is not taken",
+                    "      as a pass (V6.1-A2).",
+                ]
+            elif held_whole:
+                lines += [
+                    f"      {_shown_window(held_low, held_high)}, and the file stands",
+                    "      farther from the description's own value than any",
+                    "      value that window admits, so the window above is not",
+                    "      taken as a pass (V6.1-A2).",
+                ]
+            elif reaching:
+                lines += [
+                    f"      {_shown_window(held_low, held_high)}, and the file stands",
+                    "      farther from the description's own value than half",
+                    "      that window's width, so the window above is not",
+                    "      taken as a pass (V6.1-A2).",
+                ]
+            else:
+                lines += [
+                    f"      {_shown_window(held_low, held_high)}, which does not",
+                    "      reach the description's own value, and the file stands",
+                    "      farther from that value than half that window's width,",
+                    "      so the window above is not taken as a pass (V6.1-A2).",
+                ]
+    note: tuple[str, ...] = tuple(lines)
+    return _judged_window(
+        Check(
+            column,
+            fact,
+            subcheck,
+            verdict,
+            f"{published} ({_shown_window(low, high)})",
+            _shown_number(measured),
+            citation,
+            note,
+        ),
+        f"{low}",
+        f"{high}",
+        None if value is None else reaches,
     )
 
 
@@ -4081,7 +5023,12 @@ def _withheld(column: str, fact: str, subcheck: str, why: str) -> Check:
 # -- the measurement --------------------------------------------------
 
 
-def measure(description: contract.Profile, path: str) -> Outcome:
+def measure(
+    description: contract.Profile,
+    path: str,
+    sheet: str = "",
+    chain_document: "dict[str, object] | None" = None,
+) -> Outcome:
     """Measure one CSV against one description; return every verdict.
 
     Guarantees:
@@ -4141,6 +5088,15 @@ def measure(description: contract.Profile, path: str) -> Outcome:
       description does not record (V2.4-A5; plan amendment A-P3-26).
       That split is a function of the description, so the twin of such
       a description carries it too.
+    - THE CHAIN'S LINES (V12, layer L1; lane CHv, plan P4-D430; NOT IN
+      FORCE). ``chain_document`` is the description's parsed document,
+      handed in only by a run made with the chain's switch
+      (`contract.load_profile_document`); where it carries a chain, the
+      file's band totals and family tables are counted at the PUBLISHED
+      ladder entries (`chain_validation.lines_of`) and the outcome carries them,
+      their verdicts in its census. Everywhere else -- the switch off, or
+      a description carrying no chain -- the outcome is the one this
+      function returned before, byte for byte.
     """
     named = refusal_of(description)
     validated = validate_local_path(path, purpose="input")
@@ -4156,8 +5112,8 @@ def measure(description: contract.Profile, path: str) -> Outcome:
     # check write different bytes in different folders (V10).
     measured_name = pathlib.Path(path).name
     if named:
-        raise errors.ProfileError(
-            errors.no_twin_of_this_description_exists(named, shown)
+        raise errors.keyed_refusal(
+            errors.no_twin_of_this_description_exists(named, shown), named
         )
     if not place.exists():
         raise errors.ProfileError(errors.file_missing(shown))
@@ -4223,6 +5179,77 @@ def measure(description: contract.Profile, path: str) -> Outcome:
             path,
             first_row=first_row,
             refusals=reading.REFUSALS_NAME_POSITIONS,
+            encoding=description.source.encoding,
+            # WHICH SHEET, WHERE THE PERSON SAID (repair of landing
+            # 2b.10). `validate --sheet` was accepted by the command
+            # line and never arrived here, so a real workbook whose
+            # table sits behind a hidden or a later sheet was measured
+            # at whichever sheet the reader settled on by itself.
+            sheet=sheet,
+            # AND UNDER THE SAME METADATA DECLARATION the description
+            # was written under (plan P4-D81). The reader no longer
+            # guesses these rows, so a checked file read without the
+            # declaration keeps them as records: the row counts, every
+            # column's cells and the published rows of column
+            # descriptions would all be measured against a different
+            # reading of the same bytes.
+            metadata_rows=description.settings.forced_metadata_rows,
+            # ...AND WITH ITS NAMES ON THE ROW THE DESCRIPTION PUTS THEM
+            # (plan P4-D174), where the checked workbook's sheet does not
+            # settle which row holds them.
+            # ...AND WHERE THE NAMES ARE SYNTHTWIN'S OWN, the row the
+            # description starts its RECORDS on, which is the same
+            # number (the owner's ruling of 2026-09-17, item 8; plan
+            # P4-D232). A description written where the first row could
+            # not be told from a record keeps the rows above it as
+            # furniture and counts them; a checked file read from the
+            # sheet's first row instead holds one row more and misses
+            # `rows.n_rows` and `workbook.rows-above-header` on the very
+            # file it was written from.
+            published_header=(
+                description.source.workbook.rows_above_header + 1
+                if description.source.workbook is not None
+                else 0
+            ),
+            # ...AND THE CHECKED FILE IS READ THE WAY THE DESCRIPTION
+            # SAYS IT WAS READ (review of landing 2b.17, MAJOR). A
+            # declaration the file does not bear out is not acted on
+            # unless the person confirmed it, so the settings block
+            # alone no longer says whether those rows left the table.
+            # The published rows do: where the description carries
+            # them, they were taken, and this reading takes them too.
+            metadata_rows_confirmed=bool(
+                description.source.dialect.header_rows
+            ),
+            # AND UNDER THE SAME DECIMAL-COMMA DECLARATION (review item
+            # CODEX-9). The survey reads the row order off the cells as
+            # written. A checked file surveyed without the declaration
+            # reads a declared column under the text collation, where
+            # `10,0` sorts before `9,9`, so a file genuinely in the
+            # published order is reported as not in it.
+            decimal_comma_columns=tuple(
+                description.settings.forced_decimal_commas
+            ),
+            # AND WITH THE DELIMITER THE PERSON DECLARED (review item
+            # CODEX-4, plan P4-D110). A file that reads equally well
+            # under two delimiters is read by the declaration and by
+            # nothing else, so a checked file read without it would be
+            # measured under the other reading of the same bytes.
+            declared_delimiter=description.settings.forced_delimiter,
+            # AND UNDER THE DESCRIPTION'S OWN SMALLEST GROUP SIZE (plan
+            # P4-D290). The survey holds a file's own line-ending runs,
+            # blank-line places and empty-row counts to the disclosure
+            # rule, so a checked file surveyed at a different floor
+            # would be measured under a different reading of the same
+            # bytes and would miss the form it actually has.
+            small_cell_floor=description.settings.small_cell_floor,
+            # ...AND THE WORDS THE DESCRIPTION READ AS NO VALUE (the
+            # repair of review item 3 of landing R3). A column of clock
+            # times beside `NA`, or beside a word named with
+            # `--missing-value`, is read as clocks only where those words
+            # are no present cell, so a checked file read under other
+            # words would read its clocks as numbers.
+            missing_under=settings_for(description),
         )
     except errors.ShapeRefusal as refusal:
         # THE ONE PREDICATE THE DISCLOSURE GATE DOES NOT CLOSE ON A FILE
@@ -4263,11 +5290,53 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         return _degenerate_report(
             description, data, text, headed, as_read, measured_name
         )
+    # A DESCRIPTION OF CLOCKS AS NUMBERS IS ONE TO MAKE AGAIN, NOT A
+    # FILE THAT MISSES (review item 4 of landing R3). Plan P4-D382 reads
+    # a column whose every value cell is a time-format number at a whole
+    # second under one day as its clock times, where the reading before
+    # it read the same cells as numbers -- and version 6 is extended in
+    # place (amendment A-P4-41), so a description written before loads.
+    # Measured: such a description of 1,000 `h:mm` cells holding
+    # `i/1440` checked against its own unchanged workbook missed
+    # `axes.role`, `axes.statistical_type`, `counts.n_numeric` and
+    # `counts.n_not_numeric` at exit 3, a verdict on the file for what is
+    # a change in the reading. Where a column this reading reads as
+    # clocks is one the description says holds numbers -- a reading of
+    # clocks holds none -- the check stops and says to describe the
+    # table again.
+    # THE GRAIN IS READ (plan P4-D417, validation V14): a column whose
+    # description names a `time_grain` rung is measured at that rung, every
+    # check of it -- the redescription and the checks that count the file's
+    # own cells -- over its cells written as the starts of their buckets.
+    # The redescription is handed the cells as written and writes them at
+    # the grain itself, keeping as written each cell its own reading takes
+    # as no value; every later check reads the cells it wrote so, by the
+    # same spellings (repair round 3 of lane PS, the second verify's item
+    # 1: three patients' undeclared `1900-01-01` were pooled into a
+    # present cell before any reading saw them).
+    time_grains = published_grains(description)
+    absent_read: "dict[str, tuple[str, ...]]" = {}
+    clocked = _clocks_published_as_numbers(description, table)
+    if clocked:
+        raise errors.ProfileError(
+            errors.checked_clocks_described_as_numbers(shown, clocked)
+        )
     try:
         declared = _declared_here(description, table)
         declared_codes = _declared_codes_here(description, table)
         declared_measured = _declared_measured_here(description, table)
         declared_commas = _declared_commas_here(description, table)
+        described_pairs = _described_pairs_here(description, table)
+        kept_days = _kept_placeholders_here(description, table)
+        judged_here = _judged_candidates_here(description, table)
+        # THE SAFE HARBOR TOP-CODE (plan P4-D427, validation of ZS.6): a
+        # column its description publishes as `top_coded` is read with
+        # every value above 89 as 90, the real file as the twin, by every
+        # check below -- so the real table meets the description it made.
+        top_coded = _top_coded_here(description, table)
+        table = _top_coded_table(
+            table, top_coded, declared_commas, declared_spellings(description)
+        )
         # TWO DESCRIPTIONS, ALWAYS BOTH, AND WHAT EACH ONE DECIDES
         # (V2.1 and V2.4; review item P3-V2-A1). The first is the file's
         # OWN description -- what `synthtwin profile` would write about
@@ -4295,7 +5364,53 @@ def measure(description: contract.Profile, path: str) -> Outcome:
             declared_measured,
             declared_commas,
             True,
+            described_pairs,
+            kept_placeholder_days=kept_days,
+            judged_candidates=judged_here,
+            # THE FILE'S WEEKDAY CENSUS IS NEVER PRODUCED HERE (landing
+            # 3b.1): `_weekday_checks` counts the file's body against the
+            # PUBLISHED groups, so producing one would be paid for a
+            # census nothing reads.
+            calendar_censuses=False,
+            # -- 3b.R4 (P4-D384): a column of counted dates read at the
+            # precision its description published.
+            counted_units=counted_units(description),
+            # -- P4-D417: a column of dates or times described at the grain
+            # its description published, the tails pooled into its ends.
+            time_grains=time_grains,
+            absent_read=absent_read,
+            top_coded_only=top_coded,
         )
+        # THE CHAIN'S OWN-FACT DESCRIPTION HOLDS THE CALENDAR CENSUSES (lane
+        # CHv, plan P4-D430; Codex's item 1 on its build). V12.3 reads RULE
+        # W1 with the file's own-fact groups, and a periodic census (days
+        # of the week or month, hours, minutes, seconds) draws some of
+        # them, which the description above never produces. Built only on
+        # a switched run whose chain holds a column of dates or times, from
+        # the cells and declarations the one above read, so no other run
+        # spends anything on it.
+        chain_described = redescribed
+        if chain_document is not None:
+            from synthtwin import chain_validation
+
+            if chain_validation.reads_a_calendar(chain_document):
+                chain_described = profile.build_document(
+                    table,
+                    settings_for(description),
+                    declared,
+                    declared_codes,
+                    declared_measured,
+                    declared_commas,
+                    True,
+                    described_pairs,
+                    kept_placeholder_days=kept_days,
+                    judged_candidates=judged_here,
+                    calendar_censuses=True,
+                    counted_units=counted_units(description),
+                    time_grains=time_grains,
+                    absent_read={},
+                )
+        table = _at_their_grains(table, time_grains, description, absent_read)
         over_the_split = profile.build_document(
             table,
             settings_over_the_split(description),
@@ -4304,13 +5419,27 @@ def measure(description: contract.Profile, path: str) -> Outcome:
             declared_measured,
             declared_commas,
             True,
+            described_pairs,
+            kept_placeholder_days=kept_days,
+            judged_candidates=judged_here,
+            # THE FILE'S WEEKDAY CENSUS IS NEVER PRODUCED HERE (landing
+            # 3b.1): `_weekday_checks` counts the file's body against the
+            # PUBLISHED groups, so producing one would be paid for a
+            # census nothing reads.
+            calendar_censuses=False,
+            # -- 3b.R4 (P4-D384): a column of counted dates read at the
+            # precision its description published.
+            counted_units=counted_units(description),
+            time_grains=time_grains,
+            top_coded_only=top_coded,
         )
     except MemoryError as error:
         raise errors.ProfileError(
             errors.out_of_memory_while_describing(shown)
         ) from error
-    checks = _byte_checks(description, data, text, headed, as_read, False)
+    checks = _byte_checks(description, data, table.survey, False)
     checks = checks + _structure_checks(description, table, headed)
+    checks = checks + _workbook_checks(description, redescribed, table)
     # THE COLUMNS THIS DESCRIPTION CANNOT BE READ BACK FOR (owner ruling
     # 2026-08-16; plan amendment A-P3-26). Asked once, of the
     # description alone, and asked HERE rather than inside the column
@@ -4344,7 +5473,163 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         listings = listings + _unrebuildable_listings(
             description, column, headed, why
         )
-    return _assembled(checks, listings, measured_name)
+    outcome = _assembled(checks, listings, measured_name)
+    if chain_document is None:
+        return outcome
+    # THE CHAIN'S SWITCH (lane CHv, plan P4-D430): imported here, inside
+    # the branch, so a run without it loads nothing it did not load before.
+    from synthtwin import chain_validation
+
+    settings = settings_for(description)
+    lines = chain_validation.lines_of(
+        chain_document,
+        table,
+        chain_described,
+        settings,
+        declared_codes,
+        declared_measured,
+        declared_commas,
+        profile.stored_as_of(table, settings),
+    )
+    if lines is None:
+        return outcome
+    return chain_validation.with_lines(outcome, lines)
+
+
+def _at_their_grains(
+    table: reading.Table,
+    grained: "dict[str, grains.Grain]",
+    description: "contract.Profile | None" = None,
+    absent_read: "dict[str, tuple[str, ...]] | None" = None,
+) -> reading.Table:
+    """The checked table with each grained column's cells at its published rung (V14).
+
+    A column read whole is handed over at its grain; the rest of the table
+    is the same object's. A table read in groups of columns (lane SR) is
+    returned as it is: its columns are asked of `reading.column_values`,
+    and the redescription reads the grain itself (`profile.build_document`'s
+    ``time_grains``). A cell the description reads as no value -- a
+    spelling its block publishes as absent, a blank, a word of the
+    vocabulary or one declared with `--missing-value` -- is kept as
+    written, even where it reads as a date (repair round 2, Codex's item 3),
+    and so is every spelling the column's own reading of the cells as
+    written took as no value (``absent_read``, filled by the
+    redescription: `profile.build_document`'s ``absent_spellings``), such
+    as a date standing in for nobody that too few people write for its
+    block to name it (repair round 3, the second verify's item 1).
+
+    Guarantees: a function of the four. Raises nothing. No I/O.
+    """
+    if not grained or table.source is not None:
+        return table
+    settings = settings_for(description) if description is not None else None
+    blocks: "dict[str, contract.ColumnBlock]" = {}
+    for block in description.columns if description is not None else ():
+        blocks[block.name] = block
+    columns: "list[list[str]]" = []
+    changed = False
+    for place in range(len(table.columns)):
+        name = table.column_names[place] if place < len(table.column_names) else ""
+        if name in grained:
+            cells = table.columns[place]
+            absent: "dict[str, bool]" = {}
+            if name in blocks:
+                for spelling in blocks[name].missing_by_source:
+                    absent[spelling] = True
+            if absent_read is not None and name in absent_read:
+                for spelling in absent_read[name]:
+                    absent[spelling] = True
+            if settings is not None:
+                flags = taxonomy.missing_cells(cells, settings)
+                for row in range(len(cells)):
+                    if flags[row]:
+                        absent[cells[row]] = True
+            columns += [grains.coarse_cells(cells, grained[name], None, frozenset(absent))]
+            changed = True
+        else:
+            columns += [table.columns[place]]
+    if not changed:
+        return table
+    return dataclasses.replace(table, columns=columns)
+
+
+def _top_coded_here(
+    description: contract.Profile, table: reading.Table
+) -> "tuple[str, ...]":
+    """The columns the description publishes as `top_coded` that the file carries (P4-D427)."""
+    found: "list[str]" = []
+    for block in description.columns:
+        if block.top_coded and block.name in table.column_names:
+            found += [block.name]
+    return tuple(found)
+
+
+def _top_coded_table(
+    table: reading.Table,
+    top_coded: "tuple[str, ...]",
+    commas: "list[str]",
+    declared: "tuple[str, ...]" = (),
+) -> reading.Table:
+    """The checked table with each top-coded column's values from 90 to 125 read as 90 (P4-D427).
+
+    A cell that reads as no value -- blank, a built-in spelling of "no
+    value", or one the description declared (``declared``) -- keeps its
+    spelling, as the redescription keeps it (Codex's review of lane SH,
+    item 1). A table read in groups of columns (lane SR) is returned as
+    it is: the redescription reads the top-code itself
+    (`profile.build_document`'s ``top_coded_only``). Guarantees: a
+    function of the four. Raises nothing. No I/O.
+    """
+    if not top_coded or table.source is not None:
+        return table
+    named: "dict[str, bool]" = {}
+    for spelling in declared:
+        named[parsing.trimmed(spelling)] = True
+    columns: "list[list[str]]" = []
+    changed = False
+    for place in range(len(table.columns)):
+        name = table.column_names[place] if place < len(table.column_names) else ""
+        if name not in top_coded:
+            columns += [table.columns[place]]
+            continue
+        absent: "dict[str, bool]" = {}
+        for cell in table.columns[place]:
+            if cell not in absent and (
+                not parsing.trimmed(cell)
+                or parsing.is_missing_text(cell)
+                or parsing.trimmed(cell) in named
+            ):
+                absent[cell] = True
+        columns += [
+            taxonomy.top_coded_cells(
+                table.columns[place], name in commas, frozenset(absent)
+            )
+        ]
+        changed = True
+    if not changed:
+        return table
+    return dataclasses.replace(table, columns=columns)
+
+
+def published_grains(description: contract.Profile) -> "dict[str, grains.Grain]":
+    """Every grain a description published, by column (plan P4-D417, validation V14).
+
+    THE VALIDATOR READS THE GRAIN AND NEVER CHOOSES ONE: a column whose
+    block carries a `time_grain` record at a rung is described at that
+    rung -- each cell written as the start of its bucket, the cells before
+    the record's first bucket or after its last counted in those two --
+    so the real table meets the description it was described into, and a
+    twin is judged on the buckets its cells fall in. A held record (rung
+    `held`) is a record number like any held column and is read as one.
+
+    Guarantees: a function of the description. Raises nothing. No I/O.
+    """
+    found: "dict[str, grains.Grain]" = {}
+    for column in description.columns:
+        grain = column.time_grain
+        if grain is not None and grain.rung != grains.HELD:
+            found[column.name] = grain
+    return found
 
 
 def _still_evidencible(
@@ -4445,7 +5730,17 @@ def _degenerate_report(
     - Errors raised: none.
     """
     return _assembled(
-        _byte_checks(description, data, text, headed, as_read, False)
+        _byte_checks(
+            description,
+            data,
+            _surveyed_quietly(
+                data,
+                headed,
+                description.source.encoding,
+                description.settings.small_cell_floor,
+            ),
+            False,
+        )
         + [_zero_row_form(description, data, text, headed)]
         + _zero_row_structure(description, text, headed),
         _zero_row_listings(description, headed),
@@ -4492,7 +5787,7 @@ def _report_on_a_refused_file(
       file, so nothing reaches that; re-raising rather than assuming is
       what keeps the assumption from becoming a wrong report.
     """
-    byte_rules = _byte_checks(description, data, text, headed, as_read, True)
+    byte_rules = _byte_checks(description, data, None, True)
     if refusal.kind == errors.NO_DATA_TO_DESCRIBE:
         return _assembled(
             byte_rules + _no_rows_at_all(description, headed),
@@ -4531,6 +5826,48 @@ def _why_no_column_is_named(refusal: errors.ShapeRefusal) -> str:
     if refusal.kind == errors.HEADER_NAME_MISSING:
         return f"no name at column number {refusal.position}"
     return "one name used for two of the columns"
+
+
+def _clocks_published_as_numbers(
+    description: "contract.Profile", table: "reading.Table"
+) -> int:
+    """The first column read as clocks that the description publishes numbers for.
+
+    A column of a checked workbook whose every present value cell is a
+    time-format number at a whole second under one day is read as its
+    clock times (`workbook.stored_as_clocks`, plan P4-D382), and a
+    reading of clocks holds no number; a description publishing a
+    number for the column at the same place (`n_numeric` above nought)
+    was made under the reading before, or of another file. Returns that
+    column's position, counting from one, or 0 where there is none.
+
+    Guarantees: a fixed function of the two. Raises nothing. No I/O of
+    any kind.
+    """
+    sheet = table.sheet
+    if sheet is None:
+        return 0
+    for place in range(len(description.columns)):
+        if (
+            place >= len(table.columns)
+            or place >= len(sheet.classes)
+            or place >= len(sheet.formats)
+        ):
+            return 0
+        if description.columns[place].n_numeric <= 0:
+            continue
+        # ...OVER THE CELLS THE READING LEFT PRESENT (the repair of review
+        # item 3 of landing R3): it read this file under the words the
+        # description takes as no value, so clocks beside `NA` are clocks
+        # here as they were to the reader that spelled them.
+        if workbook.stored_as_clocks(
+            table.columns[place],
+            sheet.classes[place],
+            sheet.formats[place],
+            sheet.no_value,
+        ):
+            return place + 1
+    return 0
 
 
 def _declared_here(
@@ -4601,6 +5938,148 @@ def _declared_measured_here(
     ]
 
 
+def _described_pairs_here(
+    description: contract.Profile, table: reading.Table
+) -> "list[str]":
+    """The columns read as slashed pairs from their values, carried over.
+
+    NOT A DECLARATION, and the settings block holds no record of it: a
+    column the description gives the joined role WITHOUT `--measurement`
+    was read by rule 9c from its values (plan P4-D40), and that is
+    visible in the column's own role. Rule 9c stands after the long-tail
+    rule, so which of the two reads such a column turns on whether one
+    whole reading happens to repeat in the long-tail line's count of
+    rows -- and a faithful twin, whose positions are paired at random,
+    crossed that line where the real table did not, and its role was
+    reported MISSED. The file is therefore read the way the description
+    was (validation method V2.2-A2), for the reason the declarations
+    above are carried over. A column the checked file does not carry is
+    dropped, for the reason `_declared_here` gives.
+    """
+    declared = description.settings.forced_measurements
+    return [
+        column.name
+        for column in description.columns
+        if column.role == taxonomy.ROLE_JOINED
+        and column.name not in declared
+        and column.name in table.column_names
+    ]
+
+
+def _kept_placeholders_here(
+    description: contract.Profile, table: reading.Table
+) -> "dict[str, tuple[str, ...]]":
+    """The placeholder days each column's description records as kept.
+
+    NOT A DECLARATION, and not rebuilt from the settings block, which
+    cannot carry it (plan P4-D136; review of 158c811, item 5). A person who
+    typed `--keep-value 01/01/1900` named a spelling of their table; the
+    settings block records only members of the vocabulary, and
+    `01/01/1900` is not `1900-01-01` as text, so its built-in dates stay
+    empty. The COLUMN records the decision all the same -- a placeholder
+    verdict whose reason is `kept_by_you` -- and that is what is carried
+    over: per column, so a spelling that reached one column is not made to
+    reach another the person's words never touched. Measured before this:
+    thirty `01/01/1900` beside 470 dates, profiled with that declaration,
+    publish 500 values; the table checked against that description read
+    470 and missed 14 obligations, and so did its twin.
+
+    AND THE SETTINGS CARRY IT WHERE THE COLUMN CANNOT (plan P4-D252).
+    The account above is a column's own published verdict, and the
+    publication floor withholds one whose occurrences are too few to
+    name: five `01/01/1900` beside 395 month-first dates at a floor of
+    eleven publish no verdict at all, so nothing here rebuilt the
+    instruction and the unchanged table missed fourteen obligations.
+    The settings block records the MEMBER a declaration named -- now
+    including one a typed spelling DENOTES -- and it is carried to every
+    column of the file EXCEPT one whose own description publishes a
+    `read_as_missing` verdict for that day, because such a column is one
+    the person's spelling did not reach. Where both columns' verdicts
+    are withheld for their size the two cannot be told apart and the day
+    is kept in both, which is the same corner `_cells_that_description_reads`
+    names for an unpublished stand-in and is bounded the same way.
+
+    A column the checked file does not carry is dropped, for the reason
+    `_declared_here` gives.
+    """
+    named = _vocabulary_days(description.settings.kept_values)
+    found: "dict[str, tuple[str, ...]]" = {}
+    for column in description.columns:
+        if column.name not in table.column_names:
+            continue
+        days: "dict[str, int]" = {}
+        judged: "dict[str, int]" = {}
+        for verdict in column.sentinel_verdicts:
+            if verdict.candidate not in parsing.calendar_placeholders():
+                continue
+            if verdict.reason == "kept_by_you":
+                days[verdict.candidate] = 1
+            elif verdict.verdict == taxonomy.VERDICT_MISSING:
+                judged[verdict.candidate] = 1
+        for day in named:
+            if day not in judged:
+                days[day] = 1
+        if days:
+            found[column.name] = tuple(sorted(days))
+    return found
+
+
+def _judged_candidates_here(
+    description: contract.Profile, table: reading.Table
+) -> "dict[str, tuple[str, ...]]":
+    """The candidates each column's description judged to mean "no value".
+
+    PER COLUMN, AND READ OFF THE PUBLISHED VERDICTS (plan P4-D6.4,
+    validation method V2.4-A8 as amended). A stand-in number or a
+    calendar placeholder is judged column by column, so a `-999` one
+    column reads as a hole and another reads as data stays exactly that
+    here. Every `read_as_missing` verdict names its candidate -- the
+    number as text, or the placeholder's ISO day -- and the producer
+    reads that candidate as missing in that column without asking its
+    outlier and share rules again. A candidate the floor withheld by
+    name is `(withheld)`, names nothing, and is left to the producer's
+    own rule as before.
+
+    WHY THE VERDICT AND NOT THE ARITHMETIC. The owner's ruling of
+    2026-09-15 has the twin write those cells as the source wrote them,
+    so a twin's `-999` cells stand beside values the generator worked
+    out -- and those values need not put the fence where the real
+    column did. Measured: five twins in eight of a column whose fence
+    stood a few units inside `-999` read its twelve `-999` cells as
+    values and missed obligations, while the real table passed. The
+    file the description came from reaches the same verdict either way.
+
+    A column the checked file does not carry is dropped, for the reason
+    `_declared_here` gives. Guarantees: a function of the description
+    and the file's column names alone; no cell is read; sorted; raises
+    nothing; no I/O.
+    """
+    found: "dict[str, tuple[str, ...]]" = {}
+    for column in description.columns:
+        if column.name not in table.column_names:
+            continue
+        named: "dict[str, int]" = {}
+        for verdict in column.sentinel_verdicts:
+            if verdict.verdict != taxonomy.VERDICT_MISSING:
+                continue
+            if verdict.candidate == contract.WITHHELD:
+                continue
+            named[verdict.candidate] = 1
+        if named:
+            found[column.name] = tuple(sorted(named))
+    return found
+
+
+def _vocabulary_days(
+    record: contract.DeclarationRecord,
+) -> "tuple[str, ...]":
+    """The placeholder days one declaration record names (plan P4-D252)."""
+    found: "dict[str, int]" = {}
+    for day in record.built_in_dates:
+        found[day] = 1
+    return tuple(sorted(found))
+
+
 def _declared_commas_here(
     description: contract.Profile, table: reading.Table
 ) -> "list[str]":
@@ -4644,9 +6123,9 @@ def _readable(checks: "list[Check]") -> "list[Check]":
     settled: list[Check] = []
     for check in checks:
         if check.verdict != MISSED or check.achieved or check.note:
-            settled = settled + [check]
+            settled += [check]
             continue
-        settled = settled + [
+        settled += [
             dataclasses.replace(
                 check, note=_NOT_SHOWN_AND_THIS_LINE_CANNOT_SAY_WHY
             )
@@ -4686,85 +6165,866 @@ def _assembled(
 # -- V6.2 and V6.4: the byte rules ------------------------------------
 
 
+# The fact every rule about the file's written form is filed under, beside
+# the two byte-rule names the four oldest rules keep (plan P4-D86).
+_DIALECT_FACT = "document.source.dialect"
+
+_RULE_WORDS = {
+    dialect.QUOTE_NEEDED: "quoted where a reader needs it",
+    dialect.QUOTE_BARE: "quoted only where a value could not be read back otherwise",
+    dialect.QUOTE_ALWAYS: "every one quoted",
+    dialect.QUOTE_MIXED: "quoted in no single way",
+}
+_CLASS_WORDS = {
+    dialect.CELL_ABSENT: "absent-value spellings",
+    dialect.CELL_EMPTY: "empty cells",
+    dialect.CELL_NUMBER: "numbers",
+    dialect.CELL_TEXT: "other text",
+}
+
+
+def _published_characters(value: object, found: "dict[str, bool]") -> None:
+    """Every character beyond ASCII that the description publishes, into ``found``.
+
+    Walks the loaded description -- every text in it, however deep --
+    so the question below is asked of what was published and of nothing
+    a list of fields could forget.
+    """
+    if isinstance(value, str):
+        for character in set(value):
+            if ord(character) > 127:
+                found[character] = True
+        return
+    if isinstance(value, (bool, int, float)) or value is None:
+        return
+    if isinstance(value, dict):
+        for key in value:
+            _published_characters(key, found)
+            _published_characters(value[key], found)
+        return
+    if isinstance(value, (tuple, list, frozenset, set)):
+        for item in value:
+            _published_characters(item, found)
+
+
+def _encoding_found(
+    data: bytes, encoding: str, description: "contract.Profile | None" = None
+) -> str:
+    """What the bytes are, in the words the published encoding is asked in.
+
+    A file holds the published encoding when its bytes decode under it --
+    UTF-16 behind its own mark -- and, for a Western European encoding,
+    when they are not UTF-8 text beyond ASCII, which is the twin's old
+    defect: written as UTF-8 whatever the table was.
+
+    UNLESS EVERY SUCH CHARACTER IS ONE THE DESCRIPTION PUBLISHES (repair
+    of landing 2b.9). A table that is UTF-8 but for one stray byte is
+    read as Latin-1, so its accented labels are published as that reading
+    gives them; where the stray byte stood in a cell the twin writes a
+    stand-in for, the twin is UTF-8 text beyond ASCII and still exactly
+    its description. A twin wrongly written as UTF-8 is not: read in the
+    published encoding, its accented letters come out as characters the
+    description never published.
+    """
+    if not isinstance(data, bytes):
+        raise TypeError("internal check: a file's bytes were not bytes")
+    words = dialect.ENCODING_WORDS[encoding]
+    if encoding == dialect.ENCODING_UTF16_LE and data[:2] != b"\xff\xfe":
+        return f"not {words}"
+    if encoding == dialect.ENCODING_UTF16_BE and data[:2] != b"\xfe\xff":
+        return f"not {words}"
+    try:
+        str(data, dialect.READING_CODECS[encoding])
+    except UnicodeDecodeError:
+        return f"not {words}"
+    if encoding in dialect.FALLBACK_ENCODINGS:
+        try:
+            str(data, "ascii")
+        except UnicodeDecodeError:
+            try:
+                str(data, "utf-8")
+            except UnicodeDecodeError:
+                return f"written as {words}"
+            as_utf8 = f"written as {dialect.ENCODING_WORDS[dialect.ENCODING_UTF8]}"
+            if description is None:
+                return as_utf8
+            published: dict[str, bool] = {}
+            _published_characters(dataclasses.asdict(description), published)
+            for character in set(str(data, dialect.READING_CODECS[encoding])):
+                if ord(character) > 127 and character not in published:
+                    return as_utf8
+    return f"written as {words}"
+
+
+def _mark_words(marked: bool) -> str:
+    return "a byte-order mark" if marked else "no byte-order mark"
+
+
+def _final_words(ended: bool) -> str:
+    return "a newline at the end" if ended else "no newline at the end"
+
+
+def _ending_words(
+    runs: "tuple[dialect.EndingRun, ...]", counted: bool
+) -> str:
+    """Line endings in file order; with their line counts where ``counted``."""
+    if not runs:
+        return "no line endings"
+    if len(runs) == 1:
+        return f"{dialect.ENDING_WORDS[runs[0].ending]} endings"
+    text = ""
+    for run in runs:
+        piece = f"{dialect.ENDING_WORDS[run.ending]} endings"
+        if counted:
+            piece = f"{piece} on {run.lines} lines"
+        text = piece if not text else f"{text}, then {piece}"
+    return text
+
+
+def _census_words(census: "tuple[dialect.EndingRun, ...]") -> str:
+    """How many lines end each way, for a description that published counts."""
+    if not census:
+        return "no line endings"
+    text = ""
+    for run in census:
+        piece = f"{run.lines} lines ending with {dialect.ENDING_WORDS[run.ending]}"
+        text = piece if not text else f"{text}, {piece}"
+    return f"line endings counted: {text}"
+
+
+def _whitespace_words(text: str) -> str:
+    """What a blank line holds, named exactly (review item CODEX-12).
+
+    THE WORDS THIS REPLACED WERE LOSSY, and the field they stand for is
+    EXACT-CONTROL. Any whitespace at all became "holding spaces or
+    tabs", so a description published from a line of three spaces and a
+    file holding one tab produced the SAME sentence -- and the check
+    compared the two sentences, reported `bytes.blank-lines` HELD, and
+    counted zero misses on a file that did not hold what was published.
+
+    The runs are named in order, so the sentence determines the line's
+    own spelling and nothing but that spelling: three spaces and a tab
+    read differently from a tab and three spaces.
+    """
+    if not text:
+        return ""
+    parts: list[str] = []
+    kind = ""
+    run = 0
+    for character in text:
+        word = "tab" if character == "\t" else "space"
+        if word == kind:
+            run = run + 1
+            continue
+        if kind:
+            parts += [f"{run} {kind}(s)"]
+        kind = word
+        run = 1
+    parts += [f"{run} {kind}(s)"]
+    named = ""
+    for part in parts:
+        named = part if not named else f"{named} then {part}"
+    return f", holding {named}"
+
+
+def _counted_blank_words(counted: "dialect.BlankSpread | None") -> str:
+    """The blank lines counted, for a description that published them so."""
+    if counted is None:
+        return "no blank lines"
+    held = _whitespace_words(counted.text)
+    return (
+        f"blank lines counted: {counted.lines}, the first after record "
+        f"{counted.first} and the last after record {counted.last}{held}"
+    )
+
+
+# WHAT A RAISED FLOOR TAKES OUT OF THIS COMPARISON, SAID IN THE
+# SENTENCE ITSELF (plan P4-D314, the repair pass of 2026-09-19).
+# P4-D311 publishes a blank place's FORM only where the line's worth of
+# places wear it, and a rarer form is published as the commonest one.
+# The checked file is read by the same rule, so the two sides meet
+# AFTER the absorption and a file differing only in a rare blank line's
+# spelling or run length is reported HELD. **Measured** on a
+# description of 120 records with twelve ordinary blank places at a
+# floor of eleven: at `05e7d89` a candidate whose twelfth place held
+# one space, a tab, or three lines was `bytes.blank-lines` MISSED at
+# exit 3; each is HELD at exit 0 now, while a place that MOVES is still
+# MISSED at exit 3. That is the ruling's price and not a defect -- the
+# obligation cannot see what the description is forbidden to publish --
+# but K-2B-31 claims "twin form == source", so the price is stated here
+# and in the `blank_lines` row of the contract rather than left for a
+# reader to discover. The clause stands on BOTH sides of the
+# comparison, so it moves no verdict.
+_BLANK_FORM_ABSORBED = (
+    " (a blank line's form below your smallest group size -- what its "
+    "lines hold, and how many stood in one place -- is compared as the "
+    "commonest form, so a file differing from this description only in "
+    "a rare blank line's spelling or run length is reported HELD)"
+)
+
+
+def _blank_words(places: "tuple[dialect.BlankPlace, ...]") -> str:
+    if not places:
+        return "no blank lines"
+    text = ""
+    for place in places:
+        piece = f"{place.lines} after record {place.after}"
+        piece = f"{piece}{_whitespace_words(place.text)}"
+        text = piece if not text else f"{text}; {piece}"
+    return f"blank lines: {text}"
+
+
+def _quoting_words(rules: "tuple[str, ...]") -> str:
+    text = ""
+    for index in range(len(dialect.CELL_CLASSES)):
+        piece = (
+            f"{_CLASS_WORDS[dialect.CELL_CLASSES[index]]} "
+            f"{_RULE_WORDS[rules[index]]}"
+        )
+        text = piece if not text else f"{text}; {piece}"
+    return text
+
+
+def _quoting_holds(
+    rules: "tuple[str, ...]", surveyed: dialect.Survey, index: int
+) -> bool:
+    """Whether a column's cells are quoted by the published rule per class.
+
+    A class the column holds no cell of holds any rule. The survey says
+    which rules each class of a checked column agrees with; where it did
+    not tell the classes apart -- a column quoted all one way -- a rule
+    it rules out is an obligation missed only if the column really holds
+    a cell of that class.
+    """
+    held = surveyed.quoting_holds[index]
+    present: "dict[str, bool] | None" = None
+    for place in range(len(dialect.CELL_CLASSES)):
+        rule = rules[place]
+        if rule == dialect.QUOTE_MIXED or rule in held[place]:
+            continue
+        if not surveyed.classified[index]:
+            if present is None:
+                present = {}
+                for cell in surveyed.columns[index]:
+                    present[dialect.cell_class(cell)] = True
+            if dialect.CELL_CLASSES[place] not in present:
+                continue
+        return False
+    return True
+
+
+def _nothing_written(form: dialect.Dialect) -> dialect.Dialect:
+    """What a file of no bytes shows about each fact of a written form."""
+    return dataclasses.replace(
+        form,
+        byte_order_mark=False,
+        line_endings=(),
+        line_endings_spread=(),
+        blank_lines_spread=None,
+        final_line_ending=False,
+        end_of_file_mark=False,
+        separator_line=False,
+        preamble=(),
+        preamble_withheld=False,
+        header_rows=(),
+        written_names=(),
+        header_trailing_delimiter=False,
+        rows_trailing_delimiter=False,
+        short_rows=False,
+        blank_lines=(),
+        empty_rows_leading=0,
+        empty_rows_interior=0,
+        empty_rows_trailing=0,
+        header_closing_quoted=False,
+        rows_closing_quoted=False,
+        rows_closing_runs=(),
+    )
+
+
+def _bare_form(form: dialect.Dialect, data: bytes) -> dialect.Dialect:
+    """What a file holding no record shows of a written form, off its bytes.
+
+    The survey of such a file stops at its first question -- it holds no
+    record to take as the names or as data -- and yet its mark, its
+    lines, their endings, a separator hint and an end-of-file mark are
+    all there to be read. Every other fact is shown by records alone,
+    and is given the description's own value, which no such file can
+    contradict.
+    """
+    if not isinstance(data, bytes):
+        raise TypeError("internal check: a file's bytes were not bytes")
+    marked = data[:3] == b"\xef\xbb\xbf" or data[:2] in (b"\xff\xfe", b"\xfe\xff")
+    try:
+        text = str(data, "utf-8")
+    except UnicodeDecodeError:
+        text = str(data, "latin-1")
+    if text[:1] == _BYTE_ORDER_MARK:
+        text = text[1:]
+    ended = text[len(text) - 1 :] == "\x1a"
+    if ended:
+        text = text[: len(text) - 1]
+    hinted = text[:4] == "sep=" and len(text) >= 5
+    runs: list[dialect.EndingRun] = []
+    blanks: list[str] = []
+    lines = dialect.physical_lines(text)
+    for index in range(len(lines)):
+        line = lines[index]
+        if line[len(line) - 2 :] == "\r\n":
+            word = "crlf"
+        elif line[len(line) - 1 :] == "\n":
+            word = "lf"
+        elif line[len(line) - 1 :] == "\r":
+            word = "cr"
+        else:
+            word = ""
+        if not (hinted and index == 0):
+            blanks += [""]
+        if not word:
+            continue
+        last = len(runs) - 1
+        if last >= 0 and runs[last].ending == word:
+            runs[last] = dialect.EndingRun(ending=word, lines=runs[last].lines + 1)
+        else:
+            runs += [dialect.EndingRun(ending=word, lines=1)]
+    final = text[len(text) - 1 :] in ("\n", "\r") and bool(text)
+    return dataclasses.replace(
+        _nothing_written(form),
+        byte_order_mark=marked,
+        line_endings=tuple(runs),
+        final_line_ending=final,
+        end_of_file_mark=ended,
+        separator_line=hinted,
+        preamble=(
+            (
+                dialect.PreambleRun(
+                    kind=dialect.PREAMBLE_BLANK, lines=len(blanks), mark=""
+                ),
+            )
+            if blanks
+            else ()
+        ),
+    )
+
+
+def _surveyed_quietly(
+    data: bytes, headed: bool, published: str, floor: int
+) -> "dialect.Survey | None":
+    """The survey of a file the reader refused, or None where it has none.
+
+    The zero-row form's conforming file is one the reader refuses for
+    holding no rows, and its bytes still have a written form. It is read
+    in the description's encoding where it can be, as the reader reads
+    every checked file -- and at the description's own floor, as the
+    reader reads it too (plan P4-D317): the form's line rules are asked
+    at that floor, so a survey at any other one reads a form no
+    description at the checked floor publishes.
+    """
+    if not data:
+        return None
+    try:
+        text, encoding, marked = dialect.decoded_as(data, "", published)
+        return dialect.settle(
+            text, encoding, marked, not headed, "", small_cell_floor=floor
+        )
+    except errors.ProfileError:
+        return None
+
+
 def _byte_checks(
     description: contract.Profile,
     data: bytes,
-    text: "str | None",
-    headed: bool,
-    as_read: str,
+    surveyed: "dialect.Survey | None",
     refused: bool,
 ) -> "list[Check]":
-    """Every rule about the file's bytes, each one able to fail.
+    """Every rule about the file's written form, each one able to fail.
 
-    ``as_read`` is the file in the encoding the READER settled on, and
-    it is what the line-ending rule is asked about: which characters are
-    line endings is a question about records, and only the text the
-    reader read can answer it.
+    THE FORM IS PUBLISHED, SO EVERY RULE HERE IS HELD TO THE DESCRIPTION
+    (owner ruling 2026-09-15, plan P4-D86). These rules used to be
+    constants -- UTF-8, line feeds, a newline at the end, no byte-order
+    mark -- which the description recorded nowhere, and a twin written
+    that way passed while code developed on it failed on the real table.
+    Each is now what `source.encoding` and `source.dialect` record,
+    measured on the checked file by the reader's own survey
+    (`surveyed`), so a twin passes by being written the way its table
+    was and the real table passes by being itself.
 
-    ``refused`` says the producer would refuse this file, and exactly ONE
-    of these four rules is gated on it (review item P3-V3-F3). Which
-    encoding a file was read under is a fact the producer PUBLISHES --
-    `source.encoding`, and `used_fallback_encoding` beside it -- so on a
-    file it publishes nothing about, stating it states what describing
-    that file never would (V5.1). The other three are not published about
-    any file at any count, which is the test amendment A-P3-3 clause 6
-    ruled them outside the envelope on and A-P3-5 clause 3 wrote down:
-    no cell, no name, no count and no person is in a line ending, a
-    terminal newline or a byte-order mark.
+    ``refused`` says the producer would refuse this file. Every one of
+    these facts is one the producer publishes, so on a file it publishes
+    nothing about, stating them states what describing that file never
+    would (V5.1), and every rule here is WITHHELD there. That supersedes
+    the ruling of amendment A-P3-3 clause 6, which kept the line endings
+    and the final newline outside the envelope on the ground that the
+    producer published them about no file, by the test amendment A-P3-5
+    clause 3 wrote down: it publishes them about every file now.
+
+    The four rules that stood here before keep their names --
+    `bytes.encoding` (once `bytes.utf8`), `bytes.byte-order-mark`,
+    `bytes.line-endings` and `bytes.terminal-newline` -- and the rest are
+    filed under `document.source.dialect`. The line-ending rule compares
+    which ending each line has; where the file holds a different number
+    of lines, which the row and blank-line rules answer for, it compares
+    the endings' order alone rather than accusing the file twice (V3.6).
     """
-    checks = [
-        Check(
-            "",
-            "document.encoding",
-            "bytes.utf8",
-            WITHHELD,
-            "written as UTF-8",
-            "",
-            _GATE_REFUSED,
+    form = description.source.dialect
+    encoding = description.source.encoding
+    headed = description.source.header_source == reading.HEADER_FROM_FILE
+    # A WORKBOOK ANSWERS NONE OF THESE (plan P4-D77, V6.2-A2). The rules
+    # below are about a delimited file's bytes, and this description
+    # says the table came out of a package of markup instead.
+    packaged = description.source.workbook is not None
+    closed = refused or packaged
+    gate = _GATE_REFUSED if refused else _GATE_WORKBOOK
+    measured = surveyed.form if surveyed is not None else _bare_form(form, data)
+    if refused:
+        measured = form
+    same_count = sum(
+        [run.lines for run in form.line_endings + form.line_endings_spread]
+    ) == sum(
+        [run.lines for run in measured.line_endings + measured.line_endings_spread]
+    )
+    # A DESCRIPTION THAT PUBLISHED COUNTS IS ANSWERED IN COUNTS, whatever
+    # the checked file's own runs number (repair of landing 2b.9): the
+    # twin writes the rarer endings spread evenly, and the real table
+    # holds them where they stood, and both hold as many of each.
+    ending_asked = _ending_words(form.line_endings, same_count)
+    ending_found = _ending_words(measured.line_endings, same_count)
+    if form.line_endings_spread:
+        census = dialect.census_of(measured.line_endings + measured.line_endings_spread)
+        if surveyed is not None and not refused:
+            census = surveyed.ending_census
+        ending_asked = _census_words(form.line_endings_spread)
+        ending_found = _census_words(census)
+    blank_asked = _blank_words(form.blank_lines)
+    blank_found = _blank_words(measured.blank_lines)
+    if description.settings.small_cell_floor > 1 and (
+        form.blank_lines or measured.blank_lines
+    ):
+        blank_asked = f"{blank_asked}{_BLANK_FORM_ABSORBED}"
+        blank_found = f"{blank_found}{_BLANK_FORM_ABSORBED}"
+    if form.blank_lines_spread is not None:
+        blank_asked = _counted_blank_words(form.blank_lines_spread)
+        blank_found = _counted_blank_words(
+            surveyed.blank_census
+            if surveyed is not None and not refused
+            else form.blank_lines_spread
+            if refused
+            else None
         )
-        if refused
-        else _exact(
+    escape = measured.escape
+    if (
+        form.escape == dialect.ESCAPE_BACKSLASH
+        and escape == dialect.ESCAPE_DOUBLED
+        and (surveyed is None or surveyed.escapes == 0)
+    ):
+        escape = form.escape
+    header_found = _RULE_WORDS[form.header_quoting]
+    if (
+        surveyed is not None
+        and headed
+        and form.header_quoting != dialect.QUOTE_MIXED
+        and form.header_quoting not in surveyed.header_holds
+    ):
+        header_found = _RULE_WORDS[measured.header_quoting]
+    # RUN FOR RUN, EXACTLY (plan P4-D80). Both sides are shapes now --
+    # a kind, a count and a mark -- and the twin writes a line of each
+    # shape, so a real table and its twin give the very same runs and
+    # this comparison needs no allowance for a stand-in.
+    preamble_held = measured.preamble == form.preamble
+    short_found = measured.short_rows
+    if form.short_rows and surveyed is not None and surveyed.short_vacuous:
+        short_found = True
+    delimiter_words = "fields separated by"
+    checks = [
+        _exact(
             "",
             "document.encoding",
-            "bytes.utf8",
-            "written as UTF-8",
-            "written as UTF-8" if text is not None else "not UTF-8",
+            "bytes.encoding",
+            f"written as {dialect.ENCODING_WORDS[encoding]}",
+            _encoding_found(data, encoding, description),
         ),
         _exact(
             "",
             "document.encoding",
             "bytes.byte-order-mark",
-            "no byte-order mark",
-            (
-                "a byte-order mark"
-                if _starts_with_a_mark(data)
-                else "no byte-order mark"
-            ),
+            _mark_words(form.byte_order_mark),
+            _mark_words(measured.byte_order_mark),
         ),
         _exact(
             "",
             "document.line-endings",
             "bytes.line-endings",
-            "line feed endings",
-            (
-                "carriage returns"
-                if _a_return_ends_a_line(as_read)
-                else "line feed endings"
-            ),
+            ending_asked,
+            ending_found,
         ),
         _exact(
             "",
             "document.line-endings",
             "bytes.terminal-newline",
-            "a newline at the end",
-            (
-                "a newline at the end"
-                if data[len(data) - 1 :] == b"\n"
-                else "no newline at the end"
-            ),
+            _final_words(form.final_line_ending),
+            _final_words(measured.final_line_ending),
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.delimiter",
+            f"{delimiter_words} {dialect.DELIMITER_WORDS[form.delimiter]}",
+            f"{delimiter_words} {dialect.DELIMITER_WORDS[measured.delimiter]}",
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.initial-space",
+            "one space after each delimiter"
+            if form.initial_space
+            else "nothing between a delimiter and the next field",
+            "one space after each delimiter"
+            if measured.initial_space
+            else "nothing between a delimiter and the next field",
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.escape",
+            f"a quote inside a quoted field written {form.escape}",
+            f"a quote inside a quoted field written {escape}",
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.separator-line",
+            "a separator line first" if form.separator_line else "no separator line",
+            "a separator line first"
+            if measured.separator_line
+            else "no separator line",
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.end-of-file-mark",
+            "an end-of-file mark after the last line"
+            if form.end_of_file_mark
+            else "no end-of-file mark",
+            "an end-of-file mark after the last line"
+            if measured.end_of_file_mark
+            else "no end-of-file mark",
+        ),
+        _silent(
+            "",
+            _DIALECT_FACT,
+            "bytes.preamble",
+            f"{dialect.preamble_lines_total(form.preamble)} line(s) before "
+            f"the table in {len(form.preamble)} shape(s), as published",
+            preamble_held,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.header-quoting",
+            f"the header's cells {_RULE_WORDS[form.header_quoting]}",
+            f"the header's cells {header_found}",
+        ),
+        _silent(
+            "",
+            _DIALECT_FACT,
+            "bytes.header-rows",
+            f"{len(form.header_rows)} row(s) describing the columns under "
+            f"the names, as published",
+            measured.header_rows == form.header_rows,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+        ),
+        _silent(
+            "",
+            _DIALECT_FACT,
+            "bytes.written-names",
+            f"{len(form.written_names)} header cell(s) written blank or "
+            f"repeated, as published",
+            measured.written_names == form.written_names,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.trailing-delimiter",
+            _trailing_words(form),
+            _trailing_words(measured),
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.short-rows",
+            "empty cells at the end of a record left out"
+            if form.short_rows
+            else "every record written to its last cell",
+            "empty cells at the end of a record left out"
+            if short_found
+            else "every record written to its last cell",
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.blank-lines",
+            blank_asked,
+            blank_found,
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.empty-rows",
+            _empty_row_words(form),
+            _empty_row_words(measured),
         ),
     ]
-    return checks
+    # A RULE NO FILE COULD MISS IS NOT FILED (V3.4). A headerless file
+    # has no header to quote, name as written, put metadata rows under or
+    # end with a delimiter; a description of no rows has no cell to
+    # quote, sort or leave out, and the survey decides a trailing
+    # delimiter from the first record; a headerless file of no rows
+    # cannot tell a blank line from the lines before its table; and a
+    # table of one column holds no record of nothing.
+    unfiled: set[str] = set()
+    if not headed:
+        unfiled = unfiled | {
+            "bytes.header-quoting",
+            "bytes.header-rows",
+            "bytes.written-names",
+            "bytes.trailing-delimiter",
+        }
+    if description.n_rows == 0:
+        unfiled = unfiled | {"bytes.short-rows", "bytes.trailing-delimiter"}
+        # AND A HEADED FILE OF NO ROWS AT A RAISED FLOOR (plan P4-D317,
+        # V3.4, the one-column rule's reasoning below). Every blank line
+        # of such a file stands after its header and before any record,
+        # which is ONE place, and a place is published only from
+        # `census_floor` of them -- so since the zero-row check reads the
+        # checked file at the description's own floor, both sides say "no
+        # blank lines" whatever the file holds, and a blank line there is
+        # `bytes.zero-row-form`'s to miss. At a floor of one it is filed.
+        if not headed or description.settings.small_cell_floor > 1:
+            unfiled = unfiled | {"bytes.blank-lines"}
+    if description.n_columns < 2:
+        # One column: no record of nothing, no cell left out at the end
+        # of a record, and no row of column descriptions under the name.
+        unfiled = unfiled | {
+            "bytes.empty-rows",
+            "bytes.short-rows",
+            "bytes.header-rows",
+        }
+        # AND, AT A RAISED FLOOR, NO BLANK PLACE THE RULE CAN PUBLISH
+        # (plan P4-D290; V3.4). A blank place is published only where a
+        # file holds `census_floor` of them, and a one-column file holds
+        # at most ONE: the reader refuses a blank line between its
+        # records -- such a line could be a record whose one value is
+        # missing -- a line before the table is its preamble, and the
+        # lines after the last record are one place. So both sides of
+        # this comparison say "no blank lines" whatever the file holds.
+        # **Measured** at a floor of eleven on a one-column description
+        # of 300 rows: one trailing blank line and eleven of them were
+        # each HELD, eleven leading lines missed only `bytes.preamble`,
+        # and interior blank lines were refused -- while at a floor of
+        # one the trailing line MISSED, and the rule stays filed there.
+        if description.settings.small_cell_floor > 1:
+            unfiled = unfiled | {"bytes.blank-lines"}
+    if not form.header_rows:
+        # NO ROWS OF COLUMN DESCRIPTIONS ARE PUBLISHED, SO NONE CAN BE
+        # MEASURED (plan P4-D81, and V3.4's own condition). A checked
+        # file is read under the description's OWN declaration, and a
+        # description that declares none reads every row under the
+        # column names as a record -- so both sides of this comparison
+        # are empty whatever the file holds, and no edit to any file
+        # can make it fail. That is a subcheck that cannot verdict,
+        # which V3.4 refuses to file. It is filed, and falsifiable,
+        # exactly where the person DECLARED such rows.
+        unfiled = unfiled | {"bytes.header-rows"}
+    checks = [check for check in checks if check.subcheck not in unfiled]
+    if form.header_rows:
+        metadata_found = _RULE_WORDS[form.header_rows_quoting]
+        if (
+            surveyed is not None
+            and form.header_rows_quoting != dialect.QUOTE_MIXED
+            and form.header_rows_quoting not in surveyed.header_rows_holds
+        ):
+            metadata_found = _RULE_WORDS[measured.header_rows_quoting]
+        checks += [
+            _exact(
+                "",
+                _DIALECT_FACT,
+                "bytes.header-rows-quoting",
+                _RULE_WORDS[form.header_rows_quoting],
+                metadata_found,
+            )
+        ]
+    if description.n_rows == 0:
+        return _withheld_if(checks, closed, gate)
+    # EVERY DESCRIBED COLUMN FILES ITS OWN, whatever the file holds: the
+    # set of obligations is a function of the description (V3.1), so a
+    # file whose columns do not line up with the description's misses
+    # them rather than losing them.
+    aligned = (
+        not refused
+        and surveyed is not None
+        and len(surveyed.columns) == len(description.columns)
+    )
+    for index in range(len(description.columns)):
+        name = description.columns[index].name
+        column = form.columns[index]
+        if not aligned or surveyed is None:
+            checks += _unaligned_column_checks(name, column)
+            continue
+        measured_column = surveyed.form.columns[index]
+        held = _quoting_holds(column.quoting, surveyed, index)
+        checks += [
+            _exact(
+                name,
+                _DIALECT_FACT,
+                "bytes.quoting",
+                _quoting_words(column.quoting),
+                _quoting_words(column.quoting if held else measured_column.quoting),
+            )
+        ]
+        if column.pad_side:
+            asked = f"padded on the {column.pad_side} to {column.pad_width} characters"
+            checks += [
+                _exact(
+                    name,
+                    _DIALECT_FACT,
+                    "bytes.padding",
+                    asked,
+                    asked
+                    if (measured_column.pad_side, measured_column.pad_width)
+                    == (column.pad_side, column.pad_width)
+                    else "not padded to that width",
+                )
+            ]
+        if column.sequence_start >= 0:
+            asked = f"the row sequence from {column.sequence_start}"
+            checks += [
+                _exact(
+                    name,
+                    _DIALECT_FACT,
+                    "rows.sequence",
+                    asked,
+                    asked
+                    if measured_column.sequence_start == column.sequence_start
+                    else "not the row sequence",
+                )
+            ]
+    order = form.row_order
+    if order.column and order.column <= len(description.columns):
+        asked = f"rows sorted {order.direction} by this column, read as {order.collation}"
+        held = aligned and surveyed is not None and dialect.holds_order_in(
+            surveyed.columns, order
+        )
+        checks += [
+            _exact(
+                description.columns[order.column - 1].name,
+                _DIALECT_FACT,
+                "rows.order",
+                asked,
+                asked if held else "rows not in that order",
+            )
+        ]
+    return _withheld_if(checks, closed, gate)
+
+
+def _withheld_if(
+    checks: "list[Check]", closed: bool, why: str = _GATE_REFUSED
+) -> "list[Check]":
+    """Every check WITHHELD where the gate is closed, else as is.
+
+    The per-column and row-order rules are filed on a refused file too,
+    so the obligations a report states stay a function of the
+    description (V3.1); none of them is stated there (V5.1).
+
+    ``why`` says WHICH gate closed, because there are two and they are
+    not the same statement: the producer would refuse this file, or the
+    description is of a workbook and these rules describe delimited text
+    (V6.2-A2). A reader of the report is told which.
+    """
+    if not closed:
+        return checks
+    return [_copied(check, WITHHELD, "", why) for check in checks]
+
+
+def _unaligned_column_checks(
+    name: str, column: dialect.ColumnForm
+) -> "list[Check]":
+    """A column's form checks, on a file whose columns do not line up.
+
+    Nothing can be measured of a column the file does not hold where the
+    description places it, and saying so is a miss: the obligation is
+    filed, and the file does not meet it.
+    """
+    unlined = "the file's columns do not line up with the description's"
+    found = [
+        _exact(
+            name,
+            _DIALECT_FACT,
+            "bytes.quoting",
+            _quoting_words(column.quoting),
+            unlined,
+        )
+    ]
+    if column.pad_side:
+        found += [
+            _exact(
+                name,
+                _DIALECT_FACT,
+                "bytes.padding",
+                f"padded on the {column.pad_side} to {column.pad_width} characters",
+                unlined,
+            )
+        ]
+    if column.sequence_start >= 0:
+        found += [
+            _exact(
+                name,
+                _DIALECT_FACT,
+                "rows.sequence",
+                f"the row sequence from {column.sequence_start}",
+                unlined,
+            )
+        ]
+    return found
+
+
+def _trailing_words(form: dialect.Dialect) -> str:
+    """The trailing delimiters, and how each side closes (plan P4-D387).
+
+    A closing written `""` is named, and records closed both ways name
+    their runs, so a checked file closed otherwise than its description
+    says misses this rule (lane R6). A form closed bare reads as it did
+    before lane R6.
+
+    The runs' words are built over at most `dialect.MAXIMUM_ENDING_RUNS`
+    runs (Codex's review of landing R6, item 4): the walk keeps no more,
+    and the loader (FD2) and the publication guard refuse more, so the
+    text grows with the cap and never with the records.
+    """
+    header = "a delimiter" if form.header_trailing_delimiter else "no delimiter"
+    if form.header_trailing_delimiter and form.header_closing_quoted:
+        header = 'a delimiter and ""'
+    rows = "a delimiter" if form.rows_trailing_delimiter else "no delimiter"
+    if form.rows_trailing_delimiter and form.rows_closing_runs:
+        runs = ""
+        for place in range(min(len(form.rows_closing_runs), dialect.MAXIMUM_ENDING_RUNS)):
+            run = form.rows_closing_runs[place]
+            said = "with" if run.ending == dialect.CLOSING_QUOTED else "without"
+            runs = f"{runs}, {run.lines} {said}" if runs else f"{run.lines} {said}"
+        rows = f'a delimiter, then "" by runs of records ({runs}),'
+    elif form.rows_trailing_delimiter and form.rows_closing_quoted:
+        rows = 'a delimiter and ""'
+    return f"{header} ending the header line, {rows} ending each record"
+
+
+def _empty_row_words(form: dialect.Dialect) -> str:
+    total = form.empty_rows_leading + form.empty_rows_interior + form.empty_rows_trailing
+    if not total:
+        return "no record holding nothing"
+    return (
+        f"records holding nothing: {form.empty_rows_leading} first, "
+        f"{form.empty_rows_interior} between, {form.empty_rows_trailing} last"
+    )
 
 
 def _zero_row_form(
@@ -4824,7 +7084,8 @@ def _zero_row_form(
     if text is None:
         return Check("", fact, subcheck, MISSED, published, "not UTF-8")
     body = _without_a_mark(text)
-    records = _records_of(body)
+    form = description.source.dialect
+    records = _records_of(body, form)[_lead_records(form) :]
     if len(records) != 1:
         return _silent(
             "",
@@ -4834,7 +7095,7 @@ def _zero_row_form(
             False,
             _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
         )
-    written = _canonical_record(records[0])
+    written = _canonical_record(records[0], form)
     return _silent(
         "",
         fact,
@@ -4873,7 +7134,11 @@ def _zero_row_structure(
     - Errors raised: none.
     """
     names = [column.name for column in description.columns]
-    found = _first_record(text) if text is not None else []
+    found = (
+        _first_record(text, description.source.dialect)
+        if text is not None
+        else []
+    )
     if not headed:
         return [
             _exact(
@@ -5021,16 +7286,7 @@ def _no_column_is_named(
         for check in _obligations(
             description, column, [], {}, {}, None, headed
         ):
-            missed = missed + [
-                Check(
-                    check.column,
-                    check.fact,
-                    check.subcheck,
-                    MISSED,
-                    check.published,
-                    _NO_NAMES_HERE,
-                )
-            ]
+            missed += [_copied(check, MISSED, _NO_NAMES_HERE)]
     return missed
 
 
@@ -5104,7 +7360,7 @@ def _no_rows_at_all(
         ),
     ]
     if headed:
-        checks = checks + [
+        checks += [
             Check(
                 "",
                 "document.source.header_source",
@@ -5134,7 +7390,7 @@ def _no_rows_at_all(
             ),
         ]
     else:
-        checks = checks + [
+        checks += [
             _exact(
                 "",
                 "document.source.header_source",
@@ -5207,7 +7463,7 @@ def _structure_checks(
         ),
     ]
     if headed:
-        checks = checks + [
+        checks += [
             _silent(
                 "",
                 "universal.name",
@@ -5228,6 +7484,544 @@ def _structure_checks(
     return checks
 
 
+_WORKBOOK_FACT = "document.source.workbook"
+
+# What a workbook obligation is measured against when the checked file
+# turns out not to be a workbook at all. This is a MISS and not a
+# withholding: the description says the table came out of a spreadsheet
+# package, and a file that is not one does not meet that.
+_NOT_A_WORKBOOK = "not a spreadsheet workbook"
+
+# THREE FACTS A CONFORMING TWIN CANNOT CARRY, AND ONE MEASUREMENT THAT
+# CANNOT TELL IT FROM THE REAL FILE (repair of landing 2b.10). A twin
+# never carries a macro project -- that is the security rule the reader
+# and the writer both keep -- and it writes no formula and no defined
+# name. Those three facts are published about the person's own workbook,
+# and they were held against the checked file as obligations: every
+# macro-enabled workbook's twin failed at exit 3 on `workbook.macro-
+# project`, a promise the twin is FORBIDDEN to keep.
+#
+# They cannot simply be checked on the real file and withheld on the
+# twin, because nothing here knows which it has: `validate` measures
+# whatever file it is pointed at, by design (a real table is checked by
+# pointing `--twin` at it). So the honest verdict is one verdict for
+# both: WITHHELD, with the reason said out loud and counted in the
+# report's own census, and the fact named where a person reads it -- the
+# summary printed when their workbook is described.
+_WORKBOOK_TWIN_NEVER_CARRIES_IT = (
+    "a twin of a workbook never carries this -- no macro project, no "
+    "formula and no defined name is ever written into one -- and this "
+    "measurement cannot tell a twin from the file it was made from, so "
+    "neither the measurement nor its outcome is shown"
+)
+
+# A count the smallest group held back publishes nothing, so there is
+# nothing for the checked file to meet.
+_WORKBOOK_HELD_BACK = (
+    "the smallest group held this count back, so the description "
+    "publishes no number here for the file to meet"
+)
+
+# The one shape whose hidden state a twin cannot reproduce: a workbook
+# whose every sheet is hidden opens nowhere and is refused by
+# synthtwin's own reader, so a lone hidden sheet is written visible.
+_WORKBOOK_ONLY_SHEET_MUST_SHOW = (
+    "a workbook whose every sheet is hidden cannot be opened at all, so "
+    "the twin's one sheet is written visible and neither the "
+    "measurement nor its outcome is shown"
+)
+
+
+def _shown_census(
+    counts: "dict[str, object]", order: "tuple[str, ...]"
+) -> str:
+    """One census as a line, in the closed vocabulary's own order.
+
+    Every key here is one of synthtwin's own words and every value is a
+    count or the withholding, so nothing of the measured file's text can
+    reach the report through this.
+    """
+    text = ""
+    for key in order:
+        if key not in counts:
+            continue
+        held = counts[key]
+        shown = "withheld"
+        if isinstance(held, int):
+            shown = f"{held}"
+        if text:
+            text = text + ", "
+        text = text + f"{key} {shown}"
+    return text
+
+
+def _shown_sheet_names(names: "tuple[str | None, ...]") -> str:
+    """The published sheet names, the withheld ones named as withheld."""
+    text = ""
+    for name in names:
+        if text:
+            text = text + ", "
+        text = text + (name if name else "withheld")
+    return text
+
+
+def _census_of(entry: object, key: str) -> "dict[str, object]":
+    """One census out of a re-described column, or an empty one."""
+    if not isinstance(entry, dict):
+        return {}
+    if key not in entry:
+        return {}
+    found = entry[key]
+    if not isinstance(found, dict):
+        return {}
+    return found
+
+
+def _workbook_checks(
+    description: contract.Profile,
+    redescribed: "dict[str, object]",
+    table: reading.Table,
+) -> "list[Check]":
+    """Every fact the workbook block publishes, measured on the file.
+
+    THE TWIN OF A WORKBOOK IS A WORKBOOK, SO THESE ARE OBLIGATIONS (plan
+    P4-D79). Until the writer existed there was nothing to hold to them:
+    a workbook description had no twin, and the only file that could be
+    measured was the person's own. Now the twin is a workbook too, and
+    every fact `source.workbook` publishes is a promise the twin has to
+    keep -- which is what makes the census of what each column's cells
+    WERE a checkable thing rather than a note.
+
+    THE MEASURED SIDE IS THE PRODUCER'S OWN (V4.2): the file has already
+    been described again by `profile.build_document`, and its workbook
+    block is read off that description rather than measured a second
+    way here. One rule, written once.
+
+    The two rules the landing exists for are both in here. A column
+    whose cells were TEXT publishes a text count, so a twin that wrote
+    those cells as numbers -- which is what every ordinary writer does
+    to `00123` -- misses `workbook.cell-classes`. A column whose cells
+    wear a DATE format publishes that kind and that code, so a twin
+    that wrote the numbers bare misses `workbook.format-kinds` and
+    `workbook.format-code`. Those are the two misses that would
+    otherwise show up only as a reader returning different types.
+    """
+    form = description.source.workbook
+    if form is None:
+        return []
+    source = redescribed["source"]
+    block: object = None
+    if isinstance(source, dict) and "workbook" in source:
+        block = source["workbook"]
+    if not isinstance(block, dict):
+        return [
+            Check(
+                "",
+                _WORKBOOK_FACT,
+                "workbook.package",
+                MISSED,
+                "a spreadsheet workbook",
+                _NOT_A_WORKBOOK,
+            )
+        ]
+    checks: "list[Check]" = [
+        _exact(
+            "", _WORKBOOK_FACT, "workbook.package",
+            "a spreadsheet workbook", "a spreadsheet workbook",
+        )
+    ]
+    whole: "list[tuple[str, str, str]]" = [
+        (
+            "workbook.sheet-count",
+            _shown_count(form.sheet_count),
+            _shown_count(_whole_of(block, "sheet_count")),
+        ),
+        (
+            "workbook.sheet-position",
+            _shown_count(form.sheet_position),
+            _shown_count(_whole_of(block, "sheet_position")),
+        ),
+        (
+            "workbook.date-system",
+            form.date_system,
+            _word_of(block, "date_system"),
+        ),
+        (
+            "workbook.rows-above-header",
+            _shown_count(form.rows_above_header),
+            _shown_count(_whole_of(block, "rows_above_header")),
+        ),
+        (
+            "workbook.frozen-rows",
+            _shown_count(form.frozen_rows),
+            _shown_count(_whole_of(block, "frozen_rows")),
+        ),
+        (
+            "workbook.trailing-blank-rows",
+            _shown_count(form.trailing_blank_rows),
+            _shown_count(_whole_of(block, "trailing_blank_rows")),
+        ),
+        (
+            "workbook.trailing-blank-columns",
+            _shown_count(form.trailing_blank_columns),
+            _shown_count(_whole_of(block, "trailing_blank_columns")),
+        ),
+        (
+            "workbook.defined-table",
+            _shown_truth(form.defined_table),
+            _shown_truth(_truth_of(block, "defined_table")),
+        ),
+        (
+            "workbook.autofilter",
+            _shown_truth(form.autofilter),
+            _shown_truth(_truth_of(block, "autofilter")),
+        ),
+    ]
+    for subcheck, published, measured in whole:
+        checks += [_exact("", _WORKBOOK_FACT, subcheck, published, measured)]
+
+    # The names, against what the file's own sheets are really called.
+    checks += [_sheet_names_check(form.sheet_names, table)]
+
+    # WHAT EVERY OTHER SHEET HOLDS (plan P4-D82). The twin writes a sheet
+    # of the published shape, so this is an obligation like every other
+    # fact of the block: a twin that wrote those sheets empty -- which is
+    # what the writer did until this landing -- hands a reader a
+    # different workbook, and the report has to say so.
+    checks += [
+        _exact(
+            "", _WORKBOOK_FACT, "workbook.sheet-extents",
+            _shown_extents(form.sheet_extents),
+            _shown_extents(_extents_of(block)),
+        )
+    ]
+
+    # THE HIDDEN STATE IS AN OBLIGATION NOW, because the twin carries it:
+    # the writer hides every sheet standing before the table's, so that
+    # the twin's own reading rule -- the first VISIBLE sheet -- lands on
+    # the table. It went unchecked while the twin lost it silently.
+    if form.sheet_hidden and form.sheet_count <= 1:
+        checks += [
+            _withheld(
+                "", _WORKBOOK_FACT, "workbook.sheet-hidden",
+                _WORKBOOK_ONLY_SHEET_MUST_SHOW,
+            )
+        ]
+    else:
+        checks += [
+            _exact(
+                "", _WORKBOOK_FACT, "workbook.sheet-hidden",
+                _shown_truth(form.sheet_hidden),
+                _shown_truth(_truth_of(block, "sheet_hidden")),
+            )
+        ]
+
+    # The records holding nothing, where the floor published a count.
+    if form.empty_rows_inside is None:
+        checks += [
+            _withheld(
+                "", _WORKBOOK_FACT, "workbook.empty-rows-inside",
+                _WORKBOOK_HELD_BACK,
+            )
+        ]
+    else:
+        checks += [
+            _exact(
+                "", _WORKBOOK_FACT, "workbook.empty-rows-inside",
+                _shown_count(form.empty_rows_inside),
+                _shown_count(_whole_of(block, "empty_rows_inside")),
+            )
+        ]
+
+    # The two facts a twin is forbidden to carry, named rather than
+    # measured, and counted among the withholdings in the census.
+    checks += [
+        _withheld(
+            "", _WORKBOOK_FACT, "workbook.macro-project",
+            _WORKBOOK_TWIN_NEVER_CARRIES_IT,
+        ),
+        _withheld(
+            "", _WORKBOOK_FACT, "workbook.defined-names",
+            _WORKBOOK_TWIN_NEVER_CARRIES_IT,
+        ),
+    ]
+
+    every = block["columns"] if "columns" in block else []
+    for index in range(len(description.columns)):
+        name = description.columns[index].name
+        if index >= len(form.columns):
+            continue
+        column = form.columns[index]
+        entry: object = None
+        if isinstance(every, list) and index < len(every):
+            entry = every[index]
+        checks += [
+            _census_check(
+                name, "workbook.cell-classes",
+                column.cell_classes,
+                _census_of(entry, "cell_classes"),
+                dialect.SHEET_CELL_CLASSES,
+            ),
+            _census_check(
+                name, "workbook.format-kinds",
+                column.format_kinds,
+                _census_of(entry, "format_kinds"),
+                dialect.SHEET_FORMAT_KINDS,
+            ),
+            _format_code_check(name, column, entry),
+            _value_class_check(name, column, entry),
+            # A twin writes no formula, whatever the source column held,
+            # so this is named and not measured (see the reason above).
+            _withheld(
+                name, _WORKBOOK_FACT, "workbook.formulas",
+                _WORKBOOK_TWIN_NEVER_CARRIES_IT,
+            ),
+        ]
+    return checks
+
+
+def _as_counts(counts: "dict[str, int | None]") -> "dict[str, object]":
+    """One published census widened to the shape the renderer takes."""
+    out: "dict[str, object]" = {}
+    for key in counts:
+        out[key] = counts[key]
+    return out
+
+
+def _shown_extents(extents: "tuple[tuple[int, int] | None, ...]") -> str:
+    """The block of cells each sheet holds, as the report states it.
+
+    Counts of a sheet's own furniture, so they are printed: no value, no
+    name and no text of those sheets is published anywhere.
+    """
+    text = ""
+    for index in range(len(extents)):
+        held = extents[index]
+        if held is None:
+            said = f"sheet {index + 1}: the table's own"
+        else:
+            said = (
+                f"sheet {index + 1}: {held[0]} row(s) by {held[1]} column(s)"
+            )
+        text = said if not text else f"{text}; {said}"
+    if not text:
+        return "no sheets"
+    return text
+
+
+def _extents_of(block: object) -> "tuple[tuple[int, int] | None, ...]":
+    """The blocks of cells a re-described workbook block records."""
+    if not isinstance(block, dict) or "sheet_extents" not in block:
+        return ()
+    found = block["sheet_extents"]
+    if not isinstance(found, list):
+        return ()
+    out: "list[tuple[int, int] | None]" = []
+    for item in found:
+        if not isinstance(item, dict):
+            out += [None]
+            continue
+        rows = item["rows"] if "rows" in item else 0
+        columns = item["columns"] if "columns" in item else 0
+        if isinstance(rows, bool) or not isinstance(rows, int):
+            rows = 0
+        if isinstance(columns, bool) or not isinstance(columns, int):
+            columns = 0
+        out += [(rows, columns)]
+    return tuple(out)
+
+
+def _whole_of(block: object, key: str) -> int:
+    """A whole number out of a re-described block, or nought."""
+    if not isinstance(block, dict) or key not in block:
+        return 0
+    found = block[key]
+    if isinstance(found, bool) or not isinstance(found, int):
+        return 0
+    return found
+
+
+def _truth_of(block: object, key: str) -> bool:
+    """A flag out of a re-described block, or false."""
+    if not isinstance(block, dict) or key not in block:
+        return False
+    found = block[key]
+    return isinstance(found, bool) and found
+
+
+def _word_of(block: object, key: str) -> str:
+    """One of synthtwin's own words out of a re-described block."""
+    if not isinstance(block, dict) or key not in block:
+        return ""
+    found = block[key]
+    if not isinstance(found, str):
+        return ""
+    return found
+
+
+def _census_check(
+    name: str,
+    subcheck: str,
+    published: "dict[str, int | None]",
+    measured: "dict[str, object]",
+    order: "tuple[str, ...]",
+) -> Check:
+    """One census, compared wherever the description publishes a count.
+
+    A COUNT THE SMALLEST GROUP HELD BACK PUBLISHES NOTHING FOR THE FILE
+    TO MEET, and comparing the rendered lines rather than the counts
+    made one out of it (repair of landing 2b.10). A column of sixty
+    cells one of which is absent publishes that class as `withheld` at a
+    floor of eleven; its twin writes none and describes itself as `0`;
+    the two lines differ, so the twin was reported MISSED for failing to
+    reproduce a number nobody had told it. Measured on the study's own
+    titled book: twelve misses at a floor of eleven, none at the
+    default floor -- which is why the landing's gate, whose tables are
+    large, never saw it.
+
+    So each published count is compared as a count, and a withheld one
+    is passed over. Both lines are still SHOWN, so a reader sees which
+    entries were withheld and which were met.
+    """
+    shown = _shown_census(_as_counts(published), order)
+    found = _shown_census(measured, order)
+    for key in order:
+        if key not in published:
+            continue
+        wanted = published[key]
+        if wanted is None:
+            continue
+        got: object = None
+        if key in measured:
+            got = measured[key]
+        if isinstance(got, bool) or not isinstance(got, int) or got != wanted:
+            return Check(name, _WORKBOOK_FACT, subcheck, MISSED, shown, found)
+    return Check(name, _WORKBOOK_FACT, subcheck, HELD, shown, found)
+
+
+def _format_code_check(
+    name: str, column: contract.WorkbookColumn, entry: object
+) -> Check:
+    """The code the column's twin wears, where its kind was published.
+
+    THE TWIN CAN ONLY WEAR THE CODE ON CELLS IT WAS TOLD TO WRITE. The
+    code belongs to a kind, and the count of cells wearing that kind is
+    a census entry like any other -- so where the floor held that entry
+    back, the twin writes no cell of the kind, the code appears nowhere
+    in it, and the column describes itself with the general format. That
+    is the twin obeying the disclosure rule, not failing an obligation,
+    and it is WITHHELD here for the same reason the count is.
+    """
+    kind = dialect.sheet_format_kind(column.format_code)
+    wearing: "int | None" = None
+    if kind and kind in column.format_kinds:
+        wearing = column.format_kinds[kind]
+    if kind and wearing is None:
+        return _withheld(
+            name, _WORKBOOK_FACT, "workbook.format-code", _WORKBOOK_HELD_BACK
+        )
+    return _exact(
+        name, _WORKBOOK_FACT, "workbook.format-code",
+        column.format_code,
+        _word_of(entry, "format_code"),
+    )
+
+
+def _value_class_check(
+    name: str, column: contract.WorkbookColumn, entry: object
+) -> Check:
+    """The class a column names as its commonest, where it names one.
+
+    THE FACT A WITHHELD CENSUS LEAVES STANDING (plan P4-D164). Where the
+    disclosure rule holds every count of a column's classes back, this
+    is what still says whether its cells were texts or numbers, and a
+    twin that wrote a column of digit texts as numbers misses it here.
+    Where the description names no class there is nothing to meet.
+    """
+    if column.value_class is None:
+        return _withheld(
+            name, _WORKBOOK_FACT, "workbook.value-class", _WORKBOOK_HELD_BACK
+        )
+    return _exact(
+        name, _WORKBOOK_FACT, "workbook.value-class",
+        column.value_class,
+        _word_of(entry, "value_class"),
+    )
+
+
+def _sheet_names_check(
+    published: "tuple[str | None, ...]", table: reading.Table
+) -> Check:
+    """The sheet names, against the names the checked file really carries.
+
+    WHY THIS IS NOT AN EXACT COMPARISON OF TWO PUBLISHED LISTS, and the
+    defect that taught it (repair of landing 2b.10). A sheet name that
+    may not be published is published as `null`, and the twin writes
+    that sheet under a NEUTRAL name -- which is a name this version
+    would publish itself, so describing the twin publishes it. Compared
+    list against list, every workbook whose tab is not one of the
+    generic words came back MISSED at exit 3: published `[null,
+    'Sheet2']`, measured `['Sheet1', 'Sheet2']`. The twin had done
+    exactly what the disclosure rule told it to do and was failed for
+    it.
+
+    So the obligation is stated the way it is meant: a published name
+    must be on the sheet it names, and a WITHHELD name must be either
+    withheld still (the person's own file, whose name this version
+    would not publish) or the neutral name a twin writes there, which
+    `dialect.twin_sheet_names` settles for the writer and for this
+    check alike.
+
+    THE MEASURED SIDE IS THE FILE'S OWN RAW NAMES and never reaches the
+    report, which is why this is a silent check: a sheet name can be a
+    person's name, and a quality report travels.
+
+    THE LIMIT, STATED: this measurement cannot tell a twin from the file
+    it was made from, so a twin that wrote a name this version would not
+    publish is indistinguishable here from the real table carrying its
+    own name. What keeps the writer honest is not this check but the
+    gate that reads the twin's own workbook part and asserts no withheld
+    name is in it.
+    """
+    shown = _shown_sheet_names(published)
+    book = table.book
+    if book is None:
+        return _silent(
+            "",
+            _WORKBOOK_FACT,
+            "workbook.sheet-names",
+            shown,
+            False,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+        )
+    raw: "list[str]" = []
+    for entry in book.sheets:
+        raw += [entry.name]
+    expected = dialect.twin_sheet_names(published)
+    held = len(raw) == len(published)
+    if held:
+        for index in range(len(published)):
+            name = published[index]
+            found = raw[index]
+            if name is not None:
+                if found != name:
+                    held = False
+                continue
+            if found == expected[index]:
+                continue
+            if dialect.sheet_name_published(found) is None:
+                continue
+            held = False
+    return _silent(
+        "",
+        _WORKBOOK_FACT,
+        "workbook.sheet-names",
+        shown,
+        held,
+        _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+    )
+
+
 def _first_values(table: reading.Table) -> "list[str]":
     """The first record of a table the reader read as data throughout.
 
@@ -5243,7 +8037,7 @@ def _first_values(table: reading.Table) -> "list[str]":
     for cells in table.columns:
         if not cells:
             return []
-        found = found + [cells[0]]
+        found += [cells[0]]
     return found
 
 
@@ -5352,9 +8146,6 @@ def _column_checks(
     # other, and a twin whose every cell was exactly what the
     # description asked for came back with its style census MISSED.
     block = _column_at(redescribed, column.position)
-    cells = _cells_read_as_declared(
-        description, column, cells, block if block is not None else {}
-    )
     split = _column_at(over_the_split, column.position)
     return _obligations(
         description,
@@ -5408,12 +8199,15 @@ def _obligations(
     split_published = _split_is_published(block)
     if _split_size_is_published(block):
         present, missing = _presence_over_the_split(split, cells)
+        present, missing = _pooled_words_absent(
+            column, block, cells, present, missing
+        )
     else:
         present, missing = _own_presence(block, cells)
     checks: list[Check] = []
     if _position_is_evidencible(column, headed):
-        checks = checks + [_position_check(column, names, headed)]
-    checks = checks + [
+        checks += [_position_check(column, names, headed)]
+    checks += [
         _exact(
             name,
             "universal.n_present",
@@ -5459,7 +8253,7 @@ def _obligations(
         ("statistical_type", column.statistical_type),
         ("quality_state", column.quality_state),
     ):
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"universal.{field}",
@@ -5519,23 +8313,117 @@ def _obligations(
     # standing beside the census it is compared with.
     own_settings = settings_for(description)
     split_settings = settings_over_the_split(description)
-    own_cells = _cells_that_description_reads(
+    comma = column.name in description.settings.forced_decimal_commas
+    # -- 3b.R4 (P4-D384): a column of counted dates decides its holes by its
+    # counted reading (`_holes_by_the_description`).
+    counted = _counted_set_aside(description, column, cells)
+    own_cells = _cells_read_as_declared(description, column, _cells_that_description_reads(
         block,
         cells,
         own_settings.kept_values,
         own_settings.declared_missing_values,
-    )
-    split_cells = _cells_that_description_reads(
+        comma,
+        counted,
+    ))
+    split_cells = _cells_read_as_declared(description, column, _cells_that_description_reads(
         split,
         cells,
         split_settings.kept_values,
         split_settings.declared_missing_values,
+        comma,
+        counted,
+    ))
+    # ...AND, ON A CLOCK OR A SLASHED STAMP, LESS WHAT ITS CLOCK LEFT UNREAD
+    # (the T1 review's items 1 and 2), each side under its own settings.
+    own_cells = _cells_on_the_written_clock(column, block, own_cells, own_settings)
+    split_cells = _cells_on_the_written_clock(column, split, split_cells, split_settings)
+    system = _tail_date_system(description, column)
+    # THE SPELLINGS THE TABLE CALLS ABSENT, every column's (the round-2
+    # fix of landing 3b.5): a census-laid clock column's twin keeps its
+    # cells off the places they name in its form (method G7A.4b), so its
+    # windows are drawn beside the same ones.
+    holes = tuple(own_settings.declared_missing_values)
+    gated = _universal_checks(column, block, mine, floor, system, holes)
+    # A JOINED COLUMN READ FROM ITS VALUES counts a position's cells by
+    # rule 9c's own admission (integration repair of landing 2b.5).
+    pairs = (
+        column.role == taxonomy.ROLE_JOINED
+        and column.name not in description.settings.forced_measurements
     )
-    gated = _universal_checks(column, block, mine)
-    gated = gated + _role_checks(column, block, own_cells, floor, mine)
-    measured = _universal_checks(column, split, mine)
-    measured = measured + _role_checks(column, split, split_cells, floor, mine)
+    writable = not subsecond_figures_unwritable(description, column)
+    declared = description.settings.declared_missing_values.built_in_dates
+    # -- 3b.R4 (P4-D384): AND THE DAYS A COLUMN OF COUNTED DATES HOLDS NO DATE
+    # ON (`date_counts.hole_words`), which the producer held as holes too --
+    # on a column of moments the placeholder days alone. The system is
+    # `system` itself on such a column (`_tail_date_system`).
+    if isinstance(column.facts, contract.DatetimeFacts) and system in date_counts.TABLE:
+        moments = column.facts.resolution == taxonomy.RESOLUTION_DATETIME
+        declared = tuple(sorted(set(declared) | set(date_counts.hole_words(system, moments))))
+    gated = gated + _role_checks(
+        column, block, own_cells, floor, mine, pairs, writable, system,
+        declared, holes,
+    )
+    measured = _universal_checks(column, split, mine, floor, system, holes)
+    measured = measured + _role_checks(
+        column, split, split_cells, floor, mine, pairs, writable, system,
+        declared, holes,
+    )
+    # -- 3b.R4 (P4-D384): HOW A COLUMN OF COUNTED DATES WRITES ITS COUNTS,
+    # asked of the cells as the file holds them -- every other check of the
+    # column reads them as the dates they name.
+    if isinstance(column.facts, contract.DatetimeFacts):
+        member = ""
+        for named, system in description.settings.forced_date_counts:
+            if named == name:
+                member = system
+        absent: "list[bool] | None" = None
+        if column.facts.count_form is not None:
+            # THE DESCRIPTION'S OWN ABSENCE DECISION, cell by cell (V5-CF).
+            absent = _holes_by_the_description(
+                block,
+                cells,
+                own_settings.kept_values,
+                own_settings.declared_missing_values,
+                comma,
+                counted,
+            )
+        checks = checks + _count_form_checks(column, column.facts, block, cells, member, absent)
     return checks + _governed(gated, measured, split_published)
+
+
+def _counted_set_aside(
+    description: contract.Profile, column: contract.ColumnBlock, cells: "list[str]"
+) -> "tuple[int, ...]":
+    """What a column of counted dates' reading makes of each cell (landing R4).
+
+    One mark per cell: 1 where the cell is a count of the column's system
+    that the counted reading sets aside -- naming no date, a placeholder
+    day or one of the system's set-aside numbers -- 0 where it reads it as
+    the date it names, and -1 where it is no count at all; empty on every
+    other column. Read by the reading the generator and the validator
+    share (`contract.counts_read_back`), at the unit the description
+    published, so `_holes_by_the_description` asks no reader of its own.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts) or facts.count_form is None:
+        return ()
+    member = ""
+    for name, system in description.settings.forced_date_counts:
+        if name == column.name:
+            member = system
+    if not member:
+        return ()
+    read = contract.counts_read_back(member, facts, (), cells)
+    marks: "list[int]" = []
+    for place in range(len(cells)):
+        cell = cells[place]
+        if read[place] != cell:
+            marks += [0]
+        elif cell and date_counts.counted(member, cell, facts.count_form.mark) is not None:
+            marks += [1]
+        else:
+            marks += [-1]
+    return tuple(marks)
 
 
 def _cells_that_description_reads(
@@ -5543,6 +8431,8 @@ def _cells_that_description_reads(
     cells: "list[str]",
     kept: "tuple[str, ...]",
     declared: "tuple[str, ...]",
+    decimal_comma: bool = False,
+    counted: "tuple[int, ...]" = (),
 ) -> "list[str]":
     """The cells the file's OWN description counts as values, plus its blanks.
 
@@ -5659,11 +8549,13 @@ def _cells_that_description_reads(
     - Determinism: a fixed function of those four.
     - Errors raised: none.
     """
-    holes = _holes_by_the_description(block, cells, kept, declared)
+    holes = _holes_by_the_description(
+        block, cells, kept, declared, decimal_comma, counted
+    )
     read: list[str] = []
     for index, cell in enumerate(cells):
         if not holes[index]:
-            read = read + [cell]
+            read += [cell]
     return read
 
 
@@ -5672,12 +8564,28 @@ def _holes_by_the_description(
     cells: "list[str]",
     kept: "tuple[str, ...]",
     declared: "tuple[str, ...]",
+    decimal_comma: bool = False,
+    counted: "tuple[int, ...]" = (),
 ) -> "list[bool]":
     """Which cells the file's own description reads as non-blank holes.
 
     The two certainties and the one budget `_cells_that_description_reads`
     describes, in that order. Split out so the rule can be read on its
     own and tested on its own.
+
+    -- 3b.R4 (P4-D384): A COLUMN OF COUNTED DATES (``counted``: one mark
+    per cell, `_counted_set_aside`) READS EVERY CELL THAT IS A COUNT OF ITS
+    SYSTEM BY THE COUNTED READING, after the person's own declarations and
+    the built-in missing spellings and before any judgement, as the
+    producer does: a count it sets aside -- one naming no date, a
+    placeholder day or one of the system's set-aside numbers -- is a
+    certain hole, and every other count is a date, never a numeric
+    stand-in or a placeholder candidate.
+    Asked as stand-ins, a real Excel serial 9999 (17 May 1927) or SAS day
+    -999 (7 April 1957) went unsettled beside the counted reading's own
+    holes, which no published verdict accounts for, and was dropped from
+    the recount: the source missed its own weekday census (found while
+    repairing the second review of landing R4, item 2).
 
     EVERY NUMBER HERE IS AN EXACT ONE, and the two names that make it so
     are the producer's own: `taxonomy.exact_of_spelling` for a cell or a
@@ -5712,7 +8620,11 @@ def _holes_by_the_description(
     kept_spellings_folded: dict[str, int] = {}
     kept_numbers: list[tuple[int, tuple[str, ...], int]] = []
     for spelling in kept:
-        number = taxonomy.exact_of_spelling(spelling)
+        number = taxonomy.exact_of_spelling(
+            parsing.written_with_a_decimal_comma(spelling)
+            if decimal_comma
+            else spelling
+        )
         if number is None:
             # The producer matches a declaration that names no number by
             # its folded spelling, and one that names a number by the
@@ -5722,26 +8634,55 @@ def _holes_by_the_description(
             # it through rather than through a second reading of it.
             kept_spellings_folded[parsing.folded(spelling)] = 1
         else:
-            kept_numbers = kept_numbers + [number]
+            kept_numbers += [number]
     declared_folded: dict[str, int] = {}
     declared_numbers: list[tuple[int, tuple[str, ...], int]] = []
     for spelling in declared:
-        number = taxonomy.exact_of_spelling(spelling)
+        number = taxonomy.exact_of_spelling(
+            parsing.written_with_a_decimal_comma(spelling)
+            if decimal_comma
+            else spelling
+        )
         if number is None:
             declared_folded[parsing.folded(spelling)] = 1
         else:
-            declared_numbers = declared_numbers + [number]
+            declared_numbers += [number]
     for candidate in _candidates_the_description_keeps(block):
-        kept_numbers = kept_numbers + [candidate]
+        kept_numbers += [candidate]
     missing_candidates = _candidates_the_description_drops(block)
+    # AND THE CELLS ITS OWN PLACEHOLDER VERDICTS DROP (plan P4-D253),
+    # named by the spellings those verdicts publish rather than by the
+    # day they denote, so this rule reads a cell's identity as TEXT and
+    # asks no reader that rounds.
+    missing_days = _placeholder_spellings_dropped(block)
+    # ...AND WHICH PLACEHOLDER DAYS IT PASSES ANY VERDICT ON AT ALL
+    # (plan P4-D253.1), which is what tells a day the description
+    # settled from a day it withheld a verdict for.
+    named_days = _placeholder_days_named(block)
+    # ...AND WHETHER ANY SETTLEMENT CAN BITE AT ALL. The loop below
+    # settles nothing unless the description reads MORE non-blank cells
+    # as holes than its own published verdicts account for, and that
+    # number is a function of the block and the cells alone. Asked once,
+    # here, so that a column with nothing to settle does not put every
+    # one of its cells through twenty date readings: the answer is the
+    # same either way and the cost is not (plan P4-D253.1).
+    may_settle = _unread_cells(block, cells) > 0
     certain: list[bool] = []
     unsettled: list[bool] = []
-    for cell in cells:
+    for place in range(len(cells)):
+        cell = cells[place]
         body = parsing.trimmed(cell)
         is_hole = False
         undecided = False
+        # THE COUNTED READING'S OWN ANSWER for a count of the column's
+        # system, -1 where the cell is no such count.
+        counted_aside = counted[place] if counted else -1
         if body:
-            exact = taxonomy.exact_of_spelling(cell)
+            exact = taxonomy.exact_of_spelling(
+                parsing.written_with_a_decimal_comma(cell)
+                if decimal_comma
+                else cell
+            )
             stand_in = _stand_in_of(exact)
             # The producer's own order: what the settings name as data
             # beats every rule below it, what they name as "no value"
@@ -5756,31 +8697,62 @@ def _holes_by_the_description(
             named_as_a_hole = _named(
                 declared_numbers, exact
             ) or _spelled_alike(cell, declared_folded)
+            judged_day = _spelled_alike(cell, missing_days)
             if named_as_data:
                 is_hole = False
+            elif judged_day:
+                # The column's own verdict on a candidate, exactly as
+                # the branch below reads one for a stand-in number: a
+                # declaration that keeps the day is `named_as_data`
+                # above, and a kept day carries the verdict
+                # `kept_by_you` rather than this one.
+                is_hole = True
             elif named_as_a_hole or parsing.is_missing_text(cell):
                 # Two rules of the producer's, in its order, and the
                 # order survives the `or`: a declaration is asked first
                 # and the built-in table second, exactly as
                 # `_split_missing` asks them.
                 is_hole = True
+            elif counted_aside >= 0:
+                # -- 3b.R4 (P4-D384): a count of a column of counted dates is
+                # a hole exactly where the counted reading sets it aside.
+                is_hole = counted_aside == 1
             elif stand_in is not None:
                 is_hole = _named(missing_candidates, stand_in)
                 undecided = not is_hole
-        certain = certain + [is_hole]
-        unsettled = unsettled + [undecided]
-    counted = 0
+            elif may_settle and _an_unnamed_placeholder_day(
+                cell, named_days
+            ):
+                # A PLACEHOLDER DAY THE DESCRIPTION PUBLISHES NO VERDICT
+                # FOR, settled the way the branch above settles an
+                # unpublished stand-in number (plan P4-D253.1; skeptic
+                # of the repair of P4-D253, finding 1). The branch above
+                # gave the third candidate kind no below-floor path at
+                # all: five `01/01/1900` beside 395 month-first dates at
+                # a floor of eleven publish no verdict -- the count is
+                # smaller than the line -- so the five cells the
+                # description read as absent were handed to the recount
+                # as values, and the UNCHANGED SOURCE was told it missed
+                # `widths.padded`, "asks for 330, found 335". The
+                # numeric sibling of that exact table validates at
+                # exit 0, because a stand-in nothing names is left
+                # undecided here and settled from the published count of
+                # holes. This is the same settlement for a day.
+                undecided = True
+        certain += [is_hole]
+        unsettled += [undecided]
+    certain_holes = 0
     for is_hole in certain:
         if is_hole:
-            counted = counted + 1
-    if _unread_cells(block, cells) <= counted:
+            certain_holes = certain_holes + 1
+    if _unread_cells(block, cells) <= certain_holes:
         return certain
     # The description reads more non-blank cells as holes than the
     # verdicts it publishes account for, so a candidate it does not name
     # is one of them. Which is not published, so all of them go.
     settled: list[bool] = []
     for index in range(len(cells)):
-        settled = settled + [certain[index] or unsettled[index]]
+        settled += [certain[index] or unsettled[index]]
     return settled
 
 
@@ -5863,6 +8835,145 @@ def _candidates_the_description_drops(
     return _candidates_with(block, taxonomy.VERDICT_MISSING)
 
 
+def _placeholder_spellings_dropped(
+    block: "dict[str, object]",
+) -> "dict[str, int]":
+    """The SPELLINGS of placeholder days the description read as "no value".
+
+    THE THIRD CANDIDATE KIND, AND IT WAS INVISIBLE HERE (plan P4-D253,
+    the extra review of c5d09d5, item 6). `_candidates_with` reads a
+    verdict's candidate as a NUMBER and a calendar day denotes none, so
+    every placeholder-day verdict fell out of the hole rule: the cells
+    a description judged as holes were handed to the recounts as
+    values. Measured on `01/01/1900` twenty times beside 380 day-first
+    dates of 2020 at a floor of eleven -- the description publishes
+    `date_field_widths={"second-field-padded": 380}` over the cells it
+    reads, the recount walked all 400, folded them into another width
+    class, and the unchanged source was told it missed two obligations.
+
+    AND THE SPELLINGS RATHER THAN THE DAYS, because this closure reads a
+    cell's identity and may ask no reader that rounds (review items
+    P1-R8-F2 and P3-V4-F1, guarded by
+    `tests/test_p3v4f1_kept_values.py`). A verdict publishes the
+    `missing_by_source` keys its own decision took out, so the cells it
+    judged are named as TEXT and no date has to be parsed to find them.
+
+    Guarantees: accepts one re-described block; returns the folded
+    spellings its own verdicts read as absent, as a mapping the text
+    comparison beside it takes. Determinism: a fixed function of the
+    block. Errors raised: none. No I/O.
+    """
+    found: "dict[str, int]" = {}
+    if "sentinel_verdicts" not in block:
+        return found
+    entries = block["sentinel_verdicts"]
+    if not isinstance(entries, list):
+        return found
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        inner: "dict[str, object]" = {}
+        for name in entry:
+            if isinstance(name, str):
+                inner[name] = entry[name]
+        if _text_at(inner, "verdict") != taxonomy.VERDICT_MISSING:
+            continue
+        candidate = _text_at(inner, "candidate")
+        if candidate is None:
+            continue
+        named = False
+        for day in parsing.calendar_placeholders():
+            if candidate == day:
+                named = True
+        if not named:
+            continue
+        spellings = inner["spellings"] if "spellings" in inner else []
+        if not isinstance(spellings, list):
+            continue
+        for spelling in spellings:
+            if isinstance(spelling, str):
+                found[parsing.folded(spelling)] = 1
+    return found
+
+
+def _placeholder_days_named(block: "dict[str, object]") -> "dict[str, int]":
+    """Every placeholder day the description publishes a verdict for.
+
+    EITHER VERDICT, because what this answers is whether the description
+    SETTLED the day rather than which way it settled it (plan
+    P4-D253.1). A day it published `read_as_missing` for is already a
+    hole by the spellings that verdict prints
+    (`_placeholder_spellings_dropped`); a day it published
+    `kept_as_a_number` or `kept_by_you` for is data; and a day it
+    published nothing about is the one the caller has to settle from the
+    count of holes, exactly as it settles a stand-in number nothing
+    names.
+
+    Guarantees: accepts one re-described block; returns the placeholder
+    members its own verdicts name, as a mapping. Determinism: a fixed
+    function of the block. Errors raised: none. No I/O.
+    """
+    found: "dict[str, int]" = {}
+    if "sentinel_verdicts" not in block:
+        return found
+    entries = block["sentinel_verdicts"]
+    if not isinstance(entries, list):
+        return found
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        inner: "dict[str, object]" = {}
+        for name in entry:
+            if isinstance(name, str):
+                inner[name] = entry[name]
+        candidate = _text_at(inner, "candidate")
+        if candidate is None:
+            continue
+        for day in parsing.calendar_placeholders():
+            if candidate == day:
+                found[day] = 1
+    return found
+
+
+def _an_unnamed_placeholder_day(
+    cell: str, named: "dict[str, int]"
+) -> bool:
+    """Whether this cell writes a placeholder day no verdict settles.
+
+    THE THIRD CANDIDATE KIND'S BELOW-FLOOR PATH (plan P4-D253.1). The
+    two rules this stands between are the producer's own: a cell's
+    identity as a calendar day is `_denotes_the_candidate`, which reads
+    the written fields under every shipped format and compares the DAY
+    -- the same question `taxonomy.built_in_values_named` asks of a
+    typed declaration -- and the days a description settled are the ones
+    its own verdicts name. A cell writing one of the two members with no
+    verdict beside it is a cell the file's own description may have read
+    as absent and may have kept, and the caller settles that from the
+    one number the description does publish.
+
+    THIS READS A DAY AND NOT A NUMBER, which is why it may stand inside
+    the hole rule's closure at all (review item P3-V4-F1, guarded by
+    `tests/test_p3v4f1_kept_values.py`). `parsing.placeholder_day_of`
+    answers "which day do these written fields name?" out of fixed-width
+    runs of ASCII digits and hands back TEXT it builds from those very
+    runs; no binary64 value is formed and no two spellings a person can
+    tell apart are folded together. It is the producer's published day
+    identity in the same sense `taxonomy.exact_of_spelling` is its
+    published number identity, and the guard stops at both.
+
+    Guarantees: accepts one cell's text and the days the description
+    names; returns whether the cell writes a member nothing names.
+    Determinism: a fixed function of the two. Errors raised: none. No
+    I/O of any kind.
+    """
+    for day in parsing.calendar_placeholders():
+        if day in named:
+            continue
+        if _denotes_the_candidate(cell, day, False):
+            return True
+    return False
+
+
 def _candidates_with(
     block: "dict[str, object]", verdict: str
 ) -> "list[tuple[int, tuple[str, ...], int]]":
@@ -5895,7 +9006,7 @@ def _candidates_with(
             continue
         number = taxonomy.exact_of_spelling(candidate)
         if number is not None:
-            found = found + [number]
+            found += [number]
     return found
 
 
@@ -5993,16 +9104,7 @@ def _nothing_stands_here(
     for check in _obligations(
         description, column, [], {}, {}, names, headed
     ):
-        missed = missed + [
-            Check(
-                check.column,
-                check.fact,
-                check.subcheck,
-                MISSED,
-                check.published,
-                _NO_COLUMN_HERE,
-            )
-        ]
+        missed += [_copied(check, MISSED, _NO_COLUMN_HERE)]
     return missed
 
 
@@ -6034,31 +9136,12 @@ def _nothing_left_to_measure(
         description, column, [], {}, {}, names, headed
     ):
         if check.fact == _POSITION_FACT and names is None:
-            filled = filled + [
-                Check(
-                    check.column,
-                    check.fact,
-                    check.subcheck,
-                    WITHHELD,
-                    check.published,
-                    "",
-                    _GATE_REFUSED,
-                )
-            ]
+            filled += [_copied(check, WITHHELD, "", _GATE_REFUSED)]
             continue
         if check.verdict == WITHHELD and check.citation == _GATE_CLOSED:
-            filled = filled + [
-                Check(
-                    check.column,
-                    check.fact,
-                    check.subcheck,
-                    MISSED,
-                    check.published,
-                    _NO_ROWS_HERE,
-                )
-            ]
+            filled += [_copied(check, MISSED, _NO_ROWS_HERE)]
             continue
-        filled = filled + [check]
+        filled += [check]
     return filled
 
 
@@ -6066,7 +9149,6 @@ def _cells_read_as_declared(
     description: contract.Profile,
     column: contract.ColumnBlock,
     cells: "list[str]",
-    block: "dict[str, object]",
 ) -> "list[str]":
     """One column's cells in the spelling its description was made from.
 
@@ -6085,7 +9167,17 @@ def _cells_read_as_declared(
     Guarantees: accepts the description, one column's block and its
     cells; returns cells of the same length in the same order.
     Determinism: a fixed function of the three. Raises nothing. No I/O.
+
+    AND A COLUMN OF DATES WRITTEN AS COUNTS (landing R4, plan P4-D384) is
+    read as the dates its counts name, at the precision its description
+    published (`contract.counts_read_back`), which is the reading the
+    profiler and the twin's own report make.
     """
+    if isinstance(column.facts, contract.DatetimeFacts) and column.facts.count_form is not None:
+        for name, member in description.settings.forced_date_counts:
+            if name == column.name:
+                holes = tuple(sorted(column.missing_by_source))
+                return contract.counts_read_back(member, column.facts, holes, cells)
     named = False
     for name in description.settings.forced_decimal_commas:
         if name == column.name:
@@ -6103,17 +9195,27 @@ def _cells_read_as_declared(
     # as a number the column never held: the source file itself came
     # back MISSING its own style obligation, with twenty numbers in a
     # recount of a column published as holding one hundred and eighty.
-    holes = _holes_by_the_description(
-        block,
-        cells,
-        kept_spellings(description),
-        declared_spellings(description),
-    )
     compound = isinstance(column.facts, contract.CompoundFacts)
+    # AND ON THE AFFIXED ROLE THE READING RUNS OVER THE CORE ALONE
+    # (landing 2b.16, plan P4-D106), which is the rule the producer's
+    # writeback follows. Such a cell is a number wearing a WRAPPER the
+    # description publishes character for character, and a swap over
+    # the whole cell rewrites that wrapper: `U.S.$ 24,60` would be
+    # measured as `U,S,$ 24.60`, a pair the description does not
+    # publish, so the cell would be counted a straggler and every
+    # quantitative obligation of the column measured over the cells
+    # that remain.
+    speaking: "list[tuple[str, str]]" = []
+    if isinstance(column.facts, contract.AffixedFacts):
+        speaking += [
+            (column.facts.affix_prefix, column.facts.affix_suffix)
+        ]
+        for one in column.facts.affix_variants:
+            speaking += [(one.prefix, one.suffix)]
     swapped: "list[str]" = []
     for place in range(len(cells)):
-        if holes[place]:
-            swapped = swapped + [cells[place]]
+        if speaking:
+            swapped += [_core_read_as_declared(cells[place], speaking)]
             continue
         read = parsing.written_with_a_decimal_comma(cells[place])
         # A COMPOUND COLUMN'S LABEL HALF IS NOT TRANSLATED, which is
@@ -6123,11 +9225,84 @@ def _cells_read_as_declared(
         # `E11.9` would be read as `E119` and the half's published
         # spelling would never be found. A cell of this role is
         # translated only where the translation makes it a number.
-        if compound and parsing.classify_number(read) != parsing.NUMBER:
-            swapped = swapped + [cells[place]]
+        if (
+            compound
+            and parsing.classify_number(read) != parsing.NUMBER
+            and parsing.classify_number(cells[place])
+            == parsing.classify_number(read)
+        ):
+            swapped += [cells[place]]
             continue
-        swapped = swapped + [read]
+        swapped += [read]
     return swapped
+
+
+def _core_read_as_declared(
+    cell: str, speaking: "list[tuple[str, str]]"
+) -> str:
+    """One affixed cell with its CORE read in the column's own grammar.
+
+    THE WRAPPER IS THE FILE'S TEXT AND THE CORE IS THE NUMBER (landing
+    2b.16, plan P4-D106). The declaration says how this column's
+    NUMBERS are spelled, so it reaches the core and stops there: a
+    wrapper carrying either mark -- `U.S.$ `, a unit written `kg.` --
+    is published character for character, and swapping inside it makes
+    a pair the description does not publish. Measured on the base of
+    this landing, 800 cells of `U.S.$ 129,58` at floor eleven: the twin
+    wrote every cell correctly and BOTH it and the real table were
+    reported at exit 3 with `styles.at-least.decimal` MISSED, because
+    the reading turned each cell into `U,S,$ 129.58` and counted it a
+    straggler wearing no published pair.
+
+    THE LONGEST WRAPPER WINS, and the bare pair is worn by a number
+    only -- the same two rules `_affixed_checks` reads its cores by,
+    asked here so that the reading and the recount cannot disagree
+    about where a cell's number begins. A cell wearing no published
+    wrapper is a straggler and comes back exactly as it is, edge space
+    and all.
+
+    Guarantees: accepts one cell and the wrappers the description
+    publishes; returns a cell of the same wrapper with its core read as
+    declared. Determinism: a fixed function of the two. Raises nothing.
+    No I/O of any kind.
+    """
+    start = 0
+    while start < len(cell) and parsing.trimmed(cell[start : start + 1]) == "":
+        start = start + 1
+    stop = len(cell)
+    while stop > start and parsing.trimmed(cell[stop - 1 : stop]) == "":
+        stop = stop - 1
+    trimmed = cell[start:stop]
+    chosen: "tuple[str, str] | None" = None
+    reach = -1
+    for key in sorted(speaking):
+        ahead = key[0]
+        behind = key[1]
+        if not _wears_the_wrapper(cell, ahead, behind):
+            continue
+        # ...AND THE BARE PAIR IS ASKED IN THE DECLARED GRAMMAR, which is
+        # the only grammar this function is ever asked about (plan
+        # P4-D143): a bare `100,25` beside `100,25 EUR` is a number on a
+        # declared column, and asked the ordinary way it was a straggler
+        # on both the producer's side and this one.
+        if not ahead and not behind:
+            if (
+                parsing.classify_number(
+                    parsing.written_with_a_decimal_comma(trimmed)
+                )
+                != parsing.NUMBER
+            ):
+                continue
+        if len(ahead) + len(behind) > reach:
+            chosen = key
+            reach = len(ahead) + len(behind)
+    if chosen is None:
+        return cell
+    core = trimmed[len(chosen[0]) : len(trimmed) - len(chosen[1])]
+    if not core:
+        return cell
+    read = parsing.written_with_a_decimal_comma(core)
+    return f"{cell[:start]}{chosen[0]}{read}{chosen[1]}{cell[stop:]}"
 
 
 def _cells_of(
@@ -6137,35 +9312,6 @@ def _cells_of(
     if position < 1 or position > len(table.columns):
         return None
     return table.columns[position - 1]
-
-
-def _judged_hole_spellings(
-    column: contract.ColumnBlock, description: contract.Profile
-) -> "tuple[str, ...]":
-    """The `missing_by_source` keys a judged pass put there (R-P4-60).
-
-    Where the profiler judged a number to be a stand-in for "no value"
-    -- a `-999` among readings -- the twin writes those cells BLANK,
-    because reproducing the number would make the twin's own
-    measurement depend on a re-judgement of it (contract C6-116). Every
-    other key is written at its published count and is checked.
-    """
-    # THE COLUMN'S OWN DECLARATION, and not the ROLES a declaration
-    # would be honoured on. `a_decimal_comma_reaches` answers the
-    # second question and returns true for every plain numeric column,
-    # declared or not; reading an ordinary `-999.0` under a comma
-    # grammar makes it no number at all, so the value test failed and
-    # the text test it replaced was reinstated by accident. The
-    # generator asks `forced_decimal_commas` and so does this.
-    comma = False
-    for named in description.settings.forced_decimal_commas:
-        if named == column.name:
-            comma = True
-    found: list[str] = []
-    for spelling in sorted(column.missing_by_source):
-        if _one_judged_candidate(column, spelling, comma):
-            found = found + [spelling]
-    return tuple(found)
 
 
 def _one_judged_candidate(
@@ -6179,7 +9325,7 @@ def _one_judged_candidate(
     whether they are the same NUMBER -- which is how the producer
     counted the candidate's rows in the first place. A column whose
     twelve outlier cells are spelled `-999.0` publishes that spelling
-    and a candidate of `-999`: the generator writes twelve blanks, the
+    and a candidate of `-999`: the generator then wrote twelve blanks, the
     text test did not match, and a check was built that reported a
     CORRECT twin MISSED, twelve published against nothing written.
     Calendar placeholders part the same way, an alternate date form
@@ -6193,23 +9339,37 @@ def _one_judged_candidate(
     for verdict in column.sentinel_verdicts:
         if verdict.verdict != contract.VERDICT_MISSING:
             continue
-        if verdict.candidate == contract.WITHHELD:
-            continue
-        candidate = verdict.candidate
-        if candidate in parsing.calendar_placeholders():
-            for name in parsing.DATE_FORMATS:
-                if parsing.placeholder_day_of(spelling, name) == candidate:
-                    return True
-            continue
-        read = spelling
-        if comma:
-            read = parsing.written_with_a_decimal_comma(spelling)
-        held = parsing.exact_of_spelling(read)
-        if held is None:
-            continue
-        if held == parsing.exact_of_spelling(candidate):
-            return True
+        for named in verdict.spellings:
+            if named == spelling:
+                return True
     return False
+
+
+def _denotes_the_candidate(spelling: str, candidate: str, comma: bool) -> bool:
+    """Whether one hole spelling denotes one judged candidate.
+
+    A calendar placeholder is compared as the day the spelling writes in
+    any date format, and a stand-in number as the exact number the
+    spelling reads as, under a declared decimal comma where there is one.
+    Written out of `_one_judged_candidate` so the count of cells sharing
+    a candidate asks the same question (repair pass of landing 2b.3).
+
+    Guarantees: accepts a spelling, a candidate and whether the column
+    was declared a decimal-comma column; returns a bool. Raises nothing.
+    No I/O of any kind.
+    """
+    if candidate in parsing.calendar_placeholders():
+        for name in parsing.DATE_FORMATS:
+            if parsing.placeholder_day_of(spelling, name) == candidate:
+                return True
+        return False
+    read = spelling
+    if comma:
+        read = parsing.written_with_a_decimal_comma(spelling)
+    held = parsing.exact_of_spelling(read)
+    if held is None:
+        return False
+    return held == parsing.exact_of_spelling(candidate)
 
 
 def _hole_spelling_checks(
@@ -6237,14 +9397,15 @@ def _hole_spelling_checks(
     analysis branches on, and a twin that quietly drops it teaches that
     analysis the wrong shape.
 
-    THE ONE KEY THAT IS NOT CHECKED, and the registry names it: a
-    spelling a JUDGED PASS put there. Where the profiler judged a
-    number to be a stand-in for "no value" -- a `-999` among readings --
-    the twin writes those cells BLANK, because reproducing the number
-    would make the twin's own measurement depend on a re-judgement of
-    it (contract C6-116). That key is an AUTHORIZED-DEVIATION with the
-    achieved zero named beside the published count, which is what the
-    registry authorizes and no more.
+    EVERY KEY IS CHECKED, a judged pass's included (plan P4-D6.4).
+    Until then a spelling a judged pass put there -- a `-999` among
+    readings -- was the one key left out, because the twin wrote those
+    cells blank; the owner's ruling of 2026-09-15 has the twin write them
+    as the source wrote them, and the count is of cells WEARING the
+    spelling, which no judgement enters, so the key is held like any
+    other. The real table holds it at its count by construction: every
+    cell a verdict took out is a cell wearing one of the spellings the
+    verdict names.
 
     Guarantees:
 
@@ -6253,7 +9414,6 @@ def _hole_spelling_checks(
       order.
     - Errors raised: none. No I/O.
     """
-    judged = set(_judged_hole_spellings(column, description))
     checks: list[Check] = []
     for spelling in sorted(column.missing_by_source):
         published = column.missing_by_source[spelling]
@@ -6270,16 +9430,7 @@ def _hole_spelling_checks(
         # down: `quality.py` prints every subcheck through `_shown`,
         # which crosses the display boundary once, where it belongs.
         subcheck = f"holes.by_source.{spelling}"
-        if spelling in judged:
-            # A JUDGED KEY IS REPORT-ONLY, WHICH IS A CENSUS LINE AND
-            # NOT A CHECK. The registry's own word for it is
-            # "REPORT-ONLY for that key", and a check that can only
-            # ever come back AUTHORIZED-DEVIATION is a check nothing
-            # can make miss -- which the entry table's red battery
-            # refuses by name, and rightly. `_judged_hole_listings`
-            # files it where a fact no file can evidence belongs.
-            continue
-        checks = checks + [
+        checks += [
             _exact(
                 column.name,
                 "universal.missing_by_source",
@@ -6344,6 +9495,57 @@ def _presence_over_the_split(
     if present is None or missing is None:
         return _presence_of(cells)
     return present, missing
+
+
+def _pooled_words_absent(
+    column: contract.ColumnBlock,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    present: int,
+    missing: int,
+) -> "tuple[int, int]":
+    """Pooled missing-value words count as absent, up to the pool's total.
+
+    OWNER RULING OF 2026-09-17 ON RESIDUAL R-P3-11, OPTION A (plan
+    P4-D200, validation method V2.4-A4). Where the SUBMITTED column pools
+    hole spellings below a raised floor -- its `n_missing_withheld` is
+    above nought -- the cells the split reads as values and the file's
+    own description reads as holes are counted as holes, so the table the
+    description was written from holds both presence counts: 280 record
+    numbers beside ten `NA` and ten `N/A` at a floor of twenty were told
+    300 present and nought missing against their own 280 and 20.
+
+    THE GUARD THAT PROVED THE POOL HONEST NOW CHECKS ITS TOTAL. Counting
+    by blankness is what caught the round-2 witness -- a description of
+    EMPTY holes against a file spelling them `n/a` -- and the reason it
+    caught it is that the file wrote more non-blank holes than the
+    description pools, namely thirty against nought. So the disputed
+    cells count as holes only up to the published pool, and every one
+    past it counts as the value the split reads it as: a description
+    pooling nothing is measured exactly as before, and a file spelling
+    more holes than the pool holds misses both counts by the excess.
+
+    Guarantees:
+
+    - Inputs: the submitted column, the file's OWN description of it,
+      its written cells, and the two counts taken over the split.
+    - Determinism: a fixed function of those.
+    - Errors raised: none. No I/O.
+    - Boundary: where the pool is nought, or the file's own reading
+      counts no more holes than the split does, the split's counts are
+      returned unchanged.
+    """
+    pool = column.n_missing_withheld
+    if pool <= 0:
+        return present, missing
+    own_present, own_missing = _own_presence(block, cells)
+    disputed = present - own_present
+    if disputed <= 0 or own_missing - missing != disputed:
+        return present, missing
+    excess = disputed - pool
+    if excess < 0:
+        excess = 0
+    return own_present + excess, own_missing - excess
 
 
 def _presence_of(cells: "list[str]") -> "tuple[int, int]":
@@ -6574,27 +9776,18 @@ def _governed(
     # defect worth stopping on rather than one worth pairing past.
     for closed, found in zip(gated, measured, strict=True):
         if closed.verdict == WITHHELD and closed.citation == _GATE_CLOSED:
-            settled = settled + [closed]
+            settled += [closed]
             continue
         if closed.subcheck in _MEASURED_FROM_THE_CELLS:
-            settled = settled + [closed]
+            settled += [closed]
             continue
         if not split_published:
-            settled = settled + [closed]
+            settled += [closed]
             continue
         if found.verdict == WITHHELD and found.citation == _GATE_CLOSED:
-            settled = settled + [
-                Check(
-                    closed.column,
-                    closed.fact,
-                    closed.subcheck,
-                    MISSED,
-                    closed.published,
-                    _NOT_OF_THAT_KIND,
-                )
-            ]
+            settled += [_copied(closed, MISSED, _NOT_OF_THAT_KIND)]
             continue
-        settled = settled + [found]
+        settled += [found]
     return settled
 
 
@@ -6602,8 +9795,17 @@ def _universal_checks(
     column: contract.ColumnBlock,
     block: "dict[str, object]",
     mine: "tuple[str, ...]",
+    floor: int,
+    date_system: str = "",
+    holes: "tuple[str, ...]" = (),
 ) -> "list[Check]":
-    """The counts every role publishes, whatever its role is."""
+    """The counts every role publishes, whatever its role is.
+
+    `floor` and `date_system` reach the distinctness envelope of a column
+    of dates or clock times, whose tail strata depend on them (G12.14),
+    and `holes`, the spellings the table calls absent, a clock column's
+    (method G7A.4b).
+    """
     name = column.name
     checks: list[Check] = []
     for field, published in (
@@ -6613,7 +9815,7 @@ def _universal_checks(
         ("n_contradictory", column.n_contradictory),
     ):
         measured = _count_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"universal.{field}",
@@ -6622,7 +9824,9 @@ def _universal_checks(
                 None if measured is None else _shown_count(measured),
             )
         ]
-    checks = checks + _distinctness_checks(column, block, mine)
+    checks = checks + _distinctness_checks(
+        column, block, mine, floor, date_system, holes
+    )
     return checks
 
 
@@ -6630,6 +9834,9 @@ def _distinctness_checks(
     column: contract.ColumnBlock,
     block: "dict[str, object]",
     mine: "tuple[str, ...]",
+    floor: int,
+    date_system: str = "",
+    holes: "tuple[str, ...]" = (),
 ) -> "list[Check]":
     """The two distinctness counts, at whatever bar this profile sets.
 
@@ -6660,14 +9867,37 @@ def _distinctness_checks(
             # reason the date role has one: the construction writes a
             # value per RANK, so a column publishing fewer different
             # times than it has rows is met by a twin holding more.
-            checks = checks + [
+            #
+            # ...EXCEPT WHERE G11 BINDS (`contract.all_different_binds`,
+            # the dates pass of the stage-3 review, item 4). A column
+            # publishing as many different times as it has present values
+            # owes ALL of them, exactly, and G7A.4's step-and-clamp meets
+            # that on every description a profiler wrote. The envelope
+            # stood here in the obligation's place, so a file holding 99
+            # of a published 100 passed with nothing said.
+            window = _clock_distinct_window(column, facts, floor, holes)
+            if (
+                contract.all_different_binds(column, published)
+                and window[0] <= published <= window[1]
+            ):
+                checks += [
+                    _exact(
+                        name,
+                        fact,
+                        subcheck,
+                        _shown_count(published),
+                        None if measured is None else _shown_count(measured),
+                    )
+                ]
+                continue
+            checks += [
                 _within(
                     name,
                     fact,
                     subcheck,
                     _shown_count(published),
                     None if measured is None else float(measured),
-                    _clock_distinct_window(column, facts),
+                    window,
                     ENVELOPE_CLOCK_DISTINCT,
                     float(published),
                 )
@@ -6678,14 +9908,57 @@ def _distinctness_checks(
             # the construction writes a value per rank and holds far
             # more identities than the published count, so the matrix
             # sets both counts APPROXIMATED here and nowhere else.
-            checks = checks + [
+            #
+            # ...EXCEPT WHERE THE CONSTRUCTION REACHES THE COUNT (plan
+            # P4-D192). The generator moves ranks inside their gaps until
+            # the published count is held, wherever that count lies inside
+            # G12.5's envelope; a twin holding 1107 different dates against
+            # 1077 was WITHIN-BOUND of a window from 11 to 1460 and passed
+            # in silence. Inside the envelope the count is EXACT; outside
+            # it, where the construction cannot reach, the window stands.
+            #
+            # ...AND THE CLAUSE READS ONE PUBLISHED OFFSET AS ONE WAY OF
+            # WRITING AN INSTANT since the dates pass of the stage-3
+            # review, item 4, which is what brings G11's all-different
+            # obligation back on such a column: 200 timestamps all
+            # different, with `{"+02:00": 200}` published in full, were
+            # met by a file holding 29 of those values while the
+            # envelope of G12.5 stood in the obligation's place.
+            #
+            # ...AND WHERE G11 BINDS A PARTIAL OR DECLARED-SHORT COLUMN
+            # (`contract.datetime_count_exact`; the Codex review of landing
+            # R2c, item 4): 200 values all different came back as 93 with
+            # this envelope standing in the obligation's place.
+            window = _datetime_distinct_window(
+                column, facts, floor, date_system
+            )
+            # -- 3b.7 repair (skeptic 1, item 1): THE ONE STATEMENT OF
+            # EXACTNESS IS THE CONTRACT'S. A second one held an all-different
+            # joint column exactly where the construction does not reach
+            # it: 800 stamps on consecutive minutes beside 200 dates every
+            # third day came back 778 to 805 of 1,000, MISSED, where this
+            # envelope had held them WITHIN-BOUND. The envelope stands
+            # there, and the twin's own report names the shortfall
+            # (`generation._joint_count_remarks`).
+            if contract.datetime_count_held_exactly(column, published, window):
+                checks += [
+                    _exact(
+                        name,
+                        fact,
+                        subcheck,
+                        _shown_count(published),
+                        None if measured is None else _shown_count(measured),
+                    )
+                ]
+                continue
+            checks += [
                 _within(
                     name,
                     fact,
                     subcheck,
                     _shown_count(published),
                     None if measured is None else float(measured),
-                    _datetime_distinct_window(column, facts),
+                    window,
                     ENVELOPE_DATETIME_DISTINCT,
                     float(published),
                 )
@@ -6703,7 +9976,7 @@ def _distinctness_checks(
             low, high, said = _compound_window(column, facts, mine, field)
             if measured is not None and low <= measured <= high:
                 if low == high:
-                    checks = checks + [
+                    checks += [
                         _exact(
                             name,
                             fact,
@@ -6713,33 +9986,51 @@ def _distinctness_checks(
                         )
                     ]
                     continue
-                checks = checks + [
-                    Check(
-                        name,
-                        fact,
-                        subcheck,
-                        AUTHORIZED_DEVIATION
-                        if measured != published
-                        else HELD,
-                        f"{_shown_count(published)} "
-                        f"({_shown_window(float(low), float(high))})"
-                        if measured != published
-                        else _shown_count(published),
-                        _shown_count(measured),
-                        said if measured != published else "",
+                # The window is printed only beside a count it did not
+                # meet exactly, and its ends are carried only there.
+                shown_ends = measured != published
+                checks += [
+                    _judged_window(
+                        Check(
+                            name,
+                            fact,
+                            subcheck,
+                            AUTHORIZED_DEVIATION
+                            if measured != published
+                            else HELD,
+                            f"{_shown_count(published)} "
+                            f"({_shown_window(float(low), float(high))})"
+                            if measured != published
+                            else _shown_count(published),
+                            _shown_count(measured),
+                            said if measured != published else "",
+                        ),
+                        f"{float(low)}" if shown_ends else "",
+                        f"{float(high)}" if shown_ends else "",
+                        (low <= published <= high) if shown_ends else None,
                     )
                 ]
                 continue
-            checks = checks + [
-                _exact(
-                    name,
-                    fact,
-                    subcheck,
-                    _shown_count(published)
-                    if low == high
-                    else f"{_shown_count(published)} "
-                    f"({_shown_window(float(low), float(high))})",
-                    None if measured is None else _shown_count(measured),
+            # ...judged against the compound window where its two ends
+            # differ, and exactly where they meet (plan P4-D395 part 1).
+            outside = _exact(
+                name,
+                fact,
+                subcheck,
+                _shown_count(published)
+                if low == high
+                else f"{_shown_count(published)} "
+                f"({_shown_window(float(low), float(high))})",
+                None if measured is None else _shown_count(measured),
+            )
+            checks += [
+                outside
+                if low == high
+                else _judged_window(
+                    outside,
+                    f"{float(low)}",
+                    f"{float(high)}",
+                    low <= published <= high,
                 )
             ]
             continue
@@ -6757,13 +10048,13 @@ def _distinctness_checks(
             # a listing rather than a check that cannot fail.
             continue
         if corner:
-            checks = checks + [
+            checks += [
                 _lesser_or_held(
                     name, fact, subcheck, published, measured, corner, column
                 )
             ]
             continue
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 fact,
@@ -6811,36 +10102,66 @@ def _lesser_or_held(
     would lower an obligation the twin actually held -- which is the
     class of quiet lowering this project refuses by name. So the corner
     is consulted only once the exact comparison has already failed.
+
+    HOW IT IS JUDGED IS READ OFF THE DESCRIPTION, NOT OFF THE OUTCOME (lane
+    S5a's repair 1): where the description gives the corner its window
+    (both ends of the supply settled), every check of the count is
+    marked `window` -- held at the exact bar, withheld, or judged against
+    the window -- so a run's result carries the count as approximate
+    whatever the twin did; where it gives none, every check is `exact`.
+    The verdicts are as before: the window's two ends are read off the
+    published fields alone, so asking for them first moves nothing.
     """
     shown = _shown_count(published)
-    if measured is None:
-        return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
-    if measured == published:
-        return Check(name, fact, subcheck, HELD, shown, _shown_count(measured))
     facts = column.facts
     supply = _spelling_supply(column, facts, published)
     ceiling = _spelling_ceiling(column, facts, published)
     if supply is None or ceiling is None:
+        if measured is None:
+            return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
+        if measured == published:
+            return Check(name, fact, subcheck, HELD, shown, _shown_count(measured))
         return _deviation(name, fact, subcheck, shown, corner)
+    if measured is None:
+        return _judged_window(
+            Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
+        )
+    if measured == published:
+        return _judged_window(
+            Check(name, fact, subcheck, HELD, shown, _shown_count(measured))
+        )
     low = min(supply, published)
     high = max(ceiling, published)
+    # ...AND BEYOND THE EXACT BAR THE COUNT IS JUDGED AGAINST THE
+    # CORNER'S WINDOW (plan P4-D395 part 1: `judged` is `window`).
+    covers = low <= published <= high
     if low <= measured <= high:
-        return Check(
+        return _judged_window(
+            Check(
+                name,
+                fact,
+                subcheck,
+                AUTHORIZED_DEVIATION,
+                f"{shown} ({_shown_window(float(low), float(high))})",
+                _shown_count(measured),
+                CORNER_CITATIONS[corner],
+            ),
+            f"{float(low)}",
+            f"{float(high)}",
+            covers,
+        )
+    return _judged_window(
+        Check(
             name,
             fact,
             subcheck,
-            AUTHORIZED_DEVIATION,
+            MISSED,
             f"{shown} ({_shown_window(float(low), float(high))})",
             _shown_count(measured),
-            CORNER_CITATIONS[corner],
-        )
-    return Check(
-        name,
-        fact,
-        subcheck,
-        MISSED,
-        f"{shown} ({_shown_window(float(low), float(high))})",
-        _shown_count(measured),
+        ),
+        f"{float(low)}",
+        f"{float(high)}",
+        covers,
     )
 
 
@@ -7387,43 +10708,8 @@ def _quantitative(facts: contract.ColumnFacts) -> contract.ColumnFacts:
 
 
 def _group_of(facts: contract.ColumnFacts) -> str:
-    """Which registry group a column's role publishes under."""
-    if isinstance(facts, contract.JoinedFacts):
-        # THIS BRANCH WAS MISSING and the fall-through below answered
-        # for it, so a joined column's two distinctness counts were
-        # reported as `empty.n_distinct` -- the identity of a role that
-        # publishes both as 0 and exactly observable. Found by
-        # measuring a blood-pressure column rather than by any guard,
-        # which is residual R-P4-62's own point.
-        return "joined"
-    if isinstance(facts, contract.CompoundFacts):
-        # AND THIS ONE WAS WRITTEN WITH THE ROLE, not after it. The
-        # branch above records what happens when a role reaches this
-        # dispatch with no answer of its own: the fall-through at the
-        # end returns `empty`, whose registry says both counts are 0
-        # and exactly observable, so a real column's distinctness was
-        # reported under another role's identity. The fifteenth role
-        # publishes both counts over BOTH halves and has its own group.
-        return "compound"
-    if isinstance(facts, contract.ClockFacts):
-        return "clock"
-    if isinstance(facts, contract.AffixedFacts):
-        # Its quantitative block IS the numeric block, read over the
-        # cores, so it takes the numeric group's dispositions entire.
-        return "numeric"
-    if isinstance(facts, contract.NumericFacts):
-        return "numeric"
-    if isinstance(facts, contract.LabelFacts):
-        return "label"
-    if isinstance(facts, contract.DatetimeFacts):
-        return "datetime"
-    if isinstance(facts, contract.IdentifierFacts):
-        return "identifier"
-    if isinstance(facts, contract.TextFacts):
-        return "free_text"
-    if isinstance(facts, contract.UnrepresentableFacts):
-        return "numeric_unrepresentable"
-    return "empty"
+    """Which registry group a column's role publishes under (`roles.registry_group`)."""
+    return roles.registry_group(facts)
 
 
 def _role_checks(
@@ -7432,15 +10718,29 @@ def _role_checks(
     cells: "list[str]",
     floor: int,
     mine: "tuple[str, ...]",
+    plain_pairs: bool = False,
+    figures_writable: bool = True,
+    date_system: str = "",
+    declared_days: "tuple[str, ...]" = (),
+    holes: "tuple[str, ...]" = (),
 ) -> "list[Check]":
-    """Everything the column's own role adds."""
+    """Everything the column's own role adds.
+
+    ``plain_pairs`` says a joined column was read from its values rather
+    than declared, so its positions are counted over plain pairs alone.
+    ``figures_writable`` is false where no workbook wearing this
+    column's published format code can write its subsecond figures
+    (`subsecond_figures_unwritable`), and it reaches the datetime role
+    alone. ``holes`` are the spellings the table calls absent, which a
+    census-laid clock column's windows are drawn beside (method G7A.4b).
+    """
     facts = column.facts
     if isinstance(facts, contract.CompoundFacts):
         return _compound_checks(column, facts, block, cells, floor, mine)
     if isinstance(facts, contract.JoinedFacts):
-        return _joined_checks(column, facts, block, cells, floor)
+        return _joined_checks(column, facts, block, cells, floor, plain_pairs)
     if isinstance(facts, contract.ClockFacts):
-        return _clock_checks(column, facts, block)
+        return _clock_checks(column, facts, block, cells, floor, holes)
     if isinstance(facts, contract.AffixedFacts):
         return _affixed_checks(column, facts, block, cells, floor, mine)
     if isinstance(facts, contract.NumericFacts):
@@ -7451,16 +10751,25 @@ def _role_checks(
         # it stood on that role alone; a categorical column with a rare
         # tail carries it too, and it is exactly the case the census
         # was raised for.
+        # ...RECOUNTED OVER THE CELLS AS THE LEVEL ENTRIES SPEAK OF THEM
+        # (plan P4-D275.1): the census counts a spelling below the floor
+        # as the level's commonest, so a recount of the raw cells would
+        # tell a table it missed its own description.
         return _label_checks(column, facts, block, floor) + _form_checks(
             column.name, "label.shape_forms", facts.shape_forms,
-            block, floor,
+            block, floor, cells=taxonomy.described_spellings(
+                cells, taxonomy.Settings(small_cell_floor=floor)
+            ),
         )
     if isinstance(facts, contract.DatetimeFacts):
-        return _datetime_checks(column, facts, block, floor, mine)
+        return _datetime_checks(
+            column, facts, block, floor, mine, cells, figures_writable,
+            date_system, declared_days,
+        )
     if isinstance(facts, contract.TextFacts):
-        return _text_checks(column, facts, block, floor)
+        return _text_checks(column, facts, block, floor, cells)
     if isinstance(facts, contract.IdentifierFacts):
-        return _identifier_checks(column, facts, block, mine)
+        return _identifier_checks(column, facts, block, cells, floor, mine)
     if isinstance(facts, contract.UnrepresentableFacts):
         return _unrepresentable_checks(column, facts, block)
     return []
@@ -7703,7 +11012,7 @@ def _compound_checks(
         ("n_label_cells", facts.n_label_cells),
     ):
         measured = _count_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"compound.{field}",
@@ -7743,7 +11052,7 @@ def _compound_checks(
             under,
         )
         if found is not None:
-            checks = checks + [found]
+            checks += [found]
     # NAMED FOR WHAT IT HOLDS, and it was `mine` -- the name of this
     # function's own corner parameter (review round 3 of this landing,
     # item 1). The order of the lines kept it correct: the corner was
@@ -7753,7 +11062,7 @@ def _compound_checks(
     numeric_cells: "list[str]" = []
     for cell in cells:
         if parsing.classify_number(cell) == parsing.NUMBER:
-            numeric_cells = numeric_cells + [cell]
+            numeric_cells += [cell]
     settled = {subcheck for _fact, subcheck in _SPLIT_CONSTANT_SUBCHECKS}
     for check in _numeric_checks(
         numbers,
@@ -7768,7 +11077,7 @@ def _compound_checks(
         # checks build them, so they are taken out here rather than by
         # a branch inside machinery every other role shares.
         if check.subcheck not in settled:
-            checks = checks + [check]
+            checks += [check]
     # THE LABEL HALF'S OWN TWO COUNTS OF DIFFERENT CELLS. They are
     # published facts of the label group read over this half, and no
     # check reached them: the loader read the folded one for invariant
@@ -7797,7 +11106,7 @@ def _compound_checks(
             field,
         )
         if found is not None:
-            checks = checks + [found]
+            checks += [found]
     checks = checks + _label_checks(
         labels, facts.labels, label_block, floor
     )
@@ -7817,6 +11126,7 @@ def _joined_checks(
     block: "dict[str, object]",
     cells: "list[str]",
     floor: int,
+    plain_pairs: bool = False,
 ) -> "list[Check]":
     """A column of two or more numbers written in one cell.
 
@@ -7845,7 +11155,7 @@ def _joined_checks(
     name = column.name
     checks: "list[Check]" = []
     found = _text_at(block, "separator")
-    checks = checks + [
+    checks += [
         _exact(
             name,
             "joined.separator",
@@ -7860,7 +11170,7 @@ def _joined_checks(
         ("n_unparsed", facts.n_unparsed),
     ):
         measured = _count_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"joined.{field}",
@@ -7876,7 +11186,7 @@ def _joined_checks(
             if isinstance(held, int) and not isinstance(held, bool)
             else None
         )
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"joined.part_min_widths[{place}]",
@@ -7903,7 +11213,7 @@ def _joined_checks(
             if isinstance(held, int) and not isinstance(held, bool)
             else None
         )
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"joined.part_above[{place}]",
@@ -7942,7 +11252,7 @@ def _joined_checks(
             measured_agreement = float(found_agreement) + 0.0
         fact = f"joined.part_agreements[{place}]"
         subcheck = f"together.how strongly they move, pair {place + 1}"
-        checks = checks + [
+        checks += [
             _within(
                 name,
                 fact,
@@ -7964,7 +11274,7 @@ def _joined_checks(
         column, facts, block, cells, floor
     )
     checks = checks + _position_styles(
-        column, facts, block, cells, floor
+        column, facts, block, cells, floor, plain_pairs
     )
     # AND EVERYTHING BETWEEN THE TWO ENDS OF EACH POSITION'S LADDER
     # (residual R-P4-58). The ends and the style census were measured
@@ -7978,7 +11288,11 @@ def _joined_checks(
 
 
 def _position_cells(
-    cells: "list[str]", separator: str, parts: int, place: int
+    cells: "list[str]",
+    separator: str,
+    parts: int,
+    place: int,
+    plain_pairs: bool = False,
 ) -> "list[str]":
     """The numbers one POSITION of a joined column wrote.
 
@@ -7999,6 +11313,15 @@ def _position_cells(
     style facts it had never broken. A check that reports real data as
     missed is worse than no check, and R-P4-43 asks for a check whose
     red case is a file that genuinely differs.
+
+    AND A COLUMN READ FROM ITS VALUES ADMITS WHAT RULE 9c ADMITS
+    (``plain_pairs``; integration repair of landing 2b.5): two pieces of
+    figures alone, neither led by a zero. The producer left `0120/080`
+    and `120/80.5` unparsed on such a column, and counting them here put
+    a padded and a pointed number into positions the description had
+    measured without them: the real table failed its own description on
+    `leading_zero` and on `remainder`. Restated here rather than
+    borrowed, for the reason `_written_with_a_leading_minus` gives.
     """
     found: "list[str]" = []
     for cell in cells:
@@ -8009,10 +11332,22 @@ def _position_cells(
         for piece in pieces:
             if parsing.parse_number(piece) is None:
                 every = False
+            if plain_pairs and not _figures_without_a_leading_zero(piece):
+                every = False
         if not every:
             continue
-        found = found + [pieces[place]]
+        found += [pieces[place]]
     return found
+
+
+def _figures_without_a_leading_zero(piece: str) -> bool:
+    """Figures alone, one or more, and no zero before another figure."""
+    if not piece:
+        return False
+    for character in piece:
+        if not ("0" <= character <= "9"):
+            return False
+    return not (len(piece) > 1 and piece[0] == "0")
 
 
 def _cut_at_separator(cell: str, separator: str) -> "list[str]":
@@ -8035,6 +11370,7 @@ def _position_styles(
     block: "dict[str, object]",
     cells: "list[str]",
     floor: int,
+    plain_pairs: bool = False,
 ) -> "list[Check]":
     """Each position's own style and width censuses (residual R-P4-43).
 
@@ -8062,8 +11398,17 @@ def _position_styles(
                 if isinstance(key, str):
                     inner[key] = held[key]
         mine = _position_cells(
-            cells, facts.separator, facts.n_parts, place
+            cells, facts.separator, facts.n_parts, place, plain_pairs
         )
+        # ...AND ITS SPELLINGS, beside its forms (landing 2b.2): the mark
+        # between thousands, the notation of a negative and the count of
+        # signed decimals are published on every position, and a
+        # position is a column of numbers read over its own cells.
+        # A POSITION FILES NO SPELLING CHECK (landing 2b.2): its parts
+        # are read from figures and one point alone, so no mark, sign or
+        # plus can stand in one, and the loader holds its three spelling
+        # facts to the defaults (GS1, NS1, DP1). A check of them could
+        # not fail.
         for check in _style_checks(
             column, facts.parts[place], inner, mine, floor
         ):
@@ -8071,7 +11416,7 @@ def _position_styles(
             head = "numeric."
             if fact[: len(head)] == head:
                 fact = f"joined.parts[{place}].{fact[len(head):]}"
-            checks = checks + [
+            checks += [
                 dataclasses.replace(
                     check,
                     fact=fact,
@@ -8083,6 +11428,33 @@ def _position_styles(
 
 # The two rungs `_joined_part_checks` measures under its own names.
 _LADDER_ENDS = ("ladder.min", "ladder.max")
+
+
+def _is_a_ladder_end(subcheck: str) -> bool:
+    """Whether the ladder walk's check is one of the two ends.
+
+    A HEAPED END CARRIES ITS OWN WORDING (stage 3, contract 6.7a). The
+    tail rule withholds both ends unless a group of rows shares one,
+    and where one is published the walk files it as
+    `ladder.max (heaped end, one-sided)` rather than `ladder.max`. A
+    skip that matched the bare name let that one through, and the
+    position's largest value was then named twice -- beside
+    `ends.number 2 max (heaped, one-sided)` -- which is the very defect
+    the skip exists to prevent. What settles it is the name before the
+    parenthesis, so a further wording for the same rung is skipped too.
+    It is read by SLICING and not by splitting, because the offline
+    audit refuses a method call on a value it cannot trace.
+
+    Guarantees: accepts one subcheck name; answers whether it names an
+    end of a position's ladder. Determinism: a function of the text.
+    Raises nothing. No I/O of any kind.
+    """
+    for end in _LADDER_ENDS:
+        if subcheck == end:
+            return True
+        if subcheck[: len(end) + 2] == f"{end} (":
+            return True
+    return False
 
 
 def _joined_number_checks(
@@ -8128,8 +11500,8 @@ def _joined_number_checks(
                 if isinstance(key, str):
                     inner[key] = held[key]
         numbers = facts.parts[place]
-        made = _ladder_checks(column, numbers, inner)
-        made = made + _moment_checks(column, numbers, inner)
+        made = _ladder_checks(column, numbers, inner, floor)
+        made = made + _moment_checks(column, numbers, inner, floor)
         for check in made:
             # THE TWO ENDS ARE ALREADY MEASURED, by
             # `_joined_part_checks`, under the names the entry table
@@ -8138,13 +11510,13 @@ def _joined_number_checks(
             # `ends.number 1 min` and `number 1 ladder.min` for one
             # published value -- which is the defect this residual is
             # an instance of, made a second time by its own repair.
-            if check.subcheck in _LADDER_ENDS:
+            if _is_a_ladder_end(check.subcheck):
                 continue
             fact = check.fact
             head = "numeric."
             if fact[: len(head)] == head:
                 fact = f"joined.parts[{place}].{fact[len(head):]}"
-            checks = checks + [
+            checks += [
                 dataclasses.replace(
                     check,
                     fact=fact,
@@ -8180,7 +11552,30 @@ def _joined_part_checks(
                 if isinstance(key, str):
                     inner[key] = seen[key]
         rungs = _inner_at(inner, "percentiles") if inner else None
-        for end in ("min", "max"):
+        # A TAIL BLOCK'S ENDS: checked only where published -- a heaped
+        # end -- and then one-sided and silent, the check the plain
+        # numeric role takes (stage 3; the skeptic's B7).
+        if numbers.tail_rule:
+            for index, end in ((0, "min"), (10, "max")):
+                heaped = numbers.percentiles.rungs[index]
+                if heaped is None:
+                    continue
+                found = _heaped_end_check(
+                    name, end, heaped, inner, index == 0
+                )
+                checks += [
+                    Check(
+                        found.column,
+                        f"joined.parts[{place}].{end}",
+                        f"ends.number {place + 1} {end} (heaped, one-sided)",
+                        found.verdict,
+                        found.published,
+                        found.achieved,
+                        found.citation,
+                        found.note,
+                    )
+                ]
+        for end in ("min", "max") if not numbers.tail_rule else ():
             published = numbers.percentiles.rungs[
                 0 if end == "min" else len(numbers.percentiles.rungs) - 1
             ]
@@ -8191,7 +11586,7 @@ def _joined_part_checks(
                     value, bool
                 ):
                     measured = float(value)
-            checks = checks + [
+            checks += [
                 _exact(
                     name,
                     f"joined.parts[{place}].{end}",
@@ -8207,7 +11602,7 @@ def _joined_part_checks(
             value = inner["integer_valued"]
             if isinstance(value, bool):
                 truth = value
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"joined.parts[{place}].integer_valued",
@@ -8262,7 +11657,7 @@ def _affixed_checks(
     # of `4.2 H` is read with ` H` off it and not with nothing.
     speaking: "list[tuple[str, str]]" = [(prefix, suffix)]
     for one in facts.affix_variants:
-        speaking = speaking + [(one.prefix, one.suffix)]
+        speaking += [(one.prefix, one.suffix)]
     cores: list[str] = []
     worn: "list[tuple[str, str]]" = []
     for cell in cells:
@@ -8289,14 +11684,14 @@ def _affixed_checks(
             continue
         core = trimmed[len(chosen[0]) : len(trimmed) - len(chosen[1])]
         if core:
-            cores = cores + [core]
+            cores += [core]
             # ...AND WHICH WRAPPER IT WORE (plan P4-D37). Every
             # published wrapper carries its own block now, so the
             # recount is read one wrapper at a time: a style census
             # published over a hundred kilograms, checked against a
             # recount over two hundred cores, missed by the hundred
             # pounds beside them.
-            worn = worn + [chosen]
+            worn += [chosen]
     # `n_affixed` COMES OFF THE FILE'S OWN DESCRIPTION, not off a
     # recount of its cells under the published pair. The difference is
     # V5.1: this report may state about the measured file only what
@@ -8309,7 +11704,7 @@ def _affixed_checks(
     # checked against a file of another printed "found: 5" beside the
     # pair, which is five cells of somebody's table counted for a
     # reader who may not hold it.
-    checks = checks + [
+    checks += [
         _exact(
             name,
             "affixed.n_affixed",
@@ -8346,7 +11741,7 @@ def _affixed_checks(
     # reaches this report, and a wrapper is text, so the measured side
     # is kept back exactly as the commonest pair's is; what a reader is
     # shown is what the DESCRIPTION asks for, which is its own.
-    checks = checks + [
+    checks += [
         _silent(
             name,
             "affixed.affix_variants",
@@ -8405,7 +11800,7 @@ def _affixed_checks(
             # count beside it.
             continue
         if corner:
-            checks = checks + [
+            checks += [
                 _lesser_or_held(
                     name,
                     f"affixed.{field}",
@@ -8417,7 +11812,7 @@ def _affixed_checks(
                 )
             ]
             continue
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"affixed.{field}",
@@ -8447,7 +11842,7 @@ def _affixed_checks(
             # a file of bare `1` to `100` reported both affix spellings
             # HELD, which is a check stating something about a file it
             # had not looked at.
-            checks = checks + [
+            checks += [
                 Check(
                     name,
                     f"affixed.{field}",
@@ -8476,7 +11871,7 @@ def _affixed_checks(
         # report's phrase for an empty side compared equal to a
         # description that publishes none. The spellings decide; the
         # report says only which way it came out.
-        checks = checks + [
+        checks += [
             _silent(
                 name,
                 f"affixed.{field}",
@@ -8496,7 +11891,7 @@ def _affixed_checks(
         ("n_core_contradictory", facts.n_core_contradictory),
         ("n_core_not_numeric", facts.n_core_not_numeric),
     ):
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"affixed.{field}",
@@ -8519,7 +11914,7 @@ def _affixed_checks(
     common_cores: "list[str]" = []
     for step in range(len(cores)):
         if worn[step] == (prefix, suffix):
-            common_cores = common_cores + [cores[step]]
+            common_cores += [cores[step]]
     # ...AND THROUGH THE CORE VIEW, NOT THE COLUMN (review round 2,
     # item 2). Every window `_numeric_checks` draws is a function of the
     # population it is given: the supply and the ceiling come off the
@@ -8606,7 +12001,7 @@ def _wrapper_checks(
     ours: "list[str]" = []
     for step in range(len(cores)):
         if worn[step] == mask:
-            ours = ours + [cores[step]]
+            ours += [cores[step]]
     inner = _worn_entry(block, wrapper.prefix, wrapper.suffix)
     view = dataclasses.replace(
         column,
@@ -8656,7 +12051,7 @@ def _wrapper_checks(
             # census entries -- see `_corner_listings`' wrapper walk.
             continue
         if corner:
-            checks = checks + [
+            checks += [
                 _lesser_or_held(
                     column.name,
                     f"affixed.{field}",
@@ -8668,7 +12063,7 @@ def _wrapper_checks(
                 )
             ]
             continue
-        checks = checks + [
+        checks += [
             _exact(
                 column.name,
                 f"affixed.{field}",
@@ -8685,7 +12080,7 @@ def _wrapper_checks(
         ("n_core_contradictory", wrapper.n_core_contradictory),
         ("n_core_not_numeric", wrapper.n_core_not_numeric),
     ):
-        checks = checks + [
+        checks += [
             _exact(
                 column.name,
                 f"affixed.{field}",
@@ -8718,7 +12113,7 @@ def _wrapper_checks(
         mine,
     )
     for step in range(len(inside)):
-        checks = checks + [
+        checks += [
             dataclasses.replace(
                 inside[step],
                 subcheck=f"{named}.{inside[step].subcheck}",
@@ -8863,6 +12258,21 @@ def _numeric_checks(
     """A column of counts or of continuous values."""
     name = column.name
     checks: list[Check] = []
+    # EVERY SPELLING A COUNT COLUMN PUBLISHES, recounted exactly (7.13,
+    # plan P4-D123). The census is all or nothing and pools nothing, so
+    # each spelling is a point and not a window: a file holding `07`
+    # where the table held `007` misses both lines, which is the defect
+    # the census was published to close.
+    if facts.number_spellings:
+        checks = checks + _form_checks(
+            name,
+            "numeric.number_spellings",
+            facts.number_spellings,
+            block,
+            floor,
+            "number_spellings",
+            "spellings",
+        )
     # HOW MANY DIFFERENT NUMBERS THE TWIN HOLDS (amendment A-P4-55).
     # Recounted from the re-description, like every other fact of this
     # block, and compared EXACTLY: the owner ruled the count an
@@ -8882,7 +12292,7 @@ def _numeric_checks(
         published = facts.n_distinct_values
         measured = _count_at(block, "n_distinct_values")
         if corner and not _envelope_admits_every_count(column, facts, published):
-            checks = checks + [
+            checks += [
                 _lesser_or_held(
                     name,
                     "numeric.n_distinct_values",
@@ -8894,7 +12304,7 @@ def _numeric_checks(
                 )
             ]
         elif not corner:
-            checks = checks + [
+            checks += [
                 _exact(
                     name,
                     "numeric.n_distinct_values",
@@ -8911,7 +12321,7 @@ def _numeric_checks(
         ("n_left_out_of_statistics", facts.n_left_out_of_statistics),
     ):
         measured = _count_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"numeric.{field}",
@@ -8929,7 +12339,7 @@ def _numeric_checks(
         ),
     ):
         measured_truth = _truth_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"numeric.{field}",
@@ -8943,7 +12353,7 @@ def _numeric_checks(
             )
         ]
     share = _number_at(block, "numeric_share")
-    checks = checks + [
+    checks += [
         _exact(
             name,
             "numeric.numeric_share",
@@ -8952,9 +12362,591 @@ def _numeric_checks(
             None if share is None else _shown_number(share),
         )
     ]
-    checks = checks + _ladder_checks(column, facts, block)
-    checks = checks + _moment_checks(column, facts, block)
+    checks = checks + _ladder_checks(column, facts, block, floor)
+    checks = checks + _moment_checks(column, facts, block, floor)
     checks = checks + _style_checks(column, facts, block, cells, floor)
+    checks = checks + _spelling_checks(column, facts, block, cells, floor)
+    return checks
+
+
+def _mark_in_words(mark: str) -> str:
+    """A mark between thousands as a report names it, never as itself.
+
+    Four of the marks cannot be seen on a page, so a report printing the
+    character would print a blank where a verdict's evidence stands.
+    """
+    for known, words in parsing.GROUP_MARK_WORDS:
+        if known == mark:
+            return words
+    return "a mark this version does not name"
+
+
+def _pool_alone_check(
+    name: str,
+    fact: str,
+    pool: int,
+    measured: "dict[str, int] | None",
+    order: "tuple[str, ...]",
+    population: int,
+    floor: int,
+    numeric: int,
+) -> Check:
+    """A census of marks that is ONLY a pool, held as one count (plan P4-D352).
+
+    It said nothing at all: `_mixture_check` is filed only where the
+    census names a convention, so a pool standing alone was never
+    compared, and 180 grouped amounts came back bare with no verdict.
+
+    What the census publishes is the pool and that every mark stood
+    under the floor, so that is what is compared, in this order:
+
+    1. a file whose own description NAMES a mark is MISSED first,
+       whatever its population: no mark the method writes carries the
+       floor, and the real column's own description names none;
+    2. a silent file that could have spoken the pool against its own
+       totals is MISSED -- the bare copy of a twin holding the pool;
+    3. a population short of the pool, a leftover strictly between
+       nought and the floor, or a silent file otherwise is WITHHELD
+       under the pooled gate, and the generator's report names the
+       difference;
+    4. a file pooling the same count is HELD, however it splits it under
+       the floor, because which marks the pool held is not published,
+       and a file pooling another count is MISSED.
+
+    Guarantees: accepts the column name, the fact, the published pool,
+    the file's own census, the enumeration fixing the order, the cells
+    that could wear a mark, the settings floor and every number of the
+    file; returns one check. Determinism: a function of those inputs.
+    Raises nothing. No I/O of any kind. Only counts a description
+    publishes are printed, and a mark is named in words.
+    """
+    least = parsing.census_floor(floor)
+    asked = f"{pool} grouped, each mark on fewer than {least}"
+    if measured is None:
+        return Check(
+            name, f"numeric.{fact}", f"spelling.{fact}", WITHHELD,
+            asked, "", _GATE_CLOSED,
+        )
+    for convention in order:
+        if convention in measured and measured[convention] > 0:
+            return Check(
+                name, f"numeric.{fact}", f"spelling.{fact}", MISSED,
+                asked,
+                f"{measured[convention]} with {_mark_in_words(convention)}",
+            )
+    pooled = 0
+    if taxonomy.SUPPRESSED_LABEL in measured:
+        pooled = measured[taxonomy.SUPPRESSED_LABEL]
+    rest = population - pool
+    if (
+        pooled < 1
+        and rest >= 0
+        and not (0 < rest < least)
+        and parsing.census_nameable([pool], [population, numeric], floor)
+    ):
+        return Check(
+            name, f"numeric.{fact}", f"spelling.{fact}", MISSED,
+            asked, _NO_NAMEABLE_COUNT,
+        )
+    if rest < 0 or (0 < rest < least) or pooled < 1:
+        return Check(
+            name, f"numeric.{fact}", f"spelling.{fact}", WITHHELD,
+            asked, "", _GATE_POOLED,
+        )
+    return Check(
+        name, f"numeric.{fact}", f"spelling.{fact}",
+        HELD if pooled == pool else MISSED,
+        asked, f"{pooled} grouped, each mark on fewer than {least}",
+    )
+
+
+def _mixture_check(
+    name: str,
+    fact: str,
+    census: "dict[str, int]",
+    measured: "dict[str, int] | None",
+    order: "tuple[str, ...]",
+    population: int,
+    floor: int,
+    numeric: int = 0,
+) -> Check:
+    """One census of mixed conventions, held as a whole (landing 2b.7).
+
+    THE FACT THIS CHECKS IS THE MIXTURE ITSELF, so it is one check and
+    not one per convention. A column writing 480 negatives with a minus
+    and 120 in brackets owes both counts together: a twin meeting the
+    first and not the second has not reproduced the column's
+    convention, and two checks would let a reader think the half that
+    passed was the whole obligation.
+
+    WHERE THE DESCRIPTION NAMES NO CONVENTION -- the empty census, and
+    the unavailable state a census reaches when it cannot speak without
+    naming somebody -- there is nothing to check and the verdict is
+    WITHHELD under the closed gate, exactly as it is for a fact the
+    file's own description would not publish. That is the ordinary case
+    for every column that mixes nothing, and it is why this check is
+    silent on almost every column.
+
+    Each named convention is then compared EXACTLY with what describing
+    the file on its own publishes for it. The pooled remainder is not a
+    window here, as it is for a form count: the generator writes a pooled
+    cell in a convention this census does NOT name, so widening the bar
+    by the pool would excuse a twin that wrote the pool's cells in a
+    named one.
+
+    FILED WHERE THE CENSUS NAMES ONE CONVENTION TOO, AND WHERE CELLS ARE
+    LEFT OVER (plan P4-D142, the final Codex review's grouping item 3).
+    It used to be filed only where two were named and only where the
+    cells that could wear one numbered exactly the named total, so 800
+    grouped prices beside 400 bare ones -- `{",": 800}` -- were twinned
+    as 1,200 grouped cells with nothing missed and nothing withheld. The
+    comparison is now made wherever the file's own description names a
+    convention and the cells left over could be the real column's: none,
+    or at least `parsing.census_floor` of them, which is the only
+    remainder the census is ever published beside (P4-D140). A file whose
+    leftover falls strictly between is a file whose own description holds
+    its census back, and the verdict says so under the pooled gate.
+
+    Guarantees: accepts the column name, the fact, the published census,
+    the file's own and the enumeration fixing the order; returns one
+    check. Determinism: a function of those inputs. Raises nothing. No
+    I/O of any kind. No text of the file is printed: a count is a count,
+    and a convention is named from a closed list.
+    """
+    named: "list[str]" = []
+    for convention in order:
+        if convention in census and census[convention] > 0:
+            named += [convention]
+    owed = 0
+    for convention in named:
+        owed = owed + census[convention]
+    if not named:
+        return Check(
+            name,
+            f"numeric.{fact}",
+            f"spelling.{fact}",
+            WITHHELD,
+            _shown_count(0),
+            "",
+            _GATE_CLOSED,
+        )
+    if measured is None:
+        return Check(
+            name,
+            f"numeric.{fact}",
+            f"spelling.{fact}",
+            WITHHELD,
+            _shown_count(owed),
+            "",
+            _GATE_CLOSED,
+        )
+    pool = 0
+    if taxonomy.SUPPRESSED_LABEL in census:
+        pool = census[taxonomy.SUPPRESSED_LABEL]
+    rest = population - owed - pool
+    least = parsing.census_floor(floor)
+    spoken = False
+    for convention in order:
+        if convention in measured and measured[convention] > 0:
+            spoken = True
+    printed: "list[int]" = []
+    for convention in named:
+        printed += [census[convention]]
+    if pool > 0:
+        printed += [pool]
+    if (
+        not spoken
+        and rest >= 0
+        and not (0 < rest < least)
+        and parsing.census_nameable(printed, [population, numeric], floor)
+    ):
+        # A SILENT FILE WHOSE PUBLISHED COUNTS IT COULD HAVE SPOKEN. Were
+        # this file's cells written at the published counts, its own
+        # description would print them: every count reaches the floor and
+        # nothing a reader could take from this file's own totals is below
+        # it. It printed nothing, so its counts are not the published
+        # ones. Withholding here would let a twin that dropped every mark
+        # of a 600-and-600 column pass with no verdict at all.
+        return Check(
+            name,
+            f"numeric.{fact}",
+            f"spelling.{fact}",
+            MISSED,
+            _shown_count(owed),
+            _NO_NAMEABLE_COUNT,
+        )
+    if rest < 0 or (0 < rest < least) or not spoken:
+        # THE CELLS THAT COULD WEAR A CONVENTION ARE NOT THEMSELVES AN
+        # OBLIGATION, and this gate is where that shows. How many of a
+        # twin's cells reach four whole figures, or fall below zero,
+        # follows from its ladder and its forms; neither is pinned cell
+        # for cell. So a twin with fewer such cells than the description
+        # counts cannot place every named convention however faithfully
+        # it writes the ones it can, and holding it to the exact counts
+        # would report a miss for a shortfall that belongs to the
+        # ladder -- measured on the spelling shapes of landing 2b.2,
+        # where twenty-five columns mixing nothing at all were told they
+        # had missed their own single convention.
+        #
+        # The comparison is made where the two populations agree, which
+        # is every real table against its own description and every twin
+        # whose ladder reached the same cells. Where they do not, the
+        # verdict is WITHHELD and the generator's report names the
+        # shortfall as a deviation of this very fact, so nothing goes
+        # unsaid: the page a person reads still carries the number.
+        #
+        # THE SAME GATE CLOSES ON A LEFTOVER BELOW THE CENSUS FLOOR, and
+        # on a file whose own description names no convention (plan
+        # P4-D140): the disclosure rule holds that census back from the
+        # file's own description, so there is nothing published to
+        # compare, and the real column's census is never published beside
+        # such a leftover in the first place.
+        return Check(
+            name,
+            f"numeric.{fact}",
+            f"spelling.{fact}",
+            WITHHELD,
+            _shown_count(owed),
+            "",
+            _GATE_POOLED,
+        )
+    found = 0
+    agreed = True
+    for convention in named:
+        mine = measured[convention] if convention in measured else 0
+        found = found + mine
+        if mine != census[convention]:
+            agreed = False
+    if pool > 0:
+        # THE POOL IS AN OBLIGATION TOO (the review of follow-up B, item
+        # 3). It says the rest were written in conventions the census does
+        # not name, each by fewer cells than the line, so a file whose own
+        # description pools another count -- and that description pools
+        # nothing beside a named convention -- has not written it: five
+        # marks named at sixteen beside a pool of twenty came back with all
+        # twenty on one unnamed mark, and only the five named counts were
+        # compared. The loader refuses such a census now (TM1, NS2), so
+        # this holds what nothing else would if one reached here.
+        mine = 0
+        if taxonomy.SUPPRESSED_LABEL in measured:
+            mine = measured[taxonomy.SUPPRESSED_LABEL]
+        found = found + mine
+        if mine != pool:
+            agreed = False
+    return Check(
+        name,
+        f"numeric.{fact}",
+        f"spelling.{fact}",
+        HELD if agreed else MISSED,
+        _shown_count(owed + pool),
+        _shown_count(found),
+    )
+
+
+def _spelling_checks(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    floor: int,
+) -> "list[Check]":
+    """The three spellings a numeric block publishes, held (landing 2b.2).
+
+    RECOUNTED FROM THE RE-DESCRIPTION, like every other fact of this
+    block, so each is compared with what describing the file on its own
+    publishes -- the mark between thousands, the notation of a negative
+    number and the count of signed decimals -- and every edge the
+    producer's rules have comes along with it: a padded or exponent cell
+    holding a mark, the cores each wrapper wears, the numeric half of a
+    column with labels, and a declared decimal comma read in its own
+    grammar. The real table meets all three by construction; a twin
+    meets them because the generator writes them.
+
+    WHY THE MARK IS AN OBLIGATION NOW. Plan P4-D38 made it REPORT-ONLY on
+    the ground that a file is read the same way with or without it. The
+    first goal says otherwise: code developed on a twin that carries the
+    mark strips it before converting, and code developed on one that
+    does not never meets it -- a bare copy of a grouped twin validated
+    with exit 0.
+
+    WHERE THE FILE IS TOO SMALL TO SHOW THE SPELLING the verdict is
+    WITHHELD rather than MISSED: a mark needs the smallest group size of
+    four-figure numbers in a groupable form, and a notation that many
+    negative numbers, before any description of the file can publish
+    them. The generator names the same case in its report. The count of
+    signed decimals is compared exactly; a twin whose ladder put fewer
+    non-negative values in the decimal form misses it, and its report
+    says so.
+
+    Guarantees: accepts one numeric block, the file's re-description of
+    it, the file's cells as the block reads them and the smallest group
+    size; returns three checks. Determinism: a function of those inputs.
+    Raises nothing. No I/O of any kind. No text of the file is printed:
+    the mark is named in words from a closed list.
+    """
+    name = column.name
+    four_figures = 0
+    negatives = 0
+    # HOW MANY OF THIS FILE'S OWN CELLS ARE SIGNED DECIMALS (landing
+    # 2b.7). Counted from the cells rather than read back off the
+    # re-description, because the re-description of a file whose count
+    # falls below the census floor carries the unavailable state and no
+    # number at all -- which is the point of that state. The bar below
+    # is the FLOOR and never the count, so nothing here prints it.
+    signed = 0
+    decimals = 0
+    # EVERY NUMBER OF THE FILE, the widest total a reader subtracts a
+    # census from (plan P4-D140).
+    numbers = 0
+    for cell in cells:
+        body = parsing.trimmed(cell)
+        if not body or parsing.classify_number(body) != parsing.NUMBER:
+            continue
+        numbers += 1
+        core = parsing.number_core(body)
+        if core[:1] == "-":
+            negatives += 1
+        if parsing.numeric_style(body) == parsing.STYLE_DECIMAL:
+            # BOTH HALVES OF THE CENSUS'S POPULATION, because the rule
+            # it publishes is about both: the cells written with a point
+            # that carry a plus, and the ones that do not.
+            decimals += 1
+            if core[:1] == "+":
+                signed += 1
+        if parsing.numeric_style(body) not in (
+            parsing.STYLE_PLAIN,
+            parsing.STYLE_LEADING_PLUS,
+            parsing.STYLE_DECIMAL,
+        ):
+            continue
+        figures = core
+        if figures[:1] == "-" or figures[:1] == "+":
+            figures = figures[1:]
+        whole = 0
+        for letter in figures:
+            if letter == ".":
+                break
+            whole += 1
+        if whole >= 4:
+            four_figures += 1
+    checks: list[Check] = []
+    for fact, published, measured, could_show, default in (
+        (
+            "group_separator",
+            facts.group_separator,
+            _text_at(block, "group_separator"),
+            four_figures,
+            "",
+        ),
+        (
+            "negative_form",
+            facts.negative_form,
+            _text_at(block, "negative_form"),
+            negatives,
+            parsing.NEGATIVE_MINUS,
+        ),
+    ):
+        shown = published
+        found = measured
+        if fact == "group_separator":
+            shown = _mark_in_words(published)
+            found = None if measured is None else _mark_in_words(measured)
+        if (
+            measured is not None
+            and measured != published
+            and published != default
+            and (could_show < 1 or could_show < floor)
+        ):
+            checks += [
+                # THE SECOND WAY THE GATE CLOSES, and the one the fence
+                # of V5.3 admits for a clause over the written cells: a
+                # mark or a notation is published only where the cells
+                # that could wear it reach the floor, so this file's own
+                # description publishes the default whatever they wear.
+                Check(
+                    name,
+                    f"numeric.{fact}",
+                    f"spelling.{fact}",
+                    WITHHELD,
+                    shown,
+                    "",
+                    _GATE_POOLED,
+                )
+            ]
+            continue
+        checks += [
+            _exact(name, f"numeric.{fact}", f"spelling.{fact}", shown, found)
+        ]
+    # THE SIGNED DECIMALS, UNDER THE FLOOR AND ITS POOLED WINDOW: the
+    # named count is held the way a named form count is, with the pooled
+    # remainder widening the bar, and a block naming none is held to
+    # naming none.
+    census = _map_at(block, "decimal_plus")
+    named = 0
+    if "+" in facts.decimal_plus:
+        named = facts.decimal_plus["+"]
+    pool = 0
+    if taxonomy.SUPPRESSED_LABEL in facts.decimal_plus:
+        pool = facts.decimal_plus[taxonomy.SUPPRESSED_LABEL]
+    if census is None:
+        checks += [
+            Check(
+                name,
+                "numeric.decimal_plus",
+                "spelling.decimal_plus",
+                WITHHELD,
+                _shown_count(named),
+                "",
+                _GATE_CLOSED,
+            )
+        ]
+    elif named > 0:
+        checks += [
+            _floor_governed(
+                name,
+                "numeric.decimal_plus",
+                "spelling.decimal_plus",
+                named,
+                census,
+                "+",
+                floor,
+                pool,
+            )
+        ]
+    elif taxonomy.UNAVAILABLE_LABEL in facts.decimal_plus:
+        # THE UNAVAILABLE STATE PUBLISHES THE BAR AND NOT THE COUNT
+        # (landing 2b.7, plan P4-D65.1), and that is an obligation
+        # rather than a silence.
+        #
+        # The state exists because nought and every count below the
+        # census floor have to be ONE published state: `+` is this
+        # census's only category, so a pooled count beside it named the
+        # category it held back. What every one of those counts has in
+        # common is the thing worth saying -- FEWER SIGNED DECIMALS THAN
+        # THE FLOOR NAMES -- and a file meets that or misses it. So the
+        # bar is the floor, the exact count is published nowhere, and a
+        # file rewritten to carry the floor's worth of signed decimals
+        # is MISSED here as it always was.
+        #
+        # Filing this as WITHHELD instead was tried and is what this
+        # comment exists to stop coming back: it withdrew a real
+        # obligation from every ordinary decimal column, and the red
+        # battery caught it -- four fixtures whose `spelling.decimal_plus`
+        # had been an executable check became unfalsifiable in one
+        # commit.
+        # WHAT THE UNAVAILABLE STATE CLAIMS IS THAT THE COUNT IS NOT
+        # NAMEABLE, and the bar is that claim and nothing more.
+        #
+        # The state is reached TWO ways and an earlier version of this
+        # check knew only one of them. A count below the census floor
+        # reaches it -- and so does a count well ABOVE the floor whose
+        # COMPLEMENT falls below, because naming "1,195 of these 1,200
+        # carry a plus" names the five that do not. Holding every such
+        # census to "fewer signed decimals than the floor" therefore
+        # failed a real table against its own description: 1,195 signed
+        # cells beside 5 unsigned ones, MISSED on the file the
+        # description was computed from. A gate test of this landing
+        # caught it.
+        #
+        # So the file is held to being in the same position: its own
+        # count is nameable, or it is not, and only an unnameable one
+        # meets a census that says the count could not be named. That
+        # is falsifiable -- a file with 40 signed cells of 1,200, both
+        # sides clear of the floor, would have been NAMED and so is
+        # MISSED here -- and it discloses nothing the published state
+        # does not already say.
+        least = taxonomy.census_floor_of(floor)
+        rest = decimals - signed
+        nameable = (
+            decimals >= 1 and signed >= least and (rest == 0 or rest >= least)
+        )
+        checks += [
+            Check(
+                name,
+                "numeric.decimal_plus",
+                "spelling.decimal_plus",
+                MISSED if nameable else HELD,
+                _below_the_floor(least),
+                _shown_count(signed) if nameable else _below_the_floor(least),
+            )
+        ]
+    else:
+        signed = census["+"] if "+" in census else 0
+        checks += [
+            Check(
+                name,
+                "numeric.decimal_plus",
+                "spelling.decimal_plus",
+                HELD if signed <= pool else MISSED,
+                _shown_count(0)
+                if pool == 0
+                else f"{_shown_count(0)} ({_shown_window(0.0, float(pool))})",
+                _shown_count(signed),
+            )
+        ]
+    # THE TWO MIXED CONVENTIONS, EACH HELD AS ONE FACT (landing 2b.7, plan
+    # P4-D65.2). Recounted from the re-description like every other
+    # fact of this block, so each named convention is compared with what
+    # describing the file on its own publishes for it.
+    # A CENSUS THAT NAMES NO CONVENTION FILES NO CHECK AT ALL, and that
+    # is the difference between a fact with nothing to say and a fact
+    # this file cannot be held to. Almost every column mixes nothing:
+    # its census is empty, the majority key above already carries its
+    # one convention, and a WITHHELD line here would say "no obligation"
+    # twice on every numeric block of every report -- ten of them on the
+    # demonstration twin, which had withheld nothing at all before.
+    # Where the census DOES name a convention the check is filed, and
+    # its own gate decides whether the comparison can be made.
+    for fact, census, order, population in (
+        (
+            "negative_notations",
+            facts.negative_notations,
+            parsing.NEGATIVE_FORMS,
+            negatives,
+        ),
+        (
+            "thousands_marks",
+            facts.thousands_marks,
+            parsing.PUBLISHED_GROUP_MARKS,
+            four_figures,
+        ),
+    ):
+        worn = 0
+        for convention in order:
+            if convention in census and census[convention] > 0:
+                worn = worn + 1
+        # ONE NAMED CONVENTION IS AN OBLIGATION TOO (plan P4-D142), AND
+        # SO IS A CENSUS OF MARKS THAT IS ONLY A POOL (plan P4-D352).
+        if worn < 1:
+            if (
+                fact == "thousands_marks"
+                and taxonomy.SUPPRESSED_LABEL in census
+            ):
+                checks += [
+                    _pool_alone_check(
+                        name,
+                        fact,
+                        census[taxonomy.SUPPRESSED_LABEL],
+                        _map_at(block, fact),
+                        order,
+                        population,
+                        floor,
+                        numbers,
+                    )
+                ]
+            continue
+        checks += [
+            _mixture_check(
+                name,
+                fact,
+                census,
+                _map_at(block, fact),
+                order,
+                population,
+                floor,
+                numbers,
+            )
+        ]
     return checks
 
 
@@ -8962,13 +12954,16 @@ def _ladder_checks(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
     block: "dict[str, object]",
+    floor: int,
 ) -> "list[Check]":
     """The eleven rungs: the two ends exact, the nine interior in windows."""
+    if facts.tail_rule:
+        return _tail_block_checks(column, facts, block, floor)
     name = column.name
     measured = _inner_at(block, "percentiles")
     published = facts.percentiles
     checks: list[Check] = []
-    checks = checks + [
+    checks += [
         _rung_end(name, "min", published.minimum, measured),
         _rung_end(name, "max", published.maximum, measured),
     ]
@@ -8977,18 +12972,26 @@ def _ladder_checks(
     # hundred-and-one-rung ladder, so a window drawn through eleven
     # invents a rise the column does not have and accuses a twin that
     # sat exactly where the finer rungs said.
-    points = _fine_ladder_points(facts)
-    if not points:
-        points = _ladder_points(published.rungs)
-    if not points:
+    ladder = _filled_ladder(facts)
+    if ladder is None:
         return checks
-    reach = _displacement(facts, column.n_present, column.n_distinct_folded)
+    # THE WINDOW OF G12.2 AT AN EXACT SHARE, and the widest stratum off
+    # this block alone. A position of a joined column, a wrapper of an
+    # affixed one and the numeric half of a compound one are each handed
+    # their OWN block here, so none of them borrows the counts of the
+    # cells around it: the whole column's counts made a 2,000-row `kg`
+    # column's window four strata wide where the construction's was
+    # eighty.
+    numbers = _numeric_cells(facts)
+    reach = 100 * (_window_stratum(facts, floor) + 2)
+    whole = 100 * numbers
+    half = _half_unit(facts)
     for index in range(1, len(_LADDER_KEYS) - 1):
         key = _LADDER_KEYS[index]
         expected = published.rungs[index]
         found = None if measured is None else _number_at(measured, key)
         if expected is None:
-            checks = checks + [
+            checks += [
                 _exact(
                     name,
                     "numeric.percentiles",
@@ -8998,19 +13001,791 @@ def _ladder_checks(
                 )
             ]
             continue
-        checks = checks + [
+        checks += [
             _within(
                 name,
                 "numeric.percentiles",
                 f"ladder.{key}",
                 _shown_number(expected),
                 found,
-                _rung_window(points, _LADDER_SHARES[index], reach),
+                (
+                    _ladder_read(
+                        ladder,
+                        max(0, contract.LADDER_PERCENTS[index] * numbers - reach),
+                        whole,
+                    )
+                    - half,
+                    _ladder_read(
+                        ladder,
+                        min(
+                            whole,
+                            contract.LADDER_PERCENTS[index] * numbers + reach,
+                        ),
+                        whole,
+                    )
+                    + half,
+                ),
                 ENVELOPE_NUMERIC_RUNGS,
                 expected,
             )
         ]
     return checks
+
+
+def _tail_withheld(facts: contract.NumericFacts) -> "list[int]":
+    """The named percents a tail block withholds by its rule (TL1)."""
+    tails = facts.tails
+    withheld: "list[int]" = []
+    for index in range(len(contract.LADDER_PERCENTS)):
+        percent = contract.LADDER_PERCENTS[index]
+        if facts.percentiles.rungs[index] is not None:
+            continue
+        if tails is None or tails.low is None or tails.high is None:
+            withheld += [percent]
+        elif percent < tails.low.percent or percent > tails.high.percent:
+            withheld += [percent]
+    return withheld
+
+
+def _tail_block_checks(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    block: "dict[str, object]",
+    floor: int,
+) -> "list[Check]":
+    """A tail block's ladder: its published rungs, its ends, its tails.
+
+    THE RUNGS INSIDE THE TWO BOUNDARIES are held to G12.2's window, drawn
+    through the tail ladder -- and, where method G6.6.8's rule 1 moved a
+    derived end and so a rung's window, to that window drawn with the
+    rule withdrawn as well (V6.1-A2). A rung the rule withholds is LISTED
+    (`_numeric_listings`) and never compared. An END IS CHECKED ONLY
+    WHERE IT IS PUBLISHED -- a heaped end, held by at least a tail's own
+    rows -- and then one-sided and silent (`_heaped_end_check`): no cell
+    of the file beyond it, and the file's own extreme never printed. And
+    each tail's two distances are held to G12.13 (`_tail_checks`).
+    """
+    name = column.name
+    measured = _inner_at(block, "percentiles")
+    published = facts.percentiles
+    checks: "list[Check]" = []
+    withheld = _tail_withheld(facts)
+    for index, key in ((0, "min"), (len(_LADDER_KEYS) - 1, "max")):
+        end = published.rungs[index]
+        if end is not None:
+            checks += [
+                _heaped_end_check(name, key, end, block, index == 0)
+            ]
+    ladder = _filled_ladder(facts)
+    if ladder is None:
+        return checks
+    numbers = _numeric_cells(facts)
+    reach = 100 * (_window_stratum(facts, floor) + 2)
+    whole = 100 * numbers
+    half = _half_unit(facts)
+    # AND WHERE METHOD G6.6.8'S RULE 1 MOVED A DERIVED END, EACH RUNG
+    # WHOSE WINDOW IT MOVED ANSWERS TO THAT WINDOW DRAWN WITH THE RULE
+    # WITHDRAWN AS WELL (V6.1-A2; the verifier of the corrections to
+    # Codex's review of lane G2). The rule reads the ladder through the
+    # further end and its own stratum bound, so a rung near that end
+    # widens with it: 1000 readings from 100 to 999 heaped low beside one
+    # `2064`, at fifty, draw `p95`'s window 639.7 to 1,263.5 where
+    # 110cb46 drew 639.7 to 999.5 around a published 870, and a file
+    # whose far side stood half again as far out, its `p95` at 1,142,
+    # passed where 110cb46 missed it. As a tail's distance does, a rung
+    # stands no further from its published value than any value that
+    # window admits, and inside it, between it and the value, or within the
+    # mean's line of the value (`_within`, ``held_near``). A rung whose two
+    # windows are one is handed none.
+    held_ladder: "tuple[float, ...] | None" = None
+    held_reach = reach
+    if contract.reach_moved_an_end(facts):
+        held_ladder = _filled_ladder(facts, False)
+        held_reach = 100 * (_window_stratum(facts, floor, False) + 2)
+    near = _moment_near(facts, "mean")
+    for index in range(1, len(_LADDER_KEYS) - 1):
+        percent = contract.LADDER_PERCENTS[index]
+        expected = published.rungs[index]
+        if percent in withheld or expected is None:
+            continue
+        key = _LADDER_KEYS[index]
+        found = None if measured is None else _number_at(measured, key)
+        held: "tuple[float, float] | None" = None
+        if held_ladder is not None:
+            held = (
+                _ladder_read(
+                    held_ladder, max(0, percent * numbers - held_reach), whole
+                )
+                - half,
+                _ladder_read(
+                    held_ladder, min(whole, percent * numbers + held_reach), whole
+                )
+                + half,
+            )
+        window = (
+            _ladder_read(ladder, max(0, percent * numbers - reach), whole) - half,
+            _ladder_read(ladder, min(whole, percent * numbers + reach), whole)
+            + half,
+        )
+        checks += [
+            _within(
+                name,
+                "numeric.percentiles",
+                f"ladder.{key}",
+                _shown_number(expected),
+                found,
+                window,
+                ENVELOPE_NUMERIC_RUNGS,
+                expected,
+                held=(
+                    held
+                    if held is not None
+                    and held != window
+                    and _finite_window(held)
+                    else None
+                ),
+                held_whole=True,
+                held_near=near,
+            )
+        ]
+    return checks + _tail_checks(column, facts, block, floor, ladder)
+
+
+def _heaped_end_check(
+    name: str,
+    key: str,
+    end: float,
+    block: "dict[str, object]",
+    low: bool,
+) -> Check:
+    """A published (heaped) end, one-sided and silent (method G5.6a).
+
+    The end is a population value -- a tail's own number of rows or more
+    held it -- so the file is asked whether any of its cells lies BEYOND
+    it, and never shown what its own extreme is: that may be one row's
+    value. Read off the file's own description: its end where that is
+    published, else the outermost value its tail lists, else the two
+    BOUNDS its published tail puts on its own extreme. None where the
+    file publishes no tail at all, and None -- withheld -- where the
+    bounds do not settle the question either way.
+
+    AND THE ROOT-MEAN-SQUARE BOUNDS ONE SIDE ONLY (plan P4-D349). No row
+    set's largest distance is below its root-mean-square, so
+    `boundary - rms` is an UPPER bound on a low file's own minimum and
+    reading it as a lower one certified a file that misses: a column of
+    eleven tens and the integers 20 to 1508 publishes a minimum of 10,
+    and a file holding a 9 -- boundary 23.99, root-mean-square 12.14 --
+    was reported HELD because `23.99 - 12.14 >= 10`, on both ends alike.
+    What the two sums DO settle:
+
+    * the largest distance is at least the root-mean-square, so a file
+      whose `boundary - rms` falls below the published end has a cell
+      beyond it and MISSES;
+    * the largest distance is at most `rms * sqrt(rows)` -- its square
+      cannot exceed the whole sum of squares -- and at most the whole
+      sum `mean * rows`, since no distance is negative, so a file whose
+      boundary less the smaller of those two still stands at or above
+      the end holds every cell inside it and is HELD.
+
+    Between the two the file's own description settles nothing, and the
+    check says so rather than guessing.
+    """
+    measured = _inner_at(block, "percentiles")
+    found = None if measured is None else _number_at(measured, key)
+    held: "bool | None" = None
+    why = _GATE_CLOSED
+    name_of = "low" if low else "high"
+    if found is not None:
+        held = found >= end if low else found <= end
+    else:
+        side = _file_tail(block, name_of)
+        if side is None:
+            if _tail_is_quiet_at_any_percent(block, name_of):
+                why = _tail_withheld_reason(block, name_of)
+        else:
+            listed = side[3]
+            if listed:
+                outermost = listed[0] if low else listed[len(listed) - 1]
+                held = outermost >= end if low else outermost <= end
+            else:
+                held = _tail_bound_verdict(side, end, low)
+                if held is None:
+                    # AND WHICH SILENCE IT IS (plan P4-D349). A file whose
+                    # own tail publishes NEITHER distance says nothing
+                    # about its extreme at all, which is a different thing
+                    # from a file whose two sums simply do not reach the
+                    # published end -- and both are different again from a
+                    # file that describes this column as something else.
+                    # The report says which of the three it is.
+                    if side[1] is None or side[2] is None:
+                        why = _tail_withheld_reason(block, name_of)
+                    else:
+                        why = _GATE_TAIL_BOUNDS
+    return _silent(
+        name,
+        f"numeric.percentiles.{key}",
+        f"ladder.{key} (heaped end, one-sided)",
+        _shown_number(end),
+        held,
+        _NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE,
+        why,
+    )
+
+
+def _file_tail(
+    block: "dict[str, object]", side: str
+) -> "tuple[float | None, float | None, float | None, tuple[float, ...], int, int] | None":
+    """One side of the file's own tail, or None where it publishes no tail.
+
+    Boundary rung, mean and root-mean-square distance, listed values,
+    percent and rows. EACH DISTANCE IS ITS OWN ANSWER AND MAY BE None
+    (contract TL5, plan P4-D349): a tail that publishes neither still
+    publishes its rows, its percent and -- on a listed tail -- its values,
+    and a reader that refused the whole tail because its distances were
+    withheld would lose the EXACT check beside them. Measured: a
+    4,000-row column of halves whose twin writes 34.2 where the
+    description's tail names 34.5 reported `tails.low.values` MISSED
+    before this pass, and WITHHELD while this function demanded both
+    numbers -- a checker going quiet on a real miss.
+    """
+    if "tails" not in block:
+        return None
+    tails = block["tails"]
+    if not isinstance(tails, dict) or side not in tails:
+        return None
+    found = tails[side]
+    if not isinstance(found, dict):
+        return None
+    percent = found["percent"] if "percent" in found else None
+    mean = found["mean_distance"] if "mean_distance" in found else None
+    root = found["rms_distance"] if "rms_distance" in found else None
+    listed = found["values"] if "values" in found else None
+    rows = found["rows"] if "rows" in found else None
+    if (
+        isinstance(percent, bool)
+        or not isinstance(percent, int)
+        or isinstance(rows, bool)
+        or not isinstance(rows, int)
+        or not isinstance(listed, list)
+    ):
+        return None
+    for one in (mean, root):
+        if one is None:
+            continue
+        if isinstance(one, bool) or not isinstance(one, (int, float)):
+            return None
+    values: "list[float]" = []
+    for entry in listed:
+        if isinstance(entry, (int, float)) and not isinstance(entry, bool):
+            values += [float(entry)]
+    return (
+        _file_rung(block, percent),
+        None if mean is None else float(mean),
+        None if root is None else float(root),
+        tuple(values),
+        percent,
+        rows,
+    )
+
+
+def _tail_is_quiet_at_any_percent(
+    block: "dict[str, object]", side: str
+) -> bool:
+    """Whether the file's own tail publishes no distance, at any percent.
+
+    The published END is asked of the file's whole description rather than
+    at one percent: its own tail stands wherever its own count of values
+    puts it, and what matters here is whether it says anything about its
+    extreme at all.
+    """
+    if "tails" not in block:
+        return False
+    tails = block["tails"]
+    if not isinstance(tails, dict) or side not in tails:
+        return False
+    found = tails[side]
+    if not isinstance(found, dict):
+        return False
+    for key in ("mean_distance", "rms_distance"):
+        if key not in found or found[key] is not None:
+            return False
+    return True
+
+
+def _tail_is_quiet(
+    block: "dict[str, object]", side: str, percent: int
+) -> bool:
+    """Whether the file's own tail stands here and publishes no distance."""
+    if "tails" not in block:
+        return False
+    tails = block["tails"]
+    if not isinstance(tails, dict) or side not in tails:
+        return False
+    found = tails[side]
+    if not isinstance(found, dict):
+        return False
+    at = found["percent"] if "percent" in found else None
+    if isinstance(at, bool) or not isinstance(at, int) or at != percent:
+        return False
+    for key in ("mean_distance", "rms_distance"):
+        if key not in found or found[key] is not None:
+            return False
+    return True
+
+
+def _tail_bound_verdict(
+    side: "tuple[float | None, float | None, float | None, tuple[float, ...], int, int]",
+    end: float,
+    low: bool,
+) -> "bool | None":
+    """What a file's own published tail settles about a published end.
+
+    True where every cell of that tail is provably at or inside ``end``,
+    False where one of them is provably beyond it, None where the tail's
+    two sums settle neither. The arithmetic and the measured defect it
+    replaces are at `_heaped_end_check`; nothing here is shown to a
+    reader, because each bound is drawn from the file's own extreme.
+    """
+    boundary = side[0]
+    mean = side[1]
+    root = side[2]
+    rows = side[5]
+    if boundary is None or mean is None or root is None or rows <= 0:
+        return None
+    if not (math.isfinite(boundary) and math.isfinite(mean) and math.isfinite(root)):
+        return None
+    # THE LARGEST DISTANCE IS AT LEAST `rms**2 / mean`, and at most the
+    # smaller of `rms * sqrt(rows)` and the whole sum. The lower bound is
+    # the sharper reading of the same two sums: no distance is negative,
+    # so the sum of squares is at most the largest distance times the
+    # sum, and dividing gives it. It is never below the root-mean-square
+    # itself, which is the bound this used to take, and on the review's
+    # own file it is the difference between "the description settles
+    # nothing" and MISSED.
+    least = root
+    if mean > 0.0:
+        sharper = (root / mean) * root
+        if math.isfinite(sharper) and sharper > least:
+            least = sharper
+    most = min(root * math.sqrt(float(rows)), mean * float(rows))
+    if not math.isfinite(most):
+        return None
+    if low:
+        if boundary - most >= end:
+            return True
+        if boundary - least < end:
+            return False
+        return None
+    if boundary + most <= end:
+        return True
+    if boundary + least > end:
+        return False
+    return None
+
+
+def _file_rung(block: "dict[str, object]", percent: int) -> "float | None":
+    """The file's own rung at one percent, from either half of its ladder."""
+    for index in range(len(contract.LADDER_PERCENTS)):
+        if contract.LADDER_PERCENTS[index] == percent:
+            named = _inner_at(block, "percentiles")
+            return None if named is None else _number_at(named, _LADDER_KEYS[index])
+    finer = _inner_at(block, "percentiles_between")
+    if finer is None:
+        return None
+    return _number_at(finer, f"p{percent:02d}")
+
+
+def _tail_window(
+    facts: contract.NumericFacts,
+    floor: int,
+    ladder: "tuple[float, ...]",
+    side: contract.TailSide,
+    low: bool,
+    reach_rule: bool = True,
+    hulled: bool = True,
+) -> "tuple[tuple[float, float], tuple[float, float]]":
+    """G12.13: the windows a file's two distances of one tail stand in.
+
+    With `K` the numbers, `g` the widest stratum both reports read and
+    `d = (g + 2) / K`, every cell at rank `i` lies in
+    `[Ladder(i/(K-1) - d) - half, Ladder(i/(K-1) + d) + half]` (G5.6's
+    rank form, read through the tail ladder), and the file's own
+    boundary rung, a type-7 reading at `h = (K - 1) P / 100`, lies
+    between the lower end at rank `floor(h)` and the upper end at rank
+    `ceil(h)`. Each tail row's distance from that boundary is therefore
+    at least the gap between the nearer two ends, held at nought, and at
+    most the gap between the further two; the mean distance lies between
+    the means of those, and the root-mean-square between the roots of
+    the means of their squares.
+
+    ``reach_rule`` False reads `g` off the ladder with method G6.6.8's
+    rule 1 withdrawn, the one ``ladder`` is then handed as: the windows
+    110cb46 drew, which a tail whose end the rule moved answers to as
+    well (`_tail_checks`, V6.1-A2).
+
+    ON A DENSE SIDE the root-mean-square's window is the hull with the
+    one the ladder rule 4's placement reads draws (`contract.dense_placed`,
+    plan P4-D405; ``hulled`` False draws the first alone), as the mean
+    distance's is with `_dense_mean_window`: G2's dense
+    tail at 300,000 rows wrote its high tail's root-mean-square at
+    19,281.5 against a published 19,305.9, past a window drawn through
+    the staircase alone (14,417.0 to 16,165.9).
+    """
+    count = _numeric_cells(facts)
+    widest = _window_stratum(facts, floor, reach_rule)
+    half = _half_unit(facts)
+    denominator = count * (count - 1) if count > 1 else 1
+    span = (widest + 2) * (count - 1)
+
+    lows: "dict[int, float]" = {}
+    highs: "dict[int, float]" = {}
+    steps = (count - 1) * side.percent
+    lower = steps // 100
+    upper = -((-steps) // 100)
+    if low:
+        ranks = list(range(upper))
+    else:
+        ranks = list(range(lower + 1, count))
+    for rank in ranks + [lower, upper]:
+        middle = rank * count
+        lows[rank] = (
+            _ladder_read(ladder, max(0, middle - span), denominator) - half
+        )
+        highs[rank] = (
+            _ladder_read(ladder, min(denominator, middle + span), denominator)
+            + half
+        )
+    near: "list[float]" = []
+    far: "list[float]" = []
+    for rank in ranks:
+        if low:
+            near += [max(0.0, lows[lower] - highs[rank])]
+            far += [max(0.0, highs[upper] - lows[rank])]
+        else:
+            near += [max(0.0, lows[rank] - highs[upper])]
+            far += [max(0.0, highs[rank] - lows[lower])]
+    rows = max(1, len(ranks))
+    mean_window = (_window_mean(near, rows), _window_mean(far, rows))
+    dense = _dense_mean_window(ladder, side, low, lows[lower], highs[upper])
+    if dense is not None:
+        mean_window = (
+            min(mean_window[0], dense[0]),
+            max(mean_window[1], dense[1]),
+        )
+    root_window = (_window_root(near, rows), _window_root(far, rows))
+    reader = (
+        (ladder.low if low else ladder.high)
+        if isinstance(ladder, contract.ShapedLadder)
+        else None
+    )
+    placed = (
+        contract.dense_placed(ladder, facts)
+        if hulled
+        and isinstance(ladder, contract.ShapedLadder)
+        and reader is not None
+        and reader.dense_grid >= 0
+        else None
+    )
+    if placed is not None:
+        other_root = _tail_window(
+            facts, floor, placed, side, low, reach_rule, False
+        )[1]
+        root_window = (
+            min(root_window[0], other_root[0]),
+            max(root_window[1], other_root[1]),
+        )
+    return (mean_window, root_window)
+
+
+def _dense_mean_window(
+    ladder: "tuple[float, ...]",
+    side: contract.TailSide,
+    low: bool,
+    lowest: float,
+    highest: float,
+) -> "tuple[float, float] | None":
+    """G12.13's mean-distance window on a DENSE tail, as G6.6.8's rule 4 draws it; None elsewhere.
+
+    THE WINDOW IS DRAWN AS THE CONSTRUCTION DRAWS IT (stage 4 lane S4c,
+    plan P4-D377). Where the ladder reads a tail as dense
+    (`contract.TailReader.dense_grid`) the generator places the tail's
+    outer strata so its cells' distances from the PUBLISHED boundary sum
+    to the published mean distance times its rows, to within a grid
+    step, wherever its own strata crowd the grid and miss that mean
+    (`generation._tail_pair_met`); elsewhere it leaves them where the
+    staircase put them. So `_tail_window` takes the hull of this window
+    and the rank form's, which reaches both. A file's own tail is measured
+    from its OWN boundary rung, which stands between ``lowest`` and
+    ``highest`` (the rank windows of the two ranks its type-7 reading
+    touches), so the file's mean distance is the published one moved by
+    how far its boundary stands from the published boundary, and one
+    grid step more either way. The rank form's window drawn from the
+    staircase did not reach the published value on such a tail:
+    1,401.5 to 2,459.6 around 1,280.5 at 100,000 rows of consecutive
+    whole numbers beside five far ones, and 10,079.4 to 10,348.1 around
+    5,780.5 at 1,000,000.
+
+    Guarantees: accepts the ladder, the published tail side, which side
+    it is and the boundary rung's own window; returns the window or
+    None. Determinism: a function of the five. Raises nothing. No I/O.
+    """
+    if not isinstance(ladder, contract.ShapedLadder):
+        return None
+    reader = ladder.low if low else ladder.high
+    return contract.dense_tail_mean_window(reader, side, lowest, highest)
+
+
+def _window_mean(distances: "list[float]", rows: int) -> float:
+    """The mean of one window's distances, without leaving the format.
+
+    EACH DISTANCE IS DIVIDED BEFORE ANYTHING IS ADDED. A column reaching
+    across the binary64 range has window ends whose difference is an
+    infinity, and a running total of such distances overflows where
+    their mean does not -- `math.fsum` raises `OverflowError` on the
+    intermediate sum, out of `synthtwin validate` (the skeptic's break
+    4). An infinity here is carried and the caller lists the fact
+    rather than checking it.
+    """
+    return math.fsum([distance / rows for distance in distances])
+
+
+def _window_root(distances: "list[float]", rows: int) -> float:
+    """The root-mean-square of one window's distances, scaled first.
+
+    The square of a distance near the top of the range has nowhere to
+    go, so every distance is divided by the largest of them before it
+    is squared and the root is scaled back afterwards -- the same care
+    `taxonomy._moments` takes with a column's own spread.
+    """
+    largest = 0.0
+    for distance in distances:
+        largest = max(largest, abs(distance))
+    if not largest > 0.0 or not math.isfinite(largest):
+        return largest
+    scaled = math.fsum(
+        [(distance / largest) * (distance / largest) / rows
+         for distance in distances]
+    )
+    return largest * math.sqrt(scaled)
+
+
+def _tail_checks(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    block: "dict[str, object]",
+    floor: int,
+    ladder: "tuple[float, ...]",
+) -> "list[Check]":
+    """Each tail's two distances, and a listed tail's values (G12.13).
+
+    READ AT THE PUBLISHED PERCENT. The percent and the rows follow from
+    the count of values (contract TL1, TL4), so a file of the same count
+    re-describes its tail at the same percent, and its distances are
+    compared there; a file whose own tail stands elsewhere has no
+    distance at the published percent in its description, and the check
+    is withheld. HELD where the file's number equals the published one
+    (V6.1-A1), otherwise inside G12.13's window. A LISTED tail's values
+    are exact AND SILENT: the comparison is whether the file's tail
+    lists the same values -- or, where the list is short enough that the
+    file would list its own and it lists none, a miss -- and the file's
+    own values never leave this module (plan P4-D346).
+
+    AND THE EXACT CHECK NO LONGER DEPENDS ON THE WINDOWED ONE (plan
+    P4-D349). A column reaching across the binary64 range has a moment
+    window with no end this format can write, and this function used to
+    `continue` past the whole side on that -- past the LISTED VALUES
+    check below it, which is exact, needs no window at all, and is the
+    one obligation of a tail that names values. Measured: sixty cells at
+    `-1.7e308`, twenty-eight small integers and twelve at `1.7e308`
+    publish the high-tail value `1.7e308`, and a file holding `1.6e308`
+    twelve times instead reported no miss anywhere and did not appear in
+    the not-checkable census either, so the obligation simply vanished.
+    Each key is decided on its own now, and `_tail_listings_of` accounts
+    for every one this cannot reach.
+    """
+    tails = facts.tails
+    if tails is None or tails.low is None or tails.high is None:
+        return []
+    checks: "list[Check]" = []
+    # AND WHERE METHOD G6.6.8'S RULE 1 MOVED A DERIVED END, EACH TAIL'S
+    # DISTANCES ANSWER TO THE WINDOWS DRAWN WITH THAT RULE WITHDRAWN AS
+    # WELL (V6.1-A2; Codex's review of lane G2, item 1): drawn through the
+    # further end, the moved tail's two windows widened from 0 to 8,199 to
+    # 0 to 98,101 on readings 1000 to 1900, each 150 times, beside one
+    # `99900`, at eleven, and a file whose last cell is `300000`, its far
+    # tail three times the real one's, passed both where 110cb46 missed
+    # both. A file stands no further from each published distance than any
+    # value that window admits (`_within`, ``held_whole``), and inside
+    # that window, between it and the published distance, or within three
+    # tenths of the distance of it (``held_near``; the verifier of the
+    # review's corrections: that bound always takes in the whole window,
+    # and a far tail's mean distance 1.9 times the real one passed; and
+    # its second verifier: where the window misses the distance, the
+    # bound let the side away from it reach twice the distance); on a
+    # tail whose end the rule did not move the two windows are drawn
+    # alike.
+    held_ladder: "tuple[float, ...] | None" = None
+    if contract.reach_moved_an_end(facts):
+        held_ladder = _filled_ladder(facts, False)
+    for name, side, low in (
+        ("low", tails.low, True),
+        ("high", tails.high, False),
+    ):
+        found = _file_tail(block, name)
+        if found is not None and found[4] != side.percent:
+            found = None
+        # WHICH SILENCE IT IS, where the file's own tail stands at the
+        # published percent and publishes neither distance (plan P4-D349).
+        # A reader told only that the gate closed cannot tell "this file
+        # describes itself as something else" from "this file's own tail
+        # rule withholds the number too", and the second is the one the
+        # report can explain completely. Asked of the BLOCK and not of
+        # `found`, which carries a tail whose distances are None as a
+        # tuple with two Nones in it.
+        quiet = _tail_is_quiet(block, name, side.percent)
+        mean_window, root_window = _tail_window(facts, floor, ladder, side, low)
+        held_mean: "tuple[float, float] | None" = None
+        held_root: "tuple[float, float] | None" = None
+        if held_ladder is not None:
+            held_mean, held_root = _tail_window(
+                facts, floor, held_ladder, side, low, False
+            )
+        for key, published, measured, window, held in (
+            (
+                "mean_distance",
+                side.mean_distance,
+                None if found is None else found[1],
+                mean_window,
+                held_mean,
+            ),
+            (
+                "rms_distance",
+                side.rms_distance,
+                None if found is None else found[2],
+                root_window,
+                held_root,
+            ),
+        ):
+            # THE TAIL THAT PUBLISHES NEITHER DISTANCE SETS NO OBLIGATION
+            # HERE (contract TL5, plan P4-D349), and A WINDOW WHOSE OWN
+            # ENDS ARE NOT NUMBERS IS A CENSUS LINE AND NOT A CHECK (the
+            # shape G12.3's moments already take): a comparison against
+            # it would admit every file there is. `_tail_listings_of`
+            # files each under its own reason.
+            if published is None or not _finite_window(window):
+                continue
+            checks += [
+                _within(
+                    column.name,
+                    f"numeric.tails.{name}.{key}",
+                    f"tails.{name}.{key}",
+                    _shown_number(published),
+                    measured,
+                    window,
+                    ENVELOPE_TAILS,
+                    published,
+                    why=_tail_withheld_reason(block, name) if quiet else _GATE_CLOSED,
+                    held=(
+                        held
+                        if held is not None and _finite_window(held)
+                        else None
+                    ),
+                    held_whole=True,
+                    held_near=_TAIL_NEAR * abs(published),
+                )
+            ]
+        if side.values:
+            # THE MEASURED SIDE IS WITHHELD, THE VERDICT IS NOT (plan
+            # P4-D346). This line used to print the FILE's own tail
+            # values -- values a row may hold alone, the outermost of
+            # them the file's own end -- beside the description's, which
+            # is the one thing `_NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE`
+            # promises never happens under any verdict. The comparison
+            # is made in full and only what the file holds is kept back,
+            # exactly as the date and clock role has always done it
+            # (`_date_tail_checks`) and as the heaped end beside this
+            # one does.
+            wanted = _shown_values(side.values)
+            listed: "bool | None" = None
+            if found is not None:
+                if found[3]:
+                    listed = _shown_values(found[3]) == wanted
+                elif len(side.values) <= taxonomy.TAIL_VALUES_MOST:
+                    listed = False
+            checks += [
+                _silent(
+                    column.name,
+                    f"numeric.tails.{name}.values",
+                    f"tails.{name}.values",
+                    wanted,
+                    listed,
+                    _NOT_SHOWN_THEY_ARE_THE_TAIL_VALUES_OF_THE_FILE,
+                    _tail_withheld_reason(block, name) if quiet else _GATE_CLOSED,
+                )
+            ]
+    return checks
+
+
+def _tail_listings_of(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    floor: int,
+    ladder: "tuple[float, ...]",
+) -> "list[Listing]":
+    """Each numeric tail distance `_tail_checks` cannot reach (plan P4-D349).
+
+    TWO REASONS, and the same walk `_tail_checks` runs, so a key cannot
+    be absent from both pages at once. A distance the description
+    WITHHELD sets no obligation on any file (contract TL5). A distance
+    whose G12.13 window has no end this format can write is a census line
+    and not a check, exactly as G12.3's moments already are on such a
+    column -- and until this pass it was neither: the `continue` that
+    skipped the check filed nothing, so the report claimed a census that
+    accounted for every obligation while two of them had gone.
+    """
+    tails = facts.tails
+    if tails is None or tails.low is None or tails.high is None:
+        return []
+    listings: "list[Listing]" = []
+    for name, side, low in (
+        ("low", tails.low, True),
+        ("high", tails.high, False),
+    ):
+        mean_window, root_window = _tail_window(facts, floor, ladder, side, low)
+        for key, published, window in (
+            ("mean_distance", side.mean_distance, mean_window),
+            ("rms_distance", side.rms_distance, root_window),
+        ):
+            why = ""
+            if published is None:
+                why = _NOT_CHECKABLE_TAIL_KEY_WITHHELD
+            elif not _finite_window(window):
+                why = _NOT_CHECKABLE_NO_WINDOW
+            if not why:
+                continue
+            listings += [
+                Listing(
+                    column.name,
+                    f"numeric.tails.{name}.{key}",
+                    f"tails.{name}.{key}",
+                    why,
+                )
+            ]
+    return listings
+
+
+def _finite_window(window: "tuple[float, float]") -> bool:
+    """Whether both ends of a window are numbers this format holds."""
+    return math.isfinite(window[0]) and math.isfinite(window[1])
+
+
+def _shown_values(values: "tuple[float, ...]") -> str:
+    """A listed tail's values, as the report prints them."""
+    shown = ""
+    for value in values:
+        text = _shown_number(value)
+        shown = text if not shown else f"{shown}, {text}"
+    return shown
 
 
 def _rung_end(
@@ -9030,88 +13805,8 @@ def _rung_end(
     )
 
 
-def _displacement(
-    facts: contract.NumericFacts, present: int, distinct_folded: int
-) -> "tuple[float, float]":
-    """How far a rung may be displaced, and by how much it then widens.
-
-    Method G12.2, which states G5.6's envelope: the displacement is the
-    widest stratum the construction can produce, plus the one extra
-    rank a recomputed rung interpolates, over the numeric cells; and
-    both ends widen by the half unit exactly two rules can spend.
-    """
-    numbers = _numeric_cells(facts)
-    # THE WIDER OF THE TWO READINGS, because this may only widen
-    # (review item P4-G5-A1). `_largest_stratum` works out what the
-    # even split of G5.2 would give; the allotment of G5.2a sizes a
-    # stratum by the ladder's own plateau instead, and on a column
-    # whose commonest value is held by thirty of sixty cells that is a
-    # stratum of thirty where the even split said two. Taking the
-    # larger keeps the promise the displacement is written under: a
-    # window too wide can fail to catch a twin that missed, and a
-    # window too narrow accuses one that did not.
-    widest = max(
-        _largest_stratum(facts, present, distinct_folded),
-        _longest_plateau(facts, _numeric_cells(facts)),
-    )
-    return ((widest + 2) / numbers, _half_unit(facts))
-
-
-def _rung_window(
-    points: "list[tuple[float, float]]",
-    share: float,
-    reach: "tuple[float, float]",
-) -> "tuple[float, float]":
-    """The window one rung at ``share`` may land in."""
-    displacement, half = reach
-    low = _ladder_at(points, max(0.0, share - displacement)) - half
-    high = _ladder_at(points, min(1.0, share + displacement)) + half
-    return (low, high)
-
-
-def _windows_of(
-    column: contract.ColumnBlock, facts: contract.NumericFacts
-) -> "dict[str, tuple[float, float]]":
-    """The three G12.3 windows this description draws, or none at all.
-
-    Drawn from the published ladder alone, so the answer is a function
-    of the description and never of the measured file. An empty mapping
-    says the ladder is null at every rung: G12.3's "one column with no
-    bound at all", where the three moments are listing entries.
-
-    Guarantees:
-
-    - Inputs: one published column's numeric facts. No measured value.
-    - Determinism: a fixed function of the published ladder, the
-      published cell counts and the half unit G12.2 grants.
-    - Errors raised: none.
-    """
-    points = _fine_ladder_points(facts)
-    if not points:
-        points = _ladder_points(facts.percentiles.rungs)
-    if not points:
-        return {}
-    numbers = _numeric_cells(facts)
-    displacement, half = _displacement(
-        facts, column.n_present, column.n_distinct_folded
-    )
-    lows: list[float] = []
-    highs: list[float] = []
-    ladder: list[float] = []
-    for rank in range(numbers):
-        share = 0.0 if numbers < 2 else rank / (numbers - 1)
-        lows = lows + [
-            _ladder_at(points, max(0.0, share - displacement)) - half
-        ]
-        highs = highs + [
-            _ladder_at(points, min(1.0, share + displacement)) + half
-        ]
-        ladder = ladder + [_ladder_at(points, share)]
-    return _moment_windows(lows, highs, ladder, numbers)
-
-
 def _skew_admits_every_value(
-    column: contract.ColumnBlock, facts: contract.NumericFacts
+    column: contract.ColumnBlock, facts: contract.NumericFacts, floor: int
 ) -> bool:
     """Whether this description's skew window is the whole attainable range.
 
@@ -9151,7 +13846,7 @@ def _skew_admits_every_value(
     """
     if facts.skew is None:
         return False
-    windows = _windows_of(column, facts)
+    windows = _windows_of(column, facts, floor)
     if "skew" not in windows:
         return False
     numbers = _numeric_cells(facts)
@@ -9166,6 +13861,7 @@ def _moment_checks(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
     block: "dict[str, object]",
+    floor: int,
 ) -> "list[Check]":
     """`mean`, `std` and `skew`, each against both ends of G12.3.
 
@@ -9182,9 +13878,24 @@ def _moment_checks(
         ("kurtosis", facts.kurtosis),
     )
     checks: list[Check] = []
-    windows = _windows_of(column, facts)
+    windows = _windows_of(column, facts, floor)
     if not windows:
         return checks
+    # AND WHERE METHOD G6.6.8'S RULE 1 MOVED A DERIVED END, THE MEAN AND
+    # THE SPREAD ARE HELD TO THE WINDOWS THE LADDER WITH THAT RULE
+    # WITHDRAWN DRAWS TOO (V6.1-A2; the second skeptic of plan P4-D377's
+    # repair, item 1): the generator may write the column on that ladder
+    # (its rule 3), and the rule's own windows, drawn through the further
+    # end, reach the published value where that ladder's do not -- and
+    # admit a file far from it where that ladder's reach it too (Codex's
+    # review of lane G2, item 1, and the verifier of its corrections):
+    # half that window's width either way, and its own ends or the stretch
+    # from it to the value as well, but for a file within `K-S3-22`'s line
+    # of the value (`_moment_near`). See `_within`. `skew` and `kurtosis`
+    # keep their windows alone.
+    held: "dict[str, tuple[float, float]]" = {}
+    if contract.reach_moved_an_end(facts):
+        held = _windows_of(column, facts, floor, False)
     for field, value in published:
         if value is None:
             continue
@@ -9195,12 +13906,14 @@ def _moment_checks(
         # on that description -- `_listings` files it with the sentence
         # that says why -- and never a check, because a check that
         # cannot fail is the vacuity V3.4 refuses by name.
-        if field == "skew" and _skew_admits_every_value(column, facts):
+        if field == "skew" and _skew_admits_every_value(column, facts, floor):
             continue
         # AND THE SAME FOR THE TAIL WEIGHT, for the same reason: where
         # its window is the whole range every sample of this size can
         # take, a comparison against it admits every file there is.
-        if field == "kurtosis" and _tails_admit_every_value(column, facts):
+        if field == "kurtosis" and _tails_admit_every_value(
+            column, facts, floor
+        ):
             continue
         # AND A MOMENT WITH NO WINDOW IS A CENSUS LINE, NOT A WITHHELD
         # CHECK (review item P4-G6-R3-F3). `_within` turns a missing
@@ -9215,7 +13928,7 @@ def _moment_checks(
         if field not in windows:
             continue
         found = _number_at(block, field)
-        checks = checks + [
+        checks += [
             _within(
                 name,
                 f"numeric.{field}",
@@ -9225,13 +13938,36 @@ def _moment_checks(
                 _window_named(windows, field),
                 ENVELOPE_MOMENTS,
                 value,
+                anchored=field in ("mean", "std"),
+                held=(
+                    _window_named(held, field)
+                    if field in ("mean", "std")
+                    else None
+                ),
+                held_near=_moment_near(facts, field),
             )
         ]
     return checks
 
 
+def _moment_near(facts: contract.NumericFacts, field: str) -> float:
+    """How near the published mean or spread a file outside a second window still passes (V6.1-A2).
+
+    Either side of the value where the second window reaches it, and past
+    it on the side away from the window where it does not (`_within`).
+    `K-S3-22`'s own line for a twin on the real moments: within 0.05 of
+    the published spread of the published mean, and within a tenth of
+    it of the published spread. Nought -- the second window's own ends
+    -- where no finite spread is published.
+    """
+    spread = facts.std
+    if spread is None or not math.isfinite(spread):
+        return 0.0
+    return (_MEAN_NEAR if field == "mean" else _SPREAD_NEAR) * abs(spread)
+
+
 def _tails_admit_every_value(
-    column: "contract.ColumnBlock", facts: "contract.NumericFacts"
+    column: "contract.ColumnBlock", facts: "contract.NumericFacts", floor: int
 ) -> bool:
     """Whether this description's kurtosis window is the whole range.
 
@@ -9243,7 +13979,7 @@ def _tails_admit_every_value(
     """
     if facts.kurtosis is None:
         return False
-    windows = _windows_of(column, facts)
+    windows = _windows_of(column, facts, floor)
     if "kurtosis" not in windows:
         return False
     used = facts.n_used_in_statistics
@@ -9252,253 +13988,6 @@ def _tails_admit_every_value(
     ceiling = _raised(used - 2 + 1 / (used - 1))
     low, high = windows["kurtosis"]
     return low <= 1.0 and high >= ceiling
-
-
-def _moment_windows(
-    lows: "list[float]",
-    highs: "list[float]",
-    ladder: "list[float]",
-    numbers: int,
-) -> "dict[str, tuple[float, float]]":
-    """The three moment windows of method G12.3, from the rank form."""
-    found: dict[str, tuple[float, float]] = {}
-    # THE MEAN IS THE PROFILER'S EXACT ONE AND NOT A RUNNING TOTAL
-    # (review item P4-G6-R2-F2). `math.fsum` is exact until its final
-    # rounding and STILL raises where the running total leaves the
-    # representable range, which sixty values near 1e308 do although
-    # their mean is an ordinary number. The first repair of this family
-    # put its guard below this line and the crash simply moved up to
-    # it: `synthtwin validate` went on dying, one line earlier, on a
-    # column nothing was wrong with.
-    mean_low = taxonomy.average_of(list(lows))
-    mean_high = taxonomy.average_of(list(highs))
-    if mean_low is None or mean_high is None:
-        return found
-    found["mean"] = (mean_low, mean_high)
-    if numbers < 2:
-        return found
-    # EACH REACH IS DIVIDED BY THE LARGEST BEFORE IT IS SQUARED, for
-    # the reason the tail weight below already states (item
-    # P4-K-R1-F1, and this is its sibling, item P4-G6-R1-F5): raising
-    # first is the same number in exact arithmetic and not the same
-    # computation in binary64. A column of values around 1e300 has
-    # reaches whose squares have nowhere to go, and this sum came out
-    # an infinity, which made the whole window `(0, inf)` -- a check
-    # that can never report a miss and never says it went quiet.
-    # AND EACH REACH IS A DIFFERENCE OF TWO PUBLISHED VALUES, so it
-    # overflows in its own right where a rank's window has ends at
-    # opposite extremes. A reach that is not finite is a rank this
-    # window cannot be drawn through, and the whole window is withheld
-    # rather than drawn around an infinity.
-    reaches = [
-        max(ladder[rank] - lows[rank], highs[rank] - ladder[rank])
-        for rank in range(numbers)
-    ]
-    for reach in reaches:
-        if not math.isfinite(reach):
-            return found
-    widest = max(reaches)
-    displacement = 0.0
-    if widest > 0.0:
-        parts = math.fsum([(reach / widest) ** 2 for reach in reaches])
-        displacement = widest * math.sqrt(parts / numbers)
-    sample = _sample_deviation(ladder, numbers)
-    if not math.isfinite(sample) or not math.isfinite(displacement):
-        # A SPREAD THE FORMAT CANNOT HOLD IS NOT A WINDOW OF NO WIDTH.
-        # Returning the mean window alone withholds the three that
-        # cannot be drawn, which the census then names, rather than
-        # handing back a bound every twin satisfies.
-        return found
-    # A WINDOW IS FILED ONLY WHERE BOTH OF ITS ENDS ARE NUMBERS
-    # (review item P4-G6-R3-F1). Guarding the INPUTS to a window is not
-    # the same as guarding the window, and this is the ninth site of
-    # the family to prove it: the scaled displacement above comes out
-    # finite near 1.47e308 on the three cells `0`, `8.5e307` and
-    # `1.7e308`, and then the widening factor of `sqrt(n / (n - 1))`
-    # -- about 1.22 on three values -- carries it past the end of the
-    # range. The quality report printed "between 0.0 and inf", which is
-    # the vacuous pass this whole family keeps producing.
-    #
-    # So every window from here down goes through `_bounded`, which
-    # files it where both ends are numbers and withholds it where
-    # either is not. A guard on the products of an expression is a
-    # guard on one expression; a guard at the point of FILING covers
-    # every product, including the ones nobody has written yet.
-    def _bounded(name: str, low: float, high: float) -> bool:
-        if not math.isfinite(low) or not math.isfinite(high):
-            return False
-        found[name] = (low, high)
-        return True
-
-    widen = displacement * math.sqrt(numbers / (numbers - 1))
-    if not _bounded("std", max(0.0, sample - widen), sample + widen):
-        return found
-    if numbers < 3:
-        return found
-    population = _population_deviation(ladder, numbers)
-    low_end = max(0.0, population - displacement)
-    high_end = population + displacement
-    if not math.isfinite(low_end) or not math.isfinite(high_end):
-        return found
-    # AND THE CUBES ARE DIVIDED BEFORE THEY ARE RAISED, the third
-    # member of the same family. `(lows[rank] - mean_high) ** 3` on a
-    # column around 1e300 is a number with nowhere to go, and the four
-    # ratios below are what the cubes were only ever wanted for.
-    def cubed(edges: "list[float]", centre: float, spread: float) -> float:
-        parts = [
-            ((edges[rank] - centre) / spread) ** 3
-            for rank in range(numbers)
-        ]
-        for part in parts:
-            if not math.isfinite(part):
-                return float("inf")
-        return math.fsum(parts) / numbers
-    reach = _raised((numbers - 2) / math.sqrt(numbers - 1))
-    ceiling = _raised(numbers - 2 + 1 / (numbers - 1))
-    if low_end <= 0.0:
-        found["skew"] = (-reach, reach)
-        # AND THE TAIL WEIGHT'S OWN FALLBACK IN THE SAME BREATH (item
-        # P4-K-R1-F2). Returning here without it left the validator
-        # calling the kurtosis WITHHELD -- telling a reader that
-        # re-describing the file would not publish it -- on a
-        # description that publishes it and a generator that draws its
-        # full window.
-        if numbers >= 4:
-            found["kurtosis"] = (_lowered(1.0), ceiling)
-        return found
-    ends = [
-        cubed(lows, mean_high, low_end),
-        cubed(lows, mean_high, high_end),
-        cubed(highs, mean_low, low_end),
-        cubed(highs, mean_low, high_end),
-    ]
-    if not all(math.isfinite(end) for end in ends):
-        # The same fallback the flat-spread branch above takes: the
-        # window is the whole range this many values can reach, and
-        # `_skew_admits_every_value` files it as a listing rather than
-        # counting a check that cannot fail.
-        found["skew"] = (-reach, reach)
-        if numbers >= 4:
-            found["kurtosis"] = (_lowered(1.0), ceiling)
-        return found
-    if not _bounded(
-        "skew",
-        _lowered(max(-reach, min(ends))),
-        _raised(min(reach, max(ends))),
-    ):
-        return found
-    if numbers < 4:
-        return found
-    # THE TAIL WEIGHT, on the same terms one moment along (G12.3a). Two
-    # things differ from the cube above and both are easy to miss.
-    #
-    # THE FOURTH POWER DOES NOT KEEP THE ORDER: a rank's window
-    # straddling the mean has its SMALLEST fourth power in the middle
-    # and not at either end, so the low end of its contribution is zero
-    # there rather than one of the two ends raised.
-    #
-    # AND THE SPREAD ENTERS TO THE FOURTH POWER, not the third, because
-    # that is what makes the ratio free of the column's units.
-    # EACH DEVIATION IS DIVIDED BY THE SPREAD BEFORE IT IS RAISED, for
-    # the reason the generator's own window states: raising first is the
-    # same number in exact arithmetic and not the same computation in
-    # binary64, and a hundred ordinary values around 1e79 made this
-    # raise `OverflowError` where a report was owed (item P4-K-R1-F1).
-    low_fourths: "list[float]" = []
-    high_fourths: "list[float]" = []
-    for rank in range(numbers):
-        below = lows[rank] - mean_high
-        above = highs[rank] - mean_low
-        nearest = 0.0
-        if below > 0.0:
-            nearest = below
-        if above < 0.0:
-            nearest = -above
-        furthest = max(-below, above, 0.0)
-        near = nearest / high_end
-        far = furthest / low_end
-        low_fourths = low_fourths + [near**4]
-        high_fourths = high_fourths + [far**4]
-    tails_low = math.fsum(low_fourths) / numbers
-    tails_high = math.fsum(high_fourths) / numbers
-    if not math.isfinite(tails_low) or not math.isfinite(tails_high):
-        found["kurtosis"] = (_lowered(1.0), ceiling)
-        return found
-    # AND EVERY WINDOW THAT CLAMPS TO A UNIVERSAL LIMIT IS WIDENED
-    # OUTWARD AT THE POINT IT IS FILED (review item P4-G6-R6-F1). On
-    # the four-value extreme both ends of this window clamp to the same
-    # ceiling, so once that ceiling is stated correctly the two meet and
-    # the window admits nothing -- while the statistic it was drawn for
-    # sits on the ceiling. The generator's own copy of this window takes
-    # the same step, which is what keeps the two modules agreeing.
-    # THE SAME ONE STEP THE GENERATOR'S COPY TAKES (review item
-    # P4-G6-R8). Both limits are widened where they are formed and the
-    # clamped pair is not widened again: two steps is a bound two
-    # places looser than the method states.
-    lowest = max(_lowered(1.0), tails_low)
-    highest = min(ceiling, tails_high)
-    if lowest >= highest:
-        # Only a window whose ends have MET is widened further, and the
-        # generator's copy takes the same step for the same reason: a
-        # window of no width sits one place above the statistic it was
-        # drawn for (review item P4-G6-R8).
-        _bounded(
-            "kurtosis",
-            _lowered(min(lowest, highest)),
-            _raised(max(lowest, highest)),
-        )
-        return found
-    _bounded("kurtosis", lowest, highest)
-    return found
-
-
-def _sample_deviation(values: "list[float]", count: int) -> float:
-    """The standard deviation the profiler's own formula computes.
-
-    THE PROFILER'S OWN FORMULA, AND NOT A SECOND ONE THAT AGREES ON
-    ORDINARY COLUMNS (review item P4-G6-R1-F5). This said what it says
-    above and then computed `sum((x - mean) ** 2)` in binary64, which
-    is not what the profiler computes at all: `taxonomy._moments`
-    works the exact variance out in whole numbers over a shared power
-    of two and rounds once, for the stated reason that the square of a
-    large value has nowhere to go. Sixty ordinary values around 1e300
-    made this raise `OverflowError` -- out of `synthtwin validate`, as
-    a Python traceback rather than one of this package's own messages,
-    on a table `synthtwin profile` and `synthtwin generate` had both
-    just handled without complaint.
-
-    So it calls that function. The validator may not import the
-    GENERATOR, which is the independence the charter names; the
-    profiler is the module whose published numbers this one is
-    checking, and computing the same statistic a second way is how the
-    two come to disagree.
-
-    A spread larger than the format can hold has no deviation to
-    return, and the caller withholds its windows rather than drawing
-    one around a number that does not exist.
-    """
-    if count < 2:
-        return 0.0
-    spread = taxonomy.spread_of(list(values))
-    if spread is None or not math.isfinite(spread):
-        return float("inf")
-    return spread
-
-
-def _population_deviation(values: "list[float]", count: int) -> float:
-    """The population deviation the skewness divides by.
-
-    The same exact variance one factor along: the population deviation
-    is the sample one times the square root of `(n - 1) / n`, which is
-    exact in the ratio and cannot overflow, since the sample deviation
-    is a number the format already holds.
-    """
-    if count < 2:
-        return 0.0
-    spread = _sample_deviation(values, count)
-    if not math.isfinite(spread):
-        return float("inf")
-    return spread * math.sqrt((count - 1) / count)
 
 
 # The two forms a value's canonical text can carry a decimal point in,
@@ -9570,23 +14059,20 @@ def _recount_window(
 ) -> "tuple[int, int]":
     """How many cells of these forms the file's own description allows.
 
-    THE ENVELOPE V5.1 DRAWS, IN ARITHMETIC (review item P3-V2-D-F2). A
-    description names a form only where at least `floor` cells wear it;
-    everything below that goes into one pooled total and the form is
-    never named. So what `synthtwin profile` publishes about this file's
-    spellings is: an exact count for each named form, one total for all
-    the rest together, and nothing else. Every count vector consistent
-    with those numbers is a file that description could equally be
+    THE ENVELOPE V5.1 DRAWS, IN ARITHMETIC (review item P3-V2-D-F2). Every
+    count vector consistent with what `synthtwin profile` publishes about
+    this file's forms is a file that description could equally be
     describing, and a report may state only what is true of all of them.
 
-    The two ends follow from that and from nothing measured:
+    WHAT THE DESCRIPTION PUBLISHES. Since plan P4-D222 (stage 2 closed by
+    the owner rulings of 2026-09-17) a map naming its forms holds no pool
+    and `_style_checks` settles on its counts directly, so this is asked
+    only of a map that is one pool (`parsing.census_pools`), or of none:
 
-    * each named form contributes its published count exactly, and the
-      `unread` cells above can add to any form, so they widen the top;
-    * the unnamed forms share the pooled total, none of them reaching
-      the floor -- so the forms asked about here can take at most
-      `floor - 1` each of it, and at least whatever the OTHER unnamed
-      forms cannot hold.
+    * the `unread` cells can add to any form, widening the top;
+    * the forms share the pooled total, none of them reaching the line --
+      so the forms asked about here can take at most one less than the
+      line each of it, and at least whatever the OTHER forms cannot hold.
 
     Guarantees:
 
@@ -9598,9 +14084,7 @@ def _recount_window(
       caller compares it with what the file holds.
     - Errors raised: none.
     """
-    pooled = _counted(own, taxonomy.SUPPRESSED_LABEL)
-    room = floor - 1
-    room = max(room, 0)
+    room = parsing.census_floor(floor) - 1
     known = 0
     asked_unnamed = 0
     for style in styles:
@@ -9612,10 +14096,9 @@ def _recount_window(
     for style in contract.NUMERIC_STYLES:
         if style not in own and style not in styles:
             other_unnamed = other_unnamed + 1
-    high = asked_unnamed * room
-    high = min(high, pooled)
-    low = pooled - other_unnamed * room
-    low = max(low, 0)
+    pooled = _counted(own, taxonomy.SUPPRESSED_LABEL)
+    high = min(asked_unnamed * room, pooled)
+    low = max(pooled - other_unnamed * room, 0)
     return known + low, known + high + unread
 
 
@@ -9643,6 +14126,56 @@ def _window_at_least(
     if low >= target or high < target:
         return found >= target
     return None
+
+
+def _window_between(
+    window: "tuple[int, int]", found: int, least: int, most: int,
+    reach: int = -1,
+) -> "bool | None":
+    """Whether ``found`` lies in a permitted BAND, or None where saying tells.
+
+    THE POOL LICENSES A BAND AND NOT A POINT (Codex item 9 of the extra
+    round, 2026-09-18; plan P4-D264). A count the census pools has no
+    published form at all, so every allocation of the pooled cells across
+    the six forms is a file the description describes; a clause that
+    demanded one of them -- the allocation the generator happens to make
+    -- reported the REAL TABLE as missing an obligation its own
+    description never set. Measured: ten `+100.00` to `+109.00` beside ten
+    `110e0` to `119e0` at a floor of eleven publish
+    `numeric_styles {"(withheld)": 20}`, and the source failed
+    `styles.remainder` while the canonical twin passed.
+
+    The verdict is the recount's own where it may be reported at all: the
+    envelope the file's own description draws is reported when it lies
+    wholly inside the band or wholly outside it, and nothing is said when
+    it straddles an edge, because two files that description describes
+    alike would then get different verdicts (V5.3).
+
+    A BAND THAT EXCLUDES NOTHING IS WITHHELD AND NOT HELD (the skeptic's
+    finding of 2026-09-18, review priority 6). ``reach`` is the largest
+    count this file could possibly show the clause; where the band starts
+    at nought and ends at or past that, no file the description admits
+    can fail, and reporting HELD tells a reader an obligation was
+    verified when nothing about the file was asked. MEASURED: a census
+    pooling every cell -- ten `+100.00` to `+109.00` beside ten `110e0`
+    to `119e0` at a floor of eleven, `numeric_styles {"(withheld)": 20}`
+    -- was HELD on all four of four hand-built allocations of those
+    twenty cells, all plain, all exponent, all leading-plus and all
+    leading-zero, beside `0 MISSED` and NO CHECKABLE OBLIGATION WAS
+    MISSED. The clause is not vacuous in general: beside
+    `{"plain": 30, "(withheld)": 20}` the band is 30 to 50 and a file
+    spelling 55 cells plain still misses, and that case is unchanged.
+    ``reach`` left at -1 asks nothing, so every other caller is as it
+    was.
+    """
+    low, high = window
+    if reach >= 0 and least <= 0 and most >= reach:
+        return None
+    inside = least <= low and high <= most
+    outside = high < least or low > most
+    if low < high and not inside and not outside:
+        return None
+    return least <= found <= most
 
 
 def _window_at_most(
@@ -9736,15 +14269,40 @@ def _style_checks(
                 fact = "numeric.fraction_widths"
             if subcheck[:15] == "pads.published.":
                 fact = "numeric.pad_widths"
-            withheld = withheld + [
+            # ...and the wide-run ceiling binds its own published word
+            # (landing 2b.13), so the withheld side names the fact the
+            # measured side names.
+            if subcheck == "styles.canonical.wide":
+                fact = "numeric.wide_runs"
+            withheld += [
                 _withheld(name, fact, subcheck, _GATE_CLOSED)
             ]
         return withheld
-    recount, no_point_free = _recounted_styles(cells)
     published = facts.numeric_styles
     remainder = _counted(published, taxonomy.SUPPRESSED_LABEL)
     own = _own_styles(block)
     unread = _unread_cells(block, cells)
+    # THE FILE AS ITS OWN DESCRIPTION WRITES IT (plan P4-D222; stage 2
+    # closed by the owner rulings of 2026-09-17). Where that description
+    # names its forms, a form fewer cells than `parsing.census_floor` wrote
+    # was counted into the commonest named one, so the file it describes
+    # holds exactly the named counts and nothing else; its rare cells are
+    # read as written the commonest way, the rule the real table is
+    # described by. Every clause then settles on those counts -- which
+    # are the same for every file that description describes, so V5.1
+    # holds with no window -- and the recount below is read only over the
+    # forms that description names. Measured without this: every clause
+    # of a column of 229 plain numbers was WITHHELD on its own twin,
+    # because up to fifty of them might have been counted in.
+    respelled = bool(own) and taxonomy.SUPPRESSED_LABEL not in own
+    counted_forms: "tuple[str, ...]" = ()
+    if respelled:
+        counted_forms = tuple(sorted(own))
+    recount, no_point_free = _recounted_styles(cells, counted_forms)
+    if respelled:
+        recount = {}
+        for style in sorted(own):
+            recount[style] = own[style]
 
     def named(style: str) -> int:
         return _counted(published, style)
@@ -9756,6 +14314,8 @@ def _style_checks(
         return total
 
     def window(styles: "tuple[str, ...]") -> "tuple[int, int]":
+        if respelled:
+            return found(styles), found(styles) + unread
         return _recount_window(own, floor, unread, styles)
 
     checks: list[Check] = []
@@ -9764,7 +14324,7 @@ def _style_checks(
         parsing.STYLE_LEADING_PLUS,
         parsing.STYLE_EXPONENT_UPPER,
     ):
-        checks = checks + [
+        checks += [
             _silent(
                 name,
                 "numeric.numeric_styles",
@@ -9778,7 +14338,7 @@ def _style_checks(
             )
         ]
     for style in _floor_styles(facts):
-        checks = checks + [
+        checks += [
             _silent(
                 name,
                 "numeric.numeric_styles",
@@ -9798,7 +14358,7 @@ def _style_checks(
         - named(parsing.STYLE_EXPONENT_LOWER)
         - named(parsing.STYLE_EXPONENT_UPPER),
     )
-    checks = checks + [
+    checks += [
         _silent(
             name,
             "numeric.numeric_styles",
@@ -9819,10 +14379,29 @@ def _style_checks(
             "numeric.numeric_styles",
             "styles.remainder",
             "the pooled cells are spelled by their own values",
-            _window_equals(
+            # THE BAND THE POOL LEAVES, NOT THE GENERATOR'S OWN CHOICE
+            # INSIDE IT (plan P4-D264). The named counts pin what they
+            # name; the pooled cells name no form, so `plain` is owed at
+            # least what the census names it and at most that plus the
+            # pool, less the cells `styles.spill` has already sent to the
+            # two point-carrying forms. The generator writes the pool
+            # plain and still meets this; a source that wrote it with a
+            # leading plus or an exponent now meets it too, and a file
+            # spelling MORE cells plain than the pool can pay still
+            # misses.
+            _window_between(
                 window((parsing.STYLE_PLAIN,)),
                 found((parsing.STYLE_PLAIN,)),
+                named(parsing.STYLE_PLAIN),
                 named(parsing.STYLE_PLAIN) + remainder - spill,
+                # ...AND THE LARGEST COUNT THIS FILE COULD SHOW, so a
+                # band no file the description admits can fall outside is
+                # WITHHELD rather than HELD (the skeptic's finding of
+                # 2026-09-18). Every numeric cell of the file is either
+                # counted plain here or sent to the two point-carrying
+                # forms by `styles.spill`, so the most `plain` can reach
+                # is the recount less that spill.
+                found(contract.NUMERIC_STYLES) - spill,
             ),
             _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
             _GATE_POOLED,
@@ -9842,7 +14421,7 @@ def _style_checks(
     # them and validated with exit 0. The ceiling below could not catch
     # it, because on that column the published decimal count is the cell
     # count and the ceiling is every cell there is.
-    checks = checks + [
+    checks += [
         _silent(
             name,
             "numeric.numeric_styles",
@@ -9852,7 +14431,21 @@ def _style_checks(
                 "six published forms of its own value"
             ),
             _cells_outside_the_styles(
-                cells, facts.integer_valued, _published_widths(facts)
+                cells,
+                facts.integer_valued,
+                _published_widths(facts),
+                # Grouped spellings are OFFERED whatever the published
+                # mark (stage 2 audit): the mark is REPORT-ONLY, so a file
+                # grouping cells the description found no proof for --
+                # the real table itself, at a raised floor -- is spelled
+                # in a permitted form, never MISSED. Cells arrive here
+                # with a decimal comma already read back to a point, so
+                # the offer is a comma for both published marks; a cell
+                # carrying one of the other marks is offered that one.
+                ",",
+                _pooled_widths(facts, floor),
+                _absorbed_styles(facts, floor),
+                _named_styles(facts),
             )
             == 0,
             _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
@@ -9922,11 +14515,15 @@ def _style_checks(
     for style in _ceilinged_styles(column, facts):
         odd = _noncanonical_cells(cells, style, facts.integer_valued)
         settled: bool | None = odd <= named(style)
-        if style not in own:
+        if respelled and style not in own:
+            # A form the file's own description counts into another holds
+            # no cell of the file that description describes.
+            settled = True
+        elif style not in own:
             settled = _window_at_most(
                 (0, window((style,))[1]), odd, named(style)
             )
-        checks = checks + [
+        checks += [
             _silent(
                 name,
                 "numeric.numeric_styles",
@@ -9939,6 +14536,47 @@ def _style_checks(
                 settled,
                 _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
                 _GATE_POOLED,
+            )
+        ]
+    # THE CANONICAL QUESTION FOR A WIDE RUN, ASKED WHERE THE DESCRIPTION
+    # SETTLES IT (landing 2b.13, plan P4-D90, closing the residual
+    # P4-D66.2 named). The ceiling above is the published count of the
+    # form, and on every column of identifiers that count IS the row
+    # count -- `numeric_styles {plain: 800}` on 800 rows -- so the bar
+    # admits every cell and the entry is a listing. Measured before this
+    # check existed: 800 canonical seventeen-figure runs, respelled cell
+    # by cell into the value-preserving neighbours, 790 of 800 moved,
+    # validated at exit 0 with nothing missed.
+    #
+    # FILED ONLY WHERE THE COLUMN PUBLISHES `canonical`, which is what
+    # keeps it from being the vacuity V3.4 refuses. A column publishing
+    # `none` has no such run to ask about and a column publishing
+    # `respelled` has said its own writer respells them -- holding that
+    # file to a ceiling of nought is the false accusation plan P4-D66.2
+    # exists to end, and it is the LISTING below that names it.
+    #
+    # AND THE CEILING IS THE CENSUS FLOOR, NOT NOUGHT (plan P4-D140).
+    # The producer publishes `canonical` wherever fewer runs than
+    # `parsing.census_floor` are respelled, so that no single cell can
+    # move the word -- the final Codex review read one person's spelling
+    # off it when the line stood at one. A file is held to exactly that:
+    # fewer respelled runs than the floor meets it, which keeps the real
+    # table meeting its own description, and a twin respelling a group
+    # of them misses it.
+    if facts.wide_runs == parsing.WIDE_CANONICAL:
+        least = parsing.census_floor(floor)
+        checks += [
+            _silent(
+                name,
+                "numeric.wide_runs",
+                "styles.canonical.wide",
+                (
+                    f"fewer than {least} point-free cells past what a "
+                    f"double keeps written as anything but the figures "
+                    f"of their own value"
+                ),
+                _wide_cells_respelled(cells) < least,
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
             )
         ]
     measured = _map_at(block, "numeric_styles")
@@ -9955,7 +14593,7 @@ def _style_checks(
     for style in sorted(published):
         if style == taxonomy.SUPPRESSED_LABEL:
             continue
-        checks = checks + [
+        checks += [
             _floor_governed(
                 name,
                 "numeric.numeric_styles",
@@ -9982,7 +14620,7 @@ def _style_checks(
     for width in sorted(census):
         if width == taxonomy.SUPPRESSED_LABEL:
             continue
-        checks = checks + [
+        checks += [
             _floor_governed(
                 name,
                 "numeric.fraction_widths",
@@ -10008,7 +14646,7 @@ def _style_checks(
     for width in sorted(padding):
         if width == taxonomy.SUPPRESSED_LABEL:
             continue
-        checks = checks + [
+        checks += [
             _floor_governed(
                 name,
                 "numeric.pad_widths",
@@ -10069,7 +14707,7 @@ def _floor_styles(facts: contract.NumericFacts) -> "list[str]":
         parsing.STYLE_EXPONENT_LOWER,
     ):
         if _counted(facts.numeric_styles, style) > 0:
-            asked = asked + [style]
+            asked += [style]
     return asked
 
 
@@ -10116,7 +14754,7 @@ def _ceilinged_styles(
     asked: list[str] = []
     for style in (parsing.STYLE_DECIMAL, parsing.STYLE_EXPONENT_LOWER):
         if _counted(facts.numeric_styles, style) < rows:
-            asked = asked + [style]
+            asked += [style]
     return asked
 
 
@@ -10139,31 +14777,38 @@ def _style_subchecks(
             parsing.STYLE_EXPONENT_UPPER,
         )
     ]
-    named = named + [
+    named += [
         f"styles.at-least.{style}" for style in _floor_styles(facts)
     ]
-    named = named + ["styles.spill", "styles.remainder", "styles.spelled"]
-    named = named + [
+    named += ["styles.spill", "styles.remainder", "styles.spelled"]
+    named += [
         f"styles.canonical.{style}"
         for style in _ceilinged_styles(column, facts)
     ]
+    # ...and the canonical question for a WIDE run, on the columns whose
+    # description settles it (landing 2b.13, plan P4-D90). Filed on
+    # exactly the condition `_style_checks` files it on, so the
+    # identities a withheld column carries are the ones a measured one
+    # carries.
+    if facts.wide_runs == parsing.WIDE_CANONICAL:
+        named += ["styles.canonical.wide"]
     for style in sorted(facts.numeric_styles):
         if style == taxonomy.SUPPRESSED_LABEL:
             continue
-        named = named + [f"styles.published.{style}"]
+        named += [f"styles.published.{style}"]
     for width in sorted(facts.fraction_widths):
         if width == taxonomy.SUPPRESSED_LABEL:
             continue
-        named = named + [f"widths.published.{width}"]
+        named += [f"widths.published.{width}"]
     for width in sorted(facts.pad_widths):
         if width == taxonomy.SUPPRESSED_LABEL:
             continue
-        named = named + [f"pads.published.{width}"]
+        named += [f"pads.published.{width}"]
     return named
 
 
 def _recounted_styles(
-    cells: "list[str]",
+    cells: "list[str]", forms: "tuple[str, ...]" = ()
 ) -> "tuple[dict[str, int], int]":
     """How the present numeric cells were written, and how many need a point.
 
@@ -10171,6 +14816,10 @@ def _recounted_styles(
     whose VALUE has no point-free spelling at all. It is read off the
     values and never off the spellings, because counting the cells that
     were written with a point would make the identity circular.
+
+    ``forms``, where given, are the forms the file's own description names
+    (plan P4-D222): a cell of any other form is one that description
+    counts into its commonest form, and it needs no point there.
     """
     counted: dict[str, int] = {}
     no_point_free = 0
@@ -10182,6 +14831,8 @@ def _recounted_styles(
             continue
         style = parsing.numeric_style(body)
         counted[style] = _counted(counted, style) + 1
+        if forms and style not in forms:
+            continue
         value = parsing.parse_number(body)
         if value is not None and not parsing.is_whole_number(value):
             no_point_free = no_point_free + 1
@@ -10237,7 +14888,97 @@ def _noncanonical_cells(
         value = parsing.parse_number(body)
         if value is None:
             continue
-        if body != _canonical_text(value, whole_column):
+        if _written_with_a_leading_minus(body) != _canonical_text(
+            value, whole_column
+        ):
+            odd = odd + 1
+    return odd
+
+
+def _wide_cells_respelled(cells: "list[str]") -> int:
+    """How many wide runs are NOT the figures their own value writes.
+
+    THE QUESTION `styles.spelled` CANNOT ASK (landing 2b.13, plan
+    P4-D90). That subcheck asks whether a cell is a spelling of its own
+    value, and past 2**53 a run of figures is one whatever its last
+    figure reads -- `88618223144562695` and `88618223144562696` are one
+    double, and admitting both is exactly what plan P4-D66.2 decided so
+    that a real export of seventeen-figure keys stops being told its own
+    file failed its own description. So this asks the OTHER question:
+    not whether the run denotes the value, but whether it is the run the
+    value itself writes.
+
+    WRITTEN OUT HERE RATHER THAN IMPORTED (V1.4, V4.2), exactly as
+    `_canonical_text` above is: the class test is this module's own
+    `_wears_a_whole_number_text` and the figures are taken from the
+    NUMBER the cell read back as, so nothing the file spells decides
+    anything here.
+
+    COUNTED OVER THE SAME CELLS THE WORD IS PUBLISHED ABOUT, and the
+    repair pass of landing 2b.13 (plan P4-D91) is what made that true.
+    This side read the trimmed, minus-first cell while the producer read
+    the RAW one, so the two disagreed about the accounting bracket, the
+    minus sign of the character tables and a leading space: the producer
+    left such a cell out of its word and this counted it, and ONE of
+    them in eight hundred made a REAL table fail its own description at
+    exit 3 -- the false accusation plan P4-D66.2 exists to end. The two
+    now ask the same question of the same text: the two point-free
+    forms, `plain` and `leading_plus`, and the cell's figures with its
+    thousands marks taken out, which is what `number_core` takes out
+    before the form is decided over there.
+
+    `leading_zero` IS ASKED ON BOTH SIDES, once the pad is read off
+    (landing 2b.16 part 2, plan P4-D107). It was left out of both until
+    this landing, on the ground that a padded cell's figures are not its
+    value's figures until somebody decides which zeros are the pad --
+    which was taken to be the width census's job. Measured, that left
+    800 zero-padded nineteen-wide keys, every one respelled, publishing
+    `none` and checked by nothing, with the twin, the real table and the
+    canonical description handed the respelled file all at exit 0.
+
+    NOTHING PUBLISHED DECIDES THE SPLIT. Past 2**53 every value is a
+    whole number and the figures it writes never begin with a zero, so
+    every leading zero is pad and what remains is the run: the split is
+    a fact of the text, and this side reads it from the text exactly as
+    the producer reads it from the text, which is what keeps the two
+    one class. The width census is not consulted here, and this module
+    could not consult it without asking the file's own description what
+    to count -- which is the reading V1.4 refuses.
+
+    THE MARKS ARE TAKEN OUT HERE, NOT BORROWED (V1.4), exactly as the
+    minus notation above is: a column of 800 grouped wide runs, every
+    one respelled, published `none` and was counted by nothing before
+    this read them.
+    """
+    odd = 0
+    for cell in cells:
+        body = parsing.trimmed(cell)
+        if not body:
+            continue
+        style = parsing.numeric_style(body)
+        if (
+            style != parsing.STYLE_PLAIN
+            and style != parsing.STYLE_LEADING_PLUS
+            and style != parsing.STYLE_LEADING_ZERO
+        ):
+            continue
+        if parsing.classify_number(body) != parsing.NUMBER:
+            continue
+        value = parsing.parse_number(body)
+        if value is None:
+            continue
+        signed = _without_group_marks(_written_with_a_leading_minus(body))
+        if not _wears_a_whole_number_text(signed, value):
+            continue
+        digits = signed
+        if digits[:1] == "-" or digits[:1] == "+":
+            digits = digits[1:]
+        while digits[:1] == "0" and len(digits) > 1:
+            digits = digits[1:]
+        whole = int(value)
+        if whole < 0:
+            whole = -whole
+        if digits != f"{whole}":
             odd = odd + 1
     return odd
 
@@ -10346,8 +15087,56 @@ def _point_free_text(value: float, canonical: str) -> "str | None":
     return None
 
 
+def _grouped_text(text: str, mark: str) -> str:
+    """`text` with `mark` between each group of three whole figures.
+
+    WRITTEN HERE, NOT BORROWED FROM `parsing`, and the independence is
+    the point. The generator groups with `parsing.with_group_separator`;
+    if this check called the same function, a defect in it would be a
+    defect in both and the check could never see it. This walks the
+    whole figures from the right, where that one counts the first group
+    from the left, so the two agree only where both are right.
+
+    Guarantees: accepts a written number and one mark; returns it with
+    the mark between each group of three whole figures, or unchanged
+    where the mark is empty or the whole part is shorter than four
+    figures. Determinism: a fixed function of the two. Raises TypeError
+    if handed anything that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a grouped spelling was asked of something else")
+    if not isinstance(mark, str):
+        raise TypeError("a grouped spelling was asked of something else")
+    if mark == "":
+        return text
+    body = text.strip()
+    sign = ""
+    if body[:1] == "+" or body[:1] == "-":
+        sign = body[:1]
+        body = body[1:]
+    point = body.find(".")
+    whole = body if point < 0 else body[:point]
+    tail = "" if point < 0 else body[point:]
+    if len(whole) < 4:
+        return text
+    for figure in whole:
+        if figure < "0" or figure > "9":
+            return text
+    grouped = ""
+    end = len(whole)
+    while end > 0:
+        begin = end - 3 if end > 3 else 0
+        chunk = whole[begin:end]
+        grouped = chunk if grouped == "" else chunk + mark + grouped
+        end = begin
+    return sign + grouped + tail
+
+
 def _permitted_spellings(
-    value: float, whole_column: bool, widths: "tuple[int, ...]" = ()
+    value: float,
+    whole_column: bool,
+    widths: "tuple[int, ...]" = (),
+    mark: str = "",
 ) -> "tuple[str, ...]":
     """Every base text the six styles of G6.1 can write for one value.
 
@@ -10392,7 +15181,7 @@ def _permitted_spellings(
     ]
     plain = _point_free_text(value, canonical)
     if plain is not None:
-        spellings = spellings + [plain]
+        spellings += [plain]
     # ...AND THE FIXED-POINT FORM AT EVERY WIDTH THIS COLUMN'S OWN
     # CENSUS NAMES, and at no other. A trailing zero is not free: the
     # whole point of this subcheck is the twin whose every decimal cell
@@ -10409,11 +15198,25 @@ def _permitted_spellings(
     for width in widths:
         padded = _text_at_width(sign, figures, place, width)
         if padded is not None:
-            spellings = spellings + [padded]
+            spellings += [padded]
+    # ...AND THE GROUPED FORM OF EACH, WHERE THE COLUMN PUBLISHES A MARK.
+    # Before this, a correctly grouped twin cell such as `2,198.92` read
+    # back as the value 2198.92, matched none of these ungrouped texts,
+    # and was counted as a spelling outside the six forms -- so validate
+    # reported `styles.spelled` MISSED against a twin that was right,
+    # and would not say why. Offered beside the bare form, not instead of
+    # it: whether every eligible cell carries the mark is its own
+    # question, and this subcheck asks only whether a cell's text is a
+    # spelling of its own value.
+    if mark:
+        for base in tuple(spellings):
+            grouped = _grouped_text(base, mark)
+            if grouped != base:
+                spellings += [grouped]
     plussed: list[str] = []
     for spelling in spellings:
         if spelling[:1] != "-":
-            plussed = plussed + [f"+{spelling}"]
+            plussed += [f"+{spelling}"]
     return tuple(spellings + plussed)
 
 
@@ -10488,6 +15291,137 @@ def _shown_count_or_none(found: "int | None") -> "str | None":
     return _shown_count(found)
 
 
+def _pooled_widths(facts: contract.NumericFacts, floor: int) -> int:
+    """How many cells the fraction-width census leaves no width of its own.
+
+    THE CELLS A WIDTH BELOW THE LINE WAS COUNTED INTO THE COMMONEST
+    WIDTH FROM (plan P4-D222; stage 2 closed by the owner rulings of
+    2026-09-17), at most `parsing.absorbed_room`'s bound, or the census's
+    one pool; and where the forms map holds the point back in one pool,
+    that pool. Each is a cell written at a width too few cells shared to
+    name: a real column of 400 one-place readings, one of them written
+    `4.20`, publishes `fraction_widths {"1": 400}`, and its `4.20` is one
+    of them.
+    """
+    pooled = 0
+    if taxonomy.SUPPRESSED_LABEL in facts.fraction_widths:
+        found = facts.fraction_widths[taxonomy.SUPPRESSED_LABEL]
+        if isinstance(found, int):
+            pooled = found
+    _commonest, taken = parsing.absorbed_room(facts.fraction_widths, floor)
+    pooled = pooled + taken
+    if parsing.STYLE_DECIMAL not in facts.numeric_styles:
+        for style in sorted(facts.numeric_styles):
+            if style == taxonomy.SUPPRESSED_LABEL:
+                pooled = pooled + facts.numeric_styles[style]
+        # ...AND THE CELLS THE COMMONEST NAMED STYLE TOOK IN (Codex item
+        # 8 of the extra round, 2026-09-18; plan P4-D263). Ruling 6 of
+        # 2026-09-17 counts a spelling below the floor into the column's
+        # commonest spelling, so a lone `1254.00` among thirty whole
+        # numbers is counted under `plain` and the fraction census is
+        # left empty -- a description that says nothing whatever about
+        # the width that cell was written at. The allowance is the same
+        # bound the producer absorbed it under, `parsing.absorbed_room`,
+        # asked of the style census exactly as it is asked of the width
+        # census two lines above, and it stands only where no `decimal`
+        # count is named: a named `decimal` count licenses its own
+        # spellings and needs no allowance. MEASURED before it: thirty
+        # whole numbers beside one `1254.00`, at a floor of one and at
+        # eleven alike, published `numeric_styles {"plain": 31}` with
+        # `fraction_widths {}`, and the REAL FILE failed `styles.spelled`
+        # while its seed-4 twin passed.
+        _named, absorbed = parsing.absorbed_room(facts.numeric_styles, floor)
+        # ...BOUNDED AGAIN BY WHAT A CENSUS OF SIX NAMES CAN HIDE. A style
+        # counted into the commonest was below the LINE, so it covered at
+        # most one cell less than the line, and five of the six names can
+        # have been absorbed at once. On a column of three hundred cells
+        # `absorbed_room` alone is 289, which is the census saying almost
+        # nothing; this pair of bounds is what keeps `styles.spelled` a
+        # check that can still fail.
+        absorbed = min(
+            absorbed,
+            (len(contract.NUMERIC_STYLES) - 1) * (parsing.census_floor(floor) - 1),
+        )
+        pooled = pooled + absorbed
+    return pooled
+
+
+# THE TWO STYLES THE ABSORBED ALLOWANCE REACHES, and it reaches no
+# others (the skeptic's finding of 2026-09-18, narrowed by the entry
+# table of review item P3-V1-F2). A `decimal` cell absorbed into a named
+# style is allowed for on the WIDTH axis by `_pooled_widths`, which is
+# where P4-D263 put it and where it is bounded by a width the census does
+# not name; offering it here as well made the entry table's `padded` red
+# case -- one cell rewritten with a trailing nought -- pass, and a
+# perturbation that no longer misses is a check nothing shows can fail.
+# The two exponents are reached by the source-spelling family above. What
+# is left is the leading nought and the leading plus, which is the pair
+# the finding was measured on.
+_ABSORBED_STYLE_FAMILY = (
+    parsing.STYLE_LEADING_ZERO,
+    parsing.STYLE_LEADING_PLUS,
+)
+
+
+def _absorbed_styles(facts: contract.NumericFacts, floor: int) -> int:
+    """How many cells the STYLE census may have counted into another name.
+
+    RULING 6 ON THE STYLE AXIS, the allowance `_pooled_widths` already
+    offers on the width axis (the skeptic's finding of 2026-09-18, the
+    item 7/8/9 family in a shape those three do not reach). A spelling
+    below the floor is counted into the column's commonest spelling, so
+    a style that covered too few cells to name leaves the census naming
+    it nowhere -- and the recount then finds a cell wearing no published
+    style and accuses the file its own description was written from.
+
+    MEASURED before this allowance, at a floor of one and at eleven
+    alike: thirty grouped counts `10,100` to `39,129` beside one
+    `0,472`, whose style is `leading_zero`, published
+    `numeric_styles {"plain": 31}` with `thousands_marks {}` and
+    `pad_widths {}`; the seed-4 twin passed and the REAL TABLE failed
+    `styles.spelled`, exit 3. Three of forty random European
+    decimal-comma shapes failed the same way, and the ungrouped
+    equivalents -- thirty plain integers beside one `0123`, one `+123`
+    or one `123e0` -- passed, so it is the grouped column that breaks.
+
+    THE ALLOWANCE REACHES TWO STYLES, not six: `_ABSORBED_STYLE_FAMILY`
+    beside this says which and why.
+
+    THE BOUND IS THE PAIR `_pooled_widths` USES, and for the same
+    reason: `parsing.absorbed_room`'s own answer, and what a census of
+    six names can hide -- five of the six can have been absorbed and
+    each was below the line, so at most five times one less than the
+    line. On a three-hundred-cell column at a floor of eleven that is
+    fifty, so one odd cell passes and sixty do not, and the check can
+    still fail.
+
+    Guarantees: accepts the column's numeric facts and the settings
+    floor; returns a count of cells. Determinism: a fixed function of
+    the two. Raises nothing. No I/O of any kind.
+    """
+    commonest, absorbed = parsing.absorbed_room(facts.numeric_styles, floor)
+    if not commonest:
+        return 0
+    return min(
+        absorbed,
+        (len(contract.NUMERIC_STYLES) - 1) * (parsing.census_floor(floor) - 1),
+    )
+
+
+def _named_styles(facts: contract.NumericFacts) -> "tuple[str, ...]":
+    """The style names this column's own census prints, ascending.
+
+    The pooled remainder is not one of them, exactly as in
+    `_published_widths`: it names no style and so authorizes none.
+    """
+    names: "list[str]" = []
+    for style in sorted(facts.numeric_styles):
+        if style == taxonomy.SUPPRESSED_LABEL:
+            continue
+        names += [style]
+    return tuple(names)
+
+
 def _published_widths(
     facts: contract.NumericFacts,
 ) -> "tuple[int, ...]":
@@ -10502,12 +15436,443 @@ def _published_widths(
     for key in sorted(facts.fraction_widths):
         if key == taxonomy.SUPPRESSED_LABEL:
             continue
-        named = named + [int(key)]
+        named += [int(key)]
     return tuple(sorted(named))
 
 
+def _written_with_a_leading_minus(body: str) -> str:
+    """A cell's text with its negative notation written as a leading minus.
+
+    WRITTEN HERE, NOT BORROWED (V1.4), for the reason `_grouped_text` is:
+    the generator writes a negative in the published notation with
+    `parsing.with_negative_notation`, and a check that called the same
+    rule could not see a defect in it. Four notations say negative and
+    each is rewritten from its own shape: `(1,234.5)` and `\u22121,234.5`
+    and `1,234.5-` all become `-1,234.5`. Every cell is offered this
+    whatever notation its column publishes, as every grouped spelling is
+    whatever mark: a real table whose brackets fell short of the majority
+    writes a spelling of its own value, and is not MISSED for it (landing
+    2b.2; before it, a bracketed real table failed its own description).
+    """
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        return "-" + body[1 : len(body) - 1]
+    if body[:1] == parsing.MINUS_SIGN:
+        return "-" + body[1:]
+    if (
+        len(body) > 1
+        and body[len(body) - 1 : len(body)] == "-"
+        and body[:1] != "-"
+        and body[:1] != "+"
+    ):
+        # ...on an amount only: a point in the figures, which is the
+        # reader's own condition, restated rather than borrowed. A mark
+        # alone does not make one: `1,234-` is text, as `500-` is.
+        for character in body:
+            if character == ".":
+                return "-" + body[: len(body) - 1]
+    return body
+
+
+def _without_group_marks(body: str) -> str:
+    """A cell's text with every mark between its thousands taken out.
+
+    WRITTEN HERE, NOT BORROWED (V1.4), for the reason
+    `_written_with_a_leading_minus` above is, and it is the same KIND of
+    rule: a spelling this method's own generator may write, normalised
+    to the bare figures before the cell is compared with the text its
+    value writes. `12,345,678,901,234,567` and `12 345 678 901 234 567`
+    both become `12345678901234567`.
+
+    ADDED BY THE REPAIR PASS OF LANDING 2b.13 (plan P4-D91), where a
+    column of 800 grouped wide runs -- every one of them respelled into
+    the value-preserving neighbour a double cannot tell apart --
+    published `none` and was counted by nothing.
+    """
+    core = ""
+    for character in body:
+        if character not in parsing.GROUP_MARKS:
+            core = core + character
+    return core
+
+
+def _written_with_a_leading_zero(body: str) -> str:
+    """A cell's text with the `0` in front of a bare point restored.
+
+    WRITTEN HERE, NOT BORROWED, for the reason `_written_with_a_leading_minus`
+    above is, and it is the same KIND of rule: a notation this method's
+    own generator does not choose, normalised to the one it does before
+    the cell is compared with the spellings of its value.
+
+    Stata and SPSS write a value below one with no integer figure --
+    `.05`, `-.23`, and `,41` on a column declared to write its decimals
+    with a comma, which reaches here as `.41` -- and `0.05` is the same
+    figures with a character in front that carries none of them. Every
+    permitted spelling of 0.05 begins with that character, so 724 of
+    800 cells of a real Stata export were counted as spellings outside
+    the six forms and the file failed its own description (landing
+    2b.7; audit items NC-6 and NC-12).
+
+    RESTORING THE ZERO RATHER THAN OFFERING A SECOND TEXT is what makes
+    it reach every width: the census may publish three figures after
+    the point, so the bare spelling of a cell that rounds to nothing is
+    `.000`, whose restored text `0.000` is offered by `_text_at_width`
+    at that width and by nothing else. A rule that built the bare form
+    from the fixed-point text alone answered for `.05` and not for
+    `.000`, which is the zero cell of every such column.
+
+    Guarantees: accepts one cell's text; returns it unchanged unless a
+    point stands where the integer figure should be. No I/O.
+    """
+    if body[:1] == ".":
+        return f"0{body}"
+    if body[:1] == "-" and body[1:2] == ".":
+        return f"-0{body[1:]}"
+    if body[:1] == "+" and body[1:2] == ".":
+        return f"+0{body[1:]}"
+    return body
+
+
+def _body_without_sign_or_zeros(text: str, sign: str) -> "str | None":
+    """One cell's text with its sign and any invented zeros taken off.
+
+    The leading-zero family of owner decision 8 is zeros written
+    straight after the sign, at any order, which is what `_wears`
+    strips for the texts it is handed. The three shapes below ask about
+    the figures themselves, so they need the same stripping first, and
+    doing it once here is what keeps the three from each growing their
+    own copy of it.
+
+    None where the cell's sign is not the value's: a spelling of a
+    negative value carries a minus, and a text carrying one is no
+    spelling of a value that does not.
+
+    The run of zeros stops at a point, because the `0` of `0.5` is a
+    figure of the number and not an invented one, and at an exponent
+    mark, because the `0` of `0E5` is the whole mantissa.
+    """
+    body = text
+    if sign == "-":
+        if body[:1] != "-":
+            return None
+        body = body[1:]
+    elif body[:1] == "+":
+        body = body[1:]
+    elif body[:1] == "-":
+        return None
+    # NOR AT AN EXPONENT (lane L1, plan P4-D390): the `0` of `0E15588`
+    # is the mantissa of a nought written with an exponent, and taking it
+    # off left `E15588`, no spelling at all, so a register of codes beside
+    # numbers failed `styles.spelled` on its own description.
+    while (
+        body[:1] == "0"
+        and len(body) > 1
+        and body[1:2] != "."
+        and body[1:2] != "e"
+        and body[1:2] != "E"
+    ):
+        body = body[1:]
+    if not body:
+        return None
+    return body
+
+
+# HOW MANY SIGNIFICANT FIGURES AN EXPONENT MAY CARRY AND STILL BE READ
+# (plan P4-D146). Past nine, a power of ten is at least a billion in
+# either direction, so the cell reads back as nought or as no number a
+# double holds unless its mantissa runs to a billion figures, which no
+# cell of a table does. Leading zeros are not significant and do not
+# count: the grammar promises padding of any length.
+_EXPONENT_FIGURES_READ = 9
+
+
+def _wears_an_exponent_spelling(body: str, magnitude: float) -> bool:
+    """Whether one cell is its own value written in exponent notation.
+
+    THE MANTISSA AND THE EXPONENT ARE THE WRITER'S, NOT THIS METHOD'S
+    (landing 2b.7; audit items NC-1, NC-2, NC-12). G6.3 writes
+    `d[.ddd]e+XX` from the SHORTEST round-trip figures with the sign
+    always written and the exponent at least two digits, and every real
+    exporter writes something else: Excel's `2.29E+05` and SAS's
+    `7.2960E+02` pad the mantissa, Fortran, Julia and JavaScript write
+    `6E9`, and each was a false accusation against a real export.
+
+    AND NOW ANY MANTISSA THAT READS BACK AS THE VALUE (plan P4-D144, the
+    final Codex review's item 5). The first version admitted padding
+    only -- the value's own shortest figures with zeros after them, one
+    figure before the point, the exponent at the value's own place -- and
+    the review measured two ordinary exports it refused: C's `%.18e`,
+    whose nineteen figures carry the double's exact expansion past its
+    shortest form (799 of 800 cells MISSED `styles.spelled` on the real
+    table at a floor of eleven), and engineering notation `1200e-3`,
+    which places the mantissa elsewhere. Both are spellings of the number
+    they read back as, and so is `46E+02`, which a test of landing 2b.7
+    held to be MISSED. That test pinned a canonical requirement the
+    description never published, which is the false accusation this
+    family exists to end; the owner's ruling is that the twin writes
+    everything exactly as the source wrote it, so a canonical mantissa
+    would need an obligation of its own and there is none.
+
+    WHAT STAYS CHECKED. The FORM: an exponent cell is still counted by
+    the style census, so a file writing exponents where the description
+    publishes none is MISSED there. What this admits is only which
+    exponent text a value may wear.
+
+    NEVER A CRASH ON THE GRAMMAR'S OWN PADDING (plan P4-D146, item 8).
+    The power used to be read with `int`, and an exponent padded past
+    4,300 figures raised Python's conversion limit out of validation. The
+    zeros are taken off first, and a power of more than
+    `_EXPONENT_FIGURES_READ` significant figures is read as nought or as
+    nothing a double holds without converting it at all.
+
+    Guarantees: accepts a cell's text with its sign and its redundant
+    leading zeros already taken off, and the magnitude of the value it
+    read back as; returns whether it is that magnitude in exponent
+    notation. Determinism: a fixed function of the two. Raises nothing.
+    No I/O of any kind.
+    """
+    marker = -1
+    for index in range(len(body)):
+        if body[index] == "e" or body[index] == "E":
+            marker = index
+    if marker < 1:
+        return False
+    mantissa = body[:marker]
+    power = body[marker + 1 :]
+    lead = ""
+    if power[:1] == "+" or power[:1] == "-":
+        lead = power[:1]
+        power = power[1:]
+    if not power:
+        return False
+    for character in power:
+        if character < "0" or character > "9":
+            return False
+    # ONE SCAN AND ONE SLICE (plan P4-D146, the repair pass). Taking the
+    # zeros off one at a time copied the rest of the power once per zero,
+    # and a pad of 40,000 zeros on 100 cells took 33 seconds to validate.
+    first = 0
+    while first < len(power) - 1 and power[first] == "0":
+        first = first + 1
+    power = power[first:]
+    figures = 0
+    points = 0
+    nonzero = False
+    for character in mantissa:
+        if character == ".":
+            points = points + 1
+            continue
+        if character < "0" or character > "9":
+            return False
+        figures = figures + 1
+        if character != "0":
+            nonzero = True
+    if figures < 1 or points > 1:
+        return False
+    if not nonzero:
+        return magnitude == 0.0
+    if len(power) > _EXPONENT_FIGURES_READ:
+        return False
+    return float(f"{mantissa}e{lead}{power}") == magnitude
+
+
+def _wears_a_whole_number_text(body: str, value: float) -> bool:
+    """Whether one cell is a run of figures reading back as exactly this value.
+
+    THE FIGURES OF A WHOLE NUMBER PAST WHAT BINARY64 KEEPS (landing
+    2b.7; the audit's missed item M2). G6.2's point-free spelling is
+    the value's shortest round-trip figures with its trailing zeros
+    written out, and it owes exactly one thing: that it reads back as
+    the same number. Above 2**53 more than one run of figures does --
+    `88618223144562695` and `88618223144562696` are one binary64 -- and
+    only one of them is the one `repr` produces, so a real table of
+    seventeen-figure accession numbers, encounter numbers or concept
+    identifiers failed its own description on every cell whose last
+    figure the format could not keep.
+
+    Asked of the text and answered by the NUMBER: the cell's figures
+    are read back and compared with the value the cell already read
+    back as, so nothing the file spells decides anything here except
+    whether it is a spelling of its own value.
+
+    THE SIGN IS PART OF THE RUN (the verification of landing 2b.7).
+    `_wears_a_source_spelling` takes the sign off before it asks about
+    the figures, because the other two shapes ask about figures alone --
+    and a run of figures with the sign left off can never read back as a
+    negative value, so every cell of a real ledger of signed
+    seventeen-figure keys was counted outside the six forms and the file
+    failed its own description at exit 3, on both seeds of two, with 398
+    of 800 cells negative. The caller hands the sign back now, and this
+    reads it: a spelling of a negative value carries the minus, and the
+    number it reads back as is the number it is compared with.
+
+    THE RULE ANSWERS ONLY WHERE BINARY64 LOSES A FIGURE, which is what
+    keeps it from being an identity over every run of figures. Below
+    2**53 a whole number is held exactly, so exactly one run of figures
+    reads back as it -- its own -- and that run is a spelling the family
+    already offers, so this rule deciding it would decide nothing and
+    say it did. Measured on the base commit: of three hundred random
+    runs at each width, NONE at fifteen figures was ever counted outside
+    the styles, 18 of 300 were at sixteen and 240 of 300 at seventeen,
+    and every run refused was one that is not its own value's canonical
+    text. So the class this admits and the class binary64 cannot tell
+    apart are the same class, and the bound below says so rather than
+    leaving the sentence true of every digit run ever written.
+    """
+    digits = body
+    if digits[:1] == "-" or digits[:1] == "+":
+        digits = digits[1:]
+    if not digits:
+        return False
+    for character in digits:
+        if character < "0" or character > "9":
+            return False
+    if value > -9007199254740992.0 and value < 9007199254740992.0:
+        return False
+    return float(body) == value
+
+
+# THE MOST SIGNIFICANT FIGURES A BINARY64 VALUE NEEDS TO BE READ BACK AS
+# ITSELF: seventeen, so a spelling of more says figures no binary64 keeps.
+_BINARY64_FIGURES = 17
+
+
+def _wears_figures_past_binary64(
+    text: str, value: float, widths: "tuple[int, ...]"
+) -> bool:
+    """Whether one cell is a fraction written past what binary64 keeps.
+
+    A FOURTH SHAPE A REAL EXPORTER WRITES (lane L1, plan P4-D384). A
+    count of days written to fifty places past the point -- `45000.`
+    and fifty figures -- reads back as the binary64 value nearest it, and
+    no spelling the family offers at fifty places writes those figures:
+    the family writes the value's own shortest figures and pads the rest
+    with zeros. So a column of Excel serials written to 50 places failed
+    its own description on `styles.spelled`, exit 3, every cell outside.
+
+    THE RULE ANSWERS ONLY PAST SEVENTEEN SIGNIFICANT FIGURES and only at a
+    width the description publishes: past seventeen a cell says figures
+    no binary64 keeps, so no spelling of any value writes them, and a
+    cell at a width the census does not name is the width census's to
+    count. WHAT IT LEAVES OUTSIDE, stated (Codex's review of lane L1,
+    item 5; older than the lane): a cell of sixteen or seventeen figures
+    that says figures its value lost. `45000.123456789012` reads back as
+    `45000.12345678901`, and at a published width of twelve it is
+    outside the styles; so is `9999.0000000000001` beside a declared
+    `9999`, which P3-V4-F1 pins as a genuine miss of `styles.spelled`.
+    At seventeen figures or fewer this rule cannot tell a source's long
+    spelling from a near neighbour of a declared number, and it admits
+    neither. Asked of the text and answered by the number, as
+    `_wears_a_whole_number_text` is: the cell reads back as the value it
+    was read as, or it is not admitted.
+
+    Guarantees: accepts one cell's text with its negative written as a
+    leading minus, the value it read back as and the published widths;
+    returns whether it is that shape. Determinism: a fixed function of
+    the three. Raises TypeError, as an internal check, where ``text``
+    is not a string; nothing otherwise. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError("internal check: a cell reached the style check as something else")
+    start = 1 if text[:1] == "-" else 0
+    point = -1
+    for index in range(start, len(text)):
+        character = text[index]
+        if character == "." and point < 0:
+            point = index
+        elif character < "0" or character > "9":
+            return False
+    if point <= start or point == len(text) - 1:
+        return False
+    if len(text) - point - 1 not in widths:
+        return False
+    # THE SIGNIFICANT FIGURES: from the first figure that is not a nought
+    # to the last, the point stepped over.
+    first = -1
+    last = -1
+    for index in range(start, len(text)):
+        character = text[index]
+        if character != "." and character != "0":
+            if first < 0:
+                first = index
+            last = index
+    if first < 0:
+        return False
+    figures = last - first + 1
+    if first < point < last:
+        figures = figures - 1
+    if figures <= _BINARY64_FIGURES:
+        return False
+    try:
+        return float(text) == value
+    except ValueError:
+        return False
+
+
+def _wears_a_source_spelling(text: str, value: float, mark: str) -> bool:
+    """Whether one cell is a spelling of its value this family omitted.
+
+    TWO SHAPES A REAL EXPORTER WRITES AND G6.3 DOES NOT CHOOSE (landing
+    2b.7, plan P4-D66.2; audit items NC-1, NC-2 and NC-12, and the
+    missed item M2). Each is a spelling of the number the cell reads
+    back as, differing from a text `_permitted_spellings` already
+    offers in no figure of that number -- a mantissa padded to a fixed
+    count of figures with an exponent written however the writer spells
+    it, and the figures of a whole number too wide for binary64 to
+    keep. The third shape of this family, a value below one written
+    without its leading `0`, is a NOTATION and is restored by
+    `_written_with_a_leading_zero` before any spelling is offered.
+
+    ASKED ONLY AFTER THE FAMILY HAS BEEN OFFERED AND HAS FOUND NOTHING,
+    so a cell this method's own generator wrote is decided by the
+    family exactly as it was before this existed.
+
+    WHAT THIS DOES NOT DO IS EXCUSE THE TWIN. None of these shapes is
+    one G6.3 chooses, so no twin of this generator writes one; what the
+    check stops doing is calling the REAL table's own export a miss.
+    A twin that did write one would still be counted by the style
+    census, by the canonical ceilings of the pooled forms, and by the
+    width census, none of which this reaches.
+
+    Guarantees: accepts one cell's text with its negative notation
+    already written as a leading minus, the value it read back as, and
+    the grouping mark offered for it; returns whether it is one of the
+    three shapes. Determinism: a fixed function of the three. Raises
+    nothing. No I/O of any kind.
+    """
+    sign, _figures, _place = _figures_of(value)
+    body = _body_without_sign_or_zeros(text, sign)
+    if body is None:
+        return False
+    if _wears_an_exponent_spelling(body, abs(value)):
+        return True
+    # THE MARK COMES OFF FOR THE WHOLE-NUMBER SHAPE ALONE, because a
+    # grouped seventeen-figure identifier is the same run of figures
+    # with marks in it and the other two shapes carry no mark at all
+    # (an exponent mantissa never reaches four whole figures, and a
+    # value below one has no whole figure to group).
+    ungrouped = body
+    if mark:
+        kept = ""
+        for character in body:
+            if character != mark:
+                kept = f"{kept}{character}"
+        ungrouped = kept
+    if not ungrouped:
+        return False
+    # AND THE SIGN GOES BACK ON FOR THAT SHAPE, because the run of
+    # figures is asked to read back as the value and a run without its
+    # minus never reads back as a negative one. Taken off above for the
+    # two shapes that ask about figures alone; handed back here for the
+    # one that asks about the number.
+    return _wears_a_whole_number_text(f"{sign}{ungrouped}", value)
+
+
 def _cells_outside_the_styles(
-    cells: "list[str]", whole_column: bool, widths: "tuple[int, ...]"
+    cells: "list[str]", whole_column: bool, widths: "tuple[int, ...]",
+    mark: str = "",
+    pooled_widths: int = 0,
+    absorbed_styles: int = 0,
+    named_styles: "tuple[str, ...]" = (),
 ) -> int:
     """How many written cells are in no permitted spelling of their value.
 
@@ -10523,8 +15888,20 @@ def _cells_outside_the_styles(
     counted here. What it IS -- unreadable, out of range, contradictory
     -- is its own published count and its own subcheck; asking this
     question of it as well would report one fault twice.
+
+    ``pooled_widths`` IS THE CENSUS'S OWN WITHHELD COUNT, and it permits
+    that many cells a width the census does not name (repair of the
+    stage-2b integration). The pool IS cells written at some width too
+    few cells shared to name, so a cell spelled at an unnamed width is
+    exactly what it counts: a real column of 400 one-place readings, one
+    of them written `4.20`, published `fraction_widths {(withheld): 1,
+    1: 399}` at a floor of eleven and failed its own description on this
+    subcheck, exit 3. The permission is bounded by the pool, so a file
+    padding more cells than the description withheld still misses.
     """
     outside = 0
+    spent = 0
+    styled = 0
     for cell in cells:
         body = parsing.trimmed(cell)
         if not body:
@@ -10534,10 +15911,92 @@ def _cells_outside_the_styles(
         value = parsing.parse_number(body)
         if value is None:
             continue
+        # THE CELL'S OWN MARK, where it carries one, is the grouping
+        # offered (landing 2b.2): the family is generous about marks for
+        # the reason it is generous about the comma, and asking the one
+        # mark the cell holds keeps the offer one grouping wide.
+        offered = mark
+        for known in parsing.GROUP_MARKS:
+            if known in body:
+                offered = known
+        # THE TWO NOTATIONS THIS METHOD'S GENERATOR DOES NOT CHOOSE,
+        # both restored before any spelling is offered: the negative
+        # written as brackets, a minus sign or a trailing minus, and
+        # (landing 2b.7) the value below one written with no `0` in
+        # front of its point. Each carries no figure of the number, so
+        # restoring it compares the same figures the file wrote against
+        # the spellings of the value they read back as.
+        signed = _written_with_a_leading_zero(
+            _written_with_a_leading_minus(body)
+        )
+        # A ZERO WRITTEN WITH A SIGN IS A SPELLING OF ZERO (the
+        # verification of landing 2b.2). A ledger rounding -0.3 to a
+        # whole amount writes `(0)` or `-0`, and every permitted spelling
+        # of nought is unsigned, so the real table failed its own
+        # description on three seeds of three. The sign on a zero says
+        # nothing about the value, so the unsigned reading is offered.
+        if value == 0.0 and signed[:1] == "-":
+            signed = signed[1:]
+        # ...and the VALUE is unsigned too (integration repair). A decimal
+        # style writes -0.0 at two places as `-0.00`, so offering the
+        # unsigned cell against spellings of -0.0 still found none: a
+        # column of changes rounded to two places, holding one `-0.00`,
+        # failed its own description while `-0` passed.
+        if value == 0.0:
+            value = 0.0
         worn = False
-        for spelling in _permitted_spellings(value, whole_column, widths):
-            if _wears(body, spelling):
+        for spelling in _permitted_spellings(value, whole_column, widths, offered):
+            if _wears(signed, spelling):
                 worn = True
+        # ...AND THE SPELLINGS A REAL EXPORTER WRITES THAT THIS FAMILY
+        # DOES NOT CHOOSE (landing 2b.7, plan P4-D66.2). A padded
+        # mantissa, an exponent with no `+`, a value below one with no
+        # leading `0`, and the figures of a whole number past what
+        # binary64 keeps are each a spelling of the value the cell read
+        # back as, and each was counted as a cell outside the six forms
+        # -- so a real Excel, SAS, Stata or SPSS export, and a real
+        # column of seventeen-figure identifiers, failed its own
+        # description with the failing cells withheld. Asked only where
+        # the family above found nothing, so a cell this generator
+        # wrote is decided exactly as it was before.
+        #
+        # ADDED TWICE AND KEPT ONCE (the integration of landings 2b.6 to
+        # 2b.10). Landing 2b.10 closed the same limit -- a real column of
+        # whole numbers past 2**53 failing `styles.spelled` -- with a
+        # narrower clause of its own, figures alone read back as exactly
+        # this value at or above 2**53. Every text that clause admitted is
+        # admitted here too, measured over 264,387 such texts with no
+        # exception, so one rule answers and the duplicate was removed.
+        if not worn and _wears_a_source_spelling(signed, value, offered):
+            worn = True
+        if not worn and _wears_figures_past_binary64(signed, value, widths):
+            worn = True
+        if not worn and spent < pooled_widths:
+            unnamed = parsing.fraction_width(body)
+            if unnamed > 0 and unnamed not in widths:
+                for spelling in _permitted_spellings(
+                    value, whole_column, widths + (unnamed,), offered
+                ):
+                    if _wears(signed, spelling):
+                        worn = True
+                if worn:
+                    spent = spent + 1
+        # ...AND THE STYLE RULING 6 ABSORBED (the skeptic's finding of
+        # 2026-09-18). A spelling below the floor is counted into the
+        # column's commonest spelling, so the census names that style
+        # nowhere and a cell wearing it is outside every published
+        # spelling of its value. `absorbed_styles` is how many cells that
+        # can be -- `_absorbed_styles` states the pair of bounds -- and
+        # the permission reaches only a cell whose OWN style the census
+        # does not name AND which is one of the two styles no other
+        # clause reaches. MEASURED before it: thirty grouped counts beside
+        # one `0,472`, whose real table failed `styles.spelled` at both
+        # floors while its twin passed.
+        if not worn and styled < absorbed_styles:
+            own = parsing.numeric_style(body)
+            if own in _ABSORBED_STYLE_FAMILY and own not in named_styles:
+                worn = True
+                styled = styled + 1
         if not worn:
             outside = outside + 1
     return outside
@@ -10618,24 +16077,29 @@ def _label_checks(
     published_keys: list[str] = []
     for level in facts.levels:
         key = parsing.folded(parsing.trimmed(level.label))
-        published_keys = published_keys + [key]
+        published_keys += [key]
         entry = (
             measured[key] if measured is not None and key in measured else None
         )
-        checks = checks + [
+        checks += [
             _level_spelling(name, level, entry, measured),
             _level_count(name, level, entry, measured, floor),
             _variant_map(name, level, entry, measured, "variants"),
             _variant_map(name, level, entry, measured, "variants_withheld"),
             _level_form_cells(name, level, entry, measured, floor),
         ]
-    checks = checks + [_level_set(name, published_keys, measured)]
+    checks += [_level_set(name, published_keys, measured)]
+    checks += _pooled_scale_checks(name, facts, block)
+    # THE POOL IS HELD, AND ONLY THE POOL (owner ruling of 2026-09-17,
+    # item 2, option A; plan P4-D201). The size of each held-back label
+    # is published no more, so what a file owes about them is how many
+    # there are and how many rows they cover together -- both exactly.
     for field, published in (
         ("suppressed_levels", facts.suppressed_levels),
         ("suppressed_rows", facts.suppressed_rows),
     ):
         found = _count_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"label.{field}",
@@ -10644,30 +16108,137 @@ def _label_checks(
                 None if found is None else _shown_count(found),
             )
         ]
-    counts = _counts_at(block, "suppressed_level_counts")
-    held_back = len(facts.suppressed_level_counts)
-    asked = (
-        "no label of this column is held back, so there is no row count "
-        "of one to carry"
-    )
-    if held_back:
-        asked = (
-            f"the rows covered by each of the {_shown_count(held_back)} "
-            f"label(s) this description holds back"
-        )
-    checks = checks + [
-        _silent(
-            name,
-            "label.suppressed_level_counts",
-            "suppressed.counts",
-            asked,
-            None if counts is None else counts == list(
-                facts.suppressed_level_counts
-            ),
-            _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
+    return checks
+
+
+def _pooled_scale_listings(
+    column: contract.ColumnBlock,
+) -> "list[Listing]":
+    """The pool's two aggregates, where no window can be drawn for them.
+
+    ONE OBLIGATION IS CHECKED OR LISTED, NEVER BOTH, and never neither:
+    the one state `_pooled_scale_checks` leaves without a check is the
+    one state named here, so a label column files these two facts on
+    exactly one census whatever its description says.
+
+    THERE WAS A SECOND STATE UNTIL THE REPAIR PASS OF 2026-09-21 -- a
+    published spread of nought -- and it is now refused by the producer
+    and by invariant B4d rather than excused here. `_POOL_NOT_ANSWERED`
+    says why.
+    """
+    facts = column.facts
+    labelled: "contract.LabelFacts | None" = None
+    if isinstance(facts, (contract.LabelFacts,)):
+        labelled = facts
+    # ...AND A COMPOUND COLUMN'S LABEL HALF, which publishes the same
+    # block and whose checks `_label_checks` files under the same
+    # subcheck. One obligation is checked or listed, never both and
+    # never neither, so the half is reached here as well as there.
+    if isinstance(facts, (contract.CompoundFacts,)):
+        labelled = facts.labels
+    if labelled is None:
+        return []
+    scale = labelled.suppressed_numbers
+    why = ""
+    if scale.n_cells < 1 or scale.mean is None:
+        why = _NOT_CHECKABLE_NO_POOLED_SCALE
+    if not why:
+        return []
+    return [
+        Listing(
+            column.name,
+            "label.suppressed_numbers.mean",
+            "suppressed.numbers.mean",
+            why,
         )
     ]
-    return checks
+
+
+def _pooled_scale_checks(
+    name: str,
+    facts: contract.LabelFacts,
+    block: "dict[str, object]",
+) -> "list[Check]":
+    """The scale of the held-back numbers, against G12.12's window.
+
+    WHAT THIS CHECKS AND WHY IT IS NOT EXACT. Section 6.3 publishes how
+    many of a column's held-back cells read as numbers and their mean,
+    and method G8.3c places the twin's made-up numbers on that mean.
+    The placement rounds each value onto a place the column writes at
+    and steps outward where a spelling is refused, so the file's own
+    pool comes back near the published mean rather than on it -- an
+    approximated obligation, met inside the window G12.12 draws.
+
+    WHAT IS NO LONGER CHECKED, AND IT IS A REAL LOSS, stated here
+    rather than in a footnote. Until the owner's decision of 2026-09-21
+    this block also published the pool's population SPREAD, and this
+    function held a file to it. It does not any more, because nothing
+    publishes it: a mean and a spread together solve a tightly spaced
+    pool for its own values, and the owner took the mean. So NO CHECK
+    IN THIS MODULE NOW SAYS ANYTHING ABOUT HOW FAR APART A FILE'S
+    HELD-BACK NUMBERS LIE. A file whose pool sits at the published
+    average and is spread a tenth as wide as the real column's passes
+    here, and passes honestly, because no published fact was missed.
+
+    THE WINDOW IS DRAWN FROM THE COLUMN'S GRID, which is the one thing
+    left that says how exactly a placement can meet a mean.
+    `taxonomy.pooled_window` is TWO PLACES of the coarsest grid this
+    column's description writes its numbers at, and whole numbers where
+    it publishes no number at all. Method G8.3c step 4 makes the pool's
+    groups carry each other's arrears, so every group but the last is
+    asked for whatever the cells still to be written must average, and
+    the only error left over is the last group's own rounding onto a
+    place the column writes at: measured over 371 publishing pools, the
+    furthest a conforming twin stood was a THIRD of one place.
+
+    IT IS NOT DRAWN FROM ANY MAGNITUDE ON THE PAGE, and that is a
+    repair rather than a preference. While the window was a fifth of
+    the largest number the column's description stated, a column of 100
+    `alpha`, twenty `990` and ten each of 940 to 949 drew a window of
+    198.0 around a pooled mean of 944.5 from a number that has nothing
+    to do with its pool -- and the very defect this check exists to
+    catch, G8.3c's placement withdrawn and the twin's pool back at
+    990.0, passed inside it. On the shape ledger K-2B-50 names the
+    window is two either side of a published 204.5: the twin without
+    the placement puts its pool at 100 and is MISSED, and the twin with
+    it lands at 204.5 exactly.
+
+    THE FILE'S OWN POOL IS WHAT IS MEASURED, and a file that publishes
+    none closes the gate, exactly as every other check reads a
+    re-described block that says nothing. **THAT GATE USED TO CLOSE ON
+    EVERY TWIN THIS PRODUCT WROTE**, because the producer refused a
+    pool standing at the tightest arrangement its values could take and
+    method G8.3c wrote exactly that arrangement -- so the check was
+    vacuous and said so. The owner's decision withdrew the rule that
+    closed it: a mean alone names no arrangement, tight or loose, so a
+    twin's own description publishes its pool and this check is a check
+    again.
+    """
+    scale = facts.suppressed_numbers
+    middle = scale.mean
+    if scale.n_cells < 1 or middle is None:
+        return []
+    reach = taxonomy.pooled_window(
+        [entry.label for entry in facts.levels]
+    )
+    inner = _inner_at(block, "suppressed_numbers")
+    found_mean: "float | None" = None
+    if inner is not None:
+        cells = _count_at(inner, "n_cells")
+        if cells is not None and cells > 0:
+            found_mean = _number_at(inner, "mean")
+    return [
+        _within(
+            name,
+            "label.suppressed_numbers.mean",
+            "suppressed.numbers.mean",
+            _shown_number(middle),
+            found_mean,
+            (middle - reach, middle + reach),
+            ENVELOPE_POOLED_SCALE,
+            middle,
+        ),
+    ]
 
 
 def _level_spelling(
@@ -10736,25 +16307,6 @@ def _level_set(
     return _silent(name, fact, subcheck, shown, same, _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE)
 
 
-def _counts_at(
-    block: "dict[str, object]", key: str
-) -> "list[int] | None":
-    """One list of whole numbers out of a re-described block, or None."""
-    if key not in block:
-        return None
-    value = block[key]
-    if not isinstance(value, list):
-        return None
-    found: list[int] = []
-    for entry in value:
-        if isinstance(entry, bool):
-            return None
-        if not isinstance(entry, int):
-            return None
-        found = found + [entry]
-    return found
-
-
 def _level_count(
     name: str,
     level: contract.LevelEntry,
@@ -10820,6 +16372,11 @@ def _level_form_cells(
             name, fact, subcheck, MISSED, published, _below_the_floor(floor)
         )
     found = _count_at(entry, "shape_form_cells")
+    if parsing.level_unshaped_before_gaps(level.label, level.shape_form_cells):
+        # A LEVEL WRITTEN BEFORE LANE L2 IS RECOUNTED AS WRITTEN (Codex's
+        # review of L2, item 2; plan P4-D392): its label holding the one
+        # gap wore no form then, so no row of it is counted in one.
+        found = 0
     return _exact(
         name,
         fact,
@@ -10898,51 +16455,1618 @@ def _variant_map(
 # -- the datetime role ------------------------------------------------
 
 
+# -- the date and clock tails (method G7.3b, G7.3c, G12.14; stage 3) ----
+#
+# WRITTEN HERE FROM THE METHOD'S STATEMENT AND NOT IMPORTED (V1.4). The
+# window a twin's tail distances are held to is the construction's own:
+# every drawn rank at the smallest word at one end and at the largest at
+# the other, the outermost rank at its derived end and a tail's group at
+# its one distance throughout. The construction is written three times --
+# the generator, this module and the oracle -- and the suite holds the
+# first two to agreeing rank for rank.
+
+_TAIL_WORD = 18446744073709551616
+
+# G7.3b step 5: the share of the Bhatia-Davis reach, plus one, that the
+# end gives up to the rounding of the two published distances.
+_TAIL_END_SLACK = 1.0 / 16777216.0
+
+
+def _tail_round(value: float) -> int:
+    """G7.3b's rounding: the nearest whole number, halves up, on the value itself."""
+    if value <= 0.0:
+        return 0
+    mantissa, power = math.frexp(value)
+    whole = int(math.ldexp(mantissa, 53))
+    twos = power - 53
+    if twos >= 0:
+        return whole << twos
+    return (whole * 2 + (1 << -twos)) // (2 << -twos)
+
+
+def _tail_power(ratio: float) -> int:
+    """G7.3b: the largest n with (n + 1)**2 <= r (2n + 1), r taken exactly."""
+    mantissa, power = math.frexp(ratio)
+    numerator = int(math.ldexp(mantissa, 53))
+    denominator = 1
+    if power >= 53:
+        numerator = numerator << (power - 53)
+    else:
+        denominator = 1 << (53 - power)
+    found = 0
+    while (found + 2) ** 2 * denominator <= numerator * (2 * found + 3):
+        found = found + 1
+    return found
+
+
+def _tail_pow(base: float, exponent: int) -> float:
+    """G7.3b: base**exponent by squaring, most significant bit first."""
+    bits: "list[int]" = []
+    left = exponent
+    while left > 0:
+        bits += [left % 2]
+        left = left // 2
+    result = 1.0
+    for place in range(len(bits) - 1, -1, -1):
+        result = result * result
+        if bits[place]:
+            result = result * base
+    return result
+
+
+def _tail_mix(power: int, ratio: float) -> float:
+    """G7.3b: the weight w, the root in [0, 1] of the mixture's quadratic."""
+    a2 = 1.0 / (power + 2)
+    de = 1.0 / ((power + 1) * (power + 2))
+    b1 = 1.0 / (2 * power + 1)
+    c = 1.0 / (power + 1)
+    b2 = 1.0 / (2 * power + 3)
+    qa = ((b1 - c) + b2) - ((ratio * de) * de)
+    qb = (c - (2.0 * b2)) - (((2.0 * ratio) * a2) * de)
+    qc = b2 - ((ratio * a2) * a2)
+    if qc <= 0.0:
+        return 0.0
+    disc = max((qb * qb) - ((4.0 * qa) * qc), 0.0)
+    root = math.sqrt(disc)
+    q = -0.5 * (qb + root) if qb >= 0.0 else -0.5 * (qb - root)
+    kept: "list[float]" = []
+    if qa != 0.0:
+        kept += [q / qa]
+    if q != 0.0:
+        kept += [qc / q]
+    inside = [
+        value for value in kept if -1e-12 <= value <= 1.0 + 1e-12
+    ]
+    if not inside:
+        return 1.0
+    return min(max(min(inside), 0.0), 1.0)
+
+
+@dataclasses.dataclass(frozen=True)
+class _TailCurve:
+    """G7.3b's shape as this module reads it: n, w, E and the stretch."""
+
+    power: int
+    weight: float
+    scale: float
+    stretch: float
+
+
+def _tail_a(curve: _TailCurve, s: float) -> float:
+    """a(s) = E * (s**n * (w + (1 - w) * s))."""
+    return curve.scale * (
+        _tail_pow(s, curve.power) * (curve.weight + ((1.0 - curve.weight) * s))
+    )
+
+
+def _tail_integral(curve: _TailCurve, s: float) -> float:
+    """The integral of a from 0 to s."""
+    up = _tail_pow(s, curve.power + 1)
+    return curve.scale * (
+        ((curve.weight * up) / (curve.power + 1))
+        + (((1.0 - curve.weight) * (up * s)) / (curve.power + 2))
+    )
+
+
+def _tail_square_integral(curve: _TailCurve, s: float) -> float:
+    """The integral of a**2 from 0 to s."""
+    w = curve.weight
+    v = 1.0 - w
+    up = _tail_pow(s, 2 * curve.power + 1)
+    first = ((w * w) * up) / (2 * curve.power + 1)
+    second = (((2.0 * w) * v) * (up * s)) / (2 * curve.power + 2)
+    third = ((v * v) * ((up * s) * s)) / (2 * curve.power + 3)
+    return (curve.scale * curve.scale) * ((first + second) + third)
+
+
+@dataclasses.dataclass(frozen=True)
+class _TailWindow:
+    """One tail's construction as this module reads it (G12.14).
+
+    `near` and `far` are each rank's nearest and furthest whole distance,
+    outermost first; `unit` how many of this module's space units one
+    tail unit is, and `boundary` the published boundary in tail units.
+    """
+
+    rows: int
+    low_side: bool
+    boundary: int
+    near: "tuple[int, ...]"
+    far: "tuple[int, ...]"
+
+
+def _tail_construction(
+    rows: int,
+    mean: float,
+    root: float,
+    floor: int,
+    edge: int,
+    apart: bool,
+    end_step: "dict[int, bool]",
+    boundary: int,
+    low_side: bool,
+    group_midnight: "tuple[int, int, int, tuple[int, ...]] | None",
+    widened: bool = False,
+    half_day: "tuple[int, int, bool] | None" = None,
+    islands: "tuple[tuple[int, int], ...]" = (),
+    end_room: "tuple[list[int], int] | None" = None,
+) -> "tuple[list[int], list[int]]":
+    """Every rank's nearest and furthest distance, outermost first (G7.3b).
+
+    `end_room` is, where the END is held off a midnight the count at
+    midnight leaves it none of, (how many cells at midnight are left, as the
+    one-place list `generation._date_tail_plan` spends, the seconds of one
+    tail unit): an END written at midnight takes one where one is left and
+    otherwise steps inward off it (`calendar_clock.end_stepped_off`; the
+    Codex review of landing 3b.4, item 4).
+
+    `end_step` is the set of tail units the column's own absent spellings
+    name, off which the outermost rank and the group step inward.
+    `islands` are, on a column of dates written as counts, the stretches
+    inside the reach its counts cannot hold, as nearest and furthest
+    distances (G7.10): the outermost rank and the group step off them
+    after the holes -- inward, or outward where no distance of one is
+    left inside -- and a rank whose stratum lies wholly on one is given
+    room either side, before any tie group's window is widened
+    (`date_counts.off_the_islands`, `date_counts.stratum_off_the_islands`).
+    `group_midnight` is, on a column moved onto a midnight and counted in
+    seconds or minutes, (anchor in seconds, seconds per unit, 0, the
+    shifts of the offsets it names), where the group stands at the
+    nearest midnight within its strata.
+
+    `widened` asks for the window G12.14 SUMS where G7.3b step 9 may move
+    a tie group of two ranks or more (landing 3b.0): with `g` the group's
+    distance, `t` how far its strata reach -- `k * a((m - (F - 1)) / m)`
+    rounded, at least `g` and never past the end -- and `G` its ranks from
+    outer index `max(F - 1, 1)`, the j-th innermost group rank as near as
+    `j + 1` for `j < min(g - 1, G - 1)` and the j-th outermost as far as
+    `t - j` for `j < min(t - g, G - 1)`. Every other rank keeps its
+    stratum, and without it every rank does.
+
+    `half_day` is, on a slashed stamp declared a 12-hour clock with no
+    marker, (the boundary in seconds, the seconds of one tail unit, the
+    side): G7.3b step 10 then takes every distance onto the dial's half
+    day (`calendar_clock.half_day_distances`, landing 3b.2-H).
+    """
+    ratio = 1.0
+    if mean > 0.0:
+        t = root / mean
+        ratio = t * t
+    ratio = max(ratio, 1.0)
+    power = _tail_power(ratio)
+    weight = _tail_mix(power, ratio)
+    scale = mean / ((1.0 / (power + 2)) + (weight * (1.0 / ((power + 1) * (power + 2)))))
+    curve = _TailCurve(power, weight, scale, 1.0)
+    inner = (rows - 1) / rows
+    total = rows * mean
+    squares = rows * (root * root)
+    below = rows * _tail_integral(curve, inner)
+    below_squares = rows * _tail_square_integral(curve, inner)
+    reach = _tail_a(curve, inner)
+    qa = (below * below) + below_squares
+    qb = -2.0 * (total * below)
+    qc = (total * total) - squares
+    stretch = 1.0
+    end = -1.0
+    if qa > 0.0:
+        disc = (qb * qb) - ((4.0 * qa) * qc)
+        if disc >= 0.0:
+            spread = math.sqrt(disc)
+            for k in ((-qb - spread) / (2.0 * qa), (-qb + spread) / (2.0 * qa)):
+                far_end = total - (k * below)
+                if k > 0.0 and far_end >= k * reach:
+                    if end < 0.0 or abs(k - 1.0) < abs(stretch - 1.0):
+                        stretch = k
+                        end = far_end
+    if end < 0.0:
+        stretch = 1.0
+        end = math.sqrt(
+            max(
+                rows
+                * (
+                    _tail_square_integral(curve, 1.0)
+                    - _tail_square_integral(curve, inner)
+                ),
+                0.0,
+            )
+        )
+    if end > edge:
+        end = float(edge)
+        if below > 0.0:
+            stretch = (total - end) / below
+    curve = _TailCurve(power, weight, scale, stretch)
+    end_whole = min(max(1, _tail_round(end)), edge)
+    grouped = rows
+    group = 0
+    if not apart and rows > floor >= 1:
+        grouped = floor - 1
+        share = (rows - grouped) / rows
+        mean_of_group = (rows * _tail_integral(curve, share)) / (rows - grouped)
+        group = min(max(1, _tail_round(stretch * mean_of_group)), edge)
+        if grouped == 0:
+            end_whole = group
+    # G7.3b STEP 5's END FLOOR (plan P4-D375): the end is at least the
+    # Bhatia-Davis reach of the pair, before step 7 steps it off a hole.
+    # Rounded up by truncation and one comparison, as the offline policy
+    # enumerates no `math.ceil` (plan P2-D13).
+    if mean > 1.0:
+        reach_of_pair = ((root * root) - mean) / (mean - 1.0)
+        lowered = reach_of_pair - ((1.0 + reach_of_pair) * _TAIL_END_SLACK)
+        least = edge
+        if lowered < edge:
+            least = int(lowered)
+            if float(least) < lowered:
+                least = least + 1
+        end_whole = max(end_whole, min(max(least, 0), edge))
+    end_whole = _stepped_off(end_whole, boundary, low_side, end_step)
+    if end_room is not None and calendar_clock.tail_end_at_midnight(
+        end_whole, boundary, low_side, end_room[1]
+    ):
+        if end_room[0][0] <= 0:
+            end_whole = calendar_clock.end_stepped_off(
+                end_whole, boundary, low_side, end_step, end_room[1], True
+            )
+        else:
+            end_room[0][0] = end_room[0][0] - 1
+    end_whole = date_counts.off_the_islands(end_whole, islands, edge)
+    if grouped < rows:
+        if group_midnight is not None:
+            furthest = max(
+                group,
+                _tail_round(stretch * _tail_a(curve, (rows - grouped) / rows)),
+            )
+            group = _midnight_nearest(
+                group, min(furthest, edge), low_side, group_midnight
+            )
+        group = _stepped_off(group, boundary, low_side, end_step)
+        group = date_counts.off_the_islands(group, islands, edge)
+        if half_day is not None:
+            # STEP 10 ON THE GROUP BEFORE IT STANDS ANYWHERE, as the
+            # construction takes it (`generation._date_tail_plan`; Codex's
+            # review of landing 3b.2-H, item 2): the end it raises and the
+            # reach step 9 widens to are read off the group the ranks stand
+            # at. Projecting the ranks alone left both on the group before
+            # step 10, and a twin the construction drew at a high tail's
+            # mean of 1897.92 minutes, under its bound of 1908.75, was
+            # MISSED against 1896.25.
+            group = calendar_clock.half_day_distances(
+                [group], half_day[0], half_day[1], half_day[2], False, edge
+            )[0]
+    end_whole = max(end_whole, group)
+    near: "list[int]" = []
+    far: "list[int]" = []
+    for word in (0, _TAIL_WORD - 1):
+        found = [end_whole]
+        for index in range(1, rows):
+            if index >= grouped:
+                found += [group]
+                continue
+            s = ((rows - 1 - index) * _TAIL_WORD + word) / (rows * _TAIL_WORD)
+            found += [max(1, _tail_round(stretch * _tail_a(curve, s)))]
+        for index in range(rows - 2, -1, -1):
+            found[index] = max(found[index], found[index + 1])
+        if apart:
+            for index in range(rows - 2, -1, -1):
+                if found[index] <= found[index + 1]:
+                    found[index] = found[index + 1] + 1
+                found[index] = min(found[index], edge)
+            for index in range(1, rows):
+                if found[index] >= found[index - 1]:
+                    found[index] = max(1, found[index - 1] - 1)
+        found = [min(value, edge) for value in found]
+        if half_day is not None:
+            found = calendar_clock.half_day_distances(
+                found, half_day[0], half_day[1], half_day[2], apart, edge
+            )
+        if word == 0:
+            near = found
+        else:
+            far = found
+    near, far = date_counts.stratum_off_the_islands(near, far, islands, edge)
+    first = max(grouped, 1)
+    if widened and grouped < rows and rows - first >= 2:
+        size = rows - first
+        reach = min(
+            max(group, _tail_round(stretch * _tail_a(curve, (rows - grouped) / rows))),
+            end_whole,
+        )
+        for place in range(min(group - 1, size - 1)):
+            near[rows - 1 - place] = place + 1
+        for place in range(min(reach - group, size - 1)):
+            far[first + place] = reach - place
+    return (near, far)
+
+
+def _stepped_off(
+    distance: int, boundary: int, low_side: bool, holes: "dict[int, bool]"
+) -> int:
+    """G7.3b: a word-less rank stepped inward off every unit a hole names."""
+    while distance > 1:
+        unit = boundary - distance if low_side else boundary + distance
+        if unit not in holes:
+            return distance
+        distance = distance - 1
+    return distance
+
+
+def _midnight_nearest(
+    distance: int,
+    furthest: int,
+    low_side: bool,
+    where: "tuple[int, int, int, tuple[int, ...]]",
+) -> int:
+    """G7.3b: the distance of the midnight nearest a group's, from 1 to `furthest`.
+
+    `where` is (the tail's anchor in seconds, seconds per unit, unused,
+    the shift of every offset the column names). The inner is taken on a
+    tie; the group's own distance where none lies in reach.
+    """
+    anchor, unit, _unused, shifts = where
+    period = 86400 // unit
+    best = -1
+    for shift in shifts:
+        moved = anchor + shift
+        if moved % unit != 0:
+            continue
+        first = (moved // unit) % period if low_side else (-(moved // unit)) % period
+        if first == 0:
+            first = period
+        lap = (distance - first) // period
+        for candidate in (first + lap * period, first + (lap + 1) * period):
+            if candidate < 1 or candidate > furthest:
+                continue
+            if (
+                best < 0
+                or abs(candidate - distance) < abs(best - distance)
+                or (
+                    abs(candidate - distance) == abs(best - distance)
+                    and candidate < best
+                )
+            ):
+                best = candidate
+    return distance if best < 0 else best
+
+
+def _tail_value_counts(
+    distances: "list[int]", rows: int, total: "int | None"
+) -> "list[int]":
+    """G7.3c's count rule, written out here from the method (V1.4).
+
+    The values in distance order, outermost first: every value takes at
+    least one rank; with the mean published each value from the
+    outermost inward takes the fewest ranks that still leave the values
+    inside it able to reach the whole sum exactly, and the innermost
+    takes the rest; with no mean, or where no count can reach it, the
+    ranks are shared as evenly as the values allow, the outer values
+    first.
+    """
+    count = len(distances)
+    even = [0 for _value in distances]
+    for index in range(rows):
+        even[(index * count) // rows] += 1
+    if total is None or count == 0:
+        return even
+    counts = [1 for _value in distances]
+    left_rows = rows - count
+    left_sum = total
+    for value in distances:
+        left_sum = left_sum - value
+    if left_sum < 0 or left_rows < 0:
+        return even
+    for place in range(count - 1):
+        rest = distances[place + 1:]
+        chosen = -1
+        for extra in range(left_rows + 1):
+            spent = extra * distances[place]
+            if spent > left_sum:
+                break
+            if _tail_extras_reach(rest, left_rows - extra, left_sum - spent):
+                chosen = extra
+                break
+        if chosen < 0:
+            return even
+        counts[place] = counts[place] + chosen
+        left_rows = left_rows - chosen
+        left_sum = left_sum - chosen * distances[place]
+    last = distances[count - 1]
+    if left_rows * last != left_sum:
+        return even
+    counts[count - 1] = counts[count - 1] + left_rows
+    return counts
+
+
+def _tail_extras_reach(values: "list[int]", extra: int, total: int) -> bool:
+    """Whether `extra` more cells over these values can add exactly `total`."""
+    if extra == 0:
+        return total == 0
+    if not values or total < 0:
+        return False
+    reach = [0 for _count in range(extra + 1)]
+    reach[0] = 1
+    ceiling = (1 << (total + 1)) - 1
+    for value in values:
+        for count in range(1, extra + 1):
+            reach[count] = reach[count] | ((reach[count - 1] << value) & ceiling)
+    return (reach[extra] >> total) & 1 == 1
+
+
+def _tail_value_spots(
+    tail: contract.TailFacts, low_side: bool, spots: "list[int]"
+) -> "list[int]":
+    """Where each rank of a tail publishing its values stands, outermost first.
+
+    `spots` are the values' own ordinals in this reading's units, in the
+    document's ascending order; the distances are taken from the
+    boundary in tail units, so the counts of G7.3c are the generator's.
+    """
+    ordered = [spot for spot in spots]
+    if not low_side:
+        ordered = [ordered[place] for place in range(len(ordered) - 1, -1, -1)]
+    return ordered
+
+
+def _tail_date_system(description: contract.Profile, column: contract.ColumnBlock) -> str:
+    """G7.3e: the system a column's cells store its dates in, or "".
+
+    A workbook column whose format code stores days, read from the
+    description's own record of the workbook; "" for a delimited table
+    and for a workbook column of text. -- 3b.R4 (P4-D384): a column of
+    dates written as counts -- a `count_form` published, the column
+    named under `forced_date_counts` -- stores them as counts of the
+    system it is declared in, and the word is that system's, as the
+    generator's `_date_system_of` says it: its tails stop short of a
+    wall its counts cannot hold and reach past an island of them
+    (`_date_tail_windows`, G7.10).
+    """
+    facts = column.facts
+    if isinstance(facts, contract.DatetimeFacts) and facts.count_form is not None:
+        for named, counting in description.settings.forced_date_counts:
+            if named == column.name:
+                return counting
+    form = description.source.workbook
+    place = column.position - 1
+    if form is None or place < 0 or place >= len(form.columns):
+        return ""
+    kind = dialect.sheet_format_kind(form.columns[place].format_code)
+    if kind in (dialect.SHEET_FORMAT_DATE, dialect.SHEET_FORMAT_DATETIME):
+        return form.date_system
+    return ""
+
+
+# How many seconds one tail unit of a day, a minute or a second holds.
+_TAIL_UNIT_SECONDS = {
+    parsing.TAIL_UNIT_DAY: 86400,
+    parsing.TAIL_UNIT_MINUTE: 60,
+    parsing.TAIL_UNIT_SECOND: 1,
+}
+
+
+def _tail_holes(
+    column: contract.ColumnBlock, facts: contract.DatetimeFacts
+) -> "dict[int, bool]":
+    """G7.3b: every tail unit one of the column's own absent spellings names."""
+    found: "dict[int, bool]" = {}
+    for spelling in sorted(column.missing_by_source):
+        read = parsing.parse_datetime(spelling, facts.parser_family)
+        if read is None:
+            continue
+        moment = read[0]
+        if (
+            facts.datetimes_read_at == "utc"
+            and facts.resolution == taxonomy.RESOLUTION_DATETIME
+        ):
+            # The producer's own clamp, for the reason `_tail_units_of`
+            # gives (`parsing.utc_moment`).
+            shifted = parsing.utc_moment(read[0], read[1])
+            if shifted is None:
+                continue
+            moment = shifted
+        found[
+            taxonomy.tail_ordinal(moment, facts.tail_unit, facts.datetimes_read_at)
+        ] = True
+    return found
+
+
+def _date_tail_windows(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    floor: int,
+    date_system: str,
+    summed: bool = False,
+) -> "dict[str, tuple[list[int], list[int]]]":
+    """Each shape-drawn tail's nearest and furthest distances (G12.14).
+
+    Keyed `low` and `high`; a tail publishing its values, or a column
+    with no tails, has no entry, because its ranks stand at published
+    values rather than inside strata. `summed` asks for the window the
+    two distances are SUMMED over, which widens a tie group where the
+    column's distinct count is reachable (`contract.
+    datetime_counts_reachable`), because G7.3b step 9 may then move its
+    ranks (landing 3b.0); a rank's own stratum, which G12.4 reads, is
+    asked without it.
+    """
+    found: "dict[str, tuple[list[int], list[int]]]" = {}
+    if facts.low_tail is None or facts.high_tail is None:
+        return found
+    reading = facts.datetimes_read_at
+    edges = taxonomy.tail_edges(
+        facts.parser_family, facts.tail_unit, reading, facts.utc_offsets,
+        date_system,
+    )
+    holes = _tail_holes(column, facts)
+    # ALL DIFFERENT IS A FACT ABOUT THE WHOLE COLUMN, and the window is
+    # drawn from the SAME construction the generator runs
+    # (`generation._date_layout`), which reads it exactly this way. It
+    # was hard-coded False here, so on a column of all-different dates
+    # the window was drawn TIGHTER than the construction -- which is a
+    # validator that rejects conforming twins. It went unseen while such
+    # a column published its tail's values instead of its shape;
+    # plan P4-D342 closed that road and a column of 120 different months
+    # then missed both of its low tail's distances, its twin standing at
+    # a mean of 7.0 against a window of 5.64 to 6.45 whose construction
+    # reaches 7.0.
+    apart = column.n_distinct - facts.n_unparsed >= column.n_present - facts.n_unparsed
+    # ...AND ONLY WHERE THE PUBLISHED COUNT AT MIDNIGHT REACHES PAST THE
+    # TAILS LISTING ONLY MIDNIGHT VALUES (landing 3b.2-H): there the group
+    # stands at none.
+    midnight_group = (
+        facts.resolution == taxonomy.RESOLUTION_DATETIME
+        and not facts.all_at_midnight
+        and facts.n_at_midnight is not None
+        and facts.n_at_midnight > 0
+        and (
+            calendar_clock.midnight_sure(
+                facts.n_at_midnight,
+                [(facts.low_tail.rows, facts.low_tail.values), (facts.high_tail.rows, facts.high_tail.values)],
+            )
+            or 0
+        ) > 0
+    )
+    shifts: "list[int]" = [0]
+    if reading == "utc":
+        shifts = [
+            _offset_shift(key)
+            for key in sorted(facts.utc_offsets)
+            if key != contract.WITHHELD
+        ]
+    seconds_per_unit = 60 if facts.tail_unit == parsing.TAIL_UNIT_MINUTE else 1
+    # THE ENDS HELD OFF A MIDNIGHT THE COUNT LEAVES THEM NONE OF, as the
+    # construction holds them (`generation._tail_ends_room`; the Codex review
+    # of landing 3b.4, item 4), low tail first.
+    room = _tail_ends_room(column, facts)
+    for key, tail, low_side in (
+        ("low", facts.low_tail, True),
+        ("high", facts.high_tail, False),
+    ):
+        if tail.values is not None:
+            continue
+        at = taxonomy.tail_ordinal(tail.boundary, facts.tail_unit, reading)
+        edge = max(1, at - edges[0] if low_side else edges[1] - at)
+        # -- 3b.R4 (P4-D384): ON A COLUMN OF DATES WRITTEN AS COUNTS the reach
+        # stops short of the first wall beyond the boundary its counts
+        # cannot hold, as the generator's does (G7.10).
+        islands: "tuple[tuple[int, int], ...]" = ()
+        if (
+            date_system in date_counts.TABLE
+            and facts.tail_unit in _TAIL_UNIT_SECONDS
+            and reading == taxonomy.READ_AT_LOCAL
+        ):
+            edge = date_counts.tail_reach(
+                date_system,
+                contract.counted_unit(facts),
+                _TAIL_UNIT_SECONDS[facts.tail_unit],
+                at,
+                low_side,
+                edge,
+            )
+            # Past an island inside it the tail reaches on (G7.10).
+            islands = date_counts.tail_islands(
+                date_system,
+                contract.counted_unit(facts),
+                _TAIL_UNIT_SECONDS[facts.tail_unit],
+                at,
+                low_side,
+                edge,
+            )
+        mean = 1.0 if tail.mean_distance is None else tail.mean_distance
+        root = mean if tail.rms_distance is None else tail.rms_distance
+        where: "tuple[int, int, int, tuple[int, ...]] | None" = None
+        if midnight_group:
+            anchor = taxonomy.tail_ordinal(tail.boundary, parsing.TAIL_UNIT_SECOND, reading)
+            where = (anchor, seconds_per_unit, 0, tuple(shifts))
+        # THE DIAL'S HALF DAY (G7.3b step 10, landing 3b.2-H): a stamp
+        # declared a 12-hour clock with no marker draws its tails there,
+        # and so does a layout on that dial (landing R2b, met at batch 3's
+        # integration), whose clock its format names -- each read at its
+        # own wall clock: the half day is a half of the day each cell
+        # writes, and a column read at UTC counts UTC seconds, where a
+        # local morning can be an afternoon (the Codex review of landing
+        # I3a, item 1; `generation._on_the_half_day`).
+        half_day: "tuple[int, int, bool] | None" = None
+        face_style = _stamp_style_of(facts)
+        if parsing.is_layout_name(facts.parser_family):
+            laid = parsing.layout_clock_style(facts.parser_family)
+            face_style = parsing.DEFAULT_CLOCK_STYLE if laid is None else laid
+        if (
+            facts.resolution == taxonomy.RESOLUTION_DATETIME
+            and not facts.all_at_midnight
+            and reading == taxonomy.READ_AT_LOCAL
+            and parsing.clock_face(face_style) == parsing.CLOCK_TWELVE_HOUR
+        ):
+            half_day = (calendar_clock.seconds_of(tail.boundary), seconds_per_unit, low_side)
+        found[key] = _tail_construction(
+            tail.rows, mean, root, floor, edge, apart, holes, at, low_side,
+            where, summed and contract.datetime_counts_reachable(column),
+            half_day,
+            islands,
+            None if room is None or facts.tail_unit == parsing.TAIL_UNIT_DAY else (room, seconds_per_unit),
+        )
+    return found
+
+
+def _tail_ends_room(
+    column: contract.ColumnBlock, facts: contract.DatetimeFacts
+) -> "list[int] | None":
+    """How many cells at midnight the published count leaves the tails' ENDS, read as
+    the construction reads it (`generation._tail_ends_room`, the same
+    `calendar_clock` rules); None where no END is held off one."""
+    if (
+        facts.resolution != taxonomy.RESOLUTION_DATETIME
+        or facts.all_at_midnight
+        or facts.n_at_midnight is None
+        or facts.datetimes_read_at == "utc"
+        or facts.low_tail is None
+        or facts.high_tail is None
+    ):
+        return None
+    body = column.n_present - facts.n_unparsed - facts.low_tail.rows - facts.high_tail.rows
+    forced = calendar_clock.body_sure_at_midnight(
+        facts.hour_census,
+        (facts.minute_census, facts.minute_heaps),
+        (facts.second_census, facts.second_heaps),
+        facts.time_precision,
+        body,
+    )
+    return [
+        calendar_clock.tail_ends_midnight_room(
+            facts.n_at_midnight,
+            forced,
+            [
+                (facts.low_tail.rows, facts.low_tail.values),
+                (facts.high_tail.rows, facts.high_tail.values),
+            ],
+        )
+    ]
+
+
+def _clock_tail_windows(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    floor: int,
+    holes: "tuple[str, ...]" = (),
+) -> "dict[str, tuple[list[int], list[int]]]":
+    """Each shape-drawn clock tail's nearest and furthest distances (G12.14).
+
+    `holes` are the spellings the table calls absent beside the column's
+    own, whose places a census-laid tail's draw skips (method G7A.4b).
+    """
+    found: "dict[str, tuple[list[int], list[int]]]" = {}
+    if facts.low_tail is None or facts.high_tail is None:
+        return found
+    parsed = column.n_present - facts.n_unparsed
+    apart = column.n_distinct - facts.n_unparsed >= parsed
+    capacity = parsing.CLOCK_CAPACITY[facts.clock_form]
+    for key, tail, low_side in (
+        ("low", facts.low_tail, True),
+        ("high", facts.high_tail, False),
+    ):
+        if tail.values is not None:
+            continue
+        at = _clock_ordinal_or_zero(tail.boundary, facts.clock_form)
+        edge = max(1, at if low_side else capacity - 1 - at)
+        mean = 1.0 if tail.mean_distance is None else tail.mean_distance
+        root = mean if tail.rms_distance is None else tail.rms_distance
+        # A TAIL HOLDING HEAPS (landing 3b.5, plan P4-D373; method
+        # G7A.4b): its heaps' cells stand on their values and the rest
+        # are drawn through the shape the rows and the two distances left
+        # give, so its window is the heaps' distances beside that shape's.
+        # The draw skips the places the column calls absent beyond the
+        # boundary beside the heaps', on any step (the round-2 fix of
+        # landing 3b.5), read off the block as the generator reads them --
+        # save those that are its room: where every step there on no heap
+        # is absent, those the hour's other width spells another way (the
+        # third verification of that fix).
+        heaped: "list[tuple[int, int]]" = []
+        beyond: "list[int]" = []
+        room: "list[int]" = []
+        stride = 1
+        if facts.clock_step is not None:
+            stride = max(1, facts.clock_step // parsing.clock_step(facts.clock_form))
+            for value, count in facts.clock_heaps:
+                here = _clock_ordinal_or_zero(value, facts.clock_form)
+                distance = at - here if low_side else here - at
+                if distance > 0:
+                    heaped += [(distance, count)]
+            absent = _clock_absent_places(column, facts, holes)
+            beyond = calendar_clock.absent_beyond(absent, at, low_side, stride)
+            room = calendar_clock.absent_room_beyond(
+                absent, facts.clock_form, at, low_side, stride,
+                [distance for distance, _count in heaped],
+            )
+        if heaped or stride > 1 or beyond:
+            rows, mean, root = calendar_clock.tail_less_heaps(
+                tail.rows, tail.mean_distance, tail.rms_distance, sorted(heaped)
+            )
+            near: "list[int]" = []
+            far: "list[int]" = []
+            skipped = sorted(
+                {distance // stride for distance, _count in heaped}
+                | {distance // stride for distance in beyond if distance not in room}
+            )
+            if rows > 0:
+                steps = edge // stride
+                inside = len([d for d in skipped if d <= steps])
+                drawn = _tail_construction(
+                    rows, max(1.0, mean / stride), max(1.0, root / stride),
+                    floor, max(1, steps - inside), apart, {}, at, low_side, None,
+                )
+                near = [
+                    stride * calendar_clock.off_the_heaps(d, skipped)
+                    for d in drawn[0]
+                ]
+                far = [
+                    stride * calendar_clock.off_the_heaps(d, skipped)
+                    for d in drawn[1]
+                ]
+            for distance, count in sorted(heaped):
+                near += [distance for _copy in range(count)]
+                far += [distance for _copy in range(count)]
+            found[key] = (near, far)
+            continue
+        found[key] = _tail_construction(
+            tail.rows, mean, root, floor, edge, apart, {}, at, low_side, None
+        )
+    return found
+
+
+def _offset_shift(key: str) -> int:
+    """How far one published offset key moves a wall clock from the shared one."""
+    if key in ("Z", contract.NO_OFFSET, contract.WITHHELD) or not key:
+        return 0
+    seconds = 3600 * int(key[1:3]) + 60 * int(key[4:6])
+    return -seconds if key[0] == "-" else seconds
+
+
+def _offset_absorbed_into(
+    facts: contract.DatetimeFacts, dates: int
+) -> "tuple[str, dict[str, int]]":
+    """Which offset the census counted a rare one into, and that census.
+
+    A PUBLISHED FACT, NOT A SECOND FLOOR DECISION (plan P4-D222): where a
+    cell's written offset is one the description's census does not name,
+    the census counted it into the commonest offset it does name, and
+    every published fact below -- the clock the column is read on, the
+    ladder, the two tails -- speaks of that cell AT THAT OFFSET. Reading
+    the file at the cell's own text instead moves the cell by the
+    difference between the two offsets and can put it in another rank,
+    which made a REAL table miss its own tail boundary.
+    `parsing.absorbed_room` names the taker.
+
+    The census that decided it is the one over the cells that CAN wear an
+    offset: on the joint reading a whole date wears none because of what
+    it is, so the dates come out of `(none)` first -- the same
+    subtraction that census's own population is defined by. An empty
+    name -- a pooled census, or one naming nothing -- means nothing was
+    absorbed and every cell is read as it was written.
+
+    Guarantees: accepts the published datetime facts and how many of the
+    file's parsed cells are whole dates on a joint column; returns the
+    name and the census over the offset-bearing cells. Determinism: a
+    function of the two; the census is walked in sorted order. Raises
+    nothing. No I/O of any kind.
+    """
+    named: "dict[str, int]" = {}
+    for key in sorted(facts.utc_offsets):
+        count = facts.utc_offsets[key]
+        if key == contract.NO_OFFSET:
+            count = count - dates
+        if count > 0:
+            named[key] = count
+    commonest, _room = parsing.absorbed_room(named, 1)
+    return commonest, named
+
+
+def _dates_the_file_reads(
+    block: "dict[str, object]",
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+) -> "list[str]":
+    """The column's cells, less the days its OWN description reads as holes.
+
+    A TAIL IS COUNTED OVER THE CELLS THE DESCRIPTION COUNTS (amendment
+    A-P3-5 clause 2, the rule `_cells_that_description_reads` states for
+    the recounts). A day like `1900-01-01`, worn by enough cells and
+    lying far outside the rest of the column, is judged by the producer
+    to mean "no value": the description publishes that verdict, counts
+    those cells among the absent, and takes them out of everything it
+    measures the column by -- the tails included. They are still DATES
+    to a reader, so counting the file's own cells without asking the
+    verdict puts twenty instants below a boundary published over the
+    449 values that description holds, and the table the description
+    was written from is told it missed its own tail. Measured: 20 cells
+    of `1900-01-01 00:00:00` beside 449 consecutive days, four
+    obligations MISSED and `validate` exiting 3 on the source itself.
+
+    The verdict read is the FILE'S OWN (the re-described block), exactly
+    as the recounts read it, and a candidate that description publishes
+    as kept is data and stays. Where a verdict is withheld for its size
+    the cells stay too, which is the corner
+    `_cells_that_description_reads` already bounds.
+
+    THE CANDIDATE'S DAY AND NOT ITS SPELLINGS, which is where this
+    differs from `_placeholder_spellings_dropped` beside it. That reader
+    takes the `missing_by_source` keys the verdict's own decision took
+    out, and a verdict can publish none of them: plan P4-D293 raises a
+    pool by the smallest NAMED spelling until it names no row, so a
+    judged spelling worn by twenty cells is taken into the pool and the
+    verdict names its candidate alone -- which is this very column
+    (`tests/test_stage2_judged_provenance.py`). The cells are therefore
+    found by reading each one under the column's own member and
+    comparing the DAY: an exact comparison on a date, with no reader
+    that rounds in it, which is the property the spelling rule was
+    written to keep.
+    """
+    judged = _placeholder_days_judged(block)
+    if not judged:
+        return cells
+    kept: "list[str]" = []
+    for cell in cells:
+        read = parsing.parse_datetime(cell, facts.parser_family)
+        if read is not None and read[0][0:10] in judged:
+            continue
+        kept += [cell]
+    return kept
+
+
+def _placeholder_days_judged(block: "dict[str, object]") -> "dict[str, int]":
+    """The placeholder DAYS a re-described block reads as "no value".
+
+    The candidate of every `read_as_missing` verdict naming one of the
+    built-in placeholder days, as its canonical ISO day. A candidate the
+    floor withheld by name is `(withheld)`, names nothing, and is not
+    here.
+
+    Guarantees: accepts one re-described block; returns a mapping the
+    day comparison beside it takes. Determinism: a fixed function of the
+    block. Errors raised: none. No I/O.
+    """
+    found: "dict[str, int]" = {}
+    if "sentinel_verdicts" not in block:
+        return found
+    entries = block["sentinel_verdicts"]
+    if not isinstance(entries, list):
+        return found
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        inner: "dict[str, object]" = {}
+        for name in entry:
+            if isinstance(name, str):
+                inner[name] = entry[name]
+        if _text_at(inner, "verdict") != taxonomy.VERDICT_MISSING:
+            continue
+        candidate = _text_at(inner, "candidate")
+        if candidate is None:
+            continue
+        for day in parsing.calendar_placeholders():
+            if candidate == day:
+                found[day] = 1
+    return found
+
+
+def _stamp_style_of(facts: contract.DatetimeFacts) -> str:
+    """The written clock a slashed stamp's one census word names (landing T1)."""
+    if facts.parser_family not in contract.CLOCK_FORM_MEMBERS:
+        return parsing.DEFAULT_CLOCK_STYLE
+    for word in sorted(facts.datetime_separators):
+        style = parsing.stamp_style(word) if word != contract.WITHHELD else None
+        if style is not None:
+            return style
+    return parsing.DEFAULT_CLOCK_STYLE
+
+
+def _stamp_off_its_face(cell: str, face: str) -> bool:
+    """Whether one slashed stamp's clock reads, and on another face than its column's (landing T1).
+
+    The producer's own acceptance rule (`taxonomy._stamp_clocks`): the
+    clock half, split at the first space, read by the one clock reader
+    and placed on the face the description publishes; a stamp it does
+    not place there is counted unread (contract NF108). A cell whose
+    clock does not read at all is not one: no member reads it as a date.
+    Determinism: a function of the two. Raises TypeError for a cell that
+    is not text. No I/O of any kind.
+    """
+    parts = parsing.clock_parts(parsing.stamp_halves(cell)[1])
+    return parts is not None and parsing.clock_second(parts, face) is None
+
+
+def _cells_on_the_written_clock(
+    column: contract.ColumnBlock,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    settings: taxonomy.Settings,
+) -> "list[str]":
+    """A clock or slashed-stamp column's cells, less those its description counts unread on its clock.
+
+    EVERY RECOUNT READS WHAT THE PRODUCER READ (the T1 review's items 1
+    and 2). The producer counts unread -- in `n_unparsed`, and in no
+    tail, ladder or census -- a stamp whose clock is on another face than
+    the column's (contract NF108), and a clock or stamp its one hour
+    width would rewrite into a value the person declared missing where
+    the other width would too (C6-10a). A recount that read either
+    counted cells no published fact counts: three `3/18/2023 23:59`
+    beside 600 stamps written `3/1/2023 1:00 AM` put three unpadded days
+    into the census of widths the description took over 600, and three
+    `1:00` beside a declared `01:00` and `2:00` stood below a low tail
+    measured without them -- and the unchanged source missed both. The
+    tail recount of a stamp asks the face itself (`_tail_units_of`), with
+    this predicate; the census of widths, the written clock's fit and
+    every recount after them are handed these cells.
+
+    THE STYLE IS THE ONE EACH RECOUNT READS IN: a clock's, the file's own
+    form, as `_file_clock_units` reads it; a stamp's, the published one,
+    as `_tail_units_of` reads it. A cell whose clock does not read stays,
+    because no recount reads it as a time either, and what a description
+    counts unread for any other reason is its own count.
+
+    Guarantees: accepts the column, the file's block on one side, the
+    cells that side reads and that side's settings; returns the cells
+    kept, in order. Determinism: a function of the four. Raises nothing.
+    No I/O of any kind.
+    """
+    facts = column.facts
+    stamps = False
+    if isinstance(facts, contract.ClockFacts):
+        form = _text_at(block, "clock_form")
+        if form is None or form not in parsing.CLOCK_FORMS:
+            form = facts.clock_form
+        style = parsing.clock_style_of(form)
+    elif (
+        isinstance(facts, contract.DatetimeFacts)
+        and facts.parser_family in contract.CLOCK_FORM_MEMBERS
+    ):
+        style = _stamp_style_of(facts)
+        stamps = True
+    else:
+        return cells
+    absent = taxonomy.clock_cells_written_absent(cells, style, stamps, settings)
+    if not stamps and not absent:
+        return cells
+    face = parsing.clock_face(style)
+    kept: "list[str]" = []
+    for cell in cells:
+        if cell in absent:
+            continue
+        if stamps and _stamp_off_its_face(cell, face):
+            continue
+        kept += [cell]
+    return kept
+
+
+def _tail_units_of(
+    facts: contract.DatetimeFacts, cells: "list[str]"
+) -> "list[int | None]":
+    """One reading per cell, in tail units, or null where it is not a date.
+
+    The units of `_tail_readings_of`, the one reader of a cell's place.
+    """
+    found: "list[int | None]" = []
+    for placed in _tail_readings_of(facts, cells):
+        found += [placed[0] if placed is not None else None]
+    return found
+
+
+def _tail_readings_of(
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+    folded: bool = False,
+    written: bool = False,
+) -> "list[tuple[int, str] | None]":
+    """One reading per cell, in tail units with the canonical text it was
+    counted from, or null where it is not a date.
+
+    The text is the cell's own wall clock as written (on the shared clock,
+    the moment it converts to), so a caller can read the day a cell is
+    WRITTEN on beside the unit that places it (`calendar_rules.written_day`:
+    a sixtieth second is its own day's, while its unit is the next day's
+    first second -- Codex's review of landing 3b.D2, item 1).
+
+    Each cell is read under the member that read the real column, worn at
+    the offset the published census counts it at
+    (`_offset_absorbed_into`) and put on the clock the description
+    publishes, exactly as the producer describes a table -- this is
+    describing the file, not the twin's construction.
+
+    `folded` says the file's own description folded the cells the member
+    fails into its moments (`_folded_by_the_file`): each such cell is read
+    under the joint ISO reading, a whole date at its midnight, as the
+    producer counted it, and from there exactly as every other cell --
+    worn at the offset the census absorbed it into and put on the
+    published clock (Codex's review of lane J, item 2: nine bare dates
+    read at midnight UTC where the producer read them at midnight
+    `+05:00`, 19:00 UTC the day before, reported a low tail HELD whose
+    mean and RMS distances stood outside their windows, and ten bare
+    `2024-01-04` beside `23:00:00-05:00` stamps made the unchanged source
+    miss its low tail, published 12 and recounted 22).
+
+    `written` hands back, beside the unit, the text AS WRITTEN -- the
+    cell's own wall clock, never its conversion to the shared clock, a
+    bare date as its date -- which every census counts a cell at (landing
+    3b.7, plan P4-D378: each cell placed by its instant on the published
+    clock and counted on the clock it is written on). On a column read on
+    its own clock the two texts are one.
+
+    THE READING STAYS WITH ITS OWN CELL here, and the caller below sorts
+    the readings it keeps. The tails are counted over sorted values and
+    need nothing else, but a caller that has to say WHICH cell stands at
+    a boundary cannot take that from a sorted list, and a second reader
+    written beside this one would be a second answer to the same
+    question.
+    """
+    joint = facts.parser_family == contract.FORMAT_ISO_MIXED
+    # A slashed stamp declared a 12-hour clock reads its top of the dial
+    # as the first hour, as its description did (landing T1).
+    style = _stamp_style_of(facts)
+    # ...AND A STAMP WHOSE CLOCK IS ON ANOTHER FACE IS NO DATE HERE, as the
+    # producer counts it unread (contract NF108; the T1 review's item 2).
+    # Read here it put three `12/31/2030 23:59` beside 300 stamps written
+    # `3/17/2023 1:00 AM` into the high tail the producer had measured
+    # without them, and the unchanged source missed four checks.
+    face = ""
+    if facts.parser_family in contract.CLOCK_FORM_MEMBERS:
+        face = parsing.clock_face(style)
+    read_cells: "list[tuple[str, str, bool] | None]" = []
+    dates = 0
+    for cell in cells:
+        read = parsing.parse_datetime(cell, facts.parser_family)
+        if (
+            read is not None
+            and facts.parser_family in contract.CLOCK_FORM_MEMBERS
+            and _stamp_off_its_face(cell, face)
+        ):
+            read = None
+        if read is None and folded:
+            read = parsing.parse_datetime(cell, taxonomy.FORMAT_ISO_MIXED)
+        if read is None:
+            read_cells += [None]
+            continue
+        dated = joint and parsing.parse_datetime(cell, taxonomy.ISO_FORMS[1]) is None
+        if dated:
+            dates = dates + 1
+        read_cells += [(parsing.stamp_canonical(read[0], style), read[1], dated)]
+    commonest, named = _offset_absorbed_into(facts, dates)
+    found: "list[tuple[int, str] | None]" = []
+    for entry in read_cells:
+        if entry is None:
+            found += [None]
+            continue
+        canonical, offset, dated = entry
+        worn = offset
+        key = worn if worn else contract.NO_OFFSET
+        if commonest and not dated and key not in named:
+            worn = "" if commonest == contract.NO_OFFSET else commonest
+        moment = canonical
+        if (
+            facts.datetimes_read_at == "utc"
+            and facts.resolution == taxonomy.RESOLUTION_DATETIME
+        ):
+            # ...AND THE CLAMP THE PRODUCER PUBLISHES WITH
+            # (`parsing.utc_moment`, the dates pass of the stage-3
+            # review, item 7): a conversion the calendar cannot spell is
+            # read at the calendar's own edge on both sides of the wall,
+            # so a file holding such a cell is measured in the unit its
+            # own description published it under. Read with the plain
+            # conversion the cell counted for nothing here while the
+            # description counted it, and the source table missed both
+            # of its tail boundaries.
+            shifted = parsing.utc_moment(canonical, worn)
+            if shifted is None:
+                found += [None]
+                continue
+            moment = shifted
+        found += [
+            (
+                taxonomy.tail_ordinal(
+                    moment, facts.tail_unit, facts.datetimes_read_at
+                ),
+                canonical if written else moment,
+            )
+        ]
+    return found
+
+
+def _on_own_clocks(facts: contract.DatetimeFacts) -> bool:
+    """Whether a column's censuses count each cell on its own clock apart
+    from the published one (landing 3b.7, plan P4-D378): a column published
+    on the shared clock, or one of the joint member, whose bare dates count
+    at their midnight. Every other column is recounted as before."""
+    return (
+        facts.datetimes_read_at != "local"
+        or facts.parser_family == contract.FORMAT_ISO_MIXED
+    )
+
+
+def _own_clock_readings(
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object] | None",
+    cells: "list[str]",
+) -> "list[tuple[int, str]]":
+    """Every cell the file reads, on its own clock (landing 3b.7, plan
+    P4-D378; validation V5-W1, V5-W2, V5-H1, V5-M1 and V5-S1): its unit on
+    the clock the column is published on, which places it between the two
+    published boundaries as the producer cut the body, and the text it is
+    WRITTEN in, at which each census counts it -- a bare date at its
+    midnight, hour, minute and second 0 (the fold). The cells the file's
+    own description folded into its moments are read under the joint
+    reading, worn at the offset the census absorbed them into
+    (`_tail_readings_of`, Codex's review of lane J, item 2).
+
+    Guarantees: accepts the facts, the file's own description block and
+    the cells; returns (unit, written text) pairs, the text 19 characters
+    long. Determinism: a function of the three. Raises nothing. No I/O of
+    any kind.
+    """
+    found: "list[tuple[int, str]]" = []
+    failing: "list[str]" = []
+    for cell, placed in zip(cells, _tail_readings_of(facts, cells, False, True)):
+        if placed is None:
+            failing += [cell]
+            continue
+        found += [placed]
+    if block is not None and _folded_by_the_file(block, facts.parser_family, failing):
+        for placed in _tail_readings_of(facts, failing, True, True):
+            if placed is not None:
+                found += [placed]
+    clocked: "list[tuple[int, str]]" = []
+    for unit, text in found:
+        if len(text) < 19:
+            text = text[0:10] + " 00:00:00"
+        clocked += [(unit, text)]
+    return clocked
+
+
+def _own_clock_body(
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object] | None",
+    cells: "list[str]",
+) -> "list[str]":
+    """The written texts of the file's body on its own clocks (landing 3b.7):
+    the cells `_own_clock_readings` places between the two published
+    boundaries, both included, in the published clock's units."""
+    if facts.low_tail is None or facts.high_tail is None:
+        return []
+    low = taxonomy.tail_ordinal(
+        facts.low_tail.boundary, facts.tail_unit, facts.datetimes_read_at
+    )
+    high = taxonomy.tail_ordinal(
+        facts.high_tail.boundary, facts.tail_unit, facts.datetimes_read_at
+    )
+    return [
+        text
+        for unit, text in _own_clock_readings(facts, block, cells)
+        if low <= unit <= high
+    ]
+
+
+def _file_tail_units(
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+    block: "dict[str, object] | None" = None,
+) -> "list[int]":
+    """The file's cells that read as dates, in tail units, ascending.
+
+    AND THE DATES THE FILE'S OWN DESCRIPTION FOLDED INTO ITS MOMENTS
+    (lane J of stage 3b, plan P4-D367; D2's verifier, older fault (a)),
+    where its block is given: the fold the weekday and hour recounts ask
+    (`_moments_tallied`, `_folded_hour_instants`), asked of the tails
+    too. Ten bare `2024-01-02` beside five noon stamps a day from
+    2024-01-01 were folded into midnight moments inside the low tail and
+    counted there, and the unchanged source, read without them, missed
+    `tails.low.boundary`, `rows` and `values`. Each folded cell is read
+    under the joint ISO reading, a whole date at its midnight, as the
+    producer counted it, and then as every other cell is: worn at the
+    offset the census absorbed it into and on the published clock
+    (`_tail_readings_of`'s `folded`; Codex's review of lane J, item 2); a
+    cell its description left unparsed stays out.
+    """
+    readings = _tail_readings_of(facts, cells)
+    failing: "list[str]" = []
+    for cell, placed in zip(cells, readings):
+        if placed is None:
+            failing += [cell]
+    if block is not None and _folded_by_the_file(
+        block, facts.parser_family, failing
+    ):
+        readings = _tail_readings_of(facts, cells, True)
+    found: "list[int]" = []
+    for placed in readings:
+        if placed is not None:
+            found += [placed[0]]
+    return sorted(found)
+
+
+def _file_clock_units(
+    form: str, cells: "list[str]", published: str = ""
+) -> "list[int]":
+    """The file's clock times in the PUBLISHED form's unit, ascending.
+
+    READ IN THE FILE'S OWN FORM AND COMPARED IN ONE UNIT, exactly as the
+    rungs are (`_clock_seconds`): a file whose cells wear the other shape
+    publishes a ladder in that shape, and reading it under the
+    description's form would find nothing and silence every obligation on
+    a file whose own description publishes the measurement being asked
+    for, which V5.3 does not permit as a reason for silence. Both sides
+    meet in seconds of day and are then counted in the published form's
+    own unit, a minute of which holds sixty of them.
+    """
+    step = parsing.clock_step(form)
+    wanted = parsing.clock_step(published or form)
+    found: "list[int]" = []
+    for cell in cells:
+        read = parsing.clock_ordinal(cell, form)
+        if read is not None:
+            found += [(read * step) // wanted]
+    return sorted(found)
+
+
+def _tail_side_checks(
+    name: str,
+    group: str,
+    low: "contract.TailFacts | None",
+    high: "contract.TailFacts | None",
+    units: "list[int]",
+    boundaries: "tuple[int, int]",
+    windows: "dict[str, tuple[list[int], list[int]]]",
+    values_of: "dict[str, list[int]]",
+    unit: str,
+    floor: int,
+) -> "list[Check]":
+    """Each published tail against the file, read at the PUBLISHED boundary.
+
+    THE BOUNDARY IS THE DESCRIPTION'S, NEVER RE-DERIVED FROM THE FILE
+    (stage 3, the numeric skeptic's point about subjects): the file's
+    cells strictly beyond it are counted and measured, whatever the
+    file's own boundary rule would say. Four obligations per side:
+
+    - `tails.<side>.boundary`, EXACT: the file's cell at that many ranks
+      in from the outside stands on the published boundary. Its text is
+      the file's, so only the verdict is shown.
+    - `tails.<side>.rows`, EXACT: the count of cells strictly beyond it.
+    - `tails.<side>.mean_distance` and `.rms_distance`: HELD where the
+      file's value is the published one exactly (the real table, by
+      construction), otherwise WITHIN-BOUND inside the construction
+      window of G12.14 or MISSED. Numbers in the tail's unit are shown.
+    - where the tail publishes its values, `tails.<side>.values`, EXACT
+      and silent: the file's outer cells hold exactly those values, each
+      at least once; and its mean, where published, EXACT.
+
+    AND A MEASUREMENT OVER FEWER CELLS THAN THE FLOOR IS NOT PRINTED
+    (plan P4-D349, and the owner's ruling of 2026-09-23 that a warning
+    whose count would hand back a withheld cell keeps the warning and
+    drops the number). The cells counted here are the file's own cells
+    beyond the DESCRIPTION's boundary, which is not where the file's own
+    boundary stands, so this walk can find a group the file's own
+    description would never publish: 200 consecutive dates from
+    2020-01-01 publish a low boundary of January 12, and a file holding
+    January 1 and then January 12 onward has ONE cell below it, at a mean
+    and a root-mean-square distance of eleven days. Printing those three
+    numbers names January 1 exactly, while the file's own description
+    moves its boundary to January 14 and names nothing. So where the file
+    has fewer than `floor` cells beyond the boundary, the count and the
+    two distances keep their verdicts and drop their numbers -- the shape
+    the heaped end beside them has always taken.
+    """
+    checks: "list[Check]" = []
+    if low is None or high is None:
+        return checks
+    count = len(units)
+    for side, tail, at in (("low", low, boundaries[0]), ("high", high, boundaries[1])):
+        # EACH KEY IS ITS OWN FACT, because each key is its own
+        # obligation: a boundary and a count of rows are exact, the two
+        # distances are approximated, and a report naming one fact for
+        # all five would file an exact line and a windowed line under a
+        # name the disposition registry can only answer for once.
+        stem = f"{group}.{side}_tail"
+        if side == "low":
+            beyond = [at - value for value in units if value < at]
+            place = tail.rows
+        else:
+            beyond = [value - at for value in units if value > at]
+            place = count - 1 - tail.rows
+        # A FILE WITH NO CELL AT THAT RANK MISSES, AND DOES NOT GO QUIET
+        # (V5.3). The rank is counted from the outside of the file's own
+        # dates, so a file holding fewer of them than the description
+        # publishes has no cell standing where the boundary stands --
+        # which is a published obligation the file does not meet, not a
+        # measurement the file's own description would decline to carry.
+        # Reporting it WITHHELD said the disclosure gate had closed on a
+        # column whose role the same report held, which is silence
+        # bought by making a file worse.
+        on = False
+        if 0 <= place < count:
+            on = units[place] == at
+        checks += [
+            _silent(
+                name,
+                f"{stem}.boundary",
+                f"tails.{side}.boundary",
+                tail.boundary,
+                on,
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+            )
+        ]
+        # THE SUBFLOOR GROUP THIS WALK CAN FIND, and what is dropped
+        # because of it (plan P4-D349). `beyond` is counted from the
+        # DESCRIPTION's boundary, so a file can have fewer cells there
+        # than any description of that file would publish a count for --
+        # and one cell at a distance of eleven days names the day it
+        # stands on. Above the floor nothing changes, which is every
+        # conforming file: its count beyond the boundary is the published
+        # one.
+        held_back = 0 < len(beyond) < floor
+        checks += [
+            _silent(
+                name,
+                f"{stem}.rows",
+                f"tails.{side}.rows",
+                _shown_count(tail.rows),
+                len(beyond) == tail.rows,
+                _NOT_SHOWN_IT_IS_A_SUBFLOOR_GROUP_OF_THE_FILE,
+            )
+            if held_back
+            else _exact(
+                name,
+                f"{stem}.rows",
+                f"tails.{side}.rows",
+                _shown_count(tail.rows),
+                _shown_count(len(beyond)),
+            )
+        ]
+        total = 0
+        squares = 0
+        for distance in beyond:
+            total = total + distance
+            squares = squares + distance * distance
+        if tail.values is not None:
+            wanted: "dict[int, bool]" = {}
+            for distance in values_of[side]:
+                wanted[distance] = True
+            seen: "dict[int, bool]" = {}
+            for distance in beyond:
+                seen[distance] = True
+            checks += [
+                _silent(
+                    name,
+                    f"{stem}.values",
+                    f"tails.{side}.values",
+                    f"{len(tail.values)} values",
+                    sorted(seen) == sorted(wanted),
+                    _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+                )
+            ]
+            if tail.mean_distance is not None:
+                measured = None if not beyond else total / len(beyond)
+                checks += [
+                    _silent(
+                        name,
+                        f"{stem}.mean_distance",
+                        f"tails.{side}.mean_distance",
+                        _tail_figure(tail.mean_distance, unit),
+                        None
+                        if measured is None
+                        else _tail_ratio_equal(
+                            total, len(beyond), tail.mean_distance, False
+                        ),
+                        _NOT_SHOWN_IT_IS_A_SUBFLOOR_GROUP_OF_THE_FILE,
+                    )
+                    if held_back
+                    else _exact(
+                        name,
+                        f"{stem}.mean_distance",
+                        f"tails.{side}.mean_distance",
+                        _tail_figure(tail.mean_distance, unit),
+                        None if measured is None else _tail_figure(measured, unit),
+                    )
+                ]
+            continue
+        near, far = windows[side]
+        size = max(tail.rows, 1)
+        near_total = 0
+        near_squares = 0
+        far_total = 0
+        far_squares = 0
+        for index in range(len(near)):
+            near_total = near_total + near[index]
+            near_squares = near_squares + near[index] * near[index]
+            far_total = far_total + far[index]
+            far_squares = far_squares + far[index] * far[index]
+        for key, published, top, lowest, highest, rooted in (
+            ("mean_distance", tail.mean_distance, total, near_total, far_total, False),
+            ("rms_distance", tail.rms_distance, squares, near_squares, far_squares, True),
+        ):
+            if published is None:
+                continue
+            checks += [
+                _tail_window_check(
+                    name,
+                    f"{stem}.{key}",
+                    f"tails.{side}.{key}",
+                    published,
+                    top,
+                    len(beyond),
+                    lowest,
+                    highest,
+                    size,
+                    rooted,
+                    unit,
+                    held_back,
+                )
+            ]
+    return checks
+
+
+def _tail_figure(value: float, unit: str) -> str:
+    """A tail distance written for a person, with its unit."""
+    return f"{value!r} {unit}(s)"
+
+
+def _tail_window_check(
+    name: str,
+    fact: str,
+    subcheck: str,
+    published: float,
+    top: int,
+    count: int,
+    lowest: int,
+    highest: int,
+    size: int,
+    rooted: bool,
+    unit: str,
+    held_back: bool = False,
+) -> Check:
+    """One tail distance against G12.14's window, compared exactly.
+
+    `top / count` is the file's sum (or sum of squares) over its cells
+    beyond the boundary; `lowest / size` and `highest / size` are the
+    construction's two ends. The comparison is made in whole numbers;
+    the root-mean-square distance is compared as its square, so no
+    rounding decides a verdict. The file's value is HELD where it rounds
+    to the published one (V6.1-A1).
+
+    ``held_back`` SAYS THE FILE HAS FEWER CELLS BEYOND THE BOUNDARY THAN
+    THE FLOOR (plan P4-D349). The verdict is reached the same way and
+    the two numbers that would name those cells -- the file's own
+    distance, and the window it is judged against, which is printed as
+    distances too -- are dropped. The reason is at `_tail_side_checks`.
+    """
+    if count == 0:
+        return _judged_window(Check(
+            name, fact, subcheck, MISSED, _tail_figure(published, unit),
+            "no cell beyond the boundary",
+        ))
+    measured = top / count
+    if rooted:
+        measured = math.sqrt(measured)
+    shown = _tail_figure(measured, unit)
+    exact = _tail_ratio_equal(top, count, published, rooted)
+    low_value = lowest / size
+    high_value = highest / size
+    if rooted:
+        low_value = math.sqrt(low_value)
+        high_value = math.sqrt(high_value)
+    reaches = lowest * count <= top * size <= highest * count
+    note: "tuple[str, ...]" = (
+        f"      the file's value is allowed from {low_value!r} to "
+        f"{high_value!r} {unit}(s)",
+    )
+    if exact:
+        if held_back:
+            return _judged_window(Check(
+                name, fact, subcheck, HELD, _tail_figure(published, unit)
+            ))
+        return _judged_window(Check(
+            name, fact, subcheck, HELD, _tail_figure(published, unit), shown
+        ))
+    verdict = WITHIN_BOUND if reaches else MISSED
+    if held_back:
+        return _judged_window(Check(
+            name,
+            fact,
+            subcheck,
+            verdict,
+            _tail_figure(published, unit),
+            "",
+            ENVELOPE_TAIL_DISTANCE,
+            _NOT_SHOWN_IT_IS_A_SUBFLOOR_GROUP_OF_THE_FILE,
+        ))
+    return _judged_window(
+        Check(
+            name,
+            fact,
+            subcheck,
+            verdict,
+            _tail_figure(published, unit),
+            shown,
+            ENVELOPE_TAIL_DISTANCE,
+            note,
+        ),
+        f"{low_value!r}",
+        f"{high_value!r}",
+        low_value <= published <= high_value,
+    )
+
+
+def _tail_ratio_equal(top: int, count: int, published: float, rooted: bool) -> bool:
+    """Whether the file's whole sum over its count rounds to the published value.
+
+    The producer publishes the sum over the count, or the square root of
+    it, rounded once to the nearest binary64; the file's own value is
+    that same rounding of its own sum, so equality of the two roundings
+    is the question, and it is asked of the producer's own rounding.
+    """
+    if rooted:
+        return taxonomy.rounded_root_ratio(top, count) == published
+    return taxonomy.rounded_ratio(top, count) == published
+
+
 def _clock_checks(
     column: contract.ColumnBlock,
     facts: contract.ClockFacts,
     block: "dict[str, object]",
+    cells: "list[str] | None" = None,
+    floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
+    holes: "tuple[str, ...]" = (),
 ) -> "list[Check]":
     """A column of clock times.
 
-    THE THREE KINDS OF OBLIGATION THIS ROLE CARRIES. The form and the
-    unparsed count are exact and are COUNTS or words of this package's
-    own, so both sides print. The two endpoints and the ladder's two
-    ends are exact too, but their measured side is TEXT READ OUT OF THE
-    FILE, so the comparison is made in full and only the verdict is
-    shown -- the same treatment the datetime role's endpoints get, and
-    for the same rule. The nine interior rungs are approximated inside
-    the window this role's own construction leaves them.
+    THE KINDS OF OBLIGATION THIS ROLE CARRIES. The form and the unparsed
+    count are exact and are COUNTS or words of this package's own, so
+    both sides print. Each TAIL (stage 3) is read at its PUBLISHED
+    boundary: the boundary exact and silent, the count beyond it exact,
+    and its two distances inside the construction window of G12.14
+    (`_tail_side_checks`). The published interior rungs are approximated
+    inside the window this role's own construction leaves them; a rung
+    the tail rule withholds is listed, never checked. `holes` are the
+    spellings the table calls absent, which a census-laid column's
+    construction keeps off (method G7A.4b), so its windows are drawn
+    beside them.
     """
     name = column.name
     checks: "list[Check]" = []
     found = _text_at(block, "clock_form")
-    checks = checks + [
-        _exact(
-            name,
-            "clock.clock_form",
-            "form.clock_form",
-            facts.clock_form,
-            found,
-        )
-    ]
-    for field, published in (
-        ("earliest", facts.earliest),
-        ("latest", facts.latest),
-    ):
-        seen = _text_at(block, field)
-        checks = checks + [
-            _silent(
-                name,
-                f"clock.{field}",
-                f"ends.{field}",
-                published,
-                None if seen is None else seen == published,
-                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
-            )
-        ]
+    checks += [_clock_form_check(name, facts.clock_form, found, cells)]
     counted = _count_at(block, "n_unparsed")
-    checks = checks + [
+    checks += [
         _exact(
             name,
             "clock.n_unparsed",
@@ -10951,76 +18075,345 @@ def _clock_checks(
             None if counted is None else _shown_count(counted),
         )
     ]
-    checks = checks + _clock_ladder_checks(column, facts, block)
+    if facts.low_tail is not None and facts.high_tail is not None:
+        form = facts.clock_form
+        values_of: "dict[str, list[int]]" = {}
+        for side, tail, low_side in (
+            ("low", facts.low_tail, True),
+            ("high", facts.high_tail, False),
+        ):
+            at = _clock_ordinal_or_zero(tail.boundary, form)
+            found_values: "list[int]" = []
+            if tail.values is not None:
+                for value in tail.values:
+                    here = _clock_ordinal_or_zero(value, form)
+                    found_values += [at - here if low_side else here - at]
+            values_of[side] = found_values
+        checks += _tail_side_checks(
+            name,
+            "clock",
+            facts.low_tail,
+            facts.high_tail,
+            _file_clock_units(
+                found if found is not None else form,
+                [] if cells is None else cells,
+                form,
+            ),
+            (
+                _clock_ordinal_or_zero(facts.low_tail.boundary, form),
+                _clock_ordinal_or_zero(facts.high_tail.boundary, form),
+            ),
+            _clock_tail_windows(column, facts, floor, holes),
+            values_of,
+            _clock_units(form),
+            floor,
+        )
+    checks = checks + _clock_ladder_checks(column, facts, block, floor, holes)
+    # -- the census, heaps, step and codes stage 3b reserved (3b.C1,
+    # P4-D373; plan P4-D364), checked where a step is published: V5-C1
+    # and V5-C2.
+    checks = checks + _clock_census_checks(column, facts, block, cells, floor)
+    # -- the minute census of clock times (3b.C2, P4-D374): V5-C2, widened.
+    checks = checks + _clock_minute_checks(column, facts, block, cells, floor)
     return checks
+
+
+def _clock_census_checks(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    block: "dict[str, object]",
+    cells: "list[str] | None",
+    floor: int,
+) -> "list[Check]":
+    """A clock column's census, heaps, step and codes, held exactly.
+
+    LANDING 3b.5 (lane C1, plan P4-D373; validation V5-C1 and V5-C2). The
+    file's own cells are counted here, never produced: its re-description
+    publishes none of the four (`produced` false), so no validate run asks
+    the producer's rules. Each cell is read in the PUBLISHED form, as the
+    tails are. Four checks, where the description publishes a step:
+
+    - V5-C1, `clock_step.values`: every value of the file stands on the
+      published step. Silent: it names no count. Asked only where the
+      step is coarser than the form's own unit: on a step of one minute
+      in a form of minutes, every value the form reads stands on it, and
+      a check no file can miss is not filed.
+    - V5-C1, `clock_census.groups`: the file's values between the two
+      PUBLISHED boundaries, both included (every value, on a column with
+      no tails), that stand on no published heap, counted per published
+      group, each exactly.
+    - V5-C2, `clock_heaps.counts`: every published heap's count of the
+      file's cells, exactly, over the whole column.
+    - V5-C2, `clock_codes.counts`: every published code's count of the
+      file's cells, exactly.
+
+    A MISSED LINE KEEPS ITS VERDICT AND DROPS ANY NUMBER BELOW THE LINE,
+    by the one printing rule of every census check (`_census_lines`).
+
+    Guarantees: accepts the column, its facts, the file's own block, its
+    cells and the floor; returns the checks, none where no step is
+    published. Determinism: a function of the arguments. Raises nothing.
+    No I/O of any kind.
+    """
+    if facts.clock_step is None:
+        return []
+    name = column.name
+    form = facts.clock_form
+    unit = parsing.clock_step(form)
+    stride = max(1, facts.clock_step // unit)
+    line = parsing.census_floor(floor)
+    # EACH DIFFERENT SPELLING READ ONCE, and counted.
+    spelled: "dict[str, int]" = {}
+    for cell in [] if cells is None else cells:
+        spelled[cell] = (spelled[cell] if cell in spelled else 0) + 1
+    values: "dict[int, int]" = {}
+    for cell in spelled:
+        found = parsing.clock_ordinal(cell, form)
+        if found is not None:
+            values[found] = (values[found] if found in values else 0) + spelled[cell]
+    checks: "list[Check]" = []
+    if stride > 1:
+        checks += [
+            _silent(
+                name,
+                "clock.clock_step",
+                "clock_step.values",
+                f"every value on a step of {facts.clock_step} seconds",
+                all(at % stride == 0 for at in values),
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+            )
+        ]
+    heap_at: "dict[int, int]" = {}
+    for heap, _count in facts.clock_heaps:
+        heap_at[_clock_ordinal_or_zero(heap, form)] = 0
+    for at in values:
+        if at in heap_at:
+            heap_at[at] = heap_at[at] + values[at]
+    if facts.clock_census:
+        lowest = 0
+        highest = parsing.CLOCK_CAPACITY[form] - 1
+        if facts.low_tail is not None and facts.high_tail is not None:
+            lowest = _clock_ordinal_or_zero(facts.low_tail.boundary, form)
+            highest = _clock_ordinal_or_zero(facts.high_tail.boundary, form)
+        bins = [0 for _bin in range(calendar_clock.clock_bin_count(form))]
+        for at in values:
+            if at in heap_at or not lowest <= at <= highest:
+                continue
+            place = calendar_clock.clock_bin_of(at, form)
+            bins[place] = bins[place] + values[at]
+        found_counts = calendar_rules.group_counts(facts.clock_census, bins)
+        asked, shown, lines = _census_lines(
+            [
+                (_clock_bins_named(first, last), count)
+                for first, last, count in facts.clock_census
+            ],
+            found_counts,
+            line,
+        )
+        wanted = [count for _first, _last, count in facts.clock_census]
+        checks += [
+            Check(
+                name,
+                "clock.clock_census",
+                "clock_census.groups",
+                HELD if found_counts == wanted else MISSED,
+                asked,
+                shown,
+                "",
+                tuple(lines),
+            )
+        ]
+    for fact, subcheck, listed, counted in (
+        (
+            "clock.clock_heaps",
+            "clock_heaps.counts",
+            facts.clock_heaps,
+            [heap_at[_clock_ordinal_or_zero(value, form)] for value, _c in facts.clock_heaps],
+        ),
+        (
+            "clock.clock_codes",
+            "clock_codes.counts",
+            facts.clock_codes,
+            [spelled[text] if text in spelled else 0 for text, _c in facts.clock_codes],
+        ),
+    ):
+        if not listed:
+            continue
+        asked, shown, lines = _census_lines(
+            [(f"{text}", count) for text, count in listed], counted, line
+        )
+        wanted = [count for _text, count in listed]
+        checks += [
+            Check(
+                name,
+                fact,
+                subcheck,
+                HELD if counted == wanted else MISSED,
+                asked,
+                shown,
+                "",
+                tuple(lines),
+            )
+        ]
+    return checks
+
+
+def _clock_bins_named(first: int, last: int) -> str:
+    """A group of ten-minute bins as the report names it: `ten-minute bins 42 to 43:`.
+
+    By the bins' own numbers, from nought at midnight, as the description
+    publishes them -- never as a time of day, which a cell of the measured
+    file could spell exactly alike (validation V5.4). The colon parts the
+    name from the count the report writes after it, so `ten-minute bins 42
+    to 43: 28` is not read as bins 42 to 4,328.
+    """
+    if first == last:
+        return f"ten-minute bin {first}:"
+    return f"ten-minute bins {first} to {last}:"
+
+
+def _clock_minute_checks(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    block: "dict[str, object]",
+    cells: "list[str] | None",
+    floor: int,
+) -> "list[Check]":
+    """A clock column's minute census, held exactly (validation V5-C2, widened).
+
+    LANDING 3b.5's SECOND STEP (lane C2, plan P4-D374). The file's own
+    cells are counted here and never produced: its re-description
+    publishes no minute census (`produced` false). Each cell is read in
+    the PUBLISHED form, as V5-C1 reads it, and the file's values between
+    the two PUBLISHED boundaries, both included -- every value, on a
+    column with no tails -- the clock heaps' among them, are counted at
+    the minute of the hour each is written at
+    (`calendar_clock.clock_minute_of`) per published group:
+    `minute_census.groups`, HELD where every group holds its count exactly,
+    MISSED otherwise, named as V5-M1 names its groups and printed through
+    `_census_lines`, so a MISSED line prints no count below the line.
+
+    Guarantees: as `_clock_census_checks`: one check where a minute census
+    is published, none otherwise. Determinism: a function of the
+    arguments. Raises nothing. No I/O of any kind.
+    """
+    if not facts.minute_census:
+        return []
+    form = facts.clock_form
+    spelled: "dict[str, int]" = {}
+    for cell in [] if cells is None else cells:
+        spelled[cell] = (spelled[cell] if cell in spelled else 0) + 1
+    lowest = 0
+    highest = parsing.CLOCK_CAPACITY[form] - 1
+    if facts.low_tail is not None and facts.high_tail is not None:
+        lowest = _clock_ordinal_or_zero(facts.low_tail.boundary, form)
+        highest = _clock_ordinal_or_zero(facts.high_tail.boundary, form)
+    bins = [0 for _minute in range(calendar_clock.FIELD_VALUES)]
+    for cell in spelled:
+        found = parsing.clock_ordinal(cell, form)
+        if found is None or not lowest <= found <= highest:
+            continue
+        minute = calendar_clock.clock_minute_of(found, form)
+        bins[minute] = bins[minute] + spelled[cell]
+    named: "list[tuple[str, int]]" = []
+    counted: "list[int]" = []
+    for first, last, count in facts.minute_census:
+        named += [(_clock_field_value_named(calendar_clock.MINUTE, first, last), count)]
+        counted += [sum(bins[first : last + 1])]
+    asked, shown, lines = _census_lines(named, counted, parsing.census_floor(floor))
+    wanted = [count for _named, count in named]
+    return [
+        Check(
+            column.name,
+            "clock.minute_census",
+            "minute_census.groups",
+            HELD if counted == wanted else MISSED,
+            asked,
+            shown,
+            "",
+            tuple(lines),
+        )
+    ]
 
 
 def _clock_ladder_checks(
     column: contract.ColumnBlock,
     facts: contract.ClockFacts,
     block: "dict[str, object]",
+    floor: int,
+    holes: "tuple[str, ...]" = (),
 ) -> "list[Check]":
-    """The clock ladder: the two ends exact, the nine interior windowed.
+    """The clock ladder: each PUBLISHED interior rung inside its window.
 
     The window is this role's own construction written out here rather
-    than imported: the validator may not read the generator, so the
-    arithmetic is taken from the method's clause and the suite holds the
-    two writings to agreeing.
-
-    Rank `k` is its own stratum -- its share of the day runs from `k/P`
-    to `(k+1)/P` and no word can carry it outside that band -- so the
-    rank sits between the ladder read at those two shares, less one unit
-    of the form at the low end for the flooring. The two ends are PINNED
-    and have no room at all: the construction writes rank 0 at the
-    published earliest and rank `P-1` at the published latest, and T2
-    makes those the ladder's own two ends.
+    than imported (`_clock_rank_windows`): the validator may not read the
+    generator, so the arithmetic is taken from the method's clause and
+    the suite holds the two writings to agreeing. A rung the tail rule
+    withholds is not a check at all -- it is listed (`_tail_listings`),
+    because comparing a null against a null proves nothing.
     """
     name = column.name
     measured = _inner_at(block, "clock_percentiles")
     checks: "list[Check]" = []
-    for key, expected in (
-        ("min", facts.earliest),
-        ("max", facts.latest),
-    ):
-        seen = None if measured is None else _text_at(measured, key)
-        checks = checks + [
-            _silent(
-                name,
-                f"clock.clock_percentiles.{key}",
-                f"clock-ladder.{key}",
-                expected,
-                None if seen is None else seen == expected,
-                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
-            )
-        ]
     parsed = max(1, column.n_present - facts.n_unparsed)
-    lows, highs = _clock_rank_windows(facts, parsed)
+    lows, highs = _clock_rank_windows(column, facts, parsed, floor, holes)
     for index in range(1, len(_LADDER_KEYS) - 1):
         key = _LADDER_KEYS[index]
+        published = facts.clock_percentiles[key]
+        if published is None:
+            continue
         seen = None if measured is None else _text_at(measured, key)
-        # READ IN THE FILE'S OWN FORM AND COMPARED IN ONE UNIT. A file
-        # whose cells wear the other shape publishes a ladder in that
-        # shape, and reading it under the DESCRIPTION's form finds
-        # nothing -- so every rung went silent, on a file whose own
-        # description publishes exactly the measurement being asked
-        # for. That is not the disclosure gate closing; it is the
-        # validator unable to read, which V5.3 does not permit as a
-        # reason for silence. Both sides are read in their own form and
-        # compared in seconds of day, where a minute is sixty and the
-        # two spaces are one.
+        # READ IN THE FILE'S OWN FORM AND COMPARED IN ONE UNIT, seconds
+        # of day, where a minute is sixty and the two spaces are one.
         held = None if seen is None else _clock_seconds(seen, block)
         rank = _rung_rank(_LADDER_PERCENTS[index], parsed)
-        checks = checks + [
+        checks += [
             _within_clock(
                 name,
                 f"clock-ladder.{key}",
                 facts,
-                facts.clock_percentiles[key],
+                published,
                 held,
                 (lows[rank], highs[rank]),
             )
         ]
     return checks
+
+
+def _clock_form_check(
+    name: str, published: str, found: "str | None", cells: "list[str] | None"
+) -> Check:
+    """The clock form, HELD BY FIT (landing T1, plan P4-D370).
+
+    The same precision and face, and every cell the file reads on that
+    face showing the published hour width or none
+    (`parsing.clock_held_by_fit`): a faithful twin that drew no hour
+    below ten is described again as `hh` and is not accused of missing a
+    published `h`, and a twin written in another width or on another face
+    is MISSED. Both sides are words of this package's own, so both print.
+    """
+    if found is None:
+        return _exact(name, "clock.clock_form", "form.clock_form", published, None)
+    held = found == published
+    if (
+        not held
+        and found in parsing.CLOCK_FORMS
+        and parsing.clock_step(found) == parsing.clock_step(published)
+    ):
+        held = parsing.clock_held_by_fit(
+            parsing.clock_style_of(published),
+            parsing.clock_style_of(found),
+            [] if cells is None else cells,
+            False,
+        )
+    return Check(
+        name,
+        "clock.clock_form",
+        "form.clock_form",
+        HELD if held else MISSED,
+        published,
+        found,
+    )
 
 
 def _clock_seconds(text: str, block: "dict[str, object]") -> "int | None":
@@ -11038,14 +18431,12 @@ def _clock_seconds(text: str, block: "dict[str, object]") -> "int | None":
     ordinal = parsing.clock_ordinal(text, found)
     if ordinal is None:
         return None
-    if found == contract.CLOCK_FORMS[0]:
-        return ordinal * 60
-    return ordinal
+    return ordinal * parsing.clock_step(found)
 
 
 def _clock_units(form: str) -> str:
     """The word for one step of this form's own ordinal space."""
-    if form == contract.CLOCK_FORMS[0]:
+    if parsing.clock_step(form) == 60:
         return "minute"
     return "second"
 
@@ -11063,11 +18454,11 @@ def _shown_clock_distance(ordinal: int, rung: int, form: str) -> str:
     # The two numbers arrive in seconds; a column of minutes says its
     # distance in minutes, which is what its reader has in front of
     # them. An odd number of seconds on such a column is a file that
-    # wore the other form, and it is said in seconds rather than
+    # wrote the other precision, and it is said in seconds rather than
     # rounded into a lie.
     away = ordinal - rung
     word = _clock_units(form)
-    if form == contract.CLOCK_FORMS[0]:
+    if parsing.clock_step(form) == 60:
         if away % 60 == 0:
             away = away // 60
         else:
@@ -11095,10 +18486,10 @@ def _within_clock(
     rung; and a window that does not reach the published value says so
     rather than leaving a reader to think the page is wrong.
     """
-    # IN SECONDS OF DAY, the one unit the two forms share, because the
-    # measured side was read in the FILE's own form and this one is
-    # read in the description's.
-    step = 60 if facts.clock_form == contract.CLOCK_FORMS[0] else 1
+    # IN SECONDS OF DAY, the one unit every one of the forty forms
+    # converts to, because the measured side was read in the FILE's own
+    # form and this one is read in the description's.
+    step = parsing.clock_step(facts.clock_form)
     rung = step * _clock_ordinal_or_zero(published, facts.clock_form)
     low, high = window
     form = facts.clock_form
@@ -11127,7 +18518,7 @@ def _within_clock(
             "        around the description's value.",
         )
     if measured is None:
-        return Check(
+        return _judged_window(Check(
             column,
             "clock.clock_percentiles",
             subcheck,
@@ -11135,9 +18526,9 @@ def _within_clock(
             published,
             "",
             _GATE_CLOSED,
-        )
+        ))
     if measured == rung:
-        return Check(
+        return _judged_window(Check(
             column,
             "clock.clock_percentiles",
             subcheck,
@@ -11146,64 +18537,232 @@ def _within_clock(
             _shown_clock_distance(measured, rung, form),
             "",
             () if reaches else _MET_OUTSIDE_ITS_WINDOW,
-        )
+        ))
     verdict = WITHIN_BOUND if low <= measured <= high else MISSED
-    return Check(
-        column,
-        "clock.clock_percentiles",
-        subcheck,
-        verdict,
-        published,
-        _shown_clock_distance(measured, rung, form),
-        ENVELOPE_CLOCK_RUNG,
-        note,
+    return _judged_window(
+        Check(
+            column,
+            "clock.clock_percentiles",
+            subcheck,
+            verdict,
+            published,
+            _shown_clock_distance(measured, rung, form),
+            ENVELOPE_CLOCK_RUNG,
+            note,
+        ),
+        _shown_clock_distance(low, rung, form),
+        _shown_clock_distance(high, rung, form),
+        reaches,
     )
 
 
 def _clock_rank_windows(
-    facts: contract.ClockFacts, parsed: int
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    parsed: int,
+    floor: int,
+    holes: "tuple[str, ...]" = (),
 ) -> "tuple[list[int], list[int]]":
-    """The window every rank of a column of clock times sits in.
+    """The window every rank of a column of clock times sits in (stage 3).
 
-    Whole-number arithmetic throughout, in the ordinal unit the
-    published FORM sets -- minutes of day, or seconds of day -- because
-    that is the unit the construction interpolates in and a window drawn
-    in another one would floor to a different place.
+    Whole-number arithmetic throughout, in the ordinal unit the published
+    FORM sets, handed back in SECONDS because the measured side is read in
+    the FILE's form. A tail rank sits inside its stratum (G12.14); a
+    boundary rank on its boundary; a body rank between the knots read at
+    its own two positions, one unit lower at the bottom for the flooring
+    -- the knots being the low boundary at its rank, each published rung
+    at `P * c / 100` and the high boundary at `P -` the high tail's rows.
+    A column with no tails is its ramp, every rank a point.
 
-    Guarantees: accepts one column's published clock facts and how many
-    of its cells read back as clock times; returns the two ends of every
-    rank's window. Nothing measured is consulted -- this is what the
-    DESCRIPTION obliges. Determinism: a fixed function of those two.
-    Errors raised: none.
+    AND A COLUMN WHOSE VALUES WERE ALL DIFFERENT CARRIES ITS BODY RANKS
+    THROUGH THE STEP-AND-CLAMP (method G7A.4; the dates pass of the
+    stage-3 review, item 9). The construction leaves no body rank of such
+    a column on the instant the knots gave it: a rank on or below the one
+    before it steps to the next unit, and a rank reaching the high
+    boundary is held one unit below it. Both ends of a rank's window go
+    through that same walk, so the ends carried forward are
+
+        bound = min(high boundary - 1, max(own end, bound before + 1))
+
+    from the low boundary, which is where the walk starts. The window
+    here was the interpolation's alone, which is narrower than what the
+    construction reaches: measured on every minute of a day, 1,440 rows,
+    the twin's p99 stands at 23:44 where that window ends at 23:43, and
+    only the equality reading of V6.1-A1 kept a conforming twin from
+    being named as having missed the rung.
+
+    Guarantees: accepts the column, its facts, how many of its cells read
+    back as clock times and the floor; returns the two ends of every
+    rank's window. Nothing measured is consulted. Determinism: a fixed
+    function of those four. Errors raised: none.
     """
-    ladder = [
-        _clock_ordinal_or_zero(facts.clock_percentiles[name], facts.clock_form)
-        for name in _LADDER_KEYS
-    ]
-    last = len(_LADDER_KEYS) - 1
-    # THE WINDOWS ARE DRAWN IN THE FORM'S OWN UNIT AND HANDED BACK IN
-    # SECONDS, because the measured side is read in the FILE's form and
-    # the two have to meet in one space. The interpolation itself must
-    # happen in the column's own unit -- it floors, and flooring in
-    # seconds lands part way through a minute the construction cannot
-    # write -- so the conversion is the last step and never the first.
-    step = 60 if facts.clock_form == contract.CLOCK_FORMS[0] else 1
+    form = facts.clock_form
+    step = parsing.clock_step(form)
     lows: "list[int]" = []
     highs: "list[int]" = []
+    low = facts.low_tail
+    high = facts.high_tail
+    # A COLUMN LAID ON ITS CENSUS, HEAPS AND STEP (landing 3b.5, plan
+    # P4-D373; method G12.10 as G7A.4b leaves it): every body rank inside
+    # its census group's steps, read by the generator's own rule
+    # (`calendar_clock.clock_rank_windows`), in seconds.
+    census = _clock_census_windows(
+        facts, parsed, _clock_absent_places(column, facts, holes)
+    )
+    if census is not None:
+        return census
+    if low is None or high is None:
+        spread = max(1, min(parsed, column.n_distinct - facts.n_unparsed))
+        for rank in range(parsed):
+            value = step * ((rank * spread) // max(parsed, 1))
+            lows += [value]
+            highs += [value]
+        return (lows, highs)
+    low_rank = low.rows
+    high_rank = parsed - 1 - high.rows
+    low_at = _clock_ordinal_or_zero(low.boundary, form)
+    high_at = _clock_ordinal_or_zero(high.boundary, form)
+    word = _TAIL_WORD
+    knots: "list[tuple[int, int]]" = [(100 * low_rank * word, low_at)]
+    for index in range(1, len(_LADDER_KEYS) - 1):
+        rung = facts.clock_percentiles[_LADDER_KEYS[index]]
+        if rung is None:
+            continue
+        rank = _rung_rank(_LADDER_PERCENTS[index], parsed)
+        if low_rank < rank < high_rank:
+            knots += [
+                (
+                    parsed * _LADDER_PERCENTS[index] * word,
+                    _clock_ordinal_or_zero(rung, form),
+                )
+            ]
+    knots += [(100 * (high_rank + 1) * word, high_at)]
+    windows = _clock_tail_windows(column, facts, floor, holes)
+    apart = column.n_distinct - facts.n_unparsed >= parsed
+    stepped: "dict[int, tuple[int, int]]" = {}
+    if apart:
+        least = low_at
+        most = low_at
+        ceiling = high_at - 1
+        for place in range(low_rank + 1, high_rank):
+            below = _clock_knot_at(knots, 100 * place * word) - 1
+            above = min(_clock_knot_at(knots, 100 * (place + 1) * word), high_at)
+            least = min(ceiling, max(below, least + 1))
+            most = min(ceiling, max(above, most + 1))
+            stepped[place] = (least, most)
     for rank in range(parsed):
-        if rank == 0:
-            lows = lows + [step * ladder[0]]
-            highs = highs + [step * ladder[0]]
+        if rank < low_rank or rank > high_rank:
+            low_side = rank < low_rank
+            tail = low if low_side else high
+            at = low_at if low_side else high_at
+            index = rank if low_side else parsed - 1 - rank
+            if tail.values is not None:
+                # A TAIL THAT PUBLISHES ITS VALUES puts each rank on one of
+                # them (G7.3c), so each rank's window is the tail's span.
+                spots = [
+                    _clock_ordinal_or_zero(value, form) for value in tail.values
+                ]
+                lows += [step * min(spots)]
+                highs += [step * max(spots)]
+                continue
+            near, far = windows["low" if low_side else "high"]
+            first = at - far[index] if low_side else at + near[index]
+            second = at - near[index] if low_side else at + far[index]
+            lows += [step * first]
+            highs += [step * second]
             continue
-        if rank == parsed - 1 and parsed >= 2:
-            lows = lows + [step * ladder[last]]
-            highs = highs + [step * ladder[last]]
+        if rank == low_rank:
+            lows += [step * low_at]
+            highs += [step * low_at]
             continue
-        lows = lows + [
-            step * _ladder_ordinal_at(ladder, rank, parsed) - step
+        if rank == high_rank:
+            lows += [step * high_at]
+            highs += [step * high_at]
+            continue
+        if rank in stepped:
+            lows += [step * stepped[rank][0]]
+            highs += [step * stepped[rank][1]]
+            continue
+        lows += [step * _clock_knot_at(knots, 100 * rank * word) - step]
+        highs += [
+            step * min(_clock_knot_at(knots, 100 * (rank + 1) * word), high_at)
         ]
-        highs = highs + [step * _ladder_ordinal_at(ladder, rank + 1, parsed)]
     return (lows, highs)
+
+
+def _clock_absent_places(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    holes: "tuple[str, ...]" = (),
+) -> "tuple[int, ...]":
+    """The places of a clock column's dial the table's absent spellings name.
+
+    The generator's reading, off the same description
+    (`calendar_clock.absent_places` over the keys of the column's own
+    `missing_by_source` and `holes`, the spellings the table calls absent
+    by declaration, every column's): a census-laid body's runs share
+    their counts over their other steps and a drawn tail skips them
+    (method G7A.4b, the round-2 fix of landing 3b.5), so the windows here
+    are drawn over the same runs and the same draws.
+    """
+    return calendar_clock.absent_places(
+        tuple(sorted(set(column.missing_by_source) | set(holes))), facts.clock_form
+    )
+
+
+def _clock_census_windows(
+    facts: contract.ClockFacts, parsed: int, absent: "tuple[int, ...]" = ()
+) -> "tuple[list[int], list[int]] | None":
+    """Every rank's window on a column publishing a step, in seconds, or None.
+
+    None where no step is published, which is every column laid as G7A.4
+    lays it. Otherwise G7A.4b's windows (`calendar_clock.clock_rank_windows`)
+    over the published tails, census and heaps, a run's share counted
+    over its steps less the places the column calls absent (`absent`).
+    """
+    if facts.clock_step is None:
+        return None
+    form = facts.clock_form
+    unit = parsing.clock_step(form)
+    stride = max(1, facts.clock_step // unit)
+    capacity = parsing.CLOCK_CAPACITY[form]
+    tails: "tuple[int, int] | None" = None
+    body = (0, ((capacity - 1) // stride) * stride)
+    if facts.low_tail is not None and facts.high_tail is not None:
+        tails = (facts.low_tail.rows, facts.high_tail.rows)
+        body = (
+            _clock_ordinal_or_zero(facts.low_tail.boundary, form),
+            _clock_ordinal_or_zero(facts.high_tail.boundary, form),
+        )
+    heaps = tuple(
+        (_clock_ordinal_or_zero(value, form), count)
+        for value, count in facts.clock_heaps
+    )
+    # A body laid on its minute census (3b.C2, P4-D374; method G7A.4c)
+    # gives a heap's ranks its group's reach too, as the construction does.
+    windows = calendar_clock.clock_rank_windows(
+        parsed, tails, body, facts.clock_census, heaps, form, stride, absent,
+        bool(facts.minute_census),
+    )
+    if windows is None:
+        return None
+    return (
+        [unit * value for value in windows[0]],
+        [unit * value for value in windows[1]],
+    )
+
+
+def _clock_knot_at(knots: "list[tuple[int, int]]", position: int) -> int:
+    """The clock body read at one position, flooring between two knots."""
+    for place in range(len(knots) - 1):
+        start, low = knots[place]
+        stop, high = knots[place + 1]
+        if position <= stop or place == len(knots) - 2:
+            if stop <= start:
+                return high
+            share = min(max(position - start, 0), stop - start)
+            return low + (share * (high - low)) // (stop - start)
+    return knots[0][1]
 
 
 def _clock_ordinal_or_zero(text: str, form: str) -> int:
@@ -11222,45 +18781,144 @@ def _clock_ordinal_or_zero(text: str, form: str) -> int:
     return found
 
 
+def subsecond_figures_unwritable(
+    description: contract.Profile, column: contract.ColumnBlock
+) -> bool:
+    """Whether no workbook wearing this column's format can show its figures.
+
+    THE OTHER HALF OF THE EXTRA REVIEW'S ITEM 9 (plan P4-D259.1). P4-D259
+    reads the figures a date format shows and writes the fraction to that
+    many places, which closed the sub-case where the code SHOWS them.
+    Where it shows none the workbook has nowhere to put them: a day count
+    standing at a whole second is what a moment with no subsecond figures
+    stores, and the twin's fractional digits ARE zeros -- the generation
+    method says so and says why, that the description publishes how many
+    figures there are and nothing about their values, so any other digit
+    would be an invented fact (`docs/spec/generation-method-v1.md`
+    G7.3). Measured: 240 serials carrying a millisecond under
+    `yyyy-mm-dd hh:mm:ss` -- the code pandas writes by default -- publish
+    `subsecond` and three figures, and their twin, whose cells stand at
+    the whole second the method writes, re-describes as `second` and
+    nought and missed both obligations at exit 3.
+
+    So the two are REPORT-ONLY on such a description rather than checks
+    nothing can pass: this module refuses a check whose only outcome is a
+    lesser one (`_hole_spelling_checks` names the same rule), and
+    `_listings` says out loud why they ask nothing. A code that DOES show
+    the figures is checked exactly as before.
+
+    Guarantees:
+
+    - Inputs: the description and one of its published columns. A
+      function of the DESCRIPTION alone -- the format code is what the
+      description publishes for the column and what the twin wears -- so
+      no measured file can move which obligations exist.
+    - Determinism: a fixed function of the two.
+    - Errors raised: none. No I/O of any kind.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts):
+        return False
+    if facts.time_precision != parsing.PRECISION_SUBSECOND:
+        return False
+    figures = _subsecond_figures_worn(description, column)
+    return 0 <= figures < facts.subsecond_digits
+
+
+def _subsecond_figures_worn(
+    description: contract.Profile, column: contract.ColumnBlock
+) -> int:
+    """How many figures after the second the column's published format code writes.
+
+    -1 where the description records no workbook or no block for the
+    column. Guarantees: a fixed function of the two; raises nothing.
+    """
+    form = description.source.workbook
+    if form is None:
+        return -1
+    place = column.position - 1
+    if place < 0 or place >= len(form.columns):
+        return -1
+    return dialect.sheet_format_figures(form.columns[place].format_code)
+
+
 def _datetime_checks(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
     block: "dict[str, object]",
     floor: int,
     mine: "tuple[str, ...]",
+    cells: "list[str]",
+    figures_writable: bool = True,
+    date_system: str = "",
+    declared_days: "tuple[str, ...]" = (),
 ) -> "list[Check]":
-    """A column of dates and times."""
+    """A column of dates and times.
+
+    ``figures_writable`` is false where no workbook wearing this
+    column's published format code can write the subsecond figures it
+    publishes (`subsecond_figures_unwritable`), and the two obligations
+    that would ask for them are listed instead of checked.
+    """
     name = column.name
     checks: list[Check] = []
-    for field, published in (
-        ("earliest", facts.earliest),
-        ("latest", facts.latest),
-    ):
+    # THE TWO TAILS (stage 3, plan P4-D328), each read at the PUBLISHED
+    # boundary. No end of the column is published any more, so no end is
+    # checked.
+    if facts.low_tail is not None and facts.high_tail is not None:
+        reading = facts.datetimes_read_at
+        values_of: "dict[str, list[int]]" = {}
+        for side, tail, low_side in (
+            ("low", facts.low_tail, True),
+            ("high", facts.high_tail, False),
+        ):
+            at = taxonomy.tail_ordinal(tail.boundary, facts.tail_unit, reading)
+            found_values: "list[int]" = []
+            if tail.values is not None:
+                for value in tail.values:
+                    here = taxonomy.tail_ordinal(value, facts.tail_unit, reading)
+                    found_values += [at - here if low_side else here - at]
+            values_of[side] = found_values
+        read_cells = _dates_the_file_reads(block, facts, cells)
+        checks += _tail_side_checks(
+            name,
+            "datetime",
+            facts.low_tail,
+            facts.high_tail,
+            _file_tail_units(facts, read_cells, block),
+            (
+                taxonomy.tail_ordinal(facts.low_tail.boundary, facts.tail_unit, reading),
+                taxonomy.tail_ordinal(facts.high_tail.boundary, facts.tail_unit, reading),
+            ),
+            _date_tail_windows(column, facts, floor, date_system, True),
+            values_of,
+            facts.tail_unit,
+            floor,
+        )
+    # THE TWO THE FORMAT CODE CAN STRAND (plan P4-D259.1), and they are
+    # stranded TOGETHER: what makes `subsecond` unreachable is the same
+    # fact that makes its count of figures unreachable, so a report
+    # holding one and listing the other would name the figures in the
+    # line it kept. EACH KEEPS ITS PLACE in its own list, because the
+    # report is written in this order and the golden digest is of the
+    # report.
+    published_precision: "list[tuple[str, str]]" = [
+        ("resolution", facts.resolution)
+    ]
+    if figures_writable:
+        published_precision += [("time_precision", facts.time_precision)]
+    published_counts: "list[tuple[str, int]]" = []
+    if figures_writable:
+        published_counts += [("subsecond_digits", facts.subsecond_digits)]
+    published_counts += [("n_unparsed", facts.n_unparsed)]
+    for field, published in published_precision:
         found = _text_at(block, field)
-        checks = checks + [
-            _silent(
-                name,
-                f"datetime.{field}",
-                f"ends.{field}",
-                published,
-                None if found is None else found == published,
-                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
-            )
-        ]
-    for field, published in (
-        ("resolution", facts.resolution),
-        ("time_precision", facts.time_precision),
-    ):
-        found = _text_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(name, f"datetime.{field}", f"precision.{field}", published, found)
         ]
-    for field, counted in (
-        ("subsecond_digits", facts.subsecond_digits),
-        ("n_unparsed", facts.n_unparsed),
-    ):
+    for field, counted in published_counts:
         seen = _count_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"datetime.{field}",
@@ -11269,8 +18927,1969 @@ def _datetime_checks(
                 None if seen is None else _shown_count(seen),
             )
         ]
+    # THE MEMBER THE DATES WERE WRITTEN IN (landing 2b.6). This was NOT
+    # CHECKABLE for as long as owner decision 5 stood: the twin wrote ISO
+    # whatever the source wrote, so no file could evidence the member
+    # that read the real column, and `format` was REPORT-ONLY because of
+    # it. The twin is written in the source's own member now, so
+    # describing it again must name that member -- and this is the one
+    # check that turns red on a writer that quietly goes back to ISO.
+    # ...AND ON A COLUMN READ JOINTLY TOO since landing 3b.7 (plan P4-D378):
+    # its twin writes the published count of bare dates, so it is read back
+    # under the joint member.
+    checks += [
+        _format_check(
+            name, facts.parser_family, _text_at(block, "format"), cells
+        )
+    ]
+    # -- 3b.R2c (P4-D383): A PARTIAL-DATE COLUMN'S FORMS ARE CHECKED, each
+    # exactly (the Codex review of landing R2c, item 1), and the narrowing
+    # below holds for every other column.
+    checks = checks + _partial_form_checks(column, facts, block, cells)
+    # `resolution_mix` IS NOT CHECKED ON A COLUMN READ UNDER ONE MEMBER,
+    # AND THAT IS A REASONED NARROWING rather than an oversight (landing
+    # 2b.6): its census is, by the contract's RM1 and RM2, exactly that
+    # member carrying every parsed cell -- so a check of it would restate
+    # `format.member` and `counts.n_unparsed`, both of which are checked
+    # above, and a check that cannot fail on its own is the thing this
+    # validator is least allowed to add. Listed, never silent. ON A COLUMN
+    # READ JOINTLY IT IS EXACT since landing 3b.7 (plan P4-D378): the twin
+    # writes the published count of bare dates (`generation._form_step`;
+    # residual R-P4-12 closed on clocked columns), so the file's own count
+    # of each form is held to the published one.
+    if facts.parser_family == contract.FORMAT_ISO_MIXED:
+        checks += [_resolution_mix_check(name, facts, block)]
     checks = checks + _offset_checks(column, facts, block, floor, mine)
-    checks = checks + _date_ladder_checks(column, facts, block)
+    checks = checks + _mark_checks(column, facts, block, floor, cells)
+    checks = checks + _written_form_checks(column, facts, block, floor, cells)
+    checks = checks + _midnight_checks(column, facts, block)
+    checks = checks + _date_ladder_checks(
+        column, facts, block, floor, date_system
+    )
+    checks = checks + _weekday_checks(
+        column, facts, block, floor, cells, declared_days
+    )
+    # THE CENSUSES STAGE 3B RESERVES (plan P4-D364), one check per
+    # landing, each handed what the weekday check is handed and each
+    # checking nothing until its landing fills it. A landing edits its
+    # own check, not these calls.
+    # -- the hour of the written clock (3b.T2, P4-D371)
+    checks = checks + _hour_checks(
+        column, facts, block, floor, cells, declared_days
+    )
+    # -- the minute and the second, and their heaps (3b.T3, P4-D372)
+    checks = checks + _clock_field_checks(
+        column, facts, block, floor, cells, declared_days
+    )
+    # -- the days of the month (3b.D3, P4-D368)
+    checks = checks + _day_of_month_checks(
+        column, facts, block, floor, cells, declared_days
+    )
+    # -- the dates that stand out (3b.D4, P4-D369)
+    checks = checks + _heavy_checks(
+        column, facts, block, floor, cells, declared_days
+    )
+    return checks
+
+
+def _partial_forms_published(facts: contract.DatetimeFacts) -> "list[tuple[str, int]]":
+    """A partial-date column's published partial forms and their counts, in the order of their names."""
+    family = facts.parser_family
+    if not parsing.is_layout_name(family):
+        return []
+    found: "list[tuple[str, int]]" = []
+    for key in sorted(facts.resolution_mix):
+        if key != family and facts.resolution_mix[key] > 0:
+            found += [(key, facts.resolution_mix[key])]
+    return found
+
+
+def _partial_form_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+) -> "list[Check]":
+    """Each published partial form of a column of dates, held exactly (landing R2c).
+
+    THE CODEX REVIEW OF LANDING R2c, ITEM 1. `resolution_mix` stood
+    REPORT-ONLY because, on a column read under one member, its census
+    restates `format` and `n_unparsed`; a partial-date column's forms are
+    counts of their own, inside `n_unparsed`, and nothing else held them.
+    Measured on f4623cc: a file keeping the twin's 600 whole dates and
+    writing `123456+i` in every other cell held none of the 200 published
+    partial years, and validate exited 0. Each form is now counted over
+    the file's present cells as the describing step counts it -- a cell
+    the layout does not read is tallied under the first of the layout's
+    partial forms (`parsing.layout_truncations`) that reads it -- and its
+    count is held exactly to the published one. A column with no
+    published partial form is checked here not at all, so no other
+    column's report moves. Both sides are counts of this file and of the
+    description, so both print; where the file's column was not described
+    as dates at all, the gate is closed and each is WITHHELD, as every
+    other count of this role is.
+    """
+    published = _partial_forms_published(facts)
+    family = facts.parser_family
+    items = parsing.layout_items(family)
+    if not published or items is None:
+        return []
+    forms: "list[tuple[str, tuple[tuple[str, str], ...]]]" = []
+    for name in parsing.layout_truncations(family):
+        compiled = parsing.partial_items(name)
+        if compiled is not None:
+            forms += [(name, compiled)]
+    tallies: "dict[str, int]" = {}
+    seen: "dict[str, str]" = {}
+    for cell in cells:
+        if cell in seen:
+            form = seen[cell]
+        else:
+            form = ""
+            if parsing.layout_reading(cell, items) is None:
+                for name, compiled in forms:
+                    if parsing.layout_partial_reading(cell, compiled) is not None:
+                        form = name
+                        break
+            if len(seen) < taxonomy.LAYOUT_MEMO_TEXTS:
+                seen[cell] = form
+        if form:
+            tallies[form] = (tallies[form] if form in tallies else 0) + 1
+    gate_open = _text_at(block, "format") is not None
+    found: "list[Check]" = []
+    for key, count in published:
+        found += [
+            _exact(
+                column.name,
+                "datetime.resolution_mix",
+                f"resolution_mix.{key}",
+                _shown_count(count),
+                _shown_count(tallies[key] if key in tallies else 0)
+                if gate_open
+                else None,
+            )
+        ]
+    return found
+
+
+def _resolution_mix_check(
+    name: str, facts: contract.DatetimeFacts, block: "dict[str, object]"
+) -> Check:
+    """How many of a joint column's dates were written as bare dates and how
+    many with a time of day, held exactly (landing 3b.7, plan P4-D378): the
+    file's own description's `resolution_mix` against the published one,
+    both printed as `iso-date N, iso-datetime M` -- each count at least the
+    census line or the form absorbed (`taxonomy._forms_as_published`), so
+    neither names a row. A file whose description reads it under another
+    member counts its forms under that member's key and is MISSED.
+    Raises nothing. No I/O of any kind."""
+    published = ""
+    for key in sorted(facts.resolution_mix):
+        between = ", " if published else ""
+        published = f"{published}{between}{key} {facts.resolution_mix[key]}"
+    found = block["resolution_mix"] if "resolution_mix" in block else None
+    shown: "str | None" = None
+    if isinstance(found, dict):
+        shown = ""
+        for key in sorted(found):
+            between = ", " if shown else ""
+            shown = f"{shown}{between}{key} {found[key]}"
+    return _exact(name, "datetime.resolution_mix", "resolution_mix.counts", published, shown)
+
+
+def _format_check(
+    name: str, published: str, found: "str | None", cells: "list[str]"
+) -> Check:
+    """The member the dates were written in; a layout HELD BY FIT (landing R2a).
+
+    A named member is held exactly, as it has been since landing 2b.6. A
+    LAYOUT is held where the published layout reads every cell of the file
+    that the member the file was described under reads (the R2 design,
+    section 5; T1's rule for the clock form): a faithful twin of a column
+    written `{D}-{M}-{YYYY}` that drew no day below ten is described again
+    as `{DD}-{MM}-{YYYY}`, and a twin of `2022-8-9` whose every cell came
+    out padded as `iso-date`, and neither is accused of missing its
+    layout. A file read under another member that writes even one cell
+    the layout does not read, or read as no date at all, is MISSED. Both
+    sides are words of this package's own, so both print.
+    """
+    if found is None or not parsing.is_layout_name(published) or found == published:
+        return _exact(name, "datetime.format", "format.member", published, found)
+    held = parsing.is_layout_format(found) or found in contract.DATE_FORMATS
+    seen: "dict[str, int]" = {}
+    for cell in cells:
+        if not held:
+            break
+        if cell in seen:
+            continue
+        seen[cell] = 1
+        if parsing.parse_datetime(cell, found) is None:
+            continue
+        if parsing.parse_datetime(cell, published) is None:
+            held = False
+    return Check(
+        name,
+        "datetime.format",
+        "format.member",
+        HELD if held else MISSED,
+        published,
+        found,
+    )
+
+
+def _hour_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    floor: int,
+    cells: "list[str]",
+    declared_days: "tuple[str, ...]" = (),
+) -> "list[Check]":
+    """The hour census, held exactly (landing 3b.2-H, validation V5-H1).
+
+    The file's own BODY -- its moments between the two PUBLISHED tail
+    boundaries, both included, less the days its own description reads
+    as holes (`_dates_the_file_reads`) -- counted per hour of the written
+    wall clock and per published group: a cell is placed between the
+    boundaries by its instant and counted in the hour it is WRITTEN in
+    (`calendar_clock.written_hour`), so a sixtieth second stays in its
+    own hour (Codex's review of the landing, item 1). Each cell is read under the
+    member that read the real column and, on a slashed stamp, on the
+    face the description publishes, a stamp on another face being no
+    moment here, as the producer counts it unread (`_hour_instants_of`).
+    HELD where every group holds its count, MISSED otherwise. The file's
+    census is counted here, from its cells, and never produced: the
+    validator's re-description of the file skips the census producer
+    (`profile.build_document`'s `calendar_censuses`), so no validate run
+    asks the producer's rules. It prints through `_census_lines`, as the
+    weekday check does, so a group the file holds one to the line less
+    one of is printed as fewer than the line, and where naming the
+    short groups would give a count back no group is named (plan
+    P4-D347).
+
+    Guarantees: accepts what `_weekday_checks` accepts; returns one
+    check where a census is published and none otherwise. Determinism: a
+    function of the arguments. Raises nothing. No I/O of any kind.
+    """
+    census = facts.hour_census
+    if not census or facts.low_tail is None or facts.high_tail is None:
+        return []
+    low = calendar_clock.seconds_of(facts.low_tail.boundary)
+    high = calendar_clock.seconds_of(facts.high_tail.boundary)
+    read_cells = _dates_the_file_reads(block, facts, cells)
+    if _on_own_clocks(facts):
+        # -- 3b.7 (P4-D378): each cell in the hour its own clock writes.
+        body = [
+            calendar_clock.written_hour(text)
+            for text in _own_clock_body(facts, block, read_cells)
+        ]
+    else:
+        instants = _hour_instants_of(facts, read_cells) + _folded_hour_instants(
+            block, facts, read_cells
+        )
+        body = [hour for instant, hour in instants if low <= instant <= high]
+    found = calendar_rules.group_counts(census, calendar_clock.hour_bins(body))
+    line = parsing.census_floor(floor)
+    asked, shown, lines = _census_lines(
+        [(_hour_group_named(first, last), count) for first, last, count in census],
+        found,
+        line,
+    )
+    wanted = [count for _first, _last, count in census]
+    return [
+        Check(
+            column.name,
+            "datetime.hour_census",
+            "hour_census.groups",
+            HELD if found == wanted else MISSED,
+            asked,
+            shown,
+            "",
+            tuple(lines),
+        )
+    ]
+
+
+def _hour_group_named(first: int, last: int) -> str:
+    """A group of hours as the report names it: `09:00-09:59`, `00:00-07:59`."""
+    return f"{first:02d}:00-{last:02d}:59"
+
+
+def _folded_hour_instants(
+    block: "dict[str, object]",
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+) -> "list[tuple[int, int]]":
+    """The whole dates the file's own description folded into its moments,
+    each as the instant of its midnight with hour 0 (validation V5-H1).
+
+    THE FOLD IS ASKED OF THE HOUR CENSUS AS OF THE WEEKDAY'S (the
+    integration of landing 3b.D2 beside landing 3b.2-H). The producer
+    counts a whole date the joint ISO reading folded into a column of
+    moments at its midnight (`taxonomy._census_hours`), so the recount
+    must too: ten bare `2024-03-05` among 590 noon stamps published hours
+    0 to 12 holding 570, and the unchanged source, counted without them,
+    was told 560, MISSED. Which cells were folded is
+    `_folded_by_the_file`'s question, asked of the cells the tails do not
+    read (`_tail_readings_of`), exactly as `_moments_tallied` asks it; a
+    cell the description left unparsed is no folded cell and stays out.
+
+    Guarantees: accepts the file's own description block, the column's
+    facts and the cells it reads; returns (instant in seconds, hour)
+    pairs, none where nothing was folded. Determinism: a function of the
+    arguments. Raises nothing. No I/O of any kind.
+    """
+    failing: "list[str]" = []
+    for cell, placed in zip(cells, _tail_readings_of(facts, cells)):
+        if placed is None:
+            failing += [cell]
+    if not _folded_by_the_file(block, facts.parser_family, failing):
+        return []
+    found: "list[tuple[int, int]]" = []
+    for cell in failing:
+        read = parsing.parse_datetime(cell, taxonomy.FORMAT_ISO_MIXED)
+        if read is None or len(read[0]) < 19:
+            continue
+        found += [(calendar_clock.seconds_of(read[0]), calendar_clock.written_hour(read[0]))]
+    return found
+
+
+def _hour_instants_of(
+    facts: contract.DatetimeFacts, cells: "list[str]"
+) -> "list[tuple[int, int]]":
+    """The instant of every cell that reads as a moment, in seconds of its
+    wall clock, with the hour it is WRITTEN in.
+
+    Read as `_tail_units_of` reads a cell for a column on the local
+    clock: under the member that read the real column, a slashed stamp
+    on the face its description publishes (`parsing.stamp_canonical`)
+    and none on another face (contract NF108). A cell that does not read
+    is left out. The canonical text is the wall clock as written, so no
+    offset moves it. The instant places the cell between two boundaries;
+    the hour is `canonical[11:13]` (`calendar_clock.written_hour`), never
+    the instant's, which carries a sixtieth second into the next hour.
+    """
+    style = _stamp_style_of(facts)
+    face = ""
+    if facts.parser_family in contract.CLOCK_FORM_MEMBERS:
+        face = parsing.clock_face(style)
+    found: "list[tuple[int, int]]" = []
+    for cell in cells:
+        read = parsing.parse_datetime(cell, facts.parser_family)
+        if read is None:
+            continue
+        if facts.parser_family in contract.CLOCK_FORM_MEMBERS and _stamp_off_its_face(cell, face):
+            continue
+        canonical = parsing.stamp_canonical(read[0], style)
+        if len(canonical) < 19:
+            continue
+        found += [(calendar_clock.seconds_of(canonical), calendar_clock.written_hour(canonical))]
+    return found
+
+
+def _clock_field_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    floor: int,
+    cells: "list[str]",
+    declared_days: "tuple[str, ...]" = (),
+) -> "list[Check]":
+    """The minute and second censuses and heaps, held exactly (landing 3b.4,
+    validation V5-M1 and V5-S1).
+
+    The file's own BODY, as V5-H1 reads it (`_hour_checks`): its moments
+    between the two PUBLISHED tail boundaries, both included, less the
+    days its own description reads as holes, each read under the member
+    that read the real column and on its published face, placed by its
+    instant and counted at the minute and second it is WRITTEN at
+    (`calendar_clock.written_minute`, `calendar_clock.written_second`: a
+    sixtieth second in its own minute, at second 59). Per field up to two
+    checks, the heaps' (`minute_heaps.counts`) and the census's
+    (`minute_census.groups`): each heap's value, and each census group's
+    values off the heaps, HELD where every one holds its count, MISSED
+    otherwise; printed
+    through `_census_lines` (plan P4-D347), so no count below the line is
+    printed beside the others. The file's censuses are counted here and
+    never produced (`profile.build_document`'s `calendar_censuses`).
+
+    Guarantees: accepts what `_weekday_checks` accepts; returns one check
+    per published census and one per field's published heaps, none
+    otherwise. Determinism:
+    a function of the arguments. Raises nothing. No I/O of any kind.
+    """
+    published = [
+        (calendar_clock.MINUTE, facts.minute_census, facts.minute_heaps),
+        (calendar_clock.SECOND, facts.second_census, facts.second_heaps),
+    ]
+    if facts.low_tail is None or facts.high_tail is None:
+        return []
+    if not any(census or heaps for _field, census, heaps in published):
+        return []
+    low = calendar_clock.seconds_of(facts.low_tail.boundary)
+    high = calendar_clock.seconds_of(facts.high_tail.boundary)
+    read_cells = _dates_the_file_reads(block, facts, cells)
+    if _on_own_clocks(facts):
+        # -- 3b.7 (P4-D378), the minute and the second reached at the merge
+        # of lane J2: each cell at the minute and second its own clock
+        # writes, a bare date at 0.
+        body = [
+            (calendar_clock.written_minute(text), calendar_clock.written_second(text))
+            for text in _own_clock_body(facts, block, read_cells)
+        ]
+    else:
+        body = [
+            texts
+            for instant, texts in _clock_field_instants_of(facts, read_cells)
+            + _folded_clock_field_instants(block, facts, read_cells)
+            if low <= instant <= high
+        ]
+    line = parsing.census_floor(floor)
+    checks: "list[Check]" = []
+    for field, census, heaps in published:
+        if not census and not heaps:
+            continue
+        place = 0 if field == calendar_clock.MINUTE else 1
+        bins = calendar_clock.field_bins([fields[place] for fields in body])
+        heap_values = {value for value, _count in heaps}
+        census_key, heaps_key = calendar_clock.FIELD_KEYS[field]
+        for key, subcheck, groups in (
+            (heaps_key, "counts", tuple((value, value, count) for value, count in heaps)),
+            (census_key, "groups", census),
+        ):
+            if not groups:
+                continue
+            named: "list[tuple[str, int]]" = []
+            found: "list[int]" = []
+            for first, last, count in groups:
+                named += [(_clock_field_value_named(field, first, last), count)]
+                found += [
+                    sum(
+                        bins[value]
+                        for value in range(first, last + 1)
+                        if key == heaps_key or value not in heap_values
+                    )
+                ]
+            asked, shown, lines = _census_lines(named, found, line)
+            wanted = [count for _named, count in named]
+            checks += [
+                Check(
+                    column.name,
+                    f"datetime.{key}",
+                    f"{key}.{subcheck}",
+                    HELD if found == wanted else MISSED,
+                    asked,
+                    shown,
+                    "",
+                    tuple(lines),
+                )
+            ]
+    return checks
+
+
+def _folded_clock_field_instants(
+    block: "dict[str, object]",
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+) -> "list[tuple[int, tuple[int, int]]]":
+    """The whole dates the file's own description folded into its moments,
+    each as the instant of its midnight with the minute and second it is
+    written at (validation V5-M1 and V5-S1; lane J2, the merge of landing
+    3b.4 beside landing 3b.D2).
+
+    THE FOLD IS ASKED OF THE MINUTE'S AND SECOND'S FACTS AS OF THE HOUR'S
+    (`_folded_hour_instants`): the producer counts each such date with the
+    parsed cells (`taxonomy._census_clock_fields`), so ten bare
+    `2024-03-05` among 590 noon stamps published heaps at minute 0 and at
+    second 0 holding 570 of the body, and the unchanged source, recounted
+    without them, was told 560 at each, MISSED. The cells folded are
+    `_folded_by_the_file`'s, asked of the cells the tails do not read, as
+    the hour's recount asks it.
+
+    Guarantees: as `_folded_hour_instants`, each pair (instant in seconds,
+    (minute, second)). Raises nothing. No I/O of any kind.
+    """
+    failing: "list[str]" = []
+    for cell, placed in zip(cells, _tail_readings_of(facts, cells)):
+        if placed is None:
+            failing += [cell]
+    if not _folded_by_the_file(block, facts.parser_family, failing):
+        return []
+    found: "list[tuple[int, tuple[int, int]]]" = []
+    for cell in failing:
+        read = parsing.parse_datetime(cell, taxonomy.FORMAT_ISO_MIXED)
+        if read is None or len(read[0]) < 19:
+            continue
+        found += [
+            (
+                calendar_clock.seconds_of(read[0]),
+                (calendar_clock.written_minute(read[0]), calendar_clock.written_second(read[0])),
+            )
+        ]
+    return found
+
+
+def _clock_field_value_named(field: str, first: int, last: int) -> str:
+    """A heap or group of a field as the report names it: `minute :00`,
+    `minutes :01-:27`, `second :00`, `seconds :31-:59`."""
+    if first == last:
+        return f"{field} :{first:02d}"
+    return f"{field}s :{first:02d}-:{last:02d}"
+
+
+def _clock_field_instants_of(
+    facts: contract.DatetimeFacts, cells: "list[str]"
+) -> "list[tuple[int, tuple[int, int]]]":
+    """The instant of every cell that reads as a moment, with the minute and
+    second it is WRITTEN at, read as `_hour_instants_of` reads it."""
+    style = _stamp_style_of(facts)
+    faced = facts.parser_family in contract.CLOCK_FORM_MEMBERS
+    face = parsing.clock_face(style) if faced else ""
+    found: "list[tuple[int, tuple[int, int]]]" = []
+    for cell in cells:
+        read = parsing.parse_datetime(cell, facts.parser_family)
+        if read is None or (faced and _stamp_off_its_face(cell, face)):
+            continue
+        written = parsing.stamp_canonical(read[0], style)
+        if len(written) >= 19:
+            found += [
+                (
+                    calendar_clock.seconds_of(written),
+                    (calendar_clock.written_minute(written), calendar_clock.written_second(written)),
+                )
+            ]
+    return found
+
+
+def _day_of_month_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    floor: int,
+    cells: "list[str]",
+    declared_days: "tuple[str, ...]" = (),
+) -> "list[Check]":
+    """The day-of-month census, held exactly (landing 3b.3, validation V5-W2).
+
+    The file's own BODY -- its dates between the two PUBLISHED tail
+    boundaries, both included, read as the weekday check reads them
+    (`_dates_the_file_reads`, the fold of `_folded_by_the_file`; on a
+    column of moments every value of which stands at midnight, by
+    instant as the tails count them) -- counted per bin of the census's
+    thirty-four (`calendar_rules.month_bin`: the month's last day in bins
+    31 to 34) and per published group. HELD where every group holds its
+    count, MISSED otherwise, and MISSED whatever its counts where a body
+    cell stands on a day the description holds empty, as V5-W1. Printed
+    through the one printing rule of every census check
+    (`_census_lines`, plan P4-D347): a MISSED line prints no number below
+    the line. Counted here from the cells, never produced. EXACT-OBSERVABLE.
+
+    Guarantees: as `_hour_checks`. No I/O of any kind.
+    """
+    census = facts.day_of_month_census
+    if not census or facts.low_tail is None or facts.high_tail is None:
+        return []
+    low = _weekday_day(facts.low_tail.boundary)
+    high = _weekday_day(facts.high_tail.boundary)
+    holes = set(_published_holes(column, facts, low, high, declared_days))
+    days: "list[int]" = []
+    if facts.resolution == taxonomy.RESOLUTION_DATETIME and _on_own_clocks(facts):
+        # -- 3b.7 (P4-D378): each cell on the day its own clock writes.
+        days = [
+            calendar_rules.written_day(text)
+            for text in _own_clock_body(facts, block, _dates_the_file_reads(block, facts, cells))
+        ]
+    elif facts.resolution == taxonomy.RESOLUTION_DATETIME:
+        first = taxonomy.tail_ordinal(
+            facts.low_tail.boundary, facts.tail_unit, facts.datetimes_read_at
+        )
+        last = taxonomy.tail_ordinal(
+            facts.high_tail.boundary, facts.tail_unit, facts.datetimes_read_at
+        )
+        per_day = 1
+        if facts.tail_unit == parsing.TAIL_UNIT_MINUTE:
+            per_day = 1440
+        elif facts.tail_unit == parsing.TAIL_UNIT_SECOND:
+            per_day = 86400
+        for unit in _tail_units_of(facts, _dates_the_file_reads(block, facts, cells)):
+            if unit is not None and first <= unit <= last:
+                days += [unit // per_day]
+    else:
+        failing: "list[str]" = []
+        for cell in _dates_the_file_reads(block, facts, cells):
+            read = parsing.parse_datetime(cell, facts.parser_family)
+            if read is None:
+                failing += [cell]
+                continue
+            days += [_weekday_day(read[0])]
+        if _folded_by_the_file(block, facts.parser_family, failing):
+            for cell in failing:
+                folded_day = _day_as_counted(cell)
+                if folded_day is not None:
+                    days += [folded_day]
+        days = [day for day in days if low <= day <= high]
+    on_holes = len([day for day in days if day in holes])
+    bins = calendar_rules.month_bins(days)
+    where = calendar_rules.month_where(census)
+    found = [0 for _ in census]
+    for index in range(calendar_rules.MONTH_DAY_BINS):
+        found[where[index]] = found[where[index]] + bins[index]
+    asked, shown, lines = _census_lines(
+        [(_month_group_named(first, last), count) for first, last, count in census],
+        found,
+        parsing.census_floor(floor),
+    )
+    if on_holes:
+        lines += [
+            "Some of this file's dates between the two boundaries stand on "
+            "days its description holds no value on -- days its written "
+            "forms, its placeholder decisions or its absent spellings "
+            "leave empty. They are counted on the days of the month they "
+            "fall on, and the census is missed whatever its counts, "
+            "because the description's census holds none of them."
+        ]
+    note: "tuple[str, ...]" = tuple(lines)
+    wanted = [count for _first, _last, count in census]
+    return [
+        Check(
+            column.name,
+            "datetime.day_of_month_census",
+            "day_of_month_census.groups",
+            HELD if found == wanted and not on_holes else MISSED,
+            asked,
+            shown,
+            "",
+            note,
+        )
+    ]
+
+
+def _month_bin_named(position: int) -> str:
+    """A bin of the day-of-month census as the report names it."""
+    if position >= calendar_rules.MONTH_LAST_FIRST_BIN:
+        length = position - calendar_rules.MONTH_LAST_FIRST_BIN + 28
+        return f"the last day of a {length}-day month"
+    if position >= 28:
+        return f"the {position}th, not the month's last day"
+    suffix = "th"
+    if position % 10 == 1 and position != 11:
+        suffix = "st"
+    elif position % 10 == 2 and position != 12:
+        suffix = "nd"
+    elif position % 10 == 3 and position != 13:
+        suffix = "rd"
+    return f"the {position}{suffix}"
+
+
+def _month_group_named(first: int, last: int) -> str:
+    """A group of the day-of-month census as the report names it."""
+    if first == last:
+        return _month_bin_named(first)
+    return f"{_month_bin_named(first)} to {_month_bin_named(last)}"
+
+
+def _heavy_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    floor: int,
+    cells: "list[str]",
+    declared_days: "tuple[str, ...]" = (),
+) -> "list[Check]":
+    """Every date that stands out, holding its count exactly (landing 3b.6,
+    validation V5-D1).
+
+    The file's own parsed cells, in any spelling -- read as the day-of-
+    month check reads them (`_dates_the_file_reads`, the fold of
+    `_folded_by_the_file`), each on the day its text names -- counted on
+    each listed date of `heavy_dates`. HELD where every listed date holds
+    its published count, MISSED otherwise; printed through the one
+    printing rule of every census check (`_census_lines`, plan P4-D347),
+    so a MISSED line prints a count of one to the heavy line less one as
+    fewer than the line, never the count. Counted here from the cells,
+    never produced. EXACT-OBSERVABLE.
+
+    Guarantees: as `_hour_checks`. No I/O of any kind.
+    """
+    listed = facts.heavy_dates
+    if not listed:
+        return []
+    days: "dict[int, int]" = {}
+    failing: "list[str]" = []
+    for cell in _dates_the_file_reads(block, facts, cells):
+        read = parsing.parse_datetime(cell, facts.parser_family)
+        if read is None:
+            failing += [cell]
+            continue
+        day = _weekday_day(read[0])
+        days[day] = (days[day] if day in days else 0) + 1
+    if _folded_by_the_file(block, facts.parser_family, failing):
+        for cell in failing:
+            folded_day = _day_as_counted(cell)
+            if folded_day is not None:
+                days[folded_day] = (days[folded_day] if folded_day in days else 0) + 1
+    named: "list[tuple[str, int]]" = []
+    for day, count in listed:
+        year, month, date = parsing.civil_from_days(day)
+        named += [(f"{year:04d}-{month:02d}-{date:02d}", count)]
+    found = [days[day] if day in days else 0 for day, _count in listed]
+    asked, shown, lines = _census_lines(
+        named, found, calendar_rules.heavy_line(floor)
+    )
+    wanted = [count for _day, count in listed]
+    return [
+        Check(
+            column.name,
+            "datetime.heavy_dates",
+            "heavy_dates.counts",
+            HELD if found == wanted else MISSED,
+            asked,
+            shown,
+            "",
+            tuple(lines),
+        )
+    ]
+
+
+# The names a weekday census's groups are printed with, Monday first.
+_WEEKDAY_NAMES = (
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+)
+
+
+def _weekday_group_named(first: int, last: int) -> str:
+    """A group of weekdays as the report names it."""
+    if first == last:
+        return _WEEKDAY_NAMES[first]
+    return f"{_WEEKDAY_NAMES[first]} to {_WEEKDAY_NAMES[last]}"
+
+
+def _weekday_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    floor: int,
+    cells: "list[str]",
+    declared_days: "tuple[str, ...]" = (),
+) -> "list[Check]":
+    """The weekday census, held exactly (landing 3b.1, validation V5-W1).
+
+    The file's own BODY -- its dates between the two PUBLISHED tail
+    boundaries, both included, less the days its own description reads
+    as holes (`_dates_the_file_reads`) -- counted per weekday and per
+    published group. HELD where every group holds its count, MISSED
+    otherwise. The file's census is counted here, from its cells, and
+    never produced: the validator's re-description of the file skips the
+    census producer (`profile.build_document`'s `calendar_censuses`), so
+    no validate run asks the producer's rules.
+
+    THE CELLS THE CENSUS COUNTED, AND NO OTHER (plan P4-D365). A column
+    read jointly whose rare ISO form the producer counted into the
+    commonest (plan P4-D250: ten `2024-03-05T14:30:00` among 590 ISO
+    dates) is published WHOLLY in that form, and the census counted
+    those cells on their days. A column read under one ISO form from the
+    start leaves its few cells of the other form UNPARSED (one
+    `2024-03-05T14:30:00` among 599 ISO dates: `n_unparsed` 1), and its
+    census never counted them. Which of the two happened is the file's
+    own description's to say (`_folded_by_the_file`): only where it
+    parsed cells the member does not read -- its `n_unparsed` below the
+    present cells that fail the member -- is a cell that fails the
+    member read under the joint ISO reading, on its day
+    (`_day_as_counted`). Before the fold was read, the source missed its
+    own census by the folded cells; read for every column, by the
+    unparsed ones (review of landing 3b.G, item 2).
+
+    A MISSED LINE KEEPS ITS VERDICT AND DROPS ANY NUMBER BELOW THE LINE
+    (plan P4-D347): a group the file holds one to the line less one of
+    is printed "fewer than" the line, and the note says so.
+
+    AND NO CELL STANDS ON A DAY THE DESCRIPTION HOLDS EMPTY (review of
+    landing 3b.1, item 4). The census was published with every day the
+    description publishes as holding no body cell left out -- the days
+    its censuses of written forms leave empty, the placeholder days it
+    reads as no value and the days a published absent spelling names
+    (`calendar_rules.public_holes`, `declared_days` the placeholder days
+    the settings' declaration named) -- so a file with a body cell on one
+    misses the census whatever its counts; the line says so without a
+    number. Such a cell is still counted on the weekday it falls on: the
+    counts are the file's, and the verdict is what the hole decides.
+
+    Guarantees: accepts the column, its facts, the file's own block, the
+    floor and the file's cells; returns one check where a census is
+    published and none otherwise. Determinism: a function of the
+    arguments. Raises nothing. No I/O of any kind.
+    """
+    census = facts.weekday_census
+    if not census or facts.low_tail is None or facts.high_tail is None:
+        return []
+    low = _weekday_day(facts.low_tail.boundary)
+    high = _weekday_day(facts.high_tail.boundary)
+    holes = set(_published_holes(column, facts, low, high, declared_days))
+    on_holes = 0
+    bins = [0 for _ in range(calendar_rules.WEEKDAYS)]
+    failing: "list[str]" = []
+    days: "list[int]" = []
+    if facts.resolution == taxonomy.RESOLUTION_DATETIME:
+        # A COLUMN OF MOMENTS IS COUNTED BY INSTANT (landing 3b.D2, plan
+        # P4-D367): its body is the cells between the two boundaries as
+        # the tails count them, in tail units, so a cell on a boundary's
+        # day but before its instant is a tail cell, as the census
+        # counted it. No moment the census counts is folded: no census
+        # stands on the joint member.
+        on_holes = _moments_tallied(
+            facts, _dates_the_file_reads(block, facts, cells), holes, bins, block
+        )
+    else:
+        for cell in _dates_the_file_reads(block, facts, cells):
+            read = parsing.parse_datetime(cell, facts.parser_family)
+            if read is None:
+                failing += [cell]
+                continue
+            days = [_weekday_day(read[0])]
+            on_holes = on_holes + _tallied(days, low, high, holes, bins)
+        if _folded_by_the_file(block, facts.parser_family, failing):
+            days = []
+            for cell in failing:
+                folded_day = _day_as_counted(cell)
+                if folded_day is not None:
+                    days += [folded_day]
+            on_holes = on_holes + _tallied(days, low, high, holes, bins)
+    found = calendar_rules.group_counts(census, bins)
+    line = parsing.census_floor(floor)
+    asked, shown, lines = _census_lines(
+        [
+            (_weekday_group_named(first, last), count)
+            for first, last, count in census
+        ],
+        found,
+        line,
+    )
+    wanted = [count for _first, _last, count in census]
+    if on_holes:
+        lines += [
+            "Some of this file's dates between the two boundaries stand on "
+            "days its description holds no value on -- days its written "
+            "forms, its placeholder decisions or its absent spellings "
+            "leave empty. They are counted on the weekdays they fall on, "
+            "and the census is missed whatever its counts, because the "
+            "description's census holds none of them."
+        ]
+    note: "tuple[str, ...]" = tuple(lines)
+    return [
+        Check(
+            column.name,
+            "datetime.weekday_census",
+            "weekday_census.groups",
+            HELD if found == wanted and not on_holes else MISSED,
+            asked,
+            shown,
+            "",
+            note,
+        )
+    ]
+
+
+def _moments_tallied(
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+    holes: "set[int]",
+    bins: "list[int]",
+    block: "dict[str, object] | None" = None,
+) -> int:
+    """Count a file's moments between the two boundaries into their weekdays.
+
+    V5-W1 BY INSTANT (landing 3b.D2, plan P4-D367). Each cell is read as
+    the tails read it (`_tail_readings_of`: the column's own member, its
+    clock face and its offsets), in tail units; one between the two
+    published boundaries, both included, counts on the weekday of the day
+    it is WRITTEN on (`calendar_rules.written_day`), as the census
+    counted it -- never its unit's day, which carries a sixtieth second
+    onto the next day (Codex's review of the landing, item 1: the twin's
+    one `2016-12-31 23:59:60` counted on Sunday, its census HELD while it
+    wrote 81 Saturdays for 130).
+
+    AND THE DATES THE FILE'S OWN DESCRIPTION FOLDED INTO ITS MOMENTS
+    (Codex's review of the landing, item 2), the fold distinction of a
+    column of dates (`_folded_by_the_file`) asked of moments: where the
+    file's description, `block`, parsed cells its member does not read,
+    each such cell is read under the joint ISO reading and counted as
+    the producer counted it, a whole date at its midnight. Ten bare
+    `2024-03-05` among noon stamps published Tuesday 90, and the
+    unchanged source was told it held 80. A cell its description left
+    unparsed is no folded cell and stays out. Returns how many counted
+    cells stand on a hole. `bins` is grown in place.
+    """
+    low = taxonomy.tail_ordinal(
+        facts.low_tail.boundary if facts.low_tail is not None else "",
+        facts.tail_unit,
+        facts.datetimes_read_at,
+    )
+    high = taxonomy.tail_ordinal(
+        facts.high_tail.boundary if facts.high_tail is not None else "",
+        facts.tail_unit,
+        facts.datetimes_read_at,
+    )
+    found: "list[tuple[int, str]]" = []
+    failing: "list[str]" = []
+    # -- 3b.7 (P4-D378): each cell counted on the day it is WRITTEN on, its
+    # own clock's, placed by its unit on the published clock.
+    if _on_own_clocks(facts):
+        on_own = 0
+        for unit, moment in _own_clock_readings(facts, block, cells):
+            if unit < low or unit > high:
+                continue
+            day = calendar_rules.written_day(moment)
+            weekday = calendar_rules.weekday_of(day)
+            bins[weekday] = bins[weekday] + 1
+            if day in holes:
+                on_own = on_own + 1
+        return on_own
+    for cell, placed in zip(cells, _tail_readings_of(facts, cells)):
+        if placed is None:
+            failing += [cell]
+            continue
+        found += [placed]
+    if block is not None and _folded_by_the_file(
+        block, facts.parser_family, failing
+    ):
+        for cell in failing:
+            read = parsing.parse_datetime(cell, taxonomy.FORMAT_ISO_MIXED)
+            if read is None:
+                continue
+            found += [
+                (
+                    taxonomy.tail_ordinal(
+                        read[0], facts.tail_unit, facts.datetimes_read_at
+                    ),
+                    read[0],
+                )
+            ]
+    on_holes = 0
+    for unit, moment in found:
+        if unit < low or unit > high:
+            continue
+        day = calendar_rules.written_day(moment)
+        weekday = calendar_rules.weekday_of(day)
+        bins[weekday] = bins[weekday] + 1
+        if day in holes:
+            on_holes = on_holes + 1
+    return on_holes
+
+
+def _census_lines(
+    groups: "list[tuple[str, int]]",
+    found: "list[int]",
+    line: int,
+) -> "tuple[str, str, list[str]]":
+    """What a census check prints: the groups asked, the file's, and why (P4-D347).
+
+    THE ONE PRINTING RULE OF EVERY CENSUS CHECK (plan P4-D364), taken out
+    of the weekday check so that each census of stage 3b prints the same
+    way. `groups` are each published group's name as the report gives it
+    and its published count, and `found` the file's own count per group.
+
+    COMPLEMENTARY, OR NOT AT ALL (review of landing 3b.1, item 3). A
+    count below the line printed as "fewer than" the line beside every
+    other group's count gave itself back: the report prints the file's
+    present cells, its unparsed cells and both tails' rows, and so its
+    body, and 1,000 less 14 less 12 less the six counts printed was the
+    Sunday count of 3. So where any group holds one to the line less
+    one, NO group's count is printed: the short groups say they are
+    short, and every other group is kept back. And where even which
+    groups are short would give a count back beside the body -- a body
+    of twelve with one short group holds one there, the other eleven
+    on one weekday -- no group is named at all.
+
+    Guarantees: accepts the groups, the file's counts and the census
+    line; returns what the description asks, what the file shows and
+    the sentences beside them. Determinism: a function of the three.
+    Raises nothing. No I/O of any kind.
+    """
+    short = [index for index in range(len(found)) if 0 < found[index] < line]
+    named_short = bool(short) and not _short_counts_pinned(found, short, line)
+    # NEAR LINEAR IN THE GROUPS (the Codex review of landing 3b.6, item 3):
+    # a list of heavy dates is one group per listed date, tens of
+    # thousands on a large column, so each side is joined from its pieces
+    # in pairs (`_comma_joined`) and the short groups are asked as a set;
+    # rebuilding the cumulative text per group and scanning a list per
+    # group took 2.4 seconds at 80,000.
+    shorts = set(short)
+    asked_parts: "list[str]" = []
+    shown_parts: "list[str]" = []
+    for index in range(len(groups)):
+        named, count = groups[index]
+        asked_parts += [f"{named} {_shown_count(count)}"]
+        held = found[index]
+        if not short:
+            shown_parts += [f"{named} {_shown_count(held)}"]
+        elif index in shorts and named_short:
+            shown_parts += [f"{named} {_below_the_floor(line)}"]
+        else:
+            shown_parts += [f"{named} {_KEPT_BACK}"]
+    asked = _comma_joined(asked_parts)
+    shown = _comma_joined(shown_parts)
+    lines: "list[str]" = []
+    if short and named_short:
+        lines += [
+            f"A group this file holds fewer than {line} of is not "
+            "counted out, and neither is any other group: beside the "
+            "file's own total, the other groups' counts would give that "
+            "number back. The description's own floor keeps it back, and "
+            "the verdict stands without it."
+        ]
+    elif short:
+        lines += [
+            f"Some group this file holds fewer than {line} of, and no "
+            "group is counted out or named: beside the file's own total, "
+            "even which groups are short would give such a number back. "
+            "The description's own floor keeps it back, and the verdict "
+            "stands without it."
+        ]
+    return asked, shown, lines
+
+
+def _published_holes(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    low: int,
+    high: int,
+    declared_days: "tuple[str, ...]",
+) -> "tuple[int, ...]":
+    """The days from `low` to `high` the description holds empty.
+
+    `calendar_rules.public_holes` on what the description publishes --
+    the producer's, the loader's and the generator's one rule.
+    """
+    forms = {
+        "datetime_separators": dict(facts.datetime_separators),
+        "date_field_widths": dict(facts.date_field_widths),
+        "month_name_styles": dict(facts.month_name_styles),
+        "quarter_marker_case": dict(facts.quarter_marker_case),
+        "zulu_case": dict(facts.zulu_case),
+    }
+    judged = tuple(
+        verdict.candidate
+        for verdict in column.sentinel_verdicts
+        if verdict.verdict == contract.VERDICT_MISSING
+    )
+    absent = tuple(sorted(set(column.missing_by_source) | set(declared_days)))
+    return calendar_rules.public_holes(
+        forms, facts.parser_family, low, high, judged, absent
+    )
+
+
+# What a group's count prints as where another group of the same census
+# holds fewer than the line (`_weekday_checks`).
+_KEPT_BACK = "kept back"
+
+
+def _comma_joined(parts: "list[str]") -> str:
+    """The parts in order, each pair separated by a comma and a space.
+
+    Joined IN PAIRS, level by level (the Codex review of landing 3b.6, item
+    3): each character is copied once per level, so the work is the text's
+    length times the levels, about the logarithm of the parts, where
+    adding each part to the text so far copied that text once per part.
+    No text method is asked: the offline audit accepts `str.join` only on
+    arguments it resolved, and a list built while the program runs is
+    not one (plan D6.2).
+
+    Guarantees: accepts text parts; returns "" for none. Determinism: a
+    function of the parts. Raises nothing. No I/O of any kind.
+    """
+    if not parts:
+        return ""
+    level = parts
+    while len(level) > 1:
+        paired: "list[str]" = []
+        for index in range(0, len(level) - 1, 2):
+            paired += [f"{level[index]}, {level[index + 1]}"]
+        if len(level) % 2:
+            paired += [level[len(level) - 1]]
+        level = paired
+    return level[0]
+
+
+def _short_counts_pinned(
+    found: "list[int]", short: "list[int]", line: int
+) -> bool:
+    """Whether naming the short groups would give one of their counts back.
+
+    A reader of the report holds the counts' total (the file's own
+    body, from the lines beside), knows every named short group holds
+    one to `line - 1` and every other group nought or at least `line`.
+    The short groups' total `s` then lies in `[k, k * (line - 1)]`, `k`
+    of them, with `total - s` nought or at least `line` (or nought only,
+    where every group is short); a short count is pinned where those
+    totals leave one group a single possible value.
+
+    IN CLOSED FORM (the Codex review of landing 3b.6, item 3). The totals
+    `s` a reader allows are at most two runs -- `[k, min(k * (line - 1),
+    total - line)]` where some group is not short, and `total` itself --
+    and one short group's possible values beside a total `s` are the run
+    `[s - (k - 1) * (line - 1), s - (k - 1)]` within `[1, line - 1]`, which
+    moves up by one as `s` does; so each run of totals gives one run of
+    values, and the answer is whether the two runs of values hold at most
+    one value together. Walking every total and every value was
+    `k * line * line` steps, beside a list of 80,000 heavy dates.
+
+    Guarantees: accepts the counts, the short groups and the line;
+    returns the answer, the walk's own. Determinism: a function of the
+    three. Raises nothing. No I/O of any kind.
+    """
+    total = sum(found)
+    many = len(short)
+    others = len(found) - many
+    top = many * (line - 1)
+    totals: "list[tuple[int, int]]" = []
+    if others > 0:
+        totals += [(many, min(top, total - line))]
+    if many <= total <= top:
+        totals += [(total, total)]
+    values: "list[tuple[int, int]]" = []
+    for first, last in totals:
+        if first > last:
+            continue
+        low = max(1, first - (many - 1) * (line - 1))
+        high = min(line - 1, last - (many - 1))
+        if low <= high:
+            values += [(low, high)]
+    held = 0
+    for low, high in values:
+        held = held + high - low + 1
+    if len(values) == 2:
+        overlap = min(values[0][1], values[1][1]) - max(values[0][0], values[1][0]) + 1
+        held = held - max(0, overlap)
+    return held <= 1
+
+
+def _weekday_day(text: str) -> int:
+    """The day number of a canonical date or moment text."""
+    return parsing.days_from_civil(int(text[0:4]), int(text[5:7]), int(text[8:10]))
+
+
+def _tallied(
+    days: "list[int]", low: int, high: int, holes: "set[int]", bins: "list[int]"
+) -> int:
+    """Count each day from `low` to `high` into its weekday's bin.
+
+    Returns how many of those days are holes. `bins` is grown in place.
+    """
+    on_holes = 0
+    for day in days:
+        if low <= day <= high:
+            weekday = calendar_rules.weekday_of(day)
+            bins[weekday] = bins[weekday] + 1
+            if day in holes:
+                on_holes = on_holes + 1
+    return on_holes
+
+
+def _folded_by_the_file(
+    block: "dict[str, object]", member: str, failing: "list[str]"
+) -> bool:
+    """Whether the file's own description folded cells the member fails into it.
+
+    `failing` are the column's cells the published member does not read.
+    The producer folds a rare ISO form into the commonest only where it
+    read the column jointly (plan P4-D250, `taxonomy._forms_as_published`),
+    and then it counts those cells parsed; where it read the column
+    under one ISO form from the start, they are unparsed. So the fold
+    happened exactly where the description's `n_unparsed` is below the
+    failing cells that are not blank (review of landing 3b.G, item 2: a
+    lone `2024-03-05T14:30:00` among 599 ISO dates, `n_unparsed` 1, is
+    no folded cell, and counting it made the source miss its own census).
+    A blank cell fails every member and is no unparsed cell; a published
+    absent spelling never reaches this check, the cells it is handed
+    being the ones its description counts present, and blanks.
+
+    Guarantees: accepts the file's own block, the published member and
+    the failing cells; returns the answer, false for every member
+    outside the two ISO forms. Determinism: a function of the three.
+    Raises nothing. No I/O of any kind.
+    """
+    if member not in taxonomy.ISO_FORMS or not failing:
+        return False
+    unparsed = _count_at(block, "n_unparsed")
+    if unparsed is None:
+        return False
+    written = 0
+    for cell in failing:
+        if parsing.trimmed(cell):
+            written = written + 1
+    return unparsed < written
+
+
+def _day_as_counted(cell: str) -> "int | None":
+    """The day a folded cell was counted on, or None (plan P4-D365).
+
+    Read under the joint ISO reading, which is how the producer read a
+    column whose rare form it folded into the commonest (plan P4-D250):
+    the cell stands on the day it names either way. Asked only of the
+    cells the published member fails, and only where the file's own
+    description folded them (`_folded_by_the_file`).
+
+    Guarantees: accepts one cell; returns a day number or None.
+    Determinism: a function of the cell. Raises nothing. No I/O of any
+    kind.
+    """
+    read = parsing.parse_datetime(cell, taxonomy.FORMAT_ISO_MIXED)
+    if read is None:
+        return None
+    return _weekday_day(read[0])
+
+
+# The four censuses of how a column's dates were WRITTEN, with the key
+# each is published under and the subcheck family it reports in.
+_WRITTEN_FORMS = (
+    ("date_field_widths", "widths"),
+    ("month_name_styles", "names"),
+    ("quarter_marker_case", "markers"),
+    ("zulu_case", "zulu"),
+)
+
+
+def _written_census_of(
+    facts: contract.DatetimeFacts, key: str
+) -> "dict[str, int]":
+    """One of the four written-form censuses, by its published key."""
+    if key == "date_field_widths":
+        return facts.date_field_widths
+    if key == "month_name_styles":
+        return facts.month_name_styles
+    if key == "quarter_marker_case":
+        return facts.quarter_marker_case
+    return facts.zulu_case
+
+
+def _written_form_listings(
+    column: contract.ColumnBlock, facts: contract.DatetimeFacts
+) -> "list[Listing]":
+    """Name the written-form censuses this column's dates cannot show.
+
+    A census is empty where the member fixes the convention -- an ISO
+    date's fields are always two figures, a compact date has no month
+    name -- and an empty census asks a file for nothing. Said out loud
+    rather than passed over in silence, which is the rule every other
+    unevidenceable obligation here is under.
+    """
+    listings: "list[Listing]" = []
+    for key, _family in _WRITTEN_FORMS:
+        if _written_census_of(facts, key):
+            continue
+        reason = _NOT_CHECKABLE_NO_WRITTEN_FORM
+        if _written_form_reachable(facts, key):
+            reason = _NOT_CHECKABLE_WRITTEN_FORM_HELD_BACK
+        listings += [
+            Listing(
+                column.name,
+                f"datetime.{key}",
+                "",
+                reason,
+            )
+        ]
+    return listings
+
+
+def _written_form_reachable(facts: contract.DatetimeFacts, key: str) -> bool:
+    """Whether this column's dates can show one census's convention at all.
+
+    Read off what the description publishes for every column -- the
+    member, and whether the offset map names `Z` -- so the answer adds
+    nothing a reader did not have (contract D17 to D20 state the same
+    reach).
+    """
+    family = facts.parser_family
+    if key == "date_field_widths":
+        # A layout's flexible fields too (landing R2a, contract LY5).
+        return parsing.width_field_count(family) > 0
+    if key == "month_name_styles":
+        return family in parsing.TEXTUAL_MEMBERS
+    if key == "quarter_marker_case":
+        return family == "year-quarter"
+    # A layout's own offset field fixes how its zulu offset is written
+    # (contract LY4), so its cells show no case to count.
+    return "Z" in facts.utc_offsets and not parsing.is_layout_name(family)
+
+
+def _written_form_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    floor: int,
+    cells: "list[str]",
+) -> "list[Check]":
+    """The censuses of HOW the dates were written, held (landing 2b.6).
+
+    Measured off the file's own description, made by the profiler's own
+    producer under the same declarations and floor, exactly as the marks
+    beside them are.
+
+    TWO KINDS OF CENSUS, AND EACH IS HELD AS FAR AS A FAITHFUL TWIN CAN
+    MEET IT (plan P4-D134). The case of a quarter's marker and of a zulu
+    offset is shown by EVERY cell the census counts over -- every quarter,
+    every value carrying `Z` -- and a twin writes exactly the published
+    number of each, so those two are held EXACTLY, count for count: a
+    file that kept every timestamp and turned eighty lower-case markers
+    and three hundred and twenty capitals into the reverse used to meet
+    both obligations, because only the set of forms and its floor were
+    asked (review of 158c811, item 7). The field widths and the month
+    names are shown only by some cells -- a day above the ninth shows no
+    width, a month of May shows no length -- so how many of a file's
+    cells could carry one is a fact about that file's own values, and a
+    count check would accuse a faithful twin. What those two owe is every
+    convention the real column used, each on at least a floor's worth of
+    the file's cells.
+
+    AND THE WIDTHS AND NAMES ARE COUNTED ON THE FILE'S OWN CELLS, NOT
+    READ OFF ITS DESCRIPTION (plan P4-D139; skeptic of the review of
+    158c811, finding 3). The file's description holds a census back whole
+    where what it leaves over is a handful, so a twin whose dates put
+    seven cells in May beside a published style of eleven had its whole
+    census withheld and was told it missed every style, on four seeds of
+    eight, while the table it came from met them. The count is the
+    producer's own tally (`taxonomy.width_tally`,
+    `taxonomy.name_style_tally`), folded as the producer folds it. A
+    style only a date's VALUE can show -- a one-field width, the `either`
+    length of May -- is owed on a floor's worth of the file's cells or on
+    every cell of that kind the file holds, whichever is fewer.
+
+    AND NO CONVENTION THE DESCRIPTION DOES NOT NAME BEYOND WHAT IT LEAVES
+    OVER. A census names no pool (contract D17 to D20), so the cells a
+    description gives no form are the published total less the named
+    counts -- none, on the two exact censuses -- and a file whose own
+    total is larger may give its extra cells any form.
+
+    A FORM THE FILE'S OWN DESCRIPTION DOES NOT NAME IS NOT PRINTED AS A
+    COUNT. That description names a form only where the disclosure rule
+    lets it, so an absent key may stand for a handful of cells or for a
+    whole census held back beside a remainder of one; the line says it
+    was not named, and never a number the file's description withholds.
+
+    Guarantees: accepts the column, its facts, the file's re-described
+    block, the floor and the cells that description reads; returns a
+    check per named convention and one per census for the conventions
+    nobody published. No I/O of any kind.
+    """
+    name = column.name
+    checks: "list[Check]" = []
+    line = parsing.census_floor(floor)
+    for key, family in _WRITTEN_FORMS:
+        census = _written_census_of(facts, key)
+        if not census:
+            continue
+        exact = key == "quarter_marker_case" or key == "zulu_case"
+        population = column.n_present - facts.n_unparsed
+        if key == "zulu_case":
+            population = (
+                facts.utc_offsets["Z"] if "Z" in facts.utc_offsets else 0
+            )
+        fact = f"datetime.{key}"
+        measured = _map_at(block, key)
+        raw = _raw_written_tally(key, cells, facts.parser_family)
+        tally = _folded_written_tally(key, raw)
+        # Where each count this census prints stands, and what its verdict
+        # asks of it, for the complementary rule below (review of landing
+        # 3b.1, item 3): `(check, count, rule, threshold)`.
+        printed: "list[tuple[int, int, str, int]]" = []
+        published_total = 0
+        for named in census:
+            published_total = published_total + census[named]
+        left_over = max(0, population - published_total)
+        # ONE CONVENTION IS WORN BY EVERY CELL SHOWING A WIDTH, so its
+        # count is the count of such cells, which the generator reaches
+        # (plan P4-D192): EXACT, counted on the file's own cells as the
+        # producer tallies and folds them. 1635 real against 1667 twin
+        # cells passed at its floor before.
+        counted_exactly = key == "date_field_widths" and len(census) == 1
+        for named in sorted(census):
+            asked = (
+                _shown_count(census[named])
+                if exact or counted_exactly
+                else _at_least(floor)
+            )
+            if measured is None:
+                checks += [
+                    Check(
+                        name,
+                        fact,
+                        f"{family}.{named}",
+                        WITHHELD,
+                        asked,
+                        "",
+                        _GATE_CLOSED,
+                    )
+                ]
+                continue
+            if exact:
+                if named not in measured:
+                    checks += [
+                        Check(
+                            name,
+                            fact,
+                            f"{family}.{named}",
+                            MISSED,
+                            asked,
+                            _FORM_NOT_NAMED,
+                        )
+                    ]
+                    continue
+                found = measured[named]
+                checks += [
+                    Check(
+                        name,
+                        fact,
+                        f"{family}.{named}",
+                        HELD if found == census[named] else MISSED,
+                        asked,
+                        _shown_count(found),
+                    )
+                ]
+                continue
+            met = _written_form_met(key, named, raw, tally, floor)
+            tallied = tally[named] if named in tally else 0
+            if key == "date_field_widths":
+                # COUNTED AS THE PRODUCER COUNTS IT (plan P4-D278): a
+                # cell of this file that could show no width is counted
+                # into the file's own commonest width, exactly as the
+                # description's own census counts it, so the comparison
+                # is between two numbers built the same way. The recount
+                # ITSELF moves to the absorbed figure, so the number the
+                # next paragraph prints stays the number that decided
+                # the verdict. ON A CENSUS OF SEVERAL WIDTHS TOO: the
+                # producer absorbs there as well, and comparing its
+                # absorbed count with this file's bare one printed the
+                # real table's own commonest width WITHIN-BOUND of the
+                # census it had just been described with. A census of
+                # several widths is still MET at its floor, on the cells
+                # that show the convention.
+                absorbed = taxonomy.absorbed_width_tally(tally, population)
+                tallied = absorbed[named] if named in absorbed else 0
+                if counted_exactly:
+                    met = tallied == census[named]
+            # WHAT IS PRINTED IS WHAT DECIDED THE VERDICT (plan P4-D253,
+            # the extra review of c5d09d5, item 6). The census of the
+            # file's own description stood here while the verdict was
+            # settled by the RECOUNT beside it, so a miss printed
+            # "the description asks for: 380 / the file was found to
+            # hold: 380" and gave a reader no way to see what was
+            # wrong. A recount below the line prints as the `unnamed`
+            # line beside it prints one, because a number that
+            # description withholds is not printed by this report.
+            shown = _shown_count(tallied)
+            if 0 < tallied < line:
+                shown = _below_the_floor(line)
+            # What the verdict asks of the count printed: a width of
+            # several asks its floor of the tally BEFORE absorbing, a
+            # number no line prints, and so does a style only a date's
+            # value shows.
+            rule = _RULE_OPEN
+            threshold = floor
+            if counted_exactly:
+                rule = _RULE_EQUAL
+                threshold = census[named]
+            elif key == "month_name_styles" and not parsing.name_is_value_bound(named):
+                rule = _RULE_AT_LEAST
+            if tallied == 0 and named not in measured:
+                shown = _FORM_NOT_NAMED
+            else:
+                printed += [(len(checks), tallied, rule, threshold)]
+            # A CONVENTION MET AT ITS FLOOR BUT NOT AT ITS COUNT IS NOT HELD
+            # (plan P4-D195). A census of several widths was printed HELD on
+            # a twin holding 381 and 393 against a published 369 and 381,
+            # which a reader takes as the count kept; it is inside what the
+            # check can ask of a file, and that is what the verdict says.
+            verdict = MISSED
+            if met:
+                verdict = HELD if tallied == census[named] else WITHIN_BOUND
+            checks += [
+                Check(
+                    name,
+                    fact,
+                    f"{family}.{named}",
+                    verdict,
+                    asked,
+                    shown,
+                )
+            ]
+        if measured is None:
+            checks += [
+                Check(
+                    name,
+                    fact,
+                    f"{family}.unnamed",
+                    WITHHELD,
+                    f"at most {_shown_count(left_over)}",
+                    "",
+                    _GATE_CLOSED,
+                )
+            ]
+            continue
+        counted = measured if exact else tally
+        measured_total = 0
+        for named in counted:
+            measured_total = measured_total + counted[named]
+        # A CELL BEYOND THE PUBLISHED TOTAL HAS NO PUBLISHED IDENTITY,
+        # which is the same widening `_mark_checks` gives a joint
+        # column's clock-writing cells: how many of a file's own cells
+        # could show the convention is a fact about its values.
+        bound = left_over + max(0, measured_total - published_total)
+        unnamed = 0
+        for named in counted:
+            if named in census:
+                continue
+            # A STYLE THE CENSUS LEFT AT `either` IS NOT A STYLE NOBODY
+            # PUBLISHED (plan P4-D257). A column of May names publishes
+            # no length, and every cell of a file that writes another
+            # month has to resolve one; `parsing.name_style_agrees` is
+            # the one statement of which resolutions that permits, and
+            # the case, the mark and the comma are exact there as here.
+            if key == "month_name_styles" and _style_published(named, census):
+                continue
+            unnamed = unnamed + counted[named]
+        shown_unnamed = _shown_count(unnamed)
+        if 0 < unnamed < line:
+            shown_unnamed = _below_the_floor(line)
+        if not exact:
+            printed += [(len(checks), unnamed, _RULE_AT_MOST, bound)]
+        checks += [
+            Check(
+                name,
+                fact,
+                f"{family}.unnamed",
+                HELD if unnamed <= bound else MISSED,
+                f"at most {_shown_count(bound)}",
+                shown_unnamed,
+            )
+        ]
+        # THE SAME SUBTRACTION AS THE WEEKDAY LINE'S (review of landing
+        # 3b.1, item 3, where a review names one site): the counts a width
+        # or a month-name census prints cover the file's parsed cells,
+        # which the lines beside it print, so one below the line printed
+        # "fewer than" the line beside the others printed as numbers gave
+        # itself back. Where one is below the line, none is printed.
+        # AND NO VERDICT SAYS WHAT THE COUNT WOULD HAVE (review of the
+        # third review's repair): a named style printed HELD only where
+        # the file's tally equalled the published count a reader holds,
+        # and the unnamed line printed its bound, so 549 rows written
+        # two ways publishing 275 and 274, beside five more written a
+        # third way, printed present 554, both named styles HELD and the
+        # third "fewer than 11" -- 554 less 275 less 274 is the five.
+        # Where one is below the line, each verdict is shown only where
+        # the ranges this census prints settle it (`_settled_verdict`),
+        # HELD is never shown for a count a reader would then hold, and
+        # the bound is printed as no number.
+        values = [value for _index, value, _rule, _threshold in printed]
+        short = [place for place in range(len(values)) if 0 < values[place] < line]
+        if short:
+            pinned = _short_counts_pinned(values, short, line)
+            total = sum(values)
+            ranges: "list[tuple[int, int]]" = []
+            for place in range(len(printed)):
+                ranges += [
+                    (1, line - 1) if place in short and not pinned else (0, total)
+                ]
+            for place in range(len(printed)):
+                index, _value, rule, threshold = printed[place]
+                text = _KEPT_BACK
+                if place in short and not pinned:
+                    text = _below_the_floor(line)
+                settled = _settled_verdict(
+                    ranges, place, total, rule, threshold, checks[index].verdict
+                )
+                asked = checks[index].published
+                if rule == _RULE_AT_MOST:
+                    asked = _AT_MOST_BEYOND
+                citation = _GATE_SHORT_BESIDE if settled == WITHHELD else ""
+                checks[index] = dataclasses.replace(
+                    checks[index],
+                    verdict=settled,
+                    published=asked,
+                    achieved=text,
+                    citation=citation,
+                )
+    return checks
+
+
+# What a line of a written-form census asks of its count, for the
+# complementary rule (`_settled_verdict`): at least a floor's worth,
+# exactly the published count, at most a bound, or a rule on a count of
+# the file's own that no line prints (a style only a date's value shows).
+_RULE_AT_LEAST = "at_least"
+_RULE_EQUAL = "equal"
+_RULE_AT_MOST = "at_most"
+_RULE_OPEN = "open"
+
+# What the unnamed line asks where another line of its census is short.
+_AT_MOST_BEYOND = "at most the cells this file holds beyond the published total"
+
+# THE GATE BESIDE A SHORT LINE (review of the third review's repair). A
+# written-form census whose file holds one form on fewer cells than the
+# line prints no count of any form; a verdict would say one anyway where
+# what the lines print leaves it open.
+_GATE_SHORT_BESIDE = (
+    "another line of this census holds fewer cells than the description's "
+    "floor, and beside the file's own total and the lines around it this "
+    "outcome would give that count back, so neither the count nor the "
+    "outcome is shown"
+)
+
+
+def _settled_verdict(
+    ranges: "list[tuple[int, int]]",
+    place: int,
+    total: int,
+    rule: str,
+    threshold: int,
+    verdict: str,
+) -> str:
+    """One line's verdict where the ranges its census prints settle it, else WITHHELD.
+
+    `ranges` are what a reader holds of every line's count -- one to the
+    line less one where it is named short, anything up to the total
+    otherwise -- and the counts add to `total`, which a reader is taken
+    to hold. The line's own count then lies between the most and the
+    least the others leave; its rule (`_RULE_*`, against `threshold`)
+    is shown only where every count there answers it alike: a floor's
+    worth met as WITHIN-BOUND, never HELD, whose equality with the
+    published count a reader holds would give the count back; the
+    published count equalled only where nothing else is possible; the
+    bound kept or passed by every count. `verdict` is the line's own,
+    which a settled answer always equals.
+
+    Guarantees: accepts the ranges, the line, the total, the rule and
+    the verdict; returns the verdict to show. Determinism: a function
+    of the arguments. Raises nothing. No I/O of any kind.
+    """
+    others_low = 0
+    others_high = 0
+    for other in range(len(ranges)):
+        if other != place:
+            others_low = others_low + ranges[other][0]
+            others_high = others_high + ranges[other][1]
+    least = max(ranges[place][0], total - others_high)
+    most = min(ranges[place][1], total - others_low)
+    if rule == _RULE_AT_LEAST:
+        if least >= threshold:
+            return WITHIN_BOUND
+        if most < threshold:
+            return MISSED
+    elif rule == _RULE_EQUAL:
+        if least == most == threshold:
+            return verdict
+        if threshold < least or threshold > most:
+            return MISSED
+    elif rule == _RULE_AT_MOST:
+        if most <= threshold:
+            return HELD
+        if least > threshold:
+            return MISSED
+    return WITHHELD
+
+
+def _style_published(
+    written: str, census: "dict[str, int]"
+) -> bool:
+    """Whether some published month-name style this file's style meets.
+
+    `parsing.name_style_agrees` per published key, so the permitted
+    reading of `either` is asked rather than restated (plan P4-D257).
+
+    Guarantees: accepts one written style and the published census;
+    returns a bool. Determinism: a fixed function of the two. Errors
+    raised: none. No I/O of any kind.
+    """
+    for named in sorted(census):
+        if named == contract.WITHHELD:
+            continue
+        if parsing.name_style_agrees(named, written):
+            return True
+    return False
+
+
+def _raw_written_tally(
+    key: str, cells: "list[str]", format_name: str
+) -> "dict[str, int]":
+    """The file's own unfloored, unfolded tally of widths or of names."""
+    if key == "date_field_widths":
+        return taxonomy.width_tally(cells, format_name)
+    if key == "month_name_styles":
+        return taxonomy.name_style_tally(cells, format_name)
+    return {}
+
+
+def _folded_written_tally(
+    key: str, raw: "dict[str, int]"
+) -> "dict[str, int]":
+    """That tally folded as the producer folds it (plan P4-D139)."""
+    if key == "date_field_widths":
+        return parsing.folded_width_tally(raw)
+    return parsing.folded_name_tally(raw)
+
+
+def _written_form_met(
+    key: str,
+    named: str,
+    raw: "dict[str, int]",
+    tally: "dict[str, int]",
+    floor: int,
+) -> bool:
+    """Whether a file carries one named width or name style (plan P4-D139).
+
+    A style any cell can show is owed on at least `floor` of the file's
+    cells, counted as the producer folds them. A style only a date's
+    value can show -- a one-field width, the `either` length of May -- is
+    owed on `floor` of the file's cells or on every cell of its kind the
+    file holds, whichever is fewer, counted before folding: a file whose
+    dates put none in that kind owes none of it.
+    """
+    bound = parsing.width_is_value_bound(named)
+    kind: "tuple[str, ...]" = parsing.FIELD_WIDTH_STYLES_FIRST
+    if key == "month_name_styles":
+        bound = parsing.name_is_value_bound(named)
+        kind = parsing.MONTH_NAME_STYLES_EITHER
+    elif named in parsing.FIELD_WIDTH_STYLES_SECOND:
+        kind = parsing.FIELD_WIDTH_STYLES_SECOND
+    if not bound:
+        return named in tally and tally[named] >= floor
+    held = 0
+    for word in kind:
+        if word in raw:
+            held = held + raw[word]
+    found = raw[named] if named in raw else 0
+    return found >= min(floor, held)
+
+
+def _at_least(floor: int) -> str:
+    """What a convention the description names asks of a file."""
+    return f"at least {floor}"
+
+
+def _stamp_words_by_fit(
+    census: "dict[str, int]",
+    measured: "dict[str, int]",
+    cells: "list[str] | None",
+) -> "dict[str, int]":
+    """A file's stamp word read as the published one WHERE IT FITS (P4-D370).
+
+    A slashed stamp's one word names its written clock (landing T1). A
+    file whose cells all fit the published style -- the same face, and no
+    hour below ten written in the other width -- holds it, whatever
+    style its own description took from them: a faithful twin that drew
+    no such hour is described again as `space`, and is counted here under
+    the published word, so the checks below compare like with like. A
+    file that does not fit keeps its own word and is MISSED by them.
+    """
+    named = [key for key in sorted(census) if key != contract.WITHHELD]
+    words = [key for key in sorted(measured) if key != contract.WITHHELD]
+    if len(named) != 1 or len(words) != 1 or named[0] == words[0]:
+        return measured
+    published = parsing.stamp_style(named[0])
+    found = parsing.stamp_style(words[0])
+    if published is None or found is None:
+        return measured
+    if not parsing.clock_held_by_fit(
+        published, found, [] if cells is None else cells, True
+    ):
+        return measured
+    moved = {key: measured[key] for key in measured if key != words[0]}
+    moved[named[0]] = measured[words[0]]
+    return moved
+
+
+def _mark_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    floor: int,
+    cells: "list[str] | None" = None,
+) -> "list[Check]":
+    """The census of marks between day and clock, held (landing 2b.3).
+
+    Measured off the file's OWN description, made by the profiler's own
+    producer under the same declarations and floor, so the real table
+    meets its description by construction and no second recount of marks
+    exists to part from the first.
+
+    Each mark the census names is a count governed by the floor, with the
+    withheld pool as its window's width, on the precedent of the offsets
+    and styles beside it (`_floor_governed`, review item P3-V7-F2): a
+    pooled value names no mark, so a file may give it one. And the values
+    wearing a mark the census does NOT name are bounded by that pool,
+    which is the only check that catches a column of spaces rewritten
+    with a `T`, since a check per published name never looks at a name
+    nobody published.
+
+    ON A COLUMN READ JOINTLY, the whole dates of the real table wrote no
+    clock and so no mark, and a file that writes them with a clock has
+    cells whose mark the description never counted: the clock-writing
+    cells a file holds beyond the published count widen both bounds by
+    that many.
+
+    Guarantees: accepts the column, its facts, the file's re-described
+    block and the floor; returns a check per named mark and one for the
+    unnamed ones, or none where the column writes no clock. No I/O.
+    """
+    if facts.resolution != taxonomy.RESOLUTION_DATETIME:
+        return []
+    name = column.name
+    census = facts.datetime_separators
+    measured = _map_at(block, "datetime_separators")
+    if facts.parser_family in contract.CLOCK_FORM_MEMBERS and measured is not None:
+        measured = _stamp_words_by_fit(census, measured, cells)
+    pool = 0
+    published_total = 0
+    for key in census:
+        published_total = published_total + census[key]
+        if key == contract.WITHHELD:
+            pool = census[key]
+    extra = 0
+    # Only where the twin still writes whole dates with a clock (R-P4-12):
+    # a joint column wholly at midnight writes them bare (repair pass of
+    # landing 2b.3), and widening it there let a file write 1,900 bare
+    # dates of 2,000 with a mark the census never names and pass.
+    if (
+        measured is not None
+        and facts.parser_family == contract.FORMAT_ISO_MIXED
+        and not facts.all_at_midnight
+    ):
+        measured_total = 0
+        for key in measured:
+            measured_total = measured_total + measured[key]
+        extra = max(0, measured_total - published_total)
+    checks: "list[Check]" = []
+    for key in sorted(census):
+        if key == contract.WITHHELD:
+            continue
+        checks += [
+            _floor_governed(
+                name,
+                "datetime.datetime_separators",
+                f"marks.{key}",
+                census[key],
+                measured,
+                key,
+                floor,
+                pool + extra,
+            )
+        ]
+    bound = pool + extra
+    if measured is None:
+        checks += [
+            Check(
+                name,
+                "datetime.datetime_separators",
+                "marks.unnamed",
+                WITHHELD,
+                f"at most {_shown_count(bound)}",
+                "",
+                _GATE_CLOSED,
+            )
+        ]
+        return checks
+    unnamed = 0
+    for key in measured:
+        if key == contract.WITHHELD or key not in census:
+            unnamed = unnamed + measured[key]
+    checks += [
+        Check(
+            name,
+            "datetime.datetime_separators",
+            "marks.unnamed",
+            HELD if unnamed <= bound else MISSED,
+            f"at most {_shown_count(bound)}",
+            _shown_count(unnamed),
+        )
+    ]
+    return checks
+
+
+def _midnight_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+) -> "list[Check]":
+    """Midnight, held where the description publishes it (landing 2b.3).
+
+    `all_at_midnight` is compared only where it is published TRUE: a false
+    statement says only that not every value stood there, which asks a
+    file nothing. `n_at_midnight` is compared where it is published above
+    nought. Both are read off the file's own description, which asks each
+    cell's local clock at its own precision exactly as the description of
+    the real table did -- the day-unit reading of a midnight column cannot
+    see a time of day, which is why these are checks of their own.
+
+    Guarantees: accepts the column, its facts and the re-described block;
+    returns at most two checks. No I/O of any kind.
+    """
+    if facts.resolution != taxonomy.RESOLUTION_DATETIME:
+        return []
+    name = column.name
+    checks: "list[Check]" = []
+    if facts.all_at_midnight:
+        found = _truth_at(block, "all_at_midnight")
+        shown = None
+        if found is not None:
+            shown = "true" if found else "false"
+        checks += [
+            _exact(name, "datetime.all_at_midnight", "midnight.all", "true", shown)
+        ]
+    # ...AND NOWHERE ELSE SINCE LANDING 2b.6. A published nought used to
+    # be checked at a floor of one, where it was exact; there is no
+    # published nought any more, because a reader able to tell a real
+    # nought from a suppressed count of one has been told that count
+    # (the owner's twin definition, clause 3). The field is absent on
+    # both, and `_datetime_listings` lists it instead of checking it.
+    counted = facts.n_at_midnight
+    # A COUNT WITHHELD FOR ITS SIZE IS CHECKED ON ITS SIDE (plan P4-D191).
+    # It says fewer than the line stood at midnight or fewer than the line
+    # did not, so a file owes a count its own description withholds too.
+    # A twin of discharge times between seven and seven wrote two values
+    # at midnight, its own description published them, and the report
+    # listed the fact as asking nothing. No number is printed for a file
+    # whose count is withheld, as for every count the file's description
+    # holds back.
+    if contract.midnight_withheld_for_its_size(facts):
+        seen = _count_at(block, "n_at_midnight")
+        checks += [
+            Check(
+                name,
+                "datetime.n_at_midnight",
+                "midnight.withheld",
+                HELD if seen is None else MISSED,
+                _COUNT_OUTSIDE_THE_BAND,
+                _COUNT_OUTSIDE_THE_BAND if seen is None else _shown_count(seen),
+            )
+        ]
+    if counted is not None and counted > 0:
+        seen = _count_at(block, "n_at_midnight")
+        if seen is None:
+            checks += [
+                Check(
+                    name,
+                    "datetime.n_at_midnight",
+                    "midnight.count",
+                    MISSED,
+                    _shown_count(counted),
+                    _COUNT_OUTSIDE_THE_BAND,
+                )
+            ]
+        else:
+            checks += [
+                _exact(
+                    name,
+                    "datetime.n_at_midnight",
+                    "midnight.count",
+                    _shown_count(counted),
+                    _shown_count(seen),
+                )
+            ]
     return checks
 
 
@@ -11281,7 +20900,11 @@ def _offset_checks(
     floor: int,
     mine: "tuple[str, ...]",
 ) -> "list[Check]":
-    """The offset map, the two endpoint offsets, and how they were read."""
+    """The offset map and the clock the column is read on.
+
+    No end offset is published since stage 3 (plan P4-D328), so none is
+    checked: the two end rows are no longer described at all.
+    """
     name = column.name
     corner = CORNER_DATETIME_OFFSETS_WITHHELD
     if corner in mine:
@@ -11297,7 +20920,7 @@ def _offset_checks(
     for key in sorted(facts.utc_offsets):
         if key == taxonomy.SUPPRESSED_LABEL:
             continue
-        checks = checks + [
+        checks += [
             _floor_governed(
                 name,
                 "datetime.utc_offsets",
@@ -11308,33 +20931,8 @@ def _offset_checks(
                 floor,
             )
         ]
-    for field, published, subcheck in (
-        ("earliest_utc_offset", facts.earliest_utc_offset, "offsets.earliest"),
-        ("latest_utc_offset", facts.latest_utc_offset, "offsets.latest"),
-    ):
-        if published == taxonomy.SUPPRESSED_LABEL:
-            # THE ENDPOINT ITSELF IS WITHHELD, so the description names
-            # no offset for this end at all and there is nothing for a
-            # file to carry. `_endpoint_listings` files it in the
-            # not-checkable census; checking it compared a file's own
-            # floor against the source's, which is a fact about how many
-            # rows shared an offset and not about the file's dates, and
-            # reported MISSED against the shipped generator's own twin
-            # (review item P3-V7-F2's battery).
-            continue
-        found = _text_at(block, field)
-        checks = checks + [
-            _silent(
-                name,
-                f"datetime.{field}",
-                subcheck,
-                published,
-                None if found is None else found == published,
-                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
-            )
-        ]
     read_at = _text_at(block, "datetimes_read_at")
-    checks = checks + [
+    checks += [
         _exact(
             name,
             "datetime.datetimes_read_at",
@@ -11350,64 +20948,48 @@ def _date_ladder_checks(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
     block: "dict[str, object]",
+    floor: int,
+    date_system: str = "",
 ) -> "list[Check]":
-    """The date ladder: the two ends exact, the nine interior in windows.
+    """The date ladder: each PUBLISHED interior rung inside its window.
 
-    The window is method G12.4's, taken in the ordinal space method
-    G7.1 fixes for the resolution this column publishes (`_instant_of`)
-    and drawn by `_rank_windows` below, which is the method's own
+    The window is method G12.4's, taken in the ordinal space method G7.1
+    fixes for the resolution this column publishes (`_instant_of`) and
+    drawn by `_rank_windows` below, which is the method's own
     construction written out. The rung a description publishes is
-    SELECTED, not interpolated -- there is no half-way point between two
-    dates a calendar recognises -- so the rung is read off ONE RANK, the
-    rank G12.4 names, and the window is that rank's own.
+    SELECTED, not interpolated, so the rung is read off ONE RANK, the rank
+    G12.4 names, and the window is that rank's own: since landing 2b.6
+    that rank is PINNED to the rung's published value, so the window is
+    the value itself (`_pin_bounds_of`).
 
-    EVERY RESOLUTION, INCLUDING QUARTERS (review item P3-V3-F4). These
-    nine rungs used to be WITHHELD one by one on any column of quarters,
-    because the space was `parsing.instant_key`'s alone and a quarter
-    names no instant in it. The method defines a quarter's ordinal and
-    applies this bound to quarters in as many words, so the obligation
-    was there and only the measurement was missing: a file holding three
-    of the twelve published quarters passed with these nine and both
-    distinctness counts silenced. There is no branch here that a
-    resolution can silence any more.
+    EVERY RESOLUTION, INCLUDING QUARTERS (review item P3-V3-F4), and THE
+    RANK IS THE METHOD'S, IN WHOLE NUMBERS (review item P3-V4-F4).
 
-    AND THE RANK IS THE METHOD'S, IN WHOLE NUMBERS (review item
-    P3-V4-F4). The version this replaces worked the rank out as
-    `((P - 1) * share * 100) // 100` over a floating-point share and
-    then read the ladder through the float reader the numeric ladder
-    uses, neither of which is the arithmetic G12.4 fixes. `_rung_rank`
-    and `_ladder_ordinal_at` are that arithmetic, and the suite compares
-    them with the generator's own writing of it at every resolution.
+    A RUNG THE TAIL RULE WITHHOLDS IS NOT A CHECK (stage 3): its rank is
+    one of a tail's, the description publishes nothing there, and a null
+    compared with a null proves nothing, so it is listed instead
+    (`_tail_listings`). The two ends are always withheld now.
     """
     name = column.name
     measured = _inner_at(block, "date_percentiles")
     published = facts.date_percentiles
     checks: list[Check] = []
-    for key, expected in (("min", published.minimum), ("max", published.maximum)):
-        found = None if measured is None else _text_at(measured, key)
-        checks = checks + [
-            _silent(
-                name,
-                f"datetime.date_percentiles.{key}",
-                f"date-ladder.{key}",
-                expected,
-                None if found is None else found == expected,
-                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
-            )
-        ]
     dated = max(1, column.n_present - facts.n_unparsed)
-    lows, highs = _rank_windows(facts, dated)
+    lows, highs = _rank_windows(facts, dated, column, floor, date_system)
     for index in range(1, len(_LADDER_KEYS) - 1):
         key = _LADDER_KEYS[index]
+        rung = published.rungs[index]
+        if rung is None:
+            continue
         found = None if measured is None else _text_at(measured, key)
         seen = None if found is None else _instant_of(found, facts.resolution)
         rank = _rung_rank(_LADDER_PERCENTS[index], dated)
-        checks = checks + [
+        checks += [
             _within_instant(
                 name,
                 f"date-ladder.{key}",
                 facts,
-                published.rungs[index],
+                rung,
                 seen,
                 (lows[rank], highs[rank]),
             )
@@ -11427,6 +21009,8 @@ _INSTANT_UNITS = {
 
 def _instant_units(facts: contract.DatetimeFacts) -> str:
     """The word for one unit of this column's own ordinal space."""
+    if _counts_in_days(facts):
+        return _INSTANT_UNITS[taxonomy.RESOLUTION_DATE]
     if facts.resolution in _INSTANT_UNITS:
         return _INSTANT_UNITS[facts.resolution]
     return "unit"
@@ -11461,6 +21045,12 @@ def _shown_distance(
     step = _space_unit(facts)
     away = (ordinal - rung) // step
     word = _instant_units(facts)
+    if (ordinal - rung) % step != 0:
+        # A column counted in days whose FILE holds a time of day off
+        # midnight (plan P4-D39): said in seconds, as the clock role says
+        # an odd second, rather than rounded into a whole day it is not.
+        away = ordinal - rung
+        word = "second"
     if away == 0:
         return "that same value"
     if away < 0:
@@ -11527,7 +21117,7 @@ def _within_instant(
             "        around the description's value.",
         )
     if measured is None:
-        return Check(
+        return _judged_window(Check(
             column,
             "datetime.date_percentiles",
             subcheck,
@@ -11535,9 +21125,9 @@ def _within_instant(
             published,
             "",
             _GATE_CLOSED,
-        )
+        ))
     if measured == rung:
-        return Check(
+        return _judged_window(Check(
             column,
             "datetime.date_percentiles",
             subcheck,
@@ -11546,103 +21136,326 @@ def _within_instant(
             _shown_distance(measured, rung, facts),
             "",
             () if reaches else _MET_OUTSIDE_ITS_WINDOW,
-        )
+        ))
     verdict = WITHIN_BOUND if low <= measured <= high else MISSED
-    return Check(
-        column,
-        "datetime.date_percentiles",
-        subcheck,
-        verdict,
-        published,
-        _shown_distance(measured, rung, facts),
-        ENVELOPE_DATETIME_RUNGS,
-        note,
+    return _judged_window(
+        Check(
+            column,
+            "datetime.date_percentiles",
+            subcheck,
+            verdict,
+            published,
+            _shown_distance(measured, rung, facts),
+            ENVELOPE_DATETIME_RUNGS,
+            note,
+        ),
+        _shown_distance(low, rung, facts),
+        _shown_distance(high, rung, facts),
+        reaches,
     )
 
 
 def _clock_distinct_window(
-    column: contract.ColumnBlock, facts: contract.ClockFacts
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    floor: int,
+    holes: "tuple[str, ...]" = (),
 ) -> "tuple[float, float]":
-    """How many different values a column of clock times may hold.
+    """How many different values a column of clock times may hold (G12.11).
 
-    The same two ends the date role's envelope has, in this role's own
-    ordinal space. The LOWER end counts ranks whose windows do not
-    overlap -- two ranks that cannot hold the same time are two
-    identities the twin must carry -- plus every stand-in, each spelled
-    differently from every other cell. The UPPER end is how many times
-    the published range holds at all, plus those stand-ins, and never
-    more cells than the column has.
+    The LOWER end counts ranks whose windows do not overlap -- two ranks
+    that cannot hold the same time are two identities the twin must carry
+    -- plus every stand-in, each spelled differently from every other
+    cell. The UPPER end is how many times lie between the two tail
+    boundaries, plus one for each cell of the two tails, plus those
+    stand-ins, and never more cells than the column has (stage 3: no end
+    is published, so the range is the boundaries'); a column with no
+    tails reaches every present cell.
 
-    IT NEED NOT CONTAIN THE PUBLISHED COUNT, and on an ordinary column
-    it does not: a column of two hundred and forty rows over a hundred
-    and twenty different times publishes a hundred and twenty while the
-    construction writes a value per rank. That is what an explicit
-    cardinality bound is for, and it is why this role's two distinctness
-    counts are approximated rather than exact.
+    IT NEED NOT CONTAIN THE PUBLISHED COUNT, and on an ordinary column it
+    does not: the construction writes a value per rank.
     """
     parsed = max(1, column.n_present - facts.n_unparsed)
-    lows, highs = _clock_rank_windows(facts, parsed)
+    lows, highs = _clock_rank_windows(column, facts, parsed, floor, holes)
     separate = _ranks_forced_apart(lows, highs)
-    earliest = _clock_ordinal_or_zero(facts.earliest, facts.clock_form)
-    latest = _clock_ordinal_or_zero(facts.latest, facts.clock_form)
-    room = latest - earliest + 1
-    upper = min(column.n_present, room + facts.n_unparsed)
-    lower = min(separate + facts.n_unparsed, upper)
+    # THE CODES ARE WRITTEN AS THEY COUNT (landing 3b.5, plan P4-D373): a
+    # published code is one spelling however many cells hold it, and every
+    # other stand-in is a spelling of its own.
+    stand_ins = facts.n_unparsed
+    for _spelling, count in facts.clock_codes:
+        stand_ins = stand_ins - count + 1
+    upper = column.n_present
+    if facts.low_tail is not None and facts.high_tail is not None:
+        low_at = _clock_ordinal_or_zero(facts.low_tail.boundary, facts.clock_form)
+        high_at = _clock_ordinal_or_zero(facts.high_tail.boundary, facts.clock_form)
+        room = (
+            high_at - low_at + 1 + facts.low_tail.rows + facts.high_tail.rows
+        )
+        upper = min(column.n_present, room + stand_ins)
+    lower = min(separate + stand_ins, upper)
     return (float(lower), float(upper))
 
 
 def _datetime_distinct_window(
-    column: contract.ColumnBlock, facts: contract.DatetimeFacts
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    floor: int,
+    date_system: str = "",
 ) -> "tuple[float, float]":
     """How many different values a column of dates may hold (G12.5).
 
-    The LOWER end counts ranks whose windows of G12.4 do not overlap:
-    two ranks that cannot hold the same instant are two identities the
-    twin must carry, and every cell that did not read as a date is a
-    counted stand-in spelled differently from every other. The UPPER
-    end is how many instants the published range holds at the published
-    precision, once per offset the description names by name, plus
-    those same stand-ins, and never more cells than the column has.
+    The LOWER end counts ranks whose windows of G12.4 do not overlap --
+    past their strata where the count pass may meet the count there
+    (`_past_the_strata`) -- since two ranks that cannot hold the same
+    instant are two identities the twin must carry, and every cell that
+    did not read as a date is a counted stand-in spelled differently from
+    every other. The UPPER
+    end is how many instants lie between the two tail boundaries at the
+    published precision, once per way an instant can be written, plus one
+    for each cell of the two tails, plus those same stand-ins, and never
+    more cells than the column has (stage 3: no end is published, so the
+    range is the boundaries'); a column with no tails reaches every
+    present cell.
 
     This envelope need not contain the published count, and on an
-    ordinary column it does not: a column of 240 rows over 84 different
-    dates publishes 84 while the construction writes a value per rank.
-    That is what the matrix means by giving a column of dates its own
-    explicit cardinality bound.
-
-    IT IS DRAWN FOR EVERY RESOLUTION AND RETURNS NO "CANNOT SAY"
-    (review item P3-V3-F4). It used to hand back nothing for a column of
-    quarters, and both distinctness counts were then WITHHELD whatever
-    the file held -- so a twelve-row file carrying three of twelve
-    published quarters was told its distinctness could not be shown. The
-    ordinal space below is the method's own for each resolution, so
-    there is nothing left here for a resolution to silence.
-
-    AND THE WINDOWS IT WALKS ARE G12.4'S, ENDS AND ALL (review item
-    P3-V4-F4). The version this replaces drew every rank's window from
-    the ladder alone, including the two the construction PINS -- so the
-    first rank's window ran from the published earliest back by one unit
-    and forward to the second rank's share, and swallowed ranks the
-    construction cannot put on the same instant as rank zero. Measured
-    on a twelve-rank quarterly description, the walk returned four
-    separate ranks where the pinned construction forces six, and a file
-    holding four different quarters was told it was inside the envelope.
-    The walk itself is unchanged; it now walks the right windows, which
-    is the whole of the repair.
+    ordinary column it does not: the construction writes a value per
+    rank. IT IS DRAWN FOR EVERY RESOLUTION AND RETURNS NO "CANNOT SAY"
+    (review item P3-V3-F4), and THE WINDOWS IT WALKS ARE G12.4'S (review
+    item P3-V4-F4).
     """
     dated = max(1, column.n_present - facts.n_unparsed)
-    lows, highs = _rank_windows(facts, dated)
-    separate = _ranks_forced_apart(lows, highs)
-    step = _precision_step(facts)
-    earliest = _ordinal_of(facts.earliest, facts.resolution)
-    latest = _ordinal_of(facts.latest, facts.resolution)
-    room = (latest - earliest) // step + 1
-    upper = min(
-        column.n_present,
-        room * _spellings_of_an_instant(facts) + facts.n_unparsed,
+    lows, highs = _rank_windows(facts, dated, column, floor, date_system)
+    lows, highs = _past_the_strata(
+        column, facts, dated, floor, date_system, lows, highs
     )
-    lower = min(separate + facts.n_unparsed, upper)
+    separate = _ranks_forced_apart(lows, highs)
+    upper = column.n_present
+    if facts.low_tail is None or facts.high_tail is None:
+        # THE RAMP BOUNDS ITSELF (G12.5, stage 3): a column publishing
+        # no tail spreads its ranks over its published count of
+        # different values from 1970-01-01, so the twin holds those
+        # instants and no others, each written the ways an instant can
+        # be. Read as the whole column instead, this admitted 124 on a
+        # ramp that can hold six.
+        steps = max(1, min(dated, column.n_distinct - facts.n_unparsed))
+        upper = min(
+            column.n_present,
+            steps * _spellings_of_an_instant(facts) + facts.n_unparsed,
+        )
+    if facts.low_tail is not None and facts.high_tail is not None:
+        step = _precision_step(facts)
+        low_at = _ordinal_of(facts.low_tail.boundary, facts.resolution)
+        high_at = _ordinal_of(facts.high_tail.boundary, facts.resolution)
+        room = (high_at - low_at) // step + 1
+        upper = min(
+            column.n_present,
+            room * _spellings_of_an_instant(facts)
+            + facts.low_tail.rows
+            + facts.high_tail.rows
+            + facts.n_unparsed,
+        )
+    # -- 3b.R2c (P4-D383): A PARTIAL FORM'S CELLS REPEAT, as `2023` does on
+    # every cell of that year, so each form promises one value at least
+    # and the other stand-ins one each -- the rule the twin's own report
+    # asks too (`contract.least_unread_values`; the Codex review of
+    # landing R2c, item 8).
+    lower = min(
+        separate + contract.least_unread_values(facts, facts.n_unparsed), upper
+    )
     return (float(lower), float(upper))
+
+
+def _pin_bounds_of(
+    facts: contract.DatetimeFacts,
+    dated: int,
+    column: "contract.ColumnBlock | None" = None,
+    floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
+    date_system: str = "",
+) -> "tuple[list[int], list[int]]":
+    """Every rank's GAP, in this reading's own units (method G7.3, G12.4).
+
+    THE GENERATOR'S RULE, WRITTEN OUT HERE FROM ITS STATEMENT (V1.4),
+    never imported. The two boundary ranks are pinned at the two tail
+    boundaries and each published rung between them at its own value; a
+    body rank stands between the two pins either side of it. A tail rank
+    stands inside its STRATUM (G12.14): between its nearest and furthest
+    distance from the boundary, in whole tail units -- widened by half a
+    day either way where a day of the shared clock is the unit, since the
+    move onto a local midnight may take it anywhere inside that day -- or
+    anywhere between a tail's outermost and innermost published value
+    where the tail publishes its values. A column with no tails is its
+    ramp (G7.3d): from 1970-01-01 across as many units as it has different
+    values less one.
+
+    Guarantees: accepts the facts, the dated count and what the tails
+    need; returns one lower and one upper bound per rank, both
+    non-decreasing. Linear. Determinism: a function of the arguments.
+    Raises nothing. No I/O of any kind.
+    """
+    lows: list[int] = [0 for _rank in range(dated)]
+    highs: list[int] = [0 for _rank in range(dated)]
+    space = 1
+    if facts.resolution in (taxonomy.RESOLUTION_DATE, taxonomy.RESOLUTION_DATETIME):
+        space = 86400
+    low = facts.low_tail
+    high = facts.high_tail
+    if low is None or high is None:
+        spread = 1
+        if column is not None:
+            spread = max(1, min(dated, column.n_distinct - facts.n_unparsed))
+        top = (spread - 1) * space
+        for rank in range(dated):
+            lows[rank] = top if rank == dated - 1 and dated >= 2 else 0
+            highs[rank] = 0 if rank == 0 else top
+        return (lows, highs)
+    low_rank = low.rows
+    high_rank = dated - 1 - high.rows
+    values: dict[int, int] = {
+        low_rank: _ordinal_of(low.boundary, facts.resolution),
+        high_rank: _ordinal_of(high.boundary, facts.resolution),
+    }
+    for place in range(1, len(_LADDER_KEYS) - 1):
+        rung = facts.date_percentiles.rungs[place]
+        if rung is None:
+            continue
+        rank = _rung_rank(_LADDER_PERCENTS[place], dated)
+        if low_rank < rank < high_rank and rank not in values:
+            values[rank] = _ordinal_of(rung, facts.resolution)
+    below = values[low_rank]
+    for rank in range(low_rank, high_rank + 1):
+        if rank in values:
+            below = values[rank]
+        lows[rank] = below
+    above = values[high_rank]
+    for rank in range(high_rank, low_rank - 1, -1):
+        if rank in values:
+            above = values[rank]
+        highs[rank] = above
+    unit = _tail_unit_size(facts)
+    half = 0
+    if facts.tail_unit == parsing.TAIL_UNIT_DAY and not _counts_in_days(facts):
+        half = 43200
+    windows: "dict[str, tuple[list[int], list[int]]]" = {}
+    if column is not None:
+        windows = _date_tail_windows(column, facts, floor, date_system)
+    for side, tail, low_side in (("low", low, True), ("high", high, False)):
+        boundary = _ordinal_of(tail.boundary, facts.resolution)
+        anchor = boundary
+        if half > 0:
+            anchor = ((boundary + half) // unit) * unit
+        spots: "list[int]" = []
+        if tail.values is not None:
+            at = taxonomy.tail_ordinal(
+                tail.boundary, facts.tail_unit, facts.datetimes_read_at
+            )
+            ordered = list(tail.values)
+            if not low_side:
+                ordered = [
+                    ordered[place] for place in range(len(ordered) - 1, -1, -1)
+                ]
+            distances: "list[int]" = []
+            for value in ordered:
+                here = taxonomy.tail_ordinal(
+                    value, facts.tail_unit, facts.datetimes_read_at
+                )
+                distances += [at - here if low_side else here - at]
+            whole: "int | None" = None
+            if tail.mean_distance is not None:
+                whole = _tail_round(tail.rows * tail.mean_distance)
+            counted = _tail_value_counts(distances, tail.rows, whole)
+            if whole is None:
+                counted = _tail_values_by_midnight(facts, ordered, dated, counted)
+            for place in range(len(ordered)):
+                for _copy in range(counted[place]):
+                    spots += [_ordinal_of(ordered[place], facts.resolution)]
+        for index in range(tail.rows):
+            rank = index if low_side else dated - 1 - index
+            if tail.values is not None:
+                lows[rank] = spots[index]
+                highs[rank] = spots[index]
+                continue
+            if side not in windows:
+                lows[rank] = boundary
+                highs[rank] = boundary
+                continue
+            near = windows[side][0][index]
+            far = windows[side][1][index]
+            if low_side:
+                lows[rank] = anchor - far * unit - half
+                highs[rank] = anchor - near * unit + max(half - 1, 0)
+            else:
+                lows[rank] = anchor + near * unit - half
+                highs[rank] = anchor + far * unit + max(half - 1, 0)
+    return (lows, highs)
+
+
+def _tail_values_by_midnight(
+    facts: contract.DatetimeFacts,
+    ordered: "list[str]",
+    dated: int,
+    counted: "list[int]",
+) -> "list[int]":
+    """How a tail with NO published mean shares its ranks (method G7.3c).
+
+    THE METHOD'S RULE, WRITTEN OUT HERE FROM ITS STATEMENT (V1.4), never
+    imported. With the mean withheld the description says only that each
+    listed value is held at least once, so every other rank is the
+    construction's to place, and it places them where the column's other
+    exact facts need them: each value takes one rank, and the rest go to
+    the first value, outermost first, that stands at a local midnight
+    where the column publishes more cells at midnight than not, or that
+    does not where it publishes fewer. Where no value answers, the even
+    share stands.
+
+    Guarantees: accepts the facts, the tail's values in distance order,
+    the parsed count and the even share; returns one count per value,
+    each at least one, adding to the same total. Determinism: a function
+    of the arguments. Raises nothing. No I/O of any kind.
+    """
+    counted_at = facts.n_at_midnight
+    if counted_at is None or _counts_in_days(facts) or len(ordered) < 2:
+        return counted
+    if facts.resolution != taxonomy.RESOLUTION_DATETIME:
+        return counted
+    total = 0
+    for count in counted:
+        total = total + count
+    mostly = 2 * counted_at >= dated
+    chosen = -1
+    for place in range(len(ordered)):
+        stands = len(_midnight_offsets_of(ordered[place], facts)) > 0
+        if stands == mostly and chosen < 0:
+            chosen = place
+    if chosen < 0:
+        return counted
+    shared = [1 for _value in ordered]
+    shared[chosen] = total - (len(ordered) - 1)
+    return shared
+
+
+def _midnight_offsets_of(
+    text: str, facts: contract.DatetimeFacts
+) -> "tuple[str, ...]":
+    """Every published offset under which this moment is a local midnight."""
+    seconds = _ordinal_of(text, taxonomy.RESOLUTION_DATETIME)
+    found: "list[str]" = []
+    for key in sorted(facts.utc_offsets):
+        if key in (contract.NO_OFFSET, contract.WITHHELD):
+            continue
+        if (seconds + _offset_shift(key)) % 86400 == 0:
+            found += [key]
+    if contract.NO_OFFSET in facts.utc_offsets and seconds % 86400 == 0:
+        found += [contract.NO_OFFSET]
+    return tuple(found)
+
+
+def _tail_unit_size(facts: contract.DatetimeFacts) -> int:
+    """One tail unit in this reading's own units (G7.1, contract DT4)."""
+    if facts.tail_unit == parsing.TAIL_UNIT_DAY:
+        return 86400
+    if facts.tail_unit == parsing.TAIL_UNIT_MINUTE:
+        return 60
+    return 1
 
 
 def _spellings_of_an_instant(facts: contract.DatetimeFacts) -> int:
@@ -11679,7 +21492,35 @@ def _spellings_of_an_instant(facts: contract.DatetimeFacts) -> int:
             unnamed = 1
         else:
             named = named + 1
-    return max(1, named + unnamed)
+    # ...times the marks between day and clock the column writes (plan
+    # P4-D39): one instant can wear each named mark, and since landing
+    # 2b.3 each unnamed mark a withheld pool is written with -- as many
+    # of the marks the column's reader permits as the pool has values.
+    marked = 0
+    for key in facts.datetime_separators:
+        if key != contract.WITHHELD:
+            marked = marked + 1
+    if contract.WITHHELD in facts.datetime_separators:
+        permitted = len(parsing.DATETIME_SEPARATORS)
+        if facts.parser_family in contract.CLOCK_FORM_MEMBERS:
+            permitted = 1
+        marked = marked + min(
+            max(0, permitted - marked),
+            facts.datetime_separators[contract.WITHHELD],
+        )
+    # ...and once more as a bare date, on an `iso-mixed` column counted in
+    # days that holds any (landing 2b.3): a whole date carries neither an
+    # offset nor a mark, so it adds exactly one spelling per day.
+    bare = 0
+    if (
+        facts.parser_family == contract.FORMAT_ISO_MIXED
+        and _counts_in_days(facts)
+        and facts.resolution_mix["iso-date"] > 0
+    ):
+        bare = 1
+    # ...and times the written forms one instant can take (plan P4-D137).
+    forms = contract.written_forms_of_an_instant(facts)
+    return max(1, named + unnamed) * max(1, marked) * forms + bare
 
 
 def _ranks_forced_apart(lows: "list[int]", highs: "list[int]") -> int:
@@ -11687,105 +21528,167 @@ def _ranks_forced_apart(lows: "list[int]", highs: "list[int]") -> int:
 
     Two ranks whose windows of G12.4 do not overlap cannot hold the same
     instant, so the largest set of ranks with pairwise separate windows
-    is a lower bound on how many different values the twin holds. The
-    windows arrive in non-decreasing order of both ends, so the count is
-    taken in one walk: keep the first rank, then keep each later rank
-    whose lower end is strictly above the last kept rank's upper end.
+    is a lower bound on how many different values the twin holds. It is
+    taken in one walk over the windows in the order of their upper ends:
+    keep the first, then keep each later one whose lower end is strictly
+    above the last kept one's upper end. The windows of G12.4 arrive in
+    that order already; those past the strata (`_past_the_strata`) need
+    not, and a walk in rank order then keeps a wide window and counts
+    fewer than are forced apart (plan P4-D358).
     """
     count = 0
     frontier = 0
-    for rank in range(len(lows)):
-        if count == 0 or lows[rank] > frontier:
+    for high, low in sorted(zip(highs, lows)):
+        if count == 0 or low > frontier:
             count = count + 1
-            frontier = highs[rank]
+            frontier = high
     return count
 
 
+def _past_the_strata(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    dated: int,
+    floor: int,
+    date_system: str,
+    lows: "list[int]",
+    highs: "list[int]",
+) -> "tuple[list[int], list[int]]":
+    """The rank windows the count pass may meet a count in (G12.5, plan P4-D358).
+
+    THE LOWER END FOLLOWS THE PASS AS IT NOW IS (the review of landing
+    3b.0, item 1). Where no placement inside the gaps meets the count,
+    G7.3 lets an unpinned rank of a tail drawn through its shape stand
+    past its stratum, anywhere strictly beyond its tail's boundary and no
+    further out than the tail's outermost rank. Counted in the strata
+    alone, 114 dates of 35 different days at a floor of 50 drew a lower
+    end of 39, so the count was never held exactly: the twin the pass
+    wrote held 35, and a file holding 60 was WITHIN-BOUND of 39 to 114
+    with nothing missed. So wherever the count is reachable, each such
+    rank -- one whose window here is no single point -- reaches from its
+    own window out to its tail's outermost rank's, and in to the tail
+    unit next to the boundary, keeping its own reading allowance.
+    Written out from the method, never imported (V1.4).
+
+    Guarantees: returns new windows, those of every other rank as given;
+    a function of the arguments. Raises nothing for a loaded
+    description. No I/O of any kind.
+    """
+    lows = list(lows)
+    highs = list(highs)
+    if (
+        not contract.datetime_counts_reachable(column)
+        or facts.low_tail is None
+        or facts.high_tail is None
+    ):
+        return (lows, highs)
+    windows = _date_tail_windows(column, facts, floor, date_system)
+    unit = _tail_unit_size(facts)
+    half = 0
+    if facts.tail_unit == parsing.TAIL_UNIT_DAY and not _counts_in_days(facts):
+        half = 43200
+    for side, tail, low_side in (
+        ("low", facts.low_tail, True),
+        ("high", facts.high_tail, False),
+    ):
+        if side not in windows or tail.rows < 1:
+            continue
+        boundary = _ordinal_of(tail.boundary, facts.resolution)
+        anchor = boundary
+        if half > 0:
+            anchor = ((boundary + half) // unit) * unit
+        outermost = 0 if low_side else dated - 1
+        for index in range(tail.rows):
+            rank = index if low_side else dated - 1 - index
+            if lows[rank] >= highs[rank]:
+                continue
+            if low_side:
+                lows[rank] = min(lows[rank], lows[outermost])
+                highs[rank] = max(highs[rank], anchor - unit + max(half - 1, 0))
+            else:
+                lows[rank] = min(lows[rank], anchor + unit - half)
+                highs[rank] = max(highs[rank], highs[outermost])
+    return (lows, highs)
+
+
 def _rank_windows(
-    facts: contract.DatetimeFacts, dated: int
+    facts: contract.DatetimeFacts,
+    dated: int,
+    column: "contract.ColumnBlock | None" = None,
+    floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
+    date_system: str = "",
 ) -> "tuple[list[int], list[int]]":
     """The window every rank of a column of dates sits in (method G12.4).
 
     THE CONSTRUCTION, WRITTEN FROM THE METHOD AND NOT IMPORTED (V1.4,
-    V4.2; review items P3-V4-F4 and P3-V4-F5). Rank `k` of G7.3 is its
-    own stratum: its share of the distribution is the band from `k / P`
-    to `(k + 1) / P` and no word can take it outside that band, so
+    V4.2; review items P3-V4-F4 and P3-V4-F5). Every rank is drawn inside
+    its own gap (`_pin_bounds_of`), so with `P[k]` and `Q[k]` the two ends
+    of rank `k`'s gap
 
-        Ladder(k / P) - u   <=   O[k]   <=   Ladder((k + 1) / P)
+        P[k] - u   <=   O[k]   <=   Q[k]
 
-    with `Ladder` read by the SAME whole-number interpolation G7.3
-    builds cells with (`_ladder_ordinal_at`) and `u` the reading unit
-    below. **The two ends are PINNED**: G7.3 writes rank `0` at the
-    published `earliest` and rank `P - 1` at the published `latest`,
-    exactly as published, so those two ranks have no room at all. The
-    profile contract's D11 makes those two instants the ladder's own two
-    ends, which is why they are read off the ladder here.
-
-    Leaving the pinning out was review item P3-V4-F4: the first and last
-    ranks got the interior band, the separateness walk of G12.5 then let
-    the first window swallow ranks that cannot share its instant, and a
-    file with four different quarters passed a bound the construction
-    puts at six.
+    and `u` the reading unit below. **A pinned rank's window is a
+    POINT**: it holds the value the description publishes and nothing
+    else, which is what makes each published rung an exact placement
+    rather than a band. Since stage 3 the pinned ranks are the two tail
+    boundaries and the rungs between them; no end is pinned, because no
+    end is published.
 
     Guarantees:
 
-    - Inputs: one column's published datetime facts, and how many of its
-      cells read back as a date. Nothing measured is consulted: this is
-      what the DESCRIPTION obliges, and the caller compares the file
-      with it.
-    - Determinism: a fixed function of those two, in whole-number
-      arithmetic throughout -- no float is formed anywhere in it, as
-      G7.1 requires of every step in this space.
+    - Inputs: one column's published datetime facts, how many of its cells
+      read back as a date, and what the tails need. Nothing measured is
+      consulted: this is what the DESCRIPTION obliges.
+    - Determinism: a fixed function of those, in whole-number arithmetic
+      for every gap and in G7.3b's binary64 arithmetic for a tail's strata.
     - Errors raised: TypeError through `_ordinal_of` where a published
       instant names no point in its own resolution's space, which is a
       contradiction between the strict loader and this reading rather
       than a fact about any file (V3.4-A1).
     """
-    step = _space_unit(facts)
-    ladder = _ladder_ordinals(facts)
     unit = _reading_unit(facts)
-    last = len(_LADDER_KEYS) - 1
+    bounds_low, bounds_high = _pin_bounds_of(
+        facts, dated, column, floor, date_system
+    )
     lows: list[int] = []
     highs: list[int] = []
     for rank in range(dated):
-        if rank == 0:
-            lows = lows + [step * ladder[0]]
-            highs = highs + [step * ladder[0]]
-            continue
-        if rank == dated - 1 and dated >= 2:
-            lows = lows + [step * ladder[last]]
-            highs = highs + [step * ladder[last]]
-            continue
-        lows = lows + [
-            step * _ladder_ordinal_at(ladder, rank, dated) - unit
-        ]
-        highs = highs + [step * _ladder_ordinal_at(ladder, rank + 1, dated)]
+        room = unit
+        if bounds_low[rank] == bounds_high[rank]:
+            # NO ROOM, NO ALLOWANCE (repair pass of landing 2b.6): a rank
+            # whose two bounds are one value draws nothing and is written
+            # at the pinned value itself.
+            room = 0
+        lows += [bounds_low[rank] - room]
+        highs += [bounds_high[rank]]
     return (lows, highs)
 
 
-def _ladder_ordinals(facts: contract.DatetimeFacts) -> "list[int]":
-    """The eleven published rungs, in the unit the METHOD counts them in.
+def _counts_in_days(facts: contract.DatetimeFacts) -> bool:
+    """Whether a column's ordinals are counted in whole days (P4-D39).
 
-    AND THAT IS NOT ALWAYS THE UNIT THIS READING COUNTS IN, which is the
-    third divergence of review item P3-V4-F4. `_instant_of` reads a
-    whole date into the SECONDS its two neighbours already speak, and
-    the method's ordinal unit for a column of whole dates is ONE DAY --
-    so the interpolation of G7.3, which FLOORS, gives a different answer
-    in the two units: floored in seconds it lands part way through a
-    day, and floored in days it lands on the day the construction can
-    actually write. The scaling does not cancel through a floor, and a
-    window drawn the finer way sat up to a whole day above the
-    construction's own lower end.
+    A column of dates is, and so is a column of moments whose every value
+    stands at midnight: the generator counts that one in days and writes
+    each day back with a midnight clock, so a window drawn in seconds
+    would call its own twin's cells out of place. The ONE predicate every
+    unit below asks, so the space, the step, the reading unit and the
+    unit's name cannot disagree about which columns it covers.
 
-    So the arithmetic is done in the method's unit and put back into
-    this reading's afterwards (`_space_unit`). A published rung of a
-    date column names midnight, so the division is exact.
+    Guarantees: accepts loaded datetime facts; returns a bool.
+    Determinism: a function of the facts. Raises nothing. No I/O.
     """
-    step = _space_unit(facts)
-    return [
-        _ordinal_of(rung, facts.resolution) // step
-        for rung in facts.date_percentiles.rungs
-    ]
+    if facts.resolution == taxonomy.RESOLUTION_DATE:
+        return True
+    # ON ITS OWN CLOCK ONLY (landing 2b.3). A column wholly at a LOCAL
+    # midnight on the shared clock publishes instants that are not
+    # values at midnight of that clock, and the generator counts it in seconds, so
+    # this reading does too: a day unit would floor `2024-03-09 23:00:00`
+    # into the wrong day and hide a twin written a day early.
+    return (
+        facts.resolution == taxonomy.RESOLUTION_DATETIME
+        and facts.all_at_midnight
+        and facts.datetimes_read_at == "local"
+    )
 
 
 def _space_unit(facts: contract.DatetimeFacts) -> int:
@@ -11796,7 +21699,7 @@ def _space_unit(facts: contract.DatetimeFacts) -> int:
     DAY for a column of whole dates, which this reading counts as 86400
     of its own units.
     """
-    if facts.resolution == taxonomy.RESOLUTION_DATE:
+    if _counts_in_days(facts):
         return 86400
     return 1
 
@@ -11862,7 +21765,7 @@ def _precision_step(facts: contract.DatetimeFacts) -> int:
         return 1
     if facts.resolution == taxonomy.RESOLUTION_MONTH:
         return 1
-    if facts.resolution == taxonomy.RESOLUTION_DATE:
+    if _counts_in_days(facts):
         return 86400
     if facts.time_precision == parsing.PRECISION_MINUTE:
         return 60
@@ -11902,6 +21805,7 @@ def _reading_unit(facts: contract.DatetimeFacts) -> int:
     if (
         facts.resolution == taxonomy.RESOLUTION_DATETIME
         and facts.time_precision == parsing.PRECISION_MINUTE
+        and not facts.all_at_midnight
     ):
         return unit + 59
     return unit
@@ -12025,6 +21929,7 @@ def _text_checks(
     facts: contract.TextFacts,
     block: "dict[str, object]",
     floor: int,
+    cells: "list[str] | None" = None,
 ) -> "list[Check]":
     """A column no rule claimed, which publishes none of its values."""
     name = column.name
@@ -12034,7 +21939,7 @@ def _text_checks(
         ("n_code_alphabet", facts.n_code_alphabet),
     ):
         found = _count_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"free_text.{field}",
@@ -12050,7 +21955,7 @@ def _text_checks(
         ("max", facts.length.maximum),
     ):
         found = None if lengths is None else _count_at(lengths, key)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"free_text.length.{key}",
@@ -12064,7 +21969,7 @@ def _text_checks(
         ("max", facts.words.maximum),
     ):
         found = None if words is None else _count_at(words, key)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"free_text.words.{key}",
@@ -12074,7 +21979,7 @@ def _text_checks(
             )
         ]
     checks = checks + _text_shape_checks(column, facts, lengths, words)
-    checks = checks + [
+    checks += [
         _occurrences(
             name,
             "free_text.n_distinct_by_occurrences",
@@ -12083,7 +21988,8 @@ def _text_checks(
         )
     ]
     checks = checks + _form_checks(
-        name, "free_text.shape_forms", facts.shape_forms, block, floor
+        name, "free_text.shape_forms", facts.shape_forms, block, floor,
+        cells=cells,
     )
     return checks
 
@@ -12094,6 +22000,9 @@ def _form_checks(
     census: "dict[str, int]",
     block: "dict[str, object]",
     floor: int,
+    census_key: str = "shape_forms",
+    named: str = "forms",
+    cells: "list[str] | None" = None,
 ) -> "list[Check]":
     """The census of written forms, recounted on the measured file.
 
@@ -12105,19 +22014,36 @@ def _form_checks(
     nothing, and the fact that lets a held-back value have a stand-in
     shaped like one would be published and never checked.
     """
-    measured = _map_at(block, "shape_forms")
+    measured = _map_at(block, census_key)
+    if measured is not None and cells is not None and (
+        census_key == "shape_forms"
+    ):
+        # RECOUNTED UNDER THE SUBMITTED CENSUS'S OWN CASE CONVENTION (plan
+        # P4-D159), off the cells, and not read off the file's own census.
+        # That census decides for ITSELF whether a form's lower-case cells
+        # are named apart, on the measured file's own values: a twin whose
+        # 200 lower-case cells no longer fold onto a capitalised neighbour
+        # names them `&&%%%` where the published census, blind to case,
+        # names `@@%%%` -- and the file holding every one of the 200 was
+        # told it held fewer than eleven. `parsing.census_form` is the
+        # reading the generator writes to, so a cell is counted under the
+        # key the published census files it under. A count below the
+        # floor stays unprinted, as the file's own census would leave it.
+        measured = _form_recount(census, cells, floor)
     held_back = 0
     if taxonomy.SUPPRESSED_LABEL in census:
         held_back = census[taxonomy.SUPPRESSED_LABEL]
+    if measured is not None and cells is not None:
+        held_back = held_back + _judged_absent(block, cells)
     checks: "list[Check]" = []
     for form in sorted(census):
         if form == taxonomy.SUPPRESSED_LABEL:
             continue
-        checks = checks + [
+        checks += [
             _floor_governed(
                 name,
                 fact,
-                f"forms.published.{form}",
+                f"{named}.published.{form}",
                 census[form],
                 measured,
                 form,
@@ -12126,6 +22052,86 @@ def _form_checks(
             )
         ]
     return checks
+
+
+def _judged_absent(block: "dict[str, object]", cells: "list[str]") -> int:
+    """How many written cells the file's own description counts as ABSENT.
+
+    THE CENSUS COUNTS THE CELLS THE DESCRIPTION WAS MADE FROM, and the
+    recount walks every cell the file holds, so the two populations part
+    wherever the producer judged a written cell absent (Codex item 7 of
+    the extra round, 2026-09-18; plan P4-D262). Three passes do that: the
+    declared missing words and sentinels, the cores and the placeholder
+    days; a fourth, which counted as missing the levels a reader could
+    count by subtraction, stood until plan P4-D390 retired it. No recount
+    can name WHICH cells went, and the number is what the file can
+    evidence: the cells it wrote, less the cells its own description
+    says are present.
+
+    MEASURED before this allowance, while that fourth pass stood: `0.0`
+    nineteen rows, `1.0` nineteen, `2.0` one, `3.0` thirty and a word
+    twelve, at a floor of five. The producer counted the lone `2.0` as
+    missing and published
+    `shape_forms {"%.%": 68}`; the recount walked all 69 written cells of
+    that form and the REAL TABLE was told it had missed an obligation set
+    by its own description. The count is added to the pool's own window,
+    which is the same treatment and the same arithmetic: a form may be
+    recounted at its published number and at most that number plus the
+    cells no published count covers.
+
+    Guarantees: accepts the file's own description block and its cells;
+    returns nought or more. Determinism: a function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    written = 0
+    for cell in cells:
+        if parsing.trimmed(cell):
+            written = written + 1
+    present = _count_at(block, "n_present")
+    if present is None or present >= written:
+        return 0
+    return written - present
+
+
+def _form_recount(
+    census: "dict[str, int]", cells: "list[str]", floor: int
+) -> "dict[str, int]":
+    """Each published form's cells in a file, under the census's own keys.
+
+    Only a key the census names is counted, blank cells are not cells
+    of the census at all, and a count under the floor is left out, so
+    the check says "below the floor" rather than printing it.
+
+    A LOWER-CASE KEY NAMED WITHOUT THE FORM'S OWN KEY counts every cell of
+    the form (contract C6-31a, plan P4-D160): the census names it alone
+    where fewer than the line -- the floor or two, whichever is larger --
+    of the form's cells were written otherwise. So the cells of that form
+    not in lower case are counted under it where they are fewer than the
+    line, and not at all where they are not: a file writing the column in
+    capitals still misses the key.
+    """
+    line = parsing.census_floor(floor)
+    counted: "dict[str, int]" = {}
+    strays: "dict[str, int]" = {}
+    for cell in cells:
+        if not parsing.trimmed(cell):
+            continue
+        key = parsing.census_form(cell, census)
+        lower = parsing.lower_case_form(key) if key else ""
+        if key and key not in census and lower and lower in census:
+            strays[lower] = (strays[lower] if lower in strays else 0) + 1
+            continue
+        if not key or key not in census or key == taxonomy.SUPPRESSED_LABEL:
+            continue
+        counted[key] = (counted[key] if key in counted else 0) + 1
+    for key in sorted(strays):
+        if strays[key] < line:
+            counted[key] = (counted[key] if key in counted else 0) + strays[key]
+    kept: "dict[str, int]" = {}
+    for key in sorted(counted):
+        if counted[key] >= floor:
+            kept[key] = counted[key]
+    return kept
 
 
 def _group_span(
@@ -12328,7 +22334,7 @@ def _text_shape_checks(
         if published is None:
             continue
         found = None if holder is None else _number_at(holder, key)
-        checks = checks + [
+        checks += [
             _within(
                 name,
                 fact,
@@ -12347,29 +22353,129 @@ def _identifier_checks(
     column: contract.ColumnBlock,
     facts: contract.IdentifierFacts,
     block: "dict[str, object]",
+    cells: "list[str]",
+    floor: int,
     mine: "tuple[str, ...]",
 ) -> "list[Check]":
     """A column the person declared to hold record numbers."""
     name = column.name
     checks: list[Check] = []
+    present = [cell for cell in cells if parsing.trimmed(cell)]
+    census = taxonomy.layout_census(present, floor, len(set(present)))
+    # RULE A1, READ AS IT WAS WRITTEN (lane CODES-3, plan P4-D428): a
+    # description publishing a `(column)` prefix, no `(withheld)` pool and
+    # named layouts counting every present cell (`taxonomy.
+    # a1_census_is_absorbed`) counted the cells of its other layouts in its
+    # commonest one (`taxonomy.with_layout_pool_absorbed`). So a measured
+    # cell is counted in the commonest published layout where its own
+    # layout is one the producer would have moved: one the recount does
+    # not name (under the line, too small a supply), or one whose room the
+    # published prefix takes below the line (LP3). A layout the recount
+    # names and the room rule keeps is counted as itself, so floor's worth
+    # of cells moved to a shorter layout still misses; the shortest and
+    # longest lengths are read off the layouts the cells are counted in.
+    # A census that left cells to subtraction -- an older description, its
+    # short layout too small a supply to name -- is read as it was
+    # written (Codex's review of lane CODES-3, item 5).
+    absorbed_lengths: "dict[str, int]" = {}
+    into = taxonomy.a1_census_is_absorbed(
+        facts.layout_forms, facts.layout_prefixes, column.n_present,
+        facts.all_whole_numbers,
+    )
+    if into:
+        convention = parsing.layout_convention(present)
+        distinct = len(set(present))
+        named = [layout for layout in sorted(facts.layout_forms)]
+        if parsing.PREFIX_OF_THE_COLUMN in facts.layout_prefixes:
+            prefix = facts.layout_prefixes[parsing.PREFIX_OF_THE_COLUMN]
+            for layout in sorted(census):
+                if (
+                    layout != contract.WITHHELD
+                    and layout not in facts.layout_forms
+                    and parsing.prefix_leaves_room(
+                        layout, prefix, convention, distinct, floor
+                    )
+                ):
+                    named += [layout]
+        else:
+            # ...AND RULE A1 WITHOUT A PREFIX, a whole record number written
+            # as a decimal (P4-D428; `taxonomy._with_whole_places_absorbed`):
+            # a layout the recount names is counted as itself, and so is
+            # every layout that is not of the published places, so only a
+            # measured cell the producer would have moved -- the same
+            # places, its layout too small a room or under the line -- is
+            # counted in the commonest.
+            places = taxonomy.whole_places_layout_of(into)
+            worn: "dict[str, bool]" = {}
+            for cell in present:
+                worn[parsing.layout_form(cell, convention)] = True
+            for layout in sorted(worn):
+                if layout and layout not in facts.layout_forms and (
+                    layout in census
+                    or taxonomy.whole_places_layout_of(layout) != places
+                ):
+                    named += [layout]
+        absorbed = taxonomy.absorbed_layout_census(named, present, convention, into)
+        census = {}
+        for layout in sorted(absorbed[0]):
+            if absorbed[0][layout]:
+                census[layout] = absorbed[0][layout]
+        absorbed_lengths = {"min_length": absorbed[1], "max_length": absorbed[2]}
+    # WHAT NO TWIN CELL MAY HOLD MOVES WHAT IT MUST (lane ID-ROOM, plan
+    # P4-D432): a layout carrying no exclusion, and the lengths with it,
+    # are listed REPORT-ONLY (`moved_off_the_real`).
+    moved, lengths = moved_off_the_real(
+        facts, column.n_present, column.time_grain is not None
+    )
+    # ...AND A VALUE THE TWIN WROTE WIDER ALL THE SAME (method G9.6b: an
+    # excluded template a value of another class or a date could not
+    # take): every real cell's merged key is shorter than the spill's, so
+    # a measured cell as long is one the twin wrote wider, and the census
+    # entries and lengths it leaves are an AUTHORIZED-DEVIATION, bounded
+    # by how many there are (skeptic 1 of lane ID-ROOM, item 5).
+    wider = taxonomy.written_wider(
+        facts.layout_exclusions, facts.layout_prefixes, present
+    )
+    bound = taxonomy.spill_bound(facts.layout_exclusions, facts.layout_prefixes)
     for field, published, subcheck in (
         ("min_length", facts.min_length, "length.min"),
         ("max_length", facts.max_length, "length.max"),
         ("n_all_digits", facts.n_all_digits, "counts.n_all_digits"),
         ("n_code_alphabet", facts.n_code_alphabet, "counts.n_code_alphabet"),
     ):
-        found = _count_at(block, field)
-        checks = checks + [
-            _exact(
+        if lengths and field in ("min_length", "max_length"):
+            continue
+        found = (
+            absorbed_lengths[field]
+            if field in absorbed_lengths
+            else _count_at(block, field)
+        )
+        check = _exact(
+            name,
+            f"identifier.{field}",
+            subcheck,
+            _shown_count(published),
+            None if found is None else _shown_count(found),
+        )
+        if (
+            check.verdict == MISSED
+            and wider
+            and found is not None
+            and field in ("min_length", "max_length")
+            and _lengths_kept_by_the_rest(facts, present, bound)
+        ):
+            check = Check(
                 name,
                 f"identifier.{field}",
                 subcheck,
+                AUTHORIZED_DEVIATION,
                 _shown_count(published),
-                None if found is None else _shown_count(found),
+                _shown_count(found),
+                _WRITTEN_WIDER_CITATION,
             )
-        ]
+        checks += [check]
     found_truth = _truth_at(block, "all_whole_numbers")
-    checks = checks + [
+    checks += [
         _exact(
             name,
             "identifier.all_whole_numbers",
@@ -12378,11 +22484,50 @@ def _identifier_checks(
             None if found_truth is None else _shown_truth(found_truth),
         )
     ]
+    # THE LAYOUT CENSUS IS CHECKED BEFORE THE CORNER AND INSIDE IT
+    # (7.12, plan P4-D120). Owner decision 6's corner is about
+    # DISTINCTNESS -- a published length range that cannot supply as
+    # many different values as the column has rows -- and it lowers
+    # exactly the three distinctness facts. What a cell LOOKS like is
+    # untouched by it: a twin whose identifiers repeat still writes
+    # every one of them to a published layout, so the census is owed
+    # there exactly as it is owed anywhere, and putting this check
+    # after the early return would have quietly excused it.
+    #
+    # AND THE CENSUS IS RECOUNTED OFF THE CELLS, NOT READ OFF THE FILE'S
+    # OWN DESCRIPTION (plan P4-D124). That description applies the
+    # whole-census rule of C6-131b -- no layout census may leave exactly
+    # one cell over against a total -- and that rule takes decisions
+    # about the MEASURED file's own cells. A twin whose made-up cells
+    # happened to leave one cell off its named layouts would have a
+    # layout it holds at the published count taken back, and be told it
+    # MISSED. `taxonomy.layout_census` is every rule of C6-130 about one
+    # layout at a time, which is exactly what a recount of one published
+    # layout needs, and nothing it prints is more than the file holds.
+    # (Recounted above, where rule A1 reads it: plan P4-D428.)
+    recounted: "dict[str, object]" = {"layout_forms": census}
+    owed: "dict[str, int]" = {}
+    for layout in sorted(facts.layout_forms):
+        if layout not in moved:
+            owed[layout] = facts.layout_forms[layout]
+    checks = checks + _written_wider_forms(
+        _form_checks(
+            name, "identifier.layout_forms", owed, recounted, floor, "layout_forms",
+        ),
+        owed,
+        census,
+        floor,
+        present,
+        facts,
+        bound,
+    )
+    checks = checks + _prefix_checks(name, facts, present)
+    checks = checks + _uid_grammar_checks(name, facts, present)
     if CORNER_IDENTIFIER_INFEASIBLE in mine:
         # REPORT-ONLY in this corner, listed rather than checked (owner
         # decision 6; review item P3-V1-F4).
         return checks
-    checks = checks + [
+    checks += [
         _occurrences(
             name,
             "identifier.n_distinct_by_occurrences",
@@ -12391,6 +22536,268 @@ def _identifier_checks(
         )
     ]
     return checks
+
+
+def moved_off_the_real(
+    facts: contract.IdentifierFacts, n_present: int, grained: bool = False
+) -> "tuple[tuple[str, ...], bool]":
+    """A record number's corner of plan P4-D432: the layouts and lengths its twin gives up.
+
+    THIS VALIDATOR'S OWN READING of contract 7.12b and method G9.6b, from
+    the description alone, as `corners_of` reads its corners (a second
+    opinion on the generator, never its planner): a named layout no
+    exclusion is published for has every value of its twin written wider
+    than every real cell, so its census entry is REPORT-ONLY, and the
+    shortest and longest lengths are REPORT-ONLY with it wherever such a
+    layout is named, a pool stands, or the census counts fewer cells than
+    the column holds (cells outside the named layouts, written wider or by
+    the G1 floor). A description publishing no exclusion gives up nothing.
+    Raises nothing. No I/O.
+    """
+    exclusions = facts.layout_exclusions
+    if not exclusions or grained:
+        # A column of dates or times at a published grain (plan P4-D417)
+        # gives up nothing: its twin moves a value only inside its own
+        # excluded templates, and the G1 floor writes the rest.
+        return (), False
+    given_up: "list[str]" = []
+    total = 0
+    for layout in sorted(facts.layout_forms):
+        total = total + facts.layout_forms[layout]
+        if layout != contract.WITHHELD and layout not in exclusions:
+            given_up += [layout]
+    pooled = contract.WITHHELD in facts.layout_forms or total < n_present
+    return tuple(given_up), bool(given_up) or pooled
+
+
+# What authorizes a record number's census entry and lengths a value its
+# twin wrote wider leaves (plan P4-D432), in the plan's words.
+_WRITTEN_WIDER_CITATION = (
+    "phase-4 plan P4-D432, as the disposition registry cites it: in a "
+    "record number written wider, the census entry of a layout carrying "
+    "an exclusion, `min_length` and `max_length` are APPROXIMATED, by the "
+    "values the twin wrote wider than every real value"
+)
+
+
+def _lengths_kept_by_the_rest(
+    facts: contract.IdentifierFacts, present: "list[str]", bound: int
+) -> bool:
+    """Whether every measured cell not written wider lies inside the published lengths (plan P4-D432)."""
+    for cell in present:
+        if len(parsing.merged_key(cell)) >= bound:
+            continue
+        if not facts.min_length <= len(cell) <= facts.max_length:
+            return False
+    return True
+
+
+def _written_wider_forms(
+    checks: "list[Check]",
+    owed: "dict[str, int]",
+    census: "dict[str, int]",
+    floor: int,
+    present: "list[str]",
+    facts: contract.IdentifierFacts,
+    bound: int,
+) -> "list[Check]":
+    """The census entries a record number's twin left by writing values wider, authorized (P4-D432).
+
+    THE EXACT BAR IS TRIED FIRST: a layout's entry the twin met is HELD.
+    One it MISSED by holding fewer cells than published is an
+    AUTHORIZED-DEVIATION where the measured file holds cells written
+    wider than every real one IN A LAYOUT THAT LAYOUT'S VALUES ARE
+    WIDENED INTO -- its own widened under its prefix, or the spill
+    (`taxonomy.widened_layouts_of`) -- as many as its shortfall, and
+    every such shortfall together is no more than those cells; a surplus,
+    or a shortfall they do not cover, stays MISSED, so a stand-in of
+    another layout written wider excuses nothing. A count under the
+    floor is not printed.
+    """
+    if not bound:
+        return checks
+    convention = parsing.layout_convention(present)
+    widened = taxonomy.widened_layouts_of(
+            facts.layout_forms, facts.layout_prefixes, facts.layout_exclusions,
+            facts.all_whole_numbers, convention,
+        )
+    # Every cell counted under its own layout, a count under the floor
+    # included: the arithmetic below prints none of them.
+    worn: "dict[str, int]" = {}
+    could: "dict[str, int]" = {}
+    any_named = 0
+    for cell in present:
+        layout = parsing.layout_form(cell, convention)
+        worn[layout] = (worn[layout] if layout in worn else 0) + 1
+        if len(parsing.merged_key(cell)) < bound or layout not in widened:
+            continue
+        any_named = any_named + 1
+        for source in widened[layout]:
+            could[source] = (could[source] if source in could else 0) + 1
+    if not any_named:
+        return checks
+    short = 0
+    for check in checks:
+        layout = check.subcheck[len("forms.published."):]
+        if check.verdict == MISSED and layout in owed:
+            found = census[layout] if layout in census else (
+                worn[layout] if layout in worn else 0
+            )
+            gap = owed[layout] - found
+            if gap <= 0 or gap > (could[layout] if layout in could else 0):
+                return checks
+            short = short + gap
+    if short > any_named:
+        return checks
+    authorized: "list[Check]" = []
+    for check in checks:
+        layout = check.subcheck[len("forms.published."):]
+        if check.verdict != MISSED or layout not in owed:
+            authorized += [check]
+            continue
+        published = owed[layout]
+        cover = could[layout] if layout in could else 0
+        authorized += [
+            Check(
+                check.column,
+                check.fact,
+                check.subcheck,
+                AUTHORIZED_DEVIATION,
+                f"{_shown_count(published)} "
+                f"({_shown_window(float(max(published - cover, 0)), float(published))})",
+                _shown_count(census[layout])
+                if layout in census
+                else _below_the_floor(floor),
+                _WRITTEN_WIDER_CITATION,
+            )
+        ]
+    return authorized
+
+
+def _prefix_checks(
+    name: str, facts: contract.IdentifierFacts, present: "list[str]"
+) -> "list[Check]":
+    """The published literal prefixes, recounted on the measured file.
+
+    OWNER RULING OF 2026-09-17, ITEM 1 (contract 7.12a, validation
+    method V3.6). `(column)` says every present cell opens with the
+    prefix, and a layout entry says every cell wearing that layout does,
+    so each is one exact obligation: no cell it governs opens otherwise.
+    The layout a cell wears is read under the convention the file's own
+    cells decide, as the census's recount reads it (C6-128).
+
+    NEITHER THE PREFIX NOR THE COUNT IS PRINTED. The published side is
+    said in words, because the prefix is text of the table and one
+    report may be handed to somebody holding no file, and the measured
+    side is a count of the file's cells, kept back on a miss as every
+    such count is.
+    """
+    prefixes = facts.layout_prefixes
+    if not prefixes:
+        return []
+    convention = parsing.layout_convention(present)
+    checks: "list[Check]" = []
+    # ...AND A VALUE WRITTEN WIDER KEEPS ITS LAYOUT'S PREFIX (Codex's review
+    # of lane ID-ROOM, item 4). Where every named layout publishes its own
+    # prefix and the column none, a measured cell written wider than every
+    # real one (`taxonomy.written_wider`) wears no named layout, so no
+    # layout's entry governs it: it is owed one of the published prefixes.
+    named = [layout for layout in sorted(facts.layout_forms) if layout != contract.WITHHELD]
+    bound = taxonomy.spill_bound(facts.layout_exclusions, facts.layout_prefixes)
+    if (
+        bound
+        and named
+        and parsing.PREFIX_OF_THE_COLUMN not in prefixes
+        and all(layout in prefixes for layout in named)
+    ):
+        # The layouts a value of a named layout is written wider in: its own
+        # widened under its prefix (`taxonomy.widened_layouts_of`), and the
+        # spill. A stand-in of a layout the census leaves unnamed, written
+        # wider in its own kinds, opened with no prefix before and is not
+        # one of them.
+        widened = taxonomy.widened_layouts_of(
+            facts.layout_forms, facts.layout_prefixes, facts.layout_exclusions,
+            facts.all_whole_numbers, convention,
+        )
+        opens_otherwise = 0
+        for cell in present:
+            if len(parsing.merged_key(cell)) < bound:
+                continue
+            if parsing.layout_form(cell, convention) not in widened:
+                continue
+            if not any(cell[: len(prefixes[layout])] == prefixes[layout] for layout in named):
+                opens_otherwise = opens_otherwise + 1
+        checks += [
+            _silent(
+                name,
+                "identifier.layout_prefixes",
+                f"prefix.{parsing.EXCLUSION_SPILL}",
+                "every cell written wider than every real cell opens with a "
+                "prefix the description publishes for a layout",
+                opens_otherwise == 0,
+                _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
+            )
+        ]
+    for scope in sorted(prefixes):
+        prefix = prefixes[scope]
+        opens_otherwise = 0
+        for cell in present:
+            if scope != parsing.PREFIX_OF_THE_COLUMN and (
+                parsing.layout_form(cell, convention) != scope
+            ):
+                continue
+            if cell[: len(prefix)] != prefix:
+                opens_otherwise = opens_otherwise + 1
+        governed = "every present cell"
+        if scope != parsing.PREFIX_OF_THE_COLUMN:
+            governed = f"every cell written in the layout {scope}"
+        checks += [
+            _silent(
+                name,
+                "identifier.layout_prefixes",
+                f"prefix.{scope}",
+                f"{governed} opens with the prefix the description "
+                "publishes for it",
+                opens_otherwise == 0,
+                _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
+            )
+        ]
+    return checks
+
+
+def _uid_grammar_checks(
+    name: str, facts: contract.IdentifierFacts, present: "list[str]"
+) -> "list[Check]":
+    """A column publishing a UID root: every present cell a UID (plan P4-D428).
+
+    THE GRAMMAR IS AN OBLIGATION (Codex's review of lane CODES-3, item 6).
+    A `(column)` prefix that is a DICOM UID's root (`parsing.is_a_uid_root`)
+    says every present cell is a UID of two points or more under the
+    grammar `[012](\\.(0|[1-9]\\d*))+` (`parsing.is_a_uid`): a cell whose
+    arc is led by a nought misses it, though its layout, prefix and
+    lengths all hold. Every other description gets no such check, and its
+    report no line. Nothing of the file is printed.
+    """
+    prefixes = facts.layout_prefixes
+    if parsing.PREFIX_OF_THE_COLUMN not in prefixes or not parsing.is_a_uid_root(
+        prefixes[parsing.PREFIX_OF_THE_COLUMN]
+    ):
+        return []
+    outside = 0
+    for cell in present:
+        if not parsing.is_a_uid(cell):
+            outside = outside + 1
+    return [
+        _silent(
+            name,
+            "identifier.layout_prefixes",
+            "uid.grammar",
+            "every present cell is a UID, no arc led by a nought, as the "
+            "root the description publishes says",
+            outside == 0,
+            _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
+        )
+    ]
 
 
 def _unrepresentable_checks(
@@ -12433,7 +22840,7 @@ def _unrepresentable_checks(
         ("n_sign_unknown", facts.n_sign_unknown),
     ):
         found = _count_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"numeric_unrepresentable.{field}",
@@ -12442,7 +22849,7 @@ def _unrepresentable_checks(
                 None if found is None else _shown_count(found),
             )
         ]
-    checks = checks + [
+    checks += [
         _occurrences(
             name,
             "numeric_unrepresentable.n_distinct_by_occurrences",
@@ -12498,6 +22905,7 @@ def _listings(
     description: contract.Profile, headed: bool
 ) -> "list[Listing]":
     """Every REPORT-ONLY obligation, and the ones a predicate strands."""
+    smallest = description.settings.small_cell_floor
     listings = [
         Listing("", f"document.{field}", "", _NOT_CHECKABLE_REPORT_ONLY)
         for field in (
@@ -12514,7 +22922,7 @@ def _listings(
         # listing that names neither leaves a reader comparing this
         # census with an ordinary run's unable to see they are the same
         # obligation (review of the shipped reports, 2026-08-15).
-        listings = listings + [
+        listings += [
             Listing(
                 "",
                 "universal.name",
@@ -12530,19 +22938,6 @@ def _listings(
         ]
     corners = corners_of(description)
     for column in description.columns:
-        # AND THE KEYS A JUDGED PASS PUT THERE, one line each. The
-        # field as a whole is an obligation now; these single keys are
-        # not, and naming them here is what keeps the census's own
-        # claim true -- that every fact no file can evidence is on it.
-        for spelling in _judged_hole_spellings(column, description):
-            listings = listings + [
-                Listing(
-                    column.name,
-                    "universal.missing_by_source",
-                    f"holes.by_source.{spelling}",
-                    _NOT_CHECKABLE_JUDGED_HOLE,
-                )
-            ]
         # `missing_by_source` IS NOT ON THIS LIST ANY MORE (R-P4-60).
         # It stopped being report-only at contract version 6, which
         # writes each spelling at its published count; the disposition
@@ -12564,7 +22959,7 @@ def _listings(
             "detection_evidence",
             "remarks",
         ):
-            listings = listings + [
+            listings += [
                 Listing(
                     column.name,
                     f"universal.{field}",
@@ -12578,7 +22973,7 @@ def _listings(
         # each of them differ; this one is computed from the
         # declaration list the file is described under, so it reads the
         # same word on both sides whatever the file holds.
-        listings = listings + [
+        listings += [
             Listing(
                 column.name,
                 "universal.structural_role",
@@ -12586,8 +22981,9 @@ def _listings(
                 _NOT_CHECKABLE_DECLARED_AXIS,
             )
         ]
+        listings = listings + _pooled_scale_listings(column)
         if not _position_is_evidencible(column, headed):
-            listings = listings + [
+            listings += [
                 Listing(
                     column.name,
                     "universal.position",
@@ -12596,22 +22992,148 @@ def _listings(
                 )
             ]
         facts = column.facts
+        if isinstance(facts, contract.IdentifierFacts):
+            # WHAT NO TWIN CELL MAY HOLD MOVES (lane ID-ROOM, plan P4-D432).
+            if facts.layout_exclusions:
+                # The exclusions themselves are REPORT-ONLY: they say what no
+                # real cell holds, and the twin is written off them.
+                listings += [
+                    Listing(
+                        column.name,
+                        "identifier.layout_exclusions",
+                        "layout_exclusions",
+                        _NOT_CHECKABLE_EXCLUSIONS,
+                    )
+                ]
+            moved, lengths = moved_off_the_real(
+        facts, column.n_present, column.time_grain is not None
+    )
+            for layout in moved:
+                listings += [
+                    Listing(
+                        column.name,
+                        "identifier.layout_forms",
+                        f"forms.published.{layout}",
+                        _NOT_CHECKABLE_MOVED_OFF_THE_REAL,
+                    )
+                ]
+            if lengths:
+                for field, subcheck in (
+                    ("min_length", "length.min"), ("max_length", "length.max"),
+                ):
+                    listings += [
+                        Listing(
+                            column.name,
+                            f"identifier.{field}",
+                            subcheck,
+                            _NOT_CHECKABLE_MOVED_OFF_THE_REAL,
+                        )
+                    ]
+        if isinstance(facts, contract.ClockFacts):
+            # WHAT THE TAIL RULE WITHHOLDS (stage 3), listed as a column of
+            # dates lists it below.
+            listings = listings + _tail_listings(column, facts)
         if isinstance(facts, contract.DatetimeFacts):
-            listings = listings + [
-                Listing(
-                    column.name,
-                    "datetime.format",
-                    "",
-                    _NOT_CHECKABLE_REPORT_ONLY,
-                ),
-                Listing(
-                    column.name,
-                    "datetime.resolution_mix",
-                    "",
-                    _NOT_CHECKABLE_RESOLUTION_MIX,
-                ),
-            ]
-            listings = listings + _endpoint_listings(column, facts, corners)
+            # `format` AND THE FORM CENSUS ARE CHECKED since landing
+            # 2b.6, where they were listed before it. Both were
+            # unevidenceable only because the twin was written in ISO
+            # whatever the source wrote, so no file could show the member
+            # that read the real column; the twin is written in that
+            # member now, so describing it again names it.
+            # ...BUT A PARTIAL-DATE COLUMN'S FORMS ARE CHECKED (the Codex
+            # review of landing R2c, item 1), and on a column read jointly
+            # `resolution_mix` and `format` are both checked since landing 3b.7
+            # (plan P4-D378), the twin writing the published count of bare dates;
+            # every other census is listed.
+            if (
+                not _partial_forms_published(facts)
+                and facts.parser_family != contract.FORMAT_ISO_MIXED
+            ):
+                listings += [
+                    Listing(
+                        column.name,
+                        "datetime.resolution_mix",
+                        "",
+                        _NOT_CHECKABLE_RESOLUTION_MIX,
+                    )
+                ]
+            listings += _written_form_listings(column, facts)
+            if subsecond_figures_unwritable(description, column):
+                # SAID OUT LOUD (plan P4-D259.1). The two obligations
+                # `_datetime_checks` leaves out for a workbook whose own
+                # format code writes fewer figures after the second than
+                # the description records -- none, or some (review item
+                # 5 of landing R3) -- filed where a fact no conforming
+                # file can evidence belongs rather than passed over.
+                why = _NOT_CHECKABLE_SUBSECOND_UNWRITABLE
+                if _subsecond_figures_worn(description, column) > 0:
+                    why = _NOT_CHECKABLE_SUBSECOND_FEWER
+                listings += [
+                    Listing(
+                        column.name,
+                        "datetime.time_precision",
+                        "precision.time_precision",
+                        why,
+                    ),
+                    Listing(
+                        column.name,
+                        "datetime.subsecond_digits",
+                        "counts.subsecond_digits",
+                        why,
+                    ),
+                ]
+            # CHECKED since landing 2b.3 wherever the description sets an
+            # obligation (`_mark_checks`, `_midnight_checks`), and LISTED,
+            # never silent, wherever it sets none.
+            if facts.resolution != taxonomy.RESOLUTION_DATETIME:
+                listings += [
+                    Listing(
+                        column.name,
+                        "datetime.datetime_separators",
+                        "",
+                        _NOT_CHECKABLE_NO_CLOCK,
+                    ),
+                    Listing(
+                        column.name,
+                        "datetime.all_at_midnight",
+                        "",
+                        _NOT_CHECKABLE_NO_CLOCK,
+                    ),
+                    Listing(
+                        column.name,
+                        "datetime.n_at_midnight",
+                        "",
+                        _NOT_CHECKABLE_NO_CLOCK,
+                    ),
+                ]
+            else:
+                if not facts.all_at_midnight:
+                    listings += [
+                        Listing(
+                            column.name,
+                            "datetime.all_at_midnight",
+                            "",
+                            _NOT_CHECKABLE_NOT_ALL_AT_MIDNIGHT,
+                        )
+                    ]
+                # ...and LISTED wherever the description publishes no
+                # count at all, which since landing 2b.6 covers a column
+                # no value of which stood at midnight as well as one
+                # whose count either side of the floor would have named a
+                # single person: one obligation is checked or listed,
+                # never both.
+                if (
+                    facts.n_at_midnight is None or facts.n_at_midnight <= 0
+                ) and not contract.midnight_withheld_for_its_size(facts):
+                    listings += [
+                        Listing(
+                            column.name,
+                            "datetime.n_at_midnight",
+                            "",
+                            _NOT_CHECKABLE_NO_MIDNIGHT_COUNT,
+                        )
+                    ]
+            listings = listings + _tail_listings(column, facts)
         # EVERY ROLE THAT CARRIES A QUANTITATIVE BLOCK, AND NOT ONLY
         # THE TWO THAT ARE ONE (review item P4-G6-R4-F1). These
         # branches each tested the OUTER facts for `NumericFacts`,
@@ -12633,7 +23155,7 @@ def _listings(
             # Given the whole column's, a listing could stand where a
             # check belongs and the other way about.
             listings = listings + _numeric_listings(
-                _core_column(column), numbers
+                _core_column(column), numbers, smallest
             )
             # AND THE COUNT OF DIFFERENT NUMBERS WHERE ITS ENVELOPE
             # LICENSES EVERY COUNT THE FILE COULD HOLD (V3.5). It is a
@@ -12663,7 +23185,7 @@ def _listings(
                     _core_column(column), numbers, published
                 )
             ):
-                listings = listings + [
+                listings += [
                     Listing(
                         column.name,
                         "numeric.n_distinct_values",
@@ -12682,7 +23204,7 @@ def _listings(
         # round P4-A2-R1 showed a re-paired file passing clean without
         # them (plan P4-D29).
         if isinstance(facts, contract.JoinedFacts):
-            listings = listings + _joined_listings(column, facts)
+            listings = listings + _joined_listings(column, facts, smallest)
         # AND THE COMPOUND ROLE, whose numeric half is a block of the
         # same kind: `_quantitative_of` returns None for it too, so
         # without this line a compound column's histogram, its field
@@ -12692,7 +23214,7 @@ def _listings(
         # why the line is written with the role rather than after it.
         if isinstance(facts, contract.CompoundFacts):
             listings = listings + _compound_listings(
-                column, facts, _corner_names(corners, column.name)
+                column, facts, _corner_names(corners, column.name), smallest
             )
         # ...AND EVERY WRAPPER OF A SET, whose block is a block of the
         # same kind (plan P4-D37; review round 3, item 4). The line
@@ -12748,7 +23270,7 @@ def _listings(
                         inner, one.numbers, stated
                     ):
                         continue
-                    listings = listings + [
+                    listings += [
                         Listing(
                             column.name,
                             f"affix_variants[{place}].{field}",
@@ -12757,7 +23279,7 @@ def _listings(
                             + CORNER_CITATIONS[corner],
                         )
                     ]
-                for entry in _numeric_listings(inner, one.numbers):
+                for entry in _numeric_listings(inner, one.numbers, smallest):
                     # THE IDENTITY GOES ON THE FACT, because a numeric
                     # listing carries its key there and leaves the
                     # subcheck empty; qualifying the empty one produced
@@ -12778,7 +23300,7 @@ def _listings(
                     head = "numeric."
                     if leaf[: len(head)] == head:
                         leaf = leaf[len(head) :]
-                    listings = listings + [
+                    listings += [
                         dataclasses.replace(
                             entry,
                             fact=f"affix_variants[{place}].numbers.{leaf}",
@@ -12792,43 +23314,77 @@ def _listings(
     return listings
 
 
-def _endpoint_listings(
+def _tail_listings(
     column: contract.ColumnBlock,
-    facts: contract.DatetimeFacts,
-    corners: "dict[str, tuple[str, ...]]",
+    facts: "contract.DatetimeFacts | contract.ClockFacts",
 ) -> "list[Listing]":
-    """An endpoint offset the publication floor held back on its own.
+    """What the tail rule withholds from a column of dates or clock times.
 
-    P2-D9's corner is the map that is NOTHING BUT the withheld key, and
-    `_corner_listings` files all four obligations there. This is the
-    other shape: a map naming real offsets whose own earliest or latest
-    END fell below the floor and was published as the withheld label.
-    The description then names no offset for that end, so no file
-    carries one either way -- and the comparison that stood here asked
-    whether the file's OWN floor had suppressed the same end, which is a
-    fact about how many rows shared an offset rather than about the
-    file's dates, and reported MISSED against the shipped generator's
-    own twin.
+    Every rung whose rank lies inside a tail is published as null, and
+    so are both ends of the ladder (stage 3, contract D11 and T2); a
+    column too small or too tied for a boundary on each side publishes no
+    tail at all. Each is LISTED, never checked: the description publishes
+    nothing there, so there is nothing for a file to hold, and comparing
+    a null with a null would count a fact no file can miss.
     """
-    if CORNER_DATETIME_OFFSETS_WITHHELD in _corner_names(
-        corners, column.name
-    ):
-        return []
-    listings: list[Listing] = []
-    for field, published, subcheck in (
-        ("earliest_utc_offset", facts.earliest_utc_offset, "offsets.earliest"),
-        ("latest_utc_offset", facts.latest_utc_offset, "offsets.latest"),
-    ):
-        if published != taxonomy.SUPPRESSED_LABEL:
+    group = "clock" if isinstance(facts, contract.ClockFacts) else "datetime"
+    ladder_key = "clock_percentiles" if group == "clock" else "date_percentiles"
+    prefix = "clock-ladder" if group == "clock" else "date-ladder"
+    listings: "list[Listing]" = []
+    rungs: "list[str | None]" = []
+    if isinstance(facts, contract.ClockFacts):
+        for key in _LADDER_KEYS:
+            rungs += [facts.clock_percentiles[key]]
+    else:
+        for rung in facts.date_percentiles.rungs:
+            rungs += [rung]
+    for index in range(len(_LADDER_KEYS)):
+        if rungs[index] is not None:
             continue
-        listings = listings + [
+        listings += [
             Listing(
                 column.name,
-                f"datetime.{field}",
-                subcheck,
-                _NOT_CHECKABLE_ENDPOINT_WITHHELD,
+                f"{group}.{ladder_key}",
+                f"{prefix}.{_LADDER_KEYS[index]}",
+                _NOT_CHECKABLE_RUNG_WITHHELD,
             )
         ]
+    for side, tail in (("low", facts.low_tail), ("high", facts.high_tail)):
+        if facts.low_tail is None or facts.high_tail is None:
+            # NO TAIL AT ALL: every one of the side's five keys is a
+            # fact this description does not publish, and each is listed
+            # under its own name, because each is its own obligation
+            # everywhere else.
+            for key in parsing.TAIL_KEYS:
+                listings += [
+                    Listing(
+                        column.name,
+                        f"{group}.{side}_tail.{key}",
+                        f"tails.{side}.{key}",
+                        _NOT_CHECKABLE_NO_TAIL,
+                    )
+                ]
+            continue
+        if tail is None:
+            continue
+        for key, published in (
+            ("values", tail.values),
+            ("mean_distance", tail.mean_distance),
+            ("rms_distance", tail.rms_distance),
+        ):
+            if published is not None:
+                continue
+            why = _NOT_CHECKABLE_TAIL_KEY_WITHHELD
+            if tail.values is not None and key != "values":
+                why = _NOT_CHECKABLE_LISTED_TAIL_DISTANCE
+            listings += [
+                Listing(
+                    column.name,
+                    f"{group}.{side}_tail.{key}",
+                    f"tails.{side}.{key}",
+                    why,
+                )
+            ]
     return listings
 
 
@@ -12836,6 +23392,7 @@ def _compound_listings(
     column: contract.ColumnBlock,
     facts: contract.CompoundFacts,
     mine: "tuple[str, ...]",
+    floor: int,
 ) -> "list[Listing]":
     """What a compound column publishes and no check can measure.
 
@@ -12854,7 +23411,7 @@ def _compound_listings(
     twin, and not one of the three could be made to report MISSED.
     """
     numbers = contract.compound_numbers_view(column)
-    listings = _numeric_listings(numbers, facts.numbers)
+    listings = _numeric_listings(numbers, facts.numbers, floor)
     # AND EVERY HALF COUNT THE ENVELOPE SETTLES, named here with the
     # passage that authorizes it. The check side asks the same
     # question through the same function, so a count cannot be checked
@@ -12899,7 +23456,7 @@ def _compound_listings(
         )
         if not corner:
             continue
-        listings = listings + [
+        listings += [
             Listing(
                 column.name,
                 fact,
@@ -12908,7 +23465,7 @@ def _compound_listings(
             )
         ]
     for fact, subcheck in _SPLIT_CONSTANT_SUBCHECKS:
-        listings = listings + [
+        listings += [
             Listing(
                 column.name, fact, subcheck, _NOT_CHECKABLE_SPLIT_CONSTANT
             )
@@ -12917,7 +23474,7 @@ def _compound_listings(
 
 
 def _joined_listings(
-    column: contract.ColumnBlock, facts: contract.JoinedFacts
+    column: contract.ColumnBlock, facts: contract.JoinedFacts, floor: int
 ) -> "list[Listing]":
     """What a joined column publishes and no check can measure.
 
@@ -12939,12 +23496,12 @@ def _joined_listings(
     """
     listings: "list[Listing]" = []
     for place, numbers in enumerate(facts.parts):
-        for entry in _numeric_listings(column, numbers):
+        for entry in _numeric_listings(column, numbers, floor):
             fact = entry.fact
             head = "numeric."
             if fact[: len(head)] == head:
                 fact = f"joined.parts[{place}].{fact[len(head):]}"
-            listings = listings + [
+            listings += [
                 dataclasses.replace(
                     entry,
                     fact=fact,
@@ -12959,7 +23516,7 @@ def _joined_listings(
 
 
 def _numeric_listings(
-    column: contract.ColumnBlock, facts: contract.NumericFacts
+    column: contract.ColumnBlock, facts: contract.NumericFacts, floor: int
 ) -> "list[Listing]":
     """The not-checkable census of one quantitative block.
 
@@ -12969,17 +23526,58 @@ def _numeric_listings(
     and listed by another (review item P4-G6-R4-F1).
     """
     listings: list[Listing] = []
-    if facts.value_histogram:
+    # THE TAIL RULE'S LISTINGS (stage 3): each rung it withholds, the
+    # place of the two tails, and the histogram's groups.
+    if facts.tail_rule:
+        for index in range(len(contract.LADDER_PERCENTS)):
+            if contract.LADDER_PERCENTS[index] in _tail_withheld(facts):
+                key = _LADDER_KEYS[index]
+                listings += [
+                    Listing(
+                        column.name,
+                        # A WITHHELD RUNG NAMES THE FIELD ITS CHECK
+                        # WOULD HAVE NAMED. The two ends are registered
+                        # as fields of their own -- `percentiles.min`
+                        # and `percentiles.max` -- and the ninety-nine
+                        # between them under `percentiles` itself, so
+                        # withholding an end is the same obligation
+                        # going quiet rather than another one appearing,
+                        # and no subcheck binds two registry facts
+                        # (contract 9, entry table V3.1).
+                        f"numeric.percentiles.{key}"
+                        if key in ("min", "max")
+                        else "numeric.percentiles",
+                        f"ladder.{key}",
+                        _WITHHELD_BY_THE_TAIL_RULE,
+                    )
+                ]
+        listings += [
+            Listing(
+                column.name,
+                "numeric.bin_groups",
+                "",
+                _NOT_CHECKABLE_BIN_GROUPS,
+            )
+        ]
+        # ...AND EACH TAIL DISTANCE NO CHECK CAN REACH (plan P4-D349).
+        # Read off the same walk `_tail_checks` runs, so the two pages
+        # cannot both leave a key out.
+        rungs = _filled_ladder(facts)
+        if rungs is not None:
+            listings += _tail_listings_of(column, facts, floor, rungs)
+    if facts.value_histogram or facts.tail_rule:
         # REPORT-ONLY, and LISTED rather than silent (P4-D4.7). A
         # published fact that appears in no check and no listing is
         # one a reader cannot tell was never measured, which is the
         # defect review item P3-V1-F3 opened.
-        listings = listings + [
+        listings += [
             Listing(
                 column.name,
                 "numeric.value_histogram",
                 "",
-                _NOT_CHECKABLE_HISTOGRAM,
+                _NOT_CHECKABLE_TAIL_HISTOGRAM
+                if facts.tail_rule
+                else _NOT_CHECKABLE_HISTOGRAM,
             )
         ]
     # AND THE COUNT OF DIFFERENT NUMBERS DOES NOT HANG OFF THE
@@ -13004,7 +23602,7 @@ def _numeric_listings(
         # census above it and unlike the two facts below: a column
         # with no empty bin makes no claim here and a listing would be
         # a line about nothing.
-        listings = listings + [
+        listings += [
             Listing(
                 column.name,
                 "numeric.empty_bins",
@@ -13032,7 +23630,7 @@ def _numeric_listings(
                 _NOT_CHECKABLE_EMPTY_EDGES,
             ),
         ]
-    listings = listings + [
+    listings += [
         # THE CENSUS OF WHOLE-NUMBER FIELD WIDTHS, LISTED and never
         # silent (plan P4-D30). It is published on every column of this
         # role, so like the value count beside it, its listing hangs
@@ -13056,12 +23654,90 @@ def _numeric_listings(
             _NOT_CHECKABLE_FINER_LADDER,
         ),
     ]
+    # THE TWO MIXED CONVENTIONS, LISTED WHERE A COLUMN MIXED NOTHING (landing
+    # 2b.7) and CHECKED where it mixed two, which is exactly how the
+    # marks inside a moment are carried since landing 2b.3: measured off
+    # the file's own description wherever the description sets an
+    # obligation, and NAMED, never silent, wherever it sets none.
+    #
+    # A column wearing one convention or none is the ordinary case, and
+    # its one convention is `negative_form` or `group_separator`, which
+    # is published beside this census and checked in its own right. A
+    # check here would say "no obligation" twice on every numeric block
+    # of every report; saying nothing at all would leave a published
+    # fact off the census that calls itself every obligation.
+    for fact, census, order in (
+        (
+            "negative_notations",
+            facts.negative_notations,
+            parsing.NEGATIVE_FORMS,
+        ),
+        (
+            "thousands_marks",
+            facts.thousands_marks,
+            parsing.PUBLISHED_GROUP_MARKS,
+        ),
+    ):
+        worn = 0
+        for convention in order:
+            if convention in census and census[convention] > 0:
+                worn = worn + 1
+        if worn >= 1:
+            continue
+        # A CENSUS OF MARKS THAT IS ONLY A POOL IS CHECKED, not listed
+        # (plan P4-D352), so no obligation is both.
+        if fact == "thousands_marks" and taxonomy.SUPPRESSED_LABEL in census:
+            continue
+        listings += [
+            Listing(
+                column.name,
+                f"numeric.{fact}",
+                "",
+                _NOT_CHECKABLE_NO_MIXTURE,
+            )
+        ]
     # THE MODE PAIR, LISTED and never silent (plan P4-D4.11). It is
     # published on every column of this role that has one, so its
     # listing does not hang off the histogram beside it; a column with
     # no dominant value publishes no pair and gets no listing.
+    #
+    # IT STAYS A LISTING, AND THE MEASUREMENT IS WHY (plan P4-D267, the
+    # half of Codex item 4 of the extra round that is refused). The item
+    # asks for the pair to be CHECKED rather than reported. The
+    # generator now holds the published NUMBER wherever it can
+    # (`generation._mode_held`), which is what closes the defect the item
+    # reproduced; the COUNT is another matter, because a stratum's size
+    # comes from the runs of the published ladder and not from
+    # `mode_count`. MEASURED on the product's own demonstration: the
+    # `visits` column publishes the mode 9.0 over 28 rows, its mode is
+    # the column's LARGEST value and therefore a pinned end of the
+    # ladder, and the ladder gives that end 27 cells. Checking the pair
+    # exactly turned the demonstration twin's quality report from
+    # nothing missed to two obligations missed -- `mode.value` 9.0
+    # against 8.0 and `mode.count` 28 against 27 -- on a twin that is
+    # otherwise exactly what the description asks for. A check that a
+    # conforming twin cannot meet is not an obligation, so the pair is
+    # listed until a landing gives the mode's own stratum its published
+    # size. The reason below says exactly that.
+    #
+    # AND THE GENERATOR NOW NAMES THE DIFFERENCE RATHER THAN LEAVING IT
+    # TO THIS LISTING (item 1 of the numbers pass of the second Codex
+    # round, 2026-09-19). `generation._mode_held` declared success
+    # wherever some stratum held the mode's VALUE, whatever that
+    # stratum's size, so the count went unmet in silence on both pages
+    # at once: measured at a floor of eleven on one-place values -1.8,
+    # -0.9, -0.6, 0.8, 1.8, 3.3 and 3.5 at the counts 9, 18, 28, 23, 8,
+    # 30 and 23, at seeds 4, 0, 1, 7 and 13 alike, the published mode 3.3
+    # at a count of 30 was written ONCE, the mean moved 1.17338 to
+    # 1.06619 and the spread 1.92529 to 2.08471, and nothing was named
+    # anywhere. The twin's report now names `mode_count` with the size
+    # the twin holds, and the very demonstration this comment measures --
+    # `visits`, 28 published against the ladder's 27 -- is named there
+    # too. The pair stays a LISTING here for the reason above, unchanged:
+    # the size comes from the ladder's runs and a conforming twin cannot
+    # be held to it.
     if facts.mode is not None:
-        listings = listings + [
+        listings += [
             Listing(column.name, "numeric.mode", "", _NOT_CHECKABLE_MODE),
             Listing(
                 column.name,
@@ -13086,7 +23762,7 @@ def _numeric_listings(
     # windows and listed here as having no ladder at the same time,
     # each obligation counted twice under contradictory reasons.
     has_ladder = bool(_fine_ladder_points(facts))
-    drawn = _windows_of(column, facts) if has_ladder else {}
+    drawn = _windows_of(column, facts, floor) if has_ladder else {}
     reason = (
         _NOT_CHECKABLE_NO_WINDOW if has_ladder else _NOT_CHECKABLE_NO_LADDER
     )
@@ -13098,14 +23774,14 @@ def _numeric_listings(
     ):
         if value is None or field in drawn:
             continue
-        listings = listings + [
+        listings += [
             Listing(column.name, f"numeric.{field}", f"moments.{field}", reason)
         ]
-    return listings + _unbounded_style_listings(column, facts)
+    return listings + _unbounded_style_listings(column, facts, floor)
 
 
 def _unbounded_style_listings(
-    column: contract.ColumnBlock, facts: contract.NumericFacts
+    column: contract.ColumnBlock, facts: contract.NumericFacts, floor: int
 ) -> "list[Listing]":
     """The numeric obligations this description leaves nothing to check.
 
@@ -13125,10 +23801,28 @@ def _unbounded_style_listings(
     a fact the report has lost, which is worse than either.
     """
     listings: list[Listing] = []
+    # THE WIDE-RUN CEILING, WHERE THE DESCRIPTION SETTLES NOTHING FOR IT
+    # (landing 2b.13, plan P4-D90). `_style_checks` files the check on
+    # the `canonical` state alone, because that is the only state a file
+    # can be found to miss it in; the other two are obligations the
+    # description itself empties, which is exactly the shape the three
+    # below are.
+    if facts.wide_runs != parsing.WIDE_CANONICAL:
+        why = _NOT_CHECKABLE_NO_WIDE_RUNS
+        if facts.wide_runs == parsing.WIDE_RESPELLED:
+            why = _NOT_CHECKABLE_WIDE_RUNS_RESPELLED
+        listings += [
+            Listing(
+                column.name,
+                "numeric.wide_runs",
+                "styles.canonical.wide",
+                why,
+            )
+        ]
     for style in (parsing.STYLE_DECIMAL, parsing.STYLE_EXPONENT_LOWER):
         if style in _ceilinged_styles(column, facts):
             continue
-        listings = listings + [
+        listings += [
             Listing(
                 column.name,
                 "numeric.numeric_styles",
@@ -13136,8 +23830,8 @@ def _unbounded_style_listings(
                 _NOT_CHECKABLE_STYLE_CEILING,
             )
         ]
-    if _skew_admits_every_value(column, facts):
-        listings = listings + [
+    if _skew_admits_every_value(column, facts, floor):
+        listings += [
             Listing(
                 column.name,
                 "numeric.skew",
@@ -13155,8 +23849,8 @@ def _unbounded_style_listings(
     # census accounts for every one. Reproduced on 98 zeros beside
     # `5e-324` and `1e-323`, which publishes a kurtosis of 66.1 and
     # named it nowhere.
-    if _tails_admit_every_value(column, facts):
-        listings = listings + [
+    if _tails_admit_every_value(column, facts, floor):
+        listings += [
             Listing(
                 column.name,
                 "numeric.kurtosis",
@@ -13198,11 +23892,9 @@ def _corner_listings(
         ]
         for field, subcheck in (
             ("utc_offsets", "offsets.map"),
-            ("earliest_utc_offset", "offsets.earliest"),
-            ("latest_utc_offset", "offsets.latest"),
             ("datetimes_read_at", "offsets.read-at"),
         ):
-            listings = listings + [
+            listings += [
                 Listing(column.name, f"datetime.{field}", subcheck, why)
             ]
     if CORNER_IDENTIFIER_INFEASIBLE in mine and isinstance(
@@ -13216,7 +23908,7 @@ def _corner_listings(
             "n_distinct_folded",
             "n_distinct_by_occurrences",
         ):
-            listings = listings + [
+            listings += [
                 Listing(
                     column.name,
                     f"identifier.{field}",
@@ -13238,7 +23930,7 @@ def _corner_listings(
             why = _NOT_CHECKABLE_SPELLING_ENVELOPE + CORNER_CITATIONS[corner]
             if not _envelope_admits_every_count(column, facts, published):
                 continue
-            listings = listings + [
+            listings += [
                 Listing(
                     column.name,
                     f"{group}.{field}",
@@ -13270,7 +23962,7 @@ def _corner_listings(
                 cores_as_column, facts, published
             ):
                 continue
-            listings = listings + [
+            listings += [
                 Listing(
                     column.name,
                     f"affixed.{field}",
@@ -13298,7 +23990,7 @@ def _zero_row_listings(
         for check in _obligations(
             description, column, [], {}, {}, None, headed
         ):
-            listings = listings + [
+            listings += [
                 Listing(
                     check.column,
                     check.fact,
@@ -13325,3 +24017,41 @@ def _zero_row_listings(
             _NOT_CHECKABLE_ZERO_ROWS,
         ),
     ]
+
+
+# THE RULES THAT KEEP A CHECK'S OUTCOME BACK, BY KEY (plan P4-D395 part 1,
+# lane S5a). A WITHHELD check carries the sentence that says why in its
+# `citation`; a run's result names that rule by one of these keys instead,
+# one for each sentence written here, so a caller never reads the
+# sentence. A sentence composed where its check is made has no constant
+# here and is keyed `withheld`, the stated fallback.
+WITHHELD_RULES: "tuple[tuple[str, str], ...]" = (
+    (_GATE_CLOSED, "gate-closed"),
+    (_GATE_POOLED, "gate-pooled"),
+    (_GATE_REFUSED, "gate-refused"),
+    (_GATE_WORKBOOK, "gate-workbook"),
+    (_GATE_TAIL_WITHHELD, "tail-withheld"),
+    (_GATE_TAIL_WITHHELD_EVERY, "tail-withheld-every"),
+    (_GATE_TAIL_WITHHELD_END, "tail-withheld-end"),
+    (_GATE_TAIL_WITHHELD_A_COUNT, "tail-withheld-a-count"),
+    (_GATE_TAIL_WITHHELD_FOR_THE_OTHER, "tail-withheld-for-the-other"),
+    (_GATE_TAIL_WITHHELD_UNSETTLED, "tail-withheld-unsettled"),
+    (_GATE_TAIL_WITHHELD_UNHOLDABLE, "tail-withheld-unholdable"),
+    (_GATE_TAIL_BOUNDS, "tail-bounds"),
+    (_GATE_SHORT_BESIDE, "short-beside"),
+    (_WITHHELD_BY_THE_TAIL_RULE, "tail-rule"),
+)
+WITHHELD_FALLBACK = "withheld"
+
+
+def withheld_rule(check: Check) -> str:
+    """The key of the rule that kept a WITHHELD check's outcome back.
+
+    Guarantees: one of `WITHHELD_RULES`' keys where the check's citation
+    is that rule's sentence, else `WITHHELD_FALLBACK`. A pure function of
+    the check. Raises nothing. No I/O.
+    """
+    for sentence, key in WITHHELD_RULES:
+        if check.citation == sentence:
+            return key
+    return WITHHELD_FALLBACK

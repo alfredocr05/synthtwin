@@ -26,6 +26,8 @@ WHAT IS PINNED HERE:
   date, carries no comma or quote, and does not open a formula.
 """
 
+import copy
+import importlib.util
 import pathlib
 import random
 import re
@@ -46,7 +48,10 @@ from synthtwin import (
 
 
 def _described(
-    values: "list[str]", name: str = "code"
+    values: "list[str]",
+    name: str = "code",
+    codes: "list[str] | None" = None,
+    floor: int = 11,
 ) -> "tuple[dict, contract.Profile, pathlib.Path]":
     folder = pathlib.Path(tempfile.mkdtemp())
     rows = [[value, "x"] for value in values]
@@ -60,23 +65,58 @@ def _described(
     # (contract C5-S13) -- so a case about pooling has to say the floor
     # it means. Eleven is the floor these cases were written against.
     document = profile.build_document(
-        reading.read_table(f"{table}"),
-        taxonomy.Settings(small_cell_floor=11),
+        reading.read_table(f"{table}", small_cell_floor=floor),
+        taxonomy.Settings(small_cell_floor=floor),
         [],
+        forced_codes=codes,
     )
     written = fixtures.write_profile(folder, "thing.json", document)
     return document, contract.load_profile(f"{written}"), folder
 
 
-def _long_tail(common: "list[str]", rare: "list[str]") -> "list[str]":
+def _long_tail(
+    common: "list[str]",
+    rare: "list[str]",
+    counts: "tuple[int, ...]" = (62, 45, 34, 28, 22),
+) -> "list[str]":
     """A column shaped like a real one: a few common codes, a long tail."""
     values: list[str] = []
-    for code, count in zip(common, (62, 45, 34, 28, 22)):
+    for code, count in zip(common, counts):
         values = values + [code] * count
     for place, code in enumerate(rare):
         values = values + [code] * (1 if place % 2 else 2)
     random.Random(3).shuffle(values)
     return values
+
+
+# COMMON COUNTS UNDER WHICH `_long_tail`'s TAIL STOOD UNDER RULING 5
+# (plan P4-D271). The tail writes its codes alternately twice and once,
+# so 2k codes cover 3k rows -- fewer than twice their number, and at
+# least k of them are provably single rows. Ruling 5 let such a pool
+# stand only where twice its rows reached what the column publishes;
+# below that it counted every tail cell as MISSING, the twin wrote a
+# blank there and there was no stand-in left for a case about stand-ins
+# to look at. At the default counts, 62 + 45 + 34 + 28 + 22 = 191
+# published rows, neither tail this file uses stood: 2 x 39 = 78 and
+# 2 x 60 = 120 are both short of 191. At 22 + 18 + 15 + 12 + 11 = 78 both
+# stood, and every one of the five still clears the floor of eleven.
+# Plan P4-D390 retired ruling 5, so every tail stands at either count;
+# the cases keep these counts as they were armed.
+A_TAIL_THAT_STANDS = (22, 18, 15, 12, 11)
+
+
+def _held_back_by_the_floor(values: "list[str]") -> "tuple[int, int]":
+    """How many levels fall below the floor of eleven, and their rows.
+
+    Counted off the cells, from the rule (C5-S13): a value written in
+    fewer than eleven rows is held back. Where the pool stands this is
+    exactly what `suppressed_levels` and `suppressed_rows` publish.
+    """
+    counts: dict[str, int] = {}
+    for value in values:
+        counts[value] = counts.get(value, 0) + 1
+    rare = [count for count in counts.values() if count < 11]
+    return len(rare), sum(rare)
 
 
 # -- the form itself --------------------------------------------------
@@ -283,15 +323,26 @@ def test_a_code_column_publishes_the_forms_it_wore() -> None:
 def test_the_twin_of_a_code_column_is_code_shaped_throughout() -> None:
     """THE CASE THE DECISION IS FOR.
 
-    Before this landing 60 of these 251 cells were `group-14` and the
-    like; now every one of them is shaped like a diagnosis code.
+    Before this landing the stand-ins among these cells were `group-14`
+    and the like; now every one of them is shaped like a diagnosis code.
+
+    RE-ARMED UNDER RULING 5 (plan P4-D271, retired by P4-D390). Beside
+    191 published rows the ruling counted the tail of 39 rows as missing,
+    so the twin wrote no stand-in and a twin writing `group-N` for every
+    one of them passed here. At
+    `A_TAIL_THAT_STANDS` the 26 rare codes stand as 26 held-back levels
+    over 13 x 2 + 13 = 39 rows, and each of those rows is a stand-in.
     """
-    _document, described, folder = _described(
-        _long_tail(
-            ["E11.9", "I10", "Z00.00", "J45.909", "M54.5"],
-            [f"Q{number:02d}.{number % 3}" for number in range(70, 96)],
-        ),
-        "dx",
+    values = _long_tail(
+        ["E11.9", "I10", "Z00.00", "J45.909", "M54.5"],
+        [f"Q{number:02d}.{number % 3}" for number in range(70, 96)],
+        A_TAIL_THAT_STANDS,
+    )
+    document, described, folder = _described(values, "dx")
+    block = document["columns"][0]
+    assert _held_back_by_the_floor(values) == (26, 13 * 2 + 13)
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (
+        26, 13 * 2 + 13
     )
     twin = generation.generate(described, 7)
     cells = [cell for cell in twin.columns[0] if cell]
@@ -311,6 +362,13 @@ def test_a_hyphenated_code_still_splits_into_its_parts() -> None:
     whose twin held it split into two parts and passed for a code,
     while a three-part drug code split into two and crashed the frame
     that expected three.
+
+    RE-ARMED UNDER RULING 5 (plan P4-D271, retired by P4-D390). Each
+    tail is forty codes over 20 x 2 + 20 = 60 rows, and beside 191
+    published rows it was counted as missing, so neither twin held a
+    stand-in to split. At
+    `A_TAIL_THAT_STANDS` (78 published rows, 2 x 60 = 120 >= 78) both
+    tails stand as forty held-back levels over sixty rows.
     """
     for common, rare, parts in (
         (
@@ -330,9 +388,13 @@ def test_a_hyphenated_code_still_splits_into_its_parts() -> None:
             3,
         ),
     ):
-        _document, described, _folder = _described(
-            _long_tail(common, rare)
-        )
+        values = _long_tail(common, rare, A_TAIL_THAT_STANDS)
+        document, described, _folder = _described(values)
+        block = document["columns"][0]
+        assert _held_back_by_the_floor(values) == (40, 20 * 2 + 20)
+        assert (block["suppressed_levels"], block["suppressed_rows"]) == (
+            40, 20 * 2 + 20
+        ), parts
         twin = generation.generate(described, 7)
         cells = [cell for cell in twin.columns[0] if cell]
         found = {len(cell.split("-")) for cell in cells}
@@ -346,13 +408,23 @@ def test_the_published_levels_pay_their_forms_first() -> None:
     already wear their forms. A stand-in walk that started from the
     whole census would write each form twice over and miss every count
     it was built to meet.
+
+    RE-ARMED UNDER RULING 5 (plan P4-D271, retired by P4-D390): at the
+    default counts the ruling counted the tail as missing and there was
+    no walk to pay anything first. At `A_TAIL_THAT_STANDS` its 39 rows
+    are stand-ins again.
     """
-    _document, described, folder = _described(
+    document, described, folder = _described(
         _long_tail(
             ["E11.9", "I10", "Z00.00", "J45.909", "M54.5"],
             [f"Q{number:02d}.{number % 3}" for number in range(70, 96)],
+            A_TAIL_THAT_STANDS,
         ),
         "dx",
+    )
+    block = document["columns"][0]
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (
+        26, 13 * 2 + 13
     )
     twin = generation.generate(described, 7)
     written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
@@ -369,14 +441,23 @@ def test_a_stand_in_keeps_the_four_properties_it_had_for_free() -> None:
     """`group-N` had them by construction; a code-shaped one does not.
 
     A spelling built to look like a code could be a word meaning "no
-    value", could read as a number or a date, could carry a comma that
-    breaks the row, or could open with a character a spreadsheet reads
-    as a formula. Each is asked of every stand-in before it is used.
+    value", could read as a number or a date, could carry a QUOTE -- the
+    delimiter's own escape -- or could open with a character a
+    spreadsheet reads as a formula. Each is asked of every stand-in
+    before it is used.
+
+    A COMMA IS NOT ONE OF THEM ANY MORE (plan P4-D243). It was refused
+    here on the ground that it "breaks the row", which the generation
+    method's own clause already denied -- the writer quotes a cell
+    holding one and this package's reader reads it back unchanged -- and
+    refusing it made the comma the ONE mark of `parsing.SHAPE_MARKS` no
+    published form could ever be written with.
     """
     assert not generation._is_a_usable_stand_in("NA")
     assert not generation._is_a_usable_stand_in("1234")
     assert not generation._is_a_usable_stand_in("2024-03-17")
-    assert not generation._is_a_usable_stand_in("a,b")
+    assert not generation._is_a_usable_stand_in('a"b')
+    assert generation._is_a_usable_stand_in("a,b")
     assert not generation._is_a_usable_stand_in("=SUM(A1)")
     assert generation._is_a_usable_stand_in("A00.0")
 
@@ -444,10 +525,12 @@ def test_a_column_of_plain_words_publishes_no_census_at_all() -> None:
 # -- what the census found in the walk that was already there ---------
 
 
-def _forms_of(cells: "list[str]") -> "dict[str, int]":
+def _forms_of(
+    cells: "list[str]", census: "dict[str, int] | None" = None
+) -> "dict[str, int]":
     counted: dict[str, int] = {}
     for cell in cells:
-        form = parsing.shape_form(cell)
+        form = parsing.census_form(cell, census if census is not None else {})
         counted[form] = counted.get(form, 0) + 1
     return counted
 
@@ -459,7 +542,10 @@ def _level_with_held_back_spellings() -> "list[str]":
     do not, so they are held back as a multiplicity map and the twin
     makes up two spellings in their place. All five rows of the first
     two wear the form `A99.9`; the two trailing-space rows wear
-    `A99.9 `, which no cell shares, so the floor pools them.
+    `A99.9 `, which no cell shares, so the floor pools them. Beside them
+    stand twenty-six rare `Q` codes over thirty-nine rows, also `A99.9`,
+    held back in the column's pool (ruling 5 counted them as missing
+    until plan P4-D390).
     """
     values: list[str] = []
     for code, count in zip(
@@ -473,6 +559,41 @@ def _level_with_held_back_spellings() -> "list[str]":
         )
     random.Random(5).shuffle(values)
     return values
+
+
+def _level_held_back_by_hand() -> (
+    "tuple[dict, contract.Profile, pathlib.Path]"
+):
+    """The description `_level_with_held_back_spellings` used to publish.
+
+    SINCE RULING 6 REACHED A LABEL'S SPELLINGS NO PRODUCER WRITES IT
+    (plan P4-D275): `e11.9` (three rows) and `E11.9 ` (two) are below
+    the floor of eleven, so both are counted into `E11.9` and the level
+    publishes `{"E11.9": 67}` with nothing held back -- and the walk this
+    file guards is never reached. Invariant W5 refuses a held-back key of
+    1 and nothing else, so the description below still loads and still
+    drives G8.2, and it is built by hand from the rule statement: the
+    level names its 62-row spelling and holds back one spelling of three
+    rows and one of two; its form count is the 62 and the three held-back
+    rows that wore the form; the column holds the five named spellings,
+    the two held back and the twenty-six pooled `Q` codes; and `@%%.%`
+    counts 62 + 3 cells of the level, the 45 of `I10.0` and the 39 of
+    the `Q` codes, the two trailing-space rows having no form.
+    """
+    document, _loaded, folder = _described(
+        _level_with_held_back_spellings(), "dx"
+    )
+    edited = copy.deepcopy(document)
+    column = edited["columns"][0]
+    for level in column["levels"]:
+        if level["label"] == "e11.9":
+            level["variants"] = {"E11.9": 62}
+            level["variants_withheld"] = {"2": 1, "3": 1}
+            level["shape_form_cells"] = 62 + 3
+    column["n_distinct"] = 5 + 2 + 26
+    column["shape_forms"]["@%%.%"] = 62 + 3 + 45 + 39
+    written = fixtures.write_profile(folder, "held.json", edited)
+    return edited, contract.load_profile(f"{written}"), folder
 
 
 def test_a_made_up_variant_keeps_the_form_where_one_spelling_is_left() -> None:
@@ -490,13 +611,24 @@ def test_a_made_up_variant_keeps_the_form_where_one_spelling_is_left() -> None:
     onto the label and keeps its form. The binary counter calls it
     order zero and started at one, so the walk never offered it. It is
     offered now, wherever nothing else of the level needs it.
+
+    RE-ARMED ON THE DESCRIPTION THE PRODUCER NO LONGER WRITES
+    (`_level_held_back_by_hand`). The twin's own census is counted off
+    its cells and is the published one exactly. `synthtwin validate`
+    describes the twin under ruling 6 as it describes any file, so it
+    counts the twin's three `e11.9` and two spaced stand-ins into
+    `E11.9` and misses exactly the five facts that respelling moves --
+    `n_distinct` 33 against 31, the level's named and held-back
+    spellings, its form count 65 against 67, and `@%%.%` 149 against 151
+    -- and nothing else, which is pinned as the whole list.
     """
-    _document, described, folder = _described(
-        _level_with_held_back_spellings(), "dx"
-    )
+    document, described, folder = _level_held_back_by_hand()
     twin = generation.generate(described, 7)
     cells = [cell for cell in twin.columns[0] if cell]
     assert "e11.9" in cells
+    counted = _forms_of(cells)
+    del counted[""]
+    assert counted == document["columns"][0]["shape_forms"]
     written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
     outcome = validation.measure(described, f"{written}")
     missed = [
@@ -504,7 +636,13 @@ def test_a_made_up_variant_keeps_the_form_where_one_spelling_is_left() -> None:
         for check in outcome.checks
         if check.verdict == validation.MISSED
     ]
-    assert missed == []
+    assert sorted(missed) == sorted([
+        "distinct.n_distinct",
+        "levels.e11.9.variants",
+        "levels.e11.9.variants_withheld",
+        "levels.e11.9.shape_form_cells",
+        "forms.published.@%%.%",
+    ])
 
 
 def test_the_form_keeping_spelling_goes_to_the_largest_held_back_group() -> None:
@@ -518,10 +656,19 @@ def test_the_form_keeping_spelling_goes_to_the_largest_held_back_group() -> None
     the three-row group leaves it two short -- which is exactly what
     the source itself left, its own two trailing-space cells being
     counted nowhere.
+
+    RE-ARMED ON THE DESCRIPTION THE PRODUCER NO LONGER WRITES
+    (`_level_held_back_by_hand`). The source itself now publishes its
+    level as 67 rows of `E11.9` -- 62 + 3 + 2, ruling 6 -- and its census
+    counts those same cells, 67 + 45 + 39 = 151 in `@%%.%` with the
+    pooled `Q` codes (plan P4-D275.1; it said 110 beside a twin that
+    wrote 112 before that repair, the `Q` codes then counted missing).
     """
-    document, described, _folder = _described(
+    source, _loaded, _folder = _described(
         _level_with_held_back_spellings(), "dx"
     )
+    assert source["columns"][0]["shape_forms"]["@%%.%"] == 62 + 3 + 2 + 45 + 39
+    document, described, _folder = _level_held_back_by_hand()
     published = document["columns"][0]["shape_forms"]
     twin = generation.generate(described, 7)
     counted = _forms_of([cell for cell in twin.columns[0] if cell])
@@ -570,10 +717,15 @@ def test_a_stand_in_that_collides_still_owes_its_form() -> None:
 
     Here the first spellings the stepper reaches are exactly what the
     column already published, so every early candidate collides.
+
+    RE-ARMED UNDER RULING 5 (plan P4-D271, retired by P4-D390): beside
+    191 published rows the 39-row tail was counted as missing and no
+    stand-in was walked at all.
+    At `A_TAIL_THAT_STANDS` all 26 rare codes are stand-ins again.
     """
     values: list[str] = []
     for code, count in zip(
-        ["A00.0", "B01.1", "C02.2", "D03.3", "E04.4"], (62, 45, 34, 28, 22)
+        ["A00.0", "B01.1", "C02.2", "D03.3", "E04.4"], A_TAIL_THAT_STANDS
     ):
         values = values + [code] * count
     for place, number in enumerate(range(70, 96)):
@@ -582,6 +734,11 @@ def test_a_stand_in_that_collides_still_owes_its_form() -> None:
         )
     random.Random(3).shuffle(values)
     document, described, folder = _described(values, "dx")
+    block = document["columns"][0]
+    assert _held_back_by_the_floor(values) == (26, 13 * 2 + 13)
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (
+        26, 13 * 2 + 13
+    )
     twin = generation.generate(described, 7)
     counted = _forms_of([cell for cell in twin.columns[0] if cell])
     assert counted == document["columns"][0]["shape_forms"]
@@ -753,9 +910,13 @@ def test_a_column_of_prose_is_written_exactly_as_it_was_before() -> None:
     # ...and BYTE FOR BYTE what the walk writes with the form offer
     # taken out altogether.
     offer = generation._wanted_form
+    # The stub takes `reads` as well: landing 2b.4 made the offer
+    # class-aware (method G9.5 step 7), which adds that argument, and
+    # `stands` and `rewords` for the band and the settling word
+    # exchange landing 2b.8 added on the same ground.
     generation._wanted_form = (
         lambda owing, length, words, carrier, shortest, longest, budget,
-        covering=1: ""
+        covering=1, reads=None, stands=None, rewords=None: ""
     )
     try:
         without = generation.generate(described, 7)
@@ -837,13 +998,33 @@ def test_every_named_code_system_survives_both_shapes() -> None:
     short_of_it = {
         ("scheme09", "long tail"): 8,
     }
+    # THE THIRD SHAPE IS THE ONE WITH STAND-INS IN IT (owner ruling 5,
+    # plan P4-D271, retired by P4-D390). At the default counts ruling 5
+    # counted every label-role scheme's tail as MISSING -- 39 rows beside
+    # 191 published ones -- so the "long tail" twin held only published
+    # codes written byte for byte and a stand-in of any shape passed.
+    # The long tail is kept as it was, because the numeric schemes and
+    # the residual above are measured on it; the standing tail is added
+    # beside it, and on it every label-role scheme must hold exactly the
+    # held-back levels the floor makes of its cells.
+    stood: list[str] = []
     for name, values, pattern, parts in schemes:
         random.Random(4).shuffle(values)
         for shape, column in (
             ("all different", values),
             ("long tail", _long_tail(values[:5], values[5:31])),
+            (
+                "standing tail",
+                _long_tail(values[:5], values[5:31], A_TAIL_THAT_STANDS),
+            ),
         ):
-            _document, described, _folder = _described(list(column), name)
+            document, described, _folder = _described(list(column), name)
+            block = document["columns"][0]
+            if shape == "standing tail" and "suppressed_levels" in block:
+                assert (
+                    block["suppressed_levels"], block["suppressed_rows"]
+                ) == _held_back_by_the_floor(list(column)), name
+                stood = stood + [name]
             twin = generation.generate(described, 7)
             cells = [cell for cell in twin.columns[0] if cell]
             assert cells, name
@@ -863,6 +1044,8 @@ def test_every_named_code_system_survives_both_shapes() -> None:
                 name, shape, sorted(set(cells) - set(shaped))[:4]
             )
             assert {len(cell.split("-")) for cell in cells} == {parts}, name
+    # The four schemes that take a label role, each holding stand-ins.
+    assert stood == ["scheme02", "scheme04", "scheme06", "scheme10"], stood
 
 
 def test_the_report_says_which_stand_ins_wore_a_published_form() -> None:
@@ -874,14 +1057,26 @@ def test_the_report_says_which_stand_ins_wore_a_published_form() -> None:
     something they are written in it. One column can have both, so the
     sentence names how many rather than leaving a reader to guess which
     happened.
+
+    THE COMMON CODES COVER 78 ROWS AND NOT 191, and that was ruling 5 as
+    plan P4-D271 measured its exception (retired by P4-D390). The
+    twenty-six rare codes cover 39 rows, fewer than twice their number,
+    so at least thirteen of them are single rows; the ruling let the pool
+    stand only where it covered at least half of what the column
+    publishes. Beside 191 published rows 2 x 39 = 78 fell short, and the
+    tail was counted as missing. Beside 22 + 18 + 15 + 12 + 11 = 78 it is
+    exactly half, and the tail stood.
     """
-    _document, described, _folder = _described(
+    document, described, _folder = _described(
         _long_tail(
             ["E11.9", "I10", "Z00.00", "J45.909", "M54.5"],
             [f"Q{number:02d}.{number % 3}" for number in range(70, 96)],
+            (22, 18, 15, 12, 11),
         ),
         "dx",
     )
+    assert document["columns"][0]["suppressed_levels"] == 26
+    assert document["columns"][0]["suppressed_rows"] == 13 * 2 + 13
     twin = generation.generate(described, 7)
     said = [
         note.achieved
@@ -907,6 +1102,7 @@ def test_the_report_says_which_stand_ins_wore_a_published_form() -> None:
         for note in twin.deviations
         if note.fact == "suppressed_levels"
     ]
+    assert said, twin.deviations
     for sentence in said:
         assert "neutral labels made up in their place" in sentence, sentence
 
@@ -961,10 +1157,11 @@ def test_a_free_text_form_is_held_to_the_same_four_properties() -> None:
 
 def test_the_four_properties_are_each_asked_and_not_three_of_them() -> None:
     """Each of the four, including the ones the first test left out."""
-    for refused in ("NA", "n/a", "1234", "2024-03-17", "a,b", 'a"b',
+    for refused in ("NA", "n/a", "1234", "2024-03-17", 'a"b',
                     "=SUM(A1)", "+1", "-x", "@here"):
         assert not generation._is_a_usable_stand_in(refused), refused
-    for allowed in ("A00.0", "X12", "%%%%-%"):
+    # `a,b` moved from the first list to the second at plan P4-D243.
+    for allowed in ("A00.0", "X12", "%%%%-%", "a,b"):
         assert generation._is_a_usable_stand_in(allowed), allowed
 
 
@@ -1183,7 +1380,7 @@ def test_a_form_pass_that_gave_up_under_the_letter_ask_is_put_back() -> None:
     document, described, _folder = _described(values, "code")
     published = document["columns"][0]["shape_forms"]
     twin = generation.generate(described, 7)
-    counted = _forms_of([cell for cell in twin.columns[0] if cell])
+    counted = _forms_of([cell for cell in twin.columns[0] if cell], published)
     met = 0
     for form in published:
         if form == "(withheld)":
@@ -1329,8 +1526,18 @@ def test_a_column_whose_holes_look_like_values_is_not_accused() -> None:
     # column of 240 values drawn between 40 and 160 still cannot reach
     # its count, because its strata are crowded and their shares hold
     # no free grid point.
-    generator = random.Random(20260902)
-    values = [str(generator.randint(40, 160)) for _each in range(240)]
+    #
+    # AND THE WITNESS MOVED AGAIN at the carried numbers repair pass of
+    # 2026-09-19: G6.5a's push now brings those 240 values to their count,
+    # so a shortfall no repair of G6.5a can mend stands here instead --
+    # twelve negatives written once, a zero, and the whole numbers one to
+    # ten forty times each, where G5.2's division of the strata by cells
+    # gives the positive band eleven strata for ten integers.
+    values = (
+        [str(-number) for number in range(1, 13)]
+        + ["0"]
+        + [str(number) for number in range(1, 11) for _copy in range(40)]
+    )
     values = values + ["-999"] * 20
     folder = pathlib.Path(tempfile.mkdtemp())
     table = fixtures.write(
@@ -1354,7 +1561,50 @@ def test_a_column_whose_holes_look_like_values_is_not_accused() -> None:
         assert fabricated not in named, (fabricated, sorted(named))
 
     # ...and the shortfall that IS real is still named.
-    assert "n_distinct" in named, sorted(named)
+    #
+    # IT IS NAMED AS WHAT IT IS, and the page no longer names it twice
+    # over under a window the validator does not use (plan P4-D6.4). The
+    # twin holds 104 different values against a published 106, and
+    # `n_distinct_values` says so as a deviation, on this tree and on
+    # e53d5f4 alike. `n_distinct` and `n_distinct_folded` are
+    # APPROXIMATED facts (G12.8): each is named as a deviation only when
+    # the count lands outside the window [min(supply, published),
+    # max(supply, published)], where the supply is how many different
+    # spellings the twin's own PRESENT cells can carry. Every present
+    # cell here is a plain whole number, one spelling per value, so the
+    # supply is 104 and the window [min(104, 106), max(104, 106)] =
+    # [104, 106] holds the 104. This assertion used to read
+    # `"n_distinct" in named`, and it held only because the supply was
+    # counted over every non-blank cell: the twenty `-999` holes gave a
+    # 105th spelling, the window became [105, 106], and 104 fell
+    # outside it. A hole is no value (`_present_of`), and the validator
+    # has read this same twin as AUTHORIZED-DEVIATION at 104 against
+    # 106 on both trees; the report's window now agrees with it.
+    # AND THE SHORTFALL THAT WAS REAL IS GONE (stage 3, landing 3.3).
+    # The twin held 104 different values against a published 106 and
+    # named `n_distinct_values` as a deviation; the tail rule places the
+    # rows beyond each boundary on their own grid points (method G5.3b)
+    # and the twin now holds all 106, so there is nothing left to name
+    # -- on a column the same walk used to leave two short. What the
+    # test is about is unchanged and is asserted the other way round:
+    # NOTHING is named, the counts are recounted exactly, and the three
+    # distinctness obligations are HELD rather than authorized.
+    column = described.columns[0]
+    real = len({value for value in values if value != "-999"})
+    held = len({cell for cell in twin.columns[0] if cell not in ("", "-999")})
+    assert (column.n_distinct, column.n_distinct_folded) == (real, real)
+    assert held == real, (held, real)
+    assert named == set(), sorted(named)
+    windows = {
+        record.fact: record
+        for record in twin.approximations
+        if record.column == column.name
+    }
+    for fact in ("n_distinct", "n_distinct_folded"):
+        window = windows[fact]
+        assert (window.published, window.achieved) == (f"{real}", f"{held}")
+        assert window.inside, fact
+        assert fact not in named, (fact, sorted(named))
     twin_file = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
     outcome = validation.measure(described, f"{twin_file}")
     assert [
@@ -1362,6 +1612,18 @@ def test_a_column_whose_holes_look_like_values_is_not_accused() -> None:
         for check in outcome.checks
         if check.verdict == validation.MISSED
     ] == []
+    verdicts = {
+        check.subcheck: check
+        for check in outcome.checks
+        if check.column == column.name
+    }
+    for subcheck in (
+        "distinct.n_distinct",
+        "distinct.n_distinct_folded",
+        "distinct.n_distinct_values",
+    ):
+        assert verdicts[subcheck].verdict == validation.HELD, subcheck
+        assert verdicts[subcheck].achieved == f"{held}", subcheck
 
 
 def test_a_census_key_is_never_withheld_on_account_of_another_cell() -> None:
@@ -1563,7 +1825,7 @@ def test_a_stand_in_avoids_a_hole_declared_on_another_column() -> None:
         declared_missing_values=("group-1",), small_cell_floor=11
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"), settings, []
+        reading.read_table(f"{table}", small_cell_floor=11), settings, []
     )
     written = fixtures.write_profile(folder, "thing.json", document)
     described = contract.load_profile(f"{written}")
@@ -1576,3 +1838,993 @@ def test_a_stand_in_avoids_a_hole_declared_on_another_column() -> None:
         for check in outcome.checks
         if check.verdict == validation.MISSED
     ] == []
+
+
+# -- plan P4-D390: the walk's bound is on what it refuses ----------------
+
+_ORACLE_PATH = (
+    pathlib.Path(__file__).resolve().parents[1]
+    / "tools" / "reference" / "make_generation_reference_vectors.py"
+)
+_REGISTER_FORM = re.compile(r"[A-Z][0-9]{3}\.[0-9]{2}")
+
+
+def _reference_oracle() -> object:
+    """The generation oracle, loaded from its path (it is not a package)."""
+    spec = importlib.util.spec_from_file_location("oracle_p4d390", _ORACLE_PATH)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _register_past_the_old_bound(
+    held: int, figures: bool = True
+) -> "tuple[list[str], list[str]]":
+    """A hundred published codes of twelve rows and ``held`` codes written once.
+
+    Every code wears `@%%%.%%`, or `@@-@@@` where ``figures`` is false;
+    returns the column and its published codes.
+    """
+    draw = random.Random(390)
+    letters = "ABCDEFGHJKLMNPRSTVWXYZ"
+    codes: "list[str]" = []
+    seen: "dict[str, int]" = {}
+    while len(codes) < held + 100:
+        code = f"{draw.choice(letters)}{draw.randrange(1000):03d}.{draw.randrange(100):02d}"
+        if not figures:
+            code = "".join(draw.choice(letters) for _each in range(5))
+            code = f"{code[:2]}-{code[2:]}"
+        if code not in seen:
+            seen[code] = 1
+            codes += [code]
+    values: "list[str]" = []
+    for code in codes[:100]:
+        values += [code] * 12
+    values += codes[100:]
+    draw.shuffle(values)
+    return values, codes[:100]
+
+
+def test_a_register_holding_back_more_codes_than_the_old_bound_writes_them_all() -> None:
+    """THE WALK GAVE A FORM UP AT 4,096 SPELLINGS IN ALL (plan P4-D390).
+
+    Every held-back code past the 4,096th spelling of its form was
+    written `group-N`, so the twin of a code register MISSED the census
+    count of the code's own form wherever more codes than that were held
+    back: measured on a register of 30,000 codes over 100,000 rows at a
+    floor of eleven, 11,467 codes held back in `@%%%.%%`, 89,908 twin
+    cells of 100,000 in that form, and validate exit 3. Dropping ruling
+    5's level pass, which had counted those cells as missing, laid it
+    bare. The bound is on what the walk refuses now
+    (`generation._walk_goes_on`), so 5,000 codes held back beside a
+    hundred published ones are 5,000 stand-ins in the form, no group is
+    neutral, and the twin meets every count its description sets.
+    """
+    values, published = _register_past_the_old_bound(5000)
+    document, described, folder = _described(values, "dx")
+    block = document["columns"][0]
+    assert block["role"] == "long_tail_labels", block["role"]
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (5000, 5000)
+    assert block["shape_forms"] == {"@%%%.%%": 6200}
+    twin = generation.generate(described, 7)
+    cells = twin.columns[0]
+    assert [cell for cell in cells if cell.startswith("group-")] == []
+    assert len([cell for cell in cells if _REGISTER_FORM.fullmatch(cell)]) == 6200
+    made_up = {cell for cell in cells} - set(published)
+    assert len(made_up) == 5000
+    twin_file = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
+    outcome = validation.measure(described, f"{twin_file}")
+    assert [
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    ] == []
+
+
+def test_the_walk_bound_is_on_what_it_refuses_not_on_what_it_takes() -> None:
+    """`_walk_goes_on` at its edges, and the supply counted under it.
+
+    A walk may try one spelling more while it has refused fewer than it
+    has taken plus 4,096, never past the form's own room: a form none of
+    whose spellings is usable still costs 4,096 steps, and a dense one
+    supplies what is wanted past the 4,096 the old bound stopped at.
+    """
+    steps = generation._STAND_IN_STEPS
+    room = generation._form_room("@%%%.%%")
+    assert room == 26 * 10 ** 5
+    assert generation._walk_goes_on(steps - 1, 0, room)
+    assert not generation._walk_goes_on(steps, 0, room)
+    assert generation._walk_goes_on(steps, 1, room)
+    assert generation._walk_goes_on(2 * 9000 + steps - 1, 9000, room)
+    assert not generation._walk_goes_on(2 * 9000 + steps, 9000, room)
+    assert generation._walk_goes_on(259, 200, 260)
+    assert not generation._walk_goes_on(260, 200, 260)
+    assert generation._usable_room("@%%%.%%", 9000, {}, {}, ()) == 9000
+    began = time.monotonic()
+    assert generation._usable_room("-@@@@@", 50, {}, {}, ()) == 0
+    assert time.monotonic() - began < 2.0
+
+
+def test_the_oracle_bounds_the_walk_as_the_product_does() -> None:
+    """The reference oracle mirrors the bound (A-P4-59), case for case.
+
+    Its `walk_goes_on` answers as `generation._walk_goes_on` over a grid
+    reaching past the old bound, its supply is the product's on a dense
+    form, a refused one and a small one, and its stand-ins for a
+    register holding 5,000 codes back are the twin's own made-up codes,
+    spelling for spelling. The oracle reasons only about spellings with
+    no figure in them, so its forms and its register are of letters and
+    a hyphen.
+    """
+    oracle = _reference_oracle()
+    for taken in (0, 1, 7, 4096, 9000):
+        for steps in (0, 4095, 4096, 2 * taken + 4095, 2 * taken + 4096):
+            for room in (260, 4096, 26 * 10 ** 5):
+                assert oracle.walk_goes_on(steps, taken, room) == (
+                    generation._walk_goes_on(steps, taken, room)
+                ), (steps, taken, room)
+    for form, wanted in (("@@-@@@", 9000), ("-@@", 50), ("@-@@", 20000)):
+        assert oracle.usable_room(form, wanted, set(), set()) == (
+            generation._usable_room(form, wanted, {}, {}, ())
+        ), form
+    values, published = _register_past_the_old_bound(5000, figures=False)
+    document, described, _folder = _described(values, "dx")
+    assert document["columns"][0]["shape_forms"] == {"@@-@@@": 6200}
+    twin = generation.generate(described, 7)
+    assert [cell for cell in twin.columns[0] if cell.startswith("group-")] == []
+    written = [cell for cell in values if cell in set(published)]
+    produced = oracle.invented_levels(
+        set(published), [1] * 5000, {"@@-@@@": 6200}, written
+    )
+    assert {label for label, _size in produced} == (
+        set(twin.columns[0]) - set(published)
+    )
+
+
+def test_the_oracle_settles_the_one_pass_arrangement_as_the_product_does() -> None:
+    """The reference oracle mirrors the one-pass rule (A-P4-59), case for case.
+
+    The route-2 correction (plans P4-D390 and P4-D373): the pass gives no
+    form more than it still owes where that settles every debt, and is
+    taken as it stood anywhere else. No frozen case holds a column of more
+    held-back labels than the search walks, so the oracle's arrangement is
+    asked beside the product's here: the 326 sizes of times beside 10 % on
+    the 12-hour face at 3,000 rows and a floor of 36 owing one form 662
+    cells, settled exactly, and two forms between them; 300 sizes of two
+    rows owing 301, covered with 302 as before; and three sevens owing ten
+    and five, which no arrangement settles. The oracle reasons only about
+    spellings with no figure in them, so the forms are of letters.
+    """
+    oracle = _reference_oracle()
+    face = tuple(sorted([1] * 119 + [2] * 94 + [3] * 63 + [4] * 42 + [35] * 8))
+    for sizes, owing in (
+        (face, {"@@-@@": 662}),
+        (face, {"@@-@@": 400, "@@_@@": 262}),
+        (tuple([2] * 300), {"@-@": 301}),
+        ((7, 7, 7), {"@-@": 10, "@_@": 5}),
+    ):
+        product = generation._shared_out(sizes, dict(owing), {}, {}, ())
+        assert oracle.shared_out(sizes, dict(owing), set(), set()) == product, (
+            sizes,
+            owing,
+        )
+    settled = generation._shared_out(face, {"@@-@@": 662}, {}, {}, ())
+    assert sum(face[place] for place in range(len(face)) if settled[place]) == 662
+
+
+# THE REPAIR ROUND'S TABLES AT A FLOOR OF ELEVEN, cell for cell those
+# `tests/test_stage3b_route2.py` holds: appointment times written `H:MM`, as
+# Excel's `h:mm` writes an hour below ten, beside 10 % and 3 % one-off notes
+# at 10,000 and 30,000 rows, and written `HH:MM` beside 15 % at the second at
+# 30,000 rows -- as kind, share, rows and seed.
+_REPAIR_TABLES = (
+    ("hours", 0.10, 10000, 9034),
+    ("hours", 0.03, 30000, 9016),
+    ("seconds", 0.15, 30000, 7412),
+)
+
+
+def _repair_table(kind: str, share: float, rows: int, seed: int) -> "list[str]":
+    """One of the repair round's tables, drawn as its skeptic's batteries drew it."""
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    notes = 0
+    for _row in range(rows):
+        pick = draw.random()
+        if pick < 0.80:
+            hour = draw.choices(range(7, 17), weights=(3, 9, 10, 10, 8, 4, 8, 9, 8, 5))[0]
+            minutes = hour * 60 + 15 * draw.randrange(4)
+        elif pick < 0.92:
+            minutes = 390 + draw.randrange(750)
+        else:
+            minutes = 17 * 60 + 30 * draw.randrange(6)
+        if draw.random() >= share:
+            hour_text = f"{minutes // 60}" if kind == "hours" else f"{minutes // 60:02d}"
+            cells += [f"{hour_text}:{minutes % 60:02d}"]
+            continue
+        if kind == "seconds":
+            cells += [f"{minutes // 60:02d}:{minutes % 60:02d}:{draw.randrange(60):02d}"]
+            continue
+        notes = notes + 1
+        cells += [f"see note {notes}"]
+    return cells
+
+
+def test_the_oracle_states_the_repair_round_as_the_product_does() -> None:
+    """The reference oracle mirrors the route-2 correction's repair round (A-P4-59).
+
+    No frozen case holds a clock's form owed more labels than it has times
+    left, a form short of spellings past the search, or a clock line
+    beside the published labels' shape, so the oracle is asked beside the
+    product here, call by call and column by column: every clock form's
+    supply; the times `HH:MM`, `H:MM` and `HH:MM:SS` can still write beside
+    written ones; the held-back sizes with a clock's form bounded and not;
+    the one-pass arrangement with a form of 26 spellings owed more than
+    that, settled by serving it first and not; and the three label columns
+    above, cell for cell and in order -- the bound, the form short of times
+    served first, the published labels' shape stopping at its clock
+    supply, and the room the owed stand-ins keep past the clock line. The
+    columns part when the oracle's clock supply is a fraction's alone again.
+    """
+    oracle = _reference_oracle()
+    for form in (
+        "%%:%%", "%:%%", "%%:%%:%%", "%:%%:%%", "%%:%%@@", "%:%% @@", "%%:%%:%%.%%%",
+        "%%:%%.%", "%%.%%", "@%%%%", "@@-@@",
+    ):
+        assert oracle.clock_supply(form) == generation._clock_supply(form), form
+    written = ["08:00", "08:15", "9:30", "10:45:00", "12:00"]
+    owners = {parsing.folded(spelling): spelling for spelling in written}
+    for form in ("%%:%%", "%:%%", "%%:%%:%%"):
+        for wanted in (10, 590, 1000, 1440, 100000):
+            assert oracle.usable_room(
+                form, wanted, set(written), set(owners)
+            ) == generation._usable_room(
+                form, wanted, {spelling: 1 for spelling in written}, owners, ()
+            ), (form, wanted)
+    for held_back, rows, floor, numbers, words, most in (
+        (3652, 13827, 36, (), (10881, 2946), (1394,)),
+        (1550, 4135, 11, (), (3277, 858), (1390,)),
+        (300, 900, 11, (), (800, 100), (50,)),
+        (40, 120, 11, (30,), (60, 30), (20,)),
+        (60, 140, 11, (), (40, 70, 30), (12, 70)),
+        (10, 30, 11, (), (20, 10), ()),
+    ):
+        assert tuple(
+            oracle.held_back_sizes(held_back, rows, numbers, words, floor, most)
+        ) == generation.held_back_sizes(held_back, rows, floor, numbers, words, most), (
+            held_back,
+            rows,
+            most,
+        )
+    sizes = tuple(sorted([1] * 200 + [2] * 80 + [5] * 20))
+    for owing in ({"@": 104, "@@-@": 260}, {"@": 150, "@@-@": 200}):
+        product = generation._shared_out(sizes, dict(owing), {}, {}, ())
+        assert oracle.shared_out(sizes, dict(owing), set(), set()) == product, owing
+    rate = taxonomy.Settings().minimum_parse_rate
+    built: "list[tuple[list[str], dict]]" = []
+    for kind, share, rows, seed in _REPAIR_TABLES:
+        document, described, _folder = _described(_repair_table(kind, share, rows, seed), "at")
+        plan = generation.plan_generation(described)
+        product_cells, _notes = generation._label_content(plan.columns[0])
+        column = dict(document["columns"][0])
+        column["_code_declared"] = False
+        column["_parse_rate"] = rate
+        assert oracle._label_content(dict(column)) == product_cells, (kind, share, rows)
+        built += [(product_cells, column)]
+    oracle.clock_supply = oracle.fraction_clock_supply
+    assert oracle._label_content(dict(built[1][1])) != built[1][0]
+
+
+def _task_table() -> "list[str]":
+    """The leftover's duration table at a floor of eleven, cell for cell `task_10000` of `tests/test_stage3b_route2.py`.
+
+    A timed task in minutes and seconds from 2 to 40 minutes, `MM:SS`, at
+    10,000 rows, as the skeptic's duration battery drew it.
+    """
+    draw = random.Random(31014)
+    cells: "list[str]" = []
+    for _row in range(10000):
+        seconds = int(draw.triangular(120, 2400, 600))
+        cells += [f"{seconds // 60:02d}:{seconds % 60:02d}"]
+    return cells
+
+
+def test_the_oracle_states_the_leftover_as_the_product_does() -> None:
+    """The reference oracle mirrors the route-2 correction's leftover (A-P4-59).
+
+    No frozen case holds a clock's form past its times, so the oracle is
+    asked beside the product here: a duration's spellings past the clock at
+    each block's edges, on forms of a two-figure hour with and without
+    seconds and on forms that take none (one figure, a marker, a fraction,
+    no clock at all); the labels `held_back_sizes`' rounds leave each word
+    debt; which clock's forms are past their times; a supply counted over a
+    form's whole room, alone and in the arrangement; and the duration table
+    above, cell for cell and in order. The column parts when the oracle
+    names no form past its times.
+    """
+    oracle = _reference_oracle()
+    for form in ("%%:%%", "%%:%%:%%", "%:%%", "%%:%%@@", "%%:%%:%%.%%", "@@-@@"):
+        for step in (
+            0, 1, 2, 59, 60, 2159, 2160, 2161, 4559, 4560, 4561, 9999, 10000,
+            129599, 129600, 273599, 273600, 400000,
+        ):
+            assert oracle.past_the_clock(form, step) == generation._past_the_clock(form, step), (form, step)
+    for held_back, rows, floor, numbers, words, most in (
+        (1910, 8649, 11, (), (8649, 0), (1140,)),
+        (1574, 11514, 36, (), (11514, 0), (606,)),
+        (3652, 13827, 36, (), (10881, 2946), (1394,)),
+        (60, 140, 11, (), (40, 70, 30), (12, 70)),
+        (40, 120, 11, (30,), (60, 30), (20,)),
+        (10, 50, 11, (), (30, 10), (2,)),
+    ):
+        product_counts: "list[int]" = []
+        oracle_counts: "list[int]" = []
+        assert tuple(
+            oracle.held_back_sizes(held_back, rows, numbers, words, floor, most, oracle_counts)
+        ) == generation.held_back_sizes(held_back, rows, floor, numbers, words, most, product_counts)
+        assert oracle_counts == product_counts, (held_back, rows, words)
+        assert len(product_counts) == len(words)
+    for owing, counts, most in (
+        ({"%%:%%": 8649}, [1910, 0], (1140,)),
+        ({"%%:%%": 8649}, [1000, 0], (1140,)),
+        ({"%%:%%": 50, "@@-@@": 70, "see @@@@": 9}, [60, 9, 1], (12, 70)),
+        ({"%:%%": 400, "%%:%%:%%": 300}, [401, 2, 0], (390, 300)),
+    ):
+        assert oracle.clock_forms_past_their_times(
+            owing, counts, most
+        ) == generation._clock_forms_past_their_times(owing, False, counts, most), owing
+    written = [f"{hour:02d}:{minute:02d}" for hour in range(24) for minute in range(60)][10:]
+    owners = {parsing.folded(spelling): spelling for spelling in written}
+    for whole in (False, True):
+        assert oracle.usable_room(
+            "%%:%%", 3000, set(written), set(owners), whole=whole
+        ) == generation._usable_room(
+            "%%:%%", 3000, {spelling: 1 for spelling in written}, owners, (), whole=whole
+        ), whole
+        for sizes in (tuple([1] * 200), tuple([1] * 300)):
+            past = ("%%:%%",) if whole else ()
+            product = generation._shared_out(
+                sizes, {"%%:%%": len(sizes)}, {spelling: 1 for spelling in written}, owners, (), None, past
+            )
+            assert oracle.shared_out(
+                sizes, {"%%:%%": len(sizes)}, set(written), set(owners), past=past
+            ) == product, (whole, len(sizes))
+            assert len([form for form in product if form]) == (len(sizes) if whole else 10)
+    document, described, _folder = _described(_task_table(), "took")
+    plan = generation.plan_generation(described)
+    product_cells, _notes = generation._label_content(plan.columns[0])
+    assert not [cell for cell in product_cells if cell.startswith("group-")]
+    column = dict(document["columns"][0])
+    column["_code_declared"] = False
+    column["_parse_rate"] = taxonomy.Settings().minimum_parse_rate
+    assert oracle._label_content(dict(column)) == product_cells
+    oracle.clock_forms_past_their_times = lambda owing, counts, most: {}
+    assert oracle._label_content(dict(column)) != product_cells
+
+
+def _register_of_many_forms(
+    masks: "range" = range(64), held: int = 78
+) -> "list[str]":
+    """Seven-character codes in 64 forms: a letter, then six places each a
+    figure or a letter by form; per form one published code on twelve
+    rows and 78 codes written once, 4,992 held back in all. ``masks`` and
+    ``held`` choose fewer forms and codes."""
+    draw = random.Random(390)
+    letters = "ABCGHJKLMNPRSTUVWXYZ"
+    values: "list[str]" = []
+    seen: "dict[str, int]" = {}
+    for mask in masks:
+        made = 0
+        while made < held + 1:
+            code = "X" + "".join(
+                str(draw.randrange(10)) if mask >> bit & 1 else draw.choice(letters)
+                for bit in range(6)
+            )
+            if code in seen:
+                continue
+            seen[code] = 1
+            values += [code] * (12 if made == 0 else 1)
+            made = made + 1
+    draw.shuffle(values)
+    return values
+
+
+def test_each_form_s_supply_is_counted_only_up_to_what_it_owes() -> None:
+    """THE SUPPLY OF EVERY FORM WALKED EVERY HELD-BACK GROUP (review of
+    plan P4-D390, item 1).
+
+    `_shared_out` and `_greedily` counted each owing form's supply up to
+    the number of held-back groups, so a register of many forms cost
+    forms times groups, twice, and lifting the 4,096 bound let that walk
+    run to the end: 22,946 codes held back in 126 forms over 200,000
+    rows took 108.7 s to generate, 93 per cent of it in `_usable_room`.
+    No arrangement gives a form more places than it owes cells, so the
+    supply is counted to the debt (`generation._supply_wanted`) and the
+    twin is the same byte for byte. Here 64 forms hold 4,992 codes back:
+    da7a6f9 asked `_filled_form` 634,095 times, 127 per held-back code;
+    counted to the debt it asks about two per code.
+    """
+    values = _register_of_many_forms()
+    document, described, _folder = _described(values, "proc")
+    block = document["columns"][0]
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (4992, 4992)
+    named = [form for form in block["shape_forms"] if form != contract.WITHHELD]
+    assert len(named) == 63, named
+    calls = [0]
+    original = generation._filled_form
+
+    def counted(form: str, step: int, clocks: bool = True) -> str:
+        # `clocks` is landing 3b.5's (plan P4-D373): a clock's form past its
+        # column's clock line is filled figure by figure.
+        calls[0] = calls[0] + 1
+        return original(form, step, clocks)
+
+    generation._filled_form = counted
+    try:
+        twin = generation.generate(described, 7)
+    finally:
+        generation._filled_form = original
+    assert len(twin.columns[0]) == len(values)
+    assert calls[0] < 10 * 4992, calls[0]
+
+
+
+def _decimal_codes() -> "list[str]":
+    """Decimals declared a code: two words, three published numbers, and 300
+    numbers held back in each of nine forms of two to four figures before
+    the point and one to three after it."""
+    draw = random.Random(390)
+    values: "list[str]" = []
+    seen: "dict[str, int]" = {}
+    for word in ("awaiting", "review"):
+        values += [word] * 40
+    for spelling in ("1.5", "22.75", "333.125"):
+        values += [spelling] * 12
+        seen[spelling] = 1
+    for whole in (2, 3, 4):
+        for places in (1, 2, 3):
+            made = 0
+            while made < 300:
+                figures = draw.randrange(10 ** (whole - 1), 10 ** whole)
+                spelling = f"{figures}.{draw.randrange(10 ** places):0{places}d}"
+                if spelling in seen:
+                    continue
+                seen[spelling] = 1
+                values += [spelling]
+                made = made + 1
+    draw.shuffle(values)
+    return values
+
+
+def _wide_codes(seed: int, rows: int = 2000) -> "list[str]":
+    """Landing 2b.12's carried column, as `tests/test_landing_2b18_forms_and_spellings.py`
+    builds it: figures, a hyphen, capitals."""
+    draw = random.Random(seed)
+    built: "list[str]" = []
+    for _row in range(rows):
+        size = draw.choice((1, 1, 1, 2, 4, 9))
+        left = "".join(draw.choice("0123456789") for _c in range(size))
+        right = "".join(draw.choice("ABCDEFGH") for _c in range(size))
+        built += [f"{left}-{right}"]
+    return built
+
+
+def _bracketed_negatives() -> "list[str]":
+    """Sixty published words on twenty rows each beside 210 accounting
+    brackets around a minus, each written once: 140 of three figures and
+    70 of four, so the census names `(-%%%)` and `(-%%%%)`, whose cells
+    read as contradictory numbers."""
+    draw = random.Random(390)
+    values: "list[str]" = []
+    for word in range(60):
+        values += [f"shelf{word:02d}"] * 20
+    seen: "dict[str, int]" = {}
+    for figures in (3, 3, 4):
+        made = 0
+        while made < 70:
+            spelling = f"(-{draw.randrange(10 ** (figures - 1), 10 ** figures)})"
+            if spelling in seen:
+                continue
+            seen[spelling] = 1
+            values += [spelling]
+            made = made + 1
+    draw.shuffle(values)
+    return values
+
+
+def test_no_form_s_supply_is_counted_past_what_it_can_be_paid() -> None:
+    """Every supply count of a named form, in the three places it is taken
+    (review of plan P4-D390, item 1).
+
+    G8.3's arrangement, G8.3a's class walk and G8.3b's trade each count a
+    form's supply to spend it on the cells that form owes, so none needs
+    more spellings than the form's census count and the floor: a form is
+    paid at most what it owes and one label's rows past it. Counted to the
+    number of held-back labels instead, a supply walked every one of them
+    for every form: 64 forms holding 4,992 codes back, past the search's
+    256 places; 16 forms holding 192 back, inside them, where the search
+    asked each form of 24 cells for 192 spellings; decimals held back 300
+    to a form in nine forms beside 2,700 labels; the carried column of
+    figures, a hyphen and capitals at a floor of twenty, where the trade
+    asked for 1,082 spellings of forms of 356, 350 and 306 cells; and
+    accounting brackets around a minus beside sixty published words,
+    where the class walk's count for the out-of-range and contradictory
+    classes asked forms of 140 and 70 cells for 210 spellings each, and
+    no test held that count (second review of plan P4-D390, item 2). No
+    byte of any twin moves either way.
+    """
+    recorded: "list[tuple[str, int]]" = []
+    usable = generation._usable_room
+    ladder_room = generation._ladder_room
+
+    def usable_counted(form: str, wanted: int, *rest: object, **named: object) -> int:
+        nonlocal recorded
+        recorded += [(form, wanted)]
+        return usable(form, wanted, *rest, **named)  # type: ignore[arg-type]
+
+    def ladder_counted(ladder: object, form: str, wanted: int, *rest: object) -> int:
+        nonlocal recorded
+        recorded += [(form, wanted)]
+        return ladder_room(ladder, form, wanted, *rest)  # type: ignore[arg-type]
+
+    for values, codes, floor in (
+        (_register_of_many_forms(), None, 11),
+        (_register_of_many_forms(range(1, 17), 12), None, 11),
+        (_decimal_codes(), ["proc"], 11),
+        (_wide_codes(401), None, 20),
+        (_bracketed_negatives(), None, 11),
+    ):
+        document, described, _folder = _described(values, "proc", codes, floor)
+        census = document["columns"][0]["shape_forms"]
+        recorded = []
+        generation._usable_room = usable_counted  # type: ignore[assignment]
+        generation._ladder_room = ladder_counted  # type: ignore[assignment]
+        try:
+            generation.generate(described, 7)
+        finally:
+            generation._usable_room = usable
+            generation._ladder_room = ladder_room
+        named = [
+            (form, wanted) for form, wanted in recorded
+            if form in census and form != contract.WITHHELD
+        ]
+        assert named, codes
+        assert [
+            (form, wanted) for form, wanted in named if wanted >= census[form] + floor
+        ] == [], codes
+
+def test_a_register_holding_back_more_numbers_than_the_ladder_bound_writes_them_all() -> None:
+    """THE LADDER GAVE A DEBT UP AT 32,768 POSITIONS IN ALL (review of plan
+    P4-D390, item 2).
+
+    The made-up numbers of G8.3a step 3 walked at most `2 *
+    _LADDER_STEPS` positions of each tier, so a register holding back
+    more numbers than that wrote the rest as words: ten-figure codes over
+    1,000,000 rows at a floor of eleven held 95,424 back, 32,768 were
+    written as numbers, and the twin's `n_numeric` was 914,448 against
+    the table's 1,000,000. Ruling 5's level pass had counted most of them
+    as missing, which hid the bound as it hid G8.3's 4,096. The bound is
+    on what the walk refuses now (`generation._ladder_goes_on`), so a
+    register holding 33,000 codes back writes every one as a number and
+    meets every count: da7a6f9 wrote 597 of them as words and missed
+    `n_numeric` and `n_not_numeric`.
+    """
+    draw = random.Random(390)
+    codes: "list[str]" = []
+    seen: "dict[str, int]" = {}
+    while len(codes) < 33020:
+        code = f"{draw.randrange(10 ** 10):010d}"
+        if code not in seen:
+            seen[code] = 1
+            codes += [code]
+    values: "list[str]" = []
+    for code in codes[:20]:
+        values += [code] * 40
+    values += codes[20:]
+    draw.shuffle(values)
+    document, described, folder = _described(values, "lot", ["lot"])
+    block = document["columns"][0]
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (33000, 33000)
+    assert block["n_numeric"] == 33800
+    twin = generation.generate(described, 7)
+    cells = twin.columns[0]
+    assert len(
+        [cell for cell in cells if parsing.classify_number(cell) == parsing.NUMBER]
+    ) == 33800
+    twin_file = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
+    outcome = validation.measure(described, f"{twin_file}")
+    assert [
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    ] == []
+
+
+def test_the_ladder_bound_is_on_what_it_refuses_and_the_oracle_walks_alike() -> None:
+    """`_ladder_goes_on` at its edges, the supply counted under it, and the
+    oracle's walk number for number past the old bound (A-P4-59).
+
+    A walk that takes nothing still stops after 32,768 values tried; one
+    that takes may try twice what it has taken past them. Two published
+    numbers, 1,000 and 9,000,000, leave nearly nine million values
+    between them, so the walk of a number wearing no named form takes
+    40,000 numbers where the old bound stopped short of 32,768. The
+    oracle reasons only about plain decimals of seven characters at most,
+    which every one of them is.
+    """
+    bound = 2 * generation._LADDER_STEPS
+    assert bound == 32768
+    assert generation._ladder_goes_on(bound - 1, 0)
+    assert not generation._ladder_goes_on(bound, 0)
+    assert generation._ladder_goes_on(bound, 1)
+    assert generation._ladder_goes_on(2 * 9000 + bound - 1, 9000)
+    assert not generation._ladder_goes_on(2 * 9000 + bound, 9000)
+    oracle = _reference_oracle()
+    for taken in (0, 1, 9000):
+        for position in (0, bound - 1, bound, 2 * taken + bound - 1, 2 * taken + bound):
+            assert oracle.ladder_goes_on(position, taken) == (
+                generation._ladder_goes_on(position, taken)
+            ), (position, taken)
+    written = ["1000", "9000000"]
+    ladder = generation._number_ladder(written, False, [])
+    reference = oracle.number_ladder(written, [])
+    number = generation._OWED_NUMBER
+    assert generation._ladder_room(ladder, number, 40000, {}, {}, {}, (), False) == 40000
+    assert oracle.ladder_room(reference, oracle.OWED_NUMBER, 40000, set(), set(), set()) == 40000
+    cursor: "dict[str, int]" = {}
+    walked: "dict[str, int]" = {}
+    product: "list[str]" = []
+    mirrored: "list[str]" = []
+    for _each in range(40000):
+        product += [
+            generation._next_on_ladder(ladder, number, cursor, {}, {}, {}, (), False)
+        ]
+        mirrored += [
+            oracle.next_on_ladder(reference, oracle.OWED_NUMBER, walked, set(), set(), set())
+        ]
+    assert "" not in product
+    assert len(set(product)) == 40000
+    assert product == mirrored
+
+
+def test_the_class_walk_takes_a_form_past_the_old_bound_as_the_oracle_does() -> None:
+    """G8.3a's own walk of a form goes past 4,096 spellings, stand-in for
+    stand-in with the oracle (review of plan P4-D390, item 3).
+
+    `_class_form_stand_in` asks `_walk_goes_on` as `_made_up_label` does,
+    so a column owing one numeric class in one form more than 4,096
+    times is written in that form throughout; nothing pinned it, and with
+    the old bound restored in the product or in the oracle every test
+    passed. Here each walk takes 5,000 spellings: a number class held to
+    the published ends of 0.001 and 999.999 in `%%%.%%%`, and the
+    contradictory class in `(-%%%%)`, which no ladder holds. The oracle's
+    walk is `class_form_stand_in`, the one both its branches call.
+    """
+    oracle = _reference_oracle()
+    written = ["0.001", "999.999"]
+    for form, reads, held, ladder, reference in (
+        (
+            "%%%.%%%", parsing.NUMBER, oracle.NOTATION_NUMBER,
+            generation._number_ladder(written, False, ["%%%.%%%"]),
+            oracle.number_ladder(written, ["%%%.%%%"]),
+        ),
+        (
+            "(-%%%%)", generation._owed_reading(generation._OWED_CONTRADICTORY),
+            oracle.owed_reading(oracle.OWED_CONTRADICTORY), None, None,
+        ),
+    ):
+        walked: "dict[str, int]" = {}
+        taken: "dict[str, int]" = {}
+        used: "dict[str, int]" = {}
+        owners: "dict[str, str]" = {}
+        mirror_walked: "dict[str, int]" = {}
+        mirror_taken: "dict[str, int]" = {}
+        seen: "set[str]" = set()
+        folds: "set[str]" = set()
+        product: "list[str]" = []
+        mirrored: "list[str]" = []
+        for _each in range(5000):
+            found = generation._class_form_stand_in(
+                form, reads, walked, used, owners, (), False, ladder, taken
+            )
+            product += [found]
+            used[found] = 1
+            owners[parsing.folded(found)] = found
+            echo = oracle.class_form_stand_in(
+                form, held, mirror_walked, mirror_taken, seen, folds, reference
+            )
+            mirrored += [echo]
+            seen.add(echo)
+            folds.add(oracle.folded(echo))
+        assert "" not in product, form
+        assert taken[form] == 5000, form
+        assert product == mirrored, form
+
+
+def _bracketed_negatives_past_the_old_bound() -> "list[str]":
+    """Codex's column: sixty `shelfNN` labels on twenty rows each beside
+    `(-1000)` to `(-5999)`, each written once."""
+    values: "list[str]" = []
+    for word in range(60):
+        values += [f"shelf{word:02d}"] * 20
+    for figures in range(1000, 6000):
+        values += [f"(-{figures})"]
+    random.Random(1).shuffle(values)
+    return values
+
+
+def _zero_padded_readings(held: int = 450) -> "list[str]":
+    """Readings written seven characters wide with leading noughts, as
+    `%%%%%.%`: two words on forty rows each, `00000.1` and `09999.9` on
+    twenty each, and ``held`` others between them written once."""
+    draw = random.Random(390)
+    values: "list[str]" = []
+    for word in ("awaiting", "review"):
+        values += [word] * 40
+    seen: "dict[int, int]" = {}
+    for tenths in (1, 99999):
+        values += [f"{tenths // 10:05d}.{tenths % 10}"] * 20
+        seen[tenths] = 1
+    while len(seen) < held + 2:
+        tenths = draw.randrange(2, 99999)
+        if tenths in seen:
+            continue
+        seen[tenths] = 1
+        values += [f"{tenths // 10:05d}.{tenths % 10}"]
+    draw.shuffle(values)
+    return values
+
+
+def _class_walk_steps_recorded() -> "tuple[dict[str, int], object]":
+    """`_class_form_stand_in` wrapped to record how far each class walked.
+
+    The wrapper hands the walk every argument its caller gave, so what a
+    whole generation writes is what its caller in `_class_stand_ins_walked`
+    makes it write; it only reads, after each call, how many spellings the
+    form has been walked.
+    """
+    steps: "dict[str, int]" = {}
+    original = generation._class_form_stand_in
+
+    def recorded(form: str, reads_as: str, walked: "dict[str, int]", *rest: object) -> str:
+        found = original(form, reads_as, walked, *rest)  # type: ignore[arg-type]
+        steps[reads_as] = max(steps[reads_as] if reads_as in steps else 0, walked[form])
+        return found
+
+    return steps, recorded
+
+
+def test_a_whole_generation_carries_the_class_walk_s_counter_on_both_branches() -> None:
+    """The caller of G8.3a's walk keeps what it has taken, on both of its
+    branches (Codex's review of plan P4-D390, item 2).
+
+    The check above hands `_class_form_stand_in` a `taken` of its own, so
+    it could not see the caller in `_class_stand_ins_walked` drop it: the
+    walk then gives a form up at 4,096 spellings in all, as before plan
+    P4-D390, and nothing here went red. Two whole generations, one per
+    branch of that caller, each walking its form past 4,096 spellings:
+
+    - the out-of-range and contradictory classes: sixty `shelfNN` labels
+      on twenty rows each beside `(-1000)` to `(-5999)` written once each.
+      Every one of the 5,000 is written in `(-%%%%)`; without the counter
+      4,096 are and 904 take shorter widths (Codex's own measurement);
+    - the number class, reached where the ladder cannot spell the form:
+      readings written seven wide with leading noughts, declared a code,
+      450 of them held back in `%%%%%.%`. The ladder's steps never wear a
+      leading nought, so the form's own walk writes the 450, about one
+      spelling in ten of it lying inside the published ends: all 450 in
+      the form; without the counter 409, and 41 written `%.%`.
+
+    Each twin meets its form's count. The first meets every count its
+    description sets; the second misses one, the pooled mean of the
+    held-back numbers, because the form's own walk places nothing on it
+    (method G8.3a, step 2), and 493f6f8 missed it on this column too,
+    beside the form's count.
+    """
+    columns = (
+        ("other", _bracketed_negatives_past_the_old_bound(), None, "(-%%%%)", 5000, []),
+        (
+            "number", _zero_padded_readings(), ["proc"], "%%%%%.%", 490,
+            ["suppressed.numbers.mean"],
+        ),
+    )
+    for branch, values, codes, form, wanted, unmet in columns:
+        document, described, folder = _described(values, "proc", codes)
+        census = document["columns"][0]["shape_forms"]
+        assert census[form] == wanted, (branch, census)
+        steps, recorded = _class_walk_steps_recorded()
+        original = generation._class_form_stand_in
+        generation._class_form_stand_in = recorded  # type: ignore[assignment]
+        try:
+            twin = generation.generate(described, 7)
+        finally:
+            generation._class_form_stand_in = original
+        cells = twin.columns[0]
+        assert len(
+            [cell for cell in cells if parsing.shape_form(cell) == form]
+        ) == wanted, branch
+        reads = parsing.NUMBER
+        if branch == "other":
+            reads = generation._owed_reading(generation._OWED_CONTRADICTORY)
+        assert steps[reads] > generation._STAND_IN_STEPS, (branch, steps)
+        twin_file = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
+        outcome = validation.measure(described, f"{twin_file}")
+        assert [
+            check.subcheck
+            for check in outcome.checks
+            if check.verdict == validation.MISSED
+        ] == unmet, branch
+
+
+def test_a_ladder_tier_that_ended_is_never_walked_again() -> None:
+    """An ended tier is marked ended, not stood at the old bound (review of
+    plan P4-D390, item 2).
+
+    The ladder's bound is on what the walk refuses now, so a tier that
+    ended after taking numbers would, stood at 32,768 positions as the
+    walk stood it, be walked again from there by the next call and give
+    numbers it had given already -- and `_ladder_room`, which marks
+    nothing as written, would count them twice. Published 0.0001, 9.9999
+    and 7, a number wearing no named form walks four places and then
+    none; with the census pooling nothing and counting forms of 200,000
+    spellings, the first tier takes every one of its 99,996 values and
+    ends past 32,768 positions, where `%%.%%%%` is refused above and
+    nought below, and whole numbers follow. Stood at the old bound, the
+    walk gave `1.6386` again after `1`.
+    """
+    oracle = _reference_oracle()
+    written = ["0.0001", "9.9999", "7"]
+    ladder = generation._number_ladder(written, False, [])
+    reference = oracle.number_ladder(written, [])
+    assert ladder.tiers == (4, 0) and reference["tiers"] == (4, 0)
+    number = generation._OWED_NUMBER
+    cursor: "dict[str, int]" = {}
+    walked: "dict[str, int]" = {}
+    product: "list[str]" = []
+    mirrored: "list[str]" = []
+    for _each in range(100010):
+        product += [
+            generation._next_on_ladder(
+                ladder, number, cursor, {}, {}, {}, (), False, 200000, [0]
+            )
+        ]
+        mirrored += [
+            oracle.next_on_ladder(
+                reference, oracle.OWED_NUMBER, walked, set(), set(), set(), 200000, 0
+            )
+        ]
+    assert len(set(product)) == 100010
+    assert len([value for value in product if "." in value]) == 99996
+    assert product == mirrored
+
+
+def _consecutive_codes(
+    ids: int, gone: "dict[int, int]"
+) -> "tuple[list[str], list[str]]":
+    """Seven-figure codes from 1,000,001 on, one after another: the
+    published ones, and the held-back ones, whose steps ``gone`` holds."""
+    published: "list[str]" = []
+    held_back: "list[str]" = []
+    for step in range(ids):
+        if step in gone:
+            held_back += [f"{1000001 + step}"]
+        else:
+            published += [f"{1000001 + step}"]
+    return published, held_back
+
+
+def test_the_ladder_does_not_count_a_published_number_it_steps_past() -> None:
+    """A POSITION HOLDING NO VALUE IS NOT COUNTED against the ladder's
+    bound (review of plan P4-D390, item 2).
+
+    The gaps of a register of consecutive codes are its held-back codes,
+    and the walk reaches the middle ones only past every published code
+    nearer an end. Counted as refusals, as the review's first repair
+    counted them, those positions gave the walk up inside its own span:
+    60,000 seven-figure codes holding 2,000 back, 4ec50cd's walk gave
+    1,175 of them and then nothing, though every number past
+    either end was free. Now it gives the 2,000 from the gaps and then
+    steps outward, below the smallest code and above the largest in
+    turn, and the oracle walks alike (A-P4-59).
+    """
+    draw = random.Random(390)
+    gone = dict.fromkeys(draw.sample(range(1, 59999), 2000), 1)
+    published, held_back = _consecutive_codes(60000, gone)
+    ladder = generation._number_ladder(published, False, [])
+    oracle = _reference_oracle()
+    reference = oracle.number_ladder(published, [])
+    number = generation._OWED_NUMBER
+    assert generation._ladder_room(ladder, number, 2100, {}, {}, {}, (), False) == 2100
+    assert oracle.ladder_room(
+        reference, oracle.OWED_NUMBER, 2100, set(), set(), set()
+    ) == 2100
+    cursor: "dict[str, int]" = {}
+    walked: "dict[str, int]" = {}
+    product: "list[str]" = []
+    mirrored: "list[str]" = []
+    for _each in range(2100):
+        product += [
+            generation._next_on_ladder(ladder, number, cursor, {}, {}, {}, (), False)
+        ]
+        mirrored += [
+            oracle.next_on_ladder(
+                reference, oracle.OWED_NUMBER, walked, set(), set(), set()
+            )
+        ]
+    assert "" not in product, len([value for value in product if value])
+    assert sorted(product[:2000]) == held_back
+    outward: "list[str]" = []
+    for step in range(1, 51):
+        outward += [f"{1000001 - step}", f"{1060000 + step}"]
+    assert product[2000:] == outward
+    assert product == mirrored
+
+
+def test_the_ladder_does_not_count_a_side_whose_sign_the_column_lacks() -> None:
+    """A POSITION PAST THE PUBLISHED SPAN THAT HOLDS NO VALUE IS NOT
+    COUNTED EITHER (second review of plan P4-D390, item 1).
+
+    Past the span, a side whose sign the column does not hold holds no
+    value at any step, and the walk stands on it once for each value it
+    tries on the other side. The case above reaches only positions inside
+    the span, so with those outside counted again, in the product or in
+    the oracle, every test passed. Published 1 and 2, positives only, so
+    every step below them holds no value; with every even number from 4
+    already written, the walk takes the odd ones above 2 and refuses the
+    even ones between. Counted, the empty steps below gave the walk up
+    after 16,382 numbers, as on 4ec50cd; now it takes the 20,000 asked
+    for, and the oracle walks alike (A-P4-59).
+    """
+    oracle = _reference_oracle()
+    written = ["1", "2"]
+    ladder = generation._number_ladder(written, False, [])
+    reference = oracle.number_ladder(written, [])
+    assert ladder.signs == generation._SIGN_POSITIVE_BIT
+    assert reference["signs"] == {"positive"}
+    used = {f"{value}": 1 for value in range(4, 40010, 2)}
+    seen = set(used)
+    number = generation._OWED_NUMBER
+    assert generation._ladder_room(ladder, number, 20000, {}, used, {}, (), False) == 20000
+    assert oracle.ladder_room(
+        reference, oracle.OWED_NUMBER, 20000, set(), seen, set()
+    ) == 20000
+    cursor: "dict[str, int]" = {}
+    walked: "dict[str, int]" = {}
+    product: "list[str]" = []
+    mirrored: "list[str]" = []
+    for _each in range(20000):
+        product += [
+            generation._next_on_ladder(ladder, number, cursor, {}, used, {}, (), False)
+        ]
+        mirrored += [
+            oracle.next_on_ladder(
+                reference, oracle.OWED_NUMBER, walked, set(), seen, set()
+            )
+        ]
+    assert "" not in product, len([value for value in product if value])
+    assert len(set(product)) == 20000
+    assert [value for value in product if int(value) % 2 == 0 or int(value) < 3] == []
+    assert product == mirrored
+
+
+def test_a_register_of_consecutive_codes_writes_its_held_back_code_as_a_number() -> None:
+    """The same, end to end: 33,000 consecutive codes on two rows each at a
+    floor of two, the middle one written once. The walk reaches it only
+    past 32,998 published codes, so 4ec50cd's walk gave up first and
+    wrote it as a word, and the twin's count of cells reading as numbers
+    missed the table's; now every twin cell is a number.
+    """
+    published, held_back = _consecutive_codes(33000, {16500: 1})
+    values: "list[str]" = []
+    for code in published:
+        values += [code, code]
+    values += held_back
+    random.Random(390).shuffle(values)
+    document, described, _folder = _described(values, "lot", ["lot"], 2)
+    block = document["columns"][0]
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (1, 1)
+    assert block["n_numeric"] == len(values)
+    cells = generation.generate(described, 7).columns[0]
+    words = [cell for cell in cells if parsing.classify_number(cell) != parsing.NUMBER]
+    assert words == [], words

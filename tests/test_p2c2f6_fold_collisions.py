@@ -33,6 +33,7 @@ What this file holds to:
   different, and the length window is never left.
 """
 
+import dataclasses
 import pathlib
 
 import pytest
@@ -46,6 +47,7 @@ from synthtwin import (
     reading,
     rendering,
     taxonomy,
+    validation,
 )
 
 SEEDS = (0, 1, 3, 17)
@@ -117,8 +119,16 @@ def test_the_spacing_collision_case_is_built_not_named(
     )
     assert not _named(twin, "n_distinct")
     assert not _named(twin, "n_distinct_folded")
-    lengths = [len(cell) for cell in cells]
-    assert (min(lengths), max(lengths)) == (1, 3)
+    # NO TWIN RECORD NUMBER NAMES A REAL ONE (plan P4-D432): the census names
+    # no layout, so the column's spill stands alone and the final pass of
+    # method G9.6b writes the identity wider than every real cell -- its
+    # four spellings TOGETHER, one new core in each one's case and spaces,
+    # so the collision is the walk's still. The lengths are then a record
+    # number written wider's (V4.1-A2): every cell's merged key at least the
+    # spill's length, where the walk alone wrote one to three characters.
+    exclusions = facts.layout_exclusions
+    bound = taxonomy.spill_bound(exclusions, facts.layout_prefixes)
+    assert bound and all(len(parsing.merged_key(cell)) >= bound for cell in cells), cells
 
 
 @pytest.mark.parametrize("seed", SEEDS)
@@ -224,7 +234,43 @@ def test_the_written_twin_describes_again_to_the_published_facts(
     assert rebuilt.n_present == published.n_present
     assert rebuilt.n_distinct == published.n_distinct
     assert rebuilt.n_distinct_folded == published.n_distinct_folded
-    assert rebuilt.facts == published.facts
+    # THE LAYOUT CENSUS IS COMPARED AS AN OBLIGATION, NOT AS A DICTIONARY
+    # (landing 2b.18, measured at the stage-2b integration). The source's
+    # three spaced spellings carry no layout, so its census counts ONE
+    # cell and names nothing; the twin's first partner is a case flip
+    # (G9.3 offers those first), which carries one, and describing the
+    # twin again counts two cells and names `{'~': 2}`. An empty census
+    # sets no obligation -- the quality report files no layout check on
+    # this twin and misses nothing -- so the facts are compared with the
+    # census the description published, and the file is held to it by
+    # the validator below.
+    facts = rebuilt.facts
+    if isinstance(facts, contract.IdentifierFacts) and isinstance(
+        published.facts, contract.IdentifierFacts
+    ) and not published.facts.layout_forms:
+        facts = dataclasses.replace(
+            facts, layout_forms=published.facts.layout_forms
+        )
+    # ...AND THE LENGTHS AND THE EXCLUSIONS ARE A RECORD NUMBER WRITTEN
+    # WIDER'S (plan P4-D432): the twin writes the identity past the spill, so
+    # it describes again one to three characters longer, with its own spill;
+    # the validator below holds the file to the published lengths, as
+    # V4.1-A2 authorizes them.
+    if isinstance(facts, contract.IdentifierFacts) and isinstance(
+        published.facts, contract.IdentifierFacts
+    ):
+        facts = dataclasses.replace(
+            facts,
+            min_length=published.facts.min_length,
+            max_length=published.facts.max_length,
+            layout_exclusions=published.facts.layout_exclusions,
+        )
+    assert facts == published.facts
+    written = fixtures.write(tmp_path, "checked.csv", rendering.twin_csv(twin))
+    outcome = validation.measure(described, str(written))
+    assert not [
+        check for check in outcome.checks if check.verdict == "MISSED"
+    ], seed
 
 
 @pytest.mark.parametrize("seed", SEEDS)
