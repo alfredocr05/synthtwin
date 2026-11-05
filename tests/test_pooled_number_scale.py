@@ -385,8 +385,10 @@ def test_widening_the_window_without_bound_lets_the_defect_through(
     assert "value:suppressed.numbers.mean" in _missed(
         loaded, folder / "narrow.csv", written
     )
+    # The window takes the held-back levels too since lane CODES-1 (its
+    # grain, plan P4-D439); the double ignores them.
     monkeypatch.setattr(  # type: ignore[attr-defined]
-        taxonomy, "pooled_window", lambda _labels: 1.0e18
+        taxonomy, "pooled_window", lambda _labels, _held=0: 1.0e18
     )
     assert _missed(loaded, folder / "wide.csv", written) == []
 

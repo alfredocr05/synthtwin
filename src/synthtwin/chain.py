@@ -1009,7 +1009,11 @@ def row_hashes(table: reading.Table) -> "tuple[list[bytes], bytearray]":
     whole numbers, are summed modulo `2**256`, and the sum's 32 bytes are
     hashed once more: BLAKE2b (`digest_size=32`,
     `person=b"synthtwin.row.2"`). The sum is free of column order, as
-    the name order of the first form was. The cells are the reader's own
+    the name order of the first form was. A cell holding nothing (spaces
+    and tabs alone, `_is_blank`) is framed as the empty text, as 4.6b.8
+    states; the first build framed it as written, so a blank cell given a
+    space made a second table of the ledger's one (lane CHb's second
+    repair, Codex's item 4). The cells are the reader's own
     (`reading.column_values`), so a CSV and a workbook of one table give
     one hash, and the walk takes the table's columns group by group
     (`reading.column_groups`), each group read once, holding one whole
@@ -1029,10 +1033,13 @@ def row_hashes(table: reading.Table) -> "tuple[list[bytes], bytearray]":
             values = reading.column_values(table, place)
             for row in range(rows):
                 text = values[row]
-                cell = bytes(text, "utf-8")
+                blank = _is_blank(text)
+                # A CELL HOLDING NOTHING IS THE EMPTY TEXT (4.6b.8): `""` and
+                # `" \t"` frame alike (lane CHb's second repair, Codex's item 4).
+                cell = b"" if blank else bytes(text, "utf-8")
                 digest = hashlib.blake2b(head + _length_word(len(cell)) + cell, digest_size=32, person=b"synthtwin.cel.1").hexdigest()
                 sums[row] += int(digest, 16)
-                if not filled[row] and not _is_blank(text):
+                if not filled[row] and not blank:
                     filled[row] = 1
     hashes: "list[bytes]" = []
     for row in range(rows):

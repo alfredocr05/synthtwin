@@ -275,6 +275,9 @@ _place(
         # The Safe Harbor top-code (plan P4-D427): always 90, the rule's
         # own number, held by no row.
         "columns.[].top_coded",
+        # ...and the Safe Harbor years (plan P4-D434): the year the
+        # description is made less 90, the rule's own year, held by no row.
+        "columns.[].top_coded_year",
         "source.dialect.blank_lines",
         "source.dialect.blank_lines.[].after",
         "source.dialect.blank_lines.[].lines",

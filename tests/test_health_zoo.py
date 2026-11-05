@@ -124,7 +124,7 @@ E0C_KINDS = (
     # the coding systems
     "diagnosis_code_forms", "procedure_and_drg_forms", "icd10_long_tail",
     # the long and system-shaped exports
-    "omop_cdm", "pcornet_cdm", "i2b2_eav", "fhir_flattened", "hl7v2_flattened", "epic_caboodle", "cerner_ccl",
+    "omop_cdm", "pcornet_cdm", "i2b2_eav", "fhir_flattened", "hl7v2_flattened", "warehouse_keys", "float_keys_export",
     # the file shapes
     "utf16_text", "cp1252_smart_quotes", "sas_dot_missing", "wide_table", "trailing_delimiter",
     "excel_mangled_codes", "workbook_1904_dates", "leading_apostrophe",
@@ -724,20 +724,30 @@ def test_one_table_runs_end_to_end_in_this_process(tmp_path: pathlib.Path) -> No
     assert result["roles"]["patient_id"] == "identifier"
     verdicts = zoo.per_kind([result])
     assert set(verdicts) == {"demographics", "utf8_accents"}
-    # The accented cities are cities of birth, places smaller than a state
-    # the product publishes asking no question: the one failure of the
-    # kind, LIVE and lane SH2's (THE ZOO ANSWERS TRUTHFULLY, 2026-10-25).
-    assert verdicts["utf8_accents"]["failures"] == ["leak birth_city"]
-    assert verdicts["utf8_accents"]["owners"] == ["SH2"]
+    # THE HIPAA PRICE (plan P4-D434): the city of birth is held by its Safe
+    # Harbor question, answered `yes`, so the analyst's checks of its real
+    # cities fail, by design: the listed cities owned by lane SH2, the
+    # generic checks of a held column by the zoo's Safe Harbor price line
+    # (lane SH's, THE ZOO ANSWERS TRUTHFULLY); the languages pass.
+    assert verdicts["utf8_accents"]["passed"] is False
+    assert all("birth_city" in failure or "cities" in failure for failure in verdicts["utf8_accents"]["failures"])
+    assert set(verdicts["utf8_accents"]["owners"]) == {"SH", "SH2"}
 
 
-def test_the_labs_misses_reach_its_verdict(tmp_path: pathlib.Path) -> None:
-    """validate's MISSED checks are captured per column and fail the kind at validate."""
-    result = zoo.run_table(zoo.table_named("labs"), tmp_path, SMALL, SEED)
+def test_the_diagnoses_misses_reach_its_verdict(tmp_path: pathlib.Path) -> None:
+    """validate's MISSED checks are captured per column and fail the kind at validate.
+
+    It read the labs export's `ref_range` until lane UN-1a (plan P4-D438):
+    rule 0c now keeps that column's exact list, and validate misses
+    nothing there; the diagnoses export at its battery seed still misses
+    three published forms of `icd10_dotted` (CODES-1 part C's line).
+    """
+    table = zoo.table_named("diagnoses_procedures")
+    result = zoo.run_table(table, tmp_path, SMALL, SEED + zoo.TABLES.index(table))
     assert result["steps"]["validate"]["exit"] == 3
-    assert result["misses"], "validate missed checks on the labs twin and none were captured"
-    assert {miss[0] for miss in result["misses"]} == {"ref_range"}
-    assert zoo.per_kind([result])["labs"]["failing_step"] == "validate"
+    assert result["misses"], "validate missed checks on the diagnoses twin and none were captured"
+    assert {miss[0] for miss in result["misses"]} == {"icd10_dotted"}
+    assert zoo.per_kind([result])["diagnoses"]["failing_step"] == "validate"
 
 
 def _result(table: str, **changes: object) -> "dict":

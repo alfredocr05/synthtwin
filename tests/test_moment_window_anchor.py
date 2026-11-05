@@ -35,6 +35,8 @@ import random
 import sys
 
 import fixtures
+import keyboard
+import pytest
 from synthtwin import validation
 
 
@@ -102,7 +104,7 @@ def _thin_rows() -> "list[list[str]]":
 
 
 def test_a_twin_far_from_the_published_moments_is_missed(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The defect, end to end, on the thin column that still reaches it.
 
@@ -116,7 +118,16 @@ def test_a_twin_far_from_the_published_moments_is_missed(
     at a hundred rows -- the fewest the command will describe since
     landing 3.2 -- only a raised floor leaves no percent clearing two
     tails.
+
+    THE SAFE HARBOR QUESTION IS ANSWERED `no` (`keyboard`): under the
+    raised floor the amounts past 125 are fewer than its fifty rows, so
+    lane SH's age reach takes the column, and since lane SH2's close round
+    (plan P4-D434, the orchestrator's LANE SH2 RULINGS 2 (2)) it reads
+    every value past 125 as 90 -- the far value among them -- which leaves
+    no far value to witness. `no` gives back the description this witness
+    was written against.
     """
+    keyboard.safe_harbor_answered_no(monkeypatch)
     table = fixtures.write(
         tmp_path, "amounts.csv", fixtures.rows_to_csv(["line", "amount"], _thin_rows())
     )

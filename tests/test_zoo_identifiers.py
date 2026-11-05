@@ -92,7 +92,7 @@ def uid_rows(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
     return ["study_uid", "modality"], rows
 
 
-def cerner_rows(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+def float_keys_rows(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
     """A Cerner Millennium CCL export (zoo plan row 42): record numbers written as decimals.
 
     The zoo critic's own shape (wave6/ZOO/PLAN-v2-work/probe_shapes.py,
@@ -568,7 +568,7 @@ def test_b_a_whole_record_number_writes_its_noughts(tmp_path: pathlib.Path, n: i
     Mutant: `parsing.whole_places_layout` returning the layout unchanged
     (the places after the point drawn: 595 of 600 cells bad, exit 3).
     """
-    header, rows = cerner_rows(n, 42)
+    header, rows = float_keys_rows(n, 42)
     for column in ("ENCNTR_ID", "PERSON_ID"):
         seen = run(tmp_path / column, header, rows, column, declared=("ENCNTR_ID", "PERSON_ID"))
         assert seen["exits"] == (0, 0, 0), seen["exits"]
@@ -1124,8 +1124,8 @@ def zoo_identifier_cells_out_of_pattern(folder: pathlib.Path, n: int) -> "dict[s
         (next(table for table in health_zoo.TABLES if table.name == "imaging"), 20261016,
          {"study_uid": lambda cell: UID.fullmatch(cell) is not None and cell.startswith(ROOT)}),
         (health_zoo.Table(
-            "cerner_ccl", ".csv", cerner_rows, health_zoo.csv_bytes,
-            {"cerner_ccl": tuple(cerner_rows(1, 0)[0])},
+            "float_keys_export", ".csv", float_keys_rows, health_zoo.csv_bytes,
+            {"float_keys_export": tuple(float_keys_rows(1, 0)[0])},
             {"ENCNTR_ID": "identifier", "PERSON_ID": "identifier"}, _zoo_reader, ()), 4252,
          {"ENCNTR_ID": lambda cell: re.fullmatch(r"\d+\.00", cell) is not None,
           "PERSON_ID": lambda cell: re.fullmatch(r"\d+\.00", cell) is not None}),

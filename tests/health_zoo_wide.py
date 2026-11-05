@@ -14,7 +14,7 @@ domains, the long and system-shaped exports, the file shapes, the HIPAA
 and de-identified shapes and the time edge kinds -- and the cases the
 repository's records name as this lane's (docs/plans/phase-4-columns.md,
 ZR.7 and ZR.9: month-year `MM/YYYY` as its own column, military `HHMM`,
-zone words, Caboodle's `DateKey` unanswered, the HL7 `^` component list,
+zone words, a warehouse export's `day_key` unanswered, the HL7 `^` component list,
 the numeric multi-select, `39w2d` and `37+5`, rsIDs of several lengths,
 and the click-order two-pick residual). A kind section 6 (b) names that
 E0a's catalogue already holds is MERGED into E0a's, never counted twice
@@ -547,7 +547,7 @@ def well_child(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
     return header, rows
 
 
-AGE_UNITS = {"d": 1.0, "mo": 30.4, "yr": 365.25}
+AGE_UNIT_DAYS = {"d": 1.0, "mo": 30.4, "yr": 365.25}
 
 
 def _age_days(series: object) -> "tuple[float, float, float] | None":
@@ -555,7 +555,7 @@ def _age_days(series: object) -> "tuple[float, float, float] | None":
     for text in series.dropna().astype(str):  # type: ignore[attr-defined]
         match = re.fullmatch(r"(\d{1,4}) (d|mo|yr)", text)
         if match:
-            days += [round(int(match.group(1)) * AGE_UNITS[match.group(2)], 1)]
+            days += [round(int(match.group(1)) * AGE_UNIT_DAYS[match.group(2)], 1)]
     return _spread(days)
 
 
@@ -1628,7 +1628,7 @@ def pcornet_diagnosis(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
     draw = random.Random(seed)
     people = _people(n)
     header = [
-        "DIAGNOSISID", "PATID", "ENCOUNTERID", "ADMIT_DATE", "DX", "DX_TYPE", "DX_SOURCE", "PDX", "RAW_DX", "RAW_DX_TYPE",
+        "DIAGNOSISID", "PATID", "ENCOUNTERID", "admit_date", "DX", "DX_TYPE", "DX_SOURCE", "PDX", "RAW_DX", "RAW_DX_TYPE",
     ]
     pools = {"10": zoo.ICD10, "09": zoo.ICD9, "SM": zoo.SNOMED}
     rows: "list[list[str]]" = []
@@ -1787,36 +1787,36 @@ def _components_off(series: object) -> int:
     return bad
 
 
-CABOODLE_WORDS = (("Positive", 10.0), ("Negative", 20.0), ("See comment", 5.0), ("TNP", 5.0))
-CABOODLE_FLAGS = (
+WAREHOUSE_WORDS = (("Positive", 10.0), ("Negative", 20.0), ("See comment", 5.0), ("TNP", 5.0))
+WAREHOUSE_FLAGS = (
     ("Normal", 60.0), ("Abnormal", 25.0), ("*Unspecified", 8.0), ("*Unknown", 4.0), ("*Not Applicable", 3.0),
 )
-CABOODLE_COMMENTS = (("NULL", 70.0), ("Hemolyzed", 10.0), ("Recollect", 10.0), ("Verified", 10.0))
+WAREHOUSE_COMMENTS = (("NULL", 70.0), ("Hemolyzed", 10.0), ("Recollect", 10.0), ("Verified", 10.0))
 
 
-def caboodle_export(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
-    """An Epic Caboodle-style export: PatientDurableKey and DateKey with their -1 and -2 members, a result field of
+def warehouse_export(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """A data-warehouse export: a durable patient key and a date key, each a warehouse key with -1 and -2 members, a result field of
     numbers and words, '*Unspecified' members, millisecond stamps and the literal NULL."""
     draw = random.Random(seed)
     people = _people(n)
-    header = ["PatientDurableKey", "EncounterKey", "DateKey", "ResultValue", "AbnormalFlag", "LoadDttm", "CommentText"]
+    header = ["patient_key", "EncounterKey", "day_key", "ResultValue", "AbnormalFlag", "LoadDttm", "CommentText"]
     rows: "list[list[str]]" = []
     for index in range(n):
         level = draw.random()
         key = "-1" if level < 0.02 else "-2" if level < 0.03 else f"{100000 + draw.randrange(people)}"
         level = draw.random()
         day = _when(draw)
-        date_key = "-1" if level < 0.03 else "-2" if level < 0.045 else day.strftime("%Y%m%d")
+        day_key = "-1" if level < 0.03 else "-2" if level < 0.045 else day.strftime("%Y%m%d")
         level = draw.random()
-        result = f"{draw.uniform(0.5, 300.0):.1f}" if level < 0.6 else _pick(draw, CABOODLE_WORDS)
+        result = f"{draw.uniform(0.5, 300.0):.1f}" if level < 0.6 else _pick(draw, WAREHOUSE_WORDS)
         rows += [[
             key,
             f"{700000000 + index}",
-            date_key,
+            day_key,
             result,
-            _pick(draw, CABOODLE_FLAGS),
+            _pick(draw, WAREHOUSE_FLAGS),
             day.strftime("%Y-%m-%d %H:%M:%S") + f".{draw.randint(0, 999):03d}",
-            _pick(draw, CABOODLE_COMMENTS),
+            _pick(draw, WAREHOUSE_COMMENTS),
         ]]
     return header, rows
 
@@ -1833,12 +1833,12 @@ def _date_keys_bad(series: object) -> int:
     return bad
 
 
-CERNER_EVENTS = _zipf(("2797130.00", "704641.00", "2700653.00", "5076214.00", "3410573.00"))
-CERNER_WORDS = (("See Comment", 5.0), ("Positive", 10.0), ("Negative", 15.0))
-CERNER_UNITS = (("mg/dL", 40.0), ("g/dL", 20.0), ("%", 20.0), ("mmol/L", 20.0))
+FLOAT_EXPORT_EVENTS = _zipf(("2797130.00", "704641.00", "2700653.00", "5076214.00", "3410573.00"))
+FLOAT_EXPORT_WORDS = (("See Comment", 5.0), ("Positive", 10.0), ("Negative", 15.0))
+FLOAT_EXPORT_UNITS = (("mg/dL", 40.0), ("g/dL", 20.0), ("%", 20.0), ("mmol/L", 20.0))
 
 
-def cerner_ccl(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+def float_keys_export(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
     """A Cerner Millennium CCL export: record numbers written as floats ('31000000.00'), event codes likewise,
     upper-case stamps ('23-FEB-2024 16:40:00'), results with 'See Comment'."""
     draw = random.Random(seed)
@@ -1851,10 +1851,10 @@ def cerner_ccl(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
         rows += [[
             f"{31000000 + index}.00",
             f"{21000000 + draw.randrange(people)}.00",
-            _pick(draw, CERNER_EVENTS),
-            f"{draw.uniform(0.5, 300.0):.1f}" if level < 0.7 else _pick(draw, CERNER_WORDS),
+            _pick(draw, FLOAT_EXPORT_EVENTS),
+            f"{draw.uniform(0.5, 300.0):.1f}" if level < 0.7 else _pick(draw, FLOAT_EXPORT_WORDS),
             f"{moment.day:02d}-{zoo.MONTHS[moment.month - 1].upper()}-{moment.year} {moment.strftime('%H:%M:%S')}",
-            _pick(draw, CERNER_UNITS),
+            _pick(draw, FLOAT_EXPORT_UNITS),
         ]]
     return header, rows
 
@@ -1892,7 +1892,7 @@ FAMILY_SYSTEMS: "tuple[Table, ...]" = (
         "pcornet_diagnosis", ".csv", pcornet_diagnosis,
         lambda header, rows: csv_bytes(header, rows),
         {"pcornet_cdm": (
-            "DIAGNOSISID", "PATID", "ENCOUNTERID", "ADMIT_DATE", "DX", "DX_TYPE", "DX_SOURCE", "PDX", "RAW_DX",
+            "DIAGNOSISID", "PATID", "ENCOUNTERID", "admit_date", "DX", "DX_TYPE", "DX_SOURCE", "PDX", "RAW_DX",
             "RAW_DX_TYPE",
         )},
         {
@@ -1902,7 +1902,7 @@ FAMILY_SYSTEMS: "tuple[Table, ...]" = (
         _csv_reader(),
         (
             *_repeats("pcornet_cdm", "PATID"),
-            _dated("pcornet_cdm", "ADMIT_DATE parses as %Y-%m-%d", "ADMIT_DATE", "%Y-%m-%d"),
+            _dated("pcornet_cdm", "admit_date parses as %Y-%m-%d", "admit_date", "%Y-%m-%d"),
             _pattern("pcornet_cdm", "DX is ICD-10-CM, ICD-9-CM or SNOMED CT", "DX",
                      "|".join(f"(?:{form})" for form in DX_FORM_OF.values())),
             _bad("pcornet_cdm", "DX is in the system its DX_TYPE names (read by type)", "DX",
@@ -2001,50 +2001,50 @@ FAMILY_SYSTEMS: "tuple[Table, ...]" = (
         leaks=(("pid_3", "values"),),
     ),
     Table(
-        "caboodle_export", ".csv", caboodle_export,
+        "warehouse_export", ".csv", warehouse_export,
         lambda header, rows: csv_bytes(header, rows),
-        {"epic_caboodle": ("PatientDurableKey", "EncounterKey", "DateKey", "ResultValue", "AbnormalFlag", "LoadDttm", "CommentText")},
+        {"warehouse_keys": ("patient_key", "EncounterKey", "day_key", "ResultValue", "AbnormalFlag", "LoadDttm", "CommentText")},
         {
-            "PatientDurableKey": "identifier", "EncounterKey": "identifier", "ResultValue": "measurement",
+            "patient_key": "identifier", "EncounterKey": "identifier", "ResultValue": "measurement",
             "AbnormalFlag": "code",
         },
         _csv_reader(),
         (
-            *_repeats("epic_caboodle", "PatientDurableKey"),
-            _pattern("epic_caboodle", "durable keys of six figures, or -1 and -2", "PatientDurableKey", r"-[12]|1\d{5}"),
-            *_rare("epic_caboodle", "some row's durable key is the -1 member", "PatientDurableKey", r"^-1$",
-                   spoil_every("PatientDurableKey", lambda v: "100000" if v == "-1" else v), crowd("PatientDurableKey", "-1")),
-            _bad("epic_caboodle", "DateKeys are dates YYYYMMDD, or -1 and -2", "DateKey", lambda f: _date_keys_bad(_t("DateKey")(f))),
-            *_rare("epic_caboodle", "some DateKey is the -1 member", "DateKey", r"^-1$",
-                   spoil_every("DateKey", lambda v: "20240101" if v == "-1" else v), crowd("DateKey", "-1")),
-            _pattern("epic_caboodle", "a result is a number or a word", "ResultValue",
+            *_repeats("warehouse_keys", "patient_key"),
+            _pattern("warehouse_keys", "durable keys of six figures, or -1 and -2", "patient_key", r"-[12]|1\d{5}"),
+            *_rare("warehouse_keys", "some row's durable key is the -1 member", "patient_key", r"^-1$",
+                   spoil_every("patient_key", lambda v: "100000" if v == "-1" else v), crowd("patient_key", "-1")),
+            _bad("warehouse_keys", "date keys are dates YYYYMMDD, or -1 and -2", "day_key", lambda f: _date_keys_bad(_t("day_key")(f))),
+            *_rare("warehouse_keys", "some date key is the -1 member", "day_key", r"^-1$",
+                   spoil_every("day_key", lambda v: "20240101" if v == "-1" else v), crowd("day_key", "-1")),
+            _pattern("warehouse_keys", "a result is a number or a word", "ResultValue",
                      r"\d+(\.\d+)?|Positive|Negative|See comment|TNP"),
-            _bad("epic_caboodle", "the results read past their words", "ResultValue",
-                 lambda f: _bad_numbers(_not_in(tuple(_levels(CABOODLE_WORDS)))(_t("ResultValue")(f)))),  # type: ignore[operator]
-            _listed("epic_caboodle", "flags with the *Unspecified members", "AbnormalFlag", _levels(CABOODLE_FLAGS)),
-            _dated("epic_caboodle", "LoadDttm to the millisecond", "LoadDttm", "%Y-%m-%d %H:%M:%S.%f"),
-            _bad("epic_caboodle", "comments a word or the literal NULL", "CommentText",
+            _bad("warehouse_keys", "the results read past their words", "ResultValue",
+                 lambda f: _bad_numbers(_not_in(tuple(_levels(WAREHOUSE_WORDS)))(_t("ResultValue")(f)))),  # type: ignore[operator]
+            _listed("warehouse_keys", "flags with the *Unspecified members", "AbnormalFlag", _levels(WAREHOUSE_FLAGS)),
+            _dated("warehouse_keys", "LoadDttm to the millisecond", "LoadDttm", "%Y-%m-%d %H:%M:%S.%f"),
+            _bad("warehouse_keys", "comments a word or the literal NULL", "CommentText",
                  lambda f: _bad_pattern(_r("CommentText")(f), r"NULL|Hemolyzed|Recollect|Verified")),
         ),
-        person="PatientDurableKey",
-        leaks=(("PatientDurableKey", "values"),),
+        person="patient_key",
+        leaks=(("patient_key", "values"),),
     ),
     Table(
-        "cerner_ccl", ".csv", cerner_ccl,
+        "float_keys_export", ".csv", float_keys_export,
         lambda header, rows: csv_bytes(header, rows),
-        {"cerner_ccl": ("ENCNTR_ID", "PERSON_ID", "EVENT_CD", "RESULT_VAL", "EVENT_END_DT_TM", "RESULT_UNITS_CD_DISP")},
+        {"float_keys_export": ("ENCNTR_ID", "PERSON_ID", "EVENT_CD", "RESULT_VAL", "EVENT_END_DT_TM", "RESULT_UNITS_CD_DISP")},
         {"ENCNTR_ID": "identifier", "PERSON_ID": "identifier", "EVENT_CD": "code", "RESULT_VAL": "measurement"},
         _csv_reader(),
         (
-            *_repeats("cerner_ccl", "PERSON_ID"),
-            _pattern("cerner_ccl", "encounter numbers written 31000000.00", "ENCNTR_ID", r"\d{8}\.00"),
-            _pattern("cerner_ccl", "person numbers written 21000000.00", "PERSON_ID", r"\d{8}\.00"),
-            _listed("cerner_ccl", "event codes written as floats", "EVENT_CD", _levels(CERNER_EVENTS)),
-            _pattern("cerner_ccl", "a result is a number or a word", "RESULT_VAL", r"\d+\.\d|See Comment|Positive|Negative"),
-            _bad("cerner_ccl", "the results read past their words", "RESULT_VAL",
-                 lambda f: _bad_numbers(_not_in(tuple(_levels(CERNER_WORDS)))(_t("RESULT_VAL")(f)))),  # type: ignore[operator]
-            _dated("cerner_ccl", "stamps parse as %d-%b-%Y %H:%M:%S", "EVENT_END_DT_TM", "%d-%b-%Y %H:%M:%S"),
-            _listed("cerner_ccl", "units", "RESULT_UNITS_CD_DISP", _levels(CERNER_UNITS)),
+            *_repeats("float_keys_export", "PERSON_ID"),
+            _pattern("float_keys_export", "encounter numbers written 31000000.00", "ENCNTR_ID", r"\d{8}\.00"),
+            _pattern("float_keys_export", "person numbers written 21000000.00", "PERSON_ID", r"\d{8}\.00"),
+            _listed("float_keys_export", "event codes written as floats", "EVENT_CD", _levels(FLOAT_EXPORT_EVENTS)),
+            _pattern("float_keys_export", "a result is a number or a word", "RESULT_VAL", r"\d+\.\d|See Comment|Positive|Negative"),
+            _bad("float_keys_export", "the results read past their words", "RESULT_VAL",
+                 lambda f: _bad_numbers(_not_in(tuple(_levels(FLOAT_EXPORT_WORDS)))(_t("RESULT_VAL")(f)))),  # type: ignore[operator]
+            _dated("float_keys_export", "stamps parse as %d-%b-%Y %H:%M:%S", "EVENT_END_DT_TM", "%d-%b-%Y %H:%M:%S"),
+            _listed("float_keys_export", "units", "RESULT_UNITS_CD_DISP", _levels(FLOAT_EXPORT_UNITS)),
         ),
         person="PERSON_ID",
         leaks=(("ENCNTR_ID", "values"), ("PERSON_ID", "values")),
@@ -2155,7 +2155,7 @@ def _items_bad(frame: object) -> int:
 
 
 ORDER_TESTS = (("CBC", 35.0), ("BMP", 30.0), ("Lipid panel", 15.0), ("TSH", 10.0), ("HbA1c", 10.0))
-ORDER_STATUS = (("Resulted", 75.0), ("Pending", 15.0), ("Cancelled", 10.0))
+ORDER_STATES = (("Resulted", 75.0), ("Pending", 15.0), ("Cancelled", 10.0))
 
 
 def trailing_comma(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
@@ -2167,7 +2167,7 @@ def trailing_comma(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
     for index in range(n):
         rows += [[
             f"OR{900000 + index}", _person(draw, people), _when(draw).date().isoformat(),
-            _pick(draw, ORDER_TESTS), _pick(draw, ORDER_STATUS),
+            _pick(draw, ORDER_TESTS), _pick(draw, ORDER_STATES),
         ]]
     return header, rows
 
@@ -2348,7 +2348,7 @@ FAMILY_FILES: "tuple[Table, ...]" = (
             *_repeats("trailing_delimiter"),
             _dated("trailing_delimiter", "order_date parses as %Y-%m-%d", "order_date", "%Y-%m-%d"),
             _listed("trailing_delimiter", "tests", "test", _levels(ORDER_TESTS)),
-            _listed("trailing_delimiter", "status", "status", _levels(ORDER_STATUS)),
+            _listed("trailing_delimiter", "status", "status", _levels(ORDER_STATES)),
         ),
         person="patient_id",
     ),
@@ -2465,8 +2465,8 @@ UDI_NUMBERS = tuple(f"{10885403000000 + 7919 * place}" for place in range(49))
 
 
 def numeric_identifiers(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
-    """Keys and Safe Harbor numbers that read as numbers, their question left unanswered: a Caboodle
-    PatientDurableKey of 60 keys with its -1 and -2 members, five-figure ZIPs, 14-figure UDIs."""
+    """Keys and Safe Harbor numbers that read as numbers, their question left unanswered: a warehouse
+    patient_key of 60 keys with its -1 and -2 members, five-figure ZIPs, 14-figure UDIs."""
     draw = random.Random(seed)
     header = ["durable_key", "zip_number", "udi_number", "sbp"]
     key_weights = [3.0 + (place * 7) % 18 for place in range(len(DURABLE_KEYS))]
@@ -2874,7 +2874,7 @@ SHARDS: "tuple[tuple[str, ...], ...]" = (
         "appointments", "remit_835", "coded_forms",
     ),
     (
-        "imaging", "tumor_registry", "immunizations", "edge_columns", "registry_extract", "caboodle_export", "reports",
+        "imaging", "tumor_registry", "immunizations", "edge_columns", "registry_extract", "warehouse_export", "reports",
         "critical_care_charting", "well_child", "ecg_reads", "culture_results", "adt_events", "i2b2_facts", "hl7_obx",
     ),
     (
@@ -2884,7 +2884,7 @@ SHARDS: "tuple[tuple[str, ...], ...]" = (
     ),
     (
         "diagnoses_procedures", "redcap", "claims", "wearables", "genomics", "us_vitals", "risk_adjustment",
-        "titled_report", "unicode_text", "cerner_ccl", "pro_scales", "vcf_calls", "long_visits_record_numbers",
+        "titled_report", "unicode_text", "float_keys_export", "pro_scales", "vcf_calls", "long_visits_record_numbers",
         "safe_harbor",
     ),
     ("wide_export", "workbook_1904", "instrument_magnitudes", "prenatal_visits", "omop_measurement", "numeric_identifiers"),
@@ -2947,7 +2947,7 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     ),
     "ventilator_settings": (
         ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
-        ("UN-1a", zoo.UNITS_AS_LABELS, covers(
+        ("UN-1b", zoo.UNITS_KEPT_AS_LABELS, covers(
             "FiO2 with %", "the numbers of fio2 keep their range", "the numbers of o2_delivery keep their range",
             "oxygen is RA, litres a minute or a ventilator", columns=("fio2", "o2_delivery"))),
     ),
@@ -3172,21 +3172,21 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
         ("LISTS", "an HL7 '^' component list is read as one label: its rarer combinations are 'group-N'", covers(
             "OBX-3 is code^text^LN, the text its code's own", "OBX-6 units as unit^^UCUM", columns=("obx_3", "obx_6"))),
     ),
-    "epic_caboodle": (
+    "warehouse_keys": (
         ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
         ("CODES-3", IDENTIFIER_FORMS + " (a durable key of six figures beside its -1 and -2 members)", covers(
             "durable keys of six figures, or -1 and -2", "some row's durable key is the -1 member",
-            "some row's durable key is the -1 member, as a share", "miss PatientDurableKey",
-            columns=("PatientDurableKey",))),
-        ("TR", "a Caboodle DateKey (YYYYMMDD beside -1 and -2) left unanswered is read as a number and held "
+            "some row's durable key is the -1 member, as a share", "miss patient_key",
+            columns=("patient_key",))),
+        ("TR", "a warehouse date key (YYYYMMDD beside -1 and -2) left unanswered is read as a number and held "
                "(the zoo plan's row 57, item (e))", covers(
-            "DateKeys are dates YYYYMMDD, or -1 and -2", "some DateKey is the -1 member",
-            "some DateKey is the -1 member, as a share", "miss DateKey", columns=("DateKey",))),
+            "date keys are dates YYYYMMDD, or -1 and -2", "some date key is the -1 member",
+            "some date key is the -1 member, as a share", "miss day_key", columns=("day_key",))),
         ("CODES-2", zoo.WITHHELD + " ('*Unspecified', '*Unknown', '*Not Applicable': the zoo plan's row 56)", covers(
             "flags with the *Unspecified members", "a result is a number or a word", "the results read past their words",
             columns=("AbnormalFlag", "ResultValue"))),
     ),
-    "cerner_ccl": (
+    "float_keys_export": (
         ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
         ("CODES-3", IDENTIFIER_FORMS + " (the zoo plan's row 42)", covers(
             "encounter numbers written 31000000.00", "person numbers written 21000000.00", "miss ENCNTR_ID",
@@ -3230,6 +3230,12 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
             "birth years from 1920 to 2006", "shifted dates parse and stay in their century", "no age past 89 is written as a number")),
         ("SH", "LIVE: an age past the top-code 90 printed or written as a number (Safe Harbor; lane SH, P4-D427)",
          covers("leak age_top")),
+        # Lane SH2's ZIP areas, at its merge (batch 4m; plan P4-D434): `021**` is held until `no`.
+        ("SH2", "held by HIPAA's Safe Harbor rule; by design (45 CFR 164.514(b)(2)(i)(B)): a ZIP code cut to three "
+                "figures names a place smaller than a state, the zoo answers its Safe Harbor question 'yes' (the "
+                "orchestrator's LANE E0c RULINGS 2 (2)), so lane SH2 holds the column whole and the analyst checks of "
+                "its real areas fail; a Safe Harbor ZIP3 allowlist of areas over 20,000 people is lane CODES-2's",
+         covers("codes zip3", "levels zip3", "three-figure ZIPs", columns=("zip3",))),
     ),
     "dst_zones_and_words": (
         ("DST", "the twin writes an offset not in force on its date (US Central and European rules; the zoo plan's row 30)",
@@ -3434,8 +3440,8 @@ STRICT_KEYS_RED: "dict[str, tuple[str, ...]]" = {
     "wearable_offsets_subsecond": ("device_id",),
     "pcornet_cdm": ("DIAGNOSISID", "PATID", "ENCOUNTERID"),
     "fhir_flattened": ("id", "subject_reference"),
-    "epic_caboodle": ("PatientDurableKey",),
-    "cerner_ccl": ("ENCNTR_ID",),
+    "warehouse_keys": ("patient_key",),
+    "float_keys_export": ("ENCNTR_ID",),
     "cp1252_smart_quotes": ("note_ref",),
     "sas_dot_missing": ("subjid",),
     "wide_table": ("patient_ref",),

@@ -106,7 +106,7 @@ SPELLINGS = {
         + ("-04:00" if _dst(m) else "-05:00"),
         _Y4 + "-" + _MM + "-" + _DD + " " + _TS + r"\.\d{7} -0[45]:00", None,
     ),
-    "epic_military": (
+    "mdy_military": (
         lambda m: m.strftime("%m/%d/%Y %H%M"),
         _MM + "/" + _DD + "/" + _Y4 + r" (?:[01]\d|2[0-3])[0-5]\d", "%m/%d/%Y %H%M",
     ),

@@ -1151,6 +1151,11 @@ NOT_A_VOCABULARY = frozenset({"zip5", "zip4"})
 # stays held and the analyst checks that look for its real values fail:
 # the HIPAA price, counted in K-HZ-02 (`HARBOR_PRICE`), never hidden.
 PLACES = frozenset({"zip5", "zip4", "zip_lost"})
+# ...AND EVERY OTHER SAFE HARBOR ELEMENT THE ZOO HOLDS (plan P4-D434; the
+# orchestrator's ruling THE ZOO ANSWERS TRUTHFULLY of 2026-10-25): a city
+# of birth names a place smaller than a state, a UDI a device, a date of
+# birth a birth date -- each answered `yes` to its Safe Harbor question.
+SAFE_HARBOR_ELEMENTS = PLACES | frozenset({"birth_city", "udi", "dob_iso", "dob_us", "dob_text", "dob_short"})
 # A text column is read for its shapes when the real table writes it in
 # at most this many shapes; free text, whose sentences recombine, is not.
 SHAPED_AT_MOST = 30
@@ -2795,7 +2800,13 @@ def answer_generally(
         if not given and column in every_column and sorted(offered) == ["no", "yes"]:
             if old_ages is None and _is_an_age(column):
                 old_ages = ages_over_89(*table.build(SMOKE_ROWS, seed_of(table)))
-            given = "yes" if names_a_safe_harbor_element(table, column, old_ages) else "no"
+            # ...and lane SH2's Safe Harbor elements (plan P4-D434: a city of
+            # birth, a UDI, a date of birth), `yes` whatever the name rules read.
+            given = (
+                "yes"
+                if names_a_safe_harbor_element(table, column, old_ages) or column in SAFE_HARBOR_ELEMENTS
+                else "no"
+            )
         entry["your_answer"] = given
         words = " ".join(prose(entry) + [framing] + ([checklist_words] if id(entry) in listed else []))
         this_general = all(
@@ -3475,11 +3486,6 @@ WITHHELD = (
     "a level fewer than 11 rows hold is written as 'group-N', or as a made-up code "
     "outside its system's pattern, so the analyst's code list or pattern meets it"
 )
-UNITS_AS_LABELS = (
-    "a number beside a unit ('172 cm', '36,9 °C', '98%', '98.4 F', '5.4 mmol/L' over several "
-    "units) is read as labels and its rarer values written as 'group-N'; the questions file "
-    "offers no 'measurement' answer for it"
-)
 MADE_UP_CODES = (
     "a code's levels are made up character by character in its shape ('T2N1M0' as 'D5X1Q5', "
     "an NPI that fails its Luhn check), so a grammar or a check figure the real codes obey "
@@ -3520,6 +3526,29 @@ CENSUS_IN_PEOPLE = (
 # Harbor ZIP3 allowlist (three-figure areas over 20,000 people) is lane
 # CODES-2's.
 HARBOR_PRICE = "held by HIPAA's Safe Harbor rule; by design (45 CFR 164.514(b)(2)(i)(B))"
+# HIPAA FIRST ON A UNIT COLUMN (lane UN-1a's repair 1, plan P4-D438; the
+# orchestrator's LANE UN-1a RULINGS 2 (2)): where the numbers of a unit
+# column would publish a value one to ten rows or people hold, the column
+# keeps its labels, whose rare levels are held back. At 600 rows, below the
+# table floor, that is most unit columns; at 20,000 rows the zoo's spo2 on
+# one table seed of three. Publishing them exactly as the same numbers
+# written bare is lane UN-1b's first item.
+UNITS_KEPT_AS_LABELS = (
+    "a unit column whose numbers would publish a value one to ten rows or people hold keeps its "
+    "labels (HIPAA first, plan P4-D438), so its twin writes the held-back levels as made-up text; "
+    "published as the same numbers written bare is lane UN-1b's first item"
+)
+# ...AND LANE SH2'S (plan P4-D434; the orchestrator's ruling THE ZOO
+# ANSWERS TRUTHFULLY of 2026-10-25): a city of birth names a place smaller
+# than a state and a UDI a device, so the zoo answers each one's Safe
+# Harbor question `yes`, the column stays held -- its twin made-up values
+# in its layouts -- and the analyst's checks that look for the real cities
+# or device identifiers fail, by design. (The birth dates, held too, are
+# written as valid dates and fail no check.)
+SH2_HARBOR_PRICE = (
+    "held by HIPAA's Safe Harbor rule; by design (45 CFR 164.514(b)(2)(i)(B) and (M)): "
+    "a place smaller than a state, a device identifier"
+)
 OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     "demographics": (
         ("SH", HARBOR_PRICE, covers("levels zip5")),
@@ -3568,12 +3597,6 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
                     "its published forms at 20,000 rows: the identifier generator's limit, lane CODES-1 "
                     "part C (P4-D406's stated limit 4)", covers("miss viral_load")),
         ("MG", CENSUS_IN_PEOPLE, covers("patients with two rows or more, and three or more, as shares")),
-        ("UN-1a", UNITS_AS_LABELS, covers(
-            "a value and its unit", "the value read as a number", "the numbers of result keep their range",
-            columns=("result",))),
-        ("UN-1b", "the digit and decimals guards refuse units with figures ('10*3/uL')", covers(
-            "a value and its unit", "the value read as a number", "the numbers of result keep their range",
-            columns=("result",))),
         ("CODES-2", WITHHELD, covers("POS/NEG results", "abnormal flags", columns=("qualitative", "abnormal_flag"))),
         ("CODES-1", "a held-back LOINC code is written as a code in its form the real never writes "
                     "('00000-0')", covers("LOINC codes", columns=("loinc",))),
@@ -3599,25 +3622,21 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
                  "mean, which validate reports", covers("miss result_value")),
     ),
     "vitals": (
-        ("UN-1a", UNITS_AS_LABELS, covers(
-            "oxygen saturation with %", "stature in cm", "temperature with its unit",
-            "the numbers of stature keep their range", "the numbers of temp keep their range",
-            "the numbers of spo2 keep their range", columns=("spo2", "stature", "temp"))),
-        ("UN-1b", "a decimal-comma number beside a unit ('72,5 kg') is written as made-up "
-                  "characters", covers(
-            "weight in kg with a decimal comma", "the numbers of weight keep their range", columns=("weight",))),
-    ),
-    "semicolon_decimal_comma": (
-        ("UN-1b", "a decimal-comma number ('25,5') is read as labels made up character by character: the "
-                  "twin's values are invented ('48,1' in the middle, '0,0' to '99,9')", covers(
-            "the numbers of mass_index keep their range", columns=("mass_index",))),
-    ),
-    "us_unit_vitals": (
-        ("UN-1a", UNITS_AS_LABELS, covers(
-            "temperature in F", "weight in lb", "the numbers of temp_f keep their range",
-            "the numbers of weight keep their range", columns=("temp_f", "weight"))),
-        ("UN-2", "a stature in feet and inches (5'10\") is a template of two numbers", covers(
-            "stature in feet and inches", "the numbers of stature keep their range", columns=("stature",))),
+        # RE-POINTED BY LANE UN-1b (plan P4-D443): the decimal comma is
+        # inferred and the unit columns are published as their bare numbers
+        # are, so temp, weight, mass_index, spo2 and stature pass at 600
+        # rows. At 20,000 rows, the zoo's seed, temp's low tail value is
+        # withheld and the identity walk (G6.6) spends a leading nought to
+        # meet the published count of different spellings: one twin cell
+        # `035,2 °C`, and validate misses `distinct.n_distinct_values`.
+        # Measured the same with the temperatures written with a point
+        # (`035.2 °C`): the generator's, not the comma's. A placement held
+        # by a tail: lane G2T2's. So is the same miss on weights with 30 %
+        # whole cells (`75` beside `75,4`, six facts at 20,000 rows, the same
+        # with points; P4-D443's repair 1), a shape outside the zoo.
+        ("G2T2", "a withheld tail value leaves a published count of different values short, and the "
+                 "identity walk writes a leading nought ('035,2 °C') where a value is owed", covers(
+            "miss temp", columns=("temp",))),
     ),
     "flowsheet_long": (
         ("KV", "a long table's value is read by its row name; the twin carries no relation "
@@ -3634,10 +3653,10 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
             "some note quotes a phrase", "some note quotes a phrase, as a share",
             "note lengths at the 10th, 50th and 90th percentiles", columns=("note_text",))),
     ),
+    # LANE GG (plan P4-D440) closed the kind's few-valued twin: a score
+    # beside -99 answered `no` to its Safe Harbor question lists its values
+    # and the twin writes exactly them, so its GG line is gone.
     "surveys_pro": (
-        ("GG", "a 1-to-5 score beside a missing code (-99) is a few-valued number with one wide gap: "
-               "the twin writes values inside the gap and loses a level", covers(
-            "scores 1 to 5 or -99", columns=("q2_score", "q3_score"))),
         ("UN-2", "no question asks whether -99 means missing", covers("scores 1 to 5 or -99")),
     ),
     "dicom_metadata": (
@@ -3664,6 +3683,18 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     ),
     "immunizations_providers": (
         ("CODES-1", MADE_UP_CODES, covers("NPIs pass their Luhn check", columns=("npi",))),
+        ("SH2", SH2_HARBOR_PRICE, covers("UDI with its application identifiers", columns=("udi",))),
+    ),
+    "utf8_accents": (
+        ("SH2", SH2_HARBOR_PRICE, covers("cities are listed ones", "no cell reads as mojibake",
+                                         columns=("birth_city",))),
+    ),
+    "two_digit_years": (
+        ("SH2", "held by HIPAA's Safe Harbor rule; by design (45 CFR 164.514(b)(2)(i)(C)): birth dates of "
+                "1930 to 1936 read in the 1900s hold the column, whose twin writes valid dates drawn from "
+                "2000 to 2029, two figures for the year, which the 1900s read as 1900 to 1929 (made-up "
+                "dates; a span inside the declared window is lane PS's follow-up)",
+         covers("birth years read into the 1900s fall from 1930 to 1999", columns=("dob_short",))),
     ),
     "wearables": (
         ("PS2", POOLED_FEW_HOURS, covers("miss ts")),

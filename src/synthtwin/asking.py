@@ -199,7 +199,7 @@ ANSWER_DAY_FIRST = "day-first"
 
 # THE NINTH, AND IT IS ABOUT A COLUMN AGAIN (lane R1, plan P4-D381): a
 # column of dates or times that writes a few repeated codes where it has
-# none -- `UNK`, `00/00/0000`, `0000-00-00`, a Caboodle `-1`, `99:99` --
+# none -- `UNK`, `00/00/0000`, `0000-00-00`, a warehouse key's `-1`, `99:99` --
 # misses the date rule's line by them and is read as labels or numbers,
 # and its twin then holds strings no date reader takes. The answer
 # `missing` is `--missing-value` naming each code; `real-value` is
@@ -310,6 +310,31 @@ BECAUSE_DATE_COUNTS = "inside-a-date-counting-band"
 # (`_listed_record_numbers`). Its question offers `code` and `identifier`
 # beside `keep`, and holds the column until answered (plan P4-D401).
 BECAUSE_LISTED_RECORD_NUMBERS = "several-values-written-as-record-numbers"
+
+# QUESTION Q-UNIT (lane UN-1a, plan P4-D438; P4-D419's ZR.2): a column
+# rule 7 kept as labels whose every cell the answer `measurement` would
+# read as a number beside a unit -- every level clears the floor, so the
+# exact list stands, or a word stands in front (`Stage 2`, amendment
+# A-P4-58). Its answers are the labels kept (Enter), `measurement` and
+# `code`; it offers no `identifier` and holds nothing. Where another
+# question is already put to the column, that question offers these
+# answers too, and no second question is put (`with_unit_answers`).
+BECAUSE_UNIT = "a-number-beside-the-same-word-or-mark"
+
+# QUESTION Q-COMMA (lane UN-1b, plan P4-D443; the zoo-fix plan's 2.1b (c)
+# v2.1): a column whose commas may be its decimal point, or may separate
+# two choices, where the cells cannot settle which -- every comma cell
+# one figure either side (`2,5`), or two whole numbers picked from one
+# list (`3,11` sorted, or `11,3` beside `3,11` and `11`)
+# (`parsing.decimal_comma_inferred`). Its answers are the values kept as
+# written (Enter) and `decimal_comma`; it holds nothing.
+BECAUSE_COMMA = "a-comma-between-figures"
+# ...and ITS MIRROR, the question a point with three figures after it
+# raises asked of a comma: every comma has exactly three figures after
+# it and every value without one is below a thousand, which a comma
+# between thousands writes too. Read with the comma between thousands
+# until answered; answers `measurement` (Enter), `decimal_comma`, `code`.
+BECAUSE_COMMA_THOUSANDS = "three-figures-after-the-comma"
 
 # A fixed-width all-digit column is asked about from three digits up.
 # Below that the shape is too common to mean anything: a column of `1`
@@ -1000,7 +1025,7 @@ def _date_count_shape(
             readings = readings + "; "
         readings = readings + (
             f"read as {date_counts.TABLE[member].means}, they run from "
-            f"{first} to {last}"
+            f"{taxonomy.edge_year_said(first)} to {taxonomy.edge_year_said(last)}"
         )
     opening = "nearly every value is a number"
     if fixed:
@@ -1039,7 +1064,8 @@ def _date_count_choices(
             Choice(
                 member,
                 f"dates, kept as {date_counts.TABLE[member].means} -- the "
-                f"column then runs from {first} to {last}",
+                f"column then runs from {taxonomy.edge_year_said(first)} to "
+                f"{taxonomy.edge_year_said(last)}",
                 f"{_clock_publishes(floor, taxonomy.ROLE_DATETIME)}; how its "
                 f"dates spread over the days of the week where it holds whole "
                 f"dates; and the twin writes each date back as the same count, "
@@ -1639,6 +1665,32 @@ def questions_and_splits_for(
         signs = 0
         if reason is None and role in NUMERIC_ROLES:
             beside = _beside_sign_placeholders(present)
+            # ...AT EVERY WIDTH THE FIXED-WIDTH QUESTION READS (repair 1
+            # of lane GG, plan P4-D440; skeptic 1, item 2): sixty patient
+            # keys of three figures beside a warehouse key's `-1` on 2 % of rows
+            # printed all sixty and wrote 19,556 of 20,000 twin cells real
+            # at 20,000 rows, while the same keys without the `-1` were
+            # held -- one ordinary token defeating a hold (lane HX4's
+            # addendum). The placeholders are set aside under the same
+            # cap, and the rest asked as they would be without them.
+            #
+            # ...AND WHATEVER THEIR SHARE OR WIDTH (repair 2 of lane GG, the
+            # orchestrator's LANE GG RULINGS 3 (1), from its verify's item 2):
+            # the same keys beside `-99` on 2 % of rows, or beside `-1` on
+            # 40 %, printed all sixty (57 of 60) and wrote 19,617 (12,061)
+            # of 20,000 twin cells real, so every negative whole number and
+            # every run of nines is set aside where the sign route above
+            # leaves the question unasked, provided the floor's number of
+            # cells is left -- but a run of nines the column's other
+            # numbers run on through is one of them (Codex's review of
+            # lane GG, item 2: a pulse of 99 to 159 was held as a key).
+            if not (
+                beside
+                and why_worth_asking(beside) in (BECAUSE_FIXED_WIDTH, BECAUSE_PADDED)
+            ):
+                beside = _beside_width_placeholders(
+                    present, settings.small_cell_floor
+                )
             if beside and why_worth_asking(beside) in (
                 BECAUSE_FIXED_WIDTH,
                 BECAUSE_PADDED,
@@ -1749,6 +1801,338 @@ def questions_and_splits_for(
     return asked, SplitColumns(settings, split_cells, split_present)
 
 
+def _comma_choices(role: str, floor: int) -> "list[Choice]":
+    """Q-COMMA's two answers, the values kept as written first (plan P4-D443)."""
+    return [
+        Choice(
+            ANSWER_KEEP,
+            "values to keep as written -- each a label, or choices with a "
+            "comma between them",
+            _publishes_under(ANSWER_KEEP, role, floor),
+        ),
+        Choice(
+            ANSWER_DECIMAL_COMMA,
+            "numbers written with a comma for the decimal point -- `2,5` is "
+            "two and a half",
+            _publishes_under(ANSWER_DECIMAL_COMMA, role, floor),
+        ),
+    ]
+
+
+def _comma_thousands_choices(role: str, floor: int) -> "list[Choice]":
+    """The mirror question's three answers, the comma between thousands first (plan P4-D443)."""
+    return [
+        Choice(
+            ANSWER_MEASUREMENT,
+            "measurements written with a comma between their thousands -- "
+            "`1,250` is one thousand two hundred and fifty",
+            _publishes_under(ANSWER_MEASUREMENT, role, floor),
+        ),
+        Choice(
+            ANSWER_DECIMAL_COMMA,
+            "measurements written with a comma for the decimal point -- "
+            "`1,250` is one and a quarter",
+            _publishes_under(ANSWER_DECIMAL_COMMA, role, floor),
+        ),
+        Choice(
+            ANSWER_CODE,
+            "codes -- a coding system, where the value stands for a "
+            "thing rather than counting one",
+            _publishes_under(ANSWER_CODE, role, floor),
+        ),
+    ]
+
+
+def _below_a_thousand_beside_commas(
+    present: "list[str]", beside_a_unit: bool = False
+) -> bool:
+    """Whether every value without a comma is a whole number below a thousand, written plainly.
+
+    The mirror of `why_worth_asking`'s point rule (landing 2b.2): a cell
+    written any other way -- four figures with no comma, a sign, a word --
+    settles that the comma is not a mark between thousands, or that the
+    column is no column of such numbers, and nothing is asked.
+    ``beside_a_unit`` reads each value's number without its unit and
+    comparison first (`800 mg` is `800`; repair 1 of lane UN-1b, Codex
+    item 6).
+    """
+    for value in present:
+        if "," in value:
+            continue
+        body = _without_sign_or_padding(
+            parsing.number_beside_a_unit(value) if beside_a_unit else value
+        )
+        if not _written_below_a_thousand(body):
+            return False
+    return True
+
+
+def comma_questions(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    asked: "list[Question]",
+    split: "SplitColumns | None" = None,
+    decimal_commas: "tuple[str, ...]" = (),
+) -> "list[Question]":
+    """Question Q-COMMA and its mirror, to every column no other question reaches (plan P4-D443).
+
+    LANE UN-1b (the zoo-fix plan's 2.1b (c) v2.1). A decimal comma is
+    read undeclared only where the cells settle it
+    (`parsing.decimal_comma_inferred`); where they cannot, the person who
+    holds the table is asked, in one question about the data:
+
+    - Q-COMMA, of a column read as labels or text whose every comma cell
+      is one figure either side of the comma, or two whole numbers picked
+      from one list -- a decimal written with a comma, or two choices.
+      Enter keeps the values as written;
+    - its MIRROR, of a column read as numbers with a comma between
+      thousands, bare or beside a unit (`1,250 mg`; repair 1, Codex item
+      6), whose every comma has three figures after it and whose every
+      other number is below a thousand -- `1,250` is one thousand two
+      hundred and fifty, or one and a quarter. Enter keeps the
+      thousands.
+
+    ONE QUESTION A COLUMN: a column some question already reaches -- the
+    person question above all, which holds the column until answered
+    (plan P4-D401) -- is not put this one, nor a column declared, nor
+    one whose comma is declared, answered or inferred.
+
+    Guarantees: accepts the description, the table's columns in order,
+    the settings, the names declared already, the questions already put,
+    what `questions_and_splits_for` split, and the columns whose comma is
+    read as the decimal point; returns the new questions in the table's
+    order. A fixed function of the arguments. Raises nothing. No I/O,
+    and no cell of the table appears in what it returns.
+    """
+    blocks = document["columns"]
+    if not isinstance(blocks, list):
+        return []
+    spoken: "dict[str, bool]" = {}
+    for question in asked:
+        spoken[question.name] = True
+    found: "list[Question]" = []
+    position = 0
+    for block in blocks:
+        if not isinstance(block, dict):
+            position = position + 1
+            continue
+        name = f"{block['name']}"
+        role = f"{block['role']}"
+        if (
+            name in already
+            or name in spoken
+            or name in decimal_commas
+            or position >= len(table_columns)
+            or role in _READ_AS_DATES_OR_TIMES
+            or role == taxonomy.ROLE_IDENTIFIER
+        ):
+            position = position + 1
+            continue
+        if (
+            split is not None
+            and position in split.present
+            and split.cells[position] is table_columns[position]
+            and split.settings == settings
+        ):
+            present = split.present[position]
+        else:
+            present, _absent = taxonomy.split_missing(
+                table_columns[position], settings
+            )
+        verdict = parsing.decimal_comma_inferred(present)
+        floor = settings.small_cell_floor
+        if verdict in (
+            parsing.COMMA_ONE_FIGURE_EACH_SIDE, parsing.COMMA_TWO_PICKS
+        ) and role not in NUMERIC_ROLES:
+            found += [
+                Question(
+                    name,
+                    role,
+                    BECAUSE_COMMA,
+                    _shape_of(BECAUSE_COMMA, present, floor),
+                    _comma_choices(role, floor),
+                    ANSWER_KEEP,
+                )
+            ]
+        elif (
+            verdict == parsing.COMMA_THREE_FIGURES
+            and (role in NUMERIC_ROLES or role == taxonomy.ROLE_AFFIXED)
+            and _below_a_thousand_beside_commas(
+                present, role == taxonomy.ROLE_AFFIXED
+            )
+        ):
+            found += [
+                Question(
+                    name,
+                    role,
+                    BECAUSE_COMMA_THOUSANDS,
+                    _shape_of(BECAUSE_COMMA_THOUSANDS, present, floor),
+                    _comma_thousands_choices(role, floor),
+                    ANSWER_MEASUREMENT,
+                )
+            ]
+        position = position + 1
+    return found
+
+
+def _unit_choices(role: str, floor: int) -> "list[Choice]":
+    """Q-UNIT's three answers, the labels kept first (plan P4-D438)."""
+    return [
+        Choice(
+            ANSWER_KEEP,
+            "labels to keep as written -- a list of values, each its own "
+            "category",
+            _publishes_under(ANSWER_KEEP, role, floor),
+        ),
+        Choice(
+            ANSWER_MEASUREMENT,
+            "amounts in that unit -- quantities somebody counted or "
+            "measured",
+            _publishes_under(ANSWER_MEASUREMENT, role, floor),
+        ),
+        Choice(
+            ANSWER_CODE,
+            "codes -- a coding system, where the value stands for a "
+            "thing rather than counting one",
+            _publishes_under(ANSWER_CODE, role, floor),
+        ),
+    ]
+
+
+def unit_questions(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    asked: "list[Question]",
+    split: "SplitColumns | None" = None,
+    decimal_commas: "tuple[str, ...]" = (),
+) -> "tuple[list[Question], tuple[str, ...]]":
+    """Question Q-UNIT, and every column it reaches (lane UN-1a, plan P4-D438).
+
+    ASKED OF A COLUMN RULE 7 KEPT AS LABELS (`categorical`) where the
+    answer `measurement` would read every cell as a number beside a
+    unit (`taxonomy.reads_as_a_unit`): every level cleared the floor,
+    so rule 7 kept its exact list, or a word stands in front of the
+    number, which rule 7 does not stand aside for undeclared (`Stage 2`,
+    `Grade 3`: amendment A-P4-58 asks rather than guesses). The answer
+    `measurement` is rule 7's stand-aside (ii): the column is read as
+    numbers. Measured on the health data zoo at 20,000 rows: the US
+    vitals' `weight` in pounds keeps 161 levels, every one clearing the
+    floor, so it stays an exact list unless the person says otherwise.
+
+    ONE QUESTION A COLUMN. A column some question already reaches -- the
+    person question above all, which holds the column until answered
+    (plan P4-D401) -- is not put this one: its name is returned among
+    the columns reached, and `with_unit_answers` adds `measurement` and
+    `code` to the question it is put, so the person answers once.
+
+    Guarantees: accepts the description, the table's columns in order,
+    the settings, the names declared already, the questions already put
+    and what `questions_and_splits_for` split; returns the new questions
+    in the table's order and every column reached. A fixed function of
+    the arguments. Raises nothing. No I/O, and no cell of the table
+    appears in what it returns.
+    """
+    blocks = document["columns"]
+    if not isinstance(blocks, list):
+        return [], ()
+    spoken: "dict[str, bool]" = {}
+    for question in asked:
+        spoken[question.name] = True
+    found: "list[Question]" = []
+    reached: "list[str]" = []
+    position = 0
+    for block in blocks:
+        if not isinstance(block, dict):
+            position = position + 1
+            continue
+        name = f"{block['name']}"
+        role = f"{block['role']}"
+        if (
+            role != taxonomy.ROLE_CATEGORICAL
+            or name in already
+            or position >= len(table_columns)
+        ):
+            position = position + 1
+            continue
+        if (
+            split is not None
+            and position in split.present
+            and split.cells[position] is table_columns[position]
+            and split.settings == settings
+        ):
+            present = split.present[position]
+        else:
+            present, _absent = taxonomy.split_missing(
+                table_columns[position], settings
+            )
+        # ...and never where the Safe Harbor question reaches the column
+        # (plan P4-D427): that question is the one put, one a column.
+        if taxonomy.reads_as_a_unit(
+            present, settings, name in decimal_commas
+        ) and not taxonomy.safe_harbor_reach(
+            present, name in decimal_commas, frozenset(),
+            settings.small_cell_floor, True,
+        ):
+            reached += [name]
+            if name not in spoken:
+                found += [
+                    Question(
+                        name,
+                        role,
+                        BECAUSE_UNIT,
+                        _shape_of(BECAUSE_UNIT, present, settings.small_cell_floor),
+                        _unit_choices(role, settings.small_cell_floor),
+                        ANSWER_KEEP,
+                    )
+                ]
+        position = position + 1
+    return found, tuple(reached)
+
+
+def with_unit_answers(
+    questions: "list[Question]", reached: "tuple[str, ...]", floor: int
+) -> "list[Question]":
+    """The questions put, each to a column Q-UNIT reaches offering its answers too (plan P4-D438).
+
+    P4-D419's ZR.2: where two questions fit one column they are ONE
+    question offering the answers of both. `measurement` and `code` are
+    added after the answers the question already offers, so Enter, the
+    reading taken and the order a person reads stay as they were; a
+    question that already offers one keeps its own words for it. A
+    question that holds its column until answered (P4-D401) still
+    holds it: `measurement` is one more answer that releases it. The
+    list question of a register (P4-D424) is left as it is: a record
+    number closed by `;`, quoted or written beside `pending` is a key,
+    not an amount in a unit, as a letter flush in front is
+    (`taxonomy.reads_as_a_unit`), and its question says what it is.
+
+    Guarantees: accepts the questions, the columns reached and the
+    floor; returns the questions in the same order. A fixed function of
+    them. Raises nothing. No I/O.
+    """
+    if not reached:
+        return questions
+    out: "list[Question]" = []
+    for question in questions:
+        if question.name not in reached or question.reason in (
+            BECAUSE_UNIT, BECAUSE_LISTED_RECORD_NUMBERS
+        ):
+            out += [question]
+            continue
+        offered = [choice.answer for choice in question.choices]
+        more = [
+            choice
+            for choice in _unit_choices(question.role, floor)
+            if choice.answer != ANSWER_KEEP and choice.answer not in offered
+        ]
+        out += [dataclasses.replace(question, choices=question.choices + more)]
+    return out
+
+
 # THE PLACEHOLDER A KEY WRITES FOR "NOBODY" (plan P4-D401). A warehouse
 # key writes an unknown or not-applicable member as `-1` or `-2` beside
 # keys all one width (measured: a patient key of six figures, unknown
@@ -1826,6 +2210,77 @@ def _beside_sign_placeholders(present: "list[str]") -> "list[str]":
     for value in rest:
         if len(value) < _KEY_FIGURES:
             return []
+    return rest
+
+
+def _a_width_route_placeholder(value: str) -> bool:
+    """Whether a cell is a placeholder the width route sets aside: a lone `0`,
+    a negative whole number (`-1`, `-2`, `-99`, `-999`) or nines alone.
+
+    Lane GG's repair 2, the orchestrator's LANE GG RULINGS 3 (1). Raises
+    nothing.
+    """
+    if value == "0" or _all_nines(value):
+        return True
+    if len(value) < 2 or value[0] != "-" or value[1] == "0":
+        return False
+    for character in value[1:]:
+        if not "0" <= character <= "9":
+            return False
+    return True
+
+
+def _all_nines(value: str) -> bool:
+    """Whether a cell is two nines or more and nothing else."""
+    if len(value) < 2:
+        return False
+    for character in value:
+        if character != "9":
+            return False
+    return True
+
+
+def _beside_width_placeholders(present: "list[str]", floor: int) -> "list[str]":
+    """The cells left once a key's placeholders are set aside, at any width and share.
+
+    `_beside_sign_placeholders` without its five-figure condition (repair
+    1 of lane GG, plan P4-D440; its skeptic 1, item 2) and without its
+    cap of one cell in three (repair 2, the orchestrator's LANE GG
+    RULINGS 3 (1), as lane SH's ADDENDUM 3 sets aside its reaches'
+    placeholders whatever their share): the route that calls it puts a
+    question only where the cells left are what the fixed-width or
+    padded question asks of a column with no placeholder at all -- one
+    width of three figures or more, or a leading nought -- so keys of
+    three or four figures beside `-1`, `-99` or `999`, on 2 % of rows or
+    on 40 %, are asked as the same keys without them are. A placeholder
+    is a lone `0`, a negative whole number or nines alone
+    (`_a_width_route_placeholder`) -- BUT A RUN OF NINES THE OTHER NUMBERS RUN ON
+    THROUGH IS NOT ONE (Codex's review of lane GG, item 2): a pulse of 99
+    to 159 holds `100` beside its `99`, so the `99` is one of its values
+    and the column keeps the two widths it has, as it did before; the
+    same cells as a key beside a placeholder `99` are one key of mixed
+    width, which only the column's name can tell (lane HB's item 14,
+    plan P4-D440's limits). The price is the one question a measurement
+    of one width beside such a placeholder is now asked, which the same
+    measurement without it was asked already (P4-D440 names them).
+    Empty where no placeholder is, or where fewer than ``floor`` cells
+    are left. Guarantees: a fixed function of the cells and the floor.
+    Linear in the cells. Raises nothing. No I/O.
+    """
+    others: "dict[str, bool]" = {}
+    for value in present:
+        if not _a_width_route_placeholder(value):
+            others[value] = True
+    rest: "list[str]" = []
+    for value in present:
+        if _a_width_route_placeholder(value) and not (
+            _all_nines(value)
+            and (f"{int(value) + 1}" in others or f"{int(value) - 1}" in others)
+        ):
+            continue
+        rest += [value]
+    if len(rest) == len(present) or len(rest) < floor:
+        return []
     return rest
 
 
@@ -2361,12 +2816,18 @@ def _figures_joined_by_points_choices(role: str, floor: int) -> "list[Choice]":
 
 
 def _signs_said(signs: int, population: int, floor: int) -> str:
-    """The clause naming the placeholders set aside, or nothing where none was."""
+    """The clause naming the placeholders set aside, or nothing where none was.
+
+    "A negative whole number" is true of both routes: the sign route sets
+    aside a minus sign and one figure, and the width route, since lane GG's
+    repair 2 (LANE GG RULINGS 3 (1)), any negative whole number (`-99`,
+    `-999`), where "a minus sign and one figure" named a `-999` wrongly.
+    """
     if signs == 0:
         return ""
     return (
         f", beside {_sayable(signs, population, floor)} written as a "
-        f"placeholder -- a minus sign and one figure, a lone 0, or nines "
+        f"placeholder -- a negative whole number, a lone 0, or nines "
         f"alone"
     )
 
@@ -3072,6 +3533,26 @@ def _shape_of(
             f"holds only {len(times)} different value(s) over {len(present)} "
             f"cell(s), which a list of labels written as times also holds"
         )
+    if reason == BECAUSE_COMMA:
+        if parsing.decimal_comma_inferred(present) == parsing.COMMA_TWO_PICKS:
+            return (
+                "every value with a comma is two whole numbers with the "
+                "comma between them, which is how a number is written with "
+                "a comma for its decimal point and also how two choices "
+                "picked from one list of codes are written"
+            )
+        return (
+            "every value with a comma is one figure, the comma and one "
+            "figure, which is how a number is written with a comma for its "
+            "decimal point and also how two choices of a short list are "
+            "written"
+        )
+    if reason == BECAUSE_COMMA_THOUSANDS:
+        return (
+            "every value with a comma has exactly three figures after it, "
+            "and every value without one is below a thousand, which is also "
+            "how numbers are written with a comma for their decimal point"
+        )
     if reason == BECAUSE_POINT_THOUSANDS:
         return (
             "every value with a point has exactly three figures after it, "
@@ -3157,6 +3638,17 @@ def _shape_of(
             f"the values that read as dates are written in figures alone, "
             f"{remainder} characters wide, each read as a date and time "
             f"written without marks; identifiers are written the same way"
+        )
+    if reason == BECAUSE_UNIT:
+        # The words P4-D419's ZR.2 fixes, a made-up example and no value.
+        # It claims no more than the trigger reads (Codex's review of lane
+        # UN-1a, item 7): a cell such as `see note` may stand beside the
+        # numbers, and the answer `measurement` leaves it out of them.
+        return (
+            "its values are written as a number beside a word or mark, "
+            "as the made-up `72 kg` is (any value written otherwise is "
+            "left out of the numbers if they are read as amounts); is it "
+            "an amount in that unit, a code, or labels to keep as written?"
         )
     return "this column could be read more than one way"
 
@@ -3806,7 +4298,7 @@ def checklist_for(
       as codes -- the answer settled what their values are -- but one
       the answer leaves read as a measurement IS listed, because its
       description still carries statistics over its values (second
-      review of lane R1, item 3: a DateKey column answered
+      review of lane R1, item 3: a date-key column answered
       `real-value` had lost its line).
     - Determinism: a fixed function of the arguments.
     - Errors raised: none.
@@ -4157,9 +4649,48 @@ def _beside_keys_counted(
             words = words + 1
         elif _a_placeholder_beside_keys(value):
             placeholders = placeholders + 1
+        elif padded and _a_note_beside_padded_keys(value):
+            words = words + 1
         else:
             return None
     return keys, counted, words, placeholders
+
+
+def _a_note_beside_padded_keys(value: str) -> bool:
+    """Whether a cell beside padded keys is a note: a letter, and no run of figures as wide as a key (LANE HB RULINGS 6, item 5).
+
+    `0001000` upward beside `seen by dr 12 in clinic` in half the cells was no
+    word beside keys, so it read as numbers beside labels with no question and
+    its twin held 9,998 real keys at 20,000 rows. Only the padded arm reads it,
+    whose keys no measurement is written as. A LETTER IS ANY LETTER, of any
+    script (Codex's review of lane HB's close round, item 2; LANE HB RULINGS
+    8, item 1): a note in another script beside `0001000` upward once each
+    read as numbers beside labels and its twin held 9,997 real keys at 20,000
+    rows. Read without a table of letters (the offline audit carries no
+    `str.isalpha`, and such a table moves between releases, as `reading`
+    says): an ASCII letter, or any character outside ASCII but a mark that
+    groups figures (`parsing.GROUP_MARKS`), so every letter of every script
+    counts, and so does a sign outside ASCII such as a degree sign, which
+    only puts the question where it might not have been (HIPAA first). A
+    fixed function of the cell. Raises TypeError for a cell that is not text.
+    No I/O.
+    """
+    if not isinstance(value, str):
+        raise TypeError("a cell to ask about must be text")
+    letter = False
+    run = 0
+    for place in range(len(value)):
+        if "0" <= value[place] <= "9":
+            run = run + 1
+            if run >= _PADDED_KEY_WIDTH:
+                return False
+            continue
+        run = 0
+        if ("a" <= value[place] <= "z") or ("A" <= value[place] <= "Z") or (
+            not value[place].isascii() and value[place] not in parsing.GROUP_MARKS
+        ):
+            letter = True
+    return letter
 
 
 def _set_aside_within_reach(
@@ -4274,12 +4805,12 @@ def _five_figures_or_more(value: str) -> bool:
     return len(value.lstrip("0")) >= _KEY_FIGURES
 
 
-def _a_key_of_figures_repeating(present: "list[str]") -> bool:
+def _a_key_of_figures_repeating(present: "list[str]", any_width: bool = False) -> bool:
     """Route four: a key of figures, repeating on the rows of each patient.
 
     PLAN P4-D401 (lane HX's verify, item 1, and its tripwire, item 1; the
     orchestrator's addendum 2 of 2026-10-17). A warehouse key -- a
-    `PatientDurableKey` drawn from one to three million, a register
+    `patient_key` drawn from one to three million, a register
     crossing a power of ten, keys written with `0`, `-99` or `UNKNOWN` for
     nobody, or exported as `100001.0` -- is read as a count or a
     measurement, asked nothing but the checklist, and published as rungs,
@@ -4337,11 +4868,269 @@ def _a_key_of_figures_repeating(present: "list[str]") -> bool:
         return False
     if present_keys < PERSON_ROWS_PER_VALUE * len(keys):
         return False
+    if any_width:
+        # ...of any width where the column's NAME says it is a key
+        # (`_named_key_puts`, plan P4-D442), over MORE than two different
+        # values: a column of `0` and `1` named `subject_id` is a flag, and
+        # two values are no register of persons (lane HB's skeptic 1, item
+        # 1 (c): P4-D341's own premise).
+        return len(keys) >= NAMED_KEY_LEAST_VALUES
     wide = 0
     for figures in keys:
         if _five_figures_or_more(figures):
             wide = wide + 1
     return wide * 2 > len(keys)
+
+
+# THE WORDS OF A COLUMN'S NAME THAT SAY IT IS A KEY OR AN IDENTIFIER (plan
+# P4-D442, lane HB item (14); GG's skeptic 1, item 2): read whole, as lane
+# SH2 reads a place's words -- the name cut into its words at every mark,
+# at each capital after a small letter and before the last capital of a
+# run of capitals a small letter follows (`PatientStudyKey` is
+# `patient`, `study`, `key`; `PAT_KEY` is `pat`, `key`; `CSN` is `csn`)
+# -- a closed list, never an ending, so `paid`, `valid`, `turkey` and
+# `monkey` name no key; and one word opening with one of `KEY_OPENINGS`
+# and closing with `id` or `key` (`patid`, `encounterkey`, `personid`).
+# A NUMBER WORD AFTER AN OPENING NAMES A KEY TOO (lane HB's skeptic 1, item
+# 3): `patient_num`, `med_rec_no`, `PERSON_NBR`, `acct_num` -- the number
+# word the next word after an opening -- and `recno`, `acctnum`, one word
+# joined so. `fin` (a financial number) names a key only as the name's
+# LAST word, so `fin_class`, a financial class's codes, names none.
+KEY_WORDS = frozenset({
+    "id", "ids", "key", "keys", "identifier", "identifiers",
+    "uid", "uids", "guid", "uuid", "empi", "csn",
+})
+KEY_LAST_WORDS = frozenset({"fin"})
+NUMBER_WORDS = ("num", "number", "no", "nbr", "nr")
+# The fewest different values a column named as a key is asked over.
+NAMED_KEY_LEAST_VALUES = 3
+KEY_OPENINGS = (
+    "patient", "pat", "person", "member", "subject", "subj", "durable",
+    "encounter", "enc", "visit", "record", "rec", "account", "acct",
+    "admission", "adm", "episode", "case", "specimen", "accession",
+    "order", "study", "sample", "client", "resident", "beneficiary", "fin",
+)
+KEY_CLOSINGS = ("id", "key")
+
+
+def key_name_words(name: str) -> "list[str]":
+    """A column's name cut into its words, in small letters (plan P4-D442).
+
+    Cut at every character that is not an ASCII letter, before each
+    capital that follows a small letter, and before the last capital of
+    a run of capitals that a small letter follows. A fixed function of
+    the name. Raises TypeError for a name that is not text. No I/O.
+    """
+    if not isinstance(name, str):
+        raise TypeError("a column's name must be text")
+    words: "list[str]" = []
+    word = ""
+    for place in range(len(name)):
+        character = name[place]
+        before = name[place - 1] if place > 0 else ""
+        after = name[place + 1] if place + 1 < len(name) else ""
+        letter = "a" <= character <= "z" or "A" <= character <= "Z"
+        capital = "A" <= character <= "Z"
+        if not letter:
+            if word:
+                words += [word]
+            word = ""
+            continue
+        if word and capital and (
+            "a" <= before <= "z"
+            or (
+                "A" <= before <= "Z"
+                and "a" <= after <= "z"
+                and not _closes_a_plural(name, place)
+            )
+        ):
+            words += [word]
+            word = ""
+        # ...in small letters, an ASCII capital read one place down.
+        word = word + (chr(ord(character) + 32) if capital else character)
+    if word:
+        words += [word]
+    return words
+
+
+def _closes_a_plural(name: str, place: int) -> bool:
+    """Whether the capital at ``place`` closes a run of capitals made plural by one small `s` (plan P4-D442).
+
+    AN ACRONYM'S PLURAL IS ONE WORD (Codex's review of lane HB, item 2):
+    `patient_IDs` was cut `patient`, `i`, `ds`, so no word named a key and
+    sixty keys `10` to `69` were printed with all 1,200 twin cells real,
+    where `patient_ID` was held. The capital is not cut from the run before
+    it where the one small letter after it is `s` and no small letter
+    follows that `s` (`IDs`, `UIDs`, `IDsList`). A fixed function of the
+    two. Raises nothing. No I/O.
+    """
+    if place + 1 >= len(name) or name[place + 1] != "s":
+        return False
+    following = name[place + 2] if place + 2 < len(name) else ""
+    return not "a" <= following <= "z"
+
+
+def _a_key_word(word: str) -> bool:
+    """Whether one word of a name is one of `KEY_WORDS` or its plural in `s` (`csns`, `uuids`; plan P4-D442)."""
+    if word in KEY_WORDS:
+        return True
+    last = len(word) - 1
+    return last > 0 and word[last] == "s" and word[:last] in KEY_WORDS
+
+
+def named_as_a_key(name: str) -> bool:
+    """Whether a column's name says it is a key or an identifier (plan P4-D442).
+
+    A word of the name (`key_name_words`) is one of `KEY_WORDS` or its
+    plural (`_a_key_word`), or one of `KEY_LAST_WORDS` as the name's last word, or opens with one of
+    `KEY_OPENINGS` and closes with one of `KEY_CLOSINGS` or `NUMBER_WORDS`
+    and nothing between (`patid`, `personkey`, `recno`), or is one of
+    `KEY_OPENINGS` with one of `NUMBER_WORDS` the next word (`patient_num`,
+    `med_rec_no`). A fixed function of the name. Raises TypeError for a
+    name that is not text. No I/O.
+    """
+    words = key_name_words(name)
+    for place in range(len(words)):
+        word = words[place]
+        if _a_key_word(word):
+            return True
+        if word in KEY_LAST_WORDS and place == len(words) - 1:
+            return True
+        following = words[place + 1] if place + 1 < len(words) else ""
+        for opening in KEY_OPENINGS:
+            if word == opening and following in NUMBER_WORDS:
+                return True
+            for closing in KEY_CLOSINGS + NUMBER_WORDS:
+                if word == opening + closing:
+                    return True
+    return False
+
+
+# KEYS BETWEEN COMMAS (plan P4-D442, lane HB's repair; skeptic 1, item 2).
+# A column of record numbers written as lists -- `1000123,1000456` -- reads
+# as free text or as labels, and the free-text walk fills a cell of figures
+# from the bottom of its room upward (`1000000`, `1000001`, ...), so a
+# register numbered from there is written back key for key: 4,008 real key
+# tokens in the twin and 3,265 twin cells equal to a real cell at 20,000
+# rows, on lane HB's base and on the merged line alike (lane HX4's hold, P4-D424,
+# does not reach it). A key between commas is letters (at most three) then
+# five figures or more, or letters then four figures or more.
+_LIST_KEY_LETTERS_AT_MOST = 3
+_LIST_KEY_FIGURES = 5
+_LIST_KEY_FIGURES_AFTER_LETTERS = 4
+_LISTED_ROLES = (taxonomy.ROLE_TEXT, taxonomy.ROLE_LONG_TAIL, taxonomy.ROLE_CATEGORICAL)
+
+
+def _a_list_key(token: str) -> bool:
+    """Whether one token between commas is a record number's (plan P4-D442): letters then figures."""
+    if not isinstance(token, str):
+        raise TypeError("a token must be text")
+    letters = 0
+    while letters < len(token) and (
+        "a" <= token[letters] <= "z" or "A" <= token[letters] <= "Z"
+    ):
+        letters = letters + 1
+    figures = len(token) - letters
+    if letters > _LIST_KEY_LETTERS_AT_MOST or figures < 1:
+        return False
+    for character in token[letters:]:
+        if not "0" <= character <= "9":
+            return False
+    return figures >= _LIST_KEY_FIGURES or (
+        letters > 0 and figures >= _LIST_KEY_FIGURES_AFTER_LETTERS
+    )
+
+
+def _keys_between_commas_put(present: "list[str]", role: str) -> bool:
+    """Whether a column of record numbers between commas is asked the person question (plan P4-D442)."""
+    return _keys_between_commas(present, role) > 0
+
+
+# The opening of the person question's sentence where it was put to keys
+# between commas (plan P4-D442): `unanswered_identities` holds such a column
+# read as free text, as it holds Q-ID's (P4-D428).
+_KEYS_BETWEEN_COMMAS_SHAPE = "record numbers between commas: "
+
+
+def _spaces_trimmed(field: str) -> str:
+    """A list cell's field without the spaces around it (plan P4-D442). Raises TypeError for a non-string."""
+    if not isinstance(field, str):
+        raise TypeError("a list field must be text")
+    return field.strip(" ")
+
+
+def _keys_between_commas(present: "list[str]", role: str) -> int:
+    """The different keys of a column of record numbers between commas, or 0 where it is none (plan P4-D442).
+
+    Read as free text or labels; at least one cell in ten a list (two
+    tokens or more between commas); at most one cell in three holding a
+    token that is no key (`_a_list_key`), so one ordinary word does not
+    defeat it (the orchestrator's LANE HX4 ADDENDUM); the keys REPEAT, at
+    least `PERSON_ROWS_PER_VALUE` tokens a different key, over
+    `NAMED_KEY_LEAST_VALUES` different keys or more. Unanswered, the column
+    is held (P4-D401) and its twin is written by the record-number walk,
+    each key of a list cell kept off the real (method G9.6b, step 6 (a)).
+    A fixed function of the cells and the role. Raises nothing. No I/O.
+    """
+    if not present or role not in _LISTED_ROLES:
+        return 0
+    keys: "dict[str, int]" = {}
+    tokens = 0
+    listed = 0
+    worded = 0
+    for value in present:
+        fields: "list[str]" = []
+        field = ""
+        for character in value:
+            if character == ",":
+                fields += [_spaces_trimmed(field)]
+                field = ""
+                continue
+            field = field + character
+        fields += [_spaces_trimmed(field)]
+        if len(fields) > 1:
+            listed = listed + 1
+        keyed = True
+        for token in fields:
+            if not _a_list_key(token):
+                keyed = False
+                continue
+            tokens = tokens + 1
+            keys[token] = (keys[token] if token in keys else 0) + 1
+        if not keyed:
+            worded = worded + 1
+    if (
+        listed * 10 >= len(present)
+        and worded * 3 <= len(present)
+        and len(keys) >= NAMED_KEY_LEAST_VALUES
+        and tokens >= PERSON_ROWS_PER_VALUE * len(keys)
+    ):
+        return len(keys)
+    return 0
+
+
+def _named_key_puts(name: str, present: "list[str]", role: str) -> bool:
+    """Whether a column NAMED as a key is asked the person question whatever its values' width (plan P4-D442).
+
+    Route four (`_route_four_puts`) asks a key of figures repeating where
+    most of its different values are five figures or more, because a
+    bounded scale repeats too and is never so wide; sixty keys `10` to
+    `69` beside `-1` (GG's skeptic 1, item 2: a `PatientStudyKey` of
+    two figures) are read by value as an age would be, and printed all
+    60 with 19,556 of 20,000 twin cells real at 20,000 rows. Where the
+    column's NAME says it is a key (`named_as_a_key`), route four's other
+    conditions are asked of any width: every present cell a whole number
+    or a placeholder, fewer than half placeholders, repeating, and at least
+    `NAMED_KEY_LEAST_VALUES` different values (a two-value flag named
+    `subject_id` is no register). A fixed function of the arguments.
+    Raises nothing. No I/O.
+    """
+    return (
+        bool(present)
+        and role not in _KEY_ROLES_EXCLUDED
+        and named_as_a_key(name)
+        and _a_key_of_figures_repeating(present, True)
+    )
 
 
 # ...AND A PADDED KEY BELOW FIVE FIGURES BESIDE WORDS (lane CODES-3, plan
@@ -4374,7 +5163,9 @@ def _padded_beside_words(present: "list[str]") -> bool:
     keys, counted, words, placeholders = found
     if not _set_aside_within_reach(counted, words, placeholders):
         return False
-    if len(keys) < 2 or counted < PERSON_ROWS_PER_VALUE * len(keys):
+    # ...WHETHER OR NOT THEY REPEAT (LANE HB RULINGS 6, item 5): `0001000` upward once
+    # each beside notes held real keys as the same keys on six rows each did.
+    if len(keys) < 2:
         return False
     widths: "dict[int, bool]" = {}
     led = 0
@@ -4561,7 +5352,12 @@ def person_questions(
             )
         # ROUTE FOUR'S QUESTION OFFERS `code` (plan P4-D420, lane HX3):
         # read once here, the trigger unchanged (`_names_people`).
-        by_route_four = not declared_people and _route_four_puts(present, role)
+        listed = 0 if declared_people else _keys_between_commas(present, role)
+        by_route_four = not declared_people and (
+            _route_four_puts(present, role)
+            or _named_key_puts(name, present, role)
+            or listed > 0
+        )
         if (
             _repeats_naming_one_person_a_cell(present, role)
             if declared_people
@@ -4573,7 +5369,14 @@ def person_questions(
                     name,
                     role,
                     BECAUSE_REPEATS_AND_MANY,
-                    _shape_of(
+                    # ...said of KEYS where it was put to keys between commas
+                    # (plan P4-D442): a count of different keys and of cells,
+                    # no value, and the opening the hold reads.
+                    f"{_KEYS_BETWEEN_COMMAS_SHAPE}{listed} different key(s) "
+                    f"over {len(present)} cell(s), each on more than one row "
+                    f"on average"
+                    if listed
+                    else _shape_of(
                         BECAUSE_REPEATS_AND_MANY,
                         # A column read under the Safe Harbor top-code is
                         # counted so in words too (plan P4-D427): its
@@ -4814,6 +5617,8 @@ def unanswered_identities(
         if (
             not publishes_its_values(question.role)
             and question.reason != BECAUSE_FIGURES_JOINED_BY_POINTS
+            and question.shape[: len(_KEYS_BETWEEN_COMMAS_SHAPE)]
+            != _KEYS_BETWEEN_COMMAS_SHAPE
         ):
             # Free text and the like publish no value already; Q-ID holds
             # its free-text column whatever (plan P4-D428).
@@ -5493,10 +6298,60 @@ def _listed_choices(role: str, floor: int) -> "list[Choice]":
 BECAUSE_SAFE_HARBOR_AGES = "numbers-from-0-to-125-some-above-89"
 BECAUSE_SAFE_HARBOR_ZIPS = "whole-numbers-of-four-or-five-figures"
 BECAUSE_SAFE_HARBOR_AGES_HELD = "ages-whose-top-code-is-a-missing-value"
+# ...and a few-valued column with a wide gap (lane GG, plan P4-D440; the
+# stand-ins page's ZS.4): its own numbers are listed only after `no`.
+BECAUSE_SAFE_HARBOR_FEW_VALUES = "few-numbers-with-a-wide-gap-among-them"
 SAFE_HARBOR_REASONS = (
     BECAUSE_SAFE_HARBOR_AGES, BECAUSE_SAFE_HARBOR_ZIPS,
-    BECAUSE_SAFE_HARBOR_AGES_HELD,
+    BECAUSE_SAFE_HARBOR_AGES_HELD, BECAUSE_SAFE_HARBOR_FEW_VALUES,
 )
+# ...AND LANE SH2'S (plan P4-D434): years of birth top-coded, and the
+# columns held whole for years that are also ZIP-shaped, dates so early,
+# a name that says it holds places, ZIP codes cut to three figures,
+# device numbers and ZIP codes read as counted dates -- each the same one
+# question, its own sentence saying what was seen.
+BECAUSE_SAFE_HARBOR_YEARS = "four-figure-years-some-showing-an-age-over-89"
+BECAUSE_SAFE_HARBOR_YEARS_HELD = "four-figure-numbers-as-years-or-zip-codes"
+BECAUSE_SAFE_HARBOR_DATES = "dates-some-showing-an-age-over-89"
+BECAUSE_SAFE_HARBOR_PLACES = "a-name-that-says-places"
+BECAUSE_SAFE_HARBOR_ZIP3 = "zip-codes-cut-to-three-figures"
+BECAUSE_SAFE_HARBOR_DEVICES = "device-identifiers"
+BECAUSE_SAFE_HARBOR_ZIP_DATES = "zip-shaped-numbers-read-as-counted-dates"
+BECAUSE_SAFE_HARBOR_YEARS_BESIDE = "four-figure-years-beside-other-numbers"
+# ...and, from lane SH2's close round, latitudes and longitudes (its
+# ADDENDUM 3) and places written beside their states (its RULINGS 2 (3)).
+BECAUSE_SAFE_HARBOR_COORDINATES = "latitudes-or-longitudes"
+BECAUSE_SAFE_HARBOR_CITY_STATES = "places-beside-their-states"
+SH2_SAFE_HARBOR_REASONS = (
+    BECAUSE_SAFE_HARBOR_YEARS, BECAUSE_SAFE_HARBOR_YEARS_HELD,
+    BECAUSE_SAFE_HARBOR_DATES, BECAUSE_SAFE_HARBOR_PLACES,
+    BECAUSE_SAFE_HARBOR_ZIP3, BECAUSE_SAFE_HARBOR_DEVICES,
+    BECAUSE_SAFE_HARBOR_ZIP_DATES, BECAUSE_SAFE_HARBOR_YEARS_BESIDE,
+    BECAUSE_SAFE_HARBOR_COORDINATES, BECAUSE_SAFE_HARBOR_CITY_STATES,
+)
+# ...of which the reasons that hold a column whole: its question is put
+# alone, every other question of the column waiting for `no` (lane SH2's
+# repair 1, Codex item 4).
+SH2_HELD_REASONS = (
+    BECAUSE_SAFE_HARBOR_YEARS_HELD, BECAUSE_SAFE_HARBOR_DATES,
+    BECAUSE_SAFE_HARBOR_PLACES, BECAUSE_SAFE_HARBOR_ZIP3,
+    BECAUSE_SAFE_HARBOR_DEVICES, BECAUSE_SAFE_HARBOR_ZIP_DATES,
+    BECAUSE_SAFE_HARBOR_YEARS_BESIDE, BECAUSE_SAFE_HARBOR_COORDINATES,
+    BECAUSE_SAFE_HARBOR_CITY_STATES,
+)
+# Each of lane SH2's holds (`taxonomy.SAFE_HARBOR_HOLDS`) and the reason
+# its question gives.
+_HELD_BECAUSE: "dict[str, str]" = {
+    taxonomy.HELD_YEARS: BECAUSE_SAFE_HARBOR_YEARS_HELD,
+    taxonomy.HELD_YEARS_BESIDE: BECAUSE_SAFE_HARBOR_YEARS_BESIDE,
+    taxonomy.HELD_DATES: BECAUSE_SAFE_HARBOR_DATES,
+    taxonomy.HELD_PLACES: BECAUSE_SAFE_HARBOR_PLACES,
+    taxonomy.HELD_ZIP3: BECAUSE_SAFE_HARBOR_ZIP3,
+    taxonomy.HELD_DEVICES: BECAUSE_SAFE_HARBOR_DEVICES,
+    taxonomy.HELD_ZIP_DATES: BECAUSE_SAFE_HARBOR_ZIP_DATES,
+    taxonomy.HELD_COORDINATES: BECAUSE_SAFE_HARBOR_COORDINATES,
+    taxonomy.HELD_CITY_STATES: BECAUSE_SAFE_HARBOR_CITY_STATES,
+}
 ANSWER_SAFE_HARBOR_NO = "no"
 ANSWER_SAFE_HARBOR_YES = "yes"
 # What a column the top-code reaches is read as while its question is open.
@@ -5537,8 +6392,94 @@ def safe_harbor_sentence(name: str) -> str:
     )
 
 
-def _safe_harbor_question(name: str, role: str, reason: str) -> Question:
-    """The Safe Harbor question put to one column (plan P4-D427)."""
+def _sh2_seen(reason: str, cutoff: int, held: str) -> str:
+    """What lane SH2's question says it saw of a column (plan P4-D434), naming no value of it.
+
+    ``cutoff`` is the latest year that shows an age of 90 or more in the
+    year the description is made, ``cutoff`` plus 90.
+    """
+    made = cutoff + taxonomy.TOP_CODE
+    early = (
+        f"some are {cutoff} or earlier, which as years of birth show an age of "
+        f"{taxonomy.TOP_CODE} or more in {made}, the year this release of "
+        f"synthtwin judges ages by"
+    )
+    if reason == BECAUSE_SAFE_HARBOR_YEARS:
+        return (
+            f"its numbers, placeholders and words set aside, are four-figure "
+            f"years up to {made}, written alone or beside a word, and {early}; "
+            f"until this question is answered "
+            f"every year up to {cutoff} is read as {cutoff} (\"{cutoff} or "
+            f"earlier\") in the description, its summary and the twin, and "
+            f"placeholders and words are kept as written"
+        )
+    if reason == BECAUSE_SAFE_HARBOR_YEARS_BESIDE:
+        return (
+            f"its numbers, placeholders and words set aside, are mostly "
+            f"four-figure years up to {made} -- written alone or beside a word "
+            f"-- and {early}; beside them stand other numbers (years written "
+            f"in two figures, say) that pooling the years would leave "
+            f"showing them; {held}"
+        )
+    if reason == BECAUSE_SAFE_HARBOR_YEARS_HELD:
+        return (
+            f"its numbers, placeholders and words set aside, are four-figure "
+            f"whole numbers, as years are written -- {early} -- and as ZIP "
+            f"codes that lost their leading zero are written; {held}"
+        )
+    if reason == BECAUSE_SAFE_HARBOR_DATES:
+        return (
+            f"it holds dates, some in {cutoff} or earlier, which as dates of "
+            f"birth show an age of {taxonomy.TOP_CODE} or more in {made}, the "
+            f"year this release of synthtwin judges ages by, and a year of birth "
+            f"so early is part of a birth date; {held}"
+        )
+    if reason == BECAUSE_SAFE_HARBOR_PLACES:
+        return (
+            f"its name says it may hold places (a city, county, town, street, "
+            f"address, precinct or the like), and a place smaller than a state "
+            f"names where a person lives or was born; {held}"
+        )
+    if reason == BECAUSE_SAFE_HARBOR_ZIP3:
+        return (
+            f"some of its values are three figures and two marks, as a ZIP "
+            f"code cut to its first three figures is written; {held}"
+        )
+    if reason == BECAUSE_SAFE_HARBOR_COORDINATES:
+        return (
+            f"its name says it holds a latitude, a longitude or a geographic "
+            f"coordinate, or its values are decimals of three places or more "
+            f"inside the ranges a latitude (-90 to 90) and a longitude (-180 "
+            f"to 180) keep, beside another column of such decimals; a "
+            f"coordinate is a place's equivalent geocode, and names a place "
+            f"smaller than a state; {held}"
+        )
+    if reason == BECAUSE_SAFE_HARBOR_CITY_STATES:
+        return (
+            f"most of its values are a place, a comma and the two-letter code "
+            f"of a state (as 'City, ST' is written), and a city or town names "
+            f"a place smaller than a state; {held}"
+        )
+    if reason == BECAUSE_SAFE_HARBOR_DEVICES:
+        return (
+            f"some of its values are unique device identifiers -- GS1's mark "
+            f"(01) and fourteen figures, or HIBCC's or ICCBBA's forms, with or "
+            f"without a lot, an expiry or a serial number after them -- and a "
+            f"device number is given to one device a person carries or was "
+            f"treated with; {held}"
+        )
+    return (
+        f"it is read as dates counted from a day, and its numbers, "
+        f"placeholders and words set aside, are whole numbers of five "
+        f"figures, as ZIP codes are written, each count naming one date; "
+        f"{held}"
+    )
+
+
+def _safe_harbor_question(
+    name: str, role: str, reason: str, cutoff: int = 0
+) -> Question:
+    """The Safe Harbor question put to one column (plan P4-D427; lane SH2's reasons, P4-D434)."""
     ages = (
         f"its numbers, placeholders and words set aside, are between 0 and "
         f"{taxonomy.TOP_CODE_REACH_CEILING} and some are above "
@@ -5550,7 +6491,24 @@ def _safe_harbor_question(name: str, role: str, reason: str) -> Question:
         "until this question is answered the column is held back: it is "
         "described as record numbers and none of its values is published"
     )
-    if reason == BECAUSE_SAFE_HARBOR_AGES:
+    if reason in SH2_SAFE_HARBOR_REASONS:
+        seen = _sh2_seen(reason, cutoff, held)
+        unanswered = (
+            SAFE_HARBOR_TOP_CODED
+            if reason == BECAUSE_SAFE_HARBOR_YEARS
+            else ANSWER_SAFE_HARBOR_YES
+        )
+        lifted = (
+            f"the column as it is read without the top-code: its points, mode "
+            f"and tails, years up to {cutoff} among them"
+            if reason == BECAUSE_SAFE_HARBOR_YEARS
+            else (
+                "what its reading publishes: for labels, their levels; for "
+                "numbers, their points, mode and tails; for dates, their "
+                "percentiles and tails"
+            )
+        )
+    elif reason == BECAUSE_SAFE_HARBOR_AGES:
         seen = (
             f"{ages}; until this question is answered every value from "
             f"{taxonomy.TOP_CODE} to {taxonomy.TOP_CODE_REACH_CEILING} is read "
@@ -5563,6 +6521,27 @@ def _safe_harbor_question(name: str, role: str, reason: str) -> Question:
             f"the column as it is read without the top-code, its numeric "
             f"reading kept: its points, mode and tails, values above "
             f"{taxonomy.TOP_CODE_LAST_AGE} among them"
+        )
+    elif reason == BECAUSE_SAFE_HARBOR_FEW_VALUES:
+        # ...IN WORDS TRUE OF EVERY SUCH COLUMN (Codex's review of lane GG,
+        # item 6): a number one cell holds is left off the list, so the
+        # words say the list names the numbers two cells or more hold, and
+        # what the twin does with the cell of one left off.
+        seen = (
+            "its numbers are a few values written one way each, with a wide "
+            "stretch among them that holds none, as a score beside a code "
+            "for a missing answer is written; until this question is "
+            "answered the column is described as it is now, and with no the "
+            "description also lists the values two cells or more hold, "
+            "without how many cells hold each, and the twin writes only "
+            "them: a number one cell holds is left off the list, and its "
+            "cell is written as one of the listed values"
+        )
+        unanswered = ANSWER_KEEP
+        lifted = (
+            "the column as it is described now, and the list of the values "
+            "two cells or more hold, without counts, which the twin writes "
+            "and nothing else"
         )
     elif reason == BECAUSE_SAFE_HARBOR_AGES_HELD:
         seen = (
@@ -5602,6 +6581,9 @@ def safe_harbor_questions(
     asked: "list[Question]",
     ages_held: "tuple[str, ...]" = (),
     answered: "tuple[str, ...]" = (),
+    few_valued: "tuple[str, ...]" = (),
+    reasons: "dict[str, str] | None" = None,
+    harbor_year: int = 0,
 ) -> "list[Question]":
     """The Safe Harbor questions a run puts, in the table's own column order.
 
@@ -5612,9 +6594,18 @@ def safe_harbor_questions(
     column, never a second (an open question offering `identifier` holds
     such a column meanwhile), and none to a column in ``answered`` -- its
     answer is kept, and a column answered `yes` is held from its
-    top-coded cells (Codex's review of lane SH, item 8). Guarantees: a
-    fixed function of the five. Raises nothing. No I/O.
+    top-coded cells (Codex's review of lane SH, item 8). AND ONE TO EACH
+    FEW-VALUED COLUMN WITH A WIDE GAP in ``few_valued`` (lane GG, plan
+    P4-D440; the stand-ins page's ZS.4), on the same terms: its numbers
+    are listed only after `no`, `yes` holds it, and unanswered it is
+    described as before. AND LANE SH2'S (plan P4-D434): to each column
+    published as `top_coded_year`, and to each held column ``reasons``
+    names with one of lane SH2's holds (`taxonomy.SAFE_HARBOR_HOLDS`),
+    its sentence naming the years by ``harbor_year``, the reference year.
+    Guarantees: a fixed function of the eight. Raises nothing. No I/O.
     """
+    held_for: "dict[str, str]" = {} if reasons is None else reasons
+    cutoff = taxonomy.year_cutoff(harbor_year) if harbor_year else 0
     named: "dict[str, bool]" = {}
     for question in asked:
         named[question.name] = True
@@ -5631,8 +6622,25 @@ def safe_harbor_questions(
         if name in named:
             continue
         role = f"{block['role']}"
-        if "top_coded" in block:
+        if name in held and name in held_for and held_for[name] in _HELD_BECAUSE:
+            # ...lane SH2's whole-column holds first: a column named as a
+            # place is asked as one, though its held block was read from
+            # cells top-coded as ages (lane SH2's repair 1, Codex item 2).
+            found += [
+                _safe_harbor_question(name, role, _HELD_BECAUSE[held_for[name]], cutoff)
+            ]
+            named[name] = True
+        elif "top_coded" in block:
             found += [_safe_harbor_question(name, role, BECAUSE_SAFE_HARBOR_AGES)]
+            named[name] = True
+        elif "top_coded_year" in block:
+            year = block["top_coded_year"]
+            found += [
+                _safe_harbor_question(
+                    name, role, BECAUSE_SAFE_HARBOR_YEARS,
+                    year if isinstance(year, int) else cutoff,
+                )
+            ]
             named[name] = True
         elif name in held:
             found += [
@@ -5643,6 +6651,11 @@ def safe_harbor_questions(
                     if name in ages_held
                     else BECAUSE_SAFE_HARBOR_ZIPS,
                 )
+            ]
+            named[name] = True
+        elif name in few_valued:
+            found += [
+                _safe_harbor_question(name, role, BECAUSE_SAFE_HARBOR_FEW_VALUES)
             ]
             named[name] = True
     return found
@@ -5914,7 +6927,7 @@ _DATE_CODES_VARIETY = 3
 
 @dataclasses.dataclass(frozen=True)
 class DateCodes:
-    """A column of dates or times beside a few repeated codes, as seen.
+    """A column of dates or times beside a few repeated codes, as the run found it.
 
     `reading` is the date member or clock form the rest of the column
     reads under at the date rule's own line, and `n_read` how many of
@@ -6013,7 +7026,7 @@ def date_codes_of(
     dates that writes `UNK` on 3 in 100 does not: it is read as labels,
     and its twin holds strings no date reader takes. Measured on
     668f276, a thousand cells each: `00/00/0000`, `UNK` beside
-    `03/17/2023`, `0000-00-00`, `UNK` beside ISO dates, Caboodle's `-1`
+    `03/17/2023`, `0000-00-00`, `UNK` beside ISO dates, a warehouse key's `-1`
     and `-2` beside `20221206`, and `99:99` and `UNK` beside `14:05` --
     the twins parse 0 to 59 in 100 under the person's own format, and
     every one parses all of them once the codes are named with
@@ -6505,7 +7518,7 @@ def codes_elsewhere(
     lane R1, item 1). `--missing-value` reaches every column, and the
     file names no code, so a person answering about a column of dates
     cannot see that `-1` is also a real score of change in another one.
-    Measured before this count: a table of 2,000 rows whose DateKey
+    Measured before this count: a table of 2,000 rows whose date key
     column wrote `-1` and `-2` on 4.5 in 100 rows, beside a column of
     scores holding -1 and -2 legitimately, was asked with neither named;
     answered `missing`, the scores lost 552 rows (27.6 in 100) to
@@ -6522,7 +7535,7 @@ def codes_elsewhere(
     ONE PASS OVER THE TABLE FOR EVERY QUESTION (second review, item 2):
     each column's spellings are counted once and each different one
     judged once, and every question's count is summed from that, so
-    thirty DateKey columns cost one pass and not thirty. Columns
+    thirty date-key columns cost one pass and not thirty. Columns
     described as empty are passed over.
 
     Guarantees: accepts the description, the table's columns, each
@@ -7626,6 +8639,13 @@ class Answers:
     # blank answers it again -- and a checklist of forty columns left
     # blank is not forty answers to keep.
     identities_kept_answered: "tuple[str, ...]" = ()
+    # ...and the columns answered `keep` to question Q-UNIT (plan P4-D438;
+    # the orchestrator's LANE UN-1a RULINGS 1 (2)): nothing is declared,
+    # and Q-UNIT is not put to them again, as Q6's `keep` is kept.
+    units_kept: "tuple[str, ...]" = ()
+    # ...and the columns answered `keep` to question Q-COMMA (plan P4-D443):
+    # nothing is declared, and Q-COMMA is not put to them again.
+    commas_kept: "tuple[str, ...]" = ()
     # THE ANSWERS AN EARLIER RUN CARRIED THAT STILL STAND (plan P4-D408):
     # each `(column, answer, family)` read from the file's
     # `answered_before` section that no later answer -- one in this file
@@ -7874,6 +8894,8 @@ def answers_in(document: object, shown: str) -> Answers:
     date_columns_kept: "list[str]" = []
     identities_kept: "list[str]" = []
     identities_kept_answered: "list[str]" = []
+    units_kept: "list[str]" = []
+    commas_kept: "list[str]" = []
     carried: "list[tuple[str, str, str]]" = []
     decimal_commas_alone: "list[str]" = []
     safe_harbor_no: "list[str]" = []
@@ -8009,6 +9031,15 @@ def answers_in(document: object, shown: str) -> Answers:
             # are no longer held back for want of an answer.
             identities_kept += [name]
             identities_kept_answered += [name]
+        elif written == ANSWER_KEEP and _unit_offer(offered):
+            # ...and question Q-UNIT answered `keep` (plan P4-D438): nothing
+            # declared, and the column carried so Q-UNIT is not put again.
+            units_kept += [name]
+        elif written == ANSWER_KEEP and _comma_offer(offered):
+            # ...and question Q-COMMA answered `keep` (plan P4-D443): the
+            # comma is not read as the decimal point, and the column is
+            # carried so Q-COMMA is not put again.
+            commas_kept += [name]
         elif written != ANSWER_KEEP:
             # Offered by the file but not a word this module acts on,
             # which a questions file synthtwin wrote cannot contain and
@@ -8048,6 +9079,8 @@ def answers_in(document: object, shown: str) -> Answers:
         date_columns=tuple(date_columns),
         identities_kept=tuple(identities_kept),
         identities_kept_answered=tuple(identities_kept_answered),
+        units_kept=tuple(units_kept),
+        commas_kept=tuple(commas_kept),
         carried=tuple(carried),
         decimal_commas_alone=tuple(decimal_commas_alone),
         safe_harbor_no=tuple(safe_harbor_no),
@@ -8124,6 +9157,9 @@ _FAMILY_DAY_ORDER = "day-order"
 # The Safe Harbor question (plan P4-D427), a family of its own: whether a
 # value of the column could name a person, beside what the column holds.
 _FAMILY_SAFE_HARBOR = "safe-harbor"
+# QUESTION Q-UNIT's `keep` (plan P4-D438): the labels kept, carried so the
+# question is not put again. Its `measurement` and `code` are the kind's.
+_FAMILY_UNIT = "unit"
 _FAMILY_WORDS: "dict[str, tuple[str, ...]]" = {
     _FAMILY_KIND: (
         ANSWER_KEEP, ANSWER_CODE, ANSWER_IDENTIFIER, ANSWER_MEASUREMENT,
@@ -8146,6 +9182,7 @@ _FAMILY_WORDS: "dict[str, tuple[str, ...]]" = {
     _FAMILY_DELIMITER: ("comma", "semicolon", "tab", "vertical-bar"),
     _FAMILY_DAY_ORDER: (ANSWER_MONTH_FIRST, ANSWER_DAY_FIRST),
     _FAMILY_SAFE_HARBOR: (ANSWER_SAFE_HARBOR_NO, ANSWER_SAFE_HARBOR_YES),
+    _FAMILY_UNIT: (ANSWER_KEEP, ANSWER_MEASUREMENT, ANSWER_CODE),
 }
 # The subject a question about the whole file is filed under, which is
 # the `column` its entry names.
@@ -8229,6 +9266,10 @@ def _family_of(answer: str, offered: "tuple[str, ...]") -> str:
             return _FAMILY_KIND
         if ANSWER_DATES in offered:
             return _FAMILY_DATES
+        if _unit_offer(offered):
+            return _FAMILY_UNIT
+        if _comma_offer(offered):
+            return _FAMILY_GRAMMAR
         return ""
     if answer == ANSWER_JOINED:
         return _FAMILY_KIND
@@ -8243,6 +9284,39 @@ def _family_of(answer: str, offered: "tuple[str, ...]") -> str:
         if answer in _FAMILY_WORDS[family]:
             return family
     return ""
+
+
+def _unit_offer(offered: "tuple[str, ...] | list[str]") -> bool:
+    """Whether a question's answers are question Q-UNIT's, and only those (plan P4-D438).
+
+    `keep`, `measurement` and `code`: another question that offers them
+    beside answers of its own (`with_unit_answers`) keeps the family of
+    those. A fixed function of the answers. Raises nothing. No I/O.
+    """
+    words = _FAMILY_WORDS[_FAMILY_UNIT]
+    if len(offered) != len(words):
+        return False
+    for word in words:
+        if word not in offered:
+            return False
+    return True
+
+
+def _comma_offer(offered: "tuple[str, ...] | list[str]") -> bool:
+    """Whether a question's answers are `keep` and `decimal_comma`, and only those (plan P4-D443).
+
+    Question Q-COMMA's, and the kept entry of a comma answered before:
+    either one's `keep` says the comma is not read as the decimal point
+    and is carried so Q-COMMA is not put again. A fixed function of the
+    answers. Raises nothing. No I/O.
+    """
+    words = _FAMILY_WORDS[_FAMILY_GRAMMAR]
+    if len(offered) != len(words):
+        return False
+    for word in words:
+        if word not in offered:
+            return False
+    return True
 
 
 def _family_words(family: str) -> "tuple[str, ...]":
@@ -8275,6 +9349,10 @@ def _decided_by(answer: str, offered: "tuple[str, ...]") -> "tuple[str, ...]":
         family = _family_of(word, offered)
         if family and family not in found:
             found += [family]
+    # ...and what the column holds decides Q-UNIT's kept `keep` too (plan
+    # P4-D438): `--measurement` typed later reads the column as amounts.
+    if _FAMILY_KIND in found and _FAMILY_UNIT not in found:
+        found += [_FAMILY_UNIT]
     return tuple(found)
 
 
@@ -8507,6 +9585,10 @@ class Given:
     date_columns: "tuple[str, ...]" = ()
     date_columns_kept: "tuple[str, ...]" = ()
     identities_kept: "tuple[str, ...]" = ()
+    # Question Q-UNIT answered `keep` (plan P4-D438).
+    units_kept: "tuple[str, ...]" = ()
+    # Question Q-COMMA answered `keep` (plan P4-D443).
+    commas_kept: "tuple[str, ...]" = ()
     # The columns answered `no` and `yes` to the Safe Harbor question
     # (plan P4-D427).
     safe_harbor_no: "tuple[str, ...]" = ()
@@ -8616,7 +9698,9 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
             if name not in kinds:
                 kinds[name] = answer
     commas = {name: True for name in given.decimal_commas}
+    kept_commas = {name: True for name in given.commas_kept}
     kept_identity = {name: True for name in given.identities_kept}
+    kept_units = {name: True for name in given.units_kept}
     clocks = {name: True for name in given.twelve_hours}
     counted = {name: member for name, member in given.date_counts}
     coded: "dict[str, tuple[str, str]]" = {}
@@ -8651,8 +9735,8 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
             order += [name]
     others: "dict[str, bool]" = {}
     for table in (
-        kinds, commas, kept_identity, clocks, counted, coded, centuries, dated,
-        harbored,
+        kinds, commas, kept_commas, kept_identity, kept_units, clocks,
+        counted, coded, centuries, dated, harbored,
     ):
         for name in table:
             if name not in named:
@@ -8663,10 +9747,14 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
             found += [_kept_entry(name, kinds[name], _FAMILY_KIND, "")]
         elif name in kept_identity:
             found += [_kept_entry(name, ANSWER_KEEP, _FAMILY_KIND, "")]
+        elif name in kept_units:
+            found += [_kept_entry(name, ANSWER_KEEP, _FAMILY_UNIT, "")]
         if name in commas:
             found += [
                 _kept_entry(name, ANSWER_DECIMAL_COMMA, _FAMILY_GRAMMAR, "")
             ]
+        elif name in kept_commas:
+            found += [_kept_entry(name, ANSWER_KEEP, _FAMILY_GRAMMAR, "")]
         if name in clocks:
             found += [
                 _kept_entry(name, ANSWER_TWELVE_HOUR, _FAMILY_CLOCK, "")
@@ -8724,7 +9812,11 @@ def answers_not_kept(
         said = ANSWER_MEASUREMENT if answer == ANSWER_JOINED else answer
         if not family or (name, family, said) in written:
             continue
-        if said == ANSWER_KEEP and family == _FAMILY_KIND and name in declared:
+        if (
+            said == ANSWER_KEEP
+            and family in (_FAMILY_KIND, _FAMILY_UNIT)
+            and name in declared
+        ):
             continue
         if name not in dropped:
             dropped += [name]

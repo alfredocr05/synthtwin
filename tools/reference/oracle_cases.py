@@ -1013,6 +1013,154 @@ def case_rules_only(section_runs=True):
             "d_beside_an_absent_a": sum(1 for x, y in zip(a, d) if x is None and y is not None)}
 
 
+# --- lane CHb's cases (plan P4-D435): the decimal rung, the groups a band joins, the hashes ---
+
+
+def case_decimal_rung(exact=False):
+    """A cell written `114.7` beside a rung published as 114.7: read as the binary64 value nearest
+    its text it stands AT the rung, in the band above (mutant: the cell read exactly, below it)."""
+    texts = ["114.5"] * 20 + ["114.7"] * 15 + ["114.9"] * 25
+    rung = co.reading_of("114.7")
+    read = (lambda text: F(text)) if exact else co.reading_of
+    cells = [("value", read(text)) for text in texts]
+    lad = co.ladder_of("bp", "continuous", cells, rungs={"p50": rung}, floor=11, position=0)
+    return {"rung": co.b64_hex(rung), "l0": lad.as_dict()["l0"], "totals": lad.totals}
+
+
+def case_interface_join(earlier_first=False):
+    """The interface's groups joined into `L0` bands (method G16.0): absent cells the reservation's
+    shortfall leaves a number column whose ladder holds `other` and no `missing` band join the band
+    holding the NEXT starting band in band order, the lowest range, not `other` before it; on a
+    label column cells of a withheld level beside no pool join the last level's band, absent cells
+    beside no `missing` band the first level's (mutant: the band before preferred)."""
+    number = co.ladder_of("x", "count", [("other",)] * 12 + [("value", F(v)) for v in [1] * 30 + [5] * 30],
+                          rungs={"p50": F(5)}, floor=11, position=0)
+    groups = [(("range", 0), [("1", F(1))] * 30), (("range", 1), [("5", F(5))] * 30),
+              ("missing", [("", None)] * 3), ("other", [("n/a", None)] * 12)]
+    label = co.ladder_of("g", "categorical", [("level", "a")] * 25 + [("level", "b")] * 35,
+                         levels=[("a", 25), ("b", 35)], floor=11, position=1)
+    label_groups = [(("level", "a"), [("a", 0)] * 25), (("level", "b"), [("b", 1)] * 31),
+                    ("missing", [("", None)] * 2), ("other", [("c", None)] * 2)]
+    # An `L0` band joining two starting ranges hands ONE range group (G4.2b): the 3s'
+    # five rows merge into the 1s' band, so the second range group is the 5s' band.
+    merged = co.ladder_of("m", "count", [("value", F(v)) for v in [1] * 30 + [3] * 5 + [5] * 30],
+                          rungs={"p25": F(3), "p50": F(5)}, floor=11, position=2)
+    merged_groups = [(("range", 0), [("1", F(1))] * 30 + [("3", F(3))] * 5), (("range", 1), [("5", F(5))] * 30)]
+    out_merged = co.interface_bands(merged, merged_groups)
+    if earlier_first:
+        out_number = co.interface_bands(number, [g for g in groups if g[0] != "missing"])
+        out_number[0] += groups[2][1]
+        out_label = co.interface_bands(label, label_groups[:2])
+        out_label[len(out_label) - 1] += label_groups[2][1] + label_groups[3][1]
+    else:
+        out_number = co.interface_bands(number, groups)
+        out_label = co.interface_bands(label, label_groups)
+    return {
+        "number_l0": number.as_dict()["l0"],
+        "number_bands": [[text for text, _ in band] for band in out_number],
+        "label_l0": label.as_dict()["l0"],
+        "label_bands": [[text for text, _ in band] for band in out_label],
+        "merged_l0": merged.as_dict()["l0"],
+        "merged_bands": [len(band) for band in out_merged],
+    }
+
+
+def case_reader_bands(interface_other=False):
+    """A column made without its band totals (rule B3), its twin's cells banded by the reader's
+    reading of each (method G16.0 (h), lane CHb's first repair): a column whose real cells hold
+    12 outside its pair of affixes, 30 at 1 and 30 at 5 publishes `other` and two ranges; the
+    twin writes 28 at 1, 32 at 5, 12 outside the pair and 3 absent, the absent ones joining the
+    lowest range (no `missing` band). Mutant: the interface's grouping of a column whose readings
+    were not supplied, every present cell in `other` (the build's quirk the skeptics measured
+    on the claims' adjustment)."""
+    real = [("other",)] * 12 + [("value", F(1))] * 30 + [("value", F(5))] * 30
+    lad = co.ladder_of("adj", "affixed_number", real, rungs={"p50": F(5)}, floor=11, position=0)
+    twin = [("value", F(1))] * 28 + [("value", F(5))] * 32 + [("other",)] * 12 + [("missing",)] * 3
+    if interface_other:
+        read = [cell if cell[0] == "missing" else ("other",) for cell in twin]
+    else:
+        read = twin
+    bands = co.reader_bands(lad, read, {"p50": F(5)})
+    return {"l0": lad.as_dict()["l0"], "published": lad.totals,
+            "twin_totals": [bands.count(b) for b in range(len(lad.l0))], "first_bands": bands[:4] + bands[-4:]}
+
+
+def case_row_hash(separators=False, raw=False):
+    """The content hash of 4.6b.8: Codex's two rows under columns `A` and `B` take two hashes in
+    the length-framed form (mutant: the first build's separator bytes give them one); the table's
+    hash is free of row order and leaves out a row holding nothing in every column; and a cell
+    holding nothing is the empty text, so `["x", ""]` and `["x", " \t"]` take one hash (lane
+    CHb's second repair, Codex's item 4; mutant `raw`: each cell framed as written)."""
+    names = ["A", "B"]
+    first = co.row_hash(names, ["x\u001eB\u001fy", "z"], separators=separators, raw=raw)
+    second = co.row_hash(names, ["x", "y\u001eB\u001fz"], separators=separators, raw=raw)
+    rows = [["3", "red"], ["4", ""], ["3", "red"]]
+    empty = co.row_hash(names, ["x", ""], separators=separators, raw=raw)
+    spaces = co.row_hash(names, ["x", " \t"], separators=separators, raw=raw)
+    return {
+        "codex_rows_differ": first != second,
+        "first": first.hex(),
+        "table": co.table_hash(names, rows).hex(),
+        "table_shuffled": co.table_hash(names, [rows[2], rows[0], rows[1]]).hex(),
+        "table_with_a_blank_row": co.table_hash(names, rows + [["", " "]]).hex(),
+        "blank_and_spaces_alike": empty == spaces,
+        "spaces_row": spaces.hex(),
+    }
+
+
+def case_band_codes(two_bytes=False):
+    """G16.1's band code at the widths' edges (lane CHb's second repair, Codex's item 2): the
+    fewest bytes holding a level's count of bands, and the codes 0, 255, 256, 65,535 and 65,536
+    of a level of 65,537 bands read back whole (mutant: the first build's two bytes above 255
+    bands, which reads band 65,536 back as band 0)."""
+    counts = [1, 255, 256, 65_535, 65_536, 65_537, 16_777_215, 16_777_216]
+    width = (lambda bands: 2 if bands > 255 else 1) if two_bytes else co.band_code_width
+    codes = [0, 255, 256, 65_535, 65_536]
+    data = co.pack_band_codes(codes, 65_537, width=width(65_537))
+    return {"widths": [width(bands) for bands in counts],
+            "codes": co.unpack_band_codes(data, 65_537, width=width(65_537))}
+
+
+def case_reader_joins(join="next"):
+    """G16.0's reading (h), a kind no `L0` band joins (lane CHb's second repair, its verify's item
+    1): (a) a number column whose ladder holds its two ranges alone, a cell outside the column's
+    reading and an absent cell joining the lowest range, the NEXT starting band; (b) beside an
+    `other` band and no `missing` band, absent cells joining the lowest range, not `other` before
+    it; (c) a ladder of `other` and `labels` alone, absent cells joining `labels`, the band before,
+    since none follows. Mutants: the next band never tried (the verify's V1) and the one before
+    never tried, each answering 'no band' where its side is the only one."""
+    rungs = {"p50": F(5)}
+    low, high = ("range", None, "p50"), ("range", "p50", None)
+    cases = {
+        "ranges_alone": (co.Ladder("a", "count", [[low], [high]], [30, 30], [[0, 1]], [[0, 1]], [], [], [True, True]),
+                         [("value", F(1)), ("other",), ("value", F(9)), ("missing",), ("other",)]),
+        "other_beside_ranges": (co.Ladder("b", "count", [["other"], [low], [high]], [12, 30, 30], [[0], [1, 2]],
+                                          [[0, 1, 2]], [], [], [False, True, True]),
+                                [("missing",), ("other",), ("value", F(9)), ("missing",)]),
+        "kinds_alone": (co.Ladder("c", "count", [["other"], ["labels"]], [20, 20], [[0, 1]], [[0, 1]], [], [],
+                                  [False, False]),
+                        [("other",), ("labels",), ("missing",), ("missing",)]),
+    }
+    out = {}
+    for name, (lad, cells) in cases.items():
+        try:
+            out[name] = co.reader_bands(lad, cells, rungs, join=join)
+        except ValueError:
+            out[name] = "no band"
+    return out
+
+
+def case_sample_key(cut=False):
+    """The self-test's sample on 400 rows, 200 of `0,0` beside 200 of `1,1`, `m` = 100: exactly 100
+    rows, about half of each (mutant: the first build's cut on the content hash, which takes every
+    copy of a row or none)."""
+    names = ["a", "b"]
+    hashes = [co.row_hash(names, ["0", "0"])] * 200 + [co.row_hash(names, ["1", "1"])] * 200
+    taken = co.sample_of(hashes, 100, cut=cut)
+    return {"rows": len(taken), "of_the_first": sum(1 for at in taken if at < 200),
+            "of_the_second": sum(1 for at in taken if at >= 200), "first_places": taken[:8]}
+
+
 def chain_cases():
     return {
         "stated_exponential": case_stated_exponential(),
@@ -1069,6 +1217,22 @@ def chain_cases():
         "joint_move_mutant_members_test": case_joint_move(members_test=True),
         "rules_only": case_rules_only(),
         "rules_only_mutant_section_off": case_rules_only(section_runs=False),
+        "decimal_rung": case_decimal_rung(),
+        "decimal_rung_mutant_exact": case_decimal_rung(exact=True),
+        "interface_join": case_interface_join(),
+        "interface_join_mutant_earlier_first": case_interface_join(earlier_first=True),
+        "reader_bands": case_reader_bands(),
+        "reader_bands_mutant_interface_other": case_reader_bands(interface_other=True),
+        "row_hash": case_row_hash(),
+        "row_hash_mutant_separators": case_row_hash(separators=True),
+        "row_hash_mutant_raw": case_row_hash(raw=True),
+        "band_codes": case_band_codes(),
+        "band_codes_mutant_two_bytes": case_band_codes(two_bytes=True),
+        "reader_joins": case_reader_joins(),
+        "reader_joins_mutant_later_never": case_reader_joins(join="later_never"),
+        "reader_joins_mutant_earlier_never": case_reader_joins(join="earlier_never"),
+        "sample_key": case_sample_key(),
+        "sample_key_mutant_cut": case_sample_key(cut=True),
     }
 
 

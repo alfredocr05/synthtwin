@@ -1143,20 +1143,20 @@
     },
     "identifier_fold_collisions": {
       "cells": [
-        "A2",
-        "a-",
-        "a---",
         "A3",
-        "A5",
-        "A7",
+        "a-",
+        "a--0",
         "A4",
-        "A8",
-        "A-",
-        "A0",
-        "A1",
-        "A---",
         "A6",
-        "A9"
+        "A8",
+        "A5",
+        "A9",
+        "A-",
+        "A1",
+        "A2",
+        "A--0",
+        "A7",
+        "AA"
       ],
       "column": {
         "all_whole_numbers": false,
@@ -1202,8 +1202,7 @@
       },
       "content": [
         "A-",
-        "A---",
-        "A0",
+        "A--0",
         "A1",
         "A2",
         "A3",
@@ -1213,10 +1212,11 @@
         "A7",
         "A8",
         "A9",
+        "AA",
         "a-",
-        "a---"
+        "a--0"
       ],
-      "csv_bytes": "A2\na-\na---\nA3\nA5\nA7\nA4\nA8\nA-\nA0\nA1\nA---\nA6\nA9\n",
+      "csv_bytes": "A3\na-\na--0\nA4\nA6\nA8\nA5\nA9\nA-\nA1\nA2\nA--0\nA7\nAA\n",
       "float64": [],
       "why": "two published folded identities fewer than raw spellings, so two of the invented values must fold onto a partner: the first identities are drawn from the letter-bearing part of the domain and each carries one case flip. The length pins of G9.2 are visible in the first two spellings, which take the shortest and the longest published length and cost no word.",
       "word_budget": {
@@ -1242,16 +1242,16 @@
     "identifier_whole_numbers": {
       "cells": [
         "0e0",
-        "01.",
+        "03.",
         "102",
-        "01.",
-        "00.",
+        "03.",
+        "02.",
         "100",
         "10000",
         "0e0",
         "101",
         "1e0",
-        "00.",
+        "02.",
         "1e0"
       ],
       "column": {
@@ -1306,12 +1306,12 @@
         "0e0",
         "1e0",
         "1e0",
-        "00.",
-        "00.",
-        "01.",
-        "01."
+        "02.",
+        "02.",
+        "03.",
+        "03."
       ],
-      "csv_bytes": "0e0\n01.\n102\n01.\n00.\n100\n10000\n0e0\n101\n1e0\n00.\n1e0\n",
+      "csv_bytes": "0e0\n03.\n102\n03.\n02.\n100\n10000\n0e0\n101\n1e0\n02.\n1e0\n",
       "float64": [],
       "why": "a declared identifier publishing all_whole_numbers true across all three alphabet bands, which is the branch review item P2-C2-F7 found this oracle carrying a withdrawn rule for. Revision 1 said that all_whole_numbers true meant every group was written from the figures alone; G9.6 withdrew that, and the bands here come from the two published alphabet counts and from nothing else: four cells in the figures, four more in the code alphabet, four outside it. What all_whole_numbers decides is what each band WRITES -- the figures write digits with a non-zero leading one, the code band writes <digits>e0, and outside the code alphabet the cell is written <digits>., whose one character outside that alphabet is the last rather than the leftmost, because a whole number cannot begin with it. Both alphabet counts are counts of CELLS answered for by whole GROUPS, so the four singletons answer for the figures and two doubled groups answer for each of the other two bands; and the length pins of G9.2 sit on the first two spellings, which cost no word.",
       "word_budget": {

@@ -62,7 +62,7 @@ Blocking items 1–6 remain.
 
    **CONCRETE FAILURE SCENARIO:** Generate a two-position blood-pressure twin whose profile publishes `part_agreements[0]`. The contract classifies it as approximate and promises its published value, achieved value, and range in the report. The new branch measures only each position’s numeric facts and returns without measuring any pair. No `part_agreements` record is produced.
 
-   Direct probing returned zero agreement records. See [generation.py](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/src/synthtwin/generation.py:14044>) and the governing promise in [profile-contract-v6.md](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/spec/profile-contract-v6.md:6843>).
+   Direct probing returned zero agreement records. See [generation.py](<../../../src/synthtwin/generation.py#L14044>) and the governing promise in [profile-contract-v6.md](<../../../docs/spec/profile-contract-v6.md#L6843>).
 
 2. **SEVERITY: blocking — positions are unnamed and inherit cardinalities the profile never publishes for them.**
 
@@ -71,21 +71,21 @@ Blocking items 1–6 remain.
    - `n_distinct`: description says 3; twin holds 1
    - `n_distinct_folded`: description says 3; twin holds 1
 
-   Those are not published per-position facts. They are the whole-cell counts inherited through `_part_view`. `_numeric_approximations` appends them unconditionally at [generation.py](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/src/synthtwin/generation.py:13276>).
+   Those are not published per-position facts. They are the whole-cell counts inherited through `_part_view`. `_numeric_approximations` appends them unconditionally at [generation.py](<../../../src/synthtwin/generation.py#L13276>).
 
-   The report also prints both positions as the same column and repeats names such as `mean` without a position index; [rendering.py](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/src/synthtwin/rendering.py:943>) has no way to distinguish them. An all-null ladder emitted only these four invented cardinality records—two per position.
+   The report also prints both positions as the same column and repeats names such as `mean` without a position index; [rendering.py](<../../../src/synthtwin/rendering.py#L943>) has no way to distinguish them. An all-null ladder emitted only these four invented cardinality records—two per position.
 
 3. **SEVERITY: blocking — an unsplit stand-in can be measured as a joined cell.**
 
    **CONCRETE FAILURE SCENARIO:** Profile 100 `-`-separated cells where 99 split into two numbers and one does not. This satisfies the default parse line. Generation writes the unsplit stand-in `text-1`. `_split_written("text-1", "-")` returns `["text", "1"]`, so the report admits the invented `1` into position two.
 
-   The position was built over 99 joined cells, but its report is measured over 100 values. In a direct probe this shifted the second position’s rungs and moments and produced false outside-range outcomes. The length-only admission is at [generation.py](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/src/synthtwin/generation.py:14068>).
+   The position was built over 99 joined cells, but its report is measured over 100 values. In a direct probe this shifted the second position’s rungs and moments and produced false outside-range outcomes. The length-only admission is at [generation.py](<../../../src/synthtwin/generation.py#L14068>).
 
 4. **SEVERITY: blocking — the seal still loses passage multiplicity.**
 
-   **CONCRETE FAILURE SCENARIO:** Delete the `free_text` row stating that `n_distinct` and `n_distinct_folded` are exact at [profile-contract-v6.md](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/spec/profile-contract-v6.md:6987>). An identical row remains under `numeric_unrepresentable` at line 7027.
+   **CONCRETE FAILURE SCENARIO:** Delete the `free_text` row stating that `n_distinct` and `n_distinct_folded` are exact at [profile-contract-v6.md](<../../../docs/spec/profile-contract-v6.md#L6987>). An identical row remains under `numeric_unrepresentable` at line 7027.
 
-   I simulated that deletion from the passage sequence: the row count fell from two to one, while the forward check reported zero unknown passages and the reverse check reported zero orphaned digests. Both the seal generator and reverse check reduce passages to sets at [seal.py](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tools/dispositions/seal.py:85>) and [test_p2c4f1_disposition_registry.py](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_p2c4f1_disposition_registry.py:352>).
+   I simulated that deletion from the passage sequence: the row count fell from two to one, while the forward check reported zero unknown passages and the reverse check reported zero orphaned digests. Both the seal generator and reverse check reduce passages to sets at [seal.py](<../../../tools/dispositions/seal.py#L85>) and [test_p2c4f1_disposition_registry.py](<../../../tests/test_p2c4f1_disposition_registry.py#L352>).
 
 5. **SEVERITY: blocking — number agreement does not settle pronoun identity.**
 
@@ -95,13 +95,13 @@ Blocking items 1–6 remain.
 
    The matcher returns no offender. `they` agrees in number with “agreements,” but refers naturally to the nearer formatting rules. The unrelated sentence therefore cures the banned claim.
 
-   The opposite direction also fails: “Privacy policy and institutional approval do not apply to synthetic twins. They still apply.” is reported despite withdrawing the claim, because `_named_text` selects the first singular match and rejects plural `they`. Both outcomes were reproduced directly. See [test_claim_inventory.py](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_claim_inventory.py:6636>).
+   The opposite direction also fails: “Privacy policy and institutional approval do not apply to synthetic twins. They still apply.” is reported despite withdrawing the claim, because `_named_text` selects the first singular match and rejects plural `they`. Both outcomes were reproduced directly. See [test_claim_inventory.py](<../../../tests/test_claim_inventory.py#L6636>).
 
 6. **SEVERITY: blocking — round 4’s consistently false argument-class breakdown remains accepted.**
 
    **CONCRETE FAILURE SCENARIO:** Change all three grammar summaries from 66 whole-number positions and 4 package-word positions to 65 and 5. The totals still equal 79 and all copies agree. The guard passes.
 
-   I mutation-verified this in memory. The current check derives the total and bound-affix count but deliberately checks the other classes only for agreement and arithmetic at [test_p4d27_note_grammar_matches_the_code.py](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_p4d27_note_grammar_matches_the_code.py:327>). Thus the third failure scenario from round 4 was not repaired.
+   I mutation-verified this in memory. The current check derives the total and bound-affix count but deliberately checks the other classes only for agreement and arithmetic at [test_p4d27_note_grammar_matches_the_code.py](<../../../tests/test_p4d27_note_grammar_matches_the_code.py#L327>). Thus the third failure scenario from round 4 was not repaired.
 
 ## Deferred joined-role defects
 

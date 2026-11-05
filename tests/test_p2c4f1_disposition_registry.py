@@ -1282,6 +1282,10 @@ def _restatement_violations(
     # in the numeric table and on no affixed block -- so the delegation
     # owed is total over the keys the two roles SHARE, read off the loader.
     count_only = set(contract.COUNT_KEYS) - set(contract.NUMERIC_KEYS)
+    # ...AND `few_values` (contract 7.14, lane GG, plan P4-D440) is a key
+    # of the `count` and `continuous` blocks alone, optional, and on no
+    # affixed block either: no delegation is owed for it.
+    count_only = count_only | {contract.FEW_VALUES_KEY}
     absent = sorted(numeric - seen - count_only)
     if absent:
         broken.append(

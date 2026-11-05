@@ -2,8 +2,8 @@
 
 PLAN P4-D384. The fourteen shapes of `tests/counted_dates.py` -- Excel's
 1900 and 1904 serial dates and date-times, SAS and Stata days, seconds
-and milliseconds, Unix seconds and milliseconds, Epic day numbers and
-`*_DATE_REAL` with its contact number, and birth dates in three systems
+and milliseconds, Unix seconds and milliseconds, 1840 day numbers and
+1840 days with a contact number, and birth dates in three systems
 -- and the same writers over events from 1985 to 2025 and births from
 1920 to 2005 (the R4 design review, item 2), a floor of eleven, through
 the real producer, generator and checker.
@@ -31,7 +31,7 @@ Asked, undeclared, described in this process at 1,000 rows:
   5, the review of landing R4's item 7 and its second review's item 4);
 * `stated_limits_asked`: of the eight `STATED` columns Q3 still asks
   newly -- identifiers with half a percent one figure shorter, a salary
-  in Epic days' band a third of it in cents, five-figure codes whose
+  in 1840 days' band a third of it in cents, five-figure codes whose
   "none" is `0` or `-1`, and lengths of time of a year or more kept as
   whole days of seconds or milliseconds -- the draws, ten each, it asks
   newly: each a limit plan P4-D384 states, pinned so a change shows;
@@ -70,7 +70,7 @@ command line:
   source's weekdays and its twin's over the columns of dates at 10,000
   rows -- read the way the table's owner reads them (`decode`);
 * `contacts_half_off_points`: the largest distance, in points, between
-  the share of a contact number in either half of an Epic twin's dated
+  the share of a contact number in either half of an 1840 twin's dated
   cells at 10,000 rows and the census's share (item 8).
 
 Declared at 1,000 rows, seed 0, beside the battery:
@@ -84,7 +84,7 @@ Declared at 1,000 rows, seed 0, beside the battery:
   refused once answered -- or one a unit keeps that Q3 does not ask with
   the system that wrote it (item 2, as the question sees it);
 * `writers_missed`: columns pandas wrote with `repr` or as `45000.0`,
-  Unix seconds Python wrote with `repr` to the microsecond, and an Epic
+  Unix seconds Python wrote with `repr` to the microsecond, and an 1840 day
   column written to seventeen significant figures, that are not read,
   written back and checked as their writer writes them -- the last read
   as numbers with NF115, and none stopping with a fault (items 2, 3 and
@@ -431,7 +431,7 @@ def _figures_and_writers(home: pathlib.Path, notes: "list[str]") -> "dict[str, i
             notes += [f"{name}: exits {[came.get(step) for step in ('profile', 'generate', 'twin', 'source')]}"]
     for writer, shape_name in (
         ("repr", "xl_dt15g"), ("repr", "xl_dt6"), ("pandas_point_zero", "xl_date"),
-        ("repr_microseconds", "unix_s"), ("seventeen_significant", "epic_real"),
+        ("repr_microseconds", "unix_s"), ("seventeen_significant", "d1840_contact"),
     ):
         shape = battery.BY_NAME[shape_name]
         cells = battery.written_by(writer, shape, ASKED_ROWS, 0)

@@ -787,6 +787,35 @@ Stated here so that no reader has to discover them independently:
     rather than counted here, because a count restated on a second
     surface is a count that goes stale there. All of them are
     floor-governed with a `(withheld)` pool.
+  * **`shape_form_places`** and **`shape_forms_absorbed`** (lane
+    CODES-1, plan P4-D439) — for each named form of a label column, the
+    characters that at least the floor's HELD-BACK cells hold at each
+    place, with no count; and the form the census counted its pool in,
+    one of its own keys. A listed character is held by the floor's cells
+    or more, counted in people beside a person column, and nothing is
+    listed while any question offering `identifier` is open on the table.
+    What a reader can take from it is which characters rare codes share
+    place by place -- `T` before every tumour stage, `ICD10CM:` before a
+    vocabulary's codes -- and combinations a held-back code may be: the
+    twin writes such combinations, which reproduces real held-back codes
+    in the twin (the owner's acceptance of 2026-09-18), never a count of
+    one. A census that would FORCE whole spellings is refused, because
+    it would name held-back levels and pin their counts inside 1 to 10.
+    Its lists are read as a product, with every bound a reader holds: of
+    the form's H held-back cells (read off the description's own
+    counts), each listed character holds at least f (the line), each
+    unlisted one at most f - 1, each held-back level at most f - 1, and
+    a published spelling none. Choosing at each place some listed
+    characters, or all of them and some unlisted ones, the cells holding
+    a spelling of the product number at least H less what can miss each
+    place; where that is above (N - 1)(f - 1), N the product's spellings
+    no published spelling may be, every one of them is a held-back level:
+    `Z99` on 10 cells beside 40 published codes, every place listing one
+    character (plan P4-D439's repair 1); `X8` and `X9` on 10 cells each
+    beside two stragglers, `X` listed beside `89`; `B0` to `B9` beside
+    `A5` to `Z5`, `B` listed beside `5`, the unlisted letters holding too
+    few cells to keep `B` off 95 of 345; and `X9` beside a published `X8`
+    (its repair 2). Rows and people alike.
   * **`shape_form_cells`** — for a PUBLISHED label, how many of its
     rows wrote it in that label's own shape. It names no spelling and
     no form key, and it is **not** floor-governed, because it counts

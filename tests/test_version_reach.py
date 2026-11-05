@@ -68,7 +68,8 @@ nothing, and the samples that must report are 3.12 and 3.14 spellings.)
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
 spelling reaches the floor's cells while this file says nothing about it.
-The tree holds SEVENTY-NINE such calls (counted at batch 4h's merge of
+The tree holds EIGHTY such calls (lane GG's twenty-ninth vectors file
+adds one, 2026-10-28; counted at batch 4h's merge of
 lane SG, 2026-10-23, its `tests/generate_memory_cases.py` adding two:
 the figure below had stood stale since 2026-10-16; lane H1's padded-swap scale test
 adds two, 2026-10-16; lane TI's `python -m synthtwin`
@@ -84,7 +85,7 @@ having stood one short since the fifteenth vectors file's route arrived
 and that review's mutants adding two). They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so an eightieth cannot arrive unread.
+holds the tree to that list, so an eighty-first cannot arrive unread.
 The `runpy` calls run a COMMITTED FILE of `tools/` or of `tests/`,
 which the folders below already read, and the `exec` and `compile`
 calls are held by what they are handed or by where they run:
@@ -484,6 +485,14 @@ ROUTES_THAT_RUN_SOURCE = {
     # The twenty-sixth file, landing R4's numbers that are dates (plan
     # P4-D384): it runs the same oracle by path, as every file above does.
     ("tools/reference/make_generation_branch_vectors_26.py", "runpy.run_path"): 1,
+    # The twenty-ninth file, lane GG's census of a few-valued column with
+    # a wide gap (plan P4-D440): it runs the same oracle by path, as every
+    # file above does.
+    ("tools/reference/make_generation_branch_vectors_29.py", "runpy.run_path"): 1,
+    # The thirtieth, lane GG's repair 2, its three cases moved whole out of
+    # the twenty-ninth past the manifest's cap (plan P4-D295): it runs the
+    # same oracle by path, as every file above does.
+    ("tools/reference/make_generation_branch_vectors_30.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_document_vectors.py", "runpy.run_path"): 1,
     # Lane TI (plan P4-D397): `python -m synthtwin`, run in the test's own
     # process the way the interpreter runs it, on the committed
@@ -653,7 +662,45 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # loads `tools/goldens/record_stage5_goldens.py`, a committed file of
 # tools/ this guard reads directly, so the floor holds for it as it does
 # for the other forty-six.
-FILES_LOADED_AS_MODULES = 47
+#
+# 48 AT THE INTEGRATION OF BATCH 4M (2026-10-29), which merged lane UN-1a's
+# own 47 ON ITS BRANCH (plan P4-D438, its repair 1 of 2026-10-28):
+# `tests/test_zoo_units_order.py` loads the committed KPI driver
+# `tools/measurements/kpi_zoo_units.py` through one call, to check that it
+# emits no total over a twin it did not complete; this guard reads that
+# file directly, so the floor holds for it as it does for the other
+# forty-seven.
+#
+# 49 AT THE INTEGRATION OF BATCH 4M (2026-10-29), which merged lane
+# CODES-1's own 47 ON ITS BRANCH (plan P4-D439, its repair of 2026-10-27):
+# `tests/test_zoo_codes_in_pattern.py` loads the committed generation
+# oracle `tools/reference/make_generation_reference_vectors.py` through
+# one call, to hold the product's stand-ins to the oracle's, and this
+# guard reads that file directly, so the floor holds for it as it does
+# for the other forty-eight.
+#
+# 51 AT THE INTEGRATION OF BATCH 4M (2026-10-29), which merged lane
+# CHb's own 47 ON ITS BRANCH (plan P4-D435, 2026-10-26, two more on its
+# base's 45): the chain generator's
+# gate, `tests/test_stage6_chain_generate.py`, and its KPI driver,
+# `tools/measurements/kpi_chain_generate.py`, each load the exact oracle of
+# tools/reference/ they hold the product to, one call each; what they load
+# are committed files under tools/, which this guard reads directly, so the
+# floor holds for them as it does for the other forty-nine.
+#
+# 52 AT THE INTEGRATION OF BATCH 4M (2026-10-30), which merged lane SH2's
+# own 42 ON ITS BRANCH (plan P4-D434, its repair 2):
+# `tests/test_safe_harbor_places_years_devices.py` loads the generation
+# oracle, `tools/reference/make_generation_reference_vectors.py`, to hold
+# methods G7.14's and G7.15's top-codes to the oracle's own functions
+# (A-P4-59). What it loads is a committed file under tools/, which this
+# guard reads directly, so the floor holds for it as it does for the
+# other fifty-one.
+#
+# 53 ON LANE HB (plan P4-D442), merged on batch 4m's 52: the gate loads the
+# committed reference oracle once, `tests/test_zoo_held_layouts.py`'s
+# `_the_oracle`, so the floor holds for it as for the other fifty-two.
+FILES_LOADED_AS_MODULES = 53
 
 
 def _files() -> "list[pathlib.Path]":

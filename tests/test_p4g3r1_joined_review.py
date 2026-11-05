@@ -51,15 +51,21 @@ from synthtwin import (
 
 
 def _described(
-    values: "list[str]", name: str = "bp"
+    values: "list[str]", name: str = "bp", kept_joined: bool = False
 ) -> "tuple[dict, contract.Profile, pathlib.Path, pathlib.Path]":
-    """One declared joined column, described and read back."""
+    """One declared joined column, described and read back.
+
+    ``kept_joined`` reads it as joined numbers where every level clears
+    the floor too, through the validator's hand-over of a joined
+    description (plan P4-D438: rule 0c otherwise keeps the exact list).
+    """
     folder = pathlib.Path(tempfile.mkdtemp())
     table = fixtures.write(
         folder, "t.csv", fixtures.single_column_table(name, values)
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"), taxonomy.Settings(), [], [], [name]
+        reading.read_table(f"{table}"), taxonomy.Settings(), [], [], [name],
+        described_labels={name: taxonomy.KEPT_JOINED} if kept_joined else None,
     )
     written = fixtures.write_profile(folder, "t.json", document)
     return document, contract.load_profile(f"{written}"), folder, table
@@ -1360,7 +1366,14 @@ def test_the_early_pair_of_a_three_position_column_can_be_reached() -> None:
     values: "list[str]" = []
     for _each in range(25):
         values = values + ["1/4/10", "2/3/20", "3/2/30", "4/1/40"]
-    _document, loaded, folder, _table = _described(values)
+    # SINCE PLAN P4-D438 the four levels, each on 25 rows, keep their exact
+    # list under the declaration (rule 0c yields to rule 7's list, never to
+    # the date rule: lane UN-1a's repair, skeptic 1 item 1), whose twin
+    # holds the anti-correlation exactly; the walk this test pins is
+    # reached through a description read as joined numbers.
+    _listed, kept_list, _where, _written = _described(values)
+    assert kept_list.columns[0].role == taxonomy.ROLE_CATEGORICAL
+    _document, loaded, folder, _table = _described(values, kept_joined=True)
     facts = loaded.columns[0].facts
     assert facts.part_agreements == (-1.0, 1.0, -1.0), facts.part_agreements
     for seed in (0, 1, 2, 3, 7):

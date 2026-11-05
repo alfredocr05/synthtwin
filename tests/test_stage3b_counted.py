@@ -1,7 +1,7 @@
 """THE GATE OF LANDING R4 (plan P4-D384): numbers that are dates.
 
 A column whose dates an export wrote as counts -- Excel serials, SAS and
-Stata days and seconds, Unix seconds and milliseconds, Epic day numbers --
+Stata days and seconds, Unix seconds and milliseconds, 1840 day numbers --
 is asked about (question Q3), and once declared (`--date-count`, or an
 answer) is read exactly as the dates its counts name, described as dates
 with its `count_form`, and twinned as the same counts. Each clause below
@@ -71,6 +71,21 @@ _UNITS = {
     "nanosecond": date_counts.NANOSECOND,
 }
 _TAIL_SECONDS = {"day": 86400, "minute": 60, "second": 1}
+
+
+@pytest.fixture(autouse=True)
+def _safe_harbor_answered_no(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every test here is about counted dates; the person answers `no` to the Safe Harbor question.
+
+    Counts of days of five figures -- spreadsheet serials of 1927 to 2173,
+    days since 1970 from 1997 -- are written as ZIP codes are, and since
+    lane SH2's repair 1 a count TYPED on the command line no longer frees
+    lane SH's ZIP hold (the orchestrator's LANE SH2 RULINGS 1 (5),
+    consistent with lane SH's ADDENDUM 7): the column stays held and the
+    Safe Harbor question is put in that run. `no` gives back the
+    description written before, byte for byte (plan P4-D434).
+    """
+    keyboard.safe_harbor_answered_no(monkeypatch)
 
 
 def _exit_of(argv: "list[str]") -> "tuple[int, str]":
@@ -769,7 +784,7 @@ def test_c2_a_heap_of_placeholders_keeps_each_shapes_system_and_years(
     asks is offered the system that wrote it, with years within one of
     the true span -- AND EVERY SYSTEM OFFERED WITH ITS OWN READING OF THE
     COLUMN'S DATES (its second review, item 3: Excel's 31 December 9999
-    read as Epic days gave "1957 to 9941", and a Unix 1900 count read from
+    read as 1840 days gave "1957 to 9941", and a Unix 1900 count read from
     1960 "1889 to 2015"; on e9aa5fb, 40 readings over the eight tables).
     The first build read the years off the
     heaped end itself -- `0` names no Excel date, so the 1900 system was
@@ -932,10 +947,10 @@ def test_c2_money_amounts_and_lengths_of_time_are_not_asked(monkeypatch: pytest.
     """The review of landing R4, item 7: four ordinary shapes the first build asked about, newly.
 
     Salaries and payments in cents and amounts to one decimal in Excel's
-    five-figure band, a room charge in cents read as Epic days, and
+    five-figure band, a room charge in cents read as 1840 days, and
     lengths of time kept as whole days of seconds or of milliseconds.
     Each is asked once its rule is put back as it was: rule A without its
-    four figures of a day or its Epic days mostly whole, rule B without
+    four figures of a day or its 1840 days mostly whole, rule B without
     its year from the epoch or its thousand-day step. One or two figures
     of a day keep no unit (`date_counts.figures_kept`), so the four
     figures are the cheap half of a refusal the figures check would reach
@@ -1036,6 +1051,10 @@ def test_c2_a_system_whose_answer_is_refused_is_not_offered(
 def test_c3_an_answered_file_and_the_typed_option_give_one_description(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about counted days around 1900, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     shape = battery.BY_NAME["sas_days"]
     cells, _truth = battery.cells(shape, battery.ROWS, 0)
     path = _table(tmp_path, cells)
@@ -1139,7 +1158,7 @@ def _held_as_counted_dates(block: "dict[str, object]") -> bool:
         "detection_evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_COUNTED_DATES_HELD, ())
 
 
-@pytest.mark.parametrize("name", ("xl_date", "xl_dt15g", "sas_secs", "unix_ms", "epic_real", "unix_s_birth"))
+@pytest.mark.parametrize("name", ("xl_date", "xl_dt15g", "sas_secs", "unix_ms", "d1840_contact", "unix_s_birth"))
 def test_c4_every_twin_cell_keeps_the_columns_spelling_and_names_a_date(
     tmp_path: pathlib.Path, name: str
 ) -> None:
@@ -1163,7 +1182,7 @@ def test_c4_every_twin_cell_keeps_the_columns_spelling_and_names_a_date(
             battery.weekday_shares([m for m in real if m is not None]),
             battery.weekday_shares([m for m in fake if m is not None]),
         ) <= 0.03
-    if name == "epic_real":
+    if name == "d1840_contact":
         assert facts.count_form.contacts is not None
         words = [date_counts.contact_word(date_counts.written_count(cell)) for cell in trip["twin"]]  # type: ignore[arg-type]
         for word, count in facts.count_form.contacts.items():
@@ -1175,12 +1194,12 @@ def test_c4_the_counted_route_never_calls_the_whole_share_pass(
 ) -> None:
     """The R4 design review, item 4: `_whole_enough` is stage 4 lane S2's, and quadratic.
 
-    An Epic `*_DATE_REAL` column read as numbers takes that pass, which
+    A column of 1840 days with contact numbers read as numbers takes that pass, which
     grows as the square of its rows; declared, it is drawn as dates and
     never reaches it. The undeclared run calling it is what keeps the
     count from being nought by accident.
     """
-    shape = battery.BY_NAME["epic_real"]
+    shape = battery.BY_NAME["d1840_contact"]
     cells, _truth = battery.cells(shape, 300, 0)
     calls = [0]
     original = generation._whole_enough
@@ -1341,8 +1360,8 @@ def _trip_of(
     return came
 
 
-def _epic_days(rows: int, ones: int, twos: int = 0, dated: int = -1) -> "list[str]":
-    """An Epic `*_DATE_REAL` column: ``ones`` dates written `.01`, ``twos`` `.02`, the rest whole; ``dated`` dates in all, the rest empty."""
+def _days_1840(rows: int, ones: int, twos: int = 0, dated: int = -1) -> "list[str]":
+    """A column of 1840 days with contact numbers: ``ones`` dates written `.01`, ``twos`` `.02`, the rest whole; ``dated`` dates in all, the rest empty."""
     draw = random.Random(f"rare-contacts:{rows}:{ones}:{twos}:{dated}")
     dates = rows if dated < 0 else dated
     cells: "list[str]" = []
@@ -1357,9 +1376,9 @@ def _epic_days(rows: int, ones: int, twos: int = 0, dated: int = -1) -> "list[st
 def test_c5_contact_numbers_none_of_which_reaches_the_line_publish_no_census(tmp_path: pathlib.Path) -> None:
     """The second review of landing R4, item 1: a census of `(none)` alone is not published.
 
-    Eight or ten `.01` among a thousand Epic days, six among ten thousand,
+    Eight or ten `.01` among a thousand 1840 days, six among ten thousand,
     four `.01` and two `.02` among ten thousand, the battery's own
-    `epic_real` at 250 rows and a floor of 36, five dates of a thousand
+    `d1840_contact` at 250 rows and a floor of 36, five dates of a thousand
     rows one of them `.01`, and nine of two hundred five of them `.01`:
     no contact number reaches the census line. The build pooled each into
     `{"(none)": N}`, whose twin wrote no contact number, published no
@@ -1367,16 +1386,16 @@ def test_c5_contact_numbers_none_of_which_reaches_the_line_publish_no_census(tmp
     were fewer than the line the pool itself was under it, and `profile`
     stopped with an internal fault. No census is published now, the twin
     writes day counts alone, and every file is at exit 0; the source's
-    rare contact numbers still stand in its own form, which reads an Epic
+    rare contact numbers still stand in its own form, which reads an 1840
     column by its contact rule (`date_counts.form_holds`). With 27 `.01`
     among a thousand the census is published as before.
     """
     tables = (
-        (1000, {"eight": _epic_days(1000, 8), "ten": _epic_days(1000, 10), "sparse": _epic_days(1000, 1, 0, 5)}, ()),
-        (10000, {"six": _epic_days(10000, 6), "four_two": _epic_days(10000, 4, 2)}, ()),
-        (200, {"nine": _epic_days(200, 5, 0, 9)}, ()),
-        (250, {"battery": battery.cells(battery.BY_NAME["epic_real"], 250, 0)[0]}, ("--smallest-group", "36")),
-        (1000, {"common": _epic_days(1000, 27)}, ()),
+        (1000, {"eight": _days_1840(1000, 8), "ten": _days_1840(1000, 10), "sparse": _days_1840(1000, 1, 0, 5)}, ()),
+        (10000, {"six": _days_1840(10000, 6), "four_two": _days_1840(10000, 4, 2)}, ()),
+        (200, {"nine": _days_1840(200, 5, 0, 9)}, ()),
+        (250, {"battery": battery.cells(battery.BY_NAME["d1840_contact"], 250, 0)[0]}, ("--smallest-group", "36")),
+        (1000, {"common": _days_1840(1000, 27)}, ()),
     )
     for rows, columns, extra in tables:
         named = sorted(columns)
@@ -1424,7 +1443,7 @@ def _counted_from(system: str, moment: datetime.datetime) -> str:
     return f"{int(seconds) // (86400 // per_day)}"
 
 
-def test_c5_a_counted_column_crossing_1_january_1900_twins_no_date_on_it(tmp_path: pathlib.Path) -> None:
+def test_c5_a_counted_column_crossing_1_january_1900_twins_no_date_on_it(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The second review of landing R4, item 2: the days a counted column reads as no value are holes.
 
     Every count naming 1 January 1900 or 31 December 9999 is no value, and
@@ -1439,6 +1458,10 @@ def test_c5_a_counted_column_crossing_1_january_1900_twins_no_date_on_it(tmp_pat
     are no value, the twin writes none, and both files are at exit 0 on
     seeds 0 to 2.
     """
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about counted days around 1900, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     draw = random.Random(1900)
     births = {
         "sas_days": ("days-since-1960", datetime.date(1890, 1, 1), 16437),
@@ -1517,6 +1540,10 @@ def test_c5_the_hour_pass_holds_the_placeholder_days_of_counted_moments(
     twin is at exit 0. THE MUTANT: the hour pass handed no counted holes,
     whose state then holds no hole at all.
     """
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about counted days around 1900, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     system = "seconds-since-1960"
     cells: "list[str]" = []
     for step in range(118):
@@ -1582,6 +1609,10 @@ def test_c5_the_day_pass_holds_the_placeholder_days_of_counted_dates(
     3b's integration): the 1sts are listed otherwise, and G7.3j's list and step 7 then leave the
     mutant red at seed 0 alone.
     """
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about counted days around 1900, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *arguments: ())
     system = "seconds-since-1960"
     draw = random.Random(1900)
@@ -1653,7 +1684,7 @@ def _excel_births_from_1900(drawn_by: str) -> "list[str]":
     return cells
 
 
-def test_c5_excel_date_times_from_1900_twin_no_cell_on_1_january_and_no_text(tmp_path: pathlib.Path) -> None:
+def test_c5_excel_date_times_from_1900_twin_no_cell_on_1_january_and_no_text(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The verification of the second review's item 2: a tail of moments stops short of the days no count holds.
 
     Excel date-times of births from 1 January 1900 to 1935 at whole
@@ -1674,6 +1705,10 @@ def test_c5_excel_date_times_from_1900_twin_no_cell_on_1_january_and_no_text(tmp
     naming a date -- none on 1 January 1900, none set aside, none text --
     and twin and source are both at exit 0. Red on 568b597.
     """
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about counted days around 1900, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     columns = {
         "births": _excel_births_from_1900("tail1900:excel_dt_from_1900:10000"),
         "born": _excel_births_from_1900("p1900dt:excel_dt_1900_1935:10000"),
@@ -1804,7 +1839,8 @@ def _across_1900(shape: str) -> "list[str]":
     ),
 )
 def test_c5_both_writings_of_a_counted_tail_stop_short_of_the_days_its_counts_cannot_hold(
-    tmp_path: pathlib.Path, shape: str
+    tmp_path: pathlib.Path, shape: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The verification of the second review's item 2: the generator's strata and the validator's, one reach.
 
@@ -1829,6 +1865,10 @@ def test_c5_both_writings_of_a_counted_tail_stop_short_of_the_days_its_counts_ca
     31 December 9999; red on 22e52f0 on the last two, whose reach stopped
     short of the island.
     """
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about counted days around 1900, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     member, cells = _counted_near_the_holes(shape)
     path = _table(tmp_path, cells)
     code, said = _exit_of(["profile", str(path), "--date-count", "seen", member, "--out-dir", str(tmp_path), "--replace"])
@@ -1885,7 +1925,8 @@ def test_c5_both_writings_of_a_counted_tail_stop_short_of_the_days_its_counts_ca
 
 @pytest.mark.parametrize("which", ("end", "group"))
 def test_c5_an_end_or_a_group_on_1_january_1900_steps_off_it_in_both_writings(
-    tmp_path: pathlib.Path, which: str
+    tmp_path: pathlib.Path, which: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The repair of the verification of the second review's item 2: a word-less rank on an island steps off it.
 
@@ -1903,6 +1944,10 @@ def test_c5_an_end_or_a_group_on_1_january_1900_steps_off_it_in_both_writings(
     the validator's windows are its strata rank by rank. Red where the
     end and the group do not step (the group on the day, the end on it).
     """
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about counted days around 1900, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     path = _table(tmp_path, _across_1900("sas_days"))
     member = "days-since-1960"
     code, said = _exit_of(["profile", str(path), "--date-count", "seen", member, "--out-dir", str(tmp_path), "--replace"])
@@ -1931,7 +1976,7 @@ def test_c5_an_end_or_a_group_on_1_january_1900_steps_off_it_in_both_writings(
     assert list(windows["low"][0]) == list(plan.near) and list(windows["low"][1]) == list(plan.far)
 
 
-def test_c5_a_tail_across_1_january_1900_keeps_its_spread_and_no_cell_on_the_day(tmp_path: pathlib.Path) -> None:
+def test_c5_a_tail_across_1_january_1900_keeps_its_spread_and_no_cell_on_the_day(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The repair of the verification of the second review's item 2: a tail reaches past the day, its ranks off it.
 
     Three columns of ten thousand whose low tail runs across 1 January
@@ -1947,6 +1992,10 @@ def test_c5_a_tail_across_1_january_1900_keeps_its_spread_and_no_cell_on_the_day
     missing both counts of different values. Red on 568b597: cells on 1
     January 1900 in both dense columns.
     """
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about counted days around 1900, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     columns = {
         "days": _across_1900("sas_days"),
         "seconds": _across_1900("sas_seconds"),
@@ -2070,8 +2119,12 @@ def test_c5_r_exponent_form_and_a_decimal_comma_round_trip(tmp_path: pathlib.Pat
     assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
 
 
-def test_c5_fifteen_figures_crossing_serial_ten_thousand_round_trip(tmp_path: pathlib.Path) -> None:
+def test_c5_fifteen_figures_crossing_serial_ten_thousand_round_trip(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Item 7: `%.15g` writes one figure fewer after the point past serial 10,000."""
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about counted days around 1900, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     shape = battery.BY_NAME["xl_dt15g"]
     cells = battery.ranged(shape, "births_1920", battery.ROWS, 0)
     assert any(len(cell.split(".")[0]) == 4 for cell in cells) and any(len(cell.split(".")[0]) == 5 for cell in cells)
@@ -2199,7 +2252,7 @@ def test_c4_the_contact_numbers_are_spread_over_the_rows(
     each half of the twin's dated cells is within one point of the
     census's share, and with the first build's dealing it is not.
     """
-    shape = battery.BY_NAME["epic_real"]
+    shape = battery.BY_NAME["d1840_contact"]
     cells, _truth = battery.cells(shape, 10000, 0)
 
     def halves_off(twin: "list[str]", census: "dict[str, int]") -> float:
@@ -2606,7 +2659,7 @@ def test_c5_a_declaration_reading_two_dates_decides_nothing(tmp_path: pathlib.Pa
 
 
 def test_c5_the_census_of_contact_numbers_is_held_exactly(tmp_path: pathlib.Path) -> None:
-    """Mutant M33: a twin of Epic days whose census of contact numbers is another misses `form.contacts`.
+    """Mutant M33: a twin of 1840 days whose census of contact numbers is another misses `form.contacts`.
 
     Each `02` written as `01`: every cell is still in the published form
     and names the same day, and the census the twin's own description
@@ -2615,7 +2668,7 @@ def test_c5_the_census_of_contact_numbers_is_held_exactly(tmp_path: pathlib.Path
     twin publishes no census, which a vacuous check of the census would
     miss as well; the clause asks the census beside one.
     """
-    shape = battery.BY_NAME["epic_real"]
+    shape = battery.BY_NAME["d1840_contact"]
     cells, _truth = battery.cells(shape, battery.ROWS, 0)
     trip = _trip(tmp_path, cells, shape.system)
     assert trip["twin_exit"] == 0
@@ -2630,10 +2683,10 @@ def test_c5_the_census_of_contact_numbers_is_held_exactly(tmp_path: pathlib.Path
 
 
 @pytest.mark.parametrize("noisy", (137, 5))
-def test_c5_an_epic_day_with_a_binary64_tail_is_no_count(tmp_path: pathlib.Path, noisy: int) -> None:
+def test_c5_a_day_count_from_1840_with_a_binary64_tail_is_no_count(tmp_path: pathlib.Path, noisy: int) -> None:
     """The review of landing R4, item 3: `65053.010000000002` is a day and a binary64's tail.
 
-    An Epic `*_DATE_REAL` exported with seventeen significant figures
+    An 1840 day with its contact number exported with seventeen significant figures
     stopped `profile` with an internal fault once declared. Such a cell is
     no count: it stands to the date role's own line, so a column of them
     was read as it reads without the declaration and said so (NF115), and
@@ -2641,7 +2694,7 @@ def test_c5_an_epic_day_with_a_binary64_tail_is_no_count(tmp_path: pathlib.Path,
     five among a thousand is read as dates with five cells it
     could not read. Question Q3 does not offer the 1840 system for it.
     """
-    shape = battery.BY_NAME["epic_real"]
+    shape = battery.BY_NAME["d1840_contact"]
     cells, truth = battery.cells(shape, battery.ROWS, 0)
     for place in range(noisy):
         day = int(battery.count_of(shape.system, truth[place * 7]))
@@ -2717,7 +2770,7 @@ def test_c6_the_loader_walks_past_every_heap_the_remarks_name(tmp_path: pathlib.
     Twenty cells of Excel's 31 December 9999 among ten thousand serials:
     NF113 names `9999-12-31`, and the heaps the walk passes are that word's
     count in every system an NF114 names (`date_counts.heap_counts`). Read
-    as Epic days, the heap is no date of the column: the walk passes it,
+    as 1840 days, the heap is no date of the column: the walk passes it,
     and the loader, reading the words and the systems from the remarks,
     finds the same years. The walk that knew only the system's own
     set-aside numbers read it as 9941, and that sentence is refused.

@@ -339,6 +339,33 @@ def _past_the_control(real: "set[str]", index: int) -> str:
     return f"{int(max(values) + 3 * spread) + 1 + index}"
 
 
+def _leak_tables() -> "tuple[zoo.Table, ...]":
+    """The catalogue's tables this machine can read: a workbook only where the cross-check reader is.
+
+    CI's `minimums` cell has no openpyxl, so `crosscheck.read_excel_present` refuses there (CI run
+    40989180482, shard 4: both scans below failed on a workbook kind). `crosscheck.present()` is
+    asked first, as `health_zoo.run_zoo` asks it, and the workbook kinds are left out there;
+    every other kind's leak count is read as before (batch 4m's records, BATCH 4m OWES 5 (b)).
+    """
+    return zoo.runnable_tables(zoo.catalogue())
+
+
+def test_the_leak_scans_leave_the_workbook_kinds_out_only_where_they_cannot_be_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """BATCH 4m OWES 5 (b): without the cross-check reader no workbook table is read; with it, every table is."""
+    import crosscheck
+
+    workbooks = [table.name for table in zoo.catalogue() if table.suffix == ".xlsx"]
+    assert workbooks, "the catalogue holds a workbook kind"
+    monkeypatch.setattr(crosscheck, "present", lambda: False)
+    absent = _leak_tables()
+    assert [table.name for table in absent if table.suffix == ".xlsx"] == []
+    assert [table.name for table in absent] == [table.name for table in zoo.catalogue() if table.suffix != ".xlsx"]
+    monkeypatch.setattr(crosscheck, "present", lambda: True)
+    assert [table.name for table in _leak_tables()] == [table.name for table in zoo.catalogue()]
+
+
 def test_every_identifier_copied_into_the_twin_is_counted(tmp_path: pathlib.Path) -> None:
     """E0c verify of repair 1, item 1 (HIPAA): a verbatim, a shuffled and a half copy of every 'values' entry count every copied value.
 
@@ -356,7 +383,7 @@ def test_every_identifier_copied_into_the_twin_is_counted(tmp_path: pathlib.Path
     import random
 
     missed: "list[str]" = []
-    for table in zoo.catalogue():
+    for table in _leak_tables():
         header, rows = table.build(zoo.SMOKE_ROWS, zoo.seed_of(table))
         entries = [column for column, how in zoo.leak_list(table, header) if how == "values"]
         if not entries:
@@ -423,7 +450,7 @@ def test_a_half_copy_beside_keys_just_past_the_range_is_counted(tmp_path: pathli
     entries counted 0 of their copied half, 18,352 copied values hidden.
     """
     missed: "list[str]" = []
-    for table in zoo.catalogue():
+    for table in _leak_tables():
         header, rows = table.build(zoo.SMOKE_ROWS, zoo.seed_of(table))
         entries = [column for column, how in zoo.leak_list(table, header) if how == "values"]
         if not entries:

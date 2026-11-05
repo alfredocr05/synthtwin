@@ -8426,11 +8426,15 @@ SHAPE_LETTER = "@"
 # part 2): a key the census names for the cells of one form whose every
 # letter was lower case, and never a mark `written_form` writes.
 SHAPE_LOWER = "&"
-SHAPE_MARKS = "-./_:#*()[]+,"
+SHAPE_MARKS = "-./_:#*()[]+,="
 
 
-def usable_stand_in(candidate):
+def usable_stand_in(candidate, dated=False):
     """The four properties the neutral spelling had by construction.
+
+    ``dated``: the column's published forms hold a date's (`date_form_fields`),
+    so a month beside a year, eight figures and a year alone are dates' forms
+    too (P4-D442; Codex's review of lane HB, item 9).
 
     `group-N` had them for free; a spelling built to look like one of
     the column's own values does not, so each is asked.  This file
@@ -8463,6 +8467,15 @@ def usable_stand_in(candidate):
         and candidate[6:7] != "0"
     ):
         return True
+    # A DATE OF A PUBLISHED FORM OF A DATE (plan P4-D442): the source wrote
+    # dates in that form, so the valid date `date_filled_form` writes is what
+    # the form owes, a date this file reads (`a_date_of_a_date_form`).
+    # ...figures alone beside dates (eight figures, a year) read as a number,
+    # which ordinary text refuses (G8.3a), as the product's reader refuses them.
+    if dated and candidate.isdigit():
+        return False
+    if a_date_of_a_date_form(candidate, dated):
+        return candidate[0] not in "=+-@"
     # A CLOCK TIME IS NEITHER A NUMBER NOR A DATE (plan P4-D373): the
     # clock supply of G8.3 writes figures, and a clock this file reads
     # (`clock_reads`) reads back as no number and no date, so the bound
@@ -8663,6 +8676,11 @@ def written_form(text):
     """
     if not text:
         return ""
+    if text[0] == "=":
+        # A cell opening with `=` has no form, as before the mark (lane
+        # CODES-1's second repair, Codex's item 7): no made-up value may
+        # open with a formula's leader.
+        return ""
     if len(text) > SHAPE_FORM_LIMIT:
         return stamp_form(text)
     built = ""
@@ -8828,6 +8846,207 @@ def clock_shape(form):
     return figures, seconds, places, words, space, first, hours, times
 
 
+DATE_FORM_FIRST_YEAR = 1940
+DATE_FORM_YEARS = 80
+DATE_FORM_PHASES = 100
+# Two-figure years every pivot from 20 to 69 reads inside 1940 to 2019 (P4-D442, lane HB's repair).
+DATE_FORM_SHORT_YEARS = list(range(69, 100)) + list(range(0, 20))
+MONTH_WORDS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+
+
+def date_form_fields(form, dated=False):
+    """A date form's mark and fields, else None (G8.3, P4-D442), written from the rule statement.
+
+    Three runs between two of one of `-`, `/` and `.`: a year of four figures
+    first or last and the other two of one or two figures; a year of two
+    figures last; or a day of one or two figures, a month of three letter
+    marks (`@@@`, `@&&`, `&&&`, written as "U", "T" and "L") and a year of
+    four or two figures, also with no mark (`%%@@@%%%%`, `%@@@%%`). Where ``dated``
+    (the column's other forms are dates'): eight figures alone (year, month,
+    day), a month beside a year of four figures (two fields), and a year of
+    four figures alone.
+    """
+    if dated and re.fullmatch(r"%{8}", form):
+        return "", [4, 2, 2]
+    if dated and re.fullmatch(r"%{4}", form):
+        return "", [4]
+    bare = re.fullmatch(r"(%{1,2})(@@@|@&&|&&&)(%%|%%%%)", form)
+    if bare:
+        return "", [len(bare.group(1)), {"@@@": "U", "@&&": "T", "&&&": "L"}[bare.group(2)], len(bare.group(3))]
+    for mark in ("-", "/", "."):
+        fields = form.split(mark)
+        if dated and len(fields) == 2:
+            if any(not field or set(field) != {"%"} for field in fields):
+                return None
+            widths = [len(field) for field in fields]
+            if (widths[0] == 4 and widths[1] <= 2) or (widths[1] == 4 and widths[0] <= 2):
+                return mark, widths
+            return None
+        if len(fields) != 3:
+            continue
+        word = {"@@@": "U", "@&&": "T", "&&&": "L"}.get(fields[1])
+        if word:
+            if fields[0] and set(fields[0]) == {"%"} and len(fields[0]) <= 2 and fields[2] in ("%%", "%%%%"):
+                return mark, [len(fields[0]), word, len(fields[2])]
+            return None
+        if any(not field or set(field) != {"%"} for field in fields):
+            return None
+        widths = [len(field) for field in fields]
+        if widths[0] == 4 and widths[1] <= 2 and widths[2] <= 2:
+            return mark, widths
+        if widths[2] in (4, 2) and widths[0] <= 2 and widths[1] <= 2:
+            return mark, widths
+        return None
+    return None
+
+
+def date_filled_form(form, step, dated=False):
+    """One valid date of a date's form, or None (G8.3, P4-D442), written from the rule statement.
+
+    The dates from 1940 first (`date_of_years`); past them, where the year
+    is written in four figures, the same dates eighty years on, and on, a
+    hundred runs of eighty years in all.
+    """
+    fields = date_form_fields(form, dated)
+    if fields is None:
+        return None
+    index = step % form_steps(form)
+    date = date_of_years(form, index, dated, DATE_FORM_FIRST_YEAR)
+    widths = fields[1]
+    four = len(widths) < 3 or (widths[0] == 4 and not isinstance(widths[1], str)) or widths[2] == 4
+    if date is not None or not four:
+        return date
+    # ...and on through further runs of eighty years, a hundred runs in all (1940 to 9939).
+    once = dates_once(form, dated)
+    for phase in range(1, DATE_FORM_PHASES):
+        if not once or index < once:
+            break
+        index -= once
+        date = date_of_years(form, index, dated, DATE_FORM_FIRST_YEAR + phase * DATE_FORM_YEARS)
+        if date is not None:
+            return date
+    return None
+
+
+DATES_ONCE = {}
+
+
+def dates_once(form, dated):
+    """How many steps from 0 the eighty years from 1940 answer with a date, counted once a form."""
+    if (form, dated) not in DATES_ONCE:
+        once = 0
+        while date_of_years(form, once, dated, DATE_FORM_FIRST_YEAR) is not None:
+            once += 1
+        DATES_ONCE[(form, dated)] = once
+    return DATES_ONCE[(form, dated)]
+
+
+def date_of_years(form, step, dated, first_year):
+    """One valid date of a date's form, or None past the form's dates (G8.3, P4-D442).
+
+    Written from the rule statement: year first, the year, month and day
+    of ISO 8601; year last, two fields of 1 to 12 each (valid month first
+    and day first), its year four figures or two from the two-figure set;
+    a month word's day 1 to 28 and its month in the form's case; a month
+    beside a year, 1 to 12; a year alone. A field of one figure takes 1 to
+    9. Eighty years from 1940. The step is moved round the form's room, and
+    its place among the dates counts the year first, then the first field,
+    then the second; a day past its month's last is written as that last day.
+    """
+    fields = date_form_fields(form, dated)
+    if fields is None:
+        return None
+    mark, widths = fields
+    index = step % form_steps(form)
+
+    def values(width, last):
+        return list(range(1, 10)) if width == 1 else list(range(1, last + 1))
+
+    if len(widths) == 1:
+        return None if index >= DATE_FORM_YEARS else f"{first_year + stepped_around(index, DATE_FORM_YEARS):04d}"
+    if len(widths) == 2:
+        month_width = widths[1] if widths[0] == 4 else widths[0]
+        months = values(month_width, 12)
+        if index >= DATE_FORM_YEARS * len(months):
+            return None
+        place = stepped_around(index, DATE_FORM_YEARS * len(months))
+        year, month = first_year + place % DATE_FORM_YEARS, months[place // DATE_FORM_YEARS]
+        if widths[0] == 4:
+            return f"{year:04d}{mark}{month:0{month_width}d}"
+        return f"{month:0{month_width}d}{mark}{year:04d}"
+    worded = isinstance(widths[1], str)
+    year_first = widths[0] == 4 and not worded
+    years = [first_year + k for k in range(DATE_FORM_YEARS)]
+    if not year_first and widths[2] == 2:
+        years = list(DATE_FORM_SHORT_YEARS)
+    if worded:
+        firsts, seconds = values(widths[0], 28), list(range(1, 13))
+    elif year_first:
+        firsts, seconds = values(widths[1], 12), values(widths[2], 31)
+    else:
+        firsts, seconds = values(widths[0], 12), values(widths[1], 12)
+    dates = len(years) * len(firsts) * len(seconds)
+    if index >= dates:
+        # Past the dates both readings take, a two-figure year's month-first
+        # dates: its second field of two figures 13 to 28 (a four-figure year
+        # goes on to the next eighty years instead, every date valid day first).
+        later = list(range(13, 29)) if (not year_first and not worded and widths[1] == 2 and widths[2] == 2) else []
+        index -= dates
+        dates, seconds = len(years) * len(firsts) * len(later), later
+        if index >= dates:
+            return None
+    place = stepped_around(index, dates)
+    year = years[place % len(years)]
+    place //= len(years)
+    first = firsts[place % len(firsts)]
+    second = seconds[place // len(firsts)]
+    written_year = f"{year:02d}" if (not year_first and widths[2] == 2) else f"{year:04d}"
+    if worded:
+        word = MONTH_WORDS[second - 1]
+        word = {"U": word, "T": word.title(), "L": word.lower()}[widths[1]]
+        return f"{first:0{widths[0]}d}{mark}{word}{mark}{written_year}"
+    if year_first:
+        second = min(second, month_days(year, first))
+        return f"{year:04d}{mark}{first:0{widths[1]}d}{mark}{second:0{widths[2]}d}"
+    return f"{first:0{widths[0]}d}{mark}{second:0{widths[1]}d}{mark}{written_year}"
+
+
+def month_days(year, month):
+    """How many days a month of the proleptic Gregorian calendar holds."""
+    following = datetime.date(year + month // 12, month % 12 + 1, 1)
+    return (following - datetime.timedelta(days=1)).day
+
+
+def a_date_of_a_date_form(candidate, dated=False):
+    """Whether a spelling is a valid date `date_filled_form` could write (P4-D442), in the column's context."""
+    shape = re.sub(r"[a-z]", "&", re.sub(r"[A-Z]", "@", re.sub(r"[0-9]", "%", candidate)))
+    fields = date_form_fields(shape, dated)
+    if fields is None:
+        return False
+    mark, widths = fields
+    if len(widths) == 1:
+        return True
+    if len(widths) == 2:
+        month = int(candidate.split(mark)[1 if widths[0] == 4 else 0])
+        return 1 <= month <= 12
+    if not mark and not isinstance(widths[1], str):
+        year, month, day = int(candidate[:4]), int(candidate[4:6]), int(candidate[6:])
+        return 1 <= month <= 12 and 1 <= day <= month_days(year, month)
+    if isinstance(widths[1], str):
+        found = re.fullmatch(r"(\d{1,2})\W?([A-Za-z]{3})\W?(\d{2,4})", candidate)
+        if not found or found.group(2).upper() not in MONTH_WORDS:
+            return False
+        year = found.group(3)
+        return 1 <= int(found.group(1)) <= 28 and (len(year) == 4 or int(year) in DATE_FORM_SHORT_YEARS)
+    parts = [int(part) for part in candidate.split(mark)]
+    if widths[0] == 4:
+        year, month, day = parts
+        return 1 <= month <= 12 and 1 <= day <= month_days(year, month)
+    if widths[2] == 2 and parts[2] not in DATE_FORM_SHORT_YEARS:
+        return False
+    return 1 <= parts[0] <= 12 and 1 <= parts[1] <= (28 if widths[1] == 2 and widths[2] == 2 else 12)
+
+
 def clock_filled_form(form, step):
     """One time of a form a clock time can wear, or None (G8.3, P4-D373).
 
@@ -8986,6 +9205,10 @@ def filled_form(form, step, clocks=True):
         clock = clock_filled_form(form, step)
         if clock is not None:
             return clock
+        # ...and a form of a date with valid dates (plan P4-D442).
+        date = date_filled_form(form, step)
+        if date is not None:
+            return date
     # A form holding the one gap keeps its marker word (lane L2's repair,
     # plan P4-D392): its clock's figures are filled at half the step, and
     # the step's parity names the half of the day.
@@ -9030,6 +9253,379 @@ def filled_form(form, step, clocks=True):
         else:
             built += character
     return built
+
+
+# The characters each placeholder stands for, in the order filled_form
+# steps them (lane CODES-1, plan P4-D439).
+PLACE_ALPHABETS = {
+    SHAPE_DIGIT: "0123456789",
+    SHAPE_LETTER: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    SHAPE_LOWER: "abcdefghijklmnopqrstuvwxyz",
+}
+
+
+def wears_times(form):
+    """Whether a clock time or a stamp can wear the form: its fill keeps
+    its bytes under lane CODES-1 (plans P4-D373, P4-D392, P4-D393)."""
+    return (
+        clock_filled_form(form, 0) is not None
+        or key_gap(form) >= 0
+        or stamp_gaps(form, STAMP_KEY) is not None
+    )
+
+
+def census_bounds_labels(census):
+    """Whether rule A2's label bound, and the split the sizes were drawn
+    for, may enter a column's draw (lane CODES-1's repairs): only where no
+    key of its form census is a clock's or a stamp's, so a clock keeps its
+    bytes (the product's `_census_bounds_labels`)."""
+    return not any(wears_times(form) for form in (census or {}))
+
+
+def published_places(census, written):
+    """Method G8.3, rule A2's stages (1) and (2) of the stand-ins page
+    (lane CODES-1, plan P4-D439): for each named form no clock or stamp
+    wears and whose reading is text (a form with a number among its
+    fillings keeps its fill), over the different written cells the census
+    counts under it,
+    the characters of each placeholder's kind they hold at each place, in
+    filled_form's order, or that whole kind where they hold none; "" at a
+    mark's place."""
+    found = {}
+    for cell in dict.fromkeys(written):
+        form = census_form(cell, census)
+        if (
+            not form or form not in census or form == WITHHELD
+            or len(form) != len(cell) or wears_times(form)
+            or form_reading(form) != NOTATION_TEXT
+        ):
+            continue
+        slots = found.setdefault(form, [set() for _ in form])
+        for at, kind in enumerate(form):
+            if kind in PLACE_ALPHABETS and (
+                cell[at] in PLACE_ALPHABETS[kind]
+                or (kind == SHAPE_LETTER and cell[at] in PLACE_ALPHABETS[SHAPE_LOWER])
+            ):
+                slots[at].add(cell[at])
+    places = {}
+    for form in sorted(found):
+        built = []
+        for at, kind in enumerate(form):
+            if kind not in PLACE_ALPHABETS:
+                built.append("")
+                continue
+            alphabet = place_alphabet(kind, "".join(sorted(found[form][at])))
+            held = "".join(c for c in alphabet if c in found[form][at])
+            built.append(held or alphabet)
+        places[form] = tuple(built)
+    return places
+
+
+def place_alphabet(kind, marks):
+    """What one place of a form stands for (lane CODES-1's second repair):
+    a letter place whose known characters -- the written spellings' and the
+    census's -- are all small letters stands for a to z, as a pathological
+    tumour stage's `p` and sub-letters are written; any other place for its
+    kind's alphabet."""
+    if kind == SHAPE_LETTER and marks and all(c in PLACE_ALPHABETS[SHAPE_LOWER] for c in marks):
+        return PLACE_ALPHABETS[SHAPE_LOWER]
+    return PLACE_ALPHABETS[kind]
+
+
+def opening_figures(written):
+    """The figures a stand-in may open with where nothing lists its first
+    place and no written spelling of its form wears it (lane CODES-1, plan
+    P4-D439): 1 to 9 where some written spelling opens with a figure and
+    none with a nought, as lane L1 keeps a number's leading nought only
+    where a published one opens with it; all ten otherwise."""
+    figures = PLACE_ALPHABETS[SHAPE_DIGIT]
+    if any(cell[:1] == "0" for cell in written):
+        return figures
+    if any(cell[:1] and cell[:1] in figures for cell in written):
+        return figures[1:]
+    return figures
+
+
+def place_plans(census, written, listed):
+    """Each named form's stepping plan (rule A2, lane CODES-1, plan
+    P4-D439): for a form no clock or stamp wears whose reading is text,
+    worn by a written spelling or listed by the description's census
+    (``shape_form_places``) -- or whose first place of figures opens
+    narrower than the alphabet --, stage (1) is each place's census list or,
+    where it lists nothing, the written spellings' characters there (the
+    whole kind where none wears the form, a first place of figures opening
+    as opening_figures says), and stage (2) both together.
+    Answered as {form: (stages, listed)}, listed () without a census."""
+    published = published_places(census, written)
+    opening = opening_figures(written)
+    plans = {}
+    for form in sorted(census):
+        if form == WITHHELD or wears_times(form) or form_reading(form) != NOTATION_TEXT:
+            continue
+        mine = tuple(listed.get(form, ()))
+        if len(mine) != len(form):
+            mine = ()
+        # ...or a form whose first place of figures opens narrower than the
+        # alphabet (lane CODES-1's second repair, Codex's item 6).
+        narrowed = form[:1] == SHAPE_DIGIT and opening != PLACE_ALPHABETS[SHAPE_DIGIT]
+        if form not in published and not mine and not narrowed:
+            continue
+        first, second = [], []
+        for at, kind in enumerate(form):
+            if kind not in PLACE_ALPHABETS:
+                first.append("")
+                second.append("")
+                continue
+            held = published[form][at] if form in published else ""
+            own = mine[at] if mine else ""
+            whole = place_alphabet(kind, own + held)
+            narrow = opening if at == 0 and kind == SHAPE_DIGIT else whole
+            first.append(own or held or narrow)
+            second.append("".join(c for c in whole if c in own or c in held) or narrow)
+        plans[form] = ((tuple(first), tuple(second)), mine)
+    return plans
+
+
+def plan_blocks(form, stages, closed):
+    """The blocks placed_filling walks: the first stage whole, then for
+    each later stage -- and the whole kind after them where ``closed`` --
+    a block a place from the last, that place taking the characters it
+    gains, the places after it the stage's, the places before it what
+    they held."""
+    positions = [at for at, kind in enumerate(form) if kind in PLACE_ALPHABETS]
+    # A letter place its last stage writes in small letters closes on a to z
+    # (lane CODES-1's second repair).
+    whole = [place_alphabet(form[at], stages[-1][at] if stages else "") for at in positions]
+    chain = [[stage[at] or whole[i] for i, at in enumerate(positions)] for stage in stages]
+    if closed:
+        chain.append(whole)
+    blocks = [list(chain[0])]
+    for later in range(1, len(chain)):
+        before, after = chain[later - 1], chain[later]
+        for cut in reversed(range(len(positions))):
+            gained = "".join(c for c in after[cut] if c not in before[cut])
+            if gained:
+                blocks.append(before[:cut] + [gained] + after[cut + 1:])
+    return blocks
+
+
+def placed_filling(form, step, stages):
+    """One spelling of one form in the plan's order (lane CODES-1, plan
+    P4-D439): the blocks of plan_blocks, closed by the form's whole kinds,
+    partition its room; inside a block the step is spread by
+    stepped_around and taken apart leftmost first."""
+    positions = [at for at, kind in enumerate(form) if kind in PLACE_ALPHABETS]
+    room = math.prod(len(PLACE_ALPHABETS[form[at]]) for at in positions)
+    left = step % room
+    for sets in plan_blocks(form, stages, True):
+        size = math.prod(len(marks) for marks in sets)
+        if left < size:
+            break
+        left -= size
+    place = stepped_around(left, size)
+    filled = {}
+    for i, at in enumerate(positions):
+        filled[at] = sets[i][place % len(sets[i])]
+        place //= len(sets[i])
+    return "".join(filled.get(at, kind) for at, kind in enumerate(form))
+
+
+BALANCE_TRIES = 4096
+
+
+def balance_room(form, stages):
+    """The spellings stages (1) and (2) hold."""
+    return sum(math.prod(len(marks) for marks in sets) for sets in plan_blocks(form, stages, False))
+
+
+TIE_MASK = (1 << 64) - 1
+
+
+def tie_mixed(value):
+    """SplitMix64's step and finaliser of one 64-bit word (Steele, Lea and
+    Flood, OOPSLA 2014)."""
+    word = (value + 0x9E3779B97F4A7C15) & TIE_MASK
+    word = ((word ^ (word >> 30)) * 0xBF58476D1CE4E5B9) & TIE_MASK
+    word = ((word ^ (word >> 27)) * 0x94D049BB133111EB) & TIE_MASK
+    return word ^ (word >> 31)
+
+
+def tie_word(form, at, picked, mark):
+    """The fixed word breaking a tie between characters at one place of one
+    pick (lane CODES-1's repair): SplitMix64 folded over the form's
+    characters, the place, the stand-ins the walk wrote before and the
+    character -- independent between places, and no word of the stream."""
+    word = 0
+    for character in form:
+        word = tie_mixed(word ^ ord(character))
+    word = tie_mixed(word ^ at)
+    word = tie_mixed(word ^ picked)
+    return tie_mixed(word ^ ord(mark))
+
+
+def balanced_filling(form, plan, tally, line, seen, folds, picked=0):
+    """Rule A2's balanced pick (lane CODES-1, plan P4-D439): each place's
+    stage-(1) character with the fewest stand-in cells (a tie broken by
+    tie_word, independently at each place) where that spelling is free
+    and usable; otherwise, among the
+    first BALANCE_TRIES spellings of stages (1) and (2) not written and
+    usable, the one putting the most listed characters on places where
+    they still hold fewer than ``line`` stand-in cells, then the fewest
+    stand-in cells between its characters, then the earliest."""
+    stages, listed = plan
+    # The page's own pick first: each place's stage-(1) character with the
+    # fewest stand-in cells, a tie broken by the keyed word of that place.
+    built = ""
+    for at, kind in enumerate(form):
+        if kind not in PLACE_ALPHABETS:
+            built += kind
+            continue
+        marks = stages[0][at] or PLACE_ALPHABETS[kind]
+        built += min(
+            marks,
+            key=lambda mark: (tally.get((at, mark), 0), tie_word(form, at, picked, mark), marks.index(mark)),
+        )
+    if built not in seen and folded(built) not in folds and usable_stand_in(built):
+        return built
+    best, best_key = "", None
+    for step in range(min(balance_room(form, stages), BALANCE_TRIES)):
+        trial = placed_filling(form, step, stages)
+        if trial in seen or folded(trial) in folds:
+            continue
+        gain = load = 0
+        for at, kind in enumerate(form):
+            if kind not in PLACE_ALPHABETS:
+                continue
+            held = tally.get((at, trial[at]), 0)
+            load += held
+            if trial[at] in listed[at] and held < line:
+                gain += 1
+        key = (-gain, load)
+        if (best_key is None or key < best_key) and usable_stand_in(trial):
+            best, best_key = trial, key
+    return best
+
+
+def balanced_places(plans, sizes, shared, placed, seen, folds, line):
+    """The stand-ins rule A2's balanced walk writes and where each form's
+    cursor starts (lane CODES-1, plan P4-D439): for each form with a
+    census, its stand-ins largest first (the earlier place on a tie) take
+    balanced_filling's spelling while a listed character holds fewer than
+    ``line`` stand-in cells; then, where stages (1) and (2) hold at most
+    BALANCE_TRIES spellings, every other one takes the stages' next
+    spelling not written, in their order, and the form's cursor starts
+    past those stages."""
+    assigned, starts = {}, {}
+    seen, folds = set(seen), set(folds)
+    for form in sorted(plans):
+        stages, listed = plans[form]
+        if not listed:
+            continue
+        small = balance_room(form, stages) <= BALANCE_TRIES
+        if small:
+            starts[form] = balance_room(form, stages)
+        tally = {}
+        ranked = sorted(
+            (-sizes[place], place) for place in range(len(sizes))
+            if shared[place] == form and place not in placed
+        )
+        order = 0
+        picked = 0
+        for _size, place in ranked:
+            short = any(
+                tally.get((at, mark), 0) < line
+                for at in range(len(form)) for mark in listed[at]
+            )
+            if not small and not short:
+                break
+            spelling = ""
+            if short:
+                spelling = balanced_filling(form, plans[form], tally, line, seen, folds, picked)
+            else:
+                # Every listed character holds the line: the stages' own
+                # order, the next spelling not written.
+                while order < balance_room(form, stages) and not spelling:
+                    trial = placed_filling(form, order, stages)
+                    order += 1
+                    if trial not in seen and folded(trial) not in folds and usable_stand_in(trial):
+                        spelling = trial
+            if not spelling:
+                break
+            assigned[place] = spelling
+            picked += 1
+            seen.add(spelling)
+            folds.add(folded(spelling))
+            for at, kind in enumerate(form):
+                if kind in PLACE_ALPHABETS:
+                    tally[(at, spelling[at])] = tally.get((at, spelling[at]), 0) + sizes[place]
+        swapped_to_the_line(
+            form, listed, sizes, [place for _size, place in ranked if place in assigned],
+            assigned, line,
+        )
+    return assigned, starts
+
+
+SWAP_ROUNDS = 256
+# ...and at most SWAP_PAIRS pairs weighed on one form, all rounds together.
+SWAP_PAIRS = 1 << 20
+
+
+def swapped_to_the_line(form, listed, sizes, places, assigned, line):
+    """Lane CODES-1's second repair: once the balanced walk is done, while a
+    listed character holds fewer than ``line`` stand-in cells, swap the
+    spellings of the two stand-ins of the form (one holding a short
+    character, the other larger) that take the most cells off the summed
+    shortfall, the first such pair in the walk's order on a tie; at most
+    SWAP_ROUNDS swaps.  No spelling enters or leaves the column."""
+    alphabet = [at for at, kind in enumerate(form) if kind in PLACE_ALPHABETS]
+    tally = {}
+    for place in places:
+        for at in alphabet:
+            key = (at, assigned[place][at])
+            tally[key] = tally.get(key, 0) + sizes[place]
+
+    def shortfall(key, held):
+        at, mark = key
+        return max(0, line - held) if mark in listed[at] else 0
+
+    weighed = 0
+    for _round in range(SWAP_ROUNDS):
+        short = {
+            (at, mark) for at in range(len(form)) for mark in listed[at]
+            if tally.get((at, mark), 0) < line
+        }
+        if not short:
+            return
+        best, best_gain = None, 0
+        for first in places:
+            low = assigned[first]
+            if not any((at, low[at]) in short for at in range(len(form))):
+                continue
+            for second in places:
+                if sizes[second] <= sizes[first]:
+                    continue
+                weighed += 1
+                if weighed > SWAP_PAIRS:
+                    return
+                high, moved = assigned[second], sizes[second] - sizes[first]
+                gain = 0
+                for at in alphabet:
+                    if low[at] == high[at]:
+                        continue
+                    up, down = (at, low[at]), (at, high[at])
+                    gain += shortfall(up, tally.get(up, 0)) - shortfall(up, tally.get(up, 0) + moved)
+                    gain += shortfall(down, tally.get(down, 0)) - shortfall(down, tally.get(down, 0) - moved)
+                if gain > best_gain:
+                    best, best_gain = (first, second), gain
+        if best is None:
+            return
+        first, second = best
+        moved = sizes[second] - sizes[first]
+        for at in alphabet:
+            if assigned[first][at] != assigned[second][at]:
+                tally[(at, assigned[first][at])] = tally.get((at, assigned[first][at]), 0) + moved
+                tally[(at, assigned[second][at])] -= moved
+        assigned[first], assigned[second] = assigned[second], assigned[first]
 
 
 # THE CLOCK LINE A COLUMN OF LABELS IS HELD BELOW (the repair round of
@@ -9317,11 +9913,18 @@ def usable_room(form, wanted, seen, folds, reads=None, ladder=None, whole=False)
             return usable
         refused += 1
         candidate = overflow_spelling(form, step) if overflowing else filled_form(form, step)
+        # A form a date can wear only beside dates (a month beside a year,
+        # eight figures, a year alone; P4-D442) is counted on the dates the
+        # walk writes there: the product counts its plain fillings, every one
+        # usable as these are, so the two counts meet ``wanted`` alike.
+        dated = not overflowing and date_form_fields(form) is None and date_form_fields(form, True) is not None
+        if dated:
+            candidate = date_filled_form(form, step, True) or candidate
         step += 1
         if candidate in seen or folded(candidate) in folds:
             continue
         if reads is None:
-            if not usable_stand_in(candidate):
+            if not usable_stand_in(candidate, dated):
                 continue
         elif not usable_of_class(candidate, reads):
             continue
@@ -9602,7 +10205,7 @@ def shared_out(sizes, owing, seen, folds, supplied=None, past=()):
 
 def invented_levels(
     used, sizes, census=None, written=(), placed=None, level_shape="",
-    line=None, past=None, classes=None,
+    line=None, past=None, classes=None, listed=None, drawn=None,
 ):
     """The stand-in labels of method sections G8.3 and G8.3a.
 
@@ -9653,6 +10256,19 @@ def invented_levels(
     seen = set(used)
     folds = {folded(text) for text in used}
     owing = forms_owed(census or {}, written)
+    # A column whose forms hold a date's (P4-D442): a month beside a year,
+    # eight figures and a year alone are filled with dates too (Codex's
+    # review of lane HB, item 9).
+    dated = any(date_form_fields(shape) for shape in (census or {}))
+    # Each named form's stepping plan (lane CODES-1, plan P4-D439), read
+    # before any stand-in joins the written spellings.
+    fills = place_plans(census or {}, written, listed or {})
+    # A date's form is filled with dates, never from its places (lane HB's
+    # rule 6, plan P4-D442, kept at batch 4m's merge).
+    if dated:
+        fills = {
+            form: plan for form, plan in fills.items() if not date_form_fields(form, True)
+        }
     wordy = list(range(len(sizes)))
     if placed is not None:
         for spelling in placed.values():
@@ -9686,11 +10302,48 @@ def invented_levels(
     shared = ["" for _ in sizes]
     for step, place in enumerate(wordy):
         shared[place] = settled[step]
+    # A census form's label bound kept (rule A2, lane CODES-1, plan
+    # P4-D439): where the settlement gave a form with a census more sizes
+    # than its bound, the sizes as drawn for each word form stand, if they
+    # pay every word form's debt outside the class stand-ins and no word
+    # form is a clock's or a stamp's.
+    if drawn is not None:
+        tags, first_word, most = drawn
+        names = [
+            form for form in sorted(owing)
+            if owing[form] > 0 and form_reading(form) == NOTATION_TEXT
+        ]
+        over = any(
+            form in fills and fills[form][1]
+            and sum(1 for name in shared if name == form) > most[index]
+            for index, form in enumerate(names)
+        ) if len(most) >= len(names) and len(tags) == len(sizes) else False
+        if names and over and not any(wears_times(form) for form in names):
+            trial = ["" for _ in sizes]
+            paid = {}
+            for place in range(len(sizes)):
+                if placed is not None and place in placed:
+                    trial[place] = shared[place]
+                    continue
+                word = tags[place] - first_word
+                if 0 <= word < len(names):
+                    trial[place] = names[word]
+                    paid[names[word]] = paid.get(names[word], 0) + sizes[place]
+            if all(paid.get(form, 0) == owing[form] for form in names):
+                shared = trial
     covered = set()
     if level_shape:
         shared, covered = level_shape_spent(
             sizes, shared, level_shape, placed or {}, seen, folds
         )
+    # Rule A2's balanced walk, largest stand-in first (lane CODES-1).
+    assigned, starts = balanced_places(
+        fills, sizes, shared, placed or {}, seen, folds, max(SMALL_CELL_FLOOR, 2)
+    )
+    # Taken before any other stand-in is walked.
+    for spelling in assigned.values():
+        seen.add(spelling)
+        folds.add(folded(spelling))
     beyond = set()
     for form in sorted(past):
         mine = sorted(
@@ -9754,7 +10407,10 @@ def invented_levels(
             form = level_shape
         candidate = None
         outside = place in beyond
-        if form:
+        if place in assigned:
+            candidate = assigned[place]
+            taken[form] = taken.get(form, 0) + 1
+        elif form:
             figured = (figures is not None and holding) or outside
             cursor = figures if figured else walked
             if outside:
@@ -9770,14 +10426,21 @@ def invented_levels(
             steps = supply if supply else form_room(form)
             cursor.setdefault(form, 0)
             taken.setdefault(form, 0)
+            planned = form in fills and not figured and not supply
+            start = starts.get(form, 0) if planned else 0
+            cursor[form] = max(cursor[form], start)
             tried = 0
             while (
                 cursor[form] < steps and tried < STAND_IN_STEPS
                 if supply
-                else walk_goes_on(cursor[form], taken[form], steps)
+                else walk_goes_on(cursor[form] - start, taken[form], steps - start)
             ):
                 tried += 1
                 trial = filled_form(form, cursor[form], not figured)
+                if planned:
+                    trial = placed_filling(form, cursor[form], fills[form][0])
+                if dated and not figured:
+                    trial = date_filled_form(form, cursor[form], True) or trial
                 if outside:
                     trial = past_the_clock(form, cursor[form])
                 cursor[form] += 1
@@ -9790,7 +10453,7 @@ def invented_levels(
                     continue
                 if trial in seen or folded(trial) in folds:
                     continue
-                if not usable_stand_in(trial):
+                if not usable_stand_in(trial, date_form_fields(form, dated) is not None):
                     continue
                 taken[form] += 1
                 candidate = trial
@@ -10235,7 +10898,25 @@ def exponent_fittings(candidate, form):
     return out
 
 
-def number_ladder(written, forms):
+def whole_number_grain(values, held_back=0):
+    """The largest power of ten from ten up dividing every one of two or
+    more different whole numbers; 1 otherwise, or where fewer than twice
+    ``held_back`` of its multiples between their ends are free of them
+    (lane CODES-1, P4-D439)."""
+    distinct = set(values)
+    grain = 1
+    if len(distinct) < 2:
+        return grain
+    while grain < 10 ** 18 and all(value % (grain * 10) == 0 for value in distinct):
+        grain *= 10
+    if grain > 1 and held_back > 0:
+        free = (max(distinct) - min(distinct)) // grain + 1 - len(distinct)
+        if free < 2 * held_back:
+            return 1
+    return grain
+
+
+def number_ladder(written, forms, held_back=0):
     """The published numbers a label column steps its made-up ones from."""
     parsed = []
     # EVERY PUBLISHED NUMBER'S VALUE, stepped from or not (P4-D100).  The
@@ -10287,6 +10968,26 @@ def number_ladder(written, forms):
     built = {"lowest": min(values), "highest": max(values), "places": places,
              "signs": signs, "anchored": True, "published": set(values),
              "tiers": tiers, "padded": padded, "steps": None, "cap": 0, **ends}
+    # THE GRAIN (rule A3, lane CODES-1, plan P4-D439): where the numbers are
+    # whole and two or more differ, the largest power of ten from ten up
+    # dividing every one; every made-up number is a multiple of it.
+    # Over the published numbers written in figures alone, a sign aside,
+    # where every published number is one.
+    numeric = [
+        cell.strip() for cell in dict.fromkeys(written)
+        if notation_reading(cell)[0] == NOTATION_NUMBER
+    ]
+    whole = [int(cell) for cell in numeric if cell.lstrip("-").isdigit()]
+    built["grain"] = (
+        whole_number_grain(whole, held_back)
+        if places == 0 and len(whole) == len(numeric) else 1
+    )
+    # The widths the published whole numbers are written at, where every
+    # published number is one (rule A3, lane CODES-1's repair).
+    built["whole_widths"] = (
+        tuple(sorted(widths)) if places == 0 and len(whole) == len(numeric) else ()
+    )
+    built["held_back"] = held_back
     # THE OUTWARD WALK OF A NUMBER WEARING NO NAMED FORM steps from the
     # published numbers written without an exponent (lane L1, plan
     # P4-D390); where every one wears an exponent, no plain number is
@@ -10304,6 +11005,71 @@ def number_ladder(written, forms):
     if ends_of is not None and ends_of != (built["lowest"], built["highest"]):
         built["steps"] = dict(built, lowest=ends_of[0], highest=ends_of[1])
     return built
+
+
+def off_the_code_ends(ladder, units, places):
+    """Rule A3's ends and widths on a declared code column (lane CODES-1's
+    repair): a made-up whole number below the smallest or above the largest
+    published number, or of a width no published whole number is written
+    at (after the padding), holds no value."""
+    if not ladder.get("ends_kept") or places != 0 or not ladder.get("whole_widths"):
+        return False
+    if units < ladder["lowest"] or units > ladder["highest"]:
+        return True
+    width = max(len(str(abs(units))), ladder.get("padded", 0))
+    return width not in ladder["whole_widths"]
+
+
+def with_code_ends(ladder, column, owed):
+    """The ladder of a declared code column with its ends and widths kept:
+    only where every published number is a whole number of figures alone,
+    none negative, on an anchored ladder of whole places, the pool's
+    published mean, where there is one, lies between the published ends,
+    and the free whole numbers strictly between those ends (at a published
+    width, on the grain, no published number's) are at least ``owed``, the
+    held-back levels the number class may be handed (lane CODES-1's second
+    repair: a dense scale, every number between its ends published, keeps
+    the ladder as it was)."""
+    if (
+        not ladder.get("whole_widths") or not ladder["anchored"]
+        or ladder["places"] != 0 or ladder["lowest"] < 0
+    ):
+        return ladder
+    scale = column.get("suppressed_numbers") or {}
+    mean = wire_value(scale.get("mean")) if scale.get("n_cells", 0) > 0 else None
+    if mean is not None and (mean < ladder["lowest"] or mean > ladder["highest"]):
+        return ladder
+    kept = dict(ladder, ends_kept=True)
+    if free_inside_the_code_ends(kept) < owed:
+        return ladder
+    if kept.get("steps") is not None:
+        kept["steps"] = dict(kept["steps"], ends_kept=True)
+    return kept
+
+
+def free_inside_the_code_ends(ladder):
+    """The whole numbers strictly between a declared code column's published
+    ends, of a published width (after the padding), on the grain, that no
+    published number holds (lane CODES-1's second repair), counted width by
+    width in closed form."""
+    low, high = ladder["lowest"] + 1, ladder["highest"] - 1
+    if low > high:
+        return 0
+    grain = max(ladder.get("grain", 1), 1)
+    padded = ladder.get("padded", 0)
+    free = 0
+    for width in ladder["whole_widths"]:
+        if width < padded or width < 1:
+            continue
+        start = 0 if width in (1, padded) else 10 ** (width - 1)
+        start, end = max(start, low), min(10 ** width - 1, high)
+        if start <= end:
+            free += end // grain - (start + grain - 1) // grain + 1
+    return free - sum(
+        1 for value in ladder["published"]
+        if low <= value <= high and value % grain == 0
+        and not off_the_code_ends(ladder, value, 0)
+    )
 
 
 def walk_ladder(ladder):
@@ -10542,8 +11308,20 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
                 cursor[ended] = 1
                 break
             cursor[key] += 1
-            if state == "skip":
+            if state == "skip" or units % ladder.get("grain", 1):
+                # Off the published numbers' grain (lane CODES-1).
                 cursor[empty] += 1
+                continue
+            if off_the_code_ends(ladder, units, places):
+                # Past a code column's published ends a side has ended; a
+                # gap's value of a width no published code has holds no
+                # value (rule A3, lane CODES-1's repair).
+                if side == "high":
+                    cursor[high] = 1
+                elif side == "low":
+                    cursor[low] = 1
+                else:
+                    cursor[empty] += 1
                 continue
             if name == OWED_NUMBER and ladder.get("cap", 0) and (
                 whole_figures(units, places) > ladder["cap"]
@@ -10608,7 +11386,7 @@ POOLED_SHIFTS = 3
 POOLED_LOOSENESS = 5
 
 
-def pooled_window(labels):
+def pooled_window(labels, held_back=0):
     """G12.12's window on the pooled mean, from the column's own GRID.
 
     TWO PLACES of the coarsest grid this column's description writes its
@@ -10631,7 +11409,19 @@ def pooled_window(labels):
         if label.strip().count(".") == 0
         and label.strip().replace("-", "").isdigit()
     ]
-    return 2.0 * 10.0 ** (0 - (min(places) if places else 0))
+    finest = min(places) if places else 0
+    if finest > 0:
+        return 2.0 * 10.0 ** (0 - finest)
+    # On whole numbers of figures alone, every published number one, their
+    # grain (lane CODES-1, plan P4-D439).
+    whole = [
+        int(label.strip()) for label in labels
+        if label.strip().lstrip("-").isdigit()
+    ]
+    numbers = [label for label in labels if notation_reading(label)[0] == NOTATION_NUMBER]
+    if len(numbers) != len(whole):
+        return 2.0
+    return 2.0 * whole_number_grain(whole, held_back)
 
 
 def pooled_offsets(sizes, ladder, middle):
@@ -10670,6 +11460,8 @@ def pooled_offsets(sizes, ladder, middle):
     away = [place - centre for place in standing]
     furthest = max([abs(reach) for reach in away] + [0.0])
     unit = 10.0 ** (0 - (ladder["tiers"][0] if ladder["tiers"] else 0))
+    # The published numbers' grain is the grid (lane CODES-1, P4-D439).
+    unit = unit * ladder.get("grain", 1)
     apart = POOLED_LOOSENESS
     if ladder["spanned"] and furthest > 0:
         room = max(
@@ -10730,6 +11522,13 @@ def pooled_step(ladder, wanted, asked, named, seen, folds, needed, pool, widest)
             if not sign_held(units, ladder["signs"]) or (
                 reach > 0 and whole_figures(units, places) > reach
             ):
+                continue
+            if units % ladder.get("grain", 1):
+                # Off the published numbers' grain (lane CODES-1, P4-D439).
+                continue
+            if off_the_code_ends(ladder, units, places):
+                # Past a code column's ends or widths: the offer steps on,
+                # inward from that end (rule A3, lane CODES-1's repair).
                 continue
             # No group owing no form is placed wider than the longest
             # published label where every published number wears an
@@ -11014,7 +11813,7 @@ def pooled_placements(
     centre = sum(a * b for a, b in zip(sizes, standing)) / max(sum(sizes), 1)
     written, cells = pooled_best(
         groups, standing, centre, apart, middle, ladder, named, seen, folds,
-        needed, pool, widest, pooled_window(labels),
+        needed, pool, widest, pooled_window(labels, ladder.get("held_back", 0)),
     )
     if cells < 1:
         return {}
@@ -11108,8 +11907,15 @@ def settles_its_forms(taken, sizes, owing):
     return True
 
 
-def class_split(sizes, debts, supply, owing=None):
+def class_split(sizes, debts, supply, owing=None, intended=None):
     """Which held-back sizes pay which class debt -- G8.3a step 1.
+
+    RULE A3 (lane CODES-1, plan P4-D439): where no arrangement searched
+    leaves the forms settleable, ``intended``, the class each size was
+    drawn for, stands before the first exact arrangement where it names
+    only owed classes, settles each exactly with no more sizes than its
+    supply, and leaves each class's forms settleable (settles_its_forms,
+    where ``owing`` is given).
 
     ``owing`` is the census's remaining form debt.  Given, an
     arrangement is accepted only where settles_its_forms says each class
@@ -11145,6 +11951,18 @@ def class_split(sizes, debts, supply, owing=None):
                 if not spent:
                     break
                 avoid = avoid + (spent[0],)
+    if intended:
+        paid, groups = {}, {}
+        for place, name in intended.items():
+            paid[name] = paid.get(name, 0) + sizes[place]
+            groups[name] = groups.get(name, 0) + 1
+        if (
+            set(paid) == set(names)
+            and all(paid[name] == debts[name] for name in names)
+            and all(groups[name] <= supply[name] for name in names)
+            and (owing is None or settles_its_forms(intended, sizes, owing))
+        ):
+            return dict(intended)
     if first is not None:
         return first
     left = {name: debts[name] for name in names}
@@ -11164,7 +11982,7 @@ def class_split(sizes, debts, supply, owing=None):
     return taken
 
 
-def class_stand_ins(column, written, used, sizes, census):
+def class_stand_ins(column, written, used, sizes, census, intended=None):
     """The held-back sizes G8.3a writes as numbers or stragglers.
 
     THE NARROW WALK FIRST (integration repair): every made-up number is
@@ -11174,12 +11992,12 @@ def class_stand_ins(column, written, used, sizes, census):
     """
     bounded = True
     placed, debts, classes = class_stand_ins_walked(
-        column, written, used, sizes, census, True
+        column, written, used, sizes, census, True, intended=intended
     )
     if len(placed) != len(classes):
         bounded = False
         placed, debts, classes = class_stand_ins_walked(
-            column, written, used, sizes, census, False
+            column, written, used, sizes, census, False, intended=intended
         )
     # AND A THIRD WALK WHERE THE NUMBER DEBT IS STILL UNPAID (landing
     # 2b.8).  The shortfall shows at WRITE time and not at the split: the
@@ -11193,7 +12011,8 @@ def class_stand_ins(column, written, used, sizes, census):
         paid = numbers_paid(sizes, classes, placed)
         if paid < debts[OWED_NUMBER]:
             wider, wider_debts, wider_classes = class_stand_ins_walked(
-                column, written, used, sizes, census, bounded, True
+                column, written, used, sizes, census, bounded, True,
+                intended=intended,
             )
             if numbers_paid(sizes, wider_classes, wider) > paid:
                 return wider, wider_debts, wider_classes
@@ -11314,7 +12133,8 @@ OWED_TEXT = " text"
 
 
 def class_stand_ins_walked(
-    column, written, used, sizes, census, bounded, whole_tier=False
+    column, written, used, sizes, census, bounded, whole_tier=False,
+    intended=None,
 ):
     """One walk of class_stand_ins, narrow where ``bounded`` says."""
     seen = set(used)
@@ -11329,7 +12149,13 @@ def class_stand_ins_walked(
         form for form in sorted(owing)
         if owing[form] > 0 and form_reading(form) == NOTATION_NUMBER
     ]
-    ladder = number_ladder(written, number_forms)
+    ladder = number_ladder(written, number_forms, column.get("suppressed_levels", 0))
+    if column.get("_code_declared"):
+        # Rule A3's ends and widths on a declared code column (lane
+        # CODES-1's repair).
+        ladder = with_code_ends(
+            ladder, column, min(len(sizes), debts[OWED_NUMBER])
+        )
     # A WHOLE-NUMBER TIER, WHERE THE CALLER ASKED FOR ONE (landing 2b.8).
     # Where every published number carried a decimal AND the census names
     # the form those places write, every candidate of that tier is
@@ -11344,7 +12170,7 @@ def class_stand_ins_walked(
         supply[OWED_NUMBER] = ladder_room(
             ladder, OWED_NUMBER, len(sizes), set(), seen, folds
         )
-    classes = class_split(sizes, debts, supply, owing)
+    classes = class_split(sizes, debts, supply, owing, intended)
     placed = {}
     cursor = {}
     counters = {}
@@ -11739,7 +12565,12 @@ def unshaped_before_gaps(level):
     """
     if level.get("shape_form_cells"):
         return False
-    return form_gap(level["label"]) >= 0 or shaped_since_stamps(level["label"])
+    # ...and a label holding `=`, no mark before lane CODES-1 (its second
+    # repair, Codex's item 5): an older Gleason level carries 0.
+    return (
+        form_gap(level["label"]) >= 0 or shaped_since_stamps(level["label"])
+        or "=" in level["label"]
+    )
 
 
 def form_as_read(text, before):
@@ -11920,8 +12751,11 @@ def level_shape_spent(sizes, shared, level_shape, fixed, seen, folds):
     return arranged, {place for _size, place in owed[:supply]}
 
 
-def held_back_debts(column, written, census):
+def held_back_debts(column, written, census, classes_of=None):
     """What the held-back cells owe, as method G8.3 orders it (P4-D201).
+
+    ``classes_of``, where given, is told the class each entry of the
+    first list is owed by (rule A3, lane CODES-1, plan P4-D439).
 
     Two lists.  The first: for each numeric class in G8.3a's order, what
     each census form reading as that class still owes, by the form's
@@ -11941,9 +12775,13 @@ def held_back_debts(column, written, census):
             if owing[form] > 0 and left > 0 and form_reading(form) == owed_reading(name):
                 part = min(owing[form], left)
                 numbers.append(part)
+                if classes_of is not None:
+                    classes_of.append(name)
                 left -= part
         if left > 0:
             numbers.append(left)
+            if classes_of is not None:
+                classes_of.append(name)
         spent += classes[name]
     for form in sorted(owing):
         if owing[form] > 0 and form_reading(form) == NOTATION_TEXT:
@@ -11975,7 +12813,7 @@ def rising_share(cells, count, top):
 
 def held_back_sizes(
     held_back, rows, numbers, words, floor=CASE_SMALL_CELL_FLOOR, most=(),
-    counts=None,
+    counts=None, tags=None,
 ):
     """The rows of each invented held-back label -- method G8.3's sizes.
 
@@ -12054,13 +12892,24 @@ def held_back_sizes(
                 mine = labels[count_numbers + positive.index(index)]
             counts.append(mine)
     sizes = []
+    # Which debt each size was drawn for (rule A3, lane CODES-1, plan
+    # P4-D439): its place in ``numbers`` then ``words`` as given, or -1
+    # where the pool is one debt; sorted with the sizes, a tie by place.
+    origin = [i for i, debt in enumerate(numbers) if debt > 0] + [
+        len(numbers) + i for i, debt in enumerate(words) if debt > 0
+    ]
+    drawn = []
     for place in range(len(debts)):
-        sizes += rising_share(debts[place], labels[place], top)
+        shares = rising_share(debts[place], labels[place], top)
+        sizes += shares
+        drawn += [(size, -1 if pooled else origin[place]) for size in shares]
     if len(sizes) != held_back or sum(sizes) != rows or max(sizes) > top:
         raise AssertionError(
             f"a pool of {rows} rows cannot be written as {held_back} labels "
             f"below a floor of {floor}"
         )
+    if tags is not None:
+        tags.extend(origin_place for _size, origin_place in sorted(drawn))
     return sorted(sizes)
 
 
@@ -12102,23 +12951,59 @@ def _label_content(column):
                 content.extend([spelling] * int(key))
                 used.append(spelling)
     census = column.get("shape_forms")
-    numbers_owed, words_owed = held_back_debts(column, content, census)
+    owed_by = []
+    numbers_owed, words_owed = held_back_debts(column, content, census, owed_by)
     # THE MOST LABELS EACH TEXT FORM'S DEBT MAY TAKE (the repair round of
     # the route-2 correction): a clock's form, the times it can still write
     # counted to its debt; any other form, its debt.
     owing = forms_owed(census or {}, content)
     seen = set(used)
     folds = {folded(text) for text in used}
+    # A form with rule A2's census takes no more labels than its stages (1)
+    # and (2) hold spellings not written (lane CODES-1, plan P4-D439).
+    plans = place_plans(census or {}, content, column.get("shape_form_places", {}))
+
+    def free_in_stages(form, wanted):
+        stages, listed = plans[form]
+        room = balance_room(form, stages)
+        if not listed or room > BALANCE_TRIES:
+            return wanted
+        free = 0
+        for step in range(room):
+            if free >= wanted:
+                return free
+            trial = placed_filling(form, step, stages)
+            if trial not in seen and folded(trial) not in folds and usable_stand_in(trial):
+                free += 1
+        return max(free, 1)
+
+    # ...but only beside no clock's or stamp's key (lane CODES-1's repair):
+    # the bound moves the joint draw of sizes, and a clock keeps its bytes.
+    bounded = census_bounds_labels(census)
     most = [
-        usable_room(form, owing[form], seen, folds) if clock_supply(form) else owing[form]
+        usable_room(form, owing[form], seen, folds) if clock_supply(form)
+        else min(owing[form], free_in_stages(form, owing[form]))
+        if form in plans and bounded
+        else owing[form]
         for form in sorted(owing)
         if owing[form] > 0 and form_reading(form) == NOTATION_TEXT
     ]
     counts = []
+    tags = []
     sizes = held_back_sizes(
         column["suppressed_levels"], column["suppressed_rows"], numbers_owed,
-        words_owed, most=most, counts=counts,
+        words_owed, most=most, counts=counts, tags=tags,
     )
+    # The class each size was drawn for, which G8.3a's split takes first
+    # (rule A3, lane CODES-1, plan P4-D439).
+    intended = {
+        place: owed_by[tag] for place, tag in enumerate(tags)
+        if 0 <= tag < len(owed_by)
+    }
+    # ...beside no clock's or stamp's key alone (lane CODES-1's second
+    # repair, Codex's item 2): a clock keeps its bytes.
+    if not bounded:
+        intended = {}
     # A CLOCK'S FORM LEFT MORE LABELS THAN TIMES IS PAST ITS TIMES (the
     # leftover of the route-2 correction).
     past = clock_forms_past_their_times(owing, counts, most)
@@ -12127,7 +13012,9 @@ def _label_content(column):
     # class count unpaid, those levels are written as numbers first.
     placed = None
     if sizes and max(classes_owed(column, content).values()) > 0:
-        placed, _debts, classes = class_stand_ins(column, content, used, sizes, census)
+        placed, _debts, classes = class_stand_ins(
+            column, content, used, sizes, census, intended
+        )
     # THE SHAPE A STAND-IN OWED NO NAMED FORM TAKES (landing 2b.18 part 2).
     level_shape = published_level_shape(column)
     # THE CLOCK LINE THE TWIN IS HELD BELOW (the repair round of landing
@@ -12137,20 +13024,31 @@ def _label_content(column):
     line = None
     if not column.get("_code_declared"):
         line = (column["n_present"], column.get("_parse_rate", MINIMUM_PARSE_RATE))
+    # Rule A2's census of held-back characters (lane CODES-1, plan P4-D439),
+    # and the sizes drawn for each word form with their bounds.
+    listed = column.get("shape_form_places", {})
+    drawn = (tags, len(numbers_owed), most)
     if placed is None:
         stand_ins = invented_levels(
             used, sizes, census, content, level_shape=level_shape, line=line,
-            past=past,
+            past=past, listed=listed, drawn=drawn,
         )
     else:
         stand_ins = invented_levels(
             used, sizes, census, content, placed=placed,
             level_shape=level_shape, line=line, past=past, classes=classes,
+            listed=listed, drawn=drawn,
         )
+    published = list(content)
+    # ...the class walk's numbers keep their spelling too (G8.3a's scale).
+    if placed:
+        published += list(placed.values())
     for spelling, size in stand_ins:
         content.extend([spelling] * size)
         used.append(spelling)
-    return content
+    # ...and no stand-in writes a real run of figures (LANE HB RULINGS 6, item 2):
+    # a published level keeps its spelling.
+    return figure_runs_off_the_real(column, content, published)
 
 
 # ------------------------------------------------ G7.3g, the clock pass
@@ -23299,8 +24197,8 @@ COUNTED_READINGS = {
                                 "R's exponent form, read exactly by shifting the figures"),
     "nanoseconds_past_2_53": ("nanoseconds-since-1970", "1700000000123456789", ".", "nanosecond",
                               "a count binary64 cannot hold, read from its figures"),
-    "epic_contact": ("days-since-1840", "66303.01", ".", "day",
-                     "an Epic day with its contact number, which is no time"),
+    "d1840_contact": ("days-since-1840", "66303.01", ".", "day",
+                     "an 1840 day with its contact number, which is no time"),
     "decimal_comma": ("excel-1900", "45386,5", ",", "minute",
                       "a count written with a comma for its point"),
     # THREE SYSTEMS HAD NO ANCHOR OF THEIR OWN (the Codex review of landing
@@ -23338,9 +24236,9 @@ COUNTED_SPELLINGS = {
                            "(none)", "R writes 1.6e+12 where it is shorter than the thirteen figures"),
     "r_exponent_longer": ("milliseconds-since-1970", "2020-09-28 09:04:05.123", _counted_form(0, True, 15, True),
                           "(none)", "and the thirteen figures where they are shorter"),
-    "epic_contact_spelled": ("days-since-1840", "2022-07-13", _counted_form(contacts={"01": 11}),
+    "d1840_contact_spelled": ("days-since-1840", "2022-07-13", _counted_form(contacts={"01": 11}),
                              "01", "the day count, the point and the contact number"),
-    "epic_no_contact_spelled": ("days-since-1840", "2022-07-13", _counted_form(contacts={"01": 11}),
+    "d1840_no_contact_spelled": ("days-since-1840", "2022-07-13", _counted_form(contacts={"01": 11}),
                                 "(none)", "the day count alone where the census gives none"),
     "comma_spelled": ("excel-1900", "2024-04-04 08:30", _counted_form(6, True, mark=","),
                       "(none)", "the comma written where the column writes it"),
@@ -23980,7 +24878,7 @@ def counted_case_document():
         "its answer computed from the method's text with datetime and Fraction: a count read "
         "as the moment its system names, written as ISO text at a unit, and a moment written "
         "back as its system's count, spelled as a `count_form` says; the contact numbers "
-        "a census deals over the dated cells of an Epic column; the days each system's "
+        "a census deals over the dated cells of a column of 1840 days; the days each system's "
         "column of dates, and of moments, holds no date on; how far a tail reaches short "
         "of a wall of them, the islands inside that reach, a tail's end and group stepped "
         "off one and every stratum lying wholly on one given room; and the twin's ranks "
@@ -26294,6 +27192,103 @@ def widened_layout(name, opening, wanted, limit, at_the_end=False):
     return ""
 
 
+def dates_in_their_layouts(column, walked, passed):
+    """A column of dates read as record numbers: its date layouts written as valid dates (G9.6b, P4-D442).
+
+    Written from the rule statement: where the column publishes no grain
+    and one of its named layouts is a date's form (`date_form_fields`), each
+    cell the WALK wrote in a layout a date can wear in such a column
+    (eight figures, a month beside a year and a year alone too) is written,
+    value by value in the walk's order, as the next date of that form,
+    coming round past the form's dates; every other cell is the final
+    pass's. A cell the column reads as absent is left as the pass wrote it.
+    A column naming any layout a UID can wear (a first arc of one figure
+    and two arcs or more after it, figures alone), with a root published
+    or none and whatever other layouts it names, is left as that pass
+    wrote it (Codex's reviews of lane HB, item 1, and of batch 4n, item 1);
+    the two case forms of one month word step one walk, a date
+    is passed over where its fold was written before or it reads as absent,
+    and a value folding as one written before takes that value's date in
+    its own case (Codex's review of lane HB, items 1, 4 and 7).
+    """
+    if column.get("time_grain") is not None or len(walked) != len(passed):
+        return passed
+    census = column.get("layout_forms") or {}
+    if not any(name != WITHHELD and date_form_fields(name) for name in census):
+        return passed
+    named = [name for name in sorted(census) if name != WITHHELD]
+    if any(re.fullmatch(r"%(\.%+){2,}", name) for name in named):
+        return passed
+    present = [cell for cell in walked if cell.strip()]
+    if not present:
+        return passed
+    convention = layout_convention(present)
+    holes = tuple(sorted(column.get("missing_by_source") or {}))
+    written, steps, counts, spent, taken, partners, out = {}, {}, {}, {}, set(), {}, []
+    for place, cell in enumerate(walked):
+        if cell in written:
+            out.append(written[cell])
+            continue
+        core = cell.strip()
+        layout = layout_of(core, convention) if core else ""
+        fields = date_form_fields(layout, True) if layout else None
+        if fields is None or reads_as_absent(cell, holes):
+            out.append(passed[place])
+            continue
+        lead = cell[: len(cell) - len(cell.lstrip())]
+        trail = cell[len(lead) + len(core):]
+        if folded(core) in partners:
+            date = "".join(
+                one.lower() if mine.islower() else one.upper() if mine.isupper() else one
+                for one, mine in zip(partners[folded(core)], core)
+            )
+            if not reads_as_absent(lead + date + trail, holes):
+                written[cell] = lead + date + trail
+                out.append(written[cell])
+                continue
+        if layout not in counts:
+            counts[layout] = 0
+            while date_filled_form(layout, counts[layout], True) is not None:
+                counts[layout] += 1
+        count = counts[layout]
+        walk = folded_marks(layout)
+        step = steps.get(walk, 0)
+        date = date_filled_form(layout, step % count, True)
+        # A date whose fold was written before, or read as absent, is passed
+        # over while the form has another left.
+        tries = 0
+        while (folded(date) in taken or reads_as_absent(date, holes)) and spent.get(walk, 0) < count:
+            step += 1
+            tries += 1
+            if tries > count:
+                spent[walk] = count
+                break
+            date = date_filled_form(layout, step % count, True)
+        steps[walk] = step + 1
+        if reads_as_absent(lead + date + trail, holes):
+            written[cell] = passed[place]
+            out.append(passed[place])
+            continue
+        if folded(date) not in taken:
+            taken.add(folded(date))
+            spent[walk] = spent.get(walk, 0) + 1
+        partners[folded(core)] = date
+        written[cell] = lead + date + trail
+        out.append(written[cell])
+    return out
+
+
+def a_list_layout(layout):
+    """Whether a layout holds keys between commas (plan P4-D442), written from the rule statement."""
+    if "," not in layout:
+        return False
+    for field in layout.split(","):
+        found = re.fullmatch(r"([@&]*)(!*)(%+)", field.strip(" "))
+        if found and (len(found.group(3)) >= 5 or (found.group(1) and found.group(3))):
+            return True
+    return False
+
+
 def spelled_off_the_real(column, content):
     """Every present cell of a record number written where no real cell is (G9.6b, P4-D432).
 
@@ -26322,13 +27317,19 @@ def spelled_off_the_real(column, content):
     value: that its spelling reads as the value's own class and
     alphabets, each class from its own step; that no date format reads
     it; that the values of one merged identity are spelled together, each
-    keeping its own spelling; that
+    keeping its own spelling, and where no filling fits them together each
+    spelled on its own sharing only its own identity's merged key and the
+    number the walk wrote it with (plan P4-D442); that
     a value written with spaces around it is spelled on its core; and that
     a value no layout describes is written as itself followed by letters
     until its merged key is the spill's length; and that a value written
     wider in a column of plain layouts holds no letters of `a` to `f`
     alone; and that a column of dates at a grain moves a value only
-    inside its own excluded templates.  No frozen case's templates spell
+    inside its own excluded templates; and that a rootless UID's spelling
+    partners -- its core with other spaces round it, or in another case --
+    take the core their first partner took in the grammar, a space more
+    where that spelling is written (Codex's review of lane HB, item 3).
+    No frozen case's templates spell
     another class or a date, no case holds a grain, and
     none holds a fold collision, an edge space, a value no layout
     describes or a widened letter, so a case that did would need them
@@ -26373,13 +27374,22 @@ def spelled_off_the_real(column, content):
     bound = len(merged_key(stand_in(spill))) if spill else 0
     holes = tuple(sorted(column.get("missing_by_source") or {}))
 
+    # ...and a key of figures alone beside lists, kept off the real by a nought
+    # opening (P4-D442), under the zero fill its fillings wear.
+    nought_led = {}
+    for name in sorted(kept):
+        for each in kept[name]:
+            if each[:1] == "0" and set(name) == {LAYOUT_DIGIT}:
+                nought_led.setdefault(template_layout(each, convention), []).append(each)
+
     def off_the_real(cell):
         core = cell.strip()
         if bound and len(merged_key(core)) >= bound:
             return True
+        worn = layout_of(core, convention)
         if any(
             wears_template(core, template, convention) and keeps_its_places(core, template)
-            for template in kept.get(layout_of(core, convention), [])
+            for template in kept.get(worn, []) + nought_led.get(worn, [])
         ):
             return True
         return any(
@@ -26438,13 +27448,26 @@ def spelled_off_the_real(column, content):
             continue
         layout = layout_of(cell, convention)
         targets = list(kept.get(layout, []))
-        if layout and bound and widened(layout):
+        # ...a layout of keys between commas never widened (plan P4-D442): a
+        # comma, and a field of letters then five figures or more, or of
+        # letters and figures, so one key grown leaves no other as written.
+        # ...nor, beside such a layout, a layout of one key (letters then five
+        # figures or more, or letters and figures): it is the spill's.
+        found = re.fullmatch(r"([@&]*)!*(%+)", layout or "")
+        one_key = bool(found) and (len(found.group(2)) >= 5 or bool(found.group(1))) and any(
+            a_list_layout(name) for name in census if name != WITHHELD
+        )
+        if layout and bound and widened(layout) and not a_list_layout(layout) and not one_key:
             targets += [widened(layout)]
         if spill:
             targets += [spill]
         candidate = ""
         for into in targets:
-            step = steps.get(into, 0)
+            # ...list templates of one merged key at each step spend one room (P4-D442).
+            spends = into
+            if any(a_list_layout(name) for name in census if name != WITHHELD):
+                spends = re.sub(r"(?<![0-9%])0+", "", into)
+            step = steps.get(spends, 0)
             tries = 0
             while step < layout_room(into) and tries < LAYOUT_STEPS:
                 trial = filled_layout(into, (step + 1) % layout_room(into))
@@ -26464,7 +27487,7 @@ def spelled_off_the_real(column, content):
                     break
             # A search that finds nothing gives its step back.
             if candidate:
-                steps[into] = step
+                steps[spends] = step
                 break
         if not candidate:
             raise AssertionError("no spelling is left, which no frozen case reaches")
@@ -26473,6 +27496,68 @@ def spelled_off_the_real(column, content):
         merged.add(claims_of(candidate)[0])
         numbers.add(claims_of(candidate)[1])
         moved[cell] = candidate
+
+    def free(trial):
+        return (
+            trial not in written
+            and folded(trial) not in written
+            and folded(trial) not in folds
+            and claims_of(trial)[0] not in merged
+            and claims_of(trial)[1] not in numbers
+            and off_the_real(trial)
+            and not reads_as_absent(trial, holes)
+        )
+
+    def in_the_grammar(spelling):
+        # The first arc of one figure written as one of `1`, `2`, `0`, and an
+        # arc of several figures led by a nought led by `1` to `9`, the
+        # choices stepped together (P4-D442).
+        arcs = spelling.strip().split(".")
+        if len(arcs) < 3 or len(arcs[0]) != 1 or not all(arc.isdigit() for arc in arcs):
+            return ""
+        for step in range(27):
+            trial = ".".join(
+                ("120"[(ord(arc) + step) % 3] if place == 0 and arc not in ("0", "1", "2")
+                 else "123456789"[(step + place) % 9] + arc[1:] if place and len(arc) > 1 and arc[0] == "0"
+                 else arc)
+                for place, arc in enumerate(arcs)
+            )
+            if free(trial):
+                return trial
+        return ""
+
+    # A ROOTLESS UID IS WRITTEN IN THE UID GRAMMAR (plan P4-D442): where no
+    # root is published and every named layout is a UID's -- one figure,
+    # then two arcs or more -- a value whose spelling is not a UID is
+    # written in the grammar, and a value of no layout of figures and
+    # points at all as the next free filling of a named layout widened
+    # (in sorted order) put in the grammar.
+    named = [name for name in sorted(census) if name != WITHHELD]
+    if named and not whole and all(re.fullmatch(r"%(\.%+){2,}", name) for name in named):
+        for cell in dict.fromkeys(content):
+            final = moved.get(cell, cell)
+            if not final.strip() or re.fullmatch(r"[012](\.(0|[1-9]\d*))+", final.strip()):
+                continue
+            fixed = in_the_grammar(final)
+            if not fixed:
+                for name in named:
+                    wide = widened(name)
+                    if not wide:
+                        continue
+                    for step in range(LAYOUT_STEPS):
+                        trial = filled_layout(wide, (steps.get(wide, 0) + step + 1) % layout_room(wide))
+                        if free(trial) and wears_template(trial, wide, convention):
+                            steps[wide] = steps.get(wide, 0) + step + 1
+                            fixed = trial if re.fullmatch(r"[012](\.(0|[1-9]\d*))+", trial) else in_the_grammar(trial)
+                            break
+                    if fixed:
+                        break
+            if fixed:
+                written.add(fixed)
+                folds.add(folded(fixed))
+                merged.add(claims_of(fixed)[0])
+                numbers.add(claims_of(fixed)[1])
+                moved[cell] = fixed
     return [moved.get(cell, cell) for cell in content]
 
 
@@ -26547,6 +27632,16 @@ def _opens_with_a_uid_root(template):
     )
 
 
+def template_layout(template, convention):
+    """A template's layout; its opening noughts the zero fill where it is figures alone (P4-D442)."""
+    if convention == LAYOUT_PLAIN and template[:1] == "0" and all(
+        mark == LAYOUT_DIGIT or mark in DIGIT_CHARACTERS for mark in template
+    ):
+        fill = len(template) - len(template.lstrip("0"))
+        return LAYOUT_LEADING_ZERO * fill + prefix_layout(template, convention)[fill:]
+    return prefix_layout(template, convention)
+
+
 def wears_template(candidate, template, convention):
     """The cell recounts into the template's layout and holds its letters and figures.
 
@@ -26554,7 +27649,7 @@ def wears_template(candidate, template, convention):
     whole number's nought after the point (G9.6a's amendment, plan
     P4-D428), and under a UID root no arc of the cell is led by a nought.
     """
-    if layout_of(candidate, convention) != prefix_layout(template, convention):
+    if layout_of(candidate, convention) != template_layout(template, convention):
         return False
     if not all(
         candidate[place] == mark
@@ -26659,6 +27754,16 @@ def _a_signed_number(layout):
         and body.count(".") <= 1
         and set(body) <= {"%", "."}
     )
+def _a_dialled_number(layout):
+    """A `+`, then a telephone number's figures, spaces, dashes, points and brackets, seven figures or more (P4-D442).
+
+    Written from the rule statement: a census naming it proves the table
+    held numbers dialled from abroad, so the opening is not refused.
+    """
+    body = layout[1:]
+    return layout[:1] == "+" and body.count("%") >= 7 and set(body) <= {"%", " ", "-", ".", "(", ")"}
+
+
 LAYOUT_STEPS = 4096
 LAYOUT_ADMISSION_STEPS = 64
 
@@ -26678,7 +27783,7 @@ def _layout_spelling(layout, convention, steps, used, band, whole_numbers, holes
         candidate = filled_layout(layout, steps[layout])
         steps[layout] += 1
         tried += 1
-        if candidate[:1] in FORMULA_OPENINGS and not _a_signed_number(layout):
+        if candidate[:1] in FORMULA_OPENINGS and not _a_signed_number(layout) and not _a_dialled_number(layout):
             return None
         if candidate in used:
             continue
@@ -26698,7 +27803,7 @@ def _layout_admits(layout, convention, band, whole_numbers):
     """
     for step in range(min(layout_room(layout), LAYOUT_ADMISSION_STEPS)):
         candidate = filled_layout(layout, step)
-        if candidate[:1] in FORMULA_OPENINGS and not _a_signed_number(layout):
+        if candidate[:1] in FORMULA_OPENINGS and not _a_signed_number(layout) and not _a_dialled_number(layout):
             return False
         if _fits_its_slot(candidate, layout, convention, band, whole_numbers):
             return True
@@ -26863,6 +27968,31 @@ def partners_wear_published_layouts(column, convention, demands):
         for name in offered
         for worn in partner_layouts(name, convention, most, column, offered)
     )
+
+
+PERSON_TRIES = 64
+PERSON_JUMP = 61803
+
+
+def person_claims(cell):
+    """The person a walk's spelling names: its merged key and its value read as a number (P4-D442).
+
+    Written from the rule statement: `merged_key`, and the value `number_read`
+    reads, each where there is one.
+    """
+    claims = set()
+    key = merged_key(cell.strip())
+    if key:
+        claims.add(("key", key))
+    number = number_read(cell)
+    if number is not None:
+        claims.add(("number", number))
+    return claims
+
+
+def person_named(cell, persons):
+    """Whether a spelling names a person an identity written before it holds (P4-D442)."""
+    return bool(person_claims(cell) & persons)
 
 
 def _offer_a_layout(
@@ -27102,7 +28232,7 @@ def _layout_admits_class(layout, convention, name, band, whole_numbers):
     """`_layout_admits`, and the filling reads as the slot's own class."""
     for step in range(min(layout_room(layout), LAYOUT_ADMISSION_STEPS)):
         candidate = filled_layout(layout, step)
-        if candidate[:1] in FORMULA_OPENINGS and not _a_signed_number(layout):
+        if candidate[:1] in FORMULA_OPENINGS and not _a_signed_number(layout) and not _a_dialled_number(layout):
             return False
         if _is_a_number(candidate.strip()) != (name == "number"):
             continue
@@ -27569,9 +28699,17 @@ def _identifier_content_as_read(column):
             preferred = list(assigned)
 
         identities = []
+        # TWO WALK PERSONS ARE NEVER WRITTEN AS ONE (plan P4-D442): a
+        # spelling whose merged key or value read as a number an identity
+        # written before holds is spoken for, its layout's walk jumps by the
+        # golden section of the layout's room, and the identity is offered
+        # the next, at most PERSON_TRIES times, the last taken whatever.
+        persons = set()
         for position in range(identities_wanted):
-            letters_needed = position < partners_wanted
+          letters_needed = position < partners_wanted
+          for attempt in range(1, PERSON_TRIES + 1):
             laid = None
+            from_a_layout = False
             if offered:
                 laid = _offer_a_layout(
                     quotas,
@@ -27588,6 +28726,7 @@ def _identifier_content_as_read(column):
                     bool(demands.get(position)),
                     assigned is not None,
                 )
+                from_a_layout = laid is not None
             if laid is None and bases:
                 laid = layout_stand_in(
                     bases,
@@ -27601,8 +28740,16 @@ def _identifier_content_as_read(column):
                     whole_numbers,
                     holes,
                 )
+            if laid is not None and person_named(laid, persons) and attempt < PERSON_TRIES:
+                worn_here = worn_template(laid, convention, quotas)
+                if from_a_layout and worn_here in quotas:
+                    quotas[worn_here] += groups[position]
+                    steps[worn_here] += max(layout_room(worn_here) * PERSON_JUMP // 100000, 1)
+                used.add(laid)
+                continue
             if laid is not None:
                 used.add(laid)
+                persons.update(person_claims(laid))
                 identities.append(laid)
                 # Its partners' cells are debited with it, off the layout it
                 # took, and remembered by partner (plan P4-D157).
@@ -27620,7 +28767,7 @@ def _identifier_content_as_read(column):
                         predicted[taking] = worn[order]
                         if worn[order] in quotas:
                             quotas[worn[order]] -= owed[order]
-                continue
+                break
             walked = take(
                 bands[position],
                 slot_lengths(position, low, high),
@@ -27633,7 +28780,11 @@ def _identifier_content_as_read(column):
             if opened != walked:
                 used.discard(walked)
                 used.add(opened)
+            if person_named(opened, persons) and attempt < PERSON_TRIES:
+                continue
+            persons.update(person_claims(opened))
             identities.append(opened)
+            break
 
         partners = []
         # Partners are assigned to identities in ascending identity order,
@@ -29479,7 +30630,330 @@ def _free_text_written(column, groups, truths, settled):
         used.add(spelling)
         content.extend([spelling] * size)
     _free_text_recount(column, content)
-    return content
+    return figure_runs_off_the_real(column, content)
+
+
+# The marks contract 7.5a's `group_separator` names between thousands.
+FORMAT_GROUP_MARKS = (",", " ", "\u00a0", "\u202f", "\u2009", "'", "\u2019")
+FORMAT_SIGNS = ("+", "-", "\u2212")
+
+
+def number_the_format_holds(text):
+    """The exact number a spelling denotes where it reads as a number this format can hold, else None.
+
+    Written from the contract's `declaration_matching` clause and never
+    imported (LANE HB RULINGS 9, item 3): "a declared value that reads as a
+    number this format can hold matches every cell holding that EXACT
+    NUMBER, whatever either is spelled like", identity being the canonical
+    triple `sign * digits * 10 ** power` (`exact_triple`). The spellings the
+    format reads as a number: space around it; accounting brackets around
+    it, a sign inside them making it no number; or else a leading `+`, `-`
+    or the minus sign U+2212; figures whose whole part may be grouped by one
+    of 7.5a's marks between thousands (a first group of one to three figures,
+    then groups of three); an optional point with figures on either side of
+    it; and an optional power of ten after `e` or `E`. A number too large for
+    binary64, or so small it rounds to nought, is no number this format can
+    hold.
+    """
+    body = text.strip()
+    negative = False
+    if len(body) >= 2 and body[0] == "(" and body[-1] == ")":
+        body = body[1:-1].strip()
+        if body[:1] in FORMAT_SIGNS:
+            return None
+        negative = True
+    elif body[:1] in FORMAT_SIGNS:
+        negative = body[0] != "+"
+        body = body[1:]
+    exponent = "0"
+    for marker in ("e", "E"):
+        if marker in body:
+            body, _, exponent = body.partition(marker)
+            if not re.fullmatch(r"[+-]?[0-9]+", exponent):
+                return None
+            break
+    whole, _, fraction = body.partition(".")
+    if not re.fullmatch(r"[0-9]*", fraction):
+        return None
+    if not re.fullmatch(r"[0-9]*", whole):
+        marks = sorted({character for character in whole if not "0" <= character <= "9"})
+        if len(marks) != 1 or marks[0] not in FORMAT_GROUP_MARKS:
+            return None
+        groups = whole.split(marks[0])
+        if not 1 <= len(groups[0]) <= 3 or any(len(group) != 3 for group in groups[1:]):
+            return None
+        whole = "".join(groups)
+    if not whole and not fraction:
+        return None
+    plain = f"{'-' if negative else ''}{whole or '0'}.{fraction or '0'}e{exponent}"
+    value = float(plain)
+    if value in (float("inf"), float("-inf")) or (value == 0 and (whole + fraction).strip("0")):
+        return None
+    return exact_triple(plain)
+
+
+def declared_absent(text, holes=()):
+    """Whether a reader of the description reads a spelling as absent, a declared number matched as a number.
+
+    `reads_as_absent` -- contract 14.4's vocabulary and the column's own
+    absent spellings, folded -- and then the contract's `declaration_matching`
+    clause: a published absent spelling that reads as a number this format
+    can hold matches every spelling of that exact number
+    (`number_the_format_holds`), `-9000` matching `-9000.0`, `+9000`,
+    `-9.0E+3` and `(9,000)` (Codex's review of lane HB's close round 2, item
+    3; LANE HB RULINGS 9, item 3). The member of the exact vocabulary is
+    matched byte for byte only.
+    """
+    if reads_as_absent(text, holes):
+        return True
+    held = number_the_format_holds(text)
+    if held is None:
+        return False
+    return any(hole not in ABSENT_EXACT and number_the_format_holds(hole) == held for hole in holes)
+
+
+def figure_runs_off_the_real(column, content, kept=()):
+    """Every made-up run of figures a twin writes kept off the real ones (G8.3, G9.5, P4-D442).
+
+    Written from the rule statement: each maximal run of four figures or more
+    of each different cell outside ``kept`` (a label column's published
+    spellings), read past the noughts opening it. Let `least` be the narrowest
+    width of four figures or more `figure_openings` names. A run stands where
+    it is narrower than four merged and the table holds no such run (key 3),
+    where it is narrower than `least` or none is named, or at `least` where it
+    wears that width's opening; it is otherwise renamed in every cell alike, its
+    noughts padding it to its length: to a width no real run holds from four up
+    (a run under four merged, or none named); at `least` to the opening and its
+    next filling no run of the content holds, each figure a value joined by `|`
+    names in turn; beside no key 3 to a run of each width under `least`, the
+    wider first; to noughts alone, once; to `least`'s opening of one figure
+    written once more for each figure past it, up to eight, while each named
+    width passed opens the same way or is not named; else to noughts alone.
+    NOUGHTS ALONE are written one figure wider than the widest of every width
+    `figure_openings` names, every run of `%` a published `shape_forms` form
+    writes and every run of figures a cell of the content writes, where that is
+    wider than the run (LANE HB RULINGS 10, item 2) -- except where some run of
+    `%` of a published `shape_forms` form is exactly as long as the run as it
+    is named (as written beside key 3, its merged figures otherwise): there
+    the noughts are the run's own length, so the cell keeps that form (LANE
+    HB RULINGS 13). A cell read as absent is kept. NOT MODELLED: a cell read
+    as a date beside dates, or written in a date's form holding a mark (a
+    month beside a year), which the product keeps. No frozen case's run moves
+    a date.
+
+    BESIDE KEY 3 (lane HB's close round 2; Codex's item 3, LANE HB RULINGS 8):
+    every real run key 3 names opens with a nought, so a run whose figures as
+    written hold a nought with three figures or more after it never stands,
+    and a run is named and renamed AS WRITTEN, its noughts included, never
+    padded: from its own length (four at least) up to eight figures wider, to
+    a run whose places three figures or more from its end are 1 to 9 and its
+    last three any figure -- under `least`, or where none is named, the next
+    such filling; at `least`, its opening and such a filling, an opening
+    holding a nought in those places passed over; past `least`, its
+    one-figure opening written once more for each figure past it while each
+    named width passed opens the same way or is not named -- else noughts
+    alone, as wide as said above. THE WHOLE REBUILT CELL is then read against the absent spellings
+    (Codex's item 4): the first rebuilt cell, in the order of first
+    appearance, that reads as absent takes its first renamed run's next
+    spelling, every cell holding that run alike, and the reading starts over;
+    a spelling tried once is not tried again, and where a run's next spelling
+    was tried the cell's next renamed run is asked (Codex's review of close
+    round 2, item 1): a cell stays absent only where every run of it is spent.
+    WHAT READS AS ABSENT is `declared_absent`: a declared spelling that reads
+    as a number matches every spelling of that exact number (Codex's review of
+    close round 2, item 3), for each filling and each rebuilt cell alike.
+    """
+    openings = {int(width): opening for width, opening in (column.get("figure_openings") or {}).items()}
+    if not openings:
+        return content
+    holes = tuple(sorted(column.get("missing_by_source") or {}))
+    kept = set(kept)
+    widths = sorted(width for width in openings if width >= 4)
+    least = widths[0] if widths else 0
+    padded = 3 in openings
+
+    def runs_of(cell):
+        found = []
+        for match in re.finditer(r"[0-9]+", cell):
+            start = match.start()
+            while start < match.end() and cell[start] == "0":
+                start += 1
+            if start < match.end():
+                found.append((match.start(), start, match.end()))
+        return found
+
+    def compact_date(filling):
+        if len(filling) != 8:
+            return False
+        month, day = int(filling[4:6]), int(filling[6:])
+        return 1 <= month <= 12 and 1 <= day <= month_days(int(filling[:4]), month) if int(filling[:4]) else False
+
+    def stands(run, written):
+        if padded and any(written[at] == "0" for at in range(len(written) - 3)):
+            return False
+        if len(run) < 4:
+            return not padded
+        if not widths or len(run) < least:
+            return True
+        if len(run) > least or not openings[least]:
+            return False
+        return any(run.startswith(one) for one in openings[least].split("|"))
+
+    distinct = list(dict.fromkeys(content))
+    taken = {cell[b:c] for cell in distinct for a, b, c in runs_of(cell) if c - a >= 4}
+    # Noughts alone are written one figure wider than every width named, every
+    # run of figures a published form writes and every run a cell here writes.
+    wide = 1 + max(
+        [width for width in openings]
+        + [len(run) for form in (column.get("shape_forms") or {}) for run in re.findall("%+", form)]
+        + [len(run) for cell in distinct for run in re.findall("[0-9]+", cell)]
+    )
+    # ...save where a published form writes a run of figures as long as the run
+    # named: its noughts keep that length (LANE HB RULINGS 13).
+    formed = {len(run) for form in (column.get("shape_forms") or {}) for run in re.findall("%+", form)}
+
+    def nought_length(run):
+        return len(run) if len(run) in formed else max(len(run), wide)
+
+    renamed, steps, moved = {}, {}, {}
+
+    def next_filling(key, opening, width):
+        rest = width - len(opening)
+        low = 0 if opening else 10 ** (width - 1)
+        room = 10 ** rest if opening else 9 * 10 ** (width - 1)
+        step = steps.get(key, 0)
+        while step < room:
+            filling = f"{opening}{low + step:0{rest}d}"
+            step += 1
+            if filling in taken or declared_absent(filling, holes) or compact_date(filling):
+                continue
+            steps[key] = step
+            taken.add(filling)
+            return filling
+        steps[key] = step
+        return ""
+
+    def unled_filling(key, opening, width):
+        free = max(0, width - 3 - len(opening))
+        tail = width - len(opening) - free
+        step = steps.get(key, 0)
+        while step < 9 ** free * 10 ** tail:
+            high, low = divmod(step, 10 ** tail)
+            places = "".join(f"{1 + (high // 9 ** (free - 1 - place)) % 9}" for place in range(free))
+            filling = f"{opening}{places}{low:0{tail}d}"
+            step += 1
+            if filling in taken or declared_absent(filling, holes) or compact_date(filling):
+                continue
+            steps[key] = step
+            taken.add(filling)
+            return filling
+        steps[key] = step
+        return ""
+
+    def rename_unled(written):
+        choices = [
+            one for one in (openings[least].split("|") if least and openings[least] else [])
+            if "0" not in one[: max(0, least - 3)]
+        ]
+        first = max(len(written), 4)
+        for width in range(first, first + 9):
+            filling = ""
+            if not least or width < least:
+                filling = unled_filling(("unled", width), "", width)
+            elif width == least:
+                for place, one in enumerate(choices):
+                    filling = unled_filling(("unled opening", place), one, least)
+                    if filling:
+                        break
+            elif choices and len(choices[0]) == 1 and all(
+                passed not in openings or choices[0] in openings[passed].split("|")
+                for passed in range(least + 1, width + 1)
+            ):
+                filling = unled_filling(("unled", width), choices[0] * (width - least + 1), width)
+            if filling:
+                return filling
+        return "0" * max(first, nought_length(written))
+
+    def rename(run):
+        if padded:
+            return rename_unled(run)
+        if not widths or len(run) < 4:
+            for width in range(4, least or 4096):
+                filling = next_filling(width, "", width)
+                if filling:
+                    return filling
+        choices = openings[least].split("|") if least and openings[least] else []
+        if len(run) == least or len(run) < 4:
+            for place, one in enumerate(choices):
+                filling = next_filling(("opening", place), one, least)
+                if filling:
+                    return filling
+        if least and not padded:
+            for narrower in range(least - 1, 0, -1):
+                filling = next_filling(0 - narrower, "", narrower)
+                if filling:
+                    return filling
+        noughts = "0" * nought_length(run)
+        if noughts not in taken:
+            taken.add(noughts)
+            return noughts
+        opening = choices[0] if choices else ""
+        if len(opening) == 1:
+            for extra in range(1, 9):
+                wider = least + extra
+                if wider in openings and opening not in openings[wider].split("|"):
+                    break
+                filling = next_filling(wider, opening * (extra + 1), wider)
+                if filling:
+                    return filling
+        return noughts
+
+    plan = {}
+    for cell in distinct:
+        if cell in kept or declared_absent(cell, holes):
+            continue
+        parts = []
+        for whole, start, end in runs_of(cell):
+            if end - whole < 4 or stands(cell[start:end], cell[whole:end]):
+                continue
+            name = cell[whole:end] if padded else cell[start:end]
+            if name not in renamed:
+                renamed[name] = rename(name)
+            parts.append((whole, end, name))
+        if parts:
+            plan[cell] = parts
+
+    def rebuilt():
+        out = {}
+        for cell, parts in plan.items():
+            written, at = "", 0
+            for whole, end, name in parts:
+                written += cell[at:whole] + renamed[name].rjust(end - whole, "0")
+                at = end
+            out[cell] = written + cell[at:]
+        return out
+
+    moved = rebuilt()
+    tried = set()
+    while True:
+        changed = False
+        for cell in plan:
+            if not declared_absent(moved[cell], holes):
+                continue
+            for _whole, _end, name in plan[cell]:
+                tried.add((name, renamed[name]))
+                fresh = rename(name)
+                if (name, fresh) in tried:
+                    continue
+                renamed[name] = fresh
+                moved = rebuilt()
+                changed = True
+                break
+            if changed:
+                break
+        if not changed:
+            break
+    return [moved.get(cell, cell) for cell in content]
 
 
 def truth_words(groups, packed, carriers, fixed, truths, lengths, counts):
@@ -29561,6 +31035,12 @@ def _numeric_content(column):
     census = column.get("number_spellings") or {}
     if census:
         content = spelled_census(census)
+        content.extend(_straggler_cells(column, content))
+        return content, [], []
+    # A FEW-VALUED COLUMN WITH A WIDE GAP IS WRITTEN AS ITS LISTED VALUES
+    # (method G6.9, lane GG, plan P4-D440): no chain of drawn values.
+    if column.get("few_values"):
+        content = listed_census(column)
         content.extend(_straggler_cells(column, content))
         return content, [], []
     numeric = column["n_numeric"]
@@ -30016,6 +31496,13 @@ NUMERIC_DISTINCT_RECOUNTS = {
     # as an AUTHORIZED deviation of `n_distinct` (the window the plan
     # grants runs from the published count upward), and the count of
     # different NUMBERS is exactly the fifty the block publishes.
+    # A NUMBER ONE CELL HOLDS IS LEFT OFF A VALUE LIST (lane GG's repairs,
+    # method G6.9): its cell is written at a listed value, so the twin
+    # holds one number fewer than the block counts and the generator names
+    # `n_distinct_values` -- a days' supply's one 83, and one 18.5 beside
+    # thirty-seven listed values.
+    "listed_supply_edge_left_off": (6, 6),
+    "listed_mode_takes_the_room": (37, 37),
 }
 
 
@@ -30061,6 +31548,457 @@ def spelled_census(census):
     content = []
     for spelling in sorted(census, key=lambda text: (int(text), text)):
         content.extend([spelling] * census[spelling])
+    return content
+
+
+# ------------------------------------------- G6.9: the listed census (GG)
+
+
+def _listed_units(text, places):
+    """A listed spelling as a whole number of units of ``places`` places."""
+    sign = -1 if text.startswith("-") else 1
+    whole, _dot, fraction = text.lstrip("-").partition(".")
+    return sign * int(whole + fraction.ljust(places, "0"))
+
+
+def _listed_consistent(bounds, counts):
+    """G6.9's bounds made consistent: one pass forward and one back, up to four times.
+
+    ``bounds`` maps each boundary j to [lowest, highest] cells holding one
+    of the first j listed values; ``counts`` maps each value to its
+    [fewest, most] cells.  None where a bound comes out empty.
+    """
+    floor = {j: bounds[j][0] for j in bounds}
+    ceiling = {j: bounds[j][1] for j in bounds}
+    values = len(counts)
+    for _round in range(4):
+        moved = False
+        for i in range(values):
+            fewest, most = counts[i]
+            if floor[i] + fewest > floor[i + 1]:
+                floor[i + 1] = floor[i] + fewest
+                moved = True
+            if ceiling[i] + most < ceiling[i + 1]:
+                ceiling[i + 1] = ceiling[i] + most
+                moved = True
+        for i in reversed(range(values)):
+            fewest, most = counts[i]
+            if floor[i + 1] - most > floor[i]:
+                floor[i] = floor[i + 1] - most
+                moved = True
+            if ceiling[i + 1] - fewest < ceiling[i]:
+                ceiling[i] = ceiling[i + 1] - fewest
+                moved = True
+        if any(floor[j] > ceiling[j] for j in floor):
+            return None
+        if not moved:
+            break
+    return {j: [floor[j], ceiling[j]] for j in floor}
+
+
+def _listed_nearest(exact):
+    """The whole number nearest an exact rational, a half taken up -- G6.9."""
+    return math.floor(exact + fractions.Fraction(1, 2))
+
+
+def _listed_tail_shares(side, outward, boundary, rows):
+    """G6.9 step 3: a listed tail's rows per value, outermost first, or None."""
+    if len(outward) == 1:
+        return [rows]
+    if boundary is None or side.get("mean_distance") is None:
+        return None
+    edge = fractions.Fraction(boundary)
+    gap = [abs(edge - fractions.Fraction(value)) for value in outward]
+    first = rows * fractions.Fraction(side["mean_distance"])
+    if len(outward) == 2:
+        if gap[0] == gap[1]:
+            return None
+        outer = _listed_nearest((first - rows * gap[1]) / (gap[0] - gap[1]))
+        shares = [outer, rows - outer]
+    elif len(outward) == 3 and side.get("rms_distance") is not None:
+        second = rows * fractions.Fraction(side["rms_distance"]) ** 2
+        # Three counts, three equations: their sum, and their sums of the
+        # gap and of its square.  Solved by Cramer's rule, exactly.
+        a1, b1 = gap[0] - gap[2], gap[1] - gap[2]
+        c1 = first - rows * gap[2]
+        a2, b2 = gap[0] ** 2 - gap[2] ** 2, gap[1] ** 2 - gap[2] ** 2
+        c2 = second - rows * gap[2] ** 2
+        determinant = a1 * b2 - a2 * b1
+        if determinant == 0:
+            return None
+        outer = _listed_nearest((c1 * b2 - c2 * b1) / determinant)
+        middle = _listed_nearest((a1 * c2 - a2 * c1) / determinant)
+        shares = [outer, middle, rows - outer - middle]
+    else:
+        return None
+    if min(shares) < 1:
+        return None
+    return shares
+
+
+def _listed_pins(column, numbers, cells):
+    """G6.9 steps 1, 3, 4 and 5: the boundaries the published facts pin, in order."""
+    values = len(numbers)
+    pins = []
+    negatives = sum(1 for number in numbers if number < 0.0)
+    pins.append((negatives, column["n_negative"], column["n_negative"], "n_negative"))
+    if negatives < values and numbers[negatives] == 0.0:
+        both = column["n_negative"] + column["n_zero"]
+        pins.append((negatives + 1, both, both, "n_zero"))
+    tails = column.get("tails") or {}
+    rows_out = {"low": 0, "high": 0}
+    for name in ("low", "high"):
+        side = tails.get(name)
+        if side is None:
+            continue
+        rows_out[name] = side["rows"]
+        listed = len(side["values"])
+        rows = side["rows"]
+        if rows < 1 or listed < 1 or listed > values:
+            continue
+        if name == "low":
+            places = list(range(listed))
+            stated = list(side["values"])
+        else:
+            places = [values - 1 - step for step in range(listed)]
+            stated = list(reversed(side["values"]))
+        if any(numbers[places[step]] != stated[step] for step in range(listed)):
+            continue
+        shares = _listed_tail_shares(
+            side,
+            [numbers[place] for place in places],
+            _rung_at(column, side["percent"]),
+            rows,
+        )
+        held = 0
+        if shares is not None:
+            for step in range(listed - 1):
+                held += shares[step]
+                if name == "low":
+                    pins.append((places[step] + 1, held, held, "tails"))
+                else:
+                    pins.append((places[step], cells - held, cells - held, "tails"))
+        if name == "low":
+            pins.append((places[-1] + 1, rows, cells, "tails"))
+        else:
+            pins.append((places[-1], 0, cells - rows, "tails"))
+    for percent in range(101):
+        rung = _rung_at(column, percent)
+        if rung is None:
+            continue
+        lower, rest = divmod((cells - 1) * percent, 100)
+        if rung in numbers:
+            place = numbers.index(rung)
+            pins.append((place, 0, lower, "percentiles"))
+            pins.append((place + 1, lower + (2 if rest else 1), cells, "percentiles"))
+            continue
+        if not rest:
+            continue
+        for below in range(values - 1):
+            if numbers[below] < rung < numbers[below + 1]:
+                pins.append((below + 1, lower + 1, lower + 1, "percentiles"))
+    groups = column.get("bin_groups") or []
+    if "tails" in column:
+        sides = column.get("tails") or {}
+        if sides.get("low") is None or sides.get("high") is None:
+            return pins
+        ends = (
+            _rung_at(column, sides["low"]["percent"]),
+            _rung_at(column, sides["high"]["percent"]),
+        )
+    else:
+        ends = (column["percentiles"]["min"], column["percentiles"]["max"])
+    if ends[0] is None or ends[1] is None or not groups:
+        return pins
+    if not all(map(math.isfinite, ends)) or not ends[1] - ends[0] > 0.0:
+        return pins
+    middle = cells - rows_out["low"] - rows_out["high"]
+    gathered = 0
+    for group in groups:
+        gathered += group["count"]
+        inside = [
+            place for place in range(values)
+            if ends[0] <= numbers[place] <= ends[1]
+            and histogram_bin(numbers[place], ends[0], ends[1]) <= group["last"]
+        ]
+        if not inside:
+            continue
+        place = inside[-1]
+        if 0 < gathered < middle:
+            held = rows_out["low"] + gathered
+            pins.append((place + 1, held, held, "bin_groups"))
+        elif gathered <= 0:
+            pins.append((place + 1, 0, rows_out["low"], "bin_groups"))
+        else:
+            pins.append((place + 1, cells - rows_out["high"], cells, "bin_groups"))
+    return pins
+
+
+def _listed_room(ranks, place, upward, bounds, counts):
+    """How far one boundary may move and keep every bound -- G6.9."""
+    before = ranks[place] - ranks[place - 1]
+    after = ranks[place + 1] - ranks[place]
+    if upward:
+        room = min(
+            bounds[place][1] - ranks[place],
+            counts[place - 1][1] - before,
+            after - counts[place][0],
+        )
+    else:
+        room = min(
+            ranks[place] - bounds[place][0],
+            before - counts[place - 1][0],
+            counts[place][1] - after,
+        )
+    return max(0, room)
+
+
+def _listed_ladder_ranks(column, numbers, cells, bounds):
+    """G6.9: where the published facts put each boundary, read as a curve of rank against place.
+
+    Listed value i stands at place i, a rung between two listed values at
+    its share of the way from one to the other.  The points are each
+    published rung at its type-7 position (n - 1) p / 100, each boundary
+    the bounds fix at place j - 1/2 and position low - 1/2, and the
+    column's two ends at places -1/2 and k - 1/2.  Boundary j is read at
+    place j - 1/2 between the latest point at or before it and the
+    earliest at or after it, and the lower values hold floor(h) + 1
+    cells.  Exact, in rationals.
+    """
+    values = len(numbers)
+    found = [None] * (values + 1)
+    if values < 2:
+        return found
+    exact = [fractions.Fraction(number) for number in numbers]
+    half = fractions.Fraction(1, 2)
+    points = [(-half, -half), (cells - half, values - half)]
+    for percent in range(101):
+        rung = _rung_at(column, percent)
+        if rung is None or not math.isfinite(rung):
+            continue
+        value = fractions.Fraction(rung)
+        if value <= exact[0]:
+            place = fractions.Fraction(0)
+        elif value >= exact[-1]:
+            place = fractions.Fraction(values - 1)
+        else:
+            below = max(i for i in range(values) if exact[i] <= value)
+            place = below + (value - exact[below]) / (exact[below + 1] - exact[below])
+        points.append((fractions.Fraction((cells - 1) * percent, 100), place))
+    for j in range(1, values):
+        if bounds[j][0] == bounds[j][1]:
+            points.append((bounds[j][0] - half, j - half))
+    for j in range(1, values):
+        wanted = j - half
+        before = max((p for p in points if p[1] <= wanted), key=lambda p: (p[1], p[0]))
+        after = min((p for p in points if p[1] >= wanted), key=lambda p: (p[1], p[0]))
+        if after[1] == before[1]:
+            position = before[0]
+        else:
+            position = before[0] + (after[0] - before[0]) * (wanted - before[1]) / (after[1] - before[1])
+        found[j] = math.floor(position) + 1
+    return found
+
+
+def _listed_mean_met(ranks, units, forms, target, bounds, counts):
+    """G6.9's last step: one row across each boundary of one form a pass.
+
+    Each move brings the sum strictly nearer ``target`` (the published
+    mean times the cells, in the listed values' units), passing it only by
+    less than it fell short, where the bounds leave room; the passes go on
+    until none moves a row.
+    """
+    ranks = list(ranks)
+    values = len(units)
+    total = sum(units[i] * (ranks[i + 1] - ranks[i]) for i in range(values))
+    changed = True
+    while changed:
+        changed = False
+        for place in range(1, values):
+            if forms[place - 1] != forms[place]:
+                continue
+            gap = units[place] - units[place - 1]
+            short = target - total
+            if 2 * abs(short) <= gap:
+                continue
+            upward = short < 0
+            if _listed_room(ranks, place, upward, bounds, counts) < 1:
+                continue
+            ranks[place] += 1 if upward else -1
+            total += -gap if upward else gap
+            changed = True
+    return ranks
+
+
+def _listed_moded(counts, at, published, extra):
+    """G6.9 step 2: each value's count bounds with the mode at ``published`` + ``extra`` cells.
+
+    A smaller value fewer, a larger one no more (the tie rule names the
+    smallest); with ``extra`` above nought every bound rises with the
+    mode's count (Codex's review of lane GG, item 4).
+    """
+    held = published + extra
+    moded = {}
+    for i in counts:
+        fewest, most = counts[i]
+        if i == at:
+            moded[i] = (held, held)
+        elif i < at:
+            moded[i] = (fewest, min(most, held - 1))
+        else:
+            moded[i] = (fewest, min(most, held))
+    return moded
+
+
+def _listed_handed(ranks, forms, form_now, form, giving, seen, bounds, counts):
+    """G6.9's forms: one row out of (``giving``) or into ``form_now``, handed on to a form later than ``form``.
+
+    Each boundary between ``form_now`` and a form not yet ``seen`` is tried
+    in order where it has a row of room; a later form ends it, a form met
+    before hands a row on in its turn or the move is taken back and that
+    form is not tried again from here (Codex's review of lane GG, item 3).
+    """
+    tried = set()
+    for place in range(1, len(forms)):
+        pair = (forms[place - 1], forms[place])
+        if form_now not in pair:
+            continue
+        other = pair[0] if pair[1] == form_now else pair[1]
+        if other == form_now or other in seen or other in tried:
+            continue
+        upward = (pair[1] == form_now) == giving
+        if _listed_room(ranks, place, upward, bounds, counts) < 1:
+            continue
+        ranks[place] += 1 if upward else -1
+        if other > form or _listed_handed(
+            ranks, forms, other, form, giving, seen | {other}, bounds, counts
+        ):
+            return True
+        ranks[place] -= 1 if upward else -1
+        tried.add(other)
+    return False
+
+
+def listed_census(column):
+    """The numbers of a column publishing a value list -- G6.9 (lane GG, plan P4-D440).
+
+    Written from the method's own statement: every listed spelling, each
+    as many times as the published facts solve it to, in ascending order
+    of the numbers.  The ranks between neighbours are bounded by the sign
+    counts, the mode pair, each tail, the hundred and one rungs and the
+    floored histogram, in that order, each taken only where it leaves the
+    bounds above it standing; each boundary then starts where the
+    published rungs and the fixed boundaries, read as a curve of rank
+    against place in the list, put it; the rows of the
+    written forms are moved to the counts the style and width censuses
+    publish; and last rows cross boundaries between values of one form,
+    one row a boundary a pass, until the sum is the published mean's.
+    """
+    column = plain_numbers(column)
+    spellings = list(column["few_values"])
+    values = len(spellings)
+    cells = column["n_numeric"]
+    places = max(len(text.partition(".")[2]) for text in spellings)
+    units = [_listed_units(text, places) for text in spellings]
+    numbers = [float(text) for text in spellings]
+    least = 2 if cells >= 2 * values else 1
+    bounds = {j: [0, cells] for j in range(values + 1)}
+    bounds[0] = [0, 0]
+    bounds[values] = [cells, cells]
+    counts = {i: (least, cells) for i in range(values)}
+    settled = _listed_consistent(bounds, counts)
+    if settled is None:
+        counts = {i: (1, cells) for i in range(values)}
+        settled = _listed_consistent(bounds, counts)
+    if settled is None:
+        return spellings[: min(values, cells)]
+    bounds = settled
+    pins = _listed_pins(column, numbers, cells)
+
+    def take(bounds, chosen):
+        for place, at_least, at_most, _fact in chosen:
+            trial = {j: list(bounds[j]) for j in bounds}
+            trial[place][0] = max(trial[place][0], at_least)
+            trial[place][1] = min(trial[place][1], at_most)
+            made = _listed_consistent(trial, counts)
+            if made is not None:
+                bounds = made
+        return bounds
+
+    bounds = take(bounds, [pin for pin in pins if pin[3] in ("n_negative", "n_zero")])
+    mode, held = column.get("mode"), column.get("mode_count") or 0
+    if mode is not None and held >= 1 and mode in numbers:
+        at = numbers.index(mode)
+        # the mode takes the cells of numbers left off, one more at a time,
+        # up to one a number left off, before the pair is given up
+        left_off = max(0, (column.get("n_distinct_values") or 0) - values)
+        for extra in range(left_off + 1):
+            moded = _listed_moded(counts, at, held, extra)
+            made = _listed_consistent(bounds, moded)
+            if made is not None:
+                bounds, counts = made, moded
+                break
+    bounds = take(bounds, [pin for pin in pins if pin[3] not in ("n_negative", "n_zero")])
+    ranks = [0] * (values + 1)
+    ranks[values] = cells
+    laddered = _listed_ladder_ranks(column, numbers, cells, bounds)
+    for j in range(1, values):
+        start = max(bounds[j][0], ranks[j - 1] + counts[j - 1][0])
+        stop = min(bounds[j][1], ranks[j - 1] + counts[j - 1][1])
+        middle = laddered[j]
+        if middle is None:
+            middle = (bounds[j][0] + bounds[j][1]) // 2
+        ranks[j] = min(max(middle, start), stop)
+    forms = ["plain" if "." not in text else str(len(text.partition(".")[2])) for text in spellings]
+    if len(set(forms)) >= 2:
+        for form in sorted(set(forms)):
+            census = column["numeric_styles"] if form == "plain" else column["fraction_widths"]
+            key = "plain" if form == "plain" else form
+            if key not in census:
+                continue
+            wanted = census[key]
+            for place in range(1, values):
+                short = wanted - sum(
+                    ranks[i + 1] - ranks[i] for i in range(values) if forms[i] == form
+                )
+                if not short:
+                    break
+                left, right = forms[place - 1], forms[place]
+                if left == form and right > form:
+                    upward = short > 0
+                elif right == form and left > form:
+                    upward = short < 0
+                else:
+                    continue
+                steps = min(_listed_room(ranks, place, upward, bounds, counts), abs(short))
+                ranks[place] += steps if upward else -steps
+            # then one row at a time handed through forms met before, each
+            # keeping its count, until a row reaches a later form
+            while True:
+                short = wanted - sum(
+                    ranks[i + 1] - ranks[i] for i in range(values) if forms[i] == form
+                )
+                if not short or not _listed_handed(
+                    ranks, forms, form, form, short < 0, {form}, bounds, counts
+                ):
+                    break
+    mean = column.get("mean")
+    if mean is not None and math.isfinite(mean):
+        target = fractions.Fraction(mean) * cells * 10 ** places
+        # never more than half of a value's rows, as the curve left them
+        kept = {
+            i: (max(counts[i][0], (ranks[i + 1] - ranks[i]) // 2), counts[i][1])
+            for i in range(values)
+        }
+        ranks = _listed_mean_met(ranks, units, forms, target, bounds, kept)
+        # the mean ranks above that half: where it is not reached so, the
+        # passes go on down to each value's own fewest
+        reached = sum(units[i] * (ranks[i + 1] - ranks[i]) for i in range(values))
+        if 2 * abs(target - reached) > 1:
+            ranks = _listed_mean_met(ranks, units, forms, target, bounds, counts)
+    content = []
+    for i in range(values):
+        content.extend([spellings[i]] * (ranks[i + 1] - ranks[i]))
     return content
 
 
@@ -34303,7 +36241,8 @@ def _label_numbers():
       and a figure wears `%.%`, which the census names, so the level of
       two wearing none walks the ladder up to `10.0`;
     - the word: `@@-@@` owes one cell, and the level of one row takes
-      that form's first spelling, `AA-AA`.
+      `ab-ca`, the held-back level written in the published spelling
+      `ab-cd`'s small letters.
     """
     column = _universal(
         "column_1", "categorical", "categorical", "data", "ok",
@@ -34381,7 +36320,8 @@ def _label_number_tiers():
       so that side ENDS rather than write it. The walk then takes the
       next count of places a published number was written with, none,
       and writes the gap between `5` and `7`: `6`;
-    - the word: `@@-@@` owes one cell, `AA-AA`.
+    - the word: `@@-@@` owes one cell, `ab-ca`, the held-back level
+      written in the published spelling `ab-cd`'s small letters.
     """
     column = _universal(
         "column_1", "categorical", "categorical", "data", "ok",
@@ -34424,7 +36364,9 @@ def _label_number_tiers():
         "named `%.%` until `10.0`, whose form the census would have counted "
         "and pooled, and it pools nothing, so that side ends. The walk then "
         "takes the other count of places the published numbers were written "
-        "with, none, and writes a gap. The word takes `AA-AA`. The pool is "
+        "with, none, and writes a gap. The word takes `ab-ca`, the held-back "
+        "level written in the published spelling `ab-cd`'s small letters. "
+        "The pool is "
         "eleven rows and not ten because invariant B4c refuses a word class "
         "of one row (plan P4-D261).",
         "column": column,
@@ -35127,6 +37069,14 @@ TWENTY_FIFTH_BRANCH_PART = "branches-25"
 # The twenty-seventh: landing 3b.5's second step, the minute census of a
 # column of clock times (lane C2, plan P4-D374).
 TWENTY_SEVENTH_BRANCH_PART = "branches-27"
+# The twenty-ninth: lane GG's listed census (plan P4-D440, method G6.9);
+# the twenty-eighth is lane BT's.
+TWENTY_NINTH_BRANCH_PART = "branches-29"
+# The thirtieth: lane GG's repair 2 (plan P4-D440, method G6.9), its three
+# cases moved WHOLE out of the twenty-ninth, which with them stood at
+# 303,350 bytes against the manifest's 250,000-byte cap (plan P4-D295: a
+# file is opened by moving cases whole, never by raising the cap).
+THIRTIETH_BRANCH_PART = "branches-30"
 # G7.3f's shared steps (landing 3b.D0, plan P4-D366), the fifteenth file:
 # not a file of columns but of the pass itself, each case a state of
 # ranks and the steps' answer (`shared_step_document`).
@@ -46042,6 +47992,1476 @@ TWENTY_FIRST_BRANCH_CASE_BUILDERS = {
 # a column of clock times (lane C2, plan P4-D374), method G7A.4c. The
 # twenty-first, its first step's, stands at 247,663 bytes against the
 # manifest's 250,000-byte cap, so these open a file of their own.
+# THE COLUMNS OF THE TWENTY-NINTH FILE (lane GG, plan P4-D440): each the
+# block the producer writes of a small table the standard library's own
+# seeded generator built for this purpose (the lane's gg_cases.py, seeds
+# 9001 to 9003), at the cases' settings -- a floor of eleven, a ceiling of
+# fifty -- every published binary64 proved where the case is built.
+_LISTED_BLOCKS = {'listed_halves_beside_code': {'block': {'bin_groups': [{'count': 13, 'first': 0, 'last': 0},
+                                                        {'count': 49, 'first': 1, 'last': 30},
+                                                        {'count': 154, 'first': 31, 'last': 31}],
+                                         'decimal_plus': {'(unavailable)': 0},
+                                         'empty_bins': [1,
+                                                        2,
+                                                        3,
+                                                        4,
+                                                        5,
+                                                        6,
+                                                        7,
+                                                        8,
+                                                        9,
+                                                        10,
+                                                        11,
+                                                        12,
+                                                        13,
+                                                        14,
+                                                        15,
+                                                        16,
+                                                        17,
+                                                        18,
+                                                        19,
+                                                        20,
+                                                        21,
+                                                        22,
+                                                        23,
+                                                        24,
+                                                        25,
+                                                        26,
+                                                        27,
+                                                        28,
+                                                        29],
+                                         'empty_edges': [[-99.0, 1.0]],
+                                         'few_values': ['-99',
+                                                        '1',
+                                                        '1.5',
+                                                        '2',
+                                                        '2.5',
+                                                        '3',
+                                                        '3.5',
+                                                        '4',
+                                                        '4.5',
+                                                        '5'],
+                                         'field_widths': {'1': 118, '2': 25},
+                                         'fraction_widths': {'1': 97},
+                                         'group_separator': '',
+                                         'integer_valued': False,
+                                         'kurtosis': 7.694939889942596,
+                                         'mean': -7.647916666666666,
+                                         'mode': 3.0,
+                                         'mode_count': 31,
+                                         'n_contradictory': 0,
+                                         'n_distinct': 10,
+                                         'n_distinct_folded': 10,
+                                         'n_distinct_values': 10,
+                                         'n_left_out_of_statistics': 0,
+                                         'n_missing': 0,
+                                         'n_negative': 25,
+                                         'n_negative_unrepresentable': 0,
+                                         'n_not_numeric': 0,
+                                         'n_numeric': 240,
+                                         'n_out_of_range': 0,
+                                         'n_present': 240,
+                                         'n_rows': 240,
+                                         'n_used_in_statistics': 240,
+                                         'n_zero': 0,
+                                         'negative_form': 'minus',
+                                         'negative_notations': {'minus': 25},
+                                         'numeric_share': 1.0,
+                                         'numeric_styles': {'decimal': 97, 'plain': 143},
+                                         'pad_widths': {},
+                                         'percentiles': {'max': 5.0,
+                                                         'min': -99.0,
+                                                         'p01': None,
+                                                         'p05': -99.0,
+                                                         'p10': -99.0,
+                                                         'p25': 1.5,
+                                                         'p50': 3.0,
+                                                         'p75': 4.0,
+                                                         'p90': 4.5,
+                                                         'p95': 5.0,
+                                                         'p99': None},
+                                         'percentiles_between': {'p02': None,
+                                                                 'p03': None,
+                                                                 'p04': None,
+                                                                 'p06': -99.0,
+                                                                 'p07': -99.0,
+                                                                 'p08': -99.0,
+                                                                 'p09': -99.0,
+                                                                 'p11': 1.0,
+                                                                 'p12': 1.0,
+                                                                 'p13': 1.0,
+                                                                 'p14': 1.0,
+                                                                 'p15': 1.0,
+                                                                 'p16': 1.0,
+                                                                 'p17': 1.0,
+                                                                 'p18': 1.0,
+                                                                 'p19': 1.5,
+                                                                 'p20': 1.5,
+                                                                 'p21': 1.5,
+                                                                 'p22': 1.5,
+                                                                 'p23': 1.5,
+                                                                 'p24': 1.5,
+                                                                 'p26': 1.5,
+                                                                 'p27': 1.5,
+                                                                 'p28': 1.5,
+                                                                 'p29': 1.5,
+                                                                 'p30': 1.5,
+                                                                 'p31': 2.0,
+                                                                 'p32': 2.0,
+                                                                 'p33': 2.0,
+                                                                 'p34': 2.0,
+                                                                 'p35': 2.0,
+                                                                 'p36': 2.0,
+                                                                 'p37': 2.0,
+                                                                 'p38': 2.0,
+                                                                 'p39': 2.0,
+                                                                 'p40': 2.3,
+                                                                 'p41': 2.5,
+                                                                 'p42': 2.5,
+                                                                 'p43': 2.5,
+                                                                 'p44': 2.5,
+                                                                 'p45': 2.5,
+                                                                 'p46': 2.5,
+                                                                 'p47': 2.5,
+                                                                 'p48': 2.5,
+                                                                 'p49': 2.5,
+                                                                 'p51': 3.0,
+                                                                 'p52': 3.0,
+                                                                 'p53': 3.0,
+                                                                 'p54': 3.0,
+                                                                 'p55': 3.0,
+                                                                 'p56': 3.0,
+                                                                 'p57': 3.0,
+                                                                 'p58': 3.0,
+                                                                 'p59': 3.0,
+                                                                 'p60': 3.0,
+                                                                 'p61': 3.0,
+                                                                 'p62': 3.0,
+                                                                 'p63': 3.5,
+                                                                 'p64': 3.5,
+                                                                 'p65': 3.5,
+                                                                 'p66': 3.5,
+                                                                 'p67': 3.5,
+                                                                 'p68': 3.5,
+                                                                 'p69': 3.5,
+                                                                 'p70': 3.5,
+                                                                 'p71': 3.5,
+                                                                 'p72': 4.0,
+                                                                 'p73': 4.0,
+                                                                 'p74': 4.0,
+                                                                 'p76': 4.0,
+                                                                 'p77': 4.0,
+                                                                 'p78': 4.0,
+                                                                 'p79': 4.0,
+                                                                 'p80': 4.0,
+                                                                 'p81': 4.0,
+                                                                 'p82': 4.49,
+                                                                 'p83': 4.5,
+                                                                 'p84': 4.5,
+                                                                 'p85': 4.5,
+                                                                 'p86': 4.5,
+                                                                 'p87': 4.5,
+                                                                 'p88': 4.5,
+                                                                 'p89': 4.5,
+                                                                 'p91': 4.5,
+                                                                 'p92': 5.0,
+                                                                 'p93': 5.0,
+                                                                 'p94': 5.0,
+                                                                 'p96': None,
+                                                                 'p97': None,
+                                                                 'p98': None},
+                                         'skew': -2.584460930755591,
+                                         'std': 31.238554319563033,
+                                         'std_unrepresentable': False,
+                                         'tails': {'high': {'mean_distance': 0.0,
+                                                            'percent': 95,
+                                                            'rms_distance': 0.0,
+                                                            'rows': 12,
+                                                            'values': [5.0]},
+                                                   'low': {'mean_distance': 0.0,
+                                                           'percent': 5,
+                                                           'rms_distance': 0.0,
+                                                           'rows': 12,
+                                                           'values': [-99.0]}},
+                                         'thousands_marks': {},
+                                         'value_histogram': {},
+                                         'wide_runs': 'none'},
+                               'role': 'continuous',
+                               'rows': 240,
+                               'seed': 9002},
+ 'listed_score_beside_code': {'block': {'bin_groups': [{'count': 37, 'first': 0, 'last': 30},
+                                                       {'count': 179, 'first': 31, 'last': 31}],
+                                        'decimal_plus': {},
+                                        'empty_bins': [1,
+                                                       2,
+                                                       3,
+                                                       4,
+                                                       5,
+                                                       6,
+                                                       7,
+                                                       8,
+                                                       9,
+                                                       10,
+                                                       11,
+                                                       12,
+                                                       13,
+                                                       14,
+                                                       15,
+                                                       16,
+                                                       17,
+                                                       18,
+                                                       19,
+                                                       20,
+                                                       21,
+                                                       22,
+                                                       23,
+                                                       24,
+                                                       25,
+                                                       26,
+                                                       27,
+                                                       28,
+                                                       29],
+                                        'empty_edges': [[-99.0, 1.0]],
+                                        'few_values': ['-99', '1', '2', '3', '4', '5'],
+                                        'field_widths': {'1': 221, '2': 19},
+                                        'fraction_widths': {},
+                                        'group_separator': '',
+                                        'integer_valued': True,
+                                        'kurtosis': 10.67298740797924,
+                                        'mean': -4.983333333333333,
+                                        'mode': 2.0,
+                                        'mode_count': 52,
+                                        'n_contradictory': 0,
+                                        'n_distinct': 6,
+                                        'n_distinct_folded': 6,
+                                        'n_distinct_values': 6,
+                                        'n_left_out_of_statistics': 0,
+                                        'n_missing': 0,
+                                        'n_negative': 19,
+                                        'n_negative_unrepresentable': 0,
+                                        'n_not_numeric': 0,
+                                        'n_numeric': 240,
+                                        'n_out_of_range': 0,
+                                        'n_present': 240,
+                                        'n_rows': 240,
+                                        'n_used_in_statistics': 240,
+                                        'n_zero': 0,
+                                        'negative_form': 'minus',
+                                        'negative_notations': {'minus': 19},
+                                        'numeric_share': 1.0,
+                                        'numeric_styles': {'plain': 240},
+                                        'pad_widths': {},
+                                        'percentiles': {'max': 5.0,
+                                                        'min': -99.0,
+                                                        'p01': None,
+                                                        'p05': -99.0,
+                                                        'p10': 1.0,
+                                                        'p25': 2.0,
+                                                        'p50': 3.0,
+                                                        'p75': 4.0,
+                                                        'p90': 5.0,
+                                                        'p95': 5.0,
+                                                        'p99': None},
+                                        'percentiles_between': {'p02': None,
+                                                                'p03': None,
+                                                                'p04': None,
+                                                                'p06': -99.0,
+                                                                'p07': -99.0,
+                                                                'p08': 1.0,
+                                                                'p09': 1.0,
+                                                                'p11': 1.0,
+                                                                'p12': 1.0,
+                                                                'p13': 1.0,
+                                                                'p14': 1.0,
+                                                                'p15': 1.0,
+                                                                'p16': 1.0,
+                                                                'p17': 1.0,
+                                                                'p18': 1.0,
+                                                                'p19': 1.0,
+                                                                'p20': 1.0,
+                                                                'p21': 2.0,
+                                                                'p22': 2.0,
+                                                                'p23': 2.0,
+                                                                'p24': 2.0,
+                                                                'p26': 2.0,
+                                                                'p27': 2.0,
+                                                                'p28': 2.0,
+                                                                'p29': 2.0,
+                                                                'p30': 2.0,
+                                                                'p31': 2.0,
+                                                                'p32': 2.0,
+                                                                'p33': 2.0,
+                                                                'p34': 2.0,
+                                                                'p35': 2.0,
+                                                                'p36': 2.0,
+                                                                'p37': 2.0,
+                                                                'p38': 2.0,
+                                                                'p39': 2.0,
+                                                                'p40': 2.0,
+                                                                'p41': 2.0,
+                                                                'p42': 2.38,
+                                                                'p43': 3.0,
+                                                                'p44': 3.0,
+                                                                'p45': 3.0,
+                                                                'p46': 3.0,
+                                                                'p47': 3.0,
+                                                                'p48': 3.0,
+                                                                'p49': 3.0,
+                                                                'p51': 3.0,
+                                                                'p52': 3.0,
+                                                                'p53': 3.0,
+                                                                'p54': 3.0,
+                                                                'p55': 3.0,
+                                                                'p56': 3.0,
+                                                                'p57': 3.0,
+                                                                'p58': 3.0,
+                                                                'p59': 3.0,
+                                                                'p60': 3.0,
+                                                                'p61': 3.0,
+                                                                'p62': 3.18,
+                                                                'p63': 4.0,
+                                                                'p64': 4.0,
+                                                                'p65': 4.0,
+                                                                'p66': 4.0,
+                                                                'p67': 4.0,
+                                                                'p68': 4.0,
+                                                                'p69': 4.0,
+                                                                'p70': 4.0,
+                                                                'p71': 4.0,
+                                                                'p72': 4.0,
+                                                                'p73': 4.0,
+                                                                'p74': 4.0,
+                                                                'p76': 4.0,
+                                                                'p77': 4.0,
+                                                                'p78': 4.0,
+                                                                'p79': 4.0,
+                                                                'p80': 4.0,
+                                                                'p81': 4.0,
+                                                                'p82': 4.0,
+                                                                'p83': 5.0,
+                                                                'p84': 5.0,
+                                                                'p85': 5.0,
+                                                                'p86': 5.0,
+                                                                'p87': 5.0,
+                                                                'p88': 5.0,
+                                                                'p89': 5.0,
+                                                                'p91': 5.0,
+                                                                'p92': 5.0,
+                                                                'p93': 5.0,
+                                                                'p94': 5.0,
+                                                                'p96': None,
+                                                                'p97': None,
+                                                                'p98': None},
+                                        'skew': -3.105460654523809,
+                                        'std': 27.65386270909748,
+                                        'std_unrepresentable': False,
+                                        'tails': {'high': {'mean_distance': 0.0,
+                                                           'percent': 95,
+                                                           'rms_distance': 0.0,
+                                                           'rows': 12,
+                                                           'values': [5.0]},
+                                                  'low': {'mean_distance': 0.0,
+                                                          'percent': 5,
+                                                          'rms_distance': 0.0,
+                                                          'rows': 12,
+                                                          'values': [-99.0]}},
+                                        'thousands_marks': {},
+                                        'value_histogram': {},
+                                        'wide_runs': 'none'},
+                              'role': 'continuous',
+                              'rows': 240,
+                              'seed': 9001},
+ 'listed_supply_with_rare_values': {'block': {'bin_groups': [{'count': 17, 'first': 0, 'last': 0},
+                                                             {'count': 34, 'first': 1, 'last': 2},
+                                                             {'count': 154, 'first': 3, 'last': 8},
+                                                             {'count': 14, 'first': 9, 'last': 20},
+                                                             {'count': 11, 'first': 21, 'last': 29},
+                                                             {'count': 46,
+                                                              'first': 30,
+                                                              'last': 31}],
+                                              'decimal_plus': {},
+                                              'empty_bins': [3,
+                                                             4,
+                                                             6,
+                                                             7,
+                                                             9,
+                                                             10,
+                                                             11,
+                                                             12,
+                                                             13,
+                                                             14,
+                                                             15,
+                                                             16,
+                                                             17,
+                                                             18,
+                                                             19,
+                                                             21,
+                                                             22,
+                                                             23,
+                                                             24,
+                                                             25,
+                                                             26,
+                                                             27,
+                                                             28,
+                                                             30],
+                                              'empty_edges': [[14.0, 21.0],
+                                                              [21.0, 28.0],
+                                                              [30.0, 60.0],
+                                                              [60.0, 84.0],
+                                                              [84.0, 90.0]],
+                                              'few_values': ['5',
+                                                             '7',
+                                                             '10',
+                                                             '14',
+                                                             '21',
+                                                             '28',
+                                                             '30',
+                                                             '60',
+                                                             '84',
+                                                             '90'],
+                                              'field_widths': {'1': 29, '2': 271},
+                                              'fraction_widths': {},
+                                              'group_separator': '',
+                                              'integer_valued': True,
+                                              'kurtosis': 2.217517103749961,
+                                              'mean': 40.373333333333335,
+                                              'mode': 30.0,
+                                              'mode_count': 130,
+                                              'n_contradictory': 0,
+                                              'n_distinct': 10,
+                                              'n_distinct_folded': 10,
+                                              'n_distinct_values': 10,
+                                              'n_left_out_of_statistics': 0,
+                                              'n_missing': 0,
+                                              'n_negative': 0,
+                                              'n_negative_unrepresentable': 0,
+                                              'n_not_numeric': 0,
+                                              'n_numeric': 300,
+                                              'n_out_of_range': 0,
+                                              'n_present': 300,
+                                              'n_rows': 300,
+                                              'n_used_in_statistics': 300,
+                                              'n_zero': 0,
+                                              'negative_form': 'minus',
+                                              'negative_notations': {},
+                                              'number_spellings': {},
+                                              'numeric_share': 1.0,
+                                              'numeric_styles': {'plain': 300},
+                                              'pad_widths': {},
+                                              'percentiles': {'max': 90.0,
+                                                              'min': None,
+                                                              'p01': None,
+                                                              'p05': 7.0,
+                                                              'p10': 10.0,
+                                                              'p25': 28.0,
+                                                              'p50': 30.0,
+                                                              'p75': 60.0,
+                                                              'p90': 90.0,
+                                                              'p95': 90.0,
+                                                              'p99': None},
+                                              'percentiles_between': {'p02': None,
+                                                                      'p03': None,
+                                                                      'p04': 7.0,
+                                                                      'p06': 7.0,
+                                                                      'p07': 7.0,
+                                                                      'p08': 7.0,
+                                                                      'p09': 7.0,
+                                                                      'p11': 10.0,
+                                                                      'p12': 10.0,
+                                                                      'p13': 13.48,
+                                                                      'p14': 14.0,
+                                                                      'p15': 14.0,
+                                                                      'p16': 14.0,
+                                                                      'p17': 14.0,
+                                                                      'p18': 14.0,
+                                                                      'p19': 14.0,
+                                                                      'p20': 14.0,
+                                                                      'p21': 19.53,
+                                                                      'p22': 21.0,
+                                                                      'p23': 21.0,
+                                                                      'p24': 26.32,
+                                                                      'p26': 28.0,
+                                                                      'p27': 28.0,
+                                                                      'p28': 28.0,
+                                                                      'p29': 29.42,
+                                                                      'p30': 30.0,
+                                                                      'p31': 30.0,
+                                                                      'p32': 30.0,
+                                                                      'p33': 30.0,
+                                                                      'p34': 30.0,
+                                                                      'p35': 30.0,
+                                                                      'p36': 30.0,
+                                                                      'p37': 30.0,
+                                                                      'p38': 30.0,
+                                                                      'p39': 30.0,
+                                                                      'p40': 30.0,
+                                                                      'p41': 30.0,
+                                                                      'p42': 30.0,
+                                                                      'p43': 30.0,
+                                                                      'p44': 30.0,
+                                                                      'p45': 30.0,
+                                                                      'p46': 30.0,
+                                                                      'p47': 30.0,
+                                                                      'p48': 30.0,
+                                                                      'p49': 30.0,
+                                                                      'p51': 30.0,
+                                                                      'p52': 30.0,
+                                                                      'p53': 30.0,
+                                                                      'p54': 30.0,
+                                                                      'p55': 30.0,
+                                                                      'p56': 30.0,
+                                                                      'p57': 30.0,
+                                                                      'p58': 30.0,
+                                                                      'p59': 30.0,
+                                                                      'p60': 30.0,
+                                                                      'p61': 30.0,
+                                                                      'p62': 30.0,
+                                                                      'p63': 30.0,
+                                                                      'p64': 30.0,
+                                                                      'p65': 30.0,
+                                                                      'p66': 30.0,
+                                                                      'p67': 30.0,
+                                                                      'p68': 30.0,
+                                                                      'p69': 30.0,
+                                                                      'p70': 30.0,
+                                                                      'p71': 30.0,
+                                                                      'p72': 30.0,
+                                                                      'p73': 60.0,
+                                                                      'p74': 60.0,
+                                                                      'p76': 60.0,
+                                                                      'p77': 65.52,
+                                                                      'p78': 84.0,
+                                                                      'p79': 84.0,
+                                                                      'p80': 84.0,
+                                                                      'p81': 90.0,
+                                                                      'p82': 90.0,
+                                                                      'p83': 90.0,
+                                                                      'p84': 90.0,
+                                                                      'p85': 90.0,
+                                                                      'p86': 90.0,
+                                                                      'p87': 90.0,
+                                                                      'p88': 90.0,
+                                                                      'p89': 90.0,
+                                                                      'p91': 90.0,
+                                                                      'p92': 90.0,
+                                                                      'p93': 90.0,
+                                                                      'p94': 90.0,
+                                                                      'p96': 90.0,
+                                                                      'p97': None,
+                                                                      'p98': None},
+                                              'skew': 0.8392508953970059,
+                                              'std': 28.824702956967545,
+                                              'std_unrepresentable': False,
+                                              'tails': {'high': {'mean_distance': 0.0,
+                                                                 'percent': 96,
+                                                                 'rms_distance': 0.0,
+                                                                 'rows': 12,
+                                                                 'values': [90.0]},
+                                                        'low': {'mean_distance': 1.6666666666666667,
+                                                                'percent': 4,
+                                                                'rms_distance': 1.8257418583505538,
+                                                                'rows': 12,
+                                                                'values': [5.0, 7.0]}},
+                                              'thousands_marks': {},
+                                              'value_histogram': {},
+                                              'wide_runs': 'none'},
+                                    'role': 'count',
+                                    'rows': 300,
+                                    'seed': 9003}}
+
+# ...and the fourth (repair 1 of lane GG, its skeptic 1, item 4 H): a skewed
+# pain score whose free boundaries the published mean decides, described by
+# the producer at the cases' settings from 300 rows the standard library's
+# own seeded generator drew (seed 9006).
+_LISTED_BLOCKS["listed_skewed_mean_decides"] = {'block': {'bin_groups': [{'count': 15, 'first': 0, 'last': 0},
+                              {'count': 206, 'first': 1, 'last': 29},
+                              {'count': 37, 'first': 30, 'last': 30},
+                              {'count': 18, 'first': 31, 'last': 31}],
+               'decimal_plus': {},
+               'empty_bins': [1,
+                              2,
+                              3,
+                              4,
+                              5,
+                              6,
+                              7,
+                              8,
+                              9,
+                              10,
+                              11,
+                              12,
+                              13,
+                              14,
+                              15,
+                              16,
+                              17,
+                              18,
+                              19,
+                              20,
+                              21,
+                              22,
+                              23,
+                              24,
+                              25,
+                              26,
+                              27,
+                              28],
+               'empty_edges': [[-99.0, 0.0]],
+               'few_values': ['-99', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+               'field_widths': {'1': 260, '2': 40},
+               'fraction_widths': {},
+               'group_separator': '',
+               'integer_valued': True,
+               'kurtosis': 9.06765659589083,
+               'mean': -6.683333333333334,
+               'mode': 0.0,
+               'mode_count': 73,
+               'n_contradictory': 0,
+               'n_distinct': 12,
+               'n_distinct_folded': 12,
+               'n_distinct_values': 12,
+               'n_left_out_of_statistics': 0,
+               'n_missing': 0,
+               'n_negative': 27,
+               'n_negative_unrepresentable': 0,
+               'n_not_numeric': 0,
+               'n_numeric': 300,
+               'n_out_of_range': 0,
+               'n_present': 300,
+               'n_rows': 300,
+               'n_used_in_statistics': 300,
+               'n_zero': 73,
+               'negative_form': 'minus',
+               'negative_notations': {'minus': 27},
+               'numeric_share': 1.0,
+               'numeric_styles': {'plain': 300},
+               'pad_widths': {},
+               'percentiles': {'max': 10.0,
+                               'min': -99.0,
+                               'p01': None,
+                               'p05': -99.0,
+                               'p10': 0.0,
+                               'p25': 0.0,
+                               'p50': 1.0,
+                               'p75': 3.0,
+                               'p90': 6.1,
+                               'p95': 9.0,
+                               'p99': None},
+               'percentiles_between': {'p02': None,
+                                       'p03': None,
+                                       'p04': -99.0,
+                                       'p06': -99.0,
+                                       'p07': -99.0,
+                                       'p08': -99.0,
+                                       'p09': -8.91,
+                                       'p11': 0.0,
+                                       'p12': 0.0,
+                                       'p13': 0.0,
+                                       'p14': 0.0,
+                                       'p15': 0.0,
+                                       'p16': 0.0,
+                                       'p17': 0.0,
+                                       'p18': 0.0,
+                                       'p19': 0.0,
+                                       'p20': 0.0,
+                                       'p21': 0.0,
+                                       'p22': 0.0,
+                                       'p23': 0.0,
+                                       'p24': 0.0,
+                                       'p26': 0.0,
+                                       'p27': 0.0,
+                                       'p28': 0.0,
+                                       'p29': 0.0,
+                                       'p30': 0.0,
+                                       'p31': 0.0,
+                                       'p32': 0.0,
+                                       'p33': 0.0,
+                                       'p34': 1.0,
+                                       'p35': 1.0,
+                                       'p36': 1.0,
+                                       'p37': 1.0,
+                                       'p38': 1.0,
+                                       'p39': 1.0,
+                                       'p40': 1.0,
+                                       'p41': 1.0,
+                                       'p42': 1.0,
+                                       'p43': 1.0,
+                                       'p44': 1.0,
+                                       'p45': 1.0,
+                                       'p46': 1.0,
+                                       'p47': 1.0,
+                                       'p48': 1.0,
+                                       'p49': 1.0,
+                                       'p51': 1.0,
+                                       'p52': 1.0,
+                                       'p53': 1.0,
+                                       'p54': 1.0,
+                                       'p55': 1.0,
+                                       'p56': 2.0,
+                                       'p57': 2.0,
+                                       'p58': 2.0,
+                                       'p59': 2.0,
+                                       'p60': 2.0,
+                                       'p61': 2.0,
+                                       'p62': 2.0,
+                                       'p63': 2.0,
+                                       'p64': 2.0,
+                                       'p65': 2.0,
+                                       'p66': 2.0,
+                                       'p67': 2.0,
+                                       'p68': 3.0,
+                                       'p69': 3.0,
+                                       'p70': 3.0,
+                                       'p71': 3.0,
+                                       'p72': 3.0,
+                                       'p73': 3.0,
+                                       'p74': 3.0,
+                                       'p76': 3.0,
+                                       'p77': 3.0,
+                                       'p78': 4.0,
+                                       'p79': 4.0,
+                                       'p80': 4.0,
+                                       'p81': 4.0,
+                                       'p82': 4.0,
+                                       'p83': 4.0,
+                                       'p84': 4.16,
+                                       'p85': 5.0,
+                                       'p86': 5.0,
+                                       'p87': 5.0,
+                                       'p88': 5.0,
+                                       'p89': 6.0,
+                                       'p91': 7.0,
+                                       'p92': 8.0,
+                                       'p93': 8.0,
+                                       'p94': 9.0,
+                                       'p96': 10.0,
+                                       'p97': None,
+                                       'p98': None},
+               'skew': -2.8218283575274263,
+               'std': 29.199401919624453,
+               'std_unrepresentable': False,
+               'tails': {'high': {'mean_distance': 0.0,
+                                  'percent': 96,
+                                  'rms_distance': 0.0,
+                                  'rows': 12,
+                                  'values': [10.0]},
+                         'low': {'mean_distance': 0.0,
+                                 'percent': 4,
+                                 'rms_distance': 0.0,
+                                 'rows': 12,
+                                 'values': [-99.0]}},
+               'thousands_marks': {},
+               'value_histogram': {},
+               'wide_runs': 'none'},
+     'role': 'continuous',
+     'rows': 300,
+     'seed': 9006}
+
+
+# ...and its repair 2 (the orchestrator's LANE GG RULINGS 3 (2), its verify's
+# item 1): a days' supply with one `83`, an edge of two published empty
+# stretches, left off the list -- described by the producer at the cases'
+# settings from 300 rows the standard library's own seeded generator drew
+# (seed 9102).
+_LISTED_BLOCKS["listed_supply_edge_left_off"] = {'block': {'bin_groups': [{'count': 27, 'first': 0, 'last': 2},
+                          {'count': 176, 'first': 3, 'last': 8},
+                          {'count': 11, 'first': 9, 'last': 20},
+                          {'count': 62, 'first': 21, 'last': 31}],
+           'decimal_plus': {},
+           'empty_bins': [1,
+                          3,
+                          4,
+                          5,
+                          6,
+                          7,
+                          9,
+                          10,
+                          11,
+                          12,
+                          13,
+                          14,
+                          15,
+                          16,
+                          17,
+                          18,
+                          19,
+                          21,
+                          22,
+                          23,
+                          24,
+                          25,
+                          26,
+                          27,
+                          28,
+                          30],
+           'empty_edges': [[7.0, 14.0], [14.0, 28.0], [30.0, 60.0], [60.0, 83.0], [83.0, 90.0]],
+           'few_values': ['7', '14', '28', '30', '60', '90'],
+           'field_widths': {'1': 19, '2': 281},
+           'fraction_widths': {},
+           'group_separator': '',
+           'integer_valued': True,
+           'kurtosis': 2.14497819128288,
+           'mean': 43.233333333333334,
+           'mode': 30.0,
+           'mode_count': 158,
+           'n_contradictory': 0,
+           'n_distinct': 7,
+           'n_distinct_folded': 7,
+           'n_distinct_values': 7,
+           'n_left_out_of_statistics': 0,
+           'n_missing': 0,
+           'n_negative': 0,
+           'n_negative_unrepresentable': 0,
+           'n_not_numeric': 0,
+           'n_numeric': 300,
+           'n_out_of_range': 0,
+           'n_present': 300,
+           'n_rows': 300,
+           'n_used_in_statistics': 300,
+           'n_zero': 0,
+           'negative_form': 'minus',
+           'negative_notations': {},
+           'number_spellings': {},
+           'numeric_share': 1.0,
+           'numeric_styles': {'plain': 300},
+           'pad_widths': {},
+           'percentiles': {'max': 90.0,
+                           'min': 7.0,
+                           'p01': None,
+                           'p05': 7.0,
+                           'p10': 14.0,
+                           'p25': 30.0,
+                           'p50': 30.0,
+                           'p75': 60.0,
+                           'p90': 90.0,
+                           'p95': 90.0,
+                           'p99': None},
+           'percentiles_between': {'p02': None,
+                                   'p03': None,
+                                   'p04': 7.0,
+                                   'p06': 7.0,
+                                   'p07': 14.0,
+                                   'p08': 14.0,
+                                   'p09': 14.0,
+                                   'p11': 14.0,
+                                   'p12': 14.0,
+                                   'p13': 26.18,
+                                   'p14': 28.0,
+                                   'p15': 28.0,
+                                   'p16': 28.0,
+                                   'p17': 28.0,
+                                   'p18': 28.0,
+                                   'p19': 29.62,
+                                   'p20': 30.0,
+                                   'p21': 30.0,
+                                   'p22': 30.0,
+                                   'p23': 30.0,
+                                   'p24': 30.0,
+                                   'p26': 30.0,
+                                   'p27': 30.0,
+                                   'p28': 30.0,
+                                   'p29': 30.0,
+                                   'p30': 30.0,
+                                   'p31': 30.0,
+                                   'p32': 30.0,
+                                   'p33': 30.0,
+                                   'p34': 30.0,
+                                   'p35': 30.0,
+                                   'p36': 30.0,
+                                   'p37': 30.0,
+                                   'p38': 30.0,
+                                   'p39': 30.0,
+                                   'p40': 30.0,
+                                   'p41': 30.0,
+                                   'p42': 30.0,
+                                   'p43': 30.0,
+                                   'p44': 30.0,
+                                   'p45': 30.0,
+                                   'p46': 30.0,
+                                   'p47': 30.0,
+                                   'p48': 30.0,
+                                   'p49': 30.0,
+                                   'p51': 30.0,
+                                   'p52': 30.0,
+                                   'p53': 30.0,
+                                   'p54': 30.0,
+                                   'p55': 30.0,
+                                   'p56': 30.0,
+                                   'p57': 30.0,
+                                   'p58': 30.0,
+                                   'p59': 30.0,
+                                   'p60': 30.0,
+                                   'p61': 30.0,
+                                   'p62': 30.0,
+                                   'p63': 30.0,
+                                   'p64': 30.0,
+                                   'p65': 30.0,
+                                   'p66': 30.0,
+                                   'p67': 30.0,
+                                   'p68': 30.0,
+                                   'p69': 30.0,
+                                   'p70': 30.0,
+                                   'p71': 30.0,
+                                   'p72': 60.0,
+                                   'p73': 60.0,
+                                   'p74': 60.0,
+                                   'p76': 90.0,
+                                   'p77': 90.0,
+                                   'p78': 90.0,
+                                   'p79': 90.0,
+                                   'p80': 90.0,
+                                   'p81': 90.0,
+                                   'p82': 90.0,
+                                   'p83': 90.0,
+                                   'p84': 90.0,
+                                   'p85': 90.0,
+                                   'p86': 90.0,
+                                   'p87': 90.0,
+                                   'p88': 90.0,
+                                   'p89': 90.0,
+                                   'p91': 90.0,
+                                   'p92': 90.0,
+                                   'p93': 90.0,
+                                   'p94': 90.0,
+                                   'p96': 90.0,
+                                   'p97': None,
+                                   'p98': None},
+           'skew': 0.8563288684673837,
+           'std': 28.226014867018204,
+           'std_unrepresentable': False,
+           'tails': {'high': {'mean_distance': 0.0, 'percent': 96, 'rms_distance': 0.0, 'rows': 12, 'values': [90.0]},
+                     'low': {'mean_distance': 0.0, 'percent': 4, 'rms_distance': 0.0, 'rows': 12, 'values': [7.0]}},
+           'thousands_marks': {},
+           'value_histogram': {},
+           'wide_runs': 'none'},
+ 'role': 'count',
+ 'rows': 300,
+ 'seed': 9102}
+
+# ...its written forms handed on through a form met before (Codex's review
+# of lane GG, item 3): seven spellings in three forms, the one-decimal form
+# met first, at the cases' settings from 319 rows (seed 9211).
+_LISTED_BLOCKS["listed_forms_handed_on"] = {'block': {'bin_groups': [{'count': 47, 'first': 0, 'last': 0},
+                          {'count': 69, 'first': 1, 'last': 30},
+                          {'count': 177, 'first': 31, 'last': 31}],
+           'decimal_plus': {'(unavailable)': 0},
+           'empty_bins': [1,
+                          2,
+                          3,
+                          4,
+                          5,
+                          6,
+                          7,
+                          8,
+                          9,
+                          10,
+                          11,
+                          12,
+                          13,
+                          14,
+                          15,
+                          16,
+                          17,
+                          18,
+                          19,
+                          20,
+                          21,
+                          22,
+                          23,
+                          24,
+                          25,
+                          26,
+                          27,
+                          28,
+                          29],
+           'empty_edges': [[-99.0, 1.0]],
+           'few_values': ['-99.00', '1.0', '2', '3.0', '4.00', '5.0', '6'],
+           'field_widths': {'1': 144},
+           'fraction_widths': {'1': 97, '2': 78},
+           'group_separator': '',
+           'integer_valued': True,
+           'kurtosis': 3.5389652338309125,
+           'mean': -15.32601880877743,
+           'mode': 6.0,
+           'mode_count': 97,
+           'n_contradictory': 0,
+           'n_distinct': 7,
+           'n_distinct_folded': 7,
+           'n_distinct_values': 7,
+           'n_left_out_of_statistics': 0,
+           'n_missing': 0,
+           'n_negative': 60,
+           'n_negative_unrepresentable': 0,
+           'n_not_numeric': 0,
+           'n_numeric': 319,
+           'n_out_of_range': 0,
+           'n_present': 319,
+           'n_rows': 319,
+           'n_used_in_statistics': 319,
+           'n_zero': 0,
+           'negative_form': 'minus',
+           'negative_notations': {'minus': 60},
+           'numeric_share': 1.0,
+           'numeric_styles': {'decimal': 175, 'plain': 144},
+           'pad_widths': {},
+           'percentiles': {'max': 6.0,
+                           'min': -99.0,
+                           'p01': None,
+                           'p05': -99.0,
+                           'p10': -99.0,
+                           'p25': 1.0,
+                           'p50': 3.0,
+                           'p75': 6.0,
+                           'p90': 6.0,
+                           'p95': 6.0,
+                           'p99': None},
+           'percentiles_between': {'p02': None,
+                                   'p03': None,
+                                   'p04': -99.0,
+                                   'p06': -99.0,
+                                   'p07': -99.0,
+                                   'p08': -99.0,
+                                   'p09': -99.0,
+                                   'p11': -99.0,
+                                   'p12': -99.0,
+                                   'p13': -99.0,
+                                   'p14': -99.0,
+                                   'p15': -99.0,
+                                   'p16': -99.0,
+                                   'p17': -99.0,
+                                   'p18': -99.0,
+                                   'p19': 1.0,
+                                   'p20': 1.0,
+                                   'p21': 1.0,
+                                   'p22': 1.0,
+                                   'p23': 1.0,
+                                   'p24': 1.0,
+                                   'p26': 2.0,
+                                   'p27': 2.0,
+                                   'p28': 2.0,
+                                   'p29': 2.0,
+                                   'p30': 2.0,
+                                   'p31': 2.0,
+                                   'p32': 2.0,
+                                   'p33': 2.0,
+                                   'p34': 2.0,
+                                   'p35': 2.0,
+                                   'p36': 2.0,
+                                   'p37': 2.0,
+                                   'p38': 2.0,
+                                   'p39': 2.0,
+                                   'p40': 2.0,
+                                   'p41': 3.0,
+                                   'p42': 3.0,
+                                   'p43': 3.0,
+                                   'p44': 3.0,
+                                   'p45': 3.0,
+                                   'p46': 3.0,
+                                   'p47': 3.0,
+                                   'p48': 3.0,
+                                   'p49': 3.0,
+                                   'p51': 3.0,
+                                   'p52': 3.0,
+                                   'p53': 3.0,
+                                   'p54': 3.0,
+                                   'p55': 3.0,
+                                   'p56': 4.0,
+                                   'p57': 4.0,
+                                   'p58': 4.0,
+                                   'p59': 4.0,
+                                   'p60': 4.0,
+                                   'p61': 4.98,
+                                   'p62': 5.0,
+                                   'p63': 5.0,
+                                   'p64': 5.0,
+                                   'p65': 5.0,
+                                   'p66': 5.0,
+                                   'p67': 5.0,
+                                   'p68': 5.0,
+                                   'p69': 5.0,
+                                   'p70': 6.0,
+                                   'p71': 6.0,
+                                   'p72': 6.0,
+                                   'p73': 6.0,
+                                   'p74': 6.0,
+                                   'p76': 6.0,
+                                   'p77': 6.0,
+                                   'p78': 6.0,
+                                   'p79': 6.0,
+                                   'p80': 6.0,
+                                   'p81': 6.0,
+                                   'p82': 6.0,
+                                   'p83': 6.0,
+                                   'p84': 6.0,
+                                   'p85': 6.0,
+                                   'p86': 6.0,
+                                   'p87': 6.0,
+                                   'p88': 6.0,
+                                   'p89': 6.0,
+                                   'p91': 6.0,
+                                   'p92': 6.0,
+                                   'p93': 6.0,
+                                   'p94': 6.0,
+                                   'p96': 6.0,
+                                   'p97': None,
+                                   'p98': None},
+           'skew': -1.5900869648826277,
+           'std': 40.369523268711525,
+           'std_unrepresentable': False,
+           'tails': {'high': {'mean_distance': 0.0, 'percent': 96, 'rms_distance': 0.0, 'rows': 13, 'values': [6.0]},
+                     'low': {'mean_distance': 0.0, 'percent': 4, 'rms_distance': 0.0, 'rows': 13, 'values': [-99.0]}},
+           'thousands_marks': {},
+           'value_histogram': {},
+           'wide_runs': 'none'},
+ 'role': 'continuous',
+ 'rows': 319,
+ 'seed': 9211}
+
+# ...and its mode kept where its count must give way (Codex's review of lane
+# GG, item 4): `-100`, `-99` and 1 to 35 on 13 cells each beside one
+# `18.5`, at the cases' settings from 482 rows (seed 9303).
+_LISTED_BLOCKS["listed_mode_takes_the_room"] = {'block': {'bin_groups': [{'count': 11, 'first': 0, 'last': 0},
+                          {'count': 52, 'first': 1, 'last': 24},
+                          {'count': 65, 'first': 25, 'last': 25},
+                          {'count': 52, 'first': 26, 'last': 26},
+                          {'count': 52, 'first': 27, 'last': 27},
+                          {'count': 53, 'first': 28, 'last': 28},
+                          {'count': 52, 'first': 29, 'last': 29},
+                          {'count': 52, 'first': 30, 'last': 30},
+                          {'count': 63, 'first': 31, 'last': 31}],
+           'decimal_plus': {},
+           'empty_bins': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
+           'empty_edges': [[-99.0, 1.0]],
+           'few_values': ['-100',
+                          '-99',
+                          '1',
+                          '2',
+                          '3',
+                          '4',
+                          '5',
+                          '6',
+                          '7',
+                          '8',
+                          '9',
+                          '10',
+                          '11',
+                          '12',
+                          '13',
+                          '14',
+                          '15',
+                          '16',
+                          '17',
+                          '18',
+                          '19',
+                          '20',
+                          '21',
+                          '22',
+                          '23',
+                          '24',
+                          '25',
+                          '26',
+                          '27',
+                          '28',
+                          '29',
+                          '30',
+                          '31',
+                          '32',
+                          '33',
+                          '34',
+                          '35'],
+           'field_widths': {'1': 117, '2': 352, '3': 13},
+           'fraction_widths': {},
+           'group_separator': '',
+           'integer_valued': False,
+           'kurtosis': 12.909686116900346,
+           'mean': 11.66286307053942,
+           'mode': -100.0,
+           'mode_count': 13,
+           'n_contradictory': 0,
+           'n_distinct': 38,
+           'n_distinct_folded': 38,
+           'n_distinct_values': 38,
+           'n_left_out_of_statistics': 0,
+           'n_missing': 0,
+           'n_negative': 26,
+           'n_negative_unrepresentable': 0,
+           'n_not_numeric': 0,
+           'n_numeric': 482,
+           'n_out_of_range': 0,
+           'n_present': 482,
+           'n_rows': 482,
+           'n_used_in_statistics': 482,
+           'n_zero': 0,
+           'negative_form': 'minus',
+           'negative_notations': {'minus': 26},
+           'numeric_share': 1.0,
+           'numeric_styles': {'plain': 482},
+           'pad_widths': {},
+           'percentiles': {'max': 35.0,
+                           'min': -100.0,
+                           'p01': None,
+                           'p05': -99.0,
+                           'p10': 2.0,
+                           'p25': 8.0,
+                           'p50': 17.0,
+                           'p75': 26.0,
+                           'p90': 32.0,
+                           'p95': 34.0,
+                           'p99': None},
+           'percentiles_between': {'p02': None,
+                                   'p03': -99.0,
+                                   'p04': -99.0,
+                                   'p06': 1.0,
+                                   'p07': 1.0,
+                                   'p08': 1.48,
+                                   'p09': 2.0,
+                                   'p11': 3.0,
+                                   'p12': 3.0,
+                                   'p13': 3.0,
+                                   'p14': 4.0,
+                                   'p15': 4.0,
+                                   'p16': 4.0,
+                                   'p17': 5.0,
+                                   'p18': 5.0,
+                                   'p19': 6.0,
+                                   'p20': 6.0,
+                                   'p21': 6.0,
+                                   'p22': 7.0,
+                                   'p23': 7.0,
+                                   'p24': 7.0,
+                                   'p26': 8.0,
+                                   'p27': 8.87,
+                                   'p28': 9.0,
+                                   'p29': 9.0,
+                                   'p30': 10.0,
+                                   'p31': 10.0,
+                                   'p32': 10.0,
+                                   'p33': 11.0,
+                                   'p34': 11.0,
+                                   'p35': 11.35,
+                                   'p36': 12.0,
+                                   'p37': 12.0,
+                                   'p38': 13.0,
+                                   'p39': 13.0,
+                                   'p40': 13.0,
+                                   'p41': 14.0,
+                                   'p42': 14.0,
+                                   'p43': 14.0,
+                                   'p44': 15.0,
+                                   'p45': 15.0,
+                                   'p46': 16.0,
+                                   'p47': 16.0,
+                                   'p48': 16.0,
+                                   'p49': 17.0,
+                                   'p51': 17.0,
+                                   'p52': 18.0,
+                                   'p53': 18.0,
+                                   'p54': 18.37,
+                                   'p55': 19.0,
+                                   'p56': 19.0,
+                                   'p57': 20.0,
+                                   'p58': 20.0,
+                                   'p59': 20.0,
+                                   'p60': 21.0,
+                                   'p61': 21.0,
+                                   'p62': 21.0,
+                                   'p63': 22.0,
+                                   'p64': 22.0,
+                                   'p65': 22.65,
+                                   'p66': 23.0,
+                                   'p67': 23.0,
+                                   'p68': 24.0,
+                                   'p69': 24.0,
+                                   'p70': 24.0,
+                                   'p71': 25.0,
+                                   'p72': 25.0,
+                                   'p73': 25.13,
+                                   'p74': 26.0,
+                                   'p76': 27.0,
+                                   'p77': 27.0,
+                                   'p78': 27.0,
+                                   'p79': 28.0,
+                                   'p80': 28.0,
+                                   'p81': 28.0,
+                                   'p82': 29.0,
+                                   'p83': 29.0,
+                                   'p84': 30.0,
+                                   'p85': 30.0,
+                                   'p86': 30.0,
+                                   'p87': 31.0,
+                                   'p88': 31.0,
+                                   'p89': 31.0,
+                                   'p91': 32.0,
+                                   'p92': 32.52,
+                                   'p93': 33.0,
+                                   'p94': 33.0,
+                                   'p96': 34.0,
+                                   'p97': 34.0,
+                                   'p98': None},
+           'skew': -3.178121079057191,
+           'std': 28.329163556203017,
+           'std_unrepresentable': False,
+           'tails': {'high': {'mean_distance': 0.8666666666666667,
+                              'percent': 97,
+                              'rms_distance': 0.9309493362512627,
+                              'rows': 15,
+                              'values': []},
+                     'low': {'mean_distance': 0.8666666666666667,
+                             'percent': 3,
+                             'rms_distance': 0.9309493362512627,
+                             'rows': 15,
+                             'values': []}},
+           'thousands_marks': {},
+           'value_histogram': {},
+           'wide_runs': 'none'},
+ 'role': 'continuous',
+ 'rows': 482,
+ 'seed': 9303}
+
+def _listed_case(name, why):
+    """One case of G6.9's listed census, its column the producer's block."""
+    spec = _LISTED_BLOCKS[name]
+    claims = {}
+
+    def proved(node, path):
+        if isinstance(node, bool) or node is None:
+            return node
+        if isinstance(node, float):
+            field, claim = nearest_field(repr(node))
+            claims[("column",) + path] = claim
+            return field
+        if isinstance(node, dict):
+            return {key: proved(node[key], path + (key,)) for key in node}
+        if isinstance(node, list):
+            return [proved(item, path + (place,)) for place, item in enumerate(node)]
+        return node
+
+    facts = proved(spec["block"], ())
+    column = _universal(
+        "column_1", spec["role"], spec["role"], "data", "ok", **facts
+    )
+    return {
+        "why": why,
+        "column": column,
+        "rows": spec["rows"],
+        "identifier_declared": False,
+        "rungs": _tail_case_rungs(column),
+        "claims": claims,
+    }
+
+
+def _listed_score_beside_code():
+    return _listed_case(
+        "listed_score_beside_code",
+        "G6.9 on a score of 1 to 5 beside the code -99 (lane GG, plan "
+        "P4-D440): 240 cells, -99 on 19 of them, the published empty "
+        "stretch [-99, 1] a gap of ninety-nine whole numbers. The column "
+        "lists its six spellings and no count, and the twin writes those "
+        "six and nothing else, each at the count the sign counts, the mode "
+        "pair, the tails, the rungs and the floored histogram leave, then "
+        "nearest the published mean. The mutant withdraws the census, and "
+        "G5's strata read the ladder across the gap.",
+    )
+
+
+def _listed_halves_beside_code():
+    return _listed_case(
+        "listed_halves_beside_code",
+        "G6.9's written forms (lane GG, plan P4-D440): scores in half steps "
+        "from 1 to 5, the whole ones written without a point and the halves "
+        "with one, beside -99 written plain -- ten spellings over 240 cells. "
+        "The plain cells are -99 and the five whole scores, so how many of "
+        "them the twin writes is the published count of plain cells, met "
+        "by moving rows across the boundaries between a whole score and a "
+        "half; -99 is never written -99.0. The mutant forgets the census of "
+        "forms, and the twin's plain cells part from the published count.",
+    )
+
+
+def _listed_supply_with_rare_values():
+    return _listed_case(
+        "listed_supply_with_rare_values",
+        "G6.9 on a days' supply (lane GG, plan P4-D440, the zoo plan's row "
+        "54): 300 cells on 7, 14, 28, 30, 60 and 90 days and the rare 5, "
+        "10, 21 and 84, each under the floor of eleven and listed without "
+        "its count. The low tail lists 5 and 7, and its published mean "
+        "distance from its boundary rung solves how many of its twelve rows "
+        "stand on 5; the floored histogram pins the rest. The mutant hands "
+        "the tail's shares back outermost last, and the rows of 5 and 7 move.",
+    )
+
+
+def _listed_skewed_mean_decides():
+    return _listed_case(
+        "listed_skewed_mean_decides",
+        "G6.9's last step (repair 1 of lane GG): a pain score of 0 to 10, "
+        "skewed toward 0, beside -99 -- twelve spellings over 300 cells. "
+        "The rungs and the floored histogram leave some boundaries free; "
+        "each starts where the published rungs and the boundaries the pins "
+        "fix, read as a curve of rank against place in the list, put it, and "
+        "then the rows cross the boundaries "
+        "one a pass until the sum is the published mean's. The mutant "
+        "withdraws that last step, and three rows stay where the curve put "
+        "them.",
+    )
+
+
+def _listed_supply_edge_left_off():
+    return _listed_case(
+        "listed_supply_edge_left_off",
+        "G6.9 on a days' supply with one 83 (repair 2 of lane GG, the "
+        "orchestrator's LANE GG RULINGS 3 (2)): the 83 stands between the "
+        "published empty stretches [60, 83] and [83, 90], one cell holds "
+        "it, so the list leaves it off and the twin reads the two stretches "
+        "as one: it writes 7, 14, 28, 30, 60 and 90 and nothing from 60 to "
+        "90, its one cell written at a listed value and the edge it then "
+        "misses named. The mutant withdraws the census, and G5's strata "
+        "read the ladder across the stretch.",
+    )
+
+
+def _listed_forms_handed_on():
+    return _listed_case(
+        "listed_forms_handed_on",
+        "G6.9's written forms (Codex's review of lane GG, item 3): -99.00, "
+        "1.0, 2, 3.0, 4.00, 5.0 and 6 over 319 cells, every one repeated. "
+        "The one-decimal form is met first; a rung then fixes the boundary "
+        "after 2, so no boundary the bounds let move joins the two-decimal "
+        "form to the plain one, and rows are handed one at a time through "
+        "the one-decimal values, which keep their form's count, until the "
+        "two-decimal and plain counts are the published ones. The mutant "
+        "withdraws that hand-on, and the two counts stay apart from theirs.",
+    )
+
+
+def _listed_mode_takes_the_room():
+    return _listed_case(
+        "listed_mode_takes_the_room",
+        "G6.9's mode pair (Codex's review of lane GG, item 4): -100, -99 and "
+        "1 to 35 on 13 cells each beside one 18.5 -- 482 cells, 37 listed "
+        "values, the mode -100 on 13. Every listed value already holds as "
+        "many cells as the mode may, so the one cell left off has no room; "
+        "the mode's count is raised by one, every bound with it, and -100 "
+        "stays the mode, its count named. The mutant gives the pair up "
+        "whole, and the mode's rows fall away.",
+    )
+
+
+TWENTY_NINTH_BRANCH_CASE_BUILDERS = {
+    "listed_score_beside_code": _listed_score_beside_code,
+    "listed_halves_beside_code": _listed_halves_beside_code,
+    "listed_supply_with_rare_values": _listed_supply_with_rare_values,
+    "listed_skewed_mean_decides": _listed_skewed_mean_decides,
+}
+
+# THE THIRTIETH FILE: lane GG's repair 2 (the verify's item 1, Codex's
+# items 3 and 4), method G6.9.
+THIRTIETH_BRANCH_CASE_BUILDERS = {
+    "listed_supply_edge_left_off": _listed_supply_edge_left_off,
+    "listed_forms_handed_on": _listed_forms_handed_on,
+    "listed_mode_takes_the_room": _listed_mode_takes_the_room,
+}
+
 TWENTY_SEVENTH_BRANCH_CASE_BUILDERS = {
     # ...and lane CODES-3's two record-number templates (plan P4-D428),
     # method G9.6a's amendment: the noughts after the point of a whole
@@ -46084,6 +49504,8 @@ CASE_SETS = {
     TWENTY_THIRD_BRANCH_PART: TWENTY_THIRD_BRANCH_CASE_BUILDERS,
     TWENTY_FIFTH_BRANCH_PART: R2A_BRANCH_CASE_BUILDERS,
     TWENTY_SEVENTH_BRANCH_PART: TWENTY_SEVENTH_BRANCH_CASE_BUILDERS,
+    TWENTY_NINTH_BRANCH_PART: TWENTY_NINTH_BRANCH_CASE_BUILDERS,
+    THIRTIETH_BRANCH_PART: THIRTIETH_BRANCH_CASE_BUILDERS,
     EIGHTH_BRANCH_PART: EIGHTH_BRANCH_CASE_BUILDERS,
     NINTH_BRANCH_PART: NINTH_BRANCH_CASE_BUILDERS,
     TENTH_BRANCH_PART: TENTH_BRANCH_CASE_BUILDERS,
@@ -46123,6 +49545,8 @@ CASE_BUILDERS = {
     **TWENTY_THIRD_BRANCH_CASE_BUILDERS,
     **R2A_BRANCH_CASE_BUILDERS,
     **TWENTY_SEVENTH_BRANCH_CASE_BUILDERS,
+    **TWENTY_NINTH_BRANCH_CASE_BUILDERS,
+    **THIRTIETH_BRANCH_CASE_BUILDERS,
 }
 
 # What each file says about itself, so that neither can be read as the
@@ -47037,7 +50461,85 @@ _TWENTY_SEVENTH_BRANCH_ACCOUNT = (
 )
 
 
+_TWENTY_NINTH_BRANCH_ACCOUNT = (
+    "cases method section G14.3 adds with lane GG (plan P4-D440): G6.9's "
+    "listed census of a few-valued column with a wide gap -- a score of 1 "
+    "to 5 beside -99, half-step scores whose whole values are written "
+    "without a point beside -99, and a days' supply with rare values "
+    "listed without their counts -- each column's spellings written at "
+    "the counts its published facts solve. They are computed by the same "
+    "oracle and the same proof layer "
+    "as tests/reference/generation-reference-vectors.json, "
+    "tests/reference/generation-branch-vectors.json, "
+    "tests/reference/generation-branch-vectors-2.json, "
+    "tests/reference/generation-branch-vectors-3.json, "
+    "tests/reference/generation-branch-vectors-4.json, "
+    "tests/reference/generation-branch-vectors-5.json, "
+    "tests/reference/generation-branch-vectors-6.json, "
+    "tests/reference/generation-branch-vectors-7.json, "
+    "tests/reference/generation-branch-vectors-8.json, "
+    "tests/reference/generation-branch-vectors-9.json, "
+    "tests/reference/generation-branch-vectors-10.json, "
+    "tests/reference/generation-branch-vectors-11.json, "
+    "tests/reference/generation-branch-vectors-12.json, "
+    "tests/reference/generation-branch-vectors-13.json, "
+    "tests/reference/generation-branch-vectors-14.json, "
+    "tests/reference/generation-branch-vectors-21.json, "
+    "tests/reference/generation-branch-vectors-22.json, "
+    "tests/reference/generation-branch-vectors-23.json, "
+    "tests/reference/generation-branch-vectors-25.json, "
+    "tests/reference/generation-branch-vectors-27.json and "
+    "tests/reference/generation-document-vectors.json, and live in a "
+    "file of their own: plan P4-D364's numbering gives the next number "
+    "no lane holds, the twenty-eighth being lane BT's."
+)
+
+
+_THIRTIETH_BRANCH_ACCOUNT = (
+    "cases method section G14.3 adds with lane GG's repair 2 (plan "
+    "P4-D440): G6.9's listed census of a few-valued column with a wide gap "
+    "-- a days' supply whose one-cell 83 at a stretch's edge is left off, "
+    "written forms handed on through a form met before, and a mode kept "
+    "where its count must give way. They are computed by the same "
+    "oracle and the same proof layer "
+    "as tests/reference/generation-reference-vectors.json, "
+    "tests/reference/generation-branch-vectors.json, "
+    "tests/reference/generation-branch-vectors-2.json, "
+    "tests/reference/generation-branch-vectors-3.json, "
+    "tests/reference/generation-branch-vectors-4.json, "
+    "tests/reference/generation-branch-vectors-5.json, "
+    "tests/reference/generation-branch-vectors-6.json, "
+    "tests/reference/generation-branch-vectors-7.json, "
+    "tests/reference/generation-branch-vectors-8.json, "
+    "tests/reference/generation-branch-vectors-9.json, "
+    "tests/reference/generation-branch-vectors-10.json, "
+    "tests/reference/generation-branch-vectors-11.json, "
+    "tests/reference/generation-branch-vectors-12.json, "
+    "tests/reference/generation-branch-vectors-13.json, "
+    "tests/reference/generation-branch-vectors-14.json, "
+    "tests/reference/generation-branch-vectors-21.json, "
+    "tests/reference/generation-branch-vectors-22.json, "
+    "tests/reference/generation-branch-vectors-23.json, "
+    "tests/reference/generation-branch-vectors-25.json, "
+    "tests/reference/generation-branch-vectors-27.json, "
+    "tests/reference/generation-branch-vectors-29.json and "
+    "tests/reference/generation-document-vectors.json, and live in a "
+    "file of their own: in the twenty-ninth, beside the lane's first "
+    "four, they stood at 303,350 bytes against the manifest's 250,000-byte "
+    "cap, so they moved whole (plan P4-D295): no cap is raised and no case "
+    "is dropped."
+)
+
+
 CASE_SET_ACCOUNTS = {
+    THIRTIETH_BRANCH_PART: (
+        f"The {len(THIRTIETH_BRANCH_CASE_BUILDERS)} "
+        f"{_THIRTIETH_BRANCH_ACCOUNT}"
+    ),
+    TWENTY_NINTH_BRANCH_PART: (
+        f"The {len(TWENTY_NINTH_BRANCH_CASE_BUILDERS)} "
+        f"{_TWENTY_NINTH_BRANCH_ACCOUNT}"
+    ),
     TWENTY_SEVENTH_BRANCH_PART: (
         f"The {len(TWENTY_SEVENTH_BRANCH_CASE_BUILDERS)} "
         f"{_TWENTY_SEVENTH_BRANCH_ACCOUNT}"
@@ -47187,6 +50689,658 @@ GIVEN_WORDS = {
         1430706808061624702, 5904843535002942003, 10339939928587401951,
         5835832080307945320, 3242260194219060829, 8417544217488639800,
         13906875485066373237, 6090394187356805622,
+    ),
+    # LANE GG's listed census (plan P4-D440), method G6.9, at seeds 900 to
+    # 906, past every seed the other files hold (903 its repair 1's, 904 to
+    # 906 its repair 2's).
+    "listed_supply_edge_left_off": (
+        5336611317377448444, 11549860263734279601, 8981748141360562972, 4151021529249118318,
+        8045091504864045985, 340186007917795282, 4521299320694462936, 1915378840175428674,
+        5557239532766400200, 780928787254006535, 10243394800186721042, 13706658458030841643,
+        17964628015609761436, 8558366323968043002, 14897029846408079552, 15650508314835633287,
+        1554147200350386404, 16628012777923018691, 4980705157356043551, 17150087873030831015,
+        9925199766364290381, 17007770129542272981, 7392188319165713550, 3969022959395339203,
+        4949455876564251273, 747460147648928856, 11204786030079005065, 13920901050362228771,
+        12773427513288049016, 6127789657648130413, 11576288081672382276, 10541478839683810028,
+        11468924697519723881, 15350851932029895757, 9054256223151888814, 17372553853152937328,
+        17557110204424261185, 16730980527056840675, 6483437357502405186, 5605594942146167858,
+        7293412483881658377, 6069842846233555893, 8552534521843792018, 10468574514224851405,
+        15469628698271363551, 4492961756594035366, 6582182368420189206, 7054183056987805782,
+        13481877977884331922, 4485008858825150532, 7621561073700276525, 17736548876036386628,
+        6223019598783026979, 16668246914654637527, 3952554278422304713, 7519829564569567575,
+        2835116561469572825, 10884884974489483488, 2972279850725524859, 11514147531895481166,
+        18174101253493333868, 2476329711782156880, 13818822461305804058, 7949230589908101014,
+        6516066133377932694, 2392573187065360401, 1692266473506186266, 2450099235806097993,
+        11279821797454403027, 7867175890119651300, 3833265827923961734, 17825191924352004375,
+        12599379387844357534, 11145307897990768028, 13274997173493960345, 18057807370032330431,
+        12256278996027158921, 2153557644275064796, 16700804700235002364, 13252279267800839972,
+        5466336908844608138, 13490971108992206079, 16207385486780994861, 15110185386910493402,
+        9035246455981431973, 17336554300308895595, 6381627966661003570, 15547916301007276468,
+        7536182217028404768, 4154051768324743122, 6763754128190092363, 4882884642238347488,
+        5763011279622734858, 10791254333004991384, 12659397761352193014, 10329002174998667709,
+        5425744480254710152, 18017823661608941207, 14785471631898211869, 6511389325794262114,
+        3654700120475365897, 14797829222960331230, 14092588112312263064, 5034245434239114212,
+        15701218304929274499, 18020524766182712485, 4221844807430607773, 11209951151457697918,
+        17754033685716239527, 12141970051486248815, 7160685432865671333, 1042674004283461708,
+        12160768730096334363, 1793556626721024301, 7573389433667297807, 15329708244864618546,
+        18113355024731904178, 13377488045105575710, 12473467308241397116, 1726552720972461573,
+        14867109490371746268, 15495718541501813512, 3759689776556710101, 7552971907634389404,
+        14324990909904037899, 14508524454899886456, 10616500566918138189, 13513639721820174905,
+        14114950649132706577, 2919856691790345265, 2715174971374031863, 481039857915980610,
+        6009035969357403245, 9929174040835443017, 6165929703825094038, 7764481500546009397,
+        4501684850556657201, 5137529794081572028, 1389441591398196628, 8575394182111007574,
+        17509845412639388731, 12658101734798917237, 11750736187476900998, 10283480534593292599,
+        11283413408762846270, 10929862728260525085, 10505055909177075824, 13685209815924345868,
+        3870462683723068446, 17131136591136395839, 788768455095707142, 16151328376168766795,
+        10549044385802202494, 18401843023218661894, 2139920124040161930, 16162790261661995699,
+        1958797289343335766, 7705097064639242069, 8391370624430272219, 16837957627106948358,
+        75056632158513352, 1903082887611218856, 11816500713855141410, 15223746599335801285,
+        17789283704541497781, 16600115686462247703, 13121771791249944661, 12519579807677006598,
+        14169438501054999056, 12053610981482129671, 14723236413959070943, 11463634128665985672,
+        14940861340470741326, 10839972511783375702, 5587131671571398821, 17525176566690143130,
+        10794682782450011273, 14337345771266270087, 10475754355549617780, 8749840756155122184,
+        12052737453876020477, 14985972921197836414, 7399820523707160830, 12029623496414477072,
+        10366106280086993948, 7109508070953575612, 17878153320315277423, 14012792823586406943,
+        15360186820512678047, 4361108857980084673, 6154675852353103658, 9789202627058299863,
+        9559982607862483620, 12511191442391674568, 8914956040078467450, 16300532511107075615,
+        11456243420105585090, 9450303170949261313, 15010284347337135698, 3044944254070321172,
+        13034856205466018094, 348704570389157043, 10999524695483410764, 11212018888869977574,
+        17126374070623188918, 16937047757134355797, 12137244324121765131, 2712499240568761153,
+        12393170399161770980, 15027528185132128046, 9506343699413705545, 18131634348248574791,
+        2165412662924799282, 14158292209154724880, 13198153708767588375, 10766401055590044740,
+        7267875750724954296, 8608555763741853490, 5853099236658480979, 12141798701421154820,
+        4314645298493492818, 16267041080089123667, 10431090494649911620, 7387079337619510685,
+        8098591122357137729, 1908993091056112021, 15895691072998651813, 11472805502415416898,
+        14030245287584440074, 6318564549728848697, 10381619618635873660, 13032650797471067948,
+        14349661788210732599, 6464892632965245633, 17860105993012144873, 7712679355184588800,
+        3889526395111865060, 10847130881698099105, 2656952514735167642, 17630803815457137664,
+        16382053707148296856, 7368686132685954580, 10387112481677262739, 8660784844886680756,
+        6023428976158179810, 6869023372490165953, 12485625606430219336, 8065589413485065966,
+        12315291648914684919, 15147248647977025960, 8581393315017944488, 9817567978258526591,
+        15835548200208061011, 6337848787835956725, 2155526284219138090, 6870284035519960056,
+        13876857325667727752, 3399490185158416841, 3351868728310965020, 5299571978665503618,
+        17937313548587736968, 16144209313329433583, 9867722392715245109, 5267306074751475291,
+        8443847472402346434, 3733656850622083010, 17215671584540651159, 8096487405950545177,
+        10408250665999957162, 18042600817097915471, 16236132836373690586, 16321879134215438229,
+        5536712664539663199, 14820494961830847895, 15082710636633170958, 5557280013100903420,
+        1458722362244173942, 1198026274035955947, 14694001635769368344, 7848915531695191286,
+        585686470689913056, 13332661918619944306, 10410155022676339436, 17912993769746643162,
+        11354127955154315157, 5175869980333054018, 7373418795893928872, 8356495740038466893,
+        8285443856601663708, 16920823735957423103, 10588999517367136527, 4310258275896915519,
+        9746196181665245514, 10460629723068891507, 13659355052937640955, 6576482153092822676,
+        15656393469042204062, 9729382154989745590, 1844478015311587996, 292901166030137369,
+        14039783870500399672, 13798577300671686516, 3384341758853345563, 13288046158606269698,
+    ),
+    "listed_forms_handed_on": (
+        17705795817431892911, 13807310301271196693, 4618414241179643462, 377599422648193597,
+        7355362605026059827, 2330433929627586556, 2964541648904024691, 11191384854033825120,
+        11087956780235754127, 5817392335182539970, 18313351555538003930, 16437467750314438141,
+        16760470440499916556, 12649668634799606362, 2137701904695561513, 8807495718208501534,
+        3456507255599172930, 6232148709690541155, 844106638736504600, 11649169471156505039,
+        11623377596882433343, 3066454950743705464, 17942760162770140898, 14286500373285428735,
+        12695845776181930378, 14973019525932838206, 8314015213586228061, 3177382780917006313,
+        16583465324650646859, 4199413478543207767, 13688292525650174333, 3708962719179723506,
+        760280086624505496, 9643048841766049677, 11823197083575139268, 3543923419062506573,
+        3940930987866449447, 11784943390144833527, 5863481835432592307, 12838839119454605647,
+        16910858352766458459, 10897290366809644241, 5155367608690419019, 6685500679278646032,
+        10483942628550217781, 11996926404765060409, 3987324253770255600, 7092613605741950943,
+        18084463766859496653, 744587235544421972, 5919070687496978920, 8879104828585838836,
+        11054758367433663563, 8344896179125503351, 4946395409772596022, 7871272840488531438,
+        5892658700977119706, 11142811071895223101, 6237931873800241006, 16721361413231025362,
+        18165033289289607061, 11567765531322827344, 13114395411705553466, 1141974509174974313,
+        10710772289645491224, 17484678846789565865, 8417720537101586376, 3394103105225008398,
+        3507802640983418759, 18113903330481854277, 1069746057147985892, 16418289362362304427,
+        1289742550112486426, 6539549595253890499, 4063523086310449742, 5737131324926990284,
+        5711132034446400786, 9151649937568322181, 16746542467819436744, 9025868132529974766,
+        7164074431615897090, 3422930694895104918, 13876428410189635616, 13186121300002374296,
+        10513550641210405195, 6336455618994468137, 5615691467627938371, 15506554143289735557,
+        8545534283642513800, 6716397724084784663, 15770048645583722226, 9900537082170226997,
+        18216986409319524427, 17095874547944870578, 5655221082426283034, 2780344404915746437,
+        16592089868752978173, 13715117249169956639, 13875143775350374522, 4326182672734780219,
+        18229200175338161553, 3291889836415917033, 10381993139188808514, 3866250475573131408,
+        2634670850279121974, 12169381194164629874, 13492480472444265692, 1584688781533211350,
+        9615998979443932826, 6041493736418336710, 5414293303200623283, 11012540597104411110,
+        14506266679819226068, 10684266063775589123, 6476340988710929392, 10522476127107097328,
+        13953325904755969784, 8054090564620763227, 2277453265936671544, 16945168055846585333,
+        4416545574192690945, 6042010050670983010, 4814788408681997587, 1417387707738309034,
+        11627292159854878618, 3630561354898839723, 15954061801529534955, 13094808734100969388,
+        12083791633776317489, 14873774360015107987, 13641613214871627068, 13355396254391559247,
+        13287976495889283483, 4271527135377052200, 10421302647082900059, 8270056363103545149,
+        13919632897587475737, 4237287607001790826, 9416001332967478025, 5433011650339875865,
+        11243660985748928048, 9873663706058153523, 5590168272798023642, 7500084366045556880,
+        18379727160465946047, 14015894017320120642, 2412017573358753552, 15712518758406486132,
+        1860175269810257522, 9464515943950850668, 6518353675077850556, 12496179753744556430,
+        12705949984503357976, 4569829883125592787, 9055943825567517767, 17242958350912643019,
+        2742136038112069493, 2077614608699991845, 2637125571953654624, 5199592923285005084,
+        7411589507935150683, 12729297902491834357, 10087391700332016161, 13434206086088838556,
+        5572552329800775966, 5763224280502496671, 5270178936189025565, 634331729988195363,
+        11303252849198525712, 9828649949993842568, 14901904259533641370, 11716294506084462303,
+        16337661404969866155, 7640946874209071475, 353587186056416506, 5064833260521878036,
+        17122211671045744927, 13716428771356870868, 15182136945416198724, 5890689791670540366,
+        9261955985172054368, 14528645172134571101, 7115110892762914895, 1894525851990305384,
+        18326194906988864892, 13112924657924377655, 173450429631766398, 1243185327155963399,
+        13102290257020640729, 10332383335886223581, 7995370465688013688, 15212098684975598785,
+        446566476676912128, 17280646044645326162, 11650080153612330517, 12415525684889333597,
+        13658672487445346881, 3217868906613614005, 11266438324600367154, 14526721128629987374,
+        215186080363361933, 11368540312907779039, 3466196938280739265, 1362976084531032567,
+        16044598709841623926, 7576779178785135775, 15212425058294131024, 7180958392546958918,
+        9672156084213617689, 15843975784281569525, 9431357543531964897, 17984519257811836726,
+        14511593763368467917, 611474223323673164, 12446526407038474936, 3083056624003421232,
+        15657111125001578886, 13624121647846167419, 4110471072942562871, 14948153594322336391,
+        622678336264438944, 11024369121779664719, 12842584230441296242, 17451200585722684988,
+        17859521100577768823, 3190286824018580191, 5220556826101213038, 2939516270602085575,
+        10574612333523525437, 974149694777662693, 15389374489136888432, 7015596109975891587,
+        6316196997724265588, 21563300578853051, 3692863340693053654, 7715054752044422248,
+        307546146905875543, 4398346028169813314, 8490069503326174291, 14065762709095665869,
+        3562449622639791124, 4371058081839264929, 2271540313720712405, 9538203013762633636,
+        10542008277128739190, 2741710491865057546, 18223878350212129542, 2433372901737024325,
+        16185198945926994517, 16223688476675050905, 18276486677588706058, 8006327551415216929,
+        6973636471882697743, 12414916161933867318, 1537463259200232232, 12762221339795314525,
+        17825650737367454703, 17095078224414057577, 13041468456311381147, 9322941211567615051,
+        16538777778360444551, 11073104397888270738, 10567149694008194628, 11725188124519334546,
+        13278353220331246369, 1065147268106112591, 13449158030978759488, 11536889764803254836,
+        18128342015863374362, 5784747962224840295, 15656420078744483206, 7389331789590382048,
+        5065897994771882914, 17554348512514778946, 15241748414174079282, 7828894410537401806,
+        4537701940353128224, 8984033596577570915, 5890724020065926894, 9808326291864276481,
+        5771453585269600769, 9967288831759417797, 13234689845194836286, 16010798983075375730,
+        7105848952052323647, 6425398144451392305, 15444393453066268528, 5838451551135573776,
+        8528347417818309366, 8374532007813489426, 6075679419877849901, 10786858197469524046,
+        8918602714351859740, 345612472559583320, 405834419188489062, 14082892458859025202,
+        5489928051870707890, 12980105212120715543, 15689923769417846732, 1817970599277413102,
+        892349625180236770, 1661695544394060908, 2177223338891713878, 1217873675736457001,
+        17669920987226159111, 1800472253772873180, 12988672351288630255, 7434326838326476937,
+        4867049435986697473, 10620693857907434417, 10338835056547983264, 10282318345993683132,
+        7846756183540268786, 1869932192528357466, 18093467986621695736, 418840398338634413,
+        16080741895897771385, 8119677392732082678, 13177601923961082724, 17448156775442691617,
+        11959431878443186474, 12610679578409515206, 17008438742927930030,
+    ),
+    "listed_mode_takes_the_room": (
+        17367939005795579614, 1432760098145033797, 8399086757080786094, 13739839576686762823,
+        414946252972930935, 4761565148196732005, 4799054504526699317, 4000592442674758429,
+        18264612535037568347, 6445493146442893811, 17340626222096847882, 4799884581459223503,
+        15071764218779556973, 16303264230950993222, 11336512058483878556, 8671790531468035907,
+        7380361298088442876, 10213661865447542048, 7930250196558737799, 5997477794279904876,
+        13085152671780562220, 12743282975305787089, 7625319535363749331, 17795569727467751325,
+        10284850383005521557, 6900417764287597762, 4966086477895608748, 17966633851679232176,
+        8263791931014076511, 2856797930463996631, 12879965809728998095, 5413255052117353358,
+        3340669145972601007, 11558295624000995980, 191640338944796019, 6685249363958638611,
+        12373803778141737876, 12116409245934479874, 9795267248109968727, 14682769764169129536,
+        8591878566480114711, 17700307764790788424, 9500798148583286410, 1691330371784406955,
+        11988265457660966147, 5470108089481205719, 1155682766414604219, 14661530596771864525,
+        5060485861746033917, 14902269588079605106, 15446209065680268189, 1632743770784929021,
+        16447631071985372365, 16958649355435273365, 15418228385309343776, 7952273252956882749,
+        2681873893141130172, 10907606030342722534, 8680917057451558322, 3115486711461315474,
+        1782542961204461645, 1533514231741443411, 17205356760425461128, 15808823139512339175,
+        17764771546050045328, 6159922965717321827, 13811995248821722992, 7575086499711493955,
+        16313988852662207672, 10979034624074301995, 7367490123025153055, 14037167173134471528,
+        6726283111684876850, 6557309000696133582, 16334025214166612548, 8527607342311394006,
+        2873854404800761801, 8771645700802577568, 283385935701544439, 6895054058507907371,
+        4789509367588330992, 8972111597394359710, 6502621990593684578, 9663932908188767259,
+        8060970908037498467, 14363733368712055219, 12506702636959458670, 4811837908902997911,
+        15761352036898599904, 10682282758654275908, 9030427153546718820, 10668029479183329465,
+        4871082655576043963, 16499057585081917248, 7894771803772236974, 11360237580543524232,
+        12996684222969208368, 6152317190283715778, 15363234276919947540, 1028473554660573017,
+        17860576622845255117, 15142747632198952181, 15404763585574410290, 2549095540528848525,
+        15871812402680474065, 4759889376481199797, 1739734371952897545, 2288233986831100605,
+        15639521878915786114, 6092678473522073706, 7560031027750789409, 17479643996515871319,
+        10879659554004683483, 2219883738053506987, 9334895679304289920, 1977601716846039049,
+        9330646955774029699, 3198452814560208997, 13051436458093098482, 4671446359931856152,
+        14940029396589686178, 2698885280424621478, 1632132015815679022, 8742287893437872597,
+        15384418717781257293, 8970724988817033565, 15644354313121418949, 16887260958006656671,
+        3391799862162564267, 10992339271212443542, 12429631067922379907, 4738486399548208878,
+        1247257829017781068, 1101253531825487353, 17070927167836858003, 13700423148130978806,
+        336678368678749555, 8493155727279873284, 3866855880996371810, 2231394158700655764,
+        11549615128193243527, 14950136233911473565, 16942004618945814018, 7804283318860225402,
+        4988741967822497520, 7488067698746801260, 18333673865422913697, 14118079964369949497,
+        9916184878409683800, 14653066151043939363, 831437910478074079, 3506087588700103032,
+        8711220473963270544, 9988663039752075123, 7753143845813424255, 8990868663208851421,
+        8554174306431073889, 2516240262196789491, 3288085045970819898, 3713616383098246886,
+        1154937346054313446, 3420241847415877946, 3104025067486343780, 15110923158630912617,
+        13352925721878574153, 1356180090386923416, 1282316138899274103, 15068660838141655336,
+        6607881274720285495, 4824442460010123840, 1917285734525605870, 12866396891247921964,
+        12192373713936322027, 16218828039330322503, 18321549925230541941, 11148619025849907063,
+        18327632827823127132, 3416477126028673609, 2456589286046956254, 14379984062191807418,
+        16619177604997743303, 5803716114042712028, 11232926051254206808, 2966471228986698668,
+        3575169066670759734, 14292011015922947440, 16026560786363548832, 16914057941809326627,
+        514903378748262117, 17435834852013081444, 3896698724176086667, 550303390994054187,
+        2036242825975852208, 15039686658448207961, 2726592022244325983, 11836328500092516967,
+        12838572817465794945, 2315882369454681194, 3320456776357657371, 6738301791202177326,
+        16841466835909908249, 14495951950300781918, 2327119990949006881, 4599334572644653171,
+        13295937833599164653, 2341475261255101407, 3575809917593310570, 8313319476741756503,
+        7924559242120000795, 17515590443997641225, 8321963036774107313, 7753266980648254821,
+        11993156803593869066, 6051157052811516828, 9743149271207983784, 2703225131802128446,
+        1056941424851536398, 8997376000723250553, 449042413754122553, 14133097109522192082,
+        10194190469225758109, 1742763799803306562, 7411259196492204047, 11578242915700069293,
+        18214038921271238841, 11444609604564973795, 18074062812212150071, 4796532139415793141,
+        14894594517505558000, 17932423011012048754, 8319354178769033661, 8947142532958574626,
+        427676351212327608, 5413819997725128648, 12321826864896793732, 16868812392659355271,
+        4408075337013265821, 15251385505825188266, 15074636134554917371, 3104920564979262126,
+        16677776780288264575, 9520216153742481500, 6363069642944958690, 16353637781004167723,
+        15081849366155369283, 9841222228188738533, 11142448484202715471, 14041716908212020251,
+        612965695485546675, 4515186018549787411, 7948708999119205356, 7050564575620308226,
+        15451583030096443054, 1219030208229028495, 15097648494671097458, 14552132772948271644,
+        3506165392804972844, 16373351401867901189, 10075316571249158996, 11757471120381007137,
+        3972556505671260625, 18119089772227730625, 7800613228448477037, 6525489354963702687,
+        1127607534985929567, 15201880163475545503, 2527526155585182838, 10696826768690062600,
+        14097216210829957847, 4704335613430735036, 3402934879438429962, 12958368593933686047,
+        8316570713207524962, 4077083754896489548, 9474898297775071658, 15071348582381029811,
+        851342399982813638, 7496721831418813790, 11730534318736463689, 176742669288220372,
+        17616873812880163590, 18041702362243506078, 6716277706425174663, 9602104727712862052,
+        2006308704011296731, 12869041221202694701, 12333350955180214005, 13788023825862703273,
+        84475803240384385, 7653394160407335737, 6360891423798526579, 3586031264473881776,
+        16122133523797453038, 16335471401649632309, 1232369090579274065, 17917800733296980657,
+        8254060466740508966, 3697095069706365145, 14493216681619829701, 1605593481539538017,
+        1827236420390610199, 17045771950681540495, 11888752868953172794, 13279571535979598149,
+        1080473341736723277, 10551351532556405960, 17830626997526094642, 5789938833669726121,
+        17404117801226850897, 14007502877300866959, 1952469182279336526, 7372850067801381324,
+        7123730583074579352, 11479569173965273753, 13035003620336454069, 16257063918703406231,
+        12045603373209278793, 5883729454611257902, 4711994454992802385, 14082504136319376980,
+        15480733434131942581, 5520811083417241251, 17919135005744494195, 6950635079375111299,
+        1566367076662126138, 16680616198351465364, 15956451628924312499, 18391047885942569669,
+        14855548264640974810, 2698937678141809485, 689718333136199690, 1185822488233982474,
+        10637869980784682051, 6012179588540996113, 1788264729267166905, 6014592921519523190,
+        10790527533426792360, 1890184202251443468, 872431588686687313, 14572737441453988833,
+        11830876337582707275, 17198766577228680663, 5613010396606182476, 7030127012675255279,
+        5039679125590043152, 1110426227826608736, 16651036561858345104, 3307841302885063730,
+        7130697336249857716, 941011108838295031, 604513375564387336, 7671138685031689292,
+        14218346832604297189, 53327200948794828, 17901111511972135975, 10675405448713161558,
+        7694550179756159669, 16477868138879463376, 6772634548343725955, 2207817891037019405,
+        11909595619312411584, 11872403353729913753, 14943054307707715868, 970746124121700633,
+        13612921767216786041, 4376239859183385586, 9745050271169162723, 14944153007153570736,
+        17440036678144065470, 7694997019446273716, 1385385625356208704, 118628765920595482,
+        4379559950185002225, 15351540650839943135, 229337665980003540, 14832221428651373600,
+        9913168727387146961, 59425295274323839, 15367947596602253606, 17571624837272635134,
+        16231396346595649258, 1732833586594170556, 6559094694376886967, 12639450918522361029,
+        6870786740856180010, 13431420760053406960, 748216278558779670, 16135316043033224665,
+        1448829912212081400, 2591613279712089241, 16152397735032277021, 245232670938544748,
+        12357613104054875071, 7790675993039816682, 15544325518071899518, 1974648722941311087,
+        7930738616278357807, 6318419900667408158, 3669876497721112228, 12226660307303845304,
+        12447745662961880463, 15801524662004900227, 9186723345558066150, 15869177165375566631,
+        8020291286604832651, 4995887762766504852, 3371742662279546095, 8473976446783202216,
+        3656163834748871078, 2239496304517371904, 5489272426342262932, 4512090250841121747,
+        14320491406465385300, 15812261097587130082, 421928125022172367, 13005568355345857076,
+        9997175654275005066, 14790306737267552292, 9972522994139480312, 1184290029524573515,
+        8805572330213067600, 11792312980481558024, 4497776803546646380, 14405427946802607087,
+        4851713171576734780, 16685704387307383589, 14751578112203802124, 9417328201493170585,
+        10423176975059592073, 12396301785834534558, 16765606640695677028, 8603204544078423693,
+        14622810215840690781, 14112847345556948410, 12264716623816627270, 16004540103147648564,
+        12376025794053260321, 4095011913414037260, 6794261023254378513, 15926033589877944414,
+        15603983153636265070, 10197976845609199625, 15489023577280757556, 8519699677375973688,
+        820968855449228346, 4901331054674992009, 1076747800316437240, 5454482845741161358,
+        8870866562325197237, 17564832302256494061, 5281873103033038704, 17975935812065504848,
+        9155428820346386666, 15253770915608457596, 14809492304468575386, 14194905389649619115,
+        3257219198623307963, 8386584764464778081, 1423783191504463374, 15257109957060682701,
+        3779618087690144837, 16834554796406590129, 12096796997710549426, 9340772146722656334,
+        105074925411070433, 10176833652600497740, 14860428507036598688, 7843390836993039892,
+        16668851356879101627, 18219758588969933485, 1066018601947617184, 724613702053858786,
+        10297433953374100556, 3543582458136467965, 15018701281428824162, 8112777818140048186,
+        14574415012226956122, 1895437535333214892, 10269994491313381202, 10816815852824542778,
+        13767850373319367475, 8188847447486150492, 9880587905759349266, 6828101079425781548,
+        4534138428891112641, 7030339768746522521, 1840900198627035162, 360126497710559783,
+        6273612006717667037, 50559879188316893, 4436795139897170979, 13163403548330443,
+        17659894671974665257, 16671134322453329794, 8862872575009276508, 1782322053465393134,
+        16389756988408483976, 5467401399609325267, 18259513014797218508, 12504661959159842961,
+        13996421384335994650, 16773608124756318296, 4206770446224772100, 8063857832781487996,
+        15939151420739219196, 5766245523267753438, 16443310886437612974, 7619671847105378897,
+        16727328176838202725, 10646276399668030912, 11480614052665902979, 408102577274890857,
+        15773058805066315614, 14860672558950027657, 9996330059173958802, 4082241944852360957,
+        14542278095402632275,
+    ),
+    "listed_score_beside_code": (
+        98577301671569241, 820815737590491640, 16738303394693953241,
+        2996513783074985631, 14109969894340141081, 9188295917083974987,
+        14907822377382325099, 3539367915860375356, 9350197820002471269,
+        6199993844522849338, 4271440951262537390, 3639169763689439149,
+        1276478988166796021, 17455977139191993731, 2517979707082490117,
+        7346641842418187862, 9762196351318464760, 12693680602550394591,
+        3048894903379871671, 14910482015839788240, 11967886774487131691,
+        11271816464466255009, 3331228578038172903, 16742884032300633723,
+        12638728986341655451, 2065459160366358850, 10083514296153361504,
+        1387802492060296863, 12599615561978646214, 16893122183277686701,
+        6712541855767360183, 2428324528794382174, 3683249197356608699,
+        1878335473048925051, 12791109346953818863, 9415192370870677777,
+        218090695045533579, 815509853314823159, 218905169676076937,
+        11158224685539700849, 5188151472399987643, 17908310575498651460,
+        17874594775001929591, 14512761777093096765, 11403971628894449640,
+        10697923521688319607, 7173192525764615579, 15715383539041945573,
+        15623386058025524507, 7891602465711133987, 5232350040166366125,
+        118006025119920048, 18140130992207688140, 11596829457010297618,
+        7311108280731602460, 4271569592448026482, 14564444340814720742,
+        6131910741896638975, 489969399397281751, 11685215960001452254,
+        15488193920642270136, 1009689350054923955, 4086421393782511180,
+        11412713393787765549, 917641918576412600, 16767311850683507240,
+        4398352544797077990, 5413768638562187062, 11457765335247622058,
+        4339141849806880477, 9288662614741273548, 12906199570892115596,
+        15239594945048083903, 12557472503798286093, 1004982322484445315,
+        2571075904911147788, 17954195139011061174, 8824839551045978494,
+        14583387858250379089, 3644618715058485944, 12291080620815978480,
+        8386596345587359401, 1395677969828942675, 13230843942503154778,
+        14939429186739363312, 5607714327448996681, 8118179849275969720,
+        14560157726730387662, 14061946779225522097, 7759454701269998860,
+        17084839853548883105, 8008835360367848994, 12276100181545514493,
+        4031040244522062175, 10143513672876279330, 111875791413993983,
+        14056632635108370729, 5948304863604773816, 10844264148598026899,
+        12180330338943183839, 633409124075924304, 1579447833058242788,
+        14510635650548466496, 8361756714990644946, 18429551150765916310,
+        8920773118326970933, 434680484338989323, 9470566462682035186,
+        627135518735995889, 3450293884969842335, 2787494193467535907,
+        5683785322307531898, 5395554651270556249, 16019672948365402632,
+        11029769353169975196, 4844532146332172027, 17345537387667956741,
+        1464478207763992091, 2987888472286910755, 10295588363217020580,
+        5560185982707265651, 7073980589567600510, 1552546682108689243,
+        1153879246874623409, 880403192165865259, 14355882740427097471,
+        1979864714378361481, 6774000152233419286, 202604404189379347,
+        4233233885793151633, 10398393360613470934, 8102105940019761737,
+        17626839132201117552, 17652943523332541806, 3803537421835262861,
+        12419920233253061747, 16768693990567180990, 6140529958921937822,
+        8946452058935219532, 18175397273636339919, 12730361152254849671,
+        6869599851591431758, 5978349337693175143, 13160994032338829172,
+        18085917855610070902, 11021654786018033982, 16349046956762655359,
+        12001676984962003467, 12036281613045682521, 7531314754707619409,
+        16857827601738297351, 13332929758277137528, 15522775777086594809,
+        4182882111035223827, 73457821363602151, 3965587443933677003,
+        6197543940639224245, 14533698344087340764, 16226619997438989014,
+        18140102547297259283, 5178987797915863721, 9682684260454941187,
+        10623883582889467630, 13205648574462896727, 1362719891805629917,
+        17009025166414686269, 887928171420672450, 11852915708792554882,
+        1753013315773758651, 6710284872200824819, 235006669177289388,
+        1155939322200021295, 18196299880656983441, 13794705706262729335,
+        12565831107142362701, 9232761884143846581, 15728558728970518458,
+        4053415614720282171, 8747027285823505537, 17604635698193992524,
+        15799504057851361215, 9943876054406270275, 13944591725972823807,
+        4335371435939932845, 16597900530426132276, 12016336332684645702,
+        11211890155832413165, 9353340134357459084, 17672495765948195190,
+        10269719257611838595, 115491390442902599, 7204304400610438082,
+        17892062216741038744, 14306945721530742468, 6193550322333544853,
+        8534889994016620166, 11336993925255929074, 355886092683576361,
+        1621936758298014057, 12815894508177981071, 1616089842612471551,
+        16170792461637813011, 16763124692465965848, 6642216161664034330,
+        5584294975859381238, 1707087231263530647, 5629913009643109250,
+        5551007989603151238, 11370037519906567958, 5932656626213011796,
+        9563644121080817601, 8887794224408443540, 16449729683473290529,
+        11753422019866481108, 2370604234855611771, 13534352571082325449,
+        14621764800819337672, 5265384128026413843, 255986202552000861,
+        14244126679413685203, 11092608765010231634, 7030094689074889433,
+        2736486796128517498, 15638115908753914919, 8459620957576529139,
+        6541931884784263931, 17693913494649894838, 15002820825668327519,
+        14323805792204802796, 1765206518077494725, 17301020520539501527,
+        6505660629952352807, 15036100147765486783, 11219137825412185748,
+        17049949205743874047, 14238036296884967004, 300819850922983987,
+        16158554986519413807, 2355518969360060750, 4938829166982616453,
+        12636418643928591414, 397383030099365725, 2802753918232718858,
+    ),
+    "listed_halves_beside_code": (
+        13342633520626016585, 17277858431491435907, 6491716628802747146,
+        15757885473285391509, 10810389072902647370, 3164434869857832667,
+        14729461419153001115, 654741414203531276, 5690362657362893219,
+        2374819765143076437, 13698389718142443790, 14759292757177731259,
+        2530659247012541782, 8406954687850209220, 2129885603577343706,
+        18206719522181830573, 10451958013484676347, 7376515884165650565,
+        8622540315198742708, 18402109175136284949, 1725757061739631583,
+        10963187460811625775, 12277790893478055954, 12858750327883260188,
+        8992041998960364263, 4674070672219337968, 6313036244574613041,
+        7577636828149133772, 4361253235122267119, 9887632049444880785,
+        9285004862247751945, 14902763405307234621, 11126616840840514014,
+        10141185735465004722, 13964428470447406091, 11688058589544967501,
+        1110445612556443186, 11427680851108300978, 1391196984632479734,
+        11283138168828880885, 8579326195520764445, 14949998198264226395,
+        16102256102511204175, 18214887431241337873, 10510948634787600402,
+        16343945922089541532, 5606582287609707128, 15803071763407951445,
+        4527874964415907854, 8156762725137055008, 9864932558681075605,
+        3825770263682720669, 1130989072272873614, 12479901272043322681,
+        967534440290255547, 14035980214634221470, 6648384827779859800,
+        2987654186190675051, 3555311052502863883, 3517780955208101793,
+        13291048412771755763, 14091766933454478581, 7137366359145519895,
+        6518610300257120803, 15461807212018098182, 18031264721193766946,
+        12953499053747011595, 1638309916806251870, 11301135301842765984,
+        9859878886597923692, 17566294719728873078, 5313733415783372799,
+        12615065527374679050, 7356619689253395772, 10626399434701712509,
+        6282853494639337261, 10224131628270144244, 3464444476329154648,
+        7261700512294258621, 16418757392166017884, 17473473316131850924,
+        6241260053852262203, 8253922310273958097, 16392750193971490810,
+        9105695888211316853, 1351477907486975827, 12318372757916383338,
+        12568271902493488042, 2698875125244123909, 2715988831554190684,
+        6434774779057795006, 14782619912061757057, 4774261890205409451,
+        1716174829885185359, 6341376595312544925, 3904571363619081196,
+        1419831009892321674, 15650212473854013712, 5175344749965402586,
+        10908923873252131868, 5047581031088612815, 7916738679454652665,
+        403882759294033135, 17966622165411215203, 16941454274279813185,
+        4566357701387554407, 16316284173887573694, 6002234936376390729,
+        10180779322901101721, 14906420810441674303, 11142356191365896991,
+        687510259861290657, 15035611557150205170, 12970705017588156766,
+        15481726214994807415, 13642715663210966243, 9529081126776883922,
+        14771517678541766018, 738019561780559230, 10869923212779752244,
+        5032902496957593180, 8236165544066250676, 3636093306806467556,
+        9954095057881269491, 8641522027593248438, 16033304030957553316,
+        4395674002961109978, 680050666265809650, 17077316838483194318,
+        2359277605974253287, 6946253307894245466, 16514685063405025910,
+        15694352222404125530, 10704347301308505015, 2365838818713517777,
+        13737562077465374914, 4293864624443753147, 5686160557047276328,
+        7377659992578916669, 8105147948963560816, 11846910955848366683,
+        17076375278393993743, 17430478378325238422, 11761198678396978124,
+        8549363947531791830, 2194803953491534194, 1617484119433418610,
+        14238224547879477539, 16093648450445607430, 5167241933243483504,
+        15373573886878541810, 15741467831873669617, 10888757815149049012,
+        13590239150918139603, 6226987755779338514, 2551766314478120459,
+        14172014409418140075, 18439049936728975322, 3645382375122815950,
+        6988312152411035812, 12436929860202636122, 4874331922459159771,
+        3140918901422844512, 14929977155877170241, 7038368940667973813,
+        10210000552727792356, 18225656461895967879, 15365432718412213302,
+        12157828792428082465, 127886233943561617, 3570000500630844009,
+        1726085269327077011, 13490057784720756547, 15219250387150231703,
+        8062157847645425897, 8042906450199366317, 17586070768819633915,
+        16143712593305585522, 8833464229720552240, 5176494157455123880,
+        289638218515352564, 2735291757991832434, 15331243480471339154,
+        7235553073649279513, 3942198296758842403, 3768843196618904512,
+        6446137606819636841, 12854824838729249167, 3371925910816839795,
+        7656544563727090497, 8119567096613779216, 417012203880467137,
+        181418425105726371, 13619352399544041606, 11424325749709962701,
+        9434094779650213362, 14851089359969483475, 17580801795233437632,
+        421467438998041244, 10600980776905248941, 5912017687237676637,
+        6146707421745374207, 4076796412403547310, 3090629539329642585,
+        4852850115160930510, 11666912199455590828, 150381674450711333,
+        15598325999524811408, 5568930029065140931, 5764179590735013691,
+        10880535067477766993, 10161918494694703826, 16656594350028978300,
+        11476737509858547089, 18051800362539886162, 5553033749336245020,
+        10481604703012922879, 18412983166464748499, 4458926795248277014,
+        3434052810493930726, 13232987922500023487, 13714123484323592798,
+        13479562172083186224, 8217842826001386168, 3163063157532450101,
+        8552541671219649327, 8404231868740005238, 13548523570594941879,
+        10118056439050094622, 13787482228872045786, 1760903811384596237,
+        2993789968133340660, 4996951974791330364, 7061318752270746217,
+        7162527509338824400, 16463535582566953014, 14701031447880639130,
+        13769421352722652749, 10445117862419081371, 12066365125780309933,
+        17939920040514268463, 8664182269430653055, 2257114550422108098,
+        17495541315899705730, 8769170791466304612, 15232296249079709608,
+        2099281730702505207,
+    ),
+    "listed_supply_with_rare_values": (
+        3717170786298182661, 16786706678673192963, 14685826519417908900,
+        10914557614738369094, 2624523514310303810, 11111316581853773602,
+        2231681051791143787, 6739903907305968638, 12547229981708843468,
+        9956509188750814688, 13944183576511760469, 2742315870930029707,
+        14544538968198518840, 621729110942296923, 7315963522498917834,
+        2544697100182482615, 16803467449640373255, 12264941999538445683,
+        5288721519312738409, 14389046586925352485, 6393994273758442781,
+        3719654790644083232, 4703124319007380574, 14531123869235563292,
+        9931024832287916700, 6921927995988482439, 6382283120359058523,
+        13239380981230910571, 2670286791073038619, 7988169304883848740,
+        18419763591556118547, 13429564783070720167, 1859228351442888010,
+        17277264919291985703, 14008518085554014864, 7069374165601469286,
+        11286109162390378257, 6252422755589400041, 14281682039801437101,
+        2876295888247549364, 9135545504931793433, 8500898030932271434,
+        9560270475591736871, 13302008871816732041, 3777916442731752347,
+        1121560550567150273, 9870030879971494924, 4711431480491802420,
+        7507594951569661282, 3856060513568168934, 13598203939645338236,
+        14946806461663900291, 455531388790708369, 11814922813064066749,
+        15155101677268429880, 143528497895991472, 519114509691909074,
+        16783248424992404722, 12636104297119886360, 13409471201176294663,
+        17972730860092398408, 13962327086105733053, 15568631932975691834,
+        5541896510405987992, 13722455583258646220, 16242501579247830530,
+        2116747249263395102, 11971684753078356949, 9362497005477678061,
+        1140773044454880037, 1296037307965016958, 2435917247206813794,
+        4953068908765222544, 858755102747270072, 13028602073641127816,
+        9483659592399679087, 466992589350996252, 14545762723456729703,
+        10827623442571266673, 2248613981960660567, 12237031782352866959,
+        17307582173259992563, 4366006911602567240, 1700798857361854130,
+        13772595443686255440, 220332767744855191, 7905239281335156086,
+        12381556611140860014, 12828345929365589845, 8397143264940067973,
+        9024510880355323323, 15807451245153073238, 10737543033312135444,
+        14547214450629024373, 474118514265709172, 8728052833244695275,
+        9202622497240887275, 14501946247245348345, 14797227485393120680,
+        10177715612616130513, 315679168422859454, 6199162107349335863,
+        272016618816577078, 3181198795787186188, 14923182626214621693,
+        13712429943459154117, 16691970050741846082, 12639402482411817547,
+        8724984925417460716, 15531894136084144307, 9725843915650880291,
+        8966841801162774261, 8892592399064023697, 10816930258793427914,
+        7613648967416692420, 3737374925584658546, 757893084097958457,
+        8540784065784030060, 8000034629208350662, 7358417030589759567,
+        10050749007230084971, 5189106412247005844, 785764138681429414,
+        6181853961916323911, 14602420276403427077, 13761783514992731136,
+        18271490934665005081, 17625452960676099765, 390459405260461435,
+        3524505524519308411, 17232400960773120715, 10376999640875361240,
+        5407205685983378619, 16955838076207033804, 6303230401474115963,
+        2840022173433738471, 15135017699830850294, 16299067815965678380,
+        5607262410394993619, 4236879740422277381, 16102133156404651052,
+        8598159665713783198, 3860145125814685037, 2853929048922733022,
+        10911421728071925887, 17167629102555241120, 1346276164061818614,
+        7802127732192549802, 11279114448259597062, 6684873641402406594,
+        2159973234562943779, 204141285843669996, 2293204987593744292,
+        2553521054598933815, 10330016750500663042, 8953922712734997437,
+        8243657581527635745, 272068092269621134, 11608089505203923222,
+        6551800700849608861, 395049322099499574, 16889659263111647446,
+        7950145586419126160, 15398704150281663160, 4154967711561146676,
+        6555053176933383653, 5351971774812712097, 426385355473808807,
+        14777541162164820041, 15189891585131413509, 10474032444035439892,
+        8923256557782787906, 7184774011209376018, 10698984646865961551,
+        15020182603427384263, 16765305427233284505, 11090511441353666357,
+        1400780627657295608, 1658548975203461867, 8321773352412634286,
+        5188891398619372288, 5584351452188238743, 17534006989486362622,
+        16585836308887767980, 2453516422268403557, 3240669863458377518,
+        2575472854115080653, 16756572605024639660, 7370037080421464499,
+        5744775371787605682, 16245290757068449573, 13858611803291831914,
+        17428963707301007406, 9728434608000883801, 1814412458663356081,
+        8135684305430318835, 1124733081619420662, 397018899769269446,
+        3878827852750297719, 14222887331511219630, 5286596528792494025,
+        6687782020074468794, 4917177956671555683, 12850105376546787661,
+        11124142838415412031, 16702001095953535100, 353529037182096963,
+        9706701002105060193, 18147809485724166428, 185949600409591523,
+        9977097152241526225, 3601292736060596096, 4720386438982176547,
+        14601739821992437117, 5079960431402205965, 3383211456816990104,
+        6953593328871437682, 5333780130731606355, 5923508562823002917,
+        9540563887237254111, 17922977806315143436, 10784357979542141126,
+        311714667765156705, 5581025504796520671, 17780346668770102424,
+        6433242441743362485, 12068393877907927039, 3049906356524416830,
+        5997632976728869590, 10135548150938060483, 7168888114699160929,
+        12019203914252021415, 1234074509850305664, 10194020604868407558,
+        11745237090099232573, 14653271991409437598, 10548224949319442071,
+        13260306282082310033, 3425787407449591260, 14371125499672632571,
+        14805080435374040402, 2471876704329113601, 2318091953982889631,
+        5190776344660638801, 7918297583015498034, 17790458386443288532,
+        13483855377649645284, 10954786978224443888, 4672550807359683550,
+        2915808007445635382, 8044530170108765436, 4462774994002700745,
+        11475467402355070977, 13085035047508453282, 13637559940200408254,
+        15960585364279056296, 2372373137454072864, 7345672574315668904,
+        12793108688068724860, 658964762091909648, 3649541136806754859,
+        8014533492960218374, 14173506629278420377, 15253553468073156647,
+        17414952301348336150, 15515005620520499145, 4100752820252297534,
+        8893649629735203300, 6024654813956838415, 7865091227652849532,
+        1059648013589312327, 1013362933629176869, 14894669136180910365,
+        17198354837095534132, 9319116820531780385, 8981369881766695768,
+        7255597341801799417, 14027168472843660227, 15922846242417294802,
+        2037432730027660493, 2705205968559827577, 10643383927733647035,
+        11736319744364727445, 17729061199243436209, 13650444297865697394,
+        3123415624702944854, 439996783646758331, 13504972534638637347,
+        17113603319028828149, 4375493163613057544, 1975075349720118202,
+        8769509154259887575, 1050751869790583119, 11900698493807184955,
+        7318238157640739271, 916090239957633059, 14437557898838885901,
+        8322800338398143393, 17766297489592977800, 2383861881014173853,
+        8990258813455037390, 5870298458755705172, 13716208712251639968,
+        4774854686944332232, 15002422125128979336, 14515057837831920003,
+        11339585203138480134,
+    ),
+    "listed_skewed_mean_decides": (
+        2353228751104047815, 12716300781496142385, 10761769018924541809, 16638926777606748269,
+        17266026235278668793, 4566656207059650855, 195290768887059331, 15391743066060256913,
+        8595351313195080670, 5727383918810760421, 6448307569093304008, 3434217914309970744,
+        17572825941928509052, 11004742391749651673, 9088995043227602131, 9749171900365094652,
+        13099922483483233085, 3517455555079841741, 9544746053648400743, 16703058150155453871,
+        9343783044663758918, 14227685659273849757, 4540171393156202552, 15869197871938225281,
+        12437947688735905756, 16824377265161028157, 4172891231277032174, 16187339421719820972,
+        6540086221640747774, 12139925654074373229, 12243635528818498295, 183066650759892528,
+        1270505278926987304, 13737411998357088201, 9065860045700644962, 2424423470974275096,
+        3718938972405801561, 1807869447185761834, 4867264173232316722, 17961076651080500746,
+        4950799421198822362, 10847877329941731183, 4062822646127434830, 10651930069651104831,
+        12112892330794482248, 13926372800445527940, 16026325965461567829,
+        11152017304596880469, 12168143823799650320, 13883181909027513822,
+        14366757466889260583, 11058843839524592432, 14261413273232446048,
+        5155092820955262166, 4489795573139333814, 384743601084740648, 16669894902740129791,
+        8837522788222416048, 9418186767350842584, 2445935727010674019, 5057919190954174570,
+        15632346691588330957, 9307574895128438596, 4662855933710414774, 16039486430296598400,
+        17729471273209346293, 1891671693511052164, 10953934899959468631, 3895221736832639521,
+        4375925042920621372, 7893134311711633143, 4851332455095038465, 388939551436234618,
+        6636641517221999693, 16468505447867878918, 12679714815641146265, 15376677450375222486,
+        10344060283108097477, 11191037868448981868, 11199067486558309453,
+        7032253882314515035, 3525844052550626709, 16272336220098410044, 9063050212989937965,
+        11010163598213948115, 1705993622529901328, 13631258734273748146, 16386586438470020993,
+        17374955587955495137, 14579667831751099968, 16999667706946203585,
+        14636393424992368163, 6272668973810477526, 10864853429504129767, 7337875303946982266,
+        10174536560535425997, 7515469460407437236, 4604019445990398057, 16448651275082078175,
+        9578355755540351377, 3027204745470201006, 7965193832275460999, 13343044775650246499,
+        13082452020713475932, 10164653098648269865, 9845081000896240707, 15228484812860107431,
+        13668974875629718666, 2540214567591229678, 4999861593838112955, 11096921338145821528,
+        2096815311846603846, 15539200077037527785, 4339469010368245652, 11201705973460488102,
+        18030676628750084957, 11023468439377865217, 15693854998366929782,
+        8639200159826264169, 3514503776214726885, 11722881138349434522, 82514947230396030,
+        6606112633129502649, 14988481709947944421, 3014211078800414006, 15157707320407606508,
+        15042603297950475582, 14503818879262154214, 17831303247937600556,
+        13284333116725722146, 18004344196833335005, 4630055360463045057, 3280676652906485418,
+        9460038276121114028, 1874515792806551127, 14483705828320229943, 125592978528104214,
+        16298006360378275885, 871288802133246205, 16639528572717101954, 4568984466500900058,
+        6341247685562868993, 6984399366154747493, 2230804038436078257, 14322294106389927377,
+        18147943542782637277, 15372357263217425792, 5927528269921856848, 12698279148187516258,
+        11434689656902742798, 14538080476496594357, 16877250854766807674,
+        3670185879575073119, 7750421764864211954, 12356074133134449882, 16740368397083818731,
+        1178871422501921659, 9483320064814596363, 14873098145176839337, 755121084197834012,
+        4696244717291914177, 3065290721514465438, 466242226136422399, 9878981351027794093,
+        10256395913533944492, 12238199077343381602, 13587151465563830161,
+        2499338173475543552, 7237980922220245604, 40133981380010874, 3094972218174244685,
+        14971033767017613811, 11318709057008800419, 14066221890803495830,
+        260914682492394439, 3425697899215603423, 15660547230951691688, 6537324252756350421,
+        16567541379931113717, 17018611211825387716, 10383217949863721090,
+        9803794890009424846, 2955562820171105718, 1020124350443408162, 3264394449001233117,
+        2309995519178997600, 7367074336056552860, 2619700176470508135, 13605826330270897365,
+        8460164899072066924, 11657577689369536810, 12590790911527551232, 9607623287120221471,
+        1109364167105802148, 14624361124613435374, 2318806790908341652, 13862877508851679568,
+        6331702510156920005, 16165380800401622454, 3841890906910705426, 9854214934259159748,
+        14997166727246772283, 9937608095701635646, 11687869192823815910, 8548981499698578360,
+        14489654773786279705, 17356588732291964111, 12981433738408147828,
+        3191124970939032593, 2835124339683162998, 12625551232367276942, 16654984777447614145,
+        12513294556000357905, 12837120268377345215, 13940308820800275092,
+        11914624500423848963, 2916013374480762537, 6825916761147704062, 665538599247230038,
+        5847356051143856391, 7566598759526883242, 3458840158076147147, 6745428253168772733,
+        5664367672702571640, 2007580756220365469, 8100223718817089377, 4627335445125603725,
+        7954557694085668398, 340090888927845985, 4440169705494714860, 2834724791772068756,
+        10257161542626661246, 9874897884224696749, 8335436108614856474, 1193489859064968593,
+        10168108737554885823, 6629000173040945750, 12550406230695281141, 10103185127869203430,
+        1778053060505983216, 3597538475021161596, 18307157443238783720, 61623514848673059,
+        11733205907832172238, 6076806860261899431, 18393312872780939904, 10584354935679525336,
+        124280586539626, 5656455423788252356, 9951340904821324105, 8806199446694157113,
+        848493843603656411, 18154319263908083716, 15886867834613966509, 5533813484469507472,
+        16060257257230945412, 4186859067126382131, 2165571954901917193, 14308961958090371545,
+        7114401530366103240, 1305845295396662813, 5046674782201349730, 14077981098884674444,
+        3880778310246599744, 5415183166243822780, 5510783786573853978, 2449098789060626645,
+        3443245557529619111, 1480067910856176205, 4833637760756267187, 691688367282010045,
+        2792593995384132251, 18186627357803092297, 13994785915770490459, 3223122557355775105,
+        10778636514157178467, 14988330993986192340, 9352979734038063403, 12088432465695150281,
+        16760204522484816053, 4408018680369938590, 17242183218394341594, 12320061705189294231,
+        1370491888001659781, 3134380615348858659, 9789063022534554823, 13478738427557241759,
+        12736931598597103485, 3420170340496057525, 8986208993063415233, 5579298643691523482,
+        6976725922060172952, 14068073440461132795, 474694537885221837, 1731037376300674607,
+        9066079184375870558, 7930712930082841692, 7734753346642481252, 3517185559675737261,
+        7100297971986501919, 15279282794821130831, 4882047449399516808, 11706673780628280398,
+        3434638209097069057, 12185357877933663845, 18224470817698779071, 13371360215175645930,
+        8182409511953034384,
     ),
     # LANE CODES-3's two record-number templates (plan P4-D428), method
     # G9.6a's amendment, at seeds 600 and 601, the first two after every
@@ -54377,7 +58531,8 @@ def build_case(name):
         if spec.get("decimal_comma_declared"):
             content = decimal_comma_spelled(content)
     elif column["role"] == "identifier":
-        content = spelled_off_the_real(column, _identifier_content(working))
+        walked = _identifier_content(working)
+        content = dates_in_their_layouts(column, walked, spelled_off_the_real(column, list(walked)))
     elif column["role"] == "free_text":
         content = _free_text_content(working)
     elif column["role"] == "numeric_unrepresentable":
@@ -59053,6 +63208,199 @@ def l0_rule_document():
         "never_imports": ["synthtwin", "numpy", "pandas"],
         "cases": cases,
     }
+# ---------------------------------------------------------------------------
+# Method sections G7.14 and G7.15 (lane SH, plan P4-D427; lane SH2, plan
+# P4-D434): the Safe Harbor top-codes' last step on a twin's cells -- no age
+# above 90, no year before the group's -- written from the method's words
+# alone, for the forms the generator writes: a number in point form, a sign
+# or none, spaces before and after it, a unit word after an age, and a
+# four-figure year beside a word or a mark (`born 1930`, `1930?`). The
+# batch 4l debt OWES 7 (b) (A-P4-59: a generation-method change and its
+# oracle in one commit); `tests/test_safe_harbor_places_years_devices.py`
+# holds the product to both.
+
+_HARBOR_NUMBER = re.compile(r"^(\s*)([+-]?)(\d+)(?:\.(\d*))?((?:\s*[A-Za-z][A-Za-z .]*)?\s*)$")
+_HARBOR_MILLIONTHS = 10 ** 6
+
+
+def _harbor_read(cell):
+    """(head, sign, whole, fraction, tail, exact value) of a cell the forms above write; None otherwise."""
+    found = _HARBOR_NUMBER.match(cell)
+    if found is None:
+        return None
+    head, sign, whole, fraction, tail = found.groups()
+    fraction = fraction or ""
+    value = fractions.Fraction(int(whole + fraction), 10 ** len(fraction))
+    if sign == "-":
+        value = -value
+    return head, sign, whole, fraction, tail, value
+
+
+# G7.14's unit letters (lane SH2's close round, ADDENDUM 4): one letter
+# against the number, `Y` years, `M` months, `W` weeks, `D` days, in either
+# case, and how many of each a year holds.
+_HARBOR_UNITS = {"y": fractions.Fraction(1), "m": fractions.Fraction(12),
+                 "w": fractions.Fraction(521775, 10000), "d": fractions.Fraction(36525, 100)}
+
+
+def _harbor_unit(tail):
+    """How many of a cell's units a year holds: its unit letter's, else 1."""
+    letter = tail.rstrip()
+    return _HARBOR_UNITS[letter.lower()] if len(letter) == 1 and letter.lower() in _HARBOR_UNITS else 1
+
+
+def _harbor_age_form(tail):
+    """Whether a number's tail is an age's: nothing, a unit letter against it, or a word opening with y (`years`)."""
+    words = tail.strip()
+    return not words or _harbor_unit(tail) != 1 or tail.rstrip() in ("y", "Y") or words[0] in "yY"
+
+
+def _harbor_changed(read):
+    """Whether the top-code's reading of a checked file would change a twin's cell: G7.14 writes it at or below 90."""
+    years = read[5] / _harbor_unit(read[4])
+    if 90 < years <= 125:
+        return True
+    if not _harbor_age_form(read[4]):
+        return False
+    value = read[5]
+    whole = value.denominator == 1
+    if whole and (set(f"{abs(value.numerator)}") == {"9"} or -9 <= value < 0):
+        return False
+    return years > 125 or (whole and value < 0)
+
+
+def safe_harbor_ages_twin(cells, absent=frozenset()):
+    """G7.14: every cell above 90 and at most 125 years written at or below 90, each different value one value.
+
+    A cell in months, weeks or days (its unit letter against it) is read in
+    years, and one above 90 years is written as the whole number of its
+    units 90 years hold. And, from lane SH2's close round, a cell written
+    as an age is (bare, a unit letter against it, or a word of years after
+    it) past 125, or a whole number below -9, which the top-code's reading
+    of a checked file writes 90 or blank, is written at or below 90 as one
+    above 90 is; nines alone and one-figure negatives are kept as before.
+    """
+    def kept(cell):
+        return cell in absent or cell.strip() in absent
+
+    taken = set()
+    lowest = 90 * _HARBOR_MILLIONTHS
+    padded = set()
+    for cell in cells:
+        read = None if kept(cell) else _harbor_read(cell)
+        if read is None:
+            continue
+        if len(read[2]) >= 2 and read[2][0] == "0":
+            padded.add(len(read[2]))
+        years = read[5] / _harbor_unit(read[4])
+        if years <= 90:
+            mark = round(years * _HARBOR_MILLIONTHS)
+            taken.add(mark)
+            lowest = min(lowest, mark)
+    chosen = {}
+    written = []
+    for cell in cells:
+        read = None if kept(cell) else _harbor_read(cell)
+        if read is None or not _harbor_changed(read):
+            written.append(cell)
+            continue
+        if _harbor_unit(read[4]) != 1:
+            head, sign, _whole, _fraction, tail, _value = read
+            whole_units = 90 * _harbor_unit(tail)
+            written.append(head + ("+" if sign == "+" else "") + f"{whole_units.numerator // whole_units.denominator}" + tail)
+            continue
+        head, sign, whole, fraction, tail, value = read
+        places = len(fraction)
+        if (value, places) not in chosen:
+            shown = min(places, 6)
+            step = 10 ** (6 - shown)
+            least = min(lowest, 89 * _HARBOR_MILLIONTHS + step)
+            mark = 90 * _HARBOR_MILLIONTHS
+            while mark >= least and mark in taken:
+                mark -= step
+            if mark < least:
+                text = "90" + ("." + "0" * places if places else "")
+            else:
+                taken.add(mark)
+                text = f"{mark // _HARBOR_MILLIONTHS}"
+                if places:
+                    figures = f"{(mark % _HARBOR_MILLIONTHS) // step:0{shown}d}" if shown else ""
+                    text = text + "." + figures + "0" * (places - shown)
+            chosen[(value, places)] = text
+        text = chosen[(value, places)]
+        if whole[0] == "0" or len(whole) in padded:
+            point = text.find(".")
+            own = text if point < 0 else text[:point]
+            if len(own) < len(whole):
+                text = "0" * (len(whole) - len(own)) + text
+        written.append(head + ("+" if sign == "+" else "") + text + tail)
+    return written
+
+
+def _harbor_beside_year(cell):
+    """(before, year, after) of a cell writing one run of figures, four long, beside words or marks; None otherwise."""
+    runs = re.findall(r"\d+", cell)
+    if len(runs) != 1 or len(runs[0]) != 4:
+        return None
+    start = cell.find(runs[0])
+    before, after = cell[:start], cell[start + 4:]
+    if not (before + after).strip() or (before[-1:] + after[:1]) and any(
+        mark in ".,+-" for mark in before[-1:] + after[:1]
+    ):
+        return None
+    return before, int(runs[0]), after
+
+
+def safe_harbor_years_twin(cells, absent, cutoff):
+    """G7.15: every year from 1850 to before ``cutoff`` written at or after it, each different value one value."""
+    def kept(cell):
+        return cell in absent or cell.strip() in absent
+
+    taken = set()
+    latest = cutoff
+    for cell in cells:
+        if kept(cell):
+            continue
+        read = _harbor_read(cell)
+        if read is not None and not read[4].strip():
+            if read[5].denominator == 1 and read[5] >= cutoff:
+                taken.add(int(read[5]))
+                latest = max(latest, int(read[5]))
+            continue
+        beside = _harbor_beside_year(cell)
+        if beside is not None and beside[1] >= cutoff:
+            taken.add(beside[1])
+            latest = max(latest, beside[1])
+
+    def free():
+        mark = cutoff
+        while mark <= latest and mark in taken:
+            mark += 1
+        if mark > latest:
+            mark = cutoff
+        taken.add(mark)
+        return mark
+
+    chosen = {}
+    written = []
+    for cell in cells:
+        read = None if kept(cell) else _harbor_read(cell)
+        plain = read is not None and not read[4].strip()
+        beside = None if kept(cell) or plain else _harbor_beside_year(cell)
+        if beside is not None and 1850 <= beside[1] < cutoff:
+            if (beside[1], -1) not in chosen:
+                chosen[(beside[1], -1)] = free()
+            written.append(beside[0] + f"{chosen[(beside[1], -1)]}" + beside[2])
+            continue
+        if not plain or read[5].denominator != 1 or len(read[2]) != 4 or not 1850 <= read[5] < cutoff:
+            written.append(cell)
+            continue
+        head, sign, _whole, fraction, tail, value = read
+        if (value, len(fraction)) not in chosen:
+            chosen[(value, len(fraction))] = free()
+        text = f"{chosen[(value, len(fraction))]}" + ("." + "0" * len(fraction) if fraction else "")
+        written.append(head + ("+" if sign == "+" else "") + text + tail)
+    return written
 
 
 def main(argv=None, part=None):

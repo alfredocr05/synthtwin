@@ -1040,6 +1040,12 @@ def _with_grain(document: Document, **changes: object) -> None:
     block["time_grain"] = record
 
 
+
+# A census of spellings `visits` could carry on its own (SC1 to SC3 hold:
+# its 22 noughts, every number cell named, each spelling on the floor or
+# more), so a value list beside it breaks VL5 and nothing before it.
+VISITS_SPELLINGS = {"0": 22, "07": 11, "7": 196}
+
 def battery() -> list[Mutation]:
     """Every rule, with a description that must be refused for it."""
     return [
@@ -2814,6 +2820,44 @@ def battery() -> list[Mutation]:
             "a tail listing a value inside its own boundary",
             tail_field("visits", "high", values=[1.0]),
         ),
+        # -- a few-valued column's value list (lane GG, plan P4-D440,
+        # contract C6-146): `visits` lists its ten counts from nought to
+        # nine, each edge of its empty stretches one of them, until a
+        # mutation breaks one rule. Named since the lane's repair 1, whose
+        # skeptic found each rule raising a KeyError.
+        Mutation(
+            "VL1",
+            "a value list out of ascending order",
+            edit("visits", few_values=["0", "2", "1", "3", "4", "5", "6", "7", "8", "9"]),
+        ),
+        Mutation(
+            "VL2",
+            "a value list naming a number the column never holds",
+            edit("visits", few_values=["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]),
+        ),
+        Mutation(
+            "VL3",
+            "a value list whose first number is not the ladder's published end",
+            edit("visits", few_values=["1", "2", "3", "4", "5", "6", "7", "8", "9"]),
+        ),
+        # ...an edge the list leaves off is one of the numbers it leaves
+        # off (repair 2 of lane GG): `5` dropped would be one, so the list
+        # names `5.5` in its place and leaves off nothing.
+        Mutation(
+            "VL4",
+            "a value list that names an edge of an empty stretch beside it "
+            "neither as a listed number nor as one it leaves off",
+            edit("visits", few_values=["0", "1", "2", "3", "4", "5.5", "6", "7", "8", "9"]),
+        ),
+        Mutation(
+            "VL5",
+            "a value list beside a census of spellings",
+            edit(
+                "visits",
+                few_values=["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
+                number_spellings=VISITS_SPELLINGS,
+            ),
+        ),
         Mutation(
             "BG1",
             "groups of bins that leave a bin in nobody's group",
@@ -2942,6 +2986,65 @@ def battery() -> list[Mutation]:
                     "n_distinct": int(at(document, "region")["n_distinct_folded"])
                     + 1,
                 }
+            ),
+        ),
+        # RULE A1'S DESTINATION AND RULE A2'S POSITIONAL CENSUS (lane
+        # CODES-1, plan P4-D439), on `region`, a label column of 240
+        # cells. The same census with `@@@-@` named as the destination
+        # and `A` listed at its first place loads; each entry below
+        # breaks one clause.
+        Mutation(
+            "C6-31g",
+            "the pool counted in a form that is not the commonest",
+            edit(
+                "region",
+                shape_forms={"@@@-@": 229, "@@@-@@": 11},
+                shape_forms_absorbed="@@@-@@",
+            ),
+        ),
+        Mutation(
+            "C6-31g",
+            "a destination named beside a census that still pools",
+            edit(
+                "region",
+                shape_forms={"@@@-@": 229, "(withheld)": 11},
+                shape_forms_absorbed="@@@-@",
+            ),
+        ),
+        Mutation(
+            "C6-31h",
+            "a positional census one entry short of its form",
+            edit(
+                "region",
+                shape_forms={"@@@-@": 240},
+                shape_form_places={"@@@-@": ["A", "", "", ""]},
+            ),
+        ),
+        Mutation(
+            "C6-31h",
+            "a positional census listing a character at a mark",
+            edit(
+                "region",
+                shape_forms={"@@@-@": 240},
+                shape_form_places={"@@@-@": ["", "", "", "A", ""]},
+            ),
+        ),
+        Mutation(
+            "C6-31h",
+            "a positional census listing its characters out of order",
+            edit(
+                "region",
+                shape_forms={"@@@-@": 240},
+                shape_form_places={"@@@-@": ["BA", "", "", "", ""]},
+            ),
+        ),
+        Mutation(
+            "C6-31h",
+            "a form named in the positional census with nothing listed",
+            edit(
+                "region",
+                shape_forms={"@@@-@": 240},
+                shape_form_places={"@@@-@": ["", "", "", "", ""]},
             ),
         ),
         # THE LAYOUT CENSUS, on the one role that carries it (contract

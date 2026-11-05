@@ -310,6 +310,24 @@ TWENTY_SEVENTH_BRANCH_GENERATOR = (
 TWENTY_SEVENTH_BRANCH_VECTORS = (
     REPOSITORY / "tests" / "reference" / "generation-branch-vectors-27.json"
 )
+# anchor GG (P4-D440)
+# THE TWENTY-NINTH FILE (lane GG's listed census, plan P4-D440, method
+# G6.9): the next number no lane holds, the twenty-eighth being lane BT's.
+TWENTY_NINTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_29.py"
+)
+TWENTY_NINTH_BRANCH_VECTORS = (
+    REPOSITORY / "tests" / "reference" / "generation-branch-vectors-29.json"
+)
+# THE THIRTIETH FILE (lane GG's repair 2, plan P4-D440): its three cases
+# moved whole out of the twenty-ninth, which with them stood at 303,350
+# bytes against the manifest's 250,000-byte cap (plan P4-D295).
+THIRTIETH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_30.py"
+)
+THIRTIETH_BRANCH_VECTORS = (
+    REPOSITORY / "tests" / "reference" / "generation-branch-vectors-30.json"
+)
 # anchor 3b-G1 (P4-D375)
 # THE SIXTEENTH FILE (the end floor of a date or clock tail, plan P4-D375):
 # every branch file stands past plan P4-D295's line.
@@ -389,6 +407,7 @@ gen_clock_minute_laid = gen.clock_minute_laid
 gen_clock_minute_pins = gen.clock_minute_pins
 gen_clock_minute_owed = gen.clock_minute_owed
 gen_numeric_content = gen._numeric_content
+gen_listed_census = gen.listed_census
 gen_grouped_enough = gen.grouped_enough
 gen_layout_preferences = gen.layout_preferences
 gen_alphabet_readings = gen.alphabet_readings
@@ -472,6 +491,14 @@ def _twenty_first_branch_document() -> dict:
 
 def _twenty_seventh_branch_document() -> dict:
     return json.loads(TWENTY_SEVENTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
+def _twenty_ninth_branch_document() -> dict:
+    return json.loads(TWENTY_NINTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
+def _thirtieth_branch_document() -> dict:
+    return json.loads(THIRTIETH_BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
 def _twenty_third_branch_document() -> dict:
@@ -950,6 +977,19 @@ TWENTY_SEVENTH_BRANCH_CASES = (
 # THE TWENTY-THIRD FILE: lane G2's width rule, G6.6.8's reach (plan
 # P4-D377).
 TWENTY_THIRD_BRANCH_CASES = ("tail_width_past_the_reach",)
+# Lane GG's listed census (plan P4-D440, method G6.9).
+TWENTY_NINTH_BRANCH_CASES = (
+    "listed_halves_beside_code",
+    "listed_score_beside_code",
+    "listed_skewed_mean_decides",
+    "listed_supply_with_rare_values",
+)
+# ...and its repair 2's three, in the thirtieth file.
+THIRTIETH_BRANCH_CASES = (
+    "listed_forms_handed_on",
+    "listed_mode_takes_the_room",
+    "listed_supply_edge_left_off",
+)
 
 # THE TWENTY-FIFTH FILE: landing R2a's layout member (plan P4-D383).
 TWENTY_FIFTH_BRANCH_CASES = (
@@ -1022,6 +1062,8 @@ ALL_CASES = tuple(
         + TWENTY_SECOND_BRANCH_CASES
         + TWENTY_FIRST_BRANCH_CASES
         + TWENTY_SEVENTH_BRANCH_CASES
+        + TWENTY_NINTH_BRANCH_CASES
+        + THIRTIETH_BRANCH_CASES
         + TWENTY_THIRD_BRANCH_CASES
         + TWENTY_FIFTH_BRANCH_CASES
     )
@@ -1055,6 +1097,15 @@ SEEDS = {
     # renumbered at batch 3b's merge of lane C2 from 436 to 441, which
     # landing R2a's layout cases and landing 3b.5's absent places held.
     "clock_minutes_slots": 442,
+    # Lane GG's listed census (plan P4-D440), at seeds 900 to 903.
+    "listed_score_beside_code": 900,
+    "listed_halves_beside_code": 901,
+    "listed_supply_with_rare_values": 902,
+    "listed_skewed_mean_decides": 903,
+    # ...and its repair 2's three (the verify's item 1, Codex's items 3 and 4).
+    "listed_supply_edge_left_off": 904,
+    "listed_forms_handed_on": 905,
+    "listed_mode_takes_the_room": 906,
     # Lane CODES-3's two record-number templates (plan P4-D428) take the
     # first two seeds free after 571.
     "identifier_whole_places": 600,
@@ -1430,6 +1481,10 @@ def _case(name: str) -> dict:
         document = _twenty_first_branch_document()
     elif name in TWENTY_SEVENTH_BRANCH_CASES:
         document = _twenty_seventh_branch_document()
+    elif name in TWENTY_NINTH_BRANCH_CASES:
+        document = _twenty_ninth_branch_document()
+    elif name in THIRTIETH_BRANCH_CASES:
+        document = _thirtieth_branch_document()
     elif name in TWENTY_THIRD_BRANCH_CASES:
         document = _twenty_third_branch_document()
     elif name in TWENTY_FIFTH_BRANCH_CASES:
@@ -1720,6 +1775,8 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     twenty_third = _twenty_third_branch_document()
     twenty_fifth = _twenty_fifth_branch_document()
     twenty_seventh = _twenty_seventh_branch_document()
+    twenty_ninth = _twenty_ninth_branch_document()
+    thirtieth = _thirtieth_branch_document()
     papers = _document_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
     assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
@@ -1740,12 +1797,14 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     assert tuple(sorted(twenty_third["cases"])) == TWENTY_THIRD_BRANCH_CASES
     assert tuple(sorted(twenty_fifth["cases"])) == TWENTY_FIFTH_BRANCH_CASES
     assert tuple(sorted(twenty_seventh["cases"])) == TWENTY_SEVENTH_BRANCH_CASES
+    assert tuple(sorted(twenty_ninth["cases"])) == TWENTY_NINTH_BRANCH_CASES
+    assert tuple(sorted(thirtieth["cases"])) == THIRTIETH_BRANCH_CASES
     assert tuple(sorted(papers["cases"])) == DOCUMENT_CASES
     every = (
         named, branch, second, third, fourth, fifth, sixth, seventh,
         eighth, ninth, tenth, eleventh, twelfth, thirteenth, fourteenth,
         twenty_second, twenty_first, twenty_third, twenty_fifth,
-        twenty_seventh, papers,
+        twenty_seventh, twenty_ninth, thirtieth, papers,
     )
     for index in range(len(every)):
         for other in range(index + 1, len(every)):
@@ -1792,6 +1851,23 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     assert twenty_seventh["generated_by"] == "tools/reference/make_generation_reference_vectors.py"
     for _other, path in files:
         assert f"tests/reference/{path.name}" in twenty_seventh["case_set"], path.name
+    # ...and the twenty-ninth (lane GG, plan P4-D440) names them and the
+    # twenty-seventh.
+    assert twenty_ninth["never_imports"] == ["synthtwin", "numpy", "pandas"]
+    assert twenty_ninth["method"] == "docs/spec/generation-method-v1.md"
+    assert twenty_ninth["generated_by"] == "tools/reference/make_generation_reference_vectors.py"
+    for path in [own for _other, own in files] + [TWENTY_SEVENTH_BRANCH_VECTORS]:
+        assert f"tests/reference/{path.name}" in twenty_ninth["case_set"], path.name
+    # ...and the thirtieth (lane GG's repair 2) names them, the
+    # twenty-seventh and the twenty-ninth.
+    assert thirtieth["never_imports"] == ["synthtwin", "numpy", "pandas"]
+    assert thirtieth["method"] == "docs/spec/generation-method-v1.md"
+    assert thirtieth["generated_by"] == "tools/reference/make_generation_reference_vectors.py"
+    for path in [own for _other, own in files] + [
+        TWENTY_SEVENTH_BRANCH_VECTORS,
+        TWENTY_NINTH_BRANCH_VECTORS,
+    ]:
+        assert f"tests/reference/{path.name}" in thirtieth["case_set"], path.name
 
 
 @pytest.mark.parametrize(
@@ -1823,6 +1899,8 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         NINETEENTH_BRANCH_GENERATOR,
         TWENTY_SEVENTH_BRANCH_GENERATOR,
         TWENTY_EIGHTH_BRANCH_GENERATOR,
+        TWENTY_NINTH_BRANCH_GENERATOR,
+        THIRTIETH_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )
@@ -2123,6 +2201,15 @@ TWENTY_FIRST_BRANCH_NAMED_COUNTS = 629
 # The twenty-seventh, at its own generator's line ("proved 18 ... beside 461").
 TWENTY_SEVENTH_BRANCH_PUBLISHED_NUMBERS = 18
 TWENTY_SEVENTH_BRANCH_NAMED_COUNTS = 461
+# The twenty-ninth, at its own generator's line ("proved 440 ... beside
+# 302"): each listed case's ladder, moments, tails, edges and mode, the
+# fourth case of its repair 1 adding 109 and 76.
+TWENTY_NINTH_BRANCH_PUBLISHED_NUMBERS = 440
+TWENTY_NINTH_BRANCH_NAMED_COUNTS = 302
+# The thirtieth, at its own generator's line ("proved 335 ... beside
+# 238"): the three cases of lane GG's repair 2.
+THIRTIETH_BRANCH_PUBLISHED_NUMBERS = 335
+THIRTIETH_BRANCH_NAMED_COUNTS = 238
 # The twenty-third, at its own generator's line ("proved N ... beside M").
 TWENTY_THIRD_BRANCH_PUBLISHED_NUMBERS = 542
 TWENTY_THIRD_BRANCH_NAMED_COUNTS = 205
@@ -2259,6 +2346,18 @@ COMMITTED_FILES = (
         TWENTY_SEVENTH_BRANCH_NAMED_COUNTS,
     ),
     (
+        TWENTY_NINTH_BRANCH_VECTORS,
+        gen.TWENTY_NINTH_BRANCH_PART,
+        TWENTY_NINTH_BRANCH_PUBLISHED_NUMBERS,
+        TWENTY_NINTH_BRANCH_NAMED_COUNTS,
+    ),
+    (
+        THIRTIETH_BRANCH_VECTORS,
+        gen.THIRTIETH_BRANCH_PART,
+        THIRTIETH_BRANCH_PUBLISHED_NUMBERS,
+        THIRTIETH_BRANCH_NAMED_COUNTS,
+    ),
+    (
         DOCUMENT_VECTORS,
         gen.DOCUMENT_PART,
         DOCUMENT_PUBLISHED_NUMBERS,
@@ -2272,7 +2371,7 @@ def _fields(document: dict) -> frozenset:
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "branches-27", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "branches-27", "branches-29", "branches-30", "documents"]
 )
 def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
     committed, part, published, named
@@ -2314,7 +2413,7 @@ def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "branches-27", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "branches-27", "branches-29", "branches-30", "documents"]
 )
 def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
     committed, part, published, named
@@ -2333,7 +2432,7 @@ def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "branches-27", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "branches-27", "branches-29", "branches-30", "documents"]
 )
 def test_the_generator_says_how_many_numbers_it_proved(
     tmp_path, capsys, committed, part, published, named
@@ -3026,8 +3125,11 @@ def _toward_the_later_instant(position, denominator, rungs):
     )
 
 
-def _pool_shared_evenly(held_back, rows, numbers, words, floor=11, most=(), counts=None):
-    """G8.3's sizes with the pool shared out evenly, its debts and bounds unread, and no word debt's labels reported."""
+def _pool_shared_evenly(held_back, rows, numbers, words, floor=11, most=(), counts=None, tags=None):
+    """G8.3's sizes with the pool shared out evenly, its debts and bounds unread, and no word debt's labels reported.
+
+    No size is tagged with a debt (lane CODES-1's rule A3 reads none).
+    """
     if held_back == 0:
         return []
     base = rows // held_back
@@ -3458,7 +3560,7 @@ def _next_on_the_ladder_without_the_census(
 
 def _levels_from_the_second_spelling(
     used, sizes, census=None, written=(), placed=None, level_shape="",
-    line=None, past=None,
+    line=None, past=None, classes=None, listed=None, drawn=None,
 ):
     """G8.3's stand-in walk, started one spelling along.
 
@@ -3473,6 +3575,10 @@ def _levels_from_the_second_spelling(
     vacuity check caught it: the spelling comes from a running counter
     and not from the level's size, so reordering the levels changed no
     byte and the branch it named was not one this case holds up.
+
+    It takes and ignores the class stand-ins' classes and lane CODES-1's
+    census and drawn sizes (plan P4-D439), which this case's column has
+    none of.
     """
     seen = set(used)
     folds = {gen.folded(text) for text in used}
@@ -4119,7 +4225,104 @@ def _minute_rows_rounded_alone(rows, _columns, entries):
     return table
 
 
+def _listed_census_withdrawn(column):
+    """G6.9 withdrawn: the numbers drawn by G5's strata, as before the list."""
+    bare = {key: column[key] for key in column if key != "few_values"}
+    return gen_numeric_content(bare)[0]
+
+
+def _listed_forms_forgotten(column):
+    """G6.9's census of written forms forgotten: no count of plain cells asked."""
+    forgetting = dict(column)
+    forgetting["numeric_styles"] = {}
+    forgetting["fraction_widths"] = {}
+    return gen_listed_census(forgetting)
+
+
+_OWN_TAIL_SHARES = gen._listed_tail_shares
+
+
+def _listed_tail_reversed(*given):
+    """G6.9 step 3's shares solved and handed back outermost last.
+
+    Since repair 1 of lane GG the boundaries the pins leave free start
+    where the published rungs, read as a curve of rank against place, put
+    them, and on this case that curve alone gives the tail the shares its
+    mean distance solves (ten rows on 5 of twelve): leaving them unsolved
+    no longer moves a cell. Reversed, the tail's pins stand against the
+    curve, and the rows of 5 and 7 move -- so the committed bytes hold
+    the shares as solved, not merely as the curve would read them.
+    """
+    shares = _OWN_TAIL_SHARES(*given)
+    return None if shares is None else list(reversed(shares))
+
+
+def _listed_mean_withdrawn(ranks, *_given):
+    """G6.9's last step withdrawn: the boundaries stay where the ladder put them."""
+    return list(ranks)
+
+
+def _listed_hand_on_withdrawn(*_given):
+    """G6.9's forms handed on through a form met before, withdrawn: no row passes."""
+    return False
+
+
+_OWN_MODED = gen._listed_moded
+
+
+def _listed_mode_given_up(counts, at, published, extra):
+    """G6.9's mode pair given up whole where its own count cannot stand, as before repair 2."""
+    if extra:
+        return {place: (1, 0) for place in counts}
+    return _OWN_MODED(counts, at, published, extra)
+
+
 CASE_MUTANTS = {
+    # LANE GG's listed census (plan P4-D440), method G6.9.
+    "listed_score_beside_code": Mutant(
+        branch="G6.9's listed census; the mutant withdraws it, and G5's strata read the ladder across the published gap",
+        attribute="listed_census",
+        replacement=_listed_census_withdrawn,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "listed_halves_beside_code": Mutant(
+        branch="G6.9's census of written forms; the mutant forgets it, and the plain cells part from their published count",
+        attribute="listed_census",
+        replacement=_listed_forms_forgotten,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "listed_supply_with_rare_values": Mutant(
+        branch="G6.9 step 3's tail shares; the mutant hands them back outermost last, and the rows of 5 and 7 move",
+        attribute="_listed_tail_shares",
+        replacement=_listed_tail_reversed,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    # ...and its repair 1's mean step (its skeptic 1, item 4 H).
+    "listed_skewed_mean_decides": Mutant(
+        branch="G6.9's last step, the rows moved one a pass until the sum is the published mean's; the mutant withdraws it, and three rows stay where the curve put them",
+        attribute="_listed_mean_met",
+        replacement=_listed_mean_withdrawn,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    # ...and its repair 2's three (the verify's item 1; Codex's items 3 and 4).
+    "listed_supply_edge_left_off": Mutant(
+        branch="G6.9's listed census beside a one-cell edge left off the list; the mutant withdraws the census, and G5's strata read the ladder across the stretch",
+        attribute="listed_census",
+        replacement=_listed_census_withdrawn,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "listed_forms_handed_on": Mutant(
+        branch="G6.9's written forms handed on through a form met before; the mutant withdraws the hand-on, and the two-decimal and plain counts stay apart from the published ones",
+        attribute="_listed_handed",
+        replacement=_listed_hand_on_withdrawn,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "listed_mode_takes_the_room": Mutant(
+        branch="G6.9's mode pair kept with its count raised where a cell left off needs room; the mutant gives the pair up whole, and the mode's rows fall away",
+        attribute="_listed_moded",
+        replacement=_listed_mode_given_up,
+        outcome=CHANGES_THE_CELLS,
+    ),
     # LANDING 3b.5's SECOND STEP, the minute census of a column of clock
     # times (lane C2, plan P4-D374), each case's own rule of G7A.4c.
     "clock_minutes_slots": Mutant(
@@ -7177,6 +7380,8 @@ def test_the_method_states_the_count_the_committed_files_hold() -> None:
         (TWENTY_THIRD_BRANCH_VECTORS, _twenty_third_branch_document()),
         (TWENTY_FIFTH_BRANCH_VECTORS, _twenty_fifth_branch_document()),
         (TWENTY_SEVENTH_BRANCH_VECTORS, _twenty_seventh_branch_document()),
+        (TWENTY_NINTH_BRANCH_VECTORS, _twenty_ninth_branch_document()),
+        (THIRTIETH_BRANCH_VECTORS, _thirtieth_branch_document()),
     )
     flat = " ".join(section.split())
     for path, document in held:

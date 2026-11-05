@@ -35,6 +35,8 @@ import pathlib
 import tempfile
 
 import fixtures
+import keyboard
+import pytest
 from synthtwin import (
     contract,
     generation,
@@ -429,6 +431,7 @@ def test_a_kept_placeholder_in_the_table_s_own_spelling_reaches_both_consumers(
 
 def test_a_judged_decision_edited_to_name_no_spelling_is_refused(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """REVIEW OF 158c811, ITEM 6 (plan P4-D135): the omission, on the review's table.
 
@@ -441,6 +444,10 @@ def test_a_judged_decision_edited_to_name_no_spelling_is_refused(
     declaration reaching `start`, whose 500 unchanged values fell to 420
     with 13 obligations missed. It is refused now.
     """
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about how a placeholder day is judged, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     start = datetime.date(2020, 1, 1)
     end = ["1900-01-01 00:00:00"] * 20 + ["1900-01-01T00:00:00"] * 30 + [
         (start + datetime.timedelta(days=place)).isoformat() + " 00:00:00"

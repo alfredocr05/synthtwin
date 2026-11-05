@@ -815,6 +815,36 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 950,000 from 870,000, AT THE INTEGRATION OF BATCH 4M (2026-10-29),
+    # the orchestrator's recorded call D15 (the owner may veto), set once
+    # for the batch, a round figure the merged ledger and the batch's
+    # records fit under: lane UN-1a's `K-HZ-08` and `K-HZ-09`, lane
+    # CODES-1's `K-HZ-10` and `K-HZ-11`, lane GG's `K-HZ-12` (the three
+    # branches raised their own caps to 787,000, 792,000 and 792,000,
+    # below) and lane CHb's chain entries, every entry kept by id and
+    # the note merged clause by clause (875,296 bytes after lane GG's
+    # merge); then the records' stamps on the merged head and night
+    # 1030's readings. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
+    # 792,000 from 791,000 (lane CODES-1's repair 2, plan P4-D439,
+    # 2026-10-29), the least round figure the repair's ledger fits under:
+    # `K-HZ-10` gains the dense scales' two keys and `K-HZ-11` its
+    # pathological stages, 791,609 bytes. The batch integrator settles
+    # this beside the other lanes' raises.
+    #
+    # 791,000 from 789,000 (lane CODES-1's repair 1, plan P4-D439,
+    # 2026-10-28), the least round figure the repair's ledger fits under:
+    # `K-HZ-10` gains rule A3's widths and range, `K-HZ-11` the lockstep
+    # key and the three registry rules no pattern reads, 790,769 bytes. The
+    # batch integrator settles this beside the other lanes' raises.
+    #
+    # 789,000 from 785,000 (lane CODES-1, plan P4-D439, 2026-10-27), the
+    # least round figure the lane's ledger fits under: `K-HZ-10` and
+    # `K-HZ-11` new, `K-HZ-01` and `K-HZ-02` restated where the tumour
+    # registry's kind moved, with their note clauses, 788,546 bytes. The
+    # batch integrator settles this beside the other lanes' raises. A
+    # MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
     # 870,000 KEPT AT BATCH 4L PART B (2026-10-29), the cap set once for
     # the batch: lanes HX5 (its branch's 768,000), ID-ROOM and S5b merged
     # entry by entry, then part b's stamps on the merged code (K-S3-64,
@@ -932,6 +962,22 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # window's six time entries named in their stamps and in the note,
     # 759,465 bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
+    # 768,000 from 767,000, ON LANE HB'S BRANCH (repair 2, 2026-10-30, plan
+    # P4-D442), the least round figure its ledger fits under: `K-HZ-13`'s rule
+    # names the shapes recorded apart and the second carrier of limit (l),
+    # restamped from repair 2's run.
+    #
+    # 767,000 from 765,000, ON LANE HB'S BRANCH (repair 1, 2026-10-29, plan
+    # P4-D442), the least round figure its ledger fits under: `K-HZ-13`'s rule
+    # names its new keys and bounds -- the list cells carrying a real key
+    # among them (LANE HB RULINGS 3) -- restamped from repair 1's run.
+    #
+    # 765,000 from 760,000, ON LANE HB'S BRANCH (2026-10-28, plan P4-D442),
+    # the least round figure the lane's ledger fits under: `K-HZ-13` (held
+    # and unanswered columns written in their own valid layouts) with its
+    # note clause. The integrator sets the cap for the batch as a whole. A
+    # MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
     # 760,000 from 757,000, ON LANE ID-ROOM'S BRANCH (2026-10-25, plan
     # P4-D432), the least round figure the lane's ledger fits under:
     # `K-HZ-06` (twin identifier cells spelled as a real one) with its note
@@ -957,6 +1003,30 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # and lane SR-A's percentage corrected, and `K-S3-64`, `K-S3-65`,
     # `K-P4-06` and `K-S6-08` stamped from their re-runs on the merged
     # head, 753,943 bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
+    # 756,500 from 755,500, ON LANE SH2'S BRANCH (2026-10-29, plan P4-D434,
+    # close round 2): `K-S3-66` restated back (the zoo's clinical classes
+    # taken by the age reach again, the orchestrator's LANE SH2 RULINGS 4
+    # (1)), its evidence and the note's clauses, 755,532 bytes. The batch
+    # integrator settles this beside the other lanes' raises.
+    #
+    # 755,500 from 754,500, ON LANE SH2'S BRANCH (2026-10-29, plan P4-D434,
+    # close round): `K-S3-64` restamped over 334 shapes and `K-S3-66`
+    # restated (the zoo's clinical classes no longer taken by the age
+    # reach), their evidence and the note's clauses, 754,800 bytes. The
+    # batch integrator settles this beside the other lanes' raises.
+    #
+    # 754,500 from 752,500, ON LANE SH2'S BRANCH (2026-10-26, plan P4-D434,
+    # repair round 1): `K-S3-64` restamped over 300 shapes and `K-S3-60`
+    # restated to the Safe Harbor holds of numbers that are dates, their
+    # rules, evidence and the note's clauses, 753,608 bytes. The batch
+    # integrator settles this beside the other lanes' raises.
+    #
+    # 752,500 from 749,000, ON LANE SH2'S BRANCH (2026-10-25, plan P4-D434):
+    # `K-S3-64` restamped over lane SH2's eight shapes, `K-HZ-01`, `K-HZ-02`
+    # and `K-S3-66` restated to the HIPAA price the lane measured, their
+    # rules, evidence and the note's clauses, 752,034 bytes. The batch
+    # integrator settles this beside the other lanes' raises.
     #
     # 749,000 from 746,500, ON LANE SH'S BRANCH (2026-10-25, plan P4-D427,
     # repair round 3): `K-S3-64` restamped over 246 shapes, `K-S3-66` and
@@ -1530,7 +1600,45 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # least round figure it fits under: K-S5-01's rule gains clause (k)
     # and seven corruptions, both entries restamped on 067aedda,
     # 776,237 bytes.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 870_000
+    #
+    # 787,000 from 785,000 (lane UN-1a, plan P4-D438, 2026-10-27), the
+    # least round figure the lane's ledger fits under: K-HZ-08 and K-HZ-09
+    # new, K-HZ-01 and K-HZ-02 re-stamped, with their note clause. The
+    # batch integrator settles this beside the other lanes' raises.
+    #
+    # 788,000 from 785,000 (lane GG, plan P4-D440, 2026-10-27), the least
+    # round figure the lane's ledger fits under: K-HZ-12 new, K-HZ-01 and
+    # K-HZ-02 restamped with their bounds' reasons, and the note's clause
+    # (787,644 bytes). The batch integrator settles this beside the other
+    # lanes' raises.
+    #
+    # 791,000 from 788,000 (lane GG's repair 1, 2026-10-28): K-HZ-12's rule
+    # and evidence gain the laboratory shapes, the share measure and the
+    # three-figure keys, and the note's clause names its new tree.
+    # (790,295 bytes.)
+    #
+    # 792,000 from 791,000 (lane GG's repair 2, 2026-10-29): K-HZ-12's rule
+    # and evidence gain the one-cell edges and the keys beside -99 and
+    # beside -1 on 40 % of rows, and K-HZ-01's evidence the one question
+    # more. (791,899 bytes.) The batch integrator settles this beside the
+    # other lanes' raises.
+    #
+    # 793,000 from 778,000 (lane CHb, plan P4-D435, 2026-10-26), the least
+    # round figure the lane's ledger fits under: K-S6-03 and K-S6-05 new
+    # (the chain's generator: rates and odds ratios at every family's
+    # published levels; whole real rows beside a fresh real sample),
+    # K-S6-01 restated at the owner's table floor, K-S6-02 restamped with
+    # its clause (viii), and their note clauses. The batch integrator
+    # settles this beside the other lanes' raises. A MEASUREMENT IS NEVER
+    # TRIMMED TO FIT.
+    #
+    # 797,000 from 793,000 (lane CHb's first repair, plan P4-D435,
+    # 2026-10-27), the least round figure the lane's ledger fits under:
+    # K-S6-03 judging every moved family at its size, K-S6-05's rare rows,
+    # their evidence and their note clause. The batch integrator settles
+    # this beside the other lanes' raises. A MEASUREMENT IS NEVER TRIMMED
+    # TO FIT.
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 950_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

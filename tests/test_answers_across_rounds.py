@@ -410,7 +410,14 @@ def test_us_vitals_person_answered_over_two_rounds_is_one_rounds_twin(tmp_path: 
         ("weight", "keep"),
         ("temp_f", asking.ANSWER_SAFE_HARBOR_NO),
     ]
-    assert [(one[0], one[1]) for one in rounds.given[1]] == [("weight", asking.ANSWER_MEASUREMENT)]
+    # ...and temp_f, read as numbers since lane UN-1b published a unit
+    # column as the same numbers written bare (plan P4-D443; UN-1a had kept
+    # its labels at these 600 rows), is listed in round two's checklist
+    # with the weight, and answered `measurement` there.
+    assert [(one[0], one[1]) for one in rounds.given[1]] == [
+        ("weight", asking.ANSWER_MEASUREMENT),
+        ("temp_f", asking.ANSWER_MEASUREMENT),
+    ]
     assert rounds.lost == []
     assert differs == {"description": False, "summary": False, "questions": False, "twin": False}
     described = json.loads(table.path("profile.json").read_text(encoding="utf-8"))
@@ -1334,7 +1341,7 @@ def day_counts_printed(files: "dict[str, bytes]") -> int:
     return len(found)
 
 
-def test_a_comma_beside_counted_dates_keeps_the_dates(tmp_path: pathlib.Path) -> None:
+def test_a_comma_beside_counted_dates_keeps_the_dates(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`--decimal-comma visit` beside a kept `excel-1900`, typed over it or handed back: the dates stand.
 
     Codex's review of lane AQ, item 2 (high), on 8901146b: typed over the
@@ -1361,6 +1368,12 @@ def test_a_comma_beside_counted_dates_keeps_the_dates(tmp_path: pathlib.Path) ->
     files, not the reading: the day counts it then publishes as numbers
     are lane HX2's item.
     """
+    # THE SAFE HARBOR ZIP CODES READ AS DATES (plan P4-D434): day counts of
+    # five figures, as ZIP codes are written, read as dates by a count the
+    # file carries are put the Safe Harbor question and held meanwhile (a
+    # count typed in the run is lane SH's typed release); this case is
+    # about the comma beside the count, so the person answers no.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     for route in ("typed-over", "handed-back", "comma-answered"):
         dated = route != "comma-answered"
         table = visits_table(tmp_path / route, grouped=not dated)
@@ -1403,7 +1416,7 @@ def test_mutant_a_typed_comma_deciding_the_date_count_is_seen(tmp_path: pathlib.
 
     monkeypatch.setattr(asking, "_decided_by", decided_by)
     with pytest.raises(AssertionError):
-        test_a_comma_beside_counted_dates_keeps_the_dates(tmp_path)
+        test_a_comma_beside_counted_dates_keeps_the_dates(tmp_path, monkeypatch)
 
 
 def events_table(folder: pathlib.Path) -> Table:
@@ -1431,7 +1444,7 @@ def numbers_table(folder: pathlib.Path) -> Table:
     return Table(fixtures.write(folder, "plain.csv", "\n".join(lines) + "\n"), "plain")
 
 
-def test_a_typed_default_replaces_a_kept_answer(tmp_path: pathlib.Path) -> None:
+def test_a_typed_default_replaces_a_kept_answer(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`--century event_date=1969` and `--first-row auto` typed over kept answers: each replaces its answer.
 
     Codex's review of lane AQ, item 3 (high), on 8901146b: the parser
@@ -1444,6 +1457,11 @@ def test_a_typed_default_replaces_a_kept_answer(tmp_path: pathlib.Path) -> None:
     set against the file's list: the same names are acted on, others
     refused with nothing written.
     """
+    # THE SAFE HARBOR DATES (plan P4-D434): read in the 1930 window, its
+    # dates of 1930 to 1936 show an age of 90 or more, and the column is
+    # held until its question is answered; this case is about the century
+    # answers, so the person answers no.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     events = events_table(tmp_path / "century")
     assert profile(events, "--century", "event_date=1930") == 0
     assert ("event_date", asking.ANSWER_CENTURY_1930) in kept(events)
@@ -1554,9 +1572,10 @@ def test_k_s3_66_counts_a_refusal_on_both_routes_apart(tmp_path: pathlib.Path, m
     table, answerer = zoo_table(tmp_path, "us_vitals")
     measure_table(table, answerer, found)
     assert found["twins_refused_on_both_routes"] == 1
-    # Three answers: patient_id, weight and temp_f's Safe Harbor `no`
-    # (plan P4-D427).
-    assert found["answers"] == 3 and found["byte_differences"] == 0 and found["failed_runs"] == 0
+    # Four answers: patient_id, weight, temp_f's Safe Harbor `no` (plan
+    # P4-D427) and temp_f's `measurement`, read as numbers since lane UN-1b
+    # (plan P4-D443; UN-1a had kept its labels at these 600 rows).
+    assert found["answers"] == 4 and found["byte_differences"] == 0 and found["failed_runs"] == 0
 
 
 def test_mutant_judged_reading_refusals_as_twins_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1885,4 +1904,8 @@ _ANSWERING_SAFE_HARBOR_NO = (
     test_a_later_round_changes_an_earlier_answer,
     test_a_later_answer_to_the_question_asked_again_wins,
     test_a_measurement_and_its_comma_are_both_kept,
+    # ...and lane SH2's dates of 1930 to 1936 and its day counts read as
+    # dates by a carried answer (plan P4-D434).
+    test_a_typed_default_replaces_a_kept_answer,
+    test_a_comma_beside_counted_dates_keeps_the_dates,
 )

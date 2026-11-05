@@ -23,6 +23,8 @@ import sys
 
 import pytest
 
+import keyboard
+
 from synthtwin import contract, dialect, parsing, taxonomy, validation
 from tests import fixtures, workbooks
 
@@ -239,6 +241,7 @@ def test_the_loader_refuses_a_form_census_naming_one_row(
 
 def test_placeholder_judging_reads_the_declared_order(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The reviewer's own shape, declared day first (plan P4-D251).
 
@@ -247,6 +250,10 @@ def test_placeholder_judging_reads_the_declared_order(
     then written day first over what was left and published 380 present
     with an earliest of `1900-01-12`.
     """
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about how a placeholder day is judged, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     cells = (
         ["01/01/1900"] * 20
         + ["12/01/1900"] * 125

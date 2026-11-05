@@ -683,8 +683,10 @@ def test_a_count_missed_by_the_split_is_named_for_the_split(
         # step 1 consults before it accepts an arrangement. The
         # stand-in takes them and ignores them: what this test pins
         # is that a split covering NOTHING is named for the split,
-        # which this landing does not touch.
-        lambda sizes, debts, supply, owing=None, decimal_comma=False: {},
+        # which this landing does not touch. Lane CODES-1 widened it once
+        # more with the class each size was drawn for (rule A3, plan
+        # P4-D439), which the stand-in ignores as well.
+        lambda sizes, debts, supply, owing=None, decimal_comma=False, intended=None: {},
     )
     assert _class_reasons(generation.generate(profile, 3)) == {
         generation._CLASS_SPLIT_REASON

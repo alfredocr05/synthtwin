@@ -2072,7 +2072,7 @@ def _count_form_checks(
     R4, item 1), and `form.contacts` holds the census, where published,
     exactly as the file's own description counts it. No value of the file is printed: the measured side is the form's
     own words, or that a cell is written another way. A cell that is no
-    count OF ``member`` (`date_counts.counted`) -- an Epic day written with
+    count OF ``member`` (`date_counts.counted`) -- an 1840 day written with
     a binary64's tail of more than nine figures -- is text the date role's
     own line took, and is not asked, as the profiler did not read it. A
     cell written with MORE figures than the form is a stray, and as many
@@ -5327,6 +5327,8 @@ def measure(
         declared_measured = _declared_measured_here(description, table)
         declared_commas = _declared_commas_here(description, table)
         described_pairs = _described_pairs_here(description, table)
+        described_affixed = _described_affixed_here(description, table)
+        described_labels = _described_labels_here(description, table)
         kept_days = _kept_placeholders_here(description, table)
         judged_here = _judged_candidates_here(description, table)
         # THE SAFE HARBOR TOP-CODE (plan P4-D427, validation of ZS.6): a
@@ -5336,6 +5338,13 @@ def measure(
         top_coded = _top_coded_here(description, table)
         table = _top_coded_table(
             table, top_coded, declared_commas, declared_spellings(description)
+        )
+        # ...AND THE SAFE HARBOR YEARS (plan P4-D434, validation V15.3): a
+        # column published as `top_coded_year` is read with every year from
+        # 1850 to the one it names as that year.
+        years_coded = _year_top_coded_here(description, table)
+        table = _year_top_coded_table(
+            table, years_coded, declared_commas, declared_spellings(description)
         )
         # TWO DESCRIPTIONS, ALWAYS BOTH, AND WHAT EACH ONE DECIDES
         # (V2.1 and V2.4; review item P3-V2-A1). The first is the file's
@@ -5375,11 +5384,14 @@ def measure(
             # -- 3b.R4 (P4-D384): a column of counted dates read at the
             # precision its description published.
             counted_units=counted_units(description),
+            described_affixed=described_affixed,
+            described_labels=described_labels,
             # -- P4-D417: a column of dates or times described at the grain
             # its description published, the tails pooled into its ends.
             time_grains=time_grains,
             absent_read=absent_read,
             top_coded_only=top_coded,
+            year_top_coded_only=years_coded,
         )
         # THE CHAIN'S OWN-FACT DESCRIPTION HOLDS THE CALENDAR CENSUSES (lane
         # CHv, plan P4-D430; Codex's item 1 on its build). V12.3 reads RULE
@@ -5407,6 +5419,8 @@ def measure(
                     judged_candidates=judged_here,
                     calendar_censuses=True,
                     counted_units=counted_units(description),
+                    described_affixed=described_affixed,
+                    described_labels=described_labels,
                     time_grains=time_grains,
                     absent_read={},
                 )
@@ -5430,8 +5444,11 @@ def measure(
             # -- 3b.R4 (P4-D384): a column of counted dates read at the
             # precision its description published.
             counted_units=counted_units(description),
+            described_affixed=described_affixed,
+            described_labels=described_labels,
             time_grains=time_grains,
             top_coded_only=top_coded,
+            year_top_coded_only=years_coded,
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -5603,6 +5620,63 @@ def _top_coded_table(
         columns += [
             taxonomy.top_coded_cells(
                 table.columns[place], name in commas, frozenset(absent)
+            )
+        ]
+        changed = True
+    if not changed:
+        return table
+    return dataclasses.replace(table, columns=columns)
+
+
+def _year_top_coded_here(
+    description: contract.Profile, table: reading.Table
+) -> "dict[str, int]":
+    """The columns the description publishes as `top_coded_year`, with each one's year (P4-D434)."""
+    found: "dict[str, int]" = {}
+    for block in description.columns:
+        if block.top_coded_year and block.name in table.column_names:
+            found[block.name] = block.top_coded_year
+    return found
+
+
+def _year_top_coded_table(
+    table: reading.Table,
+    years_coded: "dict[str, int]",
+    commas: "list[str]",
+    declared: "tuple[str, ...]" = (),
+) -> reading.Table:
+    """The checked table with each such column's years from 1850 to its year read as that year (P4-D434).
+
+    A cell that reads as no value keeps its spelling, as for the age
+    top-code (`_top_coded_table`); a table read in groups of columns is
+    returned as it is, the redescription reading the years itself
+    (`profile.build_document`'s ``year_top_coded_only``). Guarantees: a
+    function of the four. Raises nothing. No I/O.
+    """
+    if not years_coded or table.source is not None:
+        return table
+    named: "dict[str, bool]" = {}
+    for spelling in declared:
+        named[parsing.trimmed(spelling)] = True
+    columns: "list[list[str]]" = []
+    changed = False
+    for place in range(len(table.columns)):
+        name = table.column_names[place] if place < len(table.column_names) else ""
+        if name not in years_coded:
+            columns += [table.columns[place]]
+            continue
+        absent: "dict[str, bool]" = {}
+        for cell in table.columns[place]:
+            if cell not in absent and (
+                not parsing.trimmed(cell)
+                or parsing.is_missing_text(cell)
+                or parsing.trimmed(cell) in named
+            ):
+                absent[cell] = True
+        columns += [
+            taxonomy.year_top_coded_cells(
+                table.columns[place], name in commas, frozenset(absent),
+                years_coded[name],
             )
         ]
         changed = True
@@ -5964,6 +6038,60 @@ def _described_pairs_here(
         and column.name not in declared
         and column.name in table.column_names
     ]
+
+
+def _described_affixed_here(
+    description: contract.Profile, table: reading.Table
+) -> "list[str]":
+    """The columns read as a number beside a unit from their values, carried over.
+
+    NOT A DECLARATION, as `_described_pairs_here` is not (plan P4-D438,
+    validation method V2.2-A2 widened by P4-D419's ZR.5): a column the
+    description gives `affixed_number` without `--measurement` may have
+    reached rule 9 because rule 7 stood aside for it, and only because a
+    level fell below the floor (`taxonomy._units_stand_aside`). A
+    faithful twin need not hold such a level -- its rare readings are
+    drawn, not copied -- so read by the order alone it came back as a
+    set of labels and its role was reported MISSED. The file is read the
+    way the description was, wherever its cells allow; a file whose
+    cells wear no affix reading falls to the ordinary order and its role
+    is missed as before. A column the checked file does not carry is
+    dropped, for the reason `_declared_here` gives.
+    """
+    declared = description.settings.forced_measurements
+    return [
+        column.name
+        for column in description.columns
+        if column.role == taxonomy.ROLE_AFFIXED
+        and column.name not in declared
+        and column.name in table.column_names
+    ]
+
+
+def _described_labels_here(
+    description: contract.Profile, table: reading.Table
+) -> "dict[str, str]":
+    """The columns read as labels or as joined numbers, carried over as read.
+
+    NOT A DECLARATION either (Codex's review of lane UN-1a, item 4). Plan
+    P4-D438 moved two readings: rule 7 stands aside for a number beside a
+    unit, and rule 0c yields a joined column whose every level clears the
+    floor to rule 7's list. A description that read such a column as
+    labels or as joined numbers -- written before P4-D438, or by it where
+    neither move was taken -- is checked against the reading it published:
+    the file is read as before P4-D438, so an unchanged source no longer
+    reports its own role missed. A column the checked file does not carry
+    is dropped, for the reason `_declared_here` gives.
+    """
+    kept: "dict[str, str]" = {}
+    for column in description.columns:
+        if column.name not in table.column_names:
+            continue
+        if column.role == taxonomy.ROLE_CATEGORICAL:
+            kept[column.name] = taxonomy.KEPT_LABELS
+        elif column.role == taxonomy.ROLE_JOINED:
+            kept[column.name] = taxonomy.KEPT_JOINED
+    return kept
 
 
 def _kept_placeholders_here(
@@ -10755,11 +10883,18 @@ def _role_checks(
         # (plan P4-D275.1): the census counts a spelling below the floor
         # as the level's commonest, so a recount of the raw cells would
         # tell a table it missed its own description.
-        return _label_checks(column, facts, block, floor) + _form_checks(
-            column.name, "label.shape_forms", facts.shape_forms,
-            block, floor, cells=taxonomy.described_spellings(
-                cells, taxonomy.Settings(small_cell_floor=floor)
-            ),
+        spelled = taxonomy.described_spellings(
+            cells, taxonomy.Settings(small_cell_floor=floor)
+        )
+        return (
+            _label_checks(column, facts, block, floor)
+            + _form_checks(
+                column.name, "label.shape_forms", facts.shape_forms,
+                block, floor, cells=spelled,
+                absorbed=column.shape_forms_absorbed,
+                distinct=column.n_distinct,
+            )
+            + _place_checks(column, facts, spelled, floor)
         )
     if isinstance(facts, contract.DatetimeFacts):
         return _datetime_checks(
@@ -12247,6 +12382,54 @@ def _mapping_at(
     return found
 
 
+def _few_values_checks(
+    name: str, listed: "tuple[str, ...]", cells: "list[str]"
+) -> "list[Check]":
+    """The value list, recounted on the measured file's cells (lane GG, P4-D440).
+
+    Two exact obligations. A cell the file writes as a number in the
+    plain decimal family that is no listed spelling -- `-91` beside a
+    list naming `-99` and `1`, or `-99.0` beside one naming `-99` -- is
+    a cell OFF THE LIST, and none may be; and every listed spelling is
+    written at least once. A cell of any other shape is not a number of
+    this list at all and is judged by the facts that govern it.
+
+    THE CELLS OFF THE LIST ARE NEVER PRINTED (Codex's review of lane GG,
+    item 1): their count is a number counted in the file, one cell's
+    `4.5` among them, so the line says what the description asks for and
+    the verdict, and keeps the count back (V5.4), as every count of the
+    file this module is never reported with. How many listed numbers
+    are written is a count of the description's own numbers, printed.
+    """
+    named = {text: True for text in listed}
+    seen: "dict[str, bool]" = {}
+    off = 0
+    for cell in cells:
+        if not parsing.is_few_value_spelling(cell):
+            continue
+        if cell in named:
+            seen[cell] = True
+        else:
+            off = off + 1
+    return [
+        _silent(
+            name,
+            "numeric.few_values",
+            "few_values.off_the_list",
+            "0",
+            off == 0,
+            _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
+        ),
+        _exact(
+            name,
+            "numeric.few_values",
+            "few_values.written",
+            f"{len(listed)}",
+            f"{len(seen)}",
+        ),
+    ]
+
+
 def _numeric_checks(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
@@ -12273,6 +12456,13 @@ def _numeric_checks(
             "number_spellings",
             "spellings",
         )
+    # A FEW-VALUED COLUMN'S OWN NUMBERS (lane GG, plan P4-D440): every
+    # cell the file writes as a number is one of the listed spellings, and
+    # every listed spelling is written. Counted off the cells, not off the
+    # file's own description, which lists them only where its own counts
+    # let it.
+    if facts.few_values:
+        checks = checks + _few_values_checks(name, facts.few_values, cells)
     # HOW MANY DIFFERENT NUMBERS THE TWIN HOLDS (amendment A-P4-55).
     # Recounted from the re-description, like every other fact of this
     # block, and compared EXACTLY: the owner ruled the count an
@@ -16219,7 +16409,7 @@ def _pooled_scale_checks(
     if scale.n_cells < 1 or middle is None:
         return []
     reach = taxonomy.pooled_window(
-        [entry.label for entry in facts.levels]
+        [entry.label for entry in facts.levels], facts.suppressed_levels
     )
     inner = _inner_at(block, "suppressed_numbers")
     found_mean: "float | None" = None
@@ -22003,6 +22193,8 @@ def _form_checks(
     census_key: str = "shape_forms",
     named: str = "forms",
     cells: "list[str] | None" = None,
+    absorbed: str = "",
+    distinct: int = 0,
 ) -> "list[Check]":
     """The census of written forms, recounted on the measured file.
 
@@ -22013,6 +22205,17 @@ def _form_checks(
     that count plus the pool. Without this the twin owed the forms
     nothing, and the fact that lets a held-back value have a stand-in
     shaped like one would be published and never checked.
+
+    RULE A1 READ ALIKE (lane CODES-1, plan P4-D439). ``absorbed``, where a
+    label column's description names one (`shape_forms_absorbed`), is the
+    form its producer counted the floor's pool in, and ``distinct`` its
+    published different values: the file's cells wearing a form the
+    census names nowhere that the producer's own floor would pool -- the
+    form's cells in this file under the census line, its room at least
+    the different values and the floor (`taxonomy.floor_pooled_forms`) --
+    are counted there (`_form_recount`), so a real file meets the census
+    it was described with and a twin writing those cells in the
+    destination meets it too, each count as exactly as before.
     """
     measured = _map_at(block, census_key)
     if measured is not None and cells is not None and (
@@ -22029,7 +22232,7 @@ def _form_checks(
         # reading the generator writes to, so a cell is counted under the
         # key the published census files it under. A count below the
         # floor stays unprinted, as the file's own census would leave it.
-        measured = _form_recount(census, cells, floor)
+        measured = _form_recount(census, cells, floor, absorbed, distinct)
     held_back = 0
     if taxonomy.SUPPRESSED_LABEL in census:
         held_back = census[taxonomy.SUPPRESSED_LABEL]
@@ -22049,6 +22252,50 @@ def _form_checks(
                 form,
                 floor,
                 held_back,
+            )
+        ]
+    return checks
+
+
+def _place_checks(
+    column: contract.ColumnBlock,
+    facts: contract.LabelFacts,
+    cells: "list[str]",
+    floor: int,
+) -> "list[Check]":
+    """Rule A2's positional census, held on the measured file (plan P4-D439, C6-31h).
+
+    THE CENSUS'S OWN PROMISE, AND ONLY IT (the stand-ins page, ZS.6). For
+    each form a label column's `shape_form_places` names, over the file's
+    cells counted under that form whose label no published level names --
+    the held-back cells, as the level entries speak of them -- every
+    character a place lists is held there by at least the census line
+    (`parsing.census_floor`). The real file meets it by construction; a
+    twin writing a listed character on fewer cells misses it. One check a
+    form, HELD or MISSED, and no count under the line is printed. What a
+    place does NOT list is bounded in the table and not in the twin, whose
+    held-back cells are made up (plan P4-D439's reading of ZS.11 item 6).
+    """
+    if not column.shape_form_places:
+        return []
+    line = parsing.census_floor(floor)
+    labels: "list[str]" = []
+    for entry in facts.levels:
+        labels += [entry.label]
+    checks: "list[Check]" = []
+    for form, _listed, short in taxonomy.places_listed_and_short(
+        cells, labels, facts.shape_forms, column.shape_form_places, line
+    ):
+        checks += [
+            Check(
+                column.name,
+                "label.shape_form_places",
+                f"places.published.{form}",
+                HELD if short == 0 else MISSED,
+                f"every character listed at a place held there by at least "
+                f"{line} cells outside the published levels",
+                "every one" if short == 0 else f"{short} listed character(s) "
+                f"below {line} cells",
             )
         ]
     return checks
@@ -22094,7 +22341,11 @@ def _judged_absent(block: "dict[str, object]", cells: "list[str]") -> int:
 
 
 def _form_recount(
-    census: "dict[str, int]", cells: "list[str]", floor: int
+    census: "dict[str, int]",
+    cells: "list[str]",
+    floor: int,
+    absorbing: str = "",
+    distinct: int = 0,
 ) -> "dict[str, int]":
     """Each published form's cells in a file, under the census's own keys.
 
@@ -22109,10 +22360,18 @@ def _form_recount(
     not in lower case are counted under it where they are fewer than the
     line, and not at all where they are not: a file writing the column in
     capitals still misses the key.
+
+    ``absorbing``, where given, is the key rule A1 counted the pool in
+    (lane CODES-1, plan P4-D439; `taxonomy.pool_absorbed`): the cells of
+    each form the census names nowhere, neither as written nor as its
+    lower-case key, that the floor would pool here
+    (`taxonomy.floor_pooled_forms`, over ``distinct``) are counted there,
+    as the producer counted them.
     """
     line = parsing.census_floor(floor)
     counted: "dict[str, int]" = {}
     strays: "dict[str, int]" = {}
+    others: "dict[str, int]" = {}
     for cell in cells:
         if not parsing.trimmed(cell):
             continue
@@ -22121,12 +22380,22 @@ def _form_recount(
         if key and key not in census and lower and lower in census:
             strays[lower] = (strays[lower] if lower in strays else 0) + 1
             continue
+        if absorbing and key and key not in census:
+            form = parsing.shape_form(cell)
+            others[form] = (others[form] if form in others else 0) + 1
+            continue
         if not key or key not in census or key == taxonomy.SUPPRESSED_LABEL:
             continue
         counted[key] = (counted[key] if key in counted else 0) + 1
     for key in sorted(strays):
         if strays[key] < line:
             counted[key] = (counted[key] if key in counted else 0) + strays[key]
+    if absorbing:
+        pooled = taxonomy.floor_pooled_forms(others, census, distinct, floor)
+        if pooled:
+            counted[absorbing] = (
+                counted[absorbing] if absorbing in counted else 0
+            ) + sum([others[form] for form in pooled])
     kept: "dict[str, int]" = {}
     for key in sorted(counted):
         if counted[key] >= floor:
@@ -22564,7 +22833,9 @@ def moved_off_the_real(
     total = 0
     for layout in sorted(facts.layout_forms):
         total = total + facts.layout_forms[layout]
-        if layout != contract.WITHHELD and layout not in exclusions:
+        if layout != contract.WITHHELD and (
+            layout not in exclusions or parsing.leaves_its_layout(layout, exclusions[layout][0])
+        ):
             given_up += [layout]
     pooled = contract.WITHHELD in facts.layout_forms or total < n_present
     return tuple(given_up), bool(given_up) or pooled

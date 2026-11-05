@@ -12,7 +12,7 @@ shouldn't be asked!"):
   person's own `%d/%m/%Y` (month starts `01/03/2023` put every date in
   January). The answer `day-first` is `--day-first`.
 * A FEW REPEATED CODES IN A COLUMN OF DATES OR TIMES -- `UNK`,
-  `00/00/0000`, `0000-00-00`, Caboodle's `-1` and `-2`, `99:99`. Before,
+  `00/00/0000`, `0000-00-00`, a warehouse key's `-1` and `-2`, `99:99`. Before,
   they kept the column off the date rule's line, it was read as labels or
   numbers, and its twin parsed 0 to 59 in 100; three of them were asked
   whether they were blood pressures. The answer `missing` is
@@ -509,7 +509,7 @@ def _scores(count: int) -> "list[str]":
 def test_an_answer_names_every_other_column_it_reaches(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`-1` in a DateKey column is a real score elsewhere: the question says where, and how many.
+    """`-1` in a date-key column is a real score elsewhere: the question says where, and how many.
 
     The review of lane R1, item 1: answered `missing`, a column of scores
     holding -1 and -2 lost 27.6 in 100 of its rows to "missing" and its
@@ -518,7 +518,7 @@ def test_an_answer_names_every_other_column_it_reaches(
     named with "some rows", which is the disclosure rule's (a count of
     three is not printed). Red when the count is taken out.
     """
-    keys = shapes.cells(shapes.by_name("cab_datekey_sentinels"))
+    keys = shapes.cells(shapes.by_name("daykey_sentinels"))
     scores = _scores(len(keys))
     few = ["-1" if place in (5, 50, 500) else f"{place % 40}" for place in range(len(keys))]
     table = _two_columns(tmp_path, {"visit_key": keys, "score_change": scores, "ward": few})
@@ -564,7 +564,7 @@ def test_the_count_elsewhere_is_what_the_declaration_takes_there(tmp_path: pathl
     """Each other column's count is the rows the answer then reads as missing, under that column's own rule.
 
     The second review of lane R1, item 1: a column declared
-    `--decimal-comma` writing `-1,0` was said to hold none of a DateKey
+    `--decimal-comma` writing `-1,0` was said to hold none of a date-key
     column's codes, and the answer took 112 of its rows. Here that column
     sits beside `-1.0` and `-2.00` in an ordinary column and ` unk `,
     `Unk` and `UNK` beside a column of dates written `UNK`: every count
@@ -573,7 +573,7 @@ def test_the_count_elsewhere_is_what_the_declaration_takes_there(tmp_path: pathl
     spelling rather than the declaration, or reads the comma column as an
     ordinary one.
     """
-    keys = shapes.cells(shapes.by_name("cab_datekey_sentinels"))
+    keys = shapes.cells(shapes.by_name("daykey_sentinels"))
     count = len(keys)
     dated = (shapes.cells(shapes.by_name("iso_unk")) * 2)[:count]
     columns = {
@@ -632,16 +632,16 @@ def test_a_count_elsewhere_is_said_over_that_column_s_present_cells(tmp_path: pa
 
 
 def test_every_question_is_counted_elsewhere_in_one_pass(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Six DateKey columns cost one judgement per different spelling of the table, not six.
+    """Six date-key columns cost one judgement per different spelling of the table, not six.
 
     The second review of lane R1, item 2: each column asked re-read
-    every other one, so thirty DateKey columns at 20,000 rows spent
+    every other one, so thirty date-key columns at 20,000 rows spent
     16.2 s of a 154 s describe there. Counted here as the judgements of
     what a declaration would match: one pass judges each different
     spelling of each column once (twice for the codes themselves), where
     a pass per question judges each about six times.
     """
-    keys = shapes.cells(shapes.by_name("cab_datekey_sentinels"))
+    keys = shapes.cells(shapes.by_name("daykey_sentinels"))
     columns = [list(reversed(keys)) if place % 2 else keys[place:] + keys[:place] for place in range(6)]
     different = sum(len(set(column)) for column in columns)
     blocks = [
@@ -813,14 +813,14 @@ def test_real_value_brings_no_other_question_back(tmp_path: pathlib.Path, name: 
 
 
 def test_a_measurement_answered_real_value_keeps_its_checklist_line(tmp_path: pathlib.Path) -> None:
-    """A DateKey column answered `real-value` is read as a number, and owner decision D14 lists it.
+    """A date-key column answered `real-value` is read as a number, and owner decision D14 lists it.
 
     The second review of lane R1, item 3: the column's codes kept, it is
     read as a measurement and its twin parses 569 of 1,000 cells as
     dates, yet the repair had taken it off the one list that reaches a
     column of figures no rule can tell from a quantity.
     """
-    values = shapes.cells(shapes.by_name("cab_datekey_sentinels"))
+    values = shapes.cells(shapes.by_name("daykey_sentinels"))
     _profiled(tmp_path, values)
     answers = _answer(tmp_path, "seen_at", asking.ANSWER_REAL_VALUE)
     code, said = _profiled(tmp_path, values, "--answers", str(answers))
@@ -835,13 +835,13 @@ def test_a_measurement_answered_real_value_keeps_its_checklist_line(tmp_path: pa
 
 
 def test_a_word_typed_beside_an_answered_code_says_both_ways(tmp_path: pathlib.Path) -> None:
-    """`--missing-value ZZZ` typed and a DateKey column answered `missing`: the notice names both doors.
+    """`--missing-value ZZZ` typed and a date-key column answered `missing`: the notice names both doors.
 
     The second review of lane R1, item 4: the notice's opening line says
     which way each word arrived, and a run with one of each was never
     checked.
     """
-    keys = shapes.cells(shapes.by_name("cab_datekey_sentinels"))
+    keys = shapes.cells(shapes.by_name("daykey_sentinels"))
     ward = ["ZZZ" if place % 20 == 0 else ["north", "south", "east"][place % 3] for place in range(len(keys))]
     table = _two_columns(tmp_path, {"visit_key": keys, "ward": ward})
     typed = ("--missing-value", "ZZZ")

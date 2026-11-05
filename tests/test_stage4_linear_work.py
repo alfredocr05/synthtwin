@@ -920,6 +920,10 @@ def test_every_argument_of_the_ladder_is_part_of_the_question() -> None:
         "forced_measurement": True,
         "probing": True,
         "described_as_pair": True,
+        # ...and the validator's carried affixed reading (plan P4-D438).
+        "described_as_affixed": True,
+        # ...and the reading kept from before it (lane UN-1a's repair).
+        "units_kept": taxonomy.KEPT_LABELS,
         # The argument plan P4-D382 gave the ladder beside this landing
         # (the merge of both, 2026-10-02): a workbook's stored dates.
         "stored_as": taxonomy.STORED_AS_DATES,

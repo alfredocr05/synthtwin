@@ -218,20 +218,59 @@ def test_a_publishing_role_still_names_the_candidate(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     # The same column, the same option, the same value -- and no
-    # --identifier. Nothing about this column is withheld, so the
-    # verdict names the number, exactly as it did before. A repair that
-    # withheld it here would have broken the field for every ordinary
-    # numeric column.
+    # --identifier. Answered as a measurement, nothing about this column
+    # is withheld, so the verdict names the number, exactly as it did
+    # before. A repair that withheld it here would have broken the field
+    # for every ordinary numeric column.
+    #
+    # RESTATED BY LANE GG'S REPAIR 2 (the orchestrator's LANE GG RULINGS 3
+    # (1), plan P4-D440): these are 180 record numbers of one width, and
+    # the same column without its `-999` is put P4-D401's fixed-width
+    # question and held until it is answered. The `-999` once silenced
+    # that question -- how sixty keys beside a placeholder printed every
+    # key -- and is set aside now, so UNANSWERED the column is held and
+    # the candidate withheld, as for a declared identifier, and the
+    # question names the `-999` truly (a negative whole number, not "a
+    # minus sign and one figure"). The neighbour is the column answered
+    # `measurement`.
     document, _written, said = _run(
         tmp_path,
         "reading",
         IDENTIFIERS + [SENTINEL] * 20,
-        # ...declared a measurement (lane HX5, plan P4-D436): 180 numbers of
-        # six figures, every one different, are otherwise put the
-        # identifier question and held until it is answered.
-        [f"--keep-value={SENTINEL}", "--measurement", "reading"],
+        # ...left unanswered (batch 4m's merge of lane GG beside lane HX5,
+        # plan P4-D436, whose branch declared it a measurement here): 180
+        # numbers of six figures, every one different, are put ONE question
+        # offering `identifier` and held until it is answered, which is
+        # what this first run asserts; the answer `measurement` below is
+        # the declaration HX5's branch typed.
+        [f"--keep-value={SENTINEL}"],
         capsys,
     )
+    column = document["columns"][0]
+    assert column["role"] == taxonomy.ROLE_IDENTIFIER
+    assert SENTINEL not in json.dumps(column)
+    questions = tmp_path / "reading-questions.json"
+    asked = json.loads(questions.read_text(encoding="utf-8"))
+    entries = [
+        one
+        for key in ("about_your_file", "asked")
+        for one in asked.get(key) or []
+        if isinstance(one, dict) and one.get("column") == "reading"
+    ]
+    assert len(entries) == 1, entries
+    assert (
+        "beside 20 of them written as a placeholder -- a negative whole "
+        "number, a lone 0, or nines alone"
+    ) in entries[0]["what_synthtwin_saw"]
+    entries[0]["your_answer"] = "measurement"
+    questions.write_text(json.dumps(asked, indent=2), encoding="utf-8", newline="\n")
+    table = tmp_path / "reading.csv"
+    assert main(
+        ["profile", f"{table}", "--replace", "--answers", f"{questions}", f"--keep-value={SENTINEL}"]
+    ) == 0
+    capsys.readouterr()
+    document = json.loads((tmp_path / "reading-profile.json").read_text(encoding="utf-8"))
+    said = (tmp_path / "reading-profile.txt").read_text(encoding="utf-8")
     column = document["columns"][0]
     assert column["role"] in taxonomy.ROLES_PUBLISHING_RANGES
     assert column["sentinel_verdicts"] == [
@@ -312,8 +351,10 @@ def _nothing_publishing() -> "dict[str, taxonomy.ColumnProfile]":
         taxonomy.ROLE_UNREPRESENTABLE: describe(
             ["1e999"] * 189 + [SENTINEL] * 11
         ),
+        # ...prose beside a few record numbers of seven figures, so the block
+        # carries `figure_openings` (plan P4-D442), a key it names.
         taxonomy.ROLE_TEXT: describe(
-            fixtures.prose(60)
+            fixtures.prose(60) + [f"seen again {1000000 + k}" for k in range(12)]
         ),
     }
 

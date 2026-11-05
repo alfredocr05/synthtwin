@@ -516,12 +516,17 @@ def test_the_twin_writes_the_spacing_back() -> None:
 
 
 def test_a_position_carrying_a_decimal_point_is_read() -> None:
-    """An I:E ratio of `1:1.5` has a decimal in its second number."""
+    """An I:E ratio of `1:1.5` has a decimal in its second number.
+
+    One rare ratio beside the five: since plan P4-D438 a declared column
+    whose every whole-cell level clears the floor keeps its exact list
+    (rule 0c yields to rule 7), and this case is about the joined reading.
+    """
     rng = random.Random(4)
     values = [
         f"1:{rng.choice(['1.0', '1.5', '2.0', '2.5', '3.0'])}"
         for _each in range(240)
-    ]
+    ] + ["1:4.0"] * 3
     document, _folder = _described(values)
     block = document["columns"][0]
     assert block["role"] == taxonomy.ROLE_JOINED

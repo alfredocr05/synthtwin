@@ -259,7 +259,13 @@ def test_a_rest_at_the_line_still_names_both_keys(
 def test_a_capital_beside_another_form_s_pool_keeps_the_lower_case_key(
     tmp_path: pathlib.Path,
 ) -> None:
-    """One capitalised code beside nine cells of a rarer, pooled form."""
+    """One capitalised code beside nine cells of a rarer, pooled form.
+
+    RULE A1 (lane CODES-1, plan P4-D439): the nine pooled `ab-N` cells, a
+    form no number can be written in, are counted in the commonest named
+    form, the lower-case key, which `shape_forms_absorbed` names; the key
+    stays lower-case and no capital is written.
+    """
     cells = (
         [f"abc-{index:05d}" for index in range(790)] + ["ABC-00799"]
         + [f"ab-{index}" for index in range(9)]
@@ -268,9 +274,8 @@ def test_a_capital_beside_another_form_s_pool_keeps_the_lower_case_key(
         tmp_path, {"value": cells},
         ("--code", "value", "--smallest-group", "20"),
     )
-    assert _column(result)["shape_forms"] == {
-        "&&&-%%%%%": 791, "(withheld)": 9,
-    }
+    assert _column(result)["shape_forms"] == {"&&&-%%%%%": 800}
+    assert _column(result)["shape_forms_absorbed"] == "&&&-%%%%%"
     _both_pass(result)
     assert _matching(result["twin"]["value"], r"[A-Z]{3}-[0-9]{5}") == 0
 

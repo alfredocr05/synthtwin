@@ -407,7 +407,10 @@ def _unbounded(monkeypatch: pytest.MonkeyPatch) -> None:
         used: "dict[str, int]",
         owners: "dict[str, str]",
         holes: "tuple[str, ...]",
+        plans: "object" = None,
     ) -> "tuple[int, ...]":
+        # Lane CODES-1 (plan P4-D439) hands the bounds the stepping plans
+        # too; the mutant reads none of them.
         return tuple(
             owing[form] for form in sorted(owing)
             if owing[form] > 0 and generation._form_reading(form, decimal_comma) == parsing.NOT_A_NUMBER

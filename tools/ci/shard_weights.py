@@ -121,6 +121,35 @@ minutes on lane ID-ROOM's base); `tests/test_stage4_generate_memory.py`,
 `tests/test_all_different_numbers_asked.py`, lane HX5's gate, 89.30 s;
 and `tests/test_stage3b_reader.py`, 32.78 s.
 
+TWO ROWS CHANGED 2026-10-30, by lane SPD (plan P4-D444, the suite's time
+part 1: batch 4l OWES 1 and OWES 3), each file timed ON ITS OWN on the
+lane's head 2aff8bb4 under Python 3.11 through the machine-wide guard
+(pytest's own total; one-minute load average 3.4 rising to 18 on ten
+cores beside other lanes' runs): lane SH's Safe Harbor numbers,
+`tests/test_safe_harbor_numbers.py`, 92.92 s from 2,705.80 s (190.04 s
+in an earlier run at load 27 to 34), and lane PS2's gate,
+`tests/test_dates_held_by_the_floor.py`, 22.88 s from 738.70 s (42.92 s
+at load 32 to 34); each keeps one 20,000-row case, the rest in the slow
+drivers of `K-HZ-15` and `K-HZ-07`. The small cases of LANE SPD RULINGS 1
+add 11.2 s to the second at load 28 to 35 (49.76 s in all there); the weight
+stays the seconds at the lower load, which decide the packing only.
+
+ROWS ADDED 2026-11-02, at the integration of batch 4n (BATCH 4n OWES 6,
+push critic 17's M4): the gate files batch 4m's lanes added weighed the
+default. Each row is the file's seconds as the push critic measured them
+under Python 3.13 on batch 4m's merged tree, on a machine other work was
+loading: `tests/test_zoo_few_valued_gap.py`, 419 s (lane GG's gate, over
+the three-minute rule), `tests/test_stage6_chain_generate.py`, 288 s,
+`tests/test_safe_harbor_places_years_devices.py`, 224 s,
+`tests/test_zoo_codes_in_pattern.py`, 175 s, `tests/test_zoo_units_order.py`,
+74 s, and `tests/test_zoo_units.py`, 51 s.
+
+ONE ROW ADDED 2026-11-04, at batch 4n's merge of lane HB (plan P4-D442):
+the lane's gate file weighed the default. `tests/test_zoo_held_layouts.py`,
+403.52 s, its 74 cases timed alone by one `pytest -q --durations=0` process
+on the merged tree under Python 3.11, on a machine other work was loading
+(the lane measured 383.8 s on its own head).
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
 an ordinary small file and runs in its shard from the commit that adds
@@ -157,7 +186,7 @@ SECONDS = {
     "tests/test_contract_loader.py": 8.65,
     "tests/test_contract_self_check.py": 1.95,
     "tests/test_date_spread.py": 448.08,
-    "tests/test_dates_held_by_the_floor.py": 738.7,
+    "tests/test_dates_held_by_the_floor.py": 22.88,
     "tests/test_dates_pooled_in_people.py": 192.2,
     "tests/test_dates_written_forms_disclosed.py": 15.56,
     "tests/test_decontamination.py": 664.17,
@@ -374,7 +403,8 @@ SECONDS = {
     "tests/test_ruling_identifier_prefix.py": 20.42,
     "tests/test_ruling_levels_counted_by_subtraction.py": 7.53,
     "tests/test_ruling_pooled_held_back_levels.py": 12.86,
-    "tests/test_safe_harbor_numbers.py": 2705.8,
+    "tests/test_safe_harbor_numbers.py": 92.92,
+    "tests/test_safe_harbor_places_years_devices.py": 224.0,
     "tests/test_shipped_page_review.py": 3.39,
     "tests/test_stage2_dates_as_written.py": 35.13,
     "tests/test_stage2_datetime_oracle.py": 6.41,
@@ -423,6 +453,7 @@ SECONDS = {
     "tests/test_stage4_tier2a.py": 88.39,
     "tests/test_stage5_gate.py": 272.08,
     "tests/test_stage6_band_totals.py": 124.34,
+    "tests/test_stage6_chain_generate.py": 288.0,
     "tests/test_stage6_validate_chain.py": 77.1,
     "tests/test_summary_and_properties.py": 41.37,
     "tests/test_tail_back_solve_without_recursion.py": 14.72,
@@ -435,5 +466,10 @@ SECONDS = {
     "tests/test_window_agreement.py": 192.39,
     "tests/test_workbook_dates.py": 26.02,
     "tests/test_workbook_round_trip.py": 267.81,
+    "tests/test_zoo_codes_in_pattern.py": 175.0,
+    "tests/test_zoo_few_valued_gap.py": 419.0,
+    "tests/test_zoo_held_layouts.py": 403.52,
     "tests/test_zoo_identifiers.py": 1122.72,
+    "tests/test_zoo_units.py": 51.0,
+    "tests/test_zoo_units_order.py": 74.0,
 }

@@ -426,7 +426,11 @@ def wide_table(n_rows: int, width: int = 50, seed: int = 20261021) -> bytes:
 
 
 def sorted_table(n_rows: int, seed: int = 20261022) -> bytes:
-    """A seeded table sorted by its first column, with empty records among its rows."""
+    """A seeded table sorted by its first column, with empty records among its rows.
+
+    The column is `rank`: named `key` it is asked lane HB's key-name question
+    and held (plan P4-D442, rule (14)), and a held column publishes no order.
+    """
     draw = random.Random(seed)
     rows = sorted(
         [
@@ -435,7 +439,7 @@ def sorted_table(n_rows: int, seed: int = 20261022) -> bytes:
         ],
         key=lambda row: int(row[0]),
     )
-    lines = ["key,group,share"]
+    lines = ["rank,group,share"]
     for index in range(n_rows):
         if index % 37 == 5:
             lines += [",,"]

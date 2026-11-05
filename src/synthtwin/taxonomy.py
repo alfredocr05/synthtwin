@@ -590,6 +590,15 @@ KEYS_THAT_CARRY_NO_VALUE = (
     # published is where the marks fell; what is not is anything that
     # stood between them.
     "shape_forms",
+    # THE OPENINGS NO REAL RUN OF FIGURES OPENS WITH (plan P4-D442) are
+    # admitted on a checked property too: each key is a merged width of
+    # four figures or more, or 3, written in base ten, each value one to four
+    # figures, the first never a nought, or nothing, and
+    # `profile._is_figure_opening` refuses anything else whatever built
+    # it. Every opening passed over is held by the floor's runs or more,
+    # the one published by none, so it names no value and pins no count
+    # of 1 to 10 (`figure_openings`).
+    "figure_openings",
     "n_sign_unknown",
     "n_whole",
     "n_whole_unknown",
@@ -2546,7 +2555,8 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         return (
             f"read as {date_counts.TABLE[member].means} "
             f"(--date-count NAME {member}), this column runs from "
-            f"{_whole(arguments, 1)} to {_whole(arguments, 2)}, with the "
+            f"{edge_year_said(_whole(arguments, 1))} to "
+            f"{edge_year_said(_whole(arguments, 2))}, with the "
             f"outermost values at each end set aside"
         )
     if form == REMARK_DATES_WRITTEN_AS_COUNTS:
@@ -4836,6 +4846,23 @@ class ColumnProfile:
     # cell whose spelling the twin cannot reproduce is counted in the
     # class the twin writes it as (plan P4-D174).
     absent_spellings: tuple[str, ...] = ()
+    # WHETHER RULE 7 STOOD ASIDE FOR A NUMBER BESIDE A UNIT (plan P4-D438):
+    # a column rule 7 would have kept as labels, described as
+    # `affixed_number` instead. NEVER WRITTEN INTO A DESCRIPTION either:
+    # `profile.build_document` reads it to count the block in people.
+    units_read_anew: bool = False
+    # A FEW-VALUED COLUMN'S OWN SPELLINGS, where a wide gap stands among
+    # them (lane GG, plan P4-D440; the stand-ins page's ZS.4). NEVER WRITTEN
+    # INTO A DESCRIPTION by this module: `with_few_values` writes them as
+    # `few_values` for a column whose Safe Harbor question was answered
+    # `no`, and the profile command puts that question to every other
+    # column that carries them. Empty on every other column.
+    few_values: tuple[str, ...] = ()
+    # ...AND WHETHER ONE OF THEM IS A RARE VALUE, held by fewer cells than
+    # the floor (repair 1 of lane GG; the stand-ins page's ZS.1 and ZS.4,
+    # rule U (c)): such a list is released only where no question
+    # offering `identifier` is open on any column. Never written.
+    few_values_rare: bool = False
 
 
 SIGNIFICAND_BITS = 53
@@ -10546,7 +10573,7 @@ def _published_places(labels: "list[str]") -> int:
     return fewest
 
 
-def pooled_window(labels: "list[str]") -> float:
+def pooled_window(labels: "list[str]", held_back: int = 0) -> float:
     """Half the window method G12.12 draws around the published pooled mean.
 
     PUBLIC because two modules draw it and neither may import the other:
@@ -10583,6 +10610,23 @@ def pooled_window(labels: "list[str]") -> float:
     unit = 1.0
     if places > 0:
         unit = 1.0 / float(10 ** places)
+    else:
+        # ...ON THE PUBLISHED WHOLE NUMBERS' GRAIN (lane CODES-1, plan
+        # P4-D439): a column of revenue codes all ending in nought places
+        # its made-up numbers on multiples of ten, so ten is its grid.
+        # Only where every published number is a whole number of figures
+        # alone, as the generator's ladder reads it.
+        whole: "list[int]" = []
+        others = 0
+        for label in labels:
+            text = parsing.trimmed(label)
+            body = text[1:] if text.startswith("-") else text
+            if body and parsing.is_digit_text(body):
+                whole += [int(text)]
+            elif parsing.classify_number(text) == parsing.NUMBER:
+                others = others + 1
+        if not others:
+            unit = float(parsing.whole_number_grain(whole, held_back))
     return unit * float(_POOLED_WINDOW_PLACES)
 
 
@@ -10894,6 +10938,347 @@ def _a_level_is_below_the_floor(cells: _Cells) -> bool:
     counts = cells.label_counts
     for rep in counts:
         if counts[rep] < floor:
+            return True
+    return False
+
+
+def _suffix_wrapped(reading: "_Affixed") -> bool:
+    """Whether every wrapper of an affix reading is a SUFFIX wrapper (plan P4-D438).
+
+    A suffix wrapper has nothing in front of the number, or only marks
+    of the closed symbol set and spaces (`<`, `>`, `~`, `$`): `98%`,
+    `172 cm`, `98.4 F`, `<0.5 mg`. A word in front -- `Stage 2`,
+    `Grade 3`, `Type 1` -- is a label scheme as often as a quantity, and
+    amendment A-P4-58 asks the person rather than guessing, so such a
+    reading is not one rule 7 stands aside for undeclared.
+
+    AND THE TEXT BEHIND IS A UNIT: no figure in it, and a word or `%`
+    where it holds anything but space. A figure behind the number is a
+    code's other half, never a unit -- a ZIP+4 `52240-1234`, a LOINC
+    `2345-7` -- and units holding figures (`10*3/uL`, `mL/min/1.73m2`)
+    are lane UN-1b's guards to read; marks alone behind it (`5-`, `3+`)
+    are a sign written after the number or a grade as often as a unit.
+    Each stays a label undeclared; the answer `measurement` still reads
+    it (`_units_stand_aside`, stand-aside (ii)).
+
+    AND SOME WRAPPER CARRIES A UNIT (skeptic 1 of lane UN-1a, item 2):
+    a wrapper with nothing behind the number is a suffix wrapper, so a
+    reading whose every wrapper is bare or a mark in front -- censored
+    counts `<5`, `>1000` beside bare counts -- passed as "suffix
+    wrapped" and a viral load the count in people held came out as
+    numbers with eight interior rungs held by seven to ten people. A
+    column of numbers with no unit is not a unit column
+    (`reads_as_a_unit` says the same). Nor is a month or a weekday a
+    unit (`_a_calendar_word`): `12 Jan` is a day of a month; nor a lab's
+    flag (`_a_flag`; the orchestrator's LANE UN-1a RULINGS 2 (3)):
+    `4.4 H` is a value marked high.
+
+    Guarantees: accepts an affix reading; returns a truth value. A fixed
+    function of its wrappers. Raises nothing. No I/O.
+    """
+    unit = False
+    for prefix, suffix in _pairs_of(reading):
+        for mark in prefix:
+            if mark in _SYMBOL_MARKS or parsing.trimmed(mark) == "":
+                continue
+            return False
+        if parsing.trimmed(suffix) == "":
+            continue
+        if _a_calendar_word(suffix) or _a_flag(suffix):
+            return False
+        worded = False
+        figured = False
+        for mark in suffix:
+            if mark in _DIGITS:
+                figured = True
+            if mark == "%" or _is_a_word_mark(mark):
+                worded = True
+        if not worded:
+            return False
+        # A UNIT HOLDING FIGURES STANDS APART AND OPENS WITH NO FIGURE (lane
+        # UN-1b, plan P4-D443): `5.4 10*3/uL`, `7.0 x10^9/L` and
+        # `56 mL/min/1.73m2` write a power of ten or a body surface in
+        # their unit, a space between it and the number. A figure flush
+        # behind the number, or behind a mark flush against it, is still a
+        # code's other half (`52240-1234`, `2345-7`).
+        if figured and not _figures_stand_in_a_unit(suffix):
+            return False
+        unit = True
+    return unit
+
+
+def _figures_stand_in_a_unit(suffix: str) -> bool:
+    """Whether a suffix holding figures is a unit standing apart (plan P4-D443).
+
+    A space first, and some word mark in it: ` 10*3/uL`, ` x10^9/L`,
+    ` mL/min/1.73m2`. Never a suffix flush against the number, nor one of
+    figures and marks alone (` 10`, `-1234`).
+
+    Guarantees: accepts the text behind a number; returns a truth value.
+    A fixed function of it. Raises nothing. No I/O.
+    """
+    if not suffix or parsing.trimmed(suffix[:1]) != "":
+        return False
+    for mark in suffix:
+        if _is_a_word_mark(mark):
+            return True
+    return False
+
+
+# THE WORDS OF A CALENDAR, which name a month or a day and never a unit
+# (skeptic 1 of lane UN-1a, item 9): `12 Jan` is a day of a month, and
+# asking whether it holds "amounts in that unit" with `Jan` for the unit
+# misleads. English only, as `parsing.month_of_name` is.
+_WEEKDAY_WORDS = (
+    "mon", "monday", "tue", "tues", "tuesday", "wed", "wednesday", "thu",
+    "thur", "thurs", "thursday", "fri", "friday", "sat", "saturday", "sun",
+    "sunday",
+)
+
+
+# A LAB'S FLAG, NEVER A UNIT (the orchestrator's LANE UN-1a RULINGS 2 (3),
+# on skeptic 1's item 5): a lone flag behind a number -- `4.4 H`, `2.1 L`,
+# `HH`, `LL`, `A` for abnormal, `N` for normal, a `*` or `!` -- marks the
+# value high, low or abnormal; it names no unit. Written as the lab writes
+# it, in capitals (`4 h` is four hours), alone or in brackets. Values
+# beside flags are lane UN-2's to read.
+_FLAG_WORDS = (
+    "H", "L", "HH", "LL", "A", "AA", "N", "HI", "LO", "*", "**", "***", "!",
+    "!!",
+)
+
+
+def _a_flag(text: str) -> bool:
+    """Whether a wrapper's text, its spaces and brackets aside, is a lab's flag.
+
+    Guarantees: accepts text; returns a truth value. A fixed function of
+    it. Raises nothing. No I/O.
+    """
+    word = ""
+    for mark in text:
+        if mark in " ()[]" or parsing.trimmed(mark) == "":
+            continue
+        word = word + mark
+    return word in _FLAG_WORDS
+
+
+def _a_calendar_word(text: str) -> bool:
+    """Whether a wrapper's text, its spaces and marks aside, is a month or a weekday.
+
+    Guarantees: accepts text; returns a truth value. A fixed function of
+    it. Raises nothing. No I/O.
+    """
+    word = ""
+    for mark in text:
+        if _is_a_word_mark(mark):
+            word = word + mark
+    if not word:
+        return False
+    return (
+        parsing.month_of_name(word) is not None
+        or parsing.folded(word) in _WEEKDAY_WORDS
+    )
+
+
+def _units_stand_aside(
+    cells: _Cells,
+    forced_measurement: bool,
+    described_as_affixed: bool,
+    units_kept: str = "",
+) -> bool:
+    """Whether rule 7 stands aside for a number beside a unit (plan P4-D438).
+
+    LANE UN-1a OF THE ZOO-FIX TRACK, P4-D419's ZR.1 stand-asides (i) and
+    (ii), and the carry-over of its ZR.5. Rule 7 claimed every column of
+    at most the ceiling's different values, so `98%`, `172 cm` and
+    `98.4 F` were LABELS wherever few enough different readings stood:
+    the levels the floor held back were written in the twin as `group-N`
+    (measured on the health data zoo at 600 rows: 10, 108 and 81 such
+    cells), no number of the column was described, and code reading the
+    numbers ran on the table and raised on its twin. The affix reading
+    already describes them -- each unit's own mean and spread, its own
+    ladder -- and the twin writes every cell as a number beside its unit.
+    So rule 7 stands aside, and the column goes on to rule 9, where:
+
+    - (i) undeclared, an affix reading whose every wrapper is a SUFFIX
+      wrapper (`_suffix_wrapped`) reads the column AND a level is below
+      the floor (`_a_level_is_below_the_floor`). Where every level
+      clears the floor rule 7 keeps the exact list, every value at its
+      count, which no reading of numbers does better; and a word in
+      front (`Stage 2`, `Grade 3`) keeps the column labels, with the
+      two-readings remark and question of amendment A-P4-58 as before;
+    - (ii) the person answered `measurement` (typed, or in the questions
+      file) and the affix reading the declaration admits reads the
+      column, whichever wrapper it wears and whether or not a level is
+      held back: the person who holds the table has said it is a
+      quantity, and an answer the tool then ignored was the defect
+      (F-units item 2: `--measurement` changed nothing);
+    - the validator's carry-over: the description being checked read the
+      column as `affixed_number` (``described_as_affixed``), so the file
+      is read the same way wherever its cells allow, as rule 9c's pair is
+      (validation method V2.2-A2). Without it a faithful twin whose
+      levels all clear the floor is read back as labels and `validate`
+      reports its role missed.
+
+    `--code` keeps the list whatever it holds: its caller asks this only
+    where rule 0b has not silenced rule 9.
+
+    PUBLISHED AS THE SAME NUMBERS WRITTEN BARE (lane UN-1b, plan P4-D443;
+    the orchestrator's LANE UN-1a RULINGS 2 (2): P4-D35, the owner's
+    rulings of 2026-09-03 and 2026-09-22, THE PRINCIPLE of 2026-10-01). A
+    column read as numbers beside a unit publishes what the numbers bare
+    publish -- no stricter, no looser: its ends only where the floor's
+    rows share them, its rungs and gap edges as a bare column's are. UN-1a
+    withheld either stand-aside where the block would print a value one
+    to floor - 1 rows hold, which no bare column of the same numbers
+    does (`98%` beside eight `90%` stayed labels where `98` beside eight
+    `90` reads as a count); that guard is withdrawn here, and the count
+    in people where a person column is declared, answered or open is the
+    one a bare column gets (`profile.build_document`).
+
+    ``units_kept`` says the column keeps the reading it had before plan
+    P4-D438 (``profile.build_document`` passes it where the count in
+    people refuses the stand-aside, and the validator passes it for a
+    column its description did not read as `affixed_number`): neither
+    stand-aside is taken.
+
+    Guarantees: accepts the tally and the flags; returns a truth value.
+    A fixed function of them. Raises nothing. No I/O.
+    """
+    if described_as_affixed:
+        return _affixed_reading(cells, forced_measurement) is not None
+    if units_kept:
+        return False
+    if forced_measurement:
+        return _affixed_reading(cells, True) is not None
+    if not _a_level_is_below_the_floor(cells):
+        return False
+    reading = _affixed_reading(cells)
+    return (
+        reading is not None
+        and _suffix_wrapped(reading)
+        and _reads_every_cell(reading, cells)
+        and _written_forms_clear(reading, cells)
+    )
+
+
+def _reads_every_cell(reading: "_Affixed", cells: _Cells) -> bool:
+    """Whether an affix reading reads EVERY present cell as a number (plan P4-D438).
+
+    Stand-aside (i) takes a column undeclared only where nothing would
+    be left out of its statistics: a straggler -- `see note`, or one
+    `12 MG` beside `N mg` -- would be published as a count of one to ten
+    cells left out (`n_left_out_of_statistics`), the class of count
+    `K-S3-12` holds at its ceiling and may not see rise. Such a column
+    stays the set of categories it was, and question Q-UNIT asks the
+    person, whose answer `measurement` reads it with its stragglers.
+
+    EACH CORE READ UNDER THE COLUMN'S OWN GRAMMAR (Codex's review of
+    lane UN-1a, item 5): a column declared `--decimal-comma` writes
+    `150,5 cm`, which the affix reading reads and the default grammar
+    did not, so the declared column stayed labels where its point twin
+    became numbers.
+
+    Guarantees: accepts an affix reading and its tally; returns a truth
+    value. A fixed function of them. Raises nothing. No I/O.
+    """
+    if len(reading.cores) != len(cells.present):
+        return False
+    for cell in _classify_all(reading.cores, cells.decimal_comma):
+        if cell.kind != parsing.NUMBER:
+            return False
+    return True
+
+
+def _written_forms_clear(reading: "_Affixed", cells: _Cells) -> bool:
+    """Whether every written form of the cores, and every count of decimals, clears the floor.
+
+    STAND-ASIDE (i)'s OTHER CONDITION (skeptic 1 of lane UN-1a, item 4).
+    A form fewer cores than the floor write -- one `95.5%` among whole
+    percentages, two `101%` -- is counted into the commonest form by the
+    disclosure rule (`_numeric_styles`), and the twin of such a column
+    could not meet the census the description then published: validate
+    exited 3 on the twin of the person's own table where the labels it
+    replaced passed. Such a column keeps its labels, and Q-UNIT asks.
+
+    Guarantees: accepts an affix reading and its tally; returns a truth
+    value. A fixed function of them. Raises nothing. No I/O.
+    """
+    floor = cells.settings.small_cell_floor
+    forms: "dict[str, int]" = {}
+    places: "dict[int, int]" = {}
+    for cell in _classify_all(reading.cores, cells.decimal_comma):
+        if cell.kind != parsing.NUMBER:
+            continue
+        style = numeric_style(cell.numeric_text)
+        forms[style] = (forms[style] if style in forms else 0) + 1
+        if style == parsing.STYLE_DECIMAL:
+            text = cell.numeric_text
+            cut = len(text)
+            for place in range(len(text)):
+                if text[place] == ".":
+                    cut = place + 1
+            width = len(text) - cut
+            places[width] = (places[width] if width in places else 0) + 1
+    for style in forms:
+        if forms[style] < floor:
+            return False
+    for width in places:
+        if places[width] < floor:
+            return False
+    return True
+
+
+def reads_as_a_unit(
+    present: "list[str]", settings: Settings, decimal_comma: bool = False
+) -> bool:
+    """Whether the answer `measurement` would read these cells as a number beside a unit.
+
+    QUESTION Q-UNIT's TRIGGER (lane UN-1a, plan P4-D438; P4-D419's ZR.2),
+    asked by `asking` of a column rule 7 kept as labels: the affix
+    reading the declaration admits (`_affixed_reading` declared, so a
+    word in front, standing apart, or a letter flush behind the digits
+    is read too) reads the cells, no pair is an electronic address or a
+    letter flush in FRONT of the number (a code's register), and some
+    wrapper carries text -- a column of bare numbers is not a unit column. That
+    is exactly what rule 7's stand-aside (ii) reads once the person
+    answers `measurement`, so the answer offered is one the tool honours.
+
+    Guarantees: accepts the present cells, the settings and whether the
+    column was declared to write a decimal comma; returns a truth value.
+    A fixed function of them. Raises nothing. No I/O, and no cell
+    reaches what it returns.
+    """
+    if not present:
+        return False
+    cells = _tally(
+        _classify_all(present, decimal_comma), len(present), settings,
+        decimal_comma,
+    )
+    reading = _affixed_reading(cells, True)
+    if reading is None:
+        return False
+    for prefix, suffix in _pairs_of(reading):
+        if _wrapped_in_an_address((prefix, suffix)):
+            return False
+        # A LETTER FLUSH IN FRONT IS A CODE'S REGISTER, NOT A UNIT
+        # (`_stands_apart`): `E10.0`, `D0140`, `P100000`. The declaration
+        # would read one, but asking whether a register of record numbers
+        # or diagnosis codes is "an amount in that unit" is noise, and the
+        # person question the register is put says what it is.
+        if not _stands_apart(prefix, "", False):
+            return False
+        # ...AND A MONTH OR A WEEKDAY IS NO UNIT (skeptic 1 of lane UN-1a,
+        # item 9): `12 Jan` is a day of a month, and asking whether it
+        # holds amounts in the unit `Jan` misleads.
+        if _a_calendar_word(prefix) or _a_calendar_word(suffix):
+            return False
+        # ...NOR A LAB'S FLAG (the orchestrator's LANE UN-1a RULINGS 2
+        # (3)): `4.4 H` is a value marked high, never 4.4 in the unit `H`.
+        if _a_flag(suffix):
+            return False
+    for prefix, suffix in _pairs_of(reading):
+        if prefix or suffix:
             return True
     return False
 
@@ -11304,7 +11689,7 @@ def _stand_in_level_remarks(levels: _Levels) -> "list[Note]":
 
 
 def _level_details(
-    levels: _Levels, cells: _Cells, with_text_total: bool = True
+    levels: _Levels, cells: _Cells, with_text_total: bool = True, code_declared: bool = False
 ) -> dict[str, object]:
     """The published block a label-publishing role carries.
 
@@ -11321,7 +11706,26 @@ def _level_details(
     a fact about the FLOOR and not about the role. So the census
     stands wherever levels can be held back, which is here.
     """
-    return {
+    counted: "dict[str, int]" = {}
+    spelled = described_spellings(cells.present, cells.settings)
+    census = _shape_forms(cells, False, with_text_total, spelled, counted)
+    absorbed = ""
+    if with_text_total:
+        # RULE A1 ON THE FOUR LABEL ROLES (lane CODES-1, plan P4-D439): a
+        # compound column's label half keeps its census as it was.
+        census, absorbed = pool_absorbed(
+            census, counted, cells, len(set(spelled)), with_text_total
+        )
+    # WHAT NO REAL RUN OF FIGURES OPENS WITH, beside every label role (LANE HB
+    # RULINGS 6, plan P4-D442): `label_figure_openings` states whose.
+    # A COLUMN THE PERSON DECLARED A CODE names none: their word that it is no key.
+    openings = {} if code_declared else label_figure_openings(
+        cells.present,
+        [entry["label"] for entry in levels.published],
+        cells.settings.small_cell_floor,
+        census,
+    )
+    details: "dict[str, object]" = {
         "levels": levels.published,
         "suppressed_levels": levels.suppressed_levels,
         "suppressed_rows": levels.suppressed_rows,
@@ -11337,16 +11741,373 @@ def _level_details(
         # commonest is counted there by this census too, or the column's
         # census and the level entries beside it describe two different
         # tables and no twin can meet both.
-        "shape_forms": _shape_forms(
-            cells,
-            False,
-            with_text_total,
-            described_spellings(cells.present, cells.settings),
-        ),
+        "shape_forms": census,
     }
+    if absorbed:
+        details["shape_forms_absorbed"] = absorbed
+    if openings:
+        details["figure_openings"] = openings
+    if with_text_total:
+        # RULE A2'S CENSUS (lane CODES-1, plan P4-D439): what the held-back
+        # cells of each named form hold at each place, floored. A key absent
+        # where it says nothing, so every other block keeps its bytes.
+        places = held_back_places(
+            spelled,
+            [entry["label"] for entry in levels.published],
+            census,
+            cells.settings.small_cell_floor,
+            cells.decimal_comma,
+        )
+        # ...AND NONE FOR A FORM HOLDING SUCH A RUN: its stand-ins wear the
+        # opening, so what the real cells hold at those places is not theirs;
+        # NOR FOR A DATE'S FORM BESIDE DATES, whose stand-ins are valid dates
+        # (lane HB's rule 6, kept at batch 4m's merge): `parsing.date_form_fields`.
+        dated = False
+        for form in census:
+            if parsing.date_form_fields(form) is not None:
+                dated = True
+        places = {
+            form: places[form]
+            for form in places
+            if not form_holds_a_named_run(form, openings)
+            and not (dated and parsing.date_form_fields(form, True) is not None)
+        }
+        if places:
+            details["shape_form_places"] = places
+    return details
+
+
+# The characters each placeholder of a form stands for, in the order a
+# twin steps them (lane CODES-1, plan P4-D439).
+PLACE_ALPHABETS = {
+    parsing.SHAPE_DIGIT: "0123456789",
+    parsing.SHAPE_LETTER: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    parsing.SHAPE_LOWER: "abcdefghijklmnopqrstuvwxyz",
+}
+
+
+def held_back_places(
+    spelled: "list[str]",
+    labels: "list[object]",
+    census: "dict[str, int]",
+    floor: int,
+    decimal_comma: bool = False,
+) -> "dict[str, list[str]]":
+    """Rule A2's floored positional census of a label column (P4-D439).
+
+    THE STAND-INS PAGE'S RULE A2 (P4-D422, ZS.2 and ZS.5). A held-back
+    level was written in its form from the alphabet, so a tumour stage
+    `T2N1M0` held back came back `L8D8G3`, and a Glasgow coma score
+    `E4V5M6` -- every one held back at 600 rows -- `Z2S4F4`. For each
+    named form no clock or stamp wears and whose spellings read as words
+    (`parsing.form_reads_as_words`: a form one of whose fillings is a
+    number is G8.3a's number classes' to share, written by rule A3 and
+    never from a census of characters), over the HELD-BACK cells wearing
+    it -- the present cells, as the level entries speak of them, whose
+    label no published level names -- this lists at each place the
+    characters of the place's kind that at least the census line holds
+    there (`parsing.census_floor`: the floor, and never under two), in
+    the order a twin steps them, and "" at a mark's place or where no
+    character reaches the line; at a letter place where neither those
+    cells nor a published spelling of the form writes a capital, its small
+    letters (the `p` of `pT1aN1bM0`). It publishes no count.
+
+    WHAT IT REFUSES (ZS.5). A form whose held-back cells H are under the
+    line publishes nothing, and so does one with a place whose list is
+    empty while H exceeds (a - 1)(f - 1), a the place's alphabet and f
+    the line: every character there would then hold at least one cell
+    and at most f - 1, a count inside 1..f-1 the description would fix.
+    A form whose every place lists nothing publishes nothing, and nor
+    does one whose lists, read as a product, would name held-back
+    spellings outright (`places_name_a_spelling`). Beside a
+    subject column the lists are counted in people again
+    (`profile._places_in_subjects`), and while any question offering
+    `identifier` is open on the table none is published (rule U).
+
+    Guarantees: a fixed function of the arguments; each list is a string
+    of different characters in the alphabet's order. Raises nothing.
+    """
+    if floor < 2:
+        return {}
+    line = parsing.census_floor(floor)
+    named: "dict[str, int]" = {}
+    for label in labels:
+        if isinstance(label, str):
+            named[parsing.folded(label)] = 1
+    # THE PLACES OF EACH FORM WHERE A CELL WRITES A CAPITAL, a published
+    # spelling's or a held-back one's (a level's label is folded, its
+    # spellings are not): such a place is not written in small letters.
+    capitals: "dict[str, dict[int, bool]]" = {}
+    published: "dict[str, bool]" = {}
+    held: "dict[str, int]" = {}
+    found: "dict[str, list[dict[str, int]]]" = {}
+    for cell in spelled:
+        if parsing.folded(cell) in named:
+            published[cell] = True
+            continue
+        form = parsing.census_form(cell, census)
+        if (
+            not form
+            or form not in census
+            or form == SUPPRESSED_LABEL
+            or len(form) != len(cell)
+            or parsing.is_a_time_key(form)
+            or not parsing.form_reads_as_words(form, decimal_comma)
+        ):
+            continue
+        held[form] = (held[form] if form in held else 0) + 1
+        if form not in found:
+            found[form] = [{} for _place in form]
+        _capitals_at(cell, form, capitals)
+        for at in range(len(form)):
+            kind = form[at]
+            if kind in PLACE_ALPHABETS and (
+                cell[at] in PLACE_ALPHABETS[kind]
+                or (
+                    kind == parsing.SHAPE_LETTER
+                    and cell[at] in PLACE_ALPHABETS[parsing.SHAPE_LOWER]
+                )
+            ):
+                tally = found[form][at]
+                tally[cell[at]] = (tally[cell[at]] if cell[at] in tally else 0) + 1
+    worn: "dict[str, int]" = {}
+    for cell in published:
+        form = parsing.census_form(cell, census)
+        _capitals_at(cell, form, capitals)
+        worn[form] = (worn[form] if form in worn else 0) + 1
+    places: "dict[str, list[str]]" = {}
+    for form in sorted(found):
+        if held[form] < line:
+            continue
+        built: "list[str]" = []
+        refused = False
+        for at in range(len(form)):
+            kind = form[at]
+            if kind not in PLACE_ALPHABETS:
+                built += [""]
+                continue
+            alphabet = PLACE_ALPHABETS[kind]
+            if (
+                kind == parsing.SHAPE_LETTER
+                and not (form in capitals and at in capitals[form])
+            ):
+                # A PLACE WRITTEN IN SMALL LETTERS (the combined verify of
+                # lane CODES-1's first repair, item 3): every held-back cell
+                # and every published spelling of the form writes a small
+                # letter there -- the `p` of a pathological stage `pT1aN1bM0`,
+                # its sub-letters -- so the place lists its small letters,
+                # as the source wrote them.
+                alphabet = PLACE_ALPHABETS[parsing.SHAPE_LOWER]
+            tally = found[form][at]
+            listed = ""
+            for mark in alphabet:
+                if mark in tally and tally[mark] >= line:
+                    listed = listed + mark
+            if not listed and held[form] > (len(alphabet) - 1) * (line - 1):
+                refused = True
+            built += [listed]
+        if refused or not any([bool(entry) for entry in built]):
+            continue
+        if places_name_a_spelling(
+            form, built, held[form], line, worn[form] if form in worn else 0
+        ):
+            continue
+        places[form] = built
+    return places
+
+
+def _capitals_at(
+    cell: str, form: str, capitals: "dict[str, dict[int, bool]]"
+) -> None:
+    """Note each letter place of the cell's form where it writes a capital (rule A2, P4-D439).
+
+    Read by `held_back_places` over the held-back cells and each
+    different published spelling, its census form given: a letter place
+    of a form where none of them writes a capital is written in small
+    letters, and lists them.
+    """
+    if not form or len(form) != len(cell):
+        return
+    for at in range(len(form)):
+        if form[at] == parsing.SHAPE_LETTER and "A" <= cell[at] <= "Z":
+            if form not in capitals:
+                capitals[form] = {}
+            capitals[form][at] = True
+
+
+def places_name_a_spelling(
+    form: str, lists: "list[str]", held: int, line: int, published: int = 0
+) -> bool:
+    """Whether a form's positional census names held-back spellings outright (P4-D439).
+
+    THE SPELLINGS A CENSUS FORCES (the repairs of lane CODES-1: its first
+    skeptic's item 2, and its combined verify's item 1; the owner's
+    R1/Q7: a count fixed or pinned inside 1..10 is exposed). What a reader
+    holds of a form: its H held-back cells (``held``: its census count
+    less its published levels'); at each place of figures or letters, each
+    listed character on at least f of them (f the census line, ``line``)
+    and each other character of the place's alphabet on at most f - 1;
+    and each held-back level on at most f - 1 cells. Choose at each place
+    a set T_i of characters -- some of the listed ones, or all of them and
+    some unlisted ones -- and read the sets as a product T. The cells
+    missing T_i at that place number at most H - f|T_i ∩ listed| and,
+    where T_i holds every listed character, at most f - 1 for each
+    unlisted character left out; so at least L = H - (those bounds,
+    summed over the places) cells hold a spelling of T. Every spelling of
+    T a published level writes holds none of them (``published`` is how
+    many published spellings wear the form, all of which may lie in T),
+    so where L is one or more and above (N - 1)(f - 1), N the spellings
+    of T no published spelling may be (|T| less ``published``, and at
+    least one), every one of them is a held-back level the description
+    names, its count pinned inside 1..f-1, and the form is refused, in
+    rows here and in people
+    (`profile._places_in_subjects`) alike. Its cases:
+
+    - `Z99` beside 40 published codes, listed `Z`, `9`, `9`: one character
+      at every place (repair 1);
+    - `X8` and `X9` on f - 1 cells each beside two stragglers, listed `X`
+      and `89`: L = f over two spellings (the verify of repair 1);
+    - `B0` to `B9` on 10 cells each and `A5` to `Z5` beside them, listed
+      `B` and `5`: the 25 unlisted letters hold at most 250 of the 345
+      held-back cells, so at least 95 begin with `B`, more than nine
+      spellings can hold, and all ten `B?` are named (repair 2);
+    - `X9` held back beside a published `X8`, listed `X` and `89`: the 10
+      cells of the product lie on `X9` alone (repair 2).
+
+    A place listing nothing takes part only through its unlisted
+    characters. Only the sizes enter: a walk over the places keeps, for
+    each product size up to (H - 1)/(f - 1) + 1 + ``published``, the
+    least the cells missing it can be. Raises nothing.
+    """
+    options: "list[list[tuple[int, int]]]" = []
+    for at in range(len(form)):
+        kind = form[at]
+        if kind not in PLACE_ALPHABETS:
+            continue
+        alphabet = len(PLACE_ALPHABETS[kind])
+        listed = len(lists[at]) if at < len(lists) else 0
+        mine: "list[tuple[int, int]]" = []
+        for taken in range(1, listed + 1):
+            missing = held - line * taken
+            if taken == listed:
+                missing = min(missing, (alphabet - listed) * (line - 1))
+            mine += [(taken, missing)]
+        for added in range(1, alphabet - listed + 1):
+            mine += [
+                (
+                    listed + added,
+                    min(held - line * listed, (alphabet - listed - added) * (line - 1)),
+                )
+            ]
+        options += [mine]
+    if not options or line < 2 or held < 1:
+        return False
+    cap = (held - 1) // (line - 1) + 1 + published
+    least: "dict[int, int]" = {1: 0}
+    for mine in options:
+        reached: "dict[int, int]" = {}
+        for product in sorted(least):
+            for size, missing in mine:
+                grown = product * size
+                total = least[product] + missing
+                if grown > cap or total >= held:
+                    continue
+                if grown not in reached or reached[grown] > total:
+                    reached[grown] = total
+        least = reached
+        if not least:
+            return False
+    for product in sorted(least):
+        named = held - least[product]
+        apart = product - published if product - published > 1 else 1
+        if named >= 1 and named > (apart - 1) * (line - 1):
+            return True
+    return False
+
+
+def without_places(column: ColumnProfile) -> ColumnProfile:
+    """A column described with no positional census (rule U, plan P4-D439)."""
+    if "shape_form_places" not in column.details:
+        return column
+    details: dict[str, object] = {}
+    for key in sorted(column.details):
+        if key != "shape_form_places":
+            details[key] = column.details[key]
+    return dataclasses.replace(column, details=details)
+
+
+def with_places(column: ColumnProfile, places: "dict[str, list[str]]") -> ColumnProfile:
+    """A column described with the positional census given, none where empty (P4-D439)."""
+    details: dict[str, object] = {}
+    for key in sorted(column.details):
+        if key != "shape_form_places":
+            details[key] = column.details[key]
+    if places:
+        details["shape_form_places"] = places
+    return dataclasses.replace(column, details=details)
+
+
+def places_listed_and_short(
+    cells: "list[str]",
+    labels: "list[str]",
+    shape_forms: "dict[str, int]",
+    places: "tuple[tuple[str, tuple[str, ...]], ...]",
+    line: int,
+) -> "list[tuple[str, int, int]]":
+    """Each form rule A2's census names, its listed characters and how many hold under the line (P4-D439).
+
+    THE ONE RECOUNT OF THE CENSUS'S PROMISE, read by the validator
+    (V16.2) and by the twin's own report (method G12.12a), so the two
+    cannot part. Over the cells counted under a censused form whose
+    folded spelling no published label names -- the held-back cells, as
+    the level entries speak of them -- each character a place lists is
+    tallied where it stands; a listed character on fewer than ``line``
+    cells is SHORT. Answers one ``(form, listed, short)`` a censused
+    form, in the order of the forms' names. ``cells`` are the cells as
+    the level entries speak of them (`described_spellings`).
+    Guarantees: a fixed function of the arguments, one pass over the
+    cells. Raises nothing.
+    """
+    named: "dict[str, int]" = {}
+    for label in labels:
+        named[parsing.folded(label)] = 1
+    lists: "dict[str, tuple[str, ...]]" = {}
+    for form, listed in places:
+        lists[form] = listed
+    tally: "dict[tuple[str, int, str], int]" = {}
+    for cell in cells:
+        if not parsing.trimmed(cell) or parsing.folded(cell) in named:
+            continue
+        form = parsing.census_form(cell, shape_forms)
+        if form not in lists or len(form) != len(cell):
+            continue
+        for at in range(len(form)):
+            if cell[at] in lists[form][at]:
+                key = (form, at, cell[at])
+                tally[key] = (tally[key] if key in tally else 0) + 1
+    answer: "list[tuple[str, int, int]]" = []
+    for form in sorted(lists):
+        listed_here = 0
+        short = 0
+        for at in range(len(form)):
+            for mark in lists[form][at]:
+                listed_here = listed_here + 1
+                key = (form, at, mark)
+                if (tally[key] if key in tally else 0) < line:
+                    short = short + 1
+        answer += [(form, listed_here, short)]
+    return answer
 
 
 # -- role-specific blocks ---------------------------------------------
+
+
+def _figure_openings_of(cells: _Cells) -> "dict[str, object]":
+    """`figure_openings` keyed in a text block where a run of four figures or more is held, else nothing (P4-D442)."""
+    openings = figure_openings(cells.present, cells.settings.small_cell_floor)
+    if not openings:
+        return {}
+    return {"figure_openings": openings}
 
 
 def _text_measures(present: "list[str]") -> "tuple[list[float], list[float]]":
@@ -11399,6 +12160,11 @@ def _text_details(cells: _Cells) -> dict[str, object]:
         # ...and the forms its cells were written in, which is what
         # lets a made-up cell look like one of them (plan P4-D18).
         "shape_forms": _shape_forms(cells, True),
+        # ...AND BESIDE EACH MERGED WIDTH OF A RUN OF FIVE FIGURES OR MORE,
+        # the opening no real run of it opens with (plan P4-D442), written
+        # only where such a run is held: the twin keeps every run it writes
+        # off the real by it (`figure_openings`).
+        **_figure_openings_of(cells),
         # The shape of repetition, with no value attached to it (plan
         # P2-D4). A free-text column publishes no value, so without this
         # a column of a hundred different notes and one of fifty notes
@@ -12533,6 +13299,7 @@ def _shape_forms(
     with_code_total: bool = False,
     with_text_total: bool = True,
     spelled: "list[str] | None" = None,
+    counted: "dict[str, int] | None" = None,
 ) -> dict[str, int]:
     """How many present cells wore each written form, under the floor.
 
@@ -12654,7 +13421,122 @@ def _shape_forms(
     census = _form_census(counts, lower, cells, room_needed, distinct)
     # NO COUNT OF ONE AND NO COMPLEMENT OF ONE, OVER THE WHOLE CENSUS
     # (plan P4-D160), asked of the shared rule the loader asks.
+    if counted is not None:
+        # The forms' own counts, for rule A1 (lane CODES-1, plan P4-D439).
+        for form in sorted(counts):
+            counted[form] = counts[form]
     return _form_disclosure(census, cells, with_code_total, with_text_total)
+
+
+def floor_pooled_forms(
+    counts: "dict[str, int]",
+    census: "dict[str, int]",
+    distinct: int,
+    floor: int,
+) -> "list[str]":
+    """The forms of ``counts`` the floor pools beside a census, in sorted order (P4-D439).
+
+    A form the census names nowhere -- neither as written nor as its
+    lower-case key -- whose room holds the column's different values and
+    the floor (`parsing.form_room`, the room rule of `_shape_forms`) and
+    whose cells are fewer than the census line (`parsing.census_floor`):
+    the cells `_form_census` pools. None at a floor under two, where
+    nothing is pooled. The producer asks it of the table's cells and the
+    validator of a measured file's, so rule A1 counts the same cells in
+    both. Raises nothing. No I/O.
+    """
+    if floor < 2:
+        return []
+    line = parsing.census_floor(floor)
+    pooled: "list[str]" = []
+    for form in sorted(counts):
+        if form in census or parsing.lower_case_form(form) in census:
+            continue
+        if parsing.form_room(form) < distinct + floor or counts[form] >= line:
+            continue
+        pooled += [form]
+    return pooled
+
+
+def commonest_named_form(census: "dict[str, int]") -> str:
+    """The named key of a form census counting the most cells, or "" (P4-D439).
+
+    Ties go to the earliest key in sorted order; the pool names no form.
+    The key rule A1 counts the pool in, and the key the validator reads a
+    measured file's unnamed forms into (`validation._form_recount`).
+    """
+    best = ""
+    for key in sorted(census):
+        if key == SUPPRESSED_LABEL:
+            continue
+        if not best or census[key] > census[best]:
+            best = key
+    return best
+
+
+def pool_absorbed(
+    published: "dict[str, int]",
+    counts: "dict[str, int]",
+    cells: _Cells,
+    distinct: int,
+    with_text_total: bool = True,
+) -> "tuple[dict[str, int], str]":
+    """A label column's form census with its pool counted in its commonest form, and that form.
+
+    RULE A1 OF THE STAND-INS PAGE (lane CODES-1, plan P4-D439; ruling 6
+    applied to forms, P4-D422's ZS.2). The cells of the forms the floor
+    pooled were written `group-N` in the twin, since no stand-in may wear
+    a form nobody published: 7 rows of `S72.001A` among ICD-10 codes, 3
+    of blood type `AB-`. Counted in the column's commonest named form --
+    the most cells, the earliest key on a tie -- they are owed that form,
+    and the twin writes them in it. Publishing less: one entry fewer and
+    one entry larger by a count the pool printed already (ZS.5). The
+    answer's second half names that form, "" where nothing moved, and the
+    block carries it as `shape_forms_absorbed` so the validator absorbs a
+    measured file's pooled forms alike (`floor_pooled_forms`).
+
+    ONLY WHERE EVERY CELL MOVED IS ONE THE TWIN WRITES AS A WORD IN THAT
+    FORM, the pool is the floor's alone, and nothing reaches a clock: the
+    destination and every form the census does not name are forms no
+    number can wear (`parsing.form_never_a_number`), since a held-back
+    number is owed the number class and never a word's form (G8.3a); the
+    pool is exactly the cells of `floor_pooled_forms`, so a pool the
+    disclosure rule or a lower-case split fed (plans P4-D160 and P4-D121)
+    moves nothing and the validator's recount is the producer's; no key
+    named or unnamed is a clock's or a stamp's (`parsing.is_a_time_key`),
+    whose stand-ins keep their bytes (plans P4-D373 and P4-D393); and the
+    census so absorbed still names no row under the disclosure rule
+    (`_form_disclosure`, plan P4-D160), asked over published facts.
+    Everywhere else the census is returned as it was, byte for byte.
+
+    Guarantees: a fixed function of the arguments. Raises nothing. No I/O.
+    """
+    if SUPPRESSED_LABEL not in published:
+        return published, ""
+    target = commonest_named_form(published)
+    if not target or not parsing.form_never_a_number(target):
+        return published, ""
+    for key in sorted(published):
+        if key != SUPPRESSED_LABEL and parsing.is_a_time_key(key):
+            return published, ""
+    for form in sorted(counts):
+        if form in published or parsing.lower_case_form(form) in published:
+            continue
+        if parsing.is_a_time_key(form) or not parsing.form_never_a_number(form):
+            return published, ""
+    floor = cells.settings.small_cell_floor
+    pooled = floor_pooled_forms(counts, published, distinct, floor)
+    if sum([counts[form] for form in pooled]) != published[SUPPRESSED_LABEL]:
+        return published, ""
+    absorbed: "dict[str, int]" = {}
+    for key in sorted(published):
+        if key == SUPPRESSED_LABEL:
+            continue
+        absorbed[key] = published[key]
+    absorbed[target] = absorbed[target] + published[SUPPRESSED_LABEL]
+    if _form_disclosure(absorbed, cells, False, with_text_total) != absorbed:
+        return published, ""
+    return absorbed, target
 
 
 def _form_disclosure(
@@ -13135,6 +14017,218 @@ def _number_spellings(cells: _Cells) -> dict[str, int]:
     if not twice or len(written) > _categorical_ceiling(cells):
         return {}
     return {spelling: written[spelling] for spelling in sorted(written)}
+
+
+def _few_values_of(cells: _Cells, details: "dict[str, object]") -> "list[str]":
+    """A few-valued column's own numbers, where a wide gap stands among them.
+
+    LANE GG, PLAN P4-D440: the owner's ruling of 2026-09-22 on few-valued
+    tails ("many people will be there and there is no big deal in knowing
+    that it's there"), extended from a tail to the whole column, with the
+    ruling's premise kept as P4-D342 keeps it for a tail. A score of 1 to
+    5 beside `-99`, a pain score of 0 to 10, decimal scores 1.0 to 5.0, a
+    days' supply of 7, 14, 30 and 90: the twin drawn by G5's strata from
+    the ladder wrote values inside the stretch the block publishes as
+    empty (`-91` beside a published gap `[-99, 1]`), lost a whole level
+    and spread the rest evenly. The list names every number the column
+    writes, in its own spelling, and NO COUNT: what the column publishes
+    of counts is what it published before -- the ladder, the sign counts,
+    the mode pair, the tails and the floored histogram -- and the twin
+    solves its counts from those (method G6.9).
+
+    PUBLISHED ONLY WHERE EVERY CONDITION HOLDS, each a rule:
+
+    - every cell read as a number is written in the plain decimal family
+      (`parsing.is_few_value_spelling`), and each number ONE way, so a
+      spelling is a number and a number a spelling;
+    - the listing rule reads the column as the owner's ruling reads a
+      tail (`parsing.tail_may_list`): the numbers held by at least two
+      cells are the ones listed, so no listed number is one person's own,
+      and the column a small fixed set or every listed number a heap at
+      the floor; and no more numbers in all than a set of categories may
+      hold here, the bound `number_spellings` keeps. A NUMBER HELD BY ONE
+      CELL IS LEFT OFF THE LIST and never printed (repair 1 of lane GG,
+      the orchestrator's LANE GG RULINGS 1 (1) on the statistics
+      skeptic's item 2: one potassium of 5.5 on one cell of 20,000 kept
+      a whole column out of the class, and its twin lost 8 to 18 of 28
+      levels, wrote 601 cells of `-99.0` and cells deep inside the gap);
+      the twin writes that cell at a listed number (method G6.9), and
+      the published facts it then cannot meet are named;
+    - A WIDE GAP: an empty stretch the block publishes (`empty_edges`)
+      with a point of the column's own grid strictly inside it -- the
+      whole numbers, or steps of its finest written width -- so a scale
+      of consecutive values whose bins are merely finer than its step
+      (1 to 5, or -2 to 2) is not this shape and its twin does not move.
+
+    A column held by a question (plan P4-D401, P4-D406) is described as a
+    record number and never reaches this function; the count in people
+    reads the list as it reads every published value
+    (`profile._counted_in_subjects`).
+
+    Guarantees: accepts a tally and the block's details; returns the
+    spellings in ascending order of their numbers, or the empty list.
+    Determinism: a function of the two. Raises nothing. No I/O.
+    """
+    edges = details["empty_edges"] if "empty_edges" in details else None
+    if not isinstance(edges, list) or not edges:
+        return []
+    written: "dict[str, int]" = {}
+    spelled: "dict[float, str]" = {}
+    numbers = 0
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        numbers = numbers + 1
+        text = cell.text
+        value = cell.value
+        if value is None or not parsing.is_few_value_spelling(text):
+            return []
+        if value in spelled:
+            if spelled[value] != text:
+                return []
+        else:
+            spelled[value] = text
+        written[text] = (written[text] if text in written else 0) + 1
+    if numbers != len(cells.numbers) or len(written) > _categorical_ceiling(cells):
+        return []
+    # THE NUMBERS LISTED: each held by two cells or more. A number held by
+    # one cell is left off, and the list is still the column's own.
+    listed: "dict[float, str]" = {}
+    for value in sorted(spelled):
+        if written[spelled[value]] >= parsing.TAIL_SHARED_CELLS:
+            listed[value] = spelled[value]
+    if len(listed) < 2:
+        return []
+    held = [written[listed[value]] for value in sorted(listed)]
+    if not parsing.tail_may_list(
+        held, cells.settings.small_cell_floor, len(written), numbers
+    ):
+        return []
+    # ...AND AN EDGE OF A PUBLISHED EMPTY STRETCH IS ONE OF THE COLUMN'S
+    # NUMBERS, listed or held by one cell (repair 2 of lane GG, the
+    # orchestrator's LANE GG RULINGS 3 (2), from its verify's item 1: a
+    # days' supply with one `83`, a Likert score with one stray `-77`, a
+    # potassium with one `-50` -- each an edge -- kept the whole column
+    # out, and the four faults came back at full size). The stretches
+    # that meet at a number left off are read as one (`_merged_stretches`):
+    # the twin writes nothing inside it, and the edge it then misses is
+    # named (method G6.9).
+    # An edge left off stands between the first and last listed numbers,
+    # as the loader's VL4 reads it.
+    ends = sorted(listed)
+    for pair in edges:
+        if not isinstance(pair, list) or len(pair) != 2:
+            return []
+        if pair[0] not in spelled or pair[1] not in spelled:
+            return []
+        for edge in (pair[0], pair[1]):
+            if edge not in listed and not ends[0] < edge < ends[-1]:
+                return []
+    # ...and a published end of the ladder is a listed number, so the
+    # list and the ladder never name two different ends.
+    ladder = details["percentiles"] if "percentiles" in details else None
+    if isinstance(ladder, dict):
+        for end in ("min", "max"):
+            stood = ladder[end] if end in ladder else None
+            if (
+                isinstance(stood, (int, float))
+                and not isinstance(stood, bool)
+                and stood not in listed
+            ):
+                return []
+    stretches = _merged_stretches(edges, listed)
+    # The grid is the listed numbers' finest width, as it was (an edge left
+    # off is read at it, or at its own where that is finer).
+    shown = [listed[value] for value in sorted(listed)]
+    for below, above in stretches:
+        for edge in (below, above):
+            if edge not in listed:
+                shown += [spelled[edge]]
+    figures = parsing.few_values_figures(shown)
+    if not _a_wide_gap(stretches, spelled, figures):
+        return []
+    return [listed[value] for value in sorted(listed)]
+
+
+def _merged_stretches(
+    edges: "list[list[float]]", listed: "dict[float, str]"
+) -> "list[list[float]]":
+    """The published empty stretches, those meeting at a number left off read as one.
+
+    Repair 2 of lane GG (LANE GG RULINGS 3 (2)): a number held by one
+    cell is left off the list, and where it is an edge of two published
+    stretches -- `[60, 83]` and `[83, 90]` beside one `83` -- the twin
+    writes nothing from 60 to 90, so the stretch is `[60, 90]`. Each pair
+    is in ascending order, as the block publishes them. Raises nothing.
+    """
+    merged: "list[list[float]]" = []
+    for below, above in sorted([pair[0], pair[1]] for pair in edges):
+        if merged and merged[-1][1] == below and below not in listed:
+            merged[-1] = [merged[-1][0], above]
+            continue
+        merged += [[below, above]]
+    return merged
+
+
+def _few_values_rare(cells: _Cells, listed: "list[str]") -> bool:
+    """Whether a listed number is held by fewer cells than the floor (lane GG, P4-D440).
+
+    Such a number is a RARE VALUE in the stand-ins page's sense (ZS.1,
+    ZS.4): the list naming it is released only where no question
+    offering `identifier` is open on any column of the table (rule U
+    (c); repair 1 of lane GG, its skeptic 1, item 3). Linear in the
+    cells. Raises nothing. No I/O.
+    """
+    if not listed:
+        return False
+    held: "dict[str, int]" = {text: 0 for text in listed}
+    for cell in cells.classified:
+        if cell.kind == parsing.NUMBER and cell.text in held:
+            held[cell.text] = held[cell.text] + 1
+    floor = cells.settings.small_cell_floor
+    for text in listed:
+        if held[text] < floor:
+            return True
+    return False
+
+
+def _a_wide_gap(
+    edges: "list[list[float]]", spelled: "dict[float, str]", figures: int
+) -> bool:
+    """Whether some published empty stretch holds a point of the column's grid.
+
+    The grid is the whole numbers, or steps of ``figures`` places, the
+    column's finest written width; an empty stretch whose two edges are
+    neighbours on it is only bins finer than the step (lane GG, P4-D440).
+    """
+    for below, above in edges:
+        if (
+            parsing.few_value_units(spelled[above], figures)
+            - parsing.few_value_units(spelled[below], figures)
+            >= 2
+        ):
+            return True
+    return False
+
+
+def with_few_values(column: ColumnProfile) -> ColumnProfile:
+    """A few-valued column published with its own numbers (lane GG, P4-D440).
+
+    THE STAND-INS PAGE'S ZS.4: GG acts only after `no` to the column's
+    Safe Harbor question, so only the profile command's describe calls
+    this, for a column answered `no`; the block then carries `few_values`
+    (its spellings, ascending, no count) and the twin writes exactly
+    those. A column whose list is empty is returned as it is.
+
+    Guarantees: a function of the argument. Raises nothing. No I/O.
+    """
+    if not column.few_values:
+        return column
+    details: dict[str, object] = {}
+    for key in column.details:
+        details[key] = column.details[key]
+    details["few_values"] = list(column.few_values)
+    return dataclasses.replace(column, details=details)
 
 
 def _figures_unfilled(spelling: str) -> str:
@@ -21315,7 +22409,7 @@ def counted_edge_years(
       (`date_counts.set_aside`), or the count in any system offered of a
       set-aside word NF113 names (``heaps``, `date_counts.heap_counts`),
       or that names no date in the member (`date_counts.years_of`) -- so
-      Excel's 31 December 9999 is no date of a column read as Epic days,
+      Excel's 31 December 9999 is no date of a column read as 1840 days,
       where the walk read "1957 to 9941" (the second review of landing
       R4, item 3);
     * THE ONE RUNG INSIDE A HEAP RUNG: a rung is read between two sorted
@@ -22652,6 +23746,12 @@ class _Verdict:
     # ROWS, which ten copies of one impossible date made nine texts too
     # few. Never published.
     texts: int = 0
+    # A FEW-VALUED COLUMN'S OWN SPELLINGS where a wide gap stands among them
+    # (lane GG, plan P4-D440, `_few_values_of`). Never published here.
+    few_values: "tuple[str, ...]" = ()
+    # ...and whether one of them is held by fewer cells than the floor
+    # (`_few_values_rare`). Never published.
+    few_values_rare: bool = False
     # THE WRITTEN HOUR OF EVERY PARSED CELL, in the order the description
     # ranks the cells, on a column of moments read on the local clock, not
     # in the joint member and not wholly at midnight, and nowhere else
@@ -23480,7 +24580,9 @@ def _read_as_clock_times(
     after_days: bool,
     forced_measurement: bool,
     described_as_pair: bool,
+    described_as_affixed: bool,
     stored_as: str,
+    units_kept: str = "",
 ) -> bool:
     """Whether every rule reads what a clock route leaves as clock times.
 
@@ -23510,7 +24612,9 @@ def _read_as_clock_times(
         after_days=after_days,
         forced_measurement=forced_measurement,
         described_as_pair=described_as_pair,
+        described_as_affixed=described_as_affixed,
         stored_as=stored_as,
+        units_kept=units_kept,
     )
     return verdict.role == ROLE_CLOCK
 
@@ -24348,7 +25452,6 @@ def _affixed_before_the_address_test(
     # format can hold propose a pair, because the role exists to
     # describe a distribution and a pair proposed by cells holding no
     # number would describe none.
-    proposing: "dict[tuple[str, str], int]" = {}
     # A COLUMN PROPOSING MORE PAIRS THAN A READING CAN STAND ON IS NONE OF
     # THIS ROLE, ASKED AS THE PAIRS ARE COUNTED (lane H3's repair, plan
     # P4-D423). The rules below stand only where at most the categorical
@@ -24361,38 +25464,53 @@ def _affixed_before_the_address_test(
     # number, most of a note, about 690 bytes a row of 60-word notes that
     # each hold a dose -- is never built past that.
     most_pairs = _categorical_ceiling(cells) + len(present) - needed
-    for text in present:
-        split = _split_once(cells, text)
-        if split is None:
-            # THE BARE PAIR IS A MEMBER OF THE VOCABULARY (plan
-            # P4-D36), proposed by a cell that reads as a number
-            # wearing nothing at all. A laboratory column of `13.5`,
-            # `4.2 H` and `9.8 L` wears three wrappers and one of them
-            # is empty; without it the two flagged thirds could never
-            # reach the line between them and the column was described
-            # as free text.
-            #
-            # IT CANNOT SWALLOW A PLAIN NUMERIC COLUMN, because rule 6
-            # is asked first: a column most of whose cells are bare
-            # numbers is a column of numbers and never reaches here.
-            if _reads_as_a_number(
-                parsing.trimmed(text), cells.decimal_comma
-            ):
-                key = ("", "")
-                proposing[key] = (
-                    proposing[key] + 1 if key in proposing else 1
-                )
-                if len(proposing) > most_pairs:
-                    return None
-            continue
-        prefix, core, suffix = split
-        key = (prefix, suffix)
-        if key in proposing:
-            proposing[key] = proposing[key] + 1
-        else:
-            proposing[key] = 1
-            if len(proposing) > most_pairs:
-                return None
+    # A SET THAT CUT THROUGH A NUMBER IS SPLIT AGAIN AT ITS LEADING
+    # NUMBER (lane UN-1b, plan P4-D443; the zoo-fix plan's 2.1b (b)). The
+    # longest number is the core (`affixed_split`), so a unit holding
+    # figures cuts the cell at the unit's own figures: `56 mL/min/1.73m2`
+    # is `1.73` with `56 mL/min/` in front, every value a wrapper of its
+    # own, and `7 x10^9/L` is `10` between `7 x` and `^9/L`. That is the
+    # feet-and-inches signature (`_cut_through_a_number`), which the
+    # column's leading numbers settle: read there, the eGFR wears
+    # ` mL/min/1.73m2` alone, and feet and inches still wear `'5"`,
+    # `'11"`, which still cut through a number and are refused below.
+    proposed = _proposed_pairs(cells, most_pairs, False)
+    found = (
+        None
+        if proposed is None
+        else _affixed_from_proposals(cells, proposed, needed, forced_measurement)
+    )
+    if found is not None:
+        return found
+    # ...ASKED ONLY WHERE THE LONGEST NUMBERS READ NOTHING, and either cut
+    # through a number -- two of their pairs, publishable or not, equal once
+    # their digits are removed -- or proposed more pairs than a reading can
+    # stand on (an eGFR of two hundred values beside ` mL/min/1.73m2`
+    # proposes a pair a value at `1.73`, and one pair at its leading
+    # number). Every column the longest numbers read is read as before.
+    if proposed is not None and not _cut_through_a_number(sorted(proposed)):
+        return None
+    leading = _proposed_pairs(cells, most_pairs, True)
+    if leading is None:
+        return None
+    return _affixed_from_proposals(cells, leading, needed, forced_measurement)
+
+
+def _affixed_from_proposals(
+    cells: _Cells,
+    proposing: "dict[tuple[str, str], int]",
+    needed: int,
+    forced_measurement: bool,
+) -> "_Affixed | None":
+    """The affix walk after pass one: the publishable pairs, the guards, and the cells that wear them.
+
+    `_affixed_before_the_address_test`'s rules from the pairs a split
+    proposed (plan P4-D36), split out unchanged so that a column whose
+    longest numbers cut through a number is walked again from its
+    leading numbers' pairs (plan P4-D443).
+    """
+    present = cells.present
+    settings = cells.settings
     if not proposing:
         return None
     # WHICH PAIRS ARE PUBLISHABLE (plan P4-D36). A pair worn by fewer
@@ -24403,10 +25521,7 @@ def _affixed_before_the_address_test(
     #
     # Walked over SORTED keys throughout, so nothing here depends on
     # the order a dictionary happened to fill.
-    speaking: "list[tuple[str, str]]" = []
-    for key in sorted(proposing):
-        if proposing[key] >= settings.small_cell_floor:
-            speaking += [key]
+    speaking = _publishable_pairs(proposing, settings.small_cell_floor)
     if not speaking:
         return None
     # EVERY WRAPPER OF A SET STANDS APART FROM THE NUMBER (plan
@@ -24495,12 +25610,24 @@ def _affixed_before_the_address_test(
     # digits -- `mL/min/1.73m2` is a real unit and this rule read it
     # before -- so the guard is asked only of a SET, where a digit is
     # the mark of a split that cut through a number.
-    if len(speaking) > 1:
-        for key in speaking:
-            for side in key:
-                for mark in side:
-                    if mark in "0123456789":
-                        return None
+    #
+    # NARROWED TO ITS SIGNATURE (lane UN-1b, plan P4-D443): a set is
+    # refused where two of its wrappers become EQUAL once their digits
+    # are removed -- `'5"` and `'11"` are one wrapper cut at different
+    # inches -- and no longer where a wrapper merely holds a figure:
+    # `10*3/uL` beside `mmol/L` and `%` is a set of units, one of which
+    # writes a power of ten (the zoo's laboratory results).
+    if len(speaking) > 1 and _cut_through_a_number(speaking):
+        return None
+    # ...AND A FIGURE IN A WRAPPER OF A SET IS STILL REFUSED UNLESS IT STANDS
+    # IN A UNIT APART (repair 1 of lane UN-1b; skeptic 1 item 3, Codex
+    # item 5): `-12-31` behind `9999` is a date's other half, and `'5"`
+    # behind `4` is feet cut at their inches where `5'10"` is cut at its
+    # feet, wrappers that never become equal. Only a wrapper whose
+    # figures stand in a unit behind a space (`_figures_stand_in_a_unit`:
+    # ` 10*3/uL`, ` x10^9/L`, ` mL/min/1.73m2`) holds figures in a set.
+    if len(speaking) > 1 and not _figures_only_in_units(speaking):
+        return None
     # THE SET IS A VOCABULARY AND NOT PROSE, on the categorical rule's
     # own ceiling. A column proposing dozens of different pairs is a
     # column of text that happens to hold digits, and describing it as
@@ -24646,6 +25773,188 @@ def _affixed_before_the_address_test(
     )
 
 
+def _proposed_pairs(
+    cells: _Cells, most_pairs: int, leading: bool
+) -> "dict[tuple[str, str], int] | None":
+    """Pass one of the affix walk: how many cells propose each pair, or None past ``most_pairs``.
+
+    ``leading`` splits each cell at its LEADING number
+    (`_leading_split`) instead of its longest (`affixed_split`); asked
+    only of a column whose longest numbers cut through a number (plan
+    P4-D443).
+    """
+    proposing: "dict[tuple[str, str], int]" = {}
+    for text in cells.present:
+        split = (
+            _leading_split(text, cells.decimal_comma)
+            if leading
+            else _split_once(cells, text)
+        )
+        if split is None:
+            # THE BARE PAIR IS A MEMBER OF THE VOCABULARY (plan
+            # P4-D36), proposed by a cell that reads as a number
+            # wearing nothing at all. A laboratory column of `13.5`,
+            # `4.2 H` and `9.8 L` wears three wrappers and one of them
+            # is empty; without it the two flagged thirds could never
+            # reach the line between them and the column was described
+            # as free text.
+            #
+            # IT CANNOT SWALLOW A PLAIN NUMERIC COLUMN, because rule 6
+            # is asked first: a column most of whose cells are bare
+            # numbers is a column of numbers and never reaches here.
+            if _reads_as_a_number(
+                parsing.trimmed(text), cells.decimal_comma
+            ):
+                key = ("", "")
+                proposing[key] = (
+                    proposing[key] + 1 if key in proposing else 1
+                )
+                if len(proposing) > most_pairs:
+                    return None
+            continue
+        prefix, core, suffix = split
+        key = (prefix, suffix)
+        if key in proposing:
+            proposing[key] = proposing[key] + 1
+        else:
+            proposing[key] = 1
+            if len(proposing) > most_pairs:
+                return None
+    return proposing
+
+
+def _publishable_pairs(
+    proposing: "dict[tuple[str, str], int]", floor: int
+) -> "list[tuple[str, str]]":
+    """The proposed pairs at least ``floor`` cells propose, in sorted order (plan P4-D36)."""
+    speaking: "list[tuple[str, str]]" = []
+    for key in sorted(proposing):
+        if proposing[key] >= floor:
+            speaking += [key]
+    return speaking
+
+
+def _without_digits(side: str) -> str:
+    kept = ""
+    for mark in side:
+        if mark not in _DIGITS:
+            kept = kept + mark
+    return kept
+
+
+def _cut_through_a_number(speaking: "list[tuple[str, str]]") -> bool:
+    """Whether two wrappers of a set become EQUAL once their digits are removed (plan P4-D443).
+
+    The signature of a split that cut through a number: feet and inches
+    `4'5"`, `5'11"` read at their inches wear `4'` and `5'` in front of
+    one `"`, a unit holding figures read at its own figures wears every
+    value in front of one unit. A set of wrappers that merely hold
+    figures -- `10*3/uL` beside `mmol/L` -- is not cut.
+
+    Guarantees: accepts the publishable wrappers; returns a truth value.
+    A fixed function of them. Raises nothing. No I/O.
+    """
+    seen: "dict[tuple[str, str], int]" = {}
+    for prefix, suffix in speaking:
+        bare = (_without_digits(prefix), _without_digits(suffix))
+        if bare in seen:
+            return True
+        seen[bare] = 1
+    return False
+
+
+def _figures_only_in_units(speaking: "list[tuple[str, str]]") -> bool:
+    """Whether every wrapper of a set that holds a figure holds it in a unit standing apart (plan P4-D443).
+
+    A figure in front of the number is never a unit's; one behind it is
+    a unit's only where the suffix starts with a space and holds a word
+    mark (`_figures_stand_in_a_unit`). Repair 1 of lane UN-1b (skeptic 1
+    item 3; Codex item 5).
+
+    Guarantees: accepts the publishable wrappers; returns a truth value.
+    A fixed function of them. Raises nothing. No I/O.
+    """
+    for prefix, suffix in speaking:
+        for mark in prefix:
+            if mark in _DIGITS:
+                return False
+        figured = False
+        for mark in suffix:
+            if mark in _DIGITS:
+                figured = True
+        if figured and not _figures_stand_in_a_unit(suffix):
+            return False
+    return True
+
+
+def _leading_split(
+    text: str, decimal_comma: bool = False
+) -> "tuple[str, str, str] | None":
+    """Split a cell at its LEADING number: the first run of figures, with one decimal mark (plan P4-D443).
+
+    `56 mL/min/1.73m2` is `56` before ` mL/min/1.73m2`, `>60 mL/min/1.73m2`
+    is `60` between `>` and the same unit, `7 x10^9/L` is `7` before
+    ` x10^9/L`. A minus directly in front of the figures, at the start or
+    after a space or a comparison mark, is the number's. The decimal mark
+    is the column's grammar: a point, or a comma where the column writes
+    one (``decimal_comma``). None where no figure stands in the cell, the
+    run does not read as a number, or nothing stands either side.
+
+    Guarantees: accepts one cell's text and the grammar; returns the
+    three parts or None. A fixed function of them. Raises nothing. No
+    I/O.
+    """
+    trimmed = parsing.trimmed(text)
+    start = -1
+    for place in range(len(trimmed)):
+        if trimmed[place] in _DIGITS:
+            start = place
+            break
+    if start < 0:
+        return None
+    mark = "," if decimal_comma else "."
+    stop = start + 1
+    while stop < len(trimmed) and trimmed[stop] in _DIGITS:
+        stop = stop + 1
+    # THE ORDINARY NUMBER GRAMMAR HOLDS AT THE LEADING NUMBER TOO (repair 1,
+    # Codex item 1): a decimal mark directly in front of the first figure,
+    # at the start or after a space, a sign or a comparison, is the
+    # number's -- `.5 mL/min/1.73m2` is 0.5, never 5 with `.` in front.
+    led_by_a_mark = start > 0 and trimmed[start - 1] == mark and (
+        start == 1
+        or parsing.trimmed(trimmed[start - 2]) == ""
+        or trimmed[start - 2] in "<>=-"
+    )
+    if led_by_a_mark:
+        start = start - 1
+    elif (
+        stop + 1 < len(trimmed)
+        and trimmed[stop] == mark
+        and trimmed[stop + 1] in _DIGITS
+    ):
+        stop = stop + 1
+        while stop < len(trimmed) and trimmed[stop] in _DIGITS:
+            stop = stop + 1
+    if (
+        start > 0
+        and trimmed[start - 1] == "-"
+        and (
+            start == 1
+            or parsing.trimmed(trimmed[start - 2]) == ""
+            or trimmed[start - 2] in "<>="
+        )
+    ):
+        start = start - 1
+    core = trimmed[start:stop]
+    prefix = trimmed[:start]
+    suffix = trimmed[stop:]
+    if not prefix and not suffix:
+        return None
+    if not _reads_as_a_number(core, decimal_comma):
+        return None
+    return prefix, core, suffix
+
+
 def _written_alike(
     present: "list[str]",
     speaking: "list[tuple[str, str]]",
@@ -24709,14 +26018,56 @@ def _written_alike(
     if pair not in widths:
         return False
     common = widths[pair]
+    # UNITS THAT EACH STAND APART AND EACH WRITE ONE WAY (lane UN-1b, plan
+    # P4-D443; the zoo-fix plan's 2.1b (b)): `78.4 kg` beside `172 lb` --
+    # a scale that weighs in kilograms to one figure and one that weighs
+    # in whole pounds -- is two units, each written one way, and no noun
+    # in front of an index. The overlap is asked only where some wrapper
+    # is not such a unit: `note 3` beside readings is still refused.
+    apart = True
+    for key in speaking:
+        if not _a_unit_standing_apart(key):
+            apart = False
     for key in widths:
         shared = False
         for width in widths[key]:
             if width in common:
                 shared = True
-        if not shared:
+        # A written form is pointed or not, so a wrapper sharing none with
+        # the commonest one writes one way, as the commonest does (repair
+        # 1: the size test skeptic 1's X9 removed could never fail).
+        if not shared and not apart:
             return False
     return True
+
+
+def _a_unit_standing_apart(key: "tuple[str, str]") -> bool:
+    """Whether a wrapper is a unit standing apart behind its number (plan P4-D443).
+
+    Nothing in front but marks of the closed symbol set and spaces;
+    behind, a space or a symbol first, then no figure-led text: a word or
+    `%`, and no lab flag or calendar word. `78.4 kg`, `172 lb`, `98 %`,
+    `<0.5 mg` wear one; `note 3`, `4.2 H` and the bare pair do not.
+
+    Guarantees: accepts one wrapper; returns a truth value. A fixed
+    function of it. Raises nothing. No I/O.
+    """
+    prefix, suffix = key
+    for mark in prefix:
+        if mark not in _SYMBOL_MARKS and parsing.trimmed(mark) != "":
+            return False
+    if not suffix:
+        return False
+    first = suffix[:1]
+    if parsing.trimmed(first) != "" and first not in _SYMBOL_MARKS:
+        return False
+    if _a_flag(suffix) or _a_calendar_word(suffix):
+        return False
+    worded = False
+    for mark in suffix:
+        if mark == "%" or _is_a_word_mark(mark):
+            worded = True
+    return worded
 
 
 def _one_word(side: str) -> bool:
@@ -25537,6 +26888,58 @@ def _core_of(text: str, prefix: str, suffix: str) -> "str | None":
     return core if core else None
 
 
+# THE READINGS A COLUMN KEEPS FROM BEFORE PLAN P4-D438 (`_decide`'s
+# ``units_kept``): labels, with neither of rule 7's unit stand-asides
+# taken, and joined numbers, with rule 0c's yield to the list not taken
+# either.
+KEPT_LABELS = "labels"
+KEPT_JOINED = "joined"
+
+
+def _categories_verdict(
+    cells: _Cells,
+    folded_distinct: int,
+    ceiling: int,
+    notes: "list[Note]",
+    remarks: "list[Note]",
+    code_declared: bool = False,
+) -> _Verdict:
+    """Rule 7's verdict: the column as a set of categories, its rare levels held back.
+
+    One construction for the two places that take it (plan P4-D438): rule
+    7 itself, and rule 0c where a joined column's every level clears the
+    floor (`_decide`).
+
+    Guarantees: accepts the tally, its count of folded levels, the
+    ceiling and the notes and remarks so far; returns the verdict. A
+    fixed function of them. Raises nothing. No I/O.
+    """
+    settings = cells.settings
+    label_counts, label_mixed = _label_maps(cells)
+    levels = _levels(label_counts, label_mixed, settings)
+    details = _level_details(levels, cells, code_declared=code_declared)
+    details["level_ceiling"] = ceiling
+    if levels.suppressed_levels:
+        notes += [_pooled_note(levels, settings)]
+    if cells.raw_distinct != folded_distinct:
+        remarks += [note(REMARK_CASE_ONLY_MANY)]
+    if ceiling - folded_distinct <= settings.near_threshold_slack:
+        remarks += [
+            note(REMARK_NEAR_CATEGORY_LINE, (folded_distinct, ceiling))
+        ]
+    remarks = remarks + _stand_in_level_remarks(levels)
+    return _Verdict(
+        role=ROLE_CATEGORICAL,
+        evidence=note(
+            EVIDENCE_CATEGORIES,
+            (folded_distinct, ceiling, cells.n_rows),
+        ),
+        details=details,
+        notes=notes,
+        remarks=remarks,
+    )
+
+
 def _decision(
     cells: _Cells,
     forced_identifier: bool,
@@ -25547,7 +26950,9 @@ def _decision(
     forced_measurement: bool = False,
     probing: bool = False,
     described_as_pair: bool = False,
+    described_as_affixed: bool = False,
     stored_as: str = "",
+    units_kept: str = "",
 ) -> _Verdict:
     """The verdict `_decide` gives this tally under these arguments, worked out once.
 
@@ -25588,7 +26993,9 @@ def _decision(
         forced_measurement,
         probing,
         described_as_pair,
+        described_as_affixed,
         stored_as,
+        units_kept,
     )
     if asked in cells.decided:
         return cells.decided[asked]
@@ -25602,7 +27009,9 @@ def _decision(
         forced_measurement=forced_measurement,
         probing=probing,
         described_as_pair=described_as_pair,
+        described_as_affixed=described_as_affixed,
         stored_as=stored_as,
+        units_kept=units_kept,
     )
     cells.decided[asked] = verdict
     return verdict
@@ -25642,7 +27051,9 @@ def _decide(
     forced_measurement: bool = False,
     probing: bool = False,
     described_as_pair: bool = False,
+    described_as_affixed: bool = False,
     stored_as: str = "",
+    units_kept: str = "",
 ) -> _Verdict:
     """Pick the one role, testing the rules in the documented order.
 
@@ -25659,6 +27070,22 @@ def _decide(
     and it moves rule 9c's reading to just before rule 9b and changes
     nothing else; see the comment at that point for why. Every other
     caller leaves it false.
+
+    ``described_as_affixed`` says the DESCRIPTION a file is being checked
+    against read this column as `affixed_number` without `--measurement`
+    (plan P4-D438). Only the validator sets it, and it moves one thing:
+    rule 7 stands aside wherever an affix reading reads the file's
+    column, whether or not a level falls below the floor
+    (`_units_stand_aside`). Every other caller leaves it false.
+
+    ``units_kept`` says the column keeps the reading it had before plan
+    P4-D438 (`KEPT_LABELS`, `KEPT_JOINED`, or "" for none): neither of
+    rule 7's unit stand-asides is taken, and under `KEPT_JOINED` rule 0c
+    does not yield its joined reading to the list either.
+    `profile.build_document` passes `KEPT_LABELS` where the count in
+    people refuses the stand-aside, and the validator passes the reading
+    its description published for a column read as labels or as joined
+    numbers.
 
     ``stored_as`` says how a workbook stores this column's cells, and
     moves two things only (plan P4-D382). `STORED_AS_DATES`, most of
@@ -25693,6 +27120,13 @@ def _decide(
        publishes NOTHING, which is right for a record number and wrong
        for a vaccine code, whose distribution is the point. This is the
        declaration that comment was missing;
+    0c. the person's answer `measurement` (or `joined`) on a column
+       written as two numbers or more in a cell -- `joined_numbers`
+       (plan P4-D21) -- EXCEPT where every whole-cell level clears the
+       floor and few enough stand for rule 7: there rule 7's exact list
+       is taken at once, never a rule between (plan P4-D438). It was
+       missing from this list too;
+    0d. RESERVED for lane KV's per-key readings (plan P4-D419, ZR.1);
     1. no present value at all -- `empty`, settled by the caller;
     2. written as numbers, too few of them holdable -- the
        `numeric_unrepresentable` role;
@@ -25701,6 +27135,11 @@ def _decide(
     5. dates, under one documented format, at the parse rate;
     6. numbers, at the parse rate -- `count` or `continuous`;
     7. at most the ceiling of different values -- `categorical`;
+       it stands aside for a compound column (rule 7b), for a
+       workbook's stored clocks where a level would be held back (plan
+       P4-D382), and for a number beside a unit (plan P4-D438,
+       `_units_stand_aside`): a suffix unit with a level below the
+       floor, or any affix reading the person answered `measurement`;
     7b. NUMBERS BESIDE WORDS in one cell space -- `numbers_with_labels`
        (residual R-P4-13, plan P4-D33). It was missing from this list
        while the rule shipped, so a maintainer reading the one place
@@ -25793,9 +27232,41 @@ def _decide(
         # carries the measurement that says why: a rule reading the
         # values would claim this project's own date, clock, lab-code
         # and drug-code columns.
+        #
+        # AND IT YIELDS TO RULE 7 WHERE EVERY WHOLE-CELL LEVEL CLEARS THE
+        # FLOOR (lane UN-1a, plan P4-D438; P4-D419's ZR.1, place 3). Read
+        # as joined numbers, each position of a cell is described as a
+        # number column of its own and spelled on its own, so a reference
+        # range of five levels each on more than 60 rows, answered
+        # `joined`, came back as `12.0-16`, `70.0-99.0` and `04-5.6` with
+        # seven validate misses (F-units item 4b), where the same column
+        # read as labels is an exact twin. Few enough levels for rule 7,
+        # none of them held back, and no compound reading rule 7 would
+        # stand aside for: the list is kept, every value at its count.
+        #
+        # RULE 7's LIST IS TAKEN HERE, AT RULE 0c ITSELF (skeptic 1 of
+        # lane UN-1a, item 1, and Codex, item 3): letting the column fall
+        # on through rules 2 to 6 let the date rule read a joined column
+        # `1/4/10`, `2/3/20`, ... as dates, and the clock rule a declared
+        # ratio `1:02`, `2:03` as times of day. The person said the
+        # column is not a date or a clock; the yield is to the list, and
+        # to nothing else. A column the validator reads as its
+        # description did before P4-D438 (``units_kept``) is read as
+        # joined numbers, as that description read it.
         if forced_measurement and not after_days:
             reading = _joined_reading(cells)
             if reading is not None:
+                if (
+                    not labels_only
+                    and units_kept != KEPT_JOINED
+                    and folded_distinct <= ceiling
+                    and not _a_level_is_below_the_floor(cells)
+                    and _compound_reading(cells) is None
+                ):
+                    return _categories_verdict(
+                        cells, folded_distinct, ceiling, notes, remarks,
+                        code_declared=forced_code,
+                    )
                 return _joined_verdict(cells, reading, notes, remarks)
 
         # RULE 2 -- numeric intent that nothing can hold. Tested before any
@@ -25893,7 +27364,7 @@ def _decide(
             return _Verdict(
                 role=ROLE_CONSTANT,
                 evidence=note(EVIDENCE_ONE_VALUE, (n_present,)),
-                details=_level_details(levels, cells),
+                details=_level_details(levels, cells, code_declared=forced_code),
                 notes=notes,
                 remarks=remarks,
             )
@@ -25921,7 +27392,7 @@ def _decide(
             return _Verdict(
                 role=ROLE_BINARY,
                 evidence=note(EVIDENCE_TWO_VALUES),
-                details=_level_details(levels, cells),
+                details=_level_details(levels, cells, code_declared=forced_code),
                 notes=notes,
                 remarks=remarks,
             )
@@ -26144,33 +27615,27 @@ def _decide(
             and not labels_only
             and _a_level_is_below_the_floor(cells)
         )
+        # AND IT STANDS ASIDE FOR A NUMBER BESIDE A UNIT (lane UN-1a, plan
+        # P4-D438; P4-D419's ZR.1, stand-asides (i) and (ii)), so the
+        # column reaches rule 9 and is described as numbers.
+        # `_units_stand_aside` says where, and why `Stage 2` stays here.
+        units_aside = (
+            folded_distinct <= ceiling
+            and not labels_only
+            and not held_back_clocks
+            and _units_stand_aside(
+                cells, forced_measurement, described_as_affixed, units_kept
+            )
+        )
         if (
             folded_distinct <= ceiling
             and not held_back_clocks
+            and not units_aside
             and (forced_code or _compound_reading(cells) is None)
         ):
-            label_counts, label_mixed = _label_maps(cells)
-            levels = _levels(label_counts, label_mixed, settings)
-            details = _level_details(levels, cells)
-            details["level_ceiling"] = ceiling
-            if levels.suppressed_levels:
-                notes += [_pooled_note(levels, settings)]
-            if cells.raw_distinct != folded_distinct:
-                remarks += [note(REMARK_CASE_ONLY_MANY)]
-            if ceiling - folded_distinct <= settings.near_threshold_slack:
-                remarks += [
-                    note(REMARK_NEAR_CATEGORY_LINE, (folded_distinct, ceiling))
-                ]
-            remarks = remarks + _stand_in_level_remarks(levels)
-            return _Verdict(
-                role=ROLE_CATEGORICAL,
-                evidence=note(
-                    EVIDENCE_CATEGORIES,
-                    (folded_distinct, ceiling, cells.n_rows),
-                ),
-                details=details,
-                notes=notes,
-                remarks=remarks,
+            return _categories_verdict(
+                cells, folded_distinct, ceiling, notes, remarks,
+                code_declared=forced_code,
             )
 
     # RULE 7b -- numbers and labels in ONE cell space: the
@@ -26437,7 +27902,7 @@ def _decide(
     if covering > 0 or forced_code:
         label_counts, label_mixed = _label_maps(cells)
         levels = _levels(label_counts, label_mixed, settings)
-        details = _level_details(levels, cells)
+        details = _level_details(levels, cells, code_declared=forced_code)
         if levels.suppressed_levels:
             notes += [_pooled_note(levels, settings)]
         if cells.raw_distinct != folded_distinct:
@@ -27675,7 +29140,46 @@ def with_layout_exclusions(
             sharing[folded] = (sharing[folded] if folded in sharing else 0) + int(
                 f"{forms[layout]}"
             )
+        # EVERY KEY OF A LIST CELL, NOT THE CELL ALONE (plan P4-D442, lane HB
+        # item (12); skeptic 1, item 2; LANE HB RULINGS 3): a layout of keys
+        # between commas (`%%%%%%%,%%%%%%%`, `@%%%%%%,@%%%%%%`) is kept off
+        # the real KEY BY KEY -- each key's opening written as the shortest
+        # no real key of its width opens with (`_list_exclusion_of`), so no
+        # member equals or carries a real key on any draw -- or carries no
+        # exclusion, so its cells are written as the spill: a cell kept off
+        # the real whole could still hold a real key beside a made-up one.
+        #
+        # ...and in a column holding a list layout, a layout of ONE such key
+        # is a list of one: kept off the real by its opening too, never by
+        # a letter alone (`Z%%%%%%` beside real `R102180` wrote `Z102180`,
+        # carrying a real key's figures: 30 twin cells of `reg4000_comma`
+        # at 20,000 rows; LANE HB RULINGS 3).
+        #
+        # Counted only in a column holding a list layout, and each width's
+        # openings only as deep as a field can be written out and still
+        # hold its layout's different values, so a column of a million
+        # keys counts their first figure alone.
+        #
+        # ...AND A COLUMN WHOSE LIST CELLS ARE MARKED `;` OR `|`, which no layout
+        # names (LANE HB RULINGS 6, item 2): `lab_R_list_semi`'s lone keys wrote
+        # `Z102949` beside a real `R102949`.
+        listing = any(a_list_layout(layout) for layout in named) or _holds_marked_keys(present)
+        needs: "dict[str, int]" = {}
+        # ...the first figure always counted, so a scan never reads a width
+        # whose openings went uncounted as free (Codex's review of batch 4n,
+        # item 2; `_list_opening_of`).
+        deepest = 1
         for layout in named:
+            if listing and (a_list_layout(layout) or one_list_key(layout)):
+                needs[layout] = min(int(f"{forms[layout]}"), column.n_distinct)
+                deepest = max(deepest, _list_deepest(layout, needs[layout]))
+        firsts = _list_key_firsts(present, deepest) if needs else {}
+        for layout in named:
+            if layout in needs:
+                listed = _list_exclusion_of(layout, firsts, floor, needs[layout], deepest)
+                if listed:
+                    exclusions[layout] = listed
+                continue
             prefix = f"{prefixes[layout]}" if layout in prefixes else whole
             template = parsing.layout_template(layout, prefix, whole_places)
             length = parsing.merged_length(template)
@@ -27705,6 +29209,713 @@ def with_layout_exclusions(
         details[key] = column.details[key]
     details["layout_exclusions"] = exclusions
     return dataclasses.replace(column, details=details)
+
+
+# A key of a list cell (plan P4-D442): letters, then five figures or more,
+# or letters and figures both -- a record number, never a group of a
+# number's thousands (`123,456,789`) nor a word.
+_LIST_KEY_FIGURES = 5
+
+
+# THE NARROWEST REAL KEY A LIST MEMBER IS KEPT FROM CARRYING (Codex's review
+# of batch 4n, item 2; plan P4-D442): the list route admits a key of letters
+# and figures at any width, and a member could carry its merged figures, so
+# `R9000` to `R9099` beside `R10000` to `R10099` wrote members of five
+# figures opening `9` that carried the real `9000` (`S90007`: 20 twin cells
+# at 20,000 rows; 2,178 carrying some real key of four figures), and
+# `R09000`'s merged `9000` the same. Every merged width a real key holds is
+# kept off from the width a run of figures is read as a key's from
+# (`parsing.FIGURE_RUN_KEY_WIDTH`, four figures, as the walks of free text
+# and labels read one; LANE HB RULINGS 6, item 4), not from five.
+_LIST_CARRIED_FIGURES = parsing.FIGURE_RUN_KEY_WIDTH
+
+
+# The marks between the keys of a list cell (plan P4-D442): a comma, and the
+# `;` and `|` lane HX4's register lists mark cell by cell (P4-D424). A layout
+# names the comma alone (`parsing.layout_form` names no cell holding the
+# other two), but the real keys of every list cell are counted.
+_LIST_MARKS = ",;|"
+
+
+# The message of the list helpers' type gate (plan P4-D442).
+_LIST_NOT_TEXT = "a list layout or cell must be text"
+
+
+def _holds_marked_keys(present: "list[str]") -> bool:
+    """Whether a present cell holds a key's field beside a `;` or a `|` (plan P4-D442): each cell read once, stopping at the first."""
+    for cell in present:
+        if ";" not in cell and "|" not in cell:
+            continue
+        for field in _list_fields(cell):
+            if one_list_key(parsing.layout_form(field, parsing.LAYOUT_PLAIN) or ""):
+                return True
+    return False
+
+
+def _list_field_places(layout: str) -> "list[tuple[int, str]]":
+    """A layout's or a cell's fields between its list marks (`_LIST_MARKS`), each trimmed of spaces, with the place it starts at (plan P4-D442).
+
+    Read place by place, so no method is called on what a caller hands
+    over. Raises TypeError for a non-string.
+    """
+    if not isinstance(layout, str):
+        raise TypeError(_LIST_NOT_TEXT)
+    placed: "list[tuple[int, str]]" = []
+    start = 0
+    for place in range(len(layout) + 1):
+        if place < len(layout) and layout[place] not in _LIST_MARKS:
+            continue
+        low = start
+        high = place
+        while low < high and layout[low] == " ":
+            low = low + 1
+        while high > low and layout[high - 1] == " ":
+            high = high - 1
+        placed += [(low, layout[low:high])]
+        start = place + 1
+    return placed
+
+
+def _list_fields(layout: str) -> "list[str]":
+    """A layout's or a cell's fields between its list marks (`_LIST_MARKS`), each trimmed of spaces (plan P4-D442).
+
+    Raises TypeError for a non-string.
+    """
+    fields: "list[str]" = []
+    for _start, field in _list_field_places(layout):
+        fields += [field]
+    return fields
+
+
+def _list_field_shape(field: str) -> "tuple[int, int, int] | None":
+    """A field's letters, its leading noughts and its other figures, where it is letters then figures; else None."""
+    letters = 0
+    while letters < len(field) and field[letters] in (
+        parsing.LAYOUT_UPPER, parsing.LAYOUT_LOWER
+    ):
+        letters = letters + 1
+    noughts = letters
+    while noughts < len(field) and field[noughts] == "!":
+        noughts = noughts + 1
+    figures = noughts
+    while figures < len(field) and field[figures] == parsing.LAYOUT_DIGIT:
+        figures = figures + 1
+    if figures != len(field) or figures == noughts:
+        return None
+    return letters, noughts - letters, figures - noughts
+
+
+def a_list_layout(layout: str) -> bool:
+    """Whether a named layout holds keys between commas (plan P4-D442).
+
+    A comma, and a field between them that is a key's (`_list_field_shape`):
+    letters then figures, five figures or more, or letters and figures.
+    A fixed function of the layout. Raises nothing. No I/O.
+    """
+    if "," not in layout:
+        return False
+    for field in _list_fields(layout):
+        shape = _list_field_shape(field)
+        if shape is None:
+            continue
+        letters, _noughts, figures = shape
+        if figures >= _LIST_KEY_FIGURES or (letters and figures):
+            return True
+    return False
+
+
+def one_list_key(layout: str) -> bool:
+    """Whether a named layout with no list mark is one key a list's field could be (plan P4-D442).
+
+    Letters then figures, five figures or more, or letters and figures
+    (`a_list_layout`'s field). A fixed function of the layout. Raises
+    TypeError for a non-string. No I/O.
+    """
+    if not isinstance(layout, str):
+        raise TypeError(_LIST_NOT_TEXT)
+    for mark in _LIST_MARKS:
+        if mark in layout:
+            return False
+    shape = _list_field_shape(layout.strip(" "))
+    if shape is None:
+        return False
+    letters, _noughts, figures = shape
+    return figures >= _LIST_KEY_FIGURES or bool(letters and figures)
+
+
+def _list_deepest(layout: str, needed: int) -> int:
+    """How many figures a field of a list layout may have written out while its fillings hold ``needed`` values (plan P4-D442).
+
+    The most over the layout's fields of letters then figures: a field of
+    ``F`` figures writes out at most ``F`` less the figures ``needed`` - 1
+    takes, so ten to the power of what is left holds ``needed``. Raises
+    TypeError for a non-string layout. No I/O.
+    """
+    taken = len(f"{max(needed - 1, 0)}") if needed > 1 else 0
+    deepest = 0
+    for _start, field in _list_field_places(layout):
+        shape = _list_field_shape(field)
+        if shape is not None:
+            deepest = max(deepest, shape[2] - taken)
+    return deepest
+
+
+def _list_key_firsts(
+    present: "list[str]", deepest: int = 64
+) -> "dict[int, dict[str, int]]":
+    """Each width of the real keys of list cells, and how many keys open with each opening (plan P4-D442).
+
+    Every token of every present cell between list marks, trimmed, that
+    is letters then figures; read on its MERGED figures (the noughts
+    before them dropped, as `parsing.merged_key` drops them), so a key is
+    counted at the width its merged key holds; and every OPENING of those
+    figures, from the first figure to ``deepest`` figures, counted (LANE
+    HB RULINGS 3: a figure every real key's width opens with leaves the
+    scan a longer opening). Linear in the cells: each token's figures
+    read once for each of its openings, at most ``deepest`` of them. No
+    I/O.
+    """
+    firsts: "dict[int, dict[str, int]]" = {}
+    for cell in present:
+        for token in _list_fields(cell):
+            at = 0
+            while at < len(token) and (
+                "a" <= token[at] <= "z" or "A" <= token[at] <= "Z"
+            ):
+                at = at + 1
+            figures = token[at:]
+            if not figures or not parsing.is_digit_text(figures):
+                continue
+            # ...the noughts before the figures dropped, place by place.
+            nought = 0
+            while nought < len(figures) and figures[nought] == "0":
+                nought = nought + 1
+            merged = figures[nought:]
+            if not merged:
+                continue
+            width = len(merged)
+            if width not in firsts:
+                firsts[width] = {}
+            held = firsts[width]
+            opening = ""
+            for figure in merged[:deepest]:
+                opening = opening + figure
+                held[opening] = held[opening] + 1 if opening in held else 1
+    return firsts
+
+
+def _list_opening_of(
+    held: "dict[str, int]",
+    figures: int,
+    floor: int,
+    room: int,
+    counted: "int | None" = None,
+) -> str:
+    """The shortest opening of ``figures`` figures no real key of the width opens with, or "" (plan P4-D442).
+
+    Read size by size from one figure: at each size the openings from the
+    greatest (`9`, `99`, ...) down, first figure never a nought; an
+    opening held by ``floor`` keys or more is passed over, one held by
+    none is the answer, and one held by 1 to ``floor`` - 1 ends that size,
+    as ID-ROOM's block scan ends a block size (the orchestrator's ruling 3
+    of 2026-10-25, item 2, option (b)), the scan going on to the next
+    size. A size whose figures left hold fewer than ``room`` fillings ends
+    the scan. Every opening passed over is held by ``floor`` keys or more,
+    so the scan is as long as the openings so held, at most the keys over
+    the floor at each size; an opening deeper than the counts were taken
+    to is never offered: a size past ``counted``, the depth
+    `_list_key_firsts` counted the openings to (None: every depth, as a
+    table of openings given whole), ends the scan (``room`` alone did not,
+    for a member's narrower width). A fixed function of the five. Raises
+    nothing. No I/O.
+    """
+    # ...AND NEVER AN OPENING DEEPER THAN THE COUNTS WERE TAKEN TO (Codex's
+    # review of batch 4n, item 2): a member's narrower width asks a smaller
+    # room than its field (`_list_nought_opening`), so the scan reached sizes
+    # `_list_key_firsts` never counted and read their openings as free --
+    # `R0999` written for keys of four, five and six figures, a real key of
+    # four merged inside, and `R0099` for keys zero filled from `R00001`, a
+    # real key as written. A size past the depth counted ends the scan.
+    size = 1
+    while size <= figures and 10 ** (figures - size) >= room:
+        if counted is not None and size > counted:
+            break
+        value = 10 ** size - 1
+        lowest = 10 ** (size - 1)
+        while value >= lowest:
+            opening = f"{value}"
+            count = held[opening] if opening in held else 0
+            if count == 0:
+                return opening
+            if count < floor:
+                break
+            value = value - 1
+        size = size + 1
+    return ""
+
+
+def _list_exclusion_of(
+    layout: str,
+    firsts: "dict[int, dict[str, int]]",
+    floor: int,
+    needed: int = 1,
+    counted: "int | None" = None,
+) -> str:
+    """A list layout with each key's opening written as one no real key of its width opens with, or "" (P4-D442).
+
+    Each field of letters then figures has its opening after any leading
+    nought written out as the shortest no real key of the field's merged
+    width opens with (`_list_opening_of`): one figure, the greatest of `9`
+    to `1`, where one is free; else two (`99` down), and so on -- every
+    opening passed over held by ``floor`` keys or more, one held by 1 to
+    ``floor`` - 1 ending that size (the orchestrator's ruling 3 of
+    2026-10-25, item 2, option (b)). So a twin key wearing it is as long,
+    merged, as the real keys of its width and opens with what none of them
+    does: no member of a list cell equals a real key, and none carries a
+    real key's run of figures, whatever the draw (LANE HB RULINGS 3). ""
+    where some field of figures has no such opening whose fillings left
+    hold ``needed`` values (the layout's different values) on their own:
+    the layout then carries none and its cells are written as the spill.
+    ``counted`` is the depth `_list_key_firsts` counted each width's
+    openings to (None: every depth), so no opening deeper is offered
+    (`_list_opening_of`). Raises TypeError for a non-string layout.
+    """
+    if not isinstance(layout, str):
+        raise TypeError(_LIST_NOT_TEXT)
+    fields: "list[tuple[int, int, int, int]]" = []
+    for start, field in _list_field_places(layout):
+        shape = _list_field_shape(field)
+        if shape is None:
+            if parsing.LAYOUT_DIGIT in field or "!" in field:
+                return ""
+            continue
+        fields += [(start, shape[0], shape[1], shape[2])]
+    common = _list_common_opening(fields, firsts, floor, needed)
+    written = ""
+    # ...each field at its place in the layout, past the spaces it was trimmed of.
+    for start, letters, noughts, figures in fields:
+        wider = _list_narrowest(firsts, figures) < figures
+        if common:
+            chosen = common * (figures - _list_narrowest(firsts, figures) + 1)
+        elif wider:
+            chosen = _list_nought_opening(
+                letters, noughts, figures, firsts, floor, needed, len(fields), counted
+            )
+        else:
+            held = firsts[figures] if figures in firsts else {}
+            chosen = _list_opening_of(held, figures, floor, needed, counted) or (
+                _list_nought_opening(
+                    letters, noughts, figures, firsts, floor, needed, len(fields), counted
+                )
+            )
+        if not chosen:
+            return ""
+        place = start + letters + noughts
+        written = written + layout[len(written):place] + chosen
+    if not written:
+        return ""
+    return written + layout[len(written):]
+
+
+def _list_nought_opening(
+    letters: int,
+    noughts: int,
+    figures: int,
+    firsts: "dict[int, dict[str, int]]",
+    floor: int,
+    needed: int,
+    keys: int,
+    counted: "int | None" = None,
+) -> str:
+    """A field's opening of noughts, leaving its merged width under every real key's, or "" (plan P4-D442).
+
+    KEPT AT ITS WIDTH, IN ITS LIST FORM (lane HB's verify, finding 2): where
+    every opening a field's figures could wear opens a real key -- random
+    keys, the realistic register -- rule 13 has nothing to publish, and the
+    cells were the spill. A member led by noughts as many as the field's
+    width is past the narrowest real key's of four figures or more
+    (`_list_narrowest`), and one (`R094417` beside the real `R488138`), is
+    as wide as a real key, wears the same layout, and merged
+    (`parsing.merged_key`) is narrower than every real key of four figures
+    or more; so it equals none and no such key's run fits inside it,
+    whatever the draw. After the noughts stands
+    the opening no real key of that narrower width opens with, as rule 13
+    reads it (`_list_opening_of`); where no opening of it is free, noughts
+    alone down to the widest merged width under the narrowest real key of
+    any width, so no member merges with a real key of any width either.
+    Each of the ``keys`` fields holds its share of the layout's ``needed``
+    values, its letters' places counted. "" where a field writes a zero
+    fill of its own, or no width leaves that room (a real key of one
+    figure). ``counted`` is the depth the openings were counted to
+    (`_list_opening_of`). A fixed function of the eight. Raises nothing.
+    No I/O.
+    """
+    if noughts:
+        return ""
+    narrower = _list_narrowest(firsts, figures) - 1
+    written = figures - narrower
+    if narrower < 1:
+        return ""
+    room = 1
+    while room ** keys < needed:
+        room = room + 1
+    room = -(-room // (26 ** letters))
+    held = firsts[narrower] if narrower in firsts else {}
+    chosen = _list_opening_of(held, narrower, floor, room, counted)
+    if chosen:
+        return "0" * written + chosen
+    # ...AND NOUGHTS ALONE, DOWN UNDER THE NARROWEST REAL KEY OF ANY WIDTH (LANE
+    # HB RULINGS 6, item 3; LANE I4m RULINGS 15 (2)): `rand5_comma`'s 6,794 lone
+    # keys asked a room `9` could not leave and were written as a spill holding
+    # real keys; `0%%%%` leaves nine thousand fillings, merged narrower than
+    # every real key. And where real keys are as narrow as the narrower width
+    # or narrower, every opening of it held (keys of three figures beside keys
+    # of four, every first figure held by the floor's keys or more), the field
+    # was the spill too, eleven figures holding a real key of four at chance
+    # (1,172 to 3,504 twin cells at 20,000 rows): it is written with noughts
+    # down to the widest merged width under the narrowest any real key of the
+    # column holds, widths under four figures counted (`@00%%`: a hundred
+    # fillings, merged two figures at most). The spill stays only where no such
+    # width is left (real keys of one figure) or it holds less than the share.
+    below = narrower
+    for width in firsts:
+        below = min(below, width - 1)
+    if below < 1:
+        return ""
+    return "0" * (figures - below) if 10 ** below >= room else ""
+
+
+def _list_narrowest(firsts: "dict[int, dict[str, int]]", figures: int) -> int:
+    """The narrowest merged width of four figures or more a real key holds, no wider than ``figures``, else ``figures`` (P4-D442).
+
+    Every merged width a key the list route admits holds counts from
+    `_LIST_CARRIED_FIGURES` up, a lettered key of four figures and a key
+    zero filled to five among them (Codex's review of batch 4n, item 2).
+    """
+    narrowest = figures
+    for width in firsts:
+        if _LIST_CARRIED_FIGURES <= width < narrowest:
+            narrowest = width
+    return narrowest
+
+
+def _list_common_opening(
+    fields: "list[tuple[int, int, int, int]]",
+    firsts: "dict[int, dict[str, int]]",
+    floor: int,
+    needed: int,
+) -> str:
+    """One figure no real key of any width a field can hold inside it opens with, or "" (P4-D442).
+
+    A KEY WIDER THAN ANOTHER CARRIES IT NO MORE (Codex's review of lane HB,
+    item 8): `R30816` beside `R100000` published `@9%%%%,@9%%%%%`, and the
+    twin wrote `K930816`, whose six figures open off every real key of six
+    and hold `30816`, a real key of five, at their end; and a key of four
+    figures beside keys of five the same (Codex's review of batch 4n, item
+    2: `S90007` carried the real `R9000`). Where a field of the layout is
+    wider than the narrowest real key of four figures or more
+    (`_list_narrowest`), a
+    figure is sought that no real key of any such width up to the field's
+    opens with -- from `9` down, a figure held by ``floor`` keys or more at
+    some width passed over, one held by 1 to ``floor`` - 1 at any ending the
+    search (the orchestrator's ruling 3 of 2026-10-25, item 2, option (b))
+    -- and each field is opened with it written once more than its width
+    exceeds the narrowest's, so every run of the narrower width inside a
+    member opens with it too, while each field's figures left hold its
+    share of the ``needed`` values, its letters' places counted. "" where
+    every field is as narrow as every real key it could hold, or no such
+    figure fits; each field then takes its own opening.
+    """
+    wider = False
+    for _start, _letters, _noughts, figures in fields:
+        if _list_narrowest(firsts, figures) < figures:
+            wider = True
+    if not wider:
+        return ""
+    for figure in "987654321":
+        free = True
+        for _start, _letters, _noughts, figures in fields:
+            for width in firsts:
+                if width < _LIST_CARRIED_FIGURES or width > figures:
+                    continue
+                count = firsts[width][figure] if figure in firsts[width] else 0
+                if 0 < count < floor:
+                    return ""
+                if count:
+                    free = False
+        if not free:
+            continue
+        # ...WHILE EACH FIELD STILL HOLDS ITS SHARE of the layout's values, its
+        # letters' places counted, as `_list_nought_opening` reads a field's
+        # room (Codex's review of batch 4n, item 2): asked the layout's whole
+        # count, keys zero filled from `R00001` beside keys of four figures
+        # found no figure's room and were written as the spill, real runs as
+        # written inside it.
+        share = 1
+        while share ** len(fields) < needed:
+            share = share + 1
+        for _start, letters, _noughts, figures in fields:
+            if 10 ** (_list_narrowest(firsts, figures) - 1) < -(-share // (26 ** letters)):
+                return ""
+        return figure
+    return ""
+
+
+# FIGURE RUNS OF FREE TEXT KEPT OFF THE REAL (plan P4-D442; lane HB's verify,
+# finding 1; LANE HB RULINGS 2, item 2). A column read as free text publishes
+# none of its values, and its twin wrote a cell of figures alone from the bottom
+# of its room upward (`1000000`, `1000001`, ...), so a register of record
+# numbers written as lists marked `;` or `|`, alone among notes, or between
+# commas once each was written back key for key: 4,000 of 4,000 real key
+# tokens and 3,265 twin cells equal to a real cell at 20,000 rows. Beside each
+# MERGED width of four figures or more that a real run of figures holds (the
+# noughts before it dropped, as `parsing.merged_key` drops them), the shortest
+# opening no real run of that width opens with: one figure from `9` down, then
+# two from `99` down, to `FIGURE_OPENING_DEPTH`, an opening held by
+# ``floor`` runs or more passed over and one held by 1 to ``floor`` - 1 ending
+# that size, as rule 13 reads a list key's (`_list_opening_of`); "" where none
+# is found. The twin writes every run of such a width wearing it, so no run of
+# figures it writes equals a real one, whatever the draw.
+FIGURE_RUN_KEY_WIDTH = parsing.FIGURE_RUN_KEY_WIDTH
+FIGURE_OPENING_DEPTH = parsing.FIGURE_OPENING_DEPTH
+
+
+def label_figure_openings(
+    present: "list[str]",
+    labels: "list[object]",
+    floor: int,
+    census: "dict[str, int] | None" = None,
+) -> "dict[str, str]":
+    """`figure_openings` of a label column, the widths its held-back cells do not leave to published codes (P4-D442).
+
+    A COLUMN OF KEYS READ AS LABELS WRITES NONE OF THEM (LANE HB RULINGS 6,
+    item 2): `R100000` upward once each beside `pending` was walked from the
+    held-back cells' own characters, and 8,366 of 12,936 twin cells came back
+    real at 20,000 rows. A WIDTH WHOSE ROWS MOSTLY STAND IN PUBLISHED LEVELS
+    IS A CODE'S (a real code held back is not a key, and CODES-1's walk keeps
+    it in the published codes' characters), so it is left out; every other
+    width is treated as a key's, whatever the words beside it and their share.
+    An error of this reading costs likeness alone: a rare code whose rows are
+    mostly held back has its stand-ins kept off the real, never the reverse.
+    THE MAJORITY COUNTS ROWS, NOT RUNS (Codex's review of lane HB's close
+    round, item 1; LANE HB RULINGS 8, item 1): a width counts at most once a
+    cell, so a published level holding two runs of a width weighs its rows,
+    not twice them (8,000 cells of `R100000X200000` beside `R100000` to
+    `R111999` once each left the width out, 12,000 held rows against 8,000
+    published, and the twin wrote 7,202 real keys at 20,000 rows).
+    A TIE IS THE KEYS' (the independent verify 2 of close round 2, item 1;
+    LANE HB RULINGS 11, item 1 (a)): a width is a code's only where its
+    published rows outnumber its held-back ones, so held-back rows at least
+    as many name it (`R100000X200000` on half the rows beside `R100000`
+    upward once each named none, and the twin wrote 10,000 of 10,000 real
+    keys at 20,000 rows). AND A FORM NO PUBLISHED LEVEL WRITES IS NO CODE'S
+    (item 1 (b)): the reading above, that a held-back code is walked in the
+    published codes' characters, fails for a held-back cell whose census
+    form (`parsing.census_form`, read on ``census``) no published spelling
+    wears, so a width such cells hold in ``floor`` cells or more is named
+    whatever the majority (400 levels `R500000X200000` upward on 51 % of
+    rows beside `R100000` upward once each: 9,604 of 9,800 real keys at
+    20,000 rows). THE FORMS ARE READ ONLY WHERE THE MAJORITY LEAVES A WIDTH
+    OUT (LANE HB RULINGS 14): the form term changes the answer only for a
+    width whose held-back rows are fewer than its published rows, so the
+    census forms of the published spellings, and of the held-back cells
+    holding such a width, are read only once such a width exists, and only
+    until each such width has the floor's held-back cells of an unworn form;
+    a column whose widths the majority all names reads no form (reading every
+    held-back cell's form asked `parsing.shape_form` 2,941 times over 1,000
+    stamps beside rare words, the census's own reads bounded at two a cell).
+    Empty where no width is so held. Linear in the cells. A fixed function of
+    the four. Raises TypeError for a cell that is not text. No I/O.
+    """
+    openings = figure_openings(present, floor)
+    if not openings:
+        return {}
+    named: "dict[str, bool]" = {}
+    for label in labels:
+        named[parsing.folded(f"{label}")] = True
+    held: "dict[str, int]" = {}
+    shown: "dict[str, int]" = {}
+    for cell in present:
+        tally = shown if parsing.folded(cell) in named else held
+        once: "dict[str, bool]" = {}
+        for width in _figure_widths_of(cell):
+            once[width] = True
+        for width in once:
+            tally[width] = (tally[width] if width in tally else 0) + 1
+    # The widths the majority leaves to the codes: only these can the form
+    # term name, so only for them are the census forms read.
+    short: "dict[str, bool]" = {}
+    for width in openings:
+        if (held[width] if width in held else 0) < (shown[width] if width in shown else 0):
+            short[width] = True
+    unworn: "dict[str, int]" = {}
+    if short:
+        # The census forms the published spellings wear, each spelling read once.
+        forms: "dict[str, int]" = {} if census is None else census
+        spelled: "dict[str, bool]" = {}
+        worn: "dict[str, bool]" = {}
+        for cell in present:
+            if cell not in spelled and parsing.folded(cell) in named:
+                spelled[cell] = True
+                worn[parsing.census_form(cell, forms)] = True
+        # ...until every such width has the floor's held-back cells of a form no
+        # published spelling wears: past that the answer cannot move.
+        open_widths = len(short)
+        for cell in present:
+            if not open_widths:
+                break
+            if cell in spelled:
+                continue
+            once = {}
+            for width in _figure_widths_of(cell):
+                if width in short:
+                    once[width] = True
+            if not once:
+                continue
+            form = parsing.census_form(cell, forms)
+            if form != "" and form not in worn:
+                for width in once:
+                    unworn[width] = (unworn[width] if width in unworn else 0) + 1
+                    if unworn[width] == floor:
+                        open_widths = open_widths - 1
+    kept: "dict[str, str]" = {}
+    for width in openings:
+        if width not in short or (unworn[width] if width in unworn else 0) >= floor:
+            kept[width] = openings[width]
+    return kept
+
+
+def _figure_widths_of(cell: str) -> "list[str]":
+    """The key of `figure_openings` each run of a cell counts under, one a run (P4-D442)."""
+    widths: "list[str]" = []
+    start = -1
+    for place in range(len(cell) + 1):
+        if place < len(cell) and "0" <= cell[place] <= "9":
+            if start < 0:
+                start = place
+            continue
+        if start >= 0:
+            merged = start
+            while merged < place and cell[merged] == "0":
+                merged = merged + 1
+            if merged < place and place - start >= FIGURE_RUN_KEY_WIDTH:
+                width = place - merged
+                if width < FIGURE_RUN_KEY_WIDTH:
+                    width = parsing.FIGURE_RUN_PADDED_NARROW
+                widths += [f"{width}"]
+            start = -1
+    return widths
+
+
+def form_holds_a_named_run(form: str, openings: "dict[str, str]") -> bool:
+    """Whether a written form holds a run of figures as wide as a width `figure_openings` names, or wider, or of four figures beside `3` (P4-D442)."""
+    widths = [int(width) for width in openings if int(width) >= FIGURE_RUN_KEY_WIDTH]
+    # ...and a run of four figures or more whose merged figures are fewer is
+    # renamed where `3` is named, so any such run of the form holds one.
+    if f"{parsing.FIGURE_RUN_PADDED_NARROW}" in openings:
+        widths += [FIGURE_RUN_KEY_WIDTH]
+    if not widths:
+        return False
+    least = min(widths)
+    run = 0
+    for mark in form + " ":
+        if mark == parsing.SHAPE_DIGIT:
+            run = run + 1
+            continue
+        if run >= least:
+            return True
+        run = 0
+    return False
+
+
+def figure_openings(present: "list[str]", floor: int) -> "dict[str, str]":
+    """Each merged width of four figures or more a run of the column holds, and the opening none opens with (P4-D442).
+
+    Every maximal run of ASCII figures of every present cell, read once,
+    on its merged figures; each opening of one to `FIGURE_OPENING_DEPTH`
+    figures (never the whole run) counted; then, width by width, the
+    shortest opening no run of that width opens with
+    (`_figure_opening_of`). A run of four figures or more whose merged
+    figures are fewer than four (`0000123`) names the key `3`, beside
+    nothing: a made-up run led by noughts could equal it. Empty where no
+    run is either. Linear in the cells. A fixed function of the two. Raises
+    TypeError for a cell that is not text. No I/O.
+    """
+    held: "dict[int, dict[str, int]]" = {}
+    for cell in present:
+        if not isinstance(cell, str):
+            raise TypeError("a cell reached the figure runs as something else")
+        start = -1
+        for place in range(len(cell) + 1):
+            if place < len(cell) and "0" <= cell[place] <= "9":
+                if start < 0:
+                    start = place
+                continue
+            if start >= 0:
+                _figure_run_counted(cell, start, place, held)
+                start = -1
+    openings: "dict[str, str]" = {}
+    for width in sorted(held):
+        if width == parsing.FIGURE_RUN_PADDED_NARROW:
+            openings[f"{width}"] = ""
+        elif width <= parsing.FIGURE_RUN_WIDEST:
+            openings[f"{width}"] = _figure_opening_of(held[width], width, floor)
+    return openings
+
+
+def _figure_run_counted(
+    cell: str, start: int, end: int, held: "dict[int, dict[str, int]]"
+) -> None:
+    """One run of figures, ``cell[start:end]``, counted on its merged figures (P4-D442)."""
+    whole = end - start
+    while start < end and cell[start] == "0":
+        start = start + 1
+    width = end - start
+    if width < FIGURE_RUN_KEY_WIDTH:
+        if width and whole >= FIGURE_RUN_KEY_WIDTH:
+            held[parsing.FIGURE_RUN_PADDED_NARROW] = {}
+        return
+    if width not in held:
+        held[width] = {}
+    counts = held[width]
+    for size in range(1, min(FIGURE_OPENING_DEPTH, width - 1) + 1):
+        opening = cell[start : start + size]
+        counts[opening] = counts[opening] + 1 if opening in counts else 1
+
+
+def _figure_opening_of(held: "dict[str, int]", width: int, floor: int) -> str:
+    """The shortest opening no run of figures of ``width`` opens with, or "" (P4-D442).
+
+    Size by size from one figure to `FIGURE_OPENING_DEPTH` (never the
+    whole width): the openings from the greatest down, first figure never
+    a nought; one held by ``floor`` runs or more passed over, one held by
+    none the answer, one held by 1 to ``floor`` - 1 ending that size (the
+    orchestrator's ruling 3 of 2026-10-25, item 2, option (b)). AT ONE FIGURE
+    EVERY SUCH FIGURE IS NAMED, joined by `|`, so a sequential register keeps
+    its width and its count of different values: keys 1000 to 4999 leave `9`
+    to `5`, five thousand fillings, where one figure's thousand left the rest
+    a figure wider. A zero count is no small cell. A fixed function of the
+    three. Raises nothing. No I/O.
+    """
+    size = 1
+    while size <= min(FIGURE_OPENING_DEPTH, width - 1):
+        value = 10 ** size - 1
+        lowest = 10 ** (size - 1)
+        free = ""
+        while value >= lowest:
+            opening = f"{value}"
+            count = held[opening] if opening in held else 0
+            if count == 0:
+                if size > 1:
+                    return opening
+                free = f"{free}|{opening}" if free else opening
+            elif count < floor:
+                break
+            value = value - 1
+        if free:
+            return free
+        size = size + 1
+    return ""
 
 
 def spill_of(whole: str, convention: str, published: int, longest: int) -> str:
@@ -27901,6 +30112,51 @@ def _room_left(room: int, template: str, fixed: "list[int]", opening: "list[int]
     return left
 
 
+def _several_after_noughts(
+    layout: str,
+    template: str,
+    place: int,
+    held: "dict[str, int]",
+    alphabet: str,
+    floor: int,
+    each: int,
+    need: int,
+    texts: "dict[str, bool]",
+) -> "list[str]":
+    """The free figures at the place after a key's zero fill, as many as hold ``need``, as several spellings, or nothing (P4-D442).
+
+    PADDED KEYS KEEP THEIR LAYOUT (LANE HB RULINGS 6, item 5): `0001000` upward over
+    3,334 keys leaves `9` a thousand fillings, so the layout carried no exclusion and
+    10,000 cells were a 27-figure spill holding real runs of four figures inside.
+    Only after a written nought; read as the one-place choice reads them, from the
+    greatest down, one the floor's keys hold passed over and one fewer hold ending
+    the search. Each spelling's fillings open off every real key of the width, so none
+    holds one. A fixed function of the arguments. Raises nothing. No I/O.
+    """
+    if place == 0 or template[place - 1] != "!" or each < 1:
+        return []
+    wanted = (need + each - 1) // each
+    if wanted > parsing.EXCLUSIONS_AT_MOST:
+        return []
+    written: "list[str]" = []
+    for at in range(len(alphabet) - 1, -1, -1):
+        character = alphabet[at]
+        if character == "0":
+            continue
+        count = held[character] if character in held else 0
+        if 0 < count < floor:
+            return []
+        if count:
+            continue
+        spelling = layout[:place] + character + layout[place + 1:]
+        if parsing.folded(spelling) in texts:
+            return []
+        written += [spelling]
+        if len(written) == wanted:
+            return written
+    return []
+
+
 def _exclusion_of(
     keys: "list[str]",
     layout: str,
@@ -27994,6 +30250,12 @@ def _exclusion_of(
                 # layout whose real values fill all but less than that
                 # asks the block, whose several spellings may.
                 if _room_left(room, template, [place], opening_figures) < need:
+                    several = _several_after_noughts(
+                        layout, template, place, held, alphabet[: at + 1], floor,
+                        _room_left(room, template, [place], opening_figures), need, texts,
+                    )
+                    if several:
+                        return several
                     short = True
                     break
                 written = layout[:place] + character + layout[place + 1:]
@@ -28509,19 +30771,69 @@ def _a_zip_plus_four(text: str) -> bool:
     )
 
 
+# AN AGE WRITTEN WITH ITS UNIT LETTER (the orchestrator's LANE SH2
+# ADDENDUM 4): DICOM's age string (`090Y`, `006M`, `003W`, `010D`: three
+# figures and the letter of years, months, weeks or days) and its like,
+# one letter written against the number. The number is read in years
+# before the reach's test -- `120M` is ten years, not 120 -- and its
+# leading zeros are the form's own, not a code's (DICOM ages `091Y` to
+# `104Y` answered `keep` were published as levels, 104Y on 158 cells of
+# 20,000 on 589f3d72). How many of each unit make a year.
+_AGE_UNIT_LETTERS = {"y": 1.0, "m": 12.0, "w": 52.1775, "d": 365.25}
+
+
+def _an_age_unit_letter(read: SafeHarborNumber) -> bool:
+    """Whether one unit letter of `_AGE_UNIT_LETTERS` is written against a number, no space between (`090Y`, `6m`)."""
+    tail = read.tail
+    if not isinstance(tail, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    letter = parsing.trimmed(tail)
+    return (
+        len(letter) == 1
+        and tail[:1] == letter
+        and _in_small_letters(letter) in _AGE_UNIT_LETTERS
+    )
+
+
+def age_unit(read: SafeHarborNumber) -> float:
+    """How many of a number's own units make a year: 12 for `006M`, 1 where no unit letter is written against it (plan P4-D434)."""
+    if _an_age_unit_letter(read):
+        return _AGE_UNIT_LETTERS[_in_small_letters(parsing.trimmed(read.tail))]
+    return 1.0
+
+
+def _an_age_form(read: SafeHarborNumber) -> bool:
+    """Whether a number is written as an age is: bare, or with a unit letter against it, or a word of years after it (`95 years`, `95 yrs`).
+
+    Lane SH2's close round (plan P4-D434): the top-code's reading of a
+    value past 125 and of a placeholder on few rows is asked of such
+    cells alone, so a made-up label of a held or long-tail twin (`126O`,
+    `777Q`, three figures and any letter) is no age the checked file is
+    read with.
+    """
+    words = parsing.trimmed(read.tail)
+    return not words or _an_age_unit_letter(read) or words[:1] in ("y", "Y")
+
+
 def _safe_harbor_kind(cell: str, comma: bool) -> "tuple[int, int, float]":
-    """What one present cell is to the age reach and to the ZIP reach, and its value."""
+    """What one present cell is to the age reach and to the ZIP reach, and its value (in years, for an age unit letter)."""
     if not _holds_a_figure(cell):
         return _AGE_ASIDE, _ZIP_ASIDE, 0.0
     read = safe_harbor_number(cell, comma)
     if read is None:
         return _AGE_OTHER, (_ZIP_IN if _a_zip_plus_four(cell) else _ZIP_OTHER), 0.0
-    value = read.value
-    whole = value == int(value)
-    padded = len(read.whole) >= 2 and read.whole[:1] == "0"
-    if whole and value < 0 and (value >= -9 or _all_nines(value)):
+    # ...placeholders are read as written (`999Y`, `-1`), the age in years.
+    written = read.value
+    value = written / age_unit(read)
+    whole = written == int(written)
+    padded = (
+        len(read.whole) >= 2
+        and read.whole[:1] == "0"
+        and not _an_age_unit_letter(read)
+    )
+    if whole and written < 0 and (written >= -9 or _all_nines(written)):
         age = _AGE_ASIDE
-    elif whole and value >= 999 and _all_nines(value):
+    elif whole and written >= 999 and _all_nines(written):
         age = _AGE_ASIDE
     elif value < 0 or value > TOP_CODE_REACH_CEILING:
         age = _AGE_OUTSIDE
@@ -28570,7 +30882,9 @@ def safe_harbor_reach(
     ``absent``: the spellings the column was read as holding no value,
     set aside; ``floor``: the rows a value outside the reach must hold
     to be set aside as a placeholder whatever its share (three such
-    values at most, `_placeholder_rows`); ``levels``: whether the
+    values at most, `_placeholder_rows`; an age's values written as
+    placeholders are, `_a_placeholder_spelling`, are set aside whatever
+    their rows and beside those three); ``levels``: whether the
     column's role prints its values as levels; ``padded_answered``:
     whether a person said the column is a measurement or a code (P4-D401's
     padded question answered, or declared), or an open question holds it. Ages: the cells
@@ -28631,7 +30945,30 @@ def safe_harbor_reach(
         elif postal == _ZIP_OUTSIDE:
             zip_outside[value] = (zip_outside[value] if value in zip_outside else 0) + 1
     repeat = max(floor, 1)
-    age_aside += _placeholder_rows(age_outside, repeat)
+    # ...AN AGE'S PLACEHOLDERS ARE THE VALUES WRITTEN AS PLACEHOLDERS ARE
+    # (`_a_placeholder_spelling`), set aside whatever their rows and
+    # however many (the orchestrator's LANE SH2 RULINGS 2 (1)), the same
+    # the top-code writes blank (`age_placeholders_set_aside`); AND OF THE
+    # OTHER VALUES OUTSIDE 0 TO 125, THE UP TO THREE THAT AT LEAST THE
+    # FLOOR'S ROWS REPEAT ARE SET ASIDE TOO, WHATEVER THEIR SHARE, before
+    # the bulk is judged (`_placeholder_rows`; lane SH's ADDENDUM 2 (1),
+    # restored by the orchestrator's LANE SH2 RULINGS 4 (1): without it,
+    # ages 18 to 104 beside `130` on 1,200 of 20,000 cells, or `150` on
+    # 1,500, read as no age column, were put no question and published
+    # every age above 89, where strays must never switch the protection
+    # off, lane SH's ADDENDUM 1 (2)). In a column so reached every such
+    # value written as an age is read 90 (`top_coded_cells`, RULINGS 2
+    # (2)). Site codes `230` on a fifth of the rows beside `101`, and
+    # measurements `200.25` and `300.25` beside `100.25`, are reached so
+    # too: false alarms the answer `no` frees (RULINGS 4 (1); plan P4-D434
+    # names them).
+    others: "dict[float, int]" = {}
+    for value in age_outside:
+        if _a_placeholder_spelling(value):
+            age_aside += age_outside[value]
+        else:
+            others[value] = age_outside[value]
+    age_aside += _placeholder_rows(others, repeat)
     zip_aside += _placeholder_rows(zip_outside, repeat)
     # Of the age cells that remain, those outside 0 to 125 (or holding a
     # figure but no number) are strays: fewer than the floor's rows, or
@@ -28651,6 +30988,105 @@ def safe_harbor_reach(
     ):
         return SAFE_HARBOR_ZIPS
     return ""
+
+
+def age_placeholders_set_aside(
+    cells: "list[str]", comma: bool, absent: "frozenset[str]", floor: int
+) -> "list[str]":
+    """A top-coded age column's cells with each placeholder written blank, before any rung is read (plan P4-D434).
+
+    The orchestrator's LANE SH2 ADDENDUM 1: no published fact of a
+    top-coded age column -- a rung, a tail boundary, the mean, the
+    largest value, a level -- may exceed 90, so a placeholder the age
+    reach sets aside (`safe_harbor_reach`) is no value of the column: a
+    number below nought of one figure or all nines (`-1`, `-99`), one of
+    three figures or more all nines (`999`), and every number outside 0
+    to 125 written as a placeholder is (`_a_placeholder_spelling`: below
+    nought, or of three figures or more, one figure repeated or nines and
+    one last figure), WHATEVER ITS ROWS AND HOWEVER MANY (the
+    orchestrator's LANE SH2 RULINGS 2 (1): `998` on 5 cells and `997` on
+    10 of 20,000, under the floor's rows, were published as tail values;
+    ``floor`` is kept for its callers and no longer read), are written
+    blank, so the column reads them as missing. A value outside 0 to 125 written as
+    no placeholder is kept here, however many rows hold it
+    (`top_coded_cells` then reads one past 125 written as an age 90, the
+    orchestrator's LANE SH2 RULINGS 2 (2)): writing it blank wrote the
+    real values of the reach's false alarms blank (a site code `230` on a
+    fifth of the rows beside `101`, the measurements `200.25` and
+    `300.25` beside `100.25`: their twins lost those cells in the whole
+    suite on 5cf9f3b9). Measured at 20,000 rows
+    on e38f7d4e, ages 18 to 104 beside N cells of `999`: N = 200 published p99 99.09, N = 1,000 the mean 106.8
+    and p95 135.45, and the twin wrote 180 cells between 90 and 999. The
+    price: the twin writes those cells blank, where the table wrote its
+    placeholder. Words, absent cells and every other number are kept, a
+    stray past 125 that fewer rows hold among them. Guarantees: a fixed
+    function of the four, the cells in their order. Raises TypeError for
+    a cell that is not text. No I/O.
+    """
+    memo: "dict[str, tuple[int, int, float]]" = {}
+    outside: "dict[float, int]" = {}
+    for cell in cells:
+        if cell in absent or not _holds_a_figure(cell):
+            continue
+        if cell in memo:
+            kind = memo[cell]
+        else:
+            kind = _safe_harbor_kind(cell, comma)
+            if len(memo) < _SAFE_HARBOR_MEMO:
+                memo[cell] = kind
+        if kind[0] == _AGE_OUTSIDE and _a_placeholder_spelling(kind[2]):
+            read = safe_harbor_number(cell, comma)
+            if read is not None and _an_age_form(read):
+                outside[kind[2]] = (outside[kind[2]] if kind[2] in outside else 0) + 1
+    # ...WHATEVER THEIR ROWS AND HOWEVER MANY (the orchestrator's LANE SH2
+    # RULINGS 2 (1), from the second verify's finding 1: `998` on 5 cells
+    # and `997` on 10 of 20,000, fewer than the floor's rows, were
+    # published as tail values and written on 15 twin cells).
+    chosen: "dict[float, bool]" = {}
+    for value in outside:
+        chosen[value] = True
+    written: "list[str]" = []
+    for cell in cells:
+        if cell in absent or not _holds_a_figure(cell):
+            written += [cell]
+            continue
+        kind = memo[cell] if cell in memo else _safe_harbor_kind(cell, comma)
+        read_here = (
+            safe_harbor_number(cell, comma)
+            if kind[0] == _AGE_OUTSIDE and kind[2] in chosen
+            else None
+        )
+        if kind[0] == _AGE_ASIDE or (read_here is not None and _an_age_form(read_here)):
+            written += [""]
+        else:
+            written += [cell]
+    return written
+
+
+def _a_placeholder_spelling(value: float) -> bool:
+    """Whether a number outside 0 to 125 is written as a placeholder is (plan P4-D434).
+
+    A whole number below nought (`-88`), or one of three figures or more
+    that repeats one figure (`777`, `888`, `9999`) or is nines with one
+    last figure (`998`, `997`, `9998`): the codes that stand for "not
+    known" beside ages. `230`, `127` or `200.25` is none.
+    """
+    if value != int(value):
+        return False
+    if value < 0:
+        return True
+    figures = f"{int(value)}"
+    if len(figures) < 3:
+        return False
+    repeated = True
+    for character in figures:
+        if character != figures[0]:
+            repeated = False
+    nines_then_one = True
+    for character in figures[:-1]:
+        if character != "9":
+            nines_then_one = False
+    return repeated or nines_then_one
 
 
 def _placeholder_rows(outside: "dict[float, int]", repeat: int) -> int:
@@ -28712,8 +31148,14 @@ def _top_coded_text(
     figures were padded wider than two, or are as wide as ``padded``, the
     widths its column pads to (the second repair of lane SH, item 1:
     `103` among `064` and `093` is `090`, as the column writes its
-    numbers); an exponent's cell is written 90.
+    numbers); an exponent's cell is written 90. A number written in
+    months, weeks or days (`1100M`, its unit letter against it) is written
+    as the whole number of its units that 90 years hold, rounded down
+    (`1080M`), its unit letter kept (the orchestrator's LANE SH2 ADDENDUM 4).
     """
+    unit = age_unit(read)
+    if unit != 1.0:
+        return read.head + ("+" if read.plus else "") + f"{int(TOP_CODE * unit)}" + read.tail
     figures = f"{TOP_CODE}"
     whole = read.whole
     if not read.exponent and len(whole) > len(figures) and (
@@ -28730,15 +31172,22 @@ def _top_coded_text(
 def top_coded_cells(
     cells: "list[str]", comma: bool = False, absent: "frozenset[str]" = frozenset()
 ) -> "list[str]":
-    """A column's cells with every value from 90 to 125 written 90 (plan P4-D427, ZS.1).
+    """A column's cells with every value of 90 or more written 90, its placeholders aside (plan P4-D427, ZS.1; P4-D434).
 
     Read by `safe_harbor_number`, so a number with a unit word after it
-    (`95 years`) is `90 years`; a cell spelled as one of ``absent`` keeps
-    its spelling, so the column keeps its missing cells (Codex's review
-    of lane SH, item 1); a value above 125 is no age and is kept, as
-    every other cell is. Guarantees: a fixed function of the three, the
-    cells in their own order. Raises TypeError for a cell that is not
-    text. No I/O.
+    (`95 years`) is `90 years`, and one with a unit letter against it is
+    read in years (`104Y` is `090Y` where its column pads to three
+    figures; `120M`, ten years, is kept: the orchestrator's LANE SH2
+    ADDENDUM 4); a cell spelled as one of ``absent`` keeps its spelling,
+    so the column keeps its missing cells (Codex's review of lane SH,
+    item 1). A VALUE ABOVE 125 IS WRITTEN 90 TOO (the orchestrator's LANE
+    SH2 RULINGS 2 (2): `130` in an age column may be a real age mistyped,
+    and was published as a tail value and written on 200 twin cells at
+    20,000 rows), but a placeholder -- all nines, or written as one is
+    (`_a_placeholder_spelling`) -- which the caller writes blank
+    (`age_placeholders_set_aside`); every other cell is kept. Guarantees:
+    a fixed function of the three, the cells in their own order. Raises
+    TypeError for a cell that is not text. No I/O.
     """
     padded = _padded_widths(cells, comma, absent)
     memo: "dict[str, str]" = {}
@@ -28750,7 +31199,16 @@ def top_coded_cells(
         coded = cell
         if cell not in absent:
             read = safe_harbor_number(cell, comma)
-            if read is not None and TOP_CODE <= read.value <= TOP_CODE_REACH_CEILING:
+            years = read.value / age_unit(read) if read is not None else 0.0
+            if read is not None and (
+                TOP_CODE <= years <= TOP_CODE_REACH_CEILING
+                or (
+                    years > TOP_CODE_REACH_CEILING
+                    and _an_age_form(read)
+                    and not _all_nines(read.value)
+                    and not _a_placeholder_spelling(read.value)
+                )
+            ):
                 coded = _top_coded_text(read, comma, padded)
         if len(memo) < _SAFE_HARBOR_MEMO:
             memo[cell] = coded
@@ -28800,7 +31258,11 @@ def at_most_the_top_code(
     of that value the same one, so the column keeps its count of
     different values and how many cells each holds (Codex's review of
     lane SH, item 3) -- and 90 itself where none is free (90 reads "90 or
-    more"). Its spaces, plus sign and unit word are kept; a value above
+    more"). A number with a unit letter against it is read in years
+    (`104Y` is 104 years, `120M` ten), and one in months, weeks or days
+    above 90 years is written as the whole number of its units 90 years
+    hold (`1080M`; the orchestrator's LANE SH2 ADDENDUM 4). Its spaces,
+    plus sign and unit word are kept; a value above
     125 is no age and is kept, and so is a cell spelled as one of
     ``absent``, the column's missing values (the second repair of lane
     SH, item 5: `--missing-value 95` beside top-coded ages had its 18
@@ -28818,8 +31280,8 @@ def at_most_the_top_code(
         if cell in absent or parsing.trimmed(cell) in absent:
             continue
         read = safe_harbor_number(cell, False)
-        if read is not None and read.value <= TOP_CODE:
-            mark = round(read.value * unit)
+        if read is not None and read.value / age_unit(read) <= TOP_CODE:
+            mark = round(read.value / age_unit(read) * unit)
             taken[mark] = True
             lowest = min(lowest, mark)
     chosen: "dict[tuple[float, int], str]" = {}
@@ -28830,8 +31292,14 @@ def at_most_the_top_code(
             if cell in absent or parsing.trimmed(cell) in absent
             else safe_harbor_number(cell, False)
         )
-        if read is None or not TOP_CODE < read.value <= TOP_CODE_REACH_CEILING:
+        if read is None or not _changed_by_the_top_code(read):
             written += [cell]
+            continue
+        if age_unit(read) != 1.0:
+            # ...a number in months, weeks or days, its unit letter against
+            # it, is read in years (the orchestrator's LANE SH2 ADDENDUM 4)
+            # and written as the whole number of its units 90 years hold.
+            written += [_top_coded_text(read, False)]
             continue
         key = (read.value, read.places)
         if key not in chosen:
@@ -28842,6 +31310,32 @@ def at_most_the_top_code(
             value = _padded_to(value, len(read.whole))
         written += [read.head + ("+" if read.plus else "") + value + read.tail]
     return written
+
+
+def _changed_by_the_top_code(read: SafeHarborNumber) -> bool:
+    """Whether the top-code's reading of a checked file changes a twin's cell (plan P4-D434), so G7.14 writes it at or below 90.
+
+    Above 90 years, to 125; and, written as an age is (`_an_age_form`),
+    past 125 or a whole number below -9, which the reading writes 90 or
+    blank since lane SH2's close round (`top_coded_cells`,
+    `age_placeholders_set_aside`) -- nines alone and one-figure negatives,
+    read blank before it too, are kept as before: a
+    made-up label of a held or long-tail twin (`898Y`, `777Y`) that the
+    validator would so read is written below the top-code instead, so the
+    twin keeps its count of cells and of different values.
+    """
+    years = read.value / age_unit(read)
+    if TOP_CODE < years <= TOP_CODE_REACH_CEILING:
+        return True
+    if not _an_age_form(read):
+        return False
+    written = read.value
+    whole = written == int(written)
+    if whole and (_all_nines(written) or -9 <= written < 0):
+        # ...nines alone and one-figure negatives, read blank before this
+        # round as now, are kept as G7.14 kept them.
+        return False
+    return years > TOP_CODE_REACH_CEILING or (whole and written < 0)
 
 
 def with_top_code(column: ColumnProfile) -> ColumnProfile:
@@ -28856,6 +31350,1180 @@ def with_top_code(column: ColumnProfile) -> ColumnProfile:
         details[key] = column.details[key]
     details["top_coded"] = TOP_CODE
     return dataclasses.replace(column, details=details)
+
+
+# THE SAFE HARBOR YEARS, PLACES AND DEVICES (plan P4-D434; lane SH2,
+# lane SH's follow-up; 45 CFR 164.514(b)(2)(i)(B), (C) and (M); lane
+# E0c's skeptic 1, items L1 and L2 and its birth_city note, and lane SH's
+# verify 3, 'New shapes'). Four more Safe Harbor elements the profile
+# published with no question asked, measured on lane SH's head 3b1aa03c:
+#
+# A YEAR OF BIRTH SHOWING AN AGE OF 90 OR MORE ((C): "all elements of
+# dates (including year) indicative of such age"). Birth years beside one
+# stray cell read as a count and printed 1928, 1930 and 1934 at 600 rows;
+# birth dates printed their years of 1927 to 1933 in their percentiles and
+# tails, and their twins wrote about 80 cells of them. THE REFERENCE YEAR
+# is this release's, `SAFE_HARBOR_REFERENCE_YEAR` (synthtwin reads no
+# clock; the block names the year it pooled at, so generation and
+# validation read the description): a table's own latest date is its
+# youngest birth date where it holds nothing else (1925 to 2005 born,
+# latest 2005) or a date shifted into the future (2110 to 2190), and an
+# age is the person's age when the description is shared. A column of
+# four-figure whole years from 1850 to the reference year, written alone
+# or beside a word or a mark (`born 1930`), judged on its bulk as the
+# ages are (words, absent cells, placeholders written as nines,
+# negatives, nought and up to three values outside the years that the
+# floor's rows repeat set aside whatever their share; two in three of the
+# rest), one of them at most the reference year less 90, is read while
+# its Safe Harbor question is open with every year from 1850 to that year
+# written as that year -- the group "that year or earlier", as the
+# top-code writes 90 for "90 or more" -- where fewer than the floor's
+# rows hold other numbers beside the years, and is held whole where more
+# do (`30` for 1930 would show what the pooling hid). A column of dates
+# holding one in a year so early, every cell read as the column reads it,
+# is held whole meanwhile (rewriting a date in each spelling the reader
+# takes -- two figures for the year in a declared century, a month's
+# name, a layout, a clock -- would be a new writer of dates; holding
+# publishes nothing; lane PS3 owns writing them pooled instead).
+#
+# A PLACE SMALLER THAN A STATE ((B)): a column of labels whose NAME says
+# it holds a city, county, town, street, address, precinct, place of
+# birth or the like (the cells cannot: `Boston` and `Bogotá` read as any
+# other word), and a column holding a ZIP code cut to three figures and
+# two marks (`021**`).
+# Measured: birth_city published 2 of its 7 cities as levels and the twin
+# wrote them on every cell; zip3 published 7 of 7 three-figure areas. A
+# ZIP3 area holding over 20,000 people may be published under Safe
+# Harbor; that allowlist is lane CODES-2's, so meanwhile it is held.
+#
+# A DEVICE NUMBER ((M)): a column holding a unique device identifier of
+# any of the three issuing agencies -- GS1's `(01)` and fourteen figures
+# with or without its `(17)`, `(10)` and `(21)` parts, spaced or bare,
+# HIBCC's `+` forms, ICCBBA's `=/` -- lot-level or serial, whatever its
+# share of the column (the orchestrator's LANE E0c RULINGS 1 (2)).
+# Measured: 20 of 20 real UDIs published as levels, the twin writing them
+# on every cell.
+#
+# A ZIP CODE READ AS COUNTED DATES (the orchestrator's LANE SH ADDENDUM
+# 7: an answer to a ZIP-shaped column's other question never releases
+# the ZIP hold by itself). Measured: five-figure ZIPs beside one `UNKNOWN`
+# answered `excel-1900` published 33 of 40 dates that name the ZIPs one to
+# one at 600 rows, and the twin wrote 599 of 600 real ZIP numbers.
+#
+# Each column so reached is held whole -- P4-D401's held block, its twin
+# writing made-up values in its layouts -- and put lane SH's one Safe
+# Harbor question until it is answered `no`; the years are top-coded
+# instead where the cells allow.
+YEAR_EARLIEST = 1850
+YEAR_DIGITS = 4
+# THE REFERENCE YEAR the years are judged against: the last year this
+# release is used in. synthtwin reads no clock (the offline scan's
+# allowlist, plan D6.2: a description is a fixed function of the table),
+# so the year is written here and raised each year -- the gate's tripwire
+# (`tests/test_safe_harbor_places_years_devices.py`) goes red on the first
+# day of a later year until it is -- and every block it pools names it.
+# The release ships in December 2026 and is used through 2027, and a
+# person born in 1937 turns 90 in 2027, so 2027 (the orchestrator's LANE
+# SH2 RULINGS 1 (1)): years up to 1937 are pooled as "1937 or earlier", a
+# slightly cautious cut for a table of late 2026, stated.
+SAFE_HARBOR_REFERENCE_YEAR = 2027
+# The kinds of column lane SH2 holds whole, each put the Safe Harbor
+# question with its own sentence (`asking.safe_harbor_questions`).
+HELD_YEARS = "years-or-zips"
+# ...years of birth, most of the column, beside other numbers more than a
+# few (two-figure years, `45` for 1945): the years could not be pooled
+# without those others showing them (lane SH2's repair 1, skeptic 1 item 4).
+HELD_YEARS_BESIDE = "years-beside-other-numbers"
+HELD_DATES = "dates-showing-an-age-over-89"
+HELD_PLACES = "named-as-places"
+HELD_ZIP3 = "three-figure-zips"
+HELD_DEVICES = "device-identifiers"
+HELD_ZIP_DATES = "zip-codes-read-as-dates"
+# ...LATITUDES AND LONGITUDES, a place's "equivalent geocodes" (45 CFR
+# 164.514(b)(2)(i)(B); the orchestrator's LANE SH2 ADDENDUM 3: `home_lat`
+# with six decimals was described as an ordinary continuous column): a
+# column named as a coordinate, or one of two columns of decimals with
+# three or more places inside the ranges a latitude and a longitude keep
+# (`coordinates_held`); and a place beside its state (`Lake City, MN`), by
+# its cells (the orchestrator's LANE SH2 RULINGS 2 (3)).
+HELD_COORDINATES = "coordinates"
+HELD_CITY_STATES = "places-beside-their-states"
+SAFE_HARBOR_HOLDS = (
+    HELD_YEARS, HELD_YEARS_BESIDE, HELD_DATES, HELD_PLACES, HELD_ZIP3,
+    HELD_DEVICES, HELD_ZIP_DATES, HELD_COORDINATES, HELD_CITY_STATES,
+)
+# The words of a column's name that say it holds a place smaller than a
+# state (45 CFR 164.514(b)(2)(i)(B): "street address, city, county,
+# precinct, ZIP code, and their equivalent geocodes"), read whole -- a
+# name is cut into its words at every mark, at each capital after a small
+# letter and before the last capital of a run of capitals that a small
+# letter follows, so `BirthCity`, `RES_CITY`, `USCity` and `COUNTYText`
+# name a city or a county and `ethnicity` or `capacity` does not -- each
+# in its plural too, and `place`, `birthplace`, `hometown`, `residence`
+# and `pob` (place of birth) beside them (lane SH2's repair 1, skeptic 1
+# item 2: `birthplace`, `place_of_birth` and `hometown` published their
+# cities). A census tract is read only as `census` and `tract` (skeptic 1
+# item 7: `urinary_tract_infection` named no place).
+PLACE_WORDS = frozenset({
+    "address", "addresses", "addr", "borough", "boroughs", "city",
+    "cities", "county", "counties", "district", "districts", "geocode",
+    "geocodes", "locality", "localities", "municipality", "municipalities",
+    "neighborhood", "neighborhoods", "neighbourhood", "neighbourhoods",
+    "parish", "parishes", "postal", "postcode", "postcodes", "precinct",
+    "precincts", "street", "streets", "suburb", "suburbs", "town", "towns",
+    "township", "townships", "village", "villages", "zip", "zips",
+    "zipcode", "zipcodes", "place", "places", "birthplace", "birthplaces",
+    "hometown", "hometowns", "residence", "residences", "pob", "domicile",
+    "censustract",
+})
+# The words a place word may follow inside one word of a name, read as a
+# compound (`birthcity`, `homeaddress`, `patzip`) -- never a bare ending,
+# so `ethnicity` (`-icity`) names no city.
+PLACE_PREFIXES = (
+    "birth", "home", "res", "mail", "mailing", "billing", "pat", "patient",
+    "current", "prior", "death", "work", "residence", "postal",
+)
+# ...and the closings a place word may OPEN one word of a name with,
+# read as a compound (`cityname`, `countycode`, `streetaddress`,
+# `POSTALCD`) -- another place word, or one of these, or `of` and any
+# word after it (`placeofbirth`, `cityofresidence`): a closed list, never
+# any ending, so `placebo` names no place (lane SH2's repair 2, its
+# verify's finding 1: `placeofbirth`, `cityname`, `countyname`,
+# `townname` and `streetaddress` published their places).
+PLACE_CLOSINGS = ("name", "nm", "code", "cd", "id", "fips", "line", "state", "st")
+_PLACE_CLOSING_OF = "of"
+# ...and `state` and `st` among them: a city beside its state is a place
+# (`citystate`, `cityst`; the orchestrator's LANE SH2 RULINGS 2 (3)).
+# THE WORDS OF A COORDINATE (the orchestrator's LANE SH2 ADDENDUM 3),
+# read whole as the place words are, each in its plural: never `long`
+# alone (a stay, a length), `plateau` or `flat`, and no word that merely
+# opens with one (`latency`, `lateral`, `longitudinal`, `coordinator`,
+# `geography`).
+COORDINATE_WORDS = frozenset({
+    "lat", "lats", "latitude", "latitudes", "lon", "lons", "lng", "lngs",
+    "longitude", "longitudes", "geo", "gps", "coord", "coords",
+    "coordinate", "coordinates", "geolocation", "geolocations", "geoloc",
+    "longlat",
+})
+# ...and the closings a coordinate word may open one word of a name with
+# (`latlong`, `gpslat`, `latdeg`, `geolocation`): another coordinate word
+# or one of these, a closed list; after a word of `PLACE_PREFIXES`
+# (`homelat`) as a place word is.
+COORDINATE_CLOSINGS = (
+    "long", "deg", "degree", "degrees", "dd", "dec", "decimal", "loc",
+    "location", "point", "pt", "x", "y",
+)
+# A pair of coordinate columns read from their cells: decimals written
+# with at least `_COORDINATE_PLACES` places, judged on two in three of the
+# cells that remain once words are set aside, inside [-180, 180] -- and one
+# of the two inside [-90, 90], as a latitude is -- but never two columns
+# that both stay inside [-1, 1] (shares and probabilities: no place people
+# live lies within one degree of both the equator and the prime meridian,
+# which cross in the Gulf of Guinea).
+_COORDINATE_PLACES = 3
+_LATITUDE_REACH = 90.0
+_LONGITUDE_REACH = 180.0
+_NEAR_NOUGHT = 1.0
+COORDINATE_LATITUDE = "latitude"
+COORDINATE_LONGITUDE = "longitude"
+COORDINATE_NEAR_NOUGHT = "latitude-within-one-degree"
+# The two-letter codes of the states, the District of Columbia and the
+# territories, as the Postal Service writes them after a city
+# (`Lake City, MN`).
+STATE_CODES = frozenset({
+    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID",
+    "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS",
+    "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK",
+    "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV",
+    "WI", "WY", "DC", "PR", "GU", "VI", "AS", "MP",
+})
+# A line of an address, as many systems name it: `home_add_line`,
+# `mail_addr_line`, `addrline1` -- the word `add` or `addr` and the word
+# `line`, or one word made of the two.
+_ADDRESS_LINE_WORDS = ("add", "addr")
+_ADDRESS_LINES = ("addline", "addrline")
+# A place word that names no place where these words follow it: the
+# place of service (CMS's two-figure code of the setting care was given
+# in: `11` an office, `21` an inpatient hospital), measured as the one
+# false alarm `place` raised among the batteries' names.
+_NO_PLACE_AFTER = {"place": (("of", "service"), ("service",), ("of", "svc"), ("svc",))}
+# ...and the same within one word (`placeofservice`, `PLACEOFSVC`): `of`
+# and these after it.
+_NO_PLACE_AFTER_OF = {"place": ("service", "svc")}
+# The marks a ZIP code cut to three figures may carry in place of its
+# last two (`021**`, `021XX`).
+_ZIP3_MARKS = ("**", "XX", "xx", "--")
+# A GS1 unique device identifier's own opening: the application
+# identifier `(01)` and the fourteen figures of its device number, with
+# or without spaces between (the human-readable form), or written bare:
+# `01`, the fourteen figures and the next application identifier -- `10`
+# (lot), `11` (made on), `17` (expiry) or `21` (serial) -- after a scanner's
+# symbology mark or none (lane SH2's repair 1, skeptic 1 item 3).
+_GS1_OPENING = "(01)"
+_GS1_FIGURES = 14
+_GS1_BARE = "01"
+_GS1_NEXT = ("10", "11", "17", "21")
+_SYMBOLOGY_MARKS = ("]C1", "]d2", "]Q3", "]e0")
+# The other two issuing agencies' primary forms: HIBCC's `+`, a labeler
+# code of four letters or figures opening with a letter, and its product
+# (or `+$`, its secondary data alone); ICCBBA's ISBT 128 `=/` and the
+# facility and product codes after it, or its `=,` and `&,` data.
+_HIBCC_OPENING = "+"
+_HIBCC_SECONDARY = "+$"
+_HIBCC_LABELER = 4
+_HIBCC_SHORTEST = 8
+_ICCBBA_OPENINGS = ("=/", "=,", "&,")
+_ICCBBA_SHORTEST = 8
+_UDI_MARKS = " -.$/+%:"
+# The rows a column's dates are read for an early year at, at most, by
+# their different spellings (a memo, as the reaches above keep).
+_YEARS_MEMO = 65536
+_YEAR_ASIDE = 0
+_YEAR_IN = 1
+_YEAR_OLD = 2
+_YEAR_OUTSIDE = 3
+_YEAR_OTHER = 4
+
+
+def year_cutoff(reference_year: int) -> int:
+    """The latest year of birth that shows an age of 90 or more in ``reference_year`` (plan P4-D434)."""
+    return reference_year - TOP_CODE
+
+
+def edge_year_said(year: object) -> str:
+    """A year a sentence names, a year that shows an age of 90 or more written as the group (plan P4-D434).
+
+    A year at or before `year_cutoff` of this release's reference year is
+    written "1937 or earlier", as the year top-code writes it: the years
+    NF114 and question Q3 say a column of counted dates runs over are
+    those of its published edges, and a column of birth dates so counted
+    -- Excel serials of 1930 to 2005 -- printed 1930 in the questions file
+    and on the screen while its questions were open (lane SH2's repair 2,
+    its verify's finding 3). Any other year, or anything that is no whole
+    number, is written as it is. Guarantees: a fixed function of the
+    argument. Raises nothing. No I/O.
+    """
+    if isinstance(year, int) and not isinstance(year, bool):
+        cutoff = year_cutoff(SAFE_HARBOR_REFERENCE_YEAR)
+        if year <= cutoff:
+            return f"{cutoff} or earlier"
+    return f"{year}"
+
+
+def affixed_year(cell: str) -> "tuple[str, int, str] | None":
+    """A cell writing one four-figure year beside words or marks, as (before, year, after); None otherwise.
+
+    Plan P4-D434 (lane SH2's repair 1, skeptic 1 item 4): `born 1930`,
+    `1930?`, `c. 1930` and `1925 AD` each write the year 1930 or 1925 as
+    lane SH's `95 years` writes an age. The cell holds exactly one run of
+    figures, four long, and beside it something other than spaces; no
+    point, comma or sign stands next to the run, so it is no part of a
+    number (`1930.5`, `-1930`, `1,930` are read as numbers, if at all).
+    Guarantees: a fixed function of the cell. Raises TypeError for a cell
+    that is not text. No I/O.
+    """
+    if not isinstance(cell, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    runs = 0
+    start = 0
+    end = 0
+    inside = False
+    for place in range(len(cell)):
+        if _a_figure(cell[place]):
+            if not inside:
+                runs += 1
+                if runs > 1:
+                    return None
+                start = place
+                inside = True
+            end = place + 1
+        else:
+            inside = False
+    if runs != 1 or end - start != YEAR_DIGITS:
+        return None
+    before = cell[:start]
+    after = cell[end:]
+    if not parsing.trimmed(before + after):
+        return None
+    for character in before[-1:] + after[:1]:
+        if character in ".,+-":
+            return None
+    return before, int(cell[start:end]), after
+
+
+def _year_kind(cell: str, comma: bool, reference_year: int) -> "tuple[int, float]":
+    """What one present cell is to the year reach, and its value."""
+    if not _holds_a_figure(cell):
+        return _YEAR_ASIDE, 0.0
+    read = safe_harbor_number(cell, comma)
+    if read is None or parsing.trimmed(read.tail):
+        # ...a year beside a word or a mark (`born 1930`, `1925 AD`).
+        affixed = affixed_year(cell)
+        if affixed is None:
+            return (_YEAR_OTHER, 0.0) if read is None else (_YEAR_OUTSIDE, read.value)
+        year = float(affixed[1])
+        if _all_nines(year):
+            return _YEAR_ASIDE, year
+        if YEAR_EARLIEST <= year <= reference_year:
+            return (_YEAR_OLD if year <= year_cutoff(reference_year) else _YEAR_IN), year
+        return _YEAR_OUTSIDE, year
+    value = read.value
+    whole = value == int(value)
+    if whole and (value <= 0 or _all_nines(value)):
+        # Nought, a negative and nines alone (`9999`): placeholders.
+        return _YEAR_ASIDE, value
+    if (
+        whole
+        and not read.exponent
+        and not read.grouped
+        and len(read.whole) == YEAR_DIGITS
+        and YEAR_EARLIEST <= value <= reference_year
+    ):
+        if value <= year_cutoff(reference_year):
+            return _YEAR_OLD, value
+        return _YEAR_IN, value
+    return _YEAR_OUTSIDE, value
+
+
+def safe_harbor_years(
+    cells: "list[str]",
+    comma: bool,
+    absent: "frozenset[str]",
+    floor: int,
+    reference_year: int,
+) -> bool:
+    """Whether a column's cells, judged on their bulk, may be years of birth one of which shows an age over 89.
+
+    Plan P4-D434. Set aside whatever their share: words, the absent
+    spellings, nought, negatives, nines alone and up to three values
+    outside 1850 to ``reference_year`` that at least ``floor`` rows
+    repeat (`_placeholder_rows`); of the cells that remain, two in three
+    at least are four-figure whole years from 1850 to
+    ``reference_year`` -- written alone, with no sign of a thousands mark
+    or an exponent, or beside a word or a mark (`affixed_year`: `born
+    1930`, `1930?`) -- and one at least is at most `year_cutoff`: the
+    bulk, as lane SH's ADDENDUM 1 (2) judges the ages (lane SH2's repair
+    1, skeptic 1 item 4: a tenth of the years written in two figures put
+    the column out of reach, and it printed six years of 1922 to 1935).
+    Guarantees: a fixed function of the five. Raises TypeError for a cell
+    that is not text. No I/O.
+    """
+    taken, old, strays, remaining = _year_census(cells, comma, absent, floor, reference_year)
+    return taken > 0 and old and _BULK_PARTS * taken >= _BULK_TAKEN * remaining
+
+
+def years_with_few_strays(
+    cells: "list[str]",
+    comma: bool,
+    absent: "frozenset[str]",
+    floor: int,
+    reference_year: int,
+) -> bool:
+    """Whether a column the year reach takes holds fewer than ``floor`` other numbers beside its years (plan P4-D434).
+
+    Only then are its years pooled (`year_top_coded_cells`): the others
+    -- two-figure years (`30` for 1930), five-figure numbers -- keep
+    their spelling and could show a year the pooling hid, in a
+    percentile, a mode or the twin; with as many as the floor's rows the
+    column is held whole instead (`HELD_YEARS_BESIDE`). Guarantees: a
+    fixed function of the five. Raises TypeError for a cell that is not
+    text. No I/O.
+    """
+    _taken, _old, strays, _remaining = _year_census(cells, comma, absent, floor, reference_year)
+    return strays < max(floor, 1)
+
+
+def _year_census(
+    cells: "list[str]",
+    comma: bool,
+    absent: "frozenset[str]",
+    floor: int,
+    reference_year: int,
+) -> "tuple[int, bool, int, int]":
+    """The year reach's count of a column: its years, whether one is so early, its strays and the cells that remain."""
+    memo: "dict[str, tuple[int, float]]" = {}
+    present = 0
+    aside = 0
+    taken = 0
+    old = False
+    outside: "dict[float, int]" = {}
+    for cell in cells:
+        if cell in absent or not parsing.trimmed(cell):
+            continue
+        present += 1
+        if cell in memo:
+            kind = memo[cell]
+        else:
+            kind = _year_kind(cell, comma, reference_year)
+            if len(memo) < _SAFE_HARBOR_MEMO:
+                memo[cell] = kind
+        if kind[0] == _YEAR_ASIDE:
+            aside += 1
+        elif kind[0] == _YEAR_OUTSIDE:
+            outside[kind[1]] = (outside[kind[1]] if kind[1] in outside else 0) + 1
+        elif kind[0] != _YEAR_OTHER:
+            taken += 1
+            if kind[0] == _YEAR_OLD:
+                old = True
+    repeat = max(floor, 1)
+    aside += _placeholder_rows(outside, repeat)
+    strays = present - aside - taken
+    return taken, old, strays, present - aside
+
+
+def _year_coded_text(read: SafeHarborNumber, comma: bool, cutoff: int) -> str:
+    """A year at or before ``cutoff`` written as ``cutoff``, in the cell's own form."""
+    figures = f"{cutoff}"
+    if read.places:
+        figures = figures + ("," if comma or read.decimal_comma else ".") + "0" * read.places
+    if read.plus:
+        figures = "+" + figures
+    return read.head + figures + read.tail
+
+
+def _an_early_year(read: "SafeHarborNumber | None", cutoff: int) -> bool:
+    """Whether a number read is a four-figure whole year from 1850 to ``cutoff``."""
+    return (
+        read is not None
+        and read.value == int(read.value)
+        and not read.exponent
+        and not read.grouped
+        and not parsing.trimmed(read.tail)
+        and len(read.whole) == YEAR_DIGITS
+        and YEAR_EARLIEST <= read.value <= cutoff
+    )
+
+
+def year_top_coded_cells(
+    cells: "list[str]",
+    comma: bool,
+    absent: "frozenset[str]",
+    cutoff: int,
+) -> "list[str]":
+    """A column's cells with every year from 1850 to ``cutoff`` written ``cutoff`` (plan P4-D434).
+
+    ``cutoff`` reads "``cutoff`` or earlier", as the top-code's 90 reads
+    "90 or more", a year beside a word or a mark (`affixed_year`) in the
+    cell's own form (`born 1930` as `born 1937`); a cell spelled as one
+    of ``absent`` keeps its spelling, and every other cell is kept as
+    written (a year before 1850 is no year of a living person's birth, as
+    an age above 125 is no age).
+    Guarantees: a fixed function of the four, the cells in their order.
+    Raises TypeError for a cell that is not text. No I/O.
+    """
+    memo: "dict[str, str]" = {}
+    written: "list[str]" = []
+    for cell in cells:
+        if cell in memo:
+            written += [memo[cell]]
+            continue
+        coded = cell
+        if cell not in absent:
+            read = safe_harbor_number(cell, comma)
+            if read is not None and _an_early_year(read, cutoff):
+                coded = _year_coded_text(read, comma, cutoff)
+            else:
+                # ...a year beside a word or a mark, in the cell's own
+                # form: `born 1930` is written `born 1937`.
+                affixed = affixed_year(cell)
+                if affixed is not None and YEAR_EARLIEST <= affixed[1] <= cutoff:
+                    coded = affixed[0] + f"{cutoff}" + affixed[2]
+        if len(memo) < _SAFE_HARBOR_MEMO:
+            memo[cell] = coded
+        written += [coded]
+    return written
+
+
+def at_least_the_year_cutoff(
+    cells: "list[str]", absent: "frozenset[str]", cutoff: int
+) -> "list[str]":
+    """A twin's cells with every year from 1850 to before ``cutoff`` written at or after it (plan P4-D434).
+
+    The twin of a `top_coded_year` column writes no year before the one
+    its group names: EACH DIFFERENT such value takes the earliest year
+    from ``cutoff`` on, no later than the column's latest, that no other
+    cell holds -- every cell of that value the same one, so the column
+    keeps how many cells each value holds, as `at_most_the_top_code` does
+    -- and ``cutoff`` itself where none is free, written at the cell's
+    decimals with its spaces and sign; a cell spelled as one of
+    ``absent`` is kept. The cells are in point form, as the generator
+    writes them. Guarantees: a fixed function of the three, the cells in
+    their order. Raises TypeError for a cell that is not text. No I/O.
+    """
+    taken: "dict[int, bool]" = {}
+    latest = cutoff
+    for cell in cells:
+        if cell in absent or parsing.trimmed(cell) in absent:
+            continue
+        read = safe_harbor_number(cell, False)
+        if read is not None and not parsing.trimmed(read.tail):
+            if read.value == int(read.value) and read.value >= cutoff:
+                taken[int(read.value)] = True
+                latest = max(latest, int(read.value))
+            continue
+        affixed = affixed_year(cell)
+        if affixed is not None and affixed[1] >= cutoff:
+            taken[affixed[1]] = True
+            latest = max(latest, affixed[1])
+    chosen: "dict[tuple[float, int], int]" = {}
+    written: "list[str]" = []
+    for cell in cells:
+        read = (
+            None
+            if cell in absent or parsing.trimmed(cell) in absent
+            else safe_harbor_number(cell, False)
+        )
+        affixed = (
+            affixed_year(cell)
+            if read is None or parsing.trimmed(read.tail)
+            else None
+        )
+        if (
+            cell not in absent
+            and parsing.trimmed(cell) not in absent
+            and affixed is not None
+            and YEAR_EARLIEST <= affixed[1] < cutoff
+        ):
+            # ...a year beside a word or a mark (`born 1930`): its year is
+            # chosen as a lone number's is, and written in its own form.
+            key_affixed = (float(affixed[1]), -1)
+            if key_affixed not in chosen:
+                chosen[key_affixed] = _a_free_year(taken, cutoff, latest)
+            written += [affixed[0] + f"{chosen[key_affixed]}" + affixed[2]]
+            continue
+        if not _an_early_year(read, cutoff - 1) or read is None:
+            written += [cell]
+            continue
+        key = (read.value, read.places)
+        if key not in chosen:
+            chosen[key] = _a_free_year(taken, cutoff, latest)
+        figures = f"{chosen[key]}" + ("." + "0" * read.places if read.places else "")
+        written += [read.head + ("+" if read.plus else "") + figures + read.tail]
+    return written
+
+
+def _a_free_year(taken: "dict[int, bool]", cutoff: int, latest: int) -> int:
+    """The earliest year from ``cutoff`` to ``latest`` no cell holds, now taken; ``cutoff`` where none is free."""
+    mark = cutoff
+    while mark <= latest and mark in taken:
+        mark += 1
+    if mark > latest:
+        mark = cutoff
+    taken[mark] = True
+    return mark
+
+
+def with_year_top_code(column: ColumnProfile, cutoff: int) -> ColumnProfile:
+    """A column described with every year from 1850 to ``cutoff`` read as ``cutoff`` (plan P4-D434).
+
+    It keeps the description its top-coded cells gave and takes the key
+    `top_coded_year`, the year that reads "that year or earlier".
+    Guarantees: a fixed function of the arguments. Raises nothing. No I/O.
+    """
+    details: "dict[str, object]" = {}
+    for key in column.details:
+        details[key] = column.details[key]
+    details["top_coded_year"] = cutoff
+    return dataclasses.replace(column, details=details)
+
+
+def _published_dates(value: object, found: "list[str]") -> None:
+    """Every text of a block's details that opens as a date, `YYYY-MM`, in order."""
+    if isinstance(value, str):
+        if (
+            len(value) >= 7
+            and value[4] == "-"
+            and _figures_alone(value[:4])
+            and _figures_alone(value[5:7])
+        ):
+            found += [value]
+    elif isinstance(value, dict):
+        for key in value:
+            _published_dates(value[key], found)
+    elif isinstance(value, (list, tuple)):
+        for inner in value:
+            _published_dates(inner, found)
+
+
+def _counted_day(cell: str, member: str, mark: str) -> str:
+    """The day a cell written as a count of ``member`` names, as `YYYY-MM-DD`, or ``""``."""
+    written = date_counts.counted(member, parsing.trimmed(cell), mark)
+    if written is None:
+        return ""
+    numerator, denominator = date_counts.exact_value(written)
+    moment = date_counts.moment_of(member, numerator, denominator, date_counts.DAY)
+    if moment is None:
+        return ""
+    return date_counts.iso_text(moment, date_counts.DAY, date_counts.DAY)[:10]
+
+
+def _a_day_read(cell: str, members: "list[str]", member: str, mark: str) -> str:
+    """The day one cell names under its column's reading, `YYYY-MM-DD`, or ``""``: its first member that reads it, or its count."""
+    if member:
+        day = _counted_day(cell, member, mark)
+        if day:
+            return day
+    for one in members:
+        read = parsing.parse_datetime(cell, one) if one else None
+        if read is not None:
+            return read[0][:10]
+    return ""
+
+
+def dates_showing_an_age_over_89(
+    column: ColumnProfile,
+    cells: "list[str]",
+    absent: "frozenset[str]",
+    cutoff: int,
+    floor: int,
+    counted: str = "",
+) -> bool:
+    """Whether a column read as dates holds one in a year from 1850 to ``cutoff`` (plan P4-D434).
+
+    EVERY DIFFERENT PRESENT CELL IS READ AS ITS COLUMN READS IT (lane
+    SH2's repair 1, Codex item 1: a prefilter that wanted four figures of
+    a year in the cell let `01/02/30` -- 1930 in a declared century --
+    and `19200102` through): under each date member its reading took
+    (`resolution_mix`, else its `format`, which for a declared century is
+    the layout reading that century), and, where the column's dates are
+    written as counts of ``counted`` (a member of `date_counts`), as the
+    day its count names. And every date the block itself publishes (its
+    percentiles, tails, heavy dates, a grain's spans) is read too, the
+    backstop for a reading this walk does not model. SET ASIDE as no
+    date of birth: a built-in placeholder day
+    (`parsing.calendar_placeholders`: 1 January 1900), and up to three
+    single days that at least ``floor`` rows hold and that would show an
+    age over 125 (`TOP_CODE_REACH_CEILING`, the ages' own ceiling) --
+    `1899-12-31` or `1901-01-01` typed for "no date" beside visits of
+    2015 to 2024 (skeptic 1 item 7), never a real birth day of a person
+    who could be alive. Guarantees: a fixed function of the six. Raises
+    TypeError for a cell that is not text. No I/O.
+    """
+    placeholders = parsing.calendar_placeholders()
+    members: "list[str]" = []
+    mix = column.details["resolution_mix"] if "resolution_mix" in column.details else None
+    if isinstance(mix, dict):
+        for member in mix:
+            members += [f"{member}"]
+    if not members and "format" in column.details and isinstance(column.details["format"], str):
+        members += [f"{column.details['format']}"]
+    form = column.details["count_form"] if "count_form" in column.details else None
+    mark = date_counts.POINT
+    if isinstance(form, dict) and "mark" in form and isinstance(form["mark"], str):
+        mark = f"{form['mark']}"
+    member = counted if counted in date_counts.MEMBERS else ""
+    memo: "dict[str, str]" = {}
+    early: "dict[str, int]" = {}
+    for cell in cells:
+        if cell in absent:
+            continue
+        if cell in memo:
+            day = memo[cell]
+        else:
+            day = _a_day_read(cell, members, member, mark)
+            if not (
+                day
+                and day not in placeholders
+                and _figures_alone(day[:4])
+                and YEAR_EARLIEST <= int(day[:4]) <= cutoff
+            ):
+                day = ""
+            if len(memo) < _YEARS_MEMO:
+                memo[cell] = day
+        if day:
+            early[day] = (early[day] if day in early else 0) + 1
+    aside: "dict[str, bool]" = {}
+    oldest = cutoff + TOP_CODE - TOP_CODE_REACH_CEILING
+    held = sorted(
+        (
+            (early[day], day)
+            for day in early
+            if early[day] >= max(floor, 1) and floor > 0 and int(day[:4]) < oldest
+        ),
+        reverse=True,
+    )
+    for _count, day in held[:_PLACEHOLDERS_AT_MOST]:
+        aside[day] = True
+    for day in early:
+        if day not in aside:
+            return True
+    published: "list[str]" = []
+    _published_dates(column.details, published)
+    for text in published:
+        written = text[:10]
+        if (
+            written not in placeholders
+            and YEAR_EARLIEST <= int(text[:4]) <= cutoff
+            and not any(day[: len(written)] == written for day in aside)
+        ):
+            return True
+    return False
+
+
+def name_words(name: str) -> "list[str]":
+    """A column's name cut into its words, in small letters (plan P4-D434).
+
+    Cut at every character that is not a letter, before each capital
+    that follows a small letter, and before the last capital of a run of
+    capitals that a small letter follows: `BirthCity` is `birth`, `city`;
+    `RES_CITY_NAME` is `res`, `city`, `name`; `USCity` is `us`, `city` and
+    `COUNTYText` is `county`, `text` (lane SH2's repair 1, Codex item 3: a
+    city column named in capitals before a capitalised word published its
+    cities). Guarantees: a fixed function of the
+    name. Raises TypeError for a name that is not text. No I/O.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    words: "list[str]" = []
+    word = ""
+    previous = ""
+    for place in range(len(name)):
+        character = name[place]
+        following = name[place + 1] if place + 1 < len(name) else ""
+        if not _a_letter(character):
+            if word:
+                words += [_in_small_letters(word)]
+            word = ""
+        elif word and _a_capital(character) and previous and (
+            not _a_capital(previous)
+            or (following and _a_letter(following) and not _a_capital(following))
+        ):
+            words += [_in_small_letters(word)]
+            word = character
+        else:
+            word = word + character
+        previous = character if _a_letter(character) else ""
+    if word:
+        words += [_in_small_letters(word)]
+    return words
+
+
+def _in_small_letters(text: str) -> str:
+    """A text in small letters."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    return text.lower()
+
+
+def _a_capital(character: str) -> bool:
+    """Whether a letter is a capital: its small form is another character."""
+    if not isinstance(character, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    return character.lower() != character
+
+
+def named_as_a_place(name: str) -> bool:
+    """Whether a column's name says it holds a place smaller than a state (plan P4-D434).
+
+    A word of the name (`name_words`) is one of `PLACE_WORDS` -- but
+    `place` before `of service` or `service` -- or one of them after one
+    of `PLACE_PREFIXES` in one word (`birthcity`); or the name holds a
+    line of an address (`add` or `addr` before `line`, or `addline`,
+    `addrline`), or `census` before `tract`. Guarantees: a fixed function
+    of the name. Raises TypeError for a name that is not text. No I/O.
+    """
+    words = name_words(name)
+    for place in range(len(words)):
+        word = words[place]
+        following = words[place + 1] if place + 1 < len(words) else ""
+        if word in PLACE_WORDS:
+            exempt = False
+            if word in _NO_PLACE_AFTER:
+                for after in _NO_PLACE_AFTER[word]:
+                    if tuple(words[place + 1: place + 1 + len(after)]) == after:
+                        exempt = True
+            if not exempt:
+                return True
+        if word in _ADDRESS_LINE_WORDS and following == "line":
+            return True
+        if word == "census" and following == "tract":
+            return True
+        for opening in _ADDRESS_LINES:
+            if word[: len(opening)] == opening:
+                return True
+        if _a_place_compound(word):
+            return True
+        for prefix in PLACE_PREFIXES:
+            if len(word) > len(prefix) and word[: len(prefix)] == prefix and (
+                word[len(prefix):] in PLACE_WORDS or _a_place_compound(word[len(prefix):])
+            ):
+                return True
+    return False
+
+
+def _a_place_compound(word: str) -> bool:
+    """Whether one word of a name opens with a place word and closes as `PLACE_CLOSINGS` says (plan P4-D434).
+
+    `cityname`, `countycode`, `streetaddress`, `postalcd`,
+    `placeofbirth`, `cityofresidence`; never `placeofservice` or
+    `placeofsvc`, the place of service (lane SH2's repair 2).
+    """
+    for opening in PLACE_WORDS:
+        if len(word) <= len(opening) or word[: len(opening)] != opening:
+            continue
+        rest = word[len(opening):]
+        if rest in PLACE_WORDS or rest in PLACE_CLOSINGS:
+            return True
+        if len(rest) > len(_PLACE_CLOSING_OF) and rest[: len(_PLACE_CLOSING_OF)] == _PLACE_CLOSING_OF:
+            after = rest[len(_PLACE_CLOSING_OF):]
+            exempt = False
+            if opening in _NO_PLACE_AFTER_OF:
+                for word_after in _NO_PLACE_AFTER_OF[opening]:
+                    if after[: len(word_after)] == word_after:
+                        exempt = True
+            if not exempt:
+                return True
+    return False
+
+
+def named_as_a_coordinate(name: str) -> bool:
+    """Whether a column's name says it holds a latitude, a longitude or a coordinate pair (plan P4-D434).
+
+    A word of the name (`name_words`) is one of `COORDINATE_WORDS`, or
+    one word opens with one and closes in another or in one of
+    `COORDINATE_CLOSINGS` (`latlong`, `gpslat`), either after one of
+    `PLACE_PREFIXES` (`homelat`): the orchestrator's LANE SH2 ADDENDUM 3,
+    read with the place words' closed-list discipline -- `long` alone,
+    `plateau`, `flat`, `latency` and `coordinator` name none.
+    Guarantees: a fixed function of the name. Raises TypeError for a
+    name that is not text. No I/O.
+    """
+    for word in name_words(name):
+        if word in COORDINATE_WORDS or _a_coordinate_compound(word):
+            return True
+        for prefix in PLACE_PREFIXES:
+            if len(word) > len(prefix) and word[: len(prefix)] == prefix and (
+                word[len(prefix):] in COORDINATE_WORDS
+                or _a_coordinate_compound(word[len(prefix):])
+            ):
+                return True
+    return False
+
+
+def _a_coordinate_compound(word: str) -> bool:
+    """Whether one word of a name opens with a coordinate word and closes in another or a closing of the closed list."""
+    for opening in COORDINATE_WORDS:
+        if len(word) <= len(opening) or word[: len(opening)] != opening:
+            continue
+        rest = word[len(opening):]
+        if rest in COORDINATE_WORDS or rest in COORDINATE_CLOSINGS:
+            return True
+    return False
+
+
+def coordinate_reading(
+    cells: "list[str]", comma: bool, absent: "frozenset[str]"
+) -> str:
+    """What a column's cells are as a coordinate: a latitude's, a longitude's, or none (plan P4-D434).
+
+    Read by the profiler's own number grammar (`safe_harbor_number`):
+    once cells holding no figure and those in ``absent`` are set aside,
+    at least two in three of those that remain are numbers written with
+    `_COORDINATE_PLACES` decimals or more, no unit word after them, none
+    grouped or with an exponent, inside [-180, 180]. `COORDINATE_LATITUDE`
+    where all such numbers lie inside [-90, 90], `COORDINATE_NEAR_NOUGHT`
+    where they lie inside [-1, 1] too, else `COORDINATE_LONGITUDE`; ""
+    where the cells are not so. Guarantees: a fixed function of the
+    three. Raises TypeError for a cell that is not text. No I/O.
+    """
+    present = 0
+    decimals = 0
+    widest = 0.0
+    others = 0
+    seen: "dict[str, tuple[bool, float]]" = {}
+    for cell in cells:
+        if cell in absent or not _holds_a_figure(cell):
+            continue
+        present += 1
+        if cell in seen:
+            fits, size = seen[cell]
+        elif "." not in cell and "," not in cell:
+            # ...no point and no comma: no decimal, read without the grammar.
+            fits, size = False, 0.0
+        else:
+            read = safe_harbor_number(cell, comma)
+            fits = (
+                read is not None
+                and not read.exponent
+                and not read.grouped
+                and not parsing.trimmed(read.tail)
+                and read.places >= _COORDINATE_PLACES
+                and abs(read.value) <= _LONGITUDE_REACH
+            )
+            size = abs(read.value) if read is not None and fits else 0.0
+            if len(seen) < _SAFE_HARBOR_MEMO:
+                seen[cell] = (fits, size)
+        if fits:
+            decimals += 1
+            widest = max(widest, size)
+        else:
+            others += 1
+            if _BULK_PARTS * others > len(cells):
+                # ...more than a third of all the cells are no such decimal,
+                # so two in three of those present cannot be: settled early.
+                return ""
+    if decimals == 0 or _BULK_PARTS * decimals < _BULK_TAKEN * present:
+        return ""
+    if widest <= _NEAR_NOUGHT:
+        return COORDINATE_NEAR_NOUGHT
+    if widest <= _LATITUDE_REACH:
+        return COORDINATE_LATITUDE
+    return COORDINATE_LONGITUDE
+
+
+def coordinates_held(readings: "list[tuple[str, str]]") -> "list[str]":
+    """The columns a pair of coordinates holds, in the order given (plan P4-D434, ADDENDUM 3).
+
+    ``readings`` holds each column's name and its `coordinate_reading`.
+    A column read as a coordinate is held where ANOTHER column is read as
+    one too, one of the two at least a latitude (inside [-90, 90]), and
+    not both inside [-1, 1]. Guarantees: a fixed function of the
+    argument. Raises nothing. No I/O.
+    """
+    found: "list[str]" = []
+    for name, reading_here in readings:
+        if not reading_here:
+            continue
+        for other, reading_there in readings:
+            if other == name or not reading_there:
+                continue
+            latitude = reading_here != COORDINATE_LONGITUDE or reading_there != COORDINATE_LONGITUDE
+            near = reading_here == COORDINATE_NEAR_NOUGHT and reading_there == COORDINATE_NEAR_NOUGHT
+            if latitude and not near:
+                found += [name]
+                break
+    return found
+
+
+def _a_place_beside_its_state(text: str) -> bool:
+    """Whether a text is a place, a comma and a state's two-letter code, a ZIP code after it or not (plan P4-D434).
+
+    `Lake City, MN`, `Union City, NJ 07087`, `St. Louis, MO 63101-1234`:
+    letters, spaces, points, hyphens and apostrophes before the last
+    comma, one letter at least and no figure; one of `STATE_CODES` after
+    it, then five figures, or five, a hyphen and four, or nothing.
+    """
+    written = parsing.trimmed(text)
+    cut = written.rfind(",")
+    if cut <= 0:
+        return False
+    place = parsing.trimmed(written[:cut])
+    after = parsing.trimmed(written[cut + 1:])
+    letters = False
+    for character in place:
+        if _a_letter(character):
+            letters = True
+        elif character not in " .-'":
+            return False
+    if not letters or len(after) < 2 or after[:2] not in STATE_CODES:
+        return False
+    rest = after[2:]
+    if not rest:
+        return True
+    if rest[:1] != " ":
+        return False
+    rest = parsing.trimmed(rest)
+    return (len(rest) == 5 and _figures_alone(rest)) or (
+        len(rest) == 10 and _a_zip_plus_four(rest)
+    )
+
+
+def _mostly_beside_states(cells: "list[str]", absent: "frozenset[str]") -> bool:
+    """Whether two in three at least of a column's present cells are a place beside its state (`_a_place_beside_its_state`)."""
+    present = 0
+    beside = 0
+    memo: "dict[str, bool]" = {}
+    for cell in cells:
+        if cell in absent or not parsing.trimmed(cell):
+            continue
+        present += 1
+        if cell in memo:
+            fits = memo[cell]
+        else:
+            fits = _a_place_beside_its_state(cell)
+            if len(memo) < _SAFE_HARBOR_MEMO:
+                memo[cell] = fits
+        if fits:
+            beside += 1
+    return beside > 0 and _BULK_PARTS * beside >= _BULK_TAKEN * present
+
+
+def _a_zip3(text: str) -> bool:
+    """Whether a text is three figures and two marks, a ZIP code cut to its area: `021**`."""
+    written = parsing.trimmed(text)
+    return len(written) == 5 and _figures_alone(written[:3]) and written[3:] in _ZIP3_MARKS
+
+
+def _a_device_identifier(text: str) -> bool:
+    """Whether a text holds a unique device identifier of one of the three issuing agencies (plan P4-D434).
+
+    GS1: `(01)` and fourteen figures, spaces allowed between, anywhere in
+    the text; or, from the text's start (after a scanner's symbology mark),
+    `01`, fourteen figures and the application identifier `10`, `11`,
+    `17` or `21`. HIBCC: `+`, a labeler code of four letters or figures
+    opening with a letter, and more, eight characters at least, in
+    capitals, figures and HIBCC's marks, one a figure; or `+$` and its
+    secondary data. ICCBBA: `=/`, `=,` or `&,` and its codes, eight
+    characters at least, one a figure (lane SH2's repair 1, skeptic 1
+    item 3: the spaced form, the bare form and HIBCC's published their
+    device numbers).
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    # ...each piece after an opening `(01)`, up to the next, its spaces
+    # set aside: fourteen figures there (a next opening inside them would
+    # put a mark among them, so the pieces read as the whole text would).
+    pieces = text.split(_GS1_OPENING)
+    for piece in pieces[1:]:
+        start = 0
+        while start < len(piece) and piece[start] == " ":
+            start += 1
+        figures = piece[start: start + _GS1_FIGURES]
+        if len(figures) == _GS1_FIGURES and _figures_alone(figures):
+            return True
+    body = parsing.trimmed(text)
+    for symbology in _SYMBOLOGY_MARKS:
+        if body[: len(symbology)] == symbology:
+            body = body[len(symbology):]
+    if body[: len(_GS1_BARE)] == _GS1_BARE:
+        # ...spaces allowed after `01` and after the fourteen figures, the
+        # human-readable bare form (lane SH2's repair 2, its verify's
+        # finding 2: `01 12318051111639 17 260101 10 LOT280` published 20
+        # of 20).
+        start = _past_the_spaces(body, len(_GS1_BARE))
+        figures = body[start: start + _GS1_FIGURES]
+        following = _past_the_spaces(body, start + _GS1_FIGURES)
+        if (
+            len(figures) == _GS1_FIGURES
+            and _figures_alone(figures)
+            and body[following: following + 2] in _GS1_NEXT
+        ):
+            return True
+    if not _holds_a_figure(body) or not _udi_characters(body):
+        return False
+    if body[: len(_HIBCC_SECONDARY)] == _HIBCC_SECONDARY:
+        return len(body) >= _HIBCC_SHORTEST
+    if body[:1] == _HIBCC_OPENING:
+        labeler = body[1: 1 + _HIBCC_LABELER]
+        return (
+            len(body) >= _HIBCC_SHORTEST
+            and len(labeler) == _HIBCC_LABELER
+            and _a_letter(labeler[0])
+            and _letters_or_figures(labeler)
+        )
+    for agency in _ICCBBA_OPENINGS:
+        if body[: len(agency)] == agency and len(body) >= _ICCBBA_SHORTEST:
+            return _letters_or_figures(body[len(agency): len(agency) + 5])
+    return False
+
+
+def _past_the_spaces(text: str, start: int) -> int:
+    """The place of the first character at or after ``start`` that is no space."""
+    place = start
+    while place < len(text) and text[place] == " ":
+        place += 1
+    return place
+
+
+def _letters_or_figures(text: str) -> bool:
+    """Whether a text is letters and figures alone, one at least."""
+    if not text:
+        return False
+    for character in text:
+        if not (_a_figure(character) or _a_letter(character)):
+            return False
+    return True
+
+
+def _udi_characters(text: str) -> bool:
+    """Whether a text is capitals, figures and the marks a HIBCC or ICCBBA code writes (`_UDI_MARKS`, `=`, `&`, `,`)."""
+    for character in text:
+        if _a_figure(character) or character in _UDI_MARKS or character in "=&,":
+            continue
+        if not _a_letter(character) or not _a_capital(character):
+            return False
+    return True
+
+
+def _mostly(cells: "list[str]", absent: "frozenset[str]", devices: bool) -> bool:
+    """Whether one present cell at least of a column is a device identifier, or a ZIP area.
+
+    ``devices``: unique device identifiers (`_a_device_identifier`), else
+    ZIP codes cut to three figures (`_a_zip3`). WHATEVER THEIR SHARE (the
+    orchestrator's LANE E0c RULINGS 1 (2): lot-level UDIs are device
+    identifiers whatever their share of rows; lane SH2's repair 1,
+    skeptic 1 item 3: 40 per cent of UDIs beside NDC product codes
+    published 10 of 10 under a two-in-three share): a column holding one
+    is held whole, as a ZIP column beside a word is (lane SH's ADDENDUM 3).
+    """
+    memo: "dict[str, bool]" = {}
+    for cell in cells:
+        if cell in absent or not _holds_a_figure(cell):
+            continue
+        if cell in memo:
+            fits = memo[cell]
+        else:
+            fits = _a_device_identifier(cell) if devices else _a_zip3(cell)
+            if len(memo) < _SAFE_HARBOR_MEMO:
+                memo[cell] = fits
+        if fits:
+            return True
+    return False
+
+
+def safe_harbor_hold(
+    name: str,
+    column: ColumnProfile,
+    cells: "list[str]",
+    comma: bool,
+    floor: int,
+    reference_year: int,
+    counted: str = "",
+) -> str:
+    """Which of lane SH2's holds reaches a column, one of `SAFE_HARBOR_HOLDS`, or none (plan P4-D434).
+
+    Asked of a column lane SH's age and ZIP reach did not take, on the
+    role its cells were read as: a column read as dates holding a date
+    in a year that shows an age over 89 against ``reference_year`` (0:
+    no year rule) is `HELD_DATES`, and one read as dates counted from a
+    day whose cells, judged as lane SH judges them, are ZIP-shaped
+    numbers is `HELD_ZIP_DATES` (``counted``, the member its counts are
+    read in, or none); a column of a role that publishes its values is
+    `HELD_DEVICES` where one of its cells is a unique device identifier,
+    `HELD_ZIP3` where one is a ZIP code cut to three figures,
+    `HELD_PLACES` where its name says it holds a place
+    (`named_as_a_place`), `HELD_COORDINATES` where it says it holds a
+    coordinate (`named_as_a_coordinate`; a pair of coordinates read from
+    their cells is the caller's, `coordinates_held`), and
+    `HELD_CITY_STATES` where two in three of its cells are a place beside
+    its state (`Lake City, MN`). Guarantees: a fixed function of the seven.
+    Raises TypeError for a cell that is not text. No I/O.
+    """
+    absent = frozenset(column.absent_spellings)
+    if column.role == ROLE_DATETIME:
+        count_form = column.details["count_form"] if "count_form" in column.details else None
+        if count_form is not None and safe_harbor_reach(
+            cells, comma, absent, floor
+        ) == SAFE_HARBOR_ZIPS:
+            return HELD_ZIP_DATES
+        if reference_year and dates_showing_an_age_over_89(
+            column, cells, absent, year_cutoff(reference_year), floor, counted
+        ):
+            return HELD_DATES
+        return ""
+    if column.role in SAFE_HARBOR_UNREACHED_ROLES or column.role in ROLES_PUBLISHING_NOTHING:
+        return ""
+    if _mostly(cells, absent, True):
+        return HELD_DEVICES
+    if _mostly(cells, absent, False):
+        return HELD_ZIP3
+    if named_as_a_place(name):
+        return HELD_PLACES
+    if named_as_a_coordinate(name):
+        return HELD_COORDINATES
+    if _mostly_beside_states(cells, absent):
+        return HELD_CITY_STATES
+    return ""
 
 
 def as_counted_dates_held(column: ColumnProfile) -> ColumnProfile:
@@ -29786,6 +33454,15 @@ def _numeric_verdict(
         # count role alone: a column holding a negative is not a column
         # of codes written `007` beside `7`.
         details["number_spellings"] = _number_spellings(cells)
+    # ...AND A FEW-VALUED COLUMN WITH A WIDE GAP KNOWS ITS NUMBERS (lane GG,
+    # plan P4-D440; the stand-ins page's ZS.4): never published here. The
+    # profile command publishes them as `few_values` only after `no` to the
+    # column's Safe Harbor question (`with_few_values`), and puts that
+    # question to it meanwhile; every block is the block it was until then.
+    listed: "list[str]" = []
+    if not ("number_spellings" in details and details["number_spellings"]):
+        listed = _few_values_of(cells, details)
+    listed_rare = _few_values_rare(cells, listed)
     # A spread larger than this file format can hold is a fact the
     # profile records in a field of its own, and it is also a fact the
     # person running the tool has to be told in words: without this
@@ -29827,6 +33504,8 @@ def _numeric_verdict(
         details=details,
         notes=notes,
         remarks=remarks,
+        few_values=tuple(listed),
+        few_values_rare=listed_rare,
     )
 
 
@@ -30073,6 +33752,9 @@ class _ColumnReading:
     # counts was read, where its counts were read as dates; None on every
     # other column, and on a declared one whose counts were not.
     counted: "CountedReading | None" = None
+    # -- UN-1a (P4-D438): whether the first decision reached the affixed
+    # reading because rule 7 stood aside for a number beside a unit.
+    units_read_anew: bool = False
 
 
 def _read_the_column(
@@ -30088,6 +33770,8 @@ def _read_the_column(
     judged_candidates: "tuple[str, ...]" = (),
     stored_as: str = "",
     counted_unit: int = 0,
+    described_as_affixed: bool = False,
+    units_kept: str = "",
 ) -> _ColumnReading:
     """Apply every declaration and every judgement, and stop there.
 
@@ -30252,6 +33936,8 @@ def _read_the_column(
             forced_code=forced_code,
             forced_measurement=forced_measurement,
             described_as_pair=described_as_pair,
+            described_as_affixed=described_as_affixed,
+            units_kept=units_kept,
             stored_as=stored_as,
         )
         if trial.role == ROLE_TEXT or trial.role == ROLE_DATETIME:
@@ -30310,6 +33996,7 @@ def _read_the_column(
     # the first answer.
     removed_by_cores = 0
     judged_over_cores = False
+    units_read_anew = False
     if present and not forced_identifier:
         trial = _decision(
             cells,
@@ -30317,9 +34004,24 @@ def _read_the_column(
             forced_code=forced_code,
             forced_measurement=forced_measurement,
             described_as_pair=described_as_pair,
+            described_as_affixed=described_as_affixed,
+            units_kept=units_kept,
             stored_as=stored_as,
         )
         if trial.role == ROLE_AFFIXED:
+            # ...WHICH RULE 7 WOULD HAVE KEPT AS LABELS, had it not stood
+            # aside for a number beside a unit (plan P4-D438): rule 7's own
+            # conditions over the tally the trial read.
+            units_read_anew = (
+                not forced_code
+                and not described_as_affixed
+                and len(cells.label_counts) <= _categorical_ceiling(cells)
+                and not (
+                    stored_as == STORED_AS_CLOCKS
+                    and _a_level_is_below_the_floor(cells)
+                )
+                and _compound_reading(cells) is None
+            )
             before = len(present)
             classified, missing, verdicts = _cores_judged(
                 cells,
@@ -30390,6 +34092,8 @@ def _read_the_column(
             forced_code=forced_code,
             forced_measurement=forced_measurement,
             described_as_pair=described_as_pair,
+            described_as_affixed=described_as_affixed,
+            units_kept=units_kept,
             stored_as=stored_as,
         )
         counted_out: "tuple[str, ...]" = ()
@@ -30425,7 +34129,9 @@ def _read_the_column(
                     judged_over_days,
                     forced_measurement,
                     described_as_pair,
+                    described_as_affixed,
                     stored_as,
+                    units_kept,
                 )
                 for tally in (counted, exempt)
             ):
@@ -30446,6 +34152,8 @@ def _read_the_column(
             forced_code=forced_code,
             forced_measurement=forced_measurement,
             described_as_pair=described_as_pair,
+            described_as_affixed=described_as_affixed,
+            units_kept=units_kept,
             stored_as=stored_as,
         )
         if counted_reading is None or verdict.role != ROLE_DATETIME:
@@ -30463,6 +34171,8 @@ def _read_the_column(
                 forced_measurement=forced_measurement,
                 forced_decimal_comma=forced_decimal_comma,
                 described_as_pair=described_as_pair,
+                described_as_affixed=described_as_affixed,
+                units_kept=units_kept,
                 kept_placeholder_days=kept_placeholder_days,
                 judged_candidates=judged_candidates,
                 stored_as=stored_as,
@@ -30479,6 +34189,7 @@ def _read_the_column(
         removed_by_cores=removed_by_cores,
         judged_over_cores=judged_over_cores,
         counted=counted_reading,
+        units_read_anew=units_read_anew,
     )
 
 
@@ -30528,6 +34239,11 @@ class HeldReading:
     # -- 3b.R4 (P4-D384): the unit a column of counted dates is read at
     # (`_read_the_column`'s ``counted_unit``), nought where worked out.
     counted_unit: int = 0
+    # -- UN-1a (P4-D438): the validator's carried affixed reading, as
+    # ``described_as_pair`` carries the pair; false everywhere else.
+    described_as_affixed: bool = False
+    # ...and the reading kept from before P4-D438 (`_units_stand_aside`).
+    units_kept: str = ""
 
 
 def _same_reading(
@@ -30544,6 +34260,8 @@ def _same_reading(
     judged_candidates: "tuple[str, ...]",
     stored_as: str = "",
     counted_unit: int = 0,
+    described_as_affixed: bool = False,
+    units_kept: str = "",
 ) -> bool:
     """Whether ``held`` is the reading `_read_the_column` would return here.
 
@@ -30576,6 +34294,8 @@ def _same_reading(
         or held.forced_measurement != forced_measurement
         or held.forced_decimal_comma != forced_decimal_comma
         or held.described_as_pair != described_as_pair
+        or held.described_as_affixed != described_as_affixed
+        or held.units_kept != units_kept
         or held.stored_as != stored_as
         or held.counted_unit != counted_unit
     ):
@@ -30645,6 +34365,7 @@ def _census_reading(
         forced_measurement=forced_measurement,
         forced_decimal_comma=forced_decimal_comma,
         described_as_pair=False,
+        described_as_affixed=False,
         kept_placeholder_days=(),
         judged_candidates=(),
         reading=_read_the_column(
@@ -30781,6 +34502,8 @@ def profile_column(
     stored_one_way: bool = True,
     stored_as: str = "",
     counted_unit: int = 0,
+    described_as_affixed: bool = False,
+    units_kept: str = "",
 ) -> ColumnProfile:
     """Describe one column: its role, its statistics, what was withheld.
 
@@ -30810,6 +34533,15 @@ def profile_column(
       slashed pair of whole numbers from the values, so the checked
       file is read the way the description was (plan P4-D40,
       validation method V2.2-A2). `_decide` states what it moves.
+    - ``described_as_affixed`` is the same hand-over for a column its
+      description read as `affixed_number` from the values (plan
+      P4-D438): the checked file is read as a number beside a unit
+      wherever its cells allow. `_decide` states what it moves.
+    - ``units_kept`` is no declaration either: the column keeps the
+      reading it had before plan P4-D438, neither of rule 7's unit
+      stand-asides taken (`_units_stand_aside`). `profile.build_document`
+      passes it where the count in people refuses the stand-aside, and
+      the validator for a column its description read otherwise.
     - ``kept_placeholder_days`` is not a declaration either, and no person
       sets it: the validator hands over the placeholder days the checked
       description published as `kept_by_you` in this column, so the file
@@ -30884,6 +34616,8 @@ def profile_column(
         judged_candidates,
         stored_as,
         counted_unit,
+        described_as_affixed=described_as_affixed,
+        units_kept=units_kept,
     ):
         # The kept reading's tally carries the settings it was read
         # under, which differ from these in `person_columns` alone; the
@@ -30906,10 +34640,12 @@ def profile_column(
             forced_measurement=forced_measurement,
             forced_decimal_comma=forced_decimal_comma,
             described_as_pair=described_as_pair,
+            described_as_affixed=described_as_affixed,
             kept_placeholder_days=kept_placeholder_days,
             judged_candidates=judged_candidates,
             stored_as=stored_as,
             counted_unit=counted_unit,
+            units_kept=units_kept,
         )
     cells = read.cells
     present = read.present
@@ -30963,7 +34699,9 @@ def profile_column(
             forced_code=forced_code,
             forced_measurement=forced_measurement,
             described_as_pair=described_as_pair,
+            described_as_affixed=described_as_affixed,
             stored_as=stored_as,
+            units_kept=units_kept,
         )
 
     by_source, by_class, n_blank, n_withheld = _missing_maps(
@@ -31140,6 +34878,9 @@ def profile_column(
         sentinel_verdicts=entries,
         n_sentinel_candidates_unpublished=unpublished,
         absent_spellings=_spellings_of(missing),
+        units_read_anew=read.units_read_anew and verdict.role == ROLE_AFFIXED,
+        few_values=verdict.few_values,
+        few_values_rare=verdict.few_values_rare,
     )
 
 

@@ -392,6 +392,13 @@ def test_the_writer_never_marks_a_cell_a_date_it_cannot_carry(
     cell a date cell, and openpyxl still opens the twin. A twin no
     reader can open is never acceptable, so this rule is stated in two
     places on purpose.
+
+    THE SUBJECT NEEDS A STAND-IN THAT NAMES NO DAY (plan P4-D442). Since
+    lane HB a published form of a date is filled with valid dates
+    (`generation._date_form_fields`, method G8.3's rule 6), so the twin's
+    free-text stand-ins name days and the writer rightly marks them; rule
+    6 is withdrawn here so the cell this test is about arises again, and
+    put back after it to show every date cell it then writes is a day.
     """
     _without_the_stored_reading(monkeypatch)
     monkeypatch.setattr(dialect, "sheet_date_on_the_calendar", lambda text: text)
@@ -404,6 +411,10 @@ def test_the_writer_never_marks_a_cell_a_date_it_cannot_carry(
             else _SHIPPED_FITS(kind, text)
         ),
     )
+    from synthtwin import generation
+
+    rule_six = generation._date_form_fields
+    monkeypatch.setattr(generation, "_date_form_fields", lambda form, dated=False: None)
     table = tmp_path / "table.xlsx"
     table.write_bytes(_dated_book())
     assert _quiet(
@@ -419,4 +430,17 @@ def test_the_writer_never_marks_a_cell_a_date_it_cannot_carry(
         sheet = packed.read("xl/worksheets/sheet1.xml").decode("utf-8")
     # Not one date cell is written, although the class was handed out.
     assert _date_cells(sheet) == []
+    crosscheck.reader().load_workbook(twin)
+    # ...and with rule 6 put back, every cell the writer marks a date is a
+    # real calendar day.
+    monkeypatch.setattr(generation, "_date_form_fields", rule_six)
+    assert _quiet(
+        ["generate", f"{tmp_path / 'table-profile.json'}", "--out-dir",
+         f"{tmp_path}", "--replace", "--seed", "0"]
+    ) == 0
+    with zipfile.ZipFile(twin) as packed:
+        dated = _date_cells(packed.read("xl/worksheets/sheet1.xml").decode("utf-8"))
+    assert dated
+    for cell in dated:
+        datetime.date.fromisoformat(cell[:10])
     crosscheck.reader().load_workbook(twin)

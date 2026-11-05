@@ -88,7 +88,7 @@ def _loaded(description: pathlib.Path) -> contract.Profile:
 # -- 1. every byte as before -----------------------------------------------
 
 _LATIN = (
-    "name,town,score\n"
+    "name,word,score\n"
     + "".join(
         f"P{index:03d},{('Montréal', 'Zürich', 'Ålesund', 'Köln')[index % 4]},{index % 17}.5\n"
         for index in range(240)
@@ -171,6 +171,17 @@ _TABLES: "dict[str, tuple[str, typing.Callable[[], bytes], tuple[str, ...]]]" = 
 # figures wide, under the rule's five-figure line since repair 1, and
 # write base ccebc947's bytes again.
 #
+# `latin` RE-MEASURED AT BATCH 4M'S MERGE OF LANE SH2 (plan P4-D434,
+# 2026-11-01): the column named `town` is a place smaller than a state,
+# held until `no` to the Safe Harbor question, so its 240 cells move
+# (`Zürich` became a made-up value) and `name` and `score` keep their
+# bytes; the frozen assembly still writes the command's. (a5702b71 read
+# c5a78f1a7c29....) RENAMED AT BATCH 4N (push critic 17's m5, BATCH 4n
+# OWES 7): `town` was the table's one column of accented words, so its twin
+# no longer wrote a Latin-1 byte; named `word`, no place, its twin writes
+# `Zürich` and the others again, which the case below asserts. (279e0c8d....
+# with `town` held.)
+#
 # `texts` RE-MEASURED AT BATCH 4L PART B'S MERGE OF LANE ID-ROOM (plan
 # P4-D432, 2026-10-29): generation's final pass spells every made-up
 # record number off the real ones, so the held `record` column moves on
@@ -178,9 +189,12 @@ _TABLES: "dict[str, tuple[str, typing.Callable[[], bytes], tuple[str, ...]]]" = 
 # column keeps its bytes; the frozen assembly still writes the command's
 # bytes. The merge of lane HX5 alone (f2fb4a52) wrote aca86e0f....
 _BEFORE_SHA256 = {
-    "latin": "c5a78f1a7c2980c4913bfe4e220cd321f70cb28d0305df1898b02ba4519bc09c",
-    "sorted": "f88db8f7772084ce124ba6569786b8313e6a59a1aa88bb53944e098847b50592",
-    "sorted_floor_one": "2b9a8ad0672a409a26b9eb4f4260c280348ae0b553f744d78ee050c8fda41b46",
+    "latin": "29abc523a99d85de8c75c29ea57b1a22ca575bb62d911425a336efc261a7cf0e",
+    # ...the sorted table's first column named `rank` since lane HB's merge (its
+    # key-name question holds a column named `key`, plan P4-D442): re-measured,
+    # and batch 4m's own code writes the same bytes for the renamed table.
+    "sorted": "2bf65964e8ef4c17cdad34d45a1895ae68dac5e80e1bd60a56be2e49283ff107",
+    "sorted_floor_one": "acf24d3cc5df502ab817ba194a8c33242e5593e923c90282e9b0838a3b85b316",
     "sparse": "829f54e6618b56cd54b38be8f1fedc660a4fa6c4f55037969ee802aa622b7e3e",
     "sparse_floor_one": "d32dc86c471fa47d5a7d68a8118ae7c2871540f18b7adf2fbcd170f830725b27",
     "texts": "b723a9c5ed91cca010b3ec333b74b153b96eb7905d273ca595c7bb14552c8f87",
@@ -201,6 +215,9 @@ def test_the_command_writes_the_bytes_the_frozen_assembly_writes(
     after = cases.after_bytes(description, SEED)
     assert after == before, case
     assert hashlib.sha256(after).hexdigest() == _BEFORE_SHA256[case], case
+    if case == "latin":
+        # ...and the Latin-1 table's twin holds its accented words in Latin-1 (BATCH 4n OWES 7).
+        assert "Zürich" in after.decode("latin-1"), case
 
 
 def test_every_seeded_table_has_its_digest() -> None:

@@ -1037,6 +1037,30 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
     # more twin of walk-ins on a booking grid files it.
     walked = _described(tmp_path, _clock_minute_table(), None, stem="walked")
     walked_twin = rendering.twin_csv(generation.generate(walked, SEED))
+    # ...AND SO IS A FEW-VALUED COLUMN'S LIST (lane GG, plan P4-D440): it
+    # is published only after `no` to the column's Safe Harbor question,
+    # which no fixture of this battery answers, so one score beside -99,
+    # released, files `numeric.few_values`.
+    listed_table = fixtures.write(
+        tmp_path,
+        "listed.csv",
+        fixtures.single_column_table(
+            "score", [("-99", "1", "2", "3", "4", "5")[place % 6] for place in range(120)]
+        ),
+    )
+    few_listed = contract.load_profile(
+        str(
+            fixtures.write_profile(
+                tmp_path,
+                "listed-profile.json",
+                profile.build_document(
+                    reading.read_table(str(listed_table)), SETTINGS, [],
+                    safe_harbor_no=["score"],
+                ),
+            )
+        )
+    )
+    few_listed_twin = rendering.twin_csv(generation.generate(few_listed, SEED))
     for name, described, twin in runs + [
         ("spelled-codes", spelled, spelled_twin),
         ("workbook", booked, book.read_bytes()),
@@ -1046,6 +1070,7 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
         ("tenths", tenths, tenths_twin),
         ("clock-fields", fielded, fielded_twin),
         ("clock-minutes", walked, walked_twin),
+        ("listed", few_listed, few_listed_twin),
     ]:
         outcome = _measured(tmp_path, described, twin, f"{name}.csv")
         for check in outcome.checks:
@@ -5554,6 +5579,11 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("marked-dx_code", "forms.published.@%%.%"),
             ("reshaped-dx_code", "forms.published.@%%.%%"),
             ("reshaped-dx_code", "forms.published.@%%.%%%"),
+            # RULE A2'S POSITIONAL CENSUS (lane CODES-1, plan P4-D439,
+            # validation V16.2): a figure appended to every cell takes
+            # every held-back cell out of `@%%.%`, so no listed character
+            # holds the census line there.
+            ("reshaped-dx_code", "places.published.@%%.%"),
             ("marked-dx_code", "levels.e11.9.count"),
             ("reshaped-dx_code", "levels.e11.9.label"),
             ("marked-dx_code", "levels.e11.9.shape_form_cells"),
@@ -7228,6 +7258,11 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("label", "forms.published.@%%.%"): "label.shape_forms",
     ("label", "forms.published.@%%.%%"): "label.shape_forms",
     ("label", "forms.published.@%%.%%%"): "label.shape_forms",
+    # ...and rule A2's positional census beside it (lane CODES-1, plan
+    # P4-D439, validation V16.2): one subcheck per form the census lists,
+    # named by the form, so only the form the shaped-text fixture's
+    # label column lists needs a row here.
+    ("label", "places.published.@%%.%"): "label.shape_form_places",
     ("numeric", "counts.affix_prefix"): "affixed.affix_prefix",
     ("numeric", "counts.affix_suffix"): "affixed.affix_suffix",
     ("numeric", "counts.n_affixed"): "affixed.n_affixed",

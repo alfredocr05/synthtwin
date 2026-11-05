@@ -2411,7 +2411,10 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   holds, and no written file is checked against it. Each is a listing
   entry citing the plan, never a check that cannot fail; every other
   identifier check stands as before, the census entries of the layouts
-  carrying an exclusion among them. A description publishing no
+  carrying an exclusion among them, but for a layout of figures alone whose
+  exclusion opens with a nought (lane HB, plan P4-D442): its twin values wear
+  that layout's zero fill, kept at their width, so its entry is REPORT-ONLY
+  as a layout with no exclusion is (`parsing.leaves_its_layout`). A description publishing no
   exclusion lowers nothing. A real table validated against its own
   description holds every one of these facts and is simply not asked
   them here.
@@ -4185,3 +4188,52 @@ real table is not refused for its own ages.
 read under the top-code through the redescription alone; the checks that
 count the file's own cells read its cells as written, as V14.3 states for
 the grain.
+
+**V15.4 The Safe Harbor years (lane SH2, plan P4-D434).** A column whose
+block carries `top_coded_year` (contract TC2) is read the same way: every
+cell of the checked file that reads as a four-figure whole year from 1850
+to the block's year, alone or beside a word or a mark (`born 1930`), is
+read as that year in the cell's own form, a cell
+read as no value kept as written, before both redescriptions and every
+check that counts the file's own cells (`profile.build_document`'s
+``year_top_coded_only``, `validation._year_top_coded_table`); the year is
+the block's, never the clock's, so a file checked in a later year is
+read as it was described. Measured on K-S3-64's top-coded year shape at
+600 and 20,000 rows: the twin and the real table both at exit 0.
+
+## V16. Held-back codes written in pattern (lane CODES-1, plan P4-D439)
+
+**V16.1 Rule A1, read alike.** A label column whose block carries
+`shape_forms_absorbed` (contract C6-31g) is recounted as its producer
+counted it: the checked file's cells wearing a form the census names
+nowhere, neither as written nor as its lower-case key, whose room holds
+the column's published different values and the floor and which fewer
+cells than the census line wear in this file -- the forms the floor
+would pool here (`taxonomy.floor_pooled_forms`) -- are counted in the
+named form, before the floor's cut, and every count is checked as
+exactly as before (`validation._form_recount`). A block without the key
+is recounted as written.
+
+**V16.2 Rule A2's census, held.** For each form a label column's
+`shape_form_places` names (contract C6-31h), one entry
+`places.published.<form>`: over the file's cells counted under that form,
+as the level entries speak of them, whose label no published level names,
+every listed character is held at its place by at least the census line
+(`small_cell_floor`, and never under two), HELD, or some is not, MISSED,
+with how many fall short and no count under the line printed
+(`validation._place_checks`). The real table meets it by construction; a
+twin meets it where its stand-ins put each listed character on the line
+(method G8.3, rule A2). What a place does not list is a bound on the
+table and not on a twin (P4-D439's reading of the stand-ins page's ZS.11
+item 6), and the count is in cells, not in people: beside a subject
+column the producer's people count is the stricter one, and a file
+carries no subject the validator could count its characters in.
+
+**V16.3 The pooled mean's window on a grain.** Where every published
+number of a label column is a whole number of figures alone and their
+grain, held to the room rule, is ten or more
+(`parsing.whole_number_grain` over the published labels and
+`suppressed_levels`), G12.12's window on `suppressed_numbers.mean` is
+drawn on that grid -- twice the grain either side -- as the generator
+placed the pool on it (`taxonomy.pooled_window`); a real file meets it,
+its own mean being the published one.

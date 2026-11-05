@@ -158,9 +158,10 @@ def _top_coded_since_sh(folder: pathlib.Path, stem: str, column: "dict") -> None
     assert column.get("top_coded") == 90, sorted(column)
     shown = [f"{value}" for value in _printed(column)]
     numbers = [float(match.group(1)) for match in (LEVEL_NUMBER.fullmatch(text) for text in shown) if match]
-    # A RUNG BETWEEN THE TOP-CODE AND A PLACEHOLDER KEPT AS WRITTEN names no age of the table (`p99` 99.09 between
-    # 90 and twenty `999`), as lane SH's gate counts only the table's own ages: whole years above 89.
-    assert not [number for number in numbers if 90 < number <= 125 and number == int(number)], shown
+    # ANY NUMBER ABOVE 90 IS COUNTED, a rung included (BATCH 4l OWES 4, restored at lane SH2's merge, plan P4-D434,
+    # the orchestrator's LANE SH2 ADDENDUM 1): beside twenty `999` the base printed `p99` 99.09, a rung between the
+    # top-code and a placeholder kept as written; lane SH2 sets every placeholder aside before any rung is drawn.
+    assert not [number for number in numbers if 90 < number <= 125], shown
     assert _asked_of(folder, stem, f"{column['name']}") == [asking.SAFE_HARBOR_TOP_CODED]
 
 
@@ -947,11 +948,16 @@ def test_gg_reads_the_categories_ceiling_and_days_supply_falls_inside_it() -> No
     assert "`taxonomy.categories_ceiling`" in page
 
 
-def test_the_mark_set_today_is_the_thirteen_the_page_widens() -> None:
-    assert parsing.SHAPE_MARKS == "-./_:#*()[]+,"
-    assert len(parsing.SHAPE_MARKS) == 13
-    for mark in "=|;^~":
+def test_the_mark_set_is_the_thirteen_and_the_mark_the_page_widened_it_by() -> None:
+    # Lane CODES-1 (plan P4-D439) built `=` of the five this page names;
+    # `|`, `;`, `^` and `~`, a list's separators, wait for lane LISTS (the
+    # lane's spec: only where a reading of lists makes them safe).
+    assert parsing.SHAPE_MARKS == "-./_:#*()[]+,="
+    assert len(parsing.SHAPE_MARKS) == 14
+    for mark in "|;^~":
         assert mark not in parsing.SHAPE_MARKS
+    assert parsing.shape_form("3+4=7") == "%+%=%"
+    assert parsing.shape_form("DEM|LANGUAGE:spa") == ""
     assert "today the thirteen `-./_:#*()[]+,`) gains `=`, `|`, `;`, `^` and `~`" in _flat(_page())
 
 
@@ -967,7 +973,11 @@ def test_the_twelve_kinds_are_the_ones_the_zoo_owns_to_the_four_lanes() -> None:
         kind for kind, lines in health_zoo.OWNERS.items()
         if any(owner in FOUR for owner, _gap, _covers in lines)
     )
-    assert owned == sorted(TWELVE)
+    # ...LESS THE KINDS A LANE OF THE FOUR HAS CLOSED SINCE THE PAGE: lane
+    # GG (plan P4-D440) lists the surveys' scores, so `surveys_pro` passes
+    # and its OWNERS line is gone. The page keeps its twelve as written.
+    closed = ("surveys_pro",)
+    assert owned == sorted(kind for kind in TWELVE if kind not in closed)
     page = _flat(_page())
     assert ", ".join(f"`{kind}`" for kind in TWELVE[:-1]) + f" and `{TWELVE[-1]}`" in page
 

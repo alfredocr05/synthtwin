@@ -490,7 +490,13 @@ def test_l6_q5_asks_no_four_figure_year(tmp_path: pathlib.Path) -> None:
     assert not _q5_asked(questions)
 
 
-def test_l6_an_answer_of_1930_reads_the_birth_dates_right(tmp_path: pathlib.Path) -> None:
+def test_l6_an_answer_of_1930_reads_the_birth_dates_right(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Births of the 1930s: lane SH2 (plan P4-D434) holds such dates until
+    # its Safe Harbor question is answered; this test is about the century,
+    # so the person answers `no` to that question.
+    keyboard.sh2_answered_no(monkeypatch)
     cells = _births(ROWS)
     block, profile, questions = _described(tmp_path / "asked", cells)
     assert block["format"] == "two-digit-month-first-date"
@@ -661,7 +667,9 @@ def _births_padded(rows: int) -> "list[str]":
     return found
 
 
-def test_item1_a_declared_century_reads_every_cell_its_member_read(tmp_path: pathlib.Path) -> None:
+def test_item1_a_declared_century_reads_every_cell_its_member_read(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Item 1: the answer to Q5 changes the century and nothing else.
 
     The member reads every cell, its spaces set aside; answered 1930, the
@@ -672,6 +680,10 @@ def test_item1_a_declared_century_reads_every_cell_its_member_read(tmp_path: pat
     taken from the untrimmed texts (no candidate at all); NF112 replaced
     by NF42's sentence.
     """
+    # Births of the 1930s: lane SH2 (plan P4-D434) holds such dates until
+    # its Safe Harbor question is answered; this test is about the century,
+    # so the person answers `no` to that question.
+    keyboard.sh2_answered_no(monkeypatch)
     cells = _births_padded(ROWS)
     block, _profile, _questions = _described(tmp_path / "posix", cells)
     assert block["format"] == "two-digit-month-first-date" and block["n_unparsed"] == 0
@@ -888,8 +900,14 @@ def _births_table(folder: pathlib.Path, name: str) -> pathlib.Path:
     return table
 
 
-def test_clic_a_column_named_with_an_equals_sign_takes_its_century(tmp_path: pathlib.Path) -> None:
+def test_clic_a_column_named_with_an_equals_sign_takes_its_century(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """`--century` splits at its LAST equals sign. Mutant, run: split at the first."""
+    # Births of the 1930s: lane SH2 (plan P4-D434) holds such dates until
+    # its Safe Harbor question is answered; this test is about the century,
+    # so the person answers `no` to that question.
+    keyboard.sh2_answered_no(monkeypatch)
     table = _births_table(tmp_path, "a=b")
     assert _exit_of(
         ["profile", str(table), "--out-dir", str(tmp_path), "--replace", "--century", "a=b=1930"]
@@ -1003,13 +1021,19 @@ def test_narr_a_century_is_read_only_in_its_own_column() -> None:
     assert taxonomy.century_window_of(taxonomy.for_the_column(settings, "seen_on")) == 0
 
 
-def test_band_a_layout_writes_back_only_the_years_it_reads(tmp_path: pathlib.Path) -> None:
+def test_band_a_layout_writes_back_only_the_years_it_reads(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The readable band of a layout: its year band, or its window. Mutant, run: any year.
 
     Oracle `DD-MON-RR` births of 1935 to 2004 answered 1930: the twin's
     tails stay in 1930 to 2029, so every cell reads back in the century
     its description says, and the twin validates.
     """
+    # Births of the 1930s: lane SH2 (plan P4-D434) holds such dates until
+    # its Safe Harbor question is answered; this test is about the century,
+    # so the person answers `no` to that question.
+    keyboard.sh2_answered_no(monkeypatch)
     first, last = parsing.readable_days("layout {DD}-{MON}-{YY1930}")
     assert (first, last) == (
         parsing.days_from_civil(1930, 1, 1), parsing.days_from_civil(2029, 12, 31)
@@ -1671,7 +1695,9 @@ def test_codex_item3_a_run_every_cell_of_which_ends_in_a_suffix_is_asked(
     assert _validated(profile, twin)[0] == 0
 
 
-def test_codex_item5_q5_is_asked_beside_the_codes_question(tmp_path: pathlib.Path) -> None:
+def test_codex_item5_q5_is_asked_beside_the_codes_question(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Item 5: a column read as dates only once its codes are answered is asked its century too.
 
     970 consecutive births from the 1st of January 1931, written `01JAN31`,
@@ -1685,6 +1711,10 @@ def test_codex_item5_q5_is_asked_beside_the_codes_question(tmp_path: pathlib.Pat
     the codes question's columns not handed to Q5, as before; the choices
     saying what the column publishes now, which is labels.
     """
+    # Births of the 1930s: lane SH2 (plan P4-D434) holds such dates until
+    # its Safe Harbor question is answered; this test is about the century,
+    # so the person answers `no` to that question.
+    keyboard.sh2_answered_no(monkeypatch)
     start = datetime.date(1931, 1, 1)
     cells = [
         (start + datetime.timedelta(days=day)).strftime("%d%b%y").upper() for day in range(970)
@@ -2274,7 +2304,7 @@ def test_cxv_item2a_the_choice_stops_only_at_a_layout_reading_every_row() -> Non
 
 
 def test_cxv_item2b_q5_is_asked_beside_the_codes_question_of_a_member_column(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Item 2 (b): Q5 is handed every coded column read with a two-figure year, not only a layout's.
 
@@ -2286,6 +2316,10 @@ def test_cxv_item2b_q5_is_asked_beside_the_codes_question_of_a_member_column(
     Q5 handed only the coded columns read under a layout, and the file asks
     about the code alone -- item 5's failure again, on a member's column.
     """
+    # Births of the 1930s: lane SH2 (plan P4-D434) holds such dates until
+    # its Safe Harbor question is answered; this test is about the century,
+    # so the person answers `no` to that question.
+    keyboard.sh2_answered_no(monkeypatch)
     start = datetime.date(1931, 1, 1)
     cells = [(start + datetime.timedelta(days=day)).strftime("%d/%m/%y") for day in range(970)]
     cells += ["UNK"] * 30
@@ -4747,7 +4781,9 @@ def _ambiguous_beside_text() -> "list[str]":
     ]
 
 
-def test_r2c_codex_item7_q6_stands_beside_q5(tmp_path: pathlib.Path) -> None:
+def test_r2c_codex_item7_q6_stands_beside_q5(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Item 7: births written `DDMONYY` asked Q6 are asked their century in the same file.
 
     f4623cc asked Q6 alone, and the run answering `dates` read the
@@ -4756,6 +4792,10 @@ def test_r2c_codex_item7_q6_stands_beside_q5(tmp_path: pathlib.Path) -> None:
     answering run reads 1931 to 1933. Mutant, run: Q6's centuries not
     handed to Q5, red here.
     """
+    # Births of the 1930s: lane SH2 (plan P4-D434) holds such dates until
+    # its Safe Harbor question is answered; this test is about the century,
+    # so the person answers `no` to that question.
+    keyboard.sh2_answered_no(monkeypatch)
     cells = _births_beside_text()
     _block, _profile, questions = _described(tmp_path / "asked", cells)
     entries = questions["asked"]
@@ -5186,7 +5226,7 @@ _CODEX_MUTANTS = {
     "all_different_unchecked": ("test_r2c_codex_item4_a_partial_column_keeps_its_values_all_different", ()),
     "no_second_look": ("test_r2c_codex_item5_row_order_does_not_decide_a_partial_column", ("forward",)),
     "the_sample_decides": ("test_r2c_codex_item6_the_sample_does_not_put_q6_below_the_half", ("forward",)),
-    "q6_centuries_not_handed_on": ("test_r2c_codex_item7_q6_stands_beside_q5", ()),
+    "q6_centuries_not_handed_on": ("test_r2c_codex_item7_q6_stands_beside_q5", ("monkeypatch",)),
     "q6_order_not_handed_on": ("test_r2c_codex_item7_q6_stands_beside_q1", ()),
     "every_unread_cell_apart": ("test_r2c_codex_item8_generation_and_validation_give_one_count_window", ()),
     "oracle_drops_the_mark": ("test_r2c_codex_item9_the_oracle_carries_the_declaration", ()),

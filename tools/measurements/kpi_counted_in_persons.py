@@ -99,6 +99,20 @@ def count_off() -> "typing.Iterator[None]":
 # Lane PS's repair round 2 (P4-D417): a held column of dates writes valid
 # dates (the G1 floor), and no valid ISO date is as long as the real
 # column's withheld `NOT DONE YET` or as short as its withheld `pending`.
+#
+# EACH LINE RESTATED BY LANE HB (plan P4-D442, 2026-10-28), measured on
+# lane ID-ROOM's head daed36fb and on lane HB's head alike
+# (wave6/HB/b2-genlimits-*.log): `caps-2000` and `caps-20000` miss five and
+# six of their names' layouts (the census packing's even spread over five
+# layouts and more beside a pool; lane HB's walk keeps their folded count);
+# `unread-2000` misses `length.max` and `pending-2000` `length.min`, at
+# 2,000 rows only -- at 20,000 rows (2,000 people, three of them `pending`)
+# the held column's twin validates at exit 0 -- so both stand below the
+# table floor alone (P4-D425 refuses them there once it merges);
+# `z-patients` misses `n_code_alphabet` and three layouts and
+# `z-diagnoses_procedures` its four class counts and `all_whole_numbers`,
+# the catalogue at 600 rows. Each a named limit of the identifier
+# generator, owner lane HB2 (the census packing of held names and codes).
 GENERATOR_LIMITS = ("z-diagnoses_procedures", "z-patients", "g-caps-2000", "g-caps-20000",
                     "g-unread-2000", "g-pending-2000")
 

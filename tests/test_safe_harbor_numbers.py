@@ -74,6 +74,15 @@ and a column in the age reach is top-coded whatever its other answer,
 the twin 572 cells over 90). The zoo answers that question truthfully:
 `yes`, a ZIP names a place smaller than a state. The mutants of
 wave6/SH/r3/sh_mutants_r3.py turn it red.
+
+THE SUITE'S TIME (the orchestrator's rule of 2026-10-26; batch 4l OWES 3,
+lane SPD, plan P4-D444): this file took 2,705.8 s, most of it in its
+20,000-row grids. Every 600-row case stays here, and ONE 20,000-row case
+(`safe_harbor_checks.KEPT_AT_20000`) as the floor-size proof; every other
+20,000-row case -- the unanswered shapes, the answered ones, the zoo's ZIP
+codes and the padded cell answered `measurement` -- runs in
+`tools/measurements/kpi_safe_harbor_numbers.py` under `kpi_run.py --slow`
+(K-HZ-15), through the same checks (`tests/safe_harbor_checks.py`).
 """
 
 from __future__ import annotations
@@ -81,74 +90,25 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import pathlib
-import re
+import subprocess
+import sys
 import time
 
 import pytest
 
 from synthtwin import asking, cli, taxonomy
 
+import safe_harbor_checks as checks
 import unanswered_identifier_shapes as shapes
 
-# The held block's validation limit at 20,000 rows (plan P4-D427, stated).
-_HELD_LIMITS_AT_20000 = shapes.SAFE_HARBOR_HELD_LIMITS_AT_20000
-# A column held as record numbers: its real table misses the census of
-# repetition its held block publishes absorbed, as every held block's
-# real table does (plan P4-D401; measured on the held ZIP shapes, which
-# no top-code reaches).
-_HELD_REAL_MISSES = {"distinct.n_distinct_by_occurrences"}
-_SUMMARY_LINE = "ages over 89: every value above 89 is read as 90"
-_MISSED = re.compile(r"^\s+(\S+) \[[^\]]+\]: MISSED", re.M)
-
-
-def _check(seen: "dict[str, object]", kind: str, rows: int) -> None:
-    assert seen["profile_exit"] == 0 and seen["generate_exit"] == 0, seen
-    if not (
-        (rows >= 20000 and kind in _HELD_LIMITS_AT_20000)
-        or (rows < 20000 and kind in shapes.SAFE_HARBOR_HELD_LIMITS_AT_600)
-    ):
-        assert seen["validate_exit"] == 0, seen
-    elif kind in shapes.AGES:
-        # ...and a limit of the twin is the control table's own, never the
-        # top-code's (the second repair: `ages4ph`, `agescomma`).
-        assert seen["twin_misses"] == seen["control_twin_misses"], seen
-    assert seen["description_values"] == 0, seen
-    assert seen["description_fragments"] == 0, seen
-    assert seen["twin_cells"] == 0, seen
-    assert seen["twin_fragments"] == 0, seen
-    asked = seen["asked"]
-    assert isinstance(asked, list) and len(asked) == 1, seen
-    offered = asked[0]
-    assert isinstance(offered, list)
-    harbor = [asking.ANSWER_SAFE_HARBOR_NO, asking.ANSWER_SAFE_HARBOR_YES]
-    if kind in shapes.AGES:
-        assert seen["top_coded"] == taxonomy.TOP_CODE, seen
-        # THE SUMMARY SAYS SO (skeptic 1 of lane SH, item 11).
-        assert _SUMMARY_LINE in f"{seen['summary']}", seen
-        # THE REAL TABLE MEETS ITS OWN DESCRIPTION, read under the top-code.
-        if seen["role"] == taxonomy.ROLE_IDENTIFIER:
-            assert set(_MISSED.findall(f"{seen['real_quality']}")) <= _HELD_REAL_MISSES, seen
-        else:
-            assert seen["validate_real_exit"] == 0, seen
-        assert (
-            offered == harbor and seen["read_as_now"] == [asking.SAFE_HARBOR_TOP_CODED]
-            and "THE SAFE HARBOR QUESTION" in f"{seen['screen']}"
-        ) or (
-            asking.ANSWER_IDENTIFIER in offered
-            and seen["read_as_now"] == [asking.ANSWER_IDENTIFIER]
-            and seen["role"] == taxonomy.ROLE_IDENTIFIER
-        ), seen
-    else:
-        assert seen["role"] == taxonomy.ROLE_IDENTIFIER, seen
-        # ONE QUESTION A COLUMN: the Safe Harbor question, or the question
-        # offering `identifier` already put, which holds it meanwhile.
-        assert (
-            offered == harbor and seen["read_as_now"] == [asking.ANSWER_SAFE_HARBOR_YES]
-        ) or (
-            asking.ANSWER_IDENTIFIER in offered
-            and seen["read_as_now"] == [asking.ANSWER_IDENTIFIER]
-        ), seen
+_HELD_REAL_MISSES = checks.HELD_REAL_MISSES
+_MISSED = checks.MISSED
+_check = checks.check
+_profile = checks.profile
+_block = checks.block
+_published_numbers = checks.published_numbers
 
 
 @pytest.mark.parametrize("kind", shapes.SAFE_HARBOR_NUMBERS)
@@ -159,16 +119,124 @@ def test_no_zip_and_no_age_over_89_is_published_at_600_rows(
     _check(shapes.run_safe_harbor(tmp_path, kind, 600), kind, 600)
 
 
-@pytest.mark.parametrize("kind", shapes.SAFE_HARBOR_NUMBERS)
+@pytest.mark.parametrize("kind", [checks.KEPT_AT_20000])
 def test_no_zip_and_no_age_over_89_is_published_at_20000_rows(
     tmp_path: pathlib.Path, kind: str
 ) -> None:
-    """The owner's table floor: the same at 20,000 rows, where each shape was measured live."""
-    _check(shapes.run_safe_harbor(tmp_path, kind, 20000), kind, 20000)
+    """The owner's table floor: the same at 20,000 rows, where each shape was measured live.
+
+    One shape here, the floor-size proof; the others at 20,000 rows run in
+    K-HZ-15's driver through the same check (plan P4-D444), each count by
+    the counter linear in the data.
+    """
+    _check(shapes.run_safe_harbor(tmp_path, kind, 20000, linear=True), kind, 20000)
 
 
+def test_the_linear_count_of_ages_is_the_regular_expressions_count() -> None:
+    """The 20,000-row cases count ages by `shapes.number_token_counts`, each text read once (plan P4-D444).
+
+    It must read what `_number_tokens` reads, value by value, on the forms
+    a description writes: a number alone, with `.0` or `.00`, beside a
+    point, a letter or a comma, padded, inside a longer run and negative.
+    """
+    text = ("103 103.0 103.00 103.5 1030 0103 x103y 103. .103 103,5 -103 "
+            "p99: 99.09, \"max\": 104, [95, 96.0] 2103 103.001 103.0.5 99")
+    counted = shapes.number_token_counts(text)
+    for value in ("103", "99", "104", "95", "96", "2103", "1030", "0103", "5", "9"):
+        assert counted.get(value, 0) == shapes._number_tokens(value, text), value
+
+
+_DRIVER = pathlib.Path(__file__).resolve().parents[1] / "tools" / "measurements" / "kpi_safe_harbor_numbers.py"
+
+
+def _driven(tmp_path: pathlib.Path, body: str) -> "subprocess.CompletedProcess[str]":
+    """K-HZ-15's driver loaded in a process of its own, `body` stubbing what it calls; no table is written."""
+    script = (
+        "import importlib.util, sys\n"
+        f"spec = importlib.util.spec_from_file_location('driver', {str(_DRIVER)!r})\n"
+        "driver = importlib.util.module_from_spec(spec)\n"
+        "spec.loader.exec_module(driver)\n"
+        "shapes = driver.shapes\n"
+        + body
+    )
+    return subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=300,
+                          env={**os.environ, "TMPDIR": f"{tmp_path}", "TEMP": f"{tmp_path}", "TMP": f"{tmp_path}"})
+
+
+def _value_of(run: "subprocess.CompletedProcess[str]") -> "dict[str, int]":
+    return [json.loads(line[4:])["value"] for line in run.stdout.splitlines() if line.startswith("KPI ")][0]
+
+
+def test_a_failing_item_keeps_its_counts_in_the_drivers_line_and_value(tmp_path: pathlib.Path) -> None:
+    """Skeptic 1 of lane SPD item 1, Codex's item 2: a real leak read 0 beside `cases_failing` 1."""
+    run = _driven(tmp_path, (
+        "shapes.run_safe_harbor = lambda *a, **k: dict(profile_exit=0, generate_exit=0, validate_exit=0,\n"
+        "    description_values=7, description_fragments=2, twin_cells=19, twin_fragments=1)\n"
+        "driver.items = lambda: [('unanswered:ages', driver._unanswered('ages'))]\n"
+        "sys.exit(driver.main(['--kpi']))\n"
+    ))
+    assert run.returncode == 1, run.stdout + run.stderr
+    assert "description_values=7 description_fragments=2 twin_cells=19 twin_fragments=1" in run.stdout
+    assert _value_of(run) == {"cases": 1, "cases_failing": 1, "description_values": 7, "description_fragments": 2,
+                              "twin_cells": 19, "twin_fragments": 1}
+
+
+def test_an_item_that_crashed_says_its_counts_are_unavailable(tmp_path: pathlib.Path) -> None:
+    """Codex's item 2: four zeros beside a crash would read as measured."""
+    run = _driven(tmp_path, (
+        "def crashed(*a, **k):\n"
+        "    raise RuntimeError('stopped')\n"
+        "shapes.run_safe_harbor = crashed\n"
+        "driver.items = lambda: [('unanswered:ages', driver._unanswered('ages'))]\n"
+        "sys.exit(driver.main(['--kpi']))\n"
+    ))
+    assert run.returncode == 1, run.stdout + run.stderr
+    assert "unanswered:ages: FAIL counts unavailable" in run.stdout
+    value = _value_of(run)
+    assert value["cases_without_counts"] == 1 and value["cases_failing"] == 1
+
+
+def test_a_choice_of_no_item_fails_and_a_partial_run_writes_no_kpi_line(tmp_path: pathlib.Path) -> None:
+    """Codex's item 3: a typo in a mutant's command read as a survivor."""
+    typo = _driven(tmp_path, "sys.exit(driver.main(['--only', 'unanswered:agess']))\n")
+    assert typo.returncode == 1, typo.stdout + typo.stderr
+    assert "nothing was measured" in typo.stdout and "KPI " not in typo.stdout
+    partial = _driven(tmp_path, "sys.exit(driver.main(['--kpi', '--only', 'unanswered:ages']))\n")
+    assert partial.returncode == 2 and "KPI " not in partial.stdout, partial.stdout + partial.stderr
+
+
+def test_a_failing_item_with_a_bare_assert_names_its_source_line(tmp_path: pathlib.Path) -> None:
+    """Verify of lane SPD item 4: a bare assert has no message outside pytest, so the FAIL line gave no reason."""
+    failing = tmp_path / "failing.py"
+    failing.write_text("def failing(folder, seen):\n    assert seen is None\n", encoding="utf-8", newline="\n")
+    run = _driven(tmp_path, (
+        f"import runpy\nfailing = runpy.run_path({str(failing)!r})['failing']\n"
+        "driver.items = lambda: [('stubbed', failing)]\n"
+        "sys.exit(driver.main([]))\n"
+    ))
+    assert run.returncode == 1, run.stdout + run.stderr
+    assert "stubbed: FAIL" in run.stdout and "assert seen is None" in run.stdout
+
+
+def test_the_padded_case_counts_what_it_published_before_it_judges(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Skeptic 1 of lane SPD item 1: the one item of K-HZ-15 that printed no count."""
+    written = tmp_path / "ages.csv"
+    written.write_text("person,ages\n", encoding="utf-8", newline="\n")
+    monkeypatch.setattr(shapes, "write_safe_harbor_table", lambda *a: (written, []))
+    monkeypatch.setattr(checks, "profile", lambda *a: 0)
+    monkeypatch.setattr(checks, "block", lambda *a: {"top_coded": taxonomy.TOP_CODE, "percentiles": {"p99": 103.0},
+                                                     "mode": 95, "tails": {"high": {"values": [96, 90]}}})
+    seen: "dict[str, object]" = {}
+    with pytest.raises(AssertionError):
+        checks.check_a_padded_cell_answered_measurement(tmp_path, seen)
+    assert seen == {checks.OVER_THE_TOP_CODE: 3}
+
+
+# At 20,000 rows these run in K-HZ-15's driver (plan P4-D444).
 @pytest.mark.parametrize(("kind", "answer"), shapes.SAFE_HARBOR_ANSWERED)
-@pytest.mark.parametrize("rows", [600, 20000])
+@pytest.mark.parametrize("rows", [600])
 def test_an_answer_to_the_other_question_puts_the_safe_harbor_question(
     tmp_path: pathlib.Path, kind: str, answer: str, rows: int
 ) -> None:
@@ -182,29 +250,11 @@ def test_an_answer_to_the_other_question_puts_the_safe_harbor_question(
     Safe Harbor question is the one question put, and the column is
     top-coded (ages) or held (ZIPs) until `no`.
     """
-    seen = shapes.run_safe_harbor(tmp_path, kind, rows, answer)
-    assert seen["profile_exit"] == 0 and seen["generate_exit"] == 0, seen
-    assert seen["description_values"] == 0, seen
-    assert seen["description_fragments"] == 0, seen
-    assert seen["twin_cells"] == 0, seen
-    assert seen["twin_fragments"] == 0, seen
-    assert seen["asked"] == [[asking.ANSWER_SAFE_HARBOR_NO, asking.ANSWER_SAFE_HARBOR_YES]], seen
-    if kind in shapes.ZIP_KINDS:
-        assert seen["role"] == taxonomy.ROLE_IDENTIFIER, seen
-        assert seen["read_as_now"] == [asking.ANSWER_SAFE_HARBOR_YES], seen
-    else:
-        assert seen["top_coded"] == taxonomy.TOP_CODE, seen
-        assert seen["read_as_now"] == [asking.SAFE_HARBOR_TOP_CODED], seen
-        assert seen["validate_real_exit"] == 0, seen
-        # THE TOP-CODE COSTS THE TWIN NO FACT: it misses what the twin of
-        # the table written with every age above 89 as `090` misses, which
-        # no top-code touches -- answered `measurement`, the padding and
-        # styles of the unpadded `999` (at 20,000 rows) -- a generation
-        # limit outside lane SH (wave6/SH/r2, wave6/SH-verify.md).
-        assert seen["twin_misses"] == seen["control_twin_misses"], seen
+    checks.check_answered(shapes.run_safe_harbor(tmp_path, kind, rows, answer), kind)
 
 
-@pytest.mark.parametrize("rows", [600, 20000])
+# At 20,000 rows in K-HZ-15's driver (plan P4-D444).
+@pytest.mark.parametrize("rows", [600])
 def test_the_zoos_zip_codes_answered_code_stay_held(tmp_path: pathlib.Path, rows: int) -> None:
     """The third repair (ruling R1; LANE SH ADDENDA 8 and 9): the zoo's own `zip5`, answered `code`.
 
@@ -216,21 +266,7 @@ def test_the_zoos_zip_codes_answered_code_stay_held(tmp_path: pathlib.Path, rows
     twin, `zip4`'s heads among them, and the analyst's `levels zip5`
     fails, the HIPAA price K-HZ-02 counts.
     """
-    seen = shapes.run_zoo_zips(tmp_path, rows)
-    assert seen["steps"] == {"profile": 0, "answers": 0, "generate": 0, "validate": 0}, seen
-    assert seen["description_values"] == 0, seen
-    assert seen["description_fragments"] == 0, seen
-    assert seen["twin_cells"] == 0, seen
-    assert seen["twin_fragments"] == 0, seen
-    roles = seen["roles"]
-    assert isinstance(roles, dict)
-    assert roles["zip5"] == roles["zip4"] == taxonomy.ROLE_IDENTIFIER, seen
-    asked = seen["asked"]
-    assert isinstance(asked, list) and len(asked) == 2, seen
-    assert asked[0][1] == asking.ANSWER_CODE, seen
-    assert asked[1] == ([asking.ANSWER_SAFE_HARBOR_NO, asking.ANSWER_SAFE_HARBOR_YES],
-                        asking.ANSWER_SAFE_HARBOR_YES), seen
-    assert "levels zip5" in f"{seen['analyst']}", seen
+    checks.check_zoo_zips(shapes.run_zoo_zips(tmp_path, rows))
 
 
 # -- the reach, cell by cell ----------------------------------------------
@@ -388,7 +424,10 @@ def test_absent_cells_are_set_aside() -> None:
 def test_the_top_code_reads_every_value_from_90_to_125_as_90() -> None:
     coded = taxonomy.top_coded_cells(_ages("", "N/A", "115", "130", "999"))
     assert max(float(cell) for cell in coded[:86]) == 90.0
-    assert coded[86:] == ["", "N/A", "90", "130", "999"]
+    # ...and a value past 125 is read 90 too, a placeholder kept for the
+    # caller to set aside (lane SH2's close round, the orchestrator's LANE
+    # SH2 RULINGS 2 (2): `130` may be a real age mistyped).
+    assert coded[86:] == ["", "N/A", "90", "90", "999"]
     assert coded[:72] == [f"{age}" for age in range(18, 90)]
 
 
@@ -399,7 +438,8 @@ def test_the_top_code_keeps_each_cells_own_form() -> None:
     ) == ["+90", " 90", "90 years", "090", "45.5", "90.00", "90", "90", "89.5"]
     assert taxonomy.top_coded_cells(["45,5", "93,25"], comma=True) == ["45,5", "90,00"]
     # ...and an undeclared decimal comma keeps its comma (the second repair, item 3).
-    assert taxonomy.top_coded_cells(["45,5", "94,8", "101,102"]) == ["45,5", "90,0", "101,102"]
+    # (`101,102`, past 125, is read 90 since lane SH2's close round.)
+    assert taxonomy.top_coded_cells(["45,5", "94,8", "101,102"]) == ["45,5", "90,0", "90"]
 
 
 def test_the_twin_writes_none_above_90_and_keeps_its_counts() -> None:
@@ -559,38 +599,6 @@ def test_no_second_question_beside_an_open_one() -> None:
 # -- the escapes Codex's review and skeptic 1 measured on 28e5d2f5 ---------
 
 
-def _profile(folder: pathlib.Path, name: str, lines: "list[str]", *typed: str) -> int:
-    table = folder / f"{name}.csv"
-    table.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
-    with shapes.nobody_at_the_keyboard():
-        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-            return cli.main(["profile", f"{table}", "--out-dir", f"{folder}", "--replace"]
-                            + list(typed))
-
-
-def _block(folder: pathlib.Path, name: str, column: str) -> "dict[str, object]":
-    document = json.loads((folder / f"{name}-profile.json").read_text(encoding="utf-8"))
-    return [one for one in document["columns"] if one["name"] == column][0]
-
-
-def _published_numbers(block: "dict[str, object]") -> "list[float]":
-    """Every number the block publishes as a value: rungs, mode, tails."""
-    found: "list[float]" = []
-    for key in ("percentiles", "percentiles_between"):
-        rungs = block.get(key)
-        if isinstance(rungs, dict):
-            found += [value for value in rungs.values() if isinstance(value, (int, float))]
-    mode = block.get("mode")
-    if isinstance(mode, (int, float)):
-        found += [mode]
-    tails = block.get("tails")
-    if isinstance(tails, dict):
-        for side in tails.values():
-            if isinstance(side, dict):
-                found += [one for one in side.get("values", []) if isinstance(one, (int, float))]
-    return found
-
-
 @pytest.mark.parametrize("missing", ["-1", "95"])
 def test_declared_missing_values_keep_their_cells(tmp_path: pathlib.Path, missing: str) -> None:
     """Codex's review, item 1: `-1` declared missing turned the top-code off; `95` lost its cells."""
@@ -655,18 +663,9 @@ def test_the_profilers_own_number_grammar_is_top_coded(tmp_path: pathlib.Path) -
     assert max(_published_numbers(block)) <= taxonomy.TOP_CODE
 
 
-def test_a_padded_cell_answered_measurement_is_top_coded(tmp_path: pathlib.Path) -> None:
-    """Skeptic 1, item 5: one `07` took ages answered `measurement` out of the reach."""
-    table, _real = shapes.write_safe_harbor_table(tmp_path, "ages", 20000)
-    lines = table.read_text(encoding="utf-8").splitlines() + ["P999999,07"]
-    assert _profile(tmp_path, "ages_long", lines, "--measurement", "ages") == 0
-    block = _block(tmp_path, "ages_long", "ages")
-    assert block["top_coded"] == taxonomy.TOP_CODE
-    assert max(_published_numbers(block)) <= taxonomy.TOP_CODE
-    asked = json.loads((tmp_path / "ages_long-questions.json").read_text(encoding="utf-8"))
-    assert [entry["read_as_now"] for entry in asked["asked"] if entry["column"] == "ages"] == [
-        asking.SAFE_HARBOR_TOP_CODED
-    ]
+# `test_a_padded_cell_answered_measurement_is_top_coded` (skeptic 1, item 5),
+# a table of 20,000 rows, runs in K-HZ-15's driver
+# (`safe_harbor_checks.check_a_padded_cell_answered_measurement`, plan P4-D444).
 
 
 def test_an_answer_beside_a_new_reading_is_refused(tmp_path: pathlib.Path) -> None:
@@ -695,3 +694,24 @@ def test_an_answer_beside_a_new_reading_is_refused(tmp_path: pathlib.Path) -> No
     answers = tmp_path / "answers.json"
     answers.write_text(json.dumps(document), encoding="utf-8", newline="\n")
     assert _profile(tmp_path, "t", lines, "--answers", f"{answers}") == 2
+
+
+def test_naaccrs_held_limit_is_only_its_measured_subchecks() -> None:
+    """Batch 4n's records (Codex's review of batch 4m, its second Medium, BATCH 4n OWES 2).
+
+    `naaccr`, held and unanswered, was excused wherever its twin's misses matched the control
+    table's twin's, so a role moved or cells emptied in both runs passed (Codex's case: exit 3
+    with `axes.role` and `presence.n_missing` missed in both, accepted at both sizes). Its limit
+    is now the distinct counts measured on it: the measured misses pass, Codex's case and the
+    measured misses with one more subcheck do not, and a shape with no measured list keeps the
+    plain comparison. Red on the predicate that compares the two lists alone.
+    """
+    measured = sorted(shapes.HELD_LIMIT_MISSES["naaccr"])
+    assert shapes.held_limit_met("naaccr", {"twin_misses": measured, "control_twin_misses": measured})
+    damage = ["axes.role", "presence.n_missing"]
+    assert not shapes.held_limit_met("naaccr", {"twin_misses": damage, "control_twin_misses": damage})
+    wider = sorted(measured + ["presence.n_missing"])
+    assert not shapes.held_limit_met("naaccr", {"twin_misses": wider, "control_twin_misses": wider})
+    assert not shapes.held_limit_met("naaccr", {"twin_misses": measured, "control_twin_misses": []})
+    assert shapes.held_limit_met("ages4ph", {"twin_misses": damage, "control_twin_misses": damage})
+    assert "naaccr" in checks.HELD_LIMITS_AT_20000 and "naaccr" in shapes.SAFE_HARBOR_HELD_LIMITS_AT_600

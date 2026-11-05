@@ -824,6 +824,14 @@
     }
   },
   "readings": {
+    "d1840_contact": {
+      "answer": "2022-07-13",
+      "mark": ".",
+      "member": "days-since-1840",
+      "text": "66303.01",
+      "unit": "day",
+      "why": "an 1840 day with its contact number, which is no time"
+    },
     "decimal_comma": {
       "answer": "2024-04-04 12:00",
       "mark": ",",
@@ -831,14 +839,6 @@
       "text": "45386,5",
       "unit": "minute",
       "why": "a count written with a comma for its point"
-    },
-    "epic_contact": {
-      "answer": "2022-07-13",
-      "mark": ".",
-      "member": "days-since-1840",
-      "text": "66303.01",
-      "unit": "day",
-      "why": "an Epic day with its contact number, which is no time"
     },
     "excel_15g_clinic_slot": {
       "answer": "2024-04-04 08:30",
@@ -977,7 +977,7 @@
       "member": "excel-1900",
       "why": "the comma written where the column writes it"
     },
-    "epic_contact_spelled": {
+    "d1840_contact_spelled": {
       "answer": "66303.01",
       "contact": "01",
       "form": {
@@ -994,7 +994,7 @@
       "member": "days-since-1840",
       "why": "the day count, the point and the contact number"
     },
-    "epic_no_contact_spelled": {
+    "d1840_no_contact_spelled": {
       "answer": "66303",
       "contact": "(none)",
       "form": {
@@ -1463,5 +1463,5 @@
       "why": "three on it: three units either side"
     }
   },
-  "what": "Method section G7.10's two halves (landing R4, plan P4-D384), each case with its answer computed from the method's text with datetime and Fraction: a count read as the moment its system names, written as ISO text at a unit, and a moment written back as its system's count, spelled as a `count_form` says; the contact numbers a census deals over the dated cells of an Epic column; the days each system's column of dates, and of moments, holds no date on; how far a tail reaches short of a wall of them, the islands inside that reach, a tail's end and group stepped off one and every stratum lying wholly on one given room; and the twin's ranks kept off them, by whole days or by the unit the column is written at."
+  "what": "Method section G7.10's two halves (landing R4, plan P4-D384), each case with its answer computed from the method's text with datetime and Fraction: a count read as the moment its system names, written as ISO text at a unit, and a moment written back as its system's count, spelled as a `count_form` says; the contact numbers a census deals over the dated cells of a column of 1840 days; the days each system's column of dates, and of moments, holds no date on; how far a tail reaches short of a wall of them, the islands inside that reach, a tail's end and group stepped off one and every stratum lying wholly on one given room; and the twin's ranks kept off them, by whole days or by the unit the column is written at."
 }

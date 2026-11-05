@@ -683,6 +683,14 @@ def test_every_approximated_fact_of_every_role_is_measured(
         # rungs its own block carries.
         owed = [one for one in owed if _published_rung(column, one)]
         owed = [one for one in owed if one not in _withheld_rungs(column)]
+        # RULE A2'S CENSUS IS OWED WHERE THE DESCRIPTION CARRIES ONE (plan
+        # P4-D439, method G12.12a): the key is absent on a column whose
+        # held-back cells publish no positional census, so there is no
+        # listed character to bound and the report measures none, as a
+        # withheld rung's. Where the key is present the twin's report
+        # measures it (the codes-in-pattern gate pins that case).
+        if not column.shape_form_places:
+            owed = [one for one in owed if one != "shape_form_places"]
         # COMPARED BY IDENTITY, not by the order the two happen to use:
         # the report writes the ladder's bounds before the tails' and
         # the matrix states the tails' row first, and what this asserts

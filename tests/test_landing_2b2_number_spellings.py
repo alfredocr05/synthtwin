@@ -776,7 +776,7 @@ def test_padded_whole_numbers_beside_signed_decimals_keep_every_plus(
 
 @pytest.mark.parametrize("seed", ("4", "11"))
 def test_a_plus_is_written_on_whole_values_so_no_spelling_is_invented(
-    tmp_path: pathlib.Path, seed: str
+    tmp_path: pathlib.Path, seed: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Three values written fifty times each, one with a plus: three spellings, not six.
 
@@ -785,6 +785,12 @@ def test_a_plus_is_written_on_whole_values_so_no_spelling_is_invented(
     spellings against three, and 900 signed changes 780 against 690, with
     every check passing.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427) takes these three values, `200.25`
+    # and `300.25` set aside as the up to three values past 125 the floor's
+    # rows repeat, and reads all three as 90 (plan P4-D434, the orchestrator's
+    # LANE SH2 RULINGS 4 (1): a false alarm `no` frees); they are
+    # measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     cells = ["+100.25"] * 50 + ["200.25"] * 50 + ["300.25"] * 50
     first, second, written, twin_exit, real_exit = _round_trip(
         tmp_path / "three", cells, ("--measurement", "value"), True, seed=seed

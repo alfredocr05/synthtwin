@@ -284,7 +284,7 @@ def rows_of(name: str, n: int) -> "tuple[list[str], list[list[str]], str, bool]"
                 if table == "codes3_pacs_study_uid":
                     header, rows = codes3.uid_rows(n, 20261016)
                 elif table.startswith("codes3_cerner"):
-                    header, rows = codes3.cerner_rows(n, 4252)
+                    header, rows = codes3.float_keys_rows(n, 4252)
                 elif table == "codes3_vcf_rsid":
                     header, rows = codes3.vcf_rows(n, 4250)
                 elif table == "codes3_keys_r_one_word":
@@ -470,27 +470,97 @@ def _column_cells(path: pathlib.Path, name: str) -> "list[str] | None":
     return None
 
 
-def zoo_equal_cells(folder: pathlib.Path, n: int) -> "dict[str, int]":
-    """The health data zoo's identifier columns: twin cells spelled as a real cell of their column.
+def zoo_tables() -> "tuple[object, ...]":
+    """The zoo tables `zoo_equal_cells` reads: the WHOLE catalogue this machine can read.
 
-    Every zoo table this machine runs (seed 20261016 plus its place, as `health_zoo.run_zoo`),
-    workbooks included where the cross-check reader is, run through `health_zoo.run_table` --
-    profiled scripted, answered with the zoo's general facts, generated at seed 0 -- and every
-    column its description writes as an identifier, each read in its table's own dialect. Returns
-    the equal cells, the cells whose merged key is a real cell's, the identifier columns read, those
-    NOT read (a failure: no column goes uncounted) and the tables whose twin was not written.
+    E0a's twenty-five exports and lane E0c's thirty-nine (`health_zoo.catalogue`), workbooks
+    left out only where the cross-check reader is absent (`health_zoo.runnable_tables`). Batch
+    4m's records (Codex's review of batch 4l, its second Medium, BATCH 4m OWES 2): the helper
+    read `health_zoo.TABLES` alone, so an added export's identifier column -- the instrument
+    magnitudes' `sample_id`, `S500000` beside a twin's `s0500000` -- was never counted.
     """
     import health_zoo
 
-    found = {"equal": 0, "merged": 0, "columns": 0, "unread": 0, "unwritten": 0}
-    runnable = health_zoo.runnable_tables()
-    for place, table in enumerate(health_zoo.TABLES):
-        if table not in runnable:
-            continue
-        where = folder / table.name
-        health_zoo.run_table(table, where, n, 20261016 + place)
+    return health_zoo.runnable_tables(health_zoo.catalogue())
+
+
+# K-HZ-06's zoo leg, counted per named column (batch 4n's records, Codex's review of batch 4m, its
+# first Medium, BATCH 4n OWES 1): the five birth-date columns lane SH2 holds as identifiers, whose
+# twins match a real date of their column by chance, each counted under keys of its own with its own
+# bound; every other zoo identifier column goes into the two totals, which must read 0. Pooled, a
+# birth date gone would have offset a record number newly written as a real key. At lane HB's merge
+# (batch 4n) the diagnosis dates of `tumor_registry.dx_date` join them: held as record numbers, their
+# twin is written as valid dates from the constant range by lane HB's rule 10 (plan P4-D442), never
+# reading a real value, and matches a real date of its column by chance as measured (LANE HB RULINGS
+# 8 (4) and 11 (4)), so it too counts under keys of its own with its own bound.
+ZOO_HELD_DATES = (
+    "patients.dob_iso",
+    "patients.dob_us",
+    "patients.dob_text",
+    "phi_registry.birth_date",
+    "registry_extract.dob_short",
+    "tumor_registry.dx_date",
+)
+ZOO_EQUAL = "zoo_twin_cells_equal_to_a_real_identifier"
+ZOO_MERGING = "zoo_twin_cells_merging_with_a_real_identifier"
+
+
+def zoo_held_date_keys(column: str) -> "tuple[str, str]":
+    """K-HZ-06's two keys for one of `ZOO_HELD_DATES`: patients.dob_iso -> zoo_patients_dob_iso_equal, ..._merging."""
+    stem = "zoo_" + column.replace(".", "_")
+    return f"{stem}_equal", f"{stem}_merging"
+
+
+def tally_zoo(value: "dict", by_column: "dict[str, tuple[int, int]]") -> None:
+    """Add one zoo run's counts, `table.column` -> (equal, merging), to K-HZ-06's value.
+
+    Each of `ZOO_HELD_DATES` under its own two keys (present, at 0, whether or not it was read);
+    every other identifier column into `ZOO_EQUAL` and `ZOO_MERGING`, never into a date's keys.
+    """
+    for column in ZOO_HELD_DATES:
+        for key in zoo_held_date_keys(column):
+            value[key] = int(value.get(key, 0))
+    for column, (equal, merged) in sorted(by_column.items()):
+        if column in ZOO_HELD_DATES:
+            on_equal, on_merged = zoo_held_date_keys(column)
+        else:
+            on_equal, on_merged = ZOO_EQUAL, ZOO_MERGING
+        value[on_equal] = int(value.get(on_equal, 0)) + equal
+        value[on_merged] = int(value.get(on_merged, 0)) + merged
+
+
+def zoo_equal_cells(
+    folder: pathlib.Path,
+    n: int,
+    tables: "tuple[object, ...] | None" = None,
+    by_column: "dict[str, tuple[int, int]] | None" = None,
+) -> "dict[str, int]":
+    """The health data zoo's identifier columns: twin cells spelled as a real cell of their column.
+
+    Every zoo table this machine runs (`zoo_tables`, or those named; each at its catalogue seed,
+    `health_zoo.seed_of`, as `health_zoo.run_zoo` draws it), workbooks included where the
+    cross-check reader is, run through `health_zoo.run_table` -- profiled scripted, answered with
+    the zoo's general facts, generated at seed 0 -- and every column its description writes as an
+    identifier, each read in its table's own dialect. Returns the equal cells, the cells whose
+    merged key is a real cell's, the identifier columns read, those NOT read (a failure: no column
+    goes uncounted), the tables whose twin was not written and the tables run. Where `by_column`
+    is given, each column read adds its own (equal, merging) under `table.column` (`tally_zoo`).
+    """
+    import health_zoo
+
+    found = {"equal": 0, "merged": 0, "columns": 0, "unread": 0, "unwritten": 0, "tables": 0}
+    for table in zoo_tables() if tables is None else tables:
+        where = folder / table.name  # type: ignore[attr-defined]
+        found["tables"] += 1
+        health_zoo.run_table(table, where, n, health_zoo.seed_of(table))  # type: ignore[arg-type]
         profile = where / f"{table.name}-profile.json"
         twin = where / f"{table.name}-twin{table.suffix}"
+        if not twin.is_file():
+            # A text export (`.txt`: tab- or pipe-delimited, or Excel's Unicode text) is twinned as
+            # `.csv` in the source's own dialect, where `health_zoo.run_table` reads it (batch 4m's
+            # records, the orchestrator's LANE I4m RULINGS 5: the three `.txt` exports' twins were
+            # counted as not written, their identifier columns never read).
+            twin = where / f"{table.name}-twin.csv"
         if not profile.is_file() or not twin.is_file():
             found["unwritten"] += 1
             continue
@@ -506,6 +576,12 @@ def zoo_equal_cells(folder: pathlib.Path, n: int) -> "dict[str, int]":
                 continue
             absent = frozenset(block.get("missing_by_source") or {})
             found["columns"] += 1
-            found["equal"] += equal_cells(real, made, absent)
-            found["merged"] += merged_equal_cells(real, made, absent)
+            equal = equal_cells(real, made, absent)
+            merged = merged_equal_cells(real, made, absent)
+            found["equal"] += equal
+            found["merged"] += merged
+            if by_column is not None:
+                named = f"{table.name}.{block['name']}"  # type: ignore[attr-defined]
+                before = by_column.get(named, (0, 0))
+                by_column[named] = (before[0] + equal, before[1] + merged)
     return found

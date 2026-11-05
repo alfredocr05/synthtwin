@@ -1548,7 +1548,23 @@ SHAPE_FORM_LIMIT = 24
 # fact about a sentence, which is what the length limit was already
 # there to keep out. Without a space, the cells that share a form are
 # the cells written to a scheme.
-SHAPE_MARKS = "-./_:#*()[]+,"
+# ...AND `=` SINCE LANE CODES-1 (plan P4-D439, the stand-ins page ZS.2):
+# a Gleason score `3+4=7` wears a form, where before a held-back one was
+# written `group-N`. THE PAGE'S OTHER FOUR, `|`, `;`, `^` and `~`, WAIT FOR
+# LANE LISTS, as the lane's spec makes them wait for a reading of lists
+# that is safe beside them: until a column of lists is read as lists, a
+# column of record numbers listed with one of them, held by its open
+# question (plan P4-D424), wore forms its twin filled with made-up keys,
+# and at 600 rows one came out equal to a real key, `R100000`, with each
+# of the four (the comma, a mark from the start, does the same).
+SHAPE_MARKS = "-./_:#*()[]+,="
+
+# THE MARK LANE CODES-1 ADDED (plan P4-D439): a description written before
+# it carries no form for a spelling holding it (`level_unshaped_before_gaps`),
+# and no cell OPENING with it has a form, since no made-up value may open
+# with a formula's leader (method G9.1; Codex's review of the lane's first
+# repair, items 5 and 7).
+SHAPE_MARK_SINCE_CODES = "="
 
 # THE TWO PLACEHOLDERS, AND WHY THEY ARE NOT `9` AND `A` (review round
 # 2 finding 1). They were, and they read beautifully, and they were
@@ -1817,6 +1833,131 @@ def _key_gap_at(name: str) -> int:
     return -1 if stamp is None else stamp[1]
 
 
+def whole_number_grain(values: "list[int]", held_back: int = 0) -> int:
+    """The power of ten, ten or more, every one of some whole numbers is a multiple of; 1 otherwise (P4-D439).
+
+    UB-04 REVENUE CODES END IN NOUGHT, and so does every one a column of
+    them publishes. Where two or more DIFFERENT whole numbers are given,
+    the largest power of ten from ten up dividing every one of them; 1
+    where there are fewer or none divides them all. The generator walks
+    and places its made-up numbers on this grain and the validator draws
+    the pooled mean's window on it (lane CODES-1's rule A3). Raises
+    nothing.
+
+    ...AND ONLY WHERE THE GRID HAS ROOM FOR THE HELD-BACK LEVELS: with
+    ``held_back`` given, the multiples of the grain between the smallest
+    and the largest of the numbers that none of them holds must number at
+    least twice ``held_back``, or the answer is 1. Measured without it: a
+    long tail of 900 revenue codes at 20,000 rows held 662 back beside 205
+    published, 794 free multiples of ten between them, and placed on
+    them the pool's mean came out 25.6 off its published value, past the
+    window of 20 the grid allows; the numbers then keep the mean, as
+    before this rule.
+    """
+    distinct: "dict[int, int]" = {}
+    for value in values:
+        distinct[value] = 1
+    if len(distinct) < 2:
+        return 1
+    grain = 1
+    while grain < 10**18:
+        wider = grain * 10
+        if any([value % wider for value in distinct]):
+            break
+        grain = wider
+    if grain > 1 and held_back > 0:
+        lowest = min(list(distinct))
+        highest = max(list(distinct))
+        free = (highest - lowest) // grain + 1 - len(distinct)
+        if free < 2 * held_back:
+            return 1
+    return grain
+
+
+def form_reads_as_words(form: str, decimal_comma: bool = False) -> bool:
+    """Whether a form's spellings are words to the number reader (P4-D439).
+
+    The question `generation._form_reading` asks of a form no clock or
+    stamp wears, asked here once for the producer of rule A2's census and
+    the twin's stepping plan alike: the form filled with `0` at every
+    figure, `A` (`a` in a lower-case key) at every letter, reads as no
+    number, and filled with `E` (`e`) at every letter as no number either.
+    A form one of whose fillings is a number -- `%%@%%%` with its exponent
+    -- is the number classes' to share, and keeps the fill it had.
+    Raises nothing.
+    """
+    if not isinstance(form, str) or not form:
+        return False
+    plain = ""
+    exponent = ""
+    for character in form:
+        if character == SHAPE_DIGIT:
+            plain = plain + "0"
+            exponent = exponent + "0"
+        elif character == SHAPE_LETTER:
+            plain = plain + "A"
+            exponent = exponent + "E"
+        elif character == SHAPE_LOWER:
+            plain = plain + "a"
+            exponent = exponent + "e"
+        else:
+            plain = plain + character
+            exponent = exponent + character
+    if decimal_comma:
+        plain = written_with_a_decimal_comma(plain)
+        exponent = written_with_a_decimal_comma(exponent)
+    if classify_number(plain) != NOT_A_NUMBER:
+        return False
+    return classify_number(exponent) != NUMBER
+
+
+def is_a_place_list(text: str) -> bool:
+    """Whether a text is one place of rule A2's census (P4-D439, C6-31h).
+
+    Nothing, or different characters of ONE kind -- ASCII figures, ASCII
+    capitals or ASCII small letters -- in ascending order: what a place
+    of `shape_form_places` may list. Raises nothing.
+    """
+    if not isinstance(text, str):
+        return False
+    for alphabet in (
+        "0123456789",
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "abcdefghijklmnopqrstuvwxyz",
+    ):
+        if all([mark in alphabet for mark in text]):
+            ordered = ""
+            for mark in alphabet:
+                if mark in text:
+                    ordered = ordered + mark
+            return ordered == text
+    return False
+
+
+def is_a_time_key(name: str) -> bool:
+    """Whether a census key is a form a clock time or a stamp can wear (P4-D439).
+
+    A clock's figures (`_is_a_clock_body_form`), with or without one of
+    the four marker keys after them, straight on or behind its one gap;
+    or a stamp's key (`stamp_key_parts`). These are the forms G8.3 fills
+    with times (plans P4-D373, P4-D392 and P4-D393), so lane CODES-1's
+    rules keep away from every column naming or pooling one: their
+    stand-ins keep their bytes. Errs toward True. Raises nothing.
+    """
+    if not isinstance(name, str) or not name:
+        return False
+    if stamp_key_parts(name) is not None or _clock_key_gap_at(name) >= 0:
+        return True
+    body = name
+    for mark in _SHAPE_MERIDIEM_KEYS:
+        if len(body) > len(mark) and body[len(body) - len(mark) :] == mark:
+            body = body[: len(body) - len(mark)]
+            if body[len(body) - 1 :] in SHAPE_GAPS:
+                body = body[: len(body) - 1]
+            break
+    return _is_a_clock_body_form(body)
+
+
 def _clock_key_gap_at(name: str) -> int:
     """`_key_gap_at` of a clock alone, as lane L2 wrote it (P4-D392)."""
     place = -1
@@ -2047,12 +2188,24 @@ def level_unshaped_before_gaps(label: str, shape_form_cells: int) -> bool:
     `SHAPE_FORM_LIMIT`, had no form either (`_shaped_since_stamps`), so a
     level of one carrying 0 is read as it was written, on the same ground.
 
+    AND A LABEL HOLDING `=` READS SO TOO (lane CODES-1, plan P4-D439;
+    Codex's review of its first repair, item 5): before the lane `=` was no
+    mark, so a Gleason score `3+4=7` had no form and a description written
+    then -- 10,000 cells of `3+4=7` beside 10,000 of `4+4=8`, its census
+    `{}` -- carries 0 on each level, which W8 refused once the spellings
+    wore `%+%=%`. A producer since writes 0 there only where no row of the
+    level wore its label's form, so the reading moves none of its counts.
+
     Guarantees: a function of the two. Raises TypeError if the label is
     not a string instance. No I/O of any kind.
     """
     if shape_form_cells:
         return False
-    return meridiem_gap_at(label) >= 0 or _shaped_since_stamps(label)
+    return (
+        meridiem_gap_at(label) >= 0
+        or _shaped_since_stamps(label)
+        or SHAPE_MARK_SINCE_CODES in label
+    )
 
 
 def shape_form(text: str) -> str:
@@ -2111,6 +2264,15 @@ def shape_form(text: str) -> str:
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
     if not text:
+        return ""
+    if text[0] == SHAPE_MARK_SINCE_CODES:
+        # A CELL OPENING WITH `=` HAS NO FORM, AS BEFORE THE MARK (Codex's
+        # review of lane CODES-1's first repair, item 7): a made-up value
+        # may not open with a formula's leader (method G9.1), so every
+        # held-back cell of a form opening with `=` came back `group-N` and
+        # missed the form census the mark made -- `=999` on 19,800 rows
+        # beside `=100` to `=119` on ten each published `=%%%` on 20,000
+        # cells and its twin wrote 19,800.
         return ""
     if len(text) > SHAPE_FORM_LIMIT:
         # A stamp may run longer (lane L3, plan P4-D393); nothing else may.
@@ -2229,7 +2391,8 @@ def is_a_written_form(name: str) -> bool:
     """
     if not isinstance(name, str):
         raise TypeError(_NOT_TEXT)
-    if not name:
+    if not name or name[0] == SHAPE_MARK_SINCE_CODES:
+        # No cell opening with `=` has a form (`shape_form`), so no key may.
         return False
     # A stamp's key may hold the space between its date and its clock, and
     # may run to `STAMP_FORM_LIMIT` characters (lane L3, plan P4-D393).
@@ -3358,6 +3521,90 @@ def exclusion_alphabet(mark: str) -> str:
     return _EXCLUSION_ALPHABETS[mark] if mark in _EXCLUSION_ALPHABETS else ""
 
 
+# THE OPENINGS NO REAL RUN OF FIGURES OPENS WITH (plan P4-D442; lane HB's
+# verify, finding 1): a free-text block's `figure_openings` maps each merged
+# width of a run of figures, `FIGURE_RUN_KEY_WIDTH` figures or more, written in
+# base ten, to one to `FIGURE_OPENING_DEPTH` figures no real run of that width
+# opens with, the first never a nought and fewer than the width, or to nothing
+# where none was found. The producer, the loader and the twin share these.
+# FOUR FIGURES SINCE LANE HB'S CLOSE ROUND (LANE HB RULINGS 6, item 4): a
+# register of keys 1000 to 4999 between marks was written back whole.
+FIGURE_RUN_KEY_WIDTH = 4
+FIGURE_OPENING_DEPTH = 4
+# THE ONE KEY UNDER THAT WIDTH: `3`, beside nothing, says a run of four figures
+# or more whose merged figures are fewer than four is real (`0000123`), so a
+# made-up run led by noughts could equal one and none is written.
+FIGURE_RUN_PADDED_NARROW = 3
+# The widest run of figures a width of `figure_openings` may name.
+FIGURE_RUN_WIDEST = 4096
+
+
+def is_a_figure_width(text: str) -> bool:
+    """Whether a text is a key of `figure_openings`: a merged width written in base ten, three to 4,096 (P4-D442).
+
+    Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not text or len(text) > 4 or text[0] == "0":
+        return False
+    for character in text:
+        if not _is_a_digit(character):
+            return False
+    return FIGURE_RUN_PADDED_NARROW <= int(text) <= FIGURE_RUN_WIDEST
+
+
+def is_a_figure_opening(width: int, text: str) -> bool:
+    """Whether a text is the opening `figure_openings` may name beside ``width`` (P4-D442).
+
+    Nothing, or one to `FIGURE_OPENING_DEPTH` ASCII figures, fewer than
+    ``width``, the first never a nought, or several single figures so joined
+    by `|`, each at most once (so nine at most: Codex's review of lane HB's
+    close round, item 6, a description of one opening of 100,000 `9`s
+    loaded and made the walk ask each copy in turn). Raises TypeError for a
+    non-string. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not text:
+        return True
+    if width == FIGURE_RUN_PADDED_NARROW:
+        return False
+    choices = figure_opening_choices(text)
+    seen: "dict[str, bool]" = {}
+    for choice in choices:
+        if (
+            not choice
+            or len(choice) > FIGURE_OPENING_DEPTH
+            or len(choice) >= width
+            or choice[0] == "0"
+            or (len(choices) > 1 and len(choice) > 1)
+            or choice in seen
+        ):
+            return False
+        seen[choice] = True
+        for character in choice:
+            if not _is_a_digit(character):
+                return False
+    return True
+
+
+def figure_opening_choices(opening: str) -> "list[str]":
+    """The openings one value of `figure_openings` names (P4-D442): one, or several single figures joined by `|`.
+
+    Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(opening, str):
+        raise TypeError(_NOT_TEXT)
+    choices: "list[str]" = []
+    start = 0
+    for place in range(len(opening) + 1):
+        if place == len(opening) or opening[place] == "|":
+            choices += [opening[start:place]]
+            start = place + 1
+    return choices
+
+
 def is_a_layout_exclusion(text: str) -> bool:
     """Whether a text could be an exclusion: a layout with some placeholders written out.
 
@@ -3888,6 +4135,59 @@ def prefix_layout(text: str, convention: str) -> str:
     for character in text:
         built = built + _layout_mark(character, convention, False)
     return built
+
+
+def template_layout(template: str, convention: str) -> str:
+    """The layout a template's fillings wear: `prefix_layout`, its opening noughts the zero fill where it is figures alone (P4-D442).
+
+    `layout_form` marks a zero fill only in a cell of figures alone in a
+    plain column, so a one-key template a list column's key is kept off the
+    real by (`09%%%%%`, lane HB's verify, finding 2) wears `!%%%%%%`, not
+    the layout it was published for. Every other template is `prefix_layout`'s
+    answer. A fixed function of the two. Raises as `prefix_layout` does. No
+    I/O.
+    """
+    built = prefix_layout(template, convention)
+    fill = 0
+    if convention == LAYOUT_PLAIN:
+        for character in template:
+            if character != LAYOUT_DIGIT and not _is_a_digit(character):
+                return built
+        while fill < len(template) - 1 and template[fill] == "0":
+            fill = fill + 1
+    return LAYOUT_LEADING_ZERO * fill + built[fill:]
+
+
+def noughts_dropped(template: str) -> str:
+    """A template with every nought that opens a run of figures dropped, as `merged_key` drops them (P4-D442).
+
+    Two list templates `@09%%%` and `@009%%%` fill to one merged key at one
+    step, so they spend one room. A fixed function of the text. Raises
+    TypeError for a non-string. No I/O.
+    """
+    if not isinstance(template, str):
+        raise TypeError(_NOT_TEXT)
+    kept = ""
+    started = False
+    for character in template:
+        if character == "0" and not started:
+            continue
+        started = character == LAYOUT_DIGIT or _is_a_digit(character)
+        kept = kept + character
+    return kept
+
+
+def leaves_its_layout(layout: str, exclusion: str) -> bool:
+    """Whether a layout's exclusion writes its fillings in the zero-fill layout, not its own (P4-D442).
+
+    A layout of figures alone with no zero fill, its exclusion opening with
+    a nought (`template_layout`). Its census entry is then one the twin
+    gives up by construction (validation method V4.1-A1). A fixed function
+    of the two. Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(layout, str) or not isinstance(exclusion, str):
+        raise TypeError(_NOT_TEXT)
+    return exclusion[:1] == "0" and layout != "" and layout == LAYOUT_DIGIT * len(layout)
 
 
 def prefix_nameable(carrying: int, present: int, floor: int) -> bool:
@@ -4435,6 +4735,308 @@ def carries_a_group_comma(text: str) -> bool:
     if comma_reading(text) != COMMA_EITHER:
         return False
     return classify_number(text.strip()) == NUMBER
+
+
+# WHAT A COLUMN'S COMMAS SETTLE ABOUT ITS DECIMALS, undeclared (lane
+# UN-1b, plan P4-D443; the zoo-fix plan's 2.1b (c) v2.1). The verdicts of
+# `decimal_comma_inferred`: read the column under the comma, put the one
+# question of how its numbers are written, or neither.
+COMMA_INFERRED = "decimal-comma-inferred"
+COMMA_ONE_FIGURE_EACH_SIDE = "one-figure-either-side-of-the-comma"
+COMMA_TWO_PICKS = "two-whole-numbers-either-side-of-the-comma"
+COMMA_THREE_FIGURES = "three-figures-after-the-comma"
+# ...and record numbers with a check digit (`1002345,7`): every comma
+# cell five figures or more before its comma, which the cells alone never
+# read as decimals (repair 2 of lane UN-1b). P4-D401's question is put
+# first; a column answered `keep` to it is read with the comma.
+COMMA_RECORD_NUMBERS = "five-figures-or-more-before-every-comma"
+# The marks around a number a decimal comma is inferred inside: a
+# comparison in front (`<0,5`), and behind, a unit holding no figure.
+_COMMA_COMPARISONS = ("<=", ">=", "<", ">")
+_LIST_MARKS = ",;|"
+
+
+def _comma_core(text: str) -> "tuple[str, str] | None":
+    """The figures before and after the one comma of a cell's number, or None.
+
+    The number is the whole cell, or the core inside a comparison in
+    front (`<`, `>`, `<=`, `>=`) and a suffix behind holding no figure
+    and no list mark (`98,5 %`, `36,9 °C`), spaces either side allowed;
+    a minus in front of the figures is the number's. None where the
+    cell is not such a number with one comma in it.
+    """
+    rest = trimmed(text)
+    for mark in _COMMA_COMPARISONS:
+        if rest[: len(mark)] == mark:
+            rest = trimmed(rest[len(mark) :])
+            break
+    if rest[:1] == "-":
+        rest = rest[1:]
+    place = 0
+    while place < len(rest) and "0" <= rest[place] <= "9":
+        place = place + 1
+    before = rest[:place]
+    if not before or place >= len(rest) or rest[place] != ",":
+        return None
+    place = place + 1
+    start = place
+    while place < len(rest) and "0" <= rest[place] <= "9":
+        place = place + 1
+    after = rest[start:place]
+    if not after:
+        return None
+    for mark in rest[place:]:
+        if "0" <= mark <= "9" or mark in _LIST_MARKS:
+            return None
+    return before, after
+
+
+def number_beside_a_unit(text: str) -> str:
+    """A cell's number without a comparison in front or a unit behind: `800 mg` is `800` (plan P4-D443).
+
+    The comparison is `<`, `>`, `<=` or `>=`; the unit is whatever
+    follows the last figure, provided it holds no list mark. A cell with
+    neither, or whose tail holds a list mark, comes back trimmed and
+    otherwise whole. Asked by the mirror question of a column read as
+    numbers beside a unit (repair 1 of lane UN-1b, Codex item 6).
+
+    Guarantees: accepts text; returns text. A fixed function of it.
+    Raises TypeError on anything that is not text. No I/O.
+    """
+    rest = trimmed(text)
+    for mark in _COMMA_COMPARISONS:
+        if rest[: len(mark)] == mark:
+            rest = trimmed(rest[len(mark) :])
+            break
+    end = len(rest)
+    while end > 0 and not "0" <= rest[end - 1] <= "9":
+        end = end - 1
+    for mark in rest[end:]:
+        if mark in _LIST_MARKS:
+            return trimmed(text)
+    return rest[:end] if end > 0 else trimmed(text)
+
+
+def _whole_figures(text: str) -> bool:
+    if not text:
+        return False
+    for mark in text:
+        if not "0" <= mark <= "9":
+            return False
+    return True
+
+
+def decimal_comma_inferred(present: "list[str]") -> str:
+    """Whether an undeclared column writes a decimal comma, by its cells alone (plan P4-D443).
+
+    LANE UN-1b OF THE ZOO-FIX TRACK (2.1b (c), v2.1). A European export
+    writes `72,5 kg`, `36,9 °C` and `25,5`, which no reader of this
+    package read undeclared: the column fell to labels or free text, and
+    its twin wrote made-up characters. The comma is READ AS THE DECIMAL
+    POINT (`COMMA_INFERRED`) only where every one of these holds:
+
+    - no cell holds two or more of one list mark -- `,`, `;` or `|`
+      (THE VETO: `1,2,5` is a list, and so is the column beside it);
+    - every cell holding a comma holds ONE, and its number -- the whole
+      cell, or the core inside `<`/`>` in front and a unit behind (no
+      figure, no list mark) -- reads as one number with the comma for
+      its point (`_comma_core`);
+    - every such number has 1, 2, or 4 or more figures after the comma,
+      which no group of thousands has;
+    - no cell holds a point anywhere.
+
+    And it is NOT inferred, but the one question of how the column's
+    numbers are written is put instead, where:
+
+    - every comma cell is one figure, a comma and one figure (`2,5`):
+      a two-choice multi-select of codes 1 to 9 writes exactly that
+      (`COMMA_ONE_FIGURE_EACH_SIDE`);
+    - every comma cell is two whole numbers `a,b` and either the picks
+      are SORTED (a < b in every cell) or they share ONE VOCABULARY (no
+      figures after a comma start with a nought unless they are the
+      lone 0, and every number after a comma also stands before one or
+      alone in a cell without one): picks of 10 or more codes, in sorted
+      or in click order (`COMMA_TWO_PICKS`);
+    - every number has exactly three figures after its comma, which a
+      group of thousands also has: the mirror of the question a point
+      with three figures after it raises (`COMMA_THREE_FIGURES`; read as
+      today until answered).
+
+    Never inferred either (repair 1, skeptic 1 items 4, 5 and 8;
+    Codex items 3 and 7):
+
+    - where a comma cell's figures before the comma are two or more and
+      open with a nought (`05,12`, `0101,0134`): no decimal is written
+      so, and a pick list of padded codes is; the question where every
+      comma cell is such a pair, else "";
+    - where every comma cell's figures before the comma are five or
+      more, however few different numbers they write: a record number
+      with a check digit (`1002345,7`), which P4-D401's question reaches
+      first (`COMMA_RECORD_NUMBERS` where every other condition holds;
+      repair 2 of lane UN-1b: under repair 1's categories ceiling, 500
+      keys of 40 rows at 20,000 rows were read as decimals with no
+      question and 13 real keys published). A measurement of five
+      figures or more before a decimal comma costs that one question;
+      answered `keep`, it is read with the comma (`profile.build_document`).
+
+    And the two-pick signatures do not hold where every comma cell's
+    figures before the comma are the lone 0 (`0,42`, a hematocrit in
+    L/L): no list picks code 0 first in every cell, and a decimal below
+    one is written so. Every cell is read trimmed, so one padding space
+    changes no verdict, and figures are compared as text, never turned
+    into an integer, so a cell of thousands of figures reads in linear
+    time without Python's integer-string limit.
+
+    Otherwise "" -- the column is read as before. Measured on the zoo's
+    columns and the plan's added shapes (the zoo-fix plan's
+    `sim_comma_guard2` at 600 and 20,000 rows): the vitals' `temp`,
+    `weight` and `mass_index`, `98,5 %` and `<0,5` beside `1,2` are
+    inferred; the critic's multi-select and the notes are vetoed; two
+    picks of 12 or 15 codes go to the question, in sorted and in click
+    order.
+
+    Guarantees: accepts a column's present cells as text; returns one of
+    the five verdicts or "". A fixed function of the cells. Raises
+    TypeError on a cell that is not text. No I/O, and no cell reaches
+    what it returns.
+    """
+    commas: "list[tuple[str, str]]" = []
+    one_figure = True
+    pairs = True
+    alone: "dict[str, int]" = {}
+    pointed = False
+    padded = False
+    for raw in present:
+        if not isinstance(raw, str):
+            raise TypeError(_NOT_TEXT)
+        cell = trimmed(raw)
+        if cell == "":
+            continue
+        if _a_list_mark_twice(cell):
+            return ""
+        if "." in cell:
+            pointed = True
+        if "," not in cell:
+            if _whole_figures(cell):
+                alone[_unpadded(cell)] = 1
+            continue
+        core = _comma_core(cell)
+        if core is None:
+            return ""
+        commas += [core]
+        if len(core[0]) > 1 and core[0][:1] == "0":
+            padded = True
+        if not (len(core[0]) == 1 and len(core[1]) == 1 and cell == core[0] + "," + core[1]):
+            one_figure = False
+        if not _comma_pair(cell):
+            pairs = False
+    if not commas or pointed:
+        return ""
+    if padded:
+        return COMMA_TWO_PICKS if pairs else ""
+    three = 0
+    for _before, after in commas:
+        if len(after) == 3:
+            three = three + 1
+    if three == len(commas):
+        return COMMA_THREE_FIGURES
+    if three > 0:
+        return ""
+    if one_figure:
+        return COMMA_ONE_FIGURE_EACH_SIDE
+    if (
+        pairs
+        and not _below_one_everywhere(commas)
+        and (_sorted_picks(commas) or _one_vocabulary(commas, alone))
+    ):
+        return COMMA_TWO_PICKS
+    if _like_record_numbers(commas):
+        return COMMA_RECORD_NUMBERS
+    return COMMA_INFERRED
+
+
+def _unpadded(figures: str) -> str:
+    """A run of figures without its leading noughts, the lone 0 kept: `007` is `7`."""
+    if not isinstance(figures, str):
+        raise TypeError(_NOT_TEXT)
+    kept = figures.lstrip("0")
+    return kept if kept else "0"
+
+
+def _figures_below(smaller: str, larger: str) -> bool:
+    """Whether one run of figures is a smaller whole number than another, compared as text."""
+    left = _unpadded(smaller)
+    right = _unpadded(larger)
+    if len(left) != len(right):
+        return len(left) < len(right)
+    return left < right
+
+
+def _below_one_everywhere(commas: "list[tuple[str, str]]") -> bool:
+    """Whether every comma cell writes the lone 0 before its comma: `0,42` (plan P4-D443)."""
+    for before, _after in commas:
+        if before != "0":
+            return False
+    return True
+
+
+def _like_record_numbers(commas: "list[tuple[str, str]]") -> bool:
+    """Whether every comma cell writes five figures or more before its comma: `1002345,7` (plan P4-D443).
+
+    P4-D401's reach, read at the comma: a record number and its check
+    digit, not a decimal, at any count of different numbers (repair 1,
+    skeptic 1 item 8; repair 2 dropped the categories ceiling, under
+    which 60 keys at 600 rows and 500 or 1,000 at 20,000 were read as
+    decimals and their keys published).
+    """
+    for before, _after in commas:
+        if len(before) < 5:
+            return False
+    return True
+
+
+def _a_list_mark_twice(cell: str) -> bool:
+    """Whether a cell holds one of the list marks twice or more: `a;b;c` (plan P4-D443)."""
+    if not isinstance(cell, str):
+        raise TypeError(_NOT_TEXT)
+    # The marks of `_LIST_MARKS`, each written out so every count reads a constant.
+    return cell.count(",") >= 2 or cell.count(";") >= 2 or cell.count("|") >= 2
+
+
+def _comma_pair(cell: str) -> bool:
+    """Whether a cell is exactly two whole numbers with a comma between: `11,3`."""
+    if not isinstance(cell, str):
+        raise TypeError(_NOT_TEXT)
+    place = cell.find(",")
+    return place > 0 and _whole_figures(cell[:place]) and _whole_figures(cell[place + 1 :])
+
+
+def _sorted_picks(commas: "list[tuple[str, str]]") -> bool:
+    """Two picks in every cell, the smaller first: `3,11`, `2,7` (plan P4-D443)."""
+    for before, after in commas:
+        if not _figures_below(before, after):
+            return False
+    return True
+
+
+def _one_vocabulary(commas: "list[tuple[str, str]]", alone: "dict[str, int]") -> bool:
+    """Picks in click order: every second pick stands as a first pick or alone (plan P4-D443).
+
+    No figures after a comma start with a nought unless they are the
+    lone 0 -- a decimal writes `7,05`, a pick never does -- and every
+    number after a comma is one written before a comma, or alone in a
+    cell without one.
+    """
+    first: "dict[str, int]" = {}
+    for before, after in commas:
+        if len(after) > 1 and after[:1] == "0":
+            return False
+        first[_unpadded(before)] = 1
+    for _before, after in commas:
+        number = _unpadded(after)
+        if number not in first and number not in alone:
+            return False
+    return True
 
 
 def written_with_a_decimal_comma(text: str) -> str:
@@ -9293,6 +9895,93 @@ def tail_may_list(
     return shared and (coarse or heaped)
 
 
+# THE MOST FIGURES ONE SPELLING OF A VALUE LIST HOLDS (lane GG, plan
+# P4-D440), the bound `number_spellings` keeps: every spelling a whole
+# number of units this format holds exactly.
+FEW_VALUE_FIGURES = 15
+
+
+def is_few_value_spelling(text: str) -> bool:
+    """Whether ``text`` is a number a value list may name (lane GG, P4-D440).
+
+    THE PLAIN DECIMAL FAMILY AND NOTHING ELSE: an optional minus, one
+    figure or more with no leading nought (nought itself aside), and
+    optionally a point followed by one figure or more; fifteen figures at
+    most; never a nought written with a minus. A column whose numbers are
+    written any other way -- grouped, padded, signed with a plus, in an
+    exponent, with a decimal comma -- publishes no value list, and its
+    twin is written as before.
+
+    Guarantees: accepts text; returns a bool. Determinism: a function of
+    the text. Raises TypeError for a value that is not text. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    body = text[1:] if text.startswith("-") else text
+    whole, point, fraction = _split_at_point(body)
+    if not _all_ascii_digits(whole):
+        return False
+    if len(whole) > 1 and whole[0] == "0":
+        return False
+    if point and not _all_ascii_digits(fraction):
+        return False
+    if len(whole) + len(fraction) > FEW_VALUE_FIGURES:
+        return False
+    if body != text and _all_noughts(whole + fraction):
+        return False
+    return True
+
+
+def _split_at_point(text: str) -> "tuple[str, str, str]":
+    """``text`` split at its first point: the figures before, the point, the figures after.
+
+    `str.partition` at the point, written with the string methods the
+    offline scan has cleared. Raises TypeError for a value that is not
+    text.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    point = text.find(".")
+    if point < 0:
+        return text, "", ""
+    return text[:point], ".", text[point + 1:]
+
+
+def _all_noughts(figures: str) -> bool:
+    """True where every character of ``figures`` is the figure nought."""
+    for character in figures:
+        if character != "0":
+            return False
+    return True
+
+
+def few_values_figures(spellings: "tuple[str, ...] | list[str]") -> int:
+    """The most figures after the point any of these spellings writes."""
+    most = 0
+    for text in spellings:
+        fraction = _split_at_point(text)[2]
+        if len(fraction) > most:
+            most = len(fraction)
+    return most
+
+
+def few_value_units(text: str, figures: int) -> int:
+    """A value list spelling as a whole number of units of ``figures`` places.
+
+    `-99` at two places is -9900 and `4.5` is 450: exact, because the
+    spelling's own figures are read and no binary64 is. ``figures`` is at
+    least the spelling's own count after the point
+    (`few_values_figures`).
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    negative = text.startswith("-")
+    body = text[1:] if negative else text
+    whole, _point, fraction = _split_at_point(body)
+    units = int(whole + fraction + "0" * (figures - len(fraction)))
+    return -units if negative else units
+
+
 def tail_percent(count: int, units: int) -> "int | None":
     """The boundary percent of one side of a tail block (contract L4).
 
@@ -11788,5 +12477,143 @@ def layout_partial_writes_numbers(name: str) -> bool:
         if kind == "l" or field in LAYOUT_UNKNOWN_MARKERS:
             return False
         if field not in _LAYOUT_FIXED_FIELDS:
+            return False
+    return True
+
+
+# A DATE'S FORM (lane HB, plan P4-D442): the marks its fields stand between, and
+# the width codes of a month written as three letters, by their case.
+DATE_FORM_MARKS = ("-", "/", ".")
+DATE_MONTH_UPPER = -1
+DATE_MONTH_TITLE = -2
+DATE_MONTH_LOWER = -3
+
+
+def date_form_fields(form: str, dated: bool = False) -> "tuple[str, list[int]] | None":
+    """A form's mark and its fields' widths, where it is a date's; else None (lane HB, plan P4-D442).
+
+    Read the same by the producer, which publishes no place list for such a
+    form beside dates, and by the twin, which fills it with valid dates.
+
+    A date's form is three runs of the figure mark between two of one of
+    `-`, `/` and `.`, with a year of four figures first (`%%%%-%%-%%`,
+    `%%%%/%/%%`) or last (`%%/%%/%%%%`, `%.%.%%%%`) and its other two
+    fields of one or two figures; or, since lane HB's repair (skeptic 1,
+    item 4), a year of two figures last (`%%/%%/%%`), or a month written
+    as three letters between a day of one or two figures and a year of
+    four or two (`%%-@@@-%%%%`, `%%-@&&-%%`; its width written
+    `DATE_MONTH_UPPER`, `DATE_MONTH_TITLE` or `DATE_MONTH_LOWER` by the letters'
+    case marks), or the same with no mark (`%%@@@%%%%`, `%@@@%%`, the
+    mark ""; `_date_bare_month_fields`).
+    ``dated`` says the column's other forms are dates', and then eight
+    figures alone are one too (`%%%%%%%%`, year, month and day), a
+    year of four figures beside a month of one or two (`%%/%%%%`,
+    `%%%%-%%`, its widths two), and four figures alone a year (`%%%%`,
+    its width one). A fixed function of the two; no I/O.
+    """
+    if not isinstance(form, str):
+        raise TypeError("a form reached the date reader as something else")
+    if dated and len(form) == 8 and _date_marks_alone(form, SHAPE_DIGIT):
+        return "", [4, 2, 2]
+    if dated and len(form) == 4 and _date_marks_alone(form, SHAPE_DIGIT):
+        return "", [4]
+    bare = _date_bare_month_fields(form)
+    if bare is not None:
+        return "", bare
+    for mark in DATE_FORM_MARKS:
+        fields = _date_runs_between(form, mark)
+        if dated and len(fields) == 2:
+            widths = [len(field) for field in fields]
+            if not _date_marks_alone(fields[0], SHAPE_DIGIT) or not (
+                _date_marks_alone(fields[1], SHAPE_DIGIT)
+            ) or not fields[0] or not fields[1]:
+                return None
+            if widths[0] == 4 and widths[1] <= 2:
+                return mark, widths
+            if widths[1] == 4 and widths[0] <= 2:
+                return mark, widths
+            return None
+        if len(fields) != 3:
+            continue
+        widths = []
+        for place in range(3):
+            field = fields[place]
+            if field and _date_marks_alone(field, SHAPE_DIGIT):
+                widths += [len(field)]
+                continue
+            word = _date_month_width(field) if place == 1 else 0
+            if not word:
+                return None
+            widths += [word]
+        if widths[1] < 0:
+            if widths[0] <= 2 and widths[2] in (2, 4):
+                return mark, widths
+            return None
+        if widths[0] == 4 and widths[1] <= 2 and widths[2] <= 2:
+            return mark, widths
+        if widths[2] == 4 and widths[0] <= 2 and widths[1] <= 2:
+            return mark, widths
+        if widths[2] == 2 and widths[0] <= 2 and widths[1] <= 2:
+            return mark, widths
+        return None
+    return None
+
+
+
+def _date_bare_month_fields(form: str) -> "list[int] | None":
+    """A month word's form written with no mark, its widths, else None (plan P4-D442).
+
+    A day of one or two figures, three letter marks and a year of two or
+    four figures, nothing between them (`%@@@%%`, `%%@@@%%`, `%%&&&%%%%`).
+    """
+    day = 0
+    while day < len(form) and form[day] == SHAPE_DIGIT:
+        day = day + 1
+    year = len(form) - day - 3
+    if day not in (1, 2) or year not in (2, 4):
+        return None
+    word = _date_month_width(form[day : day + 3])
+    if not word or not _date_marks_alone(form[day + 3 :], SHAPE_DIGIT):
+        return None
+    return [day, word, year]
+
+
+def _date_month_width(field: str) -> int:
+    """A field of three letter marks as a month word's width code, or 0 (plan P4-D442)."""
+    if not isinstance(field, str):
+        raise TypeError("a field reached the month reader as something else")
+    if len(field) != 3:
+        return 0
+    if _date_marks_alone(field, SHAPE_LETTER):
+        return DATE_MONTH_UPPER
+    if _date_marks_alone(field, SHAPE_LOWER):
+        return DATE_MONTH_LOWER
+    if field[0] == SHAPE_LETTER and _date_marks_alone(field[1:], SHAPE_LOWER):
+        return DATE_MONTH_TITLE
+    return 0
+
+
+def _date_runs_between(text: str, mark: str) -> "list[str]":
+    """The runs of ``text`` before, between and after each ``mark``, in order (plan P4-D442)."""
+    if not isinstance(text, str) or not isinstance(mark, str):
+        raise TypeError("a text reached the run reader as something else")
+    runs: "list[str]" = []
+    run = ""
+    for character in text:
+        if character == mark:
+            runs += [run]
+            run = ""
+            continue
+        run = run + character
+    runs += [run]
+    return runs
+
+
+def _date_marks_alone(text: str, mark: str) -> bool:
+    """Whether every character of ``text`` is ``mark`` (plan P4-D442)."""
+    if not isinstance(text, str):
+        raise TypeError("a text reached the mark reader as something else")
+    for character in text:
+        if character != mark:
             return False
     return True

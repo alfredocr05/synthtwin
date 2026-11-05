@@ -27,7 +27,8 @@ its ladder:
   twin with it misses: `facts_lost`, target 0, each named; and every
   note of the twin's own report -- a deviation, the mode's among them, or
   a rung or moment outside its window -- present with L0 and absent
-  without it, rule B3's notes aside: `notes_gained`, target 0, each named;
+  without it, rule B3's notes and the walk's named ones (clause (viii))
+  aside: `notes_gained`, target 0, each named;
 - (v) THE SHAPE: on every eligible column of numbers (a count, a
   continuous column, an affixed column read by its core), the
   Kolmogorov-Smirnov distance between the twin and the real column is
@@ -46,6 +47,17 @@ its ladder:
   (lane BT's skeptic 1, item 6: the band totals move the cells a cut
   crosses onto the nearest value inside the piece, which on a uniform
   whole-number column sits beside the edge);
+- (viii) THE CHAIN'S WALK (lane CHb, plan P4-D435; method G16): every
+  twin above is made with the walk wherever its chain places a family
+  with a parent; beside the same description with its chain emptied
+  (layer L0 alone) each column holds the same cells as a multiset,
+  `g16_multiset_differences` 0 over `g16_twins` twins, no check of the
+  quality report is lost, `g16_facts_lost` 0, and no note of the twin's
+  own report is gained but the walk's named ones (a moved family, the
+  stray rows), `g16_notes_gained` 0, those named in `g16_named`; a column
+  a carried rule computes would list its moves in
+  `computed_columns_moved`, and no description this version loads
+  carries one (S28);
 - the columns made without their band totals (rule B3, named by exact
   column name): `made_without`, reported; the tables whose switched
   description its own loader refused: `chain_refused`, reported.
@@ -368,8 +380,13 @@ def _missed(plain: contract.Profile, path: pathlib.Path) -> "set[tuple[str, str,
 
 
 def _notes(twin: generation.Twin) -> "set[tuple[str, str]]":
-    """The twin's own report: each deviation (rule B3's aside) and each rung or moment outside its window."""
-    found = {(note.column, note.fact) for note in twin.deviations if note.fact != "band totals"}
+    """The twin's own report: each deviation (rule B3's aside) and each rung or moment outside its window.
+
+    The walk's own named deviations (a family dealt against its moved
+    table, `chain`; the stray rows, `empty_rows`; method G16.5, G16.6) are
+    set aside like rule B3's: clause (viii) counts them by name.
+    """
+    found = {(note.column, note.fact) for note in twin.deviations if note.fact not in ("band totals", "chain", "empty_rows")}
     found |= {(approximation.column, f"{approximation.fact} outside its window") for approximation in twin.approximations if not approximation.inside}
     return found
 
@@ -497,6 +514,10 @@ def measure(
         "edge_values_checked": 0,
         "made_up": 0,
         "twins": 0,
+        "g16_twins": 0,
+        "g16_multiset_differences": 0,
+        "g16_facts_lost": 0,
+        "g16_notes_gained": 0,
     }
     named: "dict[str, list[str]]" = {
         "facts_lost_named": [],
@@ -505,6 +526,9 @@ def measure(
         "keys_lost_named": [],
         "edge_values_worse_named": [],
         "made_up_named": [],
+        "g16_facts_lost_named": [],
+        "g16_notes_gained_named": [],
+        "g16_named": [],
     }
     made_without: "list[str]" = []
     reach: "list[str]" = []
@@ -545,14 +569,14 @@ def measure(
                 handed: "list[tuple[str, list[int], int]]" = []
                 built = generation._row_placement
 
-                def hooked(step, profile_, content, drawn, finished, reserved=None, readings=None):  # type: ignore[no-untyped-def]
+                def hooked(step, profile_, content, drawn, finished, reserved=None, readings=None, walk=None):  # type: ignore[no-untyped-def]
                     found = generation.cells_by_band(profile_, step, content, drawn, reserved, readings)
                     if found is not None:
                         cells = sorted([cell for group in found.groups for cell in group] + list(found.reserved))
                         handed.append((found.column, cells, len(content)))
                     if reserved is None:
                         return built(step, profile_, content, drawn, finished)
-                    return built(step, profile_, content, drawn, finished, reserved, readings)
+                    return built(step, profile_, content, drawn, finished, reserved, readings, walk)
 
                 generation._row_placement = hooked
                 try:
@@ -574,6 +598,29 @@ def measure(
                 left = ""
                 with_path = _twin_file(folder, described, loaded, twin, f"{seed}-l0")
                 bare_path = _twin_file(folder, described, described.plain, bare, f"{seed}-bare")
+                # (viii) THE CHAIN'S WALK (lane CHb, plan P4-D435): the twin with
+                # G16 against the twin of the same description with its chain
+                # emptied (layer L0 alone): every column's cells the same
+                # multiset, no check of the quality report lost and no note
+                # gained but the walk's own named ones.
+                if loaded.relationships.chain:
+                    layered = generation.generate_held(
+                        dataclasses.replace(loaded, relationships=dataclasses.replace(loaded.relationships, chain=())), seed
+                    )
+                    value["g16_twins"] = int(value["g16_twins"]) + 1  # type: ignore[call-overload]
+                    for place in range(generation.twin_width(twin)):
+                        if sorted(generation.twin_column(twin, place)) != sorted(generation.twin_column(layered, place)):
+                            value["g16_multiset_differences"] = int(value["g16_multiset_differences"]) + 1  # type: ignore[call-overload]
+                    layered_path = _twin_file(folder, described, loaded, layered, f"{seed}-layered")
+                    lost_g16 = _missed(described.plain, with_path) - _missed(described.plain, layered_path)
+                    value["g16_facts_lost"] = int(value["g16_facts_lost"]) + len(lost_g16)  # type: ignore[call-overload]
+                    named["g16_facts_lost_named"] += [f"{name}@{seed}: {column}.{fact}.{subcheck}" for column, fact, subcheck in sorted(lost_g16)]
+                    walked = {(note.column, note.fact) for note in twin.deviations if note.fact in ("chain", "empty_rows")}
+                    gained_g16 = _notes(twin) - _notes(layered)
+                    value["g16_notes_gained"] = int(value["g16_notes_gained"]) + len(gained_g16)  # type: ignore[call-overload]
+                    named["g16_notes_gained_named"] += [f"{name}@{seed}: {column}.{fact}" for column, fact in sorted(gained_g16)]
+                    named["g16_named"] += [f"{name}@{seed}: {column or 'the file'} {fact}" for column, fact in sorted(walked)]
+                    layered_path.unlink()
                 found_totals = _l0_totals(with_path, described)
                 bare_totals = _l0_totals(bare_path, described)
                 for column_name in judged:
@@ -644,6 +691,9 @@ def measure(
     value["made_without"] = sorted(set(made_without))
     value["reach"] = reach
     value["chain_refused"] = sorted(f"{name}: {why}" for name, why in REFUSED.items())
+    # No description this version loads carries a rule (S28), so no column
+    # is computed and none of their moves is listed (lane CHb, plan P4-D435).
+    value["computed_columns_moved"] = []
     value["seconds"] = round(time.time() - started, 1)
     return value
 

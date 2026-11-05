@@ -398,6 +398,12 @@ PLAN4_REGIONS = {
         "(closes R-P3-12's route)"
     ),
     "padding": "### P4-D14 The padded-field width fact",
+    # A FEW-VALUED COLUMN'S OWN NUMBERS (lane GG), disposed in its own
+    # decision and nowhere else.
+    "few-values": (
+        "## Decision P4-D440 — few-valued numbers with a gap written as "
+        "their own values (lane GG of the zoo-fix track, 2026-10-27)"
+    ),
     # The THIRD width census, over every whole-written cell rather than
     # over one style of them. The owner ruled it in on 2026-08-26
     # (close-plan decision 2) and the plan states it at P4-D30.
@@ -590,6 +596,12 @@ PLAN4_REGIONS = {
     "pooled-scale": (
         "## Decision P4-D301 — the pooled numbers keep their scale "
         "(2026-09-21)"
+    ),
+    # RULE A2'S POSITIONAL CENSUS OF HELD-BACK CODES (lane CODES-1),
+    # disposed in the decision that built it: the Phase 2 matrix has no
+    # row for a key Phase 2 never had.
+    "codes-in-pattern": (
+        "## Decision P4-D439 — held-back codes written in pattern"
     ),
     # The joined role's own eight facts, disposed when the role was
     # found to have no table at all.
@@ -1619,6 +1631,11 @@ REGISTRY += [
     # with its own spelling and pools nothing, so a person opens the twin
     # and counts each spelling back.
     Fact("numeric", "number_spellings", EXACT_OBSERVABLE),
+    # A FEW-VALUED COLUMN'S OWN NUMBERS, WHERE A WIDE GAP STANDS AMONG THEM
+    # (lane GG, plan P4-D440, contract VL1 to VL5). EXACT-OBSERVABLE: a
+    # person opens the twin and reads every number it writes against the
+    # list, none off it and every one written.
+    Fact("numeric", "few_values", EXACT_OBSERVABLE, plan_region="few-values"),
     # Plan P4-D30. The census of WHOLE-NUMBER field widths is the third
     # sibling of the styles map and is the ONE of the three that is not
     # exact. Its two siblings are facts about SPELLING and are bought
@@ -2017,6 +2034,19 @@ REGISTRY += [
         STRUCTURAL,
         plan_region="pooled-scale",
         aliases=("pooled scale", "the pool's own scale"),
+    ),
+    # RULE A2'S POSITIONAL CENSUS (lane CODES-1, plan P4-D439, contract
+    # C6-31h, validation V16.2). APPROXIMATED and not exact: the census
+    # publishes no count, only that each listed character is held by the
+    # census line of the form's held-back cells or more, and the twin is
+    # held to that lower bound alone -- the decision's own words.
+    Fact(
+        "label",
+        "shape_form_places",
+        APPROXIMATED,
+        plan_words="the twin is held to the lower bound (V16.2)",
+        plan_region="codes-in-pattern",
+        aliases=("positional census",),
     ),
     Fact(
         "label",

@@ -75,6 +75,8 @@ import random
 
 import pytest
 
+import keyboard
+
 from synthtwin import cli, contract, errors, generation, grains, validation
 
 import fixtures
@@ -370,8 +372,12 @@ def test_a_held_column_writes_valid_dates_from_its_spans(tmp_path: pathlib.Path)
     assert _counted_few(tmp_path, "visits") == 0
 
 
-def test_a_column_of_a_few_patients_dates_is_held_and_parses(tmp_path: pathlib.Path) -> None:
+def test_a_column_of_a_few_patients_dates_is_held_and_parses(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A hundred and fifty patients' 300 visits over a hundred years: no year holds eleven, so the column is held, and its twin parses."""
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about lane PS's pooling in people, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     text = _visits(300, 150, datetime.date(1925, 1, 1), 100 * 365, 19, "us")
     described = _profiled(tmp_path, "visits", text, "--identifier", "patient")
     block = _block(described, "seen")
@@ -1164,7 +1170,8 @@ def test_a_date_for_nobody_three_people_write_stays_absent(tmp_path: pathlib.Pat
 
 @pytest.mark.parametrize(("shape", "name", "count"), (("rep4", "birth_month", 530), ("rep2", "born", 600)))
 def test_a_held_month_column_holds_its_count_in_the_widened_span(
-    tmp_path: pathlib.Path, shape: str, name: str, count: int
+    tmp_path: pathlib.Path, shape: str, name: str, count: int,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The second verify's item 2 (its shapes `rep4` and `rep2`): 530 and 600 birth months, held with no span.
 
@@ -1176,6 +1183,10 @@ def test_a_held_month_column_holds_its_count_in_the_widened_span(
     `_by_occurrences` and `_folded` missed at exit 3); a span of exactly
     `rep2`'s 600 months left 582 (room of one).
     """
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about lane PS's pooling in people, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     table = persons_counted.birth_months_table() if shape == "rep4" else persons_counted.one_birth_month_a_year_table()
     described = _profiled(tmp_path, shape, table, "--identifier", "patient")
     block = _block(described, name)
@@ -1188,7 +1199,7 @@ def test_a_held_month_column_holds_its_count_in_the_widened_span(
     assert _validated_exit(tmp_path, shape, tmp_path / f"{shape}-twin.csv") == 0
 
 
-def test_a_value_no_span_can_take_unrepeated_repeats_a_valid_one(tmp_path: pathlib.Path) -> None:
+def test_a_value_no_span_can_take_unrepeated_repeats_a_valid_one(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The G1 floor's last step (the second verify's item 2): a made-up value no span takes unrepeated.
 
     The birth-month column's block, its count set below its 530 made-up
@@ -1198,6 +1209,10 @@ def test_a_value_no_span_can_take_unrepeated_repeats_a_valid_one(tmp_path: pathl
     is left as made up. Without the repeat the cells no walk placed stayed
     stand-ins.
     """
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about lane PS's pooling in people, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     _profiled(tmp_path, "born", persons_counted.birth_months_table(), "--identifier", "patient")
     loaded = contract.load_profile(f"{tmp_path / 'born-profile.json'}")
     column = [one for one in loaded.columns if one.name == "birth_month"][0]

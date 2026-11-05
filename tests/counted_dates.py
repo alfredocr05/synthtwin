@@ -10,8 +10,8 @@ SIX FAMILIES.
   counting system, the dates its counts name and the way an export spells
   them: Excel serial dates and date-times (`%.15g` clinic slots, six
   figures at the second), the 1904 system, SAS days and seconds, Stata
-  milliseconds, Unix seconds and milliseconds, Epic day numbers and
-  `*_DATE_REAL` with its contact number, and birth dates as Excel serials,
+  milliseconds, Unix seconds and milliseconds, 1840 day numbers and
+  1840 days with a contact number, and birth dates as Excel serials,
   signed SAS days and Unix seconds at midnight UTC.
 * `RANGES` -- the same writers over events from 1985 to 2025 and births
   from 1920 to 2005 (the R4 design review, item 2).
@@ -41,7 +41,7 @@ SIX FAMILIES.
   landing R4, item 2), beside two whose figures a unit does keep.
 * `WRITERS` -- the shapes an exporter writes beside the battery's: pandas'
   `45000.0` and `repr`, Python's `repr` of a timestamp taken to the
-  microsecond, and an Epic day exported to seventeen significant figures
+  microsecond, and an 1840 day exported to seventeen significant figures
   (the review of landing R4, items 2, 3 and 5).
 
 What a person reads a column with is `decode`, the counting system's own
@@ -52,6 +52,7 @@ import dataclasses
 import datetime as dt
 import math
 import random
+import re
 import zlib
 
 ROWS = 1000
@@ -176,10 +177,10 @@ SHAPES = (
     Shape("unix_ms", "milliseconds-since-1970", "datetime",
           lambda draw: arrival(draw, milliseconds=True), whole("milliseconds-since-1970"),
           "Unix milliseconds, arrivals, the thousandths kept"),
-    Shape("epic_dte", "days-since-1840", "date", encounter, whole("days-since-1840"),
-          "Epic day numbers, contact dates"),
-    Shape("epic_real", "days-since-1840", "date", encounter, whole("days-since-1840"),
-          "Epic *_DATE_REAL: a day and a contact number after the point"),
+    Shape("d1840_day", "days-since-1840", "date", encounter, whole("days-since-1840"),
+          "day numbers from 1840, contact dates"),
+    Shape("d1840_contact", "days-since-1840", "date", encounter, whole("days-since-1840"),
+          "days from 1840: a day and a contact number after the point"),
     Shape("xl_birth", "excel-1900", "date", birth, whole("excel-1900"),
           "Excel 1900 serial birth dates, 1930 to 2005"),
     Shape("sas_birth", "days-since-1960", "date", birth, whole("days-since-1960"),
@@ -193,11 +194,33 @@ BY_NAME = {shape.name: shape for shape in SHAPES}
 NOT_ASKED = ("sas_birth",)
 
 
+# Two shapes renamed after their columns were first drawn keep the seeds
+# they were drawn from, by number: each name's first checksum and length,
+# so wherever a seed's text holds the name, its checksum is the one the
+# first name gave and every cell stays as it was.
+_KEPT_SEEDS = {"d1840_day": (1242802111, 8), "d1840_contact": (3244849988, 9)}
+_KEPT_NAME = re.compile(r"(?<![A-Za-z0-9_])(d1840_day|d1840_contact)(?![A-Za-z0-9_])")
+
+
+def _checksum(text: str) -> int:
+    """CRC-32 of ``text``, a kept name counted as its first spelling."""
+    found = _KEPT_NAME.search(text)
+    if found is None:
+        return zlib.crc32(text.encode("utf-8"))
+    kept, length = _KEPT_SEEDS[found.group(1)]
+    before = zlib.crc32(text[: found.start()].encode("utf-8"))
+    # A CRC is affine in its starting value: the first name's checksum
+    # from `before` is its checksum from nought moved as zeros of its
+    # length move.
+    state = kept ^ zlib.crc32(bytes(length), before) ^ zlib.crc32(bytes(length), 0)
+    return zlib.crc32(text[found.end():].encode("utf-8"), state)
+
+
 def _draw(name: str, seed: int) -> random.Random:
-    return random.Random(zlib.crc32(name.encode("utf-8")) + seed)
+    return random.Random(_checksum(name) + seed)
 
 
-def _epic_contacts(seed: int) -> "callable":
+def _contact_numbers(seed: int) -> "callable":
     contact = random.Random(7 + seed)
     return lambda: contact.choices((0, 1, 2), weights=(85, 12, 3))[0]
 
@@ -206,8 +229,8 @@ def cells(shape: Shape, rows: int = ROWS, seed: int = 0) -> "tuple[list[str], li
     """A shape's cells as the export writes them, and the moments they name."""
     draw = _draw(shape.name, seed)
     truth = [shape.truth(draw) for _ in range(rows)]
-    if shape.name == "epic_real":
-        pick = _epic_contacts(seed)
+    if shape.name == "d1840_contact":
+        pick = _contact_numbers(seed)
         written = []
         for moment in truth:
             day = int(count_of(shape.system, moment))
@@ -235,7 +258,7 @@ def ranged(shape: Shape, name: str, rows: int = ROWS, seed: int = 0) -> "list[st
             moments += [dt.datetime(day.year, day.month, day.day, draw.randrange(24), draw.randrange(60), draw.randrange(60))]
         else:
             moments += [dt.datetime(day.year, day.month, day.day)]
-    if shape.name == "epic_real":
+    if shape.name == "d1840_contact":
         return [str(int(count_of(shape.system, moment))) for moment in moments]
     return [shape.write(moment) for moment in moments]
 
@@ -270,7 +293,7 @@ def dirty(shape: Shape, written: "list[str]", truth: "list[dt.datetime]", scenar
     draw = random.Random(seed * 7 + 3)
 
     def spelled(moment: dt.datetime) -> str:
-        if shape.name == "epic_real":
+        if shape.name == "d1840_contact":
             return str(int(count_of(shape.system, moment)))
         return shape.write(moment)
 
@@ -303,7 +326,7 @@ def placeholder(shape: Shape, kind: str) -> str:
     if kind == "minus1":
         return "-1"
     moment = dt.datetime(9999, 12, 31) if kind == "hi_sentinel" else dt.datetime(1900, 1, 1)
-    if shape.name == "epic_real":
+    if shape.name == "d1840_contact":
         return str(int(count_of(shape.system, moment)))
     return shape.write(moment)
 
@@ -445,7 +468,7 @@ ORDINARY = {
 # columns question Q3 still asks where the fixed-width question did not,
 # each a price plan P4-D384 states -- identifiers of one width with half a
 # percent one figure shorter (rule A lets a stray of another width stand
-# outside the band, so a century slip silences nothing), a salary in Epic
+# outside the band, so a century slip silences nothing), a salary in 1840
 # days' band a third of it in cents, five-figure codes whose "none" is
 # `0` or `-1`, and lengths of time of a year or more kept as whole days
 # of seconds or milliseconds. Each writes its own cells; the gate pins how
@@ -469,7 +492,7 @@ STATED = {
 def stated(name: str, rows: int, draw_number: int) -> "list[str]":
     """One draw of a `STATED` column, written as its own writer writes it."""
     _kind, write = STATED[name]
-    draw = random.Random(zlib.crc32(f"stated:{name}:{rows}:{draw_number}".encode("utf-8")))
+    draw = random.Random(_checksum(f"stated:{name}:{rows}:{draw_number}"))
     return [write(draw) for _ in range(rows)]
 
 
@@ -480,7 +503,7 @@ def jitter(draw: random.Random) -> float:
 def ordinary(name: str, rows: int, draw_number: int) -> "list[str]":
     """One draw of an ordinary column, its location and scale jittered."""
     kind, maker, places = ORDINARY[name]
-    draw = random.Random(zlib.crc32(f"{name}:{rows}:{draw_number}".encode("utf-8")))
+    draw = random.Random(_checksum(f"{name}:{rows}:{draw_number}"))
     scale = jitter(draw)
     out: "list[str]" = []
     for _ in range(rows):
@@ -515,7 +538,7 @@ COARSE = {
 def coarse(name: str, rows: int = ROWS, seed: int = 0) -> "list[str]":
     """One `COARSE` column's cells."""
     _system, write, _kept = COARSE[name]
-    draw = random.Random(zlib.crc32(f"coarse:{name}".encode("utf-8")) + seed)
+    draw = random.Random(_checksum(f"coarse:{name}") + seed)
     return [write(draw) for _ in range(rows)]
 
 
@@ -528,7 +551,7 @@ def written_by(writer: str, shape: Shape, rows: int = ROWS, seed: int = 0) -> "l
     second pass of the review of landing R4, item 2).
     """
     _cells, truth = cells(shape, rows, seed)
-    micro = random.Random(zlib.crc32(f"micro:{shape.name}".encode("utf-8")) + seed)
+    micro = random.Random(_checksum(f"micro:{shape.name}") + seed)
     out: "list[str]" = []
     for moment in truth:
         exact = count_of(shape.system, moment)

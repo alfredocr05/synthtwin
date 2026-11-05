@@ -223,10 +223,13 @@ def test_a_form_carries_no_letter_of_any_alphabet_and_no_odd_mark() -> None:
     assert parsing.shape_form("Ω12") == ""
     assert parsing.shape_form("١٢٣-A") == ""
     assert parsing.shape_form("𞓐-1") == ""
-    # ...and a character outside the thirteen leaves the cell formless,
-    # whatever it is.
-    for odd in ("a b", "x!y", "a~b", "p&q", "🙂-1", "a\tb", "a'b", 'a"b'):
+    # ...and a character outside the marks leaves the cell formless,
+    # whatever it is. `=` is the one lane CODES-1 added (plan P4-D439), so
+    # it stands as itself; the list separators `|` `;` `^` `~` wait for
+    # lane LISTS and leave the cell formless as before.
+    for odd in ("a b", "x!y", "a~b", "p&q", "🙂-1", "a\tb", "a'b", 'a"b', "a|b", "a;b", "a^b"):
         assert parsing.shape_form(odd) == "", odd
+    assert parsing.shape_form("a=b") == "@=@"
     # The thirteen themselves survive, and nothing else does.
     assert parsing.shape_form("9-9.9/9_9:9#9*9(9)9[9]9+9,9") == ""  # too long
     assert parsing.shape_form("1#*()[]+,") == "%#*()[]+,"
@@ -1337,8 +1340,13 @@ def test_a_shaped_stand_in_does_not_advance_the_neutral_number() -> None:
     ):
         values = values + [code] * count
     values = values + [f"Q{number:02d}.{number % 3}" for number in range(200)]
+    # NINE CELLS WEARING NO FORM AT ALL (a space in each): before lane
+    # CODES-1 they were `AA-00` and the like, whose form the floor pooled,
+    # and rule A1 (plan P4-D439) now counts that pool in the commonest named
+    # form, so their stand-ins wear it; a cell with no form is still owed
+    # none and still reaches the neutral spelling this case is about.
     values = values + [
-        f"{chr(65 + n)}{chr(65 + n)}-{n:02d}" for n in range(9)
+        f"{chr(65 + n)} {chr(65 + n)}-{n:02d}" for n in range(9)
     ]
     _document, described, _folder = _described(values, "dx")
     twin = generation.generate(described, 7)
@@ -1974,8 +1982,12 @@ def test_the_oracle_bounds_the_walk_as_the_product_does() -> None:
     twin = generation.generate(described, 7)
     assert [cell for cell in twin.columns[0] if cell.startswith("group-")] == []
     written = [cell for cell in values if cell in set(published)]
+    # ...WITH THE REGISTER'S OWN CENSUS OF HELD-BACK CHARACTERS, which the
+    # description publishes since lane CODES-1 (rule A2, plan P4-D439) and
+    # both the twin and the oracle walk.
     produced = oracle.invented_levels(
-        set(published), [1] * 5000, {"@@-@@@": 6200}, written
+        set(published), [1] * 5000, {"@@-@@@": 6200}, written,
+        listed=document["columns"][0].get("shape_form_places", {}),
     )
     assert {label for label, _size in produced} == (
         set(twin.columns[0]) - set(published)
@@ -2467,8 +2479,13 @@ def test_the_ladder_bound_is_on_what_it_refuses_and_the_oracle_walks_alike() -> 
                 generation._ladder_goes_on(position, taken)
             ), (position, taken)
     written = ["1000", "9000000"]
-    ladder = generation._number_ladder(written, False, [])
-    reference = oracle.number_ladder(written, [])
+    # THE 40,000 NUMBERS ARE HELD-BACK LEVELS, handed over as the product
+    # hands a column's `suppressed_levels`: the multiples of a thousand
+    # between the two numbers have no room for them, so no grain holds
+    # and the walk steps by one (rule A3, lane CODES-1, plan P4-D439).
+    ladder = generation._number_ladder(written, False, [], 40000)
+    reference = oracle.number_ladder(written, [], 40000)
+    assert ladder.grain == 1 and reference["grain"] == 1
     number = generation._OWED_NUMBER
     assert generation._ladder_room(ladder, number, 40000, {}, {}, {}, (), False) == 40000
     assert oracle.ladder_room(reference, oracle.OWED_NUMBER, 40000, set(), set(), set()) == 40000

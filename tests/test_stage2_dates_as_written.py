@@ -111,7 +111,7 @@ def _cells(shape: str, seed: int) -> "list[str]":
             f":{draw.randrange(60):02d}z"
             for day in days
         ]
-    if shape == "Epic mm/dd/yyyy hh:mm:ss":
+    if shape == "export mm/dd/yyyy hh:mm:ss":
         return [
             day.strftime("%m/%d/%Y ")
             + f"{draw.randrange(24):02d}:{draw.randrange(60):02d}"
@@ -165,7 +165,7 @@ SHAPES = {
     "slashed ISO 2024/03/17": ("slashed-iso-date", ()),
     "lower case quarter 2024-q1": ("year-quarter", ("quarter_marker_case",)),
     "lower case zulu 2024-03-17T08:57:57z": ("iso-datetime", ("zulu_case",)),
-    "Epic mm/dd/yyyy hh:mm:ss": (
+    "export mm/dd/yyyy hh:mm:ss": (
         "month-first-datetime",
         ("date_field_widths",),
     ),

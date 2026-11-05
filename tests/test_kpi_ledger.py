@@ -1259,13 +1259,43 @@ def test_k_s3_02(record_property, tmp_path: pathlib.Path) -> None:
 
 
 def test_k_s6_01(record_property, tmp_path: pathlib.Path) -> None:
-    """Statistics across columns: what the twin loses today (the known gap until stage 6)."""
+    """Statistics across columns at the owner's table floor: what the chain's twin carries and loses.
+
+    K-S6-01's table (`kpi_shapes.association_table`'s recipe, table draw 5)
+    at 20,000 rows, described with the chain's switch under the fixed test
+    key and generated behind it at seed 4 (method G16, lane CHb, plan
+    P4-D435): the rank correlation of age and sbp and the old-young
+    death-rate difference, against the real table's. The 1,000-row reading
+    of caf3079 (today's twin, 0.027 against 0.747) lies below the table
+    floor and is named in the entry's evidence.
+    """
     import pandas
 
-    described = S.describe(tmp_path, "real", S.association_table())
+    from synthtwin import chain, reading as reader
+
+    draw = random.Random(5)
+    lines = ["age,sbp,group,died"]
+    for _ in range(20000):
+        age = draw.gauss(55, 12)
+        sbp = 100 + 0.8 * age + draw.gauss(0, 8)
+        group = draw.choice("FM")
+        died = "yes" if draw.random() < (0.6 if age > 65 else 0.1) else "no"
+        lines += [f"{age:.0f},{sbp:.0f},{group},{died}"]
+    path = tmp_path / "association.csv"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    settings = taxonomy.Settings(small_cell_floor=11)
+    table = reader.read_table(str(path), small_cell_floor=11)
+    document = profile.build_document(table, settings, [], [], [])
+    chained = chain.describe(table, document, settings, chain.ChainSwitch("association", bytes(range(32))))
+    assert chained.statistical is not None, chained.notes
+    written = dict(document)
+    written["relationships"] = dict(written["relationships"], statistical=chained.statistical)
+    switched = fixtures.write_profile(tmp_path, "association-switched.json", written)
+    loaded = contract.load_profile(str(switched), chain=True)
+    twin = generation.generate_held(loaded, 4)
     frames = {
-        "real": pandas.read_csv(described.table),
-        "twin": pandas.read_csv(io.StringIO(S.twin_text(described, 4))),
+        "real": pandas.read_csv(path),
+        "twin": pandas.read_csv(io.StringIO("".join(rendering.twin_csv_pieces(twin)))),
     }
     measured = {}
     for side, frame in frames.items():

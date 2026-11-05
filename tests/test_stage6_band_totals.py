@@ -238,6 +238,11 @@ class _Switched:
         return self.twins[(which, seed)]
 
 
+def _l0_alone(loaded: contract.Profile) -> contract.Profile:
+    """A switched description with its chain emptied: its ladder and its families' count kept, so layer L0 runs and G16 does not."""
+    return dataclasses.replace(loaded, relationships=dataclasses.replace(loaded.relationships, chain=()))
+
+
 def _switched(folder: pathlib.Path, path: pathlib.Path) -> _Switched:
     """The table described with the chain's switch, loaded behind it and, beside it, without it."""
     settings = taxonomy.Settings(small_cell_floor=FLOOR)
@@ -252,7 +257,11 @@ def _switched(folder: pathlib.Path, path: pathlib.Path) -> _Switched:
     on = fixtures.write_profile(folder, f"{path.stem}-switched.json", written)
     off = fixtures.write_profile(folder, f"{path.stem}-plain.json", document)
     return _Switched(
-        table, document, chained.statistical, contract.load_profile(str(on), chain=True),
+        # LAYER L0 ALONE (lane CHb, plan P4-D435): the chain's walk would
+        # move every eligible column's cells between rows after the layer;
+        # this gate holds the layer, so it is loaded with its chain emptied,
+        # and tests/test_stage6_chain_generate.py holds the walk on top of it.
+        table, document, chained.statistical, _l0_alone(contract.load_profile(str(on), chain=True)),
         contract.load_profile(str(off)), settings, folder, {},
     )
 

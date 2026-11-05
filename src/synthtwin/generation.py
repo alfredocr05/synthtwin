@@ -141,7 +141,7 @@ structure arrives in a later phase (Phase 5).
 import dataclasses
 import math
 import typing
-from synthtwin import calendar_clock, calendar_rules, contract, dialect, errors, parsing, taxonomy, twinstore
+from synthtwin import calendar_clock, calendar_rules, chain_rules, chain_walk, contract, dialect, errors, parsing, taxonomy, twinstore
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
 from synthtwin import date_counts, grains
 
@@ -6702,7 +6702,16 @@ def _text_spelling(
 
 
 def _reads_as_a_date(candidate: str) -> bool:
-    """True when any format the profiler tries would read this as a date."""
+    """True when any format the profiler tries would read this as a date.
+
+    A text of ASCII figures alone is read by one member only, `compact-date`
+    (`20240317`), and only at eight figures: every other member asks a mark,
+    a letter or a separator at a fixed place. So figures alone of any other
+    length are answered at once (plan P4-D442: the walk asks this of every
+    filling, and a column of record numbers spent a third of its walk here).
+    """
+    if len(candidate) != 8 and parsing.is_digit_text(candidate):
+        return False
     for name in parsing.DATE_FORMATS:
         if parsing.parse_datetime(candidate, name) is not None:
             return True
@@ -13711,6 +13720,10 @@ def _wears_a_published_hole(text: str, holes: "tuple[str, ...]") -> bool:
     the conservative predicate above instead, so no cell reaches a
     recount wearing a built-in word by accident.
     """
+    if not holes:
+        # No hole published: no spelling wears one, and the readings below
+        # are not asked (plan P4-D442: the walk asks this of every filling).
+        return False
     body = parsing.trimmed(text)
     folded = parsing.folded(body)
     held = parsing.exact_of_spelling(body)
@@ -13795,6 +13808,21 @@ def _numeric_content(
                 # skeptic, item 11).
                 readings += [parsing.parse_number(cell)]
         return _numeric_tail(column, facts, layout, spelled, [])
+    if facts.few_values:
+        # A FEW-VALUED COLUMN WITH A WIDE GAP IS WRITTEN AS ITS LISTED
+        # VALUES (method G6.9, lane GG, plan P4-D440). The list names every
+        # number the column writes, in its own spelling; how many cells
+        # each takes is solved from the published counts alone
+        # (`_listed_census`), and nothing is drawn for them. The words
+        # G4.3 budgets for the numbers are still drawn, as G6.8's are, so
+        # the stream a later column reads does not move.
+        listed, listed_notes = _listed_census(column, facts)
+        if readings is not None:
+            for cell in listed:
+                # ...each listed cell read as G6.8's spelled cells are
+                # (method G4.2b; batch 4m's merge of lanes BT and GG).
+                readings += [parsing.parse_number(cell)]
+        return _numeric_tail(column, facts, layout, listed, listed_notes)
     notes: list[Deviation] = []
     rungs = _merged_rungs(facts)
     # A RUNG WITHHELD BY THE TAIL RULE IS NOT A RUNG THAT HOLDS NOTHING
@@ -14844,6 +14872,938 @@ def _census_number(spelling: str) -> int:
     for character in spelling:
         number = number * 10 + (ord(character) - ord("0"))
     return number
+
+
+# THE NOTE A LISTED COLUMN NAMES WHERE THE METHOD DID NOT MEET ONE OF ITS
+# PUBLISHED FACTS (method G6.9). The method takes the facts one at a time,
+# in rank order, each where it leaves those above it standing, so it may
+# name a fact a description the profiler wrote still allows -- its real
+# counts meet every fact but the ones a number held by one cell, left off
+# the list, then misses -- and the note says only what the twin did
+# (Codex's review of lane GG, item 3: the old words blamed the facts).
+_LISTED_NOTE = (
+    "The twin did not meet this published fact beside the ones ranked "
+    "above it, which it keeps, so it names this one."
+)
+
+
+# THE FACTS A LISTED COLUMN'S NOTE NAMES BY THEIR OWN KEY (G12's index);
+# every other pin it could not keep is named under `few_values`.
+_LISTED_OWN_KEYS = (
+    "empty_edges", "fraction_widths", "mode_count", "n_distinct_values",
+    "n_negative", "numeric_styles", "percentiles",
+)
+
+
+def _listed_census(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> "tuple[list[str], list[Deviation]]":
+    """A few-valued column's cells: its listed spellings, each at a solved count (G6.9).
+
+    LANE GG, PLAN P4-D440. The value list names every number the column
+    writes and no count. Every count the twin gives a listed value is
+    read off what the block published before the list existed, in this
+    rank, each taken only where it leaves the ones above it standing:
+
+    1. the sign counts, exact (G5.5): the listed negatives hold
+       `n_negative` cells and a listed nought `n_zero`;
+    2. the mode pair: the mode holds `mode_count` cells, no smaller
+       listed value as many and no larger one more (the tie rule names
+       the smallest);
+    3. each tail's rows (`tails`): the outermost listed values are its
+       values, and its published mean distance from its boundary rung
+       solves how many rows each of two holds -- three with the
+       root-mean-square;
+    4. the hundred and one rungs: a rung that is a listed value stands
+       on its ranks, and a rung between two neighbouring listed values
+       pins the rank where one gives way to the other;
+    5. the floored histogram (`bin_groups`): the rows between the tails
+       in each run of bins, which pins the rank after its last value.
+
+    Every listed value holds at least two cells (the listing rule's own
+    number, so the twin's own description lists it again), or one where
+    the column holds fewer than two a value. Within what those leave
+    open each boundary between neighbours starts where the published
+    rungs and the boundaries the pins fix, read as a curve of rank
+    against place in the list, put it (`_listed_ladder_ranks`; the
+    middle of its room where that curve cannot be read), the numbers
+    written with and without a point are
+    then moved to the counts `numeric_styles` and `fraction_widths`
+    publish, and last the rows cross boundaries between values of one
+    written form, one row a boundary a pass, until the column's sum is
+    the published mean's (`_listed_mean_met`). A number the real column
+    held on ONE cell is not listed (`taxonomy._few_values_of`): its cell
+    is written at a listed value -- the bounds keep it in its own run of
+    the floored histogram -- and the count of different numbers it then
+    misses is named.
+
+    Guarantees: accepts the block and its facts, whose `few_values` is
+    not empty; returns `n_numeric` cells, the listed spellings in
+    ascending order of their numbers, and a deviation for each published
+    fact that could not be met beside those above it. Determinism: a
+    function of the published facts. Raises nothing of its own. No I/O.
+    """
+    spellings = facts.few_values
+    count = len(spellings)
+    total = column.n_numeric
+    figures = parsing.few_values_figures(spellings)
+    units = [parsing.few_value_units(text, figures) for text in spellings]
+    numbers: "list[float]" = []
+    for text in spellings:
+        read = parsing.parse_number(text)
+        numbers += [read if read is not None else 0.0]
+    least = 1
+    if total >= parsing.TAIL_SHARED_CELLS * count:
+        least = parsing.TAIL_SHARED_CELLS
+    fewest = [least for _each in range(count)]
+    most = [total for _each in range(count)]
+    low = [0 for _each in range(count + 1)]
+    high = [total for _each in range(count + 1)]
+    high[0] = 0
+    low[count] = total
+    missed: "dict[str, bool]" = {}
+    bounds = _census_bounds(low, high, fewest, most)
+    if bounds is None:
+        least = 1
+        fewest = [least for _each in range(count)]
+        bounds = _census_bounds(low, high, fewest, most)
+    if bounds is None:
+        # Fewer cells than listed values: a description no profiler
+        # writes. Each value takes one cell while cells last.
+        cells: "list[str]" = []
+        for place in range(min(count, total)):
+            cells += [spellings[place]]
+        return cells, [
+            _deviation(
+                column.name, "few_values", f"{count} values",
+                f"{min(count, total)} values", _LISTED_NOTE,
+            )
+        ]
+    low, high = bounds
+    # THE RANKS THE PUBLISHED FACTS PIN (steps 1, 3, 4 and 5), the sign
+    # counts taken before the mode pair and the rest after it.
+    pins = _census_pins(facts, numbers, total)
+    signs = [pin for pin in pins if pin[3] in ("n_negative", "n_zero")]
+    others = [pin for pin in pins if pin[3] not in ("n_negative", "n_zero")]
+    low, high = _census_pinned(low, high, fewest, most, signs, missed)
+    # 2. THE MODE PAIR, AS BOUNDS ON EACH VALUE'S OWN COUNT.
+    mode_place = -1
+    if facts.mode is not None and facts.mode_count >= 1:
+        for place in range(count):
+            if numbers[place] == facts.mode:
+                mode_place = place
+    if mode_place >= 0:
+        # THE MODE KEPT WHERE ITS COUNT MUST GIVE WAY (Codex's review of lane
+        # GG, item 4): the cells of numbers left off the list are written at
+        # listed values, and where every listed value already holds as many
+        # as the mode may -- `-100`, `-99` and 1 to 98 on 200 cells each,
+        # beside one `50.5` -- the published count leaves no room for them.
+        # The mode's count is then raised a row at a time, up to one a
+        # number left off, and every other value's bound with it, so the
+        # mode stays the mode and only its count is named; the pair is
+        # given up whole only where that does not help.
+        spare = 0
+        if facts.n_distinct_values is not None and facts.n_distinct_values > count:
+            spare = facts.n_distinct_values - count
+        moded: "tuple[list[int], list[int]] | None" = None
+        extra = 0
+        held_fewest = fewest
+        held_most = most
+        while moded is None and extra <= spare:
+            held_fewest, held_most = _moded_counts(
+                fewest, most, mode_place, facts.mode_count, extra
+            )
+            moded = _census_bounds(low, high, held_fewest, held_most)
+            if moded is None:
+                extra = extra + 1
+        if moded is None or extra > 0:
+            missed["mode_count"] = True
+        if moded is not None:
+            low, high = moded
+            fewest = held_fewest
+            most = held_most
+    low, high = _census_pinned(low, high, fewest, most, others, missed)
+    ranks = [0 for _each in range(count + 1)]
+    ranks[count] = total
+    # WHERE THE PUBLISHED FACTS PUT EACH FREE BOUNDARY (repair 1 of lane
+    # GG; the statistics skeptic's item 1 (a), the orchestrator's LANE GG
+    # RULINGS 1 (2)): read off the published rungs and the boundaries the
+    # pins fix, as a curve of rank against place in the list
+    # (`_listed_ladder_ranks`); the middle of the room only where that
+    # curve cannot be read.
+    laddered = _listed_ladder_ranks(facts, numbers, total, low, high)
+    for place in range(1, count):
+        start = max(low[place], ranks[place - 1] + fewest[place - 1])
+        stop = min(high[place], ranks[place - 1] + most[place - 1])
+        middle = laddered[place]
+        if middle is None:
+            middle = (low[place] + high[place]) // 2
+        ranks[place] = min(max(middle, start), stop)
+    forms = [_listed_form(text) for text in spellings]
+    for form, wanted in _listed_form_targets(facts, forms):
+        ranks = _listed_forms_met(
+            ranks, form, wanted, forms, low, high, fewest, most
+        )
+        held = 0
+        for place in range(count):
+            if forms[place] == form:
+                held = held + ranks[place + 1] - ranks[place]
+        if held != wanted:
+            missed["numeric_styles" if form == "plain" else "fraction_widths"] = True
+    if facts.mean is not None and math.isfinite(facts.mean):
+        whole, power = _binary_whole(facts.mean)
+        scale = 1
+        target = whole * total * _ten_to(figures)
+        if power >= 0:
+            target = target * (1 << power)
+        else:
+            scale = 1 << -power
+        # ...and never more than half of a value's rows (repair 1 of lane
+        # GG): the mean's correction is shared out, but a value the curve
+        # gave 13 rows of a real 13 is not left 2 because both its
+        # boundaries were free to move (measured at 20,000 rows: hr61's
+        # 52 and 53, on 34 and 35 real cells, written on 2 each without it).
+        kept = [
+            max(fewest[place], (ranks[place + 1] - ranks[place]) // 2)
+            for place in range(count)
+        ]
+        ranks = _listed_mean_met(
+            ranks, units, forms, target, scale, low, high, kept, most,
+        )
+        # ...but the published mean ranks above that half: where it is not
+        # reached so, the passes go on down to each value's own fewest
+        # (measured at 20,000 rows: a dispensed quantity's 45, on 10 real
+        # cells, given 33 by the curve, kept the sum 345 units short).
+        if 2 * abs(target - _listed_sum(ranks, units) * scale) > scale:
+            ranks = _listed_mean_met(
+                ranks, units, forms, target, scale, low, high, fewest, most,
+            )
+        # ...and where the passes stop more than half a unit of the
+        # finest width away from it, the mean is the fact given up, named.
+        if 2 * abs(target - _listed_sum(ranks, units) * scale) > scale:
+            missed["mean"] = True
+    cells = []
+    for place in range(count):
+        cells += [spellings[place]] * (ranks[place + 1] - ranks[place])
+    # A NUMBER THE REAL COLUMN HELD ON ONE CELL IS NOT LISTED (repair 1 of
+    # lane GG, the orchestrator's LANE GG RULINGS 1 (1)): its cell is
+    # written at a listed value, so the published count of different
+    # numbers is one more than the twin holds for each, and is named.
+    if facts.n_distinct_values is not None and facts.n_distinct_values > count:
+        missed["n_distinct_values"] = True
+    # ...and where such a number is an edge of a published empty stretch,
+    # the twin reads the stretches that meet at it as one and writes
+    # nothing inside, so that edge is named (repair 2 of lane GG, LANE GG
+    # RULINGS 3 (2): a days' supply's one `83` between `[60, 83]` and
+    # `[83, 90]`).
+    placed = {number: True for number in numbers}
+    for below, above in facts.empty_edges:
+        if below not in placed or above not in placed:
+            missed["empty_edges"] = True
+    # Each under the key the report index of G12 names: a pin of the
+    # tails, the floored histogram or the count of noughts is a count
+    # of the list itself (`few_values`).
+    named: "dict[str, bool]" = {}
+    for fact in missed:
+        named[fact if fact in _LISTED_OWN_KEYS else "few_values"] = True
+    notes: "list[Deviation]" = []
+    for fact in sorted(named):
+        notes += [
+            _deviation(
+                column.name, fact, "a count its published facts fix",
+                "a count the facts ranked above it leave room for",
+                _LISTED_NOTE,
+            )
+        ]
+    return cells, notes
+
+
+def _moded_counts(
+    fewest: "list[int]",
+    most: "list[int]",
+    mode_place: int,
+    published: int,
+    extra: int,
+) -> "tuple[list[int], list[int]]":
+    """Each listed value's count bounds under the mode pair (G6.9 step 2).
+
+    The mode holds `c` = ``published`` + ``extra`` cells, a smaller listed
+    value fewer and a larger one no more (the tie rule names the
+    smallest), so with ``extra`` above nought the mode is still the mode
+    and only its count is moved, by ``extra`` (Codex's review of lane GG,
+    item 4: the room a cell left off needs may lie on a value other than
+    the mode, beyond a pinned count of negatives).
+    """
+    held = published + extra
+    held_fewest = [one for one in fewest]
+    held_most = [one for one in most]
+    for place in range(len(fewest)):
+        if place == mode_place:
+            held_fewest[place] = held
+            held_most[place] = held
+        elif place < mode_place:
+            held_most[place] = min(held_most[place], held - 1)
+        else:
+            held_most[place] = min(held_most[place], held)
+    return held_fewest, held_most
+
+
+def _listed_ladder_ranks(
+    facts: contract.NumericFacts,
+    numbers: "list[float]",
+    total: int,
+    low: "list[int]",
+    high: "list[int]",
+) -> "list[int | None]":
+    """Where the published facts put each boundary of a listed census (G6.9).
+
+    A CURVE OF RANK AGAINST PLACE IN THE LIST, read linearly between its
+    points. Listed value `i` stands at place `i`; a rung between two
+    listed values at its share of the way from one to the other. The
+    points are each published rung at its type-7 rank position
+    `(n - 1) p / 100`, each boundary the pins have fixed (``low[j]`` equal
+    to ``high[j]``) at place `j - 1/2` and position `low[j] - 1/2`, and the
+    two ends of the column at places `-1/2` and `k - 1/2`. Boundary `j`
+    -- the cells holding one of the first `j` values -- is read at place
+    `j - 1/2`, between the last point at or before it and the first at
+    or after it, and the lower values hold `floor(h) + 1` cells where the
+    curve gives position `h`. Read in PLACES, not in the numbers, so a
+    stretch the column leaves empty -- from `-99` to a scale, or from a
+    scale to `999` -- does not crowd the values beside it onto two cells
+    each (the statistics skeptic's item 1: 120 to 124 mg/dl written on 3
+    cells each against 49 to 13 real), and a tail beyond the last rung
+    shares its rows out among its values rather than piling them on the
+    outermost. EXACT: each binary64 is the rational it holds
+    (`_binary_wholes`), each place and position a ratio of whole numbers,
+    so the oracle's rationals read the same ranks. Returns a rank or None
+    for each boundary `0` to `k`, None where nothing can be read.
+    """
+    count = len(numbers)
+    found: "list[int | None]" = [None for _each in range(count + 1)]
+    published: "list[tuple[int, float]]" = []
+    for percent in range(101):
+        rung = _published_rung(facts, percent)
+        if rung is not None and math.isfinite(rung):
+            published += [(percent, rung)]
+    exact = _binary_wholes(numbers + [rung for _percent, rung in published])
+    if exact is None or count < 2:
+        return found
+    listed = exact[:count]
+    # Each point is (position numerator, position denominator, place
+    # numerator, place denominator), every denominator positive.
+    points: "list[tuple[int, int, int, int]]" = [
+        (-1, 2, -1, 2),
+        (2 * total - 1, 2, 2 * count - 1, 2),
+    ]
+    for index in range(len(published)):
+        percent = published[index][0]
+        value = exact[count + index]
+        if value <= listed[0]:
+            place_top, place_bottom = 0, 1
+        elif value >= listed[count - 1]:
+            place_top, place_bottom = count - 1, 1
+        else:
+            below = 0
+            while listed[below + 1] <= value:
+                below = below + 1
+            step = listed[below + 1] - listed[below]
+            place_top = below * step + value - listed[below]
+            place_bottom = step
+        points += [((total - 1) * percent, 100, place_top, place_bottom)]
+    for place in range(1, count):
+        if low[place] == high[place]:
+            points += [(2 * low[place] - 1, 2, 2 * place - 1, 2)]
+    for place in range(1, count):
+        # The place read: 2 place - 1 halves.
+        before: "tuple[int, int, int, int] | None" = None
+        after: "tuple[int, int, int, int] | None" = None
+        for point in points:
+            # point's place against (2 place - 1) / 2, by cross-multiplying.
+            side = 2 * point[2] - (2 * place - 1) * point[3]
+            if side <= 0 and (
+                before is None
+                or _listed_later(point, before)
+            ):
+                before = point
+            if side >= 0 and (
+                after is None
+                or _listed_later(after, point)
+            ):
+                after = point
+        if before is None or after is None:
+            continue
+        found[place] = _listed_read(before, after, 2 * place - 1, 2)
+    return found
+
+
+def _listed_sum(ranks: "list[int]", units: "list[int]") -> int:
+    """The column's sum in the listed values' units, from its boundary ranks (G6.9)."""
+    reached = 0
+    for place in range(len(units)):
+        reached = reached + units[place] * (ranks[place + 1] - ranks[place])
+    return reached
+
+
+def _listed_later(
+    one: "tuple[int, int, int, int]", other: "tuple[int, int, int, int]"
+) -> bool:
+    """Whether point ``one`` stands later than ``other``: at a later place, or the same place and a later position."""
+    place = one[2] * other[3] - other[2] * one[3]
+    if place != 0:
+        return place > 0
+    return one[0] * other[1] - other[0] * one[1] > 0
+
+
+def _listed_read(
+    before: "tuple[int, int, int, int]",
+    after: "tuple[int, int, int, int]",
+    place_top: int,
+    place_bottom: int,
+) -> int:
+    """The rank `floor(h) + 1` where the curve through two points reaches a place (G6.9).
+
+    `h = h0 + (h1 - h0)(x - x0) / (x1 - x0)`, every term a ratio of whole
+    numbers; where the two points stand at one place, `h0`.
+    """
+    h0_top, h0_bottom, x0_top, x0_bottom = before
+    h1_top, h1_bottom, x1_top, x1_bottom = after
+    # x1 - x0 and x - x0, each over x0_bottom * x1_bottom * place_bottom.
+    span = (x1_top * x0_bottom - x0_top * x1_bottom) * place_bottom
+    reach = (place_top * x0_bottom - x0_top * place_bottom) * x1_bottom
+    if span <= 0:
+        return (h0_top // h0_bottom) + 1
+    # h = h0 + (h1 - h0) * reach / span, over h0_bottom * h1_bottom * span.
+    top = (
+        h0_top * h1_bottom * span
+        + (h1_top * h0_bottom - h0_top * h1_bottom) * reach
+    )
+    bottom = h0_bottom * h1_bottom * span
+    return top // bottom + 1
+
+
+def _census_bounds(
+    low: "list[int]",
+    high: "list[int]",
+    fewest: "list[int]",
+    most: "list[int]",
+) -> "tuple[list[int], list[int]] | None":
+    """The ranks each boundary of a listed census may stand at, made consistent (G6.9).
+
+    ``low[j]`` and ``high[j]`` bound how many cells hold one of the first
+    `j` listed values, and each value's own count lies in
+    `[fewest, most]`. One pass forward and one back leave every bound
+    reachable from both neighbours -- a chain, so a value chosen inside
+    each bound in order never has to be taken back. None where some
+    bound is empty.
+    """
+    floor = [one for one in low]
+    ceiling = [one for one in high]
+    count = len(fewest)
+    for _round in range(4):
+        moved = False
+        for place in range(count):
+            reach = floor[place] + fewest[place]
+            if reach > floor[place + 1]:
+                floor[place + 1] = reach
+                moved = True
+            reach = ceiling[place] + most[place]
+            if reach < ceiling[place + 1]:
+                ceiling[place + 1] = reach
+                moved = True
+        for place in range(count - 1, -1, -1):
+            reach = floor[place + 1] - most[place]
+            if reach > floor[place]:
+                floor[place] = reach
+                moved = True
+            reach = ceiling[place + 1] - fewest[place]
+            if reach < ceiling[place]:
+                ceiling[place] = reach
+                moved = True
+        for place in range(count + 1):
+            if floor[place] > ceiling[place]:
+                return None
+        if not moved:
+            break
+    return floor, ceiling
+
+
+def _census_pinned(
+    low: "list[int]",
+    high: "list[int]",
+    fewest: "list[int]",
+    most: "list[int]",
+    pins: "list[tuple[int, int, int, str]]",
+    missed: "dict[str, bool]",
+) -> "tuple[list[int], list[int]]":
+    """The bounds with each pin taken in order where it leaves them consistent (G6.9).
+
+    A pin that would empty some bound is passed over and its fact named
+    in ``missed``, which this extends.
+    """
+    for place, at_least, at_most, fact in pins:
+        pinned_low = [one for one in low]
+        pinned_high = [one for one in high]
+        pinned_low[place] = max(pinned_low[place], at_least)
+        pinned_high[place] = min(pinned_high[place], at_most)
+        pinned = _census_bounds(pinned_low, pinned_high, fewest, most)
+        if pinned is None:
+            missed[fact] = True
+            continue
+        low, high = pinned
+    return low, high
+
+
+def _census_pins(
+    facts: contract.NumericFacts, numbers: "list[float]", total: int
+) -> "list[tuple[int, int, int, str]]":
+    """The ranks the published facts pin, in G6.9's order: signs, tails, rungs, bins.
+
+    Each is ``(j, at_least, at_most, fact)``: how many cells hold one of
+    the first `j` listed values lies in `[at_least, at_most]`.
+    """
+    count = len(numbers)
+    pins: "list[tuple[int, int, int, str]]" = []
+    negatives = 0
+    for number in numbers:
+        if number < 0.0:
+            negatives = negatives + 1
+    pins += [(negatives, facts.n_negative, facts.n_negative, "n_negative")]
+    if negatives < count and numbers[negatives] == 0.0:
+        held = facts.n_negative + facts.n_zero
+        pins += [(negatives + 1, held, held, "n_zero")]
+    tails = facts.tails if facts.tail_rule else None
+    low_rows = 0
+    high_rows = 0
+    if tails is not None and tails.low is not None:
+        low_rows = tails.low.rows
+        pins += _tail_pins(facts, tails.low, numbers, total, True)
+    if tails is not None and tails.high is not None:
+        high_rows = tails.high.rows
+        pins += _tail_pins(facts, tails.high, numbers, total, False)
+    for percent in range(101):
+        rung = _published_rung(facts, percent)
+        if rung is None:
+            continue
+        steps = (total - 1) * percent
+        lower = steps // 100
+        rest = steps - lower * 100
+        place = _listed_place(numbers, rung)
+        if place >= 0:
+            pins += [(place, 0, lower, "percentiles")]
+            pins += [
+                (place + 1, lower + (2 if rest > 0 else 1), total, "percentiles")
+            ]
+            continue
+        if rest == 0:
+            continue
+        for below in range(count - 1):
+            if numbers[below] < rung < numbers[below + 1]:
+                pins += [(below + 1, lower + 1, lower + 1, "percentiles")]
+    ends = _bin_ends(facts)
+    if ends is None or not facts.bin_groups:
+        return pins
+    middle = total - low_rows - high_rows
+    gathered = 0
+    for _first, last, rows in facts.bin_groups:
+        gathered = gathered + rows
+        place = -1
+        for index in range(count):
+            number = numbers[index]
+            if ends[0] <= number <= ends[1] and _bin_on(
+                number, ends, True
+            ) <= last:
+                place = index
+        if place < 0:
+            continue
+        if 0 < gathered < middle:
+            held = low_rows + gathered
+            pins += [(place + 1, held, held, "bin_groups")]
+        elif gathered <= 0:
+            pins += [(place + 1, 0, low_rows, "bin_groups")]
+        else:
+            pins += [(place + 1, total - high_rows, total, "bin_groups")]
+    return pins
+
+
+def _listed_place(numbers: "list[float]", value: float) -> int:
+    """Where ``value`` stands in the listed numbers, or -1."""
+    for place in range(len(numbers)):
+        if numbers[place] == value:
+            return place
+    return -1
+
+
+def _tail_pins(
+    facts: contract.NumericFacts,
+    side: contract.TailSide,
+    numbers: "list[float]",
+    total: int,
+    low: bool,
+) -> "list[tuple[int, int, int, str]]":
+    """The ranks one tail pins (G6.9 step 3).
+
+    A tail is the outermost `rows` ranks, so the values it lists are the
+    outermost listed values, each holding a share of it and the innermost
+    reaching on past it. One value holds the tail whole; two are solved
+    from the mean distance from the boundary rung; three from it and the
+    root-mean-square. A tail listing no value, or one whose solution is
+    no whole count, pins only that its rows are the outermost.
+    """
+    count = len(numbers)
+    rows = side.rows
+    listed = len(side.values)
+    if rows < 1 or listed < 1 or listed > count:
+        return []
+    order = [place for place in range(listed)] if low else [
+        count - 1 - place for place in range(listed)
+    ]
+    for step in range(listed):
+        wanted = side.values[step] if low else side.values[listed - 1 - step]
+        if numbers[order[step]] != wanted:
+            return []
+    boundary = _published_rung(facts, side.percent)
+    shares = _tail_shares(
+        side, [numbers[place] for place in order], boundary, rows
+    )
+    pins: "list[tuple[int, int, int, str]]" = []
+    held = 0
+    for step in range(listed - 1):
+        if shares is None:
+            break
+        held = held + shares[step]
+        if low:
+            pins += [(order[step] + 1, held, held, "tails")]
+        else:
+            pins += [(order[step], total - held, total - held, "tails")]
+    if low:
+        pins += [(order[listed - 1] + 1, rows, total, "tails")]
+    else:
+        pins += [(order[listed - 1], 0, total - rows, "tails")]
+    return pins
+
+
+def _tail_shares(
+    side: contract.TailSide,
+    outward: "list[float]",
+    boundary: "float | None",
+    rows: int,
+) -> "list[int] | None":
+    """How many of a tail's rows each listed value holds, outermost first, or None.
+
+    One value: all of them. Two: the mean distance from the boundary rung
+    solves the outer one's share. Three: the mean and the root-mean-square
+    together. The shares are rounded to whole rows and kept only where
+    they are counts that add to `rows`.
+    """
+    listed = len(outward)
+    if listed == 1:
+        return [rows]
+    if boundary is None or side.mean_distance is None:
+        return None
+    # EXACT, IN RATIONALS: every binary64 here is the rational it holds,
+    # so the share is the same number whoever computes it (the oracle
+    # mirrors it, A-P4-59), and the nearest whole count takes a half up.
+    # Each is held as a whole number of one shared power of two
+    # (`_binary_wholes`), so every ratio below is a ratio of whole
+    # numbers, the shared power cancelling.
+    given = [boundary, side.mean_distance] + [one for one in outward]
+    if listed == 3 and side.rms_distance is not None:
+        given += [side.rms_distance]
+    exact = _binary_wholes(given)
+    if exact is None:
+        return None
+    edge = exact[0]
+    gaps = [abs(edge - exact[2 + step]) for step in range(listed)]
+    first = rows * exact[1]
+    shares: "list[int]" = []
+    if listed == 2:
+        if gaps[0] == gaps[1]:
+            return None
+        outer = _nearest_whole(first - rows * gaps[1], gaps[0] - gaps[1])
+        shares = [outer, rows - outer]
+    elif listed == 3 and side.rms_distance is not None:
+        spread = exact[2 + listed]
+        second = rows * spread * spread
+        squares = [gap * gap for gap in gaps]
+        # e0 + e1 + e2 = rows; the sum of e g is `first`, of e g g `second`.
+        a1 = gaps[0] - gaps[2]
+        b1 = gaps[1] - gaps[2]
+        c1 = first - rows * gaps[2]
+        a2 = squares[0] - squares[2]
+        b2 = squares[1] - squares[2]
+        c2 = second - rows * squares[2]
+        determinant = a1 * b2 - a2 * b1
+        if determinant == 0:
+            return None
+        outer = _nearest_whole(c1 * b2 - c2 * b1, determinant)
+        middle = _nearest_whole(a1 * c2 - a2 * c1, determinant)
+        shares = [outer, middle, rows - outer - middle]
+    else:
+        return None
+    for share in shares:
+        if share < 1:
+            return None
+    return shares
+
+
+def _nearest_whole(above: int, below: int) -> int:
+    """The whole number nearest the exact ratio ``above / below``, a half taken up (G6.9).
+
+    ``below`` is not nought. floor(above / below + 1/2) is
+    floor((2 above + below) / (2 below)) with ``below`` made positive,
+    in whole numbers alone.
+    """
+    if below < 0:
+        above = -above
+        below = -below
+    return (2 * above + below) // (2 * below)
+
+
+def _binary_whole(value: float) -> "tuple[int, int]":
+    """A finite binary64 as ``(whole, power)``, exactly ``whole * 2 ** power`` (G6.9).
+
+    The fraction `frexp` gives, times two to the fifty-third, is a whole
+    number a binary64 holds exactly, so nothing is rounded.
+    """
+    mantissa, exponent = math.frexp(value)
+    return int(math.ldexp(mantissa, 53)), exponent - 53
+
+
+def _binary_wholes(values: "list[float]") -> "list[int] | None":
+    """Finite binary64 values as whole numbers of one shared power of two, or None (G6.9).
+
+    Each value is exactly its whole number times two to the least power
+    any of them needs; None where a value is not finite.
+    """
+    parts: "list[tuple[int, int]]" = []
+    for value in values:
+        if not math.isfinite(value):
+            return None
+        parts += [_binary_whole(value)]
+    least = min(power for _whole, power in parts)
+    return [whole * (1 << (power - least)) for whole, power in parts]
+
+
+def _listed_form(text: str) -> str:
+    """The written form of a listed spelling: `plain`, or its places after the point."""
+    if not isinstance(text, str):
+        raise TypeError(_INTERNAL_NOT_TEXT)
+    point = text.find(".")
+    if point < 0:
+        return "plain"
+    return f"{len(text) - point - 1}"
+
+
+def _listed_form_targets(
+    facts: contract.NumericFacts, forms: "list[str]"
+) -> "list[tuple[str, int]]":
+    """The published count of cells of each written form a listed column holds.
+
+    `plain` reads `numeric_styles`, a width reads `fraction_widths`; a
+    form the census pools has no count of its own and is left out, as is
+    the one form of a column written one way, which every cell holds.
+    """
+    seen: "dict[str, bool]" = {}
+    for form in forms:
+        seen[form] = True
+    if len(seen) < 2:
+        return []
+    targets: "list[tuple[str, int]]" = []
+    for form in sorted(seen):
+        census = facts.numeric_styles if form == "plain" else facts.fraction_widths
+        key = "plain" if form == "plain" else form
+        if key in census:
+            targets += [(form, census[key])]
+    return targets
+
+
+def _census_room(
+    ranks: "list[int]",
+    place: int,
+    upward: bool,
+    low: "list[int]",
+    high: "list[int]",
+    fewest: "list[int]",
+    most: "list[int]",
+) -> int:
+    """How far one boundary of a listed census may move and keep every bound (G6.9)."""
+    before = ranks[place] - ranks[place - 1]
+    after = ranks[place + 1] - ranks[place]
+    if upward:
+        return max(0, min(
+            high[place] - ranks[place],
+            most[place - 1] - before,
+            after - fewest[place],
+        ))
+    return max(0, min(
+        ranks[place] - low[place],
+        before - fewest[place - 1],
+        most[place] - after,
+    ))
+
+
+def _listed_forms_met(
+    ranks: "list[int]",
+    form: str,
+    wanted: int,
+    forms: "list[str]",
+    low: "list[int]",
+    high: "list[int]",
+    fewest: "list[int]",
+    most: "list[int]",
+) -> "list[int]":
+    """Rows moved across boundaries until one written form holds its published count (G6.9).
+
+    Only boundaries between this form and a form LATER in the sorted
+    order are moved first, each as far as the bounds let it; then one row
+    at a time is handed through forms met before, each keeping its count,
+    to a later form (`_listed_form_row`; Codex's review of lane GG, item
+    3), so a form met before it stays met.
+    """
+    moved = [one for one in ranks]
+    later = {other: True for other in forms if other > form}
+    for place in range(1, len(forms)):
+        held = 0
+        for index in range(len(forms)):
+            if forms[index] == form:
+                held = held + moved[index + 1] - moved[index]
+        short = wanted - held
+        if short == 0:
+            break
+        left, right = forms[place - 1], forms[place]
+        if left == form and right in later:
+            upward = short > 0
+        elif right == form and left in later:
+            upward = short < 0
+        else:
+            continue
+        room = _census_room(moved, place, upward, low, high, fewest, most)
+        steps = min(room, abs(short))
+        moved[place] = moved[place] + (steps if upward else -steps)
+    # ...THEN THROUGH THE FORMS MET BEFORE (Codex's review of lane GG, item
+    # 3): `-99.00`, `1.0`, `2`, `3.0`, `4.00`, `5.0` and `6`, the one-decimal
+    # form met first, a rung fixing the boundary after `2` -- so no boundary
+    # joins the two-decimal form to the plain one that the bounds let move.
+    # One row at a time leaves this form for a form met before, which hands
+    # one row on, until a row reaches a later form (`_listed_form_row`):
+    # `4.00` to `3.0` and `1.0` to `2`, the one-decimal form's count kept.
+    held = 0
+    for index in range(len(forms)):
+        if forms[index] == form:
+            held = held + moved[index + 1] - moved[index]
+    while held != wanted:
+        giving = held > wanted
+        if not _listed_form_row(
+            moved, form, form, giving, forms, low, high, fewest, most, {form: True}
+        ):
+            break
+        held = held - 1 if giving else held + 1
+    return moved
+
+
+def _listed_form_row(
+    moved: "list[int]",
+    form: str,
+    top: str,
+    giving: bool,
+    forms: "list[str]",
+    low: "list[int]",
+    high: "list[int]",
+    fewest: "list[int]",
+    most: "list[int]",
+    visited: "dict[str, bool]",
+) -> bool:
+    """One row out of ``form`` (``giving``) or into it, passed on to a form later than ``top`` (G6.9).
+
+    Each boundary between a value of ``form`` and one of another form not
+    yet ``visited`` is tried in order, where the bounds leave it a row of
+    room: a later form ends the walk; a form met before must pass a row
+    on in its turn, and where it cannot the move is taken back and no
+    other boundary to that form is tried from here. ``moved`` is changed
+    in place only where it returns True. Raises nothing.
+    """
+    failed: "dict[str, bool]" = {}
+    for place in range(1, len(forms)):
+        left, right = forms[place - 1], forms[place]
+        if left == form:
+            other = right
+        elif right == form:
+            other = left
+        else:
+            continue
+        if other == form or other in visited or other in failed:
+            continue
+        # A boundary moved up hands a row from the value after it to the
+        # value before it.
+        upward = (right == form) == giving
+        if _census_room(moved, place, upward, low, high, fewest, most) < 1:
+            continue
+        moved[place] = moved[place] + (1 if upward else -1)
+        if other > top:
+            return True
+        onward = dict(visited)
+        onward[other] = True
+        if _listed_form_row(
+            moved, other, top, giving, forms, low, high, fewest, most, onward
+        ):
+            return True
+        moved[place] = moved[place] - (1 if upward else -1)
+        failed[other] = True
+    return False
+
+
+def _listed_mean_met(
+    ranks: "list[int]",
+    units: "list[int]",
+    forms: "list[str]",
+    target: int,
+    scale: int,
+    low: "list[int]",
+    high: "list[int]",
+    fewest: "list[int]",
+    most: "list[int]",
+) -> "list[int]":
+    """Rows moved across boundaries of one written form until the sum is the mean's (G6.9).
+
+    ``units`` are the listed values as whole numbers of one shared place,
+    ``target / scale`` the published mean times the cells in those units,
+    exactly (``scale`` a power of two, one or more). One row across a
+    boundary moves the sum by the gap between its two values. SPREAD, NOT
+    GREEDY (repair 1 of lane GG; the statistics skeptic's item 1): each
+    pass moves ONE row across each boundary, in order, where that brings
+    the sum strictly nearer -- passing the target only by less than it
+    falls short, so a mean whose binary64 lies a hair below the real sum
+    is reached from above as from below -- and the bounds leave room, and
+    the passes go on until none moves a row -- so the correction is
+    shared by every boundary that can carry it rather than piled on the
+    lowest. Each move shortens the distance to the target, so the passes
+    end.
+    ``fewest`` here keeps at least half of each value's rows as the
+    curve left them (`_listed_census`), so where that bound stops the
+    passes short of the mean, the mean is the fact given up.
+    """
+    moved = [one for one in ranks]
+    count = len(units)
+    total = 0
+    for place in range(count):
+        total = total + units[place] * (moved[place + 1] - moved[place])
+    changed = True
+    while changed:
+        changed = False
+        for place in range(1, count):
+            if forms[place - 1] != forms[place]:
+                continue
+            gap = units[place] - units[place - 1]
+            short = target - total * scale
+            if 2 * abs(short) <= gap * scale:
+                continue
+            upward = short < 0
+            if _census_room(moved, place, upward, low, high, fewest, most) < 1:
+                continue
+            moved[place] = moved[place] + (1 if upward else -1)
+            total = total + (-gap if upward else gap)
+            changed = True
+    return moved
 
 
 def _numeric_tail(
@@ -47566,8 +48526,15 @@ def held_back_sizes(
     words: "tuple[int, ...]" = (),
     most: "tuple[int, ...]" = (),
     counts: "list[int] | None" = None,
+    tags: "list[int] | None" = None,
 ) -> "tuple[int, ...]":
     """How many rows each invented held-back label covers (method G8.3).
+
+    ``tags``, where given, is told which debt each answered size was drawn
+    for, one entry per size in the answer's order: the debt's place in
+    ``debts`` then ``words`` as given (zeros and all), or -1 everywhere
+    where the pool is one debt (rule A3, lane CODES-1, plan P4-D439:
+    G8.3a's class split takes the sizes drawn for each class first).
 
     OWNER RULING OF 2026-09-17, ITEM 2, OPTION A (plan P4-D201). A label
     column publishes how many labels the floor held back and how many
@@ -47721,9 +48688,21 @@ def held_back_sizes(
             counts += [labels[place]]
             place = place + 1
     sizes: "list[int]" = []
+    drawn: "list[tuple[int, int]]" = []
+    origin = [index for index in range(len(debts)) if debts[index] > 0] + [
+        len(debts) + index for index in range(len(words)) if words[index] > 0
+    ]
     for place in range(len(buckets)):
         if labels[place] >= 1:
-            sizes += _ramp(buckets[place], labels[place], cap)
+            ramped = _ramp(buckets[place], labels[place], cap)
+            sizes += ramped
+            drawn += [
+                (size, -1 if pooled else origin[place]) for size in ramped
+            ]
+    # THE SAME SIZES IN THE SAME ORDER: sorted by size, a tie between two
+    # debts' sizes by the debt's place, which no size reads.
+    if tags is not None:
+        tags += [pair[1] for pair in sorted(drawn)]
     return tuple(sorted(sizes))
 
 
@@ -47797,8 +48776,12 @@ def _held_back_debts(
     debts: "dict[str, int]",
     rows: int,
     decimal_comma: bool,
+    classes_of: "list[str] | None" = None,
 ) -> "tuple[tuple[int, ...], tuple[int, ...]]":
     """What the held-back cells owe, one debt at a time (plan P4-D201).
+
+    ``classes_of``, where given, is told the class each entry of the
+    first answer is owed by, in its order (rule A3, plan P4-D439).
 
     The order `held_back_sizes` reads: for each numeric class in the
     order G8.3a settles them, each census form reading as that class,
@@ -47832,9 +48815,13 @@ def _held_back_debts(
             if part > left:
                 part = left
             found += [part]
+            if classes_of is not None:
+                classes_of += [name]
             left = left - part
         if left > 0:
             found += [left]
+            if classes_of is not None:
+                classes_of += [name]
         spent = spent + owed
     for form in sorted(owing):
         if owing[form] <= 0:
@@ -47853,6 +48840,7 @@ def _word_form_bounds(
     used: "dict[str, int]",
     owners: "dict[str, str]",
     holes: "tuple[str, ...]",
+    plans: "dict[str, _PlacePlan] | None" = None,
 ) -> "tuple[int, ...]":
     """The most labels each word form's debt may take, in `_held_back_debts`'s order (G8.3).
 
@@ -47877,8 +48865,80 @@ def _word_form_bounds(
         bound = owing[form]
         if _clock_supply(form):
             bound = _usable_room(form, owing[form], used, owners, holes)
+        elif plans is not None and form in plans:
+            # RULE A2'S FORM WITH A CENSUS TAKES NO MORE LABELS THAN ITS
+            # STAGES (1) AND (2) HAVE FREE SPELLINGS (lane CODES-1, plan
+            # P4-D439): each further label would be written off the
+            # census's characters -- `HCA0` among `HCC` codes.
+            bound = min(bound, _free_in_stages(form, plans[form], used, owners, holes, bound))
         bounds += [bound]
     return tuple(bounds)
+
+
+def _census_bounds_labels(census: "dict[str, int]") -> bool:
+    """Whether rule A2's label bound may enter a column's draw of sizes (P4-D439).
+
+    Only where no key of the column's form census is a clock's or a
+    stamp's (`parsing.is_a_time_key`): the bound changes the joint draw
+    of `held_back_sizes`, and so the clock's own stand-ins, whose bytes
+    plans P4-D373 and P4-D393 keep; `_drawn_word_forms` keeps no drawn
+    arrangement beside such a key either. Raises nothing.
+    """
+    for key in sorted(census):
+        if parsing.is_a_time_key(key):
+            return False
+    return True
+
+
+def _drawn_split_kept(
+    intended: "dict[int, str]", census: "dict[str, int]"
+) -> "dict[int, str]":
+    """The class each held-back size was drawn for, where rule A3 may take it (P4-D439).
+
+    A CLOCK KEEPS EVERY BYTE HERE TOO (Codex's review of lane CODES-1's
+    first repair, item 2; plans P4-D373 and P4-D393). Where no class split
+    G8.3a searches leaves every form settleable, the split the sizes were
+    drawn for stands in place of the first one found (`_class_split`), and
+    that moves which held-back sizes a clock's form is handed: a declared
+    code column of `09:15` on 19,908 rows beside PCORnet's diagnoses wrote
+    its ten held-back clock cells `00:00` where the base wrote `00:00`
+    once, `01:37` and `02:14` twice each and `03:51` five times (20,000
+    rows, seeds 0 to 2). So, as the census's label bound
+    (`_census_bounds_labels`), the drawn split is taken only where no key
+    of the column's form census is a clock's or a stamp's; elsewhere none
+    is, and the split is the first exact one, as before. Raises nothing.
+    """
+    if not intended or not _census_bounds_labels(census):
+        return {}
+    return intended
+
+
+def _free_in_stages(
+    form: str,
+    plan: "_PlacePlan",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+    wanted: int,
+) -> int:
+    """How many spellings of stages (1) and (2) no cell has taken, counted to ``wanted`` (P4-D439).
+
+    Only for a form the description gives a census of whose stages (1)
+    and (2) hold at most `_BALANCE_TRIES` spellings; ``wanted`` (no bound)
+    for any other. Raises nothing. No I/O of any kind.
+    """
+    if not plan.listed or plan.balance > _BALANCE_TRIES:
+        return wanted
+    free = 0
+    for step in range(plan.balance):
+        if free >= wanted:
+            return free
+        candidate = _filled_in_blocks(form, step, plan.blocks)
+        if candidate in used or parsing.folded(candidate) in owners:
+            continue
+        if _is_a_usable_stand_in(candidate, holes):
+            free = free + 1
+    return max(free, 1)
 
 
 def _clock_forms_past_their_times(
@@ -48046,6 +49106,13 @@ def _label_content(
     cells: list[str] = []
     notes: list[Deviation] = []
     made_up = 0
+    # A COLUMN WHOSE FORMS HOLD A DATE'S (plan P4-D442, lane HB's repair):
+    # its stand-ins of a month beside a year, eight figures or a year alone
+    # are dates too.
+    dated = False
+    for shape in facts.shape_forms:
+        if _date_form_fields(shape) is not None:
+            dated = True
     # Groups the bounded supply of G8.2 could not reach, written in their
     # level's commonest spelling (review of landing S1, item 2), and
     # where each walk of that supply stopped in this column.
@@ -48182,6 +49249,21 @@ def _label_content(
     # publish none, so the debt is empty for them and the neutral
     # `group-N` spelling stands as before.
     owing = _forms_owed(facts, cells)
+    # WHAT THE PUBLISHED SPELLINGS HOLD AT EACH PLACE OF EACH FORM (rule A2's
+    # stages (1) and (2), lane CODES-1, plan P4-D439), read while `cells`
+    # holds the published spellings alone.
+    fills = _place_plans(
+        facts.shape_forms, cells, dict(column.shape_form_places), plan.decimal_comma
+    )
+    # ...A DATE'S FORM IS FILLED WITH DATES, NEVER FROM ITS PLACES (lane HB's
+    # rule 6, plan P4-D442, kept at batch 4m's merge): a stand-in of it is a
+    # valid date, which no place's list can promise.
+    if dated:
+        fills = {
+            form: fills[form]
+            for form in fills
+            if _date_form_fields(form, True) is None
+        }
     # THE CLASSES THE HELD-BACK GROUPS OWE (method G8.3a). The published
     # spellings pay what they read as; what is left of `n_numeric`,
     # `n_out_of_range` and `n_contradictory` is owed by the held-back
@@ -48200,11 +49282,22 @@ def _label_content(
     holes = _all_holes_of(plan)
     comma = plan.decimal_comma
     debts = _classes_owed(column, cells, comma)
+    owed_by: "list[str]" = []
     numbers_owed, words_owed = _held_back_debts(
-        owing, debts, facts.suppressed_rows, comma
+        owing, debts, facts.suppressed_rows, comma, owed_by
     )
-    most = _word_form_bounds(owing, comma, used, owners, holes)
+    # THE CENSUS'S LABEL BOUND ENTERS THE DRAW ONLY BESIDE NO CLOCK OR
+    # STAMP (the repair of lane CODES-1, its first skeptic's item 3): it
+    # moves `held_back_sizes`' joint draw, and on a column of clock times
+    # beside words a census on the words moved one clock cell of 9,597
+    # (`19:32` 5 to 4, `18:06` 1 to 2, 20,000 rows); plans P4-D373 and
+    # P4-D393 keep a clock's and a stamp's bytes (`_census_bounds_labels`).
+    most = _word_form_bounds(
+        owing, comma, used, owners, holes,
+        fills if _census_bounds_labels(facts.shape_forms) else None,
+    )
     counts: "list[int]" = []
+    tags: "list[int]" = []
     sizes = held_back_sizes(
         facts.suppressed_levels,
         facts.suppressed_rows,
@@ -48213,7 +49306,16 @@ def _label_content(
         words_owed,
         most,
         counts,
+        tags,
     )
+    # RULE A3 (lane CODES-1, plan P4-D439): the class each size was drawn
+    # for, so G8.3a's split takes them first (`_class_split`) -- beside no
+    # clock's or stamp's key alone (`_drawn_split_kept`).
+    intended: "dict[int, str]" = {}
+    for place in range(len(tags)):
+        if 0 <= tags[place] < len(owed_by):
+            intended[place] = owed_by[tags[place]]
+    intended = _drawn_split_kept(intended, facts.shape_forms)
     # A CLOCK'S FORM HANDED MORE LABELS THAN IT HAS TIMES IS PAST ITS TIMES
     # (the leftover of the route-2 correction, plans P4-D390 and P4-D373):
     # the table held that form's values no clock reads, durations such as
@@ -48237,7 +49339,7 @@ def _label_content(
             classes, written_as, asked, numbers_made, unplaced, scaled,
         ) = _class_stand_ins(
             column, cells, sizes, owing, debts, used, owners, holes, comma,
-            short, plan.small_cell_floor,
+            short, plan.small_cell_floor, intended, plan.code_declared,
         )
         # WHAT IS LEFT FOR WORDS, and only the forms words can wear: a
         # number-reading form is paid inside the number class or not at
@@ -48283,6 +49385,13 @@ def _label_content(
         shared = ["" for _each in sizes]
         for step in range(len(wordy)):
             shared[wordy[step]] = settled[step]
+    # A CENSUS FORM'S LABEL BOUND KEPT (rule A2, lane CODES-1, plan P4-D439):
+    # where the settlement gave a form with a census more stand-ins than
+    # its stages hold free spellings, the sizes as they were drawn for each
+    # word form stand instead (`_drawn_word_forms`).
+    shared = _drawn_word_forms(
+        shared, sizes, owing, classes, tags, len(numbers_owed), most, fills, comma
+    )
     # THE SHAPE A STAND-IN TAKES WHERE THE CENSUS OWES IT NONE (landing
     # 2b.18 part 2, plan P4-D122; the carried item of landing 2b.12),
     # and the rows it is spent on.
@@ -48301,6 +49410,19 @@ def _label_content(
     # spellings the column has taken (`_walk_goes_on`).
     walked: "dict[str, int]" = {}
     taken: "dict[str, int]" = {}
+    # RULE A2'S BALANCED WALK, ON THE LARGEST STAND-INS (lane CODES-1, plan
+    # P4-D439): stage (1)'s free spellings of a form the census lists go to
+    # that form's largest stand-ins, and its other stand-ins walk on from
+    # stage (2) (`_balanced_places`).
+    assigned, starts = _balanced_places(
+        fills, sizes, shared, written_as, used, owners, plan.all_holes,
+        parsing.census_floor(plan.small_cell_floor),
+    )
+    # ...TAKEN BEFORE ANY OTHER STAND-IN IS WALKED, so no stand-in the walk
+    # reaches first spells one of them again.
+    for place in sorted(assigned):
+        used[assigned[place]] = 1
+        owners[parsing.folded(assigned[place])] = assigned[place]
     shaped = 0
     kept = 0
     # THE COLUMN GROWS IN PLACE (stage 4, plan P4-D385). It was copied
@@ -48353,6 +49475,17 @@ def _label_content(
     # room the `%%:%%` stand-ins after them needed.
     figures: "dict[str, int] | None" = None
     owed_still = _owed_clock_cells(keys_of, held, shared, sizes)
+    # WHAT THE DESCRIPTION PUBLISHED KEEPS ITS SPELLING; every stand-in after it
+    # is kept off the real runs of figures below (LANE HB RULINGS 6, item 2).
+    published_spellings: "dict[str, bool]" = {}
+    if facts.figure_openings:
+        for cell in cells:
+            published_spellings[cell] = True
+        # ...AND A HELD-BACK LEVEL THE CLASSES WROTE AS A NUMBER keeps its
+        # spelling too: G8.3a placed it on the published scale, and a run renamed
+        # there would move its reading, its range and its class.
+        for place in written_as:
+            published_spellings[written_as[place]] = True
     for place in range(len(sizes)):
         size = sizes[place]
         form = shared[place]
@@ -48371,12 +49504,21 @@ def _label_content(
             ):
                 shape = ""
             outside = place in beyond_places
-            number, label = _made_up_label(
-                number, used, owners, form, plan.all_holes, walked, shape,
-                beyond if outside else figures if holding and form else None,
-                taken,
-                outside,
-            )
+            if place in assigned:
+                # RULE A2'S BALANCED WALK (`_balanced_places`), worked out
+                # largest stand-in first before this walk began.
+                label = assigned[place]
+                taken[form] = (taken[form] if form in taken else 0) + 1
+            else:
+                number, label = _made_up_label(
+                    number, used, owners, form, plan.all_holes, walked, shape,
+                    beyond if outside else figures if holding and form else None,
+                    taken,
+                    outside,
+                    dated,
+                    fills[form] if form in fills else None,
+                    starts[form] if form in starts else 0,
+                )
             if not form and level_shape and _level_key(label) == level_shape:
                 kept = kept + 1
         if room is not None and _clock_key(label) in held:
@@ -48454,6 +49596,22 @@ def _label_content(
                 reason,
             )
         ]
+    # NO HELD-BACK STAND-IN WRITES A REAL RUN OF FIGURES (LANE HB RULINGS 6,
+    # item 2, plan P4-D442): `figure_openings` names the widths held back.
+    if facts.figure_openings:
+        cells, room_spent = _figure_runs_off_the_real(
+            cells, facts, holes, published_spellings
+        )
+        if room_spent[0] or room_spent[1]:
+            notes += [
+                _deviation(
+                    column.name,
+                    "suppressed_levels",
+                    "runs of figures the held-back labels hold",
+                    f"{room_spent[0]} different runs written wider, {room_spent[1]} as noughts",
+                    _RUNS_OFF_THE_REAL_LABELS,
+                )
+            ]
     return cells, notes
 
 
@@ -48469,8 +49627,15 @@ def _class_stand_ins(
     decimal_comma: bool,
     short: "list[int] | None",
     floor: int,
+    intended: "dict[int, str] | None" = None,
+    code_ends: bool = False,
 ) -> "tuple[dict[int, str], dict[int, str], dict[int, str], int, bool, int]":
     """The held-back groups that pay a class debt, and what each writes.
+
+    ``intended`` is the class each size was drawn for (`held_back_sizes`'
+    tags), which the split takes first (rule A3, plan P4-D439); and
+    ``code_ends``, a column declared a code, keeps its made-up whole
+    numbers inside the published ends and widths (`_with_code_ends`).
 
     TWO WALKS, THE NARROWER FIRST (integration repair of landing 2b.4).
     The walk is first taken with every made-up number held to the widest
@@ -48496,7 +49661,8 @@ def _class_stand_ins(
     bounded = True
     answer = _class_stand_ins_walked(
         column, written, sizes, owing, debts, taken_used, taken_owners,
-        holes, decimal_comma, taken_short, floor, True,
+        holes, decimal_comma, taken_short, floor, True, False, intended,
+        code_ends,
     )
     if len(answer[1]) != len(answer[0]):
         bounded = False
@@ -48505,7 +49671,8 @@ def _class_stand_ins(
         taken_short = []
         answer = _class_stand_ins_walked(
             column, written, sizes, owing, debts, taken_used, taken_owners,
-            holes, decimal_comma, taken_short, floor, False,
+            holes, decimal_comma, taken_short, floor, False, False, intended,
+            code_ends,
         )
     # AND A THIRD WALK WHERE THE NUMBER DEBT IS STILL UNPAID (landing
     # 2b.8, Codex item 6 of landing 2b.4). The shortfall shows at WRITE
@@ -48525,7 +49692,7 @@ def _class_stand_ins(
             wider = _class_stand_ins_walked(
                 column, written, sizes, owing, debts, wider_used,
                 wider_owners, holes, decimal_comma, wider_short, floor,
-                bounded, True,
+                bounded, True, intended, code_ends,
             )
             if _numbers_paid(sizes, wider[0], wider[1]) > paid:
                 answer = wider
@@ -48600,6 +49767,8 @@ def _class_stand_ins_walked(
     floor: int,
     bounded: bool,
     whole_tier: bool = False,
+    intended: "dict[int, str] | None" = None,
+    code_ends: bool = False,
 ) -> "tuple[dict[int, str], dict[int, str], dict[int, str], int, bool, int]":
     """One walk of `_class_stand_ins`, narrow where ``bounded`` says.
 
@@ -48645,7 +49814,19 @@ def _class_stand_ins_walked(
         if owing[form] > 0
         and _form_reading(form, decimal_comma) == parsing.NUMBER
     ]
-    ladder = _number_ladder(written, decimal_comma, number_forms)
+    ladder = _number_ladder(
+        written, decimal_comma, number_forms,
+        column.facts.suppressed_levels
+        if isinstance(column.facts, contract.LabelFacts)
+        else 0,
+    )
+    if code_ends:
+        # RULE A3'S ENDS AND WIDTHS ON A DECLARED CODE COLUMN (the repair
+        # of lane CODES-1): a made-up code stays inside the published
+        # codes' range and widths (`_with_code_ends`).
+        ladder = _with_code_ends(
+            ladder, column, min(len(sizes), debts[_OWED_NUMBER])
+        )
     # A WHOLE-NUMBER TIER, WHERE THE CALLER ASKED FOR ONE (landing 2b.8,
     # Codex item 6 of landing 2b.4). A number wearing no named form walks
     # the counts of places the published numbers were written with. Where
@@ -48668,7 +49849,7 @@ def _class_stand_ins_walked(
     supply = _class_supply(
         ladder, sizes, debts, used, owners, holes, decimal_comma
     )
-    classes = _class_split(sizes, debts, supply, owing, decimal_comma)
+    classes = _class_split(sizes, debts, supply, owing, decimal_comma, intended)
     missing = 0
     # A CLASS THE SPLIT COULD NOT PAY BECAUSE ITS SUPPLY RAN OUT is a
     # shortfall of supply, not of the partition: every spelling of the
@@ -49948,7 +51129,10 @@ def _usable_room(
         step = step + 1
         if candidate in used or parsing.folded(candidate) in owners:
             continue
-        if not _is_a_usable_stand_in(candidate, holes, reads_as, decimal_comma):
+        if not _is_a_usable_stand_in(
+            candidate, holes, reads_as, decimal_comma,
+            dated=_date_form_fields(form) is not None,
+        ):
             continue
         # COUNTED UNDER THE SAME BOUND THE WALK SPENDS UNDER (landing
         # 2b.13 repair, plan P4-D92). A supply counted without the
@@ -50037,6 +51221,15 @@ def _filled_form(form: str, step: int, clocks: bool = True) -> str:
         clock = _clock_filled_form(form, step)
         if clock is not None:
             return clock
+        # ...AND A FORM OF A DATE WITH DATES (plan P4-D442, lane HB items
+        # (6) and (7)): its first spellings are valid dates in its own
+        # layout (`_date_filled_form`), so a column of birth dates read as
+        # free text or as labels while its question is open, or a binary
+        # column's suppressed date, is no longer written `7949-90-04` or
+        # `0000-00-00`. A stamp's form is not one, and its fill is as it was.
+        date = _date_filled_form(form, step)
+        if date is not None:
+            return date
     # A FORM HOLDING THE ONE GAP KEEPS ITS MARKER WORD (lane L2's repair,
     # plan P4-D392). Its marker key names no letters but a word, so filled
     # letter by letter `%:%% @@` wrote `0:00 AA`, which wears no form: past
@@ -50101,6 +51294,775 @@ def _filled_form(form: str, step: int, clocks: bool = True) -> str:
             continue
         spelling = spelling + character
     return spelling
+
+
+# The characters each placeholder of a form stands for, in the order
+# `_filled_form` steps them.
+_PLACE_ALPHABETS = {
+    parsing.SHAPE_DIGIT: "0123456789",
+    parsing.SHAPE_LETTER: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    parsing.SHAPE_LOWER: "abcdefghijklmnopqrstuvwxyz",
+}
+
+
+def _published_places(
+    census: "dict[str, int]", written: "list[str]", decimal_comma: bool = False
+) -> "dict[str, tuple[str, ...]]":
+    """The characters the published spellings of each named form hold, place by place.
+
+    RULE A2 OF THE STAND-INS PAGE, ITS STAGES (1) AND (2) WHERE NO
+    POSITIONAL CENSUS IS PUBLISHED (lane CODES-1, plan P4-D439; P4-D422's
+    ZS.2). A stand-in was filled from the whole alphabet, so the tumour
+    registry's `T2N1M0` beside held-back stages came back `L8D8G3`, a
+    LOINC code `00000-0` and a primary site `A000`. The published levels
+    are written byte for byte, so the characters they hold at each place
+    of their form are printed facts already: `T` at the first place of
+    every TNM stage, `C` before every site. For each named form no clock
+    or stamp wears (`parsing.is_a_time_key`: their fills keep their bytes,
+    plans P4-D373 and P4-D393) and that reads as words (`_form_reading`:
+    a form one of whose fillings is a number, `%%@%%%` with its exponent,
+    is shared with the number classes, lane L1's, and keeps the fill it
+    had, since narrowed to the published `E` its every spelling would be
+    a number), over the different cells already written
+    that the census counts under it: at each place of a placeholder, the
+    characters of that placeholder's kind they hold there, in the order
+    `_filled_form` steps them, or the whole of that kind where they hold
+    none; "" at a mark's place. A form no written cell wears is absent,
+    and its stand-ins are filled as before.
+
+    Guarantees: a fixed function of the census and the cells. Raises
+    nothing. No I/O of any kind.
+    """
+    found: "dict[str, list[dict[str, int]]]" = {}
+    seen: "dict[str, int]" = {}
+    for cell in written:
+        if cell in seen:
+            continue
+        seen[cell] = 1
+        form = parsing.census_form(cell, census)
+        if (
+            not form
+            or form not in census
+            or form == contract.WITHHELD
+            or len(form) != len(cell)
+            or parsing.is_a_time_key(form)
+            or not parsing.form_reads_as_words(form, decimal_comma)
+        ):
+            continue
+        if form not in found:
+            found[form] = [{} for _place in form]
+        for at in range(len(form)):
+            kind = form[at]
+            if kind in _PLACE_ALPHABETS and (
+                cell[at] in _PLACE_ALPHABETS[kind]
+                or (kind == parsing.SHAPE_LETTER and cell[at] in _SMALL_LETTERS)
+            ):
+                found[form][at][cell[at]] = 1
+    places: "dict[str, tuple[str, ...]]" = {}
+    for form in sorted(found):
+        built: "list[str]" = []
+        for at in range(len(form)):
+            kind = form[at]
+            if kind not in _PLACE_ALPHABETS:
+                built += [""]
+                continue
+            known = ""
+            for mark in sorted(found[form][at]):
+                known = known + mark
+            alphabet = _place_alphabet(kind, known)
+            held = ""
+            for mark in alphabet:
+                if mark in found[form][at]:
+                    held = held + mark
+            built += [held if held else alphabet]
+        places[form] = tuple(built)
+    return places
+
+
+_SMALL_LETTERS = _PLACE_ALPHABETS[parsing.SHAPE_LOWER]
+
+
+def _place_alphabet(kind: str, marks: str) -> str:
+    """The characters one place of a form stands for, as its characters are written (rule A2, P4-D439).
+
+    A LETTER PLACE WRITTEN IN SMALL LETTERS STANDS FOR SMALL LETTERS (the
+    combined verify of lane CODES-1's first repair, item 3): where the
+    characters known at a letter place -- the published spellings' and
+    the census's -- are all small letters, the place's alphabet is `a` to
+    `z`, so a pathological stage `pT1aN1bM0` keeps its `p` and its
+    sub-letters where every stand-in had come back `PT4N2M1` or
+    `BT0KN2M1`. Every other place stands for its kind's alphabet, as
+    before. Raises nothing.
+    """
+    if kind == parsing.SHAPE_LETTER and marks:
+        for mark in marks:
+            if mark not in _SMALL_LETTERS:
+                return _PLACE_ALPHABETS[kind]
+        return _SMALL_LETTERS
+    return _PLACE_ALPHABETS[kind]
+
+
+@dataclasses.dataclass(frozen=True)
+class _PlacePlan:
+    """How one form's stand-ins are stepped (rule A2, lane CODES-1, P4-D439).
+
+    ``stages`` is the chain of each place's characters the walk widens
+    through, one tuple a stage with one entry a character of the form
+    ("" at a mark): stage (1), each place's census list or, where it
+    lists nothing, the characters the published spellings hold there
+    (the alphabet where none wears the form); stage (2), the list and the
+    published characters together; stage (3) is the alphabet, widened
+    from the last place, and is not listed. ``listed`` is the census's
+    lists, () where the description publishes none for the form.
+    """
+
+    stages: "tuple[tuple[str, ...], ...]"
+    listed: "tuple[str, ...]"
+    # `_plan_blocks` of the stages closed by the alphabet, and how many
+    # spellings stages (1) and (2) hold (`_PlacePlan.balance`): worked out once.
+    blocks: "tuple[tuple[str, ...], ...]" = ()
+    balance: int = 0
+
+
+def _drawn_word_forms(
+    shared: "list[str]",
+    sizes: "tuple[int, ...]",
+    owing: "dict[str, int]",
+    classes: "dict[int, str]",
+    tags: "list[int]",
+    first_word: int,
+    most: "tuple[int, ...]",
+    plans: "dict[str, _PlacePlan]",
+    decimal_comma: bool,
+) -> "list[str]":
+    """The word forms' settlement, kept to the labels each was drawn (rule A2, P4-D439).
+
+    `held_back_sizes` draws each word form's labels within its bound
+    (``most``, `_word_form_bounds`: a form with a census takes no more
+    than its stages (1) and (2) hold free spellings), but the settlement
+    hands the sizes out afresh -- on a long tail, largest first -- and a
+    form of forty held-back cells and ten free spellings came back as
+    forty stand-ins of one row, thirty of them off its census
+    (`%%%-%`, LOINC's three-figure codes at 20,000 rows). Where a form
+    with a census is so given more stand-ins than its bound, and the
+    sizes drawn for each word form (``tags``, from ``first_word`` on, in
+    `_held_back_debts`' order) pay every word form's debt exactly outside
+    the class stand-ins (``classes``), with no form a clock's or a
+    stamp's, the drawn arrangement stands: each such size its form, the
+    rest none. Otherwise ``shared`` is returned as it was.
+    """
+    names = [
+        form
+        for form in sorted(owing)
+        if owing[form] > 0 and _form_reading(form, decimal_comma) == parsing.NOT_A_NUMBER
+    ]
+    if not names or len(tags) != len(sizes) or len(most) < len(names):
+        return shared
+    over = False
+    for index in range(len(names)):
+        form = names[index]
+        if form in plans and plans[form].listed:
+            given = len([place for place in range(len(sizes)) if shared[place] == form])
+            if given > most[index]:
+                over = True
+    if not over:
+        return shared
+    for form in names:
+        if parsing.is_a_time_key(form):
+            return shared
+    drawn = ["" for _each in sizes]
+    paid: "dict[str, int]" = {}
+    for place in range(len(sizes)):
+        if place in classes:
+            drawn[place] = shared[place]
+            continue
+        word = tags[place] - first_word
+        if 0 <= word < len(names):
+            drawn[place] = names[word]
+            paid[names[word]] = (paid[names[word]] if names[word] in paid else 0) + sizes[place]
+    for form in names:
+        if (paid[form] if form in paid else 0) != owing[form]:
+            return shared
+    return drawn
+
+
+def _opening_figures(written: "list[str]") -> str:
+    """The figures a stand-in may open with where nothing lists its first place (rule A2, P4-D439).
+
+    A LEADING NOUGHT ONLY WHERE THE COLUMN WRITES ONE, as lane L1 keeps a
+    number's leading nought only where a published number opens with one
+    (plan P4-D390). LOINC's three-figure form at 20,000 rows, its 40
+    held-back cells listing no figure at the first place on the census
+    line and no published code wearing it, was filled from the whole
+    alphabet there, and 9 stand-ins came out `005-0`, a code no published
+    code is like: every published one opens with a figure from 1 to 9.
+    Where some published spelling ``written`` opens with a figure and none
+    with a nought, the figures from 1 to 9; otherwise all ten. A printed
+    fact: the published spellings are written byte for byte.
+
+    Guarantees: a fixed function of the spellings. Raises nothing.
+    """
+    figures = _PLACE_ALPHABETS[parsing.SHAPE_DIGIT]
+    opens = False
+    for cell in written:
+        if cell[:1] == "0":
+            return figures
+        if cell[:1] and cell[:1] in figures:
+            opens = True
+    return figures[1:] if opens else figures
+
+
+def _place_plans(
+    census: "dict[str, int]",
+    written: "list[str]",
+    listed: "dict[str, tuple[str, ...]]",
+    decimal_comma: bool = False,
+) -> "dict[str, _PlacePlan]":
+    """Each named form's stepping plan (rule A2 of the stand-ins page, P4-D439).
+
+    The published characters (`_published_places`) and the description's
+    own census of held-back characters (`shape_form_places`, C6-31h)
+    chained into the stages `_placed_filling` walks. A form is planned
+    only where the walk of words may take it -- no clock or stamp wears
+    it and its reading is text (`_published_places` states why) -- and
+    where some published spelling wears it, the census lists it, or its
+    first place of figures opens narrower than the alphabet
+    (`_opening_figures`).
+    Guarantees: a fixed function of the arguments. Raises nothing.
+    """
+    published = _published_places(census, written, decimal_comma)
+    opening = _opening_figures(written)
+    plans: "dict[str, _PlacePlan]" = {}
+    for form in sorted(census):
+        if form == contract.WITHHELD or parsing.is_a_time_key(form):
+            continue
+        if not parsing.form_reads_as_words(form, decimal_comma):
+            continue
+        mine = listed[form] if form in listed and len(listed[form]) == len(form) else ()
+        # A FORM NO PUBLISHED SPELLING WEARS AND NO CENSUS LISTS is planned
+        # too where its first place of figures opens narrower than the
+        # alphabet (Codex's review of lane CODES-1's first repair, item 6):
+        # `ddd-d` codes each under the floor beside `1234-5` on 19,978 rows
+        # were filled whole and wrote `000-0` and `018-1`, though every
+        # published code opens with a figure from 1 to 9.
+        narrowed = (
+            form[:1] == parsing.SHAPE_DIGIT
+            and opening != _PLACE_ALPHABETS[parsing.SHAPE_DIGIT]
+        )
+        if form not in published and not mine and not narrowed:
+            continue
+        first: "list[str]" = []
+        second: "list[str]" = []
+        for at in range(len(form)):
+            kind = form[at]
+            if kind not in _PLACE_ALPHABETS:
+                first += [""]
+                second += [""]
+                continue
+            # WHAT THE PUBLISHED SPELLINGS HOLD THERE, nothing where none
+            # wears the form, and the census's list: a letter place where
+            # all of them are small letters stands for small letters
+            # (`_place_alphabet`).
+            held = published[form][at] if form in published else ""
+            census_list = mine[at] if mine else ""
+            whole = _place_alphabet(
+                kind,
+                (census_list if census_list else "")
+                + (held if form in published else ""),
+            )
+            # A FIRST PLACE OF FIGURES THAT NOTHING LISTS AND NO PUBLISHED
+            # SPELLING OF THE FORM WEARS opens as the column's published
+            # spellings open (`_opening_figures`); the nought comes back
+            # only once the alphabet closes the stages.
+            narrow = opening if at == 0 and kind == parsing.SHAPE_DIGIT else whole
+            # Stage (2) adds nothing to the list where no published spelling
+            # wears the form, and a place listing nothing takes the alphabet
+            # from stage (1) on.
+            first += [census_list if census_list else held if held else narrow]
+            both = ""
+            for mark in whole:
+                if mark in census_list or mark in held:
+                    both = both + mark
+            second += [both if both else narrow]
+        stages = tuple([tuple(first), tuple(second)])
+        opened = _plan_blocks(form, stages, False)
+        balance = 0
+        for sets in opened:
+            size = 1
+            for marks in sets:
+                size = size * len(marks)
+            balance = balance + size
+        plans[form] = _PlacePlan(
+            stages,
+            mine,
+            tuple([tuple(sets) for sets in _plan_blocks(form, stages, True)]),
+            balance,
+        )
+    return plans
+
+
+def _placed_filling(
+    form: str, step: int, stages: "tuple[tuple[str, ...], ...]"
+) -> str:
+    """One spelling of one form, its planned characters first (P4-D439).
+
+    THE STAND-INS PAGE'S STAGES, AS ONE ORDER OF THE FORM'S WHOLE ROOM.
+    ``stages`` is a chain of each place's characters, each stage holding
+    the one before it (`_PlacePlan`), and the form's alphabet closes it:
+    the first stage's spellings come first, then each later stage's NEW
+    spellings, the places widened one at a time FROM THE LAST -- a block
+    for each place, that place taking the characters it gains, the places
+    after it the whole of the stage and the places before it what they
+    held -- so a vocabulary prefix every published spelling of the form
+    holds (i2b2's `ICD10CM:`, a registry's `C`) is kept longest, and the
+    blocks PARTITION the room: every spelling `_filled_form` reaches is
+    reached once, and a form whose places hold their whole alphabets is
+    filled exactly as `_filled_form` fills it. Inside each block the step
+    is spread by `_stepped_around` and taken apart leftmost first, as
+    `_filled_form` takes it.
+
+    Guarantees: a fixed function of the arguments; past the room the
+    spellings come round again. Raises nothing. No I/O of any kind.
+    """
+    return _filled_in_blocks(form, step, _plan_blocks(form, stages, True))
+
+
+def _filled_in_blocks(
+    form: str, step: int, blocks: "list[list[str]] | tuple[tuple[str, ...], ...]"
+) -> str:
+    """`_placed_filling` over blocks already worked out (`_PlacePlan.blocks`)."""
+    positions = [at for at in range(len(form)) if form[at] in _PLACE_ALPHABETS]
+    room = 1
+    for at in positions:
+        room = room * len(_PLACE_ALPHABETS[form[at]])
+    left = step % room if room else 0
+    chosen = blocks[0]
+    size = 1
+    for sets in blocks:
+        size = 1
+        for marks in sets:
+            size = size * len(marks)
+        if left < size:
+            chosen = sets
+            break
+        left = left - size
+    place = _stepped_around(left, size)
+    filled: "dict[int, str]" = {}
+    for index in range(len(positions)):
+        marks = chosen[index]
+        filled[positions[index]] = marks[place % len(marks)]
+        place = place // len(marks)
+    spelling = ""
+    for at in range(len(form)):
+        spelling = spelling + (filled[at] if at in filled else form[at])
+    return spelling
+
+
+def _plan_blocks(
+    form: str, stages: "tuple[tuple[str, ...], ...]", closed: bool
+) -> "list[list[str]]":
+    """The blocks `_placed_filling` walks, in order (P4-D439).
+
+    Each block is one set of characters a placeholder of the form, in its
+    order; the first is the first stage whole, and each later stage --
+    and, where ``closed``, the alphabet after them -- adds a block a
+    place, from the last, that place taking the characters it gains, the
+    places after it the whole of the stage and the places before it what
+    they held. A stage's place holding nothing reads as its alphabet.
+    """
+    positions = [at for at in range(len(form)) if form[at] in _PLACE_ALPHABETS]
+    # Each place's alphabet as its last stage writes it: a letter place of
+    # small letters closes on `a` to `z` (`_place_alphabet`).
+    whole = tuple(
+        [_place_alphabet(form[at], stages[-1][at] if stages else "") for at in positions]
+    )
+    chain: "list[tuple[str, ...]]" = []
+    for stage in stages:
+        chain += [
+            tuple(
+                [
+                    stage[at] if stage[at] else whole[index]
+                    for index, at in enumerate(positions)
+                ]
+            )
+        ]
+    if closed:
+        chain += [whole]
+    blocks: "list[list[str]]" = [list(chain[0])]
+    for later in range(1, len(chain)):
+        before = chain[later - 1]
+        after = chain[later]
+        for back in range(len(positions)):
+            cut = len(positions) - 1 - back
+            gained = ""
+            for mark in after[cut]:
+                if mark not in before[cut]:
+                    gained = gained + mark
+            if not gained:
+                continue
+            blocks += [list(before[:cut]) + [gained] + list(after[cut + 1 :])]
+    return blocks
+
+
+_TIE_MASK = (1 << 64) - 1
+
+
+def _tie_word(form: str, at: int, picked: int, mark: str) -> int:
+    """A fixed 64-bit word ordering one character's tie at one place of one pick (P4-D439).
+
+    SplitMix64's finaliser (Steele, Lea and Flood, OOPSLA 2014) folded
+    over the form's characters, the place, how many stand-ins the form's
+    balanced walk has written before this one, and the character: a
+    different order of the tied characters at every place and every
+    pick, independent between places, worked out in first-party
+    whole-number arithmetic. It draws no word from the run's stream
+    (method G3: every made-up spelling is placed by fixed rule), so a
+    column of labels writes the same cells at every seed, as before.
+    Raises nothing. No I/O of any kind.
+    """
+    word = 0
+    for character in form:
+        word = _tie_mixed(word ^ ord(character))
+    word = _tie_mixed(word ^ at)
+    word = _tie_mixed(word ^ picked)
+    return _tie_mixed(word ^ ord(mark))
+
+
+def _tie_mixed(value: int) -> int:
+    """SplitMix64's step and finaliser of one 64-bit word (`_tie_word`)."""
+    word = (value + 0x9E3779B97F4A7C15) & _TIE_MASK
+    word = ((word ^ (word >> 30)) * 0xBF58476D1CE4E5B9) & _TIE_MASK
+    word = ((word ^ (word >> 27)) * 0x94D049BB133111EB) & _TIE_MASK
+    return word ^ (word >> 31)
+
+
+def _balanced_filling(
+    form: str,
+    plan: _PlacePlan,
+    tally: "dict[str, int]",
+    line: int,
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+    picked: int = 0,
+) -> "str":
+    """The next stand-in of stages (1) and (2) in balanced order, or "" (P4-D439, ZS.2).
+
+    The page's pick first: at each place the character of stage (1) with
+    the fewest stand-in cells so far, a tie broken by a fixed keyed order
+    independent at each place (`_tie_word`, ``picked`` the stand-ins the
+    form's walk has written before), where no cell has taken that
+    spelling and it makes a usable stand-in. THE TIE WAS THE FIRST LISTED
+    (the repair of lane CODES-1, its statistics skeptic's item 1): every
+    place then advanced together, `A00.0`, `B11.1`, `C22.2`, and the
+    largest stand-ins took those diagonal spellings -- 36 % of ICD-10's
+    `@%%.%` stand-in cells with every figure equal at 20,000 rows against
+    the real held-back cells' 1 %, Glasgow coma scores `E1V1M1` to
+    `E3V3M3` the commonest. Otherwise,
+    among the first `_BALANCE_TRIES` spellings of stages (1) and (2)
+    (`_PlacePlan.balance`) that no cell has taken and that make a usable
+    stand-in, the one putting the most characters the census lists on a
+    place where they still hold fewer than ``line`` stand-in cells, then
+    the one whose characters hold the fewest stand-in cells between them
+    (``tally``, keyed `_tally_key`), then the earliest in
+    `_placed_filling`'s order. So every listed character reaches the
+    census line in the twin, as it did in the table, where the
+    combinations the published levels already wrote stand in the way: a
+    tumour stage's `M0` held back beside eight published `M0` stages
+    reaches it through `T3N3M0`, whose `3` the published levels hold. ""
+    where the form has no census or every spelling tried is taken.
+    """
+    if not plan.listed:
+        return ""
+    # FIRST THE PAGE'S OWN PICK: at each place the character of stage (1)
+    # with the fewest stand-in cells so far, a tie broken by the keyed
+    # order of that place and pick (`_tie_word`). On a form of many places
+    # it is almost always free, and it is what a scan of a few thousand
+    # spellings of a room of a thousand million can miss.
+    built = ""
+    for at in range(len(form)):
+        if form[at] not in _PLACE_ALPHABETS:
+            built = built + form[at]
+            continue
+        marks = plan.stages[0][at] if plan.stages[0][at] else _PLACE_ALPHABETS[form[at]]
+        fewest = marks[0]
+        fewest_held = tally[_tally_key(form, at, fewest)] if _tally_key(form, at, fewest) in tally else 0
+        fewest_word = _tie_word(form, at, picked, fewest)
+        for mark in marks:
+            here = _tally_key(form, at, mark)
+            held = tally[here] if here in tally else 0
+            word = _tie_word(form, at, picked, mark)
+            if held < fewest_held or (held == fewest_held and word < fewest_word):
+                fewest = mark
+                fewest_held = held
+                fewest_word = word
+        built = built + fewest
+    if (
+        built not in used
+        and parsing.folded(built) not in owners
+        and _is_a_usable_stand_in(built, holes)
+    ):
+        return built
+    best = ""
+    best_gain = -1
+    best_load = 0
+    # THE MOST A SPELLING CAN GAIN: one for each place still listing a
+    # character short of the line. A spelling gaining that on no stand-in
+    # cell is the answer, and the walk stops there.
+    most = 0
+    for at in range(len(form)):
+        for mark in plan.listed[at]:
+            key = _tally_key(form, at, mark)
+            if (tally[key] if key in tally else 0) < line:
+                most = most + 1
+                break
+    for step in range(min(plan.balance, _BALANCE_TRIES)):
+        candidate = _filled_in_blocks(form, step, plan.blocks)
+        if candidate in used or parsing.folded(candidate) in owners:
+            continue
+        gain = 0
+        load = 0
+        for at in range(len(form)):
+            if form[at] not in _PLACE_ALPHABETS:
+                continue
+            key = _tally_key(form, at, candidate[at])
+            held = tally[key] if key in tally else 0
+            load = load + held
+            if candidate[at] in plan.listed[at] and held < line:
+                gain = gain + 1
+        if not (gain > best_gain or (gain == best_gain and load < best_load)):
+            continue
+        # ASKED ONLY OF A SPELLING THAT WOULD BE TAKEN: the answer is the
+        # one the whole walk gives, at a fraction of its readings.
+        if not _is_a_usable_stand_in(candidate, holes):
+            continue
+        best = candidate
+        best_gain = gain
+        best_load = load
+        if gain == most and load == 0:
+            break
+    return best
+
+
+# How many spellings of stage (1) the balanced walk weighs for one stand-in.
+_BALANCE_TRIES = 4096
+
+
+def _balanced_places(
+    plans: "dict[str, _PlacePlan]",
+    sizes: "tuple[int, ...]",
+    shared: "list[str]",
+    written_as: "dict[int, str]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+    line: int,
+) -> "tuple[dict[int, str], dict[str, int]]":
+    """The stand-ins rule A2's balanced walk writes, and where each form's cursor starts (P4-D439).
+
+    STAGES (1) AND (2) ARE SPENT ON THE LARGEST STAND-INS, LARGEST FIRST.
+    The census lists the characters the table's held-back cells hold on
+    the line's cells or more; written on the smallest stand-ins first, as
+    the walk's order of sizes writes them, the stages' few free spellings
+    -- the published levels take most of a tumour stage's -- left a
+    listed `M0` on four cells. So for each form the description gives a
+    census of: its stand-ins, largest first (the earlier place on a tie),
+    take `_balanced_filling`'s spelling while a listed character holds
+    fewer than the line's stand-in cells (`_listed_short`; ``line`` the
+    census line), the cells each writes counted at each place. Where
+    stages (1) and (2) hold at most `_BALANCE_TRIES` spellings
+    (`_PlacePlan.balance`) every other stand-in of the form then takes
+    the stages' next free spelling in their own order, and the form's
+    cursor starts past those stages, so no other stand-in takes them;
+    where they hold more, the rest walk the stages from their start. The
+    caller marks the spellings used before its walk.
+    """
+    assigned: "dict[int, str]" = {}
+    starts: "dict[str, int]" = {}
+    taken: "dict[str, int]" = {}
+    for spelling in used:
+        taken[spelling] = 1
+    folds: "dict[str, str]" = {}
+    for fold in owners:
+        folds[fold] = owners[fold]
+    for form in sorted(plans):
+        mine = plans[form]
+        if not mine.listed:
+            continue
+        room = mine.balance
+        small = room <= _BALANCE_TRIES
+        if small:
+            starts[form] = room
+        tally: "dict[str, int]" = {}
+        ranked = sorted(
+            [
+                (0 - sizes[place], place)
+                for place in range(len(sizes))
+                if shared[place] == form and place not in written_as
+            ]
+        )
+        # ...AND ONCE EVERY LISTED CHARACTER HOLDS THE LINE, THE STAGES'
+        # OWN ORDER: the next spelling no cell has taken (the page's "the
+        # next in the stage's order"), read off one pass of the stages.
+        order = 0
+        picked = 0
+        for pair in ranked:
+            short = _listed_short(form, mine, tally, line)
+            if not small and not short:
+                break
+            spelling = ""
+            if short:
+                spelling = _balanced_filling(
+                    form, mine, tally, line, taken, folds, holes, picked
+                )
+            else:
+                while order < room and not spelling:
+                    candidate = _filled_in_blocks(form, order, mine.blocks)
+                    order = order + 1
+                    if candidate in taken or parsing.folded(candidate) in folds:
+                        continue
+                    if _is_a_usable_stand_in(candidate, holes):
+                        spelling = candidate
+            if not spelling:
+                break
+            place = pair[1]
+            assigned[place] = spelling
+            picked = picked + 1
+            taken[spelling] = 1
+            folds[parsing.folded(spelling)] = spelling
+            for at in range(len(form)):
+                if form[at] in _PLACE_ALPHABETS:
+                    key = _tally_key(form, at, spelling[at])
+                    tally[key] = (tally[key] if key in tally else 0) + sizes[place]
+        _swapped_to_the_line(
+            form,
+            mine.listed,
+            sizes,
+            [pair[1] for pair in ranked if pair[1] in assigned],
+            assigned,
+            line,
+        )
+    return assigned, starts
+
+
+# HOW MANY SWAPS `_swapped_to_the_line` MAY MAKE ON ONE FORM, AND HOW MANY
+# PAIRS IT MAY WEIGH IN ALL: each swap takes at least one cell off the
+# census's shortfall, so a form short by a few cells needs a few; the bounds
+# keep a form of thousands of stand-ins cheap, its shortfall then named in
+# the twin's report as before (method G12.12a).
+_SWAP_ROUNDS = 256
+_SWAP_PAIRS = 1 << 20
+
+
+def _swapped_to_the_line(
+    form: str,
+    listed: "tuple[str, ...]",
+    sizes: "tuple[int, ...]",
+    places: "list[int]",
+    assigned: "dict[int, str]",
+    line: int,
+) -> None:
+    """Swap the spellings of two stand-ins of a form while that brings a listed character nearer the line (rule A2, P4-D439).
+
+    THE BALANCED WALK HANDS ITS LARGEST STAND-INS OUT FIRST, and where a
+    listed character's free spellings are few it can hand them small ones:
+    a tumour stage's `N1`, whose only free spellings left `T4N1M1` and
+    `T0N1M1` were handed 6 and 4 cells, held 10 against the census's 11 at
+    20,000 rows, and the twin missed `places.published` (lane CODES-1's
+    second repair). So, once the walk is done, while some listed character
+    holds fewer than ``line`` stand-in cells, the two stand-ins whose
+    spellings, swapped, take the most cells off the shortfall (summed over
+    the listed characters) are swapped, the first such pair in the walk's
+    order on a tie: a stand-in holding a short character against a larger
+    one. Swapping moves no spelling in or out of the column, so every
+    spelling stays one the walk could write; only which size each is
+    written on changes. ``places`` are the form's stand-ins in the walk's
+    order. Raises nothing. No I/O of any kind.
+    """
+    tally: "dict[tuple[int, str], int]" = {}
+    for place in places:
+        spelling = assigned[place]
+        for at in range(len(form)):
+            if form[at] in _PLACE_ALPHABETS:
+                key = (at, spelling[at])
+                tally[key] = (tally[key] if key in tally else 0) + sizes[place]
+    weighed = 0
+    for _round in range(_SWAP_ROUNDS):
+        short: "dict[tuple[int, str], bool]" = {}
+        for at in range(len(form)):
+            for mark in listed[at] if at < len(listed) else "":
+                if (tally[(at, mark)] if (at, mark) in tally else 0) < line:
+                    short[(at, mark)] = True
+        if not short:
+            return
+        best = (-1, -1)
+        best_gain = 0
+        for first in places:
+            low = assigned[first]
+            if not [at for at in range(len(form)) if (at, low[at]) in short]:
+                continue
+            for second in places:
+                if sizes[second] <= sizes[first]:
+                    continue
+                weighed = weighed + 1
+                if weighed > _SWAP_PAIRS:
+                    return
+                gain = _swap_gain(form, listed, low, assigned[second], sizes[second] - sizes[first], tally, line)
+                if gain > best_gain:
+                    best = (first, second)
+                    best_gain = gain
+        if best_gain < 1:
+            return
+        first, second = best
+        moved = sizes[second] - sizes[first]
+        for at in range(len(form)):
+            if form[at] in _PLACE_ALPHABETS and assigned[first][at] != assigned[second][at]:
+                gaining = (at, assigned[first][at])
+                losing = (at, assigned[second][at])
+                tally[gaining] = (tally[gaining] if gaining in tally else 0) + moved
+                tally[losing] = tally[losing] - moved
+        assigned[first], assigned[second] = assigned[second], assigned[first]
+
+
+def _swap_gain(
+    form: str,
+    listed: "tuple[str, ...]",
+    low: str,
+    high: str,
+    moved: int,
+    tally: "dict[tuple[int, str], int]",
+    line: int,
+) -> int:
+    """How many cells of the census's shortfall moving ``moved`` cells from ``high``'s characters to ``low``'s takes off (P4-D439)."""
+    gain = 0
+    for at in range(len(form)):
+        if form[at] not in _PLACE_ALPHABETS or low[at] == high[at]:
+            continue
+        marks = listed[at] if at < len(listed) else ""
+        if low[at] in marks:
+            held = tally[(at, low[at])] if (at, low[at]) in tally else 0
+            gain = gain + max(0, line - held) - max(0, line - held - moved)
+        if high[at] in marks:
+            held = tally[(at, high[at])] if (at, high[at]) in tally else 0
+            gain = gain + max(0, line - held) - max(0, line - held + moved)
+    return gain
+
+
+def _listed_short(
+    form: str, plan: _PlacePlan, tally: "dict[str, int]", line: int
+) -> bool:
+    """Whether a character the census lists holds fewer than ``line`` stand-in cells (P4-D439)."""
+    for at in range(len(form)):
+        for mark in plan.listed[at]:
+            key = _tally_key(form, at, mark)
+            if (tally[key] if key in tally else 0) < line:
+                return True
+    return False
+
+
+def _tally_key(form: str, at: int, mark: str) -> str:
+    """The key of one character at one place of one form in a stand-in tally."""
+    return f"{form}\u001f{at}\u001f{mark}"
 
 
 # THE MARKS A FORM OF A 12-HOUR CLOCK ENDS IN, as `parsing.shape_form`
@@ -50194,6 +52156,1137 @@ def _clock_shape(form: str) -> "_ClockShape | None":
         parts = parts * 10
     return _ClockShape(
         figures, seconds, places, marked, space, first, hours, times, parts
+    )
+
+
+# THE YEARS A MADE-UP DATE OF A FORM IS DRAWN FROM (plan P4-D442): eighty
+# years, none of them a year Safe Harbor's age of 90 would cover in 2027
+# (P4-D434's reference year), none of them a year the twin's own reader
+# could take for a two-figure one.
+_DATE_FORM_FIRST_YEAR = 1940
+_DATE_FORM_YEARS = 80
+# How many runs of eighty years a form of a four-figure year is filled from,
+# one after the other once a run's dates are spent (1940 to 9939).
+_DATE_FORM_PHASES = 100
+# The marks a date's three fields are written between.
+_DATE_FORM_MARKS = parsing.DATE_FORM_MARKS
+# A TWO-FIGURE YEAR (lane HB's repair, skeptic 1 item 4): the figures `69`
+# to `99` and `00` to `19`, which every pivot from 20 to 69 -- Python's 69,
+# a spreadsheet's 30 and the product's own -- reads inside 1940 to 2019.
+_DATE_FORM_SHORT_YEARS = tuple(range(69, 100)) + tuple(range(0, 20))
+# A month written as a word, in a form's three letters (`JAN`, `Jan`, `jan`
+# by the form's case marks).
+_DATE_FORM_MONTHS = (
+    "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+)
+# A month word's place in a form's widths: its case, upper, title or lower.
+_MONTH_UPPER = parsing.DATE_MONTH_UPPER
+_MONTH_TITLE = parsing.DATE_MONTH_TITLE
+_MONTH_LOWER = parsing.DATE_MONTH_LOWER
+# A day written beside a month word: 1 to 28, a day of every month.
+_DATE_FORM_WORD_DAYS = 28
+# Eight figures alone, read beside dates as year, month and day.
+_COMPACT_DATE_FORM = "%%%%%%%%"
+
+
+def _date_form_fields(form: str, dated: bool = False) -> "tuple[str, list[int]] | None":
+    """A form's mark and its fields' widths, where it is a date's; else None (`parsing.date_form_fields`, plan P4-D442).
+
+    Read in `parsing` since lane HB's close round, so the producer, which
+    publishes no place list for such a form beside dates, reads it as the
+    twin does. A fixed function of the two; no I/O.
+    """
+    return parsing.date_form_fields(form, dated)
+
+def _month_word(month: int, width: int) -> str:
+    """A month's three letters in the case a form's width code names (plan P4-D442)."""
+    word = _DATE_FORM_MONTHS[month - 1]
+    if width == _MONTH_UPPER:
+        return word
+    lowered = ""
+    for character in word:
+        lowered = lowered + chr(ord(character) + 32)
+    if width == _MONTH_LOWER:
+        return lowered
+    return word[0] + lowered[1:]
+
+
+def _runs_between(text: str, mark: str) -> "list[str]":
+    """The runs of ``text`` before, between and after each ``mark``, in order (plan P4-D442).
+
+    `str.split` read character by character, so every run is a text this
+    module built. A fixed function of the two; no I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a text reached the run reader as something else")
+    if not isinstance(mark, str):
+        raise TypeError("a mark reached the run reader as something else")
+    runs: "list[str]" = []
+    run = ""
+    for character in text:
+        if character == mark:
+            runs += [run]
+            run = ""
+            continue
+        run = run + character
+    runs += [run]
+    return runs
+
+
+def _marks_alone(text: str, mark: str) -> bool:
+    """Whether every character of ``text`` is ``mark`` (plan P4-D442)."""
+    if not isinstance(text, str):
+        raise TypeError("a text reached the mark reader as something else")
+    for character in text:
+        if character != mark:
+            return False
+    return True
+
+
+def _date_field_values(width: int, last: int) -> "list[int]":
+    """The values a month or day field of one width takes, from 1: one figure up to 9, two figures up to ``last``."""
+    if width == 1:
+        return [value for value in range(1, 10)]
+    return [value for value in range(1, last + 1)]
+
+
+def _date_filled_form(form: str, step: int, dated: bool = False) -> "str | None":
+    """One valid date of a form a date can wear, or None (plan P4-D442).
+
+    The dates of `_date_of_years` from 1940 first; past them, where the
+    form writes its year in four figures, the same dates eighty years on,
+    and so on, `_DATE_FORM_PHASES` times eighty years in all (1940 to
+    9939): lane HB's repair measured the zoo's `dx_date`, read as record
+    numbers, asking 6,937 different dates of which the walk put more in
+    its year and month-and-year layouts than 160 years and 1,920
+    month-years hold, and a column of month and year read as labels more
+    held-back levels than that too; a date far ahead is still a date
+    every reader takes. A year of two figures has no later dates: every
+    pivot reads only `69` to `19` inside 1940 to 2019. A function of the
+    three. Raises nothing. No I/O.
+    """
+    fields = _date_form_fields(form, dated)
+    if fields is None:
+        return None
+    index = step % _form_steps(form)
+    date = _date_of_years(form, index, dated, _DATE_FORM_FIRST_YEAR)
+    if date is not None or not _four_figure_years(fields[1]):
+        return date
+    once = _date_form_dates_once(form, dated)
+    phase = 1
+    while once and index >= once and phase < _DATE_FORM_PHASES:
+        index = index - once
+        date = _date_of_years(
+            form, index, dated, _DATE_FORM_FIRST_YEAR + phase * _DATE_FORM_YEARS
+        )
+        if date is not None:
+            return date
+        phase = phase + 1
+    return None
+
+
+def _four_figure_years(widths: "list[int]") -> bool:
+    """Whether a date form's year is written in four figures (plan P4-D442)."""
+    if len(widths) < 3:
+        return True
+    return widths[0] == 4 and widths[1] > 0 or widths[2] == 4
+
+
+def _date_of_years(form: str, step: int, dated: bool, first_year: int) -> "str | None":
+    """One valid date of a form a date can wear, or None (plan P4-D442).
+
+    A form is a date's where `_date_form_fields` reads it (``dated``
+    passed on). With its year first it is read as year, month and day,
+    as ISO 8601 writes it; with its year last its two other fields are
+    each given a value of 1 to 12, so the date is valid read month first,
+    as the product reads it, and day first, as a source written so would;
+    a year of two figures is one of `_DATE_FORM_SHORT_YEARS`; a month
+    word's day is 1 to 28; eight figures alone are year, month and day; a
+    month beside a year, 1 to 12. The step is moved around the form's
+    whole room as `_filled_form` moves it, and where it lands among the
+    form's dates -- the first steps always do -- the date it names is
+    written (a day past its month's last written as that last day, so a
+    later step may name a date written before, which the caller steps
+    past); past them, None, and the form's other spellings follow as
+    before.
+
+    ``first_year`` is the first of the eighty years drawn from.
+
+    Guarantees: every spelling returned is a valid calendar date in the
+    form; a function of the four. Raises nothing. No I/O of any kind.
+    """
+    fields = _date_form_fields(form, dated)
+    if fields is None:
+        return None
+    mark, widths = fields
+    if len(widths) == 1:
+        index = step % _form_steps(form)
+        if index >= _DATE_FORM_YEARS:
+            return None
+        return f"{first_year + _stepped_around(index, _DATE_FORM_YEARS):04d}"
+    if len(widths) == 2:
+        year_at = 0 if widths[0] == 4 else 1
+        months = _date_field_values(widths[1 - year_at], 12)
+        dates = _DATE_FORM_YEARS * len(months)
+        index = step % _form_steps(form)
+        if index >= dates:
+            return None
+        place = _stepped_around(index, dates)
+        year = first_year + place % _DATE_FORM_YEARS
+        month = months[place // _DATE_FORM_YEARS]
+        written_month = f"{month:0{widths[1 - year_at]}d}"
+        if year_at == 0:
+            return f"{year:04d}{mark}{written_month}"
+        return f"{written_month}{mark}{year:04d}"
+    years: "list[int]" = []
+    for one in range(_DATE_FORM_YEARS):
+        years += [first_year + one]
+    year_first = widths[0] == 4
+    worded = widths[1] < 0
+    if worded:
+        firsts = _date_field_values(widths[0], _DATE_FORM_WORD_DAYS)
+        seconds = _date_field_values(2, 12)
+    elif year_first:
+        firsts = _date_field_values(widths[1], 12)
+        seconds = _date_field_values(widths[2], 31)
+    else:
+        firsts = _date_field_values(widths[0], 12)
+        seconds = _date_field_values(widths[1], 12)
+    if not year_first and widths[2] == 2:
+        years = [value for value in _DATE_FORM_SHORT_YEARS]
+    dates = len(years) * len(firsts) * len(seconds)
+    index = step % _form_steps(form)
+    # PAST THE DATES BOTH READINGS TAKE, A TWO-FIGURE YEAR'S MONTH-FIRST
+    # DATES (lane HB's repair): its second field of two figures 13 to 28,
+    # valid read month first, as the product reads it -- 7,344 dates of
+    # two-figure years are fewer than a column of 20,000 birth dates holds.
+    # A year of four figures has none: it goes on to the next eighty years
+    # (`_date_filled_form`), every date valid read day first too (Codex's
+    # review of lane HB, item 5: 13,000 dates `%d/%m/%Y` beside `pending`
+    # wrote 1,480 stand-ins such as `03/25/1956`, no date read day first).
+    later = (
+        [value for value in range(13, _DATE_FORM_WORD_DAYS + 1)]
+        if not year_first and not worded and widths[1] == 2 and widths[2] == 2
+        else []
+    )
+    if index >= dates:
+        index = index - dates
+        dates = len(years) * len(firsts) * len(later)
+        seconds = later
+        if index >= dates:
+            return None
+    place = _stepped_around(index, dates)
+    year = years[place % len(years)]
+    place = place // len(years)
+    first = firsts[place % len(firsts)]
+    second = seconds[place // len(firsts)]
+    written_year = f"{year:02d}" if widths[2] == 2 and not year_first else f"{year:04d}"
+    if worded:
+        return f"{first:0{widths[0]}d}{mark}{_month_word(second, widths[1])}{mark}{written_year}"
+    if year_first:
+        second = min(second, calendar_rules.month_length(year, first))
+        return (
+            f"{year:04d}{mark}{first:0{widths[1]}d}{mark}{second:0{widths[2]}d}"
+        )
+    return f"{first:0{widths[0]}d}{mark}{second:0{widths[1]}d}{mark}{written_year}"
+
+
+def _date_form_dates(form: str, dated: bool = False) -> int:
+    """How many different steps `_date_filled_form` answers a form with a date, from step 0 (plan P4-D442).
+
+    `_date_form_dates_once`, `_DATE_FORM_PHASES` times where the form
+    writes its year in four figures. A fixed function; no I/O.
+    """
+    fields = _date_form_fields(form, dated)
+    once = _date_form_dates_once(form, dated)
+    if fields is None or not _four_figure_years(fields[1]):
+        return once
+    return _DATE_FORM_PHASES * once
+
+
+def _date_form_dates_once(form: str, dated: bool = False) -> int:
+    """How many different steps `_date_filled_form` answers a form with a date, from step 0 (plan P4-D442).
+
+    Each step below it names a date; a year-first form's day past its
+    month's last is written as that last day, so two steps may name one.
+    Nought where the form is no date's. A fixed function; no I/O.
+    """
+    fields = _date_form_fields(form, dated)
+    if fields is None:
+        return 0
+    _mark, widths = fields
+    if len(widths) == 1:
+        return _DATE_FORM_YEARS
+    if len(widths) == 2:
+        return _DATE_FORM_YEARS * len(
+            _date_field_values(widths[1] if widths[0] == 4 else widths[0], 12)
+        )
+    years = _DATE_FORM_YEARS
+    if widths[0] != 4 and widths[2] == 2:
+        years = len(_DATE_FORM_SHORT_YEARS)
+    if widths[1] < 0:
+        return years * len(_date_field_values(widths[0], _DATE_FORM_WORD_DAYS)) * 12
+    if widths[0] == 4:
+        return years * len(_date_field_values(widths[1], 12)) * len(
+            _date_field_values(widths[2], 31)
+        )
+    seconds = len(_date_field_values(widths[1], 12)) + (
+        _DATE_FORM_WORD_DAYS - 12 if widths[1] == 2 and widths[2] == 2 else 0
+    )
+    return years * len(_date_field_values(widths[0], 12)) * seconds
+
+
+def _dates_in_their_layouts(
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    walked: "list[str]",
+    cells: "list[str]",
+    holes: "tuple[str, ...]",
+) -> "list[str]":
+    """A column of dates read as record numbers, its date layouts written as valid dates (plan P4-D442).
+
+    RULE 6 IN THE WALK'S DATE LAYOUTS (the orchestrator's LANE HB RULINGS 1,
+    item (17); the statistics skeptic's item 2; skeptic 1's item 4). A
+    column whose cells are mostly different dates is read as an identifier
+    -- the zoo's `dx_date` at 20,000 rows, birth dates in two layouts at
+    200,000 -- and its twin was written by the record-number walk and the
+    final pass, each value moved into its layout's excluded template:
+    `9571-94-98`, `79996760717`, 20,000 of 20,000 cells no date. Where a
+    named layout of the column, with no published grain (a grain's
+    column is written by the G1 floor), is a date's form
+    (`_date_form_fields`), every layout a date can wear in such a column
+    (`dated`: eight figures, a month beside a year, a year alone too) is
+    written here, value by value in the order the walk wrote them, as the
+    next date of its form (`_date_filled_form`), coming round past the
+    form's dates, so a value repeated on a twin person's rows stays one.
+    The layout is the WALK's (``walked``, the cells before the final pass,
+    place for place with ``cells``, the pass's): the pass moves a year it
+    finds no room for into the spill (`79996760717`), so read after it the
+    year is no date's any more.
+    A made-up date names no person (ID-ROOM's ruling 1, item 3): one
+    equal to a real date by chance is an attribute, counted (K-HZ-13),
+    never a key. Every other cell -- a word, a hole, a code -- is as the
+    walk and the pass wrote it.
+
+    A DATE'S LAYOUT ALONE DOES NOT MAKE A COLUMN OF DATES (Codex's review of
+    lane HB, item 1): a column of rootless UIDs `0.1.1940` to `0.9.2039`
+    wears `%.%.%%%%`, which a date can wear too, and this pass wrote its
+    UIDs as dates, one equal to a real UID and 75 off the UID grammar. NOR
+    BESIDE A ROOT OR OTHER LAYOUTS (Codex's review of batch 4n, item 1):
+    `1.2.1000` to `1.2.2999` under the published root `1.2.` were written as
+    dates after the final pass had kept them off the real -- 260 twin cells
+    equal to 26 real keys, 19,740 off the root, at 20,000 rows -- and such
+    keys beside six, eight or four figures, beside dates or beside other
+    roots wrote real keys the same way. So a column naming any layout a
+    UID can wear (`_names_a_uid_layout`), whatever it publishes beside it,
+    is left as the final pass wrote it: every cell meets the identifier
+    exclusion, exact and merged, and keeps the published root. Its dates of
+    a day, a month and a year written with points and no nought before a
+    lone figure stay as that pass wrote them too. And the date pass keeps what the walk
+    and the pass kept (items 4 and 7): the two case forms of one month word
+    (`%%-@@@-%%%%`, `%%-@&&-%%%%`) step one walk and take dates no other
+    value folds onto, a value's fold partner is written as its partner's
+    date in its own case, and no date written is a spelling the table
+    reads as absent. Raises nothing. No I/O.
+    """
+    if column.time_grain is not None or len(walked) != len(cells):
+        return cells
+    dated = False
+    for layout in facts.layout_forms:
+        if layout != contract.WITHHELD and _date_form_fields(layout) is not None:
+            dated = True
+    if not dated or _names_a_uid_layout(facts):
+        return cells
+    present: "list[str]" = []
+    for cell in walked:
+        if parsing.trimmed(cell):
+            present += [cell]
+    if not present:
+        return cells
+    convention = parsing.layout_convention(present)
+    written: "dict[str, str]" = {}
+    # ...each walk value's fold, mapped to the date its first value took.
+    partners: "dict[str, str]" = {}
+    steps: "dict[str, int]" = {}
+    taken: "dict[str, bool]" = {}
+    spent: "dict[str, int]" = {}
+    out: "list[str]" = []
+    for place in range(len(walked)):
+        cell = walked[place]
+        if cell in written:
+            out += [written[cell]]
+            continue
+        lead, core, trail, _cell = _edges(cell)
+        layout = parsing.layout_form(core, convention) if core else ""
+        count = _date_form_dates(layout, True) if layout else 0
+        if not count or _is_a_hole_spelling(cell, holes):
+            out += [cells[place]]
+            continue
+        fold = parsing.folded(core)
+        if fold in partners:
+            partner = f"{lead}{_in_its_case(partners[fold], core)}{trail}"
+            if not _is_a_hole_spelling(partner, holes):
+                written[cell] = partner
+                out += [partner]
+                continue
+        # ...ONE WALK FOR A FORM'S CASES, so `05-FEB-1962` and `05-Feb-1962`
+        # are not two values written as one.
+        folded_layout = parsing.folded_layout(layout)
+        step = steps[folded_layout] if folded_layout in steps else 0
+        date = _date_filled_form(layout, step % count, True)
+        # ...a date not written before while the form has one left: a day
+        # past its month's last is written as that last day, so two steps
+        # may name one date.
+        held = spent[folded_layout] if folded_layout in spent else 0
+        tries = 0
+        while _a_date_taken(date, taken, holes) and held < count:
+            step = step + 1
+            tries = tries + 1
+            if tries > count:
+                # ...and once every date of the form is written (a day past its
+                # month's last names one written before, so fewer than `count`),
+                # the walk's values come round onto them.
+                spent[folded_layout] = count
+                break
+            date = _date_filled_form(layout, step % count, True)
+        steps[folded_layout] = step + 1
+        if date is not None and _is_a_hole_spelling(f"{lead}{date}{trail}", holes):
+            date = None
+        if date is not None and parsing.folded(date) not in taken:
+            taken[parsing.folded(date)] = True
+            spent[folded_layout] = held + 1
+        new = f"{lead}{date}{trail}" if date is not None else cells[place]
+        if date is not None:
+            partners[fold] = date
+        written[cell] = new
+        out += [new]
+    return out
+
+
+def _a_date_taken(date: "str | None", taken: "dict[str, bool]", holes: "tuple[str, ...]") -> bool:
+    """Whether a date of the date pass is passed over: its fold written before, or a spelling read as absent (plan P4-D442)."""
+    if date is None:
+        return False
+    return parsing.folded(date) in taken or _is_a_hole_spelling(date, holes)
+
+
+@dataclasses.dataclass(frozen=True)
+class _AbsentSpellings:
+    """A column's absent spellings read once, for the run walk (plan P4-D442).
+
+    `_is_a_hole_spelling` reads every published absent spelling in turn, so
+    asking it of each filling and of each rebuilt cell cost the walk the
+    column's cells times its absent spellings (Codex's review of lane HB's
+    close round 2, item 2; LANE HB RULINGS 9, item 2). Each spelling is read
+    here once into the three keys `_wears_a_published_hole` compares: a
+    member of the exact vocabulary byte for byte, the folded trimmed
+    spelling, and the exact number it denotes (`parsing.exact_of_spelling`).
+    """
+
+    holes: "tuple[str, ...]"
+    exact: "dict[str, bool]"
+    folded: "dict[str, bool]"
+    numbers: "dict[tuple[int, tuple[str, ...], int], bool]"
+
+
+def _absent_spellings_read(holes: "tuple[str, ...]") -> _AbsentSpellings:
+    """``holes`` read once into `_AbsentSpellings` (plan P4-D442). Raises nothing. No I/O."""
+    exact: "dict[str, bool]" = {}
+    folded: "dict[str, bool]" = {}
+    numbers: "dict[tuple[int, tuple[str, ...], int], bool]" = {}
+    for spelling in holes:
+        if spelling in parsing.MISSING_TEXTS_EXACT:
+            exact[spelling] = True
+            continue
+        other = parsing.trimmed(spelling)
+        folded[parsing.folded(other)] = True
+        found = parsing.exact_of_spelling(other)
+        if found is not None:
+            numbers[found] = True
+    return _AbsentSpellings(holes=holes, exact=exact, folded=folded, numbers=numbers)
+
+
+def _is_an_absent_spelling(text: str, absent: _AbsentSpellings) -> bool:
+    """`_is_a_hole_spelling` of ``text`` and ``absent.holes``, in time independent of how many there are (plan P4-D442).
+
+    The same three readings in the same order: the vocabulary of no value;
+    a published member of the exact vocabulary, byte for byte; any other
+    published spelling, folded and trimmed, or as the exact number it
+    denotes. Raises nothing. No I/O.
+    """
+    if parsing.is_missing_text(text):
+        return True
+    if not absent.holes:
+        return False
+    if text in absent.exact:
+        return True
+    body = parsing.trimmed(text)
+    if parsing.folded(body) in absent.folded:
+        return True
+    if not absent.numbers:
+        return False
+    held = parsing.exact_of_spelling(body)
+    return held is not None and held in absent.numbers
+
+
+def _least_first_pushed(heap: "list[int]", size: int, item: int) -> int:
+    """``item`` put on the least-first binary heap held in ``heap``'s first ``size`` places; the new size (plan P4-D442)."""
+    if size < len(heap):
+        heap[size] = item
+    else:
+        heap += [item]
+    place = size
+    while place > 0:
+        parent = (place - 1) // 2
+        if heap[parent] <= item:
+            break
+        heap[place] = heap[parent]
+        place = parent
+    heap[place] = item
+    return size + 1
+
+
+def _least_first_taken(heap: "list[int]", size: int) -> int:
+    """The least item of the non-empty heap in ``heap``'s first ``size`` places, taken off; the caller keeps ``size - 1`` (plan P4-D442)."""
+    least = heap[0]
+    size = size - 1
+    last = heap[size]
+    place = 0
+    while True:
+        child = 2 * place + 1
+        if child >= size:
+            break
+        if child + 1 < size and heap[child + 1] < heap[child]:
+            child = child + 1
+        if heap[child] >= last:
+            break
+        heap[place] = heap[child]
+        place = child
+    if size > 0:
+        heap[place] = last
+    return least
+
+
+def _figure_runs_off_the_real(
+    cells: "list[str]",
+    facts: "contract.TextFacts | contract.LabelFacts",
+    holes: "tuple[str, ...]",
+    kept: "dict[str, bool] | None" = None,
+) -> "tuple[list[str], list[int]]":
+    """A column with every made-up run of figures it writes off the real ones (plan P4-D442).
+
+    NO RUN OF FIGURES A MADE-UP CELL WRITES IS A REAL ONE OR HOLDS ONE, BY
+    CONSTRUCTION (lane HB's verify, finding 1; LANE HB RULINGS 2, item 2, and
+    RULINGS 6, items 2 and 4). The walk fills a cell of figures from the bottom
+    of its room upward (`1000000`, `1000001`, ...), and CODES-1's walk from the
+    characters the held-back cells hold, so a register of record numbers
+    written as lists marked `;` or `|`, alone in half the cells of a column of
+    notes, between commas once each, or read as labels beside `pending`, was
+    written back key for key: 4,000 of 4,000 real key tokens and 3,265 twin
+    cells equal to a real cell at 20,000 rows (free text), 8,366 of 12,936
+    twin cells (labels). Every maximal run of four figures or more of every
+    cell not in ``kept`` (a label column's published levels) is read on its
+    MERGED figures (the noughts before them kept as written and not read, as
+    `parsing.merged_key` drops them), and renamed, every cell holding it alike,
+    unless `_figure_run_stands` keeps it. `_renamed_run` states to what: so the
+    renaming is one to one while room lasts, every different cell stays
+    different, and its length, form, class and alphabets are as they were. A
+    cell spelled as the table's own absent spelling, and beside dates a cell
+    read as a date (a made-up date names no person, the orchestrator's ruling 1
+    of 2026-10-25, item 3), are kept as written -- but no form a UID can wear
+    is a date's here (`_a_uid_form`; Codex's review of batch 4n, item 1).
+
+    BESIDE KEY `3` A RUN IS READ AS WRITTEN (Codex's review of lane HB's close
+    round, item 3; LANE HB RULINGS 8, item 1): every real run that key names is
+    four figures or more led by a nought, so a longer made-up run holding a
+    nought three figures or more from its end could carry one (`5390206WX`
+    held a real `0206`). Such a run is renamed whole, its noughts included, by
+    `_renamed_run_unled`, never padded by noughts. AND THE WHOLE REBUILT CELL
+    IS CHECKED AGAINST THE ABSENT SPELLINGS (item 4: `A187860` became a
+    declared `A900000`, its renamed run `900000` alone having been asked): a
+    rebuilt cell spelled as one takes its first renamed run's next spelling,
+    every cell holding that run alike, each spelling tried once, so the walk
+    ends; where that run is spent, its next renamed run's (Codex's review of
+    close round 2, item 1); only where every run of the cell is spent and
+    noughts alone spell it absent is it written so, as the noughts are
+    counted. THE COUNTS ARE OF WHAT IS WRITTEN (item 5, `_runs_rewritten`).
+
+    Guarantees: returns the cells, and how many different runs were written
+    wider and how many written as noughts because every room was spent; reads
+    nothing but the description and the cells. Raises nothing. No I/O.
+    """
+    openings = facts.figure_openings
+    counts = [0, 0]
+    if not openings:
+        return cells, counts
+    absent = _absent_spellings_read(holes)
+    # ...A FORM A UID CAN WEAR IS NO DATE'S HERE (Codex's review of batch 4n,
+    # item 1, as the date pass reads it; `_names_a_uid_layout`): `1.2.1000` to
+    # `1.2.1999` beside six figures, dates or ISO dates, read as free text,
+    # kept made-up dates of `%.%.%%%%` that were real keys (9, 46 and 9
+    # different real keys at 20,000 rows, against 1, 3 and 1 on 591b356f);
+    # their runs are now kept off the real as every other run is.
+    dated = False
+    for form in facts.shape_forms:
+        if _date_form_fields(form) is not None and not _a_uid_form(form, parsing.SHAPE_DIGIT):
+            dated = True
+    # ...AND BESIDE DATES A CELL OF A DATE'S FORM WITH A MARK IS KEPT TOO, a month
+    # beside a year among them (`05/2016`): a made-up date names no person. A year
+    # alone is still read as a run (LANE HB RULINGS 6, item 4: years the price).
+    date_forms: "dict[str, bool]" = {}
+    if dated:
+        for form in facts.shape_forms:
+            if (
+                not _marks_alone(form, parsing.SHAPE_DIGIT)
+                and _date_form_fields(form, True) is not None
+                and not _a_uid_form(form, parsing.SHAPE_DIGIT)
+            ):
+                date_forms[form] = True
+    taken: "dict[str, bool]" = {}
+    distinct: "dict[str, bool]" = {}
+    # NOUGHTS ALONE ONE FIGURE WIDER THAN EVERY WIDTH NAMED (LANE HB RULINGS 10,
+    # item 2): where the room is spent the walk wrote noughts at the run's own
+    # width, and a real held key can be noughts alone (`Q00000` among `Q00001`
+    # upward: 497 twin cells equal to it at 20,000 rows). Its noughts are one
+    # figure wider than the widest width `figure_openings` names, the widest
+    # run of figures a published form writes, and the widest any cell here
+    # writes, so no held cell of a published form can take them -- ONLY WHERE
+    # NO PUBLISHED FORM WRITES A RUN OF THE RUN'S OWN WIDTH (LANE HB RULINGS 13):
+    # where one does, the noughts keep that width and the cell its published
+    # form (a telephone column's last group of four, a long tail of codes and a
+    # table of codes left their forms on the wider noughts), and a held key of
+    # noughts alone at that width is limit (af), owner lane HB2.
+    widest = 0
+    formed: "dict[int, bool]" = {}
+    for width in openings:
+        widest = max(widest, width)
+    for form in facts.shape_forms:
+        widest = max(widest, _longest_run_of(form, parsing.SHAPE_DIGIT))
+        for width in _run_widths_of(form, parsing.SHAPE_DIGIT):
+            formed[width] = True
+    for cell in cells:
+        if cell in distinct:
+            continue
+        distinct[cell] = True
+        widest = max(widest, _longest_figure_run(cell))
+        for whole, start, end in _figure_runs_of(cell):
+            if end - whole >= parsing.FIGURE_RUN_KEY_WIDTH:
+                taken[cell[start:end]] = True
+    wide = widest + 1
+    # BESIDE KEY `3` A RUN IS NAMED AS WRITTEN, its noughts before it included,
+    # and written anew with none (`_renamed_run_unled`): every real run that key
+    # names is led by a nought (Codex's round on lane HB's close, item 3).
+    unled = parsing.FIGURE_RUN_PADDED_NARROW in openings
+    renamed: "dict[str, str]" = {}
+    steps: "dict[int, int]" = {}
+    plan: "dict[str, list[tuple[int, int, str]]]" = {}
+    for cell in distinct:
+        if kept is not None and cell in kept:
+            continue
+        if _is_an_absent_spelling(cell, absent) or (
+            dated
+            and (_reads_as_a_date(cell) or parsing.census_form(cell, facts.shape_forms) in date_forms)
+        ):
+            continue
+        parts: "list[tuple[int, int, str]]" = []
+        for whole, start, end in _figure_runs_of(cell):
+            if end - whole < parsing.FIGURE_RUN_KEY_WIDTH or _figure_run_stands(
+                cell[start:end], openings, cell[whole:end]
+            ):
+                continue
+            name = cell[whole:end] if unled else cell[start:end]
+            if name not in renamed:
+                renamed[name] = _renamed_run(
+                    name, openings, taken, steps, absent, counts, 0 if len(name) in formed else wide
+                )
+            parts += [(whole, end, name)]
+        if parts:
+            plan[cell] = parts
+    if not plan:
+        return cells, [0, 0]
+    moved = _runs_rebuilt(plan, renamed)
+    # A CELL REBUILT AS A DECLARED ABSENT SPELLING takes its first renamed run's
+    # next spelling, every cell holding that run alike, so no present value is
+    # written as absent (Codex's round, item 4: `A187860` became a declared
+    # `A900000`). Each spelling is tried once, so the walk ends. WHERE THAT RUN
+    # IS SPENT the cell's next renamed run takes its next spelling, and so on
+    # (Codex's review of close round 2, item 1; LANE HB RULINGS 9, item 1:
+    # `X01234Y0001` stayed a declared `X00000Y9800` while its second run had
+    # room): only where every run of the cell is spent is it written absent.
+    # IN TIME LINEAR IN THE CELLS (Codex's review of close round 2, item 2;
+    # LANE HB RULINGS 9, item 2): rebuilding every planned cell and reading
+    # the column again from its first cell after each renaming cost the
+    # column's cells times its absent spellings, and more. The cells are
+    # taken in the same order -- always the first cell, in the order of first
+    # appearance, that reads as absent and has a run with room -- from a
+    # least-first heap of their places; a renaming rebuilds only the cells
+    # holding the run renamed (`holders`), and each of them that now reads as
+    # absent goes back on the heap. A cell whose every run is spent is passed
+    # over, as the walk that read the column again passed it over, and asking
+    # a spent run its next spelling moves no cursor and takes no room.
+    order = list(plan)
+    holders: "dict[str, list[int]]" = {}
+    for place in range(len(order)):
+        for _whole, _end, name in plan[order[place]]:
+            if name not in holders:
+                holders[name] = []
+            if not holders[name] or holders[name][len(holders[name]) - 1] != place:
+                holders[name] += [place]
+    heap: "list[int]" = []
+    size = 0
+    for place in range(len(order)):
+        if _is_an_absent_spelling(moved[order[place]], absent):
+            size = _least_first_pushed(heap, size, place)
+    tried: "dict[tuple[str, str], bool]" = {}
+    while size:
+        place = _least_first_taken(heap, size)
+        size = size - 1
+        cell = order[place]
+        if not _is_an_absent_spelling(moved[cell], absent):
+            continue
+        for _whole, _end, name in plan[cell]:
+            tried[(name, renamed[name])] = True
+            fresh = _renamed_run(
+                name, openings, taken, steps, absent, counts, 0 if len(name) in formed else wide
+            )
+            if (name, fresh) in tried:
+                continue
+            renamed[name] = fresh
+            for other in holders[name]:
+                moved[order[other]] = _cell_rebuilt(order[other], plan[order[other]], renamed)
+                if _is_an_absent_spelling(moved[order[other]], absent):
+                    size = _least_first_pushed(heap, size, other)
+            break
+    return [moved[cell] if cell in moved else cell for cell in cells], _runs_rewritten(plan, renamed)
+
+
+def _runs_rebuilt(
+    plan: "dict[str, list[tuple[int, int, str]]]", renamed: "dict[str, str]"
+) -> "dict[str, str]":
+    """Each planned cell with its runs written as `renamed` names them, noughts padding a shorter one to its length (P4-D442)."""
+    moved: "dict[str, str]" = {}
+    for cell in plan:
+        moved[cell] = _cell_rebuilt(cell, plan[cell], renamed)
+    return moved
+
+
+def _cell_rebuilt(
+    cell: str, parts: "list[tuple[int, int, str]]", renamed: "dict[str, str]"
+) -> str:
+    """One planned cell with its runs written as `renamed` names them, noughts padding a shorter one to its length (P4-D442)."""
+    written = ""
+    at = 0
+    for whole, end, name in parts:
+        spelled = renamed[name]
+        written = written + cell[at:whole] + "0" * (end - whole - len(spelled)) + spelled
+        at = end
+    return written + cell[at:]
+
+
+def _runs_rewritten(
+    plan: "dict[str, list[tuple[int, int, str]]]", renamed: "dict[str, str]"
+) -> "list[int]":
+    """How many different runs a twin wrote wider than the run they stand for, and how many as noughts alone (P4-D442).
+
+    MEASURED ON WHAT IS WRITTEN (Codex's round on lane HB's close, item 5):
+    a run counts as wider where its spelling is longer than the run as
+    written in a cell holding it, noughts before it included, and as
+    noughts wherever its spelling is noughts alone, the first of them too.
+    """
+    wider: "dict[str, bool]" = {}
+    noughts: "dict[str, bool]" = {}
+    for cell in plan:
+        for whole, end, name in plan[cell]:
+            spelled = renamed[name]
+            if len(spelled) > end - whole:
+                wider[name] = True
+            if spelled == "0" * len(spelled):
+                noughts[name] = True
+    return [len(wider), len(noughts)]
+
+
+def _figure_runs_of(cell: str) -> "list[tuple[int, int, int]]":
+    """Where each maximal run of ASCII figures of a cell starts, where its merged figures start, and where it ends (plan P4-D442).
+
+    A run of noughts alone has no merged figures and is left out. Read
+    place by place. Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(cell, str):
+        raise TypeError("a cell reached the figure runs as something else")
+    runs: "list[tuple[int, int, int]]" = []
+    start = -1
+    for place in range(len(cell) + 1):
+        if place < len(cell) and "0" <= cell[place] <= "9":
+            if start < 0:
+                start = place
+            continue
+        if start >= 0:
+            merged = start
+            while merged < place and cell[merged] == "0":
+                merged = merged + 1
+            if merged < place:
+                runs += [(start, merged, place)]
+            start = -1
+    return runs
+
+
+def _longest_figure_run(cell: str) -> int:
+    """How many ASCII figures the longest run of them in a cell holds, noughts alone included (plan P4-D442). No I/O."""
+    longest = 0
+    run = 0
+    for character in cell:
+        run = run + 1 if "0" <= character <= "9" else 0
+        longest = max(longest, run)
+    return longest
+
+
+def _longest_run_of(form: str, mark: str) -> int:
+    """How long the longest run of one ``mark`` in a census form is (plan P4-D442). No I/O."""
+    longest = 0
+    run = 0
+    for character in form:
+        run = run + 1 if character == mark else 0
+        longest = max(longest, run)
+    return longest
+
+
+def _run_widths_of(form: str, mark: str) -> "list[int]":
+    """How long each maximal run of one ``mark`` in a census form is, in order (plan P4-D442; LANE HB RULINGS 13). No I/O."""
+    widths: "list[int]" = []
+    run = 0
+    for character in form + "\n":
+        if character == mark:
+            run = run + 1
+            continue
+        if run:
+            widths += [run]
+        run = 0
+    return widths
+
+
+def _named_run_widths(openings: "dict[int, str]") -> "list[int]":
+    """The merged widths of four figures or more `figure_openings` names, narrowest first (plan P4-D442)."""
+    return sorted(
+        [width for width in openings if width >= parsing.FIGURE_RUN_KEY_WIDTH]
+    )
+
+
+def _figure_run_stands(run: str, openings: "dict[int, str]", written: str = "") -> bool:
+    """Whether a run of merged figures, as written, can be no real run and hold none (plan P4-D442).
+
+    Narrower than four figures merged: unless the table holds such a run
+    (`parsing.FIGURE_RUN_PADDED_NARROW`). Beside that key, a run whose
+    ``written`` figures, its noughts before it included, hold a nought with
+    three figures or more after it: never, since a real run that key names
+    is a nought and figures and could stand there (Codex's round on lane
+    HB's close, item 3: `5390206` held a real `0206`). Otherwise narrower than
+    the narrowest width named, or no width named: no real run fits inside it.
+    At the narrowest width: where it wears that width's opening. Wider: never,
+    since a real run of the narrowest width could stand inside it, whatever it
+    opens with.
+    """
+    if len(run) < parsing.FIGURE_RUN_KEY_WIDTH:
+        return parsing.FIGURE_RUN_PADDED_NARROW not in openings
+    if parsing.FIGURE_RUN_PADDED_NARROW in openings and _a_nought_opens_four(written or run):
+        return False
+    widths = _named_run_widths(openings)
+    if not widths or len(run) < widths[0]:
+        return True
+    if len(run) > widths[0] or not openings[widths[0]]:
+        return False
+    for opening in parsing.figure_opening_choices(openings[widths[0]]):
+        if run[: len(opening)] == opening:
+            return True
+    return False
+
+
+def _a_nought_opens_four(figures: str) -> bool:
+    """Whether a run of figures holds a nought with three figures or more after it: where a run of four led by a nought could stand (P4-D442)."""
+    for place in range(len(figures) - parsing.FIGURE_RUN_KEY_WIDTH + 1):
+        if figures[place] == "0":
+            return True
+    return False
+
+
+# How many figures past the narrowest width a run of its opening alone may go.
+_FIGURE_RUN_WIDER_AT_MOST = 8
+# Where the cursors of a width's several openings stand in `_renamed_run`'s
+# steps, past the narrower widths' negative keys and the wider widths' positive.
+_OPENING_CURSORS = 10000
+
+
+def _renamed_run(
+    run: str,
+    openings: "dict[int, str]",
+    taken: "dict[str, bool]",
+    steps: "dict[int, int]",
+    holes: _AbsentSpellings,
+    counts: "list[int]",
+    nought_width: int = 0,
+) -> str:
+    """A run of merged figures written anew, no real run and holding none (plan P4-D442).
+
+    Each step's writing is free of every real run whatever the draw, and the
+    next is asked only where its room is spent. (1) Where no width is named: a
+    width no real run holds, from four up. (2) A run at the narrowest width
+    named: that width's opening and its next filling no run of the column
+    holds. (3) A run of one figure fewer than the narrowest, then fewer again,
+    whose noughts the caller keeps it as long with (no real run is merged that
+    narrow, since the table names no `3`); and then noughts alone, once. (4) A
+    figure wider: the narrowest width's opening of one figure written once
+    more for each figure past that width, its other places filled, so every run
+    of the narrowest width inside it opens with that figure, while each named
+    width it passes opens the same way or is not named (lane HB's rule 15).
+    (5) Noughts alone: every room is spent. NOUGHTS ALONE, at (3) and (5), are
+    ``nought_width`` figures wide where that is wider than ``run`` -- the walk
+    names one figure wider than every width the description names and every
+    run its cells write, since a real held key can be noughts alone (LANE HB
+    RULINGS 10, item 2), except where a run of figures of a published form is
+    as long as ``run``, where it names nought, so the noughts keep the run's
+    width and the cell its form (LANE HB RULINGS 13). WHERE THE TABLE
+    HOLDS A RUN OF FIGURES SO FEW MERGED (`parsing.FIGURE_RUN_PADDED_NARROW`)
+    the run is its figures as written and `_renamed_run_unled` writes it, since
+    noughts padding a made-up run could spell a real one (Codex's review of
+    lane HB's close round, item 3). Counts in ``counts`` a spelling longer than
+    ``run`` and every spelling of noughts alone, the first too (item 5); the
+    caller reports what it writes (`_runs_rewritten`). Claims what it writes.
+    Raises nothing.
+    """
+    if parsing.FIGURE_RUN_PADDED_NARROW in openings:
+        return _renamed_run_unled(run, openings, taken, steps, holes, counts, nought_width)
+    widths = _named_run_widths(openings)
+    least = widths[0] if widths else 0
+    if not widths or len(run) < parsing.FIGURE_RUN_KEY_WIDTH:
+        for width in range(parsing.FIGURE_RUN_KEY_WIDTH, least or parsing.FIGURE_RUN_WIDEST):
+            spelling = _next_figure_filling(width, "", width, taken, steps, holes)
+            if spelling:
+                return spelling
+    choices = parsing.figure_opening_choices(openings[least]) if least and openings[least] else []
+    if len(run) == least or len(run) < parsing.FIGURE_RUN_KEY_WIDTH:
+        for place in range(len(choices)):
+            spelling = _next_figure_filling(
+                0 - _OPENING_CURSORS - place, choices[place], least, taken, steps, holes
+            )
+            if spelling:
+                return spelling
+    if least:
+        for narrower in range(least - 1, 0, -1):
+            spelling = _next_figure_filling(0 - narrower, "", narrower, taken, steps, holes)
+            if spelling:
+                return spelling
+    noughts = "0" * max(len(run), nought_width)
+    if noughts not in taken:
+        taken[noughts] = True
+        counts[1] = counts[1] + 1
+        return noughts
+    opening = choices[0] if choices else ""
+    if len(opening) == 1:
+        for extra in range(1, _FIGURE_RUN_WIDER_AT_MOST + 1):
+            wider = least + extra
+            if wider in openings and opening not in parsing.figure_opening_choices(openings[wider]):
+                break
+            spelling = _next_figure_filling(
+                wider, opening * (extra + 1), wider, taken, steps, holes
+            )
+            if spelling:
+                if len(spelling) > len(run):
+                    counts[0] = counts[0] + 1
+                return spelling
+    counts[1] = counts[1] + 1
+    return noughts
+
+
+def _renamed_run_unled(
+    run: str,
+    openings: "dict[int, str]",
+    taken: "dict[str, bool]",
+    steps: "dict[int, int]",
+    holes: _AbsentSpellings,
+    counts: "list[int]",
+    nought_width: int = 0,
+) -> str:
+    """Beside key `3`, a run written anew at least as long as written, no nought three figures or more from its end (plan P4-D442).
+
+    KEY `3` NEVER LETS A LONGER RUN CARRY A REAL ONE (Codex's round on lane HB's
+    close, item 3; LANE HB RULINGS 8, item 1): every real run that key names is
+    four figures or more whose merged figures are fewer, so it opens with a
+    nought, and a run with no nought in a place three figures or more from its
+    end holds none of them, whatever they are. ``run`` is the run as written,
+    noughts before it included; the spelling is written with none before it,
+    as long as ``run`` (four figures at least) or wider, so the caller pads
+    nothing. The widths in turn, from that length up to `_FIGURE_RUN_WIDER_AT_MOST`
+    figures wider: under the narrowest width named, or where none is, its next
+    filling; at that width, its opening and the next filling, each figure a
+    value joined by `|` names in turn, an opening holding such a nought passed
+    over; past it, its opening of one figure written once more for each figure
+    past it while each named width passed opens the same way or is not named,
+    as `_renamed_run` widens; then noughts alone, ``nought_width`` figures
+    wide where that is wider (LANE HB RULINGS 10, item 2; at ``run``'s own
+    length where a published form writes a run of figures that long, LANE HB
+    RULINGS 13). Every filling
+    keeps the noughts out of those places. Counts a spelling wider than
+    ``run`` and every spelling of noughts alone. Claims what it writes. Raises
+    nothing.
+    """
+    widths = _named_run_widths(openings)
+    least = widths[0] if widths else 0
+    choices: "list[str]" = []
+    if least and openings[least]:
+        for choice in parsing.figure_opening_choices(openings[least]):
+            if "0" not in choice[: max(0, least - parsing.FIGURE_RUN_KEY_WIDTH + 1)]:
+                choices += [choice]
+    first = max(len(run), parsing.FIGURE_RUN_KEY_WIDTH)
+    for width in range(first, first + _FIGURE_RUN_WIDER_AT_MOST + 1):
+        spelling = ""
+        if not least or width < least:
+            spelling = _next_unled_filling(width, "", width, taken, steps, holes)
+        elif width == least:
+            for place in range(len(choices)):
+                spelling = _next_unled_filling(
+                    0 - _OPENING_CURSORS - place, choices[place], least, taken, steps, holes
+                )
+                if spelling:
+                    break
+        elif choices and len(choices[0]) == 1 and _named_widths_open_alike(
+            choices[0], least, width, openings
+        ):
+            spelling = _next_unled_filling(
+                width, choices[0] * (width - least + 1), width, taken, steps, holes
+            )
+        if spelling:
+            if len(spelling) > len(run):
+                counts[0] = counts[0] + 1
+            return spelling
+    counts[1] = counts[1] + 1
+    return "0" * max(first, nought_width)
+
+
+def _named_widths_open_alike(
+    opening: str, least: int, width: int, openings: "dict[int, str]"
+) -> bool:
+    """Whether every width named past ``least`` up to ``width`` opens with ``opening`` among its choices (P4-D442)."""
+    for wider in range(least + 1, width + 1):
+        if wider in openings and opening not in parsing.figure_opening_choices(openings[wider]):
+            return False
+    return True
+
+
+def _next_unled_filling(
+    key: int,
+    opening: str,
+    width: int,
+    taken: "dict[str, bool]",
+    steps: "dict[int, int]",
+    holes: _AbsentSpellings,
+) -> str:
+    """The next run of ``width`` figures wearing ``opening``, no nought three figures or more from its end, that the column holds nowhere, or "" (plan P4-D442).
+
+    The places three figures or more from the end take the figures 1 to 9,
+    the last three any figure; ``key`` names the cursor in ``steps``. Claims
+    what it answers: never an absent spelling, and no eight figures read as a
+    date.
+    """
+    rest = width - len(opening)
+    free = max(0, width - parsing.FIGURE_RUN_KEY_WIDTH + 1 - len(opening))
+    tail = rest - free
+    room = 9 ** free * 10 ** tail
+    step = steps[key] if key in steps else 0
+    while step < room:
+        high, low = divmod(step, 10 ** tail)
+        places = ""
+        for _place in range(free):
+            high, figure = divmod(high, 9)
+            places = f"{figure + 1}{places}"
+        filling = f"{opening}{places}{low:0{tail}d}"
+        step = step + 1
+        if (
+            filling in taken
+            or _is_an_absent_spelling(filling, holes)
+            or _reads_as_a_date(filling)
+        ):
+            continue
+        steps[key] = step
+        taken[filling] = True
+        return filling
+    steps[key] = step
+    return ""
+
+
+def _next_figure_filling(
+    key: int,
+    opening: str,
+    width: int,
+    taken: "dict[str, bool]",
+    steps: "dict[int, int]",
+    holes: _AbsentSpellings,
+) -> str:
+    """The next run of ``width`` figures wearing ``opening`` that the column holds nowhere, or "" (plan P4-D442).
+
+    With no opening its fillings run from ten to the power of one less than
+    the width. ``key`` names the cursor in ``steps``. Claims what it answers:
+    never an absent spelling, and no eight figures read as year, month and day.
+    """
+    rest = width - len(opening)
+    low = 0 if opening else 10 ** (width - 1)
+    room = 10 ** rest if opening else 9 * 10 ** (width - 1)
+    step = steps[key] if key in steps else 0
+    while step < room:
+        filling = f"{opening}{low + step:0{rest}d}"
+        step = step + 1
+        if (
+            filling in taken
+            or _is_an_absent_spelling(filling, holes)
+            or _reads_as_a_date(filling)
+        ):
+            continue
+        steps[key] = step
+        taken[filling] = True
+        return filling
+    steps[key] = step
+    return ""
+
+
+# WHAT THE REPORT SAYS OF THE RUNS KEPT OFF THE REAL, as it is (Codex's review
+# of batch 4n, item 3; plan P4-D442): no made-up run of figures is a real one
+# or holds one, but a made-up date is kept as a date, and a run whose room is
+# spent is written as noughts alone, which one real value of the column can
+# also be (limit (af): `Q00000` among keys `Q00000` upward beside a word, 497
+# twin cells at 20,000 rows; at most one real value for a shape). AND A LABEL
+# COLUMN'S HELD LABELS IT READS AS NUMBERS are written as numbers on the
+# published scale, whose figures are not kept off the real runs (limit (ae),
+# owner lane HB2; LANE I4m RULINGS 15 (4)): codes of four figures and a power
+# of ten beside keys `Q00000` upward and a word wrote 2,694 twin cells of
+# figures alone holding a real run of four figures or more at 20,000 rows,
+# while the label sentence named two cases only.
+_RUNS_OFF_THE_REAL_LABELS = (
+    "No run of figures a made-up label writes is a real one or holds one, "
+    "except in three cases: a made-up date is kept as a date; where the "
+    "room a width leaves was spent a run is written wider and past that as "
+    "noughts alone, a spelling one real value may also have; and a held "
+    "label the column reads as a number is written as a number, whose "
+    "figures are not kept off the real runs."
+)
+_RUNS_OFF_THE_REAL_TEXT = (
+    "No run of figures this column makes up is written as a real one or "
+    "holds one (plan P4-D442), except in two cases: a made-up date is kept "
+    "as a date, and where the room a width leaves is spent a made-up run is "
+    "written wider and past that as noughts alone, a spelling one real value "
+    "may also have; a length test or a count of different values meets "
+    "those cells otherwise."
+)
+
+
+def _runs_widened_remark(column: contract.ColumnBlock, counts: "list[int]") -> Remark:
+    """The report's line for runs of figures a twin wrote wider or as noughts (plan P4-D442)."""
+    return Remark(
+        column=column.name,
+        subject="runs of figures written wider than the table's",
+        held=(
+            f"{counts[0]} different runs of figures written wider, "
+            f"{counts[1]} written as noughts"
+        ),
+        note=_RUNS_OFF_THE_REAL_TEXT,
     )
 
 
@@ -51344,8 +54437,13 @@ def _is_a_usable_stand_in(
     reads_as: str = parsing.NOT_A_NUMBER,
     decimal_comma: bool = False,
     wearing: str = "",
+    dated: bool = False,
 ) -> bool:
     """Whether a made-up spelling may stand in a twin cell at all.
+
+    ``dated`` says the spelling fills a PUBLISHED FORM OF A DATE
+    (`_date_form_fields`; plan P4-D442): the source wrote dates in that
+    form, so a valid date is what the form owes and is not refused.
 
     THE CLASS IT HAS TO READ AS IS PART OF THE QUESTION (method G8.3a).
     ``reads_as`` is what the shipped classifier must say about the
@@ -51449,7 +54547,7 @@ def _is_a_usable_stand_in(
     ):
         return False
     for name in parsing.DATE_FORMATS:
-        if parsing.parse_datetime(candidate, name) is not None:
+        if not dated and parsing.parse_datetime(candidate, name) is not None:
             return False
     # A COMMA IS NOT REFUSED ANY MORE (plan P4-D243, the final review of
     # 2026-09-18). It was, and for the same false reason the thousands
@@ -51775,8 +54873,23 @@ def _made_up_label(
     figures: "dict[str, int] | None" = None,
     taken: "dict[str, int] | None" = None,
     past: bool = False,
+    dated: bool = False,
+    places: "_PlacePlan | None" = None,
+    start: int = 0,
 ) -> "tuple[int, str]":
     """One label standing in for one that was held back (G8.3, P4-D18).
+
+    ``dated`` says the column's published forms hold a date's
+    (`_date_form_fields`), so a month beside a year, eight figures alone
+    and a year alone are filled with dates too (plan P4-D442, lane HB's
+    repair: dates of a diagnosis beside `MM/YYYY` read as labels wrote
+    3,583 of their stand-ins `27/3614` at 20,000 rows).
+
+    ``places``, where given, is the form's stepping plan (`_place_plans`,
+    lane CODES-1, plan P4-D439): the form is walked in `_placed_filling`'s
+    order over the same room and on the same cursor. ``start`` is where
+    the form's cursor begins: past stages (1) and (2) where
+    `_balanced_places` spent them on the largest stand-ins.
 
     ``figures``, where given, is the cursor of each clock's form past the
     column's clock line (`_clock_line_room`, the repair round of landing
@@ -51865,16 +54978,25 @@ def _made_up_label(
             cursor = figures
         if form not in cursor:
             cursor[form] = 0
+        planned = places is not None and not figured and not supply
+        if not planned:
+            start = 0
+        if cursor[form] < start:
+            cursor[form] = start
         if form not in taken:
             taken[form] = 0
         tried = 0
         while (
             cursor[form] < room and tried < _STAND_IN_STEPS
             if supply
-            else _walk_goes_on(cursor[form], taken[form], room)
+            else _walk_goes_on(cursor[form] - start, taken[form], room - start)
         ):
             tried = tried + 1
             candidate = _filled_form(form, cursor[form], not figured)
+            if planned and places is not None:
+                candidate = _filled_in_blocks(form, cursor[form], places.blocks)
+            if dated and not figured:
+                candidate = _date_filled_form(form, cursor[form], True) or candidate
             if past and figured:
                 candidate = _past_the_clock(form, cursor[form])
             cursor[form] = cursor[form] + 1
@@ -51882,7 +55004,9 @@ def _made_up_label(
                 continue
             if candidate in used or parsing.folded(candidate) in owners:
                 continue
-            if not _is_a_usable_stand_in(candidate, holes):
+            if not _is_a_usable_stand_in(
+                candidate, holes, dated=_date_form_fields(form, dated) is not None
+            ):
                 continue
             taken[form] = taken[form] + 1
             used[candidate] = 1
@@ -52828,6 +55952,19 @@ class _Ladder:
     padded: int = 0
     steps: "_Ladder | None" = None
     figures_cap: int = 0
+    # THE GRAIN OF WHOLE PUBLISHED NUMBERS (rule A3, lane CODES-1, plan
+    # P4-D439; `parsing.whole_number_grain`): every made-up number is a
+    # multiple of it, so a made-up UB-04 code ends in nought as every
+    # published one does. 1 where the numbers are not all whole.
+    grain: int = 1
+    # THE WIDTHS THE PUBLISHED WHOLE NUMBERS ARE WRITTEN AT, where every
+    # published number is a whole number of figures alone, and () where
+    # one is not (rule A3, lane CODES-1's repair). Read by the bound of a
+    # declared code column only (`ends_kept`).
+    whole_widths: "tuple[int, ...]" = ()
+    # WHETHER A MADE-UP NUMBER IS HELD INSIDE THE PUBLISHED ENDS AND
+    # WIDTHS (rule A3, lane CODES-1's repair; `_off_the_code_ends`).
+    ends_kept: bool = False
 
 
 def _walk_ladder(ladder: "_Ladder") -> "_Ladder":
@@ -52855,6 +55992,7 @@ def _number_ladder(
     written: "list[str]",
     decimal_comma: bool,
     forms: "list[str]",
+    held_back: int = 0,
 ) -> "_Ladder":
     """The published numbers a column of labels steps its made-up ones from.
 
@@ -52893,6 +56031,11 @@ def _number_ladder(
     plain: "list[bool]" = []
     widths: "dict[int, int]" = {}
     zero_led = False
+    # THE WHOLE NUMBERS OF FIGURES ALONE, a sign aside, the grain is read
+    # over, and whether every published number is one (rule A3, P4-D439),
+    # as `taxonomy.pooled_window` reads the published labels.
+    whole: "list[int]" = []
+    all_whole = True
     for cell in written:
         if cell in seen:
             continue
@@ -52901,6 +56044,11 @@ def _number_ladder(
         if parsing.classify_number(read) != parsing.NUMBER:
             continue
         bare = parsing.trimmed(read)
+        signless = bare[1:] if bare.startswith("-") else bare
+        if signless and parsing.is_digit_text(signless):
+            whole += [int(bare)]
+        else:
+            all_whole = False
         if bare and parsing.is_digit_text(bare):
             widths[len(bare)] = 1
             if len(bare) > 1 and bare[:1] == "0":
@@ -52985,6 +56133,8 @@ def _number_ladder(
     built = _Ladder(
         lowest, highest, places, signs, True, published, finest_first,
         least, greatest, spanned, padded, None, cap,
+        parsing.whole_number_grain(whole, held_back) if places == 0 and all_whole else 1,
+        tuple(sorted(widths)) if places == 0 and all_whole else (),
     )
     if ends_plain and (plain_low != lowest or plain_high != highest):
         built = dataclasses.replace(
@@ -53251,6 +56401,135 @@ def _outward_at(
     return _LADDER_SKIP, 0, _SIDE_HIGH
 
 
+def _ladder_jump(
+    walked: "_Ladder",
+    ladder: "_Ladder",
+    places: int,
+    position: int,
+    low_ended: bool = False,
+    high_ended: bool = False,
+) -> int:
+    """How many positions of the walk from ``position`` hold no value it may write (rule A3, P4-D439).
+
+    THE WALK'S OWN SKIPS, COUNTED IN CLOSED FORM (Codex's review of lane
+    CODES-1's first repair, item 3). `_next_on_ladder` passes a position
+    off the published numbers' grain, and inside the gaps one at a width
+    no published code has (`_off_the_code_ends`), as holding no value:
+    one position at a time, so a register of codes a multiple of 10^10
+    apart walked some 4 x 10^10 positions to reach its next number, and
+    two-figure codes beside ten-figure ones walked every number of three
+    to nine figures. Those positions move no bound -- each is counted
+    tried and empty at once -- so the walk may cross them in one step.
+    This answers how many to cross: none at a position whose value the
+    grain and the widths admit, nor at an outward step where the walk
+    may END (both sides past the signs the column holds), nor past the
+    next step where a side's sign changes; so the walk then lands on
+    exactly the position it would have reached, with its cursor as it
+    would have been. ``walked`` is the ladder the positions are read on
+    (`_outward_at`), ``ladder`` the one whose grain and ends filter them.
+    Raises nothing. No I/O of any kind.
+    """
+    grain = ladder.grain if ladder.grain > 1 else 1
+    widths = ladder.ends_kept and places == 0 and bool(ladder.whole_widths)
+    if grain == 1 and not widths:
+        return 0
+    low_end = _rescaled(walked.lowest, walked.places, places, False)
+    high_end = _rescaled(walked.highest, walked.places, places, True)
+    if not walked.anchored:
+        high_end = low_end
+    gaps = high_end - low_end - 1
+    half = 0
+    if gaps > 0:
+        half = (gaps + 1) // 2
+    if position < 2 * half:
+        depth = position // 2 + 1
+        nearest = 2 * half
+        lower = _admitted_from(
+            ladder, low_end + depth + position % 2, places, grain, widths, True
+        )
+        if lower is not None and lower - low_end <= half:
+            nearest = min(nearest, 2 * (lower - low_end - 1))
+        upper = _admitted_from(
+            ladder, high_end - depth, places, grain, widths, False
+        )
+        if upper is not None and high_end - upper <= gaps // 2:
+            nearest = min(nearest, 2 * (high_end - upper - 1) + 1)
+        return max(nearest - position, 0)
+    if grain == 1:
+        return 0
+    outward = position - 2 * half
+    step = outward // 2 + 1
+    low_from = 0
+    high_from = 0
+    if walked.anchored:
+        low_from = _rescaled(walked.lowest, walked.places, places, True)
+        high_from = _rescaled(walked.highest, walked.places, places, False)
+    if (low_ended or not _sign_held(low_from - step, walked.signs)) and (
+        high_ended or not _sign_held(high_from + step, walked.signs)
+    ):
+        return 0
+    first_low = step + outward % 2
+    stops = [
+        2 * half + 2 * (first_low + (low_from - first_low) % grain - 1),
+        2 * half + 2 * (step + (0 - high_from - step) % grain - 1) + 1,
+    ]
+    for turn in (low_from, low_from + 1, 0 - high_from, 1 - high_from):
+        if turn > step:
+            stops += [2 * half + 2 * (turn - 1)]
+    return max(min(stops) - position, 0)
+
+
+def _admitted_from(
+    ladder: "_Ladder",
+    start: int,
+    places: int,
+    grain: int,
+    widths: bool,
+    upward: bool,
+) -> "int | None":
+    """The nearest value from ``start``, up or down, on the grain and, where ``widths``, inside a code column's ends and widths.
+
+    `_ladder_jump`'s arithmetic: the grain's multiple met first, and where
+    its width is one no published code has, the first value of the next
+    published width up (or the last of the next one down), on the grain
+    again, until a width holds it or the ends are passed (None).
+    """
+    value = start
+    for _width in range(64):
+        if upward:
+            value = 0 - ((0 - value) // grain) * grain
+        else:
+            value = (value // grain) * grain
+        if not widths:
+            return value
+        if upward and value < ladder.lowest:
+            value = ladder.lowest
+            continue
+        if not upward and value > ladder.highest:
+            value = ladder.highest
+            continue
+        if value < ladder.lowest or value > ladder.highest:
+            return None
+        if not _off_the_code_ends(ladder, value, places):
+            return value
+        width = _whole_figures(value, 0)
+        if ladder.padded > width:
+            width = ladder.padded
+        moved = False
+        for other in sorted(ladder.whole_widths, reverse=not upward):
+            if upward and other > width:
+                value = _ten_to(other - 1)
+                moved = True
+                break
+            if not upward and other < width and other >= ladder.padded:
+                value = _ten_to(other) - 1
+                moved = True
+                break
+        if not moved:
+            return None
+    return None
+
+
 def _whole_figures(units: int, places: int) -> int:
     """How many figures a number given in units of its last place has
     before its decimal mark, its sign not counted.
@@ -53266,6 +56545,121 @@ def _whole_figures(units: int, places: int) -> int:
     if places < 0:
         return len(str(size * _ten_to(0 - places)))
     return len(str(size // _ten_to(places)))
+
+
+def _off_the_code_ends(ladder: "_Ladder", units: int, places: int) -> bool:
+    """Whether a made-up number of a code column leaves its published ends or widths (P4-D439).
+
+    RULE A3'S WIDTHS AND RANGE (the repair of lane CODES-1, its
+    statistics skeptic's item 2). The outward walk of G8.3a and the
+    pooled placement of G8.3c stepped past the published ends: APC codes
+    published at four figures from 1,025 came back `905` to `990` and
+    `1000` to `1053`, CVX codes published at two and three figures up to
+    299 came back `7` and `300` to `327`, MS-DRG codes up to 995 `998`
+    and `999` (20,000 rows, seeds 0 to 2: 63 cells of a width no
+    published code has and 172 outside the ends). On a ladder that keeps
+    its ends (`_Ladder.ends_kept`) a whole number below the smallest or
+    above the largest published number, or of a width no published whole
+    number is written at (after `_padded_to_the_source`), holds no
+    value: the walk steps on and the placement steps inward. Asked of
+    whole numbers alone (``places`` nought); False everywhere else.
+    """
+    if not ladder.ends_kept or places != 0 or not ladder.whole_widths:
+        return False
+    if units < ladder.lowest or units > ladder.highest:
+        return True
+    width = _whole_figures(units, 0)
+    if units < 0:
+        width = width + 1
+    if ladder.padded > width:
+        width = ladder.padded
+    return width not in ladder.whole_widths
+
+
+def _with_code_ends(
+    ladder: "_Ladder", column: contract.ColumnBlock, owed: int
+) -> "_Ladder":
+    """The ladder of a declared code column, its ends and widths kept (rule A3, P4-D439).
+
+    Only where every published number is a whole number of figures alone
+    (`_Ladder.whole_widths`), the ladder is anchored with whole-number
+    places, and the pool's published mean, where there is one, lies
+    between the published ends: a mean outside them is the scale G8.3c
+    places the pool on, and keeping the ends there would miss it (the
+    stated limit). A published number below nought is not figures alone,
+    so its ladder is kept as it was too. Elsewhere the ladder as it was.
+
+    AND ONLY WHERE THE ENDS LEAVE ROOM (the combined verify of lane
+    CODES-1's first repair, item 2, and Codex's item 1). On a dense scale
+    every whole number between the published ends is published -- a
+    physical-status class 1 to 5 holding back a 6, a Glasgow total 5 to 15 holding back 3
+    and 4, `200` and `201` holding back `198`, `199`, `202` and `203` --
+    so a walk held inside them had nothing to write: the held-back cells
+    became `group-N` and the twin missed its count of numbers (5 to 12
+    cells a seed at 20,000 rows, every twin failing validation). The ends
+    are kept only where the free whole numbers strictly between them, at a
+    published width and on the grain (`_free_inside_the_code_ends`), are
+    at least ``owed``, the held-back levels the number class may be handed
+    (the caller's: no more than its groups, nor than its debt's cells);
+    elsewhere G8.3a steps past the end as before.
+    Raises nothing.
+    """
+    if (
+        not ladder.whole_widths
+        or not ladder.anchored
+        or ladder.places != 0
+        or ladder.lowest < 0
+    ):
+        return ladder
+    scale = _pooled_scale(column)
+    if scale is not None and scale.mean is not None and (
+        scale.mean < float(ladder.lowest) or scale.mean > float(ladder.highest)
+    ):
+        return ladder
+    kept = dataclasses.replace(ladder, ends_kept=True)
+    if _free_inside_the_code_ends(kept) < owed:
+        return ladder
+    if kept.steps is not None:
+        kept = dataclasses.replace(
+            kept, steps=dataclasses.replace(kept.steps, ends_kept=True)
+        )
+    return kept
+
+
+def _free_inside_the_code_ends(ladder: "_Ladder") -> int:
+    """How many whole numbers rule A3's ends leave a declared code column (P4-D439).
+
+    The whole numbers strictly between the smallest and the largest
+    published number, of a width a published one is written at (after
+    the padding, as `_off_the_code_ends` reads a width), a multiple of
+    the ladder's grain, that no published number holds: counted width by
+    width in closed form, so a scale of ten-figure codes costs no more
+    than one of two figures. Raises nothing.
+    """
+    low = ladder.lowest + 1
+    high = ladder.highest - 1
+    if low > high:
+        return 0
+    grain = ladder.grain if ladder.grain > 1 else 1
+    free = 0
+    for width in ladder.whole_widths:
+        if width < ladder.padded or width < 1:
+            continue
+        start = 0 if width == 1 or width == ladder.padded else _ten_to(width - 1)
+        end = _ten_to(width) - 1
+        start = max(start, low)
+        end = min(end, high)
+        if start > end:
+            continue
+        free = free + end // grain - (start + grain - 1) // grain + 1
+    for value in ladder.published:
+        if (
+            low <= value <= high
+            and value % grain == 0
+            and not _off_the_code_ends(ladder, value, 0)
+        ):
+            free = free - 1
+    return free
 
 
 def _form_whole_figures(form: str, decimal_comma: bool) -> int:
@@ -53708,16 +57102,43 @@ def _next_on_ladder(
         while ended_key not in cursor and _ladder_goes_on(
             cursor[key] - cursor[empty_key], cursor[taken_key]
         ):
+            walked = _walk_ladder(ladder) if name == _OWED_NUMBER else ladder
+            # THE POSITIONS OFF THE GRAIN OR AT A WIDTH NO CODE HAS ARE
+            # PASSED IN ONE STEP (Codex's review of lane CODES-1's first
+            # repair, item 3): each holds no value and moves no bound, so
+            # the walk lands on the next it could write, as it would have
+            # one position at a time -- 40, 4,000 and 400,000 positions for
+            # a grain of 10, 1,000 and 100,000 before, about 40 now.
+            passed = _ladder_jump(
+                walked, ladder, places, cursor[key],
+                low_key in cursor, high_key in cursor,
+            )
+            cursor[key] = cursor[key] + passed
+            cursor[empty_key] = cursor[empty_key] + passed
             state, units, side = _outward_at(
-                _walk_ladder(ladder) if name == _OWED_NUMBER else ladder,
-                places, cursor[key], low_key in cursor, high_key in cursor,
+                walked, places, cursor[key], low_key in cursor,
+                high_key in cursor,
             )
             if state == _LADDER_END:
                 cursor[ended_key] = 1
                 break
             cursor[key] = cursor[key] + 1
-            if state == _LADDER_SKIP:
+            if state == _LADDER_SKIP or (ladder.grain > 1 and units % ladder.grain):
+                # A POSITION OFF THE PUBLISHED NUMBERS' GRAIN HOLDS NO VALUE
+                # (rule A3, plan P4-D439).
                 cursor[empty_key] = cursor[empty_key] + 1
+                continue
+            if _off_the_code_ends(ladder, units, places):
+                # PAST A CODE COLUMN'S PUBLISHED ENDS A SIDE HAS ENDED, as at
+                # a width no cell shows; a gap's value of a width no
+                # published code has holds no value (rule A3, the repair of
+                # lane CODES-1).
+                if side == _SIDE_HIGH:
+                    cursor[high_key] = 1
+                elif side == _SIDE_LOW:
+                    cursor[low_key] = 1
+                else:
+                    cursor[empty_key] = cursor[empty_key] + 1
                 continue
             if (
                 name == _OWED_NUMBER
@@ -53876,7 +57297,7 @@ def _pooled_window_of(column: contract.ColumnBlock) -> float:
     if not isinstance(facts, (contract.LabelFacts,)):
         return taxonomy.pooled_window([])
     return taxonomy.pooled_window(
-        [entry.label for entry in facts.levels]
+        [entry.label for entry in facts.levels], facts.suppressed_levels
     )
 
 
@@ -53985,6 +57406,9 @@ def _pooled_step(
         unit = 1.0 / float(_ten_to(places))
     if places < 0:
         unit = float(_ten_to(0 - places))
+    if ladder.grain > 1:
+        # THE PUBLISHED NUMBERS' GRAIN IS THE GRID (rule A3, plan P4-D439).
+        unit = unit * float(ladder.grain)
     places_apart = _POOLED_LOOSENESS
     if ladder.spanned and furthest > 0.0:
         room = ladder.greatest - ladder.least
@@ -54136,6 +57560,13 @@ def _pooled_spelling(
             reach = (step + 1) // 2
             units = anchor + (reach if step % 2 == 0 else -reach)
             if not _sign_held(units, ladder.signs):
+                continue
+            if ladder.grain > 1 and units % ladder.grain:
+                # Off the published numbers' grain (rule A3, P4-D439).
+                continue
+            if _off_the_code_ends(ladder, units, places):
+                # Past a code column's ends or widths: the offer steps on,
+                # inward from that end (rule A3, P4-D439).
                 continue
             if reach_figures > 0 and _whole_figures(units, places) > (
                 reach_figures
@@ -54374,6 +57805,12 @@ def _pooled_rules(
     the padded one, as the stepping checks it.
     """
     if not _sign_held(units, ladder.signs):
+        return None
+    if ladder.grain > 1 and units % ladder.grain:
+        # Off the published numbers' grain (rule A3, P4-D439).
+        return None
+    if _off_the_code_ends(ladder, units, places):
+        # Past a code column's published ends or widths (rule A3, P4-D439).
         return None
     if (
         not asked
@@ -55133,8 +58570,23 @@ def _class_split(
     supply: "dict[str, int]",
     owing: "dict[str, int] | None" = None,
     decimal_comma: bool = False,
+    intended: "dict[int, str] | None" = None,
 ) -> "dict[int, str]":
     """Which held-back groups pay which class debt, before any form.
+
+    WHERE NO ARRANGEMENT SEARCHED SETTLES THE FORMS, THE SIZES DRAWN FOR
+    EACH CLASS ARE TAKEN (rule A3 of the stand-ins page, lane CODES-1,
+    plan P4-D439). ``intended`` says which class each size was drawn for
+    (`held_back_sizes`, which draws the sizes of each class's every form
+    debt apart): where the search below finds no exact arrangement that
+    leaves every form settleable, and the drawn one settles every class debt
+    exactly, gives no class more groups than its supply and does leave
+    every form settleable (`_drawn_split_stands`), it stands before the
+    first exact arrangement and the one-pass walk. Measured before:
+    PCORnet's diagnoses, whose held-back numbers owe `%%%.%` 7 cells of
+    29, came back with the 29 as 10, 9, 6 and 4, and the twin wrote 24
+    cells of `%%%.%` against 21. An arrangement the search does settle
+    stands as before, byte for byte.
 
     ``owing`` is the census's remaining form debt. Given, an arrangement
     is accepted only where `_settles_its_forms` says each class can
@@ -55192,6 +58644,10 @@ def _class_split(
                 if not spent:
                     break
                 avoid += [spent[0]]
+    if intended and _drawn_split_stands(
+        intended, sizes, debts, supply, names, owing, decimal_comma
+    ):
+        return dict(intended)
     if first is not None:
         return first
     left = {name: debts[name] for name in names}
@@ -55209,6 +58665,40 @@ def _class_split(
             left[best] = left[best] - sizes[place]
             spare[best] = spare[best] - 1
     return taken
+
+
+def _drawn_split_stands(
+    intended: "dict[int, str]",
+    sizes: "tuple[int, ...]",
+    debts: "dict[str, int]",
+    supply: "dict[str, int]",
+    names: "list[str]",
+    owing: "dict[str, int] | None",
+    decimal_comma: bool,
+) -> bool:
+    """Whether the class split the sizes were drawn for settles every debt (P4-D439).
+
+    Every class it names is owed, each owed class is paid exactly and by
+    no more groups than its supply, and the forms reading as each class
+    can still be settled over its groups (`_settles_its_forms`), where
+    ``owing`` is given. Raises nothing. No I/O of any kind.
+    """
+    paid: "dict[str, int]" = {}
+    groups: "dict[str, int]" = {}
+    for place in intended:
+        name = intended[place]
+        if name not in names or place >= len(sizes):
+            return False
+        paid[name] = (paid[name] if name in paid else 0) + sizes[place]
+        groups[name] = (groups[name] if name in groups else 0) + 1
+    for name in names:
+        if name not in paid or paid[name] != debts[name]:
+            return False
+        if groups[name] > supply[name]:
+            return False
+    if owing is None:
+        return True
+    return _settles_its_forms(intended, sizes, owing, decimal_comma)
 
 
 def _straggler_stand_in(
@@ -55294,7 +58784,10 @@ def _class_form_stand_in(
         walked[key] = walked[key] + 1
         if candidate in used or parsing.folded(candidate) in owners:
             continue
-        if not _is_a_usable_stand_in(candidate, holes, reads_as, decimal_comma):
+        if not _is_a_usable_stand_in(
+            candidate, holes, reads_as, decimal_comma,
+            dated=_date_form_fields(form) is not None,
+        ):
             continue
         if ladder is not None and not _within_the_published_ends(
             candidate, ladder, decimal_comma
@@ -56252,6 +59745,56 @@ def _identifier_shortfall(
     return frozenset(missed)
 
 
+# HOW MANY SPELLINGS ONE IDENTITY IS OFFERED BEFORE IT TAKES ONE NAMING
+# ANOTHER WALK PERSON (plan P4-D442). Each offer is the next free filling
+# of the walk, so a few are enough where two layouts fill in step; the
+# bound keeps the walk linear in the column whatever the census.
+_PERSON_TRIES = 64
+# How far a layout's walk jumps past a spelling refused for naming another
+# walk person, in hundred-thousandths of the layout's room: the golden
+# section, far past any run another layout's walk of one column writes
+# (each starts `_LAYOUT_STEPS` after the last), and never twice to one place.
+_PERSON_JUMP = 61803
+
+
+def _person_claims(spelling: str, read: "dict[str, tuple[str, str]]") -> "tuple[str, str]":
+    """A spelling's merged key and its value read as a number, each read once a walk (``read`` keeps them)."""
+    if spelling not in read:
+        read[spelling] = (
+            "k|" + str(parsing.merged_key(parsing.trimmed(spelling))),
+            "n|" + _numeric_identity(spelling),
+        )
+    return read[spelling]
+
+
+def _names_another_person(
+    spelling: str, persons: "dict[str, bool]", read: "dict[str, tuple[str, str]]"
+) -> bool:
+    """Whether a spelling's merged key, or its value read as a number, is one a walk person written before holds.
+
+    `parsing.merged_key` is the form `profile.subject_keys` counts a
+    person by (plan P4-D406), and `_numeric_identity` the value a table
+    reader reads a column of numbers as, so `001234567` beside `1234567`
+    or `100005.0` beside `100005` would be one person written twice
+    (lane ID-ROOM's verify, ruling 5 of 2026-10-27). A spelling with no
+    merged key, or read as no number, claims nothing there. A fixed
+    function of its arguments; no I/O.
+    """
+    key, number = _person_claims(spelling, read)
+    return (key != "k|" and key in persons) or (number != "n|" and number in persons)
+
+
+def _person_written(
+    spelling: str, persons: "dict[str, bool]", read: "dict[str, tuple[str, str]]"
+) -> None:
+    """Record the person a spelling names: its merged key and its value read as a number."""
+    key, number = _person_claims(spelling, read)
+    if key != "k|":
+        persons[key] = True
+    if number != "n|":
+        persons[number] = True
+
+
 def _laid_identifiers(
     column: contract.ColumnBlock,
     facts: contract.IdentifierFacts,
@@ -56290,6 +59833,8 @@ def _laid_identifiers(
     total = len(groups)
     width = len(_BANDS)
     used: dict[str, int] = {}
+    persons: dict[str, bool] = {}
+    read: "dict[str, tuple[str, str]]" = {}
     notes: list[Deviation] = []
     packed, pinned, signed = shape
     order = _collision_order(
@@ -56416,68 +59961,103 @@ def _laid_identifiers(
             continue
         letter = asks[index] and band != _BAND_DIGITS
         spelling: str | None = None
-        # THE CELL IS WRITTEN TO ITS PUBLISHED LAYOUT WHERE THERE IS
-        # ONE (7.12, plan P4-D120), and to the walk below where there
-        # is not. The layout is offered BEFORE the length pins because
-        # a layout IS a length: a slot pinned to an end is offered only
-        # layouts of exactly that length, so the pin is kept by the
-        # offer rather than in spite of it.
-        laid = _layout_identifier(
-            kind, band, windows[index], convention, quotas, steps,
-            groups[index], used, letter, preferred[index], holes,
-            index < len(demands) and len(demands[index]) > 0,
-            assigned is not None,
-        )
-        if laid is None and stand_ins:
-            # A GROUP NO NAMED LAYOUT CAN TAKE -- the pool's cells, the
-            # cells too few to name, the cells of a layout the census
-            # took back -- WEARS A LAYOUT OF THE COLUMN'S OWN KINDS
-            # (plan P4-D128), and only where there is none does it fall
-            # to the walk below. See `_layout_stand_in`.
-            laid = _layout_stand_in(
-                kind, band, windows[index], convention, facts, stand_ins,
-                steps, used, admitted, mixed, holes,
+        # TWO WALK PERSONS ARE NEVER WRITTEN AS ONE (plan P4-D442): each
+        # identity is offered its spellings in turn until one names no
+        # person written before it, at most `_PERSON_TRIES` times, the last
+        # offer taken whatever it names (the twin's report then counts it).
+        attempt = 0
+        while True:
+            attempt = attempt + 1
+            # THE CELL IS WRITTEN TO ITS PUBLISHED LAYOUT WHERE THERE IS
+            # ONE (7.12, plan P4-D120), and to the walk below where there
+            # is not. The layout is offered BEFORE the length pins because
+            # a layout IS a length: a slot pinned to an end is offered only
+            # layouts of exactly that length, so the pin is kept by the
+            # offer rather than in spite of it.
+            laid = _layout_identifier(
+                kind, band, windows[index], convention, quotas, steps,
+                groups[index], used, letter, preferred[index], holes,
+                index < len(demands) and len(demands[index]) > 0,
+                assigned is not None,
             )
-        if laid is not None:
-            _claim(laid, used)
-            spellings += [laid]
-            # THE PARTNERS THIS IDENTITY WILL BE HANDED ARE DEBITED WITH
-            # IT (plan P4-D157), off the layout it actually took, so no
-            # identity laid after it spends the cells they will wear.
-            if paired and index < len(demands) and demands[index]:
-                _debit_partner_layouts(
-                    _layout_worn(laid, convention, quotas), convention,
-                    demands[index], groups, facts, quotas, predicted,
+            from_a_layout = laid is not None
+            if laid is None and stand_ins:
+                # A GROUP NO NAMED LAYOUT CAN TAKE -- the pool's cells, the
+                # cells too few to name, the cells of a layout the census
+                # took back -- WEARS A LAYOUT OF THE COLUMN'S OWN KINDS
+                # (plan P4-D128), and only where there is none does it fall
+                # to the walk below. See `_layout_stand_in`.
+                laid = _layout_stand_in(
+                    kind, band, windows[index], convention, facts, stand_ins,
+                    steps, used, admitted, mixed, holes,
                 )
-            continue
-        if index == carriers[0]:
-            spelling = _pinned_identifier(
-                kind, band, facts, facts.min_length, used, letter,
-                signed_here, holes,
+                from_a_layout = False
+            if laid is not None and _names_another_person(laid, persons, read) and attempt < _PERSON_TRIES:
+                # ...a spelling naming ANOTHER walk person -- its merged key
+                # or its value read as a number one written before holds --
+                # is spoken for and the group is offered the next (plan
+                # P4-D442): `001234567` beside `1234567`, `100005.0` beside
+                # `100005`, `P-12345` beside `P12345`, `1157400e4` beside
+                # `115740e5` are one person to a reader and to the
+                # product's own merged key.
+                worn_here = _layout_worn(laid, convention, quotas)
+                if from_a_layout and worn_here in quotas:
+                    quotas[worn_here] += groups[index]
+                    # ...and its walk JUMPS: two layouts whose fillings
+                    # read alike (`!!%%%%%%%` beside `%%%%%%%`) are filled
+                    # from one counter, so the steps after a refused one
+                    # are the other layout's steps already written, a run
+                    # of them as long as that layout's walk.
+                    steps[worn_here] = steps[worn_here] + max(
+                        parsing.layout_room(worn_here) * _PERSON_JUMP // 100000, 1
+                    )
+                _claim(laid, used)
+                continue
+            if laid is not None:
+                _claim(laid, used)
+                _person_written(laid, persons, read)
+                spellings += [laid]
+                # THE PARTNERS THIS IDENTITY WILL BE HANDED ARE DEBITED WITH
+                # IT (plan P4-D157), off the layout it actually took, so no
+                # identity laid after it spends the cells they will wear.
+                if paired and index < len(demands) and demands[index]:
+                    _debit_partner_layouts(
+                        _layout_worn(laid, convention, quotas), convention,
+                        demands[index], groups, facts, quotas, predicted,
+                    )
+                break
+            if index == carriers[0]:
+                spelling = _pinned_identifier(
+                    kind, band, facts, facts.min_length, used, letter,
+                    signed_here, holes,
+                )
+            elif index == carriers[1] and facts.max_length > facts.min_length:
+                spelling = _pinned_identifier(
+                    kind, band, facts, facts.max_length, used, letter,
+                    signed_here, holes,
+                )
+            else:
+                spelling, again = _next_identifier(
+                    kind,
+                    band,
+                    facts,
+                    states[families[index]],
+                    used,
+                    letter,
+                    signed_here,
+                    holes,
+                )
+                if again:
+                    repeated = repeated + 1
+            spelling = _opened_with_prefix(
+                spelling, kind, band, facts, convention, used, holes
             )
-        elif index == carriers[1] and facts.max_length > facts.min_length:
-            spelling = _pinned_identifier(
-                kind, band, facts, facts.max_length, used, letter,
-                signed_here, holes,
-            )
-        else:
-            spelling, again = _next_identifier(
-                kind,
-                band,
-                facts,
-                states[families[index]],
-                used,
-                letter,
-                signed_here,
-                holes,
-            )
-            if again:
-                repeated = repeated + 1
-        spelling = _opened_with_prefix(
-            spelling, kind, band, facts, convention, used, holes
-        )
-        _claim(spelling, used)
-        spellings += [spelling]
+            _claim(spelling, used)
+            if _names_another_person(spelling, persons, read) and attempt < _PERSON_TRIES:
+                continue
+            _person_written(spelling, persons, read)
+            spellings += [spelling]
+            break
     if repeated or len(set(spellings)) < total:
         notes = notes + _repeat_notes(column)
     return _grouped(groups, spellings), notes, short, supply
@@ -56693,7 +60273,6 @@ def _spelled_off_the_real(
             order += [identity]
         groups[identity] += [cell]
     moved: "dict[str, str]" = {}
-    wider = 0
     for identity in order:
         members = groups[identity]
         if all(_kept_off_the_real(room, member) for member in members):
@@ -56716,25 +60295,68 @@ def _spelled_off_the_real(
             continue
         together = _respelled_together(room, members) if len(members) > 1 else None
         if together is None:
-            together = {}
-            for member in members:
-                if not _kept_off_the_real(room, member):
-                    together[member] = _respelled(room, member)
-                    if not together[member]:
-                        raise errors.ProfileError(
-                            f"synthtwin internal check: the twin column "
-                            f"'{parsing.visible(column.name)}' has no spelling "
-                            f"left that the table's record numbers leave free. This "
-                            f"means a mistake in synthtwin; please report it. "
-                            f"Nothing has been written."
-                        )
+            together = _respelled_one_by_one(room, column, members)
         for member in sorted(together):
             moved[member] = together[member]
             _claimed(room, together[member])
-            if len(together[member]) > len(member):
-                wider = wider + 1
+    if _rootless_uids(room):
+        # A ROOTLESS UID IS WRITTEN IN THE UID GRAMMAR (plan P4-D442, lane
+        # HB item (9)): a column whose every named layout is a UID's -- a
+        # first arc of one figure and two arcs or more after it -- and
+        # which publishes no root drew its first arc and the opening of
+        # each arc from every figure, so about seven twin UIDs in ten
+        # opened with an arc no UID has (`7.9.729.720335...`) or led an
+        # arc with a nought. Each such value is spelled again with that
+        # first arc and those openings alone written anew, in its layout,
+        # off the real and naming no twin person written before it.
+        #
+        # ...AND A VALUE'S SPELLING PARTNERS WITH IT (Codex's review of lane
+        # HB, item 3): `v` and `v ` are one identity, and spelled one by one
+        # the second took a UID of its own, so 120 folded identities became
+        # 206. A value whose core folds as the core a value of its merged
+        # identity had before it was written in the grammar did takes that
+        # value's new core with its own spaces around it -- and where that
+        # spelling is written already (two cases of one core, which a UID's
+        # figures cannot tell apart), with a space more after it, or before.
+        partners: "dict[str, tuple[str, str]]" = {}
+        for cell in seen:
+            final = moved[cell] if cell in moved else cell
+            if parsing.is_a_uid(parsing.trimmed(final)):
+                continue
+            lead, core, trail, _final = _edges(final)
+            identity = parsing.merged_key(final)
+            fixed = ""
+            if identity in partners and partners[identity][0] == parsing.folded(core):
+                for partner in (
+                    lead + partners[identity][1] + trail,
+                    lead + partners[identity][1] + trail + " ",
+                    " " + lead + partners[identity][1] + trail,
+                ):
+                    if not fixed and partner not in room.written and not (
+                        _is_a_hole_spelling(partner, room.holes)
+                    ):
+                        fixed = partner
+            if not fixed:
+                fixed = _in_the_uid_grammar(room, final)
+            if not fixed:
+                # ...and a value of the pool, which the walk wrote in no
+                # layout of figures and points at all, is written as a UID
+                # of a named layout widened until it is off the real.
+                fixed = _a_uid_in_place_of(room, final)
+            if fixed:
+                if identity and identity not in partners:
+                    partners[identity] = (parsing.folded(core), _edges(fixed)[1])
+                moved[cell] = fixed
+                _claimed(room, fixed)
     if not moved:
         return cells, []
+    # ...THE VALUES WRITTEN WIDER COUNTED ON WHAT IS WRITTEN (Codex's review
+    # of lane HB, item 10): the grammar's own spellings come after the walk's,
+    # so 176 values lengthened were reported as 2.
+    wider = 0
+    for cell in moved:
+        if len(moved[cell]) > len(cell):
+            wider = wider + 1
     rows = 0
     for cell in cells:
         if cell in moved:
@@ -56757,6 +60379,211 @@ def _spelled_off_the_real(
             ),
         )
     ]
+
+
+# How many spellings of a UID's first arc and arc openings are asked
+# before the value is left as the walk wrote it (plan P4-D442).
+_UID_GRAMMAR_TRIES = 27
+
+
+def _rootless_uids(room: "_OffTheReal") -> bool:
+    """Whether a column publishes no root and every named layout of it is a UID's (plan P4-D442)."""
+    return _rootless_uid_layouts(room.facts)
+
+
+def _rootless_uid_layouts(facts: contract.IdentifierFacts) -> bool:
+    """Whether a column publishes no root and every named layout of it is a UID's (plan P4-D442).
+
+    A first arc of one figure and two arcs or more after it, figures alone
+    (`_a_uid_form`), and no prefix published for the whole column. A fixed
+    function of the facts. Raises nothing. No I/O.
+    """
+    named = _named_layouts(facts)
+    if parsing.PREFIX_OF_THE_COLUMN in facts.layout_prefixes or not named:
+        return False
+    for layout in named:
+        if not _a_uid_form(layout, parsing.LAYOUT_DIGIT):
+            return False
+    return True
+
+
+def _a_uid_form(form: str, digit: str) -> bool:
+    """Whether a layout or form is one a UID can wear: a first arc of one figure and two arcs or more after it, figures alone (plan P4-D442).
+
+    ``digit`` is the mark a figure wears in it (a layout's or a census
+    form's). `%.%.%%%%` is such a form, and a day, a month and a year
+    written with points and no nought before a lone figure wear it too. A
+    fixed function of the two. Raises nothing. No I/O.
+    """
+    arcs = _runs_between(form, ".")
+    if len(arcs) < 3 or arcs[0] != digit:
+        return False
+    for arc in arcs:
+        if not arc or not _marks_alone(arc, digit):
+            return False
+    return True
+
+
+def _names_a_uid_layout(facts: contract.IdentifierFacts) -> bool:
+    """Whether some named layout of a column is one a UID can wear (`_a_uid_form`; plan P4-D442).
+
+    Whatever the column publishes beside it: a root (`1.2.`), no root, other
+    layouts of figures, of dates or of letters. A fixed function of the
+    facts. Raises nothing. No I/O.
+    """
+    for layout in _named_layouts(facts):
+        if _a_uid_form(layout, parsing.LAYOUT_DIGIT):
+            return True
+    return False
+
+
+def _in_the_uid_grammar(room: "_OffTheReal", cell: str) -> str:
+    """A twin value spelled in the UID grammar with its first arc and arc openings alone written anew, or "".
+
+    The arcs keep their lengths, so the value keeps its layout: a first
+    arc of one figure outside `0`, `1` and `2` is written as one of
+    them, and an arc of several figures led by a nought is led by a
+    figure from `1` to `9`, the choices stepped together until a spelling
+    is free (`_identity_taken`), kept off the real (`_kept_off_the_real`),
+    no hole spelling and no date. "" where the value is not figures and
+    points, or where no spelling is free. A fixed function of the room
+    and the cell; no I/O.
+    """
+    lead, core, trail, _cell = _edges(cell)
+    arcs = _runs_between(core, ".")
+    if len(arcs) < 3 or len(arcs[0]) != 1:
+        return ""
+    for arc in arcs:
+        if not parsing.is_digit_text(arc):
+            return ""
+    for step in range(_UID_GRAMMAR_TRIES):
+        written = ""
+        for place in range(len(arcs)):
+            arc = arcs[place]
+            if place == 0 and arc not in ("0", "1", "2"):
+                arc = "120"[(ord(arc) + step) % 3]
+            elif place > 0 and len(arc) > 1 and arc[0] == "0":
+                arc = "123456789"[(step + place) % 9] + arc[1:]
+            written = written + ("." if place else "") + arc
+        spelling = lead + written + trail
+        if (
+            spelling in room.written
+            or parsing.folded(spelling) in room.folds
+            or _identity_taken(room, spelling)
+            or not _kept_off_the_real(room, spelling)
+            or _is_a_hole_spelling(spelling, room.holes)
+            or _reads_as_a_date(spelling)
+        ):
+            continue
+        return spelling
+    return ""
+
+
+def _a_uid_in_place_of(room: "_OffTheReal", cell: str) -> str:
+    """A UID in the grammar for a value of no layout of figures and points, or "" (plan P4-D442).
+
+    The value stands for the column's pool -- real UIDs of layouts too
+    rare to name -- so it is written in no named layout: each named
+    layout, in order, widened under the spill as `_respelled` widens a
+    value (`_widened_template`), filled at its next free spelling off the
+    real, and that spelling put in the grammar (`_in_the_uid_grammar`)
+    where its first arc or an arc's opening is not. A fixed function of
+    the room and the cell; no I/O.
+    """
+    part = _edges(cell)
+    for layout in _named_layouts(room.facts):
+        wide = _widened_template(room, layout)
+        if not wide:
+            continue
+        found = _next_off_the_real(room, wide, [part], False)
+        if found is None:
+            continue
+        spelt = found[cell]
+        if parsing.is_a_uid(parsing.trimmed(spelt)):
+            return spelt
+        fixed = _in_the_uid_grammar(room, spelt)
+        if fixed:
+            return fixed
+    return ""
+
+
+def _respelled_one_by_one(
+    room: "_OffTheReal", column: contract.ColumnBlock, members: "list[str]"
+) -> "dict[str, str]":
+    """Each value of one merged identity no filling fits together, spelled on its own (plan P4-D442).
+
+    TWO WALK PERSONS ARE NEVER WRITTEN AS ONE, HERE EITHER (lane ID-ROOM's
+    verify 2, item 1): each member's spelling is CLAIMED as it is chosen,
+    so the next member cannot take a spelling of the same number -- the
+    walk's `044724.0` (44,724) and `447240`, one merged key and two
+    numbers, were written `998741.0` and `998741`, one number, when every
+    member was claimed only afterwards. A member may still share what is
+    its OWN: the merged key another member of its identity holds (kept or
+    moved), and a number another member holds only where the walk wrote
+    those two as one number (`009891959` beside `9891959`), so the walk's
+    one person stays one wherever the steps allow it. Nothing else a
+    member takes may merge with, or read as the number of, any value
+    written before it. Raises ProfileError where no spelling is left.
+    """
+    together: "dict[str, str]" = {}
+    keys: "dict[str, bool]" = {}
+    numbers: "dict[str, str]" = {}
+    # ...and a FOLD-COLLISION PARTNER (G9.3: the same person in another
+    # case or with a space) is written as its first partner's new spelling
+    # in its own case and spaces, so the folded count stays as published:
+    # spelled on its own it took a fold of its own (caps-2000's names, 119
+    # folded identities against 118, lane HB's first head).
+    by_fold: "dict[str, str]" = {}
+    for member in members:
+        if _kept_off_the_real(room, member):
+            keys[parsing.merged_key(member)] = True
+            numbers[_numeric_identity(member)] = _numeric_identity(member)
+    for member in members:
+        if _kept_off_the_real(room, member):
+            continue
+        fold = parsing.folded(parsing.trimmed(member))
+        if fold in by_fold:
+            lead, core, trail, _cell = _edges(member)
+            partner = lead + _in_its_case(parsing.trimmed(by_fold[fold]), core) + trail
+            if (
+                partner not in room.written
+                and _kept_off_the_real(room, partner)
+                and not _is_a_hole_spelling(partner, room.holes)
+                and not _reads_as_a_date(partner)
+                and _reads_alike(partner, member)
+            ):
+                _claimed(room, partner)
+                together[member] = partner
+                continue
+        own = _numeric_identity(member)
+        shared: "list[str]" = []
+        for key in keys:
+            shared += ["k|" + key]
+        for number in numbers:
+            if own and numbers[number] == own:
+                shared += ["n|" + number]
+        for entry in shared:
+            room.sharing[entry] = True
+        try:
+            spelt = _respelled(room, member)
+        finally:
+            for entry in shared:
+                del room.sharing[entry]
+        if not spelt:
+            raise errors.ProfileError(
+                f"synthtwin internal check: the twin column "
+                f"'{parsing.visible(column.name)}' has no spelling "
+                f"left that the table's record numbers leave free. This "
+                f"means a mistake in synthtwin; please report it. "
+                f"Nothing has been written."
+            )
+        _claimed(room, spelt)
+        together[member] = spelt
+        if fold not in by_fold:
+            by_fold[fold] = spelt
+        keys[parsing.merged_key(spelt)] = True
+        numbers[_numeric_identity(spelt)] = own
+    return together
 
 
 # How many fillings of one template a value is offered before the next
@@ -56797,7 +60624,13 @@ class _OffTheReal:
     template and a reading (a value's class and alphabets), so no class
     spends the fillings another could take; ``missed`` names each search
     that found nothing (its template, its step, its value's reading), so
-    the same search is not run again.
+    the same search is not run again; ``sharing`` names, while one member
+    of a merged identity is spelled on its own, the merged keys and
+    numbers it may share with its own identity (`_respelled_one_by_one`);
+    ``nought_led`` maps the zero-fill layout a key of figures alone beside
+    lists wears to the excluded templates that write it, and ``spends`` each
+    excluded template of a column of lists to the name of the room it spends
+    (`parsing.noughts_dropped`; plan P4-D442).
     """
 
     facts: contract.IdentifierFacts
@@ -56818,6 +60651,9 @@ class _OffTheReal:
     missed: "dict[str, bool]"
     widened: "dict[str, str]"
     lengths: "dict[str, dict[int, bool]]"
+    sharing: "dict[str, bool]"
+    nought_led: "dict[str, list[str]]"
+    spends: "dict[str, str]"
 
 
 def _off_the_real_room(
@@ -56833,6 +60669,9 @@ def _off_the_real_room(
     templates: "dict[str, list[str]]" = {}
     lowered: "dict[str, list[str]]" = {}
     stands: "dict[str, tuple[int, ...]]" = {}
+    nought_led: "dict[str, list[str]]" = {}
+    spends: "dict[str, str]" = {}
+    listing = any(taxonomy.a_list_layout(layout) for layout in _named_layouts(facts))
     for layout in _named_layouts(facts):
         if layout in exclusions:
             # EVERY EXCLUSION OF THE LAYOUT, in the order published: one,
@@ -56847,6 +60686,13 @@ def _off_the_real_room(
                     exclusion,
                 )
                 templates[layout] += [excluded]
+                if listing and (taxonomy.a_list_layout(layout) or taxonomy.one_list_key(layout)):
+                    spends[excluded] = parsing.noughts_dropped(excluded)
+                if parsing.leaves_its_layout(layout, exclusion):
+                    worn = parsing.template_layout(excluded, convention)
+                    if worn not in nought_led:
+                        nought_led[worn] = []
+                    nought_led[worn] += [excluded]
                 low = parsing.folded(parsing.folded_layout(excluded))
                 lowered[folded] += [low]
                 stands[excluded] = parsing.merged_places(excluded)
@@ -56879,6 +60725,9 @@ def _off_the_real_room(
         # The lengths widened values holding a letter, and holding none,
         # are written at (`_widened_template`), the spill's among the second.
         lengths={"letters": {}, "figures": {len(spill): True} if spill else {}},
+        sharing={},
+        nought_led=nought_led,
+        spends=spends,
     )
 
 
@@ -56906,10 +60755,10 @@ def _identity_taken(room: _OffTheReal, spelling: str) -> bool:
     holds; it is taken.
     """
     key = parsing.merged_key(spelling)
-    if key and key in room.merged:
+    if key and key in room.merged and "k|" + key not in room.sharing:
         return True
     number = _numeric_identity(spelling)
-    return bool(number) and number in room.numbers
+    return bool(number) and number in room.numbers and "n|" + number not in room.sharing
 
 
 def _numeric_identity(text: str) -> str:
@@ -56976,12 +60825,15 @@ def _kept_off_the_real(room: _OffTheReal, cell: str) -> bool:
     if room.bound and len(key) >= room.bound:
         return True
     layout = parsing.layout_form(core, room.convention)
-    if layout in room.templates:
-        for template in room.templates[layout]:
-            if _wears_template(core, template, room.convention) and (
-                parsing.projected(core, room.stands[template]) == key
-            ):
-                return True
+    # ...a key of figures alone beside lists wears the zero fill of its own
+    # layout's excluded template (plan P4-D442).
+    for held in (room.templates, room.nought_led):
+        if layout in held:
+            for template in held[layout]:
+                if _wears_template(core, template, room.convention) and (
+                    parsing.projected(core, room.stands[template]) == key
+                ):
+                    return True
     folded = parsing.folded_layout(layout)
     if folded in room.lowered:
         low = parsing.folded(core)
@@ -57000,13 +60852,32 @@ def _off_the_real_targets(room: _OffTheReal, core: str) -> "list[str]":
     if layout in room.templates:
         for template in room.templates[layout]:
             offered += [template]
-    if layout and room.bound:
+    if layout and room.bound and not taxonomy.a_list_layout(layout) and not (
+        _one_key_beside_lists(room, layout)
+    ):
+        # ...but a layout of keys between commas is never widened (plan
+        # P4-D442, lane HB item (12)): widened, one key grows and the others
+        # stay as the walk wrote them, so a cell kept off the real whole could
+        # hold a real key; such a cell is its template's or the spill's.
+        # ...nor, beside them, a layout of one key (lane HB's verify, finding
+        # 2): widened under its letter, `R110072044036505063606260` held the
+        # real `R110072` as text; it is the spill's, figures alone.
         wide = _widened_template(room, layout)
         if wide:
             offered += [wide]
     if room.spill:
         offered += [room.spill]
     return offered
+
+
+def _one_key_beside_lists(room: _OffTheReal, layout: str) -> bool:
+    """Whether a layout of one key stands in a column holding a layout of keys between commas (plan P4-D442)."""
+    if not taxonomy.one_list_key(layout):
+        return False
+    for named in _named_layouts(room.facts):
+        if taxonomy.a_list_layout(named):
+            return True
+    return False
 
 
 def _widened_template(room: _OffTheReal, layout: str) -> str:
@@ -57156,12 +61027,12 @@ def _appended_off_the_real(
         if (
             written in room.written
             or parsing.folded(written) in room.folds
+            or not _reads_alike(written, cell)
             or _identity_taken(room, written)
             or (room.convention == parsing.LAYOUT_PLAIN and _reads_as_hexadecimal(written))
             or not _kept_off_the_real(room, written)
             or _is_a_hole_spelling(written, room.holes)
             or _reads_as_a_date(written)
-            or not _reads_alike(written, cell)
         ):
             continue
         room.steps[cursor] = step
@@ -57312,14 +61183,21 @@ def _next_off_the_real(
     if strict:
         for _lead, _core, _trail, cell in parts:
             reading = reading + "|" + _reading_of(cell)
-    cursor = f"{template}|{strict}{reading}"
+    # ...and list templates of one merged key at each step, one room between
+    # them: each from its own step would walk over all the others' (plan P4-D442).
+    spends = room.spends[template] if template in room.spends else template
+    cursor = f"{spends}|{strict}{reading}"
     start = room.steps[cursor] if cursor in room.steps else 0
     step = start
     search = ""
     if len(parts) == 1:
         spaces, _core, trail, cell = parts[0]
         search = f"{cursor}|{start}|{len(spaces)}|{len(trail)}|{_reading_of(cell)}"
-        if search in room.missed:
+        if room.sharing:
+            # ...a member sharing its identity's own key and number may find
+            # what a search without them missed (`_respelled_one_by_one`).
+            search = ""
+        elif search in room.missed:
             return None
     anchor = parts[lead][1] if parts else ""
     budget = _OFF_THE_REAL_TRIES
@@ -57374,11 +61252,14 @@ def _next_off_the_real(
                 not spelt
                 or written in room.written
                 or written in spelt_now
+                # ...the class and alphabets first: a filling of another
+                # class is refused before the hole and date readers are
+                # asked of it (the same answer, sooner; plan P4-D442).
+                or (strict and not _reads_alike(written, cell))
                 or _identity_taken(room, written)
                 or not _kept_off_the_real(room, written)
                 or _is_a_hole_spelling(written, room.holes)
                 or _reads_as_a_date(written)
-                or (strict and not _reads_alike(written, cell))
             ):
                 fits = False
                 break
@@ -57554,7 +61435,7 @@ def _wears_template(candidate: str, template: str, convention: str) -> bool:
         # A SPILL LONGER THAN ANY LAYOUT (plan P4-D432), which the census's
         # reader does not describe: read place by place.
         return _wears_a_long_template(candidate, template)
-    if parsing.layout_form(candidate, convention) != parsing.prefix_layout(
+    if parsing.layout_form(candidate, convention) != parsing.template_layout(
         template, convention
     ):
         return False
@@ -57851,7 +61732,7 @@ def _layout_spelling(
         opening = candidate[:1]
         if (
             opening == _SPACE or opening in _FORMULA_LEADERS
-        ) and not _signs_a_number(layout):
+        ) and not _signs_a_number(layout) and not _dials_a_number(layout):
             # A LAYOUT WHOSE LEADING MARK IS ONE A SPREADSHEET READS AS
             # THE START OF A FORMULA IS GIVEN UP AT ONCE, not stepped
             # through. The opening character of a layout's spelling is
@@ -57977,11 +61858,41 @@ def _layout_admits(
         opening = candidate[:1]
         if (
             opening == _SPACE or opening in _FORMULA_LEADERS
-        ) and not _signs_a_number(layout):
+        ) and not _signs_a_number(layout) and not _dials_a_number(layout):
             return False
         if _fits_its_slot(kind, band, layout, convention, candidate):
             return True
     return False
+
+
+# The fewest figures a telephone number written after `+` holds (E.164's
+# shortest national numbers, with the country code).
+_DIALLED_FIGURES_AT_LEAST = 7
+
+
+def _dials_a_number(layout: str) -> bool:
+    """Whether a layout is a `+` before a telephone number's figures, spaces, dashes, points and brackets alone.
+
+    A PUBLISHED `+` OPENING IS THE SOURCE'S, NOT THE TWIN'S (plan P4-D442,
+    lane HB item (4)): `+%-%%%-%%%-%%%%` is a layout only a number dialled
+    from abroad wears (E.164's `+` and country code), so a census naming
+    it PROVES the real column opened with `+`, as `_signs_a_number`'s sign
+    does. Refusing it wrote `!             !AAAAAAAAAAAAAAAG` for every
+    such cell and the twin missed its own census (validate exit 3). The
+    twin inherits the hazard the table already had and manufactures none:
+    `_fits_its_slot` still asks the shipped readers of every filling. A
+    fixed function of the layout; no I/O.
+    """
+    if len(layout) < 2 or layout[0] != "+":
+        return False
+    figures = 0
+    for character in layout[1:]:
+        if character == parsing.LAYOUT_DIGIT:
+            figures = figures + 1
+            continue
+        if character not in " -.()":
+            return False
+    return figures >= _DIALLED_FIGURES_AT_LEAST
 
 
 def _layout_preferences(
@@ -58361,6 +62272,18 @@ def _layout_identifier(
                 # See `_layout_preferences`: an identity owed a partner
                 # is not written to a signed layout (plan P4-D156).
                 continue
+            if _figures_alone_outside_their_band(band, layout, convention):
+                # A LAYOUT NO FILLING OF WHICH THE SLOT CAN WEAR (plan
+                # P4-D442): every filling of figures alone reads as the
+                # figures band, so a slot of another band -- the `-1`
+                # beside seven-figure record numbers -- would read the
+                # whole ceiling and find nothing, about 9 ms a row at
+                # 20,000 rows. The walk's step moves as the search would
+                # have moved it, so every later filling is the one it was.
+                steps[layout] = steps[layout] + min(
+                    parsing.layout_room(layout), _LAYOUT_STEPS
+                )
+                continue
             found = _layout_spelling(
                 kind, band, layout, convention, steps, used, holes
             )
@@ -58369,6 +62292,23 @@ def _layout_identifier(
             quotas[layout] = quotas[layout] - covering
             return found
     return None
+
+
+def _figures_alone_outside_their_band(band: str, layout: str, convention: str) -> bool:
+    """Whether every filling of a plain layout is figures alone and the slot's band is not the figures'.
+
+    A layout written with the figure mark and the leading nought's mark
+    alone, in the plain convention, is filled with ASCII figures at every
+    place, so `parsing.is_digit_text` reads every filling as figures and
+    `_reads_in_band` admits none of them to the code or the wide band. A
+    fixed function of its arguments; no I/O.
+    """
+    if band == _BAND_DIGITS or convention != parsing.LAYOUT_PLAIN or not layout:
+        return False
+    for character in layout:
+        if character != parsing.LAYOUT_DIGIT and character != parsing.LAYOUT_LEADING_ZERO:
+            return False
+    return True
 
 
 # How many made-up layouts one group is offered, over every base, before
@@ -61513,6 +65453,12 @@ def _text_cells(
             placed[order[position]] = position
         carriers = (placed[carriers[0]], placed[carriers[1]])
     used: dict[str, int] = {}
+    # A COLUMN WHOSE FORMS HOLD A DATE'S (plan P4-D442, lane HB's repair):
+    # its eight figures alone, or a month beside a year, are dates too.
+    dated = False
+    for shape in facts.shape_forms:
+        if _date_form_fields(shape) is not None:
+            dated = True
     states: dict[str, list[int]] = {}
     spellings: list[str] = []
     families = _families_named(
@@ -61807,6 +65753,7 @@ def _text_cells(
             asked_form,
             holes if holes else _hole_spellings(column),
             form_key in figured,
+            dated,
         )
         if spelling is None:
             made_held = 0
@@ -64121,8 +68068,13 @@ def _made_up_cell(
     form: str = "",
     holes: "tuple[str, ...]" = (),
     figured: bool = False,
+    dated: bool = False,
 ) -> "str | None":
     """One made-up cell of one class, one band and one length, or None.
+
+    ``dated`` says the column's published forms hold a date's
+    (`_date_form_fields`), so eight figures alone, or a month beside a
+    year, are filled with dates too (plan P4-D442, lane HB's repair).
 
     ``figured`` fills a clock's form figure by figure, on a cursor of its
     own, past the column's clock line (`_clock_line_room`, the repair
@@ -64208,19 +68160,21 @@ def _made_up_cell(
         marked = shaped_state[0]
         found = _walked_cell(
             kind, band, length, words, letter, shaped_state, used, form,
-            holes, figures,
+            holes, figures, dated,
         )
         if found is not None:
             return found
         if letter:
             shaped_state[0] = marked
     found = _walked_cell(
-        kind, band, length, words, letter, state, used, "", holes
+        kind, band, length, words, letter, state, used, "", holes,
+        dated=dated,
     )
     if found is None and letter:
         state[0] = began
         found = _walked_cell(
-            kind, band, length, words, False, state, used, "", holes
+            kind, band, length, words, False, state, used, "", holes,
+            dated=dated,
         )
     return found
 
@@ -64236,8 +68190,11 @@ def _walked_cell(
     form: str = "",
     holes: "tuple[str, ...]" = (),
     figures: bool = False,
+    dated: bool = False,
 ) -> "str | None":
     """One pass of the family's walk, from where the last one stopped.
+
+    ``dated`` says the column's forms hold a date's (`_made_up_cell`).
 
     ``figures`` fills the form figure by figure and steps past every
     spelling a clock reader takes (the repair round of landing 3b.5).
@@ -64281,6 +68238,14 @@ def _walked_cell(
     )
     asked = 0
     tried = 0
+    # ...AND, BESIDE DATES, A NUMBER OF EIGHT FIGURES IS ONE (plan P4-D442,
+    # lane HB's repair): a column whose forms hold a date's writes its cells
+    # of eight figures, which read as numbers and so wear no published form
+    # (`20240317`), as dates of `%%%%%%%%` first.
+    compact = (
+        dated and not form and kind == _CLASS_NUMBER and band == _BAND_DIGITS
+        and length == 8
+    )
     while state[0] < room and tried < tries and (
         not bounded or _walk_goes_on(state[0], state[1], room)
     ):
@@ -64290,10 +68255,16 @@ def _walked_cell(
         candidate: "str | None" = None
         if form:
             candidate = _filled_form(form, index, not figures)
+            if dated and not figures:
+                # ...eight figures alone or a month beside a year, where the
+                # column's other forms are dates', filled with dates too.
+                candidate = _date_filled_form(form, index, True) or candidate
             if figures and _read_as_a_clock(candidate):
                 continue
         else:
-            candidate = _family_at(kind, band, length, words, index)
+            candidate = (
+                _date_filled_form(_COMPACT_DATE_FORM, index, True) if compact else None
+            ) or _family_at(kind, band, length, words, index)
         if candidate is None:
             return None
         if letter and not _has_letter(candidate):
@@ -64315,7 +68286,12 @@ def _walked_cell(
             continue
         if _is_a_hole_spelling(candidate, holes):
             continue
-        if _reads_as_a_date(candidate):
+        if _reads_as_a_date(candidate) and not compact and not (
+            form and _date_form_fields(form, dated) is not None
+        ):
+            # ...but a PUBLISHED FORM OF A DATE proves the source wrote
+            # dates in it, so its fillings are the valid dates
+            # `_date_filled_form` writes, not refused (plan P4-D442).
             continue
         if not _reads_in_band(candidate, band):
             # THE BAND IS NOT THE CLASS, AND ONLY THE CLASS WAS ASKED
@@ -64340,7 +68316,8 @@ def _walked_cell(
             # enumeration.
             continue
         if form and not _is_a_usable_stand_in(
-            candidate, holes, _reads_as(kind)
+            candidate, holes, _reads_as(kind),
+            dated=_date_form_fields(form, dated) is not None,
         ):
             # THE FORM'S OWN MARKS ARE NOT THE ALPHABETS' (review round
             # 1 finding 6). Every candidate `_family_at` builds comes
@@ -65707,6 +69684,18 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
             + plan.placement_words
             + _grain_words(column, profile.n_rows)
         )
+    # THE CHAIN'S WALK (method G16.8; lane CHb, plan P4-D435): three words
+    # an arranged row for each family, a function of published facts.
+    if profile.relationships.chain:
+        reserving = _reservation(
+            profile,
+            tuple(plans),
+            dialect.arranging(profile.source.dialect, profile.n_rows, len(plans)),
+        )
+        if reserving is not None:
+            words = words + 3 * len(profile.relationships.chain) * _walk_rows(
+                profile, len(reserving[0])
+            )
     return GenerationPlan(columns=tuple(plans), words_planned=words)
 
 
@@ -66368,8 +70357,13 @@ def _plan_column(
             column, groups, _holes_reserved(column, all_holes), floor
         )
         # NO CELL SPELLED AS A REAL ONE (lane ID-ROOM, plan P4-D432).
+        walked = cells
         cells, spilled = _spelled_off_the_real(
             column, facts, cells, _holes_reserved(column, all_holes)
+        )
+        # ...AND A COLUMN OF DATES READ SO WRITTEN AS DATES (plan P4-D442).
+        cells = _dates_in_their_layouts(
+            column, facts, walked, cells, _holes_reserved(column, all_holes)
         )
         remarks = remarks + spilled
     elif isinstance(facts, contract.TextFacts):
@@ -66382,6 +70376,12 @@ def _plan_column(
             column, groups, long_tail_line, _holes_reserved(column, all_holes),
             truths, floor, parse_rate,
         )
+        # ...EVERY RUN OF FIGURES OFF THE REAL ONES (plan P4-D442).
+        cells, spent = _figure_runs_off_the_real(
+            cells, facts, _holes_reserved(column, all_holes)
+        )
+        if spent[0] or spent[1]:
+            remarks += [_runs_widened_remark(column, spent)]
     elif isinstance(facts, contract.UnrepresentableFacts):
         groups = _groups_of(facts.n_distinct_by_occurrences)
         # THE TABLE'S OWN HOLE SPELLINGS REACH THIS ROLE (review item
@@ -66922,6 +70922,11 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
         if reservation[1]:
             reserved_rows = len(reservation[0])
         short_notes = _reservation_shortfall(profile, plan.columns, reservation)
+    # THE CHAIN'S WALK (method G16; lane CHb, plan P4-D435), behind the
+    # same switch: where the chain places a family with a parent, each
+    # eligible column is held in its cell list order, and after the last
+    # column's last word the walk puts each cell in its row.
+    walk = _walk_plan(profile, reservation)
     # EACH COLUMN'S PLAN LET GO ONCE ITS COLUMN IS DONE (plan P4-D415, lane
     # SG). Every plan is made before the first column, and a plan holds
     # what its column's values are drawn from -- a column of numbers its
@@ -66985,9 +70990,7 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
         # absent cells join them: every present cell of a plain numeric
         # role, and the numeric half of a column of numbers and labels,
         # which `_compound_content` writes first (stage 2 closure review).
-        numbers_written = len(content)
-        if isinstance(column.facts, contract.CompoundFacts):
-            numbers_written = contract.compound_numbers_view(column).n_present
+        numbers_written = _numbers_written(column)
         notes = notes + _grouping_notes(
             column, profile.settings.small_cell_floor, content
         )
@@ -67019,10 +71022,16 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
                 # G4.2's order before G16 moves a cell: what G2.2 step 1
                 # and step 7 deal and write this column by (G4.2a).
                 before_order = _reserved_order(reservation[0], True, content, arranged)
-            order = _row_placement(
-                step, profile, content, arranged, finished,
-                (reservation[0], reservation[1]), readings,
-            )
+            if walk is None:
+                order = _row_placement(
+                    step, profile, content, arranged, finished,
+                    (reservation[0], reservation[1]), readings,
+                )
+            else:
+                order = _row_placement(
+                    step, profile, content, arranged, finished,
+                    (reservation[0], reservation[1]), readings, walk=walk,
+                )
         readings = None
         places = []
         written = [content[order[place]] for place in range(profile.n_rows)]
@@ -67052,6 +71061,13 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
         if column.top_coded:
             written = taxonomy.at_most_the_top_code(
                 written, frozenset(column.missing_by_source)
+            )
+        # ...AND THE SAFE HARBOR YEARS (plan P4-D434): the twin of a column
+        # described with every year up to one showing an age of 90 or more
+        # read as that year writes none before it.
+        if column.top_coded_year:
+            written = taxonomy.at_least_the_year_cutoff(
+                written, frozenset(column.missing_by_source), column.top_coded_year
             )
         # THE OTHER HALF OF THE DECLARATION (plan P4-D26), and it is
         # applied to the CELLS HANDED OUT and to nothing this loop then
@@ -67351,6 +71367,42 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
         spelled = []
         measured = []
         halves = ([], [])
+    # THE CHAIN'S WALK (method G16.2 to G16.6; lane CHb, plan P4-D435):
+    # its words are drawn after the last column's last word, and it moves
+    # only which arranged row each eligible column's cell stands in, so
+    # every column's cells, and everything measured above, stay as they are.
+    if walk is not None:
+        arranged_rows = chain_walk.size_of(walk.arranged)
+        for family in walk.families:
+            # G16.8: for each block of 65,536 arranged rows in row order, one
+            # call of three words a row, the hidden scores of the family's
+            # child, drawn here where the stream is made (method G3.2).
+            # Each row's `S` (at most 12 x 65,535) held three bytes a row,
+            # the block's words read into whole numbers 4,096 rows at a
+            # time (G16.11's memory clause; repair 1 of lane CHb, item 4):
+            # the same calls of the stream, the same words.
+            sums = chain_walk.packed(arranged_rows, chain_walk.SUM_WIDTH)
+            for start in range(0, arranged_rows, chain_walk.BLOCK_ROWS):
+                size = min(chain_walk.BLOCK_ROWS, arranged_rows - start)
+                block = generator.integers(
+                    0,
+                    _WORD_CEILING,
+                    size=int(3 * size),
+                    dtype="uint64",
+                    endpoint=True,
+                )
+                for first in range(0, size, _SUMMED_ROWS):
+                    last = min(size, first + _SUMMED_ROWS)
+                    summed = chain_walk.hidden_sums([int(word) for word in block[3 * first:3 * last]])
+                    for at in range(len(summed)):
+                        chain_walk.put(sums, start + first + at, summed[at])
+                    summed = []
+                del block
+            drawn = drawn + 3 * arranged_rows
+            deviations = deviations + _chain_family(
+                walk, family, sums, finished, arranging, sheet_dealt
+            )
+            sums = chain_walk.packed(0, chain_walk.SUM_WIDTH)
     # WHERE THE ROWS STAND (plan P4-D86): the order the real table was
     # sorted in, its all-empty records in their places, the row sequence
     # in place. Whole rows move for the sort and cells move only within
@@ -67368,6 +71420,9 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
             if entry is not None:
                 sheet_dealt[step] = _sheet_dealt_moved(entry, moved_rows)
     moved_rows = []
+    if walk is not None:
+        # G16.5: the stray rows G2.1 step 2's second walk left, named.
+        deviations = deviations + _stray_rows_note(arranging)
     return Twin(
         names=tuple([column.name for column in profile.columns]),
         write_header=profile.source.header_source == "file",
@@ -67844,6 +71899,7 @@ def _row_placement(
     finished: "list[twinstore.HeldColumn]",
     reserved: "tuple[tuple[int, ...], bool] | None" = None,
     readings: "list[float | None] | None" = None,
+    walk: "_Walk | None" = None,
 ) -> "list[int]":
     """THE PLACEMENT HOOK (plan P4-D415, lane SG): which of a column's cells
     stands on each row -- ``order[row]`` is the place in ``content`` of the
@@ -67876,12 +71932,23 @@ def _row_placement(
     the arrangement until G16 decides an eligible column's, which it does
     with `cells_by_band` and changes nothing else.
 
+    WHERE G16 RUNS (lane CHb, plan P4-D435) ``walk`` holds the chain's
+    walk, and an eligible column's cells are stood on the arranged rows
+    in its CELL LIST order (method G16.2 step 4, G16.4: band by band,
+    each band's cells holding a reading sorted by it, then the cells
+    holding none), the reserved ones in the reserved rows: the column is
+    then held in the order G16.4 reads it back in, and the walk, after
+    the last column's last word, puts each cell in its row
+    (`_cell_list_order`, `_chain_family`).
+
     Guarantees: returns a list of ``profile.n_rows`` places, each once.
     Raises nothing. No I/O of any kind.
     """
-    del step, finished, readings
+    del finished
     if reserved is None:
         return drawn
+    if walk is not None and profile.columns[step].name in walk.columns:
+        return _cell_list_order(profile, step, content, drawn, reserved, readings, walk)
     return _reserved_order(reserved[0], reserved[1], content, drawn)
 
 
@@ -68223,6 +72290,802 @@ def _reserved_order(
         order[row] = others[at]
         at = at + 1
     return order
+
+
+# -- the chain's arrangement, method G16 (lane CHb, plan P4-D435) -----
+
+
+# How many arranged rows' words are read into whole numbers at once (G16.11).
+_SUMMED_ROWS = 4096
+
+
+@dataclasses.dataclass
+class _WalkColumn:
+    """One eligible column of G16's walk: where it stands, its levels, and its bands once placed.
+
+    `maps[level][i]` is the band of `level` holding `L0` band `i`;
+    `level` its chain level; `bands` the interface's cells counted band
+    by band at that level (`chain_walk.ChildBands`), filled at its
+    placement; `without` why it was made without its band totals, "" where
+    it holds them; `codes` each arranged row's band code at its chain
+    level once its family is dealt, `width` bytes a row.
+    """
+
+    step: int
+    level: int
+    maps: "tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]]"
+    counts: "tuple[int, int, int]"
+    ordered: "tuple[bool, ...]"
+    bands: "chain_walk.ChildBands | None" = None
+    without: str = ""
+    codes: "bytearray | None" = None
+    width: int = 1
+
+
+@dataclasses.dataclass
+class _Walk:
+    """G16's walk over one twin (method G16.0): the arranged rows and the eligible columns.
+
+    `arranged` lists the twin's rows the walk arranges, in row order (every
+    row but the reserved ones of G4.2a), eight bytes a row (G16.11);
+    `reserved` the reserved rows; `columns` each eligible column by name;
+    `families` the chain in chain order.
+    """
+
+    arranged: "chain_walk.Packed | list[int]"
+    reserved: "tuple[int, ...]"
+    columns: "dict[str, _WalkColumn]"
+    families: "tuple[contract.ChainFamily, ...]"
+
+
+def _value_start(start: object) -> bool:
+    """Whether a starting band is a VALUE band (a range, a level or the pool), not a spread one (4.6b.2)."""
+    if isinstance(start, tuple):
+        return len(start) in (1, 2)
+    return start == "held back"
+
+
+def _walk_rows(profile: contract.Profile, reserved: int) -> int:
+    """`n'`, the rows G16 arranges where it runs, else 0 (method G16.0).
+
+    It runs only behind the chain's switch, where the chain places a
+    family with a parent (this version's loader carries no rule, S28)
+    and at least two rows are arranged.
+    """
+    relationships = profile.relationships
+    if not relationships.ladder or relationships.families <= 0 or not relationships.chain:
+        return 0
+    if not any(family.parents for family in relationships.chain):
+        return 0
+    arranged = profile.n_rows - reserved
+    return arranged if arranged >= 2 else 0
+
+
+def _walk_plan(
+    profile: contract.Profile,
+    reservation: "tuple[tuple[int, ...], bool, tuple[bool, ...], tuple[int, int]] | None",
+) -> "_Walk | None":
+    """G16's walk over this twin, or None where the section does not run (method G16.0).
+
+    A fixed function of the description and the reservation. Raises
+    `errors.ProfileError` (an internal check) where an eligible column is
+    the child of no family, which the loader's S24 refuses.
+    """
+    if reservation is None:
+        return None
+    if not _walk_rows(profile, len(reservation[0])):
+        return None
+    taken = {row: True for row in reservation[0]}
+    arranged = chain_walk.packed(profile.n_rows - len(taken), chain_walk.width_for(profile.n_rows - 1))
+    at = 0
+    for row in range(profile.n_rows):
+        if row not in taken:
+            chain_walk.put(arranged, at, row)
+            at = at + 1
+    level_of: "dict[str, int]" = {}
+    for family in profile.relationships.chain:
+        level_of[family.child] = family.level
+    steps = {column.name: place for place, column in enumerate(profile.columns)}
+    columns: "dict[str, _WalkColumn]" = {}
+    for entry in profile.relationships.ladder:
+        if entry.column not in level_of or entry.column not in steps:
+            raise errors.ProfileError(
+                "synthtwin internal check: an eligible column is the child of no "
+                "family of the chain. This means a mistake in synthtwin; please "
+                "report it. Nothing has been written."
+            )
+        count = len(entry.bands)
+        first = tuple(range(count))
+        second = [0 for _band in range(count)]
+        third = [0 for _band in range(count)]
+        for band in range(len(entry.l1)):
+            for place in entry.l1[band]:
+                second[place] = band
+        for band in range(len(entry.l2)):
+            for place in entry.l2[band]:
+                third[place] = band
+        level = level_of[entry.column]
+        maps = (first, tuple(second), tuple(third))
+        counts = (count, len(entry.l1), len(entry.l2))
+        ordered = [False for _band in range(counts[level])]
+        for place in range(count):
+            if any(_value_start(start) for start in entry.bands[place]):
+                ordered[maps[level][place]] = True
+        columns[entry.column] = _WalkColumn(
+            steps[entry.column], level, maps, counts, tuple(ordered)
+        )
+    return _Walk(arranged, tuple(reservation[0]), columns, profile.relationships.chain)
+
+
+def _group_l0_bands(
+    found: BandCells, entry: contract.LadderEntry, label: bool
+) -> "list[int]":
+    """Each interface group's `L0` band of the ladder (method G16.0: the groups a band joins).
+
+    A range group is the ladder's range band of the same rank; a level
+    group the band holding its levels; `missing`, `other` (on a label
+    column the held-back pool) and `labels` the band holding that
+    starting band. A group holding cells whose starting band no `L0` band
+    holds (the reservation's shortfall leaves absent cells to a column
+    with no `missing` band; a column made without its band totals may
+    write a cell its real column had none of) JOINS the band holding the
+    next starting band the ladder holds in contract band order, or, where
+    none follows, the one before it (lane CHb's reading, method G16.0).
+    -1 for a group holding no cell and standing in no band.
+    """
+    kinds: "list[object]" = []
+    holder: "list[int]" = []
+    for place in range(len(entry.bands)):
+        for start in entry.bands[place]:
+            kinds += [start]
+            holder += [place]
+    # The interface hands ONE range group for each `L0` band holding a
+    # range, however many starting ranges the band joins (G4.2b), so the
+    # k-th range group is the k-th such band, named by its first range.
+    ranks: "list[int]" = []
+    levels: "list[object]" = []
+    for place in range(len(kinds)):
+        kind = kinds[place]
+        if isinstance(kind, tuple) and len(kind) == 2 and (
+            not ranks or holder[ranks[len(ranks) - 1]] != holder[place]
+        ):
+            ranks += [place]
+        if isinstance(kind, tuple) and len(kind) == 1:
+            levels += [kind]
+    order: "list[object]" = []
+    if label:
+        order = ["missing"] + levels + ["held back"]
+    else:
+        order = ["other", "labels", "missing"] + [kinds[place] for place in ranks]
+    where: "dict[object, int]" = {}
+    for place in range(len(kinds)):
+        where[kinds[place]] = holder[place]
+    out: "list[int]" = []
+    range_rank = 0
+    for group in range(len(found.groups)):
+        name = found.names[group]
+        key: object = name
+        if name == "range":
+            key = kinds[ranks[range_rank]] if range_rank < len(ranks) else None
+            range_rank = range_rank + 1
+        elif name == "level":
+            lowers = found.lowers[group]
+            key = (lowers[0],) if isinstance(lowers, tuple) and lowers else None
+        elif name == "other" and label:
+            key = "held back"
+        if key is not None and key in where:
+            out += [where[key]]
+            continue
+        if not found.groups[group]:
+            out += [-1]
+            continue
+        at = -1
+        for place in range(len(order)):
+            if order[place] == key:
+                at = place
+        joined = -1
+        if at >= 0:
+            for place in range(at + 1, len(order)):
+                if order[place] in where:
+                    joined = where[order[place]]
+                    break
+            if joined < 0:
+                for place in range(at - 1, -1, -1):
+                    if order[place] in where:
+                        joined = where[order[place]]
+                        break
+        if joined < 0:
+            raise errors.ProfileError(
+                "synthtwin internal check: a column's cells stand in no band of "
+                "its ladder. This means a mistake in synthtwin; please report it. "
+                "Nothing has been written."
+            )
+        out += [joined]
+    return out
+
+
+def _cell_list_order(
+    profile: contract.Profile,
+    step: int,
+    content: "list[str]",
+    drawn: "list[int]",
+    reserved: "tuple[tuple[int, ...], bool]",
+    readings: "list[float | None] | None",
+    walk: _Walk,
+) -> "list[int]":
+    """An eligible column's cells in its CELL LIST order on the arranged rows (method G16.2 step 4, G16.4).
+
+    The interface's groups (`cells_by_band`, G4.2b) are joined into the
+    bands of the column's chain level; each band lists its cells holding
+    a reading of its order sorted by reading, equal readings in the order
+    the interface handed them, then its cells holding none in that order.
+    A column MADE WITHOUT ITS BAND TOTALS (rule B3: the interface's
+    `without` is set) takes each cell's band from the profile's reader
+    instead, the band its text is read into (`_reader_l0_bands`, method
+    G16.0's reading (h); repair 1 of lane CHb, its skeptics' item 2), so
+    G16.6's moved table is computed on the totals the twin holds. The
+    `k`-th cell of the list stands in the `k`-th arranged row, each
+    reserved cell in its reserved row. Records the band counts the walk
+    deals by. Raises `errors.ProfileError` (an internal check) where the
+    groups do not hold the arranged rows.
+    """
+    column = profile.columns[step]
+    planned = walk.columns[column.name]
+    found = cells_by_band(profile, step, content, drawn, reserved, readings)
+    entry: "contract.LadderEntry | None" = None
+    for listed in profile.relationships.ladder:
+        if listed.column == column.name:
+            entry = listed
+    if found is None or entry is None:
+        raise errors.ProfileError(
+            "synthtwin internal check: an eligible column has no band totals "
+            "interface. This means a mistake in synthtwin; please report it. "
+            "Nothing has been written."
+        )
+    label = isinstance(column.facts, contract.LabelFacts)
+    joined = _group_l0_bands(found, entry, label)
+    by_reader: "tuple[bytearray, list[float], bytearray] | None" = None
+    if found.without:
+        by_reader = _reader_l0_bands(profile, column, entry, content, readings)
+    to_chain = planned.maps[planned.level]
+    count = planned.counts[planned.level]
+    listed_cells, sizes, with_reading = _listed_by_band(
+        found.groups, found.readings, joined, to_chain, count, by_reader
+    )
+    by_reader = None
+    arranged = walk.arranged
+    if len(listed_cells) != chain_walk.size_of(arranged) or len(found.reserved) != len(walk.reserved):
+        raise errors.ProfileError(
+            "synthtwin internal check: an eligible column's cells do not hold "
+            "the arranged rows. This means a mistake in synthtwin; please "
+            "report it. Nothing has been written."
+        )
+    order = [0 for _row in range(profile.n_rows)]
+    for at in range(len(listed_cells)):
+        order[chain_walk.item(arranged, at)] = listed_cells[at]
+    for at in range(len(walk.reserved)):
+        order[walk.reserved[at]] = found.reserved[at]
+    planned.bands = chain_walk.ChildBands(tuple(sizes), tuple(with_reading), planned.ordered)
+    planned.without = found.without
+    return order
+
+
+def _listed_by_band(
+    groups: "tuple[tuple[int, ...], ...]",
+    readings: "tuple[tuple[float | None, ...], ...]",
+    joined: "list[int]",
+    to_chain: "tuple[int, ...]",
+    count: int,
+    by_reader: "tuple[bytearray, list[float], bytearray] | None",
+) -> "tuple[list[int], list[int], list[int]]":
+    """A column's CELL LIST and each band's size and cells holding a reading (method G16.2 step 4, G16.4).
+
+    Band by band at the column's chain level: the cells holding a reading
+    of its order sorted by reading, equal readings in the order the
+    interface handed them (their RANK, a cell's place over every group in
+    the interface's order), then the cells holding none in that order. A
+    group's cells stand in the band its `L0` band joins (`joined`, -1 for
+    a group standing in none, `to_chain` from `L0` to the chain level);
+    where `by_reader` is given (a column made without its band totals,
+    `_reader_l0_bands`), each cell in the band of its own `L0` band, with
+    the reader's reading.
+
+    LINEAR IN THE CELLS AND THE GROUPS (lane CHb's second repair, Codex's
+    item 3). The first build scanned every group for every band, so a
+    label column of one `L0` band a level, 11 rows a level, cost its
+    bands times its groups -- 0.13 s at 1,000 levels, 2.3 s at 4,000, and
+    about 4.3 thousand million group visits at 65,537. Here each group is
+    visited once: a group's cells, or each cell's place, are first counted
+    into their band's bucket in rank order (a counting sort, a packed
+    store of places), then each band sorts only its own cells; a cell's
+    slot in its band's bucket rises with its rank, so it breaks a tie as
+    the rank does.
+    """
+    total = 0
+    top = 0
+    offsets = [0 for _group in range(len(groups) + 1)]
+    for group in range(len(groups)):
+        total = total + len(groups[group])
+        offsets[group + 1] = total
+    of_band: "list[list[int]]" = []
+    if by_reader is None:
+        # Each band's groups, in the interface's order: one visit a group.
+        of_band = [[] for _band in range(count)]
+        for group in range(len(groups)):
+            if joined[group] >= 0:
+                of_band[to_chain[joined[group]]] += [group]
+    starts = [0 for _band in range(count + 1)]
+    bucket = chain_walk.packed(0, 1)
+    if by_reader is not None:
+        # Each cell's band, counted, then each cell's place put in its
+        # band's bucket in rank order (a counting sort, never a band scan).
+        for group in range(len(groups)):
+            for place in groups[group]:
+                band = to_chain[by_reader[0][place]]
+                starts[band + 1] = starts[band + 1] + 1
+                top = place if place > top else top
+        for band in range(count):
+            starts[band + 1] = starts[band + 1] + starts[band]
+        filling = [starts[band] for band in range(count)]
+        bucket = chain_walk.packed(total, chain_walk.width_for(top))
+        for group in range(len(groups)):
+            for place in groups[group]:
+                band = to_chain[by_reader[0][place]]
+                chain_walk.put(bucket, filling[band], place)
+                filling[band] = filling[band] + 1
+        filling = []
+    sizes = [0 for _band in range(count)]
+    with_reading = [0 for _band in range(count)]
+    listed: "list[int]" = []
+    for band in range(count):
+        holding: "list[tuple[float, int, int]]" = []
+        empty: "list[int]" = []
+        if by_reader is None:
+            for group in of_band[band]:
+                cells = groups[group]
+                read = readings[group]
+                for at in range(len(cells)):
+                    value = read[at]
+                    if value is None:
+                        empty += [cells[at]]
+                    else:
+                        holding += [(value, offsets[group] + at, cells[at])]
+        else:
+            for slot in range(starts[band], starts[band + 1]):
+                place = chain_walk.item(bucket, slot)
+                if by_reader[2][place]:
+                    holding += [(by_reader[1][place], slot, place)]
+                else:
+                    empty += [place]
+        sizes[band] = len(holding) + len(empty)
+        with_reading[band] = len(holding)
+        listed += [place for _value, _rank, place in sorted(holding)]
+        listed += empty
+        holding = []
+        empty = []
+    return listed, sizes, with_reading
+
+
+def _reader_l0_bands(
+    profile: contract.Profile,
+    column: contract.ColumnBlock,
+    entry: contract.LadderEntry,
+    content: "list[str]",
+    readings: "list[float | None] | None",
+) -> "tuple[bytearray, list[float], bytearray]":
+    """Each cell of a column MADE WITHOUT ITS BAND TOTALS in the `L0` band the profile's reader gives its text (method G16.0, reading (h)).
+
+    The profile's reader (`chain.read_column`, contract 4.6b.2) reads a
+    cell's TEXT to its starting band: an absent cell (a place at or past
+    the column's present cells) `missing`; a present one by its role's
+    reading -- an affixed cell's core inside the column's own pair of
+    affixes, a joined cell's first number, a number, a date's canonical
+    instant under the column's format, a clock's ordinal -- into the
+    value band its published edges cut, `other` (or `labels` on a column
+    of numbers and labels) where it holds none; each starting band then
+    stands in the `L0` band that joins it, a kind no band joins in the
+    band holding the next starting band in contract band order (or the
+    one before, as `_group_l0_bands` joins the interface's groups). This
+    reads the same rule, cell by cell, on the text the twin writes, so a
+    column laid without its band totals stands in the bands the twin is
+    read back in (repair 1 of lane CHb, its skeptics' item 2: the
+    interface's `other` grouping put every cell of a column of several
+    affix pairs in one band, and an offset date one band above the
+    reader's). The import boundary keeps the reader itself out of reach
+    (method G1), so its rule is read here from the module of the chain's
+    rules and the cell grammars the reader calls.
+
+    Returns each place's `L0` band, each place's reading of its band's
+    order (the twin's own reading where it holds one, else the reader's
+    number), and a byte a place set where the cell holds such a reading.
+    Raises `errors.ProfileError` (an internal check) where an edge the
+    ladder names has no published rung. No I/O of any kind.
+    """
+    facts = column.facts
+    comma = _declared_a_decimal_comma(column, profile)
+    where: "dict[object, int]" = {}
+    ranges: "list[object]" = []
+    for place in range(len(entry.bands)):
+        for start in entry.bands[place]:
+            where[start] = place
+            if isinstance(start, tuple) and len(start) == 2:
+                ranges += [start]
+    edges: "list[object]" = []
+    for start in ranges[1:]:
+        key = start[0] if isinstance(start, tuple) else None
+        rung = _reader_rung(column, key)
+        if rung is None:
+            raise errors.ProfileError(
+                "synthtwin internal check: an edge of a column's ladder has no "
+                "published rung. This means a mistake in synthtwin; please "
+                "report it. Nothing has been written."
+            )
+        edges += [rung]
+    edge_values = tuple(edges)
+    order: "list[object]" = [chain_rules.OTHER, chain_rules.LABELS, chain_rules.MISSING] + ranges
+    joined_kind: "dict[object, int]" = {}
+    for kind in (chain_rules.OTHER, chain_rules.LABELS, chain_rules.MISSING):
+        if kind in where:
+            joined_kind[kind] = where[kind]
+            continue
+        at = 0
+        for place in range(len(order)):
+            if order[place] == kind:
+                at = place
+        found = -1
+        for later in order[at + 1:]:
+            if later in where:
+                found = where[later]
+                break
+        if found < 0:
+            for earlier in reversed(order[:at]):
+                if earlier in where:
+                    found = where[earlier]
+                    break
+        joined_kind[kind] = found
+    count = len(content)
+    if len(entry.bands) > 255:
+        raise errors.ProfileError(
+            "synthtwin internal check: a column made without its band totals "
+            "holds more bands than a byte names. This means a mistake in "
+            "synthtwin; please report it. Nothing has been written."
+        )
+    bands = bytearray(count)
+    values = [0.0 for _place in range(count)]
+    held = bytearray(count)
+    given = 0 if readings is None else len(readings)
+    # THE TEXT THE TWIN WRITES, NOT THE TEXT HELD HERE (lane CHb's second
+    # repair, Codex's item 1). On a column named `--decimal-comma` the
+    # numbers the generator spells itself are still in the reading the
+    # description was made from at their placement (`110.8`), and G2.2
+    # exchanges the two marks only as the cells leave (`110,8`,
+    # `_spelled_with_a_decimal_comma`). Read with the comma, the held
+    # `110.8` was 1108, in another band: at 20,000 rows an exact family
+    # whose margins the twin held missed its published table by 46 rows in
+    # four cells (seed 0), named moved. Each block of cells is spelled here
+    # as it will be written, then read as the profile reads the file.
+    spelled = _numbers_written(column) if comma else 0
+    written: "list[str]" = []
+    for place in range(count):
+        if place % _READ_BLOCK == 0:
+            written = content[place:place + _READ_BLOCK]
+            if place < spelled:
+                written = _spelled_with_a_decimal_comma(
+                    column, profile, written,
+                    [place + at < spelled for at in range(len(written))],
+                )
+        kind = chain_rules.MISSING
+        value: object = None
+        if place < column.n_present:
+            kind, value = _reader_reading(facts, written[place % _READ_BLOCK], comma)
+        if kind == "value":
+            start = ranges[chain_rules.band_of_value(edge_values, value)]
+            band = where[start]
+            own = readings[place] if readings is not None and place < given else None
+            if own is not None:
+                values[place] = own
+                held[place] = 1
+            elif isinstance(value, (int, float)) and not isinstance(value, bool):
+                values[place] = float(value)
+                held[place] = 1
+        else:
+            band = joined_kind[kind]
+        if band < 0:
+            raise errors.ProfileError(
+                "synthtwin internal check: a column's cells stand in no band of "
+                "its ladder. This means a mistake in synthtwin; please report it. "
+                "Nothing has been written."
+            )
+        bands[place] = band
+    return bands, values, held
+
+
+# Cells `_reader_l0_bands` spells as written a block at a time, never the column whole.
+_READ_BLOCK = 4096
+
+
+def _numbers_written(column: contract.ColumnBlock) -> int:
+    """How many of a column's cells the numeric machinery writes, first in its content list.
+
+    Every present cell of a plain numeric role, and the numeric half of a
+    column of numbers and labels, which `_compound_content` writes first
+    (stage 2 closure review): the cells G2.2 spells with a comma on a
+    column named `--decimal-comma` (`_spelled_with_a_decimal_comma`).
+    """
+    if isinstance(column.facts, contract.CompoundFacts):
+        return contract.compound_numbers_view(column).n_present
+    return column.n_present
+
+
+def _reader_rung(column: contract.ColumnBlock, key: object) -> object:
+    """A published rung by its key in the value space the profile's reader compares a cell in (`_reader_l0_bands`), or None."""
+    facts = column.facts
+    if isinstance(facts, contract.AffixedFacts):
+        return _rung_by_key(facts.numbers, key)
+    if isinstance(facts, contract.CompoundFacts):
+        return _rung_by_key(facts.numbers, key)
+    if isinstance(facts, contract.JoinedFacts):
+        return _rung_by_key(facts.parts[0], key) if facts.parts else None
+    if isinstance(facts, contract.NumericFacts):
+        return _rung_by_key(facts, key)
+    if isinstance(facts, contract.DatetimeFacts):
+        place = _ladder_key_place(key, _LADDER_NAMES)
+        return facts.date_percentiles.rungs[place] if place >= 0 else None
+    if isinstance(facts, contract.ClockFacts) and isinstance(key, str):
+        rung = facts.clock_percentiles[key] if key in facts.clock_percentiles else None
+        if rung is None or facts.clock_form not in parsing.CLOCK_FORMS:
+            return None
+        return parsing.clock_ordinal(rung, facts.clock_form)
+    return None
+
+
+def _reader_reading(facts: object, text: str, comma: bool) -> "tuple[str, object]":
+    """One present cell's text read as the profile's reader reads it (contract 4.6b.2): ("value", its reading), or its spread kind."""
+    if isinstance(facts, contract.AffixedFacts):
+        core = taxonomy.core_read(text, facts.affix_prefix, facts.affix_suffix, comma)
+        if core is not None and core[0] == parsing.NUMBER and core[1] is not None:
+            return "value", float(core[1])
+        return chain_rules.OTHER, None
+    if isinstance(facts, contract.JoinedFacts):
+        parts = taxonomy.splits_into_numbers(text, facts.separator)
+        first = taxonomy.spelling_read(parts[0], comma) if parts else None
+        if first is not None and first[0] == parsing.NUMBER and first[1] is not None:
+            return "value", float(first[1])
+        return chain_rules.OTHER, None
+    if isinstance(facts, (contract.NumericFacts, contract.CompoundFacts)):
+        kind, number = taxonomy.spelling_read(text, comma)
+        if kind == parsing.NUMBER and number is not None:
+            return "value", float(number)
+        if isinstance(facts, contract.CompoundFacts):
+            return chain_rules.LABELS, None
+        return chain_rules.OTHER, None
+    if isinstance(facts, contract.DatetimeFacts):
+        parsed = parsing.parse_datetime(text, facts.parser_family)
+        return (chain_rules.OTHER, None) if parsed is None else ("value", parsed[0])
+    if isinstance(facts, contract.ClockFacts):
+        ordinal = None
+        if facts.clock_form in parsing.CLOCK_FORMS:
+            ordinal = parsing.clock_ordinal(text, facts.clock_form)
+        return (chain_rules.OTHER, None) if ordinal is None else ("value", ordinal)
+    return chain_rules.OTHER, None
+
+
+def _chain_family(
+    walk: _Walk,
+    family: contract.ChainFamily,
+    sums: "chain_walk.Packed",
+    finished: "list[twinstore.HeldColumn]",
+    arranging: "dialect.Arranging",
+    sheet_dealt: "list[SheetDealt | None]",
+) -> "list[Deviation]":
+    """Method G16.2 and G16.4 for one family, on its hidden-score sums (G16.8).
+
+    `sums` holds each arranged row's `S`, drawn by `generate_held` from
+    the one stream after the last column's last word (one call for each
+    block of 65,536 arranged rows, three words a row). The family is
+    dealt at its TARGET (G16.0: the published table, or the moved table
+    of G16.6, named among the deviations); its child, once dealt, is read
+    back in its cell list order and every arranged row takes the cell its
+    index names (G16.4), its workbook classes and its count of filled
+    records moving with it (`finished` and `sheet_dealt` are changed in
+    place). Returns the deviations. Raises `errors.ProfileError` (an
+    internal check) where the family cannot be dealt. No I/O of any kind.
+    """
+    arranged = walk.arranged
+    rows = chain_walk.size_of(arranged)
+    child = walk.columns[family.child] if family.child in walk.columns else None
+    if child is None or child.bands is None or child.level != family.level:
+        raise errors.ProfileError(
+            "synthtwin internal check: a family of the chain names a column "
+            "the walk did not place. This means a mistake in synthtwin; "
+            "please report it. Nothing has been written."
+        )
+    bands = child.bands
+    sizes: "list[int]" = []
+    parents: "list[tuple[_WalkColumn, int]]" = []
+    for name, level in family.parents:
+        parent = walk.columns[name] if name in walk.columns else None
+        if parent is None or parent.codes is None or level < parent.level:
+            raise errors.ProfileError(
+                "synthtwin internal check: a family's parent was not dealt "
+                "before it. This means a mistake in synthtwin; please report "
+                "it. Nothing has been written."
+            )
+        parents += [(parent, level)]
+        sizes += [parent.counts[level]]
+    cell_count = 1
+    for size in sizes:
+        cell_count = cell_count * size
+    # Each arranged row's parent cell, packed in the fewest bytes holding
+    # every cell (G16.11; repair 1 of lane CHb, item 4).
+    cells = chain_walk.packed(rows, chain_walk.width_for(cell_count - 1))
+    for parent, level in parents:
+        # The parent's chain-level band, mapped to its band at this
+        # family's level (the levels nest, contract 4.6b.2).
+        down = [0 for _band in range(parent.counts[parent.level])]
+        for place in range(len(parent.maps[0])):
+            down[parent.maps[parent.level][place]] = parent.maps[level][place]
+        codes = parent.codes if parent.codes is not None else bytearray()
+        width = parent.width
+        size = parent.counts[level]
+        for row in range(rows):
+            chain_walk.put(
+                cells, row, chain_walk.item(cells, row) * size + down[chain_walk.read_code(codes, width, row)]
+            )
+    counts = [0 for _cell in range(cell_count)]
+    for row in range(rows):
+        cell = chain_walk.item(cells, row)
+        counts[cell] = counts[cell] + 1
+    aimed = chain_walk.target_of(family.table, counts, list(bands.sizes))
+    if chain_walk.size_of(sums) != rows:
+        raise errors.ProfileError(
+            "synthtwin internal check: a family's hidden scores are not one a "
+            "row. This means a mistake in synthtwin; please report it. "
+            "Nothing has been written."
+        )
+    order = chain_walk.order_by_scores(sums)
+    try:
+        dealt = chain_walk.deal(cells, cell_count, order, bands, aimed.table)
+    except ValueError as broken:
+        raise errors.ProfileError(
+            "synthtwin internal check: a family of the chain could not be "
+            f"dealt ({broken}). This means a mistake in synthtwin; please "
+            "report it. Nothing has been written."
+        ) from None
+    order = chain_walk.packed(0, 1)
+    cells = chain_walk.packed(0, 1)
+    child.codes = dealt.bands
+    child.width = dealt.band_width
+    finished[child.step] = _placed_by_index(
+        finished[child.step], arranged, dealt, arranging, child.step, sheet_dealt
+    )
+    if aimed.moved:
+        return [_moved_family_note(family, aimed, child.without)]
+    return []
+
+
+def _placed_by_index(
+    held: "twinstore.HeldColumn",
+    arranged: "chain_walk.Packed | list[int]",
+    dealt: "chain_walk.Dealt",
+    arranging: "dialect.Arranging",
+    step: int,
+    sheet_dealt: "list[SheetDealt | None]",
+) -> "twinstore.HeldColumn":
+    """G16.4: arranged row `r` takes the cell at place `index[r]` of the column's cell list.
+
+    The column is held in its cell list order on the arranged rows
+    (`_cell_list_order`), so the cell at place `i` stands in arranged row
+    `i`. A reserved row keeps its cell. The count of filled records each
+    row holds (G2.1 step 2's second walk reads it) and a workbook's
+    classes, format kinds and kinds of date move with the cells.
+    """
+    cells = twinstore.column_cells(held)
+    moved = list(cells)
+    width = dealt.index_width
+    count = chain_walk.size_of(arranged)
+    # Each arranged row's source row, packed (G16.11; repair 1 of lane CHb, item 4).
+    source = chain_walk.packed(count, chain_walk.width_for(len(cells) - 1))
+    for at in range(count):
+        chain_walk.put(source, at, chain_walk.item(arranged, chain_walk.read_code(dealt.index, width, at)))
+    for at in range(count):
+        moved[chain_walk.item(arranged, at)] = cells[chain_walk.item(source, at)]
+    if arranging.placing:
+        filled = arranging.filled
+        for at in range(count):
+            row = chain_walk.item(arranged, at)
+            before = 0 if dialect.holds_nothing(cells[row]) else 1
+            after = 0 if dialect.holds_nothing(moved[row]) else 1
+            filled[row] = filled[row] + after - before
+    cells = []
+    dealt_here = sheet_dealt[step]
+    if dealt_here is not None:
+        # ...and what G4.2a dealt each workbook cell moves with it, held as
+        # lane BT's second repair holds it (`SheetDealt`: one code a row
+        # into the column's palette, and the writer's text where it
+        # changes a cell; batch 4m's merge of lane CHb): row `row` takes
+        # the code, and the written text, row `came` was dealt.
+        codes = dealt_here.codes
+        new_codes = list(codes)
+        dealt_cells = (
+            twinstore.column_cells(dealt_here.written)
+            if dealt_here.written is not None
+            else None
+        )
+        new_written = list(dealt_cells) if dealt_cells is not None else None
+        for at in range(count):
+            row = chain_walk.item(arranged, at)
+            came = chain_walk.item(source, at)
+            if row < len(codes):
+                new_codes[row] = codes[came]
+            if new_written is not None and dealt_cells is not None:
+                new_written[row] = dealt_cells[came]
+        laid: "bytes | tuple[int, ...]" = (
+            bytes(new_codes) if isinstance(codes, bytes) else tuple(new_codes)
+        )
+        new_codes = []
+        sheet_dealt[step] = SheetDealt(
+            dealt_here.palette,
+            laid,
+            twinstore.held_column(new_written) if new_written is not None else None,
+        )
+        dealt_cells = None
+        new_written = None
+    return twinstore.held_column(moved)
+
+
+def _moved_family_note(
+    family: contract.ChainFamily, aimed: "chain_walk.Target", without: str
+) -> Deviation:
+    """A family dealt against its MOVED TABLE, named (method G16.6, contract 4.6b.8)."""
+    changed = 0
+    for place in range(len(aimed.table)):
+        for band in range(len(aimed.table[place])):
+            if aimed.table[place][band] != family.table[place][band]:
+                changed = changed + 1
+    cause = (
+        f"the column was made without its band totals ({without})"
+        if without
+        else "the twin's counts of its parent cells or of the column's bands are not the published ones"
+    )
+    noughts = ""
+    for place, band in aimed.noughts:
+        noughts = noughts + ("; " if noughts else "") + f"parent cell {place + 1}, band {band + 1}"
+    if noughts:
+        noughts = f" The moved table places rows where the published table holds none: {noughts}."
+    return _deviation(
+        family.child,
+        "chain",
+        "the family's published table between columns",
+        f"the published table moved to the twin's own totals in {changed} cell(s)",
+        f"Between columns, this column's family table is dealt against a moved "
+        f"table, because {cause}; a check of this family against its published "
+        f"table reads it as not met.{noughts}",
+    )
+
+
+def _stray_rows_note(arranging: "dialect.Arranging") -> "list[Deviation]":
+    """The stray rows G2.1 step 2's second walk left holding nothing in every column (method G16.5)."""
+    if not arranging.placing:
+        return []
+    left = False
+    for row in range(arranging.n_rows):
+        if not arranging.targets[row] and not arranging.filled[row]:
+            left = True
+    if not left:
+        return []
+    return [
+        _deviation(
+            "",
+            "empty_rows",
+            "the records holding nothing the description places",
+            "more records holding nothing in every column",
+            "After the arrangement between columns some rows hold nothing in "
+            "every column and no column that may give a cell had one to give, "
+            "so the twin, described again, would count more records holding "
+            "nothing than its description publishes.",
+        )
+    ]
 
 
 def materialised(twin: Twin) -> Twin:
@@ -68745,12 +73608,24 @@ def _present_of(
     all, because a person reading them abandons a twin that was fine.
 
     `_wears_a_published_hole` is the question a recount asks, and this
-    is every recount asking it once.
+    is every recount asking it once -- once a DIFFERENT cell (plan
+    P4-D442): a column of record numbers repeats its values, and its
+    walk is recounted several times a reading, so the answer for each
+    spelling is kept for the call; with no hole published every cell
+    but a blank one is present.
     """
-    return [
-        cell for cell in written
-        if cell != "" and not _wears_a_published_hole(cell, holes)
-    ]
+    if not holes:
+        return [cell for cell in written if cell != ""]
+    answered: "dict[str, bool]" = {}
+    present: "list[str]" = []
+    for cell in written:
+        if cell == "":
+            continue
+        if cell not in answered:
+            answered[cell] = _wears_a_published_hole(cell, holes)
+        if not answered[cell]:
+            present += [cell]
+    return present
 
 
 def _alphabet_notes(
@@ -73034,7 +77909,7 @@ def _pooled_approximations(
     if pool:
         achieved_mean = taxonomy.population_mean_of(list(pool))
     reach = taxonomy.pooled_window(
-        [entry.label for entry in facts.levels]
+        [entry.label for entry in facts.levels], facts.suppressed_levels
     )
     return [
         Approximation(
@@ -73054,12 +77929,74 @@ def _pooled_approximations(
     ]
 
 
+def _places_approximations(
+    column: contract.ColumnBlock,
+    facts: contract.LabelFacts,
+    written: "list[str]",
+    floor: int,
+) -> "list[Approximation]":
+    """Rule A2's positional census, measured on the twin (method G12.12a, plan P4-D439).
+
+    ONE RECORD WHERE THE DESCRIPTION PUBLISHES A CENSUS, NONE WHERE IT
+    PUBLISHES NONE. The census publishes no count: each character a place
+    lists is held there by the census line of the form's held-back cells
+    or more, and that lower bound is the whole promise (V16.2). So the
+    record counts the characters the census lists over every place of
+    every censused form, and how many of them the twin's own held-back
+    cells hold on the line or more; both ends of the window are the
+    listed count, and the twin is inside exactly when no listed character
+    falls short. A column whose description carries no census owes no
+    measurement, as a rung the description withholds owes none: the key
+    is absent, so there is nothing published to bound, and the record's
+    absence says only what the description already says. The recount is
+    the validator's own (`taxonomy.places_listed_and_short`), over the
+    cells as the level entries speak of them, so the two cannot part.
+    """
+    if not column.shape_form_places:
+        return []
+    labels: "list[str]" = []
+    for entry in facts.levels:
+        labels += [entry.label]
+    spelled = taxonomy.described_spellings(
+        written, taxonomy.Settings(small_cell_floor=floor)
+    )
+    listed = 0
+    held = 0
+    for _form, listed_here, short in taxonomy.places_listed_and_short(
+        spelled,
+        labels,
+        facts.shape_forms,
+        column.shape_form_places,
+        parsing.census_floor(floor),
+    ):
+        listed = listed + listed_here
+        held = held + listed_here - short
+    return [
+        Approximation(
+            column=column.name,
+            fact="shape_form_places",
+            published=f"{listed}",
+            achieved=f"{held}",
+            lowest=f"{listed}",
+            highest=f"{listed}",
+            inside=held == listed,
+            note=(
+                "how many characters this column's census of held-back "
+                "cells lists at their places, each held there by the "
+                "census line of the twin's held-back cells or more"
+            ),
+            covers_published=True,
+        )
+    ]
+
+
 def _label_approximations(
     column: contract.ColumnBlock,
     facts: contract.LabelFacts,
     written: "list[str]",
+    floor: int,
 ) -> "list[Approximation]":
-    """The approximated facts of a column of labels (G12.7 and G12.12).
+    """The approximated facts of a column of labels (G12.7, G12.12 and G12.12a).
 
     The count of different spellings is EXACT wherever the description's
     own spellings supply it, which is the ordinary case, and approximated
@@ -73096,7 +78033,9 @@ def _label_approximations(
             ),
             covers_published=True,
         )
-    ] + _pooled_approximations(column, facts, written)
+    ] + _pooled_approximations(column, facts, written) + _places_approximations(
+        column, facts, written, floor
+    )
 
 
 def _approximations(
@@ -73228,7 +78167,9 @@ def _approximations(
     if isinstance(facts, contract.TextFacts):
         return _text_approximations(column, facts, written, plan.carriers)
     if isinstance(facts, contract.LabelFacts):
-        return _label_approximations(column, facts, written)
+        return _label_approximations(
+            column, facts, written, plan.small_cell_floor
+        )
     return []
 
 

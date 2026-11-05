@@ -28,7 +28,7 @@ rule 8 against rule 9t's durations, two missing codes said alike, the
 register list the identity routes reach, and the two-numbers question's
 hold over a month-year register and the answers it offers. Since
 repair 3: grouped amounts heaped on round steps, which the page asks.
-Since repair 4 (Codex's second round): a `DateKey`'s codes read for
+Since repair 4 (Codex's second round): a `day_key`'s codes read for
 that column alone, a declared list read before the numeric rule, the
 twin's list meeting every published count it is said to meet (and the
 count it cannot, withdrawn), a missing-code answer acted on only for
@@ -233,7 +233,7 @@ OPERATIVE = {
         "A mistaken declaration whose values all lie on the grid -- 300 rows of keys `0001` to `0040` declared"
         " `--clock-figures` -- is read as declared"
     ),
-    "DateKey's codes are read locally": (
+    "a date key's codes are read locally": (
         "its negative codes read as that column's own codes for a date unknown, LOCALLY TO THAT COLUMN"
     ),
     "no impossible date": "TR's gate keeps \"no impossible date written\"",
@@ -721,12 +721,12 @@ def test_the_golden_note_is_out_of_notes_reach() -> None:
     assert "`clinic` on 12 rows and `referral` on 11, are one word each" in page
 
 
-def test_the_order_docstring_lists_no_rule_0c() -> None:
-    """ZR.1: the docstring's list runs 0, 0b, 1 to 7, 7b, 8, 9, 9b, 9c, 10; 0c is a comment in the body."""
+def test_the_order_docstring_lists_rule_0c() -> None:
+    """ZR.1: UN-1a restated the docstring's list with 0c and 0d (plan P4-D438); 0c is also the comment in the body."""
     doc = taxonomy._decide.__doc__ or ""
     order = doc[doc.index("THE ORDER, and there is only one"): doc.index("RULES 8 AND 9 SIT WHERE")]
-    listed = re.findall(r"^\s*(\d+[bc]?)\. ", order, flags=re.MULTILINE)
-    assert listed == ["0", "0b", "1", "2", "3", "4", "5", "6", "7", "7b", "8", "9", "9b", "9c", "10"]
+    listed = re.findall(r"^\s*(\d+[bcd]?)\. ", order, flags=re.MULTILINE)
+    assert listed == ["0", "0b", "0c", "0d", "1", "2", "3", "4", "5", "6", "7", "7b", "8", "9", "9b", "9c", "10"]
     assert "# RULE 0c" in inspect.getsource(taxonomy._decide)
 
 
@@ -764,12 +764,13 @@ def test_rule_i_reads_the_holding_questions_the_product_has() -> None:
     assert "No reading on this page drops a question that holds a column under P4-D401" in page
 
 
-def test_contract_c6_1_lists_fourteen_of_its_fifteen_roles() -> None:
-    """ZR.8 point 3: rule 7b's role is missing from C6-1's list; UN-1a restates it and changes this check."""
+def test_contract_c6_1_lists_its_fifteen_roles() -> None:
+    """ZR.8 point 3: rule 7b's role was missing from C6-1's list; UN-1a restated it (plan P4-D438)."""
     text = CONTRACT.read_text(encoding="utf-8")
     start = text.index("**C6-1.**")
-    listed = text[start: text.index("Fourteen roles in thirteen rules", start)]
-    assert "`numbers_with_labels`" not in listed
+    listed = text[start: text.index("Fifteen roles in fourteen rules", start)]
+    assert "`numbers_with_labels`" in listed
+    assert listed.index("`categorical`") < listed.index("`numbers_with_labels`") < listed.index("`time_of_day`")
     assert "`joined_numbers`" in listed and "`free_text`" in listed
 
 
@@ -1194,7 +1195,7 @@ def _read_with_codes(table: "dict[str, list[str]]", codes: "set[str]", column: "
     }
 
 
-def test_a_datekeys_codes_are_read_for_that_column_alone() -> None:
+def test_a_date_keys_codes_are_read_for_that_column_alone() -> None:
     """Item 1: inferred `-1` and `-2` beside compact dates never become the table-wide `--missing-value`."""
     keys = [f"{year}{month:02d}{day:02d}" for year in (2019, 2020) for month in range(1, 13) for day in range(1, 29)][:568]
     keys += ["-1"] * 16 + ["-2"] * 16

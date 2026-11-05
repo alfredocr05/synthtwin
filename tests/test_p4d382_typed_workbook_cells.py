@@ -776,10 +776,18 @@ def test_each_reading_withdrawn_brings_its_defect_back(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The witnesses: a rule withdrawn, and the twin of the person's table fails again."""
-    # The stored dates beside text cells, read as text again.
+    # The stored dates beside text cells, read as text again. SINCE LANE HB
+    # (plan P4-D442) a published form of a date is filled with valid dates
+    # (`generation._date_filled_form`, method G8.3's rule 6), which hides
+    # the symptom: the text column's twin then meets its description. So
+    # rule 6 is withdrawn too for the witness, and its own effect stated.
     keyboard.every_reading_kept(monkeypatch)
     with monkeypatch.context() as patched:
         patched.setattr(workbook, "stored_as_dates", lambda *arguments: False)
+        trip = _trip(tmp_path / "dates_ruled", _dates_beside(random.Random(20), 20, "dates"))
+        assert trip["column"]["role"] != "datetime"
+        assert trip["twin_exit"] == 0
+        patched.setattr(generation, "_date_filled_form", lambda form, step, dated=False: None)
         trip = _trip(tmp_path / "dates", _dates_beside(random.Random(20), 20, "dates"))
         assert trip["column"]["role"] != "datetime"
         assert trip["twin_exit"] == 3

@@ -6,7 +6,7 @@ landing R4 (plan P4-D384, numbers that are dates) freezes method section
 G7.10 on: a cell written as a count read as the moment its counting
 system names -- Excel's serials either side of its leap day, SAS and
 Stata days, seconds and milliseconds before and after 1960, R's exponent
-form, nanoseconds past 2**53, an Epic day with its contact number, a
+form, nanoseconds past 2**53, an 1840 day with its contact number, a
 comma for the point -- and a moment written back as its system's count,
 spelled by a `count_form`: fifteen significant figures either side of
 serial 10,000, one figure rounded half to even, six figures fixed and

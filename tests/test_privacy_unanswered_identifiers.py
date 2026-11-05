@@ -109,7 +109,7 @@ def test_an_identifier_beside_a_declared_person_column_is_held(
     assert "VALUES HELD BY FEWER THAN 11 PEOPLE" in f"{seen['screen']}"
 
 
-@pytest.mark.parametrize("kind", shapes.STATED)
+@pytest.mark.parametrize("kind", [one for one in shapes.STATED if one not in shapes.STATED_HELD_BY_SH2])
 @pytest.mark.xfail(
     strict=True,
     reason=(
@@ -125,6 +125,23 @@ def test_a_shape_no_question_flags_is_a_stated_limit(
     """Strict: it fails while the limit stands, and turns red when it closes."""
     seen = shapes.run(tmp_path, kind, _ROWS)
     assert seen["description_values"] == 0 and seen["twin_cells"] == 0
+
+
+@pytest.mark.parametrize("kind", shapes.STATED_HELD_BY_SH2)
+def test_a_stated_shape_lane_sh2_holds_is_held_until_its_question_is_answered(
+    tmp_path: pathlib.Path, kind: str
+) -> None:
+    """Lane SH2 (plan P4-D434) closes two of the stated limit's shapes while their question is open.
+
+    A street address in a column whose name says it holds one, and birth
+    dates of which some show an age of 90 or more, are held whole and put
+    the Safe Harbor question; a name stays the stated limit (lane
+    CODES-2's allowlist), and so does a full birth date of a younger
+    person once `no` is answered.
+    """
+    seen = shapes.run(tmp_path, kind, _ROWS)
+    assert seen["description_values"] == 0 and seen["twin_cells"] == 0, seen
+    assert seen["role"] == taxonomy.ROLE_IDENTIFIER, seen
 
 
 # -- what the count counts (Codex's review of lane HX, item 4) -----------
@@ -665,19 +682,55 @@ def test_a_wider_placeholder_and_a_narrow_measurement() -> None:
     assert asking._beside_sign_placeholders(weights + ["-1"] * 12) == []
 
 
-def test_a_three_figure_measurement_beside_minus_one_is_asked_nothing(
-    tmp_path: pathlib.Path,
+def test_a_three_figure_measurement_beside_minus_one_is_asked_as_without_it(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Platelets in thousands, `-1` for a missing count: described as before."""
+    """Platelets in thousands, `-1` for a missing count: asked as the same column without it.
+
+    Until lane GG's repair 1 (plan P4-D440; the orchestrator's LANE GG
+    RULINGS 2, item 2) the `-1` kept this column from the fixed-width
+    question the same platelets without it are asked, and by that door
+    sixty patient keys of three figures beside `-1` printed all sixty at
+    20,000 rows. The `-1` is now set aside (whatever its share since the
+    lane's repair 2, LANE GG RULINGS 3 (1)), so
+    the column is asked that question and held until it is answered --
+    the false alarm P4-D440 names, one question -- and `measurement` gives
+    back, byte for byte, the block the withdrawn set-aside wrote.
+    """
     draw = random.Random(7)
     cells = [f"{draw.randint(150, 450)}" if draw.random() > 0.02 else "-1"
              for _row in range(_ROWS)]
-    code, document = _profile_rows(tmp_path, "platelets", ["platelets"] + cells)
+    assert asking.why_worth_asking([cell for cell in cells if cell != "-1"]) == (
+        asking.BECAUSE_FIXED_WIDTH
+    )
+    lines = ["platelets"] + cells
+    before_folder = tmp_path / "before"
+    before_folder.mkdir()
+    with monkeypatch.context() as withdrawn:
+        withdrawn.setattr(asking, "_beside_width_placeholders", lambda *_given: [])
+        code, before = _profile_rows(before_folder, "platelets", lines)
     assert code == 0
-    block = _block(document, "platelets")
-    assert block["role"] != taxonomy.ROLE_IDENTIFIER
-    settings = document["settings"]
-    assert isinstance(settings, dict) and settings["forced_identifiers"] == []
+    assert _block(before, "platelets")["role"] != taxonomy.ROLE_IDENTIFIER
+
+    folder = tmp_path / "held"
+    folder.mkdir()
+    code, held = _profile_rows(folder, "platelets", lines)
+    assert code == 0
+    assert _block(held, "platelets")["role"] == taxonomy.ROLE_IDENTIFIER
+    questions = json.loads(
+        (folder / "platelets-questions.json").read_text(encoding="utf-8")
+    )
+    asked = [entry for entry in questions["asked"] if entry["column"] == "platelets"]
+    assert [entry["read_as_now"] for entry in asked] == [asking.ANSWER_IDENTIFIER]
+    for entry in asked:
+        entry["your_answer"] = asking.ANSWER_MEASUREMENT
+    answers = tmp_path / "answers.json"
+    answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
+    code, answered = _profile_rows(
+        folder, "platelets", lines, ["--replace", "--answers", f"{answers}"]
+    )
+    assert code == 0
+    assert _block(answered, "platelets") == _block(before, "platelets")
 
 
 def test_income_in_whole_thousands_is_held_and_keep_gives_back_the_count(
@@ -750,7 +803,29 @@ def test_an_answer_survives_the_file_it_wrote_handed_back(
     code, second = _answer(tmp_path, "plain6", answer)
     assert code == 0
     assert _block(second, "plain6")["role"] != taxonomy.ROLE_IDENTIFIER
-    assert _asked_of(tmp_path, "plain6") == [], "no longer asked"
+    # The identifier question is no longer asked. Read as numbers, the
+    # 44 keys are a few values with wide gaps among them, so the Safe
+    # Harbor question FOLLOWS the first answer, as lane SH's addendum 7
+    # has it (lane GG, plan P4-D440): offering only `no` and `yes`, its
+    # unanswered reading the one the answer gave, so the third run below
+    # still writes the second's description.
+    follows = [
+        (
+            [choice["answer"] for choice in entry["answers_you_can_give"]],
+            entry["read_as_now"],
+        )
+        for entry in _asked_of(tmp_path, "plain6")
+    ]
+    assert follows == (
+        [
+            (
+                [asking.ANSWER_SAFE_HARBOR_NO, asking.ANSWER_SAFE_HARBOR_YES],
+                asking.ANSWER_KEEP,
+            )
+        ]
+        if answer == asking.ANSWER_MEASUREMENT
+        else []
+    ), "no longer asked"
     written = json.loads(
         (tmp_path / "plain6_long-questions.json").read_text(encoding="utf-8")
     )
@@ -825,7 +900,9 @@ _FREE_TEXT_AT_600 = ("reglisttrail6", "reglistgrouped")
 # cell equal to, or carrying, a real one). Every other shape and size
 # holds 0, and the HX5 bound on chance (a twentieth of the rows) is not
 # borrowed: the bound is the measured count.
-_LIST_CHANCE_AT_20000 = {"reglistmixR": (4, 1)}
+# (The bound is `shapes.LIST_CHANCE`'s, which K-S3-64's driver applies too:
+# BATCH 4m OWES 1, Codex's review of batch 4l, its first Medium.)
+_LIST_CHANCE_AT_20000 = {kind: bound for (kind, rows), bound in shapes.LIST_CHANCE.items() if rows == 20000}
 
 
 def _check_list_held(seen: "dict[str, object]", rows: int, kind: str) -> None:
@@ -834,7 +911,7 @@ def _check_list_held(seen: "dict[str, object]", rows: int, kind: str) -> None:
         assert seen["validate_exit"] == 0, seen
     assert seen["description_values"] == 0, seen
     assert seen["description_fragments"] == 0, seen
-    cells, fragments = _LIST_CHANCE_AT_20000.get(kind, (0, 0)) if rows != _ROWS else (0, 0)
+    cells, fragments = _LIST_CHANCE_AT_20000.get(kind, (0, 0)) if rows == 20000 else (0, 0)
     assert seen["twin_cells"] <= cells, seen
     assert seen["twin_fragments"] <= fragments, seen
     assert seen.get("twin_cells_equal", 0) == 0, seen
@@ -851,6 +928,70 @@ def _check_list_held(seen: "dict[str, object]", rows: int, kind: str) -> None:
         assert asked == [[asking.ANSWER_KEEP, asking.ANSWER_IDENTIFIER]]
     else:
         assert asked == [_LIST_ANSWERS]
+
+
+def test_k_s3_64_holds_no_list_chance_at_any_shape_or_size() -> None:
+    """Lane HB's merge (LANE HB RULINGS 4 (3), AT HB'S MERGE; BATCH 4m OWES 1's confinement now reads zero).
+
+    `reglistmixR`'s four twin cells at 20,000 rows had an allowance of their own, confined in the KPI.
+    A list member is now kept off the real by construction, so the allowance is empty: one twin cell
+    or fragment at any list shape and size, and one member equal to a real key as written or by the
+    merged key, read worse than the bound, by the runner's own judge.
+    """
+    import kpi_rules
+
+    entry = kpi_rules.entries_by_id(kpi_rules.load_ledger())["K-S3-64"]
+    owned = ("description_values", "description_fragments", "twin_cells", "twin_fragments",
+             "list_chance_twin_cells", "list_chance_twin_fragments", "twin_members_equal",
+             "twin_members_merging")
+
+    def seen(cells: int = 0, fragments: int = 0, equal: int = 0, merging: int = 0) -> "dict[str, object]":
+        return {"description_values": 0, "description_fragments": 0, "twin_cells": cells,
+                "twin_fragments": fragments, "twin_members_equal": equal, "twin_members_merging": merging}
+
+    def word(*cases: "tuple[str, int, dict[str, object]]") -> str:
+        value = dict(entry["value_at"]["value"])
+        for key in owned:
+            value[key] = 0
+        for kind, rows, counts in cases:
+            shapes.tally_held(value, kind, rows, counts)
+        return kpi_rules.judge(entry, value).word
+
+    assert shapes.LIST_CHANCE == {} and _LIST_CHANCE_AT_20000 == {}
+    assert word(("reglistmixR", 20000, seen())) != kpi_rules.OPEN_WORSE
+    assert word(("reglistmixR", 20000, seen(1, 1))) == kpi_rules.OPEN_WORSE
+    assert word(("reglist6", 20000, seen(1, 1))) == kpi_rules.OPEN_WORSE
+    assert word(("reglistmixR", 600, seen(1, 0))) == kpi_rules.OPEN_WORSE
+    assert word(("phone", 20000, seen(1, 0))) == kpi_rules.OPEN_WORSE
+    assert word(("reglist7", 20000, seen(0, 0, equal=1))) == kpi_rules.OPEN_WORSE
+    assert word(("reglistR", 600, seen(0, 0, merging=1))) == kpi_rules.OPEN_WORSE
+
+
+def test_k_s3_64_keeps_no_allowance_for_failing_twins_and_reports_the_known_limit_apart() -> None:
+    """Batch 4n's records (Codex's review of batch 4m, its third Medium, BATCH 4n OWES 3).
+
+    Once the driver excused `naaccr`'s two known failures, `twins_failing_validation` kept an
+    allowance of two that nothing used, so two unrelated held shapes could fail unseen (Codex:
+    OPEN-held at 0, 1 and 2 failures). The allowance is 0 now and the known limit's failing twins
+    count apart, under `held_limit_twins_failing_validation`, bounded at its measured 2 (owner
+    lane HB2): one unrelated failure, or a third known one, reads worse than the bound.
+    """
+    import kpi_rules
+
+    entry = kpi_rules.entries_by_id(kpi_rules.load_ledger())["K-S3-64"]
+    assert entry["expected"]["twins_failing_validation"] == 0
+    assert "twins_failing_validation" not in entry.get("key_kinds", {})
+    assert entry["expected"]["held_limit_twins_failing_validation"] == 2
+
+    def word(failing: int, known: int) -> str:
+        value = dict(entry["value_at"]["value"])
+        value.update({"twins_failing_validation": failing, "held_limit_twins_failing_validation": known})
+        return kpi_rules.judge(entry, value).word
+
+    assert word(0, 2) in (kpi_rules.OPEN_HELD, kpi_rules.IMPROVED)
+    assert word(1, 2) == kpi_rules.OPEN_WORSE
+    assert word(2, 0) == kpi_rules.OPEN_WORSE
+    assert word(0, 3) == kpi_rules.OPEN_WORSE
 
 
 @pytest.mark.parametrize("rows", (_ROWS, 20000))

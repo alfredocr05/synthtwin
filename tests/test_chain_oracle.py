@@ -849,7 +849,9 @@ def _oracle_ladder(name, block, raw, floor, position):
         cells = [("missing",) if v == "" else (("level", v) if v in published else ("held",)) for v in raw]
         return co.ladder_of(name, role, cells, levels=levels, floor=floor, position=position)
     if role in NUMBER_ROLES:
-        cells = [("missing",) if v == "" else ("value", Fraction(v)) for v in raw]
+        # ONE READING (lane CHb, plan P4-D435): a cell is the binary64 value
+        # nearest its text, as the profile and V12 read it.
+        cells = [("missing",) if v == "" else ("value", co.reading_of(v)) for v in raw]
         return co.ladder_of(name, role, cells, rungs=_published_rungs(block), floor=floor, position=position)
     pytest.fail("the oracle reads no ladder for role %r (column %s)" % (role, name))
 

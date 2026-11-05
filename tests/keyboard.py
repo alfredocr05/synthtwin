@@ -35,3 +35,21 @@ def safe_harbor_answered_no(monkeypatch: pytest.MonkeyPatch) -> None:
     put; the answer is the person's.
     """
     monkeypatch.setattr(taxonomy, "safe_harbor_reach", lambda *_given, **_named: "")
+    # ...and to lane SH2's (plan P4-D434): every Safe Harbor question.
+    sh2_answered_no(monkeypatch)
+
+
+def sh2_answered_no(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The person answers `no` to every Safe Harbor question lane SH2 puts (plan P4-D434).
+
+    A test about something else -- how counted days crossing 1900 come
+    back, how a placeholder day is judged, how dates of a few patients
+    are pooled in people -- whose column lane SH2's reach takes (dates of
+    1890 to 1935, a column named `address`) takes the description `no`
+    gives back, byte for byte: the one written before lane SH2, the reach
+    then reaching nothing. Lane SH's own reach is untouched.
+    """
+    monkeypatch.setattr(taxonomy, "safe_harbor_years", lambda *_given, **_named: False)
+    monkeypatch.setattr(taxonomy, "safe_harbor_hold", lambda *_given, **_named: "")
+    # ...and the pairs of coordinates read from their cells (its close round).
+    monkeypatch.setattr(taxonomy, "coordinates_held", lambda *_given, **_named: [])

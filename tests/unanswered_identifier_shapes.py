@@ -292,25 +292,37 @@ ONE_A_ROW_NINES = "-9999"
 # says who the rows are, nothing is declared and no person question is
 # put -- so there are no people to count in (plan P4-D406, item (a)).
 STATED = ("name", "address", "dob")
+# ...of which lane SH2 (plan P4-D434) holds two while their Safe Harbor
+# question is open: a column named `address`, a place smaller than a
+# state, and birth dates some of which show an age of 90 or more.
+STATED_HELD_BY_SH2 = ("address", "dob")
 
 # THE HELD SHAPES WHOSE TWIN FAILS ITS OWN VALIDATION, each a stated limit
-# of the generator for a DECLARED record number too (plan P4-D401):
-# `-1` for nobody (CODES-1 part C) and a telephone layout opening `+`. A
-# key written `100001.0` validates since lane CODES-3 (plan P4-D428), at
-# 600 and 20,000 rows, and is checked as every other shape (batch 4k's
-# records, push critic 14).
+# of the generator. Lane HB (plan P4-D442) took out `-1` for nobody
+# (`durable`, `key_m1_40`), a key written `100001.0` (`key_point0`) and a
+# telephone layout opening `+` (`phone_plus`, filled since the walk takes
+# a proven `+` before a telephone number's figures as the source's): each
+# validates at exit 0 at 600 and 20,000 rows.
 #
-# ...and `reglistonce6` (lane HX4's repair 1): 599 cells of one six-figure
-# key beside ONE list cell publish `all_whole_numbers` false beside a
-# figures count absorbed to every cell (plan P4-D298), and the twin's
-# search writes whole numbers alone, naming the fact in the twin's report;
-# the same generator limit as `-1`'s, CODES-1 part C's (plan P4-D424).
-# And `reglistgrouped`, read at 600 rows as free text, which publishes no
-# value and is held by nothing: its twin misses `free_text.shape_forms` at
-# exit 3 on the tree before lane HX4 too (measured on 4682d6ad), the forms
-# lane FM's limit STATE names.
-VALIDATION_LIMITS = ("durable", "key_m1_40", "phone_plus", "reglistonce6", "reglistgrouped",
-                     "seqm1")
+# AT LANE HB'S MERGE WITH BATCH 4m (2026-11-02), what batch 4m listed and
+# lane HB did not reach stays: `reglistonce6` (lane HX4's repair 1): 599
+# cells of one six-figure key beside ONE list cell publish
+# `all_whole_numbers` false beside a figures count absorbed to every cell
+# (plan P4-D298), and the twin's search writes whole numbers alone, naming
+# the fact in the twin's report; the same generator limit as `-1`'s was,
+# owner lane HB2 (plan P4-D424). And `reglistgrouped`, read at 600 rows as
+# free text, which publishes no value and is held by nothing: its twin
+# misses `free_text.shape_forms` at exit 3 on the tree before lane HX4 too
+# (measured on 4682d6ad), the forms lane FM's limit STATE names. Both read
+# exit 3 at 600 rows on the merged code (wave6/HB/close). `seqm1` (lane
+# HX5) stays until K-S3-64's driver reads it at exit 0 at 20,000 rows. And
+# `reglistmixR` (lane HX4's lists, marks `;`, `,` and `|` cell by cell):
+# on batch 4m alone its twin validated at 20,000 rows with 4 cells carrying
+# a real key's figures; on the merged code it carries none, by
+# construction, and misses its own validation there (exit 3), lane HB's
+# stated limit (q): a list cell marked `;` or `|` has no layout (P4-D442),
+# owner lane HB2. At 600 rows it validates.
+VALIDATION_LIMITS: "tuple[str, ...]" = ("reglistonce6", "reglistgrouped", "seqm1", "reglistmixR")
 
 # What each key shape writes for an unknown patient, and on what share
 # of its rows (`write_table`).
@@ -322,6 +334,44 @@ PLACEHOLDERS = {"durable": ("-1", 0.02), "zerokey": ("0", 0.03),
 SHORT_AMONG_LONG = "P00017"
 # The key a numeric patient key writes for an unknown patient (`durable`).
 UNKNOWN_KEY = "-1"
+
+
+# THE ONE LIST CASE OF CHANCE, CONFINED IN THE KPI (the orchestrator's
+# BATCH 4l OWES 11 (b), and Codex's review of batch 4l, its first Medium,
+# BATCH 4m OWES 1): K-S3-64's driver counts the twin cells and fragments of
+# exactly this shape at exactly this size under keys of their own, bounded
+# by the measured count, and every other shape and size under the keys
+# bounded at 0, so a real key printed by another held shape is never paid
+# for by this case's allowance; a register list's members equal to a real
+# record number, as written or by the merged key, count at every shape and
+# size under keys bounded at 0. Lifted to (0, 0) at lane HB's merge (its
+# item (12); AT HB'S MERGE).
+LIST_CHANCE: "dict[tuple[str, int], tuple[int, int]]" = {}
+# The four counts every held shape adds to K-S3-64's totals.
+HELD_KEYS = ("description_values", "description_fragments", "twin_cells", "twin_fragments")
+
+
+def tally_held(totals: "dict[str, int]", kind: str, rows: int, seen: "dict[str, object]") -> None:
+    """One held shape's counts added to K-S3-64's ``totals``, the one list case of chance apart.
+
+    The case `LIST_CHANCE` names, at 20,000 rows and no other size, adds
+    its twin cells and fragments to `list_chance_twin_cells` and
+    `list_chance_twin_fragments`; every other shape and size adds them to
+    `twin_cells` and `twin_fragments`. A register list (`LISTED`) adds its
+    members equal to a real record number as written
+    (`twin_members_equal`) and by the merged key (`twin_members_merging`)
+    at every shape and size, read from `run`'s counts, which every list
+    shape carries. Raises KeyError where a count is missing.
+    """
+    for key in ("description_values", "description_fragments"):
+        totals[key] = totals.get(key, 0) + int(seen[key])  # type: ignore[call-overload]
+    apart = rows == 20000 and (kind, rows) in LIST_CHANCE
+    for key in ("twin_cells", "twin_fragments"):
+        named = f"list_chance_{key}" if apart else key
+        totals[named] = totals.get(named, 0) + int(seen[key])  # type: ignore[call-overload]
+    if _base(kind) in LISTED:
+        for key in ("twin_members_equal", "twin_members_merging"):
+            totals[key] = totals.get(key, 0) + int(seen[key])  # type: ignore[call-overload]
 
 
 def _base(kind: str) -> str:
@@ -439,9 +489,19 @@ def _one_a_row(kind: str, rows: int, draw: random.Random) -> "list[str]":
     return [unknown if draw.random() < share else f"{99701 + row}" for row in range(rows)]
 
 
+# A kind renamed after its table was first drawn keeps the seed it was
+# drawn from, by number: its first name's length.
+_KEPT_LENGTHS = {"home_add_line": 10}
+
+
+def _kind_length(kind: str) -> int:
+    """The length a kind's seed counts: its first name's, where it was renamed."""
+    return _KEPT_LENGTHS.get(kind, len(kind))
+
+
 def write_table(folder: pathlib.Path, kind: str, rows: int) -> "tuple[pathlib.Path, list[str]]":
     """The table, written as a CSV file; its path and its different identifiers."""
-    draw = random.Random(SEED + len(kind))
+    draw = random.Random(SEED + _kind_length(kind))
     if kind in ONE_A_ROW:
         column = _one_a_row(kind, rows, draw)
         lines = [f"{kind},test,value"]
@@ -1028,13 +1088,38 @@ AGE_CEILING = 125
 # census line absorbs the one), and the held generator writes whole
 # numbers only, so the twin misses that one fact (exit 3); owner CODES-1
 # part C, as `VALIDATION_LIMITS` are.
-SAFE_HARBOR_HELD_LIMITS_AT_20000 = ("zip5word_unknown", "zip5word52_unknown", "ages4ph", "age_padded07")
+# ...and an age padded to three figures beside `999`, held and unanswered
+# (`naaccr`, at 20,000 and at 600 rows): lane ID-ROOM's spill writes its
+# made-up values past 999 and lane SH2's clamp reads each as 90, so every
+# cell is `00090`, off the column's width and 63 values (exit 3), no real
+# age (batch 4m, BATCH 4m OWES 8; K-S3-64's run read it as 2 twins failing
+# before this line); owner lane HB2.
+SAFE_HARBOR_HELD_LIMITS_AT_20000 = ("zip5word_unknown", "zip5word52_unknown", "ages4ph", "age_padded07", "naaccr")
 # ...and at 600 rows ZIP codes beside twenty ZIP+4 cells are held by
 # P4-D401's person question, whose held twin writes the ZIP+4 layout and
 # too few cells of the five-figure one (`forms.published.%%%%%`): the
 # same exit 3 on b85200be, before this lane (wave6/SH/r1/base-zip4.log);
 # owner CODES-1 part C, as above.
-SAFE_HARBOR_HELD_LIMITS_AT_600 = ("zip_plus4", "ages4ph", "agescomma", "age_person", "age_padded07")
+SAFE_HARBOR_HELD_LIMITS_AT_600 = ("zip_plus4", "ages4ph", "agescomma", "age_person", "age_padded07", "naaccr")
+# ...but `naaccr`'s limit is only the subchecks measured on it (batch 4n's
+# records, Codex's review of batch 4m, its second Medium, BATCH 4n OWES 2):
+# matching misses alone accepted any damage the control table's twin shared,
+# a role or a count of empty cells moved in both (Codex's case). Measured at
+# 600 and 20,000 rows on batch 4n's head: the twin misses only the distinct
+# counts its one written value leaves.
+HELD_LIMIT_MISSES: "dict[str, frozenset[str]]" = {
+    "naaccr": frozenset({"distinct.n_distinct", "distinct.n_distinct_by_occurrences",
+                         "distinct.n_distinct_folded"}),
+}
+
+
+def held_limit_met(kind: str, seen: "dict[str, object]") -> bool:
+    """Whether an age twin's validation misses are its held limit: the control table's twin's own,
+    and for a kind of `HELD_LIMIT_MISSES` only the subchecks measured on it."""
+    same = seen["twin_misses"] == seen["control_twin_misses"]
+    if kind in HELD_LIMIT_MISSES:
+        return same and set(seen["twin_misses"]) <= HELD_LIMIT_MISSES[kind]  # type: ignore[call-overload]
+    return same
 # ...and ages beside four placeholders, each on 6 % of the rows
 # (`ages4ph`): the twin misses the published `p90`, which lies among the
 # placeholders, top-coded or not -- the same exit 3 answered `no` and on
@@ -1272,7 +1357,7 @@ def write_safe_harbor_table(
     form -- the table the top-code reads. With ``decoy``, every ZIP is
     written as another of the same form (`_decoy`), placeholders kept.
     """
-    draw = random.Random(SEED + len(kind))
+    draw = random.Random(SEED + _kind_length(kind))
     if kind in ZIP_KINDS:
         written, real = _zip_cells(kind, rows, draw)
         if decoy:
@@ -1299,6 +1384,21 @@ _MISSED = re.compile(r"^\s+(\S+) \[[^\]]+\]: MISSED", re.M)
 def _number_tokens(value: str, text: str) -> int:
     """How often a whole number stands in a text as itself, `103` or `103.0`."""
     return len(re.findall(f"(?<![0-9.]){value}(?:\\.0+)?(?![0-9.])", text))
+
+
+# Every whole number standing in a text as itself, read in ONE pass: the
+# figures `_number_tokens` looks for as one run, so a text's count of a
+# value is the same number, each text scanned once whatever the values
+# (the orchestrator's rule of 2026-10-26, (3), for 20,000 rows or more).
+_WHOLE_NUMBER = re.compile(r"(?<![0-9.])([0-9]+)(?:\.0+)?(?![0-9.])")
+
+
+def number_token_counts(text: str) -> "dict[str, int]":
+    """How often each whole number stands in a text as itself, the text read once."""
+    counts: "dict[str, int]" = {}
+    for found in _WHOLE_NUMBER.finditer(text):
+        counts[found.group(1)] = counts.get(found.group(1), 0) + 1
+    return counts
 
 
 def _answers_given(folder: pathlib.Path, table: pathlib.Path, kind: str, answer: str) -> "list[str]":
@@ -1397,10 +1497,11 @@ def _zip_heads(heads: "list[str]", texts: "list[str]", cells: "list[str]") -> "d
 
 
 def _count_zips(
-    kind: str, real: "list[str]", texts: "list[str]", cells: "list[str]"
+    kind: str, real: "list[str]", texts: "list[str]", cells: "list[str]",
+    linear: "bool | None" = None,
 ) -> "dict[str, int]":
     """`count_real`, and for nine-figure ZIP+4 cells the numbers opening with a real ZIP."""
-    counted = count_real(real, texts, cells)
+    counted = count_real(real, texts, cells, linear)
     if kind in ZIP_NINE:
         heads = _zip_heads(real, texts, cells)
         counted["description_values"] += heads["description_values"]
@@ -1409,7 +1510,7 @@ def _count_zips(
 
 
 def run_safe_harbor(
-    folder: pathlib.Path, kind: str, rows: int, answer: str = ""
+    folder: pathlib.Path, kind: str, rows: int, answer: str = "", linear: "bool | None" = None
 ) -> "dict[str, object]":
     """One Safe Harbor number shape profiled unanswered, generated and validated.
 
@@ -1421,6 +1522,11 @@ def run_safe_harbor(
     in the same output of that table (so a `100` of the page's own words
     is no age), the outputs that differ are counted as fragments, and
     twin cells above 90 as real cells.
+
+    ``linear`` True reads every count by a counter linear in the data
+    (the 20,000-row cases, the orchestrator's rule of 2026-10-26 (3)):
+    ZIPs by `count_real`'s `_count_real_linear`, ages by
+    `number_token_counts`, each text read once; the counts are the same.
     """
     table, real = write_safe_harbor_table(folder, kind, rows)
     seen = _profiled(folder, table, kind, answer)
@@ -1447,7 +1553,7 @@ def run_safe_harbor(
     if kind in ZIP_KINDS:
         published = [texts[name] for name in texts if name != "real-quality"]
         cells = [f"{cell}" for cell in twin]
-        counted = _count_zips(kind, real, published, cells)
+        counted = _count_zips(kind, real, published, cells, linear)
         found.update(counted)
         if counted["twin_cells"]:
             # A MADE-UP VALUE EQUAL TO A REAL ONE BY CHANCE. A held column's
@@ -1461,7 +1567,7 @@ def run_safe_harbor(
             decoy_folder.mkdir()
             decoy_table, _same = write_safe_harbor_table(decoy_folder, kind, rows, decoy=True)
             decoy_twin = set(f"{cell}" for cell in _profiled(decoy_folder, decoy_table, kind, answer)["twin"])  # type: ignore[arg-type]
-            again = _count_zips(kind, real, [], [cell for cell in cells if cell not in decoy_twin])
+            again = _count_zips(kind, real, [], [cell for cell in cells if cell not in decoy_twin], linear)
             found["twin_cells_by_chance"] = counted["twin_cells"] - again["twin_cells"]
             found["twin_cells"] = again["twin_cells"]
             found["twin_fragments"] = again["twin_fragments"]
@@ -1472,9 +1578,15 @@ def run_safe_harbor(
     control = _profiled(control_folder, control_table, kind, answer)
     control_texts = control["texts"]
     assert isinstance(control_texts, dict)
-    leaked = [value for value in real
-              if any(_number_tokens(value, texts[name]) > _number_tokens(value, control_texts[name])
-                     for name in texts)]
+    if linear:
+        mine = {name: number_token_counts(texts[name]) for name in texts}
+        theirs = {name: number_token_counts(control_texts[name]) for name in texts}
+        leaked = [value for value in real
+                  if any(mine[name].get(value, 0) > theirs[name].get(value, 0) for name in texts)]
+    else:
+        leaked = [value for value in real
+                  if any(_number_tokens(value, texts[name]) > _number_tokens(value, control_texts[name])
+                         for name in texts)]
     differing = [name for name in texts if texts[name] != control_texts[name]]
     quality = f"{kind}_long-twin-quality.txt"
     found.update({"twin_misses": sorted(set(_MISSED.findall(texts[quality]))),
@@ -1493,7 +1605,7 @@ def run_safe_harbor(
 ZOO_ZIPS = ("patients.zip5",)
 
 
-def run_zoo_zips(folder: pathlib.Path, rows: int) -> "dict[str, object]":
+def run_zoo_zips(folder: pathlib.Path, rows: int, linear: "bool | None" = None) -> "dict[str, object]":
     """The zoo's patients export end to end, its own answers given; what its ZIPs left in every output.
 
     `health_zoo.run_table` profiles, answers in as many rounds as the
@@ -1542,7 +1654,7 @@ def run_zoo_zips(folder: pathlib.Path, rows: int) -> "dict[str, object]":
     texts += [path.read_text(encoding="utf-8") for path in sorted(checked.glob("*.txt"))]
     texts += [screens["text"]]
     described = json.loads((folder / "patients-profile.json").read_text(encoding="utf-8"))
-    found: "dict[str, object]" = dict(count_real(real, texts, twin))
+    found: "dict[str, object]" = dict(count_real(real, texts, twin, linear))
     if found["twin_cells"]:
         # A MADE-UP VALUE EQUAL TO A REAL ONE BY CHANCE, counted apart as
         # `run_safe_harbor` counts it: the held twin writes made-up ZIP
@@ -1554,7 +1666,7 @@ def run_zoo_zips(folder: pathlib.Path, rows: int) -> "dict[str, object]":
         decoy_folder = folder / "decoy"
         decoy_folder.mkdir()
         decoy_twin = _zoo_decoy_twin(zoo, decoy_folder, rows)
-        again = count_real(real, [], [cell for cell in twin if cell not in decoy_twin])
+        again = count_real(real, [], [cell for cell in twin if cell not in decoy_twin], linear)
         found["twin_cells_by_chance"] = int(found["twin_cells"]) - again["twin_cells"]  # type: ignore[call-overload]
         found["twin_cells"] = again["twin_cells"]
         found["twin_fragments"] = again["twin_fragments"]
@@ -1589,3 +1701,806 @@ def _zoo_decoy_twin(zoo: object, folder: pathlib.Path, rows: int) -> "set[str]":
         zoo.run_table(dataclasses.replace(table, build=build), folder, rows, 0)  # type: ignore[attr-defined]
     twin_path = folder / "patients-twin.csv"
     return set(_csv_column(twin_path, 9)) | {cell[:5] for cell in _csv_column(twin_path, 10)}
+
+
+# THE SAFE HARBOR YEARS, PLACES AND DEVICES (plan P4-D434, lane SH2; lane
+# E0c's skeptic 1, items L1 and L2 and its birth_city note, and lane SH's
+# verify 3, 'New shapes'), rebuilt from the orchestrator's words. Measured
+# on lane SH's head 3b1aa03c (wave6/SH2/base-600.log): birth years beside
+# one stray cell printed 1928, 1930 and 1934 and the twin wrote 26 cells of
+# them; birth dates printed years of 1927 to 1933 in their percentiles and
+# tails, their twins about 80 cells; a city of birth printed its cities as
+# levels and the twin wrote them on every cell; ZIP codes cut to three
+# figures printed 7 of 7; GS1 device identifiers 20 of 20 on every twin
+# cell; ZIP codes answered `excel-1900` printed 33 of 40 dates naming them
+# one to one, the twin 599 of 600 real ZIP numbers. Each shape is one
+# column beside a record number, as `pid`.
+# AND LANE SH2'S REPAIR 1 (wave6/SH2-sk1.md items 2 to 4 and 8, and
+# Codex's review, codex-w3 SH2, items 1 to 4), each measured live on the
+# build head 34d847b6: years with a tenth written in two figures
+# (`years_twofig`, six years of 1922 to 1935 printed at 20,000 rows),
+# years beside a word (`born 1930`, `1930?`); one early date hidden among
+# two-figure years read in a declared century, compact dates, and five
+# early dates among 20,000 the percentiles do not show; two-figure years
+# answered the century 1930 (`dob_short`); place names the word list
+# missed (`birthplace`, `home_add_line`, `CITYText`), county codes answered
+# `code` and top-coded as ages (`county`), and a city column of dates
+# beside words put two questions (`city_dates`); GS1 UDIs spaced, bare
+# (answered `keep`) and HIBCC's, UDIs beside NDC codes at 40 and 70 per
+# cent and beside HIBCC's; and ZIP codes given a typed `--date-count`.
+HARBOR_YEARS = (
+    "birth_years_stray", "birth_years", "years_twofig", "years_born_keep", "years_q_keep",
+)
+# AND LANE SH2'S REPAIR 2 (its verify, wave6/SH2-verify.md items 1 to
+# 3, each measured live on e38f7d4e): names that open with a place word
+# in one word (`placeofbirth`, `cityname`, `countyname`, `streetaddress`:
+# 7 of 7 cities and 40 of 40 streets at 20,000 rows, no question); GS1
+# UDIs bare with spaces between their parts (20 of 20); and birth dates
+# written as Excel's day counts, whose date-count question printed the
+# years 1930 and 1934 of its edges in the questions file and on the
+# screen, unanswered (`dob_serial`) and answered `excel-1900`.
+HARBOR_DATES = (
+    "dob_iso", "dob_text", "dob_2fig_hidden", "dob_compact", "dob_few", "dob_short",
+    "dob_serial", "dob_serial_xl",
+)
+HARBOR_PLACES = (
+    "birth_city", "zip3", "birthplace", "home_add_line", "CITYText", "county", "city_dates",
+    "placeofbirth", "cityname", "countyname", "streetaddress",
+)
+HARBOR_DEVICES = (
+    "udi_lot", "udi_spaced", "udi_bare_keep", "udi_hibcc", "dev_mixed", "dev_ndc", "dev_70",
+    "udi_bare_spaced",
+)
+# Birth dates written as Excel's counts of days, the forms lane SH2's
+# repair 2 adds (method 6.6.2's `excel-1900`).
+_SERIAL_DATES = ("dob_serial", "dob_serial_xl")
+# ...and the shapes counted once their column's other question is
+# answered or typed: the date-count question, `excel-1900`.
+HARBOR_ZIP_DATES = ("zip_dates", "zip_dates_typed")
+# LANE SH2'S CLOSE ROUND (plan P4-D434), each measured live on 31359664
+# (wave6/SH2/close/base600 and base20k): COORDINATES (the orchestrator's
+# ADDENDUM 3) -- a `home_lat`/`home_lon` pair of six decimals, a lone `lat`,
+# a `lat` of two decimals (81 of them, 20,000 of 20,000 twin cells real at
+# 20,000 rows), and two columns of four decimals named for nothing, a
+# pair by their cells alone; ALL published their percentiles and tails
+# and twinned the region. PLACES BESIDE THEIR STATES (RULINGS 2 (3)):
+# `citystate`, and `Lake City, MN` in a column named for nothing (41 of
+# 41 places published at 20,000 rows).
+HARBOR_COORDINATES = ("home_lat", "lat", "lat_2dec", "va_pair")
+HARBOR_CITY_STATES = ("citystate", "origin")
+# ...DICOM AGE STRINGS (ADDENDUM 4), answered `keep` to the person
+# question: `091Y` to `104Y` published 14 of 14 as levels and written on
+# 908 twin cells at 20,000 rows; and with a tenth of `nnnM`, `nnnW` and
+# `nnnD` beside them, read in years. And AGES' TAILS (RULINGS 2 (1) and
+# (2), the second verify's finding 1 and its note): `998` on 5 cells and
+# `997` on 10 beside ages 18 to 104 published both as tail values; `130`
+# on a hundredth of the rows was published as one and written on 200 twin
+# cells at 20,000 rows. And a value past 125 ON MANY ROWS (the
+# orchestrator's LANE SH2 RULINGS 4 (1), from the close check's finding 1
+# on f9bdf41a): ages 18 to 104 beside `130` on 6 % of the rows (1,200 of
+# 20,000), `150` on 7.5 % and `200` on 6 % were read as no age column,
+# put no question, and published every age above 89 (4,150 and 4,300
+# twin cells above 90 at 20,000 rows); the reach sets such a value aside
+# whatever its share and reads it 90.
+HARBOR_AGE_UNITS = ("dicom_age", "dicom_age_units")
+AGE_TAILS_ON_MANY_ROWS = {"ages_130_many": ("130", 60), "ages_150_many": ("150", 75), "ages_200_many": ("200", 60)}
+HARBOR_AGE_TAILS = ("ages_ph998", "ages_130") + tuple(AGE_TAILS_ON_MANY_ROWS)
+SH2_AGE_TOP_CODED = HARBOR_AGE_UNITS + HARBOR_AGE_TAILS
+SH2_SHAPES = (
+    HARBOR_YEARS + HARBOR_DATES + HARBOR_PLACES + HARBOR_DEVICES + HARBOR_ZIP_DATES
+    + HARBOR_COORDINATES + HARBOR_CITY_STATES + SH2_AGE_TOP_CODED
+)
+# The other question each such shape is answered first: ZIP codes
+# `excel-1900`; birth years alone, which the fixed-width question holds
+# while it is open, `measurement` -- lane E0c's zoo answer, which on the
+# base released 7 years of 1934 or earlier at 20,000 rows -- and so the
+# years beside two-figure years; years beside a word and bare UDIs, put
+# the keep-or-identifier question, `keep`; county codes, put the padded
+# question, `code` (Codex item 2); two-figure birth dates, the century
+# 1930 to 2029.
+SH2_ANSWERED = {
+    "zip_dates": "excel-1900", "dob_serial_xl": "excel-1900",
+    "birth_years": "measurement", "years_twofig": "measurement",
+    "years_born_keep": "keep", "years_q_keep": "keep", "udi_bare_keep": "keep", "county": "code",
+    "dob_short": "1930-2029",
+    # ...DICOM ages, put the person question (letters and figures that
+    # repeat), answered `keep`, as CODES-1's skeptic found them live.
+    "dicom_age": "keep", "dicom_age_units": "keep",
+}
+# The question a shape is put first and alone while it is open, where it
+# is not the Safe Harbor question: counted birth dates, put the
+# date-count question, which offers `identifier` and so holds the column
+# (lane SH's ADDENDUM 6); answered `excel-1900`, the Safe Harbor question
+# follows (`dob_serial_xl`).
+SH2_FIRST_ASKED = {"dob_serial": ["measurement", "excel-1900", "excel-1904", "code", "identifier"]}
+
+
+def sh2_asked(kind: str) -> "list[list[str]]":
+    """The questions a lane SH2 shape is put, unanswered but for `SH2_ANSWERED`."""
+    return [SH2_FIRST_ASKED[kind]] if kind in SH2_FIRST_ASKED else [["no", "yes"]]
+
+
+# The arguments a shape is profiled with: a declared century, a typed
+# count of days (the orchestrator's LANE SH2 RULINGS 1 (5)).
+SH2_ARGUMENTS = {
+    "dob_2fig_hidden": ["--century", "dob_2fig_hidden=1900"],
+    "zip_dates_typed": ["--date-count", "zip_dates_typed", "excel-1900"],
+}
+# The shapes the year top-code publishes (the others are held whole), and
+# the role each is read as.
+SH2_TOP_CODED = {
+    "birth_years_stray": "count", "years_born_keep": "affixed_number",
+    "years_q_keep": "affixed_number",
+}
+# The cities of birth (lane E0c's zoo, `health_zoo.CITIES`) and the ZIP
+# codes cut to three figures (`safe_harbor.zip3`).
+_CITIES = (("Boston", 50.0), ("Bogotá", 12.0), ("São Paulo", 10.0), ("Montréal", 10.0),
+           ("Zürich", 6.0), ("San Juan", 8.0), ("Hà Nội", 4.0))
+_ZIP3 = (("021**", 20.0), ("100**", 18.0), ("191**", 14.0), ("606**", 12.0), ("941**", 10.0),
+         ("331**", 10.0), ("000**", 16.0))
+_SH2_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+# Validation limits of the held blocks (plan P4-D434, stated): ZIP codes
+# beside one word, held, miss `all_whole_numbers` (lane SH's
+# `SAFE_HARBOR_HELD_LIMITS_AT_20000`, owner CODES-1 part C).
+SH2_HELD_LIMITS = ("zip_dates", "zip_dates_typed")
+# ...and at 600 rows only, four-figure years beside a tenth written in two
+# figures, held whole (`HELD_YEARS_BESIDE`'s shape, answered
+# `measurement`): the held twin writes 541 cells of the four-figure layout
+# against the 542 the description publishes, its groups of four and five
+# cells a value packing one short (`forms.published.%%%%`, exit 3; 0 off
+# at 20,000 rows); the held block's stand-ins in its layouts, owner
+# CODES-1 part C, as lane SH's `SAFE_HARBOR_HELD_LIMITS_AT_600` are.
+SH2_HELD_LIMITS_AT_600 = ("years_twofig",)
+# Lane SH2's repair 1 shapes' other cells.
+_STREETS = tuple(f"{101 + k} {('Elm', 'Oak', 'Pine', 'Main')[k % 4]} St" for k in range(40))
+_PLACE_CITIES = ("birthplace", "CITYText", "placeofbirth", "cityname", "countyname")
+# County codes, three of them real counties of a state, and one above 89
+# so lane SH's ages reach them (Codex item 2's `001`, `013`, `089`, `101`;
+# `097` here, since `101` stands in the row numbers' own percentiles and
+# `109` in a decimal of their tails at 20,000 rows).
+_COUNTIES = ("001", "013", "089", "097")
+# The early years and dates a shape writes, as two-figure years read in
+# 1900 to 1999 (`dob_2fig_hidden`) or in 1930 to 2029 (`dob_short`).
+_DATE_FORMS = {
+    "dob_iso": "%Y-%m-%d", "dob_text": "%d-%b-%Y", "dob_2fig_hidden": "%m/%d/%y",
+    "dob_compact": "%Y%m%d", "dob_few": "%Y-%m-%d", "dob_short": "%m/%d/%y",
+}
+_CENTURY_OPENS = {"dob_2fig_hidden": 1900, "dob_short": 1930}
+# A held column whose twin's made-up dates -- written, as every held
+# date column's are, from 2000 to 2029 in the column's own layout -- read
+# as years of the declared century 1900 to 1999 (`01/03/05` is 1905): its
+# twin cells count where they are the column's own early dates, as a held
+# year column's do. Made-up dates name no person (the orchestrator's LANE
+# ID-ROOM RULINGS 1 (3)); that a twin of such a column reads as births of
+# 1900 to 1929 is a fidelity price, stated in plan P4-D434 (writing early
+# dates pooled is lane PS3's).
+_MADE_UP_EARLY = ("dob_2fig_hidden",)
+
+
+# The places beside their states (`Lake City, MN`), and the region the
+# coordinates are drawn in: Sydney's, south of the equator and east of 100
+# degrees, so no number a description prints of its own (row numbers,
+# counts) reads as one of them.
+_SH2_STATES = ("IA", "IL", "MN", "WI", "NE", "MO", "TX", "CA", "NY", "MA")
+_SH2_TOWNS = ("Lake City", "Maple Valley", "Glen Haven", "Avon", "Riverside", "Hartford", "Fairfax",
+              "Union City", "Brookfield", "Pleasant Hill", "Fairmount", "Milford", "Georgetown", "Dayton")
+_LATITUDES = (-34.20, -33.40)
+_LONGITUDES = (150.80, 151.40)
+# A pair's other column, by the shape's: its name.
+SH2_PARTNERS = {"home_lat": "home_lon", "va_pair": "vb_pair"}
+
+
+def _sh2_partner_cells(kind: str, rows: int) -> "list[str]":
+    """The other column of a pair of coordinates: longitudes of the same places' form."""
+    draw = random.Random(SEED + 435 + _kind_length(kind))
+    places = 6 if kind == "home_lat" else 4
+    return [f"{draw.uniform(*_LONGITUDES):.{places}f}" for _row in range(rows)]
+
+
+def _sh2_close_cells(kind: str, rows: int, draw: random.Random) -> "tuple[list[str], list[str]]":
+    """The cells of a shape of lane SH2's close round, and its real values to look for."""
+    if kind in HARBOR_COORDINATES:
+        places = {"home_lat": 6, "lat": 6, "lat_2dec": 2, "va_pair": 4}[kind]
+        cells = [f"{draw.uniform(*_LATITUDES):.{places}f}" for _row in range(rows)]
+        return cells, sorted(set(cells))
+    if kind in HARBOR_CITY_STATES:
+        towns = [f"{town}, {draw.choice(_SH2_STATES)}" for town in _SH2_TOWNS for _ in range(3)]
+        cells = [draw.choice(towns) for _row in range(rows)]
+        return cells, sorted(set(cells))
+    if kind in HARBOR_AGE_UNITS:
+        strings: "list[str]" = []
+        for _row in range(rows):
+            if kind == "dicom_age_units" and draw.random() < 0.1:
+                unit = draw.choice("MWD")
+                strings += [f"{draw.randint(1, 23 if unit == 'M' else 20):03d}{unit}"]
+            else:
+                age = draw.randint(18, 104) if draw.random() < 0.3 else draw.randint(18, 89)
+                strings += [f"{age:03d}Y"]
+        return strings, sorted({cell for cell in strings if cell[-1] == "Y" and int(cell[:3]) > AGE_TOP_CODE})
+    ages = [f"{draw.randint(18, 104)}" for _row in range(rows)]
+    if kind in AGE_TAILS_ON_MANY_ROWS:
+        # ...one value past 125 on its thousandths of the rows.
+        value, per_thousand = AGE_TAILS_ON_MANY_ROWS[kind]
+        for spot in draw.sample(range(rows), rows * per_thousand // 1000):
+            ages[spot] = value
+        return ages, sorted({cell for cell in ages if int(cell) > AGE_TOP_CODE})
+    spots = draw.sample(range(rows), 15 if kind == "ages_ph998" else max(rows // 100, 1))
+    for place, spot in enumerate(spots):
+        ages[spot] = ("998" if place < 5 else "997") if kind == "ages_ph998" else "130"
+    return ages, sorted({cell for cell in ages if int(cell) > AGE_TOP_CODE})
+
+
+def _udis(draw: random.Random, count: int, form: str) -> "list[str]":
+    """Device identifiers of one issuing form: GS1 lot-level, spaced or bare, or HIBCC's."""
+    found: "list[str]" = []
+    for _place in range(count):
+        number = draw.randrange(10**13, 10**14)
+        expiry = draw.randrange(250101, 271231)
+        lot = draw.randrange(100, 999)
+        if form == "spaced":
+            found += [f"(01) {number} (17) {expiry} (10) LOT{lot}"]
+        elif form == "bare":
+            found += [f"01{number}17{expiry}10LOT{lot}"]
+        elif form == "bare spaced":
+            found += [f"01 {number} 17 {expiry} 10 LOT{lot}"]
+        elif form == "hibcc":
+            found += [f"+H724PRD{lot}0/$$3{expiry}LOT{lot}X"]
+        else:
+            found += [f"(01){number}(17){expiry}(10)LOT{lot}"]
+    return found
+
+
+def _written_day(day: "tuple[int, int, int]", kind: str) -> str:
+    """A birth date in the shape's own spelling."""
+    import datetime
+
+    if kind == "dob_text":
+        return f"{day[2]:02d}-{_SH2_MONTHS[day[1] - 1]}-{day[0]:04d}"
+    return datetime.date(*day).strftime(_DATE_FORMS[kind])
+
+
+def reference_year() -> int:
+    """The year `synthtwin profile` judges years of birth against: this release's (plan P4-D434)."""
+    from synthtwin import taxonomy
+
+    return taxonomy.SAFE_HARBOR_REFERENCE_YEAR
+
+
+def _pick(draw: random.Random, pairs: "tuple[tuple[str, float], ...]") -> str:
+    return draw.choices([one for one, _ in pairs], [weight for _, weight in pairs])[0]
+
+
+def _born(draw: random.Random, year: int) -> "tuple[int, int, int]":
+    """A birth date from `year` less 100 to `year` less 21, as a day of the year drawn."""
+    import datetime
+
+    day = datetime.date(year - 100, 1, 1) + datetime.timedelta(days=draw.randrange(80 * 365))
+    return day.year, day.month, day.day
+
+
+def sh2_cells(kind: str, rows: int, year: int, control: bool = False) -> "tuple[list[str], list[str]]":
+    """One lane SH2 shape's cells, and the real values to look for (for years and dates, none: they are read by year).
+
+    With ``control``, every year that shows an age of 90 or more against
+    ``year`` is written as the latest such year (a date as that year's
+    first day): the table the year top-code reads.
+    """
+    draw = random.Random(SEED + 434 + _kind_length(kind))
+    cutoff = year - 90
+    cells: "list[str]" = []
+    if kind in HARBOR_COORDINATES + HARBOR_CITY_STATES + SH2_AGE_TOP_CODED:
+        return _sh2_close_cells(kind, rows, draw)
+    if kind in HARBOR_YEARS:
+        for row in range(rows):
+            age = draw.randint(18, 104) if draw.random() < 0.3 else draw.randint(18, 89)
+            born = min(year - age, year) if not control else max(year - age, cutoff)
+            other = draw.random() if kind in ("years_twofig", "years_q_keep") else 1.0
+            if kind == "years_twofig" and other < 0.10:
+                # ...a tenth written in two figures, `45` for 1945, as they
+                # were typed (the control keeps them).
+                cells += [f"{(year - age) % 100:02d}"]
+            elif kind == "years_born_keep":
+                cells += [f"born {born}"]
+            elif kind == "years_q_keep" and other < 0.10:
+                cells += [f"{born}?"]
+            else:
+                cells += [f"{born}"]
+        if kind == "birth_years_stray":
+            cells[5] = "19"
+        return cells, []
+    if kind in ("dob_2fig_hidden", "dob_compact", "dob_few"):
+        # ...early dates few and hidden: one of 600, five of 20,000 (Codex
+        # item 1; skeptic 1 item 8), the rest from 1950 on.
+        import datetime
+
+        for place in range(rows):
+            if kind == "dob_2fig_hidden":
+                cells += [f"01/{2 + place % 20:02d}/{50 + place % 30:02d}"]
+            else:
+                born_on = datetime.date(1950, 1, 1) + datetime.timedelta(days=draw.randrange(55 * 365))
+                cells += [_written_day((born_on.year, born_on.month, born_on.day), kind)]
+        for early in range(1 if rows < 1000 else 5):
+            day = (cutoff, 1, 1) if control else (1930, 1, 2 + early)
+            cells[draw.randrange(rows)] = _written_day(day, kind)
+        return cells, []
+    if kind in _SERIAL_DATES:
+        # ...births of 1930 to 2005 as Excel's 1900 serials, five figures
+        # each, 10,958 to 38,716, as the verify measured them (the
+        # control's early births are the group's year's first day).
+        import datetime
+
+        for _row in range(rows):
+            born_on = datetime.date(1930, 1, 1) + datetime.timedelta(days=draw.randrange(76 * 365))
+            born_year, month, day = born_on.year, born_on.month, born_on.day
+            if control and born_year <= cutoff:
+                born_year, month, day = cutoff, 1, 1
+            cells += [f"{(datetime.date(born_year, month, day) - datetime.date(1899, 12, 30)).days}"]
+        return cells, []
+    if kind in HARBOR_DATES:
+        for _row in range(rows):
+            born_year, month, day = _born(draw, year)
+            if kind == "dob_short" and born_year < 1930:
+                # ...two-figure years read in 1930 to 2029: births from 1930
+                # (a 29 February moved to the 28th: 1930 is no leap year).
+                born_year, day = 1930, min(day, 28)
+            if control and born_year <= cutoff:
+                born_year, month, day = cutoff, 1, 1
+            cells += [_written_day((born_year, month, day), kind)]
+        return cells, []
+    if kind in ("birth_city",) + _PLACE_CITIES:
+        cells = [_pick(draw, _CITIES) for _row in range(rows)]
+        return cells, sorted(set(cells))
+    if kind in ("home_add_line", "streetaddress"):
+        cells = [draw.choice(_STREETS) for _row in range(rows)]
+        return cells, sorted(set(cells))
+    if kind == "county":
+        cells = [_COUNTIES[row % len(_COUNTIES)] for row in range(rows)]
+        return cells, list(_COUNTIES)
+    if kind == "city_dates":
+        # ...Codex item 4: dates of January 2020 beside the names of cities.
+        words = ("Boston", "Lima", "Quito")
+        cells = [f"2020-01-{1 + row % 31:02d}" if row % 10 < 7 else words[row % 3] for row in range(rows)]
+        return cells, sorted(set(cells))
+    if kind in HARBOR_DEVICES and kind != "udi_lot":
+        if kind in ("dev_ndc", "dev_70", "dev_mixed"):
+            share = {"dev_ndc": 0.4, "dev_70": 0.7, "dev_mixed": 0.5}[kind]
+            gs1 = _udis(draw, 10, "paren")
+            others = (
+                _udis(draw, 10, "hibcc") if kind == "dev_mixed"
+                else [f"{draw.randrange(1000, 9999):04d}-{draw.randrange(1000, 9999)}-"
+                      f"{draw.randrange(10, 99)}" for _code in range(10)]
+            )
+            cells = [draw.choice(gs1) if draw.random() < share else draw.choice(others) for _row in range(rows)]
+            devices = [cell for cell in cells if kind == "dev_mixed" or cell[:4] == "(01)"]
+            return cells, sorted(set(devices))
+        devices = _udis(draw, 20, {"udi_spaced": "spaced", "udi_bare_keep": "bare", "udi_hibcc": "hibcc",
+                                   "udi_bare_spaced": "bare spaced"}[kind])
+        cells = [draw.choice(devices) for _row in range(rows)]
+        return cells, sorted(set(cells))
+    if kind in ("zip3", "area3"):
+        # ...`area3` the same cells in a column whose name says nothing of a
+        # place, so the cells alone hold it (the gate's own case).
+        cells = [_pick(draw, _ZIP3) for _row in range(rows)]
+        return cells, sorted(set(cells))
+    if kind == "udi_lot":
+        devices = [
+            f"(01){draw.randrange(10**13, 10**14)}(17){draw.randrange(250101, 271231)}(10)LOT{draw.randrange(100, 999)}"
+            for _place in range(20)
+        ]
+        cells = [draw.choice(devices) for _row in range(rows)]
+        return cells, sorted(set(cells))
+    # `zip_dates` and `zip_dates_typed`: forty five-figure ZIP codes beside
+    # one `UNKNOWN`.
+    zips52 = [f"{52240 + 7 * k}" for k in range(40)]
+    cells = [draw.choice(zips52) for _row in range(rows - 1)] + ["UNKNOWN"]
+    draw.shuffle(cells)
+    return cells, sorted(set(cell for cell in cells if cell.isdigit()))
+
+
+def write_sh2_table(
+    folder: pathlib.Path, kind: str, rows: int, year: int, control: bool = False
+) -> "tuple[pathlib.Path, list[str]]":
+    """A lane SH2 shape as a CSV file, `pid` and the column named for the shape; its path and real values."""
+    cells, real = sh2_cells(kind, rows, year, control)
+    if kind in SH2_PARTNERS:
+        # ...a pair of coordinates: the other column beside it.
+        other = _sh2_partner_cells(kind, rows)
+        lines = [f"pid,{kind},{SH2_PARTNERS[kind]}"] + [
+            f"P{row:06d},{cell},{other[row]}" for row, cell in enumerate(cells)
+        ]
+        path = folder / f"{kind}_long.csv"
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+        return path, real + sorted(set(other))
+    lines = [f"pid,{kind}"] + [f"{_cell(f'P{row:06d}')},{_cell(cell)}" for row, cell in enumerate(cells)]
+    path = folder / f"{kind}_long.csv"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    return path, real
+
+
+_YEAR_TOKEN = re.compile(r"(?<![0-9])(1[89][0-9]{2})(?![0-9])")
+
+
+def _year_tokens(text: str, cutoff: int) -> "dict[int, int]":
+    """How often each year from 1850 to before ``cutoff`` stands in a text as four figures of its own."""
+    found: "dict[int, int]" = {}
+    for match in _YEAR_TOKEN.findall(text):
+        if 1850 <= int(match) < cutoff:
+            found[int(match)] = (found[int(match)] if int(match) in found else 0) + 1
+    return found
+
+
+def _an_early_cell(cell: str, kind: str, cutoff: int) -> bool:
+    """Whether a twin cell reads as a year, or a real date in the shape's spelling, before ``cutoff``."""
+    import datetime
+
+    text = cell.strip()
+    found = re.fullmatch(r"(?:born )?([0-9]{4})(?:\.0+)?\??", text)
+    if found is not None:
+        return 1850 <= int(found.group(1)) < cutoff
+    if kind not in _DATE_FORMS:
+        return False
+    try:
+        read = datetime.datetime.strptime(text, _DATE_FORMS[kind])
+    except ValueError:
+        return False
+    born = read.year
+    if kind in _CENTURY_OPENS:
+        # ...two figures read in the shape's own century, as the column is.
+        opens = _CENTURY_OPENS[kind]
+        born = opens - opens % 100 + read.year % 100
+        if born < opens:
+            born += 100
+    return 1850 <= born < cutoff
+
+
+def _sh2_answers(
+    folder: pathlib.Path, table: pathlib.Path, kind: str, answer: str, harbor: str,
+    typed: "list[str] | None" = None,
+) -> "list[str]":
+    """Profile, then answer the column's open questions as given, in as many rounds as are put; the answers file.
+
+    ``answer`` goes to the column's other question where one offers it;
+    ``harbor`` (`no` or `yes`) to its Safe Harbor question. Returns the
+    arguments that read the last file, or none where nothing was asked.
+    """
+    given_any = False
+    arguments: "list[str]" = []
+    for round_number in range(3):
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            assert cli.main(["profile", f"{table}", "--out-dir", f"{folder}", "--replace"]
+                            + (typed or []) + arguments) == 0
+        written = json.loads((folder / f"{kind}_long-questions.json").read_text(encoding="utf-8"))
+        given = 0
+        for entry in written["asked"]:
+            offered = [choice["answer"] for choice in entry["answers_you_can_give"]]
+            if entry["column"] != kind or entry.get("your_answer"):
+                continue
+            if sorted(offered) == ["no", "yes"] and harbor:
+                entry["your_answer"] = harbor
+                given += 1
+            elif answer and answer in offered:
+                entry["your_answer"] = answer
+                given += 1
+        if not given:
+            break
+        given_any = True
+        answers = folder / f"answers{round_number}.json"
+        answers.write_text(json.dumps(written), encoding="utf-8", newline="\n")
+        arguments = ["--answers", f"{answers}"]
+    return arguments if given_any else []
+
+
+def _sh2_profiled(
+    folder: pathlib.Path, table: pathlib.Path, kind: str, answer: str = "", harbor: str = ""
+) -> "dict[str, object]":
+    """Profile (answered as given), generate (seed 0) and validate the twin and the table itself, scripted."""
+    screen = io.StringIO()
+    typed = SH2_ARGUMENTS[kind] if kind in SH2_ARGUMENTS else []
+    with nobody_at_the_keyboard():
+        given = _sh2_answers(folder, table, kind, answer, harbor, typed) if (answer or harbor) else []
+        with contextlib.redirect_stdout(screen), contextlib.redirect_stderr(screen):
+            profiled = cli.main(["profile", f"{table}", "--out-dir", f"{folder}", "--replace"]
+                                + typed + given)
+        described = folder / f"{kind}_long-profile.json"
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            generated = cli.main(["generate", f"{described}", "--out-dir", f"{folder}",
+                                  "--seed", "0", "--replace"])
+            validated = cli.main(["validate", f"{described}", "--twin",
+                                  f"{folder / (kind + '_long-twin.csv')}",
+                                  "--out-dir", f"{folder}", "--replace"])
+            checked = folder / "real"
+            checked.mkdir(exist_ok=True)
+            validated_real = cli.main(["validate", f"{described}", "--twin", f"{table}",
+                                       "--out-dir", f"{checked}", "--replace"])
+    texts = {
+        name: (folder / name).read_text(encoding="utf-8")
+        for name in (f"{kind}_long-profile.json", f"{kind}_long-profile.txt",
+                     f"{kind}_long-questions.json", f"{kind}_long-twin-report.txt",
+                     f"{kind}_long-twin-quality.txt")
+    }
+    texts["real-quality"] = (checked / f"{kind}_long-quality.txt").read_text(encoding="utf-8")
+    texts["screen"] = screen.getvalue().replace(f"{folder}", "<folder>")
+    for name in texts:
+        texts[name] = texts[name].replace(f"{folder}", "<folder>")
+    twin = _csv_column(folder / f"{kind}_long-twin.csv", 1)
+    if kind in SH2_PARTNERS:
+        # ...and a pair's other column, counted with it.
+        twin = twin + _csv_column(folder / f"{kind}_long-twin.csv", 2)
+    return {"profile_exit": profiled, "generate_exit": generated,
+            "validate_exit": validated, "validate_real_exit": validated_real,
+            "texts": texts, "twin": twin}
+
+
+def run_sh2(folder: pathlib.Path, kind: str, rows: int, harbor: str = "") -> "dict[str, object]":
+    """One lane SH2 shape profiled (its other question answered where `SH2_ANSWERED` names one), generated and validated.
+
+    ``harbor``: the answer given to the Safe Harbor question, or none.
+    Places, devices and ZIP codes are counted as every held shape is
+    (`count_real`; ZIP codes read as dates also by the dates they name).
+    Years and dates are counted against the same table with every year
+    that shows an age of 90 or more written as the latest such year,
+    profiled in a folder of its own: a year before that one counts as
+    published where it stands in an output of the table more often than
+    in the same output of that table (so a year of the page's own words
+    is none), and twin cells that read as such a year or date as real
+    cells (a held column's years: those that are its own early years).
+    """
+    year = reference_year()
+    cutoff = year - 90
+    table, real = write_sh2_table(folder, kind, rows, year)
+    answer = SH2_ANSWERED[kind] if kind in SH2_ANSWERED else ""
+    seen = _sh2_profiled(folder, table, kind, answer, harbor)
+    texts = seen["texts"]
+    assert isinstance(texts, dict)
+    document = json.loads(texts[f"{kind}_long-profile.json"])
+    block = [one for one in document["columns"] if one["name"] == kind][0]
+    questions = json.loads(texts[f"{kind}_long-questions.json"])
+    asked = [entry for entry in questions["asked"] if entry["column"] == kind]
+    twin = [f"{cell}" for cell in seen["twin"]]  # type: ignore[attr-defined]
+    found: "dict[str, object]" = {
+        "profile_exit": seen["profile_exit"], "generate_exit": seen["generate_exit"],
+        "validate_exit": seen["validate_exit"], "validate_real_exit": seen["validate_real_exit"],
+        "different": len(real), "role": block["role"],
+        "top_coded_year": block["top_coded_year"] if "top_coded_year" in block else None,
+        "cutoff": cutoff,
+        "asked": [[c["answer"] for c in entry["answers_you_can_give"]] for entry in asked],
+        "read_as_now": [entry["read_as_now"] for entry in asked],
+        "screen": texts["screen"], "summary": texts[f"{kind}_long-profile.txt"],
+        "real_quality": texts["real-quality"],
+        "top_coded": block["top_coded"] if "top_coded" in block else None,
+    }
+    if kind in HARBOR_COORDINATES:
+        found.update(_coordinates_counted(folder, kind, rows, real, texts, twin, answer, harbor))
+        return found
+    if kind in HARBOR_AGE_TAILS:
+        # ...every fact of the age block above 90 (counts, widths and
+        # shares aside) and every twin cell above 90, a placeholder's too:
+        # the placeholders are written blank, and nothing past 125 is kept.
+        over: "list[tuple[str, object]]" = []
+        age_facts_over_90(block, kind, over)
+        found.update({"description_values": len(over), "description_fragments": 0,
+                      "twin_cells": sum(1 for cell in twin if _a_number_over(cell, AGE_TOP_CODE)),
+                      "twin_fragments": 0, "facts_over_90": over[:6]})
+        return found
+    if kind not in HARBOR_YEARS + HARBOR_DATES:
+        found.update(sh2_exposure(kind, real, texts, twin))
+        if kind in HARBOR_AGE_UNITS:
+            # ...and every twin cell of an age above 90 years, `104Y` or
+            # `1100M`, as a real one.
+            found["twin_cells"] = int(found["twin_cells"]) + sum(  # type: ignore[call-overload]
+                1 for cell in twin if _years_over_90(cell)
+            )
+        return found
+    control_folder = folder / "control"
+    control_folder.mkdir()
+    control_table, _none = write_sh2_table(control_folder, kind, rows, year, control=True)
+    control = _sh2_profiled(control_folder, control_table, kind, answer, harbor)
+    control_texts = control["texts"]
+    assert isinstance(control_texts, dict)
+    early: "dict[int, bool]" = {}
+    for name in texts:
+        mine = _year_tokens(f"{texts[name]}", cutoff)
+        theirs = _year_tokens(f"{control_texts[name]}", cutoff)
+        for one in mine:
+            if mine[one] > (theirs[one] if one in theirs else 0):
+                early[one] = True
+    # ...a held column's twin writes made-up values in its layouts, so its
+    # cells count where they are the column's own early years; a top-coded
+    # column's twin writes no early year at all (method G7.15).
+    real_early: "dict[str, bool]" = {}
+    if kind not in SH2_TOP_CODED:
+        cells_written, _none = sh2_cells(kind, rows, year)
+        for cell in cells_written:
+            if _an_early_cell(cell, kind, cutoff):
+                real_early[cell.strip()] = True
+    early_twin = sum(
+        1 for cell in twin
+        if _an_early_cell(cell, kind, cutoff)
+        and (kind in SH2_TOP_CODED or (kind in HARBOR_DATES and kind not in _MADE_UP_EARLY)
+             or cell.strip() in real_early)
+    )
+    # A HELD COLUMN'S TWIN IS MADE UP from a description that publishes
+    # none of its values (`description_values` counts any early year an
+    # output carries): its early cells are counted apart, as lane SH's
+    # chance cells are (`twin_cells_by_chance`) -- 0 at 600 rows on every
+    # shape (the gate), and at 20,000 rows made-up four-figure numbers
+    # equal to real years by chance (lane ID-ROOM's, its RULINGS 2) and
+    # made-up two-figure-year dates read in the column's century (lane
+    # CODES-1 part C's stand-ins), measured in plan P4-D434.
+    held_here = block["role"] == "identifier"
+    found.update({
+        "description_values": len(early),
+        "description_fragments": 0,
+        "twin_cells": 0 if held_here else early_twin,
+        "twin_cells_made_up": early_twin if held_here else 0,
+        "twin_fragments": 0,
+    })
+    return found
+
+
+_AGE_FACT = re.compile(
+    # ...a share of rows (`tails.high.percent`) is no age, but a percentile is one (lane SH2's close round 2).
+    r"count|styles|\.n_|rows|missing|occurrences|people|_cells|distinct|width|length|places|figures|percent(?!ile)"
+)
+
+
+def age_facts_over_90(node: object, path: str, found: "list[tuple[str, object]]") -> None:
+    """Every number of an age block above 90 whose key is no count, width or share (lane SH2's verify 2's walk)."""
+    if isinstance(node, dict):
+        for key in node:
+            age_facts_over_90(node[key], f"{path}.{key}", found)
+    elif isinstance(node, list):
+        for place, one in enumerate(node):
+            age_facts_over_90(one, f"{path}[{place}]", found)
+    elif isinstance(node, (int, float)) and not isinstance(node, bool) and node > AGE_TOP_CODE \
+            and not _AGE_FACT.search(path):
+        found += [(path, node)]
+    elif isinstance(node, str) and re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", node) and float(node) > AGE_TOP_CODE \
+            and not _AGE_FACT.search(path):
+        found += [(path, node)]
+
+
+def _a_number_over(cell: str, bound: int) -> bool:
+    """Whether a cell is a plain number above ``bound``."""
+    try:
+        return float(cell) > bound
+    except ValueError:
+        return False
+
+
+_UNITS_IN_A_YEAR = {"Y": 1.0, "M": 12.0, "W": 52.1775, "D": 365.25}
+
+
+def _years_over_90(cell: str) -> bool:
+    """Whether a cell is figures and a DICOM unit letter showing an age above 90 years (`104Y`, `1100M`)."""
+    text = cell.strip()
+    if len(text) < 2 or text[-1].upper() not in _UNITS_IN_A_YEAR or not text[:-1].isdigit():
+        return False
+    return int(text[:-1]) / _UNITS_IN_A_YEAR[text[-1].upper()] > AGE_TOP_CODE
+
+
+_NUMBER_TOKEN = re.compile(r"-?[0-9]+(?:\.[0-9]+)?")
+_RUN_OF_FIVE = re.compile(r"[A-Za-z0-9]{5,}")
+
+
+def count_linear(real: "list[str]", texts: "list[str]", cells: "list[str]") -> "dict[str, int]":
+    """`count_real`'s four counts by a counter LINEAR in the data (the orchestrator's rule of 2026-10-26 (3)).
+
+    The real values (as written and as numbers) and their runs of five or
+    more letters and figures are held in sets; each text is scanned once
+    through its number tokens and its runs, and each twin cell once: a
+    real value printed (its text, or a number of two decimals or more
+    equal to it), a run printed, a twin cell equal to a real value, and a
+    twin cell holding a real run. For columns of thousands of different
+    decimals, where `count_real`'s pairwise search takes hours.
+    """
+    values = set(real)
+    numbers: "dict[float, bool]" = {}
+    for value in real:
+        try:
+            numbers[float(value)] = True
+        except ValueError:
+            pass
+    runs: "dict[str, bool]" = {}
+    for value in real:
+        for one in _RUN_OF_FIVE.findall(value):
+            runs[one] = True
+    printed: "dict[str, bool]" = {}
+    fragments: "dict[str, bool]" = {}
+    # ...where every real value is a number, a run that is the decimals of
+    # a printed number far from all of them (`10003.068153`, a bound of the
+    # row numbers' mean, beside a latitude of -34.068153) names no value.
+    region = (min(numbers) - 1, max(numbers) + 1) if numbers and len(numbers) == len(values) else None
+    for text in texts:
+        for token in _NUMBER_TOKEN.findall(text):
+            if token in values or ("." in token and len(token.split(".")[1]) >= 2 and float(token) in numbers):
+                printed[token] = True
+        for found in _RUN_OF_FIVE.finditer(text):
+            one = found.group(0)
+            if one not in runs:
+                continue
+            if region is not None and found.start() > 0 and text[found.start() - 1] == ".":
+                whole = re.search(r"-?[0-9]*$", text[: found.start() - 1])
+                number = float(f"{whole.group(0) if whole else ''}.{one}".replace("-.", "-0."))
+                if not region[0] <= number <= region[1]:
+                    continue
+            fragments[one] = True
+    twin_cells = 0
+    twin_runs: "dict[str, bool]" = {}
+    for cell in cells:
+        if cell in values or (_NUMBER_TOKEN.fullmatch(cell) is not None and float(cell) in numbers):
+            twin_cells += 1
+        for one in _RUN_OF_FIVE.findall(cell):
+            if one in runs:
+                twin_runs[one] = True
+    return {"description_values": len(printed), "description_fragments": len(fragments),
+            "twin_cells": twin_cells, "twin_fragments": len(twin_runs)}
+
+
+def _coordinates_decoy(folder: pathlib.Path, kind: str, rows: int) -> pathlib.Path:
+    """The same pair of coordinates with every decimal figure moved by five: the same layouts, other places."""
+    table = folder / f"{kind}_long.csv"
+    lines = table.read_text(encoding="utf-8").split("\n")
+    moved = [lines[0]]
+    for line in lines[1:]:
+        if not line:
+            continue
+        cells = line.split(",")
+        for place in range(1, len(cells)):
+            whole, _point, fraction = cells[place].partition(".")
+            cells[place] = whole + "." + "".join(f"{(int(one) + 5) % 10}" for one in fraction)
+        moved += [",".join(cells)]
+    decoy = folder / "decoy"
+    decoy.mkdir()
+    path = decoy / f"{kind}_long.csv"
+    path.write_text("\n".join(moved) + "\n", encoding="utf-8", newline="\n")
+    return path
+
+
+def _coordinates_counted(
+    folder: pathlib.Path, kind: str, rows: int, real: "list[str]", texts: "dict[str, str]",
+    twin: "list[str]", answer: str, harbor: str,
+) -> "dict[str, int]":
+    """A coordinate shape's counts (`count_linear`), a held twin's made-up places equal to real ones by chance counted apart.
+
+    A held column's twin writes made-up numbers in its layouts, drawn from
+    the description alone; where one lands on a real place (two decimals:
+    81 values among a hundred the layout writes) or on a real place's six
+    decimals, the same table with every decimal figure moved by five
+    twins the same value, and such a cell is counted apart
+    (`twin_cells_by_chance`, its runs with it), as lane SH's ZIP codes'
+    are.
+    """
+    counted = count_linear(real, [texts[name] for name in texts], twin)
+    counted["twin_cells_by_chance"] = 0
+    if counted["twin_cells"] or counted["twin_fragments"]:
+        decoy = _coordinates_decoy(folder, kind, rows)
+        decoy_twin = set(f"{cell}" for cell in _sh2_profiled(decoy.parent, decoy, kind, "", harbor)["twin"])  # type: ignore[arg-type]
+        again = count_linear(real, [], [cell for cell in twin if cell not in decoy_twin])
+        counted["twin_cells_by_chance"] = counted["twin_cells"] - again["twin_cells"]
+        counted["twin_cells"] = again["twin_cells"]
+        counted["twin_fragments"] = again["twin_fragments"]
+    return counted
+
+
+def sh2_exposure(
+    kind: str, real: "list[str]", texts: "dict[str, str]", twin: "list[str]"
+) -> "dict[str, int]":
+    """The real places, device numbers or ZIP codes a lane SH2 shape's files and twin carry (`count_real`).
+
+    EVERY FILE IS READ, both quality reports included -- the twin's and
+    the real table's own (lane SH2's repair 1, Codex item 5: the real
+    table's report was left out) -- and ZIP codes read as dates also by
+    the dates they name.
+    """
+    import datetime
+
+    published = [texts[name] for name in texts]
+    counted = count_real(real, published, twin)
+    if kind in HARBOR_ZIP_DATES:
+        named = sorted((datetime.date(1899, 12, 30) + datetime.timedelta(days=int(z))).isoformat()
+                       for z in real)
+        dated = count_real(named, published, twin)
+        counted["description_values"] += dated["description_values"]
+        counted["description_fragments"] += dated["description_fragments"]
+    return counted

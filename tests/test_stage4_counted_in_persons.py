@@ -45,6 +45,8 @@ import random
 
 import pytest
 
+import keyboard
+
 from synthtwin import asking, cli, errors, profile, reading, taxonomy
 
 import persons_counted
@@ -86,9 +88,15 @@ def _block(described: "dict[str, object]", name: str) -> "dict[str, object]":
 @pytest.mark.parametrize("rows", (600, 20000))
 @pytest.mark.parametrize("kind", shapes.COUNTED)
 def test_a_value_fewer_than_eleven_people_hold_is_not_published(
-    tmp_path: pathlib.Path, kind: str, rows: int
+    tmp_path: pathlib.Path, kind: str, rows: int,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """0 real values or fragments published, 0 in the twin, and the twin validates."""
+    # THE SAFE HARBOR PLACES AND DATES (plan P4-D434) hold a column named
+    # as a place, or of dates in a year that shows an age of 90 or more, until
+    # its question is answered; this test is about lane HX2's count in people,
+    # so the person answers no, and the count in people still holds the column.
+    keyboard.sh2_answered_no(monkeypatch)
     seen = shapes.run(tmp_path, kind, rows)
     assert seen["profile_exit"] == 0 and seen["generate_exit"] == 0
     assert seen["validate_exit"] == 0, seen
@@ -313,6 +321,7 @@ def test_a_candidate_of_fewer_than_eleven_values_counts_nothing(
 
 def test_a_column_attached_to_its_people_counts_every_value_it_publishes(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Birth dates of 150 patients on four rows each: no date reaches eleven rows, none is published.
 
@@ -320,6 +329,11 @@ def test_a_column_attached_to_its_people_counts_every_value_it_publishes(
     eleven rows -- so only the attachment (one date a patient) reaches the
     dates the ladder of the column prints.
     """
+    # THE SAFE HARBOR PLACES AND DATES (plan P4-D434) hold a column named
+    # as a place, or of dates in a year that shows an age of 90 or more, until
+    # its question is answered; this test is about lane HX2's count in people,
+    # so the person answers no, and the count in people still holds the column.
+    keyboard.sh2_answered_no(monkeypatch)
     draw = random.Random(13)
     born = [f"{draw.randint(1930, 2005)}-{draw.randint(1, 12):02d}-{draw.randint(1, 28):02d}"
             for _person in range(150)]
@@ -1057,7 +1071,7 @@ def test_dates_declared_as_counts_and_not_read_are_held(tmp_path: pathlib.Path, 
 
 
 def test_counted_dates_read_as_dates_and_held_in_people_are_not_named_as_declined(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Lane HX2's close verify, item 1: the gate's `days` is held by the count in people, not by NF127.
 
@@ -1069,6 +1083,12 @@ def test_counted_dates_read_as_dates_and_held_in_people_are_not_named_as_decline
     on NF127's evidence, never on the role, which NF126 sets to
     `identifier` too (mutants `held_by_role` and `screen_by_role`).
     """
+    # Days since 1970 of five figures are written as ZIP codes are, and a
+    # count typed on the command line no longer frees lane SH's ZIP hold
+    # (the orchestrator's LANE SH2 RULINGS 1 (5)); this test is about the
+    # count in people, so the person answers `no` to the Safe Harbor
+    # question (plan P4-D434).
+    keyboard.safe_harbor_answered_no(monkeypatch)
     text = persons_counted.day_count_table("plain")
     _table, screen = _profiled(tmp_path, "read", text, "--identifier", "patient",
                                "--date-count", "day", "days-since-1970")
@@ -1112,3 +1132,52 @@ def test_a_questions_file_with_nothing_held_has_no_held_section() -> None:
     assert "held" not in asking.questions_document("t.csv", [], [])
     named = asking.questions_document("t.csv", [], [], held_dates=[("visit", "excel-1900")])
     assert [entry["column"] for entry in named["held"]] == ["visit"]
+
+
+def _pressures_of_people(rows: int) -> "tuple[str, list[str]]":
+    """Pairs of numbers on 500 people, `rows` // 500 rows each: 60 pairs every person may hold, and
+    20 people each holding on every row a pair nobody else holds (on 11 rows or more, one person)."""
+    draw = random.Random(11)
+    common = sorted({f"{draw.randint(95, 150)}/{draw.randint(55, 95)}" for _ in range(60)})
+    alone = [f"{200 + person}/{130 + person}" for person in range(20)]
+    lines = []
+    for person in range(500):
+        for _ in range(rows // 500):
+            pair = alone[person] if person < 20 else draw.choice(common)
+            lines += [f"P{person + 10000:05d},{pair},{draw.randint(0, 40)}"]
+    draw.shuffle(lines)
+    return "\n".join(["patient,pressure,score"] + lines) + "\n", alone
+
+
+@pytest.mark.parametrize("declared", (False, True))
+def test_a_pair_list_beside_a_person_column_publishes_no_pair_fewer_than_eleven_people_hold(
+    tmp_path: pathlib.Path, declared: bool
+) -> None:
+    """Batch 4n's records (BATCH 4n OWES 8 (b), integrator-4m-fix's NOT PROBED; plan P4-D438).
+
+    Since plan P4-D438 a column of joined pairs the person declares a measurement takes the list
+    where every pair stands on the floor's rows, and that yield was measured only on a table with
+    no person column. Here 20 of 500 people each hold, on all their 40 rows, a pair nobody else
+    holds: on 11 rows or more, one person. With the person question open on `patient`, or the key
+    declared an identifier, every published value is counted in people, so none of those pairs is
+    published and the twin writes none; the counter written apart from the product finds no value
+    of any column that one to ten people hold. Red on a count in people that holds nothing.
+    """
+    text, alone = _pressures_of_people(20000)
+    table = tmp_path / "pressures.csv"
+    table.write_text(text, encoding="utf-8", newline="\n")
+    extra = ("--identifier", "patient") if declared else ()
+    code, _screen = _profile(table, tmp_path, "--measurement", "pressure", *extra)
+    assert code == 0
+    written = (tmp_path / "pressures-profile.json").read_text(encoding="utf-8")
+    assert [pair for pair in alone if pair in written] == []
+    counted = persons_counted.count_files(table, tmp_path)
+    assert counted["subjects"] == ["patient"] and counted["few"] == 0, counted
+    if declared:
+        assert _described(tmp_path, "pressures")["settings"]["person_columns"] == ["patient"]
+    quiet = io.StringIO()
+    with contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
+        assert cli.main(["generate", f"{tmp_path / 'pressures-profile.json'}", "--out-dir",
+                         f"{tmp_path}", "--seed", "0", "--replace"]) == 0
+    twin = (tmp_path / "pressures-twin.csv").read_text(encoding="utf-8")
+    assert sum(twin.count(f",{pair},") for pair in alone) == 0

@@ -5911,6 +5911,690 @@
    "b_written": 0,
    "rows_breaking_a_le_b": 0,
    "d_beside_an_absent_a": 0
+  },
+  "decimal_rung": {
+   "rung": "0x1.caccccccccccdp+6",
+   "l0": [
+    [
+     [
+      "range",
+      null,
+      "p50"
+     ]
+    ],
+    [
+     [
+      "range",
+      "p50",
+      null
+     ]
+    ]
+   ],
+   "totals": [
+    20,
+    40
+   ]
+  },
+  "decimal_rung_mutant_exact": {
+   "rung": "0x1.caccccccccccdp+6",
+   "l0": [
+    [
+     [
+      "range",
+      null,
+      "p50"
+     ]
+    ],
+    [
+     [
+      "range",
+      "p50",
+      null
+     ]
+    ]
+   ],
+   "totals": [
+    35,
+    25
+   ]
+  },
+  "interface_join": {
+   "number_l0": [
+    [
+     "other"
+    ],
+    [
+     [
+      "range",
+      null,
+      "p50"
+     ]
+    ],
+    [
+     [
+      "range",
+      "p50",
+      null
+     ]
+    ]
+   ],
+   "number_bands": [
+    [
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a"
+    ],
+    [
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "",
+     "",
+     ""
+    ],
+    [
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5"
+    ]
+   ],
+   "label_l0": [
+    [
+     [
+      "level",
+      "a"
+     ]
+    ],
+    [
+     [
+      "level",
+      "b"
+     ]
+    ]
+   ],
+   "label_bands": [
+    [
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "",
+     ""
+    ],
+    [
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "c",
+     "c"
+    ]
+   ],
+   "merged_l0": [
+    [
+     [
+      "range",
+      null,
+      "p25"
+     ],
+     [
+      "range",
+      "p25",
+      "p50"
+     ]
+    ],
+    [
+     [
+      "range",
+      "p50",
+      null
+     ]
+    ]
+   ],
+   "merged_bands": [
+    35,
+    30
+   ]
+  },
+  "interface_join_mutant_earlier_first": {
+   "number_l0": [
+    [
+     "other"
+    ],
+    [
+     [
+      "range",
+      null,
+      "p50"
+     ]
+    ],
+    [
+     [
+      "range",
+      "p50",
+      null
+     ]
+    ]
+   ],
+   "number_bands": [
+    [
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a",
+     "n/a",
+     "",
+     "",
+     ""
+    ],
+    [
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1",
+     "1"
+    ],
+    [
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5",
+     "5"
+    ]
+   ],
+   "label_l0": [
+    [
+     [
+      "level",
+      "a"
+     ]
+    ],
+    [
+     [
+      "level",
+      "b"
+     ]
+    ]
+   ],
+   "label_bands": [
+    [
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a",
+     "a"
+    ],
+    [
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "b",
+     "",
+     "",
+     "c",
+     "c"
+    ]
+   ],
+   "merged_l0": [
+    [
+     [
+      "range",
+      null,
+      "p25"
+     ],
+     [
+      "range",
+      "p25",
+      "p50"
+     ]
+    ],
+    [
+     [
+      "range",
+      "p50",
+      null
+     ]
+    ]
+   ],
+   "merged_bands": [
+    35,
+    30
+   ]
+  },
+  "reader_bands": {
+   "l0": [
+    [
+     "other"
+    ],
+    [
+     [
+      "range",
+      null,
+      "p50"
+     ]
+    ],
+    [
+     [
+      "range",
+      "p50",
+      null
+     ]
+    ]
+   ],
+   "published": [
+    12,
+    30,
+    30
+   ],
+   "twin_totals": [
+    12,
+    31,
+    32
+   ],
+   "first_bands": [
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1
+   ]
+  },
+  "reader_bands_mutant_interface_other": {
+   "l0": [
+    [
+     "other"
+    ],
+    [
+     [
+      "range",
+      null,
+      "p50"
+     ]
+    ],
+    [
+     [
+      "range",
+      "p50",
+      null
+     ]
+    ]
+   ],
+   "published": [
+    12,
+    30,
+    30
+   ],
+   "twin_totals": [
+    72,
+    3,
+    0
+   ],
+   "first_bands": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1
+   ]
+  },
+  "row_hash": {
+   "codex_rows_differ": true,
+   "first": "cf8f110c2edf12432b6a2c98200cdfbe370f7f5175d6d542e1e1ab4edcb73a25",
+   "table": "ceea09bac57e0b8409ea13401fe4ac39fc511d373fb302b1ccbaedb03785e2ce",
+   "table_shuffled": "ceea09bac57e0b8409ea13401fe4ac39fc511d373fb302b1ccbaedb03785e2ce",
+   "table_with_a_blank_row": "ceea09bac57e0b8409ea13401fe4ac39fc511d373fb302b1ccbaedb03785e2ce",
+   "blank_and_spaces_alike": true,
+   "spaces_row": "644d23c1da2653cdb27c408b0e56075d9071257d9fc01306ea5fcbc4f927838a"
+  },
+  "row_hash_mutant_separators": {
+   "codex_rows_differ": false,
+   "first": "6431c07435b13ef0fc860a30d42f5c992ced681088fb00b22f5f4097db6166fd",
+   "table": "ceea09bac57e0b8409ea13401fe4ac39fc511d373fb302b1ccbaedb03785e2ce",
+   "table_shuffled": "ceea09bac57e0b8409ea13401fe4ac39fc511d373fb302b1ccbaedb03785e2ce",
+   "table_with_a_blank_row": "ceea09bac57e0b8409ea13401fe4ac39fc511d373fb302b1ccbaedb03785e2ce",
+   "blank_and_spaces_alike": false,
+   "spaces_row": "c3ab00fa437550f0f646cac5a4499baa0fae510f5bbef2e780266c17095e50c4"
+  },
+  "row_hash_mutant_raw": {
+   "codex_rows_differ": true,
+   "first": "cf8f110c2edf12432b6a2c98200cdfbe370f7f5175d6d542e1e1ab4edcb73a25",
+   "table": "ceea09bac57e0b8409ea13401fe4ac39fc511d373fb302b1ccbaedb03785e2ce",
+   "table_shuffled": "ceea09bac57e0b8409ea13401fe4ac39fc511d373fb302b1ccbaedb03785e2ce",
+   "table_with_a_blank_row": "ceea09bac57e0b8409ea13401fe4ac39fc511d373fb302b1ccbaedb03785e2ce",
+   "blank_and_spaces_alike": false,
+   "spaces_row": "6cd41525b2d3561a5ec73e9533a4447f86d4bae828fc0a7a9d9ae5222d8fe0d0"
+  },
+  "band_codes": {
+   "widths": [
+    1,
+    1,
+    2,
+    2,
+    3,
+    3,
+    3,
+    4
+   ],
+   "codes": [
+    0,
+    255,
+    256,
+    65535,
+    65536
+   ]
+  },
+  "band_codes_mutant_two_bytes": {
+   "widths": [
+    1,
+    1,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2
+   ],
+   "codes": [
+    0,
+    255,
+    256,
+    65535,
+    0
+   ]
+  },
+  "reader_joins": {
+   "ranges_alone": [
+    0,
+    0,
+    1,
+    0,
+    0
+   ],
+   "other_beside_ranges": [
+    1,
+    0,
+    2,
+    1
+   ],
+   "kinds_alone": [
+    0,
+    1,
+    1,
+    1
+   ]
+  },
+  "reader_joins_mutant_later_never": {
+   "ranges_alone": "no band",
+   "other_beside_ranges": [
+    0,
+    0,
+    2,
+    0
+   ],
+   "kinds_alone": [
+    0,
+    1,
+    1,
+    1
+   ]
+  },
+  "reader_joins_mutant_earlier_never": {
+   "ranges_alone": [
+    0,
+    0,
+    1,
+    0,
+    0
+   ],
+   "other_beside_ranges": [
+    1,
+    0,
+    2,
+    1
+   ],
+   "kinds_alone": "no band"
+  },
+  "sample_key": {
+   "rows": 100,
+   "of_the_first": 55,
+   "of_the_second": 45,
+   "first_places": [
+    218,
+    205,
+    288,
+    62,
+    51,
+    345,
+    24,
+    42
+   ]
+  },
+  "sample_key_mutant_cut": {
+   "rows": 0,
+   "of_the_first": 0,
+   "of_the_second": 0,
+   "first_places": []
   }
  },
  "moments": {

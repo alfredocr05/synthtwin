@@ -189,6 +189,12 @@ def _label_content(
     # publish none, so the debt is empty for them and the neutral
     # `group-N` spelling stands as before.
     owing = _forms_owed(facts, cells)
+    # RULE A2'S STAGES (lane CODES-1, plan P4-D439), the one change of
+    # meaning that lane made which these columns reach: each form's
+    # stand-ins step through the characters its published spellings hold.
+    fills = _place_plans(
+        facts.shape_forms, cells, dict(column.shape_form_places), plan.decimal_comma
+    )
     # THE CLASSES THE HELD-BACK GROUPS OWE (method G8.3a). The published
     # spellings pay what they read as; what is left of `n_numeric`,
     # `n_out_of_range` and `n_contradictory` is owed by the held-back
@@ -266,6 +272,16 @@ def _label_content(
         shared, shaped_places = _level_shape_spent(
             sizes, shared, level_shape, written_as, used, owners, holes
         )
+    # RULE A2'S BALANCED WALK (lane CODES-1, plan P4-D439): stage (1)'s
+    # free spellings of a form the census lists go to that form's largest
+    # stand-ins, taken before any other stand-in is walked.
+    assigned, starts = _balanced_places(
+        fills, sizes, shared, written_as, used, owners, plan.all_holes,
+        parsing.census_floor(plan.small_cell_floor),
+    )
+    for place in sorted(assigned):
+        used[assigned[place]] = 1
+        owners[parsing.folded(assigned[place])] = assigned[place]
     # Each form's place in its own supply, carried across the whole
     # column so no spelling is walked twice.
     walked: "dict[str, int]" = {}
@@ -277,10 +293,14 @@ def _label_content(
         if place in written_as:
             label = written_as[place]
             form = asked[place]
+        elif place in assigned:
+            label = assigned[place]
         else:
             number, label = _made_up_label(
                 number, used, owners, form, plan.all_holes, walked,
                 level_shape if place in shaped_places else "",
+                places=fills[form] if form in fills else None,
+                start=starts[form] if form in starts else 0,
             )
             if not form and level_shape and _level_key(label) == level_shape:
                 kept = kept + 1

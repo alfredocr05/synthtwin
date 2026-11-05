@@ -1863,7 +1863,7 @@ def _parse_arguments(
             "seconds-since-1960 (SAS date-times), milliseconds-since-1960 "
             "(Stata), days-since-1970 (R), seconds-since-1970 (Unix), "
             "milliseconds-since-1970 (JavaScript), microseconds-since-1970, "
-            "nanoseconds-since-1970, days-since-1840 (Epic, with a contact "
+            "nanoseconds-since-1970, days-since-1840 (MUMPS, with a contact "
             "number after the point) or seconds-since-1582 (SPSS), as in "
             "--date-count visit_day excel-1900. A number does not say that "
             "it counts days, so synthtwin asks; named here, each cell is "
@@ -2505,6 +2505,30 @@ _KEY_OF = {
 }
 
 
+def _keep_beside_measurement(question: asking.Question) -> bool:
+    """Whether a question offers `keep` and `measurement` as two answers (plan P4-D438).
+
+    Question Q-UNIT does, and so does any question it reaches
+    (`asking.with_unit_answers`): there `measurement` is no longer the
+    standing reading but a declaration, so the two cannot share key 1
+    (Codex's review of lane UN-1a, item 2: both were shown as `[1]`, and
+    the answer was recorded as no declaration at all).
+    """
+    offered = [choice.answer for choice in question.choices]
+    return asking.ANSWER_KEEP in offered and asking.ANSWER_MEASUREMENT in offered
+
+
+def _key_shown(answer: str, question: asking.Question) -> str:
+    """The key a person types for one answer of this question.
+
+    `measurement` beside `keep` is typed `m`, its letter key, since key 1
+    is `keep` there (`_keep_beside_measurement`).
+    """
+    if answer == asking.ANSWER_MEASUREMENT and _keep_beside_measurement(question):
+        return "m"
+    return _KEY_OF[answer]
+
+
 def _the_question(question: asking.Question, place: int, total: int) -> str:
     """One column's question, as the person sees it.
 
@@ -2524,7 +2548,7 @@ def _the_question(question: asking.Question, place: int, total: int) -> str:
     """
     lines = ""
     for choice in question.choices:
-        key = _KEY_OF[choice.answer]
+        key = _key_shown(choice.answer, question)
         lines = lines + (
             f"\n      [{key}] {choice.means}\n"
             f"          then the description publishes {choice.publishes}"
@@ -2820,6 +2844,8 @@ def _answers_given(
     month_first: bool,
     safe_harbor_no: "tuple[str, ...]" = (),
     safe_harbor_yes: "tuple[str, ...]" = (),
+    units_kept: "tuple[str, ...]" = (),
+    commas_kept: "tuple[str, ...]" = (),
 ) -> "asking.Given":
     """Every answer this run acts on, as `asking.answered_before` writes it.
 
@@ -2854,6 +2880,8 @@ def _answers_given(
         date_columns=tuple(date_columns),
         date_columns_kept=tuple(dates_kept),
         identities_kept=identities_kept,
+        units_kept=units_kept,
+        commas_kept=commas_kept,
         safe_harbor_no=safe_harbor_no,
         safe_harbor_yes=safe_harbor_yes,
         missing_dates=tuple(
@@ -3303,9 +3331,23 @@ def _assumptions_notice(
     # SYSTEM WRITES DATES (question Q3), which is told what it would gain
     # as dates and the option that reads it so.
     dated: list[asking.Question] = []
+    # ...AND A UNIT COLUMN READ AS LABELS (question Q-UNIT, plan P4-D438),
+    # which is not read as measurements: falling through would tell it so.
+    units: list[asking.Question] = []
+    # ...AND A COLUMN WHOSE COMMA MAY BE ITS DECIMAL POINT (question Q-COMMA
+    # and its mirror, plan P4-D443), which is read as labels or with a
+    # comma between thousands: falling through would say measurements.
+    commas: list[asking.Question] = []
+    grouped: list[asking.Question] = []
     for question in questions:
         if asking.asks_about_a_clock(question):
             clocks += [question]
+        elif question.reason == asking.BECAUSE_UNIT:
+            units += [question]
+        elif question.reason == asking.BECAUSE_COMMA:
+            commas += [question]
+        elif question.reason == asking.BECAUSE_COMMA_THOUSANDS:
+            grouped += [question]
         elif question.reason == asking.BECAUSE_DATE_COUNTS:
             dated += [question]
         elif question.reason == asking.BECAUSE_JOINED:
@@ -3396,6 +3438,58 @@ def _assumptions_notice(
             f"leading zeros.\n\n"
             f"If any of them holds codes, run the command again naming "
             f"them:\n  {flags}{_quoting_said(flags)}"
+        ]
+    if units:
+        flags = _joined(
+            [_typed_option("--measurement", one.name) for one in units], " "
+        )
+        blocks += [
+            f"THESE COLUMNS WERE READ AS LABELS, AND MIGHT BE AMOUNTS IN A "
+            f"UNIT.{_listing(units, False)}\n\n"
+            f"Each column above is being described as a list of values, each "
+            f"with its count; read as amounts, each unit's numbers would be "
+            f"described with an average, a spread and points along its range, "
+            f"and the twin would write numbers beside the same unit. Only you "
+            f"know which this is.\n\n"
+            f"If any of them holds amounts, run the command again naming "
+            f"them:\n  {flags}{_quoting_said(flags)}"
+        ]
+    if commas:
+        flags = _joined(
+            [_typed_option("--decimal-comma", one.name) for one in commas], " "
+        )
+        blocks += [
+            f"THESE COLUMNS WERE READ AS VALUES KEPT AS WRITTEN, AND MIGHT BE "
+            f"NUMBERS WRITTEN WITH A COMMA FOR THEIR DECIMAL POINT."
+            f"{_listing(commas, False)}\n\n"
+            f"Each column above keeps its commas as written and is described "
+            f"as labels or as text, never as numbers: as labels, the values "
+            f"enough rows share are listed with their counts; as text, no "
+            f"value is published. Read with a comma for the decimal point, "
+            f"its numbers would be described with an average, a spread and "
+            f"points along its range. Two figures with a comma between them "
+            f"are a decimal and also two choices, and only you know which "
+            f"this is.\n\n"
+            f"If any of them writes a comma for its decimal point, run the "
+            f"command again naming them:\n  {flags}{_quoting_said(flags)}"
+        ]
+    if grouped:
+        flags = _joined(
+            [_typed_option("--decimal-comma", one.name) for one in grouped], " "
+        )
+        blocks += [
+            f"THESE COLUMNS WERE READ WITH A COMMA BETWEEN THOUSANDS, AND "
+            f"MIGHT BE WRITTEN WITH A COMMA FOR THEIR DECIMAL POINT."
+            f"{_listing(grouped, False)}\n\n"
+            f"Each column above is being described with its comma as a mark "
+            f"between thousands. If the comma is the decimal point, each value "
+            f"written with a comma is being read a thousand times too large "
+            f"(1,250 as 1250, not 1.25), while a value written without one "
+            f"reads the same either way, so the column's average, spread and "
+            f"points along its range are off by as much as those values weigh "
+            f"in it. Only you know which it is.\n\n"
+            f"If any of them writes a comma for its decimal point, run the "
+            f"command again naming them:\n  {flags}{_quoting_said(flags)}"
         ]
     if joined:
         flags = _joined(
@@ -3547,7 +3641,9 @@ def _asked(prompt: str) -> "str | None":
     return line
 
 
-def _read_one_answer(standing: str = asking.ANSWER_MEASUREMENT) -> "str | None":
+def _read_one_answer(
+    standing: str = asking.ANSWER_MEASUREMENT, keep_on_one: bool = False
+) -> "str | None":
     """One typed answer, or None where the person ended the run.
 
     Enter alone keeps the reading synthtwin already made, so a person
@@ -3568,6 +3664,10 @@ def _read_one_answer(standing: str = asking.ANSWER_MEASUREMENT) -> "str | None":
             # label reading it already has; returning `measurement`
             # there named a reading Enter does not give.
             return standing
+        # KEY 1 IS `keep` WHERE `measurement` IS AN ANSWER OF ITS OWN
+        # (plan P4-D438; `_keep_beside_measurement`), typed `m` there.
+        if keep_on_one and typed == "1":
+            return asking.ANSWER_KEEP
         if typed in _ANSWER_KEYS:
             return _ANSWER_KEYS[typed]
         _say(
@@ -3694,6 +3794,39 @@ def _century_given(typed: str) -> "tuple[str, int] | None":
     return name, first_year
 
 
+def _units_not_asked_again(
+    questions: "list[asking.Question]", kept: "list[str]"
+) -> "list[asking.Question]":
+    """The questions less Q-UNIT and Q-COMMA where an earlier answer kept the labels (plans P4-D438, P4-D443).
+
+    The orchestrator's LANE UN-1a RULINGS 1 (2), on plan P4-D408's rule
+    that the questions file keeps every answer across rounds: a column
+    answered `keep` to question Q-UNIT is not put the question again, as
+    Q6's `keep` is not. A fixed function of the two. Raises nothing.
+    """
+    if not kept:
+        return questions
+    return [
+        question
+        for question in questions
+        if not (
+            question.reason in (asking.BECAUSE_UNIT, asking.BECAUSE_COMMA)
+            and question.name in kept
+        )
+    ]
+
+
+def _answer_typed(standing: str, keep_on_one: bool) -> "str | None":
+    """One typed answer, key 1 read as `keep` where `measurement` is an answer of its own.
+
+    The reader is asked with its second argument only there, so a
+    question offering no such pair reads exactly as it always did.
+    """
+    if keep_on_one:
+        return _read_one_answer(standing, True)
+    return _read_one_answer(standing)
+
+
 def _put_the_questions(
     questions: "list[asking.Question]",
 ) -> "tuple[list[str], list[str], list[str], list[str], list[str], list[tuple[str, str]]] | None":
@@ -3726,7 +3859,8 @@ def _put_the_questions(
     for question in questions:
         place = place + 1
         _say(_the_question(question, place, total))
-        answer = _read_one_answer(question.taken)
+        both = _keep_beside_measurement(question)
+        answer = _answer_typed(question.taken, both)
         # ONLY AN ANSWER THIS QUESTION OFFERS IS TAKEN (landing T1, its
         # second skeptic's item 2). `_read_one_answer` knows every key,
         # so `6` typed at a column of codes recorded a 12-hour clock on
@@ -3740,14 +3874,19 @@ def _put_the_questions(
                 "    Please type one of the numbers offered, or press Enter "
                 "to keep the reading synthtwin made."
             )
-            answer = _read_one_answer(question.taken)
+            answer = _answer_typed(question.taken, both)
         if answer is None:
             return None
         if answer == asking.ANSWER_CODE:
             codes += [question.name]
         elif answer == asking.ANSWER_IDENTIFIER:
             identifiers += [question.name]
-        elif answer == asking.ANSWER_JOINED:
+        elif answer == asking.ANSWER_JOINED or (
+            answer == asking.ANSWER_MEASUREMENT and both
+        ):
+            # ...and `measurement` where it is offered beside `keep`: a
+            # declaration, as the questions file reads it (plan P4-D438;
+            # Codex's review of lane UN-1a, item 2).
             measurements += [question.name]
         elif answer == asking.ANSWER_DECIMAL_COMMA:
             commas += [question.name]
@@ -4235,6 +4374,37 @@ def _safe_harbor_notice(names: "tuple[str, ...]", held: bool) -> str:
         f"\nTHE SAFE HARBOR QUESTION\n"
         f"{said}. Answer 'no' or 'yes' to the question about them in the "
         f"questions file, and run the command again with --answers."
+    )
+
+
+# The age a year of birth must show to be pooled (plan P4-D434): the
+# Safe Harbor top-code's own 90.
+_AGE_SHOWN = 90
+
+
+def _safe_harbor_years_notice(names: "tuple[str, ...]", cutoff: int) -> str:
+    """What the screen says of the columns whose years of birth were pooled (plan P4-D434)."""
+    return (
+        f"\nTHE SAFE HARBOR QUESTION\n"
+        f"{_joined(list(names), ' and ')} may hold years of birth, and a year "
+        f"that shows an age over 89 is part of a birth date, so this "
+        f"description reads every year up to {cutoff} as {cutoff} (\"{cutoff} "
+        f"or earlier\") and the twin writes none before it. Answer 'no' or "
+        f"'yes' to the question about them in the questions file, and run the "
+        f"command again with --answers."
+    )
+
+
+def _safe_harbor_held_notice(names: "tuple[str, ...]") -> str:
+    """What the screen says of the columns lane SH2 holds whole (plan P4-D434)."""
+    return (
+        f"\nTHE SAFE HARBOR QUESTION\n"
+        f"{_joined(list(names), ' and ')} may hold a year or date of birth "
+        f"that shows an age over 89, a place smaller than a state, a ZIP code "
+        f"or a device number, so this description publishes none of their "
+        f"values and the twin writes made-up values there. Answer 'no' or "
+        f"'yes' to the question about them in the questions file, and run the "
+        f"command again with --answers."
     )
 
 
@@ -4803,6 +4973,12 @@ def _run_profile_body(
     # ...and the columns whose Q6 the file answered `keep` (landing R2c):
     # nothing is declared, and Q6 is not put to them again.
     dates_kept: "list[str]" = []
+    # ...and the columns whose question Q-UNIT the file answered `keep`
+    # (plan P4-D438): nothing is declared, and Q-UNIT is not put again.
+    units_kept: "list[str]" = []
+    # ...and those whose question Q-COMMA the file answered `keep` (plan
+    # P4-D443): nothing is declared, and Q-COMMA is not put again.
+    commas_kept: "list[str]" = []
     # ...and the columns whose question offering `identifier` the file
     # answered `keep` (plan P4-D401): nothing is declared, and their
     # values are published as their reading publishes them.
@@ -4825,6 +5001,13 @@ def _run_profile_body(
     # cells missing (90 is one of their missing values), held whole
     # instead (plan P4-D427).
     ages_held: "list[str]" = []
+    # ...and the columns held for lane SH2's reasons, each with its own
+    # (plan P4-D434), and the year the Safe Harbor years are judged
+    # against: this release's (synthtwin reads no clock), written into the
+    # blocks it top-codes, so generation and validation read the
+    # description.
+    harbor_reasons: "dict[str, str]" = {}
+    harbor_year = taxonomy.SAFE_HARBOR_REFERENCE_YEAR
     # ...and the column names the file's answers use, with the columns
     # those answers name, set against the names this run reads (plan
     # P4-D408).
@@ -4942,6 +5125,10 @@ def _run_profile_body(
             # ...and the columns answered `dates` (landing R2c), or `keep`.
             + list(written.date_columns)
             + list(written.date_columns_kept)
+            # ...and the columns answered `keep` to Q-UNIT (plan P4-D438).
+            + list(written.units_kept)
+            # ...and the columns answered `keep` to Q-COMMA (plan P4-D443).
+            + list(written.commas_kept)
             # ...and the columns answered `no` or `yes` to the Safe Harbor
             # question (plan P4-D427; Codex's review of lane SH, item 7):
             # an answer beside a correction of the reading is refused, as
@@ -5066,6 +5253,12 @@ def _run_profile_body(
         )
         # ...and those answered `keep`, carried so Q6 is not put again.
         dates_kept = list(written.date_columns_kept)
+        # ...and Q-UNIT's `keep`, carried so Q-UNIT is not put again (plan
+        # P4-D438; the orchestrator's LANE UN-1a RULINGS 1 (2)).
+        units_kept = list(written.units_kept)
+        # ...and Q-COMMA's `keep`, carried so Q-COMMA is not put again (plan
+        # P4-D443).
+        commas_kept = list(written.commas_kept)
         # ...and the columns answered `keep` to a question offering
         # `identifier` (plan P4-D401). Under an answer that changes the
         # reading a name may land on another column, so there such a
@@ -5479,6 +5672,7 @@ def _run_profile_body(
                 answered_code_shapes, first_row, metadata_answer,
                 declared_delimiter, day_first, answered_month_first,
                 tuple(safe_harbor_no), tuple(safe_harbor_yes),
+                tuple(units_kept), tuple(commas_kept),
             ),
         )
         if not_kept:
@@ -5681,6 +5875,10 @@ def _run_profile_body(
     # P4-D406), named on the screen.
     counted_in_people: "list[str]" = []
     counted_in_rows: "list[str]" = []
+    few_valued: "list[str]" = []
+    # -- P4-D440, rule U (c): the columns whose released list names a
+    # value fewer cells than the floor hold, named for the check below.
+    rare_listed: "list[str]" = []
     document = profile.build_document(
         read,
         settings,
@@ -5690,6 +5888,10 @@ def _run_profile_body(
         forced_decimal_commas,
         forced_metadata_rows=metadata_rows,
         forced_delimiter=declared_delimiter,
+        # Record numbers with a check digit (`1002345,7`) are read with
+        # their comma only once P4-D401's question is answered `keep`
+        # (plan P4-D443, repair 2 of lane UN-1b).
+        kept_identities=list(identities_kept),
         table_notes=population_notes,
         # HANDED OVER IN A BOX (lane S4d, plan P4-D390): the description
         # takes the readings out of the box in its own frame, so it
@@ -5711,6 +5913,13 @@ def _run_profile_body(
         five_figures=five_figures,
         ages_held=ages_held,
         counted_in_rows=counted_in_rows,
+        # -- P4-D440: the few-valued columns with a wide gap, named for
+        # their Safe Harbor question, listed where it was answered `no`.
+        few_valued=few_valued,
+        rare_listed=rare_listed,
+        # -- P4-D434: the Safe Harbor years, places and devices.
+        harbor_year=harbor_year,
+        harbor_reasons=harbor_reasons,
     )
     # Handed over once: the description has taken the reading as its own.
     census_readings = ()
@@ -5863,6 +6072,11 @@ def _run_profile_body(
         # -- 3b.R4 (P4-D384): a column declared to write its dates as
         # counts has answered question Q3.
         + sorted(counted)
+        # -- P4-D434: a column of dates lane SH2 holds is put the Safe
+        # Harbor question and nothing else, one question a column (its
+        # held block reads as no dates, so question Q6 would ask whether
+        # it holds dates).
+        + [name for name in harbor_reasons if harbor_reasons[name] == taxonomy.HELD_DATES]
     )
     # ...AND THE COLUMNS OF DATES OR TIMES THAT WRITE A FEW REPEATED
     # CODES (plan P4-D381), which are asked that and nothing else: the
@@ -5914,7 +6128,11 @@ def _run_profile_body(
         (),
         False,
     )
-    asked_about = first_questions.asked
+    # AN ANSWER GIVEN IS NOT ASKED AGAIN (plan P4-D408; the orchestrator's
+    # LANE UN-1a RULINGS 1 (2)): Q-UNIT answered `keep` stays answered.
+    asked_about = _units_not_asked_again(
+        first_questions.asked, units_kept + commas_kept
+    )
     split_columns = first_questions.split
     codes_seen = first_questions.codes_seen
     seen_of = (
@@ -6096,6 +6314,9 @@ def _run_profile_body(
                 five_figures = []
                 ages_held = []
                 counted_in_rows = []
+                few_valued = []
+                rare_listed = []
+                harbor_reasons = {}
                 document = profile.build_document(
                     read,
                     settings,
@@ -6105,6 +6326,7 @@ def _run_profile_body(
                     forced_decimal_commas,
                     forced_metadata_rows=metadata_rows,
                     forced_delimiter=declared_delimiter,
+                    kept_identities=list(identities_kept),
                     table_notes=population_notes,
                     readings_box=census_box,
                     stored_as=storage,
@@ -6115,6 +6337,10 @@ def _run_profile_body(
                     five_figures=five_figures,
                     ages_held=ages_held,
                     counted_in_rows=counted_in_rows,
+                    few_valued=few_valued,
+                    rare_listed=rare_listed,
+                    harbor_year=harbor_year,
+                    harbor_reasons=harbor_reasons,
                 )
                 census_readings = ()
                 # And the role check is asked again of the rebuilt
@@ -6154,7 +6380,9 @@ def _run_profile_body(
     # THERE (plan P4-D381), for the checklist's reason: each is put in
     # the questions file, and a run whose only finding is one of them
     # would otherwise show nothing.
-    settled = forced_identifiers + forced_codes + forced_measurements
+    settled = forced_identifiers + forced_codes + forced_measurements + [
+        name for name in harbor_reasons if harbor_reasons[name] == taxonomy.HELD_DATES
+    ]
     codes_moved = not (
         document is seen_of[0]
         and settings == seen_of[1]
@@ -6309,6 +6537,19 @@ def _run_profile_body(
                 and question.name not in candidates
             ):
                 candidates += [question.name]
+    # RULE U (c) (the stand-ins page's ZS.1 and ZS.3; repair 1 of lane GG,
+    # its skeptic 1, item 3): while ANY question offering `identifier` is
+    # open on any column of the table, `no` to a few-valued column's Safe
+    # Harbor question releases no list naming a value fewer cells than the
+    # floor hold (measured: a `7` on 5 rows of 20,000 listed and written on
+    # exactly 5 twin cells beside a patient key whose question was open).
+    identities_open = bool(withheld) or bool(candidates)
+    if not answered and not identities_open:
+        for question in asked_about + dates_asked + coded_about:
+            if asking.offers_identifier(question) and question.name not in (
+                declared_here
+            ):
+                identities_open = True
     # A COLUMN OF ZIP-SHAPED NUMBERS IS HELD WHOLE until its Safe Harbor
     # question is answered `no` (plan P4-D427; ZR-b's verifies 2 to 6, the
     # orchestrator's LANE SH addenda): whole numbers of four or five
@@ -6325,19 +6566,22 @@ def _run_profile_body(
     # real ZIPs with no Safe Harbor question put (`code` the zoo's own
     # `zip5` too: 12 of 12); such an answer, or the same declaration,
     # leaves the column held and the Safe Harbor question is put in that
-    # run, one question at a time. A declaration that reads the column as
-    # record numbers, dates or times takes it out of the reach, as before;
-    # `yes` holds it (Codex's review of lane SH, item 8: the column then
-    # stays held and the question is not put again). A column of ages
-    # whose top-code would make cells missing is held so too. It is no
-    # subject the other columns are counted in: it names a place.
-    declared_five = (
-        forced_identifiers
-        + list(twelve_hours)
-        + list(date_columns)
-        + sorted(counted)
-        + safe_harbor_no
-    )
+    # run, one question at a time. `yes` holds it (Codex's review of lane
+    # SH, item 8: the column then stays held and the question is not put
+    # again). A column of ages whose top-code would make cells missing is
+    # held so too. It is no subject the other columns are counted in: it
+    # names a place.
+    # ONLY `--identifier` (which holds the column as record numbers) OR
+    # `no` RELEASES IT, TYPED OR ANSWERED (the orchestrator's LANE SH2
+    # RULINGS 1 (5), consistent with lane SH's ADDENDUM 7): a reading typed
+    # on the command line that publishes values -- `--date-count`, a date
+    # or clock reading, a code -- is no release either, so a typed
+    # `--date-count` on ZIP codes, read as the dates they name one to one,
+    # is held as the same answer in the questions file is, and the Safe
+    # Harbor question follows in that run; and so are lane SH2's holds
+    # (plan P4-D434): places, device numbers, ZIP areas, early dates and
+    # years.
+    declared_five = forced_identifiers + safe_harbor_no
     five_held: "list[str]" = []
     for name in five_figures + ages_held:
         if (
@@ -6353,6 +6597,9 @@ def _run_profile_body(
     for name in safe_harbor_yes:
         if (
             name in read.column_names
+            # ...a column of dates so early is held by the description
+            # itself, its twin writing valid dates (plan P4-D434).
+            and not (name in harbor_reasons and harbor_reasons[name] == taxonomy.HELD_DATES)
             and name not in forced_identifiers
             and name not in withheld
             and name not in five_held
@@ -6360,12 +6607,25 @@ def _run_profile_body(
         ):
             harbor_held += [name]
     published = document
-    if withheld or candidates or five_held or harbor_held:
+    if (
+        withheld
+        or candidates
+        or five_held
+        or harbor_held
+        or (identities_open and rare_listed)
+    ):
         if withheld:
             _warn(_withheld_notice(withheld), caution=results.CAUTION_WITHHELD)
-        if five_held:
+        lane_sh = tuple(name for name in five_held if name not in harbor_reasons)
+        lane_sh2 = tuple(name for name in five_held if name in harbor_reasons)
+        if lane_sh:
             _warn(
-                _safe_harbor_notice(tuple(five_held), True),
+                _safe_harbor_notice(lane_sh, True),
+                caution=results.CAUTION_SAFE_HARBOR,
+            )
+        if lane_sh2:
+            _warn(
+                _safe_harbor_held_notice(lane_sh2),
                 caution=results.CAUTION_SAFE_HARBOR,
             )
         # ...and every column held so -- the candidates of the open
@@ -6386,20 +6646,58 @@ def _run_profile_body(
             forced_decimal_commas,
             forced_metadata_rows=metadata_rows,
             forced_delimiter=declared_delimiter,
+            kept_identities=list(identities_kept),
             table_notes=population_notes,
             stored_as=storage,
-            unanswered=list(withheld) + five_held + harbor_held,
+            unanswered=list(withheld)
+            + [
+                name
+                for name in five_held
+                if not (name in harbor_reasons and harbor_reasons[name] == taxonomy.HELD_DATES)
+            ]
+            + harbor_held,
             subjects=list(person_columns) + list(withheld) + candidates,
             counted_in_subjects=counted_in_people,
             top_code=True,
             safe_harbor_no=safe_harbor_no,
             counted_in_rows=counted_in_rows,
+            rare_values_released=not identities_open,
+            harbor_year=harbor_year,
         )
     if counted_in_rows:
         _warn(
             _dates_held_in_rows_notice(tuple(counted_in_rows), settings.small_cell_floor),
             caution=results.CAUTION_DATES_HELD_IN_ROWS,
         )
+    # RULE U OVER EVERY OPEN QUESTION OFFERING `identifier` (the stand-ins
+    # page, ZS.1 (c); plan P4-D439; Codex's review of lane CODES-1's first
+    # repair, item 8): while any is open on the table no column publishes
+    # rule A2's positional census -- the free-text candidates of the person
+    # question among them, which are subjects here and held by nothing, so
+    # `profile.build_document`'s own rule, asked of the held columns, let a
+    # declared code column beside 2,000 letter-only patient names publish
+    # its census with that question open.
+    questions_open: "list[str]" = []
+    if not answered:
+        declared_now = (
+            forced_identifiers
+            + forced_codes
+            + forced_measurements
+            + list(forced_decimal_commas)
+            + list(twelve_hours)
+            + list(date_columns)
+            + sorted(counted)
+            + list(identities_kept)
+        )
+        for question in asked_about + dates_asked + coded_about:
+            if (
+                asking.offers_identifier(question)
+                and question.name not in declared_now
+                and question.name not in questions_open
+            ):
+                questions_open += [question.name]
+    if questions_open:
+        published = profile.without_census_places(published)
     if counted_in_people:
         named_once: "list[str]" = []
         for name in counted_in_people:
@@ -6711,8 +7009,11 @@ def _run_profile_body(
     # not take, which is the one thing this file may never be. The
     # inputs here are the FINAL document and the FINAL declarations, so
     # an answered column is gone and every reading left is the one in
-    # force.
-    settled = forced_identifiers + forced_codes + forced_measurements
+    # force. (A column of dates lane SH2 holds is asked the Safe Harbor
+    # question alone, plan P4-D434.)
+    settled = forced_identifiers + forced_codes + forced_measurements + [
+        name for name in harbor_reasons if harbor_reasons[name] == taxonomy.HELD_DATES
+    ]
     # ...AND THE COLUMNS OF DATES OR TIMES BESIDE A FEW CODES, recomputed
     # from the FINAL settings (plan P4-D381): a column whose codes were
     # answered `missing` reads as dates now and is asked nothing, and one
@@ -6771,7 +7072,9 @@ def _run_profile_body(
         dates_asked = list(dates_seen.questions)
     day_or_month = last_questions.day_or_month
     coded_about = list(codes_seen.questions)
-    asked_about = last_questions.asked
+    asked_about = _units_not_asked_again(
+        last_questions.asked, units_kept + commas_kept
+    )
     listed_about = last_questions.listed
     asked_about = asked_about + coded_about
     # ...AND QUESTION Q5, of every column of dates whose years are two
@@ -6815,9 +7118,23 @@ def _run_profile_body(
         ],
         tuple(ages_held),
         tuple(safe_harbor_no + safe_harbor_yes),
+        tuple(few_valued),
+        harbor_reasons,
+        harbor_year,
     )
     if harbor_asked:
         harbored = [question.name for question in harbor_asked]
+        # ...and the columns lane SH2 holds whole (plan P4-D434), each put
+        # the Safe Harbor question ALONE: its held block reads no dates,
+        # codes or labels, so a question about those -- Q6's `keep` or
+        # `dates`, a century, a code -- waits for `no` (lane SH2's repair 1,
+        # Codex item 4: a city column of dates beside words was put Q6
+        # beside the Safe Harbor question).
+        held_alone = [
+            question.name
+            for question in harbor_asked
+            if question.reason in asking.SH2_HELD_REASONS
+        ]
         # ...ONE QUESTION A COLUMN: a column answered `keep` to a question
         # offering `identifier` and held for its numbers is asked the Safe
         # Harbor question in place of that one, whose answer the file
@@ -6825,14 +7142,33 @@ def _run_profile_body(
         asked_about = [
             question
             for question in asked_about
-            if not (
+            if question.name not in held_alone
+            and not (
                 question.name in harbored
                 and question.name in identities_kept
                 and asking.offers_identifier(question)
             )
+            # ...and Q-UNIT (plan P4-D438) gives way to it on the same
+            # column: one question a column, the Safe Harbor one first.
+            and not (
+                question.name in harbored
+                and question.reason == asking.BECAUSE_UNIT
+            )
         ] + harbor_asked
+        # ...AND A FEW-VALUED COLUMN KEEPS ITS CHECKLIST ENTRY BESIDE ITS
+        # SAFE HARBOR QUESTION (repair 1 of lane GG, its skeptic 1, item 5;
+        # the stand-ins page's ZS.3, "in the first round ... so one round
+        # settles them all"): the entry left the checklist for that
+        # question, so `no` brought it back a round later and every such
+        # column took a round more. Its question asks nothing the entry
+        # asks, and holds nothing meanwhile.
+        own_round = [
+            question.name
+            for question in harbor_asked
+            if question.reason != asking.BECAUSE_SAFE_HARBOR_FEW_VALUES
+        ]
         listed_about = [
-            question for question in listed_about if question.name not in harbored
+            question for question in listed_about if question.name not in own_round
         ]
         top_coded_names = [
             question.name
@@ -6844,6 +7180,36 @@ def _run_profile_body(
                 _safe_harbor_notice(tuple(top_coded_names), False),
                 caution=results.CAUTION_SAFE_HARBOR,
             )
+        years_coded = [
+            question.name
+            for question in harbor_asked
+            if question.reason == asking.BECAUSE_SAFE_HARBOR_YEARS
+        ]
+        if years_coded:
+            _warn(
+                _safe_harbor_years_notice(
+                    tuple(years_coded), harbor_year - _AGE_SHOWN
+                ),
+                caution=results.CAUTION_SAFE_HARBOR,
+            )
+    # ...AND ONCE THAT SAFE HARBOR QUESTION IS ANSWERED, `yes` or `no`, the
+    # question offering `identifier` its column answered `keep` is put
+    # neither again: both answers stand in the file's `answered_before`
+    # section, and an answer given is not asked again (the orchestrator's
+    # LANE SH2 RULINGS 4 (3), G3: DICOM ages and ZIP codes answered `keep`
+    # and then `yes` were put the person question once more in every later
+    # round, under `read_as_now: keep`).
+    harbor_answered = safe_harbor_no + safe_harbor_yes
+    if harbor_answered:
+        asked_about = [
+            question
+            for question in asked_about
+            if not (
+                question.name in harbor_answered
+                and question.name in identities_kept
+                and asking.offers_identifier(question)
+            )
+        ]
     # AND ITS DESTINATION IS GUARDED LIKE ANY OTHER (review item
     # L17b-R1-1). On POSIX a link left at this name resolves to a
     # permitted local path, so the locality gate cannot catch it: what
@@ -6945,7 +7311,8 @@ def _run_profile_body(
                             kept_code_shapes, first_row,
                             metadata_answer, declared_delimiter, day_first,
                             answered_month_first, tuple(safe_harbor_no),
-                            tuple(safe_harbor_yes),
+                            tuple(safe_harbor_yes), tuple(units_kept),
+                            tuple(commas_kept),
                         )
                     ),
                     # ...with the names those answers use (P4-D408).

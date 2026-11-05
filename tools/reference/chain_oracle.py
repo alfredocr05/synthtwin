@@ -1574,6 +1574,43 @@ def unpack_indices(data, cell_count, width=None):
     return [int.from_bytes(bytes(data[k:k + width]), "little") for k in range(0, len(data), width)]
 
 
+# --- the band code (method G16.1, G16.10; lane CHb's second repair) ----------------------
+
+
+def band_code_width(bands):
+    """Bytes a row's band code takes: the fewest whose whole numbers reach the level's count of bands.
+
+    One up to 255 bands, two up to 65,535, three up to 16,777,215 (G16.1 as
+    amended by lane CHb's second repair, Codex's item 2: the first build's
+    two bytes above 255 bands wrote band 65,536 of 65,537 as band 0).
+    """
+    width = 1
+    while bands >= 256 ** width:
+        width += 1
+    return width
+
+
+def pack_band_codes(codes, bands, width=None):
+    """The rows' band codes as G16.1 stores them, `band_code_width` bytes a row, little-endian.
+
+    `width` overrides the page's width (the mutant: the first build's two
+    bytes above 255 bands, each code then kept modulo 2**16).
+    """
+    width = band_code_width(bands) if width is None else width
+    out = bytearray()
+    for code in codes:
+        if not 0 <= code < bands:
+            raise ValueError("a band code outside the level's bands")
+        out += (code % (1 << (8 * width))).to_bytes(width, "little")
+    return out
+
+
+def unpack_band_codes(data, bands, width=None):
+    """The band codes read back from `pack_band_codes`' bytes."""
+    width = band_code_width(bands) if width is None else width
+    return [int.from_bytes(bytes(data[k:k + width]), "little") for k in range(0, len(data), width)]
+
+
 # --- stray rows (method G16.5, G2.1 step 2's second walk) -----------------------------
 
 
@@ -1619,3 +1656,220 @@ def stray_rows(rows, columns, eligible, rule_named, sequence=None, targets=(), g
         if not done:
             stayed += [r]
     return table, exchanges, stayed
+
+
+# --- the reading of a number cell beside a decimal rung (lane CHb, plan P4-D435) -------------
+
+
+def reading_of(text):
+    """A number cell's READING: the binary64 value nearest its decimal text, as an exact fraction.
+
+    ONE READING, settled by lane CHb (lane CHv's build, its point 3): a cell
+    is read as Python reads its text into a float, the binary64 value nearest
+    it, and compared with the rung read the same way, the binary64 value its
+    JSON number names. So `114.7` beside a rung published as 114.7 stands AT
+    the rung, in the band above it, where reading the cell exactly put it
+    below (3 of 800 rows on the clinic table). The profile's ladder, the
+    generator's bands and V12's lines read so; the oracle's ladder is
+    handed cells read here.
+    """
+    return b64(F(text))
+
+
+# --- the interface's groups, joined into `L0` bands (method G16.0; lane CHb, plan P4-D435) ---
+
+
+def _band_order_starts(lad):
+    """Every starting band a column's cells can stand in, in contract band order (4.6b.2)."""
+    held = [s for band in lad.l0 for s in band]
+    if lad.role in ("binary", "categorical", "long_tail_labels", "constant", "derived"):
+        levels = [s for s in held if isinstance(s, tuple) and s[0] == "level" and s[1] != "held back"]
+        return ["missing"] + levels + [("level", "held back")]
+    ranges = [s for s in held if isinstance(s, tuple) and s[0] == "range"]
+    return ["other", "labels", "missing"] + ranges
+
+
+def interface_bands(lad, groups):
+    """The twin's cells of one column per `L0` band, from the interface's groups (G4.2b).
+
+    `groups` lists `(kind, cells)` in the interface's order: `("range", k)`
+    for its `k`-th range group, `("level", name)` for a level group (named
+    by its first published level), `"missing"`, `"other"` (on a label
+    column the cells of withheld levels, the held-back pool's) or
+    `"labels"`; `cells` each `(text, reading)`. A group goes to the `L0`
+    band holding its starting band; a group holding cells whose starting
+    band no `L0` band holds JOINS the band holding the next starting band
+    the ladder holds in contract band order, or, where none follows, the
+    one before it. Within a band the cells keep the interface's order.
+    """
+    where = {}
+    ranges = []
+    for b, band in enumerate(lad.l0):
+        for s in band:
+            where[s] = b
+        # One range group for each `L0` band holding a range (G4.2b).
+        held = [s for s in band if isinstance(s, tuple) and s[0] == "range"]
+        if held:
+            ranges += [held[0]]
+    order = _band_order_starts(lad)
+    label = lad.role in ("binary", "categorical", "long_tail_labels", "constant", "derived")
+    out = [[] for _ in lad.l0]
+    for kind, cells in groups:
+        if isinstance(kind, tuple) and kind[0] == "range":
+            start = ranges[kind[1]]
+        elif kind == "other" and label:
+            start = ("level", "held back")
+        else:
+            start = kind
+        if start in where:
+            out[where[start]] += list(cells)
+            continue
+        if not cells:
+            continue
+        at = order.index(start)
+        later = [s for s in order[at + 1:] if s in where]
+        earlier = [s for s in order[:at] if s in where]
+        if later:
+            out[where[later[0]]] += list(cells)
+        elif earlier:
+            out[where[earlier[-1]]] += list(cells)
+        else:
+            raise ValueError("a column's cells stand in no band of its ladder")
+    return out
+
+
+# --- a column made without its band totals, read as the profile reads it (method G16.0 (h); lane CHb repair 1) ---
+
+
+def reader_bands(lad, cells, rungs, join="next"):
+    """Each cell of a column MADE WITHOUT ITS BAND TOTALS in the `L0` band the profile's reader reads it into.
+
+    Method G16.0's reading (h) (lane CHb's first repair, its skeptics' item
+    2): where rule B3 lays a column without its band totals, the walk takes
+    each cell's band from the reader's own reading of the cell's text, never
+    from the interface's grouping. `cells` lists each cell read as
+    `ladder_of` takes them (`("value", x)` on the column's own order,
+    `("missing",)`, `("other",)`, `("labels",)`); `rungs` are the published
+    rungs, as `ladder_of` takes them. A value stands in the starting range
+    `[low, high)` holding it, a kind in its own starting band; each in the
+    `L0` band joining that starting band, or, where no band joins it, the
+    band joining the next starting band the ladder holds in contract band
+    order, else the one before (the join `interface_bands` makes). MUTANTS
+    of that join (`join`, lane CHb's second repair, its verify's item 1):
+    `"later_never"`, the next band never tried (the one before alone);
+    `"earlier_never"`, the one before never tried; either raises where the
+    other side alone holds a band.
+    """
+    where = {}
+    for b, band in enumerate(lad.l0):
+        for s in band:
+            where[s] = b
+    edges = _number_edges(rungs, TEMPORAL_L0 if lad.role in TEMPORAL_ROLES else NUMBER_L0)
+    values = {k: v for k, v in edges}
+    ranges = [s for band in lad.l0 for s in band if isinstance(s, tuple) and s[0] == "range"]
+    order = _band_order_starts(lad)
+    out = []
+    for cell in cells:
+        start = cell[0]
+        if start == "value":
+            x = F(cell[1])
+            start = None
+            for s in ranges:
+                low = values[s[1]] if s[1] is not None else None
+                high = values[s[2]] if s[2] is not None else None
+                if (low is None or low <= x) and (high is None or x < high):
+                    start = s
+                    break
+            if start is None:
+                raise ValueError("a reading lies in no band")
+        if start in where:
+            out += [where[start]]
+            continue
+        at = order.index(start)
+        later = [s for s in order[at + 1:] if s in where] if join != "later_never" else []
+        earlier = [s for s in order[:at] if s in where] if join != "earlier_never" else []
+        if later:
+            out += [where[later[0]]]
+        elif earlier:
+            out += [where[earlier[-1]]]
+        else:
+            raise ValueError("a column's cells stand in no band of its ladder")
+    return out
+
+
+# --- the content hash and the sample key (contract 4.6b.8; lane CHb, plan P4-D435) -----------
+
+
+def _framed(name, text):
+    name_bytes = name.encode("utf-8")
+    text_bytes = text.encode("utf-8")
+    return len(name_bytes).to_bytes(8, "big") + name_bytes + len(text_bytes).to_bytes(8, "big") + text_bytes
+
+
+def row_hash(names, cells, separators=False, raw=False):
+    """A row's CONTENT HASH, cell by cell (4.6b.8 as amended by lane CHa's repair 2).
+
+    Each cell's length-framed bytes (the column name's and the cell's text's
+    UTF-8 bytes, each preceded by its length as 8 bytes big-endian) hashed
+    alone, BLAKE2b with `person=b"synthtwin.cel.1"`; the cell hashes summed
+    modulo `2**256` as big-endian whole numbers; the sum's 32 bytes hashed,
+    BLAKE2b with `person=b"synthtwin.row.2"`. A cell holding nothing (spaces
+    and tabs alone, `holds_nothing`) is framed as the EMPTY TEXT, as 4.6b.8
+    states ("a cell read as holding nothing is the empty text"), so `""` and
+    `" \t"` give one hash (lane CHb's second repair, Codex's item 4). MUTANT
+    `separators`: the first build's bytes, the cells joined by `0x1f` and
+    `0x1e` under one hash, which a cell holding those bytes can imitate
+    (Codex's item 15); MUTANT `raw`: each cell framed as written, blanks
+    included, which the first oracle did.
+    """
+    if separators:
+        body = b"".join(n.encode("utf-8") + b"\x1f" + c.encode("utf-8") + b"\x1e" for n, c in sorted(zip(names, cells)))
+        return hashlib.blake2b(body, digest_size=32, person=b"synthtwin.row.1").digest()
+    total = 0
+    for name, written in zip(names, cells):
+        text = written if raw or not holds_nothing(written) else ""
+        digest = hashlib.blake2b(_framed(name, text), digest_size=32, person=b"synthtwin.cel.1").digest()
+        total = (total + int.from_bytes(digest, "big")) % (1 << 256)
+    return hashlib.blake2b(total.to_bytes(32, "big"), digest_size=32, person=b"synthtwin.row.2").digest()
+
+
+def holds_nothing(text):
+    """A cell of spaces and tabs alone holds nothing (contract 4.1, `empty_rows`)."""
+    return all(character in " \t" for character in text)
+
+
+def table_hash(names, rows):
+    """The table's content hash: its rows' hashes summed modulo `2**256`, a row holding nothing in
+    every column left out (4.6b.8 as amended by lane CHa's repair 1)."""
+    total = 0
+    for cells in rows:
+        if all(holds_nothing(c) for c in cells):
+            continue
+        total = (total + int.from_bytes(row_hash(names, cells), "big")) % (1 << 256)
+    return total.to_bytes(32, "big")
+
+
+def sample_of(hashes, size, cut=False):
+    """The self-test's sample: the `min(m, n)` rows of smallest SAMPLE KEY, sorted by key (4.6b.8).
+
+    A row's key is BLAKE2b (`digest_size=8`, `person=b"synthtwin.smp.1"`)
+    over its content hash and its OCCURRENCE, the count of earlier rows of
+    the same hash, as 8 bytes big-endian; equal keys are taken in order of
+    content hash, then occurrence. Returns the rows' places. MUTANT `cut`:
+    the first build's rule, a row taken where the first 8 bytes of its
+    content hash fall below a cut set for `size` rows of `n`, which takes or
+    leaves every copy of a row together.
+    """
+    n = len(hashes)
+    if cut:
+        line = (size << 64) // max(n, 1)
+        return [at for at in range(n) if int.from_bytes(hashes[at][:8], "big") < line]
+    seen = {}
+    keyed = []
+    for at, one in enumerate(hashes):
+        occurrence = seen.get(one, 0)
+        seen[one] = occurrence + 1
+        key = hashlib.blake2b(one + occurrence.to_bytes(8, "big"), digest_size=8, person=b"synthtwin.smp.1").digest()
+        keyed += [(key, one, occurrence, at)]
+    keyed.sort()
+    return [entry[3] for entry in keyed[: min(size, n)]]

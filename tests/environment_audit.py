@@ -37,6 +37,15 @@ audited structure:
   ...`), of the built-ins' holders (`__builtins__["dict"] = ...`) or of a
   computed object, so an alias or a subscript write cannot stand in for
   the rebinding the line above rejects.
+- nor through a function's namespace or a name bound to a trusted
+  holder (batch 4m's records, Codex's review of batch 4l, its third
+  Medium): no attribute of the reflective kind is read anywhere in the
+  module (`system_name.__globals__`, `__dict__`, `__builtins__`, a
+  frame's `f_globals` and the like), nor fetched by `getattr`, and a
+  name assigned a trusted holder, an attribute or an item of one is a
+  holder itself (`base = os` then `base.environ = ...`), followed to the
+  end, so `base = system_name.__globals__; base["dict"] = ...` is
+  rejected twice over.
 
 Any other shape is a finding: the checks fail on it, and the exemption
 sets nothing aside.
@@ -53,6 +62,16 @@ _CALLED = ("system_name", "dict", "os.path.join", "os.path.expanduser", "pathlib
 _TRUSTED = ("system_name", "dict", "os", "pathlib")
 _TRUSTED_IMPORTS = ("os", "os.path", "pathlib")
 _BUILTIN_HOLDERS = ("builtins", "__builtins__")
+# Attributes that reach a namespace or a code object (batch 4m's records,
+# Codex's review of batch 4l): read anywhere in the module, they are a
+# finding, as `globals()` and `vars()` already are.
+_REFLECTIVE = (
+    "__globals__", "__dict__", "__builtins__", "__code__", "__closure__",
+    "__defaults__", "__kwdefaults__", "__self__", "__func__", "__module__",
+    "__class__", "__subclasses__", "__getattribute__", "__setattr__",
+    "__delattr__", "__setitem__", "__delitem__", "f_globals", "f_locals",
+    "f_builtins", "f_back", "gi_frame", "cr_frame", "tb_frame",
+)
 
 
 def _dotted(node: ast.expr) -> str:
@@ -179,6 +198,60 @@ def _bound_names(node: ast.AST) -> "list[str]":
     return bound
 
 
+def _rooted_in(node: ast.expr, holders: "set[str]") -> bool:
+    """Whether ``node`` names a holder, or an attribute or an item of one, with no call between."""
+    if isinstance(node, ast.Name):
+        return node.id in holders
+    if isinstance(node, (ast.Attribute, ast.Subscript, ast.Starred)):
+        return _rooted_in(node.value, holders)
+    if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+        return any(_rooted_in(one, holders) for one in node.elts)
+    # ...and a dictionary's keys and values, and what a comprehension yields (batch 4n's records,
+    # Codex's review of batch 4m, its fourth Medium, BATCH 4n OWES 4:
+    # `holder = {"one": sys.modules["builtins"]}["one"]` escaped both checks).
+    if isinstance(node, ast.Dict):
+        return any(_rooted_in(one, holders) for one in [*node.keys, *node.values] if one is not None)
+    if isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
+        return _rooted_in(node.elt, holders)
+    if isinstance(node, ast.DictComp):
+        return _rooted_in(node.key, holders) or _rooted_in(node.value, holders)
+    if isinstance(node, ast.IfExp):
+        return _rooted_in(node.body, holders) or _rooted_in(node.orelse, holders)
+    if isinstance(node, ast.BoolOp):
+        return any(_rooted_in(one, holders) for one in node.values)
+    if isinstance(node, ast.NamedExpr):
+        return _rooted_in(node.value, holders)
+    return False
+
+
+def _aliases_of(tree: ast.Module, holders: "set[str]") -> "set[str]":
+    """Every name bound to a holder, an attribute or an item of one, followed until no name is added."""
+    grown = set(holders)
+    while True:
+        before = len(grown)
+        for node in ast.walk(tree):
+            targets: "list[ast.expr]" = []
+            value: "ast.expr | None" = None
+            if isinstance(node, ast.Assign):
+                targets, value = list(node.targets), node.value
+            elif isinstance(node, (ast.AnnAssign, ast.AugAssign)) and node.value is not None:
+                targets, value = [node.target], node.value
+            elif isinstance(node, ast.NamedExpr):
+                targets, value = [node.target], node.value
+            elif isinstance(node, (ast.For, ast.AsyncFor, ast.comprehension)):
+                targets, value = [node.target], node.iter
+            elif isinstance(node, ast.withitem) and node.optional_vars is not None:
+                targets, value = [node.optional_vars], node.context_expr
+            if value is None or not _rooted_in(value, grown):
+                continue
+            for target in targets:
+                for one in ast.walk(target):
+                    if isinstance(one, ast.Name):
+                        grown |= {one.id}
+        if len(grown) == before:
+            return grown
+
+
 def trusted_names_rebound(tree: ast.Module) -> "list[str]":
     """Every way ``tree`` binds a name the audit trusts to something else, or stores into the modules it trusts."""
     problems: "list[str]" = []
@@ -195,7 +268,9 @@ def trusted_names_rebound(tree: ast.Module) -> "list[str]":
             if (node.module or "").split(".")[0] in _BUILTIN_HOLDERS:
                 problems += [f"installation.py:{node.lineno}: imports from {node.module}"]
             imported |= {one.asname or one.name for one in node.names}
-    holders = set(_TRUSTED) | set(_BUILTIN_HOLDERS) | imported
+    # ...and every name assigned one of them, an attribute or an item of
+    # one, followed to the end (batch 4m: `base = os; base.environ = ...`).
+    holders = _aliases_of(tree, set(_TRUSTED) | set(_BUILTIN_HOLDERS) | imported)
     allowed: "set[int]" = set()
     for node in tree.body:
         if isinstance(node, ast.Import) and all(
@@ -222,6 +297,18 @@ def trusted_names_rebound(tree: ast.Module) -> "list[str]":
                 problems += [f"installation.py:{node.lineno}: stores an item into {_dotted(node.value) or 'a computed object'}"]
         if isinstance(node, ast.Call) and _dotted(node.func) in ("setattr", "delattr", "globals", "vars", "exec", "eval"):
             problems += [f"installation.py:{node.lineno}: calls {_dotted(node.func)}"]
+        if isinstance(node, ast.Attribute) and node.attr in _REFLECTIVE:
+            problems += [f"installation.py:{node.lineno}: reads {node.attr}, a namespace"]
+        if isinstance(node, ast.Name) and node.id in _BUILTIN_HOLDERS:
+            problems += [f"installation.py:{node.lineno}: names {node.id}"]
+        if isinstance(node, ast.Call) and _dotted(node.func) == "getattr" and not (
+            len(node.args) >= 2
+            and isinstance(node.args[1], ast.Constant)
+            and isinstance(node.args[1].value, str)
+            and not node.args[1].value.startswith("_")
+            and node.args[1].value not in _REFLECTIVE
+        ):
+            problems += [f"installation.py:{node.lineno}: getattr of a namespace or a computed name"]
     return problems
 
 
@@ -276,16 +363,41 @@ _AT_THE_TOP: "dict[str, str]" = {
     "the-environment-through-an-aliased-module": _MODULE_ANCHOR
     + 'import os as system\nsystem.environ = {"XDG_DATA_HOME": "third-key"}\n',
 }
+# Written before `data_folder` (Codex's review of batch 4l, its third
+# Medium, BATCH 4m OWES 3): the module's namespace reached through a trusted
+# function's `__globals__` and rebound through the name it was assigned to
+# (Codex's own case), and a trusted holder assigned to a plain name whose
+# attribute or item is then stored into.
+_FUNCTION_ANCHOR = "\ndef data_folder(\n"
+_BEFORE_THE_FUNCTION: "dict[str, str]" = {
+    "the-namespace-through-globals": "\nbase = system_name.__globals__\n"
+    + f'base["dict"] = {_THIRD_KEY}\n' + _FUNCTION_ANCHOR,
+    "the-environment-through-an-assigned-alias": "\nsystem = os\n"
+    + 'system.environ = {"XDG_DATA_HOME": "third-key"}\n' + _FUNCTION_ANCHOR,
+    "the-builtins-through-an-assigned-alias": "\nheld = __builtins__\n"
+    + f'held["dict"] = {_THIRD_KEY}\n' + _FUNCTION_ANCHOR,
+    "the-namespace-through-getattr": '\nbase = getattr(system_name, "__glob" + "als__")\n'
+    + f'base["dict"] = {_THIRD_KEY}\n' + _FUNCTION_ANCHOR,
+    # ...and a holder carried as a dictionary's value (batch 4n's records, Codex's review of batch
+    # 4m, its fourth Medium, BATCH 4n OWES 4; Codex's exact case), or yielded by a comprehension.
+    "the-builtins-through-a-dictionary-value": '\nholder = {"one": sys.modules["builtins"]}["one"]\n'
+    + f"holder.dict = {_THIRD_KEY}\n" + _FUNCTION_ANCHOR,
+    "the-builtins-through-a-comprehension": '\nholder = [one for one in (sys.modules["builtins"],)][0]\n'
+    + f"holder.dict = {_THIRD_KEY}\n" + _FUNCTION_ANCHOR,
+}
 # Each case: the text it replaces and the text written in its place.
 MUTANTS: "dict[str, tuple[str, str]]" = {
     **{case: (_ANCHOR, text) for case, text in _IN_THE_FUNCTION.items()},
     **{case: (_MODULE_ANCHOR, text) for case, text in _AT_THE_TOP.items()},
+    **{case: (_FUNCTION_ANCHOR, text) for case, text in _BEFORE_THE_FUNCTION.items()},
 }
 
 
 def mutated(source: str, case: str) -> str:
-    """Today's `installation.py` with the negative case ``case`` written in: in place of the audited read, or after the module's imports."""
-    if source.count(_ANCHOR) != 1 or source.count(_MODULE_ANCHOR) != 1:
-        raise AssertionError("installation.py no longer holds the audited read, or its import of sys, once")
+    """Today's `installation.py` with the negative case ``case`` written in: in place of the audited read, after the module's imports, or before `data_folder`."""
+    if source.count(_ANCHOR) != 1 or source.count(_MODULE_ANCHOR) != 1 or source.count(_FUNCTION_ANCHOR) != 1:
+        raise AssertionError(
+            "installation.py no longer holds the audited read, its import of sys or its data_folder, once"
+        )
     anchor, text = MUTANTS[case]
     return source.replace(anchor, text)

@@ -505,6 +505,10 @@ LEVEL_KEYS = (
 )
 
 LABEL_KEYS = (
+    # WHAT NO REAL RUN OF FIGURES OPENS WITH (LANE HB RULINGS 6, plan P4-D442):
+    # carried only where a width's rows are mostly held back, so it is read as
+    # empty where absent (`LABEL_READ_AS_EMPTY_WHEN_ABSENT`).
+    "figure_openings",
     "levels",
     "shape_forms",
     "suppressed_levels",
@@ -615,7 +619,7 @@ DATETIME_KEYS = (
     "heavy_dates",
     # THE KEY THE SECOND CUT RESERVES (plan P4-D386): how a column whose
     # dates are written as counts writes its numbers -- the figures after
-    # the point, whether trailing zeros are dropped, and an Epic contact
+    # the point, whether trailing zeros are dropped, and an 1840 contact
     # census. `null` on every block until landing R4 (plan P4-D384) fills
     # it, and the loader refuses anything else.
     "count_form",
@@ -663,6 +667,15 @@ DATETIME_READ_AS_EMPTY_WHEN_ABSENT = (
     "heavy_dates",
     "count_form",
 )
+# ...AND THE ONE KEY A COLUMN OF FREE TEXT CARRIES ONLY WHERE IT APPLIES (lane
+# HB, plan P4-D442): `figure_openings` is written where a run of four figures
+# or more is held, as `time_grain` is where a grain is; absent, nothing is
+# published, which is what an empty one says.
+TEXT_READ_AS_EMPTY_WHEN_ABSENT = ("figure_openings",)
+# ...and the four label roles and a compound column's label half carry it only
+# where it applies too (LANE HB RULINGS 6, plan P4-D442).
+LABEL_READ_AS_EMPTY_WHEN_ABSENT = ("figure_openings",)
+_LABEL_OPENING_ROLES = (ROLE_CONSTANT, ROLE_BINARY, ROLE_CATEGORICAL, ROLE_LONG_TAIL)
 CLOCK_READ_AS_EMPTY_WHEN_ABSENT = (
     "clock_census",
     "clock_heaps",
@@ -907,6 +920,10 @@ IDENTIFIER_KEYS = (
 )
 
 TEXT_KEYS = (
+    # WHAT NO REAL RUN OF FIGURES OPENS WITH (lane HB, plan P4-D442): carried
+    # only by a column holding a run of four figures or more, so it is read
+    # as empty where absent (`TEXT_READ_AS_EMPTY_WHEN_ABSENT`).
+    "figure_openings",
     "length",
     "n_all_digits",
     "n_code_alphabet",
@@ -2368,6 +2385,20 @@ INVARIANTS = {
         "whose different values are as many once case and edge spacing "
         "are set aside"
     ),
+    # Lane CODES-1, plan P4-D439: rule A1's destination and rule A2's
+    # positional census.
+    "C6-31g": (
+        "a label column names the form its census counted the floor's pool "
+        "in only beside a census that pools nothing, and only as the "
+        "commonest form that census names"
+    ),
+    "C6-31h": (
+        "a positional census names only forms its column's census names, "
+        "each with one entry for each character of the form: nothing at a "
+        "mark, and at a placeholder different characters of that "
+        "placeholder's kind in ascending order, a letter's of one case, "
+        "some place of each form listing one"
+    ),
     "LF1": (
         "every layout the census names was written by at least the "
         "smallest group size and by at least two cells"
@@ -2445,6 +2476,36 @@ INVARIANTS = {
         "a time grain is held on a held record-number column and on no "
         "other, and a held record-number column of dates or times keeps "
         "the grain its twin writes valid values from"
+    ),
+    # -- lane GG (plan P4-D440; contract C6-146): a few-valued column's
+    # value list. Raised by `_few_values_of` since the lane's build, and
+    # named here from its repair 1 -- before it each raised a KeyError
+    # rather than refusing the description (its skeptic 1, item 4 L).
+    "VL1": (
+        "a column's value list names two numbers or more, each written as "
+        "figures with an optional minus and an optional point and figures "
+        "after it, in strictly ascending order"
+    ),
+    "VL2": (
+        "a column's value list names no more numbers than the column holds, "
+        "the column holds as many different numbers as different "
+        "spellings and no more than a set of categories may hold here, "
+        "and the numbers the list leaves off are no more than the cells "
+        "its listed numbers, two at least apiece, leave over"
+    ),
+    "VL3": (
+        "a column's value list stands beside a ladder read over exactly "
+        "the cells it names, the ladder's two ends, where published, its "
+        "first and last numbers"
+    ),
+    "VL4": (
+        "a column's value list stands beside a published empty stretch, "
+        "and every edge of that stretch is a number the list names or one "
+        "of the numbers it leaves off, between its first and last"
+    ),
+    "VL5": (
+        "a column's value list and a census of its spellings are never "
+        "published together"
     ),
 }
 
@@ -2723,6 +2784,11 @@ class RelationshipManifest:
     # (method G4.2a, G5.7).
     ladder: "tuple[LadderEntry, ...]" = ()
     families: int = 0
+    # THE CHAIN ITSELF, READ BEHIND THE SAME SWITCH (lane CHb, plan
+    # P4-D435; method G16): each family of `chain` in chain order, which
+    # the generator's walk deals. Empty on every description a shipped
+    # command loads, so G16 never runs there.
+    chain: "tuple[ChainFamily, ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -2733,12 +2799,34 @@ class LadderEntry:
     bands it joins: `missing`, `other`, `labels`, a range `(lower, upper)`
     of rung keys (None where open), a level `(label,)`, or `held back`
     for a label column's pool. `totals` is the `L0` total of each band
-    over the tabled rows (`missing` counted as `n_missing - E`).
+    over the tabled rows (`missing` counted as `n_missing - E`). `l1` and
+    `l2` list each band of the two coarser levels as the `L0` bands it
+    joins, in band order (lane CHb, plan P4-D435: the levels G16 reads).
     """
 
     column: str
     bands: "tuple[tuple[object, ...], ...]"
     totals: "tuple[int, ...]"
+    l1: "tuple[tuple[int, ...], ...]" = ()
+    l2: "tuple[tuple[int, ...], ...]" = ()
+
+
+@dataclasses.dataclass(frozen=True)
+class ChainFamily:
+    """One family of the chain, as contract 4.6b.5 publishes it (lane CHb, plan P4-D435).
+
+    `child` at `level` (0, 1 or 2 for `L0`, `L1`, `L2`), `parents` as
+    `(column, level)` in schema order, `anchor` the earliest family
+    holding every parent (None without a parent), and `table` the
+    complete table, one row a joint cell of the parents (the last parent
+    varying fastest), one count a band of the child at its level.
+    """
+
+    child: str
+    level: int
+    parents: "tuple[tuple[str, int], ...]"
+    anchor: "int | None"
+    table: "tuple[tuple[int, ...], ...]"
 
 
 def ladder_entries(document: "dict[str, object]") -> "tuple[tuple[LadderEntry, ...], int]":
@@ -2779,8 +2867,81 @@ def ladder_entries(document: "dict[str, object]") -> "tuple[tuple[LadderEntry, .
             counted: "list[int]" = []
             for total in totals:
                 counted += [total if isinstance(total, int) and not isinstance(total, bool) else 0]
-            entries += [LadderEntry(name, tuple(read), tuple(counted))]
+            entries += [
+                LadderEntry(
+                    name,
+                    tuple(read),
+                    tuple(counted),
+                    _level_bands(entry["l1"] if "l1" in entry else None),
+                    _level_bands(entry["l2"] if "l2" in entry else None),
+                )
+            ]
     return tuple(entries), families
+
+
+def _level_bands(value: object) -> "tuple[tuple[int, ...], ...]":
+    """A coarser level's bands, each the `L0` bands it joins (4.6b.2's `l1` and `l2`)."""
+    bands: "list[tuple[int, ...]]" = []
+    if isinstance(value, list):
+        for band in value:
+            if isinstance(band, list):
+                bands += [tuple(place for place in band if isinstance(place, int) and not isinstance(place, bool))]
+    return tuple(bands)
+
+
+_CHAIN_LEVELS = {"L0": 0, "L1": 1, "L2": 2}
+
+
+def chain_families(document: "dict[str, object]") -> "tuple[ChainFamily, ...]":
+    """The chain's families a switched description publishes, in chain order (lane CHb, plan P4-D435).
+
+    Read only after `chain_check.check` has held the chain to S23 to S28,
+    so every entry is the shape 4.6b.5 writes. ``()`` where the slot is
+    null. Guarantees: a fixed function of the document; raises nothing;
+    no I/O of any kind.
+    """
+    relationships = document["relationships"] if "relationships" in document else None
+    if not isinstance(relationships, dict) or "statistical" not in relationships:
+        return ()
+    statistical = relationships["statistical"]
+    if not isinstance(statistical, dict):
+        return ()
+    chain = statistical["chain"] if "chain" in statistical else None
+    out: "list[ChainFamily]" = []
+    if not isinstance(chain, list):
+        return ()
+    for entry in chain:
+        if not isinstance(entry, dict):
+            continue
+        child = entry["child"] if "child" in entry else None
+        level = entry["level"] if "level" in entry else None
+        if not isinstance(child, str) or not isinstance(level, str) or level not in _CHAIN_LEVELS:
+            continue
+        parents: "list[tuple[str, int]]" = []
+        written = entry["parents"] if "parents" in entry else []
+        for parent in written if isinstance(written, list) else []:
+            if not isinstance(parent, dict):
+                continue
+            named = parent["column"] if "column" in parent else None
+            placed = parent["level"] if "level" in parent else None
+            if isinstance(named, str) and isinstance(placed, str) and placed in _CHAIN_LEVELS:
+                parents += [(named, _CHAIN_LEVELS[placed])]
+        anchor = entry["anchor"] if "anchor" in entry else None
+        rows: "list[tuple[int, ...]]" = []
+        table = entry["table"] if "table" in entry else []
+        for row in table if isinstance(table, list) else []:
+            if isinstance(row, list):
+                rows += [tuple(cell for cell in row if isinstance(cell, int) and not isinstance(cell, bool))]
+        out += [
+            ChainFamily(
+                child,
+                _CHAIN_LEVELS[level],
+                tuple(parents),
+                anchor if isinstance(anchor, int) and not isinstance(anchor, bool) else None,
+                tuple(rows),
+            )
+        ]
+    return tuple(out)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3063,6 +3224,13 @@ class LabelFacts:
     suppressed_rows: int
     shape_forms: "dict[str, int]"
     suppressed_numbers: "PooledNumbers"
+    # WHAT NO REAL RUN OF FIGURES OPENS WITH (6.3; LANE HB RULINGS 6, plan
+    # P4-D442): each merged width whose held-back rows outnumber its published
+    # ones, as `TextFacts.figure_openings` reads it. A published level keeps its
+    # spelling; every stand-in holding a run of such a width wears it.
+    figure_openings: "dict[int, str]" = dataclasses.field(
+        default_factory=dict, kw_only=True
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3353,6 +3521,12 @@ class NumericFacts:
     # (`parsing.tail_may_list`), so G5.3e counts each from it
     # (`_listed_counts`).
     listing_floor: int = 0
+    # A FEW-VALUED COLUMN'S OWN NUMBERS, WHERE A WIDE GAP STANDS AMONG THEM
+    # (lane GG, plan P4-D440, contract VL1 to VL5): every spelling its
+    # number cells write, ascending by number, and no count. An optional
+    # key of the `count` and `continuous` roles; `()` wherever the block
+    # carries none, which reads the column exactly as before.
+    few_values: "tuple[str, ...]" = ()
     # LAYER L0'S CUTS (method G5.7; lane BT, plan P4-D429). Not a key: the
     # generator attaches them to an ELIGIBLE column of a description
     # loaded behind the chain's switch, where its L0 block passes G5.7a's
@@ -3488,6 +3662,12 @@ class TextFacts:
     n_code_alphabet: int
     n_distinct_by_occurrences: "dict[str, int]"
     shape_forms: "dict[str, int]"
+    # WHAT NO REAL RUN OF FIGURES OPENS WITH (6.9; lane HB, plan P4-D442).
+    # Each merged width of four figures or more a run of the column holds,
+    # mapped to the opening no real run of it opens with, or to nothing
+    # where none was found; absent, or empty, where the column holds no
+    # such run. The twin writes every run of such a width wearing it.
+    figure_openings: "dict[int, str]" = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3761,6 +3941,20 @@ class ColumnBlock:
     # 89 was read as 90, the twin writing none above it; 0 elsewhere,
     # whose block carries no `top_coded` key.
     top_coded: int = 0
+    # RULE A1 (lane CODES-1, plan P4-D439, contract C6-31g): the named form
+    # of a label column's census its producer counted the floor's pool in;
+    # "" elsewhere, whose block carries no `shape_forms_absorbed` key.
+    shape_forms_absorbed: str = ""
+    # RULE A2'S POSITIONAL CENSUS (lane CODES-1, plan P4-D439, contract
+    # C6-31h): for each named form of a label column's census, what its
+    # held-back cells hold at each place, floored, in the form's key order;
+    # () elsewhere, whose block carries no `shape_form_places` key.
+    shape_form_places: "tuple[tuple[str, tuple[str, ...]], ...]" = ()
+    # THE SAFE HARBOR YEARS (plan P4-D434): the year that reads "that year
+    # or earlier" where every year from 1850 to it was read as it, the
+    # twin writing none before it; 0 elsewhere, whose block carries no
+    # `top_coded_year` key.
+    top_coded_year: int = 0
 
 
 # -- the two halves of a compound column, as columns ------------------
@@ -7932,6 +8126,54 @@ def _column(
             if key != "top_coded":
                 kept_top[key] = mapping[key]
         mapping = kept_top
+    # ...AND RULE A1'S DESTINATION (lane CODES-1, plan P4-D439, C6-31g): a
+    # label column whose census counted the floor's pool in its commonest
+    # named form names that form, which the validator counts a measured
+    # file's pooled forms in. Read apart too, and checked once the role's
+    # own keys are (`_absorbed_form`).
+    absorbed_value: object = None
+    places_value: object = None
+    if "shape_form_places" in mapping:
+        if role not in ABSORBING_ROLES:
+            raise _unknown("shape_form_places", where)
+        places_value = mapping["shape_form_places"]
+        kept_places: "dict[str, object]" = {}
+        for key in mapping:
+            if key != "shape_form_places":
+                kept_places[key] = mapping[key]
+        mapping = kept_places
+    if "shape_forms_absorbed" in mapping:
+        if role not in ABSORBING_ROLES:
+            raise _unknown("shape_forms_absorbed", where)
+        absorbed_value = mapping["shape_forms_absorbed"]
+        kept_absorbed: "dict[str, object]" = {}
+        for key in mapping:
+            if key != "shape_forms_absorbed":
+                kept_absorbed[key] = mapping[key]
+        mapping = kept_absorbed
+    # ...AND THE SAFE HARBOR YEARS (plan P4-D434): a column of years of
+    # birth described with every year from 1850 to one showing an age of
+    # 90 or more read as that year says so with `top_coded_year`, a whole
+    # year from 1850 on, whatever role the column so read took. Read
+    # apart too.
+    top_coded_year = 0
+    if "top_coded_year" in mapping:
+        year_value = mapping["top_coded_year"]
+        if (
+            isinstance(year_value, bool)
+            or not isinstance(year_value, int)
+            or not YEAR_TOP_CODE_EARLIEST <= year_value <= YEAR_TOP_CODE_LATEST
+        ):
+            raise _out_of_range(
+                "top_coded_year", where, "another value",
+                f"a whole year from {YEAR_TOP_CODE_EARLIEST} to {YEAR_TOP_CODE_LATEST}",
+            )
+        top_coded_year = year_value
+        kept_year: "dict[str, object]" = {}
+        for key in mapping:
+            if key != "top_coded_year":
+                kept_year[key] = mapping[key]
+        mapping = kept_year
     if "time_grain" in mapping:
         if role not in GRAIN_ROLES:
             raise _unknown("time_grain", where)
@@ -7944,12 +8186,28 @@ def _column(
     role_keys = _role_keys(role)
     if "percentiles" in role_keys:
         role_keys = _numeric_key_set(mapping, role_keys)
+    # THE VALUE LIST IS OPTIONAL, AND ONLY THE TWO NUMBER ROLES MAY CARRY
+    # IT (lane GG, plan P4-D440): a block without it was written as every
+    # block before it, and loads as one.
+    if (role == ROLE_COUNT or role == ROLE_CONTINUOUS) and (
+        FEW_VALUES_KEY in mapping
+    ):
+        # A list grown once and frozen once (the no-quadratic-growth rule).
+        with_list = [key for key in role_keys]
+        with_list += [FEW_VALUES_KEY]
+        role_keys = tuple(with_list)
     if role == ROLE_DATETIME:
         mapping = _absent_read_as_empty(
             mapping, DATETIME_READ_AS_EMPTY_WHEN_ABSENT
         )
     if role == ROLE_CLOCK:
         mapping = _absent_read_as_empty(mapping, CLOCK_READ_AS_EMPTY_WHEN_ABSENT)
+    if role == ROLE_TEXT:
+        mapping = _absent_read_as_empty(mapping, TEXT_READ_AS_EMPTY_WHEN_ABSENT)
+    # ...AND THE ONE KEY A LABEL BLOCK CARRIES ONLY WHERE IT APPLIES (LANE HB
+    # RULINGS 6, plan P4-D442): a block without it reads as every earlier one.
+    if role in _LABEL_OPENING_ROLES:
+        mapping = _absent_read_as_empty(mapping, LABEL_READ_AS_EMPTY_WHEN_ABSENT)
     _keys(
         mapping,
         where,
@@ -8114,12 +8372,148 @@ def _column(
             else _time_grain(grain_value, where, role, mapping, frame)
         ),
         top_coded=top_coded,
+        shape_forms_absorbed=_absorbed_form(absorbed_value, mapping, where),
+        shape_form_places=_form_places(places_value, mapping, where),
+        top_coded_year=top_coded_year,
     )
 
 
 # THE SAFE HARBOR TOP-CODE (plan P4-D427): the number a block carrying
 # `top_coded` names.
 TOP_CODE = 90
+# ...and the years a block carrying `top_coded_year` may name (plan
+# P4-D434): from 1850 to 9999, the four-figure years.
+YEAR_TOP_CODE_EARLIEST = 1850
+YEAR_TOP_CODE_LATEST = 9999
+
+# THE ROLES A BLOCK CARRYING `shape_forms_absorbed` MAY TAKE (lane CODES-1,
+# plan P4-D439): the four label roles.
+ABSORBING_ROLES = (ROLE_CONSTANT, ROLE_BINARY, ROLE_CATEGORICAL, ROLE_LONG_TAIL)
+
+
+def _form_places(
+    value: object, mapping: "dict[str, object]", where: str
+) -> "tuple[tuple[str, tuple[str, ...]], ...]":
+    """A block's `shape_form_places`, checked (contract C6-31h, plan P4-D439).
+
+    None (no key) reads as (). Otherwise an object naming forms the
+    block's own census names (never its pool), each with one entry a
+    character of the form: "" at a mark's place, and at a placeholder's
+    the characters of its kind -- figures at `%`, capitals or small
+    letters (one case, a place written in small letters) at `@`, small
+    letters at `&` -- each once, in ascending order, or nothing; and a
+    form whose every entry is empty is not named. Raises ProfileError
+    otherwise. The floor these lists keep is the producer's to keep: no
+    count stands beside them for a loader to ask.
+    """
+    if value is None:
+        return ()
+    found = _mapping(value, "shape_form_places", where)
+    census = mapping["shape_forms"] if "shape_forms" in mapping else None
+    if not found or not isinstance(census, dict):
+        raise _out_of_range(
+            "shape_form_places", where, "an empty census", "forms its census names"
+        )
+    kinds = {
+        parsing.SHAPE_DIGIT: "0123456789",
+        parsing.SHAPE_LETTER: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        parsing.SHAPE_LOWER: "abcdefghijklmnopqrstuvwxyz",
+    }
+    read: "list[tuple[str, tuple[str, ...]]]" = []
+    for form in sorted(found):
+        lists = found[form]
+        seat = f"shape_form_places -> {form}"
+        if form == WITHHELD or form not in census or not isinstance(lists, list):
+            raise _out_of_range(
+                seat, where, "another value", "a form the census names, with a list"
+            )
+        if len(lists) != len(form):
+            raise _broken(
+                "C6-31h",
+                where,
+                f"the form '{form}' carries {len(lists)} entries",
+                f"one entry a character of the form, {len(form)}",
+            )
+        entries: "list[str]" = []
+        for at in range(len(form)):
+            entry = lists[at]
+            if not isinstance(entry, str):
+                raise _out_of_range(seat, where, "another value", "a text")
+            kind = form[at]
+            alphabet = kinds[kind] if kind in kinds else ""
+            if kind == parsing.SHAPE_LETTER and entry and entry[0] in kinds[
+                parsing.SHAPE_LOWER
+            ]:
+                # A letter place written in small letters lists small letters
+                # alone (lane CODES-1's second repair; plan P4-D439).
+                alphabet = kinds[parsing.SHAPE_LOWER]
+            ordered = ""
+            for mark in alphabet:
+                if mark in entry:
+                    ordered = ordered + mark
+            if ordered != entry:
+                raise _broken(
+                    "C6-31h",
+                    where,
+                    f"the form '{form}' lists '{entry}' at place {at + 1}",
+                    "different characters of that place's kind in ascending "
+                    "order, and nothing at a mark",
+                )
+            entries += [entry]
+        if not any([bool(entry) for entry in entries]):
+            raise _broken(
+                "C6-31h",
+                where,
+                f"the form '{form}' lists nothing at any place",
+                "a form named only where some place lists a character",
+            )
+        read += [(form, tuple(entries))]
+    return tuple(read)
+
+
+def _absorbed_form(value: object, mapping: "dict[str, object]", where: str) -> str:
+    """A block's `shape_forms_absorbed`, checked (contract C6-31g, plan P4-D439).
+
+    None (no key) reads as "". Otherwise a named form of the block's own
+    census, the commonest it names (the most cells, the earliest key on a
+    tie), beside a census that pools nothing: the one form rule A1 counts
+    the floor's pool in, which every other spelling would contradict.
+    Raises ProfileError otherwise.
+    """
+    if value is None:
+        return ""
+    census = mapping["shape_forms"] if "shape_forms" in mapping else None
+    if not isinstance(value, str) or not isinstance(census, dict) or value not in census:
+        raise _out_of_range(
+            "shape_forms_absorbed",
+            where,
+            "another value",
+            "a form the column's own `shape_forms` names",
+        )
+    best = ""
+    counts: "dict[str, int]" = {}
+    for key in sorted(census):
+        count = census[key]
+        if key == WITHHELD:
+            raise _broken(
+                "C6-31g",
+                where,
+                "the census names `shape_forms_absorbed` beside a `(withheld)` pool",
+                "a census that counted its pool in a form pools nothing",
+            )
+        if not isinstance(count, int) or isinstance(count, bool):
+            continue
+        counts[f"{key}"] = count
+        if not best or count > counts[best]:
+            best = f"{key}"
+    if value != best:
+        raise _broken(
+            "C6-31g",
+            where,
+            f"`shape_forms_absorbed` names '{value}'",
+            f"the commonest named form, '{best}'",
+        )
+    return value
 
 
 # THE ROLES A BLOCK CARRYING `time_grain` MAY TAKE (plan P4-D417): the two
@@ -8534,12 +8928,19 @@ def _facts(
                 (n_numeric, n_out_of_range, n_contradictory, n_not_numeric),
             ),
         )
-        if role == ROLE_CONTINUOUS:
+        if role == ROLE_COUNT:
+            numeric = dataclasses.replace(
+                numeric,
+                number_spellings=_number_spellings(
+                    mapping, where, frame, n_numeric, numeric.n_zero
+                ),
+            )
+        if FEW_VALUES_KEY not in mapping:
             return numeric
         return dataclasses.replace(
             numeric,
-            number_spellings=_number_spellings(
-                mapping, where, frame, n_numeric, numeric.n_zero
+            few_values=_few_values_of(
+                mapping, where, frame, numeric, n_distinct, n_numeric
             ),
         )
     if role == ROLE_CLOCK:
@@ -9258,6 +9659,7 @@ def _label_facts(
         suppressed_rows=rows,
         shape_forms=_shape_forms(mapping, where, floor),
         suppressed_numbers=_pooled_numbers(mapping, where, floor),
+        figure_openings=_figure_openings(mapping, where),
     )
 
 
@@ -9299,6 +9701,7 @@ def _compound_label_facts(
         suppressed_rows=rows,
         shape_forms=_shape_forms(mapping, where, floor, False, False),
         suppressed_numbers=_pooled_numbers(mapping, where, floor, True),
+        figure_openings=_figure_openings(mapping, where),
     )
 
 
@@ -9370,6 +9773,7 @@ def _long_tail_facts(
         suppressed_rows=rows,
         shape_forms=_shape_forms(mapping, where, floor),
         suppressed_numbers=_pooled_numbers(mapping, where, floor),
+        figure_openings=_figure_openings(mapping, where),
     )
 
 
@@ -9401,6 +9805,7 @@ def _categorical_facts(
         suppressed_rows=rows,
         shape_forms=_shape_forms(mapping, where, floor),
         suppressed_numbers=_pooled_numbers(mapping, where, floor),
+        figure_openings=_figure_openings(mapping, where),
         level_ceiling=ceiling,
     )
 
@@ -18244,7 +18649,7 @@ def _shape_forms(
                 "a written form: a figure written '%', a letter "
                 "written '@' -- or '&' throughout, where every letter "
                 "was lower case -- and between them only the marks "
-                "- . / _ : # * ( ) [ ] + , -- carrying at least two "
+                "- . / _ : # * ( ) [ ] + , = | ; ^ ~ -- carrying at least two "
                 "of those three kinds",
             )
         if forms[name] < parsing.census_floor(floor):
@@ -18497,6 +18902,147 @@ def _number_spellings(
             f"n_zero is {n_zero}",
         )
     return spellings
+
+
+# THE KEY OF A FEW-VALUED COLUMN'S OWN NUMBERS (lane GG, plan P4-D440).
+FEW_VALUES_KEY = "few_values"
+
+
+def _few_values_of(
+    mapping: "dict[str, object]",
+    where: str,
+    frame: _Frame,
+    numeric: NumericFacts,
+    n_distinct: int,
+    n_numeric: int,
+) -> "tuple[str, ...]":
+    """A few-valued column's value list, checked (lane GG, plan P4-D440).
+
+    Every rule here is one the producer keeps (`taxonomy._few_values_of`):
+
+    - VL1: two spellings or more, each in the plain decimal family
+      (`parsing.is_few_value_spelling`), their numbers strictly
+      ascending, so no number is named twice;
+    - VL2: the column's different numbers as many as its different
+      spellings -- each number written one way -- and no more than a set
+      of categories may hold here; the list no longer than that, and the
+      numbers it leaves off (each held by ONE cell, repair 1 of lane GG)
+      no more than the cells its listed numbers, two at least apiece,
+      leave over;
+    - VL3: the ladder is read over exactly the cells the list spells
+      (`n_used_in_statistics` is `n_numeric`), and its two ends, where
+      published, are the first and last numbers listed;
+    - VL4: the block publishes an empty stretch, and every published
+      edge is a listed number -- or one of the numbers the list leaves
+      off, between its first and last and no more of them than it leaves
+      off (repair 2 of lane GG): the gap the list exists for;
+    - VL5: a count block carrying it publishes no spelling census.
+
+    Raises ProfileError for a wrong type, and for VL1 to VL5.
+    """
+    given = mapping[FEW_VALUES_KEY]
+    if not isinstance(given, list):
+        raise _out_of_range(
+            FEW_VALUES_KEY, where, "another type", "an array of spellings"
+        )
+    spellings: "list[str]" = []
+    numbers: "list[float]" = []
+    for item in given:
+        if not isinstance(item, str) or not parsing.is_few_value_spelling(
+            item
+        ):
+            raise _out_of_range(
+                f"{FEW_VALUES_KEY} -> (an entry)",
+                where,
+                "an entry of another shape",
+                "a number written as figures, with an optional minus and an "
+                "optional point and figures after it",
+            )
+        number = parsing.parse_number(item)
+        if number is None or (numbers and not number > numbers[-1]):
+            raise _broken(
+                "VL1",
+                where,
+                "a value list out of ascending order or naming a number twice",
+                "each number once, in ascending order",
+            )
+        spellings += [item]
+        numbers += [number]
+    if len(spellings) < 2:
+        raise _broken(
+            "VL1",
+            where,
+            f"a value list of {len(spellings)} spelling(s)",
+            "two spellings or more",
+        )
+    different = numeric.n_distinct_values
+    if (
+        different is None
+        or different != n_distinct
+        or different < len(spellings)
+        or different > _category_ceiling(frame)
+        or different - len(spellings) > n_numeric - 2 * len(spellings)
+    ):
+        raise _broken(
+            "VL2",
+            where,
+            f"a value list of {len(spellings)} spelling(s)",
+            f"the column's {numeric.n_distinct_values} different number(s) "
+            f"and {n_distinct} different spelling(s), each number written "
+            "one way",
+        )
+    lowest = numeric.percentiles.minimum
+    highest = numeric.percentiles.maximum
+    if (
+        numeric.n_used_in_statistics != n_numeric
+        or (lowest is not None and lowest != numbers[0])
+        or (highest is not None and highest != numbers[-1])
+    ):
+        raise _broken(
+            "VL3",
+            where,
+            "a value list beside a ladder read over other cells or ending "
+            "elsewhere",
+            "the ladder read over exactly the listed cells, its ends the "
+            "first and last numbers listed",
+        )
+    listed = {number: True for number in numbers}
+    if not numeric.empty_edges:
+        raise _broken(
+            "VL4",
+            where,
+            "a value list beside no empty stretch",
+            "a published empty stretch among the listed numbers",
+        )
+    # ...an edge the list leaves off is one of the numbers it leaves off
+    # (repair 2 of lane GG, LANE GG RULINGS 3 (2)): a number on one cell
+    # standing between two stretches, which the twin reads as one.
+    unlisted: "dict[float, bool]" = {}
+    for below, above in numeric.empty_edges:
+        for edge in (below, above):
+            if edge not in listed:
+                unlisted[edge] = True
+    if unlisted and (
+        len(unlisted) > different - len(spellings)
+        or min(unlisted) <= numbers[0]
+        or max(unlisted) >= numbers[-1]
+    ):
+        raise _broken(
+            "VL4",
+            where,
+            "an empty stretch whose edge is neither a listed number nor one "
+            "of the numbers the list leaves off",
+            "every published edge a listed number, or one of the numbers "
+            "the list leaves off, between its first and last",
+        )
+    if numeric.number_spellings:
+        raise _broken(
+            "VL5",
+            where,
+            "a value list beside a census of spellings",
+            "one of the two, never both",
+        )
+    return tuple(spellings)
 
 
 def _layout_forms(
@@ -20564,6 +21110,7 @@ def _compound_facts(
         _numeric_key_set(numeric_half, NUMERIC_KEYS),
         "the numeric half of a column of numbers beside labels",
     )
+    label_block = _absent_read_as_empty(label_block, LABEL_READ_AS_EMPTY_WHEN_ABSENT)
     _keys(
         label_block,
         where,
@@ -20753,6 +21300,7 @@ def _text_facts(
     )
     _pattern_closes(pairs, where, "F2", n_distinct, n_present)
     return TextFacts(
+        figure_openings=_figure_openings(mapping, where),
         shape_forms=_shape_forms(mapping, where, floor, True),
         length=LengthStats(
             minimum=shortest, maximum=longest, mean=mean_length, p50=middle
@@ -20768,6 +21316,42 @@ def _text_facts(
         ),
         n_distinct_by_occurrences=pattern,
     )
+
+
+def _figure_openings(mapping: "dict[str, object]", where: str) -> "dict[int, str]":
+    """What no real run of figures of a column of free text opens with, checked (6.9, plan P4-D442).
+
+    Absent, or written empty, nothing is published. Otherwise each key a
+    merged width of four figures or more in base ten, or 3
+    (`parsing.is_a_figure_width`), and each value nothing or one to four
+    figures fewer than the width, the first never a nought, or several single
+    figures joined by `|`, each once, and nothing beside 3
+    (`parsing.is_a_figure_opening`). NO REFUSAL QUOTES AN ENTRY; it names
+    the key and the rule. Raises ProfileError for anything else.
+    """
+    found = mapping["figure_openings"]
+    if found == []:
+        return {}
+    entries = _mapping(found, "figure_openings", where)
+    openings: "dict[int, str]" = {}
+    for width in sorted(entries):
+        opening = entries[width]
+        if (
+            not isinstance(width, str)
+            or not parsing.is_a_figure_width(width)
+            or not isinstance(opening, str)
+            or not parsing.is_a_figure_opening(int(width), opening)
+        ):
+            raise _out_of_range(
+                "figure_openings",
+                where,
+                "an entry that is not a width of four figures or more beside an opening",
+                "a merged width of a run of figures, four or more, beside nothing or "
+                "one to four figures, fewer than the width, the first never a nought, "
+                "or several single figures joined by |, each once",
+            )
+        openings[int(width)] = opening
+    return openings
 
 
 def _between(
@@ -22288,7 +22872,7 @@ def _validated(document: "dict[str, object]", chain: bool = False) -> Profile:
         # (lane BT, plan P4-D429; method G4.2a, G4.2b, G5.7).
         entries, families = ladder_entries(document)
         relationships = dataclasses.replace(
-            relationships, ladder=entries, families=families
+            relationships, ladder=entries, families=families, chain=chain_families(document)
         )
     return Profile(
         profile_version=PROFILE_VERSION,

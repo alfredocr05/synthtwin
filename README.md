@@ -105,6 +105,12 @@ beside it:
   answers you can give. Fill it in and hand it back with `--answers`.
   It is written on every run, whether there were questions or not.
 
+Years of birth are judged against a year written in synthtwin itself,
+not read from your computer's clock: 2027 in this release, so a year up
+to 1937 (an age of 90 or more in 2027) is published only as "1937 or
+earlier" while the column's Safe Harbor question is open. That year is
+raised each year, with a new release.
+
 The profiler reads what each column holds -- whole numbers, measured
 numbers, dates, a set of categories, two-value columns, free text --
 says in words why it read it that way, reports what is missing and how

@@ -38,6 +38,8 @@ import sys
 
 import pytest
 
+import keyboard
+
 from synthtwin import contract, errors
 
 from tests import fixtures
@@ -161,7 +163,8 @@ def _missed(folder: pathlib.Path) -> "list[str]":
 
 @pytest.mark.parametrize("seed", ["4", "11"])
 def test_a_declared_word_sharing_a_judged_day_leaves_the_real_table_whole(
-    tmp_path: pathlib.Path, seed: str
+    tmp_path: pathlib.Path, seed: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The reproduction, as it was written: 500 rows, two columns, one day.
 
@@ -175,6 +178,10 @@ def test_a_declared_word_sharing_a_judged_day_leaves_the_real_table_whole(
     the whole table and `start`'s eighty values were re-described as
     absent: the REAL table exited 3 with thirteen obligations missed.
     """
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about how a placeholder day is judged, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     end = [SPACED] * 20 + [TEED] * 30 + _days(datetime.date(2020, 1, 1), 450)
     start = [SPACED] * 80 + _days(datetime.date(1890, 1, 1), 420, step=100)
     rows = [[end[place], start[place]] for place in range(500)]
@@ -203,6 +210,7 @@ def test_a_declared_word_sharing_a_judged_day_leaves_the_real_table_whole(
 
 def test_the_same_when_the_declared_word_is_pooled_beside_a_built_in_one(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The reviewer's second reproduction: a pooled hole in the way.
 
@@ -230,6 +238,10 @@ def test_the_same_when_the_declared_word_is_pooled_beside_a_built_in_one(
     judging column's neighbour still holds all 500 of its values, and
     both files validate at nought.
     """
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about how a placeholder day is judged, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     end = (
         [SPACED] * 20
         + ["NA"] * 30
@@ -274,6 +286,7 @@ def test_the_same_when_the_declared_word_is_pooled_beside_a_built_in_one(
 
 def test_a_judged_spelling_still_stays_the_judging_columns_own(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Landing 2b.3's defect, which a count rule fixed and could lose again.
 
@@ -286,6 +299,10 @@ def test_a_judged_spelling_still_stays_the_judging_columns_own(
     other. If it did, `birth`'s 187 values would be described as absent
     and the real table would miss its own obligations.
     """
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about how a placeholder day is judged, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     discharge = [SPACED] * 50 + _days(datetime.date(2024, 1, 1), 450)
     birth = [SPACED] * 187 + _days(datetime.date(1900, 1, 2), 313, step=7)
     rows = [[discharge[place], birth[place]] for place in range(500)]
@@ -410,7 +427,8 @@ def test_the_loader_refuses_a_decision_naming_a_spelling_that_was_never_publishe
 
 @pytest.mark.parametrize("floor", ["11", "1"])
 def test_a_judged_pass_whose_other_spelling_the_floor_pooled(
-    tmp_path: pathlib.Path, floor: str
+    tmp_path: pathlib.Path, floor: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """One pass, two spellings of its day, and only one clears the floor.
 
@@ -446,6 +464,10 @@ def test_a_judged_pass_whose_other_spelling_the_floor_pooled(
     Both must load, both must round trip, and `start`'s eighty
     legitimate values of the judged spelling must survive either way.
     """
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about how a placeholder day is judged, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     end = [SPACED] * 20 + [TEED] * 5 + _days(datetime.date(2020, 1, 1), 475)
     start = [SPACED] * 80 + _days(datetime.date(1890, 1, 1), 420, step=100)
     rows = [[end[place], start[place]] for place in range(500)]

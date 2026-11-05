@@ -43,7 +43,23 @@ import pytest
 from synthtwin import contract, date_counts, parsing, reading, taxonomy, validation
 from synthtwin import asking
 
+import keyboard
+
 REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
+
+
+@pytest.fixture(autouse=True)
+def _safe_harbor_answered_no(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every test here is about counted dates; the person answers `no` to the Safe Harbor question.
+
+    Counts of days of five figures are written as ZIP codes are, and since
+    lane SH2's repair 1 a count TYPED on the command line no longer frees
+    lane SH's ZIP hold (the orchestrator's LANE SH2 RULINGS 1 (5)): the
+    column stays held and the Safe Harbor question is put in that run.
+    `no` gives back the description written before, byte for byte (plan
+    P4-D434).
+    """
+    keyboard.safe_harbor_answered_no(monkeypatch)
 VECTORS = REPOSITORY / "tests" / "reference" / "generation-branch-vectors-26.json"
 
 
@@ -154,8 +170,8 @@ def test_item1_counts_beside_iso_dates_are_declined_with_a_way_out(tmp_path: pat
     assert any(not parsing.is_digit_text(cell) for cell in twin if cell)
 
 
-def test_item1_epic_contacts_beside_iso_dates_never_write_what_the_loader_refuses(tmp_path: pathlib.Path) -> None:
-    """900 Epic days carrying `.01` and 100 ISO cells: on `dbb347a` the loader refused the description (CD4)."""
+def test_item1_contact_numbers_beside_iso_dates_never_write_what_the_loader_refuses(tmp_path: pathlib.Path) -> None:
+    """900 1840 days carrying `.01` and 100 ISO cells: on `dbb347a` the loader refused the description (CD4)."""
     cells = [f"{64000 + row}.01" for row in range(900)] + ["2023-06-01"] * 100
     random.Random(2).shuffle(cells)
     trip = _described(tmp_path, cells, "days-since-1840")

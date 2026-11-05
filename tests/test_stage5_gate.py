@@ -297,7 +297,60 @@ _UNIVERSAL_FIELDS = frozenset(
 # sets: lane BT's note of a column made without its band totals (RULE B3,
 # plan P4-D429), merged beside this gate at batch 4l's integration; its
 # registry group is owed by lane BT2 with the stage-5 registry's groups.
-_SWITCHED_ONLY_KEYS = frozenset({"band totals"})
+# The facts the generator writes only behind the chain's switch: layer L0's band totals (lane BT,
+# plan P4-D429) and, since batch 4m's merge of lane CHb (plan P4-D435, method G16), the chain's
+# moved-family note (`chain`, G16.6) and its stray rows (`empty_rows`, G16.5): no shipped run
+# reaches them, so no registry group names them yet.
+_SWITCHED_ONLY_KEYS = frozenset({"band totals", "chain", "empty_rows"})
+
+
+def _next_words_met(
+    words: "tuple[str, ...]",
+    rows: "tuple[str, ...]",
+    resolved: str,
+    normalized: "typing.Callable[[str], str] | None" = None,
+) -> bool:
+    """Whether the product's next command is the row's, a word that held `<FOLDER>` compared as a path.
+
+    The row writes `<FOLDER>/t-profile.json`; the product writes the path with `os.path.join`, a
+    backslash on Windows (CI run 40989180482: 11 of 49 cases unmet there, every one on this
+    word). A word that held `<FOLDER>` is compared after the platform's own path normalization
+    (`ntpath.normpath` where the separator is a backslash), every other word as text; on POSIX
+    both are compared exactly, as before (batch 4m's records, BATCH 4m OWES 5 (a)).
+    """
+    same = normalized
+    if same is None:
+        same = os.path.normpath if os.sep != "/" else (lambda path: path)
+    if len(words) != len(rows):
+        return False
+    for word, row in zip(words, rows):
+        if "<FOLDER>" in row:
+            if same(word) != same(row.replace("<FOLDER>", resolved)):
+                return False
+        elif word != row:
+            return False
+    return True
+
+
+def test_the_next_command_is_compared_as_a_path_on_windows() -> None:
+    """BATCH 4m OWES 5 (a): a folder resolved with backslashes meets the row's `<FOLDER>/name`.
+
+    Read with `ntpath`, as on Windows: the product's `C:\\tmp\\G1\\t-profile.json` meets the
+    row's `<FOLDER>/t-profile.json` resolved at `C:\\tmp\\G1`; another name, another folder or
+    another word does not; and compared exactly, as on POSIX, the forward slash is not met --
+    the test this replaces, red on Windows only.
+    """
+    import ntpath
+
+    folder = "C:\\tmp\\G1"
+    row = ("synthtwin", "validate", "t-profile.json", "--twin", "<FOLDER>/t-twin.csv")
+    made = ("synthtwin", "validate", "t-profile.json", "--twin", ntpath.join(folder, "t-twin.csv"))
+    assert _next_words_met(made, row, folder, ntpath.normpath)
+    assert not _next_words_met(made[:-1] + (ntpath.join(folder, "t-other.csv"),), row, folder, ntpath.normpath)
+    assert not _next_words_met(made[:-1] + (ntpath.join("C:\\tmp\\G2", "t-twin.csv"),), row, folder, ntpath.normpath)
+    assert not _next_words_met(("synthtwin", "generate") + made[2:], row, folder, ntpath.normpath)
+    assert not _next_words_met(made, row, folder, lambda path: path)
+    assert _next_words_met(row[:-1] + (folder + "/t-twin.csv",), row, folder, lambda path: path)
 
 
 def _head(field: str) -> str:
@@ -580,10 +633,9 @@ def unmet(run: Ran, result: results.Result) -> "list[str]":
     if not expect.next_words:
         if result.next_command is not None:
             found += ["(g) a next command where the row writes none"]
-    elif result.next_command is None or (
-        result.next_command.words,
-        result.next_command.purpose,
-    ) != (wanted_words, expect.next_purpose):
+    elif result.next_command is None or result.next_command.purpose != expect.next_purpose or not _next_words_met(
+        result.next_command.words, expect.next_words, resolved
+    ):
         found += [f"(g) next command {result.next_command}, the row writes {wanted_words} {expect.next_purpose}"]
     # (h) carried: the entries not carried as the row writes them, each
     # with its subject; an approximate entry for each approximation the
@@ -1102,7 +1154,7 @@ def test_every_key_the_generator_writes_is_named_as_the_registry_names_it() -> N
     groups = sorted({group for group, _field in _registry_pairs()} - {"universal", "document"})
     wrong = []
     switched = [key for _line, key in keys if key in _SWITCHED_ONLY_KEYS]
-    assert switched == ["band totals"], switched
+    assert sorted(switched) == ["band totals", "chain", "empty_rows"], switched
     for line, key in keys:
         if key in _SWITCHED_ONLY_KEYS:
             continue
@@ -1942,8 +1994,16 @@ def test_the_questions_file_rendered_from_the_result_is_today_s_file(ran: Batter
 # a third column asked where 87dc440e listed them in the checklist
 # (8343dd05... then); the dates' file is 87dc440e's byte for byte (lane
 # PS2's floor counted in rows, P4-D433, holds none of its days).
+# MEASURED AGAIN AT BATCH 4N (the orchestrator's LANE I4m RULINGS 11 (b)),
+# the file rendered on extracted copies under the memory guard: 12104a53...
+# on af778732 and on lane UN-1b's merge (11f7d901), 1859409a... on lane
+# CL's merge (ab337d97) and on lane HB's (3a51e9bf). The held shape's file
+# moves with lane CL's wording of the day count from 31 December 1840, in
+# one offer's meaning and in what the tool saw ("as MUMPS keeps dates"),
+# and in nothing else: no word or number is new to it, and it holds none
+# of the table's patient keys or ZIP codes. The dates' file is unmoved.
 _TODAY_S_FILES = {
-    "held": "12104a5364cf775a2c55d51f26f13ab51b18af09f2ed8700c51030d4e329d7cf",
+    "held": "1859409a929fda191c661051e2d59945822f5d313268cb818f7f3c3ead56307e",
     "filequestion": "f9a69d985e8802fb2016a7933542441c473467716dc69027ce292203506d199e",
 }
 

@@ -45,8 +45,13 @@ _HOURS = (
 ROWS = 1000
 
 
+# A shape renamed after its column was first drawn keeps the seed it was
+# drawn from, by number, so every cell stays as it was.
+_KEPT_SEEDS = {"daykey_compact": 2871910751, "daykey_sentinels": 4068785287}
+
+
 def _draw(name: str) -> random.Random:
-    return random.Random(zlib.crc32(name.encode("utf-8")))
+    return random.Random(_KEPT_SEEDS.get(name, zlib.crc32(name.encode("utf-8"))))
 
 
 def _date(draw: random.Random) -> dt.datetime:
@@ -133,7 +138,7 @@ CLEAN = (
     Shape("ss_datetime_midnight", "date", lambda m: m.strftime("%Y-%m-%d") + " 00:00:00.000", "%Y-%m-%d %H:%M:%S.%f"),
     Shape("ss_date", "date", lambda m: m.strftime("%Y-%m-%d"), "%Y-%m-%d"),
     Shape("ss_time0", "moment", lambda m: m.strftime("%H:%M:%S"), "%H:%M:%S"),
-    Shape("cab_datekey", "date", lambda m: m.strftime("%Y%m%d"), "%Y%m%d"),
+    Shape("daykey_compact", "date", lambda m: m.strftime("%Y%m%d"), "%Y%m%d"),
     Shape("rc_ymd", "date", lambda m: m.strftime("%Y-%m-%d"), "%Y-%m-%d"),
     Shape("rc_mdy_slash", "date", lambda m: m.strftime("%m/%d/%Y"), "%m/%d/%Y"),
     Shape("rc_dmy_slash", "date", lambda m: m.strftime("%d/%m/%Y"), "%d/%m/%Y"),
@@ -197,10 +202,10 @@ CODES = (
     Shape("clock_unk", "minute", lambda m: m.strftime("%H:%M"), "%H:%M", ("UNK",), 33, "missing"),
     Shape("mdy_zero", "date", lambda m: m.strftime("%m/%d/%Y"), "%m/%d/%Y", ("00/00/0000",), 33, "missing"),
     Shape("mdy_unk", "date", lambda m: m.strftime("%m/%d/%Y"), "%m/%d/%Y", ("UNK",), 33, "missing"),
-    # The audit's own Caboodle column, at its own seed: a key of -1 or -2
+    # The audit's own warehouse date-key column, at its own seed: a key of -1 or -2
     # on about 3 rows in 100, -1 twice as often.
     Shape(
-        "cab_datekey_sentinels", "date", lambda m: m.strftime("%Y%m%d"), "%Y%m%d",
+        "daykey_sentinels", "date", lambda m: m.strftime("%Y%m%d"), "%Y%m%d",
         ("-1", "-1", "-2"), 0, "missing", share=0.03,
     ),
     Shape("iso_zero_date", "date", lambda m: m.strftime("%Y-%m-%d"), "%Y-%m-%d", ("0000-00-00",), 33, "missing"),

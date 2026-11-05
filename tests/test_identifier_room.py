@@ -754,3 +754,114 @@ def test_the_loader_refuses_an_exclusion_that_does_not_fit_its_layout(tmp_path: 
     facts = [column for column in loaded.columns if column.name == "target"][0].facts
     assert isinstance(facts, contract.IdentifierFacts)
     assert not facts.layout_forms and parsing.EXCLUSION_SPILL in facts.layout_exclusions, stray["block"]
+
+
+def test_k_hz_06_reads_the_whole_zoo_and_finds_a_merged_key_written_into_an_added_export(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Batch 4m's records (Codex's review of batch 4l, its second Medium, BATCH 4m OWES 2).
+
+    `K-HZ-06`'s zoo helper read `health_zoo.TABLES`' twenty-five exports alone, so the
+    thirty-nine lane E0c added never entered it: a twin's `s0500000` beside the instrument
+    magnitudes' real `S500000`, one merged key, went uncounted. It reads the whole catalogue
+    now, each table at its catalogue seed; here that one added export runs at 600 rows (its
+    `sample_id` described as an identifier), clean, and then with `s0500000` written into its
+    twin: the merged key is counted. Red on the helper that reads E0a's tables alone, which
+    does not run the export at all.
+    """
+    import csv
+    import io
+
+    import health_zoo
+
+    read = {table.name for table in room.zoo_tables()}
+    assert read == {table.name for table in health_zoo.runnable_tables(health_zoo.catalogue())}
+    assert "instrument_magnitudes" in read and len(read) > len(health_zoo.TABLES)
+    table = health_zoo.table_named("instrument_magnitudes")
+    clean = room.zoo_equal_cells(tmp_path / "clean", 600, (table,))
+    assert (clean["columns"], clean["equal"], clean["merged"], clean["unread"]) == (1, 0, 0, 0)
+    real_run = health_zoo.run_table
+
+    def seeded_twin(one, where, n, seed, small_tables_refused=False):  # type: ignore[no-untyped-def]
+        done = real_run(one, where, n, seed, small_tables_refused)
+        twin = where / f"{one.name}-twin{one.suffix}"
+        rows = list(csv.reader(io.StringIO(twin.read_text(encoding="utf-8"))))
+        rows[1][rows[0].index("sample_id")] = "s0500000"
+        out = io.StringIO()
+        csv.writer(out, lineterminator="\n").writerows(rows)
+        twin.write_text(out.getvalue(), encoding="utf-8", newline="\n")
+        return done
+
+    monkeypatch.setattr(health_zoo, "run_table", seeded_twin)
+    found = room.zoo_equal_cells(tmp_path / "written", 600, (table,))
+    assert parsing.merged_key("s0500000") == parsing.merged_key("S500000")
+    assert found["merged"] == 1 and found["equal"] == 0
+
+
+def test_the_zoo_helper_reads_a_text_exports_twin_written_as_csv(tmp_path: pathlib.Path) -> None:
+    """Batch 4m's records (the orchestrator's LANE I4m RULINGS 5): a `.txt` export is twinned as `.csv`.
+
+    `health_zoo.run_table` reads a text export's twin as `<name>-twin.csv` (tab- or pipe-delimited,
+    or Excel's Unicode text, twinned in the source's own dialect), and `K-HZ-06`'s zoo helper looked
+    for `<name>-twin.txt` alone: the three text exports counted as not written at 600 and 20,000
+    rows (`not_written` 6) and their identifier columns were never read. Red on that helper.
+    """
+    import health_zoo
+
+    texts = [table for table in room.zoo_tables() if table.suffix == ".txt"]
+    assert {table.name for table in texts} >= {"critical_care_charting", "remit_835", "unicode_text"}
+    found = room.zoo_equal_cells(tmp_path / "text", 600, (health_zoo.table_named("remit_835"),))
+    assert (found["unwritten"], found["unread"], found["tables"]) == (0, 0, 1)
+    assert found["columns"] >= 2 and (found["equal"], found["merged"]) == (0, 0)
+
+
+def test_k_hz_06_counts_the_held_birth_dates_apart_and_every_other_zoo_column_at_zero() -> None:
+    """Batch 4n's records (Codex's review of batch 4m, its first Medium, BATCH 4n OWES 1).
+
+    K-HZ-06's zoo leg pooled every identifier column under one bound, 10,053 equal and 10,737
+    merging, nearly all of them chance matches in the five birth-date columns lane SH2 holds as
+    identifiers (owner lane ID-ROOM2). So one birth date fewer and one real key newly written into
+    `instrument_magnitudes.sample_id` left both totals unchanged and the KPI OPEN-held (Codex's
+    case, checked in memory). `tally_zoo` now counts each held birth date under keys of its own,
+    and every other column into totals that must read 0; each value below is judged against
+    K-HZ-06's own entry by the runner's own judge: the measured counts hold; Codex's offsetting
+    case, a merged-only match in another column, and one date over its own bound each read worse.
+    Red on a tally that pools the dates into the totals.
+    """
+    import kpi_rules
+
+    entry = kpi_rules.entries_by_id(kpi_rules.load_ledger())["K-HZ-06"]
+    owned = [room.ZOO_EQUAL, room.ZOO_MERGING] + [
+        key for column in room.ZOO_HELD_DATES for key in room.zoo_held_date_keys(column)
+    ]
+    assert set(owned) <= set(entry["expected"])
+    measured = {
+        column: (entry["expected"][room.zoo_held_date_keys(column)[0]],
+                 entry["expected"][room.zoo_held_date_keys(column)[1]])
+        for column in room.ZOO_HELD_DATES
+    }
+    assert sum(equal for equal, _merged in measured.values()) > 0
+    assert entry["expected"][room.ZOO_EQUAL] == 0 and entry["expected"][room.ZOO_MERGING] == 0
+
+    def word(by_column: "dict[str, tuple[int, int]]") -> str:
+        value = dict(entry["value_at"]["value"])
+        for key in owned:
+            value[key] = 0
+        room.tally_zoo(value, by_column)
+        return kpi_rules.judge(entry, value).word
+
+    held = dict(measured, **{"instrument_magnitudes.sample_id": (0, 0)})
+    assert word(held) == kpi_rules.OPEN_HELD
+    equal, merged = measured["patients.dob_iso"]
+    offset = dict(measured, **{"patients.dob_iso": (equal - 1, merged - 1),
+                               "instrument_magnitudes.sample_id": (1, 1)})
+    assert word(offset) == kpi_rules.OPEN_WORSE
+    merging = dict(measured, **{"patients.patient_id": (0, 1)})
+    assert word(merging) == kpi_rules.OPEN_WORSE
+    over = dict(measured, **{"registry_extract.dob_short": (measured["registry_extract.dob_short"][0] + 1,
+                                                            measured["registry_extract.dob_short"][1])})
+    assert word(over) == kpi_rules.OPEN_WORSE
+    value: "dict[str, object]" = {}
+    room.tally_zoo(value, {"phi_registry.med_rec_no": (2, 3)})
+    assert (value[room.ZOO_EQUAL], value[room.ZOO_MERGING]) == (2, 3)
+    assert all(value[key] == 0 for column in room.ZOO_HELD_DATES for key in room.zoo_held_date_keys(column))

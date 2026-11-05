@@ -1181,6 +1181,15 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
             f"the twin, until the Safe Harbor question about this column is "
             f"answered in the questions file"
         ]
+    # ...AND THE SAFE HARBOR YEARS (plan P4-D434).
+    if "top_coded_year" in column:
+        lines += [
+            f"    years of birth showing an age over 89: every year up to "
+            f"{column['top_coded_year']} is read as {column['top_coded_year']} "
+            f"(\"{column['top_coded_year']} or earlier\") here and in the twin, "
+            f"until the Safe Harbor question about this column is answered in "
+            f"the questions file"
+        ]
     spellings = _missing_spelling_words(column, floor)
     if spellings:
         lines += [f"    counted as missing: {_listed(spellings)}"]

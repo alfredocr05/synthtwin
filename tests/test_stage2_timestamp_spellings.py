@@ -37,6 +37,8 @@ import typing
 
 import pytest
 
+import keyboard
+
 from synthtwin import contract, generation, parsing, validation
 from tests import fixtures
 from tests.test_stage2_round_trip import _exit_of, _round_trip, at_the_floor
@@ -795,9 +797,14 @@ def _placeholder_rows(count: int, seed: int) -> "list[list[str]]":
 
 @pytest.mark.parametrize("seed", ["11", "12"])
 def test_a_placeholder_judged_absent_in_one_column_stays_a_value_in_another(
-    tmp_path: pathlib.Path, seed: str
+    tmp_path: pathlib.Path, seed: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The birth column keeps its `1900-01-01 00:00:00` cells, and so does its twin."""
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about how a placeholder day is judged, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     first, second, written, twin_exit, real_exit = _table(
         tmp_path / "placeholder",
         ["id", "discharge", "birth"],
@@ -969,7 +976,8 @@ def _placeholder_rows_beside_na(count: int, seed: int, mark: str) -> "list[list[
 
 @pytest.mark.parametrize("mark, seed", [(" ", "0"), (" ", "4"), ("T", "11")])
 def test_a_judged_placeholder_beside_a_declared_na_stays_one_columns_business(
-    tmp_path: pathlib.Path, mark: str, seed: str
+    tmp_path: pathlib.Path, mark: str, seed: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The commonest declaration, `--missing-value NA`, held in the judging column too.
 
@@ -979,6 +987,10 @@ def test_a_judged_placeholder_beside_a_declared_na_stays_one_columns_business(
     real table missed 12 obligations of its own description. The day's keys
     hold exactly the cells the verdict took, so nothing declared shares it.
     """
+    # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
+    # that shows an age of 90 or more until its question is answered; this
+    # test is about how a placeholder day is judged, so the person answers no.
+    keyboard.sh2_answered_no(monkeypatch)
     first, second, written, twin_exit, real_exit = _table(
         tmp_path / "beside-na",
         ["id", "discharge", "birth"],

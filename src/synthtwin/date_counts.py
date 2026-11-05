@@ -111,7 +111,7 @@ class Member:
     day before the epoch and so on, which every member does but the two
     spreadsheet systems, whose first day is their first count. `contacts`
     says the figures after the point are a CONTACT NUMBER and never a
-    time of day (`days-since-1840`, as `*_DATE_REAL` columns write it).
+    time of day (`days-since-1840`, as a column of 1840 days with contact numbers writes it).
     `means` is the clause a question says the member in, and `unit_word`
     the plural of what it counts.
     """
@@ -197,7 +197,7 @@ TABLE: "dict[str, Member]" = {
     ),
     DAYS_SINCE_1840: Member(
         DAYS_SINCE_1840, DAY, _day(1840, 12, 31), True, True, "days",
-        "days from 31 December 1840, as Epic and MUMPS keep dates, with "
+        "days from 31 December 1840, as MUMPS keeps dates, with "
         "the figures after the point a contact number rather than a time",
     ),
     SECONDS_SINCE_1582: Member(
@@ -361,7 +361,7 @@ def written_as_a_date(text: str) -> bool:
     wrote it): a declared column of Excel serials beside cells written
     `2023-06-01` was described as counted dates with no cell unread, its
     twin wrote numbers alone, and code converting every cell with `int()`
-    ran on the twin and broke on the real table -- and Epic days carrying
+    ran on the twin and broke on the real table -- and 1840 days carrying
     `.01` beside such cells published a census of contact numbers its
     loader refused (CD4). Such a column is not read as counted dates
     (NF115 says so, and what to do), and question Q3 does not ask about
@@ -376,7 +376,7 @@ def written_as_a_date(text: str) -> bool:
     return False
 
 
-# THE MOST FIGURES A CONTACT NUMBER WRITES after the point of an Epic day
+# THE MOST FIGURES A CONTACT NUMBER WRITES after the point of an 1840 day
 # (`days-since-1840`): the census of contact numbers names words of one to
 # nine figures (contract 6.6.2), and the description's own publication
 # rules take no longer word.
@@ -388,7 +388,7 @@ def counted(member: str, text: str, mark: str = POINT) -> "Written | None":
 
     `written_count`, and on a member whose figures after the point are a
     contact number (`days-since-1840`) also no exponent form and at most
-    `CONTACT_FIGURES` figures after the point: an Epic `*_DATE_REAL`
+    `CONTACT_FIGURES` figures after the point: an 1840 day with its contact number
     exported with seventeen significant figures writes `65053.010000000002`,
     which is a day and a binary64's tail, not a day and a contact number,
     and such a cell stands to the date role's own line as text (the review
@@ -1583,7 +1583,7 @@ def figures_kept(
     tenths, four figures of a day of moments off the minute -- is not
     offered, since the answer would be refused (NF115): the first build of
     the review of landing R4 asked such a column and then refused every
-    system it offered, as item 3 of that review found for Epic days with a
+    system it offered, as item 3 of that review found for 1840 days with a
     binary64's tail. A member with contacts holds the day alone, and whole
     counts hold at every unit.
 
@@ -2270,9 +2270,9 @@ STRAY_PER = 100
 # item 7): a spreadsheet's date-times write four figures after the point
 # or more -- a minute is 0.000694 of a day -- or fifteen significant
 # figures and more, where a salary in cents or a dose to one decimal in
-# Excel's five-figure band writes one or two. Epic's figures after the
+# Excel's five-figure band writes one or two. The 1840 count's figures after the
 # point are contact numbers, and its days are mostly the first contact of
-# their day, written whole: at least half of a column asked as Epic days
+# their day, written whole: at least half of a column asked as 1840 days
 # writes no contact number, where cents of a room rate write one nearly
 # everywhere.
 DAY_TIME_PLACES = 4
@@ -2471,7 +2471,7 @@ def asked_of(
       column of moments in one decade is (the R4 design review, item 5).
       Counts of days that are not whole write four figures after the
       point or fifteen significant ones, as a spreadsheet's date-times
-      do, and at least half of a column of Epic days writes no contact
+      do, and at least half of a column of 1840 days writes no contact
       number (the review of landing R4, item 7);
     * B -- whole counts of a member finer than the day, every one of the
       rest at midnight UTC, at least eleven different, inside the band
@@ -2843,7 +2843,7 @@ def heap_counts(
     one is not published, so each is a place a heap may stand -- and one
     system's placeholder read as another system's date is no date of the
     column (the second review of landing R4, item 3: Excel's 31 December
-    9999 read as Epic days was "1957 to 9941"). Both NF114's producer and
+    9999 read as 1840 days was "1957 to 9941"). Both NF114's producer and
     the guard beside the loader ask it of the same published words.
 
     Guarantees: a function of the two. Raises KeyError for a word outside

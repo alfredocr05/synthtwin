@@ -876,6 +876,12 @@ _SPELLING = "authorized-spelling"
 # invariants and not here.
 _AFFIX = "affix-spelling"
 _DIGITS = "whole-number-as-text"
+# A SPELLING OF A FEW-VALUED COLUMN'S OWN NUMBER (lane GG, plan P4-D440):
+# the plain decimal family, `-99` and `4.5`, and nothing else
+# (`parsing.is_few_value_spelling`). An entry of a list naming numbers
+# the owner's ruling of 2026-09-22 lets a column name, no count beside
+# it, each held by two cells or more.
+_VALUE_SPELLING = "a-number-as-the-column-writes-it"
 # A KEY OF THE FRACTION CENSUS: a width written as decimal figures, or
 # the pooled remainder. It is not `_DIGITS`, and the difference is the
 # whole point of giving it a kind of its own: `_DIGITS` admits `02`
@@ -989,6 +995,11 @@ _GRAIN_SPAN_PART = "a-rung-or-the-start-of-a-bucket"
 _COUNT_SIGNIFICANT = "fifteen-or-seventeen-significant-figures-or-nothing"
 _CONTACT_WORD = "a-contact-number-in-figures-or-none"
 _SHAPE_FORM = "a-written-form-a-cell-could-not-be-spelled-with"
+# ONE PLACE OF RULE A2'S POSITIONAL CENSUS (lane CODES-1, plan P4-D439,
+# contract C6-31h): the characters of one kind -- figures, capitals or
+# small letters -- that at least the census line of a form's held-back
+# cells hold at that place, each once and in ascending order, or nothing.
+_PLACE_CHARACTERS = "the-characters-one-place-of-a-form-lists"
 _LAYOUT_FORM = "a-layout-a-record-number-could-not-be-spelled-with"
 # The two kinds `layout_prefixes` carries (owner ruling 2026-09-17,
 # item 1): its keys, `(column)` or a layout, and its values, a literal
@@ -1000,6 +1011,11 @@ _LITERAL_PREFIX = "a-literal-prefix-of-letters-and-marks-with-no-figure"
 # written out (`parsing.is_a_layout_exclusion`), a list of several, or, for
 # the spill, a layout.
 _EXCLUSION_SCOPE = "the-spill-or-a-layout-a-record-number-could-not-be-spelled-with"
+# The two kinds `figure_openings` carries (lane HB, plan P4-D442): its keys, a
+# merged width of a run of figures (`parsing.is_a_figure_width`), and its
+# values, an opening no real run of that width opens with, or nothing.
+_FIGURE_WIDTH = "a-merged-width-of-a-run-of-figures-three-or-more"
+_FIGURE_OPENING = "an-opening-no-real-run-of-its-width-opens-with"
 _LAYOUT_EXCLUSION = "a-layout-with-places-written-as-characters-no-real-cell-holds"
 _MOMENT_TEXT = "canonical-datetime"
 _OFFSET = "utc-offset"
@@ -1647,6 +1663,13 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "shape_forms"): _OBJECT,
     ("columns", _EACH, "shape_forms", _KEY_OF): _SHAPE_FORM,
     ("columns", _EACH, "shape_forms", _ANY_KEY): _FLOORED_ENTRY,
+    # What no real run of figures of a column of free text, or of the held-back
+    # labels of a label column, opens with (lane HB, plan P4-D442): keyed by a
+    # merged width of four figures or more, or 3 beside nothing, each an opening
+    # of one to four figures, the first never a nought, or nothing.
+    ("columns", _EACH, "figure_openings"): _OBJECT,
+    ("columns", _EACH, "figure_openings", _KEY_OF): _FIGURE_WIDTH,
+    ("columns", _EACH, "figure_openings", _ANY_KEY): _FIGURE_OPENING,
     ("columns", _EACH, "pad_widths"): _OBJECT,
     ("columns", _EACH, "pad_widths", _KEY_OF): _WIDTH,
     ("columns", _EACH, "pad_widths", _ANY_KEY): _POOLED_CENSUS_ENTRY,
@@ -1657,6 +1680,10 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "number_spellings"): _OBJECT,
     ("columns", _EACH, "number_spellings", _KEY_OF): _DIGITS,
     ("columns", _EACH, "number_spellings", _ANY_KEY): _FLOORED_ENTRY,
+    # ...and a few-valued column's own numbers where a wide gap stands
+    # among them (lane GG, plan P4-D440): spellings, no count.
+    ("columns", _EACH, "few_values"): _ARRAY,
+    ("columns", _EACH, "few_values", _EACH): _VALUE_SPELLING,
     # ...and the third census, over EVERY whole-written cell rather
     # than over one form of them (P4-D30). Same grammar, same floor.
     ("columns", _EACH, "field_widths"): _OBJECT,
@@ -1834,6 +1861,19 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # THE SAFE HARBOR TOP-CODE (plan P4-D427): 90, read "90 or more", on a
     # column described with every value above 89 read as 90.
     ("columns", _EACH, "top_coded"): _COUNT,
+    # RULE A1'S DESTINATION (lane CODES-1, plan P4-D439, contract C6-31g):
+    # a written form, which carries no figure or letter of the table.
+    ("columns", _EACH, "shape_forms_absorbed"): _SHAPE_FORM,
+    # RULE A2'S POSITIONAL CENSUS (lane CODES-1, plan P4-D439, contract
+    # C6-31h): for each named form, one entry a character of the form.
+    ("columns", _EACH, "shape_form_places"): _OBJECT,
+    ("columns", _EACH, "shape_form_places", _KEY_OF): _SHAPE_FORM,
+    ("columns", _EACH, "shape_form_places", _ANY_KEY): _ARRAY,
+    ("columns", _EACH, "shape_form_places", _ANY_KEY, _EACH): _PLACE_CHARACTERS,
+    # ...AND THE SAFE HARBOR YEARS (plan P4-D434): the year that reads
+    # "that year or earlier" on a column of years of birth described with
+    # every year from 1850 to it read as it.
+    ("columns", _EACH, "top_coded_year"): _COUNT,
     ("columns", _EACH, "time_grain", "rung"): _WORD,
     ("columns", _EACH, "time_grain", "finest"): _WORD,
     ("columns", _EACH, "time_grain", "kind"): _WORD,
@@ -1995,6 +2035,9 @@ def _compound_rules() -> "dict[tuple[str, ...], str]":
         "suppressed_rows",
         "suppressed_spellings",
         "shape_forms",
+        # ...and what no real run of figures opens with, beside a label half
+        # whose held-back rows hold such a run (lane HB, plan P4-D442).
+        "figure_openings",
         "level_ceiling",
         "n_distinct_by_occurrences",
         "n_all_digits",
@@ -2781,6 +2824,8 @@ def _leaf_is_published(
         return dialect.sheet_name_published(value) == value
     if kind == _DIGITS:
         return isinstance(value, str) and parsing.is_digit_text(value)
+    if kind == _VALUE_SPELLING:
+        return isinstance(value, str) and parsing.is_few_value_spelling(value)
     if kind == _WIDTH:
         if value == taxonomy.SUPPRESSED_LABEL:
             return True
@@ -2916,7 +2961,7 @@ def _leaf_is_published(
             not isinstance(value, bool) and isinstance(value, int) and value in (15, 17)
         )
     if kind == _CONTACT_WORD:
-        # FIGURES AFTER THE POINT OF AN EPIC DAY, AS WRITTEN, or the word for
+        # FIGURES AFTER THE POINT OF AN 1840 DAY, AS WRITTEN, or the word for
         # none: a contact number, which the census beside it counts.
         if not isinstance(value, str):
             return False
@@ -2939,12 +2984,18 @@ def _leaf_is_published(
         return 0 <= value < parsing.HISTOGRAM_BINS
     if kind == _SHAPE_FORM:
         return _is_shape_form(value)
+    if kind == _PLACE_CHARACTERS:
+        return isinstance(value, str) and parsing.is_a_place_list(value)
     if kind == _PREFIX_SCOPE:
         if value == parsing.PREFIX_OF_THE_COLUMN:
             return True
         return value != taxonomy.SUPPRESSED_LABEL and _is_layout_form(value)
     if kind == _LITERAL_PREFIX:
         return isinstance(value, str) and parsing.is_a_literal_prefix(value)
+    if kind == _FIGURE_WIDTH:
+        return isinstance(value, str) and parsing.is_a_figure_width(value)
+    if kind == _FIGURE_OPENING:
+        return _is_figure_opening(value)
     if kind == _EXCLUSION_SCOPE:
         if value == parsing.EXCLUSION_SPILL:
             return True
@@ -2999,6 +3050,13 @@ def _is_shape_form(value: object) -> bool:
     if not isinstance(value, str):
         return False
     return parsing.is_a_written_form(value)
+
+
+def _is_figure_opening(value: object) -> bool:
+    """Whether a value could be an opening of `figure_openings` (plan P4-D442): nothing, or one to four figures, the first never a nought."""
+    return isinstance(value, str) and parsing.is_a_figure_opening(
+        parsing.FIGURE_OPENING_DEPTH + 1, value
+    )
 
 
 def _is_layout_form(value: object) -> bool:
@@ -4222,6 +4280,33 @@ def stored_as_of(
     return tuple(words)
 
 
+def _few_values_released(name: str, answered_no: "list[str]") -> bool:
+    """Whether a few-valued column may list its numbers: `no` to its Safe Harbor question.
+
+    Lane GG, plan P4-D440; the stand-ins page's ZS.4, "GG acts only after
+    `no` to the Safe Harbor question". One question, one release.
+    """
+    return name in answered_no
+
+
+def _rare_list_released(rare: bool, released: bool) -> bool:
+    """Whether a list answered `no` is released under rule U (c) (lane GG, P4-D440).
+
+    A list naming no rare value always is; one naming a rare value only
+    where no question offering `identifier` is open on any column
+    (``released``). Raises nothing.
+    """
+    return released or not rare
+# The roles whose cells are never read as a coordinate: no cell, cells
+# no number holds, dates and clock times (lane SH2, plan P4-D434).
+_NO_COORDINATE_ROLES = (
+    taxonomy.ROLE_EMPTY,
+    taxonomy.ROLE_UNREPRESENTABLE,
+    taxonomy.ROLE_DATETIME,
+    taxonomy.ROLE_CLOCK,
+)
+
+
 def build_document(
     table: Table,
     settings: taxonomy.Settings,
@@ -4251,6 +4336,15 @@ def build_document(
     five_figures: "list[str] | None" = None,
     ages_held: "list[str] | None" = None,
     counted_in_rows: "list[str] | None" = None,
+    described_affixed: "list[str] | None" = None,
+    described_labels: "dict[str, str] | None" = None,
+    few_valued: "list[str] | None" = None,
+    rare_values_released: bool = True,
+    rare_listed: "list[str] | None" = None,
+    harbor_year: int = 0,
+    harbor_reasons: "dict[str, str] | None" = None,
+    year_top_coded_only: "dict[str, int] | None" = None,
+    kept_identities: "list[str] | None" = None,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -4301,6 +4395,20 @@ def build_document(
       then read as ahead of the long-tail rule (plan P4-D40, validation
       method V2.2-A2). It is not a declaration and the settings block
       does not record it. `synthtwin profile` never passes it.
+    - ``described_affixed`` is handed over by the validator alone, as
+      ``described_pairs`` is: the columns the description it checks
+      against read as `affixed_number` without `--measurement`, which
+      the checked file is read as wherever its cells allow, ahead of the
+      categories rule (plan P4-D438). Not a declaration either.
+    - ``described_labels`` is the validator's too: per column the
+      description it checks read as labels or as joined numbers, that
+      reading (`taxonomy.KEPT_LABELS`, `taxonomy.KEPT_JOINED`), which the
+      checked file is read under as before plan P4-D438 -- neither of
+      rule 7's unit stand-asides taken, and a joined column's rule 0c
+      reading kept -- so a
+      description that reads the column so, written by this version or
+      an earlier one, is checked against the reading it published
+      (Codex's review of lane UN-1a, item 4).
     - ``kept_placeholder_days`` is handed over by the validator alone too:
       per column, the placeholder days the description it checks against
       published as `kept_by_you` there (plan P4-D136). A `--keep-value`
@@ -4368,6 +4476,18 @@ def build_document(
       dates published as plain numbers. Declarations reconstructed from
       a description (``declarations_are_reconstructed``, the validator's)
       hold nothing: a checked file is described as its cells read.
+    - A FEW-VALUED COLUMN WITH A WIDE GAP (lane GG, plan P4-D440; lane
+      ZR-b's ZS.4), read `count` or `continuous` and held by no question,
+      publishes `few_values` -- its own numbers, no count -- only where
+      it is named in ``safe_harbor_no``; every other such column is
+      described as before, byte for byte, and its name is added to
+      ``few_valued`` where that list is given, for the command to put the
+      Safe Harbor question to it. A list naming a RARE VALUE -- one held
+      by fewer cells than the floor -- is released only where
+      ``rare_values_released`` (the command passes False while a question
+      offering `identifier` is open on any column of the table: the
+      stand-ins page's rule U (c), repair 1 of lane GG); each column so
+      released is named in ``rare_listed`` where that list is given.
     - THE SAFE HARBOR NUMBERS (plan P4-D427, lane ZR-b's ZS.1 and ZS.3),
       the command's rule as P4-D401's hold is (``top_code``, which
       `synthtwin profile` passes; False describes every column as
@@ -4386,8 +4506,38 @@ def build_document(
       in people -- is held from its top-coded cells and keeps the key
       (Codex's review of lane SH, item 2). ``top_coded_only``, the validator's, names exactly the
       columns to read so, each read so whatever its cells, and no other.
+    - THE SAFE HARBOR YEARS, PLACES AND DEVICES (plan P4-D434), the
+      command's rule too: with ``harbor_year``, the reference year (the
+      command passes `taxonomy.SAFE_HARBOR_REFERENCE_YEAR`), a column lane SH's reach did not take and whose cells,
+      judged on their bulk, are four-figure years from 1850 to that year,
+      one at most 90 years before it (`taxonomy.safe_harbor_years`), is
+      described with every year from 1850 to that one read as it
+      (`taxonomy.year_top_coded_cells`) and the key `top_coded_year`; and
+      with ``harbor_reasons`` given, a column held for one of lane SH2's
+      reasons (`taxonomy.safe_harbor_hold`: dates in a year showing an
+      age over 89, ZIP codes read as counted dates, GS1 device numbers,
+      ZIP codes cut to three figures, a name that says it holds a place;
+      and years that are also ZIP-shaped) is named in ``five_figures``
+      and in ``harbor_reasons`` with its reason, for the command to hold.
+      ``year_top_coded_only``, the validator's, names the columns to read
+      so and each one's year, and no other. LANE SH2'S REPAIR 1: a column
+      held whole for a place, a device number or a ZIP area is so before
+      lane SH's age top-code is asked (county codes `001` to `101`
+      answered `code` were top-coded as ages and published); years are
+      judged on two in three of the cells left, a year beside a word or a
+      mark (`born 1930`) is a year, and years beside as many other numbers
+      as the floor's rows (`30` for 1930) are held whole
+      (`taxonomy.HELD_YEARS_BESIDE`) rather than pooled.
+    - ``kept_identities`` names the columns whose question offering
+      `identifier` was answered `keep` (plan P4-D401, `synthtwin
+      profile`'s). A column of them whose cells would read as decimals
+      with a comma but for five figures or more before every comma
+      (`parsing.COMMA_RECORD_NUMBERS`, `1002345,7`) is read with the
+      comma, as an inferred one is (repair 2 of lane UN-1b); None or
+      empty infers no such column, so P4-D401's question is put first.
     """
     withheld_names = [] if unanswered is None else unanswered
+    identities_kept = [] if kept_identities is None else kept_identities
     no_safe_harbor = [] if safe_harbor_no is None else safe_harbor_no
     # THE SUBJECT COLUMNS THAT REPEAT (plan P4-D406): one different on
     # every row counts each value in rows already, as the floor does.
@@ -4451,10 +4601,16 @@ def build_document(
     # the point (plan P4-D26). Named columns only: a comma inside an
     # address or a note is not a decimal point, and no rule here can
     # tell the difference, which is why the declaration exists.
-    declared_commas = (
-        [] if forced_decimal_commas is None else forced_decimal_commas
-    )
+    # A FRESH LIST (repair 1 of lane UN-1b, skeptic 1 item 1): the columns
+    # inferred below join it, and the caller's list is never touched.
+    declared_commas: "list[str]" = []
+    if forced_decimal_commas is not None:
+        declared_commas += forced_decimal_commas
     read_as_pairs = [] if described_pairs is None else described_pairs
+    read_as_affixed = [] if described_affixed is None else described_affixed
+    read_as_labels: "dict[str, str]" = (
+        {} if described_labels is None else described_labels
+    )
     kept_days: "dict[str, tuple[str, ...]]" = (
         {} if kept_placeholder_days is None else kept_placeholder_days
     )
@@ -4481,12 +4637,19 @@ def build_document(
     # spelled `-999,0` by NUMBER on a declared column, which is what
     # the matching rule says it should do. Refusing the reconstruction
     # turned away a correct description while checking a correct file.
-    if declared_commas and not declarations_are_reconstructed:
-        for spelling in (
-            list(settings.kept_values)
-            + list(settings.declared_missing_values)
-        ):
-            if parsing.reads_as_two_numbers(spelling):
+    # ...and THE SAME CHECK KEEPS A COMMA FROM BEING INFERRED (repair 1 of
+    # lane UN-1b, Codex item 4): a declared value whose number depends on
+    # the grammar (`--missing-value -9.98` is -998 under a comma) would
+    # mean one thing on an inferred column and another on the rest, which
+    # the person declaring it never chose. A column whose comma only the
+    # cells would settle is then read as it was before plan P4-D443.
+    commas_inferable = not declarations_are_reconstructed
+    for spelling in (
+        list(settings.kept_values) + list(settings.declared_missing_values)
+    ):
+        if parsing.reads_as_two_numbers(spelling):
+            commas_inferable = False
+            if declared_commas and not declarations_are_reconstructed:
                 raise ValueError(
                     f"{taxonomy.AMBIGUOUS_DECLARED_VALUE}: {spelling}"
                 )
@@ -4529,11 +4692,42 @@ def build_document(
     storage = (
         stored_as_of(table, settings) if stored_as is None else stored_as
     )
+    # Lane SH2's pairs of coordinates (plan P4-D434): each column's reading
+    # as one, and the columns still open to be held for it.
+    coordinate_readings: "list[tuple[str, str]]" = []
+    coordinates_open: "list[str]" = []
     for position, name in enumerate(table.column_names, start=1):
         # EACH COLUMN ASKED OF THE GENERIC ACCESS (lane SR, plan P4-D400):
         # a table read in groups holds one group, and the next is read
         # when its first column is described.
         cells = reading.column_values(table, position - 1)
+        # A DECIMAL COMMA INFERRED (lane UN-1b, plan P4-D443; the zoo-fix
+        # plan's 2.1b (c) v2.1): where the column's cells settle that its
+        # comma is the decimal point (`parsing.decimal_comma_inferred`),
+        # it is read as a column declared `--decimal-comma` is read, and
+        # published among `forced_decimal_commas`, so `synthtwin generate`
+        # writes its numbers with the comma and `synthtwin validate` reads
+        # the twin alike. Never for a column a person named a code or a
+        # record number, nor one an open question holds, nor where the
+        # validator hands over the description's own declarations.
+        # Nor where a declared value reads by the grammar (Codex item 4),
+        # nor on record numbers with a check digit (`1002345,7`; skeptic 1
+        # item 8): five figures or more before every comma, at any count
+        # of different numbers (repair 2), P4-D401's reach -- read with
+        # the comma only once its question offering `identifier` is
+        # answered `keep`, the base's reading coming first.
+        if (
+            commas_inferable
+            and name not in declared_commas
+            and name not in declared_codes
+            and name not in described_identifiers
+        ):
+            verdict = parsing.decimal_comma_inferred(cells)
+            if verdict == parsing.COMMA_INFERRED or (
+                verdict == parsing.COMMA_RECORD_NUMBERS
+                and name in identities_kept
+            ):
+                declared_commas += [name]
         handed_over: "taxonomy.HeldReading | None" = None
         still_waiting: "list[object]" = []
         for held in waiting:
@@ -4562,6 +4756,7 @@ def build_document(
             reading: "taxonomy.HeldReading | None",
             held: bool = False,
             pinned: "grains.Reading | None" = None,
+            units_kept: str = "",
         ) -> taxonomy.ColumnProfile:
             # A column the count in people holds is read under no other
             # declaration than the record number it is described as, as
@@ -4594,6 +4789,15 @@ def build_document(
                     if counted_units is not None and name in counted_units
                     else 0
                 ),
+                # -- UN-1a (P4-D438): the validator's carried affixed reading,
+                # and the reading kept from before it (the count in people,
+                # or the validator's carried labels).
+                described_as_affixed=name in read_as_affixed and not held,
+                units_kept=(
+                    units_kept
+                    if units_kept or held or name not in read_as_labels
+                    else read_as_labels[name]
+                ),
             )
 
         described = described_from(cells, handed_over)
@@ -4611,6 +4815,30 @@ def build_document(
         forced_top = top_coded_only is not None and name in top_coded_only
         top_coded_here = False
         reach = ""
+        # LANE SH2'S WHOLE-COLUMN HOLDS ARE ASKED FIRST (plan P4-D434; its
+        # repair 1, Codex item 2): a column named as a place, or holding a
+        # device number or a ZIP area, is held whole, and neither the
+        # ages' top-code nor the years' publishes it meanwhile -- county
+        # codes `001` to `101` answered `code` were top-coded as ages and
+        # published three real counties and a fourth as `090`.
+        held_first = ""
+        if (
+            top_coded_only is None
+            and year_top_coded_only is None
+            and top_code
+            and harbor_year
+            and name not in no_safe_harbor
+            and name not in withheld_names
+        ):
+            held_first = taxonomy.safe_harbor_hold(
+                name,
+                described,
+                cells,
+                name in declared_commas,
+                settings.small_cell_floor,
+                harbor_year,
+                taxonomy.counted_member(taxonomy.counted_for_the_column(settings, name)),
+            )
         if (
             top_coded_only is None
             and top_code
@@ -4642,6 +4870,8 @@ def build_document(
                 or name in declared_measurements
                 or name in withheld_names,
             )
+        if reach == taxonomy.SAFE_HARBOR_AGES and held_first:
+            reach = ""
         if forced_top or reach == taxonomy.SAFE_HARBOR_AGES:
             coded = taxonomy.top_coded_cells(
                 cells, name in declared_commas, frozenset(described.absent_spellings)
@@ -4651,6 +4881,18 @@ def build_document(
                 recoded.n_missing == described.n_missing
                 and recoded.n_present == described.n_present
             ):
+                # ...AND ITS PLACEHOLDERS SET ASIDE BEFORE ANY RUNG IS READ
+                # (plan P4-D434, the orchestrator's LANE SH2 ADDENDUM 1):
+                # `999` beside ages printed p99 99.09 and a mean of 106.8.
+                aside = taxonomy.age_placeholders_set_aside(
+                    coded,
+                    name in declared_commas,
+                    frozenset(described.absent_spellings),
+                    settings.small_cell_floor,
+                )
+                if aside != coded:
+                    coded = aside
+                    recoded = described_from(coded, None)
                 cells = coded
                 described = taxonomy.with_top_code(recoded)
                 top_coded_here = True
@@ -4662,6 +4904,231 @@ def build_document(
             coded = []
         elif reach == taxonomy.SAFE_HARBOR_ZIPS and five_figures is not None:
             five_figures += [name]
+        # THE SAFE HARBOR YEARS, PLACES AND DEVICES (plan P4-D434, lane
+        # SH2): while the column's Safe Harbor question is open, a column
+        # of years of birth is read with every year that shows an age of
+        # 90 or more against the reference year written as
+        # the latest such year ("that year or earlier"), as the ages are
+        # read 90; a column of ZIP-shaped years stays lane SH's hold, so
+        # no ZIP code that lost its nought is published as a year; and a
+        # column of dates so early, of ZIP codes read as counted dates, of
+        # device numbers, of ZIP codes cut to three figures, or named as a
+        # place, is named for the command to hold whole.
+        year_here = 0
+        forced_year = (
+            year_top_coded_only[name]
+            if year_top_coded_only is not None and name in year_top_coded_only
+            else 0
+        )
+        open_here = (
+            top_coded_only is None
+            and year_top_coded_only is None
+            and top_code
+            and name not in no_safe_harbor
+            and name not in withheld_names
+            and not top_coded_here
+            and (five_figures is None or name not in five_figures)
+            and (ages_held is None or name not in ages_held)
+        )
+        years_reached = (
+            reach != taxonomy.SAFE_HARBOR_ZIPS
+            and not held_first
+            and not forced_year
+            and open_here
+            and bool(harbor_year)
+            and described.role not in taxonomy.SAFE_HARBOR_UNREACHED_ROLES
+            and taxonomy.safe_harbor_years(
+                cells,
+                name in declared_commas,
+                frozenset(described.absent_spellings),
+                settings.small_cell_floor,
+                harbor_year,
+            )
+        )
+        if reach == taxonomy.SAFE_HARBOR_ZIPS:
+            if (
+                harbor_reasons is not None
+                and harbor_year
+                and taxonomy.safe_harbor_years(
+                    cells,
+                    name in declared_commas,
+                    frozenset(described.absent_spellings),
+                    settings.small_cell_floor,
+                    harbor_year,
+                )
+            ):
+                harbor_reasons[name] = taxonomy.HELD_YEARS
+        elif open_here and held_first:
+            # ...held whole: places, device numbers, ZIP areas, dates so
+            # early and ZIP codes read as counted dates.
+            held_for = held_first
+            if five_figures is not None and harbor_reasons is not None:
+                five_figures += [name]
+                harbor_reasons[name] = held_for
+            if held_for == taxonomy.HELD_DATES:
+                # ...A COLUMN OF DATES SO EARLY IS HELD HERE, in every
+                # description of the run, as lane PS holds dates few people
+                # hold (plan P4-D417): described as a record number with the
+                # record its twin writes valid dates from, so code that reads
+                # the twin's dates as dates still runs (a held block's
+                # made-up record numbers in a date's layout, `4102-11-65`,
+                # parse as no date); the command puts the question, and
+                # holds nothing more.
+                time_reading = _time_reading(described, settings, name, declared_commas)
+                described_identifiers += [name]
+                held_in_people += [name]
+                held_here = taxonomy.as_unanswered_identity(
+                    described_from(cells, None, True)
+                )
+                if time_reading is not None:
+                    held_here = taxonomy.with_held_dates(
+                        held_here,
+                        grains.record(
+                            _held_dates_grain(
+                                cells,
+                                time_reading,
+                                held_here.n_present,
+                                frozenset(described.absent_spellings),
+                            )
+                        ),
+                    )
+                described = held_here
+        elif forced_year or (
+            years_reached
+            and taxonomy.years_with_few_strays(
+                cells,
+                name in declared_commas,
+                frozenset(described.absent_spellings),
+                settings.small_cell_floor,
+                harbor_year,
+            )
+        ):
+            cutoff = forced_year if forced_year else taxonomy.year_cutoff(harbor_year)
+            coded = taxonomy.year_top_coded_cells(
+                cells,
+                name in declared_commas,
+                frozenset(described.absent_spellings),
+                cutoff,
+            )
+            recoded = described_from(coded, None)
+            if forced_year or (
+                recoded.n_missing == described.n_missing
+                and recoded.n_present == described.n_present
+            ):
+                cells = coded
+                described = taxonomy.with_year_top_code(recoded, cutoff)
+                year_here = cutoff
+            elif five_figures is not None and harbor_reasons is not None:
+                # ...a year of the group is one of the column's missing
+                # values: held whole instead, as the ages are.
+                five_figures += [name]
+                harbor_reasons[name] = taxonomy.HELD_YEARS
+            coded = []
+        elif years_reached and five_figures is not None and harbor_reasons is not None:
+            # ...YEARS OF BIRTH BESIDE AS MANY OTHER NUMBERS AS THE FLOOR'S
+            # ROWS (two-figure years, `30` for 1930) are held whole: pooling
+            # the years would leave the others showing them (lane SH2's
+            # repair 1, skeptic 1 item 4).
+            five_figures += [name]
+            harbor_reasons[name] = taxonomy.HELD_YEARS_BESIDE
+        # A PAIR OF COORDINATES READ FROM THEIR CELLS (plan P4-D434, the
+        # orchestrator's LANE SH2 ADDENDUM 3): each column's reading as a
+        # latitude or a longitude is kept -- held or answered columns too,
+        # as the other of a pair -- and a column still open is held after
+        # the walk where another column reads as a coordinate beside it
+        # (`taxonomy.coordinates_held`); a column named as a coordinate is
+        # held above (`taxonomy.safe_harbor_hold`).
+        if (
+            harbor_reasons is not None
+            and five_figures is not None
+            and top_code
+            and harbor_year
+            and top_coded_only is None
+            and year_top_coded_only is None
+            and described.role not in _NO_COORDINATE_ROLES
+        ):
+            coordinate_readings += [
+                (
+                    name,
+                    taxonomy.coordinate_reading(
+                        cells,
+                        name in declared_commas,
+                        frozenset(described.absent_spellings),
+                    ),
+                )
+            ]
+            if (
+                open_here
+                and not held_first
+                and not reach
+                and not year_here
+                and name not in five_figures
+                and name not in described_identifiers
+                and described.role not in taxonomy.ROLES_PUBLISHING_NOTHING
+            ):
+                coordinates_open += [name]
+        # A FEW-VALUED COLUMN WITH A WIDE GAP (lane GG, plan P4-D440; the
+        # stand-ins page's ZS.4): it publishes its own numbers only after
+        # `no` to its Safe Harbor question, and is named meanwhile for the
+        # command to put that question -- unanswered it is the block it
+        # was, byte for byte. Not where a question holds it, and not where
+        # the top-code reads its ages, whose question is SH's own.
+        counting: "list[list[str]]" = []
+        counting_enough: "list[bool]" = []
+        counting_dates: "list[bool]" = []
+        for place, subject_name in enumerate(subject_names):
+            if subject_name != name:
+                counting += [subject_cells[place]]
+                counting_enough += [subject_enough[place]]
+                counting_dates += [dates_in_people[place]]
+        # ...AND NOT WHERE THE LIST WOULD BE HELD IN PEOPLE (Codex's review
+        # of lane GG, item 5): a score whose `7` is one patient's, 20 rows,
+        # named few-valued before the count in people held it, so its
+        # question offered `no` with a list `no` could never release. The
+        # count in people reads the block as `no` would publish it, list
+        # and all; where it holds that block, the column is not of the
+        # class and is described as before, by the steps below.
+        if (
+            described.few_values
+            and not top_coded_here
+            and reach == ""
+            and name not in withheld_names
+            # ...and not where lane SH2 holds the column whole or reads its
+            # years (plan P4-D434): its question is SH2's, one question a
+            # column, HIPAA first (batch 4m's merge of lanes GG and SH2).
+            and not year_here
+            and (five_figures is None or name not in five_figures)
+            and not (
+                not declarations_are_reconstructed
+                and _counted_dates_declined(settings, name, described)
+            )
+            and not (
+                counting
+                and name not in described_identifiers
+                and _counted_in_subjects(
+                    taxonomy.with_few_values(described),
+                    cells,
+                    counting,
+                    settings.small_cell_floor,
+                    counting_enough,
+                    _CellReading("", name in declared_commas),
+                )
+            )
+        ):
+            if _few_values_released(name, no_safe_harbor):
+                # RULE U (c) (the stand-ins page's ZS.1 and ZS.3; repair 1
+                # of lane GG, its skeptic 1, item 3): `no` widens what is
+                # published, so a list naming a value fewer cells than the
+                # floor hold waits while a question offering `identifier`
+                # is open on any column; unanswered meanwhile, as before.
+                if _rare_list_released(
+                    described.few_values_rare, rare_values_released
+                ):
+                    described = taxonomy.with_few_values(described)
+                    if described.few_values_rare and rare_listed is not None:
+                        rare_listed += [name]
+            elif few_valued is not None:
+                few_valued += [name]
         # COUNTED IN PEOPLE, NOT ROWS (plan P4-D406). A column of record
         # numbers names no layout fewer than the floor's number of
         # subjects wear, before its census of repetition is drawn from
@@ -4671,14 +5138,6 @@ def build_document(
         # HX2, item 4: a candidate of the person question that is not held
         # by its own question publishes no value one to ten people of
         # another subject column hold).
-        counting: "list[list[str]]" = []
-        counting_enough: "list[bool]" = []
-        counting_dates: "list[bool]" = []
-        for place, subject_name in enumerate(subject_names):
-            if subject_name != name:
-                counting += [subject_cells[place]]
-                counting_enough += [subject_enough[place]]
-                counting_dates += [dates_in_people[place]]
         # ...and a subject column's own layouts are counted in every
         # OTHER subject column (lane HX2's skeptic, round 2, item 3): a
         # plan number declared beside the patient names no layout three
@@ -4774,6 +5233,14 @@ def build_document(
             if described.role == taxonomy.ROLE_DATETIME
             else "",
             name in declared_commas,
+            # A NUMBER BESIDE A UNIT IS COUNTED AS THE SAME NUMBER WRITTEN
+            # BARE (lane UN-1b, plan P4-D443; the orchestrator's LANE UN-1a
+            # RULINGS 2 (2)): `98.4 F` is the 98.4 its block prints, so
+            # the count in people reads it as it reads `98.4`.
+            described.role == taxonomy.ROLE_AFFIXED,
+            _published_wrappers(described.details)
+            if described.role == taxonomy.ROLE_AFFIXED
+            else (),
         )
         # THE GRAIN A DESCRIPTION PUBLISHED IS READ, NEVER DECIDED (plan
         # P4-D417): the validator describes a checked file's cells at the
@@ -4959,6 +5426,19 @@ def build_document(
                 if _a_small_group(real_census, settings.small_cell_floor)
                 else None,
             )
+        # RULE A2'S CENSUS UNDER RULE U (lane CODES-1, plan P4-D439; the
+        # stand-ins page, ZS.1 (c)): none while any question offering
+        # `identifier` is open on the table -- until it is answered nobody
+        # knows who the rows are about -- and beside a subject column each
+        # listed character counted in people too.
+        if "shape_form_places" in described.details:
+            if withheld_names:
+                described = taxonomy.without_places(described)
+            elif counting:
+                described = _places_in_subjects(
+                    described, cells, counting, counting_enough,
+                    settings.small_cell_floor,
+                )
         # WHAT NO REAL CELL HOLDS, read last, off the census as published
         # (lane ID-ROOM, plan P4-D432): beside each named layout of a
         # record number, places no real cell of it holds, and the spill no
@@ -4973,15 +5453,33 @@ def build_document(
         # too (plan P4-D427): its twin and the validator read it so.
         if top_coded_here:
             described = taxonomy.with_top_code(described)
+        if year_here:
+            described = taxonomy.with_year_top_code(described, year_here)
         columns += [_column_block(described)]
         absent_spellings += [described.absent_spellings]
         for note in described.publication_notes:
             notes += [{"column": name, "note": note}]
+    # ...THE PAIRS, ONCE EVERY COLUMN IS READ: a column of a pair is named
+    # for the command to hold whole, as a city column is, and put the Safe
+    # Harbor question alone; `no` describes it as before.
+    if coordinates_open and five_figures is not None and harbor_reasons is not None:
+        for name in taxonomy.coordinates_held(coordinate_readings):
+            if name in coordinates_open and name not in five_figures:
+                five_figures += [name]
+                harbor_reasons[name] = taxonomy.HELD_COORDINATES
     document: dict[str, object] = {
         "profile_version": PROFILE_VERSION,
         "created_with": _version(),
         "settings": _settings_block(
-            _without_held(settings, held_in_people),
+            # ...and a column held whole meanwhile, whose question is open
+            # or answered `yes`, is recorded as held too (plan P4-D434: ZIP
+            # codes answered as counted dates are held as record numbers,
+            # and the contract reads a column one way only, S8d).
+            _without_held(
+                settings,
+                held_in_people
+                + [one for one in withheld_names if one not in held_in_people],
+            ),
             described_identifiers,
             [one for one in declared_codes if one not in held_in_people],
             [one for one in declared_measurements if one not in held_in_people],
@@ -5099,6 +5597,8 @@ class _GroupAsked:
     person: "list[asking.Question]"
     lists: "list[asking.Question]"
     listed: "list[asking.Question]"
+    # -- UN-1a (P4-D438): question Q-UNIT, after the lists' questions.
+    units: "list[asking.Question]" = dataclasses.field(default_factory=list)
 
 
 def _part_of(document: "dict[str, object]", start: int, end: int) -> "dict[str, object]":
@@ -5193,13 +5693,30 @@ def _questions_group(
         part, cells, step.settings, step.already, kept + coded_or_answered + person,
         split, step.decimal_commas,
     )
+    # ...and question Q-UNIT (plan P4-D438), one question a column: a
+    # column another question reaches has that question offer its answers.
+    units, reached = asking.unit_questions(
+        part, cells, step.settings, step.already,
+        kept + coded_or_answered + person + lists, split, step.decimal_commas,
+    )
+    # ...and question Q-COMMA and its mirror (plan P4-D443), to a column no
+    # question above reaches.
+    units = units + asking.comma_questions(
+        part, cells, step.settings, step.already,
+        kept + coded_or_answered + person + lists + units, split,
+        step.decimal_commas,
+    )
+    floor = step.settings.small_cell_floor
+    kept = asking.with_unit_answers(kept, reached, floor)
+    person = asking.with_unit_answers(person, reached, floor)
+    lists = asking.with_unit_answers(lists, reached, floor)
     dated_about = list(group_dates.questions) if step.with_dates else []
     checked = asking.checklist_for(
         part, cells, step.settings, step.already,
-        kept + person + lists + dated_about + coded_about,
+        kept + person + lists + units + dated_about + coded_about,
         group_codes.answered,
     )
-    return _GroupAsked(kept, moved, dated, months, person, lists, checked)
+    return _GroupAsked(kept, moved, dated, months, person, lists, checked, units)
 
 
 def _dated_group(
@@ -5436,6 +5953,31 @@ class Asked:
     listed: "list[asking.Question]"
 
 
+def commas_read(
+    document: "dict[str, object]", declared: "tuple[str, ...]"
+) -> "tuple[str, ...]":
+    """The columns whose comma is read as the decimal point: ``declared``, then those the description adds.
+
+    A description publishes in `forced_decimal_commas` every column it
+    read with a decimal comma, inferred ones included (plan P4-D443), so
+    each question reads a column as the description did. ``declared``
+    first, in its own order. A fixed function of the two. Raises
+    nothing. No I/O.
+    """
+    found = list(declared)
+    block = document["settings"] if "settings" in document else None
+    named = (
+        block["forced_decimal_commas"]
+        if isinstance(block, dict) and "forced_decimal_commas" in block
+        else []
+    )
+    if isinstance(named, list):
+        for name in named:
+            if isinstance(name, str) and name not in found:
+                found += [name]
+    return tuple(found)
+
+
 def questions_of(
     table: Table,
     document: "dict[str, object]",
@@ -5468,7 +6010,12 @@ def questions_of(
     answers, made column by column, put together in column order: the
     codes question's count of the other columns, the one step that reads
     across columns, is made in a second walk where some column asks it.
+
+    The columns whose comma is read as the decimal point are those
+    ``decimal_commas`` names and those the description inferred
+    (`commas_read`, plan P4-D443).
     """
+    decimal_commas = commas_read(document, decimal_commas)
     if table.source is None:
         columns = table.columns
         asked, split = asking.questions_and_splits_for(
@@ -5502,6 +6049,23 @@ def questions_of(
             document, columns, settings, already, asked + coded_or_answered,
             split, decimal_commas,
         )
+        # ...and question Q-UNIT (plan P4-D438), one question a column: a
+        # column another question reaches has that question offer its
+        # answers (`asking.with_unit_answers`).
+        units, reached = asking.unit_questions(
+            document, columns, settings, already, asked + coded_or_answered,
+            split, decimal_commas,
+        )
+        # ...and question Q-COMMA and its mirror (plan P4-D443), to a
+        # column no question above reaches.
+        units = units + asking.comma_questions(
+            document, columns, settings, already,
+            asked + coded_or_answered + units, split, decimal_commas,
+        )
+        asked = (
+            asking.with_unit_answers(asked, reached, settings.small_cell_floor)
+            + units
+        )
         if with_dates:
             # ...one question a column where Q6 takes lane HX5's place
             # (plan P4-D436).
@@ -5522,6 +6086,7 @@ def questions_of(
     kept_all: "list[asking.Question]" = []
     person_all: "list[asking.Question]" = []
     listed_all: "list[asking.Question]" = []
+    units_all: "list[asking.Question]" = []
     listed: "list[asking.Question]" = []
     walked_all: "list[asking.DateCodesPending]" = []
     dated_all: "list[asking.DateColumnsSeen]" = []
@@ -5535,6 +6100,7 @@ def questions_of(
         found_months += group.months
         person_all += group.person
         listed_all += group.lists
+        units_all += group.units
         listed += group.listed
     if codes_seen is None:
         codes_seen = _codes_counted(table, document, settings, decimal_commas, walked_all)
@@ -5542,7 +6108,7 @@ def questions_of(
         dates_seen = _dates_joined(dated_all)
     if month:
         day_or_month = tuple(found_months)
-    asked = kept_all + person_all + listed_all
+    asked = kept_all + person_all + listed_all + units_all
     if with_dates:
         asked = asking.without_merged_questions(asked + list(dates_seen.questions))
     return Asked(asked, None, codes_seen, dates_seen, day_or_month, listed)
@@ -5568,7 +6134,10 @@ def dated_questions_of(
     question beside what both found -- as `questions_of` walks a
     table: a table read whole asked each in turn over ``split``, a table
     read in groups one group at a time, its cells split once a group.
+    The columns whose comma is read as the decimal point include those
+    the description inferred (`commas_read`, plan P4-D443).
     """
+    decimal_commas = commas_read(document, decimal_commas)
     if table.source is None:
         columns = table.columns
         if codes_seen is None:
@@ -5758,7 +6327,10 @@ _COUNT_KEYS = (
 
 # Where a whole entry -- its keys and its leaves -- holds no value of the
 # column: spellings of nothing, withheld totals, repetition censuses.
-_NO_VALUE_KEYS = ("missing", "withheld", "occurrences", "widths")
+# ...and rule A2's positional census (lane CODES-1, plan P4-D439): its
+# lists are characters a place holds, never a cell's value, so a list such
+# as `ABC` is not read as the code `ABC` some subjects hold.
+_NO_VALUE_KEYS = ("missing", "withheld", "occurrences", "widths", "form_places")
 
 # THE RUNGS: points along a column's range and the boundaries of its
 # tails. The floor publishes them whatever the rows at the point, so a
@@ -5892,7 +6464,7 @@ def _subject_key(cell: str) -> str:
 
 
 def _holding(
-    keyed: "list[tuple[str, ...]]", subjects: "list[str]", floor: int
+    keyed: "typing.Iterable[tuple[str, ...]]", subjects: "list[str]", floor: int
 ) -> "dict[str, SubjectCount]":
     """`subjects_holding` over the keys each row's cell is counted as."""
     rows: "dict[str, int]" = {}
@@ -6054,6 +6626,13 @@ class _CellReading:
 
     member: str = ""
     comma: bool = False
+    # A unit column rule 7 stood aside for (plan P4-D438): a cell is the
+    # number beside its unit, `98.4 F` the 98.4 its block publishes.
+    affixed: bool = False
+    # ...read inside the wrappers the block publishes (repair 1 of lane
+    # UN-1b, Codex item 2): `5 mL/min/1.73m2` is the 5 its block prints,
+    # never the 1.73 of its unit. Longest wrapper first.
+    wrappers: "tuple[tuple[str, str], ...]" = ()
 
 
 # The figures a cell's longest run may hold and still be read as a
@@ -6296,6 +6875,10 @@ def _keys_of(
             number = _number_of(
                 parsing.written_with_a_decimal_comma(cell) if how.comma else cell
             )
+            if number is None and how.affixed:
+                number = _number_inside(cell, how.wrappers, how.comma)
+            if number is None and how.affixed:
+                number = _number_beside(cell, how.comma)
             if number is None:
                 figures = _longest_figures(folded)
                 if figures and len(figures) <= _FIGURES_READ_AT_MOST:
@@ -6331,6 +6914,94 @@ def _keys_of(
     if len(memo) < 65536:
         memo[cell] = frozen
     return frozen
+
+
+def _published_wrappers(
+    details: "dict[str, object]",
+) -> "tuple[tuple[str, str], ...]":
+    """The wrappers an affixed block publishes, the longest first (repair 1 of lane UN-1b, Codex item 2).
+
+    The commonest pair (`affix_prefix`, `affix_suffix`) and every entry of
+    `affix_variants`; ties in the order the block lists them. A fixed
+    function of the details. Raises nothing. No I/O.
+    """
+    found: "list[tuple[str, str]]" = []
+    prefix = details["affix_prefix"] if "affix_prefix" in details else ""
+    suffix = details["affix_suffix"] if "affix_suffix" in details else ""
+    if isinstance(prefix, str) and isinstance(suffix, str):
+        found += [(prefix, suffix)]
+    variants = details["affix_variants"] if "affix_variants" in details else []
+    if isinstance(variants, list):
+        for entry in variants:
+            if not isinstance(entry, dict):
+                continue
+            front = entry["prefix"] if "prefix" in entry else None
+            back = entry["suffix"] if "suffix" in entry else None
+            if isinstance(front, str) and isinstance(back, str):
+                if (front, back) not in found:
+                    found += [(front, back)]
+    longest = 0
+    for front, back in found:
+        longest = max(longest, len(front) + len(back))
+    ordered: "list[tuple[str, str]]" = []
+    for size in range(longest, -1, -1):
+        for front, back in found:
+            if len(front) + len(back) == size:
+                ordered += [(front, back)]
+    return tuple(ordered)
+
+
+def _number_inside(
+    cell: str, wrappers: "tuple[tuple[str, str], ...]", comma: bool
+) -> "float | None":
+    """The number a cell writes inside one of its column's published wrappers, or None.
+
+    The cell trimmed, its prefix and suffix taken off as the block reads
+    them (`taxonomy.affixed_split` trims a cell before splitting it), the
+    rest read as a number under the column's grammar. The first wrapper
+    that reads wins, the longest first. Raises nothing. No I/O.
+    """
+    text = parsing.trimmed(cell)
+    for prefix, suffix in wrappers:
+        if not prefix and not suffix:
+            continue
+        if len(text) <= len(prefix) + len(suffix):
+            continue
+        if text[: len(prefix)] != prefix:
+            continue
+        if suffix and text[len(text) - len(suffix) :] != suffix:
+            continue
+        core = text[len(prefix) : len(text) - len(suffix)]
+        if len(core) > _FIGURES_READ_AT_MOST:
+            continue
+        number = _number_of(
+            parsing.written_with_a_decimal_comma(core) if comma else core
+        )
+        if number is not None:
+            return number
+    return None
+
+
+def _number_beside(cell: str, comma: bool) -> "float | None":
+    """The number a cell writes beside its unit: its longest run of figures and one point.
+
+    Read for a unit column rule 7 stood aside for (plan P4-D438), whose
+    block publishes `98.4` for the cell `98.4 F`; a minus directly in
+    front is the number's. None where no such run reads as a number.
+    """
+    point = "," if comma else "."
+    best = ""
+    run = ""
+    for character in cell + " ":
+        if "0" <= character <= "9" or (character == point and point not in run):
+            run = run + ("." if character == point else character)
+            continue
+        if len(_longest_figures(run)) > 0 and len(run) > len(best):
+            best = run
+        run = "-" if character == "-" else ""
+    if not best or len(best) > _FIGURES_READ_AT_MOST:
+        return None
+    return _number_of(best)
 
 
 def _counted_days(cell: str, reading: _CellReading) -> "list[str]":
@@ -6452,6 +7123,8 @@ def _counted_in_subjects(
     (`taxonomy.as_held_in_people`), as lane HX describes a column whose
     identity question is open, so the twin writes made-up values in the
     column's layouts and the real table still meets its own description.
+    A number beside a unit is counted as the same number written bare
+    (``reading.affixed``; plan P4-D443).
     """
     shown = _column_block(described)
     published = _published_in(shown, True)
@@ -6967,6 +7640,38 @@ def _cells_at(
     return coarse
 
 
+def _held_dates_grain(
+    cells: "list[str]",
+    time_reading: grains.Reading,
+    present: int,
+    absent: "frozenset[str]",
+) -> grains.Grain:
+    """The record a column of dates lane SH2 holds publishes (plan P4-D434): rung `held`, no span.
+
+    As `_grain_walk` records a column it holds for its subjects: the
+    finest detail its cells write, read cell by cell (an absent cell
+    none), and a stamp written to the day read as a date; no span, so its
+    twin draws its valid dates from the fixed span (`grains.fixed_span`).
+    """
+    finest = grains.YEAR
+    seen: "dict[str, bool]" = {}
+    for cell in cells:
+        if cell in seen or cell in absent:
+            continue
+        if len(seen) < 65536:
+            seen[cell] = True
+        if grains.moment_of(cell, time_reading) is not None:
+            own = grains.finest_of(cell, time_reading)
+            if grains.RANK[own] > grains.RANK[finest]:
+                finest = own
+    kind_reading = time_reading
+    if time_reading.kind == grains.CLOCK and grains.RANK[finest] < grains.RANK[grains.MINUTE]:
+        finest = grains.MINUTE
+    if time_reading.kind == grains.STAMP and grains.RANK[finest] <= grains.RANK[grains.DAY]:
+        kind_reading = grains.Reading(grains.DATE, time_reading.member, time_reading.mark)
+    return grains.Grain(grains.HELD, kind_reading, present, (), finest, 0)
+
+
 def _held_record(grain: grains.Grain) -> grains.Grain:
     """The record a held column of dates or times publishes (plan P4-D417, NF129).
 
@@ -6981,6 +7686,194 @@ def _held_record(grain: grains.Grain) -> grains.Grain:
         rung=grains.HELD,
         spans=() if grain.reading.kind == grains.CLOCK else grain.spans,
     )
+
+
+def without_census_places(document: "dict[str, object]") -> "dict[str, object]":
+    """A description with no column's positional census (rule U, plan P4-D439).
+
+    The command's half of rule U (the stand-ins page, ZS.1 (c); Codex's
+    review of lane CODES-1's first repair, item 8): while any question
+    offering `identifier` is open on the table -- whether or not it holds
+    its own column -- no column publishes `shape_form_places`. Every other
+    key of every block keeps its bytes, and a description with no census
+    is returned as it was. Raises nothing.
+    """
+    columns = document["columns"] if "columns" in document else None
+    if not isinstance(columns, list):
+        return document
+    if not any(
+        [isinstance(block, dict) and "shape_form_places" in block for block in columns]
+    ):
+        return document
+    kept: "list[object]" = []
+    for block in columns:
+        if isinstance(block, dict) and "shape_form_places" in block:
+            stripped: "dict[str, object]" = {}
+            for key in block:
+                if key != "shape_form_places":
+                    stripped[key] = block[key]
+            kept += [stripped]
+        else:
+            kept += [block]
+    answer: "dict[str, object]" = {}
+    for key in document:
+        answer[key] = kept if key == "columns" else document[key]
+    return answer
+
+
+def _places_in_subjects(
+    described: taxonomy.ColumnProfile,
+    cells: "list[str]",
+    subject_cells: "list[list[str]]",
+    enough: "list[bool]",
+    floor: int,
+) -> taxonomy.ColumnProfile:
+    """Rule A2's positional census with no character fewer subjects hold (P4-D439).
+
+    THE CENSUS COUNTED IN PEOPLE BESIDE A SUBJECT COLUMN (the stand-ins
+    page, ZS.2 and ZS.5; plan P4-D406's rule). A listed character says
+    the census line of the form's held-back cells hold it at that place;
+    beside a subject column it must be held by the floor's different
+    subjects too, under every subject column the column is counted in (as
+    `enough` says, as `_layouts_in_subjects` reads it). Each held-back
+    cell of a named form -- its label no published level's, read off the
+    raw cell -- is keyed by the characters it holds at the places its
+    form lists (`_holding`), and a character too few subjects hold is
+    taken off its list. The forced case is asked again with the form's
+    held-back cells counted in rows, the stricter reading: a place left
+    with no character beside more than (a - 1)(f - 1) such cells takes
+    the whole form off, a form left listing nothing is not named, and
+    nor is one whose lists, one character at every place, name a
+    held-back spelling outright (`taxonomy.places_name_a_spelling`).
+    """
+    places = described.details["shape_form_places"]
+    census = described.details["shape_forms"] if "shape_forms" in described.details else None
+    levels = described.details["levels"] if "levels" in described.details else None
+    if not isinstance(places, dict) or not isinstance(census, dict) or not isinstance(levels, list):
+        return taxonomy.without_places(described)
+    named: "dict[str, bool]" = {}
+    for entry in levels:
+        if isinstance(entry, dict) and isinstance(entry["label"], str):
+            named[parsing.folded(entry["label"])] = True
+    absent = frozenset(described.absent_spellings)
+    held: "dict[str, int]" = {}
+    # EACH DIFFERENT HELD-BACK CELL KEYED ONCE, ITS KEYS SHARED (Codex's
+    # review of lane CODES-1's first repair, item 4): a key a held row,
+    # built afresh on every row and kept for the walk, cost about 1,900
+    # bytes a held row of a 24-character code (38 MB at 20,011 rows, some
+    # 1.9 GB at a million); now a cell's keys are worked out once and each
+    # key spelled once (`_listed_keys`), and the rows are read through
+    # them as the count walks (`_rows_keyed`), so nothing is kept a row.
+    keyed: "dict[str, tuple[str, tuple[str, ...]]]" = {}
+    spelled: "dict[tuple[str, int, str], str]" = {}
+    # THE PUBLISHED SPELLINGS WEARING EACH FORM, each once: the forced
+    # reading counts them as spellings of a product holding no held-back
+    # cell (`taxonomy.places_name_a_spelling`).
+    worn: "dict[str, dict[str, bool]]" = {}
+    seen: "dict[str, bool]" = {}
+    for cell in cells:
+        if cell in keyed:
+            form = keyed[cell][0]
+            held[form] = held[form] + 1
+            continue
+        if cell in seen:
+            continue
+        if parsing.trimmed(cell) and cell not in absent and parsing.folded(cell) in named:
+            seen[cell] = True
+            form = parsing.census_form(cell, census)
+            if form in places:
+                if form not in worn:
+                    worn[form] = {}
+                worn[form][cell] = True
+            continue
+        if parsing.trimmed(cell) and cell not in absent and parsing.folded(cell) not in named:
+            form = parsing.census_form(cell, census)
+            if form in places and len(form) == len(cell):
+                held[form] = (held[form] if form in held else 0) + 1
+                keyed[cell] = (form, _listed_keys(form, cell, places[form], spelled))
+    spelled = {}
+    countings: "list[dict[str, SubjectCount]]" = []
+    for place, subject in enumerate(subject_cells):
+        if not enough[place] and not (
+            _attached(cells, subject) and _names_its_people(cells, subject)
+        ):
+            continue
+        countings += [_holding(_rows_keyed(cells, keyed), subject, floor)]
+    keyed = {}
+    line = parsing.census_floor(floor)
+    kept: "dict[str, list[str]]" = {}
+    for form in sorted(places):
+        lists = places[form]
+        built: "list[str]" = []
+        refused = False
+        for at in range(len(form)):
+            listed = lists[at] if isinstance(lists[at], str) else ""
+            remaining = ""
+            for mark in listed:
+                key = f"{form}\u0000{at}\u0000{mark}"
+                fewest = floor
+                for counted in countings:
+                    fewest = min(
+                        fewest, len(counted[key].holders) if key in counted else 0
+                    )
+                if fewest >= floor:
+                    remaining = remaining + mark
+            kind = form[at]
+            if (
+                kind in taxonomy.PLACE_ALPHABETS
+                and not remaining
+                and (held[form] if form in held else 0)
+                > (len(taxonomy.PLACE_ALPHABETS[kind]) - 1) * (line - 1)
+            ):
+                refused = True
+            built += [remaining]
+        if (
+            not refused
+            and any([bool(entry) for entry in built])
+            and not taxonomy.places_name_a_spelling(
+                form,
+                built,
+                held[form] if form in held else 0,
+                line,
+                len(worn[form]) if form in worn else 0,
+            )
+        ):
+            kept[form] = built
+    return taxonomy.with_places(described, kept)
+
+
+def _listed_keys(
+    form: str,
+    cell: str,
+    lists: "list[str]",
+    spelled: "dict[tuple[str, int, str], str]",
+) -> "tuple[str, ...]":
+    """The keys one held-back cell is counted under: its listed character at each place (P4-D439).
+
+    `_places_in_subjects`' key `form NUL place NUL character`, spelled once
+    for each different key and shared through ``spelled``. Raises nothing.
+    """
+    keys: "list[str]" = []
+    for at in range(len(form)):
+        listed = lists[at]
+        if isinstance(listed, str) and cell[at] in listed:
+            pair = (form, at, cell[at])
+            if pair not in spelled:
+                spelled[pair] = f"{form}\u0000{at}\u0000{cell[at]}"
+            keys += [spelled[pair]]
+    return tuple(keys)
+
+
+def _rows_keyed(
+    cells: "list[str]", keyed: "dict[str, tuple[str, tuple[str, ...]]]"
+) -> "typing.Iterator[tuple[str, ...]]":
+    """Each row's keys, read through its held-back cell's shared ones as `_holding` walks (P4-D439).
+
+    ``keyed`` holds each different held-back cell of a censused form with
+    its form and keys; any other cell is counted under none.
+    """
+    for cell in cells:
+        yield keyed[cell][1] if cell in keyed else ()
 
 
 def _layouts_in_subjects(

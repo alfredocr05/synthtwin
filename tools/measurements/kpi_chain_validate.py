@@ -1,4 +1,4 @@
-"""K-S6-04, K-S6-05 and K-S6-10: validator V12 for the chain's families, layer L1 (lane CHv, plan P4-D430).
+"""K-S6-04 and K-S6-10: validator V12 for the chain's families, layer L1 (lane CHv, plan P4-D430).
 
 Every run goes through the product's own commands with the chain's switch
 handed in (`cli.main(..., chain=...)`, which no command-line option sets):
@@ -18,10 +18,13 @@ here from the oracle until it lands (`tests/chain_twins.py`).
   (`families_without_one_line`), every line HELD on the table itself
   (`lines_not_held_on_the_table`), and V12.4's six data mutants as the
   method states them (`mutants_as_expected` of `mutants`, at 800 rows).
-- K-S6-05: whole real rows in the twin, over K-S6-01's table (1,000 rows
-  of age, sbp, group and died; `tests/kpi_shapes.association_table`) and
-  twin seeds 0 to 19: today's twin and the chain's twin, each row counted
-  where it equals a real row in every column; the mean and the largest.
+- Whole real rows in the twin, over K-S6-01's table (1,000 rows of age,
+  sbp, group and died; `tests/kpi_shapes.association_table`) and twin
+  seeds 0 to 19: today's twin and the oracle-arranged chain twin, each row
+  counted where it equals a real row in every column; printed without
+  --kpi only. K-S6-05 itself is lane CHb's since batch 4m's merge (plan
+  P4-D435), measured on the product's own chain twin at 20,000 rows by
+  `kpi_chain_generate.py`.
 - K-S6-10: the blur, on the same table and seeds: the death-rate
   difference between rows of age 70 and above and the rest (a cut no
   description publishes), the chain's twin against the real table, its
@@ -277,7 +280,13 @@ def measure():
 def main():
     k_s6_04, whole, blur, seconds, missed = measure()
     detail = f"lane CHv's V12 at layer L1 behind the switch; mutants not as stated: {missed}; {seconds} s for the three"
-    records = (("K-S6-04", k_s6_04), ("K-S6-05", whole), ("K-S6-10", blur))
+    # K-S6-05 IS LANE CHb'S since batch 4m's merge (plan P4-D435): measured
+    # on the product's own chain twin at the owner's table floor beside a
+    # fresh real sample (`kpi_chain_generate.py`), one id for one
+    # measurement; the oracle-arranged count here is printed, not emitted.
+    records = (("K-S6-04", k_s6_04), ("K-S6-10", blur))
+    if "--kpi" not in sys.argv:
+        print("whole real rows, oracle-arranged (not K-S6-05's stamp):", json.dumps(whole, sort_keys=True))
     for entry_id, value in records:
         if "--kpi" in sys.argv:
             print("KPI " + json.dumps({"id": entry_id, "value": value, "detail": detail}, sort_keys=True))

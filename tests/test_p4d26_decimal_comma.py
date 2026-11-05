@@ -107,16 +107,22 @@ def test_the_reading_drops_the_points_and_swaps_the_commas(
 # -- half one: the profiler reads it ----------------------------------
 
 
-def test_an_undeclared_column_of_commas_is_read_as_it_always_was() -> None:
-    """NO HEURISTIC DECIDES THIS. A column nobody named keeps today's
-    reading, whatever its commas look like -- which is the whole of
-    what P4-D26 forbids guessing about.
+def test_an_undeclared_column_of_decimal_commas_is_read_as_the_declared_one_is() -> None:
+    """A column nobody named is read under the comma only where its cells settle it.
+
+    CHANGED ON PURPOSE BY LANE UN-1b (plan P4-D443; the zoo-fix plan's
+    2.1b (c) v2.1). P4-D26 forbade guessing; the inference guesses
+    nothing the cells leave open: one comma a cell, one number under the
+    comma, two figures after it, no point in the column, no list mark
+    twice in a cell, and neither two-pick signature. These quantities
+    meet every condition, so the undeclared column is described exactly
+    as the declared one is; a column whose commas the cells cannot
+    settle keeps today's reading (`tests/test_zoo_units.py`).
     """
     document, _loaded, _folder, _table = _described(_quantities())
-    assert document["columns"][0]["role"] == "free_text", (
-        "an undeclared column must not start reading as numbers merely "
-        "because this feature exists"
-    )
+    declared, _declared_loaded, _again, _same = _described(_quantities(), ["weight"])
+    assert document["columns"][0]["role"] == "continuous"
+    assert document["columns"] == declared["columns"]
 
 
 def _as_quantities(values: "list[str]") -> "list[float]":
@@ -171,9 +177,9 @@ def test_the_declaration_reaches_only_the_columns_it_names() -> None:
     weights = _quantities(60)
     # An ADDRESS, which is the example R-P4-31 itself gives for a comma
     # that is not a decimal point.
-    towns = ("Ames", "Cedar Falls", "Dubuque", "Iowa City", "Waterloo")
+    towns = ("Avon", "Maple Grove", "Fairfax", "Lake City", "Hartford")
     notes = [
-        f"{100 + row} Main Street, {towns[row % 5]}, Iowa"
+        f"{100 + row} Main Street, {towns[row % 5]}, Ohio"
         for row in range(60)
     ]
     table = fixtures.write(
@@ -236,10 +242,21 @@ def test_the_declaration_is_recorded_in_the_description() -> None:
     assert loaded.settings.forced_decimal_commas == ("weight",)
 
 
-def test_an_undeclared_run_records_an_empty_declaration() -> None:
+def test_an_undeclared_run_records_the_inferred_declaration() -> None:
+    """An inferred comma is recorded as a declared one is, and a vetoed column records none.
+
+    CHANGED ON PURPOSE BY LANE UN-1b (plan P4-D443): the inferred column
+    is published among `forced_decimal_commas`, so `synthtwin generate`
+    writes it with the comma and `synthtwin validate` reads the twin
+    alike; a column of lists (`1,2,3`) is vetoed and records nothing.
+    """
     document, loaded, _folder, _table = _described(_quantities())
-    assert document["settings"]["forced_decimal_commas"] == []
-    assert loaded.settings.forced_decimal_commas == ()
+    assert document["settings"]["forced_decimal_commas"] == ["weight"]
+    assert loaded.settings.forced_decimal_commas == ("weight",)
+    lists = [f"{index % 7},{index % 5},{index % 3}" for index in range(200)]
+    vetoed, vetoed_loaded, _folder2, _table2 = _described(lists)
+    assert vetoed["settings"]["forced_decimal_commas"] == []
+    assert vetoed_loaded.settings.forced_decimal_commas == ()
 
 
 # -- half three: the twin writes it back -------------------------------

@@ -85,13 +85,19 @@ with tempfile.TemporaryDirectory() as scratch:
                     written.unlink()
         if rows == 200000:
             continue
-        zoo = room.zoo_equal_cells(pathlib.Path(scratch) / f"zoo-{rows}", rows)
-        value["zoo_twin_cells_equal_to_a_real_identifier"] += zoo["equal"]
-        value["zoo_twin_cells_merging_with_a_real_identifier"] += zoo["merged"]
+        by_column: "dict[str, tuple[int, int]]" = {}
+        zoo = room.zoo_equal_cells(pathlib.Path(scratch) / f"zoo-{rows}", rows, by_column=by_column)
+        # Per named column (BATCH 4n OWES 1): the five held birth dates apart, every other column
+        # into the totals, which read 0.
+        room.tally_zoo(value, by_column)
+        lines += [f"the zoo at {rows} rows: {column} {equal} equal, {merged} merging"
+                  for column, (equal, merged) in sorted(by_column.items()) if equal or merged]
         value["zoo_identifier_columns"] += zoo["columns"]
+        # ...over the whole catalogue (BATCH 4m OWES 2): the tables run, named beside the columns.
+        value["zoo_tables"] = value.get("zoo_tables", 0) + zoo["tables"]
         value["zoo_identifier_columns_not_read"] += zoo["unread"]
         value["not_written"] += zoo["unwritten"]
-        lines += [f"the zoo at {rows} rows: {zoo['columns']} identifier columns read, {zoo['unread']} "
+        lines += [f"the zoo at {rows} rows ({zoo['tables']} tables): {zoo['columns']} identifier columns read, {zoo['unread']} "
                   f"not, {zoo['equal']} twin cells equal to a real one, {zoo['merged']} merging, "
                   f"{zoo['unwritten']} tables not written"]
 for line in lines:

@@ -42,6 +42,17 @@ midnight (`unix_afternoons`, `unix_millis`), month-first dates under
 `--day-first` (`month_first`), no question put on a column the count in
 rows held, an older description still met by its unchanged source, and
 the evidence that never denies repeated people.
+
+THE SUITE'S TIME (the orchestrator's rule of 2026-10-26; batch 4l OWES 1,
+lane SPD, plan P4-D444): this file took 738.7 s, nearly all of it in cases
+at 20,000 rows. It keeps ONE of them -- the count over the sweep's
+`dates_held_checks.KEPT_SHAPE`, the floor-size proof -- beside every case
+that needs no table and the refusal one row under the floor; every other
+case at 20,000 rows runs in K-HZ-07's driver,
+`tools/measurements/kpi_dates_held.py`, under `kpi_run.py --slow`, one item
+a case, through the same checks (`tests/dates_held_checks.py`). LANE SPD
+RULINGS 1 (2026-11-01): each change that lets a real date out keeps a case
+here too, at the smallest size that goes red on it (the section below).
 """
 
 from __future__ import annotations
@@ -49,15 +60,19 @@ from __future__ import annotations
 import contextlib
 import datetime
 import io
-import json
+import os
 import pathlib
+import random
+import subprocess
+import sys
 import types
 
 import pytest
 
-from synthtwin import cli, contract, grains, parsing, profile, taxonomy, validation
+from synthtwin import cli, grains, parsing, profile, taxonomy
 
 import dates_held
+import dates_held_checks as checks
 import unanswered_identifier_shapes as shapes
 
 # The floor size alone in the suite; 200,000 rows run in K-HZ-07's slow leg.
@@ -82,113 +97,161 @@ def described(tmp_path_factory: pytest.TempPathFactory):
 
 
 # -- (A): no date one to ten people or rows hold is published -------------
+# The other shapes, and every other case at 20,000 rows, run in K-HZ-07's
+# driver (`dates_held_checks.moved_cases`, plan P4-D444).
 
 
 @pytest.mark.parametrize("rows", SIZES, ids=SIZE_IDS)
-@pytest.mark.parametrize("shape", sorted(dates_held.SWEEP))
+@pytest.mark.parametrize("shape", [checks.KEPT_SHAPE])
 def test_no_date_one_to_ten_people_or_rows_hold_is_published(described, shape: str, rows: int) -> None:
-    source, folder = described(shape, rows)
-    found = dates_held.dates_held_few(source, folder, dates_held.options_of(shape)[1])
-    assert found["dated"], f"{shape}: no column read as dates"
-    assert found["few"] == 0, found["named"][:20]
-    assert found["printed"] == [], found["printed"][:20]
+    checks.no_date_one_to_ten_people_or_rows_hold_is_published(described, shape, rows)
 
 
-# Lane E0c's two exposures, each column by name: counted in rows (one row a
-# person, no person column that repeats), and every date it publishes held.
-EXPOSED = (
-    ("demographics", ("dob_iso", "dob_us", "dob_text")),
-    ("phi_registry", ("birth_date",)),
-)
+# -- a real date let out goes red here, never only under --slow -------------
+# LANE SPD RULINGS 1 (the orchestrator, 2026-11-01, HIPAA first): CI does not
+# run `kpi_run --slow`, so each change that puts a real date in a description
+# keeps a case in the suite, the smallest that goes red on it. The count in
+# rows starts at the table floor, so each case lowers the floor to its own
+# size and takes the command's real path, with the check and the counter of
+# the 20,000-row case K-HZ-07 still runs. Each mutant named is in
+# wave6/SPD/repair1/ (`mut_suite.log`).
 
 
-@pytest.mark.parametrize("rows", SIZES, ids=SIZE_IDS)
-@pytest.mark.parametrize(("shape", "columns"), EXPOSED)
-def test_lane_e0c_exposures_are_counted_in_rows_and_held(described, shape: str, columns: "tuple[str, ...]",
-                                                         rows: int) -> None:
-    source, folder = described(shape, rows)
-    found = dates_held.dates_held_few(source, folder)
-    assert found["counted_in"] == "rows"
-    for column in columns:
-        assert column in found["dated"]
-        block = dates_held.block_of(folder, dates_held.SWEEP[shape].name, column)
-        grain = block.get("time_grain")
-        # Pooled at a grain coarser than the day, or held: never the day.
-        assert isinstance(grain, dict) and grain["rung"] in ("year", "quarter", "month", "held"), (column, grain)
+@pytest.mark.parametrize(("shape", "rows"), [
+    ("one_row_open", 600),  # rows_without_person_only
+    ("excel_births", 600),  # counted_unread
+    ("utc_offsets", 600),  # utc_unread
+    ("unix_millis", 600),  # day_rendering_only, true_day_dropped, rows_at_precision
+    ("month_first", 600),  # order_one_way, order_unpinned
+    ("utc_split", 4000),  # shared_clock_unread
+])
+def test_a_real_date_let_out_goes_red_at_a_small_size(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, shape: str, rows: int
+) -> None:
+    monkeypatch.setattr(parsing, "TABLE_ROW_FLOOR", rows)
+    options, _floor = dates_held.options_of(shape)
+    source = dates_held.answered(dates_held.SWEEP[shape], tmp_path, rows, options)
+    checks.no_date_one_to_ten_people_or_rows_hold_is_published(lambda *_a: (source, tmp_path), shape, rows)
 
 
-# -- a column whose day grain the floor holds keeps its bytes --------------
-
-@pytest.mark.parametrize("rows", SIZES, ids=SIZE_IDS)
-@pytest.mark.parametrize(("shape", "column"), [(shape, column) for shape in sorted(dates_held.DENSE)
-                                                for column in dates_held.DENSE[shape]])
-def test_a_date_column_the_floor_holds_at_the_day_keeps_its_bytes(described, shape: str, column: str,
-                                                                  rows: int) -> None:
-    source, folder = described(shape, rows)
-    block = dates_held.block_of(folder, dates_held.SWEEP[shape].name, column)
-    assert "time_grain" not in block, block.get("time_grain")
-    assert dates_held.dense_digest(folder, shape, column) == dates_held.DENSE_DIGESTS[(shape, column, rows)]
-
-
-def test_a_stamp_whose_days_the_floor_holds_keeps_its_time_of_day(described) -> None:
-    """The dense stamp to the minute, no person column, at 20,000 rows: its hours still published."""
-    source, folder = described("dense_only", 20000)
-    block = dates_held.block_of(folder, "dense_only", "arrived_at")
-    assert block["role"] == "datetime"
-    percentiles = block["date_percentiles"]
-    assert isinstance(percentiles, dict)
-    assert any(isinstance(point, str) and not point.endswith("00:00:00") for point in percentiles.values())
-
-
-# -- the twin ---------------------------------------------------------------
-
-
-@pytest.mark.parametrize("shape", sorted(dates_held.SWEEP))
-def test_the_twin_writes_valid_dates_and_meets_its_description(described, shape: str) -> None:
-    source, folder = described(shape, 20000)
-    name = dates_held.SWEEP[shape].name
+def _profiled(folder: pathlib.Path, name: str, header: "list[str]", lines: "list[list[str]]", *typed: str) -> pathlib.Path:
+    """`synthtwin profile` on a small table the test writes, the table floor already lowered to its size."""
+    source = folder / f"{name}.csv"
+    source.write_bytes(dates_held.health_zoo.csv_bytes(header, lines))
     quiet = io.StringIO()
-    with contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
-        made = cli.main(["generate", f"{folder / (name + '-profile.json')}", "--out-dir", f"{folder}",
-                         "--seed", "0", "--replace"])
-    assert made == 0, quiet.getvalue()[-2000:]
-    found = dates_held.dates_held_few(source, folder)
-    loaded = contract.load_profile(f"{folder / (name + '-profile.json')}")
-    twin = folder / f"{name}-twin.csv"
-    names, columns = dates_held.persons_counted.table_columns(twin)
-    for column in found["dated"]:  # type: ignore[union-attr]
-        # Each cell read in ITS column's own source layouts, and no other
-        # (skeptic 1, item 8): ISO in a column written 03/17/2024 is out.
-        layouts = dates_held.LAYOUTS[(shape, column)]
-        for cell in columns[names.index(column)]:
-            if cell:
-                assert dates_held.in_its_layouts(cell, layouts), (column, cell, layouts)
-    outcome = validation.measure(loaded, f"{twin}")
-    missed = {f"{check.column}.{check.subcheck}" for check in outcome.checks if check.verdict == validation.MISSED
-              and f"{check.column}" in found["dated"]}  # type: ignore[operator]
-    assert missed <= TWIN_LIMITS.get(shape, set()), sorted(missed)
-    # ...and the real table meets its own description, every date column
-    # (the count by occurrences aside, lane PS's own residual, as the
-    # registry case below reads it).
-    real = validation.measure(loaded, f"{source}")
-    assert not [f"{check.column}.{check.subcheck}" for check in real.checks
-                if check.verdict == validation.MISSED and f"{check.column}" in found["dated"]  # type: ignore[operator]
-                and "occurrences" not in f"{check.subcheck}"]
+    with shapes.nobody_at_the_keyboard(), contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
+        assert cli.main(["profile", f"{source}", "--out-dir", f"{folder}", "--replace", *typed]) == 0, quiet.getvalue()[-1500:]
+    return source
 
 
-# A NAMED LIMIT, NOT THIS LANE'S (P4-D417's stamps with UTC offsets, lane
-# DST): a stamp published on the shared clock and pooled at a rung is drawn
-# inside its local bucket, so its twin misses two points and the weekday
-# census read on that clock, while the real table meets every one. Measured
-# at 20,000 rows, seed 0 (wave6/PS2/repair1/diag-utc.log); pinned so it
-# cannot grow unseen.
-TWIN_LIMITS: "dict[str, set[str]]" = {
-    "utc_offsets": {"arrived_at.date-ladder.p75", "arrived_at.date-ladder.p99", "arrived_at.weekday_census.groups"},
-    # Repair round 2: the births at +14:00 and -10:00, pooled at the month in
-    # people on the shared clock (wave6/PS2/repair2/g1.log), the same limit.
-    "utc_split": {"born_at.date-ladder.p25", "born_at.day_of_month_census.groups", "born_at.tails.high.rows",
-                  "born_at.tails.high.values", "born_at.tails.low.boundary", "born_at.tails.low.rows"},
-}
+def test_a_raised_floor_holds_days_the_owners_floor_would_publish(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mutant `floor_fixed_at_11`: 32 days on 18 or 19 rows under `--smallest-group 20` printed 11 real days."""
+    monkeypatch.setattr(parsing, "TABLE_ROW_FLOOR", 600)
+    first = datetime.date(2022, 1, 1)
+    lines = [[(first + datetime.timedelta(days=index % 32)).isoformat(), "AB"[index % 2]] for index in range(600)]
+    source = _profiled(tmp_path, "days19", ["admit_date", "group"], lines, "--smallest-group", "20")
+    found = dates_held.dates_held_few(source, tmp_path, 20)
+    assert found["dated"] == ["admit_date"], found
+    assert found["few"] == 0 and found["printed"] == [], found
+
+
+def test_a_raised_floor_above_the_tables_people_never_counts_their_dates_in_rows(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mutant `rows_below_the_floor`: one of 120 patients on 300 rows, one day, floor 150, printed that patient's day."""
+    monkeypatch.setattr(parsing, "TABLE_ROW_FLOOR", 1500)
+    draw = random.Random(dates_held.SEED)
+    day = datetime.date(2023, 6, 15)
+    others = [day + datetime.timedelta(days=step) for step in range(1, 8)]
+    owners = [0] * 300 + [1 + index % 119 for index in range(1200)]
+    lines = [[f"P{1000000 + owner:07d}", (day if owner == 0 else draw.choice(others)).isoformat(),
+              f"{draw.uniform(40, 140):.1f}"] for owner in owners]
+    draw.shuffle(lines)
+    source = _profiled(tmp_path, "oneday", ["patient_id", "visit_date", "weight"], lines,
+                       "--identifier", "patient_id", "--smallest-group", "150")
+    found = dates_held.dates_held_few(source, tmp_path, 150)
+    assert found["counted_in"] == "people" and found["dated"] == ["visit_date"], found
+    assert found["few"] == 0 and found["printed"] == [], found
+
+
+# -- what K-HZ-07's driver runs for the gate ---------------------------------
+
+
+def test_the_driver_keeps_every_moved_case() -> None:
+    """Skeptic 1 of lane SPD item 2: K-HZ-07's value has no item count, so a dropped shape would stay green."""
+    cases = checks.moved_cases()
+    names = [name for name, _node, _call in cases]
+    nodes = [node for _name, node, _call in cases]
+    assert len(cases) == 59
+    assert len(set(names)) == len(names) and len(set(nodes)) == len(nodes)
+    sweep = set(dates_held.SWEEP)
+    assert {name.split(":")[1] for name in names if name.startswith("no_date_few:")} == sweep - {checks.KEPT_SHAPE}
+    assert {name.split(":")[1] for name in names if name.startswith("twin_valid:")} == sweep
+    assert {tuple(name.split(":")[1:]) for name in names if name.startswith("dense_bytes:")} == {
+        (shape, column) for shape, columns in dates_held.DENSE.items() for column in columns
+    }
+    assert {name.split(":")[1] for name in names if name.startswith("own_clock:")} == set(checks.OWN_CLOCK_SHAPES)
+    assert {name.split(":")[1] for name in names if name.startswith("e0c_exposure:")} == {
+        shape for shape, _columns in checks.EXPOSED
+    }
+
+
+def test_a_failing_count_is_noted_before_it_is_judged(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Skeptic 1 of lane SPD item 1: K-HZ-07's items printed a verdict and no count."""
+    monkeypatch.setattr(dates_held, "dates_held_few", lambda *a: {
+        "dated": ["born"], "few": 3, "printed": ["1950-01-02"], "named": ["born"]})
+    checks.COUNTED.clear()
+    with pytest.raises(AssertionError):
+        checks.no_date_one_to_ten_people_or_rows_hold_is_published(
+            lambda *a: (pathlib.Path("t.csv"), pathlib.Path("f")), checks.KEPT_SHAPE, 20000)
+    assert checks.counted_words() == "few=3 printed=1"
+    checks.COUNTED.clear()
+    assert checks.counted_words() == "no count in this check"
+
+
+@pytest.mark.parametrize(("typed", "code", "said"), [
+    (["--kpi", "--only", "dense_bytes:*"], 2, "needs --moved-only"),
+    (["--moved-only", "--only", "own_clok:*"], 1, "nothing was measured"),
+])
+def test_the_driver_refuses_a_partial_record_and_an_empty_choice(
+    tmp_path: pathlib.Path, typed: "list[str]", code: int, said: str
+) -> None:
+    """Codex's items 1 and 3: `--only` wrote a whole KPI record over 7 of 59, and a typo exited 0."""
+    driver = pathlib.Path(__file__).resolve().parents[1] / "tools" / "measurements" / "kpi_dates_held.py"
+    run = subprocess.run([sys.executable, f"{driver}"] + typed, capture_output=True, text=True, timeout=300,
+                         env={**os.environ, "TMPDIR": f"{tmp_path}", "TEMP": f"{tmp_path}", "TMP": f"{tmp_path}"})
+    assert run.returncode == code, run.stdout + run.stderr
+    assert said in run.stdout + run.stderr
+    assert "KPI " not in run.stdout
+
+
+def test_a_failing_moved_item_fails_the_driver_and_names_its_assert(tmp_path: pathlib.Path) -> None:
+    """Verify of lane SPD items 1 and 4: K-HZ-07's value holds no count of its 59 moved items, so the exit is their
+    only signal to kpi_run, and a bare assert has no message outside pytest."""
+    root = pathlib.Path(__file__).resolve().parents[1]
+    driver = root / "tools" / "measurements" / "kpi_dates_held.py"
+    script = tmp_path / "drive.py"
+    script.write_text(
+        "import runpy, sys\n"
+        f"sys.path[:0] = [{str(root / 'tests')!r}, {str(root / 'src')!r}]\n"
+        "import dates_held_checks\n"
+        "def failing(described, folder):\n"
+        "    assert described is None\n"
+        "dates_held_checks.moved_cases = lambda: [('stubbed', 'tests/stubbed.py::stubbed', failing)]\n"
+        f"sys.argv = [{str(driver)!r}, '--moved-only']\n"
+        f"runpy.run_path({str(driver)!r}, run_name='__main__')\n",
+        encoding="utf-8", newline="\n",
+    )
+    run = subprocess.run([sys.executable, f"{script}"], capture_output=True, text=True, timeout=300,
+                         env={**os.environ, "TMPDIR": f"{tmp_path}", "TEMP": f"{tmp_path}", "TMP": f"{tmp_path}"})
+    assert run.returncode == 1, run.stdout + run.stderr
+    assert "moved stubbed (tests/stubbed.py::stubbed): FAIL" in run.stdout
+    assert "assert described is None" in run.stdout
+
+
+# -- the twin's layouts -------------------------------------------------------
 
 
 def test_a_cell_in_another_layout_than_its_columns_own_is_out() -> None:
@@ -200,85 +263,24 @@ def test_a_cell_in_another_layout_than_its_columns_own_is_out() -> None:
     assert not dates_held.in_its_layouts("2023-03-15", ("count:excel-1900",))
 
 
-# -- a day-first date written at a grain keeps its order --------------------
+def test_dates_too_sparse_by_the_day_are_pooled_in_rows_and_say_so(tmp_path: pathlib.Path) -> None:
+    """NF131 on a table naming nobody: ten years of days under the floor, every month over it.
 
-
-def test_a_day_first_date_written_at_a_grain_reads_day_first_and_its_twin_is_made(tmp_path: pathlib.Path) -> None:
-    """The zoo's `registry_extract` at 20,000 rows: day-first dates pooled at the month.
-
-    Every bucket starts on the first (`01/03/2022`), which reads either way;
-    read with the tie given to the month the block published
-    `month-first-date` beside a record reading `day-first-date`, and
-    `generate` refused the description (exit 1, the whole export lost).
+    The birth dates that pinned this sentence are held since lane SH2's merge.
     """
-    table = [one for one in dates_held.health_zoo.TABLES if one.name == "registry_extract"][0]
-    source = dates_held.answered(table, tmp_path, 20000)
-    described = json.loads((tmp_path / "registry_extract-profile.json").read_text(encoding="utf-8"))
-    grained = 0
-    for block in described["columns"]:
-        grain = block.get("time_grain")
-        if isinstance(grain, dict) and grain["rung"] != "held":
-            grained += 1
-            assert block["format"] == grain["reading"], (block["name"], block["format"], grain["reading"])
-    assert grained >= 2
-    quiet = io.StringIO()
-    with contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
-        made = cli.main(["generate", f"{tmp_path / 'registry_extract-profile.json'}", "--out-dir", f"{tmp_path}",
-                         "--seed", "0", "--replace"])
-    assert made == 0, quiet.getvalue()[-1500:]
-    loaded = contract.load_profile(f"{tmp_path / 'registry_extract-profile.json'}")
-    for path in (tmp_path / "registry_extract-twin.csv", source):
-        outcome = validation.measure(loaded, f"{path}")
-        assert not [check for check in outcome.checks if check.verdict == validation.MISSED
-                    and "occurrences" not in f"{check.subcheck}"], path.name
 
+    def spread(rows: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+        draw = random.Random(seed)
+        start = datetime.date(2015, 1, 1)
+        return ["admit_date", "ward"], [
+            [(start + datetime.timedelta(days=draw.randrange(3650))).isoformat(), draw.choice(("A", "B"))]
+            for _row in range(rows)
+        ]
 
-# -- in people first --------------------------------------------------------
-
-
-def test_birth_dates_beside_ten_patients_stay_held_in_people(tmp_path: pathlib.Path) -> None:
-    """Lane HX2's `dob_ten` at 20,000 rows: ten patients' birth dates, each on 2,000 rows.
-
-    The patient key holds fewer than the floor's people, so no subject column
-    counts in people and the rows are counted too -- but the key, attached to
-    the column and telling its people apart, still holds it (P4-D406): each
-    date falls on far more than ten rows, and counted in rows alone all ten
-    would be published.
-    """
-    seen = shapes.run(tmp_path, "dob_ten", 20000)
-    assert seen["profile_exit"] == 0 and seen["validate_exit"] == 0, seen
-    assert seen["description_values"] == 0 and seen["twin_cells"] == 0, seen
-    assert seen["evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_PEOPLE, ())
-
-
-# -- the words: rows, not people ---------------------------------------------
-
-
-def test_the_description_and_its_summary_say_rows_where_rows_are_counted(described) -> None:
-    """NF130 and NF131 where each row is its own holder; NF128 where a person column counts in people."""
-    source, folder = described("no_person", 20000)
-    held = dates_held.block_of(folder, "no_person", "event_date")
-    pooled = dates_held.block_of(folder, "no_person", "birth_date")
-    assert held["role"] == "identifier"
-    assert held["detection_evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_ROWS, ())
-    assert pooled["detection_evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_POOLED_IN_ROWS, ())
-    summary = (folder / "no_person-profile.txt").read_text(encoding="utf-8")
-    assert "because too few rows hold its dates" in summary
-    # ...and the screen says rows too, never "several rows a person".
-    again = folder / "again"
-    again.mkdir()
-    screen = io.StringIO()
-    with shapes.nobody_at_the_keyboard():
-        with contextlib.redirect_stdout(screen), contextlib.redirect_stderr(screen):
-            assert cli.main(["profile", f"{source}", "--out-dir", f"{again}", "--replace"],
-                            small_tables_refused=True) == 0
-    said = screen.getvalue()
-    assert "DATES HELD BY FEWER THAN 11 ROWS" in said and "event_date" in said, said[-1500:]
-    assert "VALUES HELD BY FEWER THAN" not in said
-    assert "each row is counted as its own, and some date" in summary
-    _source, people = described("several_rows", 20000)
-    beside = dates_held.block_of(people, "several_rows", "birth_date")
-    assert beside["detection_evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_POOLED_IN_PEOPLE, ())
+    table = dates_held._table("spread", spread, ("admit_date", "ward"), {})
+    dates_held.answered(table, tmp_path, 20000, ())
+    block = dates_held.block_of(tmp_path, "spread", "admit_date")
+    assert block["detection_evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_POOLED_IN_ROWS, ())
 
 
 # -- below the floor: refused by the command --------------------------------
@@ -349,55 +351,6 @@ def test_rows_as_holders_tells_every_row_apart() -> None:
     assert len(holders) == 1000 and len(set(holders)) == 1000
 
 
-# -- repair round 1 -----------------------------------------------------------
-
-
-def test_no_question_is_put_on_a_column_the_count_in_rows_held(described) -> None:
-    """Skeptic 1, item 3: the sparse event with no person column is held in rows and asked nothing.
-
-    Q6 (`asking.BECAUSE_MOSTLY_DATES`) once asked it whether it holds
-    dates, though no answer could publish one, and said its blank cells
-    were "written another way".
-    """
-    source, folder = described("no_person", 20000)
-    held = dates_held.block_of(folder, "no_person", "event_date")
-    assert held["detection_evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_ROWS, ())
-    asked = folder / "no_person-questions.json"
-    document = json.loads(asked.read_text(encoding="utf-8")) if asked.exists() else {}
-    named = [entry.get("column") for entry in document.get("asked", []) if isinstance(entry, dict)]
-    assert "event_date" not in named, named
-
-
-def test_the_raised_floor_holds_every_published_date(described) -> None:
-    """Skeptic 1, item 4: days on 18 or 19 rows keep the day at 11 and are pooled under `--smallest-group 20`."""
-    source, folder = described("even_days_20", 20000)
-    found = dates_held.dates_held_few(source, folder, 20)
-    assert found["few"] == 0 and found["printed"] == [], found
-    block = dates_held.block_of(folder, "even_days", "admit_date")
-    grain = block.get("time_grain")
-    assert isinstance(grain, dict) and grain["rung"] in ("month", "quarter", "year", "held"), grain
-    _source, eleven = described("even_days", 20000)
-    assert "time_grain" not in dates_held.block_of(eleven, "even_days", "admit_date")
-
-
-@pytest.mark.parametrize("shape", ["excel_births", "unix_afternoons", "unix_millis", "utc_offsets"])
-def test_dates_read_by_their_own_clock_and_count_are_held(described, shape: str) -> None:
-    """Skeptic 1, item 5 and Codex's items 1 and 2: each date counted on the day it truly names.
-
-    Excel days declared; Unix seconds at 13:00, whose day's own rendering
-    rounds to the next day; milliseconds a millisecond before midnight;
-    stamps published on the shared clock, one a day there. Each published
-    a real date on one row before; each column is now pooled or held.
-    """
-    source, folder = described(shape, 20000)
-    found = dates_held.dates_held_few(source, folder)
-    assert found["counted_in"] == "rows" and found["dated"], found
-    assert found["few"] == 0 and found["printed"] == [], found
-    for column in found["dated"]:  # type: ignore[union-attr]
-        grain = dates_held.block_of(folder, dates_held.SWEEP[shape].name, f"{column}").get("time_grain")
-        assert isinstance(grain, dict) and grain["rung"] != "day", (column, grain)
-
-
 def test_the_true_day_of_a_count_is_never_rounded_forward() -> None:
     """Codex's item 2, the product's own part: the instant floored to its midnight."""
     seconds = profile._CellReading("seconds-since-1970")
@@ -406,123 +359,6 @@ def test_the_true_day_of_a_count_is_never_rounded_forward() -> None:
     assert profile._counted_true_day(f"{946684800000 + 86399999}", millis) == "2000-01-01"
     assert profile._counted_true_day("45000.75", profile._CellReading("excel-1900")) == "2023-03-15"
     assert profile._counted_true_day("x", seconds) == ""
-
-
-def test_a_month_first_column_under_day_first_is_described_at_its_grain(described) -> None:
-    """Codex's item 4: days above twelve settled the column month-first; `--day-first` must not hold it.
-
-    At the month every bucket is `MM/01/YYYY`, which reads either way; read
-    day first it published another member than its record, every rung was
-    refused and the column was held as record numbers.
-    """
-    source, folder = described("month_first", 20000)
-    block = dates_held.block_of(folder, "month_first", "seen_on")
-    grain = block.get("time_grain")
-    assert block["role"] == "datetime", block["role"]
-    assert isinstance(grain, dict) and grain["rung"] not in ("held", "day"), grain
-    assert block["format"] == grain["reading"] == "month-first-date", (block.get("format"), grain)
-
-
-def test_an_older_description_is_met_by_its_unchanged_source(tmp_path: pathlib.Path,
-                                                             monkeypatch: pytest.MonkeyPatch) -> None:
-    """Codex's item 3: validation reads the grain a description published, its absence included.
-
-    20,000 consecutive days from 1950, written by a description made before
-    the count in rows (the count switched off), published every day; the
-    validator once pooled the unchanged source and missed eleven checks.
-    """
-    first = datetime.date(1950, 1, 1)
-    lines = [[(first + datetime.timedelta(days=index)).isoformat(), "BA"[index % 2]] for index in range(20000)]
-    source = tmp_path / "days.csv"
-    source.write_bytes(dates_held.health_zoo.csv_bytes(["seen_on", "group"], lines))
-    with monkeypatch.context() as patched:
-        patched.setattr(profile, "_dates_few_in_rows", lambda *arguments, **keywords: False)
-        quiet = io.StringIO()
-        with shapes.nobody_at_the_keyboard(), contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
-            assert cli.main(["profile", f"{source}", "--out-dir", f"{tmp_path}", "--replace"],
-                            small_tables_refused=True) == 0, quiet.getvalue()[-1500:]
-    described = json.loads((tmp_path / "days-profile.json").read_text(encoding="utf-8"))
-    assert "time_grain" not in [block for block in described["columns"] if block["name"] == "seen_on"][0]
-    loaded = contract.load_profile(f"{tmp_path / 'days-profile.json'}")
-    outcome = validation.measure(loaded, f"{source}")
-    missed = [f"{check.column}.{check.subcheck}" for check in outcome.checks if check.verdict == validation.MISSED]
-    assert missed == [], missed
-
-
-def test_the_evidence_never_denies_repeated_people(tmp_path: pathlib.Path) -> None:
-    """Codex's item 6: 1,000 declared patients on 20 rows each, `--smallest-group 2000`, event dates that vary.
-
-    The person column repeats but names fewer people than the raised
-    floor; its dates are counted in those people (repair round 2, the
-    combined verify's item 1), so no bucket reaches the floor and the
-    column is held in people; the sentences never say that no column names
-    a person on several rows.
-    """
-    draw = __import__("random").Random(dates_held.SEED)
-    lines = [[f"P{1000000 + index % 1000:07d}",
-              (datetime.date(1990, 1, 1) + datetime.timedelta(days=draw.randrange(10950))).isoformat(),
-              f"{draw.uniform(40, 140):.1f}"] for index in range(20000)]
-    source = tmp_path / "visits.csv"
-    source.write_bytes(dates_held.health_zoo.csv_bytes(["patient_id", "event_date", "weight"], lines))
-    quiet = io.StringIO()
-    with shapes.nobody_at_the_keyboard(), contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
-        assert cli.main(["profile", f"{source}", "--out-dir", f"{tmp_path}", "--replace", "--identifier",
-                         "patient_id", "--smallest-group", "2000"], small_tables_refused=True) == 0
-    said = quiet.getvalue()
-    described = json.loads((tmp_path / "visits-profile.json").read_text(encoding="utf-8"))
-    block = [one for one in described["columns"] if one["name"] == "event_date"][0]
-    evidence = f"{block['detection_evidence']}"
-    assert evidence == taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_PEOPLE, ()), evidence
-    for text in (evidence, said, (tmp_path / "visits-profile.txt").read_text(encoding="utf-8")):
-        assert "names a person on several rows, so" not in text
-        assert "No column of this table names a person" not in text
-
-
-# -- repair round 2: the combined verify's items 1 and 2 -------------------
-
-# The sha256 of `few_visit_days`' visit_date block at the owner's floor on
-# the base, ccebc947, through the same path (wave6/PS2/repair2/base-digest.log).
-FEW_VISIT_DAYS_AT_11 = "7355021785b9916289b50d383ed38898bfd4ad3eec1087d41ff005c8eeb130c0"
-
-
-def test_a_raised_floor_above_the_tables_people_still_counts_its_dates_in_people(described) -> None:
-    """The combined verify's item 1: 1,000 patients, one of them on 2,500 rows all on one day, `--smallest-group 2000`.
-
-    Counted in rows, those 2,500 rows passed the raised floor and the one
-    patient's day was published as the low tail, beside points 929 to 940
-    people hold. Counted in its people, whatever their number, no date
-    reaches 2,000 people and the column is held; at the owner's 11 its
-    block is the base's, byte for byte.
-    """
-    source, folder = described("few_visit_days_2000", 20000)
-    found = dates_held.dates_held_few(source, folder, 2000)
-    assert found["counted_in"] == "people" and found["dated"] == ["visit_date"], found
-    assert found["few"] == 0 and found["printed"] == [], found
-    block = dates_held.block_of(folder, "few_visit_days", "visit_date")
-    assert "2023-06-15" not in json.dumps(block), block
-    assert block["detection_evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_PEOPLE, ()), block
-    _source, eleven = described("few_visit_days", 20000)
-    digest = dates_held.hashlib.sha256(
-        json.dumps(dates_held.block_of(eleven, "few_visit_days", "visit_date"), sort_keys=True).encode("utf-8")
-    ).hexdigest()
-    assert digest == FEW_VISIT_DAYS_AT_11
-
-
-def test_dates_on_the_shared_clock_are_counted_in_people_there(described) -> None:
-    """The combined verify's item 2: births at local midnight at +14:00 and -10:00, ten rows a person.
-
-    Every local day holds 12 people; on the shared clock, where the block
-    publishes the column, each day holds 6. Counted under its local text,
-    every point and both tails printed a moment 6 people hold.
-    """
-    source, folder = described("utc_split", 20000)
-    found = dates_held.dates_held_few(source, folder)
-    assert found["counted_in"] == "people" and found["dated"] == ["born_at"], found
-    assert found["few"] == 0 and found["printed"] == [], found
-    block = dates_held.block_of(folder, "utc_split", "born_at")
-    grain = block.get("time_grain")
-    assert block.get("datetimes_read_at") == "utc" or isinstance(grain, dict), block
-    assert isinstance(grain, dict) and grain["rung"] != "day", grain
 
 
 def test_the_walk_counts_each_bucket_and_offset_apart() -> None:
