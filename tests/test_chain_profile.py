@@ -649,7 +649,10 @@ def test_the_loader_accepts_the_chain_and_refuses_each_mutation(tmp_path):
     assert "S28" in refused(lambda st: st["rules"].append({"kind": "order"}))
     assert "S26" in refused(lambda st: st["chain"][1].__setitem__("slopes", {"parents": [], "sigma": 0}))
     assert "S24" in refused(lambda st: st["procedure"].__setitem__("k_max", 4))
-    assert statistical["moments"] is None and statistical["rules"] == []
+    # The owner's rule B of 2026-11-02 (plan P4-D455): the chain's description
+    # carries rule B's moments, which tests/test_moment_rule_b.py holds; the
+    # rules and the withheld class stay empty.
+    assert statistical["moments"]["rule"] == "B" and statistical["rules"] == []
 
 
 def test_the_loader_reads_the_chain_only_behind_its_switch(tmp_path, monkeypatch, capsys):
@@ -675,7 +678,12 @@ def test_every_published_count_is_nought_or_at_least_the_floor(tmp_path):
         assert family["slopes"] is None
         for row in family["table"]:
             assert all(cell == 0 or cell >= FLOOR for cell in row)
-    assert statistical["moments"] is None and statistical["withheld"] == [] and statistical["rules"] == []
+    # Rule B's moments (plan P4-D455): every count they publish is 0 or at least the floor too.
+    moments = statistical["moments"]
+    assert moments["rule"] == "B" and statistical["withheld"] == [] and statistical["rules"] == []
+    assert all(entry["n"] >= FLOOR for entry in moments["columns"])
+    assert all(pair is None or pair[1] >= FLOOR for line in moments["correlations"] for pair in line)
+    assert all(group[0] == 0 or group[0] >= FLOOR for entry in moments["within"] for group in entry["groups"])
     assert statistical["procedure"] == chain_rules.procedure_record(800)
 
 
@@ -710,8 +718,12 @@ def test_the_second_code_reads_the_rungs_probability_scale():
 
 
 def test_the_moment_inputs_are_computed_and_nothing_of_them_is_published(tmp_path):
+    """The strict-proof route's inputs (4.6d.1 to 4.6d.4) are computed and none is published: the
+    description's `moments` holds rule B's object alone (the owner's rule B of 2026-11-02, plan
+    P4-D455, which supersedes the witness for moments; tests/test_moment_rule_b.py holds it)."""
     _table, document, _settings, chained = _describe(tmp_path, _clinic())
-    assert chained.statistical is not None and chained.statistical["moments"] is None
+    assert chained.statistical is not None and chained.statistical["moments"]["rule"] == "B"
+    assert "regions" not in chained.statistical["moments"] and "sums" not in chained.statistical["moments"]
     inputs = chained.moments
     assert inputs is not None and inputs["classes_published"] == []
     assert inputs["codes"] and inputs["offers"] and inputs["regions"]

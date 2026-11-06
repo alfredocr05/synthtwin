@@ -61,6 +61,11 @@ def check(seen: "dict[str, object]", kind: str, rows: int) -> None:
     offered = asked[0]
     assert isinstance(offered, list)
     harbor = [asking.ANSWER_SAFE_HARBOR_NO, asking.ANSWER_SAFE_HARBOR_YES]
+    if kind in shapes.AGES and offered == harbor + list(asking.AGE_UNIT_ANSWERS):
+        # ...a column of ages whose cells and name state no unit is asked
+        # its unit inside the one question (lane SH3's repair, the
+        # orchestrator's LANE SH3 RULINGS 2 (1)).
+        offered = harbor
     if kind in shapes.AGES:
         assert seen["top_coded"] == taxonomy.TOP_CODE, seen
         # THE SUMMARY SAYS SO (skeptic 1 of lane SH, item 11).
@@ -106,7 +111,12 @@ def check_answered(seen: "dict[str, object]", kind: str) -> None:
     assert seen["description_fragments"] == 0, seen
     assert seen["twin_cells"] == 0, seen
     assert seen["twin_fragments"] == 0, seen
-    assert seen["asked"] == [[asking.ANSWER_SAFE_HARBOR_NO, asking.ANSWER_SAFE_HARBOR_YES]], seen
+    # ...a column of ages whose cells and name state no unit is asked its
+    # unit inside the one question (lane SH3's repair, RULINGS 2 (1)).
+    assert seen["asked"] in (
+        [[asking.ANSWER_SAFE_HARBOR_NO, asking.ANSWER_SAFE_HARBOR_YES]],
+        [[asking.ANSWER_SAFE_HARBOR_NO, asking.ANSWER_SAFE_HARBOR_YES] + list(asking.AGE_UNIT_ANSWERS)],
+    ) and (kind not in shapes.ZIP_KINDS or len(seen["asked"][0]) == 2), seen  # type: ignore[index, arg-type]
     if kind in shapes.ZIP_KINDS:
         assert seen["role"] == taxonomy.ROLE_IDENTIFIER, seen
         assert seen["read_as_now"] == [asking.ANSWER_SAFE_HARBOR_YES], seen

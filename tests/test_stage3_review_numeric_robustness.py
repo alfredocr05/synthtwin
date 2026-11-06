@@ -872,3 +872,17 @@ def test_a_style_packing_never_spends_fewer_spellings_than_published(
         quotas, layout, values, False, 3, 3, walked
     )
     assert packed[0] == packed[1]
+
+
+# THE PERSON ANSWERS `no` ABOUT DATES IN DISGUISE (plan P4-D446, lane CZ-H):
+# this file's columns hold five-figure numbers in a day-counting band, or
+# nine or ten figures in a seconds band, and are about something else, so
+# each test takes the description `no` gives back, byte for byte. The hold
+# itself is pinned by `tests/test_zoo_dates_in_disguise.py` and K-HZ-16.
+@pytest.fixture(autouse=True, scope="module")
+def _dates_in_disguise_answered_no() -> object:
+    import keyboard
+
+    with pytest.MonkeyPatch.context() as patch:
+        keyboard.dates_in_disguise_answered_no(patch)
+        yield

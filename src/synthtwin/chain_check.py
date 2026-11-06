@@ -11,13 +11,15 @@ person can act on (`errors.profile_chain_broken`). Which options were
 eligible is a function of the description (inventory rows 3 to 5a), so
 the loader recomputes RULES W3, NE, W1 and WE from the published totals
 and tables and finds every placed family eligible. In this landing no
-rule is carried, no slope is published (ruling R12) and no moment
-(lane MPOL's gate), so `rules`, `withheld` and every family's `slopes`
-must be empty and `moments` null; a description that fills one was
-written by a later landing and is refused as one this version cannot
-check.
+rule is carried and no slope is published apart, so `rules`, `withheld`
+and every family's `slopes` must be empty; `moments`, null or rule B's
+object (lane MPp, plan P4-D455), is held to S39 to S43 (`check_moments`).
+A description that fills another slot was written by a later landing and
+is refused as one this version cannot check.
 """
 
+
+from synthtwin import chain_moments
 from synthtwin import chain_rules
 from synthtwin import errors
 
@@ -80,8 +82,8 @@ def check(document: "dict[str, object]") -> None:
     procedure = statistical["procedure"]
     if procedure != chain_rules.procedure_record(tabled):
         raise _broken("S24", "procedure", "the constants are this version's (contract 4.6b.14)")
-    if statistical["moments"] is not None or statistical["rules"] != [] or statistical["withheld"] != []:
-        raise _broken("S28", "rules", "this version carries no rule, no moment and no withheld class")
+    if statistical["rules"] != [] or statistical["withheld"] != []:
+        raise _broken("S28", "rules", "this version carries no rule and no withheld class")
     # -- ineligible and the ladder (S23) --
     reasons = statistical["ineligible"]
     out_of_ladder: "set[str]" = set()
@@ -113,6 +115,12 @@ def check(document: "dict[str, object]") -> None:
         scale, start = _ladder_of(entry, blocks[name], floor, tabled, blank_rows)
         scales[name] = scale
         starts[name] = start
+    # -- the moments rule B releases (S39 to S43, contract 4.6d.0) --
+    groups: "dict[str, set[int]]" = {}
+    for name in eligible:
+        groups[name] = chain_rules.small_group_bands(blocks[name], starts[name], scales[name], floor)
+    if statistical["moments"] is not None:
+        check_moments(statistical["moments"], blocks, eligible, scales, floor, tabled, groups)
     # -- the chain (S24, S25) --
     chain = statistical["chain"]
     if not isinstance(chain, list) or not chain:
@@ -136,10 +144,7 @@ def check(document: "dict[str, object]") -> None:
         if not family.parents:
             continue
         _offered(family, at, families, scales, eligible, floor, tabled)
-    # RULE W1, in full.
-    groups: "dict[str, set[int]]" = {}
-    for name in eligible:
-        groups[name] = chain_rules.small_group_bands(blocks[name], starts[name], scales[name], floor)
+    # RULE W1, in full (the own-fact groups read above, before the moments).
     failing = chain_rules.w1_refusals(families, scales, groups)
     if failing:
         raise _broken("S24", failing[0][0], "RULE W1: a band holding a small group of the column reaches two bands of every other column's coarsest level")
@@ -411,3 +416,304 @@ def _offered(
     placed = [family.level] + [level for _name, level in family.parents]
     if offered is None or any(placed[place] < offered[place] for place in range(len(placed))):
         raise _broken("S24", family.child, "RULES W3 and NE offer the family's levels")
+
+
+# -- RULE B's MOMENTS (contract 4.6d.0, plan P4-D455): S39 to S43 ----------
+
+
+def share_counts(share: int, n: int, scale: int = chain_moments.SCALE_SHARE) -> "tuple[int, int]":
+    """The counts `c` of `0..n` whose share `c / n` rounds to `share` units of `1 / scale`: `(lowest, highest)`, empty where lowest > highest."""
+    low = -((n - 2 * n * share) // (2 * scale))
+    high = -((-(2 * n * share + n)) // (2 * scale)) - 1
+    return max(low, 0), min(high, n)
+
+
+def _pins_small(low: int, high: int, floor: int) -> bool:
+    """Every count from `low` to `high` lies inside 1 to `floor - 1`: a small count the description fixes or bounds."""
+    return low <= high and low >= 1 and high <= floor - 1
+
+
+def _moment_column(
+    entry: object,
+    blocks: "dict[str, dict[str, object]]",
+    eligible: "list[str]",
+    scales: "dict[str, chain_rules.Ladder]",
+    floor: int,
+    tabled: int,
+) -> "tuple[str, str, int, int, int]":
+    """One `columns` entry read back (S40, S41, S42): its column, kind, count, its value in units of `1 / unit(n)` (a number's mean, a binary's ones) and a number's spread (0 for a binary)."""
+    if not isinstance(entry, dict) or not isinstance(_get(entry, "column"), str):
+        raise _broken("S40", "moments.columns", "each entry names a column")
+    name = f"{entry['column']}"
+    kind = _get(entry, "kind")
+    if name not in eligible:
+        raise _broken("S40", name, "a moment reads an eligible column only, never a held, identifier, sequence or free-text one")
+    block = blocks[name]
+    role = _get(block, "role")
+    n = _get(entry, "n")
+    if not _whole(n) or not isinstance(n, int) or n < floor or n < 2 or n > tabled:
+        raise _broken("S41", name, "a column's moments stand over at least the floor's people")
+    if kind == chain_moments.KIND_NUMBER:
+        if sorted(entry) != ["column", "kind", "mean", "n", "sd"]:
+            raise _broken("S40", name, "a number's entry holds column, kind, mean, n and sd")
+        if role not in chain_rules.NUMBER_ROLES or not chain_moments.fine(block) or chain_moments.codes_of(block) is None:
+            raise _broken("S40", name, "a number is a FINE column of a number role, read on its linear code")
+        # Its count is the readings its block lays out (Codex's item 4 on
+        # repair 1), as a binary's is its two levels' published totals.
+        if n != chain_moments.readings_of(block):
+            raise _broken("S41", name, "a number's count is the readings its column block lays out")
+        mean_top = 255 * chain_moments.unit(chain_moments.SCALE_MEAN, n)
+        sd_top = chain_moments.spread_top(n, chain_moments.unit(chain_moments.SCALE_COLUMN_SPREAD, n))
+        for key, top in (("mean", mean_top), ("sd", sd_top)):
+            value = entry[key]
+            if not _whole(value) or not isinstance(value, int) or value < 0 or value > top:
+                raise _broken("S42", name, f"the {key} is a whole number of the units its count states, on the code")
+        return name, kind, n, int(entry["mean"]), int(entry["sd"])
+    if kind != chain_moments.KIND_BINARY:
+        raise _broken("S40", name, "a moment column is a number or a binary")
+    if sorted(entry) != ["column", "kind", "n", "share"]:
+        raise _broken("S40", name, "a binary's entry holds column, kind, n and share")
+    levels = chain_moments.binary_levels(scales[name]) if role == chain_rules.ROLE_BINARY else None
+    if levels is None:
+        raise _broken("S40", name, "a binary holds exactly two L0 bands, each one published level")
+    totals = scales[name].totals
+    if n != totals[levels[0]] + totals[levels[1]]:
+        raise _broken("S41", name, "a binary's count is its two levels' published totals")
+    if entry["share"] != chain_moments.rounded_ratio(totals[levels[1]], n, chain_moments.unit(chain_moments.SCALE_SHARE, n)):
+        raise _broken("S42", name, "a binary's share is its second level's published total over its count, in the units its count states")
+    return name, kind, n, totals[levels[1]], 0
+
+
+def _pair_counts(where: str, n: int, first: int, second: int, floor: int, tabled: int) -> None:
+    """S41 for one correlation: the four cells of the pair's presence table over the tabled rows (contract 4.6d.0 (2))."""
+    if n < floor or n > min(first, second):
+        raise _broken("S41", where, "a correlation stands over at least the floor's rows holding both")
+    if (first == tabled and n != second) or (second == tabled and n != first):
+        raise _broken("S41", where, "beside a column read on every tabled row, the pair's rows are the other column's readings")
+    # A column read on every tabled row has, outside the pair, the other
+    # column's unread rows: a count the other column publishes about
+    # itself, which stands (contract 4.6d.0 (2)). The waiver reads the
+    # completeness of the column whose outside count is checked (Codex's
+    # item 1 and the verify's item 1 on repair 1), in either order.
+    for own in (first, second):
+        if not chain_moments.passes(own - n, floor) and own != tabled:
+            raise _broken("S41", where, "a column's readings outside the pair are 0 or at least the floor")
+    if not chain_moments.passes(tabled - first - second + n, floor):
+        raise _broken("S41", where, "the rows holding neither column are 0 or at least the floor")
+
+
+def _pair_spreads(where: str, pair: "list[object]", n: int, counts: "tuple[int, int]", spreads: "tuple[int, int]") -> None:
+    """S42 for one correlation's spreads: `[r, n]` where the pair holds every reading of both columns, else `[r, n, [sd, sd]]`.
+
+    The pair's own two spreads over its rows, in the unit of `n`, each on
+    the code's range at `n`; a column whose readings all lie in the pair
+    has the pair's spread equal to its own (the same rows, the same unit).
+    """
+    incomplete = n < counts[0] or n < counts[1]
+    if len(pair) != (3 if incomplete else 2):
+        raise _broken("S42", where, "a pair publishes its own two spreads exactly where it holds fewer rows than either column's readings")
+    if not incomplete:
+        return
+    found = pair[2]
+    if not isinstance(found, list) or len(found) != 2 or not all(_whole(part) and isinstance(part, int) for part in found):
+        raise _broken("S42", where, "a pair's spreads are two whole numbers")
+    top = chain_moments.spread_top(n, chain_moments.unit(chain_moments.SCALE_COLUMN_SPREAD, n))
+    for at in range(2):
+        value = found[at]
+        if not isinstance(value, int) or value < 0 or value > top:
+            raise _broken("S42", where, "a pair's spread lies on the code's range, in the units its count states")
+        if counts[at] == n and value != spreads[at]:
+            raise _broken("S42", where, "a column whose readings all lie in the pair has the pair's spread equal to its own")
+
+
+def _bands_agree(where: str, kind: str, groups: "list[list[int]]", n: int, value: int) -> None:
+    """S42: the bands' published values, each in its own count's units, agree with the column's own within the rounding."""
+    if kind == chain_moments.KIND_BINARY:
+        low = high = 0
+        for group in groups:
+            if group[0] == 0:
+                continue
+            found = share_counts(group[1], group[0], chain_moments.unit(chain_moments.SCALE_SHARE, group[0]))
+            low += found[0]
+            high += found[1]
+        if not low <= value <= high:
+            raise _broken("S42", where, "the bands' shares, in the units their counts state, hold the column's own level total")
+        return
+    scale = chain_moments.unit(chain_moments.SCALE_MEAN, n)
+    finest = scale
+    for group in groups:
+        if group[0]:
+            finest = max(finest, chain_moments.unit(chain_moments.SCALE_MEAN, group[0]))
+    # Every unit is a power of ten times the first, so each divides the
+    # finest: the sums below are whole numbers of 1 / (2 * finest).
+    total = 0
+    gap = n * (finest // scale)
+    for group in groups:
+        if group[0] == 0:
+            continue
+        times = finest // chain_moments.unit(chain_moments.SCALE_MEAN, group[0])
+        total += 2 * group[0] * group[1] * times
+        gap += group[0] * times
+    if abs(total - 2 * n * value * (finest // scale)) > gap:
+        raise _broken("S42", where, "the bands' means, in the units their counts state, add up to the column's mean within the rounding")
+
+
+def _spreads_agree(where: str, groups: "list[list[int]]", n: int, spread: int) -> None:
+    """S42: a number's spread and its bands' counts, means and spreads satisfy the total-variance identity within the rounding (`chain_moments.spreads_agree`)."""
+    if not chain_moments.spreads_agree(groups, n, spread):
+        raise _broken("S42", where, "the bands' counts, means and spreads hold the column's spread within the rounding (the total-variance identity)")
+
+
+def check_moments(
+    moments: object,
+    blocks: "dict[str, dict[str, object]]",
+    eligible: "list[str]",
+    scales: "dict[str, chain_rules.Ladder]",
+    floor: int,
+    tabled: int,
+    small: "dict[str, set[int]]",
+) -> None:
+    """Refuse a `moments` object that breaks rule B's invariants S39 to S43 (contract 4.6d.0 (6)).
+
+    S39 its shape and this version's scales; S40 every moment reads an
+    eligible number or binary column, never a held one; S41 every count
+    it publishes, and every count one subtraction from a published total
+    gives (a pair's four presence cells included), is 0 or at least the
+    floor, no published share pins a count inside 1 to `f - 1`, and RULE
+    W1 where the published facts settle it (`small`: each eligible
+    column's `L0` bands holding an own-fact group, as the column's block
+    lists them, a subset of what the producer reads on the rows), and a
+    number's count the readings its block lays out; S42 every value a
+    whole number of the units its own count states, inside its range (a
+    spread at most `spread_top` at its count, the `n - 1` divisor), a
+    correlation on its count's grid of Fisher's z with the pair's own
+    spreads exactly where it holds fewer rows than a column's readings, a
+    binary's share its levels' published totals, and the bands agreeing
+    with the column within the rounding (their means and shares, and a
+    number's spread by the total-variance identity); S43 the pairs: every correlation's pair
+    once, every `within` entry's pair once at a published level, at most
+    `partners` a column.
+    """
+    expected = ["columns", "correlations", "partners", "rule", "scales", "within"]
+    if not isinstance(moments, dict) or sorted(moments) != expected:
+        raise _broken("S39", "moments", "rule B's moments hold columns, correlations, partners, rule, scales and within")
+    scales_written = {
+        "column_sd": chain_moments.SCALE_COLUMN_SPREAD,
+        "correlation": chain_moments.SCALE_CORRELATION,
+        "fisher_z": chain_moments.SCALE_FISHER_Z,
+        "mean": chain_moments.SCALE_MEAN,
+        "sd": chain_moments.SCALE_SPREAD,
+        "share": chain_moments.SCALE_SHARE,
+    }
+    if moments["rule"] != chain_moments.RULE_B or moments["scales"] != scales_written or moments["partners"] != chain_moments.PARTNERS:
+        raise _broken("S39", "moments", "the rule, the scales and the partners are this version's (contract 4.6d.0)")
+    entries = moments["columns"]
+    if not isinstance(entries, list) or not entries:
+        raise _broken("S39", "moments.columns", "a list of the moment columns")
+    place_of: "dict[str, int]" = {}
+    for at in range(len(eligible)):
+        place_of[eligible[at]] = at
+    read: "list[tuple[str, str, int, int, int]]" = []
+    for entry in entries:
+        read += [_moment_column(entry, blocks, eligible, scales, floor, tabled)]
+    order = [place_of[name] for name, _kind, _n, _value, _sd in read]
+    if order != sorted(set(order)):
+        raise _broken("S40", "moments.columns", "each column once, in schema order")
+    counts = {name: n for name, _kind, n, _value, _sd in read}
+    kinds = {name: kind for name, kind, _n, _value, _sd in read}
+    values = {name: value for name, _kind, _n, value, _sd in read}
+    spreads = {name: sd for name, _kind, _n, _value, sd in read}
+    numbers = [name for name, kind, _n, _value, _sd in read if kind == chain_moments.KIND_NUMBER]
+    triangle = moments["correlations"]
+    if not isinstance(triangle, list) or len(triangle) != len(numbers):
+        raise _broken("S43", "moments.correlations", "one row for every number, in the columns' order")
+    for at in range(len(numbers)):
+        row = triangle[at]
+        if not isinstance(row, list) or len(row) != at:
+            raise _broken("S43", numbers[at], "row i of the correlations holds the i pairs before it")
+        for other in range(at):
+            pair = row[other]
+            if pair is None:
+                continue
+            where = f"{numbers[at]} and {numbers[other]}"
+            if not isinstance(pair, list) or len(pair) not in (2, 3) or not all(_whole(part) and isinstance(part, int) for part in pair[:2]):
+                raise _broken("S42", where, "a correlation is [r, n] in whole numbers, and the pair's two spreads where it holds fewer rows")
+            r = int(pair[0])
+            n = int(pair[1])
+            _pair_counts(where, n, counts[numbers[at]], counts[numbers[other]], floor, tabled)
+            if not chain_moments.on_the_grid(r, n):
+                raise _broken("S42", where, "r is the tanh of a grid point of Fisher's z at its count, exactly as printed to 12 decimals, and at most 0.999999")
+            _pair_spreads(
+                where,
+                pair,
+                n,
+                (counts[numbers[at]], counts[numbers[other]]),
+                (spreads[numbers[at]], spreads[numbers[other]]),
+            )
+    within = moments["within"]
+    if not isinstance(within, list):
+        raise _broken("S43", "moments.within", "a list")
+    seen: "list[tuple[int, int]]" = []
+    per_column: "dict[str, int]" = {}
+    for entry in within:
+        if not isinstance(entry, dict) or sorted(entry) not in (["by", "column", "groups"], ["by", "column", "groups", "level"]):
+            raise _broken("S43", "moments.within", "each entry holds by, column and groups, and level where it reads the L2 bands")
+        name = entry["column"]
+        by = entry["by"]
+        if not isinstance(name, str) or not isinstance(by, str) or name not in kinds or by not in place_of or by == name:
+            raise _broken("S40", "moments.within", "a moment column within the bands of another eligible column")
+        where = f"{name} within {by}"
+        level = entry["level"] if "level" in entry else chain_moments.LEVEL_BANDS
+        if "level" in entry and (level != chain_moments.LEVEL_COARSE or isinstance(level, bool)):
+            raise _broken("S43", where, "a grouping read on its L2 bands names level 2; its L1 bands name none")
+        seen += [(place_of[name], place_of[by])]
+        per_column[name] = per_column[name] + 1 if name in per_column else 1
+        totals = chain_rules.totals_at(scales[by], int(level))
+        marked = {scales[by].maps[int(level)][band] for band in small[by]} if kinds[name] == chain_moments.KIND_BINARY else set()
+        groups = entry["groups"]
+        if not isinstance(groups, list) or len(groups) != len(totals):
+            raise _broken("S43", where, "one group for every band of the grouping column at its level")
+        held = 0
+        for band in range(len(groups)):
+            group = groups[band]
+            if not isinstance(group, list) or not group or not all(_whole(part) for part in group):
+                raise _broken("S42", where, "a group is a list of whole numbers")
+            n = group[0]
+            if n == 0 and len(group) == 1:
+                if not chain_moments.passes(totals[band], floor):
+                    raise _broken("S41", where, "a band's rows without a reading are 0 or at least the floor")
+                if band in marked and totals[band]:
+                    raise _broken("S41", where, "RULE W1: a band holding a small group of the grouping column shows two of the binary's levels or its absence")
+                continue
+            width = 3 if kinds[name] == chain_moments.KIND_NUMBER else 2
+            if len(group) != width:
+                raise _broken("S42", where, "a number's group is [n, mean, sd], a binary's [n, share]")
+            if n < floor or n > totals[band] or not chain_moments.passes(totals[band] - n, floor):
+                raise _broken("S41", where, "a band's readings, and its rows without one, are 0 or at least the floor")
+            held += n
+            if kinds[name] == chain_moments.KIND_NUMBER:
+                mean_top = 255 * chain_moments.unit(chain_moments.SCALE_MEAN, n)
+                sd_top = chain_moments.spread_top(n, chain_moments.unit(chain_moments.SCALE_SPREAD, n))
+                if group[1] < 0 or group[1] > mean_top or group[2] < 0 or group[2] > sd_top:
+                    raise _broken("S42", where, "a band's mean and sd lie on the code's range, in the units its count states")
+                continue
+            scale = chain_moments.unit(chain_moments.SCALE_SHARE, n)
+            if group[1] < 0 or group[1] > scale:
+                raise _broken("S42", where, "a band's share lies in 0 to 1")
+            low, high = share_counts(group[1], n, scale)
+            if low > high:
+                raise _broken("S42", where, "a band's share is one some count of its readings rounds to")
+            if _pins_small(low, high, floor) or _pins_small(n - high, n - low, floor):
+                raise _broken("S41", where, "no share fixes or bounds a level's rows inside 1 to f - 1")
+            if band in marked and totals[band] == n and (high == 0 or low == n):
+                raise _broken("S41", where, "RULE W1: a band holding a small group of the grouping column shows two of the binary's levels or its absence")
+        if held != counts[name]:
+            raise _broken("S41", where, "the bands' readings add up to the column's")
+        _bands_agree(where, f"{kinds[name]}", groups, counts[name], values[name])
+        if kinds[name] == chain_moments.KIND_NUMBER:
+            _spreads_agree(where, groups, counts[name], spreads[name])
+    if seen != sorted(set(seen)):
+        raise _broken("S43", "moments.within", "each pair once, by the column's place and then the grouping column's")
+    for name in per_column:
+        if per_column[name] > chain_moments.PARTNERS:
+            raise _broken("S43", name, "at most the stated partners a column")

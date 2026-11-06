@@ -640,13 +640,19 @@ def test_h5_every_stamp_description_loads_generates_and_validates(
         assert not [cell for cell in written if other + "AM" in cell or other + "PM" in cell]
 
 
-def test_h5_the_named_column_writes_every_stamp_in_its_shape(tmp_path: pathlib.Path) -> None:
+def test_h5_the_named_column_writes_every_stamp_in_its_shape(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """H5: the fault's own column, 1,000 rows with 31 `pending` or `unknown`.
 
     `2024-01-05 9:15 AM` with each gap: the description publishes the stamp
     forms and the twin writes all 969 stamps in their shape (0 of 969 on
-    7d27335, lane L2's battery-a1.json), and validates.
+    7d27335, lane L2's battery-a1.json), and validates. Each stamp is a
+    date as text, held until `no` about dates in disguise (plan P4-D446):
+    the description that `no` gives back is the one read here, about stamp
+    forms; the hold is pinned by `tests/test_zoo_dates_in_disguise.py`.
     """
+    import keyboard
+
+    keyboard.dates_in_disguise_answered_no(monkeypatch)
     for gap in ("", " ", NARROW):
         draw = random.Random(5)
         cells = []
@@ -840,14 +846,21 @@ def test_h7_at_most_two_stamp_reads_per_form_asked_and_none_for_a_plain_short_ce
 # -- H8: the recount ------------------------------------------------------------------
 
 
-def test_h8_a_twin_writing_two_spaces_is_missed_on_every_stamp_form(tmp_path: pathlib.Path) -> None:
+def test_h8_a_twin_writing_two_spaces_is_missed_on_every_stamp_form(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """H8: the validation method's recount (P4-D393): a stamp counts only under its own key.
 
     The twin of free-text stamps beside rare words validates with exit 0;
     the same twin with each stamp's space written twice is MISSED on every
     published stamp form (exit 3). Mutant: a recount blind to the space
-    would pass it.
+    would pass it. Each stamp is a date as text, held until `no` about
+    dates in disguise (plan P4-D446): the description that `no` gives back
+    is the one read here, about the recount.
     """
+    import keyboard
+
+    keyboard.dates_in_disguise_answered_no(monkeypatch)
     draw = random.Random(8)
     cells = [
         "pending" if row % 33 == 7

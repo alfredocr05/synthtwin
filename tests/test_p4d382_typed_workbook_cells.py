@@ -1457,3 +1457,17 @@ def test_a_clock_grid_beside_a_missing_word_still_reaches_the_clock_rule(
     trip = _trip(tmp_path / "without", cells, ("--smallest-group", "11"))
     assert trip["column"]["role"] == "time_of_day"
     assert trip["twin_exit"] == 0
+
+
+# THE PERSON ANSWERS `no` ABOUT DATES IN DISGUISE (plan P4-D446, lane CZ-H):
+# this file's columns hold five-figure numbers in a day-counting band, or
+# nine or ten figures in a seconds band, and are about something else, so
+# each test takes the description `no` gives back, byte for byte. The hold
+# itself is pinned by `tests/test_zoo_dates_in_disguise.py` and K-HZ-16.
+@pytest.fixture(autouse=True, scope="module")
+def _dates_in_disguise_answered_no() -> object:
+    import keyboard
+
+    with pytest.MonkeyPatch.context() as patch:
+        keyboard.dates_in_disguise_answered_no(patch)
+        yield

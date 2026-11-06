@@ -188,7 +188,10 @@ def test_every_page_explaining_the_floor_names_the_unit_each_one_counts(
         for visit in range(visits)
     ]
     table = _table(tmp_path, ["patient", "visit", "grade"], rows)
-    assert _run("profile", table, "--identifier", "patient")[0] == 0
+    # `grade` answered a list of codes: since lane PL's repair 1 a column of
+    # words is pooled unasked only where its values are short codes by their
+    # shape (P4-D453).
+    assert _run("profile", table, "--identifier", "patient", "--code", "grade")[0] == 0
     document = json.loads(
         (tmp_path / "table-profile.json").read_text(encoding="utf-8")
     )
@@ -209,10 +212,10 @@ def test_every_page_explaining_the_floor_names_the_unit_each_one_counts(
         "one person's own value is published with the count of their rows "
         "beside a declared person column, which plan P4-D406 closed."
     )
+    # ...and held back as a level of the pool since plan P4-D453, the column's
+    # other values keeping their counts (it was held whole before).
     grade = [column for column in document["columns"] if column["name"] == "grade"][0]
-    assert grade["detection_evidence"] == taxonomy.rendered(
-        taxonomy.EVIDENCE_HELD_IN_PEOPLE, ()
-    )
+    assert "pool_in_people" in grade and grade["suppressed_levels"] == 1
     summary = (tmp_path / "table-profile.txt").read_text(encoding="utf-8")
     assert not _says(summary, "every count here is a count over that population"), (
         "the population notice still says every count is a count over the "

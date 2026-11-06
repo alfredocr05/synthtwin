@@ -1924,6 +1924,55 @@ def moment_inputs(
     }
 
 
+def released_moments(
+    eligible: "list[str]",
+    blocks: "dict[str, dict[str, object]]",
+    columns: "dict[str, Column]",
+    scales: "dict[str, rules.Ladder]",
+    floor: int,
+) -> "tuple[dict[str, object] | None, dict[str, int]]":
+    """Rule B's `moments` object (contract 4.6d.0, plan P4-D455) from the codes the chain read.
+
+    The moment columns are the eligible FINE columns of a number role, on
+    their linear code, and the binaries of `binary_levels`, on 0 and 1;
+    every eligible column groups on its `L1` bands. A held, identifier,
+    sequence or free-text column is ineligible (4.6b.1), so no moment
+    reads it; dates and clocks take no moment. The chain is reached only
+    on a table of one row a person (`OFF_PERSON`), so every count here
+    is a count of people.
+    """
+    picked: "list[moments.Released]" = []
+    groupings: "list[moments.Grouping]" = []
+    for name in eligible:
+        column = columns[name]
+        role = _get(blocks[name], "role")
+        ladder = scales[name]
+        level_one = column.codes[1]
+        groupings += [
+            moments.Grouping(
+                name,
+                level_one,
+                tuple(rules.totals_at(ladder, 1)),
+                frozenset(ladder.maps[1][band] for band in column.groups),
+                tuple(rules.coarsen(ladder, 1, 2)),
+            )
+        ]
+        if role in rules.NUMBER_ROLES and column.value_codes is not None:
+            linear, _second, has = column.value_codes
+            picked += [moments.Released(name, moments.KIND_NUMBER, linear, has)]
+            continue
+        if role != rules.ROLE_BINARY:
+            continue
+        levels = moments.binary_levels(ladder)
+        if levels is None:
+            continue
+        level_zero = column.codes[0]
+        values = bytes(1 if level_zero[row] == levels[1] else 0 for row in range(len(level_zero)))
+        present = bytearray(1 if level_zero[row] in levels else 0 for row in range(len(level_zero)))
+        picked += [moments.Released(name, moments.KIND_BINARY, values, present)]
+    return moments.released(picked, groupings, floor)
+
+
 def _off(note: str, counts: "dict[str, int]", notes: "list[str]", content: str) -> Chained:
     return Chained(None, tuple(notes + [f"no chain is published: {note}"]), counts, (), (), content)
 
@@ -2123,6 +2172,10 @@ def describe(
     for key, name in (("moment_region_columns", "codes"), ("moment_offers", "offers"), ("moment_regions", "regions"), ("moment_sums", "sums")):
         listed = inputs[name]
         counts[key] = len(listed) if isinstance(listed, list) else 0
+    block_of: "dict[str, dict[str, object]]" = {f"{_get(block, 'name')}": block for block in blocks}
+    released, released_counts = released_moments(eligible, block_of, columns, scales, floor)
+    for key in released_counts:
+        counts[f"moments {key}"] = released_counts[key]
     words, implied = rules.words_of(eligible, placed)
     chain_entries: "list[dict[str, object]]" = []
     for family in placed:
@@ -2143,7 +2196,7 @@ def describe(
         "chain": chain_entries,
         "ineligible": ineligible,
         "ladder": [rules.published_ladder(scales[name]) for name in eligible],
-        "moments": None,
+        "moments": released,
         "not_carried": implied,
         "procedure": rules.procedure_record(tabled),
         "rules": [],

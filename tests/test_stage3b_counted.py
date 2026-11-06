@@ -478,6 +478,10 @@ def _median(ordered: "list[float]") -> float:
     return ordered[low] + (middle - low) * (ordered[high] - ordered[low])
 
 
+# The one chance-battery column Q3 asks since plan P4-D446: cents in the band.
+CENTS_ASKED = "room_charge_cents_62k"
+
+
 def _new_questions(draws: int) -> "tuple[int, int, list[str]]":
     """Columns of the chance battery Q3 asks, and those the fixed-width question did not ask already."""
     asked = 0
@@ -510,7 +514,11 @@ def test_c2_no_ordinary_column_gets_a_new_question() -> None:
     """
     asked, draws, new = _new_questions(10)
     assert draws == 770 and asked > 0
-    assert new == []
+    # ...but a room charge in cents read as days since 1840, asked since lane
+    # CZ-H (plan P4-D446; the orchestrator's LANE CZ-H RULINGS 2 (1) and (2)):
+    # the spread of the figures after the point no longer decides whether
+    # Q3 is asked, so cents in that band pay one question, `measurement`.
+    assert new == [f"{CENTS_ASKED}:{draw}" for draw in range(10)]
 
 
 def test_c2_rule_c_holds_every_count_beside_the_set_aside_ones_to_one_width(
@@ -596,15 +604,16 @@ def test_c2_a_band_from_1970_would_ask_ordinary_columns(monkeypatch: pytest.Monk
     tenths of a second keep no unit), so each guard alone keeps them
     unasked, and the mutant is shown with the check lifted as well.
     """
+    cents = [f"{CENTS_ASKED}:{draw}" for draw in range(4)]
     monkeypatch.setattr(date_counts, "NARROW_FROM", 1970)
     _asked, _draws, new = _new_questions(4)
-    assert new == [], "the figures check alone"
+    assert new == cents, "the figures check alone"
     monkeypatch.setattr(date_counts, "figures_kept", lambda members, present, mark=".": members)
     _asked, _draws, new = _new_questions(4)
-    assert new, "a band from 1970 asked nothing new"
+    assert [one for one in new if one not in cents], "a band from 1970 asked nothing new"
     monkeypatch.setattr(date_counts, "NARROW_FROM", 1990)
     _asked, _draws, new = _new_questions(4)
-    assert new == [], "the band from 1990 alone"
+    assert new == cents, "the band from 1990 alone"
 
 
 def test_c2_variable_width_identifiers_are_not_asked() -> None:
@@ -958,7 +967,7 @@ def test_c2_money_amounts_and_lengths_of_time_are_not_asked(monkeypatch: pytest.
     figure are asked only with both lifted.
     """
     names = (
-        "salary_cents_45k", "payment_cents_20k", "room_charge_cents_62k", "glucose_area_1dp",
+        "salary_cents_45k", "payment_cents_20k", "glucose_area_1dp",
         "dose_total_1dp", "stay_seconds_whole_days", "gap_milliseconds_whole_days",
         "followup_seconds_whole_days",
     )
@@ -974,6 +983,10 @@ def test_c2_money_amounts_and_lengths_of_time_are_not_asked(monkeypatch: pytest.
 
     for name in names:
         assert not any(asked(name, draw) for draw in range(4)), name
+    # The room charge in cents read as days since 1840 is asked since lane
+    # CZ-H (plan P4-D446, LANE CZ-H RULINGS 2 (1)): contacts are asked
+    # whatever their spread, and `measurement` answers it.
+    assert all(asked(CENTS_ASKED, draw) for draw in range(4))
 
     def second_walk(members: "tuple[str, ...]", present: "list[str]", mark: str = ".") -> "tuple[str, ...]":
         raise AssertionError(f"the four figures let a column of cents reach the figures check {members}")
@@ -983,7 +996,11 @@ def test_c2_money_amounts_and_lengths_of_time_are_not_asked(monkeypatch: pytest.
     assert not asked("salary_cents_45k", 0) and not asked("dose_total_1dp", 0)
     monkeypatch.undo()
     monkeypatch.setattr(date_counts, "DAY_TIME_PLACES", 0)
-    assert not asked("salary_cents_45k", 0) and not asked("dose_total_1dp", 0)
+    # ...where, the four figures lifted, the Excel hit lets days since 1840
+    # be offered beside it, whose figures after the point are contacts and
+    # are asked whatever their spread since plan P4-D446: the figures check
+    # keeps that member, so the mutant asks both through it.
+    assert asked("salary_cents_45k", 0) and asked("dose_total_1dp", 0)
     monkeypatch.setattr(date_counts, "figures_kept", lambda members, present, mark=".": members)
     assert asked("salary_cents_45k", 0) and asked("dose_total_1dp", 0)
     monkeypatch.undo()
@@ -1219,6 +1236,8 @@ def test_c4_the_counted_route_never_calls_the_whole_share_pass(
     # question in the file too, which the person answers `no`.
     keyboard.every_reading_kept(monkeypatch)
     keyboard.safe_harbor_answered_no(monkeypatch)
+    # ...and its day numbers, dates in disguise, the same (plan P4-D446).
+    keyboard.dates_in_disguise_answered_no(monkeypatch)
     path = _table(tmp_path / "plain", cells)
     folder = tmp_path / "plain"
     assert _exit_of(["profile", str(path), "--out-dir", str(folder), "--replace"])[0] == 0

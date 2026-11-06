@@ -864,3 +864,17 @@ def test_offsets_written_both_ways_keep_their_spellings_and_widths(
     assert run["second"]["pad_widths"] == run["first"]["pad_widths"]
     assert run["twin_exit"] == 0, run["twin_missed"]
     assert run["real_exit"] == 0, run["real_missed"]
+
+
+# THE PERSON ANSWERS `no` ABOUT DATES IN DISGUISE (plan P4-D446, lane CZ-H):
+# this file's columns hold five-figure numbers in a day-counting band, or
+# nine or ten figures in a seconds band, and are about something else, so
+# each test takes the description `no` gives back, byte for byte. The hold
+# itself is pinned by `tests/test_zoo_dates_in_disguise.py` and K-HZ-16.
+@pytest.fixture(autouse=True, scope="module")
+def _dates_in_disguise_answered_no() -> object:
+    import keyboard
+
+    with pytest.MonkeyPatch.context() as patch:
+        keyboard.dates_in_disguise_answered_no(patch)
+        yield

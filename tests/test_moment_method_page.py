@@ -34,6 +34,17 @@ second round (item 1) found 12 of 20 more surviving (E4, E6, E7, E8,
 E10, G-E11, G-E12, G-E15, V-E16, V-E17, S-E19 and P-E20); each of those
 sentences is pinned too, in the test whose docstring names it.
 
+THE AMENDMENT OF 2026-11-01 AND 2026-11-02 (plan P4-D450, lane MPOL2,
+contract 4.6d.11). Computed here too: lane CHo's first lever, the closed
+form for a band cut once, against enumeration at `f` = 11, and its
+reading for several cuts refuted on 16 points; the separator that cannot
+split the one region (84 points at `f` = 11); the nine sums that pin a
+3 x 3 cell, and that cell's witness decided with 4.6d.4's small-atom
+exemption kept (Codex's round on repair 1, item 1). The owner's rule B of 2026-11-02 supersedes strict proof for
+moments, so 4.6d.11 adopts no class: its dated note, the floor measured
+before any moment and the levers' results are pinned, each red on the
+mutant its docstring names.
+
 WHAT IS NOT HERE. No moment code exists to run, so nothing here says a
 twin meets a moment. `K-S6-08`'s enumeration and the oracle's cases
 (G17.8) are where lanes CHa and CHo run the method.
@@ -925,7 +936,15 @@ def test_the_central_sentences_are_pinned():
 
 
 def test_strict_proof_only_is_stated():
-    """Ruling R10, the owner's decision D1 of 2026-10-20 (mutants: the
+    """AMENDED 2026-11-02 (lane MPp, plan P4-D455): the owner's rule B
+    supersedes strict proof for the moments, so this test now holds the
+    strict-proof sentences as the RECORD of the superseded design AND the
+    dated amendment that supersedes them: neither may go alone (mutants:
+    the amendment's opening or R12's withdrawal dropped from 4.6b.6,
+    4.6b.9 (h) or the section's head, which would leave strict proof
+    standing unqualified). Never deleted: the record is the page's.
+
+    Ruling R10, the owner's decision D1 of 2026-10-20 (mutants: the
     design's "rules plus enumeration" label kept; the sentence dropped).
     Ruling R12 of the same day, written as an explicit, dated amendment of
     lane MBC's 4.6b.6 and 4.6b.9 (h): a slope that stands is published
@@ -970,6 +989,11 @@ def test_strict_proof_only_is_stated():
     )
     assert "6. **The chain's slopes, withheld outside a publishing region** (ruling R12" in section
     assert "Where the regions above, test (iii) and condition (5) of 4.6d.4 read a slope 4.6b.6 publishes" in section
+    assert "**AMENDED Monday 2026-11-02 by the owner's rule B (plan P4-D455; lane MPp; 4.6d.0 below).**" in section
+    assert "For the moments it governs IN PLACE OF this section's GATE, offers, regions, draw, witness, Theorem 2" in section
+    assert "R10's strict proof no longer governs these moments, and ruling R12 (slopes withheld) is withdrawn" in section
+    assert "**R12 WITHDRAWN (the owner's rule B, Monday 2026-11-02; plan P4-D455; 4.6d.0).**" in slopes
+    assert "**R12 WITHDRAWN (the owner's rule B, Monday 2026-11-02; plan P4-D455):** the bullet above no longer governs." in scope
     decision = _decision()
     assert "**Ruling R12 amends lane MBC's contract 4.6b.6 and 4.6b.9 (h)**, explicitly and dated in both" in decision
     assert "Reason: the owner's ruling R10, strict proof only." in decision
@@ -1184,3 +1208,479 @@ def test_a_poorer_option_that_publishes_tells_tables_apart():
     section = _section()
     assert "a region whose drawn option is `none` leaves the preimage of its context whole." in section
     assert "is `none` (or any poorer option) leaves" not in section
+
+
+# --- plan P4-D450 (lane MPOL2, 2026-11-01 and 2026-11-02): the floor before any moment, the levers, rule B ---------
+
+
+def _amendment():
+    return _part("#### 4.6d.11 The December floor before any moment", "(d) Stated limit 3, restated")
+
+
+def _p4d450():
+    return _flat(_between(PLAN, "## Decision P4-D450", "\n## Decision"))
+
+
+def _compositions(rows, codes, total):
+    """Every count vector of `rows` rows over `codes` whose code sum is `total` (a list of tuples)."""
+
+    def walk(at, left, rest):
+        if at == len(codes) - 1:
+            return [(left,)] if rest == codes[at] * left else []
+        found = []
+        for count in range(left + 1):
+            more = rest - codes[at] * count
+            if more < min(codes[at + 1 :]) * (left - count) or more > max(codes[at + 1 :]) * (left - count):
+                continue
+            found += [(count,) + tail for tail in walk(at + 1, left - count, more)]
+        return found
+
+    return walk(0, rows, total)
+
+
+def _one_cut_points(cells, atoms, seg0):
+    """Every point of a band cut once: per cell its rows and code sum, segment 0 holding `seg0` rows."""
+    codes = [v for _, v in atoms]
+    per = [_compositions(rows, codes, total) for rows, total in cells]
+    found = []
+    for combo in itertools.product(*per):
+        if sum(c for comp in combo for (j, _), c in zip(atoms, comp) if j == 0) == seg0:
+            found += [combo]
+    return found
+
+
+def _x_range(rows, total, runs, fixed=None):
+    """The whole `x` (rows in segment 0) a cell admits; `fixed` = (segment, code): FLOOR rows held there."""
+    (lo0, hi0), (lo1, hi1) = runs
+    need = [0, 0]
+    rest = total
+    if fixed is not None:
+        need[fixed[0]] = FLOOR
+        rest -= FLOOR * fixed[1]
+    found = [x for x in range(need[0], rows - need[1] + 1)
+             if (x - need[0]) * lo0 + (rows - x - need[1]) * lo1 <= rest <= (x - need[0]) * hi0 + (rows - x - need[1]) * hi1]
+    return (min(found), max(found)) if found else None
+
+
+def _one_cut_closed(cells, runs, seg0, couple=True):
+    """Lever (a)'s closed form: the groups no point fills to the floor, and clause (b)."""
+    base = [_x_range(rows, total, runs) for rows, total in cells]
+    unreachable = []
+    for at, (rows, total) in enumerate(cells):
+        others = [base[q] for q in range(len(cells)) if q != at]
+        lo = seg0 - sum(b[1] for b in others)
+        hi = seg0 - sum(b[0] for b in others)
+        for j, (low, high) in enumerate(runs):
+            for v in range(low, high + 1):
+                own = _x_range(rows, total, runs, (j, v))
+                ok = own is not None and (not couple or max(own[0], lo) <= min(own[1], hi))
+                if not ok:
+                    unreachable += [(at, j, v)]
+    zero = []
+    for at, (rows, total) in enumerate(cells):
+        kept = []
+        for j, (low, high) in enumerate(runs):
+            allowed = [v for v in range(low, high + 1) if (at, j, v) not in unreachable]
+            kept += [(allowed[0], allowed[-1]) if allowed else None]
+        r0, r1 = kept[0] or (0, 0), kept[1] or (0, 0)
+        xs = [x for x in range(rows + 1)
+              if (kept[0] is not None or x == 0) and (kept[1] is not None or x == rows)
+              and x * r0[0] + (rows - x) * r1[0] <= total <= x * r0[1] + (rows - x) * r1[1]]
+        zero += [(min(xs), max(xs)) if xs else None]
+    holds = None not in zero and sum(z[0] for z in zero) <= seg0 <= sum(z[1] for z in zero)
+    return sorted(unreachable), holds
+
+
+def test_one_cut_closed_form_agrees_with_enumeration_at_the_floor():
+    """Lever (a) of plan P4-D450: a band cut once, two cells of 22 rows at `f` = 11, codes 0..2.
+
+    Every description of the grid below is decided by enumeration and by
+    the closed form of contract 4.6d.11 (b); they agree on `V-` and on
+    clause (b), and where the witness holds no union of unreachable
+    groups lies in 1 to 10 rows in every point. MUTANT: the reach test
+    without the segment total the other cells leave (each cell read
+    alone), which calls unreachable groups reachable."""
+    runs = [(0, 1), (1, 2)]
+    atoms = [(0, 0), (0, 1), (1, 1), (1, 2)]
+    checked = differ_mutant = 0
+    for seg0 in (6, 22, 30):
+        for s1 in range(0, 45, 4):
+            for s2 in range(0, 45, 4):
+                cells = [(22, s1), (22, s2)]
+                points = _one_cut_points(cells, atoms, seg0)
+                if not points:
+                    continue
+                groups = [(at, j, v) for at in range(2) for (j, v) in atoms]
+                index = {g: (g[0], atoms.index(g[1:])) for g in groups}
+                unreachable = sorted(g for g in groups if max(p[index[g][0]][index[g][1]] for p in points) < FLOOR)
+                holds = any(all(p[index[g][0]][index[g][1]] == 0 for g in unreachable) for p in points)
+                closed = _one_cut_closed(cells, runs, seg0)
+                assert closed == (unreachable, holds), (cells, seg0)
+                if holds:
+                    for size in range(1, len(unreachable) + 1):
+                        for union in itertools.combinations(unreachable, size):
+                            counts = [sum(p[index[g][0]][index[g][1]] for g in union) for p in points]
+                            assert not (min(counts) >= 1 and max(counts) <= FLOOR - 1), (cells, seg0, union)
+                differ_mutant += _one_cut_closed(cells, runs, seg0, couple=False) != closed
+                checked += 1
+    assert checked > 100 and differ_mutant > 0
+
+
+def test_several_cuts_read_segment_by_segment_are_refuted():
+    """Lever (a), several cuts: the interval reading per segment calls reachable a group no point fills.
+
+    At a floor of 3 (contract 4.6d.11 (b)): two cells of 5 rows, code
+    sums 6 and 6, segments of 3 rows at code 0, 4 on codes 1..2 and 3 on
+    codes 2..3. 16 points; the union of both cells' rows at code 2 in
+    segment 1 and at code 3 in segment 2 holds exactly 2 rows in every
+    one, so the reading's witness, which holds, would publish a count of
+    2. (Code 2 in both segments takes 1, 3 and 5 rows over the points:
+    computed below as the control.)"""
+    atoms = [(0, 0), (1, 1), (1, 2), (2, 2), (2, 3)]
+    totals = (3, 4, 3)
+    codes = [v for _, v in atoms]
+    per = [_compositions(5, codes, 6) for _ in range(2)]
+    points = [c for c in itertools.product(*per)
+              if all(sum(n for comp in c for (j, _), n in zip(atoms, comp) if j == seg) == totals[seg] for seg in range(3))]
+    assert len(points) == 16
+    union = [(at, a) for at in range(2) for a in (2, 4)]
+    counts = {sum(p[at][a] for at, a in union) for p in points}
+    assert counts == {2}
+    both_code_two = [(at, a) for at in range(2) for a in (2, 3)]
+    assert {sum(p[at][a] for at, a in both_code_two) for p in points} == {1, 3, 5}
+    assert "holds exactly 2 rows in every one of the 16 points" in _amendment()
+
+
+def test_the_one_region_cannot_be_split_at_its_separator():
+    """Lever (b): each piece's witness holds and the whole region confines a group to 2 to 8 rows.
+
+    `c` on codes 0..2, `F1 = {c | p}` and `F2 = {q | c}`, every cell 22
+    rows, `c`'s code sums (0, 30) over `p` and (13, 17) over `q`, at
+    `f` = 11. MUTANT: the gluing lemma, which reads the pieces' witnesses
+    as the whole's and would publish it."""
+    codes = (0, 1, 2)
+
+    def piece_holds(cells):
+        per = [_compositions(rows, codes, total) for rows, total in cells]
+        unreachable = [(at, v) for at, comps in enumerate(per) for v in range(3) if max(c[v] for c in comps) < FLOOR]
+        return all(any(all(c[v] == 0 for (a, v) in unreachable if a == at) for c in comps) for at, comps in enumerate(per))
+
+    assert piece_holds([(22, 0), (22, 30)]) and piece_holds([(22, 13), (22, 17)])
+    target = []
+    for x11 in range(23):
+        x12, x21 = 22 - x11, 22 - x11
+        x22 = 22 - x21
+        for s11 in range(0, 2 * x11 + 1):
+            s12, s21 = 0 - s11, 13 - s11
+            s22 = 30 - s21
+            if s12 < 0 or s21 < 0 or s22 > 2 * x22 or s12 + s22 != 17:
+                continue
+            for a, b, c, d in itertools.product(_compositions(x11, codes, s11), _compositions(x12, codes, s12),
+                                                _compositions(x21, codes, s21), _compositions(x22, codes, s22)):
+                target += [d[2]]
+    assert len(target) == 84 and min(target) == 2 and max(target) == 8
+
+
+def test_nine_sums_pin_a_three_by_three_cell():
+    """Lever (c): a correlation's nine sums pin a cell whose two columns hold three codes each.
+
+    Every 3 x 3 table of 5 rows over centred codes -1, 0, 1 has its own
+    nine sums (the tensor product of two Vandermonde matrices). MUTANT:
+    eight sums (the cross sum `a b` left out), which two tables share."""
+    cells = [(a, b) for a in (-1, 0, 1) for b in (-1, 0, 1)]
+    seen, seen8 = {}, {}
+    collisions8 = 0
+    for counts in _tables(5, 9):
+        sums = tuple(sum(n * a ** i * b ** j for n, (a, b) in zip(counts, cells)) for i in range(3) for j in range(3))
+        assert sums not in seen
+        seen[sums] = counts
+        eight = sums[:4] + sums[5:]
+        collisions8 += eight in seen8
+        seen8[eight] = counts
+    assert collisions8 > 0
+
+
+def _rank(matrix):
+    """The rank of a matrix of whole numbers, by exact elimination in fractions."""
+    rows = [[Fraction(x) for x in row] for row in matrix]
+    rank = 0
+    for col in range(len(rows[0])):
+        pivot = next((r for r in range(rank, len(rows)) if rows[r][col] != 0), None)
+        if pivot is None:
+            continue
+        rows[rank], rows[pivot] = rows[pivot], rows[rank]
+        for r in range(len(rows)):
+            if r != rank and rows[r][col] != 0:
+                ratio = rows[r][col] / rows[rank][col]
+                rows[r] = [a - ratio * b for a, b in zip(rows[r], rows[rank])]
+        rank += 1
+    return rank
+
+
+def test_elimination_keeps_the_small_atom_exemption():
+    """Lever (c) decided by 4.6d.4's witness on the one point, not by every count (Codex's round on repair 1, item 1).
+
+    At `f` = 11, codes -1, 0 and 1: the 3 x 3 table whose rows read
+    (3, 0, 0), (11, 11, 11) and (11, 11, 11), its first row a small
+    own-fact atom of 3 rows, is the only table its nine sums admit (their
+    matrix has rank 9). On that one point `V-` is empty (the atom's
+    three groups are exempt from reach), clauses (b) and (c) hold, and
+    the cell publishes. MUTANTS: elimination read as "every count 0 or
+    at least `f`", which refuses it; the atom read as no small atom,
+    which puts its groups in `V-` and fails (b); the page's exemption
+    sentence or its witness case dropped."""
+    codes = (-1, 0, 1)
+    cells = [(a, b) for a in codes for b in codes]
+    assert _rank([[a ** i * b ** j for a, b in cells] for i in range(3) for j in range(3)]) == 9
+    point = dict(zip(cells, (3, 0, 0, 11, 11, 11, 11, 11, 11)))
+    atom = [g for g in cells if g[0] == -1]
+    assert _witness([point], cells, atom) == (True, [])
+    assert not all(n == 0 or n >= FLOOR for n in point.values())
+    assert _witness([point], cells) == (False, atom)
+    section = _amendment()
+    for sentence in (
+        "`V-` is the groups holding no small atom that hold fewer than `f` rows, (b) holds exactly when each group holding no small atom is 0 or at least `f`, (c) when each small atom's rows lie in one group; a group holding a small atom is exempt from (a) and (b), as 4.6d.4 writes.",
+        "which then publishes exactly where each group holding no small atom is 0 or at least `f` and each small atom's rows lie in one group",
+        # ...from the witness's floor and codes on (MPOL2 OWES 1, the verify 2's item 1:
+        # at `f` = 3 an atom of 3 rows is no small atom and the page's claim is false).
+        "small atom's rows lie in one group: at `f` = 11, codes -1, 0 and 1, the table whose rows read (3, 0, 0), (11, 11, 11) and (11, 11, 11), its first row a small own-fact atom of 3 rows, publishes (`V-` empty, (b) and (c) holding), and a test asking every count to be 0 or at least `f` would refuse it.",
+    ):
+        assert sentence in section, sentence
+    for withdrawn in ("`V-` is the groups under `f`", "(b) holds exactly when each group is 0 or at least `f`", "where each count is 0 or at least `f`."):
+        assert withdrawn not in section, withdrawn
+    assert "a group holding a small atom exempt from reach and zero as 4.6d.4 writes" in _p4d450()
+
+
+def _tables(rows, cells):
+    """Every count vector of `rows` rows over `cells` cells."""
+    if cells == 1:
+        yield (rows,)
+        return
+    for first in range(rows + 1):
+        for rest in _tables(rows - first, cells - 1):
+            yield (first,) + rest
+
+
+def test_rule_b_supersedes_strict_proof_and_no_class_is_adopted():
+    """Contract 4.6d.11's dated note (the orchestrator's ruling 2 for lane MPOL2, 2026-11-02, the owner's rule B).
+
+    MUTANTS: the window adopted again (its class in the settings, its
+    witness named beside `"cho1"`, its generation G17.9 or validation
+    V13.6 back, `window` in 4.6d.2's class list); the note dropped or its
+    owner lane MPp and plan P4-D455 gone; `K-S6-14` stamped here (it is
+    lane MPp's, merged beside this page at batch 4o)."""
+    section = _amendment()
+    for sentence in (
+        "**AMENDED 2026-11-02 (plan P4-D450, lane MPOL2 of the December plan; the orchestrator's ruling 2 for the lane, 2026-11-02 11:22).**",
+        "THE OWNER'S RULE B OF 2026-11-02 (ruling R13) TAKES THE PLACE OF STRICT PROOF FOR MOMENTS.",
+        "each only where it is computed over at least 11 people and where every count it implies directly is 0 or at least 11",
+        "Ruling R10 no longer governs these moments, and ruling R12 (slopes withheld) is withdrawn.",
+        "**Lane MPp writes the amendment of this section that publishes them (plan P4-D455)**",
+        "stamps `K-S6-14` (the moment layer's yield: regions publishing, moments by class, refusals, estimates brought back)",
+        "This subsection adopts no class and amends no clause of 4.6d.1 to 4.6d.10",
+        "**(c) A class studied under strict proof, NOT ADOPTED.**",
+        "It is NOT ADOPTED: rule B takes the place of the strict proof it was built for, its review's items on the proof close with it, and no description offers it.",
+        "Under rule B they are RESULTS: a moment published under rule B needs none of them.",
+    ):
+        assert sentence in section, sentence
+    for withdrawn in ("ADOPTED, behind", "Theorem W", "`procedure.classes` may hold `window`", "names `\"maw1\"` for a region"):
+        assert withdrawn not in section, withdrawn
+    whole = _section()
+    assert "the owner's rule B of 2026-11-02 takes the place of strict proof for moments, and lane MPp writes its amendment (plan P4-D455)." in whole
+    assert "supersede" not in _amendment().lower() and "G17.9" not in _p4d450()
+    assert "maw1" not in whole[: whole.index("#### 4.6d.11")]
+    assert "`window`" not in _part("#### 4.6d.2", "#### 4.6d.3")
+    method = METHOD.read_text(encoding="utf-8")
+    assert "### G17.9 Windows" not in method and "leaf's readings" not in _g17()
+    assert "V13.6 A window" not in VALIDATION.read_text(encoding="utf-8")
+    # `K-S6-14` is lane MPp's, merged beside this page at batch 4o (plan P4-D455): it stands in the
+    # ledger as that lane stamped it, and nothing of this lane's plan or stamp is in it.
+    ledger = _flat((REPOSITORY / "tests" / "kpi" / "ledger.json").read_text(encoding="utf-8"))
+    entry = ledger[ledger.index('"id": "K-S6-14"'):]
+    entry = entry[: entry.index('"id": "K-', 1)] if '"id": "K-' in entry[1:] else entry
+    assert "plan P4-D455, lane MPp" in entry and "P4-D450" not in entry and "MPOL2" not in entry
+
+
+def test_the_floor_before_any_moment_is_the_baseline_record():
+    """Contract 4.6d.11 (a), every number of the floor (plan P4-D450; the statistics skeptic's items 1 to 9).
+
+    MUTANTS: any number moved; `K-BC-10` or `F6`'s split gone; the
+    chain-less twin gone, or its revision's difference read as what the
+    chain alone is worth (Codex's round on repair 1, item 2); ST3's
+    uncomputed rows read on one twin seed as if all fifteen runs (item 4);
+    the numeric families read as equal to the kit's (item 5); the kit's
+    with-slopes figure read as December's baseline, or the chain without
+    seeds read as the seeded kit (the verify of repair 1, item 2); the
+    draw read as deterministic; the slope price read as a measured zero;
+    the gap's owner named as if known; the gap or the stamp's key read as
+    recoverable or as hiding a better draw (the verify's item 1)."""
+    section = _amendment()
+    for sentence in (
+        "**(a) The December floor before any moment, MEASURED on the product's chain twin (the baseline record).**",
+        "It publishes no moment and no slope: it is the twin before any moment, the baseline every moment of lane MPp's is measured against.",
+        "all 18 table-seeds run, supported estimates only",
+        "the rule leaves the null table ST5 out, so its estimates cover five table types",
+        "0.423, 0.428 and 0.430 of 2,913 supported estimates on the three keys, the replicate 0.765, the shuffled twin 0.394.",
+        "The ledger's twin without the chain reads 0.400, stamped on an earlier revision (`9109683`), and the twin with the chain switched off was not measured on this base, so the 2.3 to 3.0 points between them are the difference from that historical figure and do not isolate what the chain alone is worth.",
+        "The twin stands 15.0 to 15.7 points under THE STAGE-6 GATE'S MINIMUM (the midpoint, 0.5795) on every key, and 2.8 to 3.6 points above the shuffle (the driver's own `points_below_shuffled_20k`).",
+        "`F1` 0.109, 0.738; `F2` 0.495, 0.804; `F3` 0.452, 0.741; `F4` 0.518, 0.763; `F5` 0.381, 0.780; `F6` 0.085, 0.808; `F7` 0.000, 0.810; `F8` 0.000, 0.897; `F9` 0.667, 0.824",
+        "`K-BC-02`: 10, 11 and 10 of 96 truths recovered (the replicate 82, the shuffle 6), of the three-way truths 1, 2 and 1 (the replicate 7), and 72 or 73 missed unnamed.",
+        "`K-BC-10` reads 15 on this twin, the ledger's baseline, unchanged by the chain: of 246 robust analyses at 20,000 rows 15 stop on the twin and none on the replicate",
+        "ST3's survival, censoring and auto survival on a follow-up below zero; ST2's subject table and wide table",
+        "Over all fifteen twin runs of each table on key `k0`, 555 of `F6`'s 885 twin rows (62.7 %) and 120 of `F1`'s 915 hold no value, and 675 of ST3's 1,290 rows are uncomputed (135 of 258 a twin seed);",
+        "`F6`'s 0.085 is mainly a stop, about 0.23 on the rows that do compute (MY ARITHMETIC, 0.085 x 177 / 66)",
+        "88 and 89 of 287 on two keys (a fresh sample 213, the shuffled table 102; at 20,000 rows 135 of 273, a fresh sample 227, the shuffled table 139); one twin seed each",
+        "115 of 287 at 200,000 rows, 134 with slopes on the same chain, a slope price of 19",
+        "The product stands 27 under it;",
+        "`F1` 0, 8; `F2` 48, 48; `F3` 27, 28; `F4` 11, 28; `F5` 0, 1; `F9` 2, 2",
+        "So `F2` matches the kit's and `F3` stands one under it, as `F5` does, and the rest of the gap, 25 of the 27, lies in subgroup rates and logistic terms (`F1` 8, `F4` 17);",
+        "`rare` 3, 13; `rate` 0, 7; the battery's logistic `a2` and interaction terms 1, 5 and 3, 5, one rare-outcome-by-ward table holding 10 of it",
+        "without slopes 115 and 121 on the seeded chain and 109 and 102 without seeds, with slopes 134 and 145, and 127 and 118",
+        "so slopes cost the kit 19 and 24 with seeds and 18 and 16 without",
+        "at most 27 to 33 of 287 against the seeded kit, the product drawing seeds as that kit does (14 to 21 against the kit without seeds).",
+        "126 and 127 seeded, 138 and 141 without seeds, so the product's 135 stands 8 to 9 above the seeded kit and 3 to 6 under the kit without seeds.",
+        "Lane `A0b`'s 127 and 171 are the chain without seeds walked WITH slopes (127 of 287 at 200,000 rows, 171 of 273 at 20,000), no December baseline (4.6d.10), named here only as such.",
+        "The split is measured by lane CG, owner named by lane CG",
+        "until then no part of the gap is claimed recoverable.",
+        "(the ledger's stamp reads one fixed key) are the same on every key, 0.393 and 0.116:",
+        "every key places `sbp` at `L2` with `age` at `L0`, the other families move (12 distinct chains over the twenty keys, the levels of `died` and `group` and of their parents among what moves) and the two gaps do not, so the stamp's fixed key does not hide a better draw for this pair.",
+        "The product has no slope, so what slopes bring cannot be read on it",
+        "on lane `E0b`'s battery it has not been measured. Ruling R13 withdraws ruling R12, and lane MPp's walk with slopes measures it.",
+        "slopes were worth 19 and 24 estimates at 200,000 rows over two draws and 21 and 16 at 20,000",
+    ):
+        assert sentence in section, sentence
+    for withdrawn in ("deterministic but for its", "Nobody", "slope price on the product is 0", "owners lanes CHa and BT2",
+                      "the chain alone is worth 2.3", "2.9 to 3.6 points", "135 of ST3's 258 rows are uncomputed;",
+                      "numeric families already equal", "shows no such gap there", "that kit's chain WITH slopes"):
+        assert withdrawn not in section, withdrawn
+
+
+def test_the_class_not_adopted_is_recorded_with_its_measured_yield():
+    """Contract 4.6d.11 (c), the window's yield as a reference for lane MPp (the statistics skeptic's items 3, 4, 7, 8 and 9).
+
+    MUTANTS: the gain read as real on every key, or as indistinguishable
+    from zero by the keys' spread of the floor (Codex's round on repair 1,
+    item 3); the losses or the churn gone; the comparators gone;
+    `K-S6-01` read as closed; a number moved."""
+    section = _amendment()
+    for sentence in (
+        "key `k0` only; the product's chain twin at seed 0 read as its base point; its exchanges done in a study script; its own-fact check and lane MR's rules, not yet landed, not read",
+        "64 offered, none on ST2 (so `F7` stays 0.000), 41 passing (49 and 32 on the five table types `K-BC-01` reads; a window for 41 of the 93 FINE columns)",
+        "`K-BC-01` pooled 0.423 to 0.429 (`F1` 0.109 to 0.137, `F2` 0.495 to 0.525), `K-BC-02` unchanged",
+        "**That gain, 0.6 points, was measured on key `k0` alone, so its variation across keys is unmeasured, and a window also loses estimates:**",
+        "per twin seed 71, 75, 74, 75 and 80 gained against 69, 58, 63, 57 and 54 lost, net +0.07 to +0.90 points, positive on each of the five twin seeds, ST1-1 net negative (57 gained, 65 lost over the seeds).",
+        "The three keys' floors spread over 0.7 points, a spread of the twin before any window that says nothing of the window's own effect on another key.",
+        "135 to 152 of 273 at 20,000 rows (17 gained, none lost) and 88 to 109 of 287 at 200,000 (24 gained, 3 lost), 79 short of lane `A0b`'s polished chain's 188, 93 of lane `A0c`'s 202 and 104 of a fresh sample's 213",
+        "rates at the published bands are exact (`K-S6-03`) and other subgroup rates stay near the shuffle",
+        "16 have no estimate of their own pair, the pairs that have one going from 3 to 6 of 11 at both sizes",
+        "takes the rank gap from 0.393 to 0.005 and leaves the death-rate gap at 0.116: `K-S6-01` stays open under that class",
+    ):
+        assert sentence in section, sentence
+    for withdrawn in ("not distinguishable from zero", "are under the three keys' spread"):
+        assert withdrawn not in section, withdrawn
+
+
+def test_stated_limit_three_is_restated_with_the_floor_and_the_gate_stays_closed():
+    """Contract 4.6d.11 (d), pinned on the flattened text (plan P4-D450).
+
+    MUTANTS: the gate read as met or opened; the floor read at the kit's
+    figures or not against what the owner was told; under the shuffle
+    claimed without its test; the gap's owner named as if known; a route
+    that fell offered; rule B's amendment's owner dropped; and, from the
+    verify of repair 1 (item 1), each lever's verdict, its enumeration's
+    counts, the search that proves nothing, the reach and its scope (item
+    4) moved, and 4.6d.10's pointer read as anything but measured."""
+    text = _flat(CONTRACT.read_text(encoding="utf-8"))
+    start = text.index("**(d) Stated limit 3, restated (AMENDED 2026-11-02, MEASURED).**")
+    limit = text[start : text.index("<!-- s5", start)]
+    for sentence in (
+        "**Before any moment, December's twin does not meet the stage-6 gate's minimum on `K-BC-01`:**",
+        "0.423 to 0.430 on three keys against a minimum of 0.5795, the replicate 0.765, the shuffle 0.394 and the ledger's twin without the chain 0.400",
+        "`K-BC-10` 15, the analyses that stop, unchanged",
+        "88 and 89 of 287 at 200,000 rows on the product, where (c) of limit 3 read 127 to 188 on the kit, so 38 to 100 estimates lower",
+        "it is no better than the shuffled table's 102 (estimates inside for one and outside for the other, 37 and 23, McNemar `z` 1.81;",
+        "135 against 139 of 273, 29 and 25, `z` 0.54; one twin seed each), 27 under the December-comparable kit's 115",
+        "100 under lane `A0b`'s polished chain's 188, 114 under lane `A0c`'s 202 and 125 under a fresh sample's 213",
+        "owner named by lane CG",
+        "the gluing lemma is refuted",
+        "published rounded and floor-gated by lane MPp's amendment (plan P4-D455)",
+        "THE GATE of 4.6d.5 (h) stays closed until that amendment",
+    ):
+        assert sentence in limit, sentence
+    assert "owners lanes CHa and BT2" not in text
+    assert "One cut, any number of cells: PROVEN, CHECKED; reach 0." in _amendment()
+    assert "Several cuts across several cells, read segment by segment: REFUTED." in _amendment()
+    assert "Splitting the one region at a separator: REFUTED." in _amendment()
+    assert "Exact elimination where the published numbers pin every group: PROVEN; reach 0." in _amendment()
+    assert "`x lo_0 + (N - x) lo_1 <= S <= x hi_0 + (N - x) hi_1`" in _amendment()
+    levers = _amendment()
+    for sentence in (
+        "Checked against enumeration on 369,324 descriptions (two cells of 22 rows at `f` = 11 over codes 0..2, every cut, total and sum; cells of 4 to 7 rows at a floor of 3): equal on every one, and where it holds, no union of groups lies in 1 to `f - 1` in every point.",
+        "With one cell, any number of cuts decouple and the same intervals decide (PROVEN).",
+        "the union of both cells' rows at code 2 in the middle segment and at code 3 in the last holds exactly 2 rows in every one of the 16 points (a floor of 3; no counterexample was found at `f` = 11 in the 6,416 descriptions searched, which proves nothing for the reading).",
+        "The cells couple through every segment total at once, so the exact decision is lane CHo's layered count, not a closed form.",
+        "Each piece's witness holds (`{F1, L0(c)}` and `{F2}`), and the group \"`p` second, `q` second, code 2\" holds 2 to 8 rows in every one of the whole region's 84 points at `f` = 11.",
+        "A region whose column's codes two pieces both read cannot be split;",
+        "lane `E0b`'s tables at 20,000 rows (table seed 1 of each type, one key) form one region each, of all their FINE columns (3 to 9), and lane `A0b`'s table (one table seed, the same key) a region of 23 columns and 42 families beside one of `vis2` alone in its one family at 20,000 rows, and 23 columns and 43 families beside `vis2` in two families and `vis3` alone in one at 200,000.",
+        "fails the closed form's conditions there: 0 regions, 0 estimates, for one cut and for elimination.",
+        "The levers that stand are written here as proven; no December lane builds them.",
+    ):
+        assert sentence in levers, sentence
+    assert ("AMENDED 2026-11-02 (plan P4-D450): the floor this limit names is measured on the product and the three levers are decided, in 4.6d.11, where this limit is restated, (d);"
+            in _section())
+
+
+def test_the_plan_decision_states_what_the_page_states():
+    """P4-D450 as records (the orchestrator's ruling 2 for lane MPOL2).
+
+    MUTANTS: a class read as adopted; the gate read as open; the floor read
+    against lane `A0b`'s 127 with no slopes named; the gap's owner named as
+    if known; lane MPp's amendment or `K-S6-14` gone; and, from repair 2,
+    the chain-less twin read as the chain's own worth, the product read as
+    level with the kit at 20,000 rows, the chain without seeds read as the
+    seeded kit, the window's gain read against the keys' spread, the reach
+    without its scope, and any figure the verify's mutants moved (the
+    CHANGELOG entry's among them)."""
+    decision = _p4d450()
+    for sentence in (
+        "closed 2026-11-02 as records",
+        "the lane closes as records: no class is adopted, and lane MPp writes the amendment that publishes moments (P4-D455)",
+        "pooled 0.423 to 0.430 against the replicate's 0.765, the shuffle's 0.394, the ledger's chain-less twin's 0.400 (stamped on the earlier `9109683`, the chain switched off not measured on this base: the 2.3 to 3.0 points above it are the difference from that historical figure, not what the chain alone is worth)",
+        "the midpoint 0.5795: missed by 15.0 to 15.7 points.",
+        "`K-BC-02` 10 or 11 of 96 truths, the replicate 82.",
+        "`K-BC-10` 15, unchanged by the chain",
+        "no better than the shuffled table's 102 and 139 (McNemar `z` 1.81 and 0.54).",
+        "The floor is 38 to 100 estimates under the 127 to 188 the owner was told",
+        "it stands 27 to 33 under at 200,000 rows; at 20,000 rows the product's 135 stands 8 to 9 above the seeded kit (126 and 127) and 3 to 6 under the kit without seeds (138 and 141)",
+        "owner named by lane CG",
+        "lane `A0b`'s 127 and 171 are the chain without seeds walked WITH slopes, no December baseline.",
+        "`K-S6-01` over twenty keys: 0.393 and 0.116 on every key, the other families moving.",
+        "on the kit they were worth 16 to 24 estimates, MEASURED there.",
+        "PROVEN and CHECKED (369,324 descriptions, equal to enumeration, no leak where it holds)",
+        "REFUTED (a floor of 3: a union of exactly 2 rows in all 16 points)",
+        "REFUTED (`f` = 11: a group of 2 to 8 rows in all 84 points while each piece's witness holds)",
+        "Their reach on the product's chains (lane `E0b`'s tables at table seed 1 of each type, one key, and lane `A0b`'s table on the same key): 0 regions, 0 estimates.",
+        "an observed gain of 0.6 points whose variation across keys is unmeasured (each twin seed gains 71 to 80 estimates and loses 54 to 69, net positive on each)",
+        "Lane MPp writes the amendment of contract 4.6d that publishes moments under rule B (P4-D455) and stamps `K-S6-14`",
+        "THE GATE of 4.6d.5 (h) stays closed until MPp's amendment.",
+        "close as superseded by it; no owner's page is written.",
+        "50 mutants, each red.",
+        "**Repair 2 (2026-11-02; the combined verify on ee68c43a, FIX, and Codex, RATIFY-WITH-CONDITIONS).**",
+        # ...and repair 2's own record, which the verify 2's mutants moved unseen (MPOL2 OWES 1):
+        # Codex's items 4 and 5 restored and the mutant count.
+        "ST3's uncomputed rows are counted over all fifteen runs (item 4); `F3` stands one under the kit (item 5);",
+        "every record sentence the verify's mutants reached is pinned (its item 1): 39 mutants, each red.",
+    ):
+        assert sentence in decision, sentence
+    for withdrawn in ("What is adopted", "owners lanes CHa and BT2", "the chain alone worth", "level at 20,000",
+                      "that kit WITH slopes", "not distinguishable from zero"):
+        assert withdrawn not in decision, withdrawn
+    entry = _flat(_between(REPOSITORY / "CHANGELOG.md", "### Between columns, the December floor before any moment", "\n### "))
+    for sentence in (
+        "0.423 to 0.430 of the analyst battery's 2,913 estimates at 20,000 rows under three keys, against 0.765 for a fresh sample, 0.394 for a shuffled table and a stage-6 minimum of 0.5795",
+        "with 15 of 246 robust analyses stopping on the twin and none on a fresh sample;",
+        "88 and 89 of 287 at 200,000 rows on the 50-column table, no better than a shuffled table's 102, 38 to 100 estimates under what the owner was told and 27 under the comparable kit.",
+        "Two of lane CHo's levers fall to counterexamples and two stand and reach nothing.",
+        "so the class this lane studied is not adopted and lane MPp writes the amendment that publishes moments (P4-D455)",
+    ):
+        assert sentence in entry, sentence

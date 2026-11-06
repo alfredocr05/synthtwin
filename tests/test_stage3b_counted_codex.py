@@ -588,8 +588,17 @@ def _one_long_serial(places: int) -> "list[str]":
     return cells + [f"{45000 + draw.randrange(900)}.{tail}"]
 
 
-def test_item7_one_count_longer_than_python_writes_as_text_is_held_to_its_own_form(tmp_path: pathlib.Path) -> None:
-    """The second verification, item 5: one serial of 4,400 places among 199 written `%.6f`; on `4689cfc` its denominator was written as text (`held_to`) and profile and Q3 raised ValueError, declared or not; on `9197903` the column was declined in NF115, read as numbers undeclared, and Q3 asked nothing."""
+def test_item7_one_count_longer_than_python_writes_as_text_is_held_to_its_own_form(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The second verification, item 5: one serial of 4,400 places among 199 written `%.6f`; on `4689cfc` its denominator was written as text (`held_to`) and profile and Q3 raised ValueError, declared or not; on `9197903` the column was declined in NF115, read as numbers undeclared, and Q3 asked nothing.
+
+    Undeclared, its serials are dates in disguise held until `no` (plan
+    P4-D446); the person answers `no` here, the case being the long cell.
+    """
+    import keyboard
+
+    keyboard.dates_in_disguise_answered_no(monkeypatch)
     cells = _one_long_serial(4400)
     declared = _described(tmp_path / "declared", cells, "excel-1900")
     block = declared["block"]

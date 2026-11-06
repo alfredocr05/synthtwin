@@ -504,6 +504,10 @@ LEVEL_KEYS = (
     "variants_withheld",
 )
 
+# The roles a pool counted in people stands on, and its two keys (P4-D453).
+POOL_IN_PEOPLE_ROLES = (ROLE_BINARY, ROLE_CATEGORICAL, ROLE_LONG_TAIL)
+POOL_IN_PEOPLE_KEYS = ("number_from", "word_from")
+
 LABEL_KEYS = (
     # WHAT NO REAL RUN OF FIGURES OPENS WITH (LANE HB RULINGS 6, plan P4-D442):
     # carried only where a width's rows are mostly held back, so it is read as
@@ -1516,6 +1520,12 @@ INVARIANTS = {
     "B4": (
         "the labels held back cover at least one row each and fewer "
         "rows than the smallest group size"
+    ),
+    "B4e": (
+        "a pool counted in people stands beside a level held back, and its "
+        "stand-ins, and the words of a column counted absent, start at a "
+        "spelling one of the walks starts at: a countdown's own form, a "
+        "clock, a date, a spelling of a closed alphabet or a pair's member"
     ),
     "B4d": (
         "the scale published for the held-back numbers is taken over a "
@@ -3950,11 +3960,36 @@ class ColumnBlock:
     # held-back cells hold at each place, floored, in the form's key order;
     # () elsewhere, whose block carries no `shape_form_places` key.
     shape_form_places: "tuple[tuple[str, tuple[str, ...]], ...]" = ()
+    # A POOL COUNTED IN PEOPLE (lane PL, plan P4-D453, contract 5.1 and B4):
+    # where the twin's stand-ins start, for numbers and for words, or None
+    # where the block carries no `pool_in_people` key. B4's bound on the
+    # pool's rows is read off the floor only without it.
+    pool_in_people: "tuple[str, str] | None" = None
+    # ...and a column counted absent (contract NF133): its present cells are
+    # too few to count, and a checked file's are read as blank.
+    present_count_withheld: bool = False
+    # ...and where its real cells read as text, the word the twin writes in
+    # the floor's number of its cells, so the column stays text (lane PL's
+    # repair 1, the orchestrator's LANE PL RULINGS 1 (1)); "" elsewhere,
+    # whose block carries no `withheld_words_from` key.
+    withheld_words_from: str = ""
     # THE SAFE HARBOR YEARS (plan P4-D434): the year that reads "that year
     # or earlier" where every year from 1850 to it was read as it, the
     # twin writing none before it; 0 elsewhere, whose block carries no
     # `top_coded_year` key.
     top_coded_year: int = 0
+    # THE POOLING OF A SMALL TOP CATEGORY (lane SH3's repair, plan
+    # P4-D454): the floor under which a top-coded column's top category was
+    # to be pooled below its mark, recorded on every column so described
+    # at the table floor and above whether or not one was pooled, and the
+    # subject columns it was counted in too, 0 below the table floor
+    # (nothing pooled); -1 and () elsewhere, whose block carries no
+    # `top_category_pooled` or `top_category_people` key. A top-coded
+    # block written before the rule carries neither: it was read as lane
+    # SH3's repair found the column read before it, and its validator
+    # reads it so and pools nothing.
+    top_category_pooled: int = -1
+    top_category_people: "tuple[str, ...]" = ()
 
 
 # -- the two halves of a compound column, as columns ------------------
@@ -8114,18 +8149,56 @@ def _column(
     # column so read took (a constant 90, a few values, labels such as
     # `90 years`, or a record number held from those cells, whose twin
     # and validator read it the same way). Read apart too.
+    # ...or, for ages counted in months, weeks or days, the mark of their
+    # unit, 90 years in it (lane SH3, plan P4-D454; `TOP_CODE_MARKS`).
     top_coded = 0
     if "top_coded" in mapping:
-        if mapping["top_coded"] != TOP_CODE or isinstance(mapping["top_coded"], bool):
+        written_mark = mapping["top_coded"]
+        if (
+            isinstance(written_mark, bool)
+            or not isinstance(written_mark, int)
+            or written_mark not in TOP_CODE_MARKS
+        ):
             raise _out_of_range(
-                "top_coded", where, "another value", f"the number {TOP_CODE}"
+                "top_coded", where, "another value",
+                "one of the numbers 90, 1080, 4695 and 32871",
             )
-        top_coded = TOP_CODE
+        top_coded = written_mark
         kept_top: "dict[str, object]" = {}
         for key in mapping:
             if key != "top_coded":
                 kept_top[key] = mapping[key]
         mapping = kept_top
+    # ...AND THE RULE ITS SMALL TOP CATEGORY WAS POOLED UNDER (lane SH3's
+    # repair, plan P4-D454): a whole number of rows (and people), 0 where
+    # nothing was pooled, only beside `top_coded`, with the subject columns
+    # it was counted in.
+    top_category_pooled = -1
+    top_category_people: "tuple[str, ...]" = ()
+    if "top_category_pooled" in mapping:
+        pooled_value = mapping["top_category_pooled"]
+        if not top_coded:
+            raise _unknown("top_category_pooled", where)
+        if isinstance(pooled_value, bool) or not isinstance(pooled_value, int) or pooled_value < 0:
+            raise _out_of_range(
+                "top_category_pooled", where, "another value", "a whole number from 0"
+            )
+        top_category_pooled = pooled_value
+        if "top_category_people" in mapping:
+            people_value = mapping["top_category_people"]
+            if not isinstance(people_value, list):
+                raise _out_of_range(
+                    "top_category_people", where, "another value", "a list of column names"
+                )
+            people_read: "list[str]" = []
+            for place, person in enumerate(people_value):
+                people_read += [_text(person, f"top_category_people[{place}]", where)]
+            top_category_people = tuple(people_read)
+        kept_pooled: "dict[str, object]" = {}
+        for key in mapping:
+            if key not in ("top_category_pooled", "top_category_people"):
+                kept_pooled[key] = mapping[key]
+        mapping = kept_pooled
     # ...AND RULE A1'S DESTINATION (lane CODES-1, plan P4-D439, C6-31g): a
     # label column whose census counted the floor's pool in its commonest
     # named form names that form, which the validator counts a measured
@@ -8133,6 +8206,38 @@ def _column(
     # own keys are (`_absorbed_form`).
     absorbed_value: object = None
     places_value: object = None
+    pool_value: object = None
+    pool_in_people = "pool_in_people" in mapping
+    if pool_in_people:
+        if role not in POOL_IN_PEOPLE_ROLES:
+            raise _unknown("pool_in_people", where)
+        pool_value = mapping["pool_in_people"]
+        kept_pool: "dict[str, object]" = {}
+        for key in mapping:
+            if key != "pool_in_people":
+                kept_pool[key] = mapping[key]
+        mapping = kept_pool
+    counted_absent = "present_count_withheld" in mapping
+    words_from = ""
+    if counted_absent:
+        if role != ROLE_EMPTY or mapping["present_count_withheld"] is not True:
+            raise _unknown("present_count_withheld", where)
+        if "withheld_words_from" in mapping:
+            words_from = _text(mapping["withheld_words_from"], "withheld_words_from", where)
+            if not parsing.is_a_stand_in_start(words_from) or parsing.classify_number(words_from) == parsing.NUMBER:
+                raise _broken(
+                    "B4e",
+                    where,
+                    f"a column counted absent writes its words from '{words_from}'",
+                    "they start at a word of the walk's top places",
+                )
+        kept_absent: "dict[str, object]" = {}
+        for key in mapping:
+            if key not in ("present_count_withheld", "withheld_words_from"):
+                kept_absent[key] = mapping[key]
+        mapping = kept_absent
+    elif "withheld_words_from" in mapping:
+        raise _unknown("withheld_words_from", where)
     if "shape_form_places" in mapping:
         if role not in ABSORBING_ROLES:
             raise _unknown("shape_form_places", where)
@@ -8341,6 +8446,7 @@ def _column(
         remarks,
         verdicts,
         n_not_numeric,
+        pooled_in_people=pool_in_people,
     )
     return ColumnBlock(
         name=name,
@@ -8375,12 +8481,22 @@ def _column(
         shape_forms_absorbed=_absorbed_form(absorbed_value, mapping, where),
         shape_form_places=_form_places(places_value, mapping, where),
         top_coded_year=top_coded_year,
+        pool_in_people=_pool_in_people(pool_value, pool_in_people, facts, where),
+        present_count_withheld=counted_absent,
+        withheld_words_from=words_from,
+        top_category_pooled=top_category_pooled,
+        top_category_people=top_category_people,
     )
 
 
 # THE SAFE HARBOR TOP-CODE (plan P4-D427): the number a block carrying
 # `top_coded` names.
 TOP_CODE = 90
+# ...and the marks of the other units an age may be counted in (plan
+# P4-D454): 90 years written as 1,080 months, 4,695 weeks or 32,871 days,
+# each the smallest whole number of the unit that may be 90 years
+# (`taxonomy.AGE_MARKS`, which the contract imports nothing from).
+TOP_CODE_MARKS = (TOP_CODE, 1080, 4695, 32871)
 # ...and the years a block carrying `top_coded_year` may name (plan
 # P4-D434): from 1850 to 9999, the four-figure years.
 YEAR_TOP_CODE_EARLIEST = 1850
@@ -8389,6 +8505,44 @@ YEAR_TOP_CODE_LATEST = 9999
 # THE ROLES A BLOCK CARRYING `shape_forms_absorbed` MAY TAKE (lane CODES-1,
 # plan P4-D439): the four label roles.
 ABSORBING_ROLES = (ROLE_CONSTANT, ROLE_BINARY, ROLE_CATEGORICAL, ROLE_LONG_TAIL)
+
+
+def _pool_in_people(
+    value: object, carried: bool, facts: object, where: str
+) -> "tuple[str, str] | None":
+    """A block's `pool_in_people`, checked (contract 5.1, B4e, plan P4-D453).
+
+    The key is carried only beside a level held back, and each of its two
+    starts is nothing or a spelling `parsing.is_a_stand_in_start` admits, at
+    least one of them a spelling; a spelling that holds no figure or letter
+    of the walk's top, or none at all, could write no stand-in.
+    """
+    if not carried:
+        return None
+    found = _mapping(value, "pool_in_people", where)
+    _keys(found, f"{where}, in pool_in_people", POOL_IN_PEOPLE_KEYS, "a pool counted in people")
+    number_from = _text(found["number_from"], "number_from", where)
+    word_from = _text(found["word_from"], "word_from", where)
+    for start in (number_from, word_from):
+        if start and not parsing.is_a_stand_in_start(start):
+            raise _broken(
+                "B4e",
+                where,
+                f"a pool's stand-ins are said to start at '{start}'",
+                "they start at a spelling of the walk's top places",
+            )
+    if not number_from and not word_from:
+        raise _broken(
+            "B4e", where, "a pool's stand-ins start nowhere", "at least one start is named"
+        )
+    if not isinstance(facts, (LabelFacts,)) or facts.suppressed_levels < 1:
+        raise _broken(
+            "B4e",
+            where,
+            "a pool counted in people holds no level",
+            "the key stands beside a level held back",
+        )
+    return number_from, word_from
 
 
 def _form_places(
@@ -8832,6 +8986,7 @@ def _facts(
     remarks: "list[str]",
     verdicts: "tuple[SentinelVerdict, ...]",
     n_not_numeric: int = 0,
+    pooled_in_people: bool = False,
 ) -> ColumnFacts:
     """Everything the ROLE adds, checked by the rules of its section.
 
@@ -8849,7 +9004,7 @@ def _facts(
     # hand, and of a compound column's label half by its own reader.
     if role == ROLE_CONSTANT or role == ROLE_BINARY:
         labelled = _label_facts(
-            mapping, where, role, frame.floor, n_present, n_folded
+            mapping, where, role, frame.floor, n_present, n_folded, pooled_in_people
         )
         _spellings_spoken(
             labelled.levels,
@@ -8861,7 +9016,7 @@ def _facts(
         return labelled
     if role == ROLE_CATEGORICAL:
         categories = _categorical_facts(
-            mapping, where, frame.floor, n_present, n_folded
+            mapping, where, frame.floor, n_present, n_folded, pooled_in_people
         )
         _spellings_spoken(
             categories.levels,
@@ -8881,6 +9036,7 @@ def _facts(
             n_folded,
             _category_ceiling(frame),
             isinstance(named, str) and named in frame.declared_codes,
+            pooled_in_people,
         )
         _spellings_spoken(
             tail.levels,
@@ -9147,6 +9303,7 @@ def _levels(
     n_present: int,
     n_folded: int,
     inside_a_half: bool = False,
+    pooled_in_people: bool = False,
 ) -> "tuple[tuple[LevelEntry, ...], int, int]":
     """The published labels and everything the floor held back (6.3).
 
@@ -9177,7 +9334,10 @@ def _levels(
             f"{suppressed_levels} labels are said to be held back",
             f"they cover only {suppressed_rows} rows between them",
         )
-    if suppressed_rows > suppressed_levels * (floor - 1):
+    # ...AND BY THE FLOOR ONLY WHERE THE POOL IS COUNTED IN ROWS (lane PL, plan
+    # P4-D453): a level few people hold on many rows is pooled too, whatever
+    # its rows, and a block carrying `pool_in_people` says so.
+    if suppressed_rows > suppressed_levels * (floor - 1) and not pooled_in_people:
         raise _broken(
             "B4",
             where,
@@ -9636,10 +9796,11 @@ def _label_facts(
     floor: int,
     n_present: int,
     n_folded: int,
+    pooled_in_people: bool = False,
 ) -> LabelFacts:
     """A constant or a binary column (contract 6.4 and 6.5)."""
     entries, suppressed, rows = _levels(
-        mapping, where, floor, n_present, n_folded
+        mapping, where, floor, n_present, n_folded, pooled_in_people=pooled_in_people
     )
     wanted = 1 if role == ROLE_CONSTANT else 2
     rule_one = "C1" if role == ROLE_CONSTANT else "Y1"
@@ -9713,6 +9874,7 @@ def _long_tail_facts(
     n_folded: int,
     ceiling: int,
     code_declared: bool = False,
+    pooled_in_people: bool = False,
 ) -> LabelFacts:
     """A long tail of labels (plan P4-D5).
 
@@ -9725,7 +9887,7 @@ def _long_tail_facts(
     describes a column this rule would not have claimed.
     """
     entries, suppressed, rows = _levels(
-        mapping, where, floor, n_present, n_folded
+        mapping, where, floor, n_present, n_folded, pooled_in_people=pooled_in_people
     )
     line = LONG_TAIL_LINE
     if floor > line:
@@ -9783,10 +9945,11 @@ def _categorical_facts(
     floor: int,
     n_present: int,
     n_folded: int,
+    pooled_in_people: bool = False,
 ) -> CategoricalFacts:
     """A column of categories (contract 6.6.1)."""
     entries, suppressed, rows = _levels(
-        mapping, where, floor, n_present, n_folded
+        mapping, where, floor, n_present, n_folded, pooled_in_people=pooled_in_people
     )
     ceiling = _whole(mapping["level_ceiling"], "level_ceiling", where, 1)
     if n_folded > ceiling:
@@ -21570,6 +21733,90 @@ def _closed_pools_bounded(
                 )
 
 
+def _commonest_level_spelling(entry: LevelEntry) -> str:
+    """The spelling a published level's cells most wear, its label where it names none (P4-D453)."""
+    best = entry.label
+    most = 0
+    for spelling in sorted(entry.variants):
+        if entry.variants[spelling] > most:
+            best = spelling
+            most = entry.variants[spelling]
+    return best
+
+
+def _pool_walks_serve(
+    columns: "tuple[ColumnBlock, ...]", settings: SettingsBlock
+) -> None:
+    """B4e: each class a pool counted in people owes has a start its walk serves (lane PL's repair 2).
+
+    The orchestrator's LANE PL RULINGS 4 (5), Codex's item 6 on lane PL's
+    repair 1: a start the loader admitted could still write nothing --
+    `1` beside published `1` to `5` walks only onto a published level,
+    and generation divided by the empty walk -- or write the wrong class,
+    `Z` on a pool of numbers. The pool's split between numbers and words
+    is worked out as the profiler and the generator work it, from the
+    block's own facts: what the published `n_numeric` leaves once each
+    published level's count has paid in the class its commonest spelling
+    reads as, in the column's declared grammar
+    (`parsing.number_as_declared`), split by `parsing.pool_levels_split`.
+    Each start named reads as its key's class; each class owed has a start,
+    and its walk (`parsing.stand_ins_from`) has a free spelling for every
+    level that class takes. A description with no pool, and every one the
+    profiler writes, is untouched.
+
+    Guarantees: accepts the columns and the settings; returns nothing.
+    Raises ProfileError for B4e. No I/O of any kind.
+    """
+    for column in columns:
+        starts = column.pool_in_people
+        facts = column.facts
+        if starts is None or not isinstance(facts, (LabelFacts,)):
+            continue
+        where = f"in the block for the column named '{column.name}'"
+        comma = column.name in settings.forced_decimal_commas
+        published: "dict[str, bool]" = {}
+        paid = 0
+        for entry in facts.levels:
+            published[entry.label] = True
+            spelling = _commonest_level_spelling(entry)
+            if parsing.number_as_declared(spelling, comma)[0] == parsing.NUMBER:
+                paid = paid + entry.count
+        owed = parsing.pool_levels_split(
+            facts.suppressed_levels, facts.suppressed_rows, column.n_numeric - paid
+        )
+        for key, start, wanted, reads_as in (
+            ("number_from", starts[0], owed[0], parsing.NUMBER),
+            ("word_from", starts[1], owed[1], parsing.NOT_A_NUMBER),
+        ):
+            if start and parsing.number_as_declared(start, comma)[0] != reads_as:
+                raise _broken(
+                    "B4e",
+                    where,
+                    f"the pool's {key} '{start}' reads as "
+                    f"{'no number' if reads_as == parsing.NUMBER else 'a number'}",
+                    f"its {key} starts the walk of its "
+                    f"{'numbers' if reads_as == parsing.NUMBER else 'words'}",
+                )
+            if not wanted:
+                continue
+            walked = (
+                parsing.stand_ins_from(start, wanted, frozenset(published))
+                if start
+                else []
+            )
+            if len(walked) < wanted:
+                raise _broken(
+                    "B4e",
+                    where,
+                    f"the pool owes {wanted} levels of "
+                    f"{'numbers' if reads_as == parsing.NUMBER else 'words'} "
+                    f"and its {key} '{start}' walks to {len(walked)} "
+                    "spellings no published level holds",
+                    "a start whose walk has a free spelling for every level "
+                    "it owes",
+                )
+
+
 def _spellings_outside(
     column: "ColumnBlock", block: "NumericFacts | None", pool: int, kind: str
 ) -> int:
@@ -22461,6 +22708,7 @@ def _cross_checks(
     _group_marks_agree(columns, settings)
     _mixture_pools_bounded(columns, settings)
     _closed_pools_bounded(columns, settings)
+    _pool_walks_serve(columns, settings)
     # AND NOT BESIDE A DECLARATION THAT WOULD SILENCE IT (review item
     # P4-G3-R3-F3). The contract forbids the overlap and nothing
     # enforced it, so a hand-written description could name a column

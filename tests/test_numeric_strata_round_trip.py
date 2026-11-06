@@ -44,6 +44,20 @@ from tests.test_stage2_round_trip import _round_trip
 
 SEEDS = ("1", "7", "23")
 
+
+# THE PERSON ANSWERS `no` ABOUT DATES IN DISGUISE TOO (plan P4-D446, lane
+# CZ-H's second repair): incomes in hundreds of 10,000 to 76,700 read as
+# day counts, and `no` to the ZIP question frees the ZIP hold alone, the
+# question about dates following in a round of its own. This file is about
+# numbers coming back from the twin, so it takes the description `no`
+# about those dates gives back, byte for byte, as the files about other
+# things do. The hold is pinned by `tests/test_zoo_dates_in_disguise.py`.
+@pytest.fixture(autouse=True, scope="module")
+def _dates_in_disguise_answered_no() -> object:
+    with pytest.MonkeyPatch.context() as patch:
+        keyboard.dates_in_disguise_answered_no(patch)
+        yield
+
 # THE FLOOR THESE SHAPES ARE DESCRIBED AT, the shipped default (11 since
 # plan P4-D316). Where a column's commonest number is held by fewer cells
 # than it, the mode pair is withheld and the withheld pair proves no

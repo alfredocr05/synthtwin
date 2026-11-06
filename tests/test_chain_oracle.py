@@ -958,6 +958,11 @@ def test_the_product_s_chain_against_the_oracle(tmp_path, monkeypatch):
     groups = [(c, band) for c in sorted(lads) for band in lads[c].taken_in]
     assert co.w1_holds(chain, lads, groups)[0]
     moments = statistical.get("moments") or {}
+    # The owner's rule B of 2026-11-02 (plan P4-D455): `moments` holds rule B's
+    # object, which publishes no region and gives no pair the word `pinned`;
+    # tests/test_moment_rule_b.py holds it against its own reference.
+    if moments.get("rule") == "B":
+        moments = {}
     correlated = set()
     for region in moments.get("regions") or []:
         for total in region["sums"]:

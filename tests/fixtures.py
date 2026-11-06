@@ -403,6 +403,12 @@ def every_role_table(seed: int = 20260807, n_rows: int = 240) -> str:
 # a column of that name, and two columns cannot share one.
 JOINED_COLUMN = "pressure"
 
+# `joined_numbers_table`'s pairs repeat after this many rows, and this pair
+# is none of them: `every_role_and_joined_table` writes it once in a table
+# longer than that, so the column holds a level under the floor.
+_JOINED_PAIRS_REPEAT_AFTER = 600
+_JOINED_PAIR_UNDER_THE_FLOOR = "100/61"
+
 
 def every_role_and_joined_table(n_rows: int = 240) -> str:
     """`every_role_table` with a JOINED column beside it.
@@ -421,6 +427,16 @@ def every_role_and_joined_table(n_rows: int = 240) -> str:
     Without this, the no-regression run and the whole-product surfaces
     said "every role in the taxonomy" while excluding the one that
     carries a blood pressure (review item P4-A2-R3-F4).
+
+    AND ONE PAIR UNDER THE FLOOR, IN A TABLE OF MORE THAN 600 ROWS. The
+    pairs repeat every 600 rows, so at 20,000 rows each of them is on 33
+    or 34 rows, and a declared column whose every level clears the floor
+    is read as a list (plan P4-D438, rule 0c's yield): the stage-5
+    battery's run at 20,000 rows then held no joined column at all. So
+    the last cell of such a table is `100/61`, a pair no other row holds
+    (each of its two numbers inside its own band), and the column keeps
+    the joined reading at every size. A table of 600 rows or fewer, the
+    default among them, is byte for byte as before.
     """
     lines = [line for line in every_role_table(n_rows=n_rows).split("\n") if line]
     joined = [
@@ -428,6 +444,8 @@ def every_role_and_joined_table(n_rows: int = 240) -> str:
         for line in joined_numbers_table(n_rows=n_rows).split("\n")[1:]
         if line
     ]
+    if n_rows > _JOINED_PAIRS_REPEAT_AFTER:
+        joined[n_rows - 1] = _JOINED_PAIR_UNDER_THE_FLOOR
     rows = [f"{lines[0]},{JOINED_COLUMN}"]
     for index, line in enumerate(lines[1:]):
         rows.append(f"{line},{joined[index]}")

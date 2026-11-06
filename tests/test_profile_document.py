@@ -84,6 +84,12 @@ def test_the_settings_that_produced_the_roles_travel_with_them(
     document = _demo_document(tmp_path)
     recorded = document["settings"]
     declared = {field.name for field in dataclasses.fields(taxonomy.Settings)}
+    # ONE FIELD IS A COLUMN'S, NOT THE TABLE'S (lane PL, plan P4-D453):
+    # `levels_kept` is set per column where its pool is counted in people and
+    # is None for the table; what it held is recorded in that column's own
+    # block (its published levels beside `pool_in_people`), which the
+    # validator reads back, so the profile is reproduced without it here.
+    declared = declared - {"levels_kept"}
     assert declared <= set(recorded), (
         "every setting must be written into the profile; a setting added "
         "to Settings and forgotten in the settings block would leave "

@@ -84,6 +84,14 @@ PLAN_LANES = (
     # real range and the third reads the twin strictly (LANE E0c RULINGS
     # 2 (1)), ID-ROOM (twin identifier cells equal to real ones, P4-D432).
     "ID-ROOM",
+    # ...and lane CZ-H's five forms of dates in disguise (plan P4-D446): its
+    # own held values, HB2 (held counted dates written as days in their
+    # span), CZ-C (the key-value relation) and RO (order rules, the clocks).
+    "CZ-H", "HB2", "CZ-C", "RO",
+    # ...and, at batch 4o's seal, lane CZ-H2, lane CZ-H's follow-up (plan
+    # P4-D446's limits (k), (l) and (m): a held day-count column's made-up
+    # numbers), and lane CZ-B, the charges leg of plan P4-D446.
+    "CZ-H2", "CZ-B",
     # ...and the lane the orchestrator opens when SH closes for Safe Harbor
     # years, places and devices no question reaches (THE ZOO ANSWERS
     # TRUTHFULLY, 2026-10-25).
@@ -195,7 +203,7 @@ def test_every_kind_the_lane_names_is_in_the_catalogue() -> None:
             assert not check.column or check.column in header, f"{table.name}: {check.name}"
     assert named == set(zoo.all_kinds())
     assert set(REQUIRED_KINDS) == set(zoo.KINDS)
-    assert set(E0C_KINDS) == set(wide.WIDE_KINDS)
+    assert set(E0C_KINDS) | set(wide._disguise.KINDS) == set(wide.WIDE_KINDS)
     assert len(zoo.all_kinds()) == len(set(zoo.all_kinds()))
     assert set(zoo.file_kinds()) <= set(zoo.all_kinds())
     assert set(wide.MERGED.values()) <= set(zoo.KINDS), "a merged item names a kind of E0a's catalogue"
@@ -734,20 +742,40 @@ def test_one_table_runs_end_to_end_in_this_process(tmp_path: pathlib.Path) -> No
     assert set(verdicts["utf8_accents"]["owners"]) == {"SH", "SH2"}
 
 
-def test_the_diagnoses_misses_reach_its_verdict(tmp_path: pathlib.Path) -> None:
-    """validate's MISSED checks are captured per column and fail the kind at validate.
+def test_the_diagnoses_misses_reach_its_verdict(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """validate's MISSED checks are captured per column BY `run_table` and fail the kind at validate.
 
-    It read the labs export's `ref_range` until lane UN-1a (plan P4-D438):
-    rule 0c now keeps that column's exact list, and validate misses
-    nothing there; the diagnoses export at its battery seed still misses
-    three published forms of `icd10_dotted` (CODES-1 part C's line).
+    It read the labs export's `ref_range` until lane UN-1a (plan P4-D438),
+    and the diagnoses export's `icd10_dotted` until lane PL (plan P4-D453):
+    a code a few people hold no longer holds that column whole, and validate
+    misses nothing there. So the twin is spoiled by hand INSIDE the run,
+    between its generate and its validate (Codex's review of batch 4o, item
+    4; the orchestrator's LANE I4m RULINGS 21 (4)): the run's own capture
+    is read, whatever the product does with a table, and the misses it
+    returns are exactly the columns and checks validate missed on that twin.
+    Mutant: the run's accumulation of the misses removed (`run_table`).
     """
-    table = zoo.table_named("diagnoses_procedures")
+    from synthtwin import contract, validation
+
+    table = zoo.table_named("labs")
+    twin = tmp_path / "labs-twin.csv"
+    quietly = zoo._quietly
+
+    def spoiling(arguments: "list[str]", small_tables_refused: bool = False) -> "tuple[int, str]":
+        code, error = quietly(arguments, small_tables_refused)
+        if arguments[0] == "generate" and code == 0:
+            lines = twin.read_text(encoding="utf-8").split("\n")
+            twin.write_text("\n".join(lines[: len(lines) // 2]) + "\n", encoding="utf-8", newline="\n")
+        return code, error
+
+    monkeypatch.setattr(zoo, "_quietly", spoiling)
     result = zoo.run_table(table, tmp_path, SMALL, SEED + zoo.TABLES.index(table))
-    assert result["steps"]["validate"]["exit"] == 3
-    assert result["misses"], "validate missed checks on the diagnoses twin and none were captured"
-    assert {miss[0] for miss in result["misses"]} == {"icd10_dotted"}
-    assert zoo.per_kind([result])["diagnoses"]["failing_step"] == "validate"
+    assert result["steps"]["validate"]["exit"] == 3, result["steps"]
+    loaded = contract.load_profile(f"{tmp_path / 'labs-profile.json'}")
+    measured = validation.measure(loaded, f"{twin}")
+    missed = [[one.column, one.subcheck or one.fact] for one in measured.checks if one.verdict == validation.MISSED]
+    assert missed and result["misses"] == missed
+    assert zoo.per_kind([result])["labs"]["failing_step"] == "validate"
 
 
 def _result(table: str, **changes: object) -> "dict":

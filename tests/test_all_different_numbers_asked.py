@@ -642,3 +642,17 @@ def _asked_of_file(path: pathlib.Path, column: str) -> "list[dict[str, object]]"
 
 def _asked_of(folder: pathlib.Path, kind: str, stem: str = "") -> "list[dict[str, object]]":
     return _asked_of_file(folder / f"{stem or kind + '_long'}-questions.json", kind)
+
+
+# THE PERSON ANSWERS `no` ABOUT DATES IN DISGUISE (plan P4-D446, lane CZ-H):
+# this file's columns hold five-figure numbers in a day-counting band, or
+# nine or ten figures in a seconds band, and are about something else, so
+# each test takes the description `no` gives back, byte for byte. The hold
+# itself is pinned by `tests/test_zoo_dates_in_disguise.py` and K-HZ-16.
+@pytest.fixture(autouse=True, scope="module")
+def _dates_in_disguise_answered_no() -> object:
+    import keyboard
+
+    with pytest.MonkeyPatch.context() as patch:
+        keyboard.dates_in_disguise_answered_no(patch)
+        yield

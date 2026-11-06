@@ -111,6 +111,14 @@ to 1937 (an age of 90 or more in 2027) is published only as "1937 or
 earlier" while the column's Safe Harbor question is open. That year is
 raised each year, with a new release.
 
+Ages are read in the unit the column's cells or its name give
+(`14 months`, `3 d`, `92 y/o`, `age_in_months`, `months_old`): an age of
+90 years or more -- 1,080 months, 4,695 weeks, 32,871 days -- is
+published and written only as that one top category, unless the
+column's Safe Harbor question is answered `no`. Where neither the cells
+nor the name give a unit, the ages are read in years and that question
+also asks the unit.
+
 The profiler reads what each column holds -- whole numbers, measured
 numbers, dates, a set of categories, two-value columns, free text --
 says in words why it read it that way, reports what is missing and how

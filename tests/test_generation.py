@@ -1291,8 +1291,10 @@ def test_the_generator_cannot_reach_the_reader_or_pandas() -> None:
         assert "import pandas" not in text, name
         for line in text.split("\n"):
             if line.startswith("from synthtwin import "):
+                # An aliased import (`from synthtwin import chain_rules as
+                # rules`) names the module before its alias.
                 for piece in line[len("from synthtwin import "):].split(","):
-                    waiting.append(piece.strip())
+                    waiting.append(piece.split(" as ")[0].strip())
             elif line.startswith("from synthtwin."):
                 waiting.append(line.split(" ")[1].split(".")[1])
             elif line.startswith("import synthtwin"):

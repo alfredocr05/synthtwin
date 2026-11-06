@@ -833,3 +833,17 @@ def test_a_narrow_padded_code_column_still_says_none(
     assert second["wide_runs"] == "none", second["wide_runs"]
     assert twin_exit == 0
     assert real_exit == 0
+
+
+# THE PERSON ANSWERS `no` ABOUT DATES IN DISGUISE (plan P4-D446, lane CZ-H):
+# this file's columns hold five-figure numbers in a day-counting band, or
+# nine or ten figures in a seconds band, and are about something else, so
+# each test takes the description `no` gives back, byte for byte. The hold
+# itself is pinned by `tests/test_zoo_dates_in_disguise.py` and K-HZ-16.
+@pytest.fixture(autouse=True, scope="module")
+def _dates_in_disguise_answered_no() -> object:
+    import keyboard
+
+    with pytest.MonkeyPatch.context() as patch:
+        keyboard.dates_in_disguise_answered_no(patch)
+        yield

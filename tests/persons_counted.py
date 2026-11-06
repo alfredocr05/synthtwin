@@ -564,6 +564,10 @@ def count(names: "list[str]", columns: "list[list[str]]",
         if not others:
             continue
         block = blocks[name]
+        # A COLUMN COUNTED ABSENT publishes nothing of its cells, their number
+        # included (plan P4-D453): the twin writes it blank.
+        if block.get("present_count_withheld") is True:
+            continue
         # A COLUMN DESCRIBED AT A GRAIN (plan P4-D417): each of its values
         # is counted as the start of its bucket, the tails pooled into the
         # record's ends -- what each published point names.
@@ -629,6 +633,11 @@ def count(names: "list[str]", columns: "list[list[str]]",
             if not enough or not statistics:
                 continue
             for label, cells in (("remainder", remainder), ("present", values)):
+                # A POOL COUNTED IN PEOPLE (plan P4-D453; the orchestrator's
+                # LANE CZ-D RULINGS 1 (1)): a count in the pool names no group
+                # and is P4-D363's accepted class.
+                if label == "remainder" and "pool_in_people" in block:
+                    continue
                 group_holders, group_rows, _attached = held_by(
                     ["x" if parsing.folded(cell) else "" for cell in cells], people)
                 if "x" in group_holders and len(group_holders["x"]) < FLOOR \

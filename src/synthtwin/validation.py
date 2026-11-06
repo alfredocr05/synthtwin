@@ -5329,6 +5329,7 @@ def measure(
         described_pairs = _described_pairs_here(description, table)
         described_affixed = _described_affixed_here(description, table)
         described_labels = _described_labels_here(description, table)
+        dated_held = _dated_held_here(description, table)
         kept_days = _kept_placeholders_here(description, table)
         judged_here = _judged_candidates_here(description, table)
         # THE SAFE HARBOR TOP-CODE (plan P4-D427, validation of ZS.6): a
@@ -5336,8 +5337,17 @@ def measure(
         # every value above 89 as 90, the real file as the twin, by every
         # check below -- so the real table meets the description it made.
         top_coded = _top_coded_here(description, table)
+        # ...and a top category pooled below the mark only where the
+        # description records that rule (`top_category_pooled`), at the
+        # floor and in the people it records (lane SH3's repair, Codex's
+        # item 4 and the orchestrator's LANE SH3 RULINGS 1 (2): a
+        # description written before the rule validates as it did then,
+        # never by a newer reading of the source).
+        top_pooled = _top_pooled_here(description, table)
         table = _top_coded_table(
-            table, top_coded, declared_commas, declared_spellings(description)
+            table, top_coded, top_pooled, declared_commas,
+            declared_spellings(description),
+            declared_spellings(description),
         )
         # ...AND THE SAFE HARBOR YEARS (plan P4-D434, validation V15.3): a
         # column published as `top_coded_year` is read with every year from
@@ -5346,6 +5356,10 @@ def measure(
         table = _year_top_coded_table(
             table, years_coded, declared_commas, declared_spellings(description)
         )
+        # ...AND THE COLUMNS COUNTED ABSENT AND THE POOLS COUNTED IN PEOPLE
+        # (plan P4-D453, validation V17), handed to every description below.
+        kept_levels = levels_kept_here(description)
+        absent_columns = counted_absent_here(description)
         # TWO DESCRIPTIONS, ALWAYS BOTH, AND WHAT EACH ONE DECIDES
         # (V2.1 and V2.4; review item P3-V2-A1). The first is the file's
         # OWN description -- what `synthtwin profile` would write about
@@ -5389,9 +5403,16 @@ def measure(
             # -- P4-D417: a column of dates or times described at the grain
             # its description published, the tails pooled into its ends.
             time_grains=time_grains,
+            dated_held=dated_held,
             absent_read=absent_read,
             top_coded_only=top_coded,
+            top_pooled_only=top_pooled,
             year_top_coded_only=years_coded,
+            # -- P4-D453: a column with its pool counted in people is read by
+            # its published levels, every other label pooled; a column counted
+            # absent is read blank, the real file as the twin.
+            levels_kept_only=kept_levels,
+            counted_absent_only=absent_columns,
         )
         # THE CHAIN'S OWN-FACT DESCRIPTION HOLDS THE CALENDAR CENSUSES (lane
         # CHv, plan P4-D430; Codex's item 1 on its build). V12.3 reads RULE
@@ -5422,7 +5443,10 @@ def measure(
                     described_affixed=described_affixed,
                     described_labels=described_labels,
                     time_grains=time_grains,
+                    dated_held=dated_held,
                     absent_read={},
+                    levels_kept_only=kept_levels,
+                    counted_absent_only=absent_columns,
                 )
         table = _at_their_grains(table, time_grains, description, absent_read)
         over_the_split = profile.build_document(
@@ -5447,8 +5471,12 @@ def measure(
             described_affixed=described_affixed,
             described_labels=described_labels,
             time_grains=time_grains,
+            dated_held=dated_held,
             top_coded_only=top_coded,
+            top_pooled_only=top_pooled,
             year_top_coded_only=years_coded,
+            levels_kept_only=kept_levels,
+            counted_absent_only=absent_columns,
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -5570,22 +5598,54 @@ def _at_their_grains(
     return dataclasses.replace(table, columns=columns)
 
 
-def _top_coded_here(
-    description: contract.Profile, table: reading.Table
-) -> "tuple[str, ...]":
-    """The columns the description publishes as `top_coded` that the file carries (P4-D427)."""
+def levels_kept_here(description: contract.Profile) -> "dict[str, tuple[str, ...]]":
+    """Each column with its pool counted in people, and the levels it publishes (P4-D453)."""
+    found: "dict[str, tuple[str, ...]]" = {}
+    for block in description.columns:
+        facts = block.facts
+        if block.pool_in_people is not None and isinstance(facts, contract.LabelFacts):
+            found[block.name] = tuple(entry.label for entry in facts.levels)
+    return found
+
+
+def counted_absent_here(description: contract.Profile) -> "tuple[str, ...]":
+    """The columns the description counts absent, their present cells too few to count (P4-D453)."""
     found: "list[str]" = []
     for block in description.columns:
-        if block.top_coded and block.name in table.column_names:
+        if block.present_count_withheld:
             found += [block.name]
     return tuple(found)
 
 
+def _top_coded_here(
+    description: contract.Profile, table: reading.Table
+) -> "dict[str, int]":
+    """The columns the description publishes as `top_coded` that the file carries, each with its mark (P4-D427, P4-D454)."""
+    found: "dict[str, int]" = {}
+    for block in description.columns:
+        if block.top_coded and block.name in table.column_names:
+            found[block.name] = block.top_coded
+    return found
+
+
+def _top_pooled_here(
+    description: contract.Profile, table: reading.Table
+) -> "dict[str, tuple[int, tuple[str, ...]]]":
+    """The top-coded columns whose description records the pooling of a small top category, each with its floor and the subject columns it was counted in (P4-D454)."""
+    found: "dict[str, tuple[int, tuple[str, ...]]]" = {}
+    for block in description.columns:
+        if block.top_coded and block.top_category_pooled >= 0 and block.name in table.column_names:
+            found[block.name] = (block.top_category_pooled, block.top_category_people)
+    return found
+
+
 def _top_coded_table(
     table: reading.Table,
-    top_coded: "tuple[str, ...]",
+    top_coded: "dict[str, int]",
+    pooled: "dict[str, tuple[int, tuple[str, ...]]]",
     commas: "list[str]",
-    declared: "tuple[str, ...]" = (),
+    declared: "tuple[str, ...]",
+    missing: "tuple[str, ...]",
 ) -> reading.Table:
     """The checked table with each top-coded column's values from 90 to 125 read as 90 (P4-D427).
 
@@ -5594,8 +5654,14 @@ def _top_coded_table(
     spelling, as the redescription keeps it (Codex's review of lane SH,
     item 1). A table read in groups of columns (lane SR) is returned as
     it is: the redescription reads the top-code itself
-    (`profile.build_document`'s ``top_coded_only``). Guarantees: a
-    function of the four. Raises nothing. No I/O.
+    (`profile.build_document`'s ``top_coded_only``). A column of
+    ``pooled`` has a top category fewer rows than its recorded floor --
+    or people of a recorded subject column, its cells read as subjects
+    under ``missing`` -- hold pooled below the mark, as its description
+    was made (P4-D454); a column its description records no rule for was
+    described before lane SH3's repair and is read as it was then
+    (`taxonomy.top_coded_cells_before_sh3`). Guarantees: a function of the six.
+    Raises nothing. No I/O.
     """
     if not top_coded or table.source is not None:
         return table
@@ -5617,9 +5683,32 @@ def _top_coded_table(
                 or parsing.trimmed(cell) in named
             ):
                 absent[cell] = True
+        # ...and a top category fewer rows than the floor hold pooled
+        # below it, as the description was made (plan P4-D454).
+        if name not in pooled:
+            # ...a description written before the rule: read as it was then.
+            columns += [
+                taxonomy.top_coded_cells_before_sh3(
+                    table.columns[place], name in commas, frozenset(absent)
+                )
+            ]
+            changed = True
+            continue
+        floor, people = pooled[name]
+        holders: "list[list[str]]" = []
+        for subject in people:
+            for spot, column_name in enumerate(table.column_names):
+                if column_name == subject:
+                    holders += [profile.subject_keys(table.columns[spot], missing)]
+                    break
         columns += [
-            taxonomy.top_coded_cells(
-                table.columns[place], name in commas, frozenset(absent)
+            taxonomy.top_category_pooled(
+                taxonomy.top_coded_cells(
+                    table.columns[place], name in commas, frozenset(absent),
+                    top_coded[name],
+                ),
+                name in commas, frozenset(absent), floor, top_coded[name],
+                holders if holders else None,
             )
         ]
         changed = True
@@ -6084,14 +6173,34 @@ def _described_labels_here(
     is dropped, for the reason `_declared_here` gives.
     """
     kept: "dict[str, str]" = {}
+    dated = taxonomy.rendered(taxonomy.REMARK_DATED_VALUES_HELD, ())
     for column in description.columns:
         if column.name not in table.column_names:
             continue
-        if column.role == taxonomy.ROLE_CATEGORICAL:
+        # A column read as labels whose dates in disguise are held (plan
+        # P4-D446): its twin holds the labels and numbers alone, which by
+        # themselves would read as numbers beside labels.
+        if dated in column.remarks and column.role in (
+            taxonomy.ROLE_CATEGORICAL, taxonomy.ROLE_LONG_TAIL,
+        ):
+            kept[column.name] = taxonomy.KEPT_DATED_LABELS
+        elif column.role == taxonomy.ROLE_CATEGORICAL:
             kept[column.name] = taxonomy.KEPT_LABELS
         elif column.role == taxonomy.ROLE_JOINED:
             kept[column.name] = taxonomy.KEPT_JOINED
     return kept
+
+
+def _dated_held_here(
+    description: contract.Profile, table: reading.Table
+) -> "tuple[str, ...]":
+    """The columns whose description holds their dates in disguise (plan P4-D446, NF135) that the file carries."""
+    held = taxonomy.rendered(taxonomy.REMARK_DATED_VALUES_HELD, ())
+    found: "list[str]" = []
+    for column in description.columns:
+        if column.name in table.column_names and held in column.remarks:
+            found += [column.name]
+    return tuple(found)
 
 
 def _kept_placeholders_here(
@@ -8275,7 +8384,7 @@ def _column_checks(
     # description asked for came back with its style census MISSED.
     block = _column_at(redescribed, column.position)
     split = _column_at(over_the_split, column.position)
-    return _obligations(
+    found = _obligations(
         description,
         column,
         cells,
@@ -8284,6 +8393,51 @@ def _column_checks(
         table.column_names,
         headed,
     )
+    if column.present_count_withheld:
+        return _not_observed_where_the_count_is_withheld(found)
+    return found
+
+
+# A COLUMN COUNTED ABSENT IS NOT OBSERVED (lane PL's repair 2, the
+# orchestrator's LANE PL RULINGS 4 (3), Codex's item 4 on repair 1; validation
+# V17.2). Its present cells are read as blank, the real file as the twin, so
+# the real table meets the description that does not publish their count; but
+# the blank a checked file is then found to hold is the reading's, not the
+# file's, so its presence, content and type facts are not observed and none
+# of them is reported as found or counted as held. What still observes the
+# file stands: the column's place and name, and the document's bytes.
+_GATE_COUNT_NOT_PUBLISHED = (
+    "not available: the description does not publish how many cells of "
+    "this column hold a value, too few people's to count, so a checked "
+    "file's present cells of it are read as blank and this fact of the "
+    "file is not observed"
+)
+_OBSERVED_BESIDE_A_WITHHELD_COUNT = ("universal.position",)
+
+
+def _not_observed_where_the_count_is_withheld(checks: "list[Check]") -> "list[Check]":
+    """A column counted absent's checks: what the blank reading decides, WITHHELD (V17.2).
+
+    Each check but the column's place and the document's own is listed
+    WITHHELD with `_GATE_COUNT_NOT_PUBLISHED`, nothing shown on either side:
+    the description publishes no count to ask for, and the file's count
+    is not observed. A fixed function of the checks. Raises nothing.
+    """
+    found: "list[Check]" = []
+    for check in checks:
+        if (
+            check.fact in _OBSERVED_BESIDE_A_WITHHELD_COUNT
+            or check.fact[: len("document.")] == "document."
+        ):
+            found += [check]
+        else:
+            found += [
+                dataclasses.replace(
+                    _copied(check, WITHHELD, "", _GATE_COUNT_NOT_PUBLISHED),
+                    published="",
+                )
+            ]
+    return found
 
 
 def _obligations(
@@ -10883,9 +11037,20 @@ def _role_checks(
         # (plan P4-D275.1): the census counts a spelling below the floor
         # as the level's commonest, so a recount of the raw cells would
         # tell a table it missed its own description.
+        # ...AND OVER THE PUBLISHED LEVELS' CELLS ALONE WHERE THE POOL IS COUNTED
+        # IN PEOPLE (plan P4-D453, validation V17.1), as its producer counted:
+        # a set, so each cell asks it at one cost whatever the number of
+        # levels (lane PL's repair 2, the orchestrator's LANE PL RULINGS 4 (4)).
+        kept_levels: "frozenset[str] | None" = None
+        if column.pool_in_people is not None:
+            kept_levels = frozenset(entry.label for entry in facts.levels)
         spelled = taxonomy.described_spellings(
-            cells, taxonomy.Settings(small_cell_floor=floor)
+            cells, taxonomy.Settings(small_cell_floor=floor, levels_kept=kept_levels)
         )
+        if kept_levels is not None:
+            spelled = [
+                value for value in spelled if parsing.folded(value) in kept_levels
+            ]
         return (
             _label_checks(column, facts, block, floor)
             + _form_checks(
@@ -24311,6 +24476,7 @@ WITHHELD_RULES: "tuple[tuple[str, str], ...]" = (
     (_GATE_TAIL_BOUNDS, "tail-bounds"),
     (_GATE_SHORT_BESIDE, "short-beside"),
     (_WITHHELD_BY_THE_TAIL_RULE, "tail-rule"),
+    (_GATE_COUNT_NOT_PUBLISHED, "count-not-published"),
 )
 WITHHELD_FALLBACK = "withheld"
 

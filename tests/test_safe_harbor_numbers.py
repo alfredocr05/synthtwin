@@ -443,9 +443,12 @@ def test_the_top_code_keeps_each_cells_own_form() -> None:
 
 
 def test_the_twin_writes_none_above_90_and_keeps_its_counts() -> None:
+    # ...and 90 itself only where another cell holds it (lane SH3, plan
+    # P4-D454: a top category pooled below 90 is never named in the twin).
     assert taxonomy.at_most_the_top_code(["91", "90.5", "88", "999", "x", "+91"]) == [
-        "90", "89.9", "88", "999", "x", "+90"
+        "89", "89.9", "88", "999", "x", "+89"
     ]
+    assert taxonomy.at_most_the_top_code(["91", "90", "88"]) == ["89", "90", "88"]
     # ...the count of different values kept where a free one lies above 89.
     assert taxonomy.at_most_the_top_code(["90.0", "90.4", "90.7", "92", "89.9"]) == [
         "90.0", "89.8", "89.7", "90", "89.9"
@@ -457,7 +460,7 @@ def test_the_twin_writes_none_above_90_and_keeps_its_counts() -> None:
 def test_the_twins_clamp_keeps_the_missing_cells() -> None:
     """The second repair, item 5: `--missing-value 95` had its missing cells written 90."""
     assert taxonomy.at_most_the_top_code(["95", "91", " 95", "60"], frozenset(["95"])) == [
-        "95", "90", " 95", "60"
+        "95", "89", " 95", "60"
     ]
 
 
@@ -477,7 +480,9 @@ def test_the_twins_search_ends_at_any_precision() -> None:
     written = taxonomy.at_most_the_top_code(cells)
     assert time.monotonic() - started < 5
     assert len(set(written)) == 596
-    assert written[-1] == "90.00000000000000000000"
+    # ...below 90, which no cell holds (lane SH3, plan P4-D454), and below
+    # the decimal cut, 32,871 days in years (89.9959; lane SH3's repair).
+    assert written[-1] == "89.99589300000000000000"
 
 
 # -- the answers ----------------------------------------------------------
@@ -538,6 +543,11 @@ def test_yes_holds_the_column_and_closes_the_question(
 
     Codex's review, item 8: a ZIP column answered `yes` stayed among the
     columns held for their figures and was asked the same question again.
+    LANE SH3'S REPAIR 1 (plan P4-D454; the orchestrator's LANE SH3
+    RULINGS 1 (1)): an answer keeps the meaning it had when it was given,
+    so `ages`, a column its values alone read as ages (its name says no
+    age), is held whole by `yes` as before lane SH3; its unit answered
+    keeps the top-code (`test_a_unit_answered_keeps_the_top_code`).
     """
     seen = _answered(tmp_path, kind, asking.ANSWER_SAFE_HARBOR_YES)
     block = seen["block"]
@@ -549,7 +559,26 @@ def test_yes_holds_the_column_and_closes_the_question(
     assert seen["asked"] == []
 
 
-def test_no_lifts_the_hold_on_zip_shaped_numbers(tmp_path: pathlib.Path) -> None:
+def test_a_unit_answered_keeps_the_top_code(tmp_path: pathlib.Path) -> None:
+    """Lane SH3's repair (RULINGS 1 (1)): `years`, offered inside the question to a column its values alone read as ages, keeps its top-code, never a hold."""
+    seen = _answered(tmp_path, "ages", "years")
+    block = seen["block"]
+    assert isinstance(block, dict)
+    assert block["role"] != taxonomy.ROLE_IDENTIFIER and block["top_coded"] == taxonomy.TOP_CODE, block
+    assert seen["asked"] == []
+
+
+def test_no_lifts_the_hold_on_zip_shaped_numbers(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`no` frees the ZIP hold, read here with `no` about dates in disguise too.
+
+    Its ZIPs from 10,000 to 76,700 read as day counts as well, and `no` to
+    the ZIP question frees the ZIP hold alone (plan P4-D446, lane CZ-H's
+    second repair), so the description `no` about those dates gives back
+    (`keyboard.dates_in_disguise_answered_no`) is the one read here.
+    """
+    import keyboard
+
+    keyboard.dates_in_disguise_answered_no(monkeypatch)
     seen = _answered(tmp_path, "zip_mixed", asking.ANSWER_SAFE_HARBOR_NO)
     block = seen["block"]
     assert isinstance(block, dict)

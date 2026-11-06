@@ -150,6 +150,25 @@ the lane's gate file weighed the default. `tests/test_zoo_held_layouts.py`,
 on the merged tree under Python 3.11, on a machine other work was loading
 (the lane measured 383.8 s on its own head).
 
+THREE ROWS ADDED 2026-11-04, at batch 4o's merge of lanes MR, PL and SH3
+(plans P4-D452, P4-D453 and P4-D454): each lane's new file weighed the
+default. `tests/test_safe_harbor_ages_and_address_parts.py`, 244.50 s
+(lane SH3's gate, 110 cases), `tests/test_levels_few_people_hold.py`,
+69.39 s (lane PL's gate, 92 cases), and `tests/test_rules_method_page.py`,
+34.39 s (lane MR's rules page, 31 cases), each timed alone by one
+`pytest -q --durations=0` process on the merged tree under Python 3.11, on a
+machine other work was loading (lane SH3 measured about 130 s on a quiet
+machine and 179 to 250 s under load, lane PL's verify 65.4 s).
+
+THREE ROWS ADDED 2026-11-04, at batch 4o's merge of lanes CZ-D, CZ-H and
+MPp (plans P4-D447, P4-D446 and P4-D455): each lane's new file weighed the
+default. `tests/test_types_and_flags.py`, 85.21 s (lane CZ-D's gate, 68
+cases; the orchestrator's AT CZ-D'S MERGE), `tests/test_zoo_dates_in_disguise.py`,
+86.52 s (lane CZ-H's gate, 173 cases with the merge's three of its limit
+(h)), and `tests/test_moment_rule_b.py`, 60.27 s (lane MPp's gate, 54
+cases), each timed alone by one `pytest -q` process on the merged tree
+under Python 3.11, on a machine other work was loading.
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
 an ordinary small file and runs in its shard from the commit that adds
@@ -224,11 +243,13 @@ SECONDS = {
     "tests/test_landing_2b7_mixed_spellings.py": 19.23,
     "tests/test_landing_2b7_source_spellings.py": 41.25,
     "tests/test_landing_2b8_labels_text_missing.py": 101.84,
+    "tests/test_levels_few_people_hold.py": 69.39,
     "tests/test_lone_figure_nought.py": 0.15,
     "tests/test_lone_pools_every_reader.py": 17.86,
     "tests/test_merge_close_2026_09_18.py": 8.38,
     "tests/test_method_citations_resolve.py": 0.48,
     "tests/test_mixture_reader_bounds.py": 78.4,
+    "tests/test_moment_rule_b.py": 60.27,
     "tests/test_moment_window_anchor.py": 11.3,
     "tests/test_no_quadratic_list_growth.py": 2.35,
     "tests/test_number_censuses_name_no_row.py": 26.27,
@@ -399,10 +420,12 @@ SECONDS = {
     "tests/test_reading_header_shape.py": 0.01,
     "tests/test_round2_disclosure.py": 43.78,
     "tests/test_round2_numbers_dates.py": 5.27,
+    "tests/test_rules_method_page.py": 34.39,
     "tests/test_ruling_first_row_not_told.py": 2.32,
     "tests/test_ruling_identifier_prefix.py": 20.42,
     "tests/test_ruling_levels_counted_by_subtraction.py": 7.53,
     "tests/test_ruling_pooled_held_back_levels.py": 12.86,
+    "tests/test_safe_harbor_ages_and_address_parts.py": 244.5,
     "tests/test_safe_harbor_numbers.py": 92.92,
     "tests/test_safe_harbor_places_years_devices.py": 224.0,
     "tests/test_shipped_page_review.py": 3.39,
@@ -459,6 +482,7 @@ SECONDS = {
     "tests/test_tail_back_solve_without_recursion.py": 14.72,
     "tests/test_taxonomy.py": 4.6,
     "tests/test_twin_golden.py": 5.64,
+    "tests/test_types_and_flags.py": 85.21,
     "tests/test_u1u2_count_every_present_cell.py": 0.4,
     "tests/test_validate_lock.py": 1.25,
     "tests/test_validation.py": 56.51,
@@ -467,6 +491,7 @@ SECONDS = {
     "tests/test_workbook_dates.py": 26.02,
     "tests/test_workbook_round_trip.py": 267.81,
     "tests/test_zoo_codes_in_pattern.py": 175.0,
+    "tests/test_zoo_dates_in_disguise.py": 86.52,
     "tests/test_zoo_few_valued_gap.py": 419.0,
     "tests/test_zoo_held_layouts.py": 403.52,
     "tests/test_zoo_identifiers.py": 1122.72,

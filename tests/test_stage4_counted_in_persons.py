@@ -394,14 +394,21 @@ def test_the_two_candidates_in_the_other_order_publish_nothing_either(
 
 def test_the_remainder_the_floor_merges_is_counted_in_people(tmp_path: pathlib.Path) -> None:
     """Item 3: rare sites of three patients, merged into one remainder of more than eleven rows."""
+    # ...ITS SITES ANSWERED A LIST OF CODES: since lane PL's repair 1 a column
+    # of words is pooled unasked only where its values are short codes by
+    # their shape (P4-D453); site names are put the Safe Harbor question.
     table, _screen = _profiled(tmp_path, "rest", persons_counted.remainder_table(2000),
-                               "--identifier", "patient")
+                               "--identifier", "patient", "--code", "site")
     rows = [line.split(",") for line in table.read_text(encoding="utf-8").splitlines()[1:]]
     rare = [row for row in rows if row[1].startswith("Rare")]
     assert len({row[0] for row in rare}) == 3 and len(rare) >= 11
     block = _block(_described(tmp_path, "rest"), "site")
-    assert _held(block), block
-    assert "suppressed_rows" not in block
+    # THE POOL IS COUNTED IN PEOPLE SINCE P4-D453 (the orchestrator's LANE CZ-D
+    # RULINGS 1 (1)): its rows are a count in the pool, P4-D363's accepted class,
+    # no rare site is named, and the others keep their counts. Off the pool the
+    # column was held, whole.
+    assert "pool_in_people" in block, block
+    assert not any(f"{level['label']}".startswith("rare") for level in block["levels"])
     assert persons_counted.count_files(table, tmp_path)["few"] == 0
     assert _twin_validates(table, tmp_path) == 0
 
@@ -413,7 +420,9 @@ def test_a_column_written_for_two_people_publishes_no_statistic_of_them(
     table, _screen = _profiled(tmp_path, "dose", persons_counted.sparse_table(2000),
                                "--identifier", "patient")
     block = _block(_described(tmp_path, "dose"), "dose")
-    assert _held(block), block
+    # COUNTED ABSENT SINCE P4-D453, NF133: the fifteen cells are not counted either.
+    assert block["role"] == taxonomy.ROLE_EMPTY and block["present_count_withheld"] is True, block
+    assert block["n_present"] == 0
     for statistic in ("mean", "std", "percentiles", "levels"):
         assert statistic not in block
     assert persons_counted.count_files(table, tmp_path)["few"] == 0
@@ -530,7 +539,9 @@ def test_a_written_form_fewer_than_eleven_people_wear_is_not_published(
     table, _screen = _profiled(tmp_path, "forms", persons_counted.forms_table(2000),
                                "--identifier", "patient")
     block = _block(_described(tmp_path, "forms"), "site")
-    assert _held(block), block
+    # PUT THE SAFE HARBOR QUESTION SINCE P4-D453, and held meanwhile: long
+    # register codes a shape cannot tell from an identifier.
+    assert block["role"] == taxonomy.ROLE_IDENTIFIER and "levels" not in block, block
     assert persons_counted.count_files(table, tmp_path)["few"] == 0
     assert _twin_validates(table, tmp_path) == 0
 
@@ -935,7 +946,8 @@ def test_a_layout_census_of_nothing_but_a_pool_two_people_hold_is_not_printed(
     table, _screen = _profiled(tmp_path, "pool", persons_counted.pool_only_table(),
                                "--identifier", "patient")
     block = _block(_described(tmp_path, "pool"), "x")
-    assert block["layout_forms"] == {}, block["layout_forms"]
+    # COUNTED ABSENT SINCE P4-D453, NF133: nothing of the two people's rows prints.
+    assert block["role"] == taxonomy.ROLE_EMPTY and "layout_forms" not in block, block
     assert persons_counted.count_files(table, tmp_path)["few"] == 0
     assert _twin_validates(table, tmp_path) == 0
 

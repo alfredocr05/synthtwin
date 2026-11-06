@@ -1473,6 +1473,16 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
+            # B4e, A POOL COUNTED IN PEOPLE WHOSE STAND-INS START AT A
+            # SPELLING NO WALK STARTS AT (lane PL, plan P4-D453): `7` is no
+            # countdown's form, clock, date, alphabet or pair's member.
+            "B4e", "a pool's stand-ins started at a spelling no walk starts at",
+            edit(
+                "region",
+                pool_in_people={"number_from": "7", "word_from": ""},
+            ),
+        ),
+        Mutation(
             "B5", "a label published below the floor",
             both(
                 edit_level("region", 3, count=5),

@@ -2669,6 +2669,7 @@ def _text_walk(
     rest = 0
     not_whole = 0
     with_contact = 0
+    small_contacts = 0
     most_places = 0
     most_significant = 0
     widths: "dict[int, int]" = {}
@@ -2727,6 +2728,8 @@ def _text_walk(
             not_whole = not_whole + 1
             if found.contacts:
                 with_contact = with_contact + 1
+                if contact_number(written) is not None:
+                    small_contacts = small_contacts + 1
             most_places = max(most_places, figures_after_the_mark(written))
             most_significant = max(most_significant, significant_figures(written))
         whole = abs(numerator) // denominator
@@ -2741,7 +2744,12 @@ def _text_walk(
         return fixed_width(standing) >= FIXED_WIDTH_LEAST, bare, dated
     if len(widths) > 1:
         return False, bare, dated
-    if rule == RULE_BAND and found.contacts and 2 * with_contact > rest:
+    if (
+        rule == RULE_BAND
+        and found.contacts
+        and 2 * with_contact > rest
+        and not contacts_shaped(with_contact, small_contacts)
+    ):
         return False, bare, dated
     if (
         rule == RULE_BAND
@@ -2755,10 +2763,58 @@ def _text_walk(
     return True, bare, dated
 
 
+# CONTACT NUMBERS ON MORE THAN HALF OF A COLUMN (plan P4-D446, lane CZ-H).
+# Rule A asked at least half of a column of day numbers with contacts to
+# write none, so that money in cents in the band was not asked as days; a
+# column of contacts, each day's second and later contact written
+# `66123.01`, `66123.02` ... `66123.1`, wrote contacts on more than half
+# its cells, was asked nothing and published its days as a measurement's
+# points and tails (measured on a5702b71: 70 real days at 600 rows; at
+# 20,000 rows, answered `keep` to its identity question, 101 real days
+# and 19,865 twin cells). SO THE SPREAD OF THE CONTACTS DECIDES NOTHING
+# (the orchestrator's LANE CZ-H RULINGS 2 (1)): contacts up to 40 on a
+# table of one row a record published 101 real days under a rule that
+# asked contacts up to 20, so a column of band counts is asked where nine
+# in ten of the cells writing a contact write at most two figures after
+# the point, their trailing noughts aside. Money in cents in that band is
+# asked too, and `measurement` answers it, the price of a question about
+# the data. Three figures and more are no contact, and stay as rule A has
+# them. `CONTACT_FIGURES_USUAL` is that limit.
+CONTACT_FIGURES_USUAL = 2
+CONTACT_SHARE_NUM = 9
+CONTACT_SHARE_DEN = 10
+
+
+def contact_number(written: Written) -> "int | None":
+    """The contact a day count's figures after the point name, or None where they name none.
+
+    At most `CONTACT_FIGURES` figures after the point once trailing
+    noughts are gone (`66123.010` is contact 1), read as the hundredths
+    they write (`.1` is 10, `.01` is 1). None for a cell writing no figure
+    after the point but noughts, or more than that many, or an exponent.
+    A function of the cell. Raises nothing.
+    """
+    figures = _trimmed_fraction(written.fraction)
+    if written.exponent_form or not 1 <= len(figures) <= CONTACT_FIGURES_USUAL:
+        return None
+    return int(figures) * (10 if len(figures) == 1 else 1)
+
+
+def contacts_shaped(with_contact: int, small: int) -> bool:
+    """Whether a column's contacts are contact-shaped: some, and nine in ten write at most two figures (plan P4-D446)."""
+    return with_contact > 0 and CONTACT_SHARE_DEN * small >= CONTACT_SHARE_NUM * with_contact
+
+
 def _contacts_fit(present: "list[str]", member: str, needed: int, mark: str) -> bool:
-    """Whether a column is counts of a member with contacts: enough of them, mostly with none."""
+    """Whether a column is counts of a member with contacts: enough of them, mostly with none or contact-shaped.
+
+    Mostly with none, as rule A asked; or with contacts on more than half
+    of them where they are contact-shaped (`contacts_shaped`, plan
+    P4-D446).
+    """
     tally = 0
     with_contact = 0
+    small = 0
     for text in present:
         written = counted(member, text, mark)
         if written is None:
@@ -2767,7 +2823,9 @@ def _contacts_fit(present: "list[str]", member: str, needed: int, mark: str) -> 
         numerator, denominator = exact_value(written)
         if numerator % denominator:
             with_contact = with_contact + 1
-    return tally >= needed and 2 * with_contact <= tally
+            if contact_number(written) is not None:
+                small = small + 1
+    return tally >= needed and (2 * with_contact <= tally or contacts_shaped(with_contact, small))
 
 
 def _offered(
@@ -2973,3 +3031,815 @@ def aside_said(slots: "tuple[str, ...]") -> str:
         f"a day of 1960 or 1970 in the other systems, and are read as "
         f"that day unless you name them with --missing-value."
     )
+
+
+# ------------------------------- dates in disguise among other values
+
+# SAFE HARBOR DATES IN DISGUISE (plan P4-D446, lane CZ-H). A column of
+# answers under a question key, or of values typed by a key -- an answer
+# column, a flowsheet's value column, a result column -- holds, beside
+# yes/no answers, words and numbers, a few values that are dates of a
+# person: a day count (`66497`, a birth, an admission), epoch seconds (a
+# service time), a date written as text. Read as labels, a value that
+# eleven rows share is published as a level and written on the twin's
+# rows; read as numbers it is a rung or a tail -- measured on a5702b71,
+# an answer column under 40 questions at 20,000 rows, answered `keep` to
+# its identity question, published two real admission days as levels (14
+# and 13 rows) and its twin wrote them on 28 cells. Safe Harbor removes
+# every element of such a date but its year, and nothing in the column
+# says which key holds dates (a relation between two columns, stage 6's),
+# so while the Safe Harbor question about them is open, or answered yes,
+# each such VALUE is held: read as a blank cell, never a level, a
+# percentile or a twin cell, and the column's other values read as
+# before. WHATEVER STANDS BESIDE IT (the orchestrator's LANE CZ-H RULINGS
+# 2 (1)): one ZIP, one lab value or one telephone number beside day counts
+# frees no day count. The price is a question about the data, on every
+# column holding a value that reads so; `no` restores it byte for byte.
+#
+# A VALUE IS A DATE IN DISGUISE where `date_in_disguise` says so:
+# * a count of `DAY_FIGURES` whole figures, with any figures after the
+#   point, inside the band from 1900 of a member counting days -- every
+#   count from 10,000 to 76,700 is one, as Excel, SAS, Unix and MUMPS
+#   days write 1900 to 2050 -- written bare, signed, grouped (`66,274`) or
+#   with its seconds (`66274,43200`, the MUMPS $H form), but not in an
+#   exponent form, which the product's measurements write (`4.5E+04`);
+# * a count of `SECOND_WIDTHS` or `MILLISECOND_WIDTHS` whole figures, of
+#   either sign, inside the band from 1900 of a member counting seconds
+#   or milliseconds (nine figures are 1973 to 2001, a birth's);
+# * a stamp in figures alone: `YYYYMMDD` (and month or day first) and, with
+#   the clock, twelve or fourteen figures;
+# * a date as text: any reading of `parsing.DATE_FORMATS`, in the years
+#   1900 to 2050 (a SNOMED code of eight figures reads as a compact date
+#   of 3834), or `_written_date`'s wider spellings (a two-figure year
+#   behind dashes, year-first dots, a clock after any of them, a month's
+#   name, year and day of the year, month and year), with a clock after
+#   it or not.
+#
+# WHAT IS LEFT OUT, each measured over the zoo and the batteries (plan
+# P4-D446): figures of six or seven standing for a date (`210314`,
+# `2021067`), which most record numbers of those widths would match; day
+# counts under ten thousand and seconds under nine figures, which every
+# small number would; and a clock with no date in it, of any form: a time
+# of day alone names no date (plan P4-D433; the orchestrator's LANE CZ-H
+# RULINGS 3 (2)), and a titer `1:40` reads as one. A COUNT IS HELD AT ANY
+# SHARE of its column (RULINGS 2 (1), 3 (1)); a date as text is held unless
+# dates as text are most of the column, whose shape then marks it as dates
+# and whose own date questions are put to it (`dated_values_blanked`).
+DAY_FIGURES = 5
+SECOND_WIDTHS = (9, 10)
+MILLISECOND_WIDTHS = (12, 13)
+_DATE_TEXT_FORMATS = parsing.DATE_FORMATS
+_YEAR_DAYS_AT_MOST = 366
+_MEMO_AT_MOST = 100_000
+_MONTH_WORDS = {
+    word: place + 1
+    for place, pair in enumerate(
+        (
+            ("jan", "january"), ("feb", "february"), ("mar", "march"), ("apr", "april"),
+            ("may", "may"), ("jun", "june"), ("jul", "july"), ("aug", "august"),
+            ("sep", "september"), ("oct", "october"), ("nov", "november"), ("dec", "december"),
+        )
+    )
+    for word in pair
+}
+_MERIDIEMS = ("am", "pm", "a.m", "p.m", "a", "p")
+# A cell's pieces: figures, letters, or the one separator character between.
+_FIGURES_PIECE = "figures"
+_LETTERS_PIECE = "letters"
+SEPARATORS = (" ", "-", "/", ".", ",", ":", "T")
+
+
+def _counted_window(widths: "tuple[int, ...]", unit: int) -> "dict[int, tuple[tuple[float, float], ...]]":
+    """The bands from 1900 that a count of each of those whole figures may lie in, one per member of the unit."""
+    windows: "list[tuple[float, float]]" = []
+    for member in MEMBERS:
+        if TABLE[member].unit == unit:
+            windows += [band(member, WIDE_FROM)]
+    return {width: tuple(windows) for width in widths}
+
+
+_WINDOWS = {
+    **_counted_window((DAY_FIGURES,), DAY),
+    **_counted_window(SECOND_WIDTHS, SECOND),
+    **_counted_window(MILLISECOND_WIDTHS, MILLISECOND),
+}
+
+
+def _cut(text: str, mark: str) -> "list[str]":
+    """A text cut at each mark. Raises TypeError for anything but text."""
+    if not isinstance(text, str):
+        raise TypeError("internal check: a cell was not text")
+    if not isinstance(mark, str):
+        raise TypeError("internal check: a mark was not text")
+    return text.split(mark)
+
+
+def _plain_count(body: str) -> str:
+    """A cell as the count's own grammar writes it: no leading plus, no grouping, no seconds after a MUMPS day.
+
+    `+66274` is `66274`; `66,274` and `1,601,234,567` lose their commas;
+    `66274,43200` (five figures, a comma, seconds of one day) is `66274`.
+    Anything else comes back as it was. Raises TypeError for anything but
+    text. No I/O.
+    """
+    text = body[1:] if body[:1] == "+" else body
+    if "," not in text:
+        return text
+    sign = "-" if text[:1] == "-" else ""
+    pieces = _cut(text[len(sign):], ",")
+    for piece in pieces[:-1]:
+        if not parsing.is_digit_text(piece):
+            return text
+    last = _cut(pieces[-1], ".")
+    if len(last) > 2 or not parsing.is_digit_text(last[0]):
+        return text
+    if len(last) == 2 and not parsing.is_digit_text(last[1]):
+        return text
+    if (
+        len(pieces) == 2
+        and len(pieces[0]) == DAY_FIGURES
+        and len(last) == 1
+        and len(last[0]) <= DAY_FIGURES
+        and int(last[0]) < 86400
+    ):
+        return sign + pieces[0]
+    if not 1 <= len(pieces[0]) <= 3 or len(last[0]) != 3:
+        return text
+    plain = sign
+    for piece in pieces[:-1]:
+        if piece is not pieces[0] and len(piece) != 3:
+            return text
+        plain = plain + piece
+    return plain + pieces[-1]
+
+
+def counted_figures(text: str) -> int:
+    """How many whole figures a cell written as a count of a date in disguise writes, or 0 where it is none.
+
+    `DAY_FIGURES`, `SECOND_WIDTHS` or `MILLISECOND_WIDTHS` whole figures,
+    of either sign and with any figures after the point, inside one of
+    that unit's bands from 1900 (`_plain_count` says how it may be
+    written). A function of the text. Raises TypeError for anything but
+    text. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError("internal check: a cell was not text")
+    written = written_count(_plain_count(parsing.trimmed(text)))
+    if written is None:
+        return 0
+    numerator, denominator = exact_value(written)
+    figures = len(f"{abs(numerator) // denominator}")
+    if figures not in _WINDOWS:
+        return 0
+    # An exponent form names seconds or milliseconds (`1.6409952e+09`, the
+    # verify of lane CZ-H's first repair, item 1), never days: the
+    # product's own measurements write `4.5E+04`.
+    if written.exponent_form and figures == DAY_FIGURES:
+        return 0
+    value = numerator / denominator
+    for low, high in _WINDOWS[figures]:
+        if low <= value < high:
+            return figures
+    return 0
+
+
+def _a_person_s_year(year: str) -> bool:
+    """Whether a year a date as text writes lies in 1900 to 2050, the band the counts are read in."""
+    return parsing.is_digit_text(year) and WIDE_FROM <= int(year) < BAND_UNTIL
+
+
+def _pieces(body: str) -> "list[tuple[str, str]]":
+    """A cell cut into figures, letters and single separators, or [] where anything else stands in it."""
+    if not isinstance(body, str):
+        raise TypeError("internal check: a cell was not text")
+    found: "list[tuple[str, str]]" = []
+    kind = ""
+    held = ""
+    for character in body:
+        now = (
+            _FIGURES_PIECE if "0" <= character <= "9"
+            else _LETTERS_PIECE if "a" <= character <= "z" or "A" <= character <= "Z"
+            else ""
+        )
+        if now and now == kind:
+            held = held + character
+            continue
+        if held:
+            found += [(kind, held)]
+        held = ""
+        kind = now
+        if now:
+            held = character
+        elif character in SEPARATORS:
+            found += [("", character)]
+        else:
+            return []
+    if held:
+        found += [(kind, held)]
+    return found
+
+
+def _a_day_of(first: str, second: str, year: str) -> bool:
+    """Whether the two figures name a month and a day of a person's year, read either way round.
+
+    A year of two figures stands for a century not written, and is asked
+    as a leap year (2000), so `02-29-21` is taken too: which century the
+    column means is the date reader's question, not this rule's.
+    """
+    if not 1 <= len(first) <= 2 or not 1 <= len(second) <= 2:
+        return False
+    if len(year) == 2:
+        reading = 2000
+    elif len(year) == 4 and _a_person_s_year(year):
+        reading = int(year)
+    else:
+        return False
+    return parsing.valid_date(reading, int(first), int(second)) or parsing.valid_date(
+        reading, int(second), int(first)
+    )
+
+
+def _lowered(text: str) -> str:
+    """A word in small letters. Raises TypeError for anything but text."""
+    if not isinstance(text, str):
+        raise TypeError("internal check: a cell was not text")
+    return text.lower()
+
+
+def _clock_after(rest: "list[tuple[str, str]]") -> bool:
+    """Whether the pieces after a date are a clock: hour, minute, perhaps seconds and fractions, perhaps a meridiem."""
+    figures = [text for kind, text in rest if kind == _FIGURES_PIECE]
+    words = [text for kind, text in rest if kind == _LETTERS_PIECE]
+    if len(figures) < 2 or len(words) > 1:
+        return False
+    if words and _lowered(words[0]) not in _MERIDIEMS and words[0] not in ("Z", "UTC"):
+        return False
+    return int(figures[0]) <= 23 and int(figures[1]) <= 59
+
+
+def _written_date(body: str) -> bool:
+    """A day, a month or a day of the year written in a spelling `parsing.DATE_FORMATS` does not read.
+
+    Three runs of figures behind one separator, the year first or last,
+    of four figures or a last run of two (`03-08-21`, `2021.03.08`), with a
+    clock after them or not; a month's name beside a day and a year or
+    either alone (`14MAR2021`, `Mar 14, 2021`, `March 2021`); year and day
+    of the year (`2021-067`); month and year (`03/2021`, `2021-03`), where a
+    dot is no separator since `12.2021` is a number. A function of the text.
+    """
+    pieces = _pieces(body)
+    if not pieces:
+        return False
+    runs = [(place, kind, text) for place, (kind, text) in enumerate(pieces) if kind]
+    if len(runs) < 2:
+        return False
+    kinds = [kind for _place, kind, _text in runs[:3]]
+    texts = [text for _place, _kind, text in runs[:3]]
+    if _LETTERS_PIECE in kinds:
+        return _month_named(runs)
+    if kinds == [_FIGURES_PIECE, _FIGURES_PIECE, _FIGURES_PIECE]:
+        between = [piece for _kind, piece in pieces[: runs[2][0]] if not _kind]
+        if len(between) == 2 and between[0] == between[1] and between[0] in ("-", ".", "/", " "):
+            first, second, third = texts
+            if len(first) == 4 and _a_person_s_year(first):
+                dated = _a_day_of(second, third, first)
+            else:
+                dated = _a_day_of(first, second, third)
+            if dated:
+                rest = pieces[runs[2][0] + 1:]
+                return not rest or _clock_after(rest)
+        return False
+    if len(runs) == 2 and pieces[runs[0][0] + 1][1] in ("-", "/", " "):
+        first, second = texts[0], texts[1]
+        if len(first) == 4 and _a_person_s_year(first):
+            if len(second) == 3:
+                return 1 <= int(second) <= _YEAR_DAYS_AT_MOST
+            return 1 <= len(second) <= 2 and 1 <= int(second) <= 12
+        return 1 <= len(first) <= 2 and 1 <= int(first) <= 12 and len(second) == 4 and _a_person_s_year(second)
+    return False
+
+
+def _month_named(runs: "list[tuple[int, str, str]]") -> bool:
+    """A month's name with a day and a year, or one of them; a clock may follow a whole date."""
+    named = 0
+    figures: "list[str]" = []
+    for _place, kind, text in runs[:3]:
+        if kind == _LETTERS_PIECE:
+            if _lowered(text) not in _MONTH_WORDS:
+                return False
+            named = named + 1
+        else:
+            figures += [text]
+    if named != 1 or not 1 <= len(figures) <= 2:
+        return False
+    if len(runs) > 3 and len(figures) != 2:
+        return False
+    for figure in figures:
+        if len(figure) == 4:
+            if not _a_person_s_year(figure):
+                return False
+        elif len(figure) > 2 or not 1 <= int(figure) <= 31:
+            return False
+    return True
+
+
+def _stamp_in_figures(body: str) -> bool:
+    """A date in figures alone: eight figures year, month or day first; twelve or fourteen with the clock, year first."""
+    if not isinstance(body, str):
+        raise TypeError("internal check: a cell was not text")
+    if len(body) == 8:
+        return (
+            (_a_person_s_year(body[:4]) and parsing.valid_date(int(body[:4]), int(body[4:6]), int(body[6:])))
+            or _a_day_of(body[:2], body[2:4], body[4:])
+        )
+    if len(body) not in (12, 14) or not _a_person_s_year(body[:4]):
+        return False
+    return (
+        parsing.valid_date(int(body[:4]), int(body[4:6]), int(body[6:8]))
+        and int(body[8:10]) <= 23
+        and int(body[10:12]) <= 59
+        and int(body[12:] or "0") <= 59
+    )
+
+
+# A cell longer than this is read only by its head (`_head_is_a_date`).
+_READ_WHOLE_AT_MOST = 40
+# The places a cell's head may end at, read from its start: a full date's
+# head is never longer.
+_HEAD_AT_MOST = 32
+# What may follow a full date at the head of a cell: a space, the `T` of a
+# clock, the `Z` of a zone, a sign of an offset, a comma.
+_HEAD_ENDS = (" ", "T", "Z", "+", "-", ",")
+_WEEKDAY_WORDS = (
+    "mon", "monday", "tue", "tues", "tuesday", "wed", "weds", "wednesday",
+    "thu", "thur", "thurs", "thursday", "fri", "friday", "sat", "saturday",
+    "sun", "sunday",
+)
+_ORDINAL_ENDINGS = ("st", "nd", "rd", "th")
+
+
+def _reads_whole(body: str) -> bool:
+    """Whether a trimmed cell, read whole, is a count, a stamp or a date as text."""
+    if counted_figures(body):
+        return True
+    if not any("0" <= character <= "9" for character in body):
+        return False
+    if parsing.is_digit_text(body):
+        return _stamp_in_figures(body)
+    for name in _DATE_TEXT_FORMATS:
+        read = parsing.parse_datetime(body, name)
+        if read is not None and _a_person_s_year(read[0][:4]):
+            return True
+    return _written_date(body)
+
+
+def _plainly_written(body: str) -> str:
+    """A cell with a leading weekday's name and the endings of an ordinal day taken out: `Mon Mar 08 2021` is `Mar 08 2021`.
+
+    `8th March 2021` is `8 March 2021`; `Monday, March 8, 2021` is `March
+    8, 2021`. Anything else comes back as it was. Raises TypeError for
+    anything but text. No I/O.
+    """
+    if not isinstance(body, str):
+        raise TypeError("internal check: a cell was not text")
+    pieces = _pieces(body)
+    if not pieces:
+        return body
+    start = 0
+    if pieces[0][0] == _LETTERS_PIECE and _lowered(pieces[0][1]) in _WEEKDAY_WORDS and len(pieces) > 1:
+        start = 1
+        while start < len(pieces) and pieces[start][0] == "" and pieces[start][1] in (" ", ",", "."):
+            start = start + 1
+    written = ""
+    for place in range(start, len(pieces)):
+        kind, text = pieces[place]
+        if (
+            kind == _LETTERS_PIECE
+            and _lowered(text) in _ORDINAL_ENDINGS
+            and place > start
+            and pieces[place - 1][0] == _FIGURES_PIECE
+            and len(pieces[place - 1][1]) <= 2
+        ):
+            continue
+        written = written + text
+    return written
+
+
+def _full_date(head: str) -> bool:
+    """Whether a cell's head names a day of a person's year: a stamp of eight figures, a date as text with its day."""
+    if len(head) < 6:
+        return False
+    if parsing.is_digit_text(head):
+        return len(head) == 8 and _stamp_in_figures(head)
+    pieces = _pieces(head)
+    if not pieces or pieces[-1][0] != _FIGURES_PIECE:
+        return False
+    figures = 0
+    for kind, text in pieces:
+        if kind == _LETTERS_PIECE and _lowered(text) not in _MONTH_WORDS:
+            return False
+        if kind == _FIGURES_PIECE:
+            figures = figures + 1
+    if figures < 2:
+        return False
+    for name in _DATE_TEXT_FORMATS:
+        read = parsing.parse_datetime(head, name)
+        if read is not None and len(read[0]) >= 10 and _a_person_s_year(read[0][:4]):
+            return True
+    if not _written_date(head):
+        return False
+    # A month and a year alone (`03/2021`) is no head: a day stands in it,
+    # or the day of the year (`2021-067`).
+    runs = [text for kind, text in pieces if kind]
+    return len(runs) >= 3 or (len(runs) == 2 and len(runs[1]) == 3)
+
+
+def _head_is_a_date(body: str) -> bool:
+    """Whether a cell opens with a full date, whatever follows it: a zone word, an offset, a bare clock, a fraction.
+
+    `2021-03-08 00:00 EST`, `2021-03-08Z`, `2021-03-08+00:00`,
+    `20210308T000000` and `20210308 0930` each open with one (the verify of
+    lane CZ-H's first repair, item 1). Each place up to `_HEAD_AT_MOST`
+    that a head may end at is tried, from the start.
+    """
+    if not isinstance(body, str):
+        raise TypeError("internal check: a cell was not text")
+    if not body or not ("0" <= body[:1] <= "9" or _lowered(body[:3]) in _MONTH_WORDS):
+        return False
+    for place in range(6, min(len(body), _HEAD_AT_MOST + 1)):
+        if body[place] in _HEAD_ENDS and _full_date(body[:place]):
+            return True
+    return False
+
+
+def date_in_disguise(text: str) -> bool:
+    """Whether one cell reads as a date in disguise: a count, a stamp or a date as text (plan P4-D446).
+
+    Read whole, or with a leading weekday's name and the endings of an
+    ordinal day taken out, and, in a cell of any length, by its head: a
+    full date followed by anything (`_head_is_a_date`). A function of the
+    text. Raises TypeError for anything but text. No I/O.
+    """
+    body = parsing.trimmed(text)
+    if not body:
+        return False
+    if len(body) <= _READ_WHOLE_AT_MOST and _reads_whole(body):
+        return True
+    plain = _plainly_written(body)
+    if plain != body and len(plain) <= _READ_WHOLE_AT_MOST and _reads_whole(plain):
+        return True
+    return _head_is_a_date(plain)
+
+
+def dated_values_blanked(
+    cells: "list[str]",
+    absent: "frozenset[str]" = frozenset(),
+    ages_up_to: "float | None" = None,
+) -> "list[str] | None":
+    """A column with its dates in disguise read as blank cells; None where it holds none to hold.
+
+    A COUNT, A STAMP OR A DATE AS TEXT is held whatever else the column
+    holds and WHATEVER ITS SHARE: one ZIP or a lab value beside day counts
+    frees no day count, three answers in five a day count are three in five
+    held, and dates as text on most of the cells are held too (the verify
+    of lane CZ-H's first repair, item 2): a column read under the date rules
+    -- a date role, or declared or answered as dates -- is not handed here
+    (`profile.build_document`), and nothing else marks one as dates. A cell
+    spelled as one of ``absent``, the column's missing values (declared,
+    answered or found), is no value and is kept as written (Codex's review
+    of the first repair, item 2). ``ages_up_to``, for a column the age
+    top-code reaches, is the oldest age its unit allows: a count at or
+    below it is an age, whatever band it lies in, and is kept (the
+    orchestrator's LANE CZ-H RULINGS 5 (1)). Guarantees: accepts the
+    column's cells; returns a new list of the same length, or None.
+    Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    # Each cell's kind, one byte a row: 0 for no date in disguise, 1 for one.
+    # A distinct cell is asked once while `_MEMO_AT_MOST` cells are
+    # remembered, so a column of two million different numbers holds a
+    # bounded map, not one of its own size (K-S4-09's bound).
+    kinds = bytearray(len(cells))
+    memo: "dict[str, int]" = {}
+    held = 0
+    for place, cell in enumerate(cells):
+        body = parsing.trimmed(cell)
+        if not body or cell in absent or body in absent:
+            continue
+        if cell in memo:
+            found = memo[cell]
+        else:
+            found = 1 if date_in_disguise(cell) and not _an_age(body, ages_up_to) else 0
+            if len(memo) < _MEMO_AT_MOST:
+                memo[cell] = found
+        kinds[place] = found
+        held = held + found
+    if held == 0:
+        return None
+    blanked: "list[str]" = []
+    for place, cell in enumerate(cells):
+        blanked += ["" if kinds[place] else cell]
+    return blanked
+
+
+def _an_age(body: str, ages_up_to: "float | None") -> bool:
+    """Whether a cell the date rule reads is a count no older than the oldest age its column's unit allows."""
+    if ages_up_to is None:
+        return False
+    written = written_count(_plain_count(body))
+    if written is None:
+        return False
+    numerator, denominator = exact_value(written)
+    return 0 <= numerator <= ages_up_to * denominator
+
+
+# THE TWIN OF A COLUMN WHOSE DATES IN DISGUISE ARE HELD (plan P4-D446,
+# method G7.15). Its description read every count inside a band as a blank
+# cell (NF135), and the validator reads a twin the same way, so a number
+# the twin draws inside a band -- a rung's interpolation across the gap the
+# held counts left, `12,345.67` between a published `9,870.00` and a tail
+# at `124,284.20` -- would be one blank more than the description holds,
+# and the column would miss its present count, its numeric count and every
+# census after them (a money column of 5,000 cells, three such numbers:
+# nine checks missed, the twin failing its own description). So each such
+# number is written at the NEAREST VALUE NO BAND READS, at its own figures
+# after the point, its sign, grouping and spaces kept: below the band's
+# reach or the width's (`12,345.67` is `9,999.67`) or past them
+# (`70,000.50` is `76,702.50`), the nearer, below on a tie. EACH DIFFERENT
+# VALUE takes one value that no other cell of the column holds, so the
+# column keeps how many different values it has and how many cells hold
+# each, as the age top-code's twin does (G7.14): the values are taken in
+# order of size, each side of each escape keeping the next free place, so
+# the cells' order changes nothing and no search starts again. A function
+# of the cells: it reads nothing real and draws no word.
+_ESCAPE_STEPS_AT_MOST = 64
+
+# A number's pieces: its sign, whole figures (grouping taken out), whether
+# they were grouped, its figures after the point, what else follows (a
+# MUMPS day's seconds after a comma) and its figures after the point with
+# their trailing noughts dropped.
+_Pieces = tuple[int, str, bool, str, str, str]
+# A value: sign, whole part, figures after the point without trailing noughts.
+_Value = tuple[int, int, str]
+
+
+def _number_pieces(body: str) -> "_Pieces | None":
+    """A trimmed cell written as a plain number, in pieces; None for any other spelling.
+
+    `-12,345.67` is (-1, "12345", True, "67", "", "67"); `66274,43200`, a
+    MUMPS day with its seconds, is (1, "66274", False, "", ",43200", "").
+    Raises TypeError for anything but text. No I/O.
+    """
+    if not isinstance(body, str):
+        raise TypeError("internal check: a cell was not text")
+    sign = -1 if body[:1] == "-" else 1
+    rest = body[1:] if body[:1] in ("-", "+") else body
+    if rest.count(POINT) > 1:
+        return None
+    place = rest.find(POINT)
+    whole_text = rest if place < 0 else rest[:place]
+    fraction = "" if place < 0 else rest[place + 1:]
+    if place >= 0 and not parsing.is_digit_text(fraction):
+        return None
+    kept = fraction.rstrip("0")
+    if COMMA not in whole_text:
+        if not parsing.is_digit_text(whole_text):
+            return None
+        return sign, whole_text, False, fraction, "", kept
+    pieces = _cut(whole_text, COMMA)
+    grouped = 1 <= len(pieces[0]) <= 3
+    joined = ""
+    for index, piece in enumerate(pieces):
+        if not parsing.is_digit_text(piece):
+            return None
+        if index and len(piece) != 3:
+            grouped = False
+        joined = joined + piece
+    if grouped:
+        return sign, joined, True, fraction, "", kept
+    if len(pieces) == 2 and len(pieces[0]) == DAY_FIGURES and place < 0:
+        return sign, whole_text[:DAY_FIGURES], False, "", whole_text[DAY_FIGURES:], ""
+    return None
+
+
+def _around(cell: str) -> "tuple[str, str, str]":
+    """A cell as its leading spaces, its trimmed body and its trailing spaces. Raises TypeError for anything but text."""
+    if not isinstance(cell, str):
+        raise TypeError("internal check: a cell was not text")
+    body = cell.strip()
+    start = cell.find(body)
+    return cell[:start], body, cell[start + len(body):]
+
+
+def _grouped(figures: str) -> str:
+    """Whole figures with a comma before each group of three from the right. Raises TypeError for anything but text."""
+    if not isinstance(figures, str):
+        raise TypeError("internal check: figures were not text")
+    head = len(figures) % 3 or 3
+    written = figures[:head]
+    for start in range(head, len(figures), 3):
+        written = written + COMMA + figures[start:start + 3]
+    return written
+
+
+def _band_holding(sign: int, whole: int, kept: str) -> "tuple[int, int] | None":
+    """The band of `_WINDOWS` a value lies in, as whole counts, or None: sign, whole part and figures after the point."""
+    scale = 10 ** len(kept)
+    signed = sign * (whole * scale + (int(kept) if kept else 0))
+    figures = len(f"{whole}")
+    if figures not in _WINDOWS:
+        return None
+    for low, high in _WINDOWS[figures]:
+        if int(low) * scale <= signed < int(high) * scale:
+            return int(low), int(high)
+    return None
+
+
+def _escaped(sign: int, whole: int, kept: str, downward: bool) -> "int | None":
+    """The nearest whole part on one side, the figures after the point kept, whose value no band reads, or None.
+
+    Toward nought it is below the band's reach or below the width,
+    whichever is nearer; away from it, past the band's reach or past the
+    width. None where a side holds no such value (below nought).
+    """
+    at = whole
+    for _step in range(_ESCAPE_STEPS_AT_MOST):
+        if at < 0 or at >= 10**VALUE_FIGURES:
+            return None
+        hit = _band_holding(sign, at, kept)
+        if hit is None:
+            return at
+        low, high = hit
+        figures = len(f"{at}")
+        if downward:
+            past = low - 1 if sign > 0 else (-high if not kept else -high - 1)
+            at = max(past, 10 ** (figures - 1) - 1)
+        else:
+            past = high if sign > 0 else (-low + 1 if not kept else -low)
+            at = min(past, 10**figures)
+    return None
+
+
+def kept_off_the_bands(
+    cells: "list[str]", numbers: "list[bool]", absent: "frozenset[str]" = frozenset()
+) -> "list[str]":
+    """A twin column's cells with no number its numeric machinery wrote inside a band of a date in disguise (method G7.15).
+
+    ``numbers`` says, cell by cell, which the numeric machinery wrote;
+    every other cell, a cell spelled as one of ``absent`` (the column's
+    missing values) and a cell that is no count of a date in disguise
+    (`counted_figures`) is kept as it is. Guarantees: a fixed function of
+    the three, the cells in their order; the column keeps its count of
+    different values and how many cells hold each; no cell it moves reads
+    as a date in disguise (`date_in_disguise`, by `_free_place`). Time:
+    each cell read once, each moved value placed once (its search walking
+    on from where the last of its side stopped). Memory: one byte a cell,
+    the different values it moves and the different values that stay.
+    Raises TypeError for a cell that is not text. No I/O.
+    """
+    # 1. EACH CELL READ ONCE (Codex's review of lane CZ-H's first repair,
+    # item 4): the different values to move, and the different values of
+    # the cells that stay, which a moved value must not meet. The first
+    # build read every cell again for each escape of each moved value, and
+    # again each time its search for a free place reached farther, so the
+    # work grew as moved values times cells kept (16 values moved beside
+    # 15,280 kept at 16,000 rows); a cell is now read once, and a moved
+    # value asks a dictionary of the values that stay. It writes what the
+    # first build wrote: that build placed a value only where every place
+    # its search met lay within the cells it had read, where its answer is
+    # this dictionary's.
+    moves = bytearray(len(cells))
+    moving: "dict[_Value, bool]" = {}
+    # The values that stay, by their sign and figures after the point: a
+    # moved value can meet one only there.
+    staying: "dict[tuple[int, str], dict[int, bool]]" = {}
+    for place, cell in enumerate(cells):
+        _lead, body, _trail = _around(cell)
+        if not body:
+            continue
+        pieces = _number_pieces(body)
+        if pieces is None:
+            continue
+        key = (pieces[0], int(pieces[1]), pieces[5])
+        if (
+            numbers[place]
+            and cell not in absent
+            and body not in absent
+            and len(f"{key[1]}") in _WINDOWS
+            and counted_figures(body)
+        ):
+            moving[key] = True
+            moves[place] = 1
+        else:
+            one = (key[0], key[2])
+            if one not in staying:
+                staying[one] = {}
+            staying[one][key[1]] = True
+    # 2. Each value's place.
+    target = _placed(moving, staying)
+    # 3. The cells, each moved value in its own spelling.
+    written: "list[str]" = []
+    for place, cell in enumerate(cells):
+        if not moves[place]:
+            written += [cell]
+            continue
+        lead, body, trail = _around(cell)
+        pieces = _number_pieces(body)
+        found = None if pieces is None else (pieces[0], int(pieces[1]), pieces[5])
+        if pieces is None or found is None or found not in target:
+            written += [cell]
+            continue
+        figures = f"{target[found]}"
+        sign_text = body[:1] if body[:1] in ("-", "+") else ""
+        written += [
+            lead + sign_text + (_grouped(figures) if pieces[2] else figures)
+            + (POINT + pieces[3] if pieces[3] else "") + pieces[4] + trail
+        ]
+    return written
+
+
+def _placed(
+    moving: "dict[_Value, bool]", taken: "dict[tuple[int, str], dict[int, bool]]",
+) -> "dict[_Value, int]":
+    """Each value, in order of size, at the nearer side's next free place, ``taken`` holding the values no place may meet."""
+    following: "dict[tuple[int, str, bool, int], int]" = {}
+    # A side whose search found no free place finds none later, the values
+    # taken only growing: it is not searched again (the same product as
+    # Codex's item 4, moved values times values walked past).
+    spent: "dict[tuple[int, str, bool, int], bool]" = {}
+    target: "dict[_Value, int]" = {}
+    known: "dict[tuple[int, str, bool, int, int, int], int | None]" = {}
+    # IN ORDER OF SIZE, each value read as one whole number of its smallest
+    # unit, its sign after it to set nought's two spellings apart: the order
+    # the first build gave by comparing text, at whole numbers' cost.
+    places = 0
+    for _sign, _whole, kept in moving:
+        places = max(places, len(kept))
+    scale = 10**places
+    ordered: "list[tuple[tuple[int, int], _Value]]" = []
+    for key in moving:
+        sign, whole, kept = key
+        fraction = kept + "0" * (places - len(kept))
+        ordered += [((sign * (whole * scale + (int(fraction) if fraction else 0)), sign), key)]
+    for _rank, key in sorted(ordered):
+        sign, whole, kept = key
+        if (sign, kept) not in taken:
+            taken[(sign, kept)] = {}
+        held = taken[(sign, kept)]
+        sides: "dict[bool, int]" = {}
+        offered: "list[tuple[int, bool, int]]" = []
+        for downward in (True, False):
+            escape = _escape_of(sign, whole, kept, downward, known)
+            if escape is None:
+                continue
+            sides[downward] = escape
+            side = (sign, kept, downward, escape)
+            if side in spent:
+                continue
+            at = _free_place(sign, following[side] if side in following else escape, kept, downward, held)
+            if at is None:
+                spent[side] = True
+            else:
+                offered += [(abs(at - whole), not downward, at)]
+                following[side] = at
+        if not offered:
+            continue
+        _distance, upward, chosen = min(offered)
+        target[key] = chosen
+        held[chosen] = True
+        following[(sign, kept, not upward, sides[not upward])] = chosen + (1 if upward else -1)
+    return target
+
+
+def _escape_of(
+    sign: int, whole: int, kept: str, downward: bool, known: "dict[tuple[int, str, bool, int, int, int], int | None]",
+) -> "int | None":
+    """`_escaped`, asked once for each band, side, sign and figures after the point: every value of a band escapes to one place."""
+    hit = _band_holding(sign, whole, kept)
+    if hit is None:
+        return _escaped(sign, whole, kept, downward)
+    asked = (sign, kept, downward, hit[0], hit[1], len(f"{whole}"))
+    if asked not in known:
+        known[asked] = _escaped(sign, whole, kept, downward)
+    return known[asked]
+
+
+def _free_place(sign: int, at: "int | None", kept: str, downward: bool, taken: "dict[int, bool]") -> "int | None":
+    """From a side's next place, the first whole part outward that no cell holds and no band reads, or None.
+
+    No date reading takes it: a plain number outside the bands reads as a
+    date only as a stamp of eight, twelve or fourteen figures, and the
+    places a value moves to write four, five, eight (`99,999,999` and
+    below, never under `31,122,050`, the last stamp of eight figures, as
+    a side's next place moves on by one), ten, eleven or thirteen.
+    """
+    step = -1 if downward else 1
+    for _step in range(_ESCAPE_STEPS_AT_MOST * 1000):
+        if at is None or at < 0:
+            return None
+        if _band_holding(sign, at, kept) is not None:
+            at = _escaped(sign, at, kept, downward)
+            continue
+        if at not in taken:
+            return at
+        at = at + step
+    return None

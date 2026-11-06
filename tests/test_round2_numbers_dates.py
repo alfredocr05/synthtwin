@@ -507,15 +507,30 @@ def _mixed_storage_book() -> bytes:
 
 def _book_round_trip(
     folder: pathlib.Path,
+    dates_answered_no: bool = True,
 ) -> "tuple[dict[str, object], str, str, int, int]":
-    """Describe the mixed-storage book, build its twin and check both."""
+    """Describe the mixed-storage book, build its twin and check both.
+
+    Its valid date `2024-03-01` is a date in disguise beside the text
+    `2024-02-30` (plan P4-D446), so the person answers `no` about it here
+    unless the case is about that hold.
+    """
     folder.mkdir(parents=True, exist_ok=True)
     source = folder / "real.xlsx"
     source.write_bytes(_mixed_storage_book())
-    assert _exit_of([
+    described = [
         "profile", str(source), "--out-dir", str(folder), "--replace",
         "--first-row", "names", "--smallest-group", "5",
-    ]) == 0
+    ]
+    assert _exit_of(described) == 0
+    if dates_answered_no:
+        questions = folder / "real-questions.json"
+        document = json.loads(questions.read_text(encoding="utf-8"))
+        for entry in document["asked"]:
+            if entry["column"] == "observed" and "beside its other values, read as dates" in entry["what_synthtwin_saw"]:
+                entry["your_answer"] = "no"
+        questions.write_text(json.dumps(document), encoding="utf-8", newline="\n")
+        assert _exit_of(described + ["--answers", str(questions)]) == 0
     description = folder / "real-profile.json"
     assert _exit_of([
         "generate", str(description), "--out-dir", str(folder),
@@ -564,6 +579,16 @@ def test_a_published_text_label_survives_the_calendar_repair(
     assert sheet.count('t="d"><v>2024-03-01</v>') == 60
     assert twin_exit == 0
     assert real_exit == 0
+
+
+def test_the_valid_date_beside_the_label_is_held_until_no(
+    tmp_path: pathlib.Path
+) -> None:
+    """Plan P4-D446: without `no`, `2024-03-01` is no level; the label stands."""
+    block, _sheet, _shared, _twin_exit, _real_exit = _book_round_trip(
+        tmp_path / "held", dates_answered_no=False
+    )
+    assert sorted(level["label"] for level in block["levels"]) == ["2024-02-30"]
 
 
 def test_the_mutant_rewrites_the_published_label(

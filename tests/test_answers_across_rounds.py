@@ -1849,6 +1849,18 @@ def measure(folder: pathlib.Path) -> "dict[str, int]":
     or whose answering run fails, is counted apart and never as a pass;
     so is a table whose twin both routes refuse to write.
     """
+    import keyboard
+
+    with pytest.MonkeyPatch.context() as patch:
+        # The zoo's SNOMED identifiers, nine figures, lie in a seconds band:
+        # its general answer `no` about dates in disguise is taken up front
+        # here (plan P4-D446 states the rounds that question adds).
+        keyboard.dates_in_disguise_answered_no(patch)
+        return _measure(folder)
+
+
+def _measure(folder: pathlib.Path) -> "dict[str, int]":
+    """`measure`'s values."""
     found = {name: 0 for name in _MEASURED}
 
     def counted(rounds: Rounds, differs: "dict[str, bool]") -> None:
@@ -1909,3 +1921,17 @@ _ANSWERING_SAFE_HARBOR_NO = (
     test_a_typed_default_replaces_a_kept_answer,
     test_a_comma_beside_counted_dates_keeps_the_dates,
 )
+
+
+# THE PERSON ANSWERS `no` ABOUT DATES IN DISGUISE (plan P4-D446, lane CZ-H):
+# this file's columns hold five-figure numbers in a day-counting band, or
+# nine or ten figures in a seconds band, and are about something else, so
+# each test takes the description `no` gives back, byte for byte. The hold
+# itself is pinned by `tests/test_zoo_dates_in_disguise.py` and K-HZ-16.
+@pytest.fixture(autouse=True, scope="module")
+def _dates_in_disguise_answered_no() -> object:
+    import keyboard
+
+    with pytest.MonkeyPatch.context() as patch:
+        keyboard.dates_in_disguise_answered_no(patch)
+        yield

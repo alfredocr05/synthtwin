@@ -48,10 +48,10 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only. Stage 2b was built on `carried-2b-integration`, cut from it at `53bb012`, and lands on it whole |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 16,068 collected on batch 4n's second fix round `f18c3638`, whose whole suite ran green in five shards (15,998 passed, 56 skipped, 14 expected to fail; its 3 gate cases, P4-D442, on the fix round's 16,065, whose 8 gate cases stand on the 16,057 of batch 4n's merged head `322b92de`, which held lane HB's 74 cases and lane CL's and the batch's owed records' 9 on batch 4m's 16,075, less lane SPD's move of 120 cases into its slow drivers beside its 19 added, P4-D444; lane HB's branch read 16,149: lane HB's fix 4 of close round 2: one case added, LANE HB RULINGS 14's differential case of the form term, three gate cases amended to rule 42's restatement and renamed, and the seven cases of ordinary tables green again, P4-D442; lane HB's fix 3 of close round 2: 3 gate cases on the repair's 16,145; lane HB's repair of close round 2: 7 gate cases on close round 2's 16,138; lane HB's close round 2: 8 gate cases on the close round's 16,130, which held lane HB merged on batch 4m, its close round included: its gate, its hunt's files and the cases it amended, 55 on batch 4m's 16,075, which held lanes UN-1a, CODES-1, GG, CHb, SH2 and UN-1b on batch 4l part b's 15,564; counted by `pytest --collect-only` under Python 3.11 and placed by `tools/ci/shards.py --of 5 --prove`, 357 files, every file in exactly one shard). One process took about 66 minutes when the suite held 9,138 cases (ledger `K-P0-10` carries the seconds); at 13,553, on `b85200be` (batch 4f), the five shards took 24.5 to 48.5 minutes each beside other lanes' runs. In CI it runs as **five shards**. Re-measure here whenever the count moves |
-| KPIs | `tests/kpi/ledger.json`: 265 KPIs over phases 0-4, stages 1, 2, 2b, 3, 3b, 4, 5 and 6, the terminal, the health data zoo and the broad between-columns program, 36 of them headlines under a cap of 36 (raised from 30 at 3b.K, plan P4-D364, for `K-S3-38`; from 31 to 35 by the orchestrator's recorded call D15 of the December plan, plans P4-D397, P4-D399 and P4-D398, for `K-S8-01`, `K-HZ-01`, `K-BC-01` and `K-BC-02`; to 36 for lane S5a's `K-S5-01`, plan P4-D437; the owner may veto any); 212 green, 37 open, 16 limits the owner accepted, as the merged ledger of batch 4n reads. Of the 37 open, as each one's `target_stage` reads: 31 have the stage or lane that owns the whole (`K-P4-06` and `K-S6-01` stage 6, `K-P4-22` stage 3, `K-P4-23` the carried reference vectors, `K-S1-06` and `K-S4-04` stage 4, `K-S3-64` lane HB2, its held padded age and `reglistmixR`'s own validation, `K-HZ-13` lane HB2, lane HB's stated limits, `K-S3-44` lane S4bc2, its one census miss, `K-S4-09` the scale gate, lanes SR, SG and SV, then SX, its describe part OPEN-WORSE on 589f3d72 in the night of 2026-10-27 under Python 3.11 (20.3 traced bytes a cell at 200,000 rows against 17.7, and 20.3 on batch 4l part a's head in the night of 2026-10-29 and on part b's 591b356f in the night of 2026-10-30; 20.4 on batch 4n's merged head 322b92de on 2026-11-04, traced peak 204,367,671 bytes, the first reading since 591b356f, so batches 4m and 4n together; 20.4 on its first fix round's head 7c0e8a26 (traced peak 204,368,975 bytes), its second fix round's head f18c3638's reading owed, its trace still running at the seal; batch 4j's head read 2,375 MB resident at 2,000,000 x 50 with every candidate open in the night of 2026-10-26, lane SX's to win back), `K-S8-01` the terminal's lanes TT and TS, `K-HZ-01` and `K-HZ-02` the lanes each zoo failure names, lane G2T2 for the one 20,000-row failure that had none, lane MG for the person census and lane PS2 for what lane PS left held or pooled, `K-S6-02` and `K-S6-03` lane BT2 (batch 4m's merged code moved both, on the chain's switched path alone), `K-HZ-06` lane ID-ROOM2 (P4-D457), `K-HZ-10` and `K-HZ-11` as each reads, and `K-BC-01` to `K-BC-13` the broad between-columns program's checkpoint 4); 1 is owned in part (`K-2B-47`: stage 3 the carried fidelity items, lane RT2 the date remainder, 9 missed checks against its bound of 6; its identifier-layout residue of 2026-09-19 has no stage set); 5 have none set (`K-2B-28`, `K-2B-49`, `K-S3-12`, `K-S3-22`, `K-S3-50`). By stage: stage 3's `K-S3-01` to `K-S3-25` (`K-S3-11`, the tail leak, a headline), lane HX's `K-S3-64`, lane HX2's `K-S3-65` and lane AQ's `K-S3-66`; stage 3b's `K-S3-30` to `K-S3-32` and `K-S3-34` to `K-S3-62` (`K-S3-33` retired; `K-S3-31`, the weekday, and `K-S3-38`, time of day, headlines); stage 4's `K-S4-02` to `K-S4-09`, `K-S4-11`, lane SG's `K-S4-12`, `K-S4-15` to `K-S4-22` (`K-S4-10`, `K-S4-13` and `K-S4-14` reserved; `K-S4-03` a headline in `K-2B-14`'s place); stage 5's `K-S5-01`, a headline, and `K-S5-02` (lane S5a, P4-D437); stage 6's `K-S6-01`, lane BT's `K-S6-02` (layer L0's band totals behind the switch, P4-D429) and lane CHa's `K-S6-08`, the chain's tables part, green: no description its keyed draw can publish fixes or bounds a count of 1 to 10, the chain still behind its switch (P4-D418), and lane CHv's `K-S6-04`, `K-S6-05` and `K-S6-10`, V12 checking each family behind the same switch (P4-D430); the terminal's `K-S8-01`, a headline, and `K-S8-04` (lane TI); the zoo's `K-HZ-01`, a headline, `K-HZ-02`, `K-HZ-03` and `K-HZ-05` (lanes E0a and E0c, P4-D431: 93 kinds over 64 exports, judged at 20,000 rows with the shipped floor), 51 of 93 kinds passing and 139 failures over 42 kinds at 20,000 rows on batch 4m's merged code (21, and 261 over 72, on lane E0c's head), every failure owned, lane CODES-3's `K-HZ-04`, the zoo's identifier cells out of pattern, 0, lane ID-ROOM's `K-HZ-06`, twin identifier cells equal to or merging with a real one, 0 over every key, OPEN on the zoo's held dates by chance (P4-D432, P4-D434, P4-D442; owner lane ID-ROOM2, P4-D457), lane PS2's `K-HZ-07`, no date one to ten people or rows hold published, 0 over 60 tables (P4-D433), lane HB's `K-HZ-13`, held and unanswered columns' twins in their own valid layouts, OPEN-held at its stated limits (P4-D442), and lane SPD's `K-HZ-15`, lane SH's Safe Harbor number cases at 20,000 rows, 0 failing over 61 (P4-D444); the analyst battery's `K-BC-01` and `K-BC-02`, headlines, and `K-BC-03` to `K-BC-13` (lane E0b). `K-2B-42`, the oracle's independence, is bounded since batch 4c by a share, at most 0.363 of its scored functions close to shipped code, a changed policy whose larger allowance the orchestrator accepted and named (P4-D299). **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
+| suite | 16,645 collected on batch 4o's second fix round (the independent verify of the fix round, LANE I4m RULINGS 27 (1): its gate file adds 8 cases to the fix round's 16,637; counted by `pytest --collect-only` under Python 3.11 and placed by `tools/ci/shards.py --of 5 --prove`, 367 files, every file in exactly one shard), its whole suite on `4324aced` green in five shards: 16,574 passed, 56 skipped and 15 expected to fail, the 16,645 collected. The fix round's whole suite on `fcd01166` read 16,565 passed, 56 skipped, 15 expected to fail and 1 failed, the source-loading guard's count of files loaded as modules (59 against 58 recorded: the fix round's pool test loads the committed generation oracle), moved to 59 in this round. The fix round's 16,637 (Codex's review of the sealed head `015d5003`: the three gate files of its three High items add 15 cases to the seal's 16,621, and the sibling sweep's held column in the age reach one more; counted by `pytest --collect-only` under Python 3.11 and placed by `tools/ci/shards.py --of 5 --prove`, 366 files, every file in exactly one shard), its whole suite run after the fix round. The sealed head's whole suite read 16,544 passed, 56 skipped, 14 expected to fail and 7 failed, each failure this batch's (LANE I4m RULINGS 22): six cases of lane SH2's five age tails, read as held by the table of the date-count question the tests-only fix 3355025d put them in, fixed; and the perioperative export's day counts, which the zoo's truthful `yes` holds (owner lane CZ-H2), marked expected to fail, strict, so 15 expected to fail from the fix round. The seal's 16,621 (`3355025d` with the seal's records, 363 files): batch 4n's 16,068 and the 553 this batch adds, named below. Batch 4n's 16,068 were collected on its second fix round `f18c3638`, whose whole suite ran green in five shards (15,998 passed, 56 skipped, 14 expected to fail; its 3 gate cases, P4-D442, on the fix round's 16,065, whose 8 gate cases stand on the 16,057 of batch 4n's merged head `322b92de`, which held lane HB's 74 cases and lane CL's and the batch's owed records' 9 on batch 4m's 16,075, less lane SPD's move of 120 cases into its slow drivers beside its 19 added, P4-D444; lane HB's branch read 16,149: lane HB's fix 4 of close round 2: one case added, LANE HB RULINGS 14's differential case of the form term, three gate cases amended to rule 42's restatement and renamed, and the seven cases of ordinary tables green again, P4-D442; lane HB's fix 3 of close round 2: 3 gate cases on the repair's 16,145; lane HB's repair of close round 2: 7 gate cases on close round 2's 16,138; lane HB's close round 2: 8 gate cases on the close round's 16,130, which held lane HB merged on batch 4m, its close round included: its gate, its hunt's files and the cases it amended, 55 on batch 4m's 16,075, which held lanes UN-1a, CODES-1, GG, CHb, SH2 and UN-1b on batch 4l part b's 15,564; counted by `pytest --collect-only` under Python 3.11 and placed by `tools/ci/shards.py --of 5 --prove`, 357 files, every file in exactly one shard). Lane MR's rules page adds 29 cases in one new file (its branch read 16,104 on batch 4m's 16,075); Lane PL's gate and the cases it amended add 93 (its branch read 16,167 on batch 4m's 16,074), and the merge's two cases pinning its loader's and its profiler's split of a pool 2 more; lane SH3's gate and the cases it amended add 109 (its branch read 16,184 on batch 4m's 16,075); lane CZ-D's gate adds 68 cases in one new file (its branch read 15,841 on batch 4m's records head `a5702b71` before its repair 3 added one); lane CZ-H's gate and the cases it added and amended add 181 (its branch read 15,955 on batch 4m's records head `a5702b71`), and the merge's three gate cases of its limit (h) 3 more; lane MPOL2's page adds 10 cases to its test file (its branch read 15,784 on batch 4m's records head `a5702b71`); lane MPp's gate and the cases it added and amended add 54 (its branch read 16,129 on batch 4m's 16,075); with the owes of the merges, lane MR's two pinned helper legs and lane SH3's two street cases, they make batch 4o's 553. One process took about 66 minutes when the suite held 9,138 cases (ledger `K-P0-10` carries the seconds); at 13,553, on `b85200be` (batch 4f), the five shards took 24.5 to 48.5 minutes each beside other lanes' runs. In CI it runs as **five shards**. Re-measure here whenever the count moves |
+| KPIs | `tests/kpi/ledger.json`: 270 KPIs over phases 0-4, stages 1, 2, 2b, 3, 3b, 4, 5 and 6, the terminal, the health data zoo and the broad between-columns program, 36 of them headlines under a cap of 36 (raised from 30 at 3b.K, plan P4-D364, for `K-S3-38`; from 31 to 35 by the orchestrator's recorded call D15 of the December plan, plans P4-D397, P4-D399 and P4-D398, for `K-S8-01`, `K-HZ-01`, `K-BC-01` and `K-BC-02`; to 36 for lane S5a's `K-S5-01`, plan P4-D437; the owner may veto any); 214 green, 40 open, 16 limits the owner accepted, as batch 4o's ledger reads at its second seal (stamped on its merged head `c47a6aee`, on its tests-only fix `3355025d` and on its two fix rounds' heads `fcd01166` and `4324aced`, each entry on the head its proof ran on), lane PL's `K-HZ-19` (green), lane SH3's `K-HZ-20` (open), lane CZ-D's `K-HZ-17` (open), lane CZ-H's `K-HZ-16` (open since the seal, LANE I4m RULINGS 20 (3)) and lane MPp's `K-S6-14` (green) among them. Of the 40 open, as each one's `target_stage` reads: 34 have the stage or lane that owns the whole (`K-HZ-16` lane CZ-H2, the recorded keys batch 4o's merges moved on its five forms, `K-HZ-17` lanes CZ-B, CODES-2 and SX, each its stated limit (lane PL's part closed at batch 4o's stamp), `K-HZ-20` lane ID-ROOM2, on the orchestrator's ruling, its one record-number key, a live leak on the base too, and eleven of its twin's twenty misses at 20,000 rows, lane HB2 the other nine (two of a held county code's layout census; seven of a held column of ages written with a unit letter, whose twin the top-code writes in its own values since batch 4o's first fix round's generator change, `90y` and `1079m` on 240 cells each equal to a real one, P4-D454), `K-P4-06` and `K-S6-01` stage 6, `K-P4-22` stage 3, `K-P4-23` the carried reference vectors, `K-S1-06` and `K-S4-04` stage 4, `K-S3-64` lane HB2, its held padded age and `reglistmixR`'s own validation, `K-HZ-13` lane HB2, lane HB's stated limits, `K-S3-44` lane S4bc2, its one census miss, `K-S4-09` the scale gate, lanes SR, SG and SV, then SX, its describe part OPEN-WORSE on 589f3d72 in the night of 2026-10-27 under Python 3.11 (20.3 traced bytes a cell at 200,000 rows against 17.7, and 20.3 on batch 4l part a's head in the night of 2026-10-29 and on part b's 591b356f in the night of 2026-10-30; 20.4 on batch 4n's merged head 322b92de on 2026-11-04, traced peak 204,367,671 bytes, the first reading since 591b356f, so batches 4m and 4n together; 20.4 on its first fix round's head 7c0e8a26 (traced peak 204,368,975 bytes) and on its second, f18c3638 (204,366,849 bytes); 20.6 on batch 4o's merged head c47a6aee (traced peak 206,029,374 bytes), the describe-side changes of lanes PL, SH3 and CZ-H, not split per lane; its two fix rounds' small describe changes not traced, their reading owed; batch 4j's head read 2,375 MB resident at 2,000,000 x 50 with every candidate open in the night of 2026-10-26, lane SX's to win back), `K-S8-01` the terminal's lanes TT and TS, `K-HZ-01` and `K-HZ-02` the lanes each zoo failure names, lane G2T2 for the one 20,000-row failure that had none at batch 4l, lanes CZ-H2 and CZ-B for the four batch 4o's stamp found (named at its seal, LANE I4m RULINGS 20 (2); 0 without an owner on `fcd01166`), lane MG for the person census and lane PS2 for what lane PS left held or pooled, `K-S6-02` and `K-S6-03` lane BT2 (batch 4m's merged code moved both, on the chain's switched path alone), `K-HZ-06` lane ID-ROOM2 (P4-D457), `K-HZ-10` and `K-HZ-11` as each reads, and `K-BC-01` to `K-BC-13` the broad between-columns program's checkpoint 4); 1 is owned in part (`K-2B-47`: stage 3 the carried fidelity items, lane RT2 the date remainder, 9 missed checks against its bound of 6; its identifier-layout residue of 2026-09-19 has no stage set); 5 have none set (`K-2B-28`, `K-2B-49`, `K-S3-12`, `K-S3-22`, `K-S3-50`). By stage: stage 3's `K-S3-01` to `K-S3-25` (`K-S3-11`, the tail leak, a headline), lane HX's `K-S3-64`, lane HX2's `K-S3-65` and lane AQ's `K-S3-66`; stage 3b's `K-S3-30` to `K-S3-32` and `K-S3-34` to `K-S3-62` (`K-S3-33` retired; `K-S3-31`, the weekday, and `K-S3-38`, time of day, headlines); stage 4's `K-S4-02` to `K-S4-09`, `K-S4-11`, lane SG's `K-S4-12`, `K-S4-15` to `K-S4-22` (`K-S4-10`, `K-S4-13` and `K-S4-14` reserved; `K-S4-03` a headline in `K-2B-14`'s place); stage 5's `K-S5-01`, a headline, and `K-S5-02` (lane S5a, P4-D437); stage 6's `K-S6-01`, lane BT's `K-S6-02` (layer L0's band totals behind the switch, P4-D429) and lane CHa's `K-S6-08`, the chain's tables part, green: no description its keyed draw can publish fixes or bounds a count of 1 to 10, the chain still behind its switch (P4-D418), lane MPp's `K-S6-14`, the moment layer under the owner's rule B behind the same switch, green (P4-D455), and lane CHv's `K-S6-04`, `K-S6-05` and `K-S6-10`, V12 checking each family behind the same switch (P4-D430); the terminal's `K-S8-01`, a headline, and `K-S8-04` (lane TI); the zoo's `K-HZ-01`, a headline, `K-HZ-02`, `K-HZ-03` and `K-HZ-05` (lanes E0a and E0c, P4-D431, with lane CZ-H's five forms, P4-D446: 98 kinds over 69 exports, judged at 20,000 rows with the shipped floor), 53 of 98 kinds passing and 158 failures over 45 kinds at 20,000 rows on batch 4o's merged head and on its first fix round's `fcd01166`, lane CZ-H's five forms among them (51 of 93 and 139 over 42 on batch 4m's merged code; 21, and 261 over 72, on lane E0c's head), every failure owned (the seal's two OWNERS lines, read on `fcd01166`), lane CODES-3's `K-HZ-04`, the zoo's identifier cells out of pattern, 0, lane ID-ROOM's `K-HZ-06`, twin identifier cells equal to or merging with a real one, 0 over every key, OPEN on the zoo's held dates by chance (P4-D432, P4-D434, P4-D442; owner lane ID-ROOM2, P4-D457), lane PS2's `K-HZ-07`, no date one to ten people or rows hold published, 0 over 60 tables (P4-D433), lane SH3's `K-HZ-20`, no age of 90 years or more published or written in any unit and no part of an address published, at 600 and 20,000 rows, OPEN on record numbers its values alone read as ages, 19,778 twin cells equal to a real one at 20,000 rows while their identifier question is open, as on the base, and on the twin's 20 misses at 20,000 rows, 13 older than the lane and seven since batch 4o's first fix round, all on one held column whose twin the top-code writes in its own values, as on 2af926ce (P4-D454), lane PL's `K-HZ-19`, levels one to ten people hold, none named, green (P4-D453), lane CZ-H's `K-HZ-16`, Safe Harbor dates in disguise over five invented forms, none shown and none in a twin cell, OPEN since batch 4o's seal on recorded keys its merges moved (owner lane CZ-H2; P4-D446), lane CZ-D's `K-HZ-17`, types, codes and flags over eight invented forms at 600 and 20,000 rows, OPEN on its stated limits (P4-D447), lane HB's `K-HZ-13`, held and unanswered columns' twins in their own valid layouts, OPEN-held at its stated limits (P4-D442), and lane SPD's `K-HZ-15`, lane SH's Safe Harbor number cases at 20,000 rows, 0 failing over 61 (P4-D444); the analyst battery's `K-BC-01` and `K-BC-02`, headlines, and `K-BC-03` to `K-BC-13` (lane E0b). `K-2B-42`, the oracle's independence, is bounded since batch 4c by a share, at most 0.363 of its scored functions close to shipped code, a changed policy whose larger allowance the orchestrator accepted and named (P4-D299). **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
-| CI | runs on every pull request: Python 3.11 to 3.14 on Ubuntu and Windows and 3.14 on macOS, and the minimums job on 3.11 against the declared floors (lane DEP-1, merged 2026-10-20 at batch 4d, P4-D410, on lane MDEP's dependency page, P4-D409: the four runtime libraries numpy, pandas, pyarrow and scipy held to their byte-identity zones; until then five Pythons from 3.10). Since batch 4f (lane DEP-2, P4-D416) three jobs more, each required by `gate`: `bundle-build` (three platforms by four Pythons), `bundle-test` (four Pythons by three systems) and `numba-vectors` (three systems by four Pythons), 27 cells. Its first runs on PR #6 (2026-09-20) were red on what only CI could see -- tests asserting their own machine's answer, a 3.13-only spelling, Windows paths holding `AppData`, workbook cases failing where openpyxl is absent -- each repaired with a guard that now fails HERE. Batches 4h to 4j (pushed 2026-10-25) failed 26 of 86 jobs on CI-only causes, repaired by `8cd9b743` (the floor fixture steps aside without the package, the floor-of-eleven tests read the pages beside the test file, the bundle's invented table holds 20,000 rows; run 40274066871, 83 of 86) and `f677d6a0` (`K-S4-07`'s allocation bound 1.1, the gate's own allowance; run 40293692822, 86 of 86). Batch 4k (pushed 2026-10-26): run 40453073905, 86 of 86. Batch 4l (pushed 2026-10-29 21:00, both parts): run 40989180482, 81 of 86, red on Windows shard 2 (the stage-5 gate compared a next command's folder as text) and the minimums shard 4 (the zoo's leak scans read a workbook without openpyxl), both test-only, repaired at batch 4m (`e6b63074`). No job sets `timeout-minutes`, so each may run 360 minutes; local shards took 47 to 64 minutes at 591b356f, when shard 1 held lane SH's 45-minute test file (92.92 s since lane SPD, P4-D444, so those shard times are history), so the default stands, shards 1 and 5 watched (push critic 16). A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
+| CI | runs on every pull request: Python 3.11 to 3.14 on Ubuntu and Windows and 3.14 on macOS, and the minimums job on 3.11 against the declared floors (lane DEP-1, merged 2026-10-20 at batch 4d, P4-D410, on lane MDEP's dependency page, P4-D409: the four runtime libraries numpy, pandas, pyarrow and scipy held to their byte-identity zones; until then five Pythons from 3.10). Since batch 4f (lane DEP-2, P4-D416) three jobs more, each required by `gate`: `bundle-build` (three platforms by four Pythons), `bundle-test` (four Pythons by three systems) and `numba-vectors` (three systems by four Pythons), 27 cells. Its first runs on PR #6 (2026-09-20) were red on what only CI could see -- tests asserting their own machine's answer, a 3.13-only spelling, Windows paths holding `AppData`, workbook cases failing where openpyxl is absent -- each repaired with a guard that now fails HERE. Batches 4h to 4j (pushed 2026-10-25) failed 26 of 86 jobs on CI-only causes, repaired by `8cd9b743` (the floor fixture steps aside without the package, the floor-of-eleven tests read the pages beside the test file, the bundle's invented table holds 20,000 rows; run 40274066871, 83 of 86) and `f677d6a0` (`K-S4-07`'s allocation bound 1.1, the gate's own allowance; run 40293692822, 86 of 86). Batch 4k (pushed 2026-10-26): run 40453073905, 86 of 86. Batch 4l (pushed 2026-10-29 21:00, both parts): run 40989180482, 81 of 86, red on Windows shard 2 (the stage-5 gate compared a next command's folder as text) and the minimums shard 4 (the zoo's leak scans read a workbook without openpyxl), both test-only, repaired at batch 4m (`e6b63074`). No job sets `timeout-minutes`, so each may run 360 minutes; local shards took 47 to 64 minutes at 591b356f, when shard 1 held lane SH's 45-minute test file (92.92 s since lane SPD, P4-D444, so those shard times are history), so the default stands, shards 1 and 5 watched (push critic 16). Batches 4m and 4n (pushed 2026-11-04 20:25 as one commit, `506249bf`): run 41955136439 on that head, success, 86 of 86. Batch 4o is sealed and not yet pushed: CI judges it on the push that carries it. A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
 | review | **ONE round per landing** (owner, 2026-09-12), `codex exec -m gpt-6-astra -c model_reasoning_effort="ultra" -s read-only`. Fix what it raises; never send the fixes back |
 
 ## What is being built, in order
@@ -195,6 +195,7 @@ ones.
 Each item is an OPEN entry in the KPI ledger, held at a ceiling so it
 cannot get worse unseen.
 
+
 - **Live HIPAA exposures found since 2026-10-23** (pre-existing). CLOSED:
   register lists, lane HX4 (batch 4h, P4-D424); short prefixed keys and
   padded ZIPs beside words, lane CODES-3 (batch 4j, P4-D428); ages over
@@ -246,7 +247,42 @@ cannot get worse unseen.
   layouts with a field of four figures beside keys of three, every first
   figure held, written as the spill (1,172 to 3,504 twin cells holding a
   real key of four at 20,000 rows, none on `286c8ba6`): 0 now at 20,000
-  rows. OPEN, each with its
+  rows; and by batch 4o (P4-D446, P4-D453 and P4-D454, measured on its
+  merged head `c47a6aee`): ages of 90 years or more written in other
+  units (months, weeks, days) and house, apartment, unit and suite
+  numbers in the parts of an address, lane SH3 (`K-HZ-20`: none
+  published or written at 20,000 rows); a person's dates that
+  no column name or cell shape marks as dates, lane CZ-H (`K-HZ-16`: 0
+  shown in any file and 0 in a twin cell over five invented forms and
+  41 attacks, each column asked and held while its question is open);
+  and levels one to ten people hold, pooled in people where such a
+  level once held its whole column, lane PL (`K-HZ-19` and `K-S3-65`:
+  none shown); and by batch 4o's fix round (P4-D453 and P4-D454,
+  Codex's review of the sealed batch, items 1 to 3, by construction,
+  through the command at 20,000 rows), three columns the batch's rules
+  released that 591b356f and 2af926ce held: record numbers in a column
+  whose name says age, held while their question is open or by the
+  count in people (19,600 twin cells equal to a real key, and 19,442
+  merging with one beside a person column, on the sealed head 015d5003),
+  two-letter given names read as codes with no question put (four
+  names published and 19,980 twin cells), and a person's declared key
+  printed as a pool's start (`8888`: one description text and 20 twin
+  cells): 0 now, each; the round's sibling sweep (LANE I4m RULINGS 21
+  (6)) found two more of those classes, 0 on the same rules (each
+  person's own number under `age_no` beside a person column, 19,442
+  merging; one-letter initials, 19,980 twin cells), and one more
+  release value by value, a held column whose cells put it in the age
+  reach and whose name says age (`001` to `125`, unanswered: all
+  20,000 twin cells on 54 real keys, where 2af926ce wrote the top-code
+  `90` alone), the generator's fold of a held column named as ages,
+  which it passes for no column now (P4-D454, method G7.14): `90`
+  alone, as on 2af926ce; and by batch 4o's second fix round (P4-D453,
+  the independent verify of the first, LANE I4m RULINGS 27 (1), by
+  construction, through the command at 20,000 rows) first initials that
+  are all yes-no letters (`Y`, `N` or `T` a person beside two `F`:
+  published with no question put and 19,960 twin cells equal to a real
+  initial on `fcd01166`, held on 591b356f and 2af926ce): 0 now, the
+  column held and asked. OPEN, each with its
   owner and its numbers, none of them claimed closed: list keys beside a
   real key of one figure, the spill as before (20 to 1,550 cells at 20,000
   rows), and lists mixed with lone keys under a published letter, the lone
@@ -264,10 +300,9 @@ cannot get worse unseen.
   letters after them, in lists are no list keys and their twins hold a
   real run inside (122 to 415 cells at 20,000 rows; 60 equal for keys of
   three figures and a letter after; the same on the pushed line), lane
-  ID-ROOM2 (P4-D457); ages written in
-  other units and house numbers in address parts, lane SH3; a held date
+  ID-ROOM2 (P4-D457); a held date
   column's made-up dates equal to real ones BY CHANCE, MEASURED
-  (`K-HZ-06`'s zoo leg on `f18c3638`, as on `322b92de`, each column at its own bound: the
+  (`K-HZ-06`'s zoo leg on `fcd01166`, as on `c47a6aee` and `f18c3638`, each column at its own bound: the
   five birth-date columns lane SH2 holds, 7,055 and 7,656 of their cells
   on the two-figure `registry_extract.dob_short`, each twin matching the
   same table drawn at another seed as often as its own; since lane HB's
@@ -290,7 +325,7 @@ cannot get worse unseen.
   noughts, limit (af) open at the original width (keys zero-filled from
   nought beside a word write their one real key of noughts alone, the
   first of the sequence, as itself: 497, 1 and 267 twin cells at 20,000
-  rows on three shapes, one real value each, 0 at 600 rows; the pushed
+  rows on three shapes, one real value each; the pushed
   line wrote 62 other equal cells on the first shape, so a net
   reduction), lane HB2; keys of their published levels' own form held on
   49 % of rows beside 400 such levels (9,794 of 9,800 twin cells holding
@@ -302,11 +337,57 @@ cannot get worse unseen.
   key inside a wider run or under another letter (padded keys beside a
   note on 60 % of rows: 6,901 of 7,882 twin key cells, 7,879 equal on
   the pushed line; 2,182, 1,116, 155 to 218, 65, 6,022 and 378 on other
-  shapes; keys asked at a published share of 50.05 to 70 %: 217 to 351)
+  shapes; keys asked at a published share of 50.05 to 70 %: 217 to 351; the UID
+  shape `u_codex`: 7,560 twin cells holding a real run of four figures
+  inside a five-figure stand-in, the same on 591b356f, f39334aa and
+  7c0e8a26)
   and sequential keys with a constant prefix and suffix read as affixed
-  numbers (19,998 of 20,000 twin cells real at 20,000 rows, 598 of 600,
+  numbers (19,998 of 20,000 twin cells real at 20,000 rows,
   the same on the pushed line), lane ID-ROOM2 (P4-D457); 23 twin tokens
-  equal to a real key in held cells of two keys, lane HB2. A code
+  equal to a real key in held cells of two keys, lane HB2; record
+  numbers that lane SH3's age reach reads as ages, held while their
+  identifier question is open, write 19,778 twin cells equal to a real
+  record number at 20,000 rows, all on one constant value, as on the
+  base (`K-HZ-20`'s `register_entry`), lane ID-ROOM2; the carries of
+  batch 4o's two fix rounds (LANE I4m RULINGS 23 (3), 27 (3), 28 (2)
+  and 30), each at 20,000 rows: after the answer `no` on a column of
+  numbers that is no key, a pool's constant start, which never reads
+  the data, is printed and written on one person's 20 rows where it
+  equals the column's one rare value (`8888` beside the key `8889`, or
+  `88` beside levels `1` to `5`; a rare `7777` or `77` gets the same
+  start and 0 equal cells), a column the public line 506249bf held as an
+  identifier with no question put and the person said identifies no
+  one, under the accepted limits of 2026-09-18, lane HB2's first item
+  (P4-D442's stand-in rule applied to a pool after `no`); made-up
+  record numbers merging with a real key of
+  the person column, 24 and 22 cells, a chance across columns, as on
+  506249bf, lane ID-ROOM2; first initials holding one yes-no pair or
+  one such letter, and a column `kind` holding `No` and `Yes`, `No`
+  alone or yes-no words and letters mixed, each beside letters or names
+  one person each, released with no question where 506249bf held them
+  unasked: every published level held by 495 people or more, no rare
+  value published, 19,800 twin cells equal to real cells of those
+  levels on each of 13 shapes, two candidate rules priced and not
+  applied, lane HB2; the held `age_letter` (ages written with a unit
+  letter, its identifier question open): 257 twin cells equal to a real
+  cell, 240 of them the top category's own values in the column's units
+  (`90y`, `1079m`) and 17 one made-up value equal to a real age by
+  chance, as many as on 506249bf, none a record number or an age past
+  the top category, lanes HB2 and ID-ROOM2, its seven validate misses
+  among `K-HZ-20`'s twenty, the ledger's bound, since `1b60d5fa` (eleven
+  lane ID-ROOM2's, nine lane HB2's); the top-code's constant on held
+  columns of short numbers named as ages, `0090` on 19,778 cells
+  (`0001` to `0125`), `90` on 19,778 (`1` to `125`) and `90` merging
+  with the real `090` on all 20,000 (`001` to `125`), as on 506249bf,
+  lanes HB2 and ID-ROOM2; a made-up `999` in `age_padded07`'s twin, 270
+  cells, none real, lane HB2; and plain `1` to `2000` under `age_no`,
+  `age_ref` or `age_code` with no person column, read as counts with the
+  age question put first, lane ID-ROOM2 (P4-D453 and P4-D454 name
+  each); and the moment layer under the owner's rule B (P4-D455,
+  behind the chain's switch) publishes no count of 1 to 10 directly, a
+  count worked out by combining several of its rounded statistics
+  being the residual the owner accepted, its twin meeting no moment
+  until lane MPg's polish. A code
   column's 779 rare held codes come back as they are, privacy-neutral.
   Keys under five figures beside words over one value in three, lane
   LISTS (ZR.9); a candidate person column repeating a few values leaves
@@ -356,7 +437,13 @@ cannot get worse unseen.
   outside their window and no above-count missed (lane G2T's shared
   staircase, P4-D405), the ledger's ceiling since batch 4f's records,
   against a target of 550 and 0 (`K-P4-06`, whose note keeps how stage 3
-  moved it). The pairing walk is the open cause. Landing 6.
+  moved it). The pairing walk is the open cause. Landing 6. The same
+  walk lets a column of two numbers whose pairs repeat write more
+  different cells than it publishes: the stage-5 every-role table's
+  `pressure` at 20,000 rows, 601 published and 3,143 written, so its
+  `validate` exits 3, as on the public line 591b356f before the yield
+  (on the public line 506249bf the yield read the column as its list;
+  P4-D438's batch 4o paragraph).
 - **Clock and calendar limits, each with its owner** (written in one
   place at batch 4g's records, 2026-10-23, from the eight bullets that
   held them; the cases and figures behind each stand in the plan
@@ -520,6 +607,42 @@ cannot get worse unseen.
   generator missing published forms on held twins (`GENERATOR_LIMITS` in
   `K-S3-65`'s driver): lane HB; the zoo's person censuses pooled by lane
   HX2's count in people: lane MG (the census in subject bands).
+- **Types, codes and flags on eight invented forms** (lane CZ-D,
+  P4-D447; `K-HZ-17` OPEN-held, measured on batch 4o's merged head).
+  Lane PL's pool in people (P4-D453), merged beside it, closes limits
+  (3) and (4): no rare count published, every filter share kept and no
+  present count of a near-empty column (`rare_counts_published`,
+  `filter_share` and `blank_share` 0 at 20,000 rows), its
+  spelling count read with P4-D453 (g). What stays: date-times pooled
+  in people lose their whole minute (limit (1), lane CZ-B), a stand-in
+  in the column's own width and the words a column may publish (limits
+  (7) and (8), lane CODES-2), and the wide mart's unjudged time (limit
+  (2), lane SX).
+- **A code a person holds once loses its attachment** (measured on
+  lane PL's head, P4-D453): the twin's people hold several values of
+  such a code, 99.4 to 99.6 per cent of them, where no real person
+  does; a fidelity item, nothing real shown; lane GRb, which attaches
+  cells to people.
+- **Ages in days beside held day counts are written moved** (lane CZ-H,
+  P4-D446 limit (k), merged in batch 4o). The date rule keeps such ages
+  (limit (h), wired at the merge), but method G7.15 moves a twin's numbers
+  off the date bands without the unit's oldest age, so the column's twin
+  ages are written off the bands and `validate` misses its percentiles,
+  tails and mean (exit 3 at 20,000 rows; nothing real is shown or
+  written). The widening's frozen oracle vector is not built, so no frozen
+  case reaches the oracle's mirror of the widening. Both are lane
+  CZ-H2's first two items, the method and its oracle moving together;
+  three spellings of a date the rule does not read (an ISO week date, a
+  date run together after a letter, a date in quotes or brackets; held
+  whole while asked, P4-D446 (l)) are lane CZ-H2's too, and so are a column the person says counts
+  days from a date, held as the date element it is with its twin's
+  made-up numbers off its span (the zoo's perioperative serial dates
+  fall after 2030, so its check of them is one case expected to fail,
+  strict; P4-D446 (m)), and the recorded keys `K-HZ-16` moved at batch
+  4o (OPEN, P4-D446 (o)). The day-number form's charges stay blank
+  after their answers `measurement` and `no` (17,626 of 20,000 cells
+  at 20,000 rows, on the lane's own head too; P4-D446 (n)), lane
+  CZ-B's.
 - **Dates and times beside a person column, pooled in people** (lane
   PS, P4-D417, merged at batch 4f). Such a column is described at a
   coarser grain its published facts choose, or held with a twin of
@@ -658,6 +781,17 @@ cannot get worse unseen.
   form until lane LISTS (i2b2's `DEM|`, 23 of 12,578 stand-in cells); A2's
   census waits for the Safe Harbor question's `no` once CODES-2 puts it to
   code columns.
+- **A level few people hold, pooled in people (lane PL, P4-D453;
+  `K-HZ-19`), still so:** lane PL2's: a day-first date's stand-in is
+  written month first (`12/31/1999`, which `%d/%m/%Y` refuses); the held twins of nineteen-figure codes (uint64
+  against int64), of a declared decimal comma (a word beside numbers)
+  and of `8.0` beside whole numbers (int64 against float64) keep dtypes
+  older than the lane; the frozen vectors count content, not its order.
+  A column of dates written as text that ten people or fewer fill writes
+  the word `Z` in eleven cells, which `pandas.to_datetime` refuses (lane
+  CZ-B: a change of the thin column's contract). A 0/1 column whose held
+  value is not the other member, or a flag named with a word such as
+  `no`, `day` or `id`, bears the prices P4-D453 (e) and (f) state.
 - **With every pair published, a raised floor still costs some twins
   their mean and spread.** Since plan P4-D375 every tail pair binary64
   holds is published, so no twin of `K-S3-20`'s 37 shapes at floors 11
@@ -784,10 +918,8 @@ cannot get worse unseen.
   exit 0 at 600 and 20,000 rows (as they did on lane ID-ROOM's head), a
   telephone number opening `+` keeps its `+` (exit 3 there), and lane HB
   took `durable`, `key_m1_40` and `phone_plus` out of K-S3-64's
-  `VALIDATION_LIMITS`; four stay, each a stated limit with its owner:
-  `reglistonce6` (one key beside one list cell written as whole numbers
-  alone, exit 3 at 600 rows; lane HB2), `reglistgrouped` (read as free
-  text at 600 rows, its forms missed at exit 3; the forms lane FM),
+  `VALIDATION_LIMITS`; four stay: two read at 600 rows only, below the table floor
+  (LANE I4m RULINGS 18), and two stated limits with their owners:
   `seqm1` (a held run beside `-1`, exit 3 at 200,000 rows; CODES-1 part
   C's, kept until K-S3-64's driver reads it at exit 0 at 20,000 rows) and
   `reglistmixR` (lists marked `;`, `,` and `|` cell by cell, exit 3 at

@@ -1911,6 +1911,507 @@ def form_reads_as_words(form: str, decimal_comma: bool = False) -> bool:
     return classify_number(exponent) != NUMBER
 
 
+# THE STAND-IN OF A POOL COUNTED IN PEOPLE (lane PL, plan P4-D453): where its
+# walk starts, in each kind of place. Not nine: a run of nines reads as a
+# placeholder in the rules that set placeholders aside.
+STAND_IN_FIGURE = "8"
+STAND_IN_LETTER = "Z"
+STAND_IN_LOWER = "z"
+# THE WALKS THAT KEEP A PUBLISHED FORM'S MEANING (lane PL's repair 1, the
+# orchestrator's LANE PL RULINGS 2 (2) and (3)). A two-valued column that
+# publishes one member of a pair takes the other, in the published member's
+# own case: `0` and `1`, and the yes-no pairs below.
+YES_NO_PAIRS = (("y", "n"), ("yes", "no"), ("t", "f"), ("true", "false"))
+ZERO_ONE = ("0", "1")
+# ...a column whose published levels are written in a closed alphabet of one
+# letter a place takes unpublished members of it, top first: the bases.
+CLOSED_ALPHABETS = ("TGCA", "tgca")
+# ...and clock and date labels take valid clocks and dates, counting down
+# from the last minute of the day and from this day.
+STAND_IN_DATE = (1999, 12, 31)
+# The walks, as `stand_ins_from` reads them off a start.
+WALK_COUNTDOWN = "countdown"
+WALK_MEMBER = "member"
+WALK_ALPHABET = "alphabet"
+WALK_CLOCK = "clock"
+WALK_DATE = "date"
+
+
+def _is_figure(character: str) -> bool:
+    return "0" <= character <= "9"
+
+
+def _is_letter(character: str) -> bool:
+    """An ASCII letter, or any character past ASCII, as the walk's start reads one (`z`)."""
+    return "A" <= character <= "Z" or "a" <= character <= "z" or character > "~"
+
+
+def _holds_a_figure(text: str) -> bool:
+    for character in text:
+        if _is_figure(character):
+            return True
+    return False
+
+
+def stand_in_places(text: str) -> "list[bool]":
+    """Which places of a countdown's spelling walk (lane PL, plan P4-D453).
+
+    In a spelling holding a figure, its figures walk, and a letter walks
+    only where it is a code letter: alone, with no letter beside it, and
+    touching a figure (`J` of `J45.9`); every other letter is a word or a
+    unit and stands as written (`mo` of `6 mo`, `d` of `3 d`). In a
+    spelling holding no figure, every letter walks. Marks never walk. A
+    fixed function of the text.
+    """
+    figures = _holds_a_figure(text)
+    places: "list[bool]" = []
+    for at in range(len(text)):
+        character = text[at]
+        if _is_figure(character):
+            places += [True]
+        elif _is_letter(character):
+            before = text[at - 1] if at > 0 else " "
+            after = text[at + 1] if at + 1 < len(text) else " "
+            lone = not _is_letter(before) and not _is_letter(after)
+            touching = _is_figure(before) or _is_figure(after)
+            places += [not figures or (lone and touching)]
+        else:
+            places += [False]
+    return places
+
+
+def stand_in_start(written: str) -> str:
+    """The form of one published spelling, as a countdown starts from it (P4-D453).
+
+    Each figure is written `8`, each walking capital `Z` and every other
+    walking letter `z` (`stand_in_places`); a word or a unit beside figures
+    and every mark stand as written; the spelling is trimmed: `J45.9` gives
+    `Z88.8`, `No` gives `Zz`, `05` gives `88`, `6 mo` gives `8 mo`. A spelling
+    with no place to walk opens with `Z`. A fixed function of the text.
+    """
+    if not isinstance(written, str):
+        raise TypeError("a stand-in's start is read off text")
+    text = written.strip()
+    walking = stand_in_places(text)
+    found = ""
+    held = False
+    for at in range(len(text)):
+        character = text[at]
+        if _is_figure(character):
+            found += STAND_IN_FIGURE
+            held = True
+        elif walking[at]:
+            found += STAND_IN_LETTER if "A" <= character <= "Z" else STAND_IN_LOWER
+            held = True
+        else:
+            found += character
+    return found if held else STAND_IN_LETTER + found
+
+
+def stand_in_wider(start: str) -> str:
+    """The same start one place wider: at its first figure where it holds one, else at its first letter."""
+    walking = stand_in_places(start)
+    figures = _holds_a_figure(start)
+    for place in range(len(start)):
+        if walking[place] and (not figures or _is_figure(start[place])):
+            return start[: place + 1] + start[place:]
+    return start + STAND_IN_FIGURE
+
+
+def _spelled(places: "list[str]") -> str:
+    found = ""
+    for character in places:
+        found += character
+    return found
+
+
+def stand_in_next(written: str) -> "str | None":
+    """The spelling after one in a countdown, or None where its room ends (P4-D453).
+
+    The countdown steps its last walking place (`stand_in_places`) down
+    one, and at the bottom of its kind (`0`, `A`, `a`) goes back to the top
+    (`9`, `Z`, `z`) and borrows from the walking place before it. A first
+    walking place that is a figure never reaches `0`, so a whole number
+    keeps its width and its figures read as that number. A fixed function
+    of the text.
+    """
+    walking = stand_in_places(written)
+    places = [character for character in written]
+    first = -1
+    for place in range(len(places)):
+        if walking[place]:
+            first = place
+            break
+    place = len(places) - 1
+    while place >= 0 and first >= 0:
+        character = places[place]
+        if not walking[place]:
+            place = place - 1
+            continue
+        if _is_figure(character):
+            lowest = "1" if place == first else "0"
+            if character > lowest:
+                places[place] = chr(ord(character) - 1)
+                return _spelled(places)
+            places[place] = "9"
+        elif "A" <= character <= "Z":
+            if character > "A":
+                places[place] = chr(ord(character) - 1)
+                return _spelled(places)
+            places[place] = "Z"
+        elif "a" <= character <= "z":
+            if character > "a":
+                places[place] = chr(ord(character) - 1)
+                return _spelled(places)
+            places[place] = "z"
+        else:
+            return None
+        place = place - 1
+    return None
+
+
+def _pieces(text: str, mark: str) -> "list[str]":
+    """A text cut at each ``mark``, every piece text (the offline audit reads each as such)."""
+    if not isinstance(text, str):
+        raise TypeError("a stand-in's spelling is text")
+    found: "list[str]" = []
+    piece = ""
+    for character in text:
+        if character == mark:
+            found += [piece]
+            piece = ""
+        else:
+            piece += character
+    return found + [piece]
+
+
+def _all_figures(text: str) -> bool:
+    if not text:
+        return False
+    for character in text:
+        if not _is_figure(character):
+            return False
+    return True
+
+
+def stand_in_clock(text: str) -> "tuple[int, ...] | None":
+    """A clock `H:MM`, `HH:MM` or `HH:MM:SS` as its hours, minutes and seconds, or None (P4-D453).
+
+    `24:00` and `24:00:00`, the end of a day, read as clocks too.
+    """
+    parts = _pieces(text, ":")
+    if len(parts) not in (2, 3) or not 1 <= len(parts[0]) <= 2:
+        return None
+    read: "list[int]" = []
+    for place in range(len(parts)):
+        if not _all_figures(parts[place]) or (place and len(parts[place]) != 2):
+            return None
+        read += [int(parts[place])]
+    found = tuple(read)
+    later = found[1:]
+    if found[0] == 24 and max(later) == 0:
+        return found
+    if found[0] > 23 or max(later) > 59:
+        return None
+    return found
+
+
+def stand_in_hour_width(text: str) -> int:
+    """How many figures a clock's hour is written in (P4-D453)."""
+    return len(_pieces(text, ":")[0])
+
+
+def _clock_spelled(parts: "tuple[int, ...]", hour_width: int) -> str:
+    found = f"{parts[0]:0{hour_width}d}"
+    for part in parts[1:]:
+        found += f":{part:02d}"
+    return found
+
+
+def _days_in(year: int, month: int) -> int:
+    if month == 2:
+        leap = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+        return 29 if leap else 28
+    return 30 if month in (4, 6, 9, 11) else 31
+
+
+def date_parts(text: str) -> "tuple[str, int, int, int] | None":
+    """A date `YYYY-MM-DD`, `YYYY/MM/DD`, `MM/DD/YYYY` or `MM-DD-YYYY`: its layout, year, month and day, or None (P4-D453)."""
+    for mark in ("-", "/"):
+        parts = _pieces(text, mark)
+        if len(parts) != 3 or not all(_all_figures(part) for part in parts):
+            continue
+        widths = (len(parts[0]), len(parts[1]), len(parts[2]))
+        if widths == (4, 2, 2):
+            layout, year, month, day = "ymd" + mark, int(parts[0]), int(parts[1]), int(parts[2])
+        elif widths == (2, 2, 4):
+            layout, year, month, day = "mdy" + mark, int(parts[2]), int(parts[0]), int(parts[1])
+        else:
+            return None
+        if year < 1000 or not 1 <= month <= 12 or not 1 <= day <= _days_in(year, month):
+            return None
+        return layout, year, month, day
+    return None
+
+
+def _date_spelled(layout: str, year: int, month: int, day: int) -> str:
+    mark = layout[3]
+    if layout[:3] == "ymd":
+        return f"{year:04d}{mark}{month:02d}{mark}{day:02d}"
+    return f"{month:02d}{mark}{day:02d}{mark}{year:04d}"
+
+
+def clock_stand_in_start(form: str) -> str:
+    """The last clock of a day in the form of a published clock: `23:59`, `9:59`, `23:59:59` (P4-D453)."""
+    parts = stand_in_clock(form)
+    if parts is None:
+        raise ValueError("a clock's stand-in starts from a clock")
+    hour_width = stand_in_hour_width(form)
+    top: "list[int]" = [23 if hour_width == 2 else 9]
+    for _part in parts[1:]:
+        top += [59]
+    return _clock_spelled(tuple(top), hour_width)
+
+
+def date_stand_in_start(form: str) -> str:
+    """`STAND_IN_DATE` in the layout of a published date (P4-D453)."""
+    found = date_parts(form)
+    if found is None:
+        raise ValueError("a date's stand-in starts from a date")
+    return _date_spelled(found[0], STAND_IN_DATE[0], STAND_IN_DATE[1], STAND_IN_DATE[2])
+
+
+def pair_member(written: str) -> "str | None":
+    """The other member of a pair one published spelling belongs to, in its own case, or None (P4-D453).
+
+    `0` gives `1` and `1` gives `0`; `N` gives `Y`, `No` gives `Yes`, `NO`
+    gives `YES`, `false` gives `true`, and the reverse of each.
+    """
+    if not isinstance(written, str):
+        raise TypeError("a pair's member is text")
+    text = written.strip()
+    if text in ZERO_ONE:
+        return ZERO_ONE[1] if text == ZERO_ONE[0] else ZERO_ONE[0]
+    lowered = text.casefold()
+    other = ""
+    for one, two in YES_NO_PAIRS:
+        if lowered == one:
+            other = two
+        elif lowered == two:
+            other = one
+    if not other:
+        return None
+    if text == text.upper() and text != text.lower():
+        return _in_capitals(other)
+    if len(text) > 1 and text[:1] == text[:1].upper() and text[1:] == text[1:].lower():
+        return _in_capitals(other[:1]) + other[1:]
+    return other
+
+
+def _in_capitals(text: str) -> str:
+    if not isinstance(text, str):
+        raise TypeError("a pair's member is text")
+    return text.upper()
+
+
+def _is_a_member(text: str) -> bool:
+    return pair_member(text) is not None
+
+
+def closed_alphabet(text: str) -> str:
+    """The closed alphabet a spelling is written in, top first, or nothing (P4-D453)."""
+    for alphabet in CLOSED_ALPHABETS:
+        if text and all(character in alphabet for character in text):
+            return alphabet
+    return ""
+
+
+def stand_in_walk(start: str) -> str:
+    """Which walk a start begins (P4-D453): a clock, a date, a closed alphabet, a pair's member, or the countdown."""
+    if stand_in_clock(start) is not None:
+        return WALK_CLOCK
+    if date_parts(start) is not None:
+        return WALK_DATE
+    if closed_alphabet(start):
+        return WALK_ALPHABET
+    if _is_a_member(start):
+        return WALK_MEMBER
+    return WALK_COUNTDOWN
+
+
+def _clock_before(written: str) -> "str | None":
+    parts = stand_in_clock(written)
+    if parts is None:
+        return None
+    hour_width = stand_in_hour_width(written)
+    stepped = [part for part in parts]
+    place = len(stepped) - 1
+    while place >= 0:
+        if stepped[place] > 0:
+            stepped[place] = stepped[place] - 1
+            return _clock_spelled(tuple(stepped), hour_width)
+        if place == 0:
+            return None
+        stepped[place] = 59
+        place = place - 1
+    return None
+
+
+def _date_before(written: str) -> "str | None":
+    found = date_parts(written)
+    if found is None:
+        return None
+    layout, year, month, day = found
+    if day > 1:
+        return _date_spelled(layout, year, month, day - 1)
+    if month > 1:
+        return _date_spelled(layout, year, month - 1, _days_in(year, month - 1))
+    if year > 1000:
+        return _date_spelled(layout, year - 1, 12, 31)
+    return None
+
+
+def _alphabet_before(written: str, alphabet: str) -> "str | None":
+    places = [character for character in written]
+    place = len(places) - 1
+    while place >= 0:
+        rank = 0
+        while alphabet[rank] != places[place]:
+            rank = rank + 1
+        if rank + 1 < len(alphabet):
+            places[place] = alphabet[rank + 1]
+            return _spelled(places)
+        places[place] = alphabet[0]
+        place = place - 1
+    return None
+
+
+def _after_in_its_walk(written: str, walk: str, alphabet: str) -> "str | None":
+    if walk == WALK_CLOCK:
+        return _clock_before(written)
+    if walk == WALK_DATE:
+        return _date_before(written)
+    if walk == WALK_ALPHABET:
+        return _alphabet_before(written, alphabet)
+    if walk == WALK_MEMBER:
+        return None
+    return stand_in_next(written)
+
+
+def stand_ins_from(start: str, wanted: int, published: "frozenset[str]") -> "list[str]":
+    """The first ``wanted`` spellings of a stand-in's walk that fold onto no published level (P4-D453).
+
+    The product's one statement of the walks: the profiler reads it to
+    choose a start, and the generator writes it. The start names its walk
+    (`stand_in_walk`): a clock counts down a minute (or a second) at a
+    time in its own form, a date a day at a time in its layout, a closed
+    alphabet's spelling through the alphabet at its width, top first, a
+    pair's member is that member alone, and every other start counts down
+    (`stand_in_next`). Fewer come back where the room ends first. A fixed
+    function of the three.
+    """
+    walk = stand_in_walk(start)
+    alphabet = closed_alphabet(start) if walk == WALK_ALPHABET else ""
+    found: "list[str]" = []
+    written: "str | None" = start
+    while written is not None and len(found) < wanted:
+        if folded(written) not in published:
+            found += [written]
+        written = _after_in_its_walk(written, walk, alphabet)
+    return found
+
+
+def pool_levels_split(levels: int, rows: int, numbers_owed: int) -> "tuple[int, int]":
+    """How many of a pool's levels its numbers and its words take (method G8.3d, P4-D453).
+
+    The pool owes `numbers_owed` of its rows as numbers (at most its rows,
+    at least none) and the rest as words; its levels split between the two
+    in proportion to their cells, at least one a class owing any and all
+    but one at most where both owe. A fixed function of the three.
+    """
+    numbers = min(max(numbers_owed, 0), rows)
+    words = rows - numbers
+    number_levels = 0
+    if numbers and words:
+        number_levels = max(1, min(levels - 1, (levels * numbers) // rows))
+    elif numbers:
+        number_levels = levels
+    return number_levels, levels - number_levels
+
+
+def is_whole_figures(text: str) -> bool:
+    """Whether a text is figures alone, a sign before them allowed."""
+    body = text[1:] if text[:1] == "-" else text
+    if not body:
+        return False
+    for character in body:
+        if not "0" <= character <= "9":
+            return False
+    return True
+
+
+def number_as_declared(
+    text: str, decimal_comma: bool = False
+) -> "tuple[str, float | None, bool]":
+    """A spelling's numeric reading under its column's declared grammar (P4-D453, lane PL's repair 2).
+
+    THE ONE READING A POOL COUNTED IN PEOPLE ASKS OF A SPELLING (the
+    orchestrator's LANE PL RULINGS 4 (1), Codex's items 1 and 3 on lane
+    PL's repair 1): its class (`classify_number`), its value
+    (`parse_number`, None where it is no number) and whether it is written
+    as a whole number -- a sign and figures alone, as a reader of the file
+    takes an integer (`+1`, `-3`, `05`) -- each read as the column's own
+    grammar reads it. On a column declared to write its decimals with a
+    comma, `8,0` is eight written with a decimal mark and `2,5` two and a
+    half (`written_with_a_decimal_comma`); read without the declaration
+    the first is no number at all, and a stand-in `8` once passed as no
+    published number beside a published `8,0`. The pool's numeric debt,
+    its stand-ins' start, their check against the published numbers and
+    the hold of a fraction among whole numbers all ask this one function,
+    so a pool never changes how the published spellings read.
+
+    Guarantees: a fixed function of the two. Raises TypeError where
+    ``text`` is no string, as `classify_number` does. No I/O.
+    """
+    read = written_with_a_decimal_comma(text) if decimal_comma else text
+    found = classify_number(read)
+    if found != NUMBER:
+        return found, None, False
+    body = trimmed(read)
+    if body[:1] == "+" or body[:1] == "-":
+        body = body[1:]
+    whole = bool(body)
+    for character in body:
+        if not "0" <= character <= "9":
+            whole = False
+    return found, parse_number(read), whole
+
+
+def figures_in(text: str) -> int:
+    """How many ASCII figures a text holds (P4-D453: a stand-in's width as a number)."""
+    found = 0
+    for character in text:
+        if "0" <= character <= "9":
+            found = found + 1
+    return found
+
+
+def is_a_stand_in_start(text: str) -> bool:
+    """Whether a text can start a stand-in's walk (P4-D453, contract B4e).
+
+    A countdown's start is its own form (`stand_in_start` gives it back)
+    with a place to walk; a clock, a date, a spelling of a closed alphabet
+    or a pair's member starts its own walk.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a stand-in's start is text")
+    if not text or text != text.strip():
+        return False
+    if stand_in_walk(text) != WALK_COUNTDOWN:
+        return True
+    return stand_in_start(text) == text and any(stand_in_places(text))
+
+
 def is_a_place_list(text: str) -> bool:
     """Whether a text is one place of rule A2's census (P4-D439, C6-31h).
 

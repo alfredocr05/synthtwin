@@ -284,10 +284,21 @@ def test_one_code_spelled_several_ways_is_one_declaration() -> None:
 
 
 def test_real_value_keeps_the_reading_and_stops_the_question(tmp_path: pathlib.Path) -> None:
-    """`real-value` is `--keep-value`: the column reads as it did, and is not asked again."""
+    """`real-value` is `--keep-value`: the column reads as it did, and is not asked again.
+
+    Unanswered, the column's dates as text are held until `no` about dates
+    in disguise (plan P4-D446), so the reading it had is the one that `no`
+    gives back; the answered run reads the product as it is, the date-codes
+    question answered `real-value` keeping the column under the date rules.
+    """
+    import keyboard
+
     values = shapes.cells(shapes.by_name("mdy_unk"))
-    _profiled(tmp_path, values)
+    with pytest.MonkeyPatch.context() as patch:
+        keyboard.dates_in_disguise_answered_no(patch)
+        _profiled(tmp_path, values)
     before = _block(tmp_path)["role"]
+    assert before == taxonomy.ROLE_LONG_TAIL, before
     answers = _answer(tmp_path, "seen_at", asking.ANSWER_REAL_VALUE)
     code, said = _profiled(tmp_path, values, "--answers", str(answers))
     assert code == 0, said

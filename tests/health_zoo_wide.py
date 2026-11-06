@@ -3488,4 +3488,76 @@ WIDE_OWNERS["partial_dates"] = WIDE_OWNERS.get("partial_dates", ()) + (
                                       "some date is known to the year only, as a share")),
 )
 
+# -- THE FIVE FORMS OF DATES IN DISGUISE (lane CZ-H, plan P4-D446): a shard of
+# their own. Their 600-row runs are `tests/test_zoo_dates_in_disguise.py`'s
+# and their 20,000-row runs K-HZ-16's as well as K-HZ-01's, so the suite's
+# grid runs the first six shards alone (`SUITE_SHARDS`, THE SUITE'S TIME
+# rule). The batch integrator restates 93 kinds as 98 at this lane's merge.
+import dates_in_disguise as _disguise  # noqa: E402
+
+SUITE_SHARDS = len(SHARDS)
+WIDE_TABLES = WIDE_TABLES + _disguise.CATALOGUE_TABLES
+WIDE_KINDS = WIDE_KINDS + _disguise.KINDS
+SHARDS = SHARDS + (tuple(table.name for table in _disguise.CATALOGUE_TABLES),)
+_HELD_VALUES = (
+    "held by HIPAA's Safe Harbor rule; by design: a value that reads as a date beside other values is a blank "
+    "cell until the column's question is answered `no` (plan P4-D446), so the twin writes a blank the real never does"
+)
+_KEY_VALUE = (
+    "which key holds what is a relation between two columns (plan P4-D446's limit (c)): an answer column's values "
+    "are drawn apart from its keys and its rare values are stand-ins, so a yes/no answer's share, a value's shape "
+    "and a key's forms are read on the whole column"
+)
+_HELD_KEYS = (
+    "a code or key column read as labels writes its held-back levels as made-up codes outside the real pattern, "
+    "and one held whole writes record numbers: the identifier generator's limit"
+)
+_HELD_DAYS = (
+    "a day-number column answered as dates and held whole in people is written by the record-number walk in its "
+    "excluded room, past the real span, and a few cells written wider lose the contact's two figures (plan P4-D446's "
+    "limit (a)): written as days inside the span by lane HB2"
+)
+WIDE_OWNERS[_disguise.KIND_DAY_NUMBERS] = (
+    ("HB2", _HELD_DAYS, covers(
+        "birth days fall in the real span of years", "visit days fall in the real span of years",
+        "a day number with its contact index after the point", "two fixed decimals keep the contact's two figures",
+        "day numbers as text keep two decimals", "the three-part key (record, day number, line) is unique",
+        "integer day numbers", columns=_disguise.DAY_COLUMNS)),
+    ("PS", "a value eleven rows hold and fewer than eleven people is held in people (plan P4-D406), pooling inside "
+           "a reading in subject units being lane PS's", covers(columns=("dose_mg", "item_count", "pain_score"))),
+)
+WIDE_OWNERS[_disguise.KIND_ANSWERS] = (
+    ("CZ-H", _HELD_VALUES, covers("missing answer_value", "missing spellings answer_value")),
+    ("CZ-C", _KEY_VALUE, covers("yes/no answers written 1/0 hold their share", columns=("answer_value",))),
+    ("CODES-2", _HELD_KEYS, covers("question codes", columns=("question_code",))),
+)
+WIDE_OWNERS[_disguise.KIND_FLOW] = (
+    ("CZ-H", _HELD_VALUES, covers("missing result_value", "missing spellings result_value")),
+    ("CZ-C", _KEY_VALUE, covers("miss result_value", "pressure pairs keep their slash", columns=("result_value",))),
+    ("CODES-2", _HELD_KEYS, covers("flow keys", columns=("flow_key",))),
+)
+WIDE_OWNERS[_disguise.KIND_RESULTS] = (
+    ("CZ-H", _HELD_VALUES, covers("missing result_value", "missing spellings result_value")),
+    ("CZ-C", _KEY_VALUE, covers("miss result_value", columns=("result_value",))),
+    ("CODES-2", _HELD_KEYS, covers("result keys", columns=("result_key",))),
+)
+WIDE_OWNERS[_disguise.KIND_CLOCKS] = (
+    ("RO", "the two clocks are drawn apart: the lag is a relation between two columns, so the twin writes no row at "
+           "a lag of nought and rows entered before they were recorded (plan P4-D446's limit (b))", covers(
+        "lags of nought and of ten minutes or less hold their shares",
+        "no row entered more than a minute before it was recorded")),
+    ("CODES-2", _HELD_KEYS, covers(columns=("item_key",))),
+)
+# The day-number form's charges, the one kind of the five forms the driver
+# found with failures no OWNERS line covered on batch 4o's merged head
+# (K-HZ-02 at 20,000 rows, the seal's probe; LANE I4m RULINGS 20 (2)):
+# values of a measurement column that read as days counted from 1840 stay
+# blank after the column is answered `measurement` and `no` (17,626 of
+# 20,000 cells, on lane CZ-H's own head as on the merged one), so its twin's
+# type and blanks miss. Plan P4-D446 names the charges leg lane CZ-B's.
+WIDE_OWNERS[_disguise.KIND_DAY_NUMBERS] += (
+    ("CZ-B", "a measurement column's values that read as days stay held after the column's answers (plan P4-D446's "
+             "charges, lane CZ-B's)", covers(columns=("charge_cents",))),
+)
+
 _UNUSED = (JUNK, _bad_pattern, _i, _r, _zipf, covers)

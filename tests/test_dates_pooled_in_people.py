@@ -215,7 +215,25 @@ _ZOO_TABLES = (
 )
 
 
-@pytest.mark.parametrize("name", _ZOO_TABLES)
+# ...the perioperative export's day counts (its serial dates, Excel's) EXPECTED
+# TO FAIL, STRICT (the orchestrator's LANE I4m RULINGS 22 (3);
+# batch3-notes, BATCH 4o OWES 3 ADDED): the zoo answers its Safe Harbor question
+# `yes`, the truthful answer for a date of a person (lane CZ-H's hunk, plan
+# P4-D446), and the product holds such a column, as it did before lane CZ-H, its
+# twin writing made-up five-figure numbers off the real ones, so the analyst's
+# date check cannot hold; owner lane CZ-H2, its first item. The mark fails the
+# day CZ-H2's fix lands, a reminder to take it off.
+_SERIAL_DATES_HELD = pytest.mark.xfail(
+    strict=True,
+    reason="owner lane CZ-H2 (batch3-notes BATCH 4o OWES 3 ADDED; LANE I4m RULINGS 22 (3)): a held day-count "
+    "date column's twin writes made-up five-figure numbers, so 'serial dates read from 1899-12-30' fails",
+)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [pytest.param(name, marks=_SERIAL_DATES_HELD) if name == "perioperative" else name for name in _ZOO_TABLES],
+)
 def test_every_zoo_kinds_dates_parse_on_the_twin(tmp_path: pathlib.Path, name: str) -> None:
     """At 600 rows each 'parses' check of a table holding dates beside its patients holds on the twin."""
     place = [table.name for table in health_zoo.TABLES].index(name)

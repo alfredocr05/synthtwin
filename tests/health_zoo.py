@@ -145,8 +145,15 @@ GENERAL_ANSWERS = frozenset(
         # of the column could name a person, a place, a birth date or a
         # number given to one person -- what the data is.
         "no", "yes",
+        # ...and the unit an age column's values are counted in, offered
+        # inside it where neither its cells nor its name state one (lane
+        # SH3, plan P4-D454; years too since its repair).
+        "years", "months", "weeks", "days",
     }
 )
+# The units the Safe Harbor question offers beside `no` and `yes` for a
+# column of ages that states none (lane SH3, plan P4-D454).
+AGE_UNIT_ANSWERS = frozenset({"years", "months", "weeks", "days"})
 # The count systems a column of dates written as numbers may be read in
 # (`date_counts`): which one an export used is a fact about the export.
 DATE_COUNT_ANSWER = re.compile(
@@ -2797,7 +2804,13 @@ def answer_generally(
         # `no` for a measurement, a count, a code or a category. A ZIP3
         # area ('021**') and an age column holding an age over 89 are
         # answered `yes` too (LANE E0c RULINGS 2 (2), 2026-10-25 16:36).
-        if not given and column in every_column and sorted(offered) == ["no", "yes"]:
+        # The units lane SH3 offers inside that question (plan P4-D454) do
+        # not change the answer: `yes` or `no`, as the column truly is.
+        if (
+            not given
+            and column in every_column
+            and sorted(answer for answer in offered if answer not in AGE_UNIT_ANSWERS) == ["no", "yes"]
+        ):
             if old_ages is None and _is_an_age(column):
                 old_ages = ages_over_89(*table.build(SMOKE_ROWS, seed_of(table)))
             # ...and lane SH2's Safe Harbor elements (plan P4-D434: a city of
@@ -3112,6 +3125,9 @@ def names_a_safe_harbor_element(table: Table, column: str, old_ages: "frozenset[
     if column in NOT_READ:
         return False
     if table.knows.get(column) == "identifier":
+        return True
+    # A column the person knows counts dates (plan P4-D446): a date element.
+    if DATE_COUNT_ANSWER.fullmatch(table.knows.get(column, "")):
         return True
     if any(pattern.search(column) and modes != ("ages over 89",) for pattern, modes, _what in SENSITIVE_NAMES):
         return True
@@ -3558,7 +3574,9 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
             columns=("ancestry", "ethnicity", "gender_code", "gender_word"))),
     ),
     "diagnoses": (
-        ("CODES-1", "a code column held whole in people (plan P4-D406) gets a twin that misses its "
+        ("CODES-1", "a code column whose levels few people hold is held whole in people (plan P4-D406) "
+                    "only until its Safe Harbor question is answered no, and then pooled, its other "
+                    "levels kept (plan P4-D453); were it held to the end, its twin would miss its "
                     "published forms: the identifier generator's limit, lane CODES-1 part C "
                     "(P4-D406's stated limit 4)", covers("miss icd10_dotted")),
         ("CODES-1", "a held-back code is written outside its pattern or as a number-class stand-in "
@@ -3583,6 +3601,16 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     ),
     "perioperative": (
         ("CODES-2", WITHHELD, covers("physical status with its emergency mark", columns=("phys_status",))),
+    ),
+    # A column the person knows counts days from a date (`excel-1900`) is a
+    # date element of its person, so the zoo answers its Safe Harbor
+    # question `yes` since lane CZ-H (plan P4-D446) and the column is held,
+    # its made-up numbers off the real span (batch 4o's seal; BATCH 4o OWES
+    # 3 ADDED, LANE I4m RULINGS 20 (2)). Nothing real is published.
+    "excel_serial_dates": (
+        ("CZ-H2", "held by HIPAA's Safe Harbor rule; by design: a held day-count column's made-up numbers fall off "
+                  "its span and unit (plan P4-D446's limit (m)): kept in them, off the real counts, by lane CZ-H2",
+         covers("serial dates read from 1899-12-30")),
     ),
     "encounters": (
         ("MG", CENSUS_IN_PEOPLE, covers("patients with two rows or more, and three or more, as shares")),

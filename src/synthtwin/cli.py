@@ -1142,6 +1142,15 @@ def _say_pieces(pieces: "list[str]") -> None:
     _say("")
 
 
+def _marks_answered(ages_counted_in: "tuple[tuple[str, str], ...]") -> "dict[str, int]":
+    """Each age column answered with its unit, and that unit's mark (plan P4-D454)."""
+    marks: "dict[str, int]" = {}
+    for name, unit in ages_counted_in:
+        if unit in asking.AGE_UNIT_ANSWERS:
+            marks[name] = asking.AGE_UNIT_ANSWERS[unit]
+    return marks
+
+
 def _described_columns(
     document: "dict[str, object]",
 ) -> "list[dict[str, object]]":
@@ -2846,6 +2855,9 @@ def _answers_given(
     safe_harbor_yes: "tuple[str, ...]" = (),
     units_kept: "tuple[str, ...]" = (),
     commas_kept: "tuple[str, ...]" = (),
+    ages_counted_in: "tuple[tuple[str, str], ...]" = (),
+    safe_harbor_dates_no: "tuple[str, ...]" = (),
+    safe_harbor_dates_yes: "tuple[str, ...]" = (),
 ) -> "asking.Given":
     """Every answer this run acts on, as `asking.answered_before` writes it.
 
@@ -2884,6 +2896,9 @@ def _answers_given(
         commas_kept=commas_kept,
         safe_harbor_no=safe_harbor_no,
         safe_harbor_yes=safe_harbor_yes,
+        ages_counted_in=ages_counted_in,
+        safe_harbor_dates_no=safe_harbor_dates_no,
+        safe_harbor_dates_yes=safe_harbor_dates_yes,
         missing_dates=tuple(
             (name, code_shapes[name] if name in code_shapes else "")
             for name in missing_dates
@@ -4532,6 +4547,10 @@ class _ChainState:
     add: "tuple[tuple[str, str], ...]" = ()
     drop: "tuple[tuple[str, str], ...]" = ()
     unread: "tuple[str, ...]" = ()
+    # The caution's words where the moments' fail-safe left them out (''
+    # where it did not): the summary file closes on them too (LANE MPp
+    # RULINGS 7 (3), verify 2's C2).
+    moments_left_out: str = ""
 
 
 def _chained_description(
@@ -4578,6 +4597,29 @@ def _chained_description(
         block[key] = relationships[key]
     block["statistical"] = chained.statistical
     with_chain["relationships"] = block
+    statistical = chained.statistical
+    # THE MOMENTS' FAIL-SAFE (lane MPp, plan P4-D455; LANE MPp RULINGS 6
+    # (1)): the command never writes a description its own loader refuses.
+    # Where the chain's check refuses the description with rule B's
+    # moments and passes it without them, the moments are left out and
+    # the caution says why; no test table needs this.
+    if isinstance(statistical, dict) and statistical["moments"] is not None:
+        refused = _chain_refusal(with_chain)
+        if refused:
+            bare: "dict[str, object]" = {}
+            for key in statistical:
+                bare[key] = statistical[key]
+            bare["moments"] = None
+            block["statistical"] = bare
+            if _chain_refusal(with_chain):
+                block["statistical"] = statistical
+            else:
+                statistical = bare
+                chain_state.moments_left_out = (
+                    "Between columns: the moments (means, spreads, correlations and shares) were left out of this "
+                    f"description, because the loader that reads it refused them: {refused} The family tables stand."
+                )
+                _warn(chain_state.moments_left_out, caution=results.CAUTION_CHAIN)
     digest = installation.description_digest(with_chain)
     between = installation.publishes_between(with_chain)
     decision = installation.decide(
@@ -4589,7 +4631,7 @@ def _chained_description(
         run.replace_description,
     )
     chain_state.notes = chained.notes
-    chain_state.statistical = chained.statistical
+    chain_state.statistical = statistical
     if decision.verdict == installation.REFUSE:
         _warn(decision.words, step=results.STEP_CONTENT)
         return with_chain
@@ -4602,10 +4644,28 @@ def _chained_description(
         digest,
         between,
     )
-    _say(_chain_line(chained.statistical))
+    _say(_chain_line(statistical))
     if chain_state.add or chain_state.drop or chain_state.unread:
-        _say(_requests_line(chain_state.add, chain_state.drop, chain_state.unread, chained.statistical))
+        _say(_requests_line(chain_state.add, chain_state.drop, chain_state.unread, statistical))
     return with_chain
+
+
+def _chain_refusal(document: "dict[str, object]") -> str:
+    """The words of the chain check's refusal of a description as it will be written ('' where it passes).
+
+    The same check `contract.load_profile(..., chain=True)` runs on the
+    parsed file (S23 to S28, S39 to S43), here on the description's own
+    serialized bytes parsed back, before anything is written.
+    """
+    import json
+
+    from synthtwin import chain_check, profile
+
+    try:
+        chain_check.check(json.loads(profile.serialize(document)))
+    except errors.ProfileError as refusal:
+        return f"{refusal}"
+    return ""
 
 
 def _requests_line(
@@ -4994,6 +5054,13 @@ def _run_profile_body(
     # held for their five figures.
     safe_harbor_no: "list[str]" = []
     safe_harbor_yes: "list[str]" = []
+    # ...and the unit each age column was answered with (plan P4-D454).
+    ages_counted_in: "tuple[tuple[str, str], ...]" = ()
+    # -- P4-D446: the answers to the question about values that read as
+    # dates, kept apart from the age or ZIP question's (the orchestrator's
+    # LANE CZ-H RULINGS 6 (1), item 3).
+    safe_harbor_dates_no: "list[str]" = []
+    safe_harbor_dates_yes: "list[str]" = []
     # ...and the columns read as five-figure numbers beside a few words,
     # as the latest description found them (plan P4-D427).
     five_figures: "list[str]" = []
@@ -5007,6 +5074,10 @@ def _run_profile_body(
     # blocks it top-codes, so generation and validation read the
     # description.
     harbor_reasons: "dict[str, str]" = {}
+    # ...and what establishes each top-coded column as ages beside its
+    # values (lane SH3's repair, plan P4-D454): the question's units and
+    # the meaning of `yes` follow it.
+    ages_established: "dict[str, str]" = {}
     harbor_year = taxonomy.SAFE_HARBOR_REFERENCE_YEAR
     # ...and the column names the file's answers use, with the columns
     # those answers name, set against the names this run reads (plan
@@ -5135,6 +5206,8 @@ def _run_profile_body(
             # every other answer naming a column is, never dropped.
             + list(written.safe_harbor_no)
             + list(written.safe_harbor_yes)
+            + list(written.safe_harbor_dates_no)
+            + list(written.safe_harbor_dates_yes)
             # ...and every column an earlier run's answer kept (plan
             # P4-D408): its name is the name under the reading that run
             # took, which an answer changing the reading moves.
@@ -5271,7 +5344,11 @@ def _run_profile_body(
             names_by_answer += list(identities_kept_answered)
             safe_harbor_no = list(written.safe_harbor_no)
             safe_harbor_yes = list(written.safe_harbor_yes)
+            ages_counted_in = written.ages_counted_in
+            safe_harbor_dates_no = list(written.safe_harbor_dates_no)
+            safe_harbor_dates_yes = list(written.safe_harbor_dates_yes)
             names_by_answer += safe_harbor_no + safe_harbor_yes
+            names_by_answer += safe_harbor_dates_no + safe_harbor_dates_yes
         carried_answers = written.carried
         if written.metadata_rows_answered:
             metadata_answer = (
@@ -5672,7 +5749,8 @@ def _run_profile_body(
                 answered_code_shapes, first_row, metadata_answer,
                 declared_delimiter, day_first, answered_month_first,
                 tuple(safe_harbor_no), tuple(safe_harbor_yes),
-                tuple(units_kept), tuple(commas_kept),
+                tuple(units_kept), tuple(commas_kept), ages_counted_in,
+                tuple(safe_harbor_dates_no), tuple(safe_harbor_dates_yes),
             ),
         )
         if not_kept:
@@ -5879,6 +5957,14 @@ def _run_profile_body(
     # -- P4-D440, rule U (c): the columns whose released list names a
     # value fewer cells than the floor hold, named for the check below.
     rare_listed: "list[str]" = []
+    # -- P4-D453: the columns whose pool is counted in people, named for the
+    # same check: their levels wait while a question offering `identifier`
+    # is open on the table.
+    levels_pooled: "list[str]" = []
+    # -- P4-D446: the columns holding dates in disguise, named for their
+    # Safe Harbor question; those no question holds whole are written with
+    # those values read as blank cells.
+    dated_values: "list[str]" = []
     document = profile.build_document(
         read,
         settings,
@@ -5910,6 +5996,7 @@ def _run_profile_body(
         # and the five-figure columns beside a few words, named.
         top_code=True,
         safe_harbor_no=safe_harbor_no,
+        ages_counted_in=_marks_answered(ages_counted_in),
         five_figures=five_figures,
         ages_held=ages_held,
         counted_in_rows=counted_in_rows,
@@ -5920,6 +6007,11 @@ def _run_profile_body(
         # -- P4-D434: the Safe Harbor years, places and devices.
         harbor_year=harbor_year,
         harbor_reasons=harbor_reasons,
+        levels_pooled=levels_pooled,
+        ages_established=ages_established,
+        dated_values=dated_values,
+        dated_values_no=safe_harbor_dates_no,
+        dates_answered=tuple(answered_missing_dates + answered_real_values),
     )
     # Handed over once: the description has taken the reading as its own.
     census_readings = ()
@@ -6316,7 +6408,10 @@ def _run_profile_body(
                 counted_in_rows = []
                 few_valued = []
                 rare_listed = []
+                levels_pooled = []
                 harbor_reasons = {}
+                ages_established = {}
+                dated_values = []
                 document = profile.build_document(
                     read,
                     settings,
@@ -6334,6 +6429,7 @@ def _run_profile_body(
                     counted_in_subjects=counted_in_people,
                     top_code=True,
                     safe_harbor_no=safe_harbor_no,
+                    ages_counted_in=_marks_answered(ages_counted_in),
                     five_figures=five_figures,
                     ages_held=ages_held,
                     counted_in_rows=counted_in_rows,
@@ -6341,6 +6437,11 @@ def _run_profile_body(
                     rare_listed=rare_listed,
                     harbor_year=harbor_year,
                     harbor_reasons=harbor_reasons,
+                    levels_pooled=levels_pooled,
+                    ages_established=ages_established,
+                    dated_values=dated_values,
+                    dated_values_no=safe_harbor_dates_no,
+                    dates_answered=tuple(answered_missing_dates + answered_real_values),
                 )
                 census_readings = ()
                 # And the role check is asked again of the rebuilt
@@ -6592,27 +6693,64 @@ def _run_profile_body(
         ):
             five_held += [name]
     # ...and a column answered `yes` to that question is held so for good,
-    # the run asking nothing more of it (plan P4-D427).
+    # the run asking nothing more of it (plan P4-D427) -- but A COLUMN OF
+    # AGES, which keeps its top-code for good (lane SH3, plan P4-D454): the
+    # Safe Harbor rule asks an age over 89 to be pooled, and a truthful
+    # `yes` held the whole column, its twin writing made-up numbers (999,
+    # or 99,904 for ages in months) and every other statistic lost.
+    # ONLY WHERE SOMETHING BESIDE ITS VALUES ESTABLISHES IT AS AGES (lane
+    # SH3's repair, Codex's item 1 and the orchestrator's LANE SH3 RULINGS
+    # 1 (1): an answer keeps the meaning it had when it was given): a unit
+    # in its cells, its name, or a unit answered. A column its values alone
+    # read as ages -- `patient_number` cycling through 1 to 100 -- is held
+    # whole by `yes`, as before lane SH3, carried answers files too.
+    ages_kept_top_coded: "dict[str, bool]" = {}
+    for block in _described_columns(document):
+        if (
+            "top_coded" in block
+            and f"{block['name']}" not in harbor_reasons
+            and f"{block['name']}" in ages_established
+            and ages_established[f"{block['name']}"]
+        ):
+            ages_kept_top_coded[f"{block['name']}"] = True
+    # ...and a column answered with the unit of its ages: read in it, and
+    # top-coded only where a value reaches that unit's mark.
+    for name, _unit in ages_counted_in:
+        if name not in harbor_reasons:
+            ages_kept_top_coded[name] = True
     harbor_held: "list[str]" = []
     for name in safe_harbor_yes:
         if (
-            name in read.column_names
+            name not in ages_kept_top_coded
+            and name in read.column_names
             # ...a column of dates so early is held by the description
             # itself, its twin writing valid dates (plan P4-D434).
             and not (name in harbor_reasons and harbor_reasons[name] == taxonomy.HELD_DATES)
+            # (A column answered `yes` about its dates in disguise is not
+            # here but in `safe_harbor_dates_yes`: it keeps them read as
+            # blank cells, its other values published, plan P4-D446.)
             and name not in forced_identifiers
             and name not in withheld
             and name not in five_held
             and name not in harbor_held
         ):
             harbor_held += [name]
+    # ...and the values that read as dates in the other columns the first
+    # description named (plan P4-D446): read as blank cells on the one
+    # written, the questions having been worked out from every cell.
+    dated_held = tuple(
+        name
+        for name in dated_values
+        if name not in withheld and name not in five_held and name not in harbor_held
+    )
     published = document
     if (
         withheld
         or candidates
         or five_held
         or harbor_held
-        or (identities_open and rare_listed)
+        or (identities_open and (rare_listed or levels_pooled))
+        or dated_held
     ):
         if withheld:
             _warn(_withheld_notice(withheld), caution=results.CAUTION_WITHHELD)
@@ -6660,9 +6798,13 @@ def _run_profile_body(
             counted_in_subjects=counted_in_people,
             top_code=True,
             safe_harbor_no=safe_harbor_no,
+            ages_counted_in=_marks_answered(ages_counted_in),
             counted_in_rows=counted_in_rows,
             rare_values_released=not identities_open,
             harbor_year=harbor_year,
+            dated_held=dated_held,
+            dated_values_no=safe_harbor_dates_no,
+            dates_answered=tuple(answered_missing_dates + answered_real_values),
         )
     if counted_in_rows:
         _warn(
@@ -6739,6 +6881,11 @@ def _run_profile_body(
             _encoding_note(read.encoding, read.used_fallback_encoding),
         )
     )
+    # Where the moments' fail-safe left them out (behind the chain's switch
+    # alone), the caution's one line closes the summary, so the file says
+    # what the screen said (LANE MPp RULINGS 7 (3), verify 2's C2).
+    if chain_state is not None and chain_state.moments_left_out:
+        text = text + parsing.visible_lines(chain_state.moments_left_out) + "\n"
     _at(results.STEP_OUTPUTS)
     profile_path, summary_path = profile.default_output_paths(
         pathlib.Path(table), out_dir
@@ -7121,6 +7268,20 @@ def _run_profile_body(
         tuple(few_valued),
         harbor_reasons,
         harbor_year,
+        ages_established,
+        tuple(dated_values),
+        # ...and the question about values that read as dates answered, or
+        # not to be put where `yes` holds the column whole (plan P4-D446),
+        # nor beside another question to the same column this run.
+        tuple(safe_harbor_dates_no + safe_harbor_dates_yes + safe_harbor_yes),
+        # (A question the Safe Harbor one is put in place of, below, is no
+        # question beside it.)
+        tuple(
+            question.name
+            for question in asked_about
+            if not (question.name in identities_kept and asking.offers_identifier(question))
+            and question.reason != asking.BECAUSE_UNIT
+        ),
     )
     if harbor_asked:
         harbored = [question.name for question in harbor_asked]
@@ -7312,7 +7473,9 @@ def _run_profile_body(
                             metadata_answer, declared_delimiter, day_first,
                             answered_month_first, tuple(safe_harbor_no),
                             tuple(safe_harbor_yes), tuple(units_kept),
-                            tuple(commas_kept),
+                            tuple(commas_kept), ages_counted_in,
+                            tuple(safe_harbor_dates_no),
+                            tuple(safe_harbor_dates_yes),
                         )
                     ),
                     # ...with the names those answers use (P4-D408).

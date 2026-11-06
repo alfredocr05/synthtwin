@@ -2003,7 +2003,17 @@ def test_the_questions_file_rendered_from_the_result_is_today_s_file(ran: Batter
 # and in nothing else: no word or number is new to it, and it holds none
 # of the table's patient keys or ZIP codes. The dates' file is unmoved.
 _TODAY_S_FILES = {
-    "held": "1859409a929fda191c661051e2d59945822f5d313268cb818f7f3c3ead56307e",
+    # ...the held table's file moved with lane SH3's words for a top-coded
+    # age's question (plan P4-D454: `unless this question is answered no`,
+    # and `yes` keeping the top-code), nothing else in it; and again with
+    # its repair 1's (an age whose cells and name state no unit read in
+    # years, its question offering `years`, `months`, `weeks` and `days`).
+    # MEASURED AGAIN AT BATCH 4o (lane SH3 merged on lane CL's wording), the
+    # file rendered on extracted copies under the memory guard: 1859409a...
+    # before the merge (26843782), 99767655... on lane SH3's head, ffd75d61...
+    # merged: lane SH3's words above and lane CL's day count from 1840, and
+    # nothing else; no word or number of the table is new to it.
+    "held": "ffd75d610530c7462998422a3ecc1069e25f6537b122ef829393b49e9416f9df",
     "filequestion": "f9a69d985e8802fb2016a7933542441c473467716dc69027ce292203506d199e",
 }
 

@@ -1,0 +1,707 @@
+{
+ "cases": {
+  "pool_alphabet_walk": {
+   "block": {
+    "detection_evidence": "there are 4 different values, which is within the 120 a set of categories may have in a table of 1200 rows, so this column is a set of categories",
+    "level_ceiling": 120,
+    "levels": [
+     {
+      "count": 396,
+      "label": "g",
+      "shape_form_cells": 0,
+      "variants": {
+       "G": 396
+      },
+      "variants_withheld": {}
+     },
+     {
+      "count": 392,
+      "label": "a",
+      "shape_form_cells": 0,
+      "variants": {
+       "A": 392
+      },
+      "variants_withheld": {}
+     },
+     {
+      "count": 392,
+      "label": "c",
+      "shape_form_cells": 0,
+      "variants": {
+       "C": 392
+      },
+      "variants_withheld": {}
+     }
+    ],
+    "missing_by_class": {
+     "(blank)": 0,
+     "(date-sentinel)": 0,
+     "(declared-missing)": 0,
+     "(numeric-sentinel)": 0,
+     "(text-code)": 0,
+     "(withheld)": 0
+    },
+    "missing_by_source": {},
+    "n_contradictory": 0,
+    "n_distinct": 4,
+    "n_distinct_folded": 4,
+    "n_missing": 0,
+    "n_missing_blank": 0,
+    "n_missing_withheld": 0,
+    "n_not_numeric": 1200,
+    "n_numeric": 0,
+    "n_out_of_range": 0,
+    "n_present": 1200,
+    "n_sentinel_candidates_unpublished": 0,
+    "name": "code_col",
+    "pool_in_people": {
+     "number_from": "",
+     "word_from": "T"
+    },
+    "position": 2,
+    "quality_state": "ok",
+    "remarks": [],
+    "role": "categorical",
+    "sentinel_verdicts": [],
+    "shape_forms": {},
+    "statistical_type": "categorical",
+    "structural_role": "data",
+    "suppressed_levels": 1,
+    "suppressed_numbers": {
+     "mean": null,
+     "n_cells": 0
+    },
+    "suppressed_rows": 20
+   },
+   "content": {
+    "A": 392,
+    "C": 392,
+    "G": 396,
+    "T": 20
+   },
+   "rows": 1200
+  },
+  "pool_both_classes": {
+   "block": {
+    "detection_evidence": "there are 5 different values, which is within the 120 a set of categories may have in a table of 1200 rows, so this column is a set of categories",
+    "level_ceiling": 120,
+    "levels": [
+     {
+      "count": 388,
+      "label": "2",
+      "shape_form_cells": 0,
+      "variants": {
+       "2": 388
+      },
+      "variants_withheld": {}
+     },
+     {
+      "count": 388,
+      "label": "3",
+      "shape_form_cells": 0,
+      "variants": {
+       "3": 388
+      },
+      "variants_withheld": {}
+     },
+     {
+      "count": 384,
+      "label": "1",
+      "shape_form_cells": 0,
+      "variants": {
+       "1": 384
+      },
+      "variants_withheld": {}
+     }
+    ],
+    "missing_by_class": {
+     "(blank)": 0,
+     "(date-sentinel)": 0,
+     "(declared-missing)": 0,
+     "(numeric-sentinel)": 0,
+     "(text-code)": 0,
+     "(withheld)": 0
+    },
+    "missing_by_source": {},
+    "n_contradictory": 0,
+    "n_distinct": 5,
+    "n_distinct_folded": 5,
+    "n_missing": 0,
+    "n_missing_blank": 0,
+    "n_missing_withheld": 0,
+    "n_not_numeric": 20,
+    "n_numeric": 1180,
+    "n_out_of_range": 0,
+    "n_present": 1200,
+    "n_sentinel_candidates_unpublished": 0,
+    "name": "code_col",
+    "pool_in_people": {
+     "number_from": "88",
+     "word_from": "Z"
+    },
+    "position": 2,
+    "quality_state": "ok",
+    "remarks": [],
+    "role": "categorical",
+    "sentinel_verdicts": [],
+    "shape_forms": {},
+    "statistical_type": "categorical",
+    "structural_role": "data",
+    "suppressed_levels": 2,
+    "suppressed_numbers": {
+     "mean": null,
+     "n_cells": 0
+    },
+    "suppressed_rows": 40
+   },
+   "content": {
+    "1": 384,
+    "2": 388,
+    "3": 388,
+    "88": 20,
+    "Z": 20
+   },
+   "rows": 1200
+  },
+  "pool_clock_walk": {
+   "block": {
+    "detection_evidence": "there are 3 different values, which is within the 120 a set of categories may have in a table of 1200 rows, so this column is a set of categories",
+    "level_ceiling": 120,
+    "levels": [
+     {
+      "count": 592,
+      "label": "10:45",
+      "shape_form_cells": 592,
+      "variants": {
+       "10:45": 592
+      },
+      "variants_withheld": {}
+     },
+     {
+      "count": 588,
+      "label": "08:30",
+      "shape_form_cells": 588,
+      "variants": {
+       "08:30": 588
+      },
+      "variants_withheld": {}
+     }
+    ],
+    "missing_by_class": {
+     "(blank)": 0,
+     "(date-sentinel)": 0,
+     "(declared-missing)": 0,
+     "(numeric-sentinel)": 0,
+     "(text-code)": 0,
+     "(withheld)": 0
+    },
+    "missing_by_source": {},
+    "n_contradictory": 0,
+    "n_distinct": 3,
+    "n_distinct_folded": 3,
+    "n_missing": 0,
+    "n_missing_blank": 0,
+    "n_missing_withheld": 0,
+    "n_not_numeric": 1200,
+    "n_numeric": 0,
+    "n_out_of_range": 0,
+    "n_present": 1200,
+    "n_sentinel_candidates_unpublished": 0,
+    "name": "code_col",
+    "pool_in_people": {
+     "number_from": "",
+     "word_from": "23:59"
+    },
+    "position": 2,
+    "quality_state": "ok",
+    "remarks": [],
+    "role": "categorical",
+    "sentinel_verdicts": [],
+    "shape_forms": {
+     "%%:%%": 1180
+    },
+    "statistical_type": "categorical",
+    "structural_role": "data",
+    "suppressed_levels": 1,
+    "suppressed_numbers": {
+     "mean": null,
+     "n_cells": 0
+    },
+    "suppressed_rows": 20
+   },
+   "content": {
+    "08:30": 588,
+    "10:45": 592,
+    "23:59": 20
+   },
+   "rows": 1200
+  },
+  "pool_date_walk": {
+   "block": {
+    "detection_evidence": "there are 3 different values, which is within the 120 a set of categories may have in a table of 1200 rows, so this column is a set of categories",
+    "level_ceiling": 120,
+    "levels": [
+     {
+      "count": 592,
+      "label": "2024-01-06",
+      "shape_form_cells": 592,
+      "variants": {
+       "2024-01-06": 592
+      },
+      "variants_withheld": {}
+     },
+     {
+      "count": 588,
+      "label": "2024-01-05",
+      "shape_form_cells": 588,
+      "variants": {
+       "2024-01-05": 588
+      },
+      "variants_withheld": {}
+     }
+    ],
+    "missing_by_class": {
+     "(blank)": 0,
+     "(date-sentinel)": 0,
+     "(declared-missing)": 0,
+     "(numeric-sentinel)": 0,
+     "(text-code)": 0,
+     "(withheld)": 0
+    },
+    "missing_by_source": {},
+    "n_contradictory": 0,
+    "n_distinct": 3,
+    "n_distinct_folded": 3,
+    "n_missing": 0,
+    "n_missing_blank": 0,
+    "n_missing_withheld": 0,
+    "n_not_numeric": 1200,
+    "n_numeric": 0,
+    "n_out_of_range": 0,
+    "n_present": 1200,
+    "n_sentinel_candidates_unpublished": 0,
+    "name": "code_col",
+    "pool_in_people": {
+     "number_from": "",
+     "word_from": "1999-12-31"
+    },
+    "position": 2,
+    "quality_state": "ok",
+    "remarks": [],
+    "role": "categorical",
+    "sentinel_verdicts": [],
+    "shape_forms": {
+     "%%%%-%%-%%": 1180
+    },
+    "statistical_type": "categorical",
+    "structural_role": "data",
+    "suppressed_levels": 1,
+    "suppressed_numbers": {
+     "mean": null,
+     "n_cells": 0
+    },
+    "suppressed_rows": 20
+   },
+   "content": {
+    "1999-12-31": 20,
+    "2024-01-05": 588,
+    "2024-01-06": 592
+   },
+   "rows": 1200
+  },
+  "pool_number_countdown": {
+   "block": {
+    "detection_evidence": "there are 4 different values, which is within the 120 a set of categories may have in a table of 1200 rows, so this column is a set of categories",
+    "level_ceiling": 120,
+    "levels": [
+     {
+      "count": 396,
+      "label": "3",
+      "shape_form_cells": 0,
+      "variants": {
+       "3": 396
+      },
+      "variants_withheld": {}
+     },
+     {
+      "count": 392,
+      "label": "1",
+      "shape_form_cells": 0,
+      "variants": {
+       "1": 392
+      },
+      "variants_withheld": {}
+     },
+     {
+      "count": 392,
+      "label": "2",
+      "shape_form_cells": 0,
+      "variants": {
+       "2": 392
+      },
+      "variants_withheld": {}
+     }
+    ],
+    "missing_by_class": {
+     "(blank)": 0,
+     "(date-sentinel)": 0,
+     "(declared-missing)": 0,
+     "(numeric-sentinel)": 0,
+     "(text-code)": 0,
+     "(withheld)": 0
+    },
+    "missing_by_source": {},
+    "n_contradictory": 0,
+    "n_distinct": 4,
+    "n_distinct_folded": 4,
+    "n_missing": 0,
+    "n_missing_blank": 0,
+    "n_missing_withheld": 0,
+    "n_not_numeric": 0,
+    "n_numeric": 1200,
+    "n_out_of_range": 0,
+    "n_present": 1200,
+    "n_sentinel_candidates_unpublished": 0,
+    "name": "code_col",
+    "pool_in_people": {
+     "number_from": "88",
+     "word_from": ""
+    },
+    "position": 2,
+    "quality_state": "ok",
+    "remarks": [],
+    "role": "categorical",
+    "sentinel_verdicts": [],
+    "shape_forms": {},
+    "statistical_type": "categorical",
+    "structural_role": "data",
+    "suppressed_levels": 1,
+    "suppressed_numbers": {
+     "mean": null,
+     "n_cells": 0
+    },
+    "suppressed_rows": 20
+   },
+   "content": {
+    "1": 392,
+    "2": 392,
+    "3": 396,
+    "88": 20
+   },
+   "rows": 1200
+  },
+  "pool_unit_kept": {
+   "block": {
+    "detection_evidence": "there are 3 different values, which is within the 120 a set of categories may have in a table of 1200 rows, so this column is a set of categories",
+    "level_ceiling": 120,
+    "levels": [
+     {
+      "count": 592,
+      "label": "12 mo",
+      "shape_form_cells": 0,
+      "variants": {
+       "12 mo": 592
+      },
+      "variants_withheld": {}
+     },
+     {
+      "count": 588,
+      "label": "6 mo",
+      "shape_form_cells": 0,
+      "variants": {
+       "6 mo": 588
+      },
+      "variants_withheld": {}
+     }
+    ],
+    "missing_by_class": {
+     "(blank)": 0,
+     "(date-sentinel)": 0,
+     "(declared-missing)": 0,
+     "(numeric-sentinel)": 0,
+     "(text-code)": 0,
+     "(withheld)": 0
+    },
+    "missing_by_source": {},
+    "n_contradictory": 0,
+    "n_distinct": 3,
+    "n_distinct_folded": 3,
+    "n_missing": 0,
+    "n_missing_blank": 0,
+    "n_missing_withheld": 0,
+    "n_not_numeric": 1200,
+    "n_numeric": 0,
+    "n_out_of_range": 0,
+    "n_present": 1200,
+    "n_sentinel_candidates_unpublished": 0,
+    "name": "code_col",
+    "pool_in_people": {
+     "number_from": "",
+     "word_from": "888 mo"
+    },
+    "position": 2,
+    "quality_state": "ok",
+    "remarks": [],
+    "role": "categorical",
+    "sentinel_verdicts": [],
+    "shape_forms": {},
+    "statistical_type": "categorical",
+    "structural_role": "data",
+    "suppressed_levels": 1,
+    "suppressed_numbers": {
+     "mean": null,
+     "n_cells": 0
+    },
+    "suppressed_rows": 20
+   },
+   "content": {
+    "12 mo": 592,
+    "6 mo": 588,
+    "888 mo": 20
+   },
+   "rows": 1200
+  },
+  "pool_word_countdown": {
+   "block": {
+    "detection_evidence": "there are 3 different values, which is within the 120 a set of categories may have in a table of 1200 rows, so this column is a set of categories",
+    "level_ceiling": 120,
+    "levels": [
+     {
+      "count": 592,
+      "label": "bravo",
+      "shape_form_cells": 0,
+      "variants": {
+       "BRAVO": 592
+      },
+      "variants_withheld": {}
+     },
+     {
+      "count": 588,
+      "label": "alpha",
+      "shape_form_cells": 0,
+      "variants": {
+       "ALPHA": 588
+      },
+      "variants_withheld": {}
+     }
+    ],
+    "missing_by_class": {
+     "(blank)": 0,
+     "(date-sentinel)": 0,
+     "(declared-missing)": 0,
+     "(numeric-sentinel)": 0,
+     "(text-code)": 0,
+     "(withheld)": 0
+    },
+    "missing_by_source": {},
+    "n_contradictory": 0,
+    "n_distinct": 3,
+    "n_distinct_folded": 3,
+    "n_missing": 0,
+    "n_missing_blank": 0,
+    "n_missing_withheld": 0,
+    "n_not_numeric": 1200,
+    "n_numeric": 0,
+    "n_out_of_range": 0,
+    "n_present": 1200,
+    "n_sentinel_candidates_unpublished": 0,
+    "name": "code_col",
+    "pool_in_people": {
+     "number_from": "",
+     "word_from": "ZZZZZZ"
+    },
+    "position": 2,
+    "quality_state": "ok",
+    "remarks": [],
+    "role": "categorical",
+    "sentinel_verdicts": [],
+    "shape_forms": {},
+    "statistical_type": "categorical",
+    "structural_role": "data",
+    "suppressed_levels": 1,
+    "suppressed_numbers": {
+     "mean": null,
+     "n_cells": 0
+    },
+    "suppressed_rows": 20
+   },
+   "content": {
+    "ALPHA": 588,
+    "BRAVO": 592,
+    "ZZZZZZ": 20
+   },
+   "rows": 1200
+  },
+  "pool_yes_no_member": {
+   "block": {
+    "detection_evidence": "there are exactly two different values, ignoring upper and lower case",
+    "levels": [
+     {
+      "count": 1180,
+      "label": "n",
+      "shape_form_cells": 0,
+      "variants": {
+       "N": 1180
+      },
+      "variants_withheld": {}
+     }
+    ],
+    "missing_by_class": {
+     "(blank)": 0,
+     "(date-sentinel)": 0,
+     "(declared-missing)": 0,
+     "(numeric-sentinel)": 0,
+     "(text-code)": 0,
+     "(withheld)": 0
+    },
+    "missing_by_source": {},
+    "n_contradictory": 0,
+    "n_distinct": 2,
+    "n_distinct_folded": 2,
+    "n_missing": 0,
+    "n_missing_blank": 0,
+    "n_missing_withheld": 0,
+    "n_not_numeric": 1200,
+    "n_numeric": 0,
+    "n_out_of_range": 0,
+    "n_present": 1200,
+    "n_sentinel_candidates_unpublished": 0,
+    "name": "code_col",
+    "pool_in_people": {
+     "number_from": "",
+     "word_from": "Y"
+    },
+    "position": 2,
+    "quality_state": "ok",
+    "remarks": [],
+    "role": "binary",
+    "sentinel_verdicts": [],
+    "shape_forms": {},
+    "statistical_type": "binary",
+    "structural_role": "data",
+    "suppressed_levels": 1,
+    "suppressed_numbers": {
+     "mean": null,
+     "n_cells": 0
+    },
+    "suppressed_rows": 20
+   },
+   "content": {
+    "N": 1180,
+    "Y": 20
+   },
+   "rows": 1200
+  },
+  "pool_zero_one_member": {
+   "block": {
+    "detection_evidence": "there are exactly two different values, ignoring upper and lower case",
+    "levels": [
+     {
+      "count": 1180,
+      "label": "0",
+      "shape_form_cells": 0,
+      "variants": {
+       "0": 1180
+      },
+      "variants_withheld": {}
+     }
+    ],
+    "missing_by_class": {
+     "(blank)": 0,
+     "(date-sentinel)": 0,
+     "(declared-missing)": 0,
+     "(numeric-sentinel)": 0,
+     "(text-code)": 0,
+     "(withheld)": 0
+    },
+    "missing_by_source": {},
+    "n_contradictory": 0,
+    "n_distinct": 2,
+    "n_distinct_folded": 2,
+    "n_missing": 0,
+    "n_missing_blank": 0,
+    "n_missing_withheld": 0,
+    "n_not_numeric": 0,
+    "n_numeric": 1200,
+    "n_out_of_range": 0,
+    "n_present": 1200,
+    "n_sentinel_candidates_unpublished": 0,
+    "name": "code_col",
+    "pool_in_people": {
+     "number_from": "1",
+     "word_from": ""
+    },
+    "position": 2,
+    "quality_state": "ok",
+    "remarks": [
+     "the two values in this column also read as numbers or dates; because there are only two of them, the profile records the two values and how often each appears, which describes the column exactly"
+    ],
+    "role": "binary",
+    "sentinel_verdicts": [],
+    "shape_forms": {},
+    "statistical_type": "binary",
+    "structural_role": "data",
+    "suppressed_levels": 1,
+    "suppressed_numbers": {
+     "mean": null,
+     "n_cells": 0
+    },
+    "suppressed_rows": 20
+   },
+   "content": {
+    "0": 1180,
+    "1": 20
+   },
+   "rows": 1200
+  },
+  "thin_words_written": {
+   "block": {
+    "detection_evidence": "the cells of this column that hold a value belong to too few people or rows for their number to be published, so that number is not published, and the twin writes no real value here: the column blank or, where its cells are words, one made-up word in as many cells as the smallest group size, whatever the real number; the real table may hold values here",
+    "missing_by_class": {
+     "(blank)": 1200,
+     "(date-sentinel)": 0,
+     "(declared-missing)": 0,
+     "(numeric-sentinel)": 0,
+     "(text-code)": 0,
+     "(withheld)": 0
+    },
+    "missing_by_source": {},
+    "n_contradictory": 0,
+    "n_distinct": 0,
+    "n_distinct_folded": 0,
+    "n_missing": 1200,
+    "n_missing_blank": 1200,
+    "n_missing_withheld": 0,
+    "n_not_numeric": 0,
+    "n_numeric": 0,
+    "n_out_of_range": 0,
+    "n_present": 0,
+    "n_sentinel_candidates_unpublished": 0,
+    "name": "thin_col",
+    "position": 2,
+    "present_count_withheld": true,
+    "quality_state": "empty",
+    "remarks": [],
+    "role": "empty",
+    "sentinel_verdicts": [],
+    "statistical_type": "unknown",
+    "structural_role": "data",
+    "withheld_words_from": "Z"
+   },
+   "content": {
+    "Z": 11
+   },
+   "rows": 1200
+  }
+ },
+ "generated_by": "tools/reference/make_generation_reference_vectors.py",
+ "method": "docs/spec/generation-method-v1.md",
+ "never_imports": [
+  "synthtwin",
+  "numpy",
+  "pandas"
+ ],
+ "part": "branches-32",
+ "section": "G8.3d",
+ "what": "The content lists method section G8.3d requires of a pool counted in people and of a column of words counted absent (lane PL, plan P4-D453), each from its block alone, before placement: each spelling with the number of cells that hold it."
+}

@@ -487,15 +487,20 @@ def test_a_register_list_keeps_its_own_answers(tmp_path: pathlib.Path) -> None:
 # -- the repair round (skeptic 1 and Codex's review of lane UN-1a) -----------
 
 
-def test_a_joined_yield_never_reaches_a_date_or_a_clock_rule(tmp_path: pathlib.Path) -> None:
+def test_a_joined_yield_never_reaches_a_date_or_a_clock_rule(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """(d) rule 0c yields to rule 7's list at once: a joined column is never read as dates or clocks.
 
     Skeptic 1 item 1 (R-P4-51's `1/4/10`, `2/3/20`, ... declared joined
     came back as dates) and Codex item 3 (`1:02`, `01:02`, `2:03`,
     `02:03` declared a measurement came back as times of day). Both keep
     their exact list. Red on the mutant that lets the yield fall on
-    through rules 2 to 6.
+    through rules 2 to 6. `1/4/10` reads as a date in disguise, held until
+    `no` about dates (plan P4-D446): the description `no` gives back is the
+    one read here, about the yield.
     """
+    import keyboard
+
+    keyboard.dates_in_disguise_answered_no(monkeypatch)
     for name, levels in (
         ("dated", ["1/4/10", "2/3/20", "3/2/30", "4/1/40"]),
         ("ratio", ["1:02", "01:02", "2:03", "02:03"]),
@@ -676,12 +681,18 @@ def test_q_unit_answered_keep_is_not_put_again(tmp_path: pathlib.Path) -> None:
     assert (tmp_path / "t-profile.json").read_text(encoding="utf-8") == described
 
 
-def test_a_day_of_a_month_is_put_no_unit_question(tmp_path: pathlib.Path) -> None:
+def test_a_day_of_a_month_is_put_no_unit_question(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """(c) `12 Jan` is a day of a month, not an amount in the unit `Jan`: Q-UNIT is not put.
 
     Skeptic 1 item 9. Red on the mutant without `taxonomy._a_calendar_word`
-    in `taxonomy.reads_as_a_unit`.
+    in `taxonomy.reads_as_a_unit`. A day and a month name a date element
+    finer than the year, held until `no` about dates in disguise (plan
+    P4-D446, lane CZ-H's second repair): the description that `no` gives
+    back is the one read here, about units.
     """
+    import keyboard
+
+    keyboard.dates_in_disguise_answered_no(monkeypatch)
     cells = _cycled([f"{day} {month}" for day in range(1, 6) for month in ("Jan", "Feb")], 60)
     assert _profile(tmp_path, ["seen"] + cells) == 0
     assert _block(tmp_path, "seen")["role"] == taxonomy.ROLE_CATEGORICAL

@@ -12913,6 +12913,737 @@ def held_back_sizes(
     return sorted(sizes)
 
 
+POOL_ALPHABETS = ("TGCA", "tgca")
+POOL_MEMBERS = ("0", "1", "y", "n", "yes", "no", "t", "f", "true", "false")
+
+
+def pool_walking(text):
+    """Which places of a countdown's spelling step -- method G8.3d.
+
+    Figures always; a letter (an ASCII letter, or any character past ASCII)
+    where the spelling holds no figure, or where it stands alone, no letter
+    beside it, against a figure; nothing else.
+    """
+    def figure(one):
+        return one != "" and one in "0123456789"
+
+    def letter(one):
+        return one != "" and (one.isascii() and one.isalpha() or not one.isascii())
+
+    has_figure = any(figure(one) for one in text)
+    places = []
+    for at, one in enumerate(text):
+        if figure(one):
+            places.append(True)
+        elif letter(one):
+            left = text[at - 1] if at else ""
+            right = text[at + 1] if at + 1 < len(text) else ""
+            alone = not letter(left) and not letter(right)
+            beside = figure(left) or figure(right)
+            places.append((not has_figure) or (alone and beside))
+        else:
+            places.append(False)
+    return places
+
+
+def pool_walk_next(text):
+    """The spelling after one in a countdown, or None: method G8.3d's countdown."""
+    places = list(text)
+    stepping = [at for at, walks in enumerate(pool_walking(text)) if walks]
+    for at in reversed(stepping):
+        one = places[at]
+        if not one.isascii():
+            return None
+        bottom = "A" if one.isupper() else "a" if one.islower() else "1" if at == stepping[0] else "0"
+        if one > bottom:
+            places[at] = chr(ord(one) - 1)
+            return "".join(places)
+        places[at] = "Z" if one.isupper() else "z" if one.islower() else "9"
+    return None
+
+
+def pool_clock(text):
+    """A clock of G8.3d as (minutes or seconds of the day, its unit, its hour's width), or None."""
+    pieces = text.split(":")
+    if len(pieces) not in (2, 3) or len(pieces[0]) not in (1, 2):
+        return None
+    if any(not piece.isascii() or not piece.isdigit() for piece in pieces):
+        return None
+    if any(len(piece) != 2 for piece in pieces[1:]):
+        return None
+    numbers = [int(piece) for piece in pieces]
+    if numbers[0] == 24 and all(number == 0 for number in numbers[1:]):
+        pass
+    elif numbers[0] > 23 or any(number > 59 for number in numbers[1:]):
+        return None
+    total = 0
+    for number in numbers:
+        total = total * 60 + number
+    return total, len(numbers), len(pieces[0])
+
+
+def pool_date(text):
+    """A date of G8.3d as (the date, its layout), or None."""
+    for mark in "-/":
+        pieces = text.split(mark)
+        if len(pieces) != 3 or any(not piece.isascii() or not piece.isdigit() for piece in pieces):
+            continue
+        widths = [len(piece) for piece in pieces]
+        if widths == [4, 2, 2]:
+            year, month, day, layout = int(pieces[0]), int(pieces[1]), int(pieces[2]), "ymd"
+        elif widths == [2, 2, 4]:
+            year, month, day, layout = int(pieces[2]), int(pieces[0]), int(pieces[1]), "mdy"
+        else:
+            return None
+        if year < 1000:
+            return None
+        try:
+            return datetime.date(year, month, day), layout + mark
+        except ValueError:
+            return None
+    return None
+
+
+def pool_walk_kind(start):
+    """Which of G8.3d's walks a start begins."""
+    if pool_clock(start) is not None:
+        return "clock"
+    if pool_date(start) is not None:
+        return "date"
+    if start and any(all(one in alphabet for one in start) for alphabet in POOL_ALPHABETS):
+        return "alphabet"
+    if start.strip().casefold() in POOL_MEMBERS:
+        return "member"
+    return "countdown"
+
+
+def pool_walk_after(text, kind):
+    """The spelling after one in a walk of G8.3d, or None where its room ends."""
+    if kind == "member":
+        return None
+    if kind == "clock":
+        total, parts, width = pool_clock(text)
+        if total == 0:
+            return None
+        total -= 1
+        pieces = []
+        for _ in range(parts - 1):
+            pieces.insert(0, f"{total % 60:02d}")
+            total //= 60
+        return ":".join([f"{total:0{width}d}"] + pieces)
+    if kind == "date":
+        day, layout = pool_date(text)
+        if day == datetime.date(1000, 1, 1):
+            return None
+        day = day - datetime.timedelta(days=1)
+        mark = layout[3]
+        if layout.startswith("ymd"):
+            return f"{day.year:04d}{mark}{day.month:02d}{mark}{day.day:02d}"
+        return f"{day.month:02d}{mark}{day.day:02d}{mark}{day.year:04d}"
+    if kind == "alphabet":
+        alphabet = POOL_ALPHABETS[0] if text[0] in POOL_ALPHABETS[0] else POOL_ALPHABETS[1]
+        places = list(text)
+        for at in range(len(places) - 1, -1, -1):
+            rank = alphabet.index(places[at])
+            if rank + 1 < len(alphabet):
+                places[at] = alphabet[rank + 1]
+                return "".join(places)
+            places[at] = alphabet[0]
+        return None
+    return pool_walk_next(text)
+
+
+def pool_walk(start, wanted, published):
+    """The first ``wanted`` spellings of a walk of G8.3d that fold onto no published level."""
+    kind = pool_walk_kind(start)
+    spellings = []
+    written = start
+    while wanted and written is not None and len(spellings) < wanted:
+        if folded(written) not in published:
+            spellings.append(written)
+        written = pool_walk_after(written, kind)
+    return spellings
+
+
+def withheld_word_cells(column, rows):
+    """A column of words counted absent: its one word in the floor's number of its cells -- method G8.3d.
+
+    At most its blank cells, and none on a column that names no word.
+    """
+    if not column.get("present_count_withheld") or not column.get("withheld_words_from"):
+        return []
+    blanks = column["n_missing"] - sum((column.get("missing_by_source") or {}).values())
+    return [column["withheld_words_from"]] * max(0, min(SMALL_CELL_FLOOR, rows, blanks))
+
+
+def pool_in_people_cells(column, content):
+    """The stand-ins of a pool counted in people, method G8.3d from its own words."""
+    published = {level["label"] for level in column["levels"]}
+    rows = column["suppressed_rows"]
+    levels = column["suppressed_levels"]
+    numbers = min(max(classes_owed(column, content)[OWED_NUMBER], 0), rows)
+    words = rows - numbers
+    number_levels = levels if numbers and not words else 0
+    if numbers and words:
+        number_levels = max(1, min(levels - 1, levels * numbers // rows))
+    answer = []
+    starts = column["pool_in_people"]
+    for start, wanted, owing in (
+        (starts["number_from"], number_levels, numbers),
+        (starts["word_from"], levels - number_levels, words),
+    ):
+        spellings = pool_walk(start, wanted, published)
+        for at, spelling in enumerate(spellings):
+            answer.extend([spelling] * (owing // len(spellings) + (1 if at < owing % len(spellings) else 0)))
+    return answer
+
+
+# THE THIRTY-SECOND FILE: method G8.3d, a pool counted in people and a column
+# of words counted absent (lane PL's repair 1, plan P4-D453; the
+# orchestrator's LANE PL RULINGS 1 (3), A-P4-59). Not a file of placed twin
+# cells but of each block's content list before placement (G4.2 places it as
+# every content list is placed): the published levels' cells and the
+# stand-ins this oracle's own walks write from the block's starts. Each block
+# is a description the producer wrote of an invented table of 1,200 rows,
+# three hundred people on four rows each, a level five people hold beside the
+# kept ones; the case's name says which walk it reaches. Written by
+# `make_generation_branch_vectors_32.py` through `write_pool_in_people_vectors`.
+POOL_IN_PEOPLE_PART = "branches-32"
+POOL_IN_PEOPLE_CASES = {'pool_alphabet_walk': {'block': {'detection_evidence': 'there are 4 different values, '
+                                                        'which is within the 120 a set '
+                                                        'of categories may have in a '
+                                                        'table of 1200 rows, so this '
+                                                        'column is a set of categories',
+                                  'level_ceiling': 120,
+                                  'levels': [{'count': 396,
+                                              'label': 'g',
+                                              'shape_form_cells': 0,
+                                              'variants': {'G': 396},
+                                              'variants_withheld': {}},
+                                             {'count': 392,
+                                              'label': 'a',
+                                              'shape_form_cells': 0,
+                                              'variants': {'A': 392},
+                                              'variants_withheld': {}},
+                                             {'count': 392,
+                                              'label': 'c',
+                                              'shape_form_cells': 0,
+                                              'variants': {'C': 392},
+                                              'variants_withheld': {}}],
+                                  'missing_by_class': {'(blank)': 0,
+                                                       '(date-sentinel)': 0,
+                                                       '(declared-missing)': 0,
+                                                       '(numeric-sentinel)': 0,
+                                                       '(text-code)': 0,
+                                                       '(withheld)': 0},
+                                  'missing_by_source': {},
+                                  'n_contradictory': 0,
+                                  'n_distinct': 4,
+                                  'n_distinct_folded': 4,
+                                  'n_missing': 0,
+                                  'n_missing_blank': 0,
+                                  'n_missing_withheld': 0,
+                                  'n_not_numeric': 1200,
+                                  'n_numeric': 0,
+                                  'n_out_of_range': 0,
+                                  'n_present': 1200,
+                                  'n_sentinel_candidates_unpublished': 0,
+                                  'name': 'code_col',
+                                  'pool_in_people': {'number_from': '',
+                                                     'word_from': 'T'},
+                                  'position': 2,
+                                  'quality_state': 'ok',
+                                  'remarks': [],
+                                  'role': 'categorical',
+                                  'sentinel_verdicts': [],
+                                  'shape_forms': {},
+                                  'statistical_type': 'categorical',
+                                  'structural_role': 'data',
+                                  'suppressed_levels': 1,
+                                  'suppressed_numbers': {'mean': None, 'n_cells': 0},
+                                  'suppressed_rows': 20},
+                        'rows': 1200},
+ 'pool_both_classes': {'block': {'detection_evidence': 'there are 5 different values, '
+                                                       'which is within the 120 a set '
+                                                       'of categories may have in a '
+                                                       'table of 1200 rows, so this '
+                                                       'column is a set of categories',
+                                 'level_ceiling': 120,
+                                 'levels': [{'count': 388,
+                                             'label': '2',
+                                             'shape_form_cells': 0,
+                                             'variants': {'2': 388},
+                                             'variants_withheld': {}},
+                                            {'count': 388,
+                                             'label': '3',
+                                             'shape_form_cells': 0,
+                                             'variants': {'3': 388},
+                                             'variants_withheld': {}},
+                                            {'count': 384,
+                                             'label': '1',
+                                             'shape_form_cells': 0,
+                                             'variants': {'1': 384},
+                                             'variants_withheld': {}}],
+                                 'missing_by_class': {'(blank)': 0,
+                                                      '(date-sentinel)': 0,
+                                                      '(declared-missing)': 0,
+                                                      '(numeric-sentinel)': 0,
+                                                      '(text-code)': 0,
+                                                      '(withheld)': 0},
+                                 'missing_by_source': {},
+                                 'n_contradictory': 0,
+                                 'n_distinct': 5,
+                                 'n_distinct_folded': 5,
+                                 'n_missing': 0,
+                                 'n_missing_blank': 0,
+                                 'n_missing_withheld': 0,
+                                 'n_not_numeric': 20,
+                                 'n_numeric': 1180,
+                                 'n_out_of_range': 0,
+                                 'n_present': 1200,
+                                 'n_sentinel_candidates_unpublished': 0,
+                                 'name': 'code_col',
+                                 'pool_in_people': {'number_from': '88',
+                                                    'word_from': 'Z'},
+                                 'position': 2,
+                                 'quality_state': 'ok',
+                                 'remarks': [],
+                                 'role': 'categorical',
+                                 'sentinel_verdicts': [],
+                                 'shape_forms': {},
+                                 'statistical_type': 'categorical',
+                                 'structural_role': 'data',
+                                 'suppressed_levels': 2,
+                                 'suppressed_numbers': {'mean': None, 'n_cells': 0},
+                                 'suppressed_rows': 40},
+                       'rows': 1200},
+ 'pool_clock_walk': {'block': {'detection_evidence': 'there are 3 different values, '
+                                                     'which is within the 120 a set of '
+                                                     'categories may have in a table '
+                                                     'of 1200 rows, so this column is '
+                                                     'a set of categories',
+                               'level_ceiling': 120,
+                               'levels': [{'count': 592,
+                                           'label': '10:45',
+                                           'shape_form_cells': 592,
+                                           'variants': {'10:45': 592},
+                                           'variants_withheld': {}},
+                                          {'count': 588,
+                                           'label': '08:30',
+                                           'shape_form_cells': 588,
+                                           'variants': {'08:30': 588},
+                                           'variants_withheld': {}}],
+                               'missing_by_class': {'(blank)': 0,
+                                                    '(date-sentinel)': 0,
+                                                    '(declared-missing)': 0,
+                                                    '(numeric-sentinel)': 0,
+                                                    '(text-code)': 0,
+                                                    '(withheld)': 0},
+                               'missing_by_source': {},
+                               'n_contradictory': 0,
+                               'n_distinct': 3,
+                               'n_distinct_folded': 3,
+                               'n_missing': 0,
+                               'n_missing_blank': 0,
+                               'n_missing_withheld': 0,
+                               'n_not_numeric': 1200,
+                               'n_numeric': 0,
+                               'n_out_of_range': 0,
+                               'n_present': 1200,
+                               'n_sentinel_candidates_unpublished': 0,
+                               'name': 'code_col',
+                               'pool_in_people': {'number_from': '',
+                                                  'word_from': '23:59'},
+                               'position': 2,
+                               'quality_state': 'ok',
+                               'remarks': [],
+                               'role': 'categorical',
+                               'sentinel_verdicts': [],
+                               'shape_forms': {'%%:%%': 1180},
+                               'statistical_type': 'categorical',
+                               'structural_role': 'data',
+                               'suppressed_levels': 1,
+                               'suppressed_numbers': {'mean': None, 'n_cells': 0},
+                               'suppressed_rows': 20},
+                     'rows': 1200},
+ 'pool_date_walk': {'block': {'detection_evidence': 'there are 3 different values, '
+                                                    'which is within the 120 a set of '
+                                                    'categories may have in a table of '
+                                                    '1200 rows, so this column is a '
+                                                    'set of categories',
+                              'level_ceiling': 120,
+                              'levels': [{'count': 592,
+                                          'label': '2024-01-06',
+                                          'shape_form_cells': 592,
+                                          'variants': {'2024-01-06': 592},
+                                          'variants_withheld': {}},
+                                         {'count': 588,
+                                          'label': '2024-01-05',
+                                          'shape_form_cells': 588,
+                                          'variants': {'2024-01-05': 588},
+                                          'variants_withheld': {}}],
+                              'missing_by_class': {'(blank)': 0,
+                                                   '(date-sentinel)': 0,
+                                                   '(declared-missing)': 0,
+                                                   '(numeric-sentinel)': 0,
+                                                   '(text-code)': 0,
+                                                   '(withheld)': 0},
+                              'missing_by_source': {},
+                              'n_contradictory': 0,
+                              'n_distinct': 3,
+                              'n_distinct_folded': 3,
+                              'n_missing': 0,
+                              'n_missing_blank': 0,
+                              'n_missing_withheld': 0,
+                              'n_not_numeric': 1200,
+                              'n_numeric': 0,
+                              'n_out_of_range': 0,
+                              'n_present': 1200,
+                              'n_sentinel_candidates_unpublished': 0,
+                              'name': 'code_col',
+                              'pool_in_people': {'number_from': '',
+                                                 'word_from': '1999-12-31'},
+                              'position': 2,
+                              'quality_state': 'ok',
+                              'remarks': [],
+                              'role': 'categorical',
+                              'sentinel_verdicts': [],
+                              'shape_forms': {'%%%%-%%-%%': 1180},
+                              'statistical_type': 'categorical',
+                              'structural_role': 'data',
+                              'suppressed_levels': 1,
+                              'suppressed_numbers': {'mean': None, 'n_cells': 0},
+                              'suppressed_rows': 20},
+                    'rows': 1200},
+ 'pool_number_countdown': {'block': {'detection_evidence': 'there are 4 different '
+                                                           'values, which is within '
+                                                           'the 120 a set of '
+                                                           'categories may have in a '
+                                                           'table of 1200 rows, so '
+                                                           'this column is a set of '
+                                                           'categories',
+                                     'level_ceiling': 120,
+                                     'levels': [{'count': 396,
+                                                 'label': '3',
+                                                 'shape_form_cells': 0,
+                                                 'variants': {'3': 396},
+                                                 'variants_withheld': {}},
+                                                {'count': 392,
+                                                 'label': '1',
+                                                 'shape_form_cells': 0,
+                                                 'variants': {'1': 392},
+                                                 'variants_withheld': {}},
+                                                {'count': 392,
+                                                 'label': '2',
+                                                 'shape_form_cells': 0,
+                                                 'variants': {'2': 392},
+                                                 'variants_withheld': {}}],
+                                     'missing_by_class': {'(blank)': 0,
+                                                          '(date-sentinel)': 0,
+                                                          '(declared-missing)': 0,
+                                                          '(numeric-sentinel)': 0,
+                                                          '(text-code)': 0,
+                                                          '(withheld)': 0},
+                                     'missing_by_source': {},
+                                     'n_contradictory': 0,
+                                     'n_distinct': 4,
+                                     'n_distinct_folded': 4,
+                                     'n_missing': 0,
+                                     'n_missing_blank': 0,
+                                     'n_missing_withheld': 0,
+                                     'n_not_numeric': 0,
+                                     'n_numeric': 1200,
+                                     'n_out_of_range': 0,
+                                     'n_present': 1200,
+                                     'n_sentinel_candidates_unpublished': 0,
+                                     'name': 'code_col',
+                                     'pool_in_people': {'number_from': '88',
+                                                        'word_from': ''},
+                                     'position': 2,
+                                     'quality_state': 'ok',
+                                     'remarks': [],
+                                     'role': 'categorical',
+                                     'sentinel_verdicts': [],
+                                     'shape_forms': {},
+                                     'statistical_type': 'categorical',
+                                     'structural_role': 'data',
+                                     'suppressed_levels': 1,
+                                     'suppressed_numbers': {'mean': None, 'n_cells': 0},
+                                     'suppressed_rows': 20},
+                           'rows': 1200},
+ 'pool_unit_kept': {'block': {'detection_evidence': 'there are 3 different values, '
+                                                    'which is within the 120 a set of '
+                                                    'categories may have in a table of '
+                                                    '1200 rows, so this column is a '
+                                                    'set of categories',
+                              'level_ceiling': 120,
+                              'levels': [{'count': 592,
+                                          'label': '12 mo',
+                                          'shape_form_cells': 0,
+                                          'variants': {'12 mo': 592},
+                                          'variants_withheld': {}},
+                                         {'count': 588,
+                                          'label': '6 mo',
+                                          'shape_form_cells': 0,
+                                          'variants': {'6 mo': 588},
+                                          'variants_withheld': {}}],
+                              'missing_by_class': {'(blank)': 0,
+                                                   '(date-sentinel)': 0,
+                                                   '(declared-missing)': 0,
+                                                   '(numeric-sentinel)': 0,
+                                                   '(text-code)': 0,
+                                                   '(withheld)': 0},
+                              'missing_by_source': {},
+                              'n_contradictory': 0,
+                              'n_distinct': 3,
+                              'n_distinct_folded': 3,
+                              'n_missing': 0,
+                              'n_missing_blank': 0,
+                              'n_missing_withheld': 0,
+                              'n_not_numeric': 1200,
+                              'n_numeric': 0,
+                              'n_out_of_range': 0,
+                              'n_present': 1200,
+                              'n_sentinel_candidates_unpublished': 0,
+                              'name': 'code_col',
+                              'pool_in_people': {'number_from': '',
+                                                 'word_from': '888 mo'},
+                              'position': 2,
+                              'quality_state': 'ok',
+                              'remarks': [],
+                              'role': 'categorical',
+                              'sentinel_verdicts': [],
+                              'shape_forms': {},
+                              'statistical_type': 'categorical',
+                              'structural_role': 'data',
+                              'suppressed_levels': 1,
+                              'suppressed_numbers': {'mean': None, 'n_cells': 0},
+                              'suppressed_rows': 20},
+                    'rows': 1200},
+ 'pool_word_countdown': {'block': {'detection_evidence': 'there are 3 different '
+                                                         'values, which is within the '
+                                                         '120 a set of categories may '
+                                                         'have in a table of 1200 '
+                                                         'rows, so this column is a '
+                                                         'set of categories',
+                                   'level_ceiling': 120,
+                                   'levels': [{'count': 592,
+                                               'label': 'bravo',
+                                               'shape_form_cells': 0,
+                                               'variants': {'BRAVO': 592},
+                                               'variants_withheld': {}},
+                                              {'count': 588,
+                                               'label': 'alpha',
+                                               'shape_form_cells': 0,
+                                               'variants': {'ALPHA': 588},
+                                               'variants_withheld': {}}],
+                                   'missing_by_class': {'(blank)': 0,
+                                                        '(date-sentinel)': 0,
+                                                        '(declared-missing)': 0,
+                                                        '(numeric-sentinel)': 0,
+                                                        '(text-code)': 0,
+                                                        '(withheld)': 0},
+                                   'missing_by_source': {},
+                                   'n_contradictory': 0,
+                                   'n_distinct': 3,
+                                   'n_distinct_folded': 3,
+                                   'n_missing': 0,
+                                   'n_missing_blank': 0,
+                                   'n_missing_withheld': 0,
+                                   'n_not_numeric': 1200,
+                                   'n_numeric': 0,
+                                   'n_out_of_range': 0,
+                                   'n_present': 1200,
+                                   'n_sentinel_candidates_unpublished': 0,
+                                   'name': 'code_col',
+                                   'pool_in_people': {'number_from': '',
+                                                      'word_from': 'ZZZZZZ'},
+                                   'position': 2,
+                                   'quality_state': 'ok',
+                                   'remarks': [],
+                                   'role': 'categorical',
+                                   'sentinel_verdicts': [],
+                                   'shape_forms': {},
+                                   'statistical_type': 'categorical',
+                                   'structural_role': 'data',
+                                   'suppressed_levels': 1,
+                                   'suppressed_numbers': {'mean': None, 'n_cells': 0},
+                                   'suppressed_rows': 20},
+                         'rows': 1200},
+ 'pool_yes_no_member': {'block': {'detection_evidence': 'there are exactly two '
+                                                        'different values, ignoring '
+                                                        'upper and lower case',
+                                  'levels': [{'count': 1180,
+                                              'label': 'n',
+                                              'shape_form_cells': 0,
+                                              'variants': {'N': 1180},
+                                              'variants_withheld': {}}],
+                                  'missing_by_class': {'(blank)': 0,
+                                                       '(date-sentinel)': 0,
+                                                       '(declared-missing)': 0,
+                                                       '(numeric-sentinel)': 0,
+                                                       '(text-code)': 0,
+                                                       '(withheld)': 0},
+                                  'missing_by_source': {},
+                                  'n_contradictory': 0,
+                                  'n_distinct': 2,
+                                  'n_distinct_folded': 2,
+                                  'n_missing': 0,
+                                  'n_missing_blank': 0,
+                                  'n_missing_withheld': 0,
+                                  'n_not_numeric': 1200,
+                                  'n_numeric': 0,
+                                  'n_out_of_range': 0,
+                                  'n_present': 1200,
+                                  'n_sentinel_candidates_unpublished': 0,
+                                  'name': 'code_col',
+                                  'pool_in_people': {'number_from': '',
+                                                     'word_from': 'Y'},
+                                  'position': 2,
+                                  'quality_state': 'ok',
+                                  'remarks': [],
+                                  'role': 'binary',
+                                  'sentinel_verdicts': [],
+                                  'shape_forms': {},
+                                  'statistical_type': 'binary',
+                                  'structural_role': 'data',
+                                  'suppressed_levels': 1,
+                                  'suppressed_numbers': {'mean': None, 'n_cells': 0},
+                                  'suppressed_rows': 20},
+                        'rows': 1200},
+ 'pool_zero_one_member': {'block': {'detection_evidence': 'there are exactly two '
+                                                          'different values, ignoring '
+                                                          'upper and lower case',
+                                    'levels': [{'count': 1180,
+                                                'label': '0',
+                                                'shape_form_cells': 0,
+                                                'variants': {'0': 1180},
+                                                'variants_withheld': {}}],
+                                    'missing_by_class': {'(blank)': 0,
+                                                         '(date-sentinel)': 0,
+                                                         '(declared-missing)': 0,
+                                                         '(numeric-sentinel)': 0,
+                                                         '(text-code)': 0,
+                                                         '(withheld)': 0},
+                                    'missing_by_source': {},
+                                    'n_contradictory': 0,
+                                    'n_distinct': 2,
+                                    'n_distinct_folded': 2,
+                                    'n_missing': 0,
+                                    'n_missing_blank': 0,
+                                    'n_missing_withheld': 0,
+                                    'n_not_numeric': 0,
+                                    'n_numeric': 1200,
+                                    'n_out_of_range': 0,
+                                    'n_present': 1200,
+                                    'n_sentinel_candidates_unpublished': 0,
+                                    'name': 'code_col',
+                                    'pool_in_people': {'number_from': '1',
+                                                       'word_from': ''},
+                                    'position': 2,
+                                    'quality_state': 'ok',
+                                    'remarks': ['the two values in this column also '
+                                                'read as numbers or dates; because '
+                                                'there are only two of them, the '
+                                                'profile records the two values and '
+                                                'how often each appears, which '
+                                                'describes the column exactly'],
+                                    'role': 'binary',
+                                    'sentinel_verdicts': [],
+                                    'shape_forms': {},
+                                    'statistical_type': 'binary',
+                                    'structural_role': 'data',
+                                    'suppressed_levels': 1,
+                                    'suppressed_numbers': {'mean': None, 'n_cells': 0},
+                                    'suppressed_rows': 20},
+                          'rows': 1200},
+ 'thin_words_written': {'block': {'detection_evidence': 'the cells of this column that '
+                                                        'hold a value belong to too '
+                                                        'few people or rows for their '
+                                                        'number to be published, so '
+                                                        'that number is not published, '
+                                                        'and the twin writes no real '
+                                                        'value here: the column blank '
+                                                        'or, where its cells are '
+                                                        'words, one made-up word in as '
+                                                        'many cells as the smallest '
+                                                        'group size, whatever the real '
+                                                        'number; the real table may '
+                                                        'hold values here',
+                                  'missing_by_class': {'(blank)': 1200,
+                                                       '(date-sentinel)': 0,
+                                                       '(declared-missing)': 0,
+                                                       '(numeric-sentinel)': 0,
+                                                       '(text-code)': 0,
+                                                       '(withheld)': 0},
+                                  'missing_by_source': {},
+                                  'n_contradictory': 0,
+                                  'n_distinct': 0,
+                                  'n_distinct_folded': 0,
+                                  'n_missing': 1200,
+                                  'n_missing_blank': 1200,
+                                  'n_missing_withheld': 0,
+                                  'n_not_numeric': 0,
+                                  'n_numeric': 0,
+                                  'n_out_of_range': 0,
+                                  'n_present': 0,
+                                  'n_sentinel_candidates_unpublished': 0,
+                                  'name': 'thin_col',
+                                  'position': 2,
+                                  'present_count_withheld': True,
+                                  'quality_state': 'empty',
+                                  'remarks': [],
+                                  'role': 'empty',
+                                  'sentinel_verdicts': [],
+                                  'statistical_type': 'unknown',
+                                  'structural_role': 'data',
+                                  'withheld_words_from': 'Z'},
+                        'rows': 1200}}
+
+
+
+def pool_in_people_document():
+    """The thirty-second file's document: each case's block and its content list, method G8.3d."""
+    cases = {}
+    for name in sorted(POOL_IN_PEOPLE_CASES):
+        case = POOL_IN_PEOPLE_CASES[name]
+        block = json.loads(json.dumps(case["block"]))
+        if block.get("present_count_withheld"):
+            content = withheld_word_cells(block, case["rows"])
+        else:
+            content = _label_content(block)
+        counted = {}
+        for cell in content:
+            counted[cell] = counted.get(cell, 0) + 1
+        cases[name] = {"block": case["block"], "rows": case["rows"], "content": counted}
+    return {
+        "what": (
+            "The content lists method section G8.3d requires of a pool counted "
+            "in people and of a column of words counted absent (lane PL, plan "
+            "P4-D453), each from its block alone, before placement: each "
+            "spelling with the number of cells that hold it."
+        ),
+        "method": "docs/spec/generation-method-v1.md",
+        "section": "G8.3d",
+        "generated_by": "tools/reference/make_generation_reference_vectors.py",
+        "never_imports": ["synthtwin", "numpy", "pandas"],
+        "part": POOL_IN_PEOPLE_PART,
+        "cases": cases,
+    }
+
+
+def write_pool_in_people_vectors(argv=None):
+    """Write the thirty-second file to --out; the seed is accepted and ignored (a fixed transform)."""
+    parser = argparse.ArgumentParser(description=pool_in_people_document.__doc__)
+    parser.add_argument("--seed", type=int, required=True)
+    parser.add_argument("--out", required=True)
+    arguments = parser.parse_args(sys.argv[1:] if argv is None else argv)
+    text = json.dumps(pool_in_people_document(), indent=1, sort_keys=True, ensure_ascii=False) + "\n"
+    with open(arguments.out, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+    return 0
+
+
 def _label_content(column):
     """The content list of a label column -- method sections G8.1 and G8.4."""
     content = []
@@ -12950,6 +13681,11 @@ def _label_content(column):
                     spelling = commonest_spelling(level)
                 content.extend([spelling] * int(key))
                 used.append(spelling)
+    # A POOL COUNTED IN PEOPLE (method G8.3d, lane PL, plan P4-D453), its
+    # stand-ins kept off the real runs of figures as every other stand-in is,
+    # the published spellings kept (G8.3d, LANE I4m RULINGS 21 (3)).
+    if "pool_in_people" in column:
+        return figure_runs_off_the_real(column, content + pool_in_people_cells(column, content), content)
     census = column.get("shape_forms")
     owed_by = []
     numbers_owed, words_owed = held_back_debts(column, content, census, owed_by)
@@ -27428,6 +28164,10 @@ def spelled_off_the_real(column, content):
             wide = widened_layout(layout, opening, wanted, limit, not noughts) if wanted >= 1 else ""
             if wide and len(merged_key(stand_in(template_of(wide, prefix)))) >= bound:
                 found = template_of(wide, prefix)
+        # A number widened after its last figure keeps what no real cell of
+        # its layout holds (plan P4-D446): no frozen case reaches it.
+        if found and not noughts and layout in kept and re.fullmatch(r"[-+]?%+\.%+", layout):
+            found = kept[layout][0] + found[len(kept[layout][0]):]
         if found:
             lengths[lettered].add(len(found))
         chosen[layout] = found
@@ -58480,6 +59220,153 @@ def whole_number_fields(document):
 # --------------------------------------------------------- assembling it
 
 
+# -- method G7.15, the twin of a column whose dates in disguise are held --
+#
+# Implemented from the method's text with `datetime` and `Fraction` alone
+# (plan P4-D446): a column whose block carries remark NF135 had every count
+# inside a band of a date in disguise read as a blank cell, so each number
+# its twin draws inside such a band is written at the nearest value no band
+# reads, its own figures after the point kept, below on a tie; each
+# different value takes one value no other cell holds, the values taken in
+# order of size, each side of each escape keeping its next free place. No
+# frozen case carries NF135, so no vector moves; tests/test_zoo_dates_in_
+# disguise.py holds this function against the product's on its cases.
+
+DATED_VALUES_HELD = (
+    "some values of this column read as dates, so until its Safe Harbor "
+    "question is answered `no` each of them is read as a blank cell, in "
+    "this description and on the twin, which writes those cells blank "
+    "where your table holds a value"
+)
+_BAND_YEARS = (datetime.date(1900, 1, 1), datetime.date(2051, 1, 1))
+_BAND_WIDTHS = {
+    _COUNTED_DAY: (5,),
+    fractions.Fraction(1): (9, 10),
+    fractions.Fraction(1, 1000): (12, 13),
+}
+_PLAIN_NUMBER = re.compile(r"(\s*)([-+]?)(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(\s*)")
+
+
+def _band_count(member, day):
+    """The count a member writes for the start of a day: whole counts, Excel's first two months from 31 December 1899."""
+    epoch, seconds, _signed, _contacts = COUNTED_SYSTEMS[member]
+    if member == "excel-1900" and day < datetime.date(1900, 3, 1):
+        return (day - datetime.date(1899, 12, 31)).days
+    whole = fractions.Fraction((day - epoch).days * 86400) / seconds
+    return int(whole)
+
+
+def date_bands():
+    """Each width of whole figures, with the bands from 1900 to 2050 its unit's members write."""
+    bands = {}
+    for member, (_epoch, seconds, _signed, _contacts) in COUNTED_SYSTEMS.items():
+        for width in _BAND_WIDTHS.get(seconds, ()):
+            bands.setdefault(width, []).append(
+                (_band_count(member, _BAND_YEARS[0]), _band_count(member, _BAND_YEARS[1]))
+            )
+    return bands
+
+
+def _in_a_band(value, bands):
+    whole = abs(value.numerator) // value.denominator
+    return any(low <= value < high for low, high in bands.get(len(str(whole)), ()))
+
+
+def kept_off_the_date_bands(cells):
+    """G7.15: a numeric twin column's cells, every number inside a band of a date in disguise moved to the nearest value none reads."""
+    bands = date_bands()
+    read = []
+    for cell in cells:
+        found = _PLAIN_NUMBER.fullmatch(cell)
+        if found is None:
+            read.append(None)
+            continue
+        lead, sign, whole, fraction, trail = found.groups()
+        fraction = fraction or ""
+        value = fractions.Fraction(int(whole.replace(",", "")) * 10 ** len(fraction) + int(fraction or "0"), 10 ** len(fraction))
+        read.append((lead, sign, whole, fraction, trail, -value if sign == "-" else value))
+    moving = sorted({entry[5] for entry in read if entry is not None and _in_a_band(entry[5], bands)})
+    taken = {entry[5] for entry in read if entry is not None and entry[5] not in moving}
+
+    def kept_figures(value):
+        exact = abs(value) - abs(value.numerator) // value.denominator
+        figures = ""
+        while exact:
+            exact = exact * 10
+            figures += str(int(exact))
+            exact -= int(exact)
+        return figures
+
+    def at_whole(value, whole):
+        sign = -1 if value < 0 else 1
+        part = fractions.Fraction(abs(value)) - abs(value.numerator) // value.denominator
+        return sign * (whole + part)
+
+    def escape(value, downward):
+        whole = abs(value.numerator) // value.denominator
+        sign = -1 if value < 0 else 1
+        part = abs(value) - whole
+        for _step in range(64):
+            if whole < 0:
+                return None
+            spot = at_whole(value, whole)
+            hits = [band for band in bands.get(len(str(whole)), ()) if band[0] <= spot < band[1]]
+            if not hits:
+                return whole
+            low, high = hits[0]
+            figures = len(str(whole))
+            if downward:
+                past = low - 1 if sign > 0 else (-high if not part else -high - 1)
+                whole = max(past, 10 ** (figures - 1) - 1)
+            else:
+                past = high if sign > 0 else (-low + 1 if not part else -low)
+                whole = min(past, 10 ** figures)
+        return None
+
+    def free(value, whole, downward):
+        while whole is not None and whole >= 0:
+            spot = at_whole(value, whole)
+            if _in_a_band(spot, bands):
+                whole = escape(spot, downward)
+                continue
+            if spot not in taken:
+                return whole
+            whole += -1 if downward else 1
+        return None
+
+    following = {}
+    moved = {}
+    for value in moving:
+        whole = abs(value.numerator) // value.denominator
+        offers = []
+        for downward in (True, False):
+            out = escape(value, downward)
+            if out is None:
+                continue
+            side = (value < 0, kept_figures(value), downward, out)
+            place = free(value, following.get(side, out), downward)
+            if place is not None:
+                offers.append((abs(place - whole), not downward, place, side))
+                following[side] = place
+        if not offers:
+            continue
+        _distance, upward, place, side = min(offers)
+        moved[value] = at_whole(value, place)
+        taken.add(moved[value])
+        following[side] = place + (1 if upward else -1)
+    written = []
+    for cell, entry in zip(cells, read):
+        if entry is None or entry[5] not in moved:
+            written.append(cell)
+            continue
+        lead, sign, whole, fraction, trail, value = entry
+        figures = str(abs(moved[value].numerator) // moved[value].denominator)
+        if "," in whole:
+            figures = "{:,}".format(int(figures))
+        written.append(lead + sign + figures + ("." + fraction if fraction else "") + trail)
+    return written
+
+
 def build_case(name):
     """One finished case, and the exact value recorded for every number in it.
 
@@ -58525,6 +59412,8 @@ def build_case(name):
         content = _joined_content(working)
     elif column["role"] in ("count", "continuous"):
         content, chain, _missed = _numeric_content(working)
+        if DATED_VALUES_HELD in column.get("remarks", ()):
+            content = kept_off_the_date_bands(content)
         # A column DECLARED to write its decimals with a comma has its
         # numbers' points and commas exchanged, and nothing else of it
         # (P4-D26, landing 2b.2's frozen case of it).
@@ -58539,7 +59428,10 @@ def build_case(name):
         content = _unrepresentable_content(working)
     else:
         content = _label_content(working)
-    if len(content) != column["n_present"]:
+    # A COLUMN OF WORDS COUNTED ABSENT (method G8.3d, lane PL's repair 1).
+    withheld = withheld_word_cells(column, rows)
+    content = content + withheld
+    if len(content) != column["n_present"] + len(withheld):
         raise AssertionError(
             f"{name} built {len(content)} present cells and the column "
             f"publishes {column['n_present']}"
@@ -58568,7 +59460,10 @@ def build_case(name):
             column.get("affix_prefix", ""),
             column.get("affix_suffix", ""),
         )
-    cells = place(content, absent_cells(column), rows, words[content_words:])
+    absent = absent_cells(column)
+    cells = place(
+        content, absent[: len(absent) - len(withheld)], rows, words[content_words:]
+    )
     # A COLUMN OF DATES WRITTEN AS COUNTS (landing R4, plan P4-D384) is
     # written back as those counts once its cells stand in their rows
     # (method G7.10), as the generator's own post-pass writes them.
@@ -63223,11 +64118,18 @@ _HARBOR_NUMBER = re.compile(r"^(\s*)([+-]?)(\d+)(?:\.(\d*))?((?:\s*[A-Za-z][A-Za
 _HARBOR_MILLIONTHS = 10 ** 6
 
 
+# ...and since lane SH3's repair an age's own affix after the number, at
+# most two spaces or hyphens between: `100 y/o`, `9 m/o`, `92-year-old`.
+_HARBOR_AFFIX = re.compile(r"^(\s*)([+-]?)(\d+)(?:\.(\d*))?([ -]{0,2}[A-Za-z][A-Za-z/.]*(?:[ -][A-Za-z]+)?\s*)$")
+
+
 def _harbor_read(cell):
     """(head, sign, whole, fraction, tail, exact value) of a cell the forms above write; None otherwise."""
     found = _HARBOR_NUMBER.match(cell)
     if found is None:
-        return None
+        found = _HARBOR_AFFIX.match(cell)
+        if found is None or not _harbor_own_unit(found.group(5)):
+            return None
     head, sign, whole, fraction, tail = found.groups()
     fraction = fraction or ""
     value = fractions.Fraction(int(whole + fraction), 10 ** len(fraction))
@@ -63238,27 +64140,74 @@ def _harbor_read(cell):
 
 # G7.14's unit letters (lane SH2's close round, ADDENDUM 4): one letter
 # against the number, `Y` years, `M` months, `W` weeks, `D` days, in either
-# case, and how many of each a year holds.
-_HARBOR_UNITS = {"y": fractions.Fraction(1), "m": fractions.Fraction(12),
-                 "w": fractions.Fraction(521775, 10000), "d": fractions.Fraction(36525, 100)}
+# case; and since lane SH3 (plan P4-D454) a unit word after the number, a
+# space between or not (`14 months`, `3 d`, `6 wk`). Each unit's MARK is
+# the smallest whole number of it that may be 90 years: 90, 1,080 months,
+# 4,695 weeks, 32,871 days; a year holds the mark over 90 of the unit.
+_HARBOR_MARKS = {"y": 90, "m": 1080, "w": 4695, "d": 32871}
+_HARBOR_UNITS = {unit: fractions.Fraction(mark, 90) for unit, mark in _HARBOR_MARKS.items()}
+_HARBOR_UNIT_WORDS = {
+    "y": "y", "yr": "y", "yrs": "y", "year": "y", "years": "y",
+    "m": "m", "mo": "m", "mos": "m", "mth": "m", "mths": "m", "month": "m", "months": "m",
+    "w": "w", "wk": "w", "wks": "w", "week": "w", "weeks": "w",
+    "d": "d", "dy": "d", "dys": "d", "day": "d", "days": "d",
+    # ...and an age's own affixes (lane SH3's repair): `y/o`, `yo`, `y.o.`.
+    "y/o": "y", "yo": "y", "y.o": "y", "m/o": "m", "w/o": "w", "d/o": "d",
+}
+# A unit word before `old`, a hyphen or a space between (`92-year-old`,
+# `3 months old`).
+_HARBOR_OLD_UNITS = (
+    "years", "year", "yrs", "yr", "months", "month", "mos", "mo",
+    "weeks", "week", "wks", "wk", "days", "day",
+)
+# THE DECIMAL CUT OF EACH UNIT (lane SH3's repair): 32,871 days, the
+# fewest 90 years hold, over the longest year and month in use; a number
+# written with decimals at or past its unit's cut is an age of 90.
+_HARBOR_CUTS = {90: fractions.Fraction(3287100, 36525), 1080: fractions.Fraction(328710000, 304375)}
 
 
-def _harbor_unit(tail):
-    """How many of a cell's units a year holds: its unit letter's, else 1."""
-    letter = tail.rstrip()
-    return _HARBOR_UNITS[letter.lower()] if len(letter) == 1 and letter.lower() in _HARBOR_UNITS else 1
+def _harbor_own_unit(tail):
+    """The unit a cell writes after its number, a letter of `_HARBOR_MARKS`, or ""."""
+    word = tail.strip().lower()
+    if word[-1:] == ".":
+        word = word[:-1]
+    if word in _HARBOR_UNIT_WORDS:
+        return _HARBOR_UNIT_WORDS[word]
+    word = word.lstrip("- ")
+    for ending in ("-old", " old"):
+        if word.endswith(ending) and word[: len(word) - len(ending)] in _HARBOR_OLD_UNITS:
+            return _HARBOR_UNIT_WORDS[word[: len(word) - len(ending)]]
+    return ""
+
+
+def _harbor_cell_mark(tail, mark=90):
+    """The mark of a cell's unit: its own unit's, else the column's ``mark``."""
+    own = _harbor_own_unit(tail)
+    return _HARBOR_MARKS[own] if own else mark
+
+
+def _harbor_at_the_cut(read, mark=90):
+    """Whether a number written with decimals lies at or past its unit's decimal cut and below its mark."""
+    cell_mark = _harbor_cell_mark(read[4], mark)
+    return bool(read[3]) and cell_mark in _HARBOR_CUTS and _HARBOR_CUTS[cell_mark] <= read[5] < cell_mark
+
+
+def _harbor_unit(tail, mark=90):
+    """How many of a cell's units a year holds: its own unit's, else the column's (``mark`` over 90)."""
+    own = _harbor_own_unit(tail)
+    return _HARBOR_UNITS[own] if own else fractions.Fraction(mark, 90)
 
 
 def _harbor_age_form(tail):
-    """Whether a number's tail is an age's: nothing, a unit letter against it, or a word opening with y (`years`)."""
+    """Whether a number's tail is an age's: nothing, a unit letter or word, or a word opening with y (`years`)."""
     words = tail.strip()
-    return not words or _harbor_unit(tail) != 1 or tail.rstrip() in ("y", "Y") or words[0] in "yY"
+    return not words or _harbor_own_unit(tail) != "" or words[0] in "yY"
 
 
-def _harbor_changed(read):
+def _harbor_changed(read, mark=90):
     """Whether the top-code's reading of a checked file would change a twin's cell: G7.14 writes it at or below 90."""
-    years = read[5] / _harbor_unit(read[4])
-    if 90 < years <= 125:
+    years = read[5] / _harbor_unit(read[4], mark)
+    if 90 < years <= 125 or _harbor_at_the_cut(read, mark):
         return True
     if not _harbor_age_form(read[4]):
         return False
@@ -63269,7 +64218,79 @@ def _harbor_changed(read):
     return years > 125 or (whole and value < 0)
 
 
-def safe_harbor_ages_twin(cells, absent=frozenset()):
+def _harbor_held_within_the_mark(cells, absent, mark):
+    """A held age column's made-up whole numbers past 125 years written as their remainder by their unit's mark, as wide as written."""
+    written = []
+    for cell in cells:
+        read = None if cell in absent or cell.strip() in absent else _harbor_read(cell)
+        if read is None or read[3] or read[5] < 0 or read[5] / _harbor_unit(read[4], mark) <= 125:
+            written.append(cell)
+            continue
+        head, sign, whole, _fraction, tail, value = read
+        figures = f"{int(value) % _harbor_cell_mark(tail, mark)}"
+        if len(figures) < len(whole):
+            figures = "0" * (len(whole) - len(figures)) + figures
+        written.append(head + ("+" if sign == "+" else "") + figures + tail)
+    return written
+
+
+def _harbor_stand_ins_below_the_mark(cells, absent, mark):
+    """A label twin's made-up labels past the mark, each a free spelling below it (lane SH3's second repair).
+
+    Each different cell the top-code would change, whole and not
+    negative, takes the largest whole number below its unit's mark with
+    as many figures as it has (zeros before where it pads them) whose
+    spelling no cell of the column holds, case aside; where its own unit
+    has none and it writes one unit letter against the number, the same
+    in the letters y, m, w, d in turn, in its case. A cell with no free
+    spelling is left as it was.
+    """
+    taken = {cell.lower() for cell in cells}
+    cursors = {}
+    chosen = {}
+    written = []
+    for cell in cells:
+        if cell in chosen:
+            written.append(chosen[cell])
+            continue
+        read = None if cell in absent or cell.strip() in absent else _harbor_read(cell)
+        if read is None or read[3] or read[5] < 0 or not _harbor_changed(read, mark):
+            written.append(cell)
+            continue
+        head, sign, whole, _fraction, tail, _value = read
+        width = len(whole)
+        padded = width >= 2 and whole[0] == "0"
+        letter = tail.strip()
+        tails = [tail]
+        if len(letter) == 1 and tail[:1] == letter and letter.lower() in _HARBOR_MARKS:
+            for other in "ymwd":
+                if other != letter.lower():
+                    tails.append(tail.replace(letter, other if letter == letter.lower() else other.upper()))
+        spelling = ""
+        for option in tails:
+            unit_mark = _harbor_cell_mark(option, mark)
+            least = 0 if padded or width == 1 else 10 ** (width - 1)
+            key = (width, padded, option.lower())
+            value = cursors.get(key, min(unit_mark - 1, 10 ** width - 1))
+            while value >= least and not spelling:
+                figures = f"{value:0{width}d}" if padded else f"{value}"
+                candidate = head + ("+" if sign == "+" else "") + figures + option
+                value -= 1
+                if candidate.lower() not in taken:
+                    spelling = candidate
+            cursors[key] = value
+            if spelling:
+                break
+        if not spelling:
+            written.append(cell)
+            continue
+        taken.add(spelling.lower())
+        chosen[cell] = spelling
+        written.append(spelling)
+    return written
+
+
+def safe_harbor_ages_twin(cells, absent=frozenset(), mark=90, held=False, published=None, labels=False):
     """G7.14: every cell above 90 and at most 125 years written at or below 90, each different value one value.
 
     A cell in months, weeks or days (its unit letter against it) is read in
@@ -63279,10 +64300,56 @@ def safe_harbor_ages_twin(cells, absent=frozenset()):
     it) past 125, or a whole number below -9, which the top-code's reading
     of a checked file writes 90 or blank, is written at or below 90 as one
     above 90 is; nines alone and one-figure negatives are kept as before.
+    Since lane SH3 (plan P4-D454): a unit word is read as its letter is,
+    a bare cell of a column counted in months, weeks or days (``mark``, its
+    unit's mark) in that unit, and such a cell past the mark is written as
+    the mark where another bare cell holds the mark, else as the mark less
+    one; the mark is written at the cell's decimals and as wide as the cell
+    pads its figures. And in years 90 itself is written only where another
+    cell holds 90: with none, a cell past it takes the largest free value
+    below 90. Since lane SH3's repair: the mark of each unit is written
+    only where another cell of that unit holds it, else the mark less one,
+    a cell writing its own unit too, at the cell's decimals and padding
+    (Codex's items 2 and 6); a number with decimals at or past its unit's
+    decimal cut is an age of 90, and no free value below 90 is taken at
+    or past the cut; an age's own affix (`y/o`, `-year-old`) is a unit
+    word; and ``held``, a held column named as ages, writes each made-up
+    whole number past 125 years as its remainder by its unit's mark.
+    ``published`` (the description's largest number at or past the
+    column's mark, where the generator can tell): False writes no cell at
+    or past its unit's mark, the mark itself included; True lets the mark
+    stand; None reads it from the cells. ``labels`` (lane SH3's second
+    repair): a label column's made-up labels past the mark are first each
+    written as a free spelling below it, so none joins the top category.
     """
     def kept(cell):
         return cell in absent or cell.strip() in absent
 
+    if held:
+        cells = _harbor_held_within_the_mark(cells, absent, mark)
+    if labels:
+        cells = _harbor_stand_ins_below_the_mark(cells, absent, mark)
+    at_the_marks = set()
+    for cell in cells:
+        read = None if kept(cell) else _harbor_read(cell)
+        if (
+            read is not None
+            and _harbor_cell_mark(read[4], mark) != 90
+            and read[5] == _harbor_cell_mark(read[4], mark)
+        ):
+            at_the_marks.add(_harbor_cell_mark(read[4], mark))
+    at_ninety = False
+    for cell in cells:
+        read = None if kept(cell) else _harbor_read(cell)
+        if (
+            read is not None
+            and _harbor_unit(read[4], mark) == 1
+            and read[5] == 90
+        ):
+            at_ninety = True
+            break
+    if published is not None:
+        at_ninety = published
     taken = set()
     lowest = 90 * _HARBOR_MILLIONTHS
     padded = set()
@@ -63292,22 +64359,35 @@ def safe_harbor_ages_twin(cells, absent=frozenset()):
             continue
         if len(read[2]) >= 2 and read[2][0] == "0":
             padded.add(len(read[2]))
-        years = read[5] / _harbor_unit(read[4])
+        years = read[5] / _harbor_unit(read[4], mark)
         if years <= 90:
-            mark = round(years * _HARBOR_MILLIONTHS)
-            taken.add(mark)
-            lowest = min(lowest, mark)
+            held = round(years * _HARBOR_MILLIONTHS)
+            taken.add(held)
+            lowest = min(lowest, held)
+    # ...90 itself only where another cell holds it (plan P4-D454): a top
+    # category the description pooled below 90 is never named.
+    if not at_ninety:
+        taken.add(90 * _HARBOR_MILLIONTHS)
     chosen = {}
     written = []
     for cell in cells:
         read = None if kept(cell) else _harbor_read(cell)
-        if read is None or not _harbor_changed(read):
+        if read is None or not (
+            _harbor_changed(read, mark)
+            or (published is False and read[5] == _harbor_cell_mark(read[4], mark))
+        ):
             written.append(cell)
             continue
-        if _harbor_unit(read[4]) != 1:
-            head, sign, _whole, _fraction, tail, _value = read
-            whole_units = 90 * _harbor_unit(tail)
-            written.append(head + ("+" if sign == "+" else "") + f"{whole_units.numerator // whole_units.denominator}" + tail)
+        if _harbor_unit(read[4], mark) != 1:
+            head, sign, whole, fraction, tail, _value = read
+            cell_mark = _harbor_cell_mark(tail, mark)
+            allowed = published if published is not None else cell_mark in at_the_marks
+            text = f"{cell_mark - (0 if allowed else 1)}"
+            if whole[0] == "0" and len(whole) > len(text):
+                text = "0" * (len(whole) - len(text)) + text
+            if fraction:
+                text = text + "." + "0" * len(fraction)
+            written.append(head + ("+" if sign == "+" else "") + text + tail)
             continue
         head, sign, whole, fraction, tail, value = read
         places = len(fraction)
@@ -63315,16 +64395,17 @@ def safe_harbor_ages_twin(cells, absent=frozenset()):
             shown = min(places, 6)
             step = 10 ** (6 - shown)
             least = min(lowest, 89 * _HARBOR_MILLIONTHS + step)
-            mark = 90 * _HARBOR_MILLIONTHS
-            while mark >= least and mark in taken:
-                mark -= step
-            if mark < least:
-                text = "90" + ("." + "0" * places if places else "")
+            free = 90 * _HARBOR_MILLIONTHS
+            cut = math.ceil(_HARBOR_CUTS[90] * _HARBOR_MILLIONTHS)
+            while free >= least and (free in taken or cut <= free < 90 * _HARBOR_MILLIONTHS):
+                free -= step
+            if free < least:
+                text = ("89" if published is False else "90") + ("." + "0" * places if places else "")
             else:
-                taken.add(mark)
-                text = f"{mark // _HARBOR_MILLIONTHS}"
+                taken.add(free)
+                text = f"{free // _HARBOR_MILLIONTHS}"
                 if places:
-                    figures = f"{(mark % _HARBOR_MILLIONTHS) // step:0{shown}d}" if shown else ""
+                    figures = f"{(free % _HARBOR_MILLIONTHS) // step:0{shown}d}" if shown else ""
                     text = text + "." + figures + "0" * (places - shown)
             chosen[(value, places)] = text
         text = chosen[(value, places)]

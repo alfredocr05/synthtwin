@@ -137,6 +137,18 @@ def battery(folder: pathlib.Path) -> "tuple[int, int, int, int]":
     NOT MISSED counts twins holding as many groupable cells as the pool
     whose copy with every mark taken out is not MISSED.
     """
+    import keyboard
+
+    with pytest.MonkeyPatch.context() as patch:
+        # K-S3-16 runs this battery from `tests/test_kpi_ledger.py` too: its
+        # grouped amounts in a day band are answered `no` there as here
+        # (plan P4-D446).
+        keyboard.dates_in_disguise_answered_no(patch)
+        return _battery(folder)
+
+
+def _battery(folder: pathlib.Path) -> "tuple[int, int, int, int]":
+    """`battery`'s measure."""
     unnamed = bare_not_missed = real_missed = twins = 0
     for name, cells, flags, pool, _distinct in SHAPES:
         comma = flags[:1] == ("--decimal-comma",)
@@ -937,3 +949,17 @@ def test_each_walk_counts_the_strata_it_walks_again_after_a_chain(
         kept_stand_ins=(),
     )
     assert tuple(generation._whole_enough(column, facts, layout, rungs, list(values))) == answer
+
+
+# THE PERSON ANSWERS `no` ABOUT DATES IN DISGUISE (plan P4-D446, lane CZ-H):
+# this file's columns hold five-figure numbers in a day-counting band, or
+# nine or ten figures in a seconds band, and are about something else, so
+# each test takes the description `no` gives back, byte for byte. The hold
+# itself is pinned by `tests/test_zoo_dates_in_disguise.py` and K-HZ-16.
+@pytest.fixture(autouse=True, scope="module")
+def _dates_in_disguise_answered_no() -> object:
+    import keyboard
+
+    with pytest.MonkeyPatch.context() as patch:
+        keyboard.dates_in_disguise_answered_no(patch)
+        yield

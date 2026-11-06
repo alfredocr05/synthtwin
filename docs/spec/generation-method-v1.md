@@ -1675,7 +1675,13 @@ and four seeds the twins exiting 3 went from 19 of 48 to none.
 **THE WIDTH A CELL IS WRITTEN AT, three rules the shortfall rule needs**
 (plan P4-D179). A pinned value takes the width its own value needs where
 the census names that width and it holds the value's cells, and
-otherwise the largest still-unfilled width it fits, as before; a value
+otherwise the largest still-unfilled width it fits, as before (but the
+top category of a top-coded column whose description counts more
+spellings than values, which the top-code read at each cell's own
+decimals -- `90.0` beside `90.00` -- takes the narrowest widths first, as
+many of its cells as each holds, so it may be written at two: lane SH3's
+repair 2, plan P4-D454, after a group of 12 cells fit neither width's
+remainder and left both counts one cell off); a value
 that already fits a width is written at it without its stretch being
 asked, since nothing is snapped; and a value whose own width is a named
 one is never snapped to a width at which it reads as a number another
@@ -12314,6 +12320,61 @@ SH2's repair 2: batch 4l's debt OWES 7 (b), A-P4-59), and
 `tests/test_safe_harbor_places_years_devices.py` holds the product to it;
 no vector holds a `top_coded` block, so no vector moves.
 
+LANE SH3 (plan P4-D454, 2026-11-02). A block's `top_coded` may name the
+mark of another unit (contract TC1: 1,080 months, 4,695 weeks, 32,871
+days), and its bare cells are read in that unit; a unit word after a
+number (`1100 months`, `3 d`) is read as its letter is. A cell past its
+unit's mark, to 125 years, is written as the mark in its own form --
+where another bare cell of the column holds the mark itself (the top
+category the description published); where none does, a bare cell is
+written as the mark less one, so a tail drawn past a pooled top category
+names none (`taxonomy.at_most_the_top_code`'s ``mark``). The oracle's
+`safe_harbor_ages_twin` writes the same from these words, its ``mark``
+the block's, and `tests/test_safe_harbor_ages_and_address_parts.py` holds
+the product to it in every unit; no vector holds a `top_coded` block, so
+no vector moves. LANE SH3'S REPAIR 1 (2026-11-03; skeptic 1's items 1, 9
+and 10, Codex's items 2 and 6): an age's own affix after the number
+(`100 y/o`, `9 m/o`, `92-year-old`, `3 months old`) is a unit word; the
+mark less one is written where no cell OF THAT UNIT holds the mark, a
+cell writing its own unit too, at the cell's decimals and padding
+(`1100.00 months` is `1079.00 months`, never `1080.00 months` beside a
+pooled category nor `1079` among cells of two decimals); a number with
+decimals at or past 32,871 days in its unit -- 32,871 / 365.25 =
+89.9959 years, 32,871 / 30.4375 = 1,079.95 months, the longest year and
+month in use -- is an age of 90, and no free value below 90 is taken at
+or past that cut; where the description publishes the column's largest
+number, the mark is written only where that largest number is at or past
+it, and where it withholds it (a top category of fewer rows than the
+floor, pooled) no cell at or past the mark is written, the mark itself
+included, 89 standing for 90 where no value below is free
+(`generation._the_mark_published`, the clamp's ``published``); and a
+column held as record numbers keeps its walk's room whatever its name
+(lane ID-ROOM): the clamp's ``held`` (each made-up whole number past 125
+years written as its remainder by its unit's mark, as wide as written,
+`999` being `009`; lane SH3's repair) is passed for no column since
+batch 4o's fix round (the orchestrator's LANE I4m RULINGS 21 (1): a held
+column is never rewritten as ages), because the remainder put the walk's
+made-up keys back among the real ones -- `age_key` holding `001` to
+`125`, its question unanswered, wrote its 20,000 twin cells on 54 real
+keys -- so a held column's made-up numbers past 125 are written at or
+below 90 as any column's are, nines alone kept. The oracle's
+`safe_harbor_ages_twin` takes ``held`` and ``published`` and writes the
+same. LANE SH3'S REPAIR 2
+(2026-11-03; its verify's item 2): in a LABEL column every real label past
+the mark was pooled into the published top category, so a cell past the
+mark is one of G8.3's made-up labels, and written as the mark it joined
+that category (`90y` on 1,991 cells against 1,957 at 20,000 rows, and 10
+of 1,162 different values lost). Each different such cell, whole, is
+first written as the largest whole number below its unit's mark with as
+many figures as it has (zeros before where it pads them) whose spelling
+no cell of the column holds, case aside; where its own unit has none and
+it writes one unit letter against the number, the same in the letters
+`y`, `m`, `w`, `d` in turn, in its case (`95y` is `99m` where `0y` to
+`89y` are all held); a cell with decimals or with no free spelling is
+left to the rule above (`taxonomy._stand_ins_below_the_mark`, the
+clamp's ``labels``). The oracle's `safe_harbor_ages_twin` takes
+``labels`` and writes the same.
+
 LANE SH2'S CLOSE ROUND (plan P4-D434; the orchestrator's LANE SH2
 ADDENDUM 4 and RULINGS 2 (1) and (2)). A number with one unit letter
 against it, no space between -- `Y` years, `M` months, `W` weeks, `D`
@@ -12352,6 +12413,47 @@ word is drawn, so no later column moves. The oracle writes this step
 from these words alone (`safe_harbor_years_twin`, lane SH2's repair 2),
 held to the product by the same test as G7.14's; no vector holds a
 `top_coded_year` block, so no vector moves.
+
+### G7.15 A column whose dates in disguise are held: no number inside a band
+
+Lane CZ-H (plan P4-D446; contract NF135). A column of numbers, or of
+numbers and labels, whose block carries remark NF135 was described with
+every count inside a band of a date in disguise read as a blank cell
+(`date_counts.dated_values_blanked`: five whole figures from 10,000 to
+76,701, nine or ten inside a seconds band, twelve or thirteen inside a
+milliseconds band, each band a counting system's from 1900 to 2050), and
+`validate` reads a twin the same way. So its twin is drawn as any column
+of its role is, and then, before anything measures the column, every
+number the numeric machinery wrote inside such a band is written at the
+NEAREST VALUE NO BAND READS, at its own figures after the point
+(`date_counts.kept_off_the_bands`): below the band's reach or the width's
+(`12,345.67` is `9,999.67`) or past them (`70,000.50` is `76,702.50`), the
+nearer, below on a tie; the sign, the grouping, the spaces and a MUMPS
+day's seconds after its comma are kept. Without it a rung's interpolation
+across the gap the held counts left wrote numbers the validator read as
+blanks: five thousand amounts with cents, three such numbers, nine checks
+missed (presence, the numeric count, the distinct counts, the style and
+width censuses), the twin failing its own description. EACH DIFFERENT
+VALUE takes one value -- every cell of it the same one -- that no other
+cell of the column holds, so the column keeps how many different values it
+has and how many cells hold each (as G7.14): the values are taken in order
+of size, each side of each escape keeping its next free place for the
+values of one sign and one set of figures after the point, so the cells'
+order changes nothing and no search starts again. EACH CELL IS READ ONCE
+(lane CZ-H's second repair, Codex's item 4): the values that stay are kept
+in one dictionary for each sign and set of figures after the point, which a
+search asks, each band's escape is found once for each side, a side whose
+search found no free place is not searched again, and the moved values are
+put in order as whole numbers of their smallest unit; the first
+build read every cell again for each escape of each moved value and again
+each time its search reached farther, its work growing as moved values
+times cells kept, and the second writes the same cells (2,000 seeded
+columns, the gate's differential case). A cell spelled as
+one of the block's `missing_by_source` keys, a label and a number outside
+the bands are kept. No word is drawn, so no later column moves. The oracle
+mirrors it (`kept_off_the_date_bands`, the plain numbers its cases write);
+no vector holds an NF135 block, so no vector moves, and a test holds the
+two functions to the same cells.
 
 ## G8. Label columns (`constant`, `binary`, `categorical`, `long_tail_labels`)
 
@@ -14046,6 +14148,47 @@ else. It does not learn which held-back level covered which rows, what
 any one of them was worth, or how the pool's cells split between them,
 and the values it writes are a construction over two numbers and a
 spacing this method chose.
+
+### G8.3d A pool counted in people
+
+*Lane PL, plan P4-D453; contract B4e.* A block carrying `pool_in_people` writes its
+published levels by G8.1 and its pool by this section alone: none of G8.3 to G8.3c
+is read but the pass that keeps every run of figures off the real ones (plan
+P4-D442: where the block names `figure_openings`, the cells the walks write go
+through that pass as every other held-back stand-in does, the published spellings
+kept; the orchestrator's LANE I4m RULINGS 21 (3)), and the step consumes no words. The cells owed as numbers are what
+`n_numeric` leaves once the published spellings have paid (G8.3a's debt, at least
+nought and at most `suppressed_rows`); the rest are words. `suppressed_levels`
+split between the two classes: where both owe cells, the number class takes
+`suppressed_levels` times its cells over `suppressed_rows`, rounded down, and at
+least one and at most one less than all; otherwise the owing class takes all.
+Each class writes the first spellings of its walk that fold onto no published
+label, as many as its levels, and shares its cells over them evenly, the earlier
+spelling taking the odd cell. **The walks** (lane PL's repair 1, the orchestrator's
+LANE PL RULINGS 2 (2) and (3)). The start names its walk. A clock (`H:MM`, `HH:MM`
+or `HH:MM:SS`, `24:00` the day's end) counts down one minute, or one second, at a
+time in its own form and ends at midnight; a date (`YYYY-MM-DD`, `YYYY/MM/DD`,
+`MM/DD/YYYY`, `MM-DD-YYYY`) counts down one day at a time in its layout and ends at
+the first day of the year 1000; a spelling made only of the letters `TGCA` (or
+`tgca`) counts down through that alphabet at its width, top first, borrowing; a
+member of a pair (`0` or `1`; `y`, `n`, `yes`, `no`, `t`, `f`, `true` or `false` in
+any case) is that member alone; every other start counts down: its last walking
+place steps down one, and from `0`, `A` or `a` goes back to `9`, `Z` or `z` and
+borrows from the walking place before it. A letter is an ASCII letter or any
+character past ASCII. In a spelling holding a figure its
+figures walk, and a letter walks only alone, no letter beside it, against a
+figure (`J` of `J45.9`); every other letter is a word or a unit and stands
+(`mo` of `6 mo`); in a spelling holding no figure every letter walks; marks never
+walk; a first walking figure never reaches `0`, and the walk ends where nothing is
+left to borrow. Which start is the profiler's and the contract's (B4e): a function
+of the published levels alone, its `figure_openings` among them, so the generator
+reads nothing real; the profiler writes no start whose walk that pass would rename,
+nor one whose walk writes a person's key (the column is held instead). **A column of
+words counted absent** (contract NF133, `withheld_words_from`; the orchestrator's
+LANE PL RULINGS 1 (1)) writes that one word in the floor's number of its cells (at
+most its blank cells), whatever the real number, and its other cells blank; the
+twin's report names those cells beside `n_present` and no other recount. The
+oracle mirrors this section from its own words (A-P4-59).
 
 ### G8.4 The order of `content`
 
@@ -16361,7 +16504,10 @@ reads nothing real to make it so:
    is as long as the spill's (`parsing.widened_layout`: figures after the
    prefix or root, a rootless UID's in its second arc, a number that is
    not whole after its last figure, so its magnitude and its fraction
-   stay, where the column writes no whole number's noughts), one character
+   stay, where the column writes no whole number's noughts, and such a
+   number keeps the characters its layout's first excluded template
+   writes, so a day number written wider decodes to no day of the band,
+   plan P4-D446), one character
    longer still where it holds a letter, and further, to the first length
    the widened layouts of the other kind -- of letters, of figures alone,
    the spill among them -- do not take (so no length holds a letter in
@@ -20849,6 +20995,41 @@ same holds. MEASURED by the design's prototypes: 0 cells off on every
 twin (plan P4-D407).
 
 ### G16.3 RESERVED: the polish (lane MPOL)
+
+**AMENDED Monday 2026-11-02 (the owner's rule B, plan P4-D455; contract
+4.6d.0).** The numbers the polish moves the twin towards are rule B's
+published moments: each number's mean and standard deviation on its
+code, each binary's share, the correlation of every published pair of
+numbers, and a column's mean and spread, or share, inside each `L1`
+band of its published grouping columns (each `L2` band where the entry
+names `level: 2`), each value read in the unit of its own count, a
+correlation as the published r, the hyperbolic tangent of its grid point
+of Fisher's z (repair 1 of Tuesday 2026-11-03, contract 4.6d.0 (1) and
+(3); the grid ten-thousandths of z at the floor since Wednesday
+2026-11-04, LANE MPp RULINGS 7, finer by the count rule, its unit read
+through `chain_moments.unit(SCALE_FISHER_Z, n)` and never a copy of the
+constant, so a tolerance that assumed thousandths of z misses the
+target), a column's spread in thousandths of a code at the floor, and a
+slope as r times the pair's spread of one column over the pair's spread
+of the other: the pair's own two spreads where its entry holds them
+(a pair holding fewer rows than either column's readings), the columns'
+own where it holds every reading of both (repair 2, the reference's
+`published_slope`). A target correlation matrix that is not positive semidefinite is
+projected to the nearest one (negative eigenvalues set to a small floor,
+the diagonal rescaled to 1) before the polish, and the polish's report
+states the projection's size; a refused pair is never a target. The
+generator reads none of them yet; lane MPg builds the polish against contract 4.6d.0's fields, the
+loader's invariants S39 to S43 and the reference
+`tools/reference/moment_rule_b.py`, whose functions state each moment
+the twin is judged on. MEASURED (lane MPp, plan P4-D455): on lane
+`A0b`'s 50-column table at 20,000 rows, a twin moved onto the moments
+with every row kept inside its `L0` band of each column (this section's
+frame, which moves no family table) met 168 and 159 of 273 estimates at
+twin seeds 0 and 1, against 181 and 169 where a row may change band and
+135 and 127 for the walk alone (correlations in thousandths of r); the mean correlation gap left at seed 0
+was 0.015 against 0.006 (0.032 for the walk). The frame carries most of
+the gain but not all of it: whether the polish may move a band is lane
+MPg's to decide, with its price in family tables.
 
 Lane MPOL's page writes it: exchanges of one fine column's cells, with
 their value codes, reading-map bits and cell indices, between two arranged rows of the

@@ -1813,11 +1813,20 @@ SH2_ANSWERED = {
 # (lane SH's ADDENDUM 6); answered `excel-1900`, the Safe Harbor question
 # follows (`dob_serial_xl`).
 SH2_FIRST_ASKED = {"dob_serial": ["measurement", "excel-1900", "excel-1904", "code", "identifier"]}
+# ...lane SH3's unit offer (plan P4-D454): an age column's one question offers
+# the four units beside yes and no, so the five age tails are put one question
+# of six answers, not the base's two. A TABLE OF ITS OWN (batch 4o's fix round,
+# the suite on its sealed head): in `SH2_FIRST_ASKED` the five tails took the
+# gate's branch of a column the date-count question holds whole, and six of its
+# cases went red on their published, top-coded role.
+SH2_AGE_TAILS_ASKED = {kind: ["no", "yes", "years", "months", "weeks", "days"] for kind in HARBOR_AGE_TAILS}
 
 
 def sh2_asked(kind: str) -> "list[list[str]]":
     """The questions a lane SH2 shape is put, unanswered but for `SH2_ANSWERED`."""
-    return [SH2_FIRST_ASKED[kind]] if kind in SH2_FIRST_ASKED else [["no", "yes"]]
+    if kind in SH2_FIRST_ASKED:
+        return [SH2_FIRST_ASKED[kind]]
+    return [SH2_AGE_TAILS_ASKED[kind]] if kind in SH2_AGE_TAILS_ASKED else [["no", "yes"]]
 
 
 # The arguments a shape is profiled with: a declared century, a typed

@@ -2306,7 +2306,10 @@ def test_the_health_zoo_shards_are_the_suites() -> None:
     """The shards this file runs one item each are the catalogue's: red when a shard is added and not run here."""
     import health_zoo
 
-    assert len(health_zoo.shards()) == len(HEALTH_ZOO_SHARDS)
+    # ...the seventh, the forms of dates in disguise, is K-HZ-16's gate's at
+    # 600 rows and the drivers' at 20,000 (THE SUITE'S TIME rule).
+    assert len(health_zoo.shards()) == len(HEALTH_ZOO_SHARDS) + 1
+    assert health_zoo._wide().SUITE_SHARDS == len(HEALTH_ZOO_SHARDS)
 
 
 @pytest.mark.parametrize("place", HEALTH_ZOO_SHARDS)

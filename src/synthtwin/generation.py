@@ -4107,8 +4107,19 @@ def _width_places(
     ends: "tuple[float, float]",
     whole_column: bool,
     walls: "tuple[_Piece, ...]" = (),
+    spelled_apart: "float | None" = None,
 ) -> "list[int]":
     """Which width each cell is written at, or -1 for the value's own.
+
+    ``spelled_apart``, where given, is the top category of a top-coded
+    column whose description counts more spellings than values (lane
+    SH3's second repair, plan P4-D454): the top-code read each cell past
+    the mark at its own decimals, so the source wrote that one value at
+    several widths (`90.0` beside `90.00`). Its pinned cells take the
+    narrowest widths first, as many cells as each holds, and may so be
+    written at two: given its group whole at the widest, the one-place
+    quota went to values below the mark, and a group of 12 cells that fit
+    neither width's remainder left both counts one cell off.
 
     ON A COLUMN LAID WITH ITS L0 BAND TOTALS ``walls`` are its pieces
     (method G5.7b), and no snap carries a value out of its piece (lane
@@ -4173,6 +4184,18 @@ def _width_places(
     for value in pinned_order:
         members = pinned_groups[value]
         need = _fraction_need(value)
+        if spelled_apart is not None and value == spelled_apart:
+            # THE TOP CATEGORY THE SOURCE WROTE AT SEVERAL WIDTHS takes
+            # the narrowest first (lane SH3's second repair).
+            given = 0
+            for width in sorted(quotas):
+                if need > width:
+                    continue
+                while quotas[width] > 0 and given < len(members):
+                    places[members[given]] = width
+                    quotas[width] = quotas[width] - 1
+                    given = given + 1
+            continue
         # ITS OWN WIDTH FIRST, WHERE THE CENSUS NAMES IT (plan P4-D179).
         # A pinned value took the largest width it fitted, so a published
         # minimum of 0.3 on a column exported by the shortest round trip
@@ -23489,6 +23512,9 @@ def _number_cells(
         _published_ends(facts, values),
         facts.integer_valued,
         walls,
+        float(column.top_coded)
+        if column.top_coded and column.n_distinct > facts.n_distinct_values
+        else None,
     )
     pads = _pad_places(
         facts.pad_widths, styles, holds, facts.integer_valued,
@@ -49242,6 +49268,53 @@ def _label_content(
                 "publishes.",
             )
         ]
+    # A POOL COUNTED IN PEOPLE (lane PL, plan P4-D453, method G8.3d): the
+    # published levels stand, and the pool is written as the description's
+    # own stand-ins, made up from its published facts alone. One may be a
+    # value a few people hold (`Y` beside a published `N`; contract B4e), so
+    # the report says where they come from and claims no real cell for them
+    # (lane PL's repair 2, the orchestrator's LANE PL RULINGS 4 (6), Codex's
+    # item 7).
+    # ...AND KEPT OFF THE REAL RUNS OF FIGURES AS EVERY OTHER HELD-BACK
+    # STAND-IN IS (the orchestrator's LANE I4m RULINGS 21 (3), Codex's review
+    # of batch 4o, item 3): `figure_openings` names the widths held back, and
+    # a start a description written before this rule chose against it --
+    # `8888` beside openings naming no `8` of four figures, one person's key
+    # -- is renamed by the same pass, the published spellings kept.
+    if column.pool_in_people is not None:
+        pooled_cells = _with_pool_in_people(column, facts, cells, plan.decimal_comma)
+        pool_notes = notes + [
+            _deviation(
+                column.name,
+                "suppressed_levels",
+                f"{facts.suppressed_levels} labels that were held back",
+                f"{facts.suppressed_levels} labels made up in their place",
+                "Those values are held by too few people to publish, so the "
+                "twin keeps their count and rows together and writes "
+                "spellings made up from the description's published facts "
+                "alone, which may equal a value a few people hold (the other "
+                "member of a yes and a no beside a published one); no size of "
+                "any one of them is published.",
+            )
+        ]
+        if facts.figure_openings:
+            kept_spellings: "dict[str, bool]" = {}
+            for cell in cells:
+                kept_spellings[cell] = True
+            pooled_cells, pool_spent = _figure_runs_off_the_real(
+                pooled_cells, facts, _all_holes_of(plan), kept_spellings
+            )
+            if pool_spent[0] or pool_spent[1]:
+                pool_notes += [
+                    _deviation(
+                        column.name,
+                        "suppressed_levels",
+                        "runs of figures the held-back labels hold",
+                        f"{pool_spent[0]} different runs written wider, {pool_spent[1]} as noughts",
+                        _RUNS_OFF_THE_REAL_LABELS,
+                    )
+                ]
+        return pooled_cells, pool_notes
     number = 0
     # THE FORMS THIS COLUMN WAS WRITTEN IN, IF IT PUBLISHED ANY (plan
     # P4-D18). A long tail publishes a census of them, and it is the
@@ -49613,6 +49686,86 @@ def _label_content(
                 )
             ]
     return cells, notes
+
+
+def _with_pool_in_people(
+    column: contract.ColumnBlock,
+    facts: contract.LabelFacts,
+    written: "list[str]",
+    decimal_comma: bool,
+) -> "list[str]":
+    """The published spellings and a pool counted in people's stand-ins (method G8.3d, P4-D453).
+
+    The cells the pool owes as numbers are what `n_numeric` leaves once the
+    published spellings have paid (`_classes_owed`), the rest are words. The
+    levels split between the two classes in proportion to their cells, at
+    least one a class owing any, and each class's cells are shared as evenly
+    as they go, the earlier stand-in taking the odd cell. Each class walks
+    from its own start (`parsing.stand_ins_from`), past the published levels.
+
+    Guarantees: a fixed function of the block and the spellings; consumes no
+    words. Raises nothing. No I/O.
+    """
+    starts = column.pool_in_people
+    if starts is None:
+        return written
+    published = frozenset(entry.label for entry in facts.levels)
+    owed = _classes_owed(column, written, decimal_comma)[_OWED_NUMBER]
+    rows = facts.suppressed_rows
+    numbers_owed = min(max(owed, 0), rows)
+    words_owed = rows - numbers_owed
+    number_levels, word_levels = parsing.pool_levels_split(
+        facts.suppressed_levels, rows, owed
+    )
+    cells = list(written)
+    for start, wanted, owing in (
+        (starts[0], number_levels, numbers_owed),
+        (starts[1], word_levels, words_owed),
+    ):
+        if not wanted:
+            continue
+        spellings = parsing.stand_ins_from(start, wanted, published)
+        each, odd = divmod(owing, len(spellings))
+        for place in range(len(spellings)):
+            cells += [spellings[place]] * (each + (1 if place < odd else 0))
+    return cells
+
+
+# The recounts a column of words counted absent's one note speaks for.
+_WITHHELD_WORDS_COUNTS = ("n_distinct", "n_distinct_folded", "n_not_numeric")
+
+
+def _withheld_word_cells(
+    column: contract.ColumnBlock, floor: int, n_rows: int
+) -> "list[str]":
+    """A column of words counted absent's twin cells: its word in the floor's number of cells (method G8.3d, P4-D453).
+
+    The floor's number, never the real count, which is not published (the
+    orchestrator's LANE PL RULINGS 1 (1)); none where the column is no such
+    column. At most the column's blanks, so a table of fewer rows than the
+    floor keeps its own.
+    """
+    if not column.present_count_withheld or not column.withheld_words_from:
+        return []
+    blanks = column.n_missing
+    for spelling in column.missing_by_source:
+        blanks = blanks - column.missing_by_source[spelling]
+    return [column.withheld_words_from] * max(0, min(floor, n_rows, blanks))
+
+
+def _withheld_words_note(column: contract.ColumnBlock, written: int) -> Deviation:
+    """The twin's word cells of a column counted absent, said where they stand."""
+    return _deviation(
+        column.name,
+        "n_present",
+        "a count of present cells that is not published",
+        f"{written} cells holding the made-up word "
+        f"'{parsing.visible(column.withheld_words_from)}'",
+        "The real cells that hold a value are too few people's to count, "
+        "so the twin keeps the column a column of words with one made-up "
+        "word in as many cells as the smallest group size, whatever the "
+        "real number.",
+    )
 
 
 def _class_stand_ins(
@@ -60880,6 +61033,11 @@ def _one_key_beside_lists(room: _OffTheReal, layout: str) -> bool:
     return False
 
 
+def _widens_off_the_real(layout: str) -> bool:
+    """Whether a layout widened after its last figure keeps its first excluded template's figures: a decimal number's."""
+    return parsing.is_a_decimal_layout(layout)
+
+
 def _widened_template(room: _OffTheReal, layout: str) -> str:
     """A layout's template widened under its own prefix until its merged key is the spill's length, or "".
 
@@ -60936,6 +61094,16 @@ def _widened_template(room: _OffTheReal, layout: str) -> str:
             template = parsing.layout_template(wide, prefix, room.whole_places)
             if parsing.merged_length(template) >= room.bound:
                 found = template
+    # ...AND A NUMBER WIDENED AFTER ITS LAST FIGURE KEEPS WHAT NO REAL CELL OF
+    # ITS LAYOUT HOLDS (plan P4-D446, lane CZ-H): a day number's whole figures
+    # are its date, so a value the excluded templates could not take, one
+    # reading whole beside contacts (`66123.00`, its merged key dropping a
+    # nought), is widened from the first of them, `9%%%%.%%%%`, and decodes
+    # to no day of the band of `date_counts`, where `%%%%%.%%%%` decoded to
+    # real days on 36 cells at 20,000 rows.
+    if found and at_the_end and layout in room.templates and _widens_off_the_real(layout):
+        excluded = room.templates[layout][0]
+        found = excluded + found[len(excluded):]
     if found:
         room.lengths[mine][len(found)] = True
     room.widened[layout] = found
@@ -70976,7 +71144,16 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
             content, notes = _content_of(each, words, short, readings)
         if readings is not None:
             _l0_readings_met(column, readings)
-        if len(content) != column.n_present:
+        # A COLUMN OF WORDS COUNTED ABSENT (lane PL's repair 1, method
+        # G8.3d; the orchestrator's LANE PL RULINGS 1 (1)) writes its word
+        # in the floor's number of cells, so the twin's column stays text.
+        withheld_words = _withheld_word_cells(
+            column, profile.settings.small_cell_floor, profile.n_rows
+        )
+        if withheld_words:
+            content = content + withheld_words
+            notes = [*notes, _withheld_words_note(column, len(withheld_words))]
+        if len(content) != column.n_present + len(withheld_words):
             raise errors.ProfileError(
                 f"synthtwin internal check: the twin column for "
                 f"'{parsing.visible(column.name)}' came out with "
@@ -70997,7 +71174,7 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
         notes = notes + _kind_notes(column, content)
         content = content + _absent_cells(
             column, _declared_a_decimal_comma(column, profile)
-        )
+        )[: column.n_missing - len(withheld_words)]
         places: list[int] = []
         if each.placement_words > 0:
             places = [
@@ -71058,9 +71235,31 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
         # 90, here, before anything below measures the column -- its
         # missing cells kept as written (the second repair of lane SH,
         # item 5: `--missing-value 95` had its missing cells written 90).
+        # ...BUT A HELD COLUMN'S NAME FOLDS NONE OF ITS MADE-UP NUMBERS
+        # (the orchestrator's LANE I4m RULINGS 21 (1): a held column is
+        # never rewritten as ages): lane SH3's fold of a held column named
+        # as ages (its repair, skeptic 1's item 10) wrote each made-up
+        # number past 125 years as its remainder by the mark, which put the
+        # walk's keys, kept off the real ones (lane ID-ROOM), back among
+        # them -- `age_key` holding `001` to `125` on 160 rows each, its
+        # question unanswered, wrote its 20,000 twin cells on 54 real keys
+        # at 20,000 rows where 2af926ce wrote the top-code `90` alone. So a
+        # held column keeps its walk's room whatever its name, and the
+        # top-code writes its made-up numbers at or below 90 as on the
+        # public head; a made-up number of nines alone stands (none real).
+        # ...AND THE MARK ONLY WHERE THE DESCRIPTION PUBLISHES IT (lane
+        # SH3's repair): a tail drawn past the published largest value
+        # wrote the mark itself on 7 cells of a column whose top category
+        # of 8 rows the description had pooled below it.
+        # ...AND A LABEL COLUMN'S MADE-UP LABELS PAST THE MARK ARE WRITTEN
+        # BELOW IT, each as a label of its own (lane SH3's second repair):
+        # written as the mark, they joined the published top category.
         if column.top_coded:
             written = taxonomy.at_most_the_top_code(
-                written, frozenset(column.missing_by_source)
+                written, frozenset(column.missing_by_source), column.top_coded,
+                False,
+                _the_mark_published(column),
+                isinstance(column.facts, contract.LabelFacts),
             )
         # ...AND THE SAFE HARBOR YEARS (plan P4-D434): the twin of a column
         # described with every year up to one showing an age of 90 or more
@@ -71068,6 +71267,19 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
         if column.top_coded_year:
             written = taxonomy.at_least_the_year_cutoff(
                 written, frozenset(column.missing_by_source), column.top_coded_year
+            )
+        # THE DATES IN DISGUISE (method G7.15, plan P4-D446): the twin of a
+        # column whose description held its dates in disguise (NF135) writes
+        # no number its numeric machinery drew inside a band of one -- the
+        # validator reads the twin as the description read its table, so
+        # such a number would be one blank more than the description holds
+        # -- here, before anything below measures the column, as the top-code.
+        held_numbers = _numbers_kept_off_the_bands(column)
+        if held_numbers > 0:
+            written = date_counts.kept_off_the_bands(
+                written,
+                [order[place] < held_numbers for place in range(profile.n_rows)],
+                frozenset(column.missing_by_source),
             )
         # THE OTHER HALF OF THE DECLARATION (plan P4-D26), and it is
         # applied to the CELLS HANDED OUT and to nothing this loop then
@@ -71309,6 +71521,10 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
         notes = _not_settled_by_a_bound(notes, approximated_here)
         notes = notes + _bound_notes(approximated_here)
         notes = _not_moved_off_the_real(column, notes, spelled)
+        if withheld_words:
+            # ...whose one note says what its word cells are: the counts of
+            # different values and of words they make follow from it.
+            notes = [note for note in notes if note.fact not in _WITHHELD_WORDS_COUNTS]
         approximated = approximated + approximated_here
         deviations = deviations + notes
         # WHAT THIS COLUMN HOLDS THAT MISSED NOTHING (P4-G2-R4-F1).
@@ -72802,6 +73018,21 @@ def _reader_l0_bands(
 
 # Cells `_reader_l0_bands` spells as written a block at a time, never the column whole.
 _READ_BLOCK = 4096
+
+
+def _numbers_kept_off_the_bands(column: contract.ColumnBlock) -> int:
+    """How many of a column's cells, first in its content list, method G7.15 keeps off the bands of a date in disguise.
+
+    The cells the numeric machinery writes (`_numbers_written`) of a
+    column of numbers, or of numbers and labels, whose description held
+    its dates in disguise (remark NF135, plan P4-D446); 0 on every other
+    column, whose cells are written as before.
+    """
+    if taxonomy.rendered(taxonomy.REMARK_DATED_VALUES_HELD, ()) not in column.remarks:
+        return 0
+    if not isinstance(column.facts, (contract.NumericFacts, contract.CompoundFacts)):
+        return 0
+    return _numbers_written(column)
 
 
 def _numbers_written(column: contract.ColumnBlock) -> int:
@@ -78310,3 +78541,35 @@ def _bound_notes(measured: "list[Approximation]") -> "list[Deviation]":
             )
         ]
     return notes
+
+
+def _the_mark_published(column: contract.ColumnBlock) -> "bool | None":
+    """Whether a top-coded column's description publishes its mark among its numbers: its largest number at or past it (lane SH3's repair, plan P4-D454).
+
+    For a column of numbers, bare or with one affix, its published
+    largest value read against the column's mark (an affix writing an
+    age's unit, `y/o` or ` months`, in that unit's mark); a largest value
+    withheld where the description records a small top category pooled
+    (`top_category_pooled` above 0, the table floor and more) publishes no
+    mark, False. None for every other block (labels, a held column, a
+    description that pooled nothing, below the table floor or written
+    before the rule), whose twin reads the mark from its cells, as
+    before. Guarantees: a fixed function of the block. Raises nothing.
+    No I/O.
+    """
+    facts = column.facts
+    mark = column.top_coded
+    numbers: "contract.NumericFacts | None" = None
+    if isinstance(facts, contract.AffixedFacts):
+        numbers = facts.numbers
+        read = taxonomy.safe_harbor_number("1" + facts.affix_suffix)
+        if read is not None:
+            mark = taxonomy.age_mark(read, mark)
+    elif isinstance(facts, contract.NumericFacts):
+        numbers = facts
+    if numbers is None:
+        return None
+    if numbers.percentiles.maximum is None:
+        return False if column.top_category_pooled > 0 else None
+    return numbers.percentiles.maximum >= mark
+

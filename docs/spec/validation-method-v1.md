@@ -4009,6 +4009,20 @@ V12.6's under `K-S6-15`.
 
 ## V13. Between columns: the moments read on the file (stage 6, plan P4-D413; specified, NOT BUILT)
 
+**AMENDED Monday 2026-11-02 (the owner's rule B, plan P4-D455; contract
+4.6d.0).** The moments' lines read rule B's object: each published
+moment is recomputed on the file, coded by the published rungs and bands
+as the description reads them, by the function of
+`tools/reference/moment_rule_b.py` that states it, and the line reads
+held or missed against the published value at its rounding (each value
+in the unit of its own count; a correlation on its grid of Fisher's z;
+a `within` entry naming `level: 2` on the `L2` bands; repair 1 of
+Tuesday 2026-11-03; a pair's own two spreads over the rows holding both
+where its entry holds them, repair 2); no measured
+number is printed. Built with the polish, by lane MPg; the regions,
+sums and witness this section names below are the strict-proof design's
+record, which rule B no longer publishes.
+
 **No validator in this repository runs anything in this section.** It
 adds the moments' lines that V12's opening paragraph leaves to lane
 MPOL, against the numbers `docs/spec/profile-contract-v6.md` section
@@ -4174,6 +4188,21 @@ carries no `top_coded` is read as written, whatever its values. A block
 held as a record number from top-coded cells carries the key too, so its
 layouts and widths are read from the same cells (item 2 of the same
 review).
+LANE SH3 (plan P4-D454, 2026-11-02): where the block's `top_coded` names
+the mark of another unit (contract TC1), the checked file's cells are read
+in that unit, every value at or past the mark read as the mark, and a
+top category fewer rows than the floor hold pooled with the value below
+it on a file of the table floor's rows or more, as the description was
+made. LANE SH3'S REPAIR 1 (2026-11-03; Codex's item 4, the orchestrator's
+LANE SH3 RULINGS 1 (2)): the validator follows the rule the description
+RECORDS and never a newer one. A block carrying `top_category_pooled`
+(contract TC1) has its top category pooled at that floor -- 0 none --
+counted in rows and in the people of each column `top_category_people`
+names; a top-coded block carrying neither was written before the repair,
+and its column is read as it was then (`taxonomy.top_coded_cells_before_sh3`:
+years alone, lane SH2's letter factors, a unit word read as years, no
+age's affix, no decimal cut, nothing pooled), so a description written by
+the base validates as it did there.
 
 **V15.2 What it buys.** The real table checked against the description it
 made meets every obligation of the block, as its twin does (measured on
@@ -4237,3 +4266,26 @@ grain, held to the room rule, is ten or more
 drawn on that grid -- twice the grain either side -- as the generator
 placed the pool on it (`taxonomy.pooled_window`); a real file meets it,
 its own mean being the published one.
+
+## V17. Pools counted in people and columns counted absent (lane PL, plan P4-D453)
+
+**V17.1 A pool counted in people.** A label column whose block carries
+`pool_in_people` (contract B4e) is read by its published levels: every other
+label of a checked file is held back whatever its rows, one spelling each, and
+its census speaks of the published levels' cells alone, so a twin's stand-ins and
+the real table's levels few people hold both count in the pool, and each published
+level is held to its count as ever. The checked file's people are not counted: a
+twin's are not the real table's. The real file and the twin meet the same block,
+and a file that loses a published level misses it.
+
+**V17.2 A column counted absent.** A column whose block carries
+`present_count_withheld` (contract NF133) is read with every present cell blank,
+the real file as the twin, so the real table meets the description that does not
+publish its count, and a twin's word cells (`withheld_words_from`, method G8.3d)
+are read as the real file's are. What that reading decides is no observation of
+the checked file (lane PL's repair 2, the orchestrator's LANE PL RULINGS 4 (3)):
+the column's presence, content and type checks are WITHHELD, nothing shown on
+either side, their citation saying they are not available and why (rule key
+`count-not-published`); its place and name, and the document's bytes, are
+checked as ever. No such check is counted HELD, and the report never says the
+file was found to hold no present cell.

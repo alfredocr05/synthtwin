@@ -34,6 +34,27 @@ Lane CHa's stamp of `K-S6-08` on the fixtures of the design's section 2.7
   description does: `different_names_leaking` equals 0 where
   `descriptions_leaking` does.
 
+- THE MOMENT FIXTURES UNDER THE OWNER'S RULE B (contract 4.6d.0 and
+  4.6d.7, plan P4-D455; lane MPp, restating the strict-proof fixtures
+  this list once named): by exhaustive enumeration through the product's
+  own `chain_moments` functions at `f` = 3 and `f` = 11
+  (`tests/moment_rule_b_enumeration.py`), every two-band split of a binary
+  and of a number, every two-band split with a band holding an own-fact
+  group (RULE W1), every `L2` reading of three `L1` bands, every presence
+  table of two numbers (both, the first alone, the second alone, neither) and
+  every binary: `moment_leaking_f3` and `moment_leaking_f11`, target 0 (no
+  published moment implies a count of 1 to `f - 1` directly, a column's
+  own unread count beside a complete column standing as its own fact),
+  over `moment_published_f3` and `moment_published_f11`
+  (`moment_coarser_f3` and `_f11` of them read on the `L2` bands); each of
+  the six mutants (one direct count's check, RULE W1 or the neither
+  cell's check dropped) leaks (`moment_mutants_leaking_f3` and `_f11`
+  equal `moment_mutants_f3` and `_f11`, 6); and every presence table the
+  product publishes, the loader's S41 reads back in both pair orders
+  (`moment_loader_refused_f3` and `_f11`, target 0; lane MPp repair 2). A
+  count worked out by combining several published statistics is the
+  residual the owner accepted with rule B, never read here.
+
     PYTHONPATH=src:tests python tools/measurements/kpi_chain_tables.py --kpi
 
 About 15 to 25 minutes on the reference machine; one process, a few tens of
@@ -51,6 +72,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tests"))
 
 import chain_enumeration as enumeration  # noqa: E402
+import moment_rule_b_enumeration as moment_enumeration  # noqa: E402
 
 SETS = 24
 SEED = 3
@@ -77,7 +99,9 @@ def measure() -> "dict[str, object]":
         scales = [enumeration.binary_scale("a", n - a1, a1), enumeration.binary_scale("b", n - b1, b1), enumeration.binary_scale("c", n - c1, c1)]
         if not enumeration.mirror_agrees(table, scales):
             mismatches += 1
+    moments = moment_enumeration.measure()
     return {
+        **moments,
         "descriptions_leaking": scan["descriptions_leaking"],
         "descriptions": scan["descriptions"],
         "tables": scan["tables"],

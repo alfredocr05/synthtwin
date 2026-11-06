@@ -493,6 +493,9 @@ ROUTES_THAT_RUN_SOURCE = {
     # the twenty-ninth past the manifest's cap (plan P4-D295): it runs the
     # same oracle by path, as every file above does.
     ("tools/reference/make_generation_branch_vectors_30.py", "runpy.run_path"): 1,
+    # The thirty-second, lane PL's method G8.3d (plan P4-D453): it runs the
+    # same oracle by path, as every file above does.
+    ("tools/reference/make_generation_branch_vectors_32.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_document_vectors.py", "runpy.run_path"): 1,
     # Lane TI (plan P4-D397): `python -m synthtwin`, run in the test's own
     # process the way the interpreter runs it, on the committed
@@ -700,7 +703,40 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # 53 ON LANE HB (plan P4-D442), merged on batch 4m's 52: the gate loads the
 # committed reference oracle once, `tests/test_zoo_held_layouts.py`'s
 # `_the_oracle`, so the floor holds for it as for the other fifty-two.
-FILES_LOADED_AS_MODULES = 53
+#
+# 54 ON LANE PL (plan P4-D453), merged on batch 4n's 53: lane PL's gate,
+# `tests/test_levels_few_people_hold.py`, loads the same committed oracle to
+# hold method G8.3d's walks to the oracle's own functions (A-P4-59), so the
+# floor holds for it as for the other fifty-three.
+#
+# 55 ON LANE SH3 (plan P4-D454, its repair 1), merged on batch 4o's 54:
+# `tests/test_safe_harbor_ages_and_address_parts.py` loads the same
+# generation oracle, to hold method G7.14 as lane SH3 widens it -- every
+# unit, a unit or an age's affix in the cell, the decimal cut and a held
+# column named as ages -- to the oracle's `safe_harbor_ages_twin`
+# (A-P4-59). What it loads is a committed file under tools/, which this
+# guard reads directly, so the floor holds for it as it does for the
+# other fifty-four.
+#
+# 56 ON LANE CZ-H (plan P4-D446, its second repair of 2026-11-03), merged
+# on batch 4o's 55: `tests/test_zoo_dates_in_disguise.py`, in
+# `test_the_oracle_writes_the_same_cells`, loads the committed generation
+# oracle `tools/reference/make_generation_reference_vectors.py` through
+# one call, to hold the product's method G7.15 to the oracle's mirror of
+# it; this guard reads that file directly, so the floor holds for it as it
+# does for the other fifty-five.
+#
+# 57 AND 58 ON LANE MPp (plan P4-D455, its repairs and the finer grid of z),
+# merged on batch 4o's 56: rule B's gate, `tests/test_moment_rule_b.py`, and
+# its KPI driver, `tools/measurements/kpi_moment_rule_b.py`, each load rule
+# B's reference, `tools/reference/moment_rule_b.py`, one call each, to hold
+# the product's moments to it. What they load is a committed file under
+# tools/, which this guard reads directly, so the floor holds for them as
+# it does for the other fifty-six.
+#
+# 59 ON BATCH 4o's FIX ROUND (plan P4-D453): `tests/test_pool_start_keeps_off_keys.py`'s
+# `_oracle` loads the committed generation oracle under tools/, which this guard reads.
+FILES_LOADED_AS_MODULES = 59
 
 
 def _files() -> "list[pathlib.Path]":

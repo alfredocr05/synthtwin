@@ -278,6 +278,11 @@ _place(
         # ...and the Safe Harbor years (plan P4-D434): the year the
         # description is made less 90, the rule's own year, held by no row.
         "columns.[].top_coded_year",
+        # ...and the floor a small top category is pooled under (lane SH3's
+        # repair, plan P4-D454): the setting's own number, written on every
+        # top-coded column at the table floor whether or not one was
+        # pooled, held by no row.
+        "columns.[].top_category_pooled",
         "source.dialect.blank_lines",
         "source.dialect.blank_lines.[].after",
         "source.dialect.blank_lines.[].lines",

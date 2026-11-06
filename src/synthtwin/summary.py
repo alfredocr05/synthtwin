@@ -341,6 +341,11 @@ def _map_of(value: object) -> dict[str, object]:
     return {}
 
 
+# The unit an age is counted in, by the mark its block's `top_coded` names
+# (plan P4-D454; `taxonomy.AGE_MARKS`).
+_UNIT_OF_MARK = {1080: "months", 4695: "weeks", 32871: "days"}
+
+
 def _count_of(value: object) -> int:
     """``value`` when it is a whole number, zero otherwise."""
     if isinstance(value, int):
@@ -1164,22 +1169,66 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
             "record numbers or codes, because its counts did not read as "
             "the dates you named"
         )
+    # A COLUMN COUNTED ABSENT (plan P4-D453): how many of its cells hold a
+    # value is not published, and nothing here says the real table is empty.
+    counted_absent = "present_count_withheld" in column
+    if counted_absent:
+        said_role = (
+            "written blank in the twin; how many of its cells hold a value "
+            "is not published"
+        )
+        # ...AND A COLUMN OF WORDS SO COUNTED IS WRITTEN AS ITS WORD (lane PL's
+        # repair 2, the orchestrator's LANE PL RULINGS 4 (6), Codex's item 8):
+        # the twin writes it in the floor's number of cells, never blank.
+        if "withheld_words_from" in column:
+            said_role = (
+                f"a column of words, written in the twin as the made-up word "
+                f"'{_text_of(column['withheld_words_from'])}' in {floor} "
+                f"cells, the smallest group size, whatever the real table "
+                f"holds; how many of its cells hold a value is not published"
+            )
     lines = [
         f"  {_text_of(column['name'])}",
         f"    read as: {said_role}",
         f"    why: {_text_of(column['detection_evidence'])}",
         (
-            f"    values present: {_count_of(column['n_present'])};   "
-            f"missing: {_count_of(column['n_missing'])}"
+            "    values present: not published"
+            if counted_absent
+            else (
+                f"    values present: {_count_of(column['n_present'])};   "
+                f"missing: {_count_of(column['n_missing'])}"
+            )
         ),
     ]
     # THE SAFE HARBOR TOP-CODE (plan P4-D427), said where it was applied.
-    if "top_coded" in column:
+    # The answer `yes` keeps it (lane SH3, plan P4-D454); `no` lifts it.
+    # ...and the pooling of a small top category, said in words true of
+    # every column the rule was recorded on, whether or not one was pooled
+    # (lane SH3's repair, Codex's item 9: the words said every such value
+    # was read as the mark where a few were read below it), naming no count.
+    pooled_words = ""
+    if "top_category_pooled" in column and _count_of(column["top_category_pooled"]):
+        pooled_words = (
+            f"; where fewer than {_count_of(column['top_category_pooled'])} "
+            f"rows or people hold such values, they are read as the largest "
+            f"value below it instead, so no small group is named"
+        )
+    if "top_coded" in column and column["top_coded"] == 90:
         lines += [
             f"    ages over 89: every value above 89 is read as "
             f"{_count_of(column['top_coded'])} (\"90 or more\") here and in "
-            f"the twin, until the Safe Harbor question about this column is "
-            f"answered in the questions file"
+            f"the twin{pooled_words}, until the Safe Harbor question about "
+            f"this column is answered no in the questions file"
+        ]
+    elif "top_coded" in column:
+        # ...in the unit its ages are counted in (plan P4-D454).
+        mark = _count_of(column["top_coded"])
+        unit = _UNIT_OF_MARK[mark] if mark in _UNIT_OF_MARK else "another unit"
+        lines += [
+            f"    ages over 89, counted in {unit}: every value from {mark} is "
+            f"read as {mark} (\"90 years or more\") here and in the "
+            f"twin{pooled_words}, until the Safe Harbor question about this "
+            f"column is answered no in the questions file"
         ]
     # ...AND THE SAFE HARBOR YEARS (plan P4-D434).
     if "top_coded_year" in column:
@@ -1211,7 +1260,8 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
         if withheld:
             lines += [
                 (
-                    f"    values left out because too few rows share them: "
+                    f"    values left out because too few "
+                    f"{'people or rows hold' if 'pool_in_people' in column else 'rows share'} them: "
                     f"{withheld} (covering "
                     f"{_count_of(column['suppressed_rows'])} rows)"
                 )

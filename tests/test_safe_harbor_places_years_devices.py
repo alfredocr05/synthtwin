@@ -98,13 +98,25 @@ def _check(seen: "dict[str, object]", kind: str, rows: int = 600) -> None:
         assert seen["asked"] == [shapes.SH2_FIRST_ASKED[kind]], seen
         assert seen["role"] == taxonomy.ROLE_IDENTIFIER, seen
         return
-    # ONE QUESTION, lane SH's, never a second.
-    assert seen["asked"] == [_HARBOR], seen
+    # ONE QUESTION, lane SH's, never a second -- a column of ages whose
+    # cells and name state no unit asked its unit inside it (lane SH3's
+    # repair, the orchestrator's LANE SH3 RULINGS 2 (1)).
+    assert seen["asked"] in ([_HARBOR], [_HARBOR + list(asking.AGE_UNIT_ANSWERS)]), seen
+    assert seen["asked"] == [_HARBOR] or kind in shapes.SH2_AGE_TOP_CODED, seen
     assert "THE SAFE HARBOR QUESTION" in f"{seen['screen']}", seen
     if kind in shapes.SH2_AGE_TOP_CODED:
         # ...ages read under lane SH's top-code (the close round: DICOM's
         # `091Y`, placeholders on few rows, a value past 125), published,
-        # never held, and the real table meets its own description.
+        # never held, and the real table meets its own description. THE FIVE
+        # AGE TAILS COME HERE, their role a count's (the orchestrator's LANE
+        # I4m RULINGS 22 (2)): their one question offers the units beside
+        # `yes` and `no` (lane SH3, plan P4-D454) and no `identifier`, so an
+        # open age question publishes the column top-coded and never holds
+        # it; their offer is `shapes.SH2_AGE_TAILS_ASKED`, not the table of
+        # the date-count question that holds its column whole, which the
+        # tests-only fix 3355025d had put them in (six cases red on the
+        # sealed head's suite, 0 values past 90 and 0 placeholders published
+        # or written at 20,000 rows, measured).
         assert seen["role"] != taxonomy.ROLE_IDENTIFIER, seen
         assert seen["top_coded"] == taxonomy.TOP_CODE, seen
         assert seen["read_as_now"] == [asking.SAFE_HARBOR_TOP_CODED], seen
@@ -142,7 +154,13 @@ def test_no_placeholder_of_an_age_is_published_at_20000_rows(tmp_path: pathlib.P
     `SH2_SHAPES`, the years beside a stray among them, is run at 600 and
     20,000 rows by K-S3-64's slow leg
     (`tools/measurements/kpi_unanswered_identifiers.py`, `kpi_run --slow`),
-    which stops on any shape put other than the one question.
+    which stops on any shape put other than the one question. ITS ROLE A
+    COUNT'S, top-coded at 90, its one question the Safe Harbor one with the
+    units beside `yes` and `no` (lane SH3, plan P4-D454): an open age question
+    offers no `identifier` and holds nothing (the orchestrator's LANE I4m
+    RULINGS 22 (2); measured at 20,000 rows on 2af926ce and on batch 4o's
+    sealed head, unanswered: no age past 90 and no placeholder in any file or
+    twin cell, no real key).
     """
     _check(shapes.run_sh2(tmp_path, "ages_ph998", 20000), "ages_ph998", 20000)
 

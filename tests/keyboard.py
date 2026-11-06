@@ -53,3 +53,19 @@ def sh2_answered_no(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(taxonomy, "safe_harbor_hold", lambda *_given, **_named: "")
     # ...and the pairs of coordinates read from their cells (its close round).
     monkeypatch.setattr(taxonomy, "coordinates_held", lambda *_given, **_named: [])
+
+
+def dates_in_disguise_answered_no(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The person answers `no` to every Safe Harbor question about dates in disguise (plan P4-D446).
+
+    A test about something else -- how a number's widths, marks, styles,
+    censuses or windows come back -- whose column holds five-figure numbers
+    in a day-counting band (`12,345`, an income of 45,000), nine or ten
+    figures in a seconds band, or a date as text beside its other values,
+    takes the description `no` gives back, byte for byte: the one written
+    before lane CZ-H, the value rule then holding nothing. The hold itself is
+    pinned by `tests/test_zoo_dates_in_disguise.py` and K-HZ-16.
+    """
+    from synthtwin import date_counts
+
+    monkeypatch.setattr(date_counts, "dated_values_blanked", lambda cells, *held: None)
