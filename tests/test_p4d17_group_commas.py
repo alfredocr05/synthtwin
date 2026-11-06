@@ -157,11 +157,22 @@ def test_a_column_that_settles_it_is_told_so_outright() -> None:
     reason sitting in every cell. The sentence now stops saying
     "nothing settles it" and says the file has settled it.
     """
+    # ELEVEN PROOF CELLS, NOT TEN, AND THE ELEVEN IS DERIVED FROM THE
+    # RULE. Both counts of this remark are FLOORED arguments bound to
+    # `n_present` since the repair pass of landing 3.5, so neither may
+    # leave a group of one to ten over: 245 ambiguous cells printed
+    # beside a published row count of 255 handed a reader the ten proof
+    # cells, and the whole remark is withdrawn at that shape. Eleven is
+    # the smallest proof group the census line admits -- 256 less 245
+    # is exactly the line -- so this is the shape at which the sentence
+    # can still be written at all. The withdrawal itself is asserted in
+    # tests/test_p4d334_sentence_arguments.py.
     values = [f"{number / 1000:.3f}".replace(".", ",") for number in
               range(800, 3000, 9)]
     values = values + [f"{number}.000".replace(".", ",") for number in
-                       range(1000, 1010)]
+                       range(1000, 1011)]
     document = _described(values)
+    assert document["columns"][0]["n_present"] == 256
     said = _comma_remark(document)
     assert said is not None, document["columns"][0]["remarks"]
     assert "CONTAINS VALUES WRITTEN WITH A DECIMAL COMMA" in said
@@ -211,7 +222,7 @@ def test_a_column_with_no_comma_says_nothing() -> None:
     assert _comma_remark(_described(values)) is None
 
 
-def test_a_comma_suffix_is_left_alone_because_it_cannot_be_told_apart() -> None:
+def test_a_comma_suffix_is_read_as_a_decimal_comma_where_the_cells_settle_it() -> None:
     """WHAT WAS TRIED HERE, AND WHY IT WAS WITHDRAWN.
 
     `10,5` through `249,5` is European one-decimal data, and the affix
@@ -233,10 +244,23 @@ def test_a_comma_suffix_is_left_alone_because_it_cannot_be_told_apart() -> None:
     Silence is not good here. It is better than a confident wrong
     answer that instructs somebody to damage their file, which is what
     the repair was. The gap is recorded as residual R-P4-33.
+
+    CHANGED ON PURPOSE BY LANE UN-1b (plan P4-D443; the zoo-fix plan's
+    2.1b (c) v2.1). The cells now settle it by the inference's every
+    condition -- one comma a cell, one number under the comma, one
+    figure after it, no point, no list mark twice in a cell, and neither
+    two-pick signature (`5` stands nowhere before a comma) -- so the
+    column is read as a column declared `--decimal-comma`: 10.5 to 249.5,
+    published among `forced_decimal_commas`, with no remark telling the
+    person to rewrite anything. A revision identifier written `10,5` is
+    the stated residual: `--code` keeps it labels (P4-D443).
     """
     values = [f"{number},5" for number in range(10, 250)]
     document = _described(values)
-    assert document["columns"][0]["role"] == "affixed_number"
+    block = document["columns"][0]
+    assert block["role"] == "continuous"
+    assert block["mean"] == 129.5 + 0.5
+    assert document["settings"]["forced_decimal_commas"] == ["value"]
     # No remark, and in particular NOT one asserting a decimal comma.
     assert _comma_remark(document) is None
 
@@ -310,7 +334,7 @@ def test_only_a_cell_trying_to_be_a_number_may_speak() -> None:
         "Hello.World,Foo",
         "a,b,c",
         "1,5 mg",
-        "Iowa City, IA 52242",
+        "Lake City, MN 55041",
         "2024, March",
     ):
         assert parsing.comma_reading(text) == parsing.COMMA_NONE, text
@@ -321,7 +345,7 @@ def test_a_column_of_names_is_never_told_about_decimals() -> None:
     names = [f"Family{number}, Given{number % 40}" for number in range(240)]
     assert _comma_remark(_described(names, "patient_name")) is None
     addresses = [
-        f"{number} Main St., Apt {number % 40}, Iowa City"
+        f"{number} Main St., Apt {number % 40}, Lake City"
         for number in range(240)
     ]
     assert _comma_remark(_described(addresses, "address")) is None

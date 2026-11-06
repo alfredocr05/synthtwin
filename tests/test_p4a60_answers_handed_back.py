@@ -37,6 +37,8 @@ import tempfile
 
 import pytest
 
+import keyboard
+
 import fixtures
 from synthtwin import asking, cli, contract, profile, reading, taxonomy
 
@@ -58,11 +60,16 @@ def _columns() -> "dict[str, list[str]]":
     """Three columns of digits, none of them separable from the others."""
     draw = random.Random(11)
     return {
-        # padded: a procedure code register written five wide
-        "padded_code": [
-            f"{draw.choice([80053, 9921, 2988, 453, 2061]):05d}"
-            for _index in range(120)
-        ],
+        # padded: a procedure code register written five wide, with a
+        # DIFFERENT code on every row. It held five codes over 120 rows
+        # until plan P4-D341: answering `identifier` on that column is
+        # answering that five people wrote the table, and the
+        # population floor then refuses it -- correctly, and nowhere
+        # near what this file is about. A register whose codes are all
+        # different raises the same padded question, is the shape
+        # `--identifier` exists for, and names a ROW rather than a
+        # person, so the population stays the 120 rows it always was.
+        "padded_code": [f"{index:05d}" for index in range(120)],
         # fixed width and not padded: a real reading, 100 to 999
         "reading": [f"{draw.randint(100, 999)}" for _index in range(120)],
         # fixed width and not padded: a year
@@ -212,9 +219,13 @@ def test_an_answer_in_the_file_becomes_the_declaration(
         "and the answer is recorded as the declaration it stands for, "
         "so the description says who decided"
     )
-    assert _role_of(document, "reading") in asking.NUMERIC_ROLES, (
+    # A COLUMN THEY DID NOT ANSWER ABOUT IS UNTOUCHED by that answer: it
+    # stands as an unanswered column stands, held as record numbers until
+    # its own question is answered (plan P4-D401).
+    assert _role_of(document, "reading") == taxonomy.ROLE_IDENTIFIER, (
         "a column they did not answer about is untouched"
     )
+    assert "reading" in document["settings"]["forced_identifiers"]
 
 
 def test_each_answer_reaches_its_own_declaration(
@@ -230,7 +241,9 @@ def test_each_answer_reaches_its_own_declaration(
     settings = json.loads(
         (tmp_path / "clinic-profile.json").read_text(encoding="utf-8")
     )["settings"]
-    assert settings["forced_identifiers"] == ["padded_code"]
+    # `born`, left unanswered, is held as record numbers until it is
+    # answered (plan P4-D401), beside the column answered `identifier`.
+    assert settings["forced_identifiers"] == ["born", "padded_code"]
     assert settings["forced_measurements"] == ["reading"]
 
 
@@ -312,9 +325,14 @@ def test_the_answer_replaces_a_declaration_typed_earlier(
 
 
 def test_the_run_says_the_answered_file_is_written_again(
-    tmp_path: pathlib.Path, capsys
+    tmp_path: pathlib.Path, capsys, monkeypatch
 ) -> None:
     """A person who spent ten minutes filling it in is told first."""
+    # THE SAFE HARBOR REACH (plan P4-D427, its second repair) holds five
+    # figures padded with zeros until `no` whatever else they are
+    # answered, and asks its own question; these are codes of no place,
+    # so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     assert _run(tmp_path) == 0
     capsys.readouterr()
     questions = tmp_path / "clinic-questions.json"
@@ -348,6 +366,9 @@ def test_the_questions_file_never_survives_a_terminal_answer(
     reading the run did not take, which is the one thing it may never
     do.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column; its numbers
+    # are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
     answers = iter([asking.ANSWER_CODE, "", ""])
     monkeypatch.setattr(

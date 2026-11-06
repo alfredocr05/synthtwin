@@ -1076,6 +1076,12 @@ def test_a_comprehension_scope_is_position_blind_too(tmp_path):
 
 
 # -- the same rule one module over ------------------------------------
+#
+# The module that calls pandas is named `reading.py`, the zone R module
+# pandas is admitted for (plan P4-D409 part 2; lane DEP-1's plan
+# P4-D410): under any other name the zone rule refuses pandas there, and
+# each case would be red, or fail to stay clean, for the zone's reason
+# instead of its own.
 
 
 def test_a_sibling_that_rebinds_its_export_is_not_trusted(tmp_path):
@@ -1102,7 +1108,7 @@ def test_a_sibling_that_rebinds_its_export_is_not_trusted(tmp_path):
 
             validate_local_path = substitute
             """,
-            "reader.py": """
+            "reading.py": """
             import pandas
             from pathlib import Path
             from synthtwin.paths import validate_local_path
@@ -1115,6 +1121,7 @@ def test_a_sibling_that_rebinds_its_export_is_not_trusted(tmp_path):
         },
     )
     _assert_red(violations, "binds 'validate_local_path' more than once")
+    assert "zone" not in "\n".join(violations), violations
 
 
 def test_a_sibling_rebinding_is_refused_through_the_dotted_form_too(tmp_path):
@@ -1136,7 +1143,7 @@ def test_a_sibling_rebinding_is_refused_through_the_dotted_form_too(tmp_path):
             for validate_local_path in [substitute]:
                 pass
             """,
-            "reader.py": """
+            "reading.py": """
             import pandas
             from pathlib import Path
             from synthtwin import paths
@@ -1149,6 +1156,7 @@ def test_a_sibling_rebinding_is_refused_through_the_dotted_form_too(tmp_path):
         },
     )
     _assert_red(violations, _PROVENANCE)
+    assert "zone" not in "\n".join(violations), violations
 
 
 def test_a_sibling_with_one_plain_definition_stays_trusted(tmp_path):
@@ -1162,7 +1170,7 @@ def test_a_sibling_with_one_plain_definition_stays_trusted(tmp_path):
             def validate_local_path(raw, purpose=""):
                 return raw
             """,
-            "reader.py": """
+            "reading.py": """
             import pandas
             from pathlib import Path
             from synthtwin import paths

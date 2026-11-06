@@ -30,6 +30,8 @@ import tempfile
 import pytest
 
 import fixtures
+import tail_rule
+
 from synthtwin import (
     asking,
     cli,
@@ -46,16 +48,39 @@ from synthtwin import (
 )
 
 
+def _boundary(block: dict, low: bool = True) -> float:
+    """The outermost rung a tail block still publishes on one side.
+
+    The two ends are withheld by the tail rule (contract 6.7a) and so is
+    every rung outside the two boundary percents, so a test that used to
+    read `percentiles.min` reads the rung at `tails.low.percent` -- the
+    smallest number the description still names.
+    """
+    side = block["tails"]["low" if low else "high"]
+    return tail_rule.rung_of(block, side["percent"])
+
+
 def _document(
-    folder: pathlib.Path, name: str, values: "list[str]"
+    folder: pathlib.Path,
+    name: str,
+    values: "list[str]",
+    floor: "int | None" = None,
 ) -> "dict[str, object]":
-    """One single-column table, described the way `profile` describes it."""
+    """One single-column table, described the way `profile` describes it.
+
+    ``floor`` None is the shipped default (11 since plan P4-D316).
+    """
     folder.mkdir(parents=True, exist_ok=True)
     table = fixtures.write(
         folder, f"{name}.csv", fixtures.single_column_table(name, values)
     )
-    read = reading.read_table(f"{table}")
-    return profile.build_document(read, taxonomy.Settings(), [])
+    settings = (
+        taxonomy.Settings()
+        if floor is None
+        else taxonomy.Settings(small_cell_floor=floor)
+    )
+    read = reading.read_table(f"{table}", small_cell_floor=settings.small_cell_floor)
+    return profile.build_document(read, settings, [])
 
 
 def _loaded(
@@ -383,7 +408,12 @@ def test_removal_over_the_cores_does_not_hand_the_column_to_an_earlier_rule(
     verdicts = column["sentinel_verdicts"]
     assert verdicts, "the removed stand-in is published as a verdict"
     assert verdicts[0]["candidate"] == "-999"
-    assert column["percentiles"]["min"] == 1.0
+    # The smallest CORE is 1, held by nine rows and so withheld as an
+    # end (contract 6.7a); the cores stand on a grid and the low tail
+    # holds two different values, so the description lists them and the
+    # 1 is named there -- which is what says the stand-in is gone.
+    assert column["percentiles"]["min"] is None
+    assert column["tails"]["low"]["values"][0] == 1.0
 
 
 # -- the competing-readings remark ------------------------------------
@@ -394,7 +424,7 @@ def test_a_column_of_two_pairs_says_how_far_the_affix_reading_got(
 ) -> None:
     """The reviewer's scenario, and what P4-D36's guard costs.
 
-    Ninety-eight cells wearing one wrapper and two wearing another. No
+    Eighty-nine cells wearing one wrapper and eleven wearing another. No
     single wrapper clears the line, so this column declines and its
     owner is owed the count the closest reading reached.
 
@@ -406,21 +436,39 @@ def test_a_column_of_two_pairs_says_how_far_the_affix_reading_got(
     text here as it was before, so nothing anybody had is lost, and the
     sentence saying how far the reading got is still owed and still
     given.
+
+    THE SECOND WRAPPER WAS TWO CELLS AND IS ELEVEN, AND THAT IS THE
+    RULE AND NOT THE OUTPUT. The reach is a FLOORED sentence argument
+    bound to `n_present` since the repair pass of landing 3.5, so it
+    may not leave a group of one to ten over: 98 printed beside a
+    published row count of 100 handed a reader the two euro cells, and
+    the remark is withdrawn at that shape. Eleven is the smallest
+    second group the census line admits, so it is the shape at which
+    this sentence is still owed AND may still be written. The
+    withdrawal itself is asserted in
+    tests/test_p4d334_sentence_arguments.py over the battery's own
+    ` mg`/` MG` column.
     """
-    values = [f"${index}" for index in range(1, 99)]
-    values = values + ["EUR99", "EUR100"]
+    values = [f"${index}" for index in range(1, 90)]
+    values = values + [f"EUR{index}" for index in range(200, 211)]
     document = _document(tmp_path / "two-pairs", "price", values)
     column = document["columns"][0]
     assert column["role"] == "free_text", column["role"]
+    assert column["n_present"] == 100
     said = " ".join(column["remarks"])
-    assert "98 of its values are numbers wearing one shared piece of text" in (
+    assert "89 of its values are numbers wearing one shared piece of text" in (
         said
     ), said
     assert "which is the reading that came closest" in said
     # ...and the same column with a SPACE between the currency and the
     # number IS read, which is what says the guard is about the flush
-    # letters and not about the set.
-    spaced = [f"$ {index}" for index in range(1, 99)] + ["EUR 99", "EUR 100"]
+    # letters and not about the set. ELEVEN euro cells, so the second
+    # wrapper of the set reaches the default floor of 11 (plan P4-D316);
+    # two of them, as this was written at a floor of one, are a wrapper
+    # below the line and the set is not read at all.
+    spaced = [f"$ {index}" for index in range(1, 90)] + [
+        f"EUR {index}" for index in range(90, 101)
+    ]
     apart = _document(tmp_path / "two-spaced", "price", spaced)
     assert apart["columns"][0]["role"] == "affixed_number", (
         apart["columns"][0]["role"]
@@ -551,7 +599,17 @@ def test_a_declaration_matching_no_cell_is_inert_on_the_affixed_role() -> None:
     column = _kept(_UNIT_CELLS, ("-999",))["columns"][0]
     plain = _kept(_UNIT_CELLS, ())["columns"][0]
     assert column["n_present"] == plain["n_present"] == 89
-    assert column["percentiles"]["min"] == plain["percentiles"]["min"] == 1.0
+    assert column["tails"] == plain["tails"]
+    assert column["percentiles"]["min"] is plain["percentiles"]["min"] is None
+    assert tail_rule.holds(
+        column["tails"]["low"],
+        column,
+        [
+            float(cell.replace(" mg", ""))
+            for cell in _UNIT_CELLS
+            if not cell.startswith("-999")
+        ],
+    )
     assert [entry["verdict"] for entry in column["sentinel_verdicts"]] == [
         "read_as_missing"
     ]
@@ -659,6 +717,12 @@ def test_a_snap_never_carries_a_cell_past_a_published_end() -> None:
     folder = pathlib.Path(tempfile.mkdtemp())
     values = [f"2.{10 + index}" for index in range(1, 11)]
     values = values + [f"{3 + index // 10}.{index % 10}" for index in range(50)]
+    # ...AND ONE CELL AT THREE PLACES (plan P4-D221). Plan P4-D222 (stage 2
+    # closed by the owner rulings of 2026-09-17) would count it, with the
+    # ten at two places, into the commonest width of one -- a width the
+    # published minimum of 2.11 cannot be written at -- so the census is
+    # one pool instead, and no snap is read against a width at all.
+    values = values + ["2.125"]
     table = fixtures.write(
         folder, "v.csv", fixtures.single_column_table("v", values)
     )
@@ -667,13 +731,22 @@ def test_a_snap_never_carries_a_cell_past_a_published_end() -> None:
     # became one (owner ruling, plan amendment A-P4-37), at which
     # nothing is held back at all (contract C5-S13).
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=11),
         taxonomy.Settings(small_cell_floor=11),
         [],
     )
     column = document["columns"][0]
-    assert column["fraction_widths"] == {"1": 50, "(withheld)": 10}
-    assert column["percentiles"]["min"] == 2.11
+    assert column["fraction_widths"] == {"(withheld)": 61}
+    # THE SMALLEST VALUE IS 2.11 AND THE DESCRIPTION NO LONGER NAMES IT
+    # (stage 3, contract 6.7a): one row holds it, so the end is
+    # withheld and the rows beyond the low boundary are described as a
+    # group. The snap this case is about is still bounded by that
+    # boundary rung, which is what the twin reads.
+    assert column["percentiles"]["min"] is None
+    assert tail_rule.holds(
+        column["tails"]["low"],
+        column, [float(value) for value in values]
+    )
     described = contract.load_profile(
         f"{fixtures.write_profile(folder, 'v.json', document)}"
     )
@@ -696,8 +769,8 @@ def test_a_snap_never_carries_a_cell_past_a_published_end() -> None:
             if not subcheck.startswith("widths.published.")
             # AND THE COUNT OF DIFFERENT NUMBERS, on the same terms as
             # the width quota beside it (amendment A-P4-55, residual
-            # R-P4-154). This column publishes sixty different values
-            # over sixty cells at two fraction widths and has never
+            # R-P4-154). This column publishes sixty-one different values
+            # over sixty-one cells at three fraction widths and has never
             # held them: 52 to 57 at four seeds before the landing
             # that made the count an obligation and 53 to 57 after.
             # What this case is about is the SNAP, and it still
@@ -849,7 +922,7 @@ def test_a_pool_bigger_than_the_forms_left_to_hold_it_is_refused() -> None:
     # C5-S13 before P6 is ever reached -- so the case would be answered
     # by the wrong rule and would stay green with P6 deleted.
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=11),
         taxonomy.Settings(small_cell_floor=11),
         [],
     )
@@ -1132,9 +1205,21 @@ def test_a_column_wearing_three_wrappers_is_a_quantity(
         one["count"] for one in block["affix_variants"]
     )
     assert published == counted, (published, counted)
-    # ...and the quantity itself, which is the whole point.
-    assert block["percentiles"]["min"] == min(
-        float(one.replace(" H", "").replace(" L", "")) for one in rows
+    # ...and the quantity itself, which is the whole point. The end is
+    # withheld by the tail rule (contract 6.7a), so what the block says
+    # about the smallest cores is the group beyond its low boundary,
+    # measured over the CORES of this column.
+    assert block["percentiles"]["min"] is None
+    # The block's own numbers are the COMMONEST wrapper's cores, which
+    # on this column is the ` L` flag rather than the bare cells.
+    assert tail_rule.holds(
+        block["tails"]["low"],
+        block,
+        [
+            float(one[: -len(block["affix_suffix"])])
+            for one in rows
+            if one.endswith(block["affix_suffix"])
+        ],
     )
     assert block["n_core_numeric"] == 200, block["n_core_numeric"]
 
@@ -1659,17 +1744,20 @@ def test_the_question_counts_only_numbers_wearing_a_word(
     ]
     assert spoken and "17 of this column's values" in spoken[0], spoken
 
+    # ELEVEN of each, so both reach the default floor of 11 (plan
+    # P4-D316); ten of each, as this was written at a floor of one, is a
+    # marker below the line that no remark may count.
     symboled = _document(
         tmp_path / "symboled",
         "assay",
-        base + ["10.50 H"] * 10 + ["<0.50"] * 10,
+        base + ["10.50 H"] * 11 + ["<0.50"] * 11,
     )["columns"][0]
     spoken = [
         remark
         for remark in symboled["remarks"]
         if "cannot tell from the values alone" in remark
     ]
-    assert spoken and "10 of this column's values" in spoken[0], spoken
+    assert spoken and "11 of this column's values" in spoken[0], spoken
 
 
 def test_neither_question_promises_what_the_floor_can_take_away() -> None:
@@ -1898,9 +1986,14 @@ def test_the_measurement_declaration_reaches_flush_units(
     block = declared["columns"][0]
     assert block["role"] == "affixed_number", block["role"]
     assert len(block["affix_variants"]) == 1, block["affix_variants"]
-    # ...and each unit keeps its own numbers, which is the point.
-    assert block["percentiles"]["max"] < 100.0
-    assert block["affix_variants"][0]["numbers"]["percentiles"]["min"] > 100.0
+    # ...and each unit keeps its own numbers, which is the point. The
+    # two ENDS are withheld by the tail rule, so the claim is made on
+    # the outermost rungs the ladder still publishes.
+    assert block["percentiles"]["max"] is None
+    assert _boundary(block, low=False) < 100.0
+    variant = block["affix_variants"][0]["numbers"]
+    assert variant["percentiles"]["min"] is None
+    assert _boundary(variant, low=True) > 100.0
 
 
 def test_the_sentence_names_the_count_that_wears_the_spelling(
@@ -2009,10 +2102,14 @@ def test_a_wrapper_is_measured_against_its_OWN_spelling(
         for check in outcome.checks
         if check.verdict == validation.MISSED
     ]
-    # THE KILOGRAM ENDS ARE COMPARED AGAINST KILOGRAMS, which in that
-    # file run near 300, so they miss rather than holding.
-    assert "ladder.min" in missed, missed[:10]
-    assert "ladder.max" in missed, missed[:10]
+    # THE KILOGRAM LADDER IS COMPARED AGAINST KILOGRAMS, which in that
+    # file run near 300, so it misses rather than holding. The two ENDS
+    # carry no check at all on a tail block -- they are withheld, and a
+    # published one is checked one-sided and silently (method G5.6a) --
+    # so the rungs the ladder does publish are what miss.
+    assert "ladder.min" not in missed
+    assert "ladder.p50" in missed, missed[:10]
+    assert "ladder.p25" in missed, missed[:10]
 
 
 def test_a_wrapper_whose_numbers_are_wrong_is_caught(
@@ -2061,7 +2158,7 @@ def test_a_wrapper_whose_numbers_are_wrong_is_caught(
     # ...AND EVERY MISS NAMES THE WRAPPER IT BELONGS TO.
     for subcheck in missed:
         assert subcheck.startswith("affix_variants[0]."), subcheck
-    assert "affix_variants[0].ladder.min" in missed, missed
+    assert "affix_variants[0].ladder.p50" in missed, missed
 
 
 def _wearing_a_set(folder: pathlib.Path, stem: str) -> "dict[str, object]":
@@ -2242,16 +2339,20 @@ def test_two_units_are_never_averaged_into_one_number(
     # THE COLUMN'S OWN BLOCK IS THE COMMONEST WRAPPER'S, so its ends
     # are that wrapper's ends and not the two ranges laid end to end.
     assert block["affix_suffix"] == " kg", block["affix_suffix"]
-    assert block["percentiles"]["min"] >= 60.0
-    assert block["percentiles"]["max"] <= 70.0
+    assert block["percentiles"]["min"] is None
+    assert block["percentiles"]["max"] is None
+    assert _boundary(block, low=True) >= 60.0
+    assert _boundary(block, low=False) <= 70.0
     assert 60.0 <= block["mean"] <= 70.0, block["mean"]
     # ...and the pounds are described as pounds, beside their wrapper.
     assert len(block["affix_variants"]) == 1, block["affix_variants"]
     other = block["affix_variants"][0]
     assert other["suffix"] == " lb", other["suffix"]
     assert other["count"] == 100, other["count"]
-    assert other["numbers"]["percentiles"]["min"] >= 132.0
-    assert other["numbers"]["percentiles"]["max"] <= 154.0
+    assert other["numbers"]["percentiles"]["min"] is None
+    assert other["numbers"]["percentiles"]["max"] is None
+    assert _boundary(other["numbers"], low=True) >= 132.0
+    assert _boundary(other["numbers"], low=False) <= 154.0
     assert 132.0 <= other["numbers"]["mean"] <= 154.0, other["numbers"]["mean"]
     # NO POOLED NUMBER SURVIVES ANYWHERE IN THE BLOCK: nothing in this
     # column's description sits between the two ranges, which is where
@@ -2277,8 +2378,11 @@ def test_the_twin_writes_each_wrapper_from_its_own_numbers(
         + [f"{round(draw.uniform(13, 15), 1)} H" for _index in range(60)]
         + [f"{round(draw.uniform(4, 5), 1)} L" for _index in range(60)]
     )
+    # FLOOR ONE (plan P4-D316): each flagged reading is a label held by
+    # two or three rows, which the default of 11 pools and writes as a
+    # neutral stand-in; the flag's placement is what is under test.
     loaded = _loaded(
-        tmp_path, _document(tmp_path, "hgb", values), "hgb"
+        tmp_path, _document(tmp_path, "hgb", values, floor=1), "hgb"
     )
     for seed in (0, 3, 11):
         twin = generation.generate(loaded, seed)
@@ -2469,7 +2573,7 @@ def test_a_wrapper_too_rare_to_publish_leaves_stragglers(
         tmp_path, "rare.csv", fixtures.single_column_table("v", rows)
     )
     document = profile.build_document(
-        reading.read_table(f"{path}"),
+        reading.read_table(f"{path}", small_cell_floor=11),
         taxonomy.Settings(small_cell_floor=11),
         [],
     )

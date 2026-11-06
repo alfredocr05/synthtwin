@@ -66,21 +66,37 @@ def _minutes(count: int, start: int = 7 * 60) -> "list[str]":
     ]
 
 
-# -- the reader: two shapes accepted, four refused --------------------
+# -- the reader: the written forms accepted, the rest refused ---------
 
 
-def test_the_reader_accepts_exactly_two_shapes() -> None:
-    """And every value of both spaces round-trips through it.
+def test_every_value_of_every_form_round_trips() -> None:
+    """And every value of each space round-trips through it.
 
-    Not a sample: all 1,440 minutes of the day and all 86,400 seconds.
-    The whole ordinal argument -- that every interpolated value has
-    exactly one spelling in the column's form, so no generated cell is
-    ever truncated or widened -- rests on this being total.
+    Not a sample: every minute of the day in every form, and every second
+    in `hh-mm-ss`. The whole ordinal argument -- that every interpolated
+    value has exactly one spelling in the column's form, so no generated
+    cell is ever truncated or widened -- rests on this being total. SINCE
+    LANDING T1 (plan P4-D370) a form is a STYLE at a precision, and a
+    cell SHOWS its form where its hour shows a width: `10:00` is the same
+    in `h-mm` and `hh-mm`, so it shows the two-figure one. The other
+    seconds forms are walked one second in seven, which reaches every
+    residue of the minute.
     """
     for form in parsing.CLOCK_FORMS:
-        for ordinal in range(parsing.CLOCK_CAPACITY[form]):
+        style = parsing.clock_style_of(form)
+        seconds = parsing.clock_step(form) == 1
+        face = parsing.clock_face(style)
+        if face == parsing.CLOCK_TWELVE_HOUR:
+            face = ""
+        stride = 7 if seconds and form != parsing.CLOCK_HH_MM_SS else 1
+        for ordinal in range(0, parsing.CLOCK_CAPACITY[form], stride):
             text = parsing.clock_spelling(ordinal, form)
-            assert parsing.clock_form(text) == form, (form, ordinal)
+            width = parsing.clock_hour_width(style)
+            if int(text.split(":")[0]) >= 10:
+                width = "hh"
+            assert parsing.clock_form(text) == parsing.clock_form_of(
+                width + face, seconds
+            ), (form, ordinal)
             assert parsing.clock_ordinal(text, form) == ordinal, text
 
 
@@ -89,8 +105,15 @@ def test_the_reader_accepts_exactly_two_shapes() -> None:
     [
         ("12:34:56.7", "a fractional part: the role publishes no key for it"),
         ("23:59:60", "a leap second: the ordinal space has no point for it"),
-        ("9:30", "a single-digit hour: both forms are fixed width"),
         ("24:00", "an hour past the day"),
+        ("0:30 AM", "a marked hour of nought: `%I` refuses it"),
+        ("13:00 PM", "a marked hour past twelve"),
+        ("7:22 Pm", "a marker in a case no clock writes"),
+        ("8:34  PM", "a marker after two spaces"),
+        ("8:34\u202fAM", "a marker after a narrow no-break space"),
+        ("8:34a", "a one-letter marker"),
+        ("007:22", "a three-figure hour"),
+        ("7:5", "a one-figure minute"),
         ("12:60", "a minute past the hour"),
         ("12:34:5", "a short seconds field"),
         ("2024-03-17 09:30", "a date in front of it"),
@@ -106,16 +129,24 @@ def test_the_reader_refuses_what_the_decision_names(cell: str, why: str) -> None
 def test_a_refused_cell_is_counted_rather_than_re_read() -> None:
     """Inside the line's slack, an unreadable cell is an unparsed one.
 
-    All four named refusals land here, and so does a cell of the OTHER
-    form: none of them is merged into the winning reading, and the
-    column still holds the role.
+    The named refusals land here, and so does a cell of the OTHER
+    precision or the other FACE: none of them is merged into the winning
+    reading, and the column still holds the role. A cell whose hour shows
+    the other WIDTH is the one that is read (landing T1, plan P4-D370):
+    it is counted into the column's width, as a spelling below the floor
+    is counted into the commonest, and the column says so (NF109).
     """
-    for tail in ("09:30:00", "09:30:00.5", "23:59:60", "9:30"):
+    for tail in ("09:30:00", "09:30:00.5", "23:59:60", "9:30 PM"):
         document, _loaded, _table = _described(_minutes(99) + [tail])
         column = document["columns"][0]
         assert column["role"] == "time_of_day", tail
         assert column["clock_form"] == parsing.CLOCK_HH_MM, tail
         assert column["n_unparsed"] == 1, tail
+    document, _loaded, _table = _described(_minutes(99) + ["9:30"])
+    column = document["columns"][0]
+    assert column["clock_form"] == parsing.CLOCK_HH_MM
+    assert column["n_unparsed"] == 0
+    assert taxonomy.rendered(taxonomy.REMARK_CLOCK_OTHER_WIDTH, ()) in column["remarks"]
 
 
 # -- the rule: the line, the tie, and the decline ---------------------
@@ -170,15 +201,34 @@ def test_the_block_carries_five_keys_and_no_sixth() -> None:
     column = document["columns"][0]
     for key in contract.CLOCK_KEYS:
         assert key in column, key
-    for absent in ("format", "resolution", "utc_offsets", "percentiles"):
+    for absent in (
+        "format",
+        "resolution",
+        "utc_offsets",
+        "percentiles",
+        # A clock has no day to separate from its time and no midnight
+        # to stand at (plan P4-D39); the publication rules are keyed by
+        # path, so only the producer and the loader keep these off.
+        "datetime_separators",
+        "all_at_midnight",
+    ):
         assert absent not in column, absent
     ladder = column["clock_percentiles"]
     assert sorted(ladder) == sorted(taxonomy.LADDER_NAMES)
-    # SELECTION: every rung is a time some row wore.
-    for rung in ladder.values():
-        assert rung in _minutes(60), rung
-    assert ladder["min"] == column["earliest"]
-    assert ladder["max"] == column["latest"]
+    # SELECTION: every PUBLISHED rung is a time some row wore, and the
+    # two ends are empty since stage 3 -- the ranks they stand at hold
+    # the column's outermost values (contract T2).
+    assert ladder["min"] is None and ladder["max"] is None
+    for name in taxonomy.LADDER_NAMES:
+        rung = ladder[name]
+        if rung is not None:
+            assert rung in _minutes(60), rung
+    # ...and each tail's boundary is a time some row wore too.
+    for side in ("low_tail", "high_tail"):
+        tail = column[side]
+        assert isinstance(tail, dict), side
+        assert tail["boundary"] in _minutes(60)
+        assert tail["rows"] >= 11
     facts = loaded.columns[0].facts
     assert isinstance(facts, contract.ClockFacts)
 
@@ -206,7 +256,12 @@ def _forged(edit) -> "tuple[dict, pathlib.Path]":
                 "p50", "07:49:00"
             ),
         ),
-        ("T2", lambda column: column.__setitem__("latest", "09:15")),
+        (
+            "T2",
+            lambda column: column["clock_percentiles"].__setitem__(
+                "min", "07:00"
+            ),
+        ),
         (
             "T2",
             lambda column: column["clock_percentiles"].__setitem__(
@@ -253,8 +308,29 @@ def test_the_twin_pins_both_ends_and_stays_inside_them() -> None:
             if parsing.clock_form(cell) == facts.clock_form
         ]
         assert len(times) == column["n_present"] - facts.n_unparsed, seed
-        assert min(times) == facts.earliest, seed
-        assert max(times) == facts.latest, seed
+        # STAGE 3: what the construction promises is the two BOUNDARIES
+        # and the counts beyond them, not the column's own two ends.
+        assert facts.low_tail is not None and facts.high_tail is not None
+        ordinals = sorted(
+            parsing.clock_ordinal(cell, facts.clock_form) or 0
+            for cell in times
+        )
+        low = parsing.clock_ordinal(
+            facts.low_tail.boundary, facts.clock_form
+        )
+        high = parsing.clock_ordinal(
+            facts.high_tail.boundary, facts.clock_form
+        )
+        assert ordinals[facts.low_tail.rows] == low, seed
+        assert (
+            ordinals[len(ordinals) - 1 - facts.high_tail.rows] == high
+        ), seed
+        assert len([o for o in ordinals if o < (low or 0)]) == (
+            facts.low_tail.rows
+        ), seed
+        assert len([o for o in ordinals if o > (high or 0)]) == (
+            facts.high_tail.rows
+        ), seed
 
 
 def test_a_stand_in_never_reads_as_a_clock_time_in_either_form() -> None:
@@ -353,7 +429,18 @@ def test_a_rung_is_said_as_a_distance_a_person_can_read() -> None:
         for check in outcome.checks
         if check.subcheck.startswith("clock-ladder.p")
     ]
-    assert len(rungs) == 9
+    # STAGE 3: the ladder is published between the two tail boundaries,
+    # so the rungs a file is checked at are the ones the tail rule
+    # leaves -- six here, with p01, p99 and the two ends withheld and
+    # LISTED instead (contract T2).
+    assert 1 <= len(rungs) <= 9
+    listed = [
+        entry.subcheck
+        for entry in outcome.listings
+        if entry.subcheck.startswith("clock-ladder.")
+    ]
+    assert "clock-ladder.min" in listed and "clock-ladder.max" in listed
+    assert len(rungs) + len(listed) == 11
     for check in rungs:
         assert check.achieved == "that same time" or (
             "minute(s)" in check.achieved
@@ -398,11 +485,21 @@ def test_a_column_asking_for_more_times_than_a_day_holds_is_refused() -> None:
     )
     forged = copy.deepcopy(document)
     forged["n_rows"] = 1441
+    # The written form moves with the rows, or the loader refuses the
+    # forgery for its line endings before the generator is ever asked.
+    forged["source"]["dialect"]["line_endings"][0]["lines"] += 1
     column = forged["columns"][0]
     column["n_present"] = 1441
     column["n_distinct"] = 1441
     column["n_distinct_folded"] = 1441
     column["n_not_numeric"] = 1441
+    # ...and its census, heaps and step go (plan P4-D373), or the loader
+    # refuses the forgery for a census that no longer adds up (CC3) before
+    # the generator is ever asked.
+    column["clock_step"] = None
+    column["clock_census"] = []
+    column["clock_heaps"] = []
+    column["clock_codes"] = []
     folder = pathlib.Path(tempfile.mkdtemp())
     written = fixtures.write_profile(folder, "over.json", forged)
     loaded = contract.load_profile(f"{written}")
@@ -450,5 +547,10 @@ def test_a_file_in_the_other_form_is_read_rather_than_silenced() -> None:
     outcome = validation.measure(loaded, f"{other}")
     spoken = {check.subcheck: check.verdict for check in outcome.checks}
     assert spoken["form.clock_form"] == validation.MISSED
-    for name in ("p01", "p25", "p50", "p75", "p99"):
+    # The rungs the tail rule publishes at a hundred cells: p01 and p99
+    # are withheld below 1,101 rows, and the two ends always.
+    for name in ("p25", "p50", "p75"):
         assert spoken[f"clock-ladder.{name}"] == validation.HELD, name
+    # ...and the two tails are read in the file's own form as well.
+    assert spoken["tails.low.boundary"] == validation.HELD
+    assert spoken["tails.high.boundary"] == validation.HELD

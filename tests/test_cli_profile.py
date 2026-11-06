@@ -15,6 +15,7 @@ import pytest
 import fixtures
 from synthtwin import cli, profile
 from synthtwin.cli import main
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 # The bytes for "clear the display", which a terminal obeys rather than
 # prints.
@@ -186,7 +187,7 @@ def test_lowering_the_smallest_group_warns(
     is that the warning states it.
     """
     table = _table(tmp_path)
-    assert main(["profile", str(table), "--smallest-group", "2"]) == 0
+    assert lowered_floor.main(["profile", str(table), "--smallest-group", "2"]) == 0
     captured = capsys.readouterr()
     said = captured.err
     for owed in (
@@ -217,9 +218,14 @@ def test_lowering_the_smallest_group_warns(
 def test_a_smallest_group_below_one_is_refused(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    """Typed, 0 is under the minimum of 11 (plan P4-D426); internally,
+    through `lowered_floor`, it is still no floor at all."""
     table = _table(tmp_path)
-    assert main(["profile", str(table), "--smallest-group", "0"]) == 2
+    assert main(["profile", str(table), "--smallest-group", "0"]) == 2  # `main` returns its status since plan P4-D437 (lane S5a)
+    assert "raised but not lowered" in capsys.readouterr().err
+    assert lowered_floor.main(["profile", str(table), "--smallest-group", "0"]) == 2
     assert "whole number of 1 or more" in capsys.readouterr().err
+    assert sorted(path.name for path in tmp_path.iterdir()) == [table.name]
 
 
 def test_naming_a_column_as_a_record_number(
@@ -330,7 +336,15 @@ def test_an_ordinary_run_says_nothing_about_working_files(
     )
     assert "tidy up by hand" not in captured.err
     assert "tidy up by hand" not in captured.out
-    assert captured.err == "", "an ordinary run has nothing to caution about"
+    # WHAT AN ORDINARY RUN HAS NOTHING TO SAY ABOUT IS ITS OWN WORKING
+    # FILES, and that is what is asserted (plan P4-D341). It read
+    # `captured.err == ""`, which is a claim about every notice the
+    # command has rather than about this one: the table here is in the
+    # population band, so the run says how large it is -- on purpose,
+    # and on every page it writes. The caution this test exists for is
+    # named instead.
+    assert "could not be removed" not in captured.err, captured.err
+    assert "working file" not in captured.err, captured.err
 
 
 def _assert_the_caution_shows_the_control(told: str) -> None:
@@ -503,7 +517,10 @@ def test_a_web_address_is_refused_before_anything_is_opened(
 def test_a_malformed_table_is_a_sentence_not_a_traceback(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    table = _table(tmp_path, "a,b,c\n1,2,3\n4,5\n")
+    # Short by more than its empty cells: a full row that ends empty
+    # beside a short one is a file no rule of the written form accounts
+    # for (plan P4-D86), so it is still refused.
+    table = _table(tmp_path, "a,b,c\n1,2,3\n4,5\n6,7,\n")
     assert main(["profile", str(table)]) == 1
     error = capsys.readouterr().err
     assert "row 2 has 2" in error
@@ -513,9 +530,7 @@ def test_a_malformed_table_is_a_sentence_not_a_traceback(
 def test_asking_for_the_command_without_a_file_says_so(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    with pytest.raises(SystemExit) as caught:
-        main(["profile"])
-    assert caught.value.code == 2
+    assert main(["profile"]) == 2  # `main` returns its status since plan P4-D437 (lane S5a)
     assert "which file to describe" in capsys.readouterr().err
 
 
@@ -529,8 +544,6 @@ def test_the_bare_command_still_prints_the_status(
 
 
 def test_help_shows_an_example(capsys: pytest.CaptureFixture[str]) -> None:
-    with pytest.raises(SystemExit) as caught:
-        main(["--help"])
-    assert caught.value.code == 0
+    assert main(["--help"]) == 0  # `main` returns its status since plan P4-D437 (lane S5a)
     out = capsys.readouterr().out
     assert "synthtwin profile data.csv" in out

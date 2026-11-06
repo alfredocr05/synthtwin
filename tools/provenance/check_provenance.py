@@ -168,6 +168,12 @@ YAML_SUFFIXES = {
 KNOWN_CONFIG_JSON = {
     "tools/provenance/fixture-manifest.json",
     "tools/decontamination/attestation.json",
+    # The KPI ledger: a hand-kept record of each phase's measured value
+    # and its rule, read by tools/measurements/kpi_run.py and held by
+    # tests/test_kpi_ledger_integrity.py. It holds counts, ratios, rule
+    # text and the role map of the seeded fixture tables; no table, no
+    # cell and nothing read from real data.
+    "tests/kpi/ledger.json",
 }
 
 # Tracked YAML paths that are reviewed configuration files of this

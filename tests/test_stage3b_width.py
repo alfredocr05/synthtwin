@@ -1,0 +1,3162 @@
+"""Lane G2 of stage 3b: a tail pair that proves a wider cell lets the end past the width (plan P4-D377).
+
+Method G6.6.8. The width census counts a width fewer than the line wrote
+into its commonest (plan P4-D222), so `1000` to `1148` beside one `99999`
+publishes one width of four figures, and the derived end was held at
+`9998`: the twins missed the column's mean and spread at every seed
+(`K-S3-22`, 99 of its 111 misses). A published pair proves the furthest
+row stands at least `rms**2 / d1` from its boundary; where a width hold
+lowers the end inside that reach, and at or past the mean distance, the
+hold stands aside and the end goes to the first whole number at or past
+the reach (rule 1).
+
+The width walk (rule 2) then leaves past every named width only the
+tail's outermost strata that fit the line less one and the pair's own
+totals -- its squares after those the tail's strata under the width
+already hold -- and moves every other stratum of the tail past the width
+under it before any demand is served: the end's own among them, beside
+its inner neighbour where the end stays past the width, where the pair's
+squares put it where the end moves too, and onto the end the width held
+on 110cb46 where no value under the width is free. It takes the cells
+left past it off the demand the census counted them into. On a side
+rule 1 moved it always walks, and the strata it leaves past the width
+stand only where they read the published mean and spread, together, no
+further off than the same walk with none left there; on another proven
+side, where 110cb46's end already stood past the width, its walk stands
+only where it serves the census strictly better and leaves neither
+published moment further off, and is given up where a stratum finds no
+room. A side is proven only where the width census counts every number
+of the column, and a far cell the walk the block takes leaves past
+every named pad is written plain, where one the draw left there keeps
+its pad (method G6.3). And the rules stand only where they read the
+published mean and spread, together, no further off than the twin
+without them (rule 3):
+wherever rule 1 moved a derived end, the values are read again from the
+same words with both withdrawn -- each end where the width held it, the
+strata divided by that ladder, once, with the plan, and 110cb46's walk
+-- and the block keeps that reading wherever it reads them nearer. Rule
+3 can hide a fault of the walk from the finished twin, so a test pinning
+a clause of rules 1 and 2 reads the walk's own output, a twin nearer
+than 110cb46's, or the twin with rule 3 withdrawn. And where rule 1
+moved an end, the checker holds the mean, the spread, each tail's
+distances and each rung whose window the rule moved to the windows drawn
+with it withdrawn as well, whether or not those reach the published
+value, and where one reaches it, to its own ends but near the value
+(validation method V6.1-A2, section 6).
+
+Each clause is held up by a test here and, where a mutant is cheap to
+write, by the mutant that withdraws it turning the test's own
+measurement the other way. The repair round ran a source mutant of each
+clause of the three rules, of the guard on the cells left past the width
+and of G6.3's give-up against this file, and its leftover round one of
+each clause of where rule 3 is asked, of its one division a block and of
+the checker's second window -- the low end's side of where rule 1 moved
+an end and the mean's half of that window among them, which that round's
+verifier found no test held -- and Codex's review one of each clause it
+added, the sides each walk the block weighs names among them, and the
+corrections its verifier asked one of each clause they added; method
+section G6.6.8 states how many turn it red. The end rule is also frozen in
+`tail_width_past_the_reach` (tests/reference/generation-branch-vectors-23.json);
+the walk has no frozen case, because the oracle does not run G6.6's
+walk, so it is pinned here. The mean and spread 110cb46 wrote on the
+first skeptic's shapes are the constants named `_ON_110CB46`.
+
+Every column is built from a fixed seed at run time; nothing is read
+from disk but the tree's own code.
+"""
+
+from __future__ import annotations
+
+import copy
+import csv
+import dataclasses
+import io
+import math
+import pathlib
+import random
+import statistics
+import types
+
+import pytest
+
+import complement_reader as reader
+import kpi_shapes
+import stage3_battery
+from synthtwin import contract, generation, parsing, validation
+
+SEEDS = (0, 4, 9)
+
+_REAL_PAST_THE_WIDTH = contract._past_the_width
+_REAL_WALK = generation._walked_past_the_width
+_REAL_PULLED = generation._pulled_under_the_width
+_REAL_WORN = generation._point_free_form_worn
+_REAL_OWED = generation._census_owed
+
+
+def _text(cells: "list[str]") -> str:
+    return "value\n" + "\n".join(f'"{cell}"' if "," in cell else cell for cell in cells) + "\n"
+
+
+def _described(tmp_path: pathlib.Path, name: str, cells: "list[str]", floor: int) -> kpi_shapes.Described:
+    return kpi_shapes.describe(tmp_path / name, name, _text(cells), floor)
+
+
+def _described_measured(tmp_path: pathlib.Path, name: str, cells: "list[str]", floor: int) -> kpi_shapes.Described:
+    """``_described`` with the column declared a measurement."""
+    return kpi_shapes.describe(tmp_path / name, name, _text(cells), floor, measured=["value"])
+
+
+def _facts(described: kpi_shapes.Described) -> contract.NumericFacts:
+    facts = described.loaded.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    return facts
+
+
+def _cells(described: kpi_shapes.Described, seed: int) -> "list[str]":
+    text = kpi_shapes.twin_text(described, seed)
+    return [row[0] for row in list(csv.reader(io.StringIO(text)))[1:] if row]
+
+
+def _numbers(cells: "list[str]") -> "list[float]":
+    found: "list[float]" = []
+    for cell in cells:
+        number = parsing.parse_number(cell)
+        if number is not None:
+            found += [number]
+    return found
+
+
+def _twin_numbers(described: kpi_shapes.Described, seed: int) -> "list[float]":
+    return _numbers(_cells(described, seed))
+
+
+def _missed(described: kpi_shapes.Described, seed: int) -> "list[str]":
+    text = kpi_shapes.twin_text(described, seed)
+    return kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}.csv"))
+
+
+def _errors(cells: "list[str]", written: "list[float]") -> "tuple[float, float]":
+    """The twin's mean off the real one and its spread's ratio off one, both against the real spread."""
+    real = _numbers(cells)
+    spread = statistics.pstdev(real)
+    return (
+        abs(statistics.fmean(written) - statistics.fmean(real)) / spread,
+        abs(statistics.pstdev(written) / spread - 1.0),
+    )
+
+
+def _own_census(tmp_path: pathlib.Path, described: kpi_shapes.Described, seed: int, floor: int) -> "tuple[dict, dict]":
+    """The twin's own `field_widths` and `pad_widths`, described at the source's floor."""
+    text = kpi_shapes.twin_text(described, seed)
+    own = kpi_shapes.describe(tmp_path / f"own-{seed}", "own", text, floor).document["columns"][0]
+    return own["field_widths"], own["pad_widths"]
+
+
+def _census(described: kpi_shapes.Described) -> "tuple[dict, dict]":
+    block = described.document["columns"][0]
+    return block["field_widths"], block["pad_widths"]
+
+
+def _past(written: "list[float]", ceiling: float) -> int:
+    return len([value for value in written if abs(value) > ceiling])
+
+
+def _reach_end(block: dict, side: str, boundary: float) -> float:
+    """The first whole number at or past the side's reach, from the published pair alone."""
+    tail = block["tails"][side]
+    root = tail["rms_distance"]
+    reach = root * (root / tail["mean_distance"])
+    reach = reach - reach / 16777216.0
+    if side == "high":
+        return float(math.ceil(boundary + reach))
+    return float(math.floor(boundary - reach))
+
+
+def _walk_calls(described: kpi_shapes.Described, seed: int = 0) -> "list[tuple]":
+    """Every call of the width walk's first step, caught as the generator makes it, in order."""
+    caught: "list[tuple]" = []
+
+    def catch(*arguments):  # type: ignore[no-untyped-def]
+        caught.append(arguments)
+        return _REAL_WALK(*arguments)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_walked_past_the_width", catch)
+        kpi_shapes.twin_text(described, seed)
+    assert caught, "premise: the walk is asked"
+    return caught
+
+
+def _with_totals(sides: "list[tuple]", first: float, second: float) -> "list[tuple]":
+    return [(high, boundary, first, second, moved, held) for high, boundary, _first, _second, moved, held in sides]
+
+
+def _left_past(facts: contract.NumericFacts, values: "list[float]", widest: int) -> "list[int]":
+    return [
+        place
+        for place in range(len(values))
+        if generation._carries_plainly(values[place], facts.integer_valued)
+        and generation._figure_count(values[place], facts.integer_valued) > widest
+    ]
+
+
+# -- the columns ------------------------------------------------------------
+
+
+def _ten_wide() -> "list[str]":
+    """1000 to 1089 and ten of five figures, 10000 to 10009: the census names four on every cell."""
+    return [str(1000 + step) for step in range(90)] + [str(10000 + step) for step in range(10)]
+
+
+def _held_heap() -> "list[str]":
+    """9000 to 9500 a thousand times, `9999` fifteen times (the mode, so held) and one `10500`."""
+    draw = random.Random("p4d377/held-heap")
+    return [str(draw.randint(9000, 9500)) for _row in range(1000)] + ["9999"] * 15 + ["10500"]
+
+
+def _wide_inside_the_mean() -> "list[str]":
+    """110 cells nine apart from 9000 and ten from 20000 to 29000, a thousand apart."""
+    return [str(9000 + 9 * step) for step in range(110)] + [str(20000 + 1000 * step) for step in range(10)]
+
+
+def _mixed(padded: int, unpadded: int, far: "list[str]", seed: int) -> "list[str]":
+    """Codes `0001` to `0999` padded to four, plain four-figure numbers beside them, then the far cells."""
+    draw = random.Random(f"g2/mixed/{padded}/{unpadded}/{far[0]}/{seed}")
+    cells = [f"{draw.randint(1, 999):04}" for _row in range(padded)]
+    cells += [str(draw.randint(1000, 9999)) for _row in range(unpadded)]
+    return cells + far
+
+
+def _plus_mixed() -> "list[str]":
+    """100 codes `0001` to `0999`, 40 plus-signed numbers `+100` to `+999` and one `99999` (the first skeptic's shape)."""
+    draw = random.Random("g2/plus/4")
+    cells = [f"{draw.randint(1, 999):04}" for _row in range(100)]
+    cells += ["+" + str(draw.randint(100, 999)) for _row in range(40)]
+    return cells + ["99999"]
+
+
+def _grid(rows: int) -> "list[str]":
+    """Readings 1000 to 1900 in steps of a hundred, `rows` of them, beside one `99900`."""
+    return [str(1000 + 100 * (step % 10)) for step in range(rows)] + ["99900"]
+
+
+def _mirrored_grid(rows: int) -> "list[str]":
+    """The grid mirrored below nought: readings -1000 to -1900 beside one `-99900`, so rule 1 moves the low end alone."""
+    return [str(-int(cell)) for cell in _grid(rows)]
+
+
+def _beside_one_far(rows: int) -> "list[str]":
+    """`00001` up, padded to five, beside one `12345` (follow-up A's shape)."""
+    return [f"{value:05}" for value in range(1, rows)] + ["12345"]
+
+
+def _narrow_beside_five() -> "list[str]":
+    """Nine four-figure cells, 1000 to 9000, beside 51 of five figures: the census names five."""
+    return (
+        [str(1000 + 1000 * step) for step in range(9)]
+        + [str(30000 + 500 * step) for step in range(3)]
+        + [str(40000 + 1000 * step) for step in range(48)]
+    )
+
+
+def _both_sides() -> "list[str]":
+    """300 four-figure numbers beside `-99999` and `-88888` and beside `99999` and `77777`."""
+    draw = random.Random("g2/both/300/2")
+    return [str(draw.randint(1000, 9999)) for _row in range(300)] + ["-99999", "-88888", "99999", "77777"]
+
+
+def _codes_beside_decimals() -> "list[str]":
+    """Codes `01` to `07` written twice, beside forty decimals from -400.125 to 575.125: the census names the codes alone."""
+    return [f"0{digit}" for digit in range(1, 8)] * 2 + [f"{value}.125" for value in range(-400, 600, 25)]
+
+
+def _staircase_far(rows: int, far: int, start: int) -> "list[str]":
+    """Four-figure numbers beside a run of far cells one apart, fewer than the line."""
+    draw = random.Random(f"g2/stair/{rows}/{far}/{start}")
+    return [str(draw.randint(1000, 9999)) for _row in range(rows)] + [str(start + step) for step in range(far)]
+
+
+def _bulk(rows: int) -> "list[str]":
+    """1000 to 1999 over and over, beside five of five figures: the first skeptic's million-row shape, smaller."""
+    far = ["99999", "98765", "97531", "96420", "95555"]
+    return [str(1000 + (step * 7919) % 1000) for step in range(rows - len(far))] + far
+
+
+def _ones_beside_eleven() -> "list[str]":
+    """Readings 1 to 9 in turn, 400 of them, beside one `11`: every value under the width is held."""
+    return [str(1 + step % 9) for step in range(400)] + ["11"]
+
+
+def _ones_bell() -> "list[str]":
+    """A thousand one-figure readings shaped like a bell around 5, beside `15` and `18`."""
+    draw = random.Random("g2/bell/1000")
+    return [str(max(1, min(9, int(round(draw.gauss(5, 4 / 3)))))) for _row in range(1000)] + ["15", "18"]
+
+
+def _ones_low_heavy() -> "list[str]":
+    """150 one-figure readings crowded towards 1, beside `12`, `39` and `72`."""
+    draw = random.Random("g2/low/150")
+    return [str(max(1, min(9, int(1 + 8 * draw.random() ** 3)))) for _row in range(150)] + ["12", "39", "72"]
+
+
+def _two_figures_beside_185() -> "list[str]":
+    """150 two-figure readings 10 to 99 drawn evenly, beside one `185`: a reading with a figure typed twice."""
+    draw = random.Random("g2/uniform/150/185")
+    return [str(draw.randint(10, 99)) for _row in range(150)] + ["185"]
+
+
+_PAST_THE_REACH = (
+    ("cfh99999_150", reader.shape("cfh99999", 150, 1), 11),
+    ("pad99999_150", reader.shape("pad99999", 150, 1), 11),
+    ("par20d_150_s2", reader.shape("par20d", 150, 2), 36),
+)
+
+# THE MEAN AND THE SPREAD 110cb46 WROTE, each as its distance from the real
+# column's in real standard deviations -- the mean's distance and the
+# spread's ratio's distance from one -- the same at seeds 0, 4 and 9: the
+# first skeptic's grid shapes, follow-up A's codes beside one far value,
+# and the hundred-thousand-row shape at seed 0.
+_ON_110CB46 = {
+    ("grid", 4000, 11): (0.0412, 0.4338),
+    ("grid", 1000, 11): (0.0205, 0.6159),
+    ("grid", 1000, 20): (0.0205, 0.6159),
+    ("grid", 400, 36): (0.0954, 0.5048),
+    ("codes", 150, 11): (0.0504, 0.1396),
+    ("codes", 150, 36): (0.0544, 0.1405),
+    ("codes", 400, 11): (0.0296, 0.1349),
+    ("codes", 400, 36): (0.0323, 0.1369),
+    ("bulk", 100000, 11): (0.0023, 0.5752),
+    ("ones", 401, 50): (0.0067, 0.0064),
+    ("bell", 1002, 36): (0.0083, 0.0105),
+    ("low", 153, 50): (0.1369, 0.4951),
+}
+_SLACK = 1e-4
+
+
+# -- 1. the end -------------------------------------------------------------
+
+
+@pytest.mark.parametrize("name,cells,floor", _PAST_THE_REACH, ids=[one[0] for one in _PAST_THE_REACH])
+def test_the_end_stands_at_the_first_whole_number_past_the_pair_s_reach(
+    tmp_path: pathlib.Path, name: str, cells: "list[str]", floor: int
+) -> None:
+    """K-S3-22's own columns: the high end is the reach, and the twins miss nothing at seeds 0, 4 and 9."""
+    described = _described(tmp_path, name, cells, floor)
+    block = described.document["columns"][0]
+    ladder = contract.tail_ladder(_facts(described))
+    assert ladder is not None and ladder.high is not None
+    widest = max(int(key) for key in block["field_widths"]) - (1 if block["pad_widths"] else 0)
+    assert ladder.high.boundary + 1.0 < 10.0 ** widest <= max(float(cell) for cell in cells), (
+        "premise: the census's ceiling stands below the real largest value"
+    )
+    assert ladder.high.end == _reach_end(block, "high", ladder.high.boundary)
+    assert ladder.high.end > 10.0 ** widest - 1.0
+    for seed in SEEDS:
+        written = _twin_numbers(described, seed)
+        assert max(written) == ladder.high.end, f"seed {seed}"
+        assert _missed(described, seed) == [], f"seed {seed}"
+
+
+def test_withdrawn_the_end_stays_under_the_width_and_the_moments_are_missed(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant of the end rule: `1000` to `1148` beside `99999` ends at 9998 and misses its mean and spread."""
+    described = _described(tmp_path, "cfh99999_150", reader.shape("cfh99999", 150, 1), 11)
+    monkeypatch.setattr(contract, "_past_the_width", lambda clamped, *_rest: clamped)
+    ladder = contract.tail_ladder(_facts(described))
+    assert ladder is not None and ladder.high is not None and ladder.high.end == 9998.0
+    for seed in SEEDS:
+        missed = _missed(described, seed)
+        assert "value:moments.mean" in missed and "value:moments.std" in missed, f"seed {seed}: {missed}"
+
+
+def test_the_end_goes_no_further_out_than_the_end_the_fitted_reading_left() -> None:
+    """Where the reach lies past the end the fitted reading derived, the end is that end, on either side.
+
+    Asked of the rule itself: a hold that took a fitted end of 10200 down
+    to 9998, at or past the mean distance of 100 from a boundary of 1000
+    and inside a reach of 9500, would move it to 10500 -- past anything the
+    fitted reading allows -- and the rule stops at 10200. Its mutant
+    returns the reach's own whole number.
+    """
+    pair = (100.0, 9500.0)
+    assert contract._past_the_width(9998.0, 10200.0, False, 1000.0, pair, ()) == 10200.0
+    assert contract._past_the_width(9998.0, 10900.0, False, 1000.0, pair, ()) == 10500.0
+    assert contract._past_the_width(-9998.0, -10200.0, True, -1000.0, pair, ()) == -10200.0
+    assert contract._past_the_width(-9998.0, -10900.0, True, -1000.0, pair, ()) == -10500.0
+
+
+def test_on_the_low_side_the_end_is_the_first_whole_number_at_or_past_the_reach(tmp_path: pathlib.Path) -> None:
+    """`K-S3-22`'s one `-4000` beside a run of 99 from `500`, at 36: the low end rounds outward, to `-3433`.
+
+    The width held the low end at `-998`; the pair's reach from the boundary,
+    535.63, is 3,968.09, so the end stands at the first whole number at or
+    past `-3432.455` on the low side, `math.floor` of it. Taken toward
+    nought, `-3432` would stand inside the reach -- nearer than the pair
+    proves the furthest row stands -- and 58 twins of the second skeptic's
+    batteries moved with it. The twenty-third vectors file freezes a high
+    side only, so this pins the low side's rounding (the second skeptic of
+    the repair, item 3); its mutant leaves the end at `-3432`. The high end
+    stands at `640` either way, so the rule moved the low end alone, and
+    `contract.reach_moved_an_end`, which rule 3 and the checker both ask,
+    reads it (the leftover round's verifier, finding 1); its mutant reads
+    the high ends only.
+    """
+    described = _described(tmp_path, "neg4000_100", reader.far_low(4000, 100), 36)
+    block = described.document["columns"][0]
+    facts = _facts(described)
+    ladder = contract.tail_ladder(facts)
+    held = contract.tail_ladder(facts, reach_rule=False)
+    assert ladder is not None and ladder.low is not None and held is not None and held.low is not None
+    assert held.low.end == -998.0, "premise: the width held the low end"
+    boundary = ladder.low.boundary
+    tail = block["tails"]["low"]
+    point = boundary - contract.pair_reach(tail["mean_distance"], tail["rms_distance"])
+    assert point != math.floor(point), "premise: the reach lands between two whole numbers"
+    assert ladder.low.end == math.floor(point) == _reach_end(block, "low", boundary) == -3433.0
+    assert ladder.high is not None and held.high is not None
+    assert ladder.high.end == held.high.end == 640.0, "premise: the rule left the high end"
+    assert contract.reach_moved_an_end(facts)
+
+
+def test_the_ladder_read_without_the_reach_rule_holds_the_width_s_end(tmp_path: pathlib.Path) -> None:
+    """`reach_rule` False is the ladder 110cb46 read; the walk reads from it which side the rule moved.
+
+    `1000` to `1148` beside `99999`: the rule moved the high end from 9998
+    to the reach, so the high side is walked always. 60 codes beside 90
+    plain numbers and `99999`, at a floor of eleven: the end stood past the
+    width already -- the mean-distance guard kept the fitted end -- so the
+    rule moved nothing and the side's walk is weighed against 110cb46's.
+    """
+    moved = _facts(_described(tmp_path, "cfh99999_150", reader.shape("cfh99999", 150, 1), 11))
+    read = contract.tail_ladder(moved)
+    held = contract.tail_ladder(moved, reach_rule=False)
+    assert read is not None and read.high is not None and held is not None and held.high is not None
+    assert held.high.end == 9998.0 < read.high.end
+    sides = generation._proven_sides(moved, 4)
+    assert [(side[0], side[4]) for side in sides] == [(True, True)]
+    stood = _facts(_described(tmp_path, "mixed_60_90", _mixed(60, 90, ["99999"], 2), 11))
+    sides = generation._proven_sides(stood, 4)
+    assert [(side[0], side[4]) for side in sides] == [(True, False)]
+
+
+def test_a_side_is_walked_only_where_its_reach_passes_the_width(tmp_path: pathlib.Path) -> None:
+    """`_proven_sides`: a tail's pair proves a cell past every named width only where its reach passes `10**widest - 1`.
+
+    Nine four-figure cells beside 51 of five figures: the high pair's reach
+    stops short of `99999` and the low one cannot pass `-99999`, so no side
+    is walked. 300 four-figure numbers beside far cells on both sides of
+    nought: each side's reach passes the width on its own side, and both
+    are walked, low first.
+    """
+    narrow = _facts(_described(tmp_path, "narrow_beside_five", _narrow_beside_five(), 11))
+    assert narrow.tails is not None and narrow.tails.high is not None and narrow.tails.high.mean_distance is not None
+    assert generation._proven_sides(narrow, 5) == []
+    both = _facts(_described(tmp_path, "both", _both_sides(), 11))
+    assert [side[0] for side in generation._proven_sides(both, 4)] == [False, True]
+    # ...and none where the census does not count every number: two-figure
+    # padded codes beside decimals reaching 575, whose tails are decimals
+    # far past `9`. The census counts the codes alone, and says nothing of
+    # the cells the tails hold.
+    beside = _facts(_described(tmp_path, "codes_beside_decimals", _codes_beside_decimals(), 11))
+    assert sum(beside.field_widths.values()) < beside.n_used_in_statistics, "premise: decimals the census does not count"
+    assert beside.tails is not None and beside.tails.high is not None and beside.tails.high.mean_distance is not None
+    ladder = contract.tail_ladder(beside)
+    assert ladder is not None and ladder.high is not None and ladder.high.boundary > 9.0, "premise: a tail past 9"
+    assert generation._proven_sides(beside, 1) == []
+
+
+def test_a_hold_on_a_stand_in_the_block_holds_stays(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`9999` fifteen times, the block's mode, beside one `10500`: the end stays on the heap.
+
+    The pair's reach passes 9999, which stands at or past the mean
+    distance, so the rule would take the end past the width; the hold put
+    it on a stand-in the block publishes as held, and the table's own heap
+    is kept. Its mutant reads no held stand-in and the end leaves 9999.
+    """
+    described = _described(tmp_path, "held_heap", _held_heap(), 11)
+    block = described.document["columns"][0]
+    facts = _facts(described)
+    assert facts.kept_stand_ins == (9999.0,) and block["mode"] == 9999.0, "premise: 9999 is held"
+    ladder = contract.tail_ladder(facts)
+    assert ladder is not None and ladder.high is not None
+    tail = block["tails"]["high"]
+    reach = contract.pair_reach(tail["mean_distance"], tail["rms_distance"])
+    assert tail["mean_distance"] <= 9999.0 - ladder.high.boundary < reach, "premise: the rule would fire"
+    assert ladder.high.end == 9999.0
+    for seed in SEEDS:
+        held = len([value for value in _twin_numbers(described, seed) if value == 9999.0])
+        assert abs(held - 15) <= max(15 // 4, 1016 // 100), f"seed {seed}: {held}"
+        assert _missed(described, seed) == [], f"seed {seed}"
+    monkeypatch.setattr(
+        contract,
+        "_past_the_width",
+        lambda clamped, held, low, boundary, pair, kept: _REAL_PAST_THE_WIDTH(clamped, held, low, boundary, pair, ()),
+    )
+    moved = contract.tail_ladder(facts)
+    assert moved is not None and moved.high is not None and moved.high.end > 9999.0
+
+
+def _past_inside_the_mean(clamped, held, low, boundary, pair, kept):  # type: ignore[no-untyped-def]
+    """The end rule with its mean-distance clause withdrawn."""
+    return _REAL_PAST_THE_WIDTH(clamped, held, low, boundary, (0.0, pair[1]), kept)
+
+
+def test_inside_the_mean_distance_the_guard_s_fitted_end_stands(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ten cells 20000 to 29000 beside 9000 to 9981: the hold falls inside the mean distance, and the guard keeps the fitted end.
+
+    Its mutant reads the reach there too, and the end moves in from the
+    fitted one, crowding the tail's rows onto it.
+    """
+    described = _described(tmp_path, "inside_the_mean", _wide_inside_the_mean(), 11)
+    block = described.document["columns"][0]
+    facts = _facts(described)
+    ladder = contract.tail_ladder(facts)
+    assert ladder is not None and ladder.high is not None
+    assert 9999.0 - ladder.high.boundary < block["tails"]["high"]["mean_distance"], "premise: inside the mean distance"
+    monkeypatch.setattr(contract, "_past_the_width", lambda clamped, *_rest: clamped)
+    fitted = contract.tail_ladder(facts)
+    assert fitted is not None and fitted.high is not None
+    assert ladder.high.end == fitted.high.end
+    monkeypatch.setattr(contract, "_past_the_width", _past_inside_the_mean)
+    crowded = contract.tail_ladder(facts)
+    assert crowded is not None and crowded.high is not None
+    assert crowded.high.end == _reach_end(block, "high", ladder.high.boundary) < fitted.high.end
+
+
+def test_a_hold_raising_a_size_is_a_floor_and_is_left_alone(tmp_path: pathlib.Path) -> None:
+    """Nine four-figure cells under a census of five: the low end stays at 10000, the census's floor.
+
+    The pair's reach passes 10000 on the low side too, but that hold raised
+    the end's size, a floor the lane does not read; only a ceiling stands
+    aside (`contract._past_the_width`'s first clause). Asked of the
+    function itself, with the ceiling clause the one thing between.
+    """
+    described = _described(tmp_path, "narrow_beside_five", _narrow_beside_five(), 11)
+    block = described.document["columns"][0]
+    facts = _facts(described)
+    assert block["field_widths"] == {"5": 60}, "premise: one width of five"
+    ladder = contract.tail_ladder(facts)
+    assert ladder is not None and ladder.low is not None
+    boundary = ladder.low.boundary
+    tail = block["tails"]["low"]
+    pair = (tail["mean_distance"], contract.pair_reach(tail["mean_distance"], tail["rms_distance"]))
+    assert pair[0] <= boundary - 10000.0 < pair[1], "premise: the reach passes the floor"
+    assert ladder.low.end == 10000.0
+    # The function, handed a raised size, leaves it; handed the same
+    # distance as a lowered size, it moves it to the reach.
+    assert contract._past_the_width(10000.0, 1.0, True, boundary, pair, ()) == 10000.0
+    assert contract._past_the_width(10000.0, -1.0e9, True, boundary, pair, ()) == _reach_end(block, "low", boundary)
+
+
+def test_the_reach_is_bhatia_and_davis_s_at_a_least_distance_of_nought() -> None:
+    """rms**2 / d1, lowered by 2**-24 of itself; nought without a pair; the largest finite number past the range."""
+    assert contract.pair_reach(None, 3.0) == 0.0
+    assert contract.pair_reach(2.0, None) == 0.0
+    assert contract.pair_reach(0.0, 3.0) == 0.0
+    reach = contract.pair_reach(2.0, 4.0)
+    assert reach < 8.0 and 8.0 - reach == pytest.approx(8.0 / 16777216.0)
+    assert contract.pair_reach(1e-300, 1e200) == contract._LARGEST_FINITE
+    # Every set of distances at least nought has its furthest at or past it.
+    draw = random.Random("p4d377/reach")
+    for _trial in range(200):
+        distances = [draw.expovariate(1.0) ** draw.choice((1, 2, 3)) for _row in range(draw.randint(1, 40))]
+        mean = sum(distances) / len(distances)
+        root = math.sqrt(sum(one * one for one in distances) / len(distances))
+        assert max(distances) >= contract.pair_reach(mean, root)
+
+
+# -- 2. which of the tail's strata stay past the width ------------------------
+
+
+def test_the_walk_leaves_the_tail_s_wide_cells_past_the_width(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ten five-figure cells under a census of four: the walk leaves the tail's outermost wide rows past it.
+
+    At most the line less one, and nothing missed. Its mutant walks no
+    side, and 110cb46's walk moves one more of them under the width.
+    """
+    described = _described(tmp_path, "ten_wide", _ten_wide(), 11)
+    assert _census(described) == ({"4": 100}, {}), "premise: one width of four"
+    room = parsing.census_floor(11) - 1
+    left = {seed: _past(_twin_numbers(described, seed), 9999.0) for seed in SEEDS}
+    for seed in SEEDS:
+        assert 1 < left[seed] <= room, f"seed {seed}: {left[seed]}"
+        assert _missed(described, seed) == [], f"seed {seed}"
+    monkeypatch.setattr(generation, "_walked_past_the_width", lambda _f, _l, values, _d, _fl, _s: (list(values), 0, ()))
+    for seed in SEEDS:
+        assert _past(_twin_numbers(described, seed), 9999.0) < left[seed], f"seed {seed}"
+
+
+def test_the_cells_left_stop_at_the_pair_s_own_totals(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`1000` to `1398` beside one `99999`: the pair carries one far row, so one cell stands past the width.
+
+    The ladder puts a second row past it, by the end; the end's own
+    distance already spends the pair's total of squares, so the walk moves
+    that row under the width. Its mutant, read with rule 3 withdrawn,
+    reads no totals, and the twin writes two cells past `9999` where the
+    table holds one, its spread 0.41 off the real one where the walk
+    leaves it 0.001 off.
+    """
+    cells = reader.shape("cfh99999", 400, 1)
+    described = _described(tmp_path, "cfh99999_400", cells, 11)
+    for seed in SEEDS:
+        written = _twin_numbers(described, seed)
+        assert _past(written, 9999.0) == 1, f"seed {seed}"
+        assert _errors(cells, written)[1] < 0.01, f"seed {seed}"
+    _rule_three_withdrawn(monkeypatch)
+    monkeypatch.setattr(
+        generation,
+        "_walked_past_the_width",
+        lambda facts, layout, values, demands, floor, sides: _REAL_WALK(
+            facts, layout, values, demands, floor, _with_totals(sides, math.inf, math.inf)
+        ),
+    )
+    for seed in SEEDS:
+        written = _twin_numbers(described, seed)
+        assert _past(written, 9999.0) == 2 and _errors(cells, written)[1] > 0.1, f"seed {seed}"
+
+
+def _squares_under_the_width(facts, layout, values, demands, side) -> float:  # type: ignore[no-untyped-def]
+    """What the side's tail strata under the width hold of `m rms**2`, each at its own distance from the boundary."""
+    past = _left_past(facts, values, generation._widest_demanded(demands))
+    held = 0.0
+    for place in generation._side_strata(facts, layout, side[0]):
+        if place in past:
+            continue
+        far = abs(values[place] - side[1])
+        held += layout.sizes[place] * far * far
+    return held
+
+
+def test_the_squares_the_rows_under_the_width_hold_come_off_the_pair_s_total_first(tmp_path: pathlib.Path) -> None:
+    """150 two-figure readings beside one `185`, at a floor of fifty: no stratum of the tail stays past `99`.
+
+    The high tail's 51 rows are fifty readings beside its boundary and the
+    one far cell, which holds most of the pair's squares. The reach puts
+    the end at `103`, and the staircase stacks 24 of the tail's rows on it:
+    inside the pair's two totals alone they fit, 24 rows at the reach
+    holding no more than `m d1` and `m rms**2`. But the tail's strata under
+    the width already hold their share of `m rms**2` wherever the far
+    cells stand, and what they leave holds none of the 24, so the end's
+    stratum goes under the width with the rest: the twin writes no cell
+    past `99`, where the source holds one, its own census is the source's
+    and it misses nothing. Its mutant reads the squares as the whole pair's
+    -- the total raised by what the strata under the width hold -- and the
+    walk leaves all 24 past the width, the source's one far value written
+    24 times at the reach.
+    """
+    described = _described(tmp_path, "two_figures_185", _two_figures_beside_185(), 50)
+    for seed in SEEDS:
+        assert _past(_twin_numbers(described, seed), 99.0) == 0, f"seed {seed}"
+        assert _own_census(tmp_path, described, seed, 50) == _census(described), f"seed {seed}"
+        assert _missed(described, seed) == [], f"seed {seed}"
+    ladder = contract.tail_ladder(_facts(described))
+    assert ladder is not None and ladder.high is not None and ladder.high.end == 103.0, "premise: the end at the reach"
+    facts, layout, values, demands, floor, sides = [call for call in _walk_calls(described) if call[5]][0]
+    assert [(side[0], side[4]) for side in sides] == [(True, True)], "premise: the side rule 1 moved"
+    widest = generation._widest_demanded(demands)
+    stacked = _left_past(facts, values, widest)
+    assert sum(layout.sizes[place] for place in stacked) == 24, "premise: 24 rows past the width by the staircase"
+    # The side is named for G6.3's plain far cells only where the walk left
+    # a cell past the width there (Codex's review of lane G2, item 2).
+    moved, freed, kept = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
+    assert freed == 0 and _left_past(facts, moved, widest) == [] and kept == ()
+    raised = _with_totals(sides, sides[0][2], sides[0][3] + _squares_under_the_width(facts, layout, values, demands, sides[0]))
+    moved, freed, kept = generation._walked_past_the_width(facts, layout, values, demands, floor, raised)
+    assert freed == 24 and _left_past(facts, moved, widest) == stacked and kept == (True,)
+
+
+def test_the_line_and_each_total_bind_on_their_own(tmp_path: pathlib.Path) -> None:
+    """The walk's own three bounds, each asked alone of the ten-wide column's first step.
+
+    Five strata stand past `9999` after the staircase, one cell each. A
+    floor of four leaves room for three; a first total of exactly the
+    outermost stratum's distance, or a total of squares of exactly its
+    square beside the squares the tail's strata under the width hold,
+    leaves that one alone; and every stratum the walk does not leave is
+    moved under the width, so no other cell stays past it. The side it
+    leaves cells on is named either way -- with every stratum left and
+    none moved, as at eleven, too -- for G6.3's plain far cells (Codex's
+    review of lane G2, item 2).
+    """
+    described = _described(tmp_path, "ten_wide", _ten_wide(), 11)
+    facts, layout, values, demands, floor, sides = _walk_calls(described)[0]
+    assert floor == 11 and [side[0] for side in sides] == [True], "premise: the high side alone"
+    widest = generation._widest_demanded(demands)
+    before = _left_past(facts, values, widest)
+    assert len(before) == 5 and all(layout.sizes[place] == 1 for place in before), "premise: five one-cell strata"
+    moved, freed, kept = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
+    assert freed == 5 and _left_past(facts, moved, widest) == before and kept == (True,)
+    assert moved == values, "premise: no stratum moved"
+    moved, freed, kept = generation._walked_past_the_width(facts, layout, values, demands, 4, sides)
+    assert freed == 3 and _left_past(facts, moved, widest) == before[2:] and kept == (True,)
+    boundary = sides[0][1]
+    outermost = values[before[-1]] - boundary
+    # The squares the strata under the width hold come off the total first,
+    # summed in another order here, so the total is raised by a part in
+    # 10**12 to stand clear of that rounding.
+    under = _squares_under_the_width(facts, layout, values, demands, sides[0])
+    for first, second in ((outermost, math.inf), (math.inf, (outermost * outermost + under) * (1.0 + 1e-12))):
+        moved, freed, _kept = generation._walked_past_the_width(
+            facts, layout, values, demands, floor, _with_totals(sides, first, second)
+        )
+        assert freed == 1 and _left_past(facts, moved, widest) == before[-1:], (first, second)
+
+
+def test_the_walk_stops_at_the_first_stratum_that_does_not_fit(tmp_path: pathlib.Path) -> None:
+    """Whole strata stay outermost first, and the first that does not fit sends every one inside it under.
+
+    A total of squares that holds -- beside what the tail's strata under
+    the width hold -- the outermost stratum and the third but not the
+    second leaves the outermost alone: the cells left past the width are
+    always the outermost, never a gap with a stratum beyond it.
+    """
+    described = _described(tmp_path, "ten_wide", _ten_wide(), 11)
+    facts, layout, values, demands, floor, sides = _walk_calls(described)[0]
+    widest = generation._widest_demanded(demands)
+    before = _left_past(facts, values, widest)
+    boundary = sides[0][1]
+    outermost, second, third = (values[place] - boundary for place in before[-1:-4:-1])
+    assert outermost > second > third, "premise: three strata at three distances"
+    squares = outermost * outermost + third * third + (second * second - third * third) / 2.0
+    squares += _squares_under_the_width(facts, layout, values, demands, sides[0])
+    moved, freed, _kept = generation._walked_past_the_width(
+        facts, layout, values, demands, floor, _with_totals(sides, math.inf, squares)
+    )
+    assert freed == 1 and _left_past(facts, moved, widest) == before[-1:]
+
+
+def test_on_a_tie_the_outermost_by_rank_stays(tmp_path: pathlib.Path) -> None:
+    """100 codes beside 40 plus-signed numbers and one `99999`: the far value stays on the stratum holding the end.
+
+    The staircase's last row stands on the end's own value, a tie in
+    distance, and the pair's total of squares carries one of the two. The
+    walk keeps the outermost by rank -- the stratum holding the end -- and
+    moves the row under the width, so the strata keep their order. Taken
+    the other way, the first form wrote `99999` twice at every seed and
+    the spread 1.41 times the real one; with the end's stratum movable, it
+    would put the far value on the row and the end under the width, out
+    of order. The far value is written once and the mean and spread are
+    110cb46's.
+    """
+    cells = _plus_mixed()
+    for floor in (11, 36):
+        described = _described(tmp_path, f"plus_mixed_{floor}", cells, floor)
+        walked = [call for call in _walk_calls(described) if call[5]]
+        assert walked, "premise: the side is walked"
+        facts, layout, values, demands, walk_floor, sides = walked[0]
+        last = len(values) - 1
+        if floor == 11:
+            widest = generation._widest_demanded(demands)
+            ties = [place for place in _left_past(facts, values, widest) if values[place] == values[last]]
+            assert len(ties) == 2, "premise: a staircase row on the end's value"
+        moved, _freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, walk_floor, sides)
+        assert moved[last] == values[last], f"floor {floor}"
+        tail = [moved[place] for place in generation._side_strata(facts, layout, True)]
+        assert tail == sorted(tail), f"floor {floor}"
+        # ...and the count of different values stands: the row's own value
+        # is the end's too, so moving it gives no value up, and it may land
+        # on a value another stratum holds -- its inner neighbour's.
+        assert len(set(moved)) == len(set(values)), f"floor {floor}"
+        for seed in SEEDS:
+            written = _twin_numbers(described, seed)
+            assert _past(written, 9999.0) == 1, f"floor {floor} seed {seed}"
+            mean, spread = _errors(cells, written)
+            assert mean < 0.0031 and spread < 0.001, f"floor {floor} seed {seed}: {mean} {spread}"
+
+
+def test_each_side_walks_its_own_tail(tmp_path: pathlib.Path) -> None:
+    """Far cells on both sides of nought: each side walks only the strata of its own tail's rows.
+
+    300 four-figure numbers beside `-99999` and `-88888` and beside `99999`
+    and `77777`, at floors 11 and 36: each end keeps its sign and the twins
+    miss nothing. A walk that took the other tail's strata as its own
+    would carry a far negative stratum under the high side's width.
+    """
+    cells = _both_sides()
+    for floor in (11, 36):
+        described = _described(tmp_path, f"both_{floor}", cells, floor)
+        for seed in SEEDS:
+            written = _twin_numbers(described, seed)
+            assert min(written) < -9999.0 < 9999.0 < max(written), f"floor {floor} seed {seed}"
+            assert len([value for value in written if value < 0.0]) == 2, f"floor {floor} seed {seed}"
+            assert _missed(described, seed) == [], f"floor {floor} seed {seed}"
+
+
+# -- 2b. the strata left past the width, weighed against none left -----------
+
+
+def _bell_beside_237() -> "list[str]":
+    """150 two-figure readings shaped like a bell around 54.5, beside one `237` (the repair round's cost shape)."""
+    draw = random.Random("g2/bell/150/237")
+    return [str(max(10, min(99, int(round(draw.gauss(54.5, 89 / 6)))))) for _row in range(150)] + ["237"]
+
+
+def _pressures_beside_1300() -> "list[str]":
+    """500 blood pressures heaped on tens from 90 to 190, beside one `1300` (the first skeptic's shape)."""
+    draw = random.Random("g2skep/bp/500/c")
+    return [str(min(190, max(90, 10 * round(draw.gauss(130, 15) / 10)))) for _row in range(500)] + ["1300"]
+
+
+def _rule_three_withdrawn(patch: pytest.MonkeyPatch) -> None:
+    """Method G6.6.8's rule 3 withdrawn: no second reading, so a clause of rules 1 and 2 is seen in the twin on its own."""
+    patch.setattr(generation, "_width_rule_withdrawn", lambda *_arguments: None)
+
+
+def _withdrawn_text(described: kpi_shapes.Described, seed: int) -> str:
+    """110cb46's twin: method G6.6.8 and its G6.3 clause withdrawn through the lane's own seams, as `K-S3-22` withdraws them.
+
+    Generated inside the seams and handed back as text, so a caller checks
+    it outside them, with the checker as it stands.
+    """
+    ladder = contract.tail_ladder
+    worn = generation._point_free_form_worn
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(contract, "tail_ladder", lambda facts, reach_rule=True: ladder(facts, reach_rule=False))
+        patch.setattr(generation, "_proven_sides", lambda _facts, _widest: [])
+        patch.setattr(
+            generation, "_point_free_form_worn", lambda styles, value, whole: worn(styles, value, whole) or "leading_zero"
+        )
+        return kpi_shapes.twin_text(described, seed)
+
+
+def _withdrawn_numbers(described: kpi_shapes.Described, seed: int) -> "list[float]":
+    """110cb46's twin's numbers (`_withdrawn_text`)."""
+    text = _withdrawn_text(described, seed)
+    return _numbers([row[0] for row in list(csv.reader(io.StringIO(text)))[1:] if row])
+
+
+def test_strata_at_the_reach_that_read_the_moments_further_off_go_under_the_width(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """150 bell-shaped two-figure readings beside one `237`, at 36: the cells the walk would leave past `99` go under it.
+
+    Rule 1 takes the high end from `99` to the reach, `146`, and the walk
+    leaves three cells from `145` past the width inside the line less one
+    and the pair's totals; but the reach is the nearest the furthest row
+    can stand, and the spread they leave is 1.20 times the real one where
+    the same walk with nothing past the width reads 1.06. Taken together
+    the second reads the published mean and spread better, so it stands:
+    no cell past `99`, the spread inside a tenth of the real one. Its
+    mutant keeps the walk that leaves the cells, and the spread is 1.17 to
+    1.20 again. Both are read with rule 3 withdrawn, which on this column
+    takes 110cb46's twin back either way (see the rule 3 tests below).
+    """
+    cells = _bell_beside_237()
+    described = _described(tmp_path, "bell_237", cells, 36)
+    ladder = contract.tail_ladder(_facts(described))
+    assert ladder is not None and ladder.high is not None and ladder.high.end > 99.0, "premise: the end past the width"
+    _rule_three_withdrawn(monkeypatch)
+    for seed in SEEDS:
+        written = _twin_numbers(described, seed)
+        assert _past(written, 99.0) == 0, f"seed {seed}"
+        assert _errors(cells, written)[1] < 0.1, f"seed {seed}"
+        assert _missed(described, seed) == [], f"seed {seed}"
+    monkeypatch.setattr(generation, "_reads_no_further", lambda *_arguments: True)
+    for seed in SEEDS:
+        written = _twin_numbers(described, seed)
+        assert _past(written, 99.0) > 0 and _errors(cells, written)[1] > 0.15, f"seed {seed}"
+
+
+def test_where_the_guard_takes_the_cells_under_the_width_the_twin_reads_both_moments_nearer_than_110cb46(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """500 heaped blood pressures beside one `1300`, at 20: both moments nearer the real ones than 110cb46's twin.
+
+    The walk leaving its strata past `999` at the reach took the mean from
+    0.022 to 0.030 real spreads off down to under 0.01, but the spread from
+    1.04 to 1.05 times the real one to 0.94 to 0.95 -- the three twins the
+    repair round's first count found further from the real spread than
+    110cb46's. With nothing past the width the twin reads both moments
+    better than either: its mean and its spread each stand nearer the real
+    ones than 110cb46's. Its mutant weighs every reading as no further
+    off, so the walk keeps the cells at the reach and rule 3 keeps that
+    walk, and the spread stands further off than 110cb46's.
+    """
+    cells = _pressures_beside_1300()
+    described = _described(tmp_path, "pressures", cells, 20)
+    for seed in SEEDS:
+        mine = _errors(cells, _twin_numbers(described, seed))
+        theirs = _errors(cells, _withdrawn_numbers(described, seed))
+        assert mine[0] < theirs[0] and mine[1] < theirs[1], f"seed {seed}: {mine} {theirs}"
+    monkeypatch.setattr(generation, "_reads_no_further", lambda *_arguments: True)
+    for seed in SEEDS:
+        mine = _errors(cells, _twin_numbers(described, seed))
+        theirs = _errors(cells, _withdrawn_numbers(described, seed))
+        assert mine[1] > theirs[1], f"seed {seed}: {mine} {theirs}"
+
+
+def test_the_walks_are_weighed_on_both_moments_together() -> None:
+    """`_reads_no_further` asked directly: the summed distance from the published mean and spread, each counted where published.
+
+    Four one-cell strata. A first walk nearer on the mean by more than it is
+    further on the spread stands; one nearer on the spread by less than it
+    is further on the mean does not; a level sum stands; and a moment that
+    is not published is not counted -- with neither published, the first
+    walk stands.
+    """
+    layout = generation._NumericLayout(
+        sizes=(1, 1, 1, 1), starts=(0, 1, 2, 3), bands=("positive",) * 4, raw_budgets=(), folded_budgets=()
+    )
+    first = [1.0, 2.0, 3.0, 10.0]
+    second = [1.0, 2.0, 3.0, 4.0]
+    mean_1, spread_1 = generation._strata_moments(layout, first)
+    mean_2, spread_2 = generation._strata_moments(layout, second)
+    assert mean_1 is not None and spread_1 is not None and mean_2 is not None and spread_2 is not None
+
+    def weighed(mean, spread, walks):  # type: ignore[no-untyped-def]
+        facts = types.SimpleNamespace(mean=mean, std=spread)
+        return generation._reads_no_further(facts, (layout, walks[0]), (layout, walks[1]))  # type: ignore[arg-type]
+
+    assert (mean_1, mean_2) == (4.0, 2.5) and spread_1 > spread_2 + 2.7, "premise: the first wider and further up"
+    assert weighed(mean_1, spread_1, (first, second)) and not weighed(mean_1, spread_1, (second, first))
+    assert weighed(mean_2, spread_2, (second, first)) and not weighed(mean_2, spread_2, (first, second))
+    # A mean of 6 and a spread of 2 published: the first is 1.5 nearer on
+    # the mean and 1.37 further on the spread, so it stands, and the second
+    # does not; a mean of 3 leaves the first 0.5 further on the mean too.
+    assert weighed(6.0, 2.0, (first, second)) and not weighed(6.0, 2.0, (second, first))
+    assert weighed(3.0, 2.0, (second, first)) and not weighed(3.0, 2.0, (first, second))
+    # Level: a mean halfway between and no spread published, either way.
+    assert weighed(3.25, None, (first, second)) and weighed(3.25, None, (second, first))
+    assert weighed(None, None, (second, first))
+    assert not weighed(None, spread_1, (second, first))
+
+
+def test_moved_under_spends_the_first_total_and_keeps_the_rest() -> None:
+    """`_moved_under`: each side with its first total at nought, everything else and the order kept."""
+    sides = [(False, -10.0, 5.0, 50.0, True, -99.0), (True, 10.0, 7.0, 70.0, False, 99.0)]
+    assert generation._moved_under(sides) == [(False, -10.0, 0.0, 50.0, True, -99.0), (True, 10.0, 0.0, 70.0, False, 99.0)]
+    assert generation._moved_under([]) == []
+
+
+def test_the_second_walk_is_asked_only_where_a_cell_stands_past_the_width(tmp_path: pathlib.Path) -> None:
+    """`_left_past_the_width`: some value carried plainly with more figures than any demand lets a cell hold."""
+    facts = _facts(_described(tmp_path, "ten_wide", _ten_wide(), 11))
+    demands = [(4, 1, 100)]
+    assert not generation._left_past_the_width(facts, [1000.0, 9999.0, -9999.0], demands)
+    assert generation._left_past_the_width(facts, [1000.0, 10000.0], demands)
+    assert generation._left_past_the_width(facts, [-10000.0, 1000.0], demands)
+    assert not generation._left_past_the_width(facts, [], demands)
+
+
+def test_where_the_guard_spends_a_side_the_trial_walks_it_spent_too(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Both tails past the width, one moved by rule 1 and one not: the trial walk of the other carries the guard's choice.
+
+    300 four-figure numbers beside far cells on both sides, the low side
+    read as one rule 1 left. Where the guard takes the high side's cells
+    under the width, the trial weighed for the low side walks the high
+    side with nothing left past it too, in the order low then high, so the
+    trial cannot bring back what the guard took away. Its mutant hands the
+    trial the high side as it was.
+    """
+    described = _described(tmp_path, "both", _both_sides(), 11)
+    real_sides = generation._proven_sides
+
+    def low_left(facts, widest):  # type: ignore[no-untyped-def]
+        return [(side[0], side[1], side[2], side[3], side[0], side[5]) for side in real_sides(facts, widest)]
+
+    walked: "list[list[tuple]]" = []
+    real_walk = generation._width_walk
+
+    def watched(column, facts, layout, rungs, values, census, sides):  # type: ignore[no-untyped-def]
+        walked.append([side for side in sides])
+        return real_walk(column, facts, layout, rungs, values, census, sides)
+
+    monkeypatch.setattr(generation, "_proven_sides", low_left)
+    monkeypatch.setattr(generation, "_reads_no_further", lambda *_arguments: False)
+    monkeypatch.setattr(generation, "_width_walk", watched)
+    kpi_shapes.twin_text(described, 0)
+    calls = [call for call in walked if call]
+    assert len(calls) == 3, "premise: the walk, the walk with nothing past the width, and the trial"
+    walk, under, trial = calls
+    assert [side[0] for side in walk] == [True] and under == generation._moved_under(walk)
+    assert [side[0] for side in trial] == [False, True]
+    assert trial[0][2] > 0.0 and trial[1] == under[0]
+
+
+# -- 2c. the rule weighed against the twin without it (rule 3) -----------------
+
+
+def _bell_thousand_beside_185() -> "list[str]":
+    """A thousand two-figure readings shaped like a bell around 54.5, beside one `185`."""
+    draw = random.Random("g2/bell/1000/185")
+    return [str(max(10, min(99, int(round(draw.gauss(54.5, 89 / 6)))))) for _row in range(1000)] + ["185"]
+
+
+_FURTHER_SHAPES = (
+    ("bell_237", _bell_beside_237, 36),
+    ("bell_185", _bell_thousand_beside_185, 11),
+)
+
+
+@pytest.mark.parametrize("label,shape,floor", _FURTHER_SHAPES, ids=[f"{one[0]}_f{one[2]}" for one in _FURTHER_SHAPES])
+def test_where_the_rule_reads_the_moments_further_off_the_twin_is_110cb46_s(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, label: str, shape, floor: int  # type: ignore[no-untyped-def]
+) -> None:
+    """Two-figure readings shaped like a bell beside one far reading: the twin is 110cb46's, cell for cell, at seeds 0, 4 and 9.
+
+    Rule 1 reads the tail toward the reach, and the strata are divided by
+    that reading before any value is drawn; where the walk then takes the
+    far cells back under `99`, the column is still divided as though they
+    stood past it. Read with the rule, 150 readings beside one `237` at 36
+    stand 0.075 to 0.083 of the real spread off on the mean and the spread
+    together, where 110cb46's stand 0.069 to 0.073; a thousand beside one
+    `185` at eleven, 0.008 to 0.023 where 110cb46's stand 0.005 to 0.006.
+    Rule 3 reads the values again with the rule withdrawn and keeps that
+    reading. Its mutant withdraws rule 3, and at every seed the twin stands
+    further from the real mean and spread, together, than 110cb46's.
+    """
+    cells = shape()
+    described = _described(tmp_path, label, cells, floor)
+    ladder = contract.tail_ladder(_facts(described))
+    assert ladder is not None and ladder.high is not None and ladder.high.end > 99.0, "premise: rule 1 moved the end"
+    for seed in SEEDS:
+        assert _twin_numbers(described, seed) == _withdrawn_numbers(described, seed), f"seed {seed}"
+        assert _missed(described, seed) == [], f"seed {seed}"
+    _rule_three_withdrawn(monkeypatch)
+    for seed in SEEDS:
+        mine = _errors(cells, _twin_numbers(described, seed))
+        theirs = _errors(cells, _withdrawn_numbers(described, seed))
+        assert mine[0] + mine[1] > theirs[0] + theirs[1], f"seed {seed}: {mine} {theirs}"
+
+
+def test_where_rule_1_moved_the_low_end_alone_the_values_are_read_again_too(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The first skeptic's grid mirrored below nought, at eleven: rule 3 reads it again, and the twin is 110cb46's.
+
+    Readings -1000 to -1900 beside one `-99900`: rule 1 takes the low end
+    from `-9998`, where the width held it, to the pair's reach, and leaves
+    the high end at `-1000`. Rule 3 asks `contract.reach_moved_an_end`,
+    which reads both ends, so the values are read again here, and at seeds
+    0, 4 and 9 the twin is 110cb46's -- its mean 0.25 of the real spread
+    off and its spread 0.82 of the real one -- and misses its mean alone:
+    it stands further from the published mean than half the width of the
+    mean's window drawn with the rule withdrawn, a window that reaches the
+    value, where the leftover round's checker asked nothing and passed it
+    (Codex's review of lane G2, item 1). Read on
+    the high ends alone, the rule's reading stood, its mean 3.13 of the
+    real spread off and its spread 9.45 times the real one, and the
+    checker, asking the same question, drew no second window and missed
+    nothing (the leftover round's verifier, finding 1). Its mutant
+    withdraws rule 3: the twin is that reading, further off on both
+    moments, and the checker, which reads the low end too, misses its
+    spread on the window drawn with the rule withdrawn.
+    """
+    cells = _mirrored_grid(1000)
+    described = _described(tmp_path, "mirrored1000", cells, 11)
+    facts = _facts(described)
+    ruled = contract.tail_ladder(facts)
+    held = contract.tail_ladder(facts, reach_rule=False)
+    assert ruled is not None and ruled.low is not None and ruled.high is not None
+    assert held is not None and held.low is not None and held.high is not None
+    assert ruled.low.end < held.low.end == -9998.0, "premise: rule 1 moved the low end"
+    assert ruled.high.end == held.high.end == -1000.0, "premise: and left the high end"
+    for seed in SEEDS:
+        assert _twin_numbers(described, seed) == _withdrawn_numbers(described, seed), f"seed {seed}"
+        assert _missed(described, seed) == ["value:moments.mean"], f"seed {seed}"
+    _rule_three_withdrawn(monkeypatch)
+    for seed in SEEDS:
+        mine = _errors(cells, _twin_numbers(described, seed))
+        theirs = _errors(cells, _withdrawn_numbers(described, seed))
+        assert mine[0] > theirs[0] and mine[1] > theirs[1], f"seed {seed}: {mine} {theirs}"
+        assert "value:moments.std" in _missed(described, seed), f"seed {seed}"
+
+
+def test_where_the_rule_reads_both_moments_nearer_the_twin_keeps_it(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`K-S3-22`'s `00001` to `00149` beside `99999`, at eleven: the rule's reading stands, nearer on both moments.
+
+    110cb46 held the end at `9998`, its mean 0.066 of the real spread off
+    and its spread 0.14 of the real one; with the rule the mean is under a
+    thousandth off and the spread within a thousandth of the real one, so
+    rule 3 keeps the rule's reading. Its mutant always takes the second
+    reading, and the twin is 110cb46's.
+    """
+    cells = reader.shape("pad99999", 150, 1)
+    described = _described(tmp_path, "pad99999", cells, 11)
+    for seed in SEEDS:
+        mine = _errors(cells, _twin_numbers(described, seed))
+        theirs = _errors(cells, _withdrawn_numbers(described, seed))
+        assert mine[0] < theirs[0] and mine[1] < theirs[1], f"seed {seed}: {mine} {theirs}"
+    monkeypatch.setattr(generation, "_reads_no_further", lambda *_arguments: False)
+    for seed in SEEDS:
+        assert _twin_numbers(described, seed) == _withdrawn_numbers(described, seed), f"seed {seed}"
+
+
+def test_the_second_reading_is_asked_only_where_rule_1_moved_an_end(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`_width_rule_withdrawn` asked directly: the ladder with each width-held end, only where rule 1 moved one.
+
+    `00001` to `00149` beside `99999` at eleven: rule 1 moved the high end,
+    and the ladder handed back holds the end the width held, under
+    `10000`, with the strata divided by it. With no side proven it is still
+    asked, since the end moved; a block that is no tail block, and codes
+    beside decimals, where the census counts the codes alone, ask none. Nor
+    does a side the rule left -- 60 codes beside 90 plain numbers and
+    `99999`, its side proven for rule 2 (the second skeptic of the repair,
+    item 4): the ladder read either way is one there, and rule 2's walk on that side
+    stands only where it leaves neither published moment further off than
+    110cb46's (`_serves_better`), so a second reading changed none of 3,636
+    twins and cost generating 200,000 six-figure numbers 5.8 s over
+    110cb46's 18.5. Its mutant, the repair round's form, asks it wherever a side
+    is proven too, and hands this column a division.
+    """
+    described = _described(tmp_path, "pad99999", reader.shape("pad99999", 150, 1), 11)
+    facts = _facts(described)
+    column = described.loaded.columns[0]
+    found = generation._width_rule_withdrawn(column, facts, None, 11)
+    held = contract.tail_ladder(facts, reach_rule=False)
+    assert found is not None and held is not None and held.high is not None
+    ruled = contract.tail_ladder(facts)
+    assert ruled is not None and ruled.high is not None and ruled.high.end != held.high.end, "premise: rule 1 moved the end"
+    assert found[1].high is not None and found[1].high.end == held.high.end < 10000.0
+    assert found[0] == generation._ladder_layout(column, facts, None, 11, held)[0]
+    with monkeypatch.context() as patch:
+        patch.setattr(generation, "_proven_sides", lambda *_arguments: [])
+        assert generation._width_rule_withdrawn(column, facts, None, 11) is not None
+    plain = dataclasses.replace(facts, tail_rule=False)
+    assert generation._width_rule_withdrawn(column, plain, None, 11) is None
+    decimals = _described(tmp_path, "decimals", _codes_beside_decimals(), 11)
+    decimal_facts = _facts(decimals)
+    decimal_column = decimals.loaded.columns[0]
+    assert generation._width_rule_withdrawn(decimal_column, decimal_facts, None, 11) is None
+    left = _described(tmp_path, "mixed_60_90", _mixed(60, 90, ["99999"], 2), 11)
+    left_facts = _facts(left)
+    left_column = left.loaded.columns[0]
+    assert [side[4] for side in generation._proven_sides(left_facts, 4)] == [False], "premise: a side the rule left"
+    assert generation._width_rule_withdrawn(left_column, left_facts, None, 11) is None
+
+
+def test_both_readings_are_divided_into_the_same_strata_and_draw_the_same_words(tmp_path: pathlib.Path) -> None:
+    """The withdrawn ladder divides the column into as many strata, with the same words and note, as the plan's.
+
+    How many strata a column divides into and where its zero stratum
+    stands are counts, not readings of the ladder; the ladder moves only
+    the share between the signs and the sizes. Measured on the bell beside
+    `237`, where the sizes differ, on far cells either side of nought,
+    where the share is read off the ladder, and on `K-S3-22`'s codes.
+    """
+    for label, cells, floor in (
+        ("bell_237", _bell_beside_237(), 36),
+        ("both", _both_sides(), 11),
+        ("pad99999", reader.shape("pad99999", 150, 1), 11),
+    ):
+        described = _described(tmp_path, label, cells, floor)
+        facts = _facts(described)
+        column = described.loaded.columns[0]
+        plan = generation._numeric_layout(column, facts, None, floor)
+        held = contract.tail_ladder(facts, reach_rule=False)
+        other = generation._ladder_layout(column, facts, None, floor, held)
+        assert len(other[0].sizes) == len(plan[0].sizes) and other[1:] == plan[1:], label
+        if label == "bell_237":
+            assert other[0].sizes != plan[0].sizes, "premise: the two divisions differ"
+
+
+def test_a_column_is_divided_with_the_rule_withdrawn_once_and_read_by_its_values_and_its_report(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`K-S3-22`'s `00001` to `00149` beside `99999`, at eleven: one second division a run, made with the plan.
+
+    The second skeptic of the repair (item 4): the withdrawn division was
+    made where the values were drawn and made again where the generation
+    report measured them, which cost 4.8 to 9.0 s profiled on 200,000 rows
+    where rule 1 moves an end. The plan makes it once
+    (`generation._ColumnPlan.withdrawn`), and both read that one. Its
+    mutant makes it again in either place and asks it twice.
+    """
+    described = _described(tmp_path, "pad99999_once", reader.shape("pad99999", 150, 1), 11)
+    asked: "list[tuple]" = []
+    real_withdrawn = generation._width_rule_withdrawn
+
+    def watched(column, facts, grain_values, floor):  # type: ignore[no-untyped-def]
+        found = real_withdrawn(column, facts, grain_values, floor)
+        asked.append(found)
+        return found
+
+    monkeypatch.setattr(generation, "_width_rule_withdrawn", watched)
+    planned = generation.plan_generation(described.loaded)
+    assert len(asked) == 1 and asked[0] is not None, "premise: rule 1 moved the end"
+    assert planned.columns[0].withdrawn == (asked[0],)
+    asked.clear()
+    kpi_shapes.twin_text(described, 0)
+    assert len(asked) == 1, len(asked)
+
+
+def _two_figures_beside_188() -> "list[str]":
+    """150 two-figure readings 10 to 99 drawn evenly, beside one `188` (one of `K-S3-22`'s width shapes, there at fifty)."""
+    draw = random.Random("g2/uniform/150/188")
+    return [str(draw.randint(10, 99)) for _row in range(150)] + ["188"]
+
+
+def _read_on_the_plan_s_division(real):  # type: ignore[no-untyped-def]
+    """The repair round's earlier form: the withdrawn ladder read on the plan's division wherever its own is wider than the plan's bound."""
+
+    def withdrawn(column, facts, grain_values, floor):  # type: ignore[no-untyped-def]
+        found = real(column, facts, grain_values, floor)
+        plan = generation._numeric_layout(column, facts, grain_values, floor)[0]
+        bound = max(generation._window_stratum(column, facts, floor), max(plan.sizes))
+        if found is not None and max(found[0].sizes) > bound:
+            return plan, found[1]
+        return found
+
+    return withdrawn
+
+
+def test_the_second_reading_is_divided_by_its_own_ladder_and_the_report_s_bound_holds_it(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """150 two-figure readings beside one `188`, at 20: the second reading is 110cb46's twin, on a division wider than the plan's.
+
+    The width-held end, `99`, makes a run of equal rungs at the top of the
+    tail, so the ladder rule 1 is withdrawn from divides the column into a
+    stratum of 15 rows where the plan's divides none past 11, the
+    description's cap. The second reading is divided by that ladder all
+    the same, so at seed 0, where the rule's reading stands further from
+    the real mean and spread, the twin is 110cb46's cell for cell; and the
+    generation report's bound widens to the 15 (`_report_widest`, handed
+    the division the plan made), so it holds of whichever reading was
+    written. Its mutant is the repair
+    round's own earlier form, which read the withdrawn ladder on the plan's
+    division wherever its own was wider than the plan's bound: that second
+    reading was not 110cb46's twin, and the twin stood further from the
+    real mean and spread, together, than 110cb46's -- one of ten such
+    twins over the 3,333 measured.
+    """
+    cells = _two_figures_beside_188()
+    described = _described(tmp_path, "two_188", cells, 20)
+    facts = _facts(described)
+    column = described.loaded.columns[0]
+    layout, _notes, _words = generation._numeric_layout(column, facts, None, 20)
+    found = generation._width_rule_withdrawn(column, facts, None, 20)
+    cap = generation._window_stratum(column, facts, 20)
+    assert found is not None and max(found[0].sizes) > max(cap, max(layout.sizes)), "premise: the second division is wider"
+    assert generation._report_widest(column, facts, (layout, found), 20) == max(found[0].sizes)
+    theirs = _withdrawn_numbers(described, 0)
+    assert _twin_numbers(described, 0) == theirs
+    monkeypatch.setattr(generation, "_width_rule_withdrawn", _read_on_the_plan_s_division(generation._width_rule_withdrawn))
+    mine = _errors(cells, _twin_numbers(described, 0))
+    before = _errors(cells, theirs)
+    assert mine[0] + mine[1] > before[0] + before[1] + _SLACK, f"{mine} {before}"
+
+
+def test_the_report_s_bound_is_the_widest_of_the_cap_and_of_either_division(tmp_path: pathlib.Path) -> None:
+    """`_report_widest` asked directly: the description's cap, widened to the plan's widest stratum and to the second reading's.
+
+    On 150 two-figure readings beside one `188`, at 20, the cap is 11, the
+    plan divides no stratum past it and the second reading's division holds
+    15, so the bound is 15. A plan holding a wider stratum -- G5.2b's
+    carrier and reach steps can move one past the cap -- widens it again:
+    a plan of 20 rows in one stratum gives 20. And with no second reading,
+    the plan's widest alone widens the cap. The division is the one the
+    plan carries (`generation._ColumnPlan.withdrawn`), handed in. Its
+    mutants drop the plan's division or the second one from the bound.
+    """
+    described = _described(tmp_path, "two_188_bound", _two_figures_beside_188(), 20)
+    facts = _facts(described)
+    column = described.loaded.columns[0]
+    layout, _notes, _words = generation._numeric_layout(column, facts, None, 20)
+    found = generation._width_rule_withdrawn(column, facts, None, 20)
+    cap = generation._window_stratum(column, facts, 20)
+    assert found is not None and (cap, max(layout.sizes), max(found[0].sizes)) == (11, 11, 15), "premise"
+    assert generation._report_widest(column, facts, (layout, found), 20) == 15
+    assert generation._report_widest(column, facts, (layout, None), 20) == 11
+    wider = dataclasses.replace(layout, sizes=(20,) + tuple(layout.sizes[1:]))
+    assert generation._report_widest(column, facts, (wider, found), 20) == 20
+    plain = dataclasses.replace(facts, tail_rule=False)
+    assert generation._width_rule_withdrawn(column, plain, None, 20) is None
+    assert generation._report_widest(column, plain, (wider, None), 20) == max(20, generation._window_stratum(column, plain, 20))
+    assert generation._report_widest(column, facts, (None, found), 20) == cap
+
+
+def _joined_battery_column() -> "list[str]":
+    """The stage-3 battery's joined column, `a/b` pairs with one reversed."""
+    cells, _flags = stage3_battery.SHAPES["joined_one_reversed"](random.Random(stage3_battery.BATTERY_SEED))
+    return cells
+
+
+# THE FAR CORES ARE FIVE FIGURES JUST PAST THE WIDTH, `12345` and `11111`:
+# rule 1 moves the end of each block they reach, which `99999` beside these
+# cores does not -- there the width hold falls inside the tail's mean
+# distance and the fitted end stands -- and since the second skeptic of the
+# repair (item 4) only a block whose end rule 1 moved is read again.
+
+
+def _affixed_beside_one_far() -> "list[str]":
+    """400 cores 1000 to 1999 wearing ` mg`, beside one `12345 mg`."""
+    draw = random.Random("g2/roles/affixed")
+    return [f"{draw.randint(1000, 1999)} mg" for _row in range(400)] + ["12345 mg"]
+
+
+def _two_wrappers_beside_far() -> "list[str]":
+    """Cores 1000 to 1999 in two wrappers, ` mg` and ` kg`, each beside one far core: two blocks read again, each its own."""
+    draw = random.Random("g2/roles/set")
+    cells = [f"{draw.randint(1000, 1999)} mg" for _row in range(300)] + ["12345 mg"]
+    return cells + [f"{draw.randint(1000, 1999)} kg" for _row in range(100)] + ["11111 kg"]
+
+
+def _numbers_beside_labels_and_far() -> "list[str]":
+    """400 numbers 1000 to 1999 and one `12345`, beside twelve cells of one label."""
+    draw = random.Random("g2/roles/compound")
+    return [str(draw.randint(1000, 1999)) for _row in range(400)] + ["12345"] + ["NOT DETECTED"] * 12
+
+
+_ROLE_SHAPES = (
+    ("joined", _joined_battery_column, contract.JoinedFacts),
+    ("affixed", _affixed_beside_one_far, contract.AffixedFacts),
+    ("affixed_set", _two_wrappers_beside_far, contract.AffixedFacts),
+    ("numbers_beside_labels", _numbers_beside_labels_and_far, contract.CompoundFacts),
+)
+
+
+@pytest.mark.parametrize("label,shape,kind", _ROLE_SHAPES, ids=[one[0] for one in _ROLE_SHAPES])
+def test_each_block_is_read_again_and_bounded_by_its_own_count(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, label: str, shape, kind  # type: ignore[no-untyped-def]
+) -> None:
+    """A position, a core, each wrapper and a numeric half: one second division a block, by its own count, read by its values and its report.
+
+    These are columns of numbers of their own to the value stage, each
+    divided by its own count of different numbers rather than the column's
+    count of cells (residual R-P4-112), so rule 3's second reading must be
+    divided the same way or its words would not be the plan's. The plan
+    divides it ONCE a block (`_plan_column`, the second skeptic of the
+    repair, item 4) -- it was divided again where the values were drawn
+    and again where the report was measured -- and hands it to both: the
+    second reading of each block is drawn on that block's own division,
+    and the generation report's bound (`_report_widest`) is widened by it.
+    A mutant handing the plan's call no count divides by the column's cells
+    and turns this red; so does one dividing a block again, or handing a
+    block another block's division.
+    """
+    cells = shape()
+    described = kpi_shapes.describe(tmp_path / label, label, stage3_battery.rows_text(["value"], [[cell] for cell in cells]), 11)
+    assert isinstance(described.loaded.columns[0].facts, kind), f"premise: a {label} column"
+    asked: "list[tuple[object, int]]" = []
+    made: "dict[int, tuple]" = {}
+    drawn: "list[bool]" = []
+    bounded: "list[bool]" = []
+    real_withdrawn = generation._width_rule_withdrawn
+    real_drawn = generation._values_drawn
+    real_widest = generation._report_widest
+
+    def watched(column, facts, grain_values, floor):  # type: ignore[no-untyped-def]
+        found = real_withdrawn(column, facts, grain_values, floor)
+        if found is not None:
+            asked.append((grain_values, facts.n_distinct_values))
+            made[id(facts)] = found
+        return found
+
+    def drawn_on(column, facts, layout, rungs, words, floor, sided):  # type: ignore[no-untyped-def]
+        if not sided:
+            drawn.append(id(facts) in made and layout is made[id(facts)][0] and rungs is made[id(facts)][1])
+        return real_drawn(column, facts, layout, rungs, words, floor, sided)
+
+    def widest(column, facts, divisions, floor):  # type: ignore[no-untyped-def]
+        if id(facts) in made:
+            bounded.append(divisions[1] is made[id(facts)])
+        return real_widest(column, facts, divisions, floor)
+
+    monkeypatch.setattr(generation, "_width_rule_withdrawn", watched)
+    monkeypatch.setattr(generation, "_values_drawn", drawn_on)
+    monkeypatch.setattr(generation, "_report_widest", widest)
+    kpi_shapes.twin_text(described, 0)
+    assert asked, "premise: a block reaches the second reading"
+    assert all(grain == count for grain, count in asked), asked
+    assert len(asked) == len(made), asked
+    assert drawn and all(drawn) and len(drawn) == len(made), drawn
+    assert bounded and all(bounded) and len(bounded) == len(made), bounded
+
+
+# -- 3. where the strata moved under the width go ----------------------------
+
+
+def _keep_the_pinned_past(facts, layout, values, places, pulled, side, width):  # type: ignore[no-untyped-def]
+    """The first form's fault: the stratum holding the end is never moved."""
+    kept = [place for place in pulled if place not in (0, len(values) - 1)]
+    if not kept:
+        return list(values)
+    return _REAL_PULLED(facts, layout, values, places, kept, side, width)
+
+
+_GRIDS = ((4000, 11), (1000, 11), (1000, 20), (400, 36))
+
+
+@pytest.mark.parametrize("rows,floor", _GRIDS, ids=[f"grid{rows}_f{floor}" for rows, floor in _GRIDS])
+def test_an_end_whose_stratum_does_not_fit_goes_under_the_width(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, rows: int, floor: int
+) -> None:
+    """The first skeptic's grid shapes: one stratum holds the whole tail and the end, and it goes under the width.
+
+    Readings 1000 to 1900 beside one `99900`: the end's stratum holds 40,
+    19 or 35 rows, more than the line less one and far past the pair's
+    totals, so it is moved under the width with the rest -- to `9998`,
+    where the pair's squares put it and where 110cb46 wrote it. The twin's
+    own census is the source's, and its mean and spread are 110cb46's. Its
+    mutant, read with rule 3 withdrawn so the walk is seen on its own, never
+    moves the end's stratum: every one of its rows lands on `99900`, the
+    source's single maximum, the mean and spread many times further off
+    and, at a floor of eleven, the twin's own census naming a width of
+    five.
+    """
+    cells = _grid(rows)
+    described = _described(tmp_path, f"grid{rows}", cells, floor)
+    mean_most, spread_most = _ON_110CB46[("grid", rows, floor)]
+    for seed in SEEDS:
+        written = _twin_numbers(described, seed)
+        assert _past(written, 9999.0) == 0 and max(written) == 9998.0, f"seed {seed}"
+        assert _own_census(tmp_path, described, seed, floor) == _census(described), f"seed {seed}"
+        mean, spread = _errors(cells, written)
+        assert mean <= mean_most + _SLACK and spread <= spread_most + _SLACK, f"seed {seed}: {mean} {spread}"
+    _rule_three_withdrawn(monkeypatch)
+    monkeypatch.setattr(generation, "_pulled_under_the_width", _keep_the_pinned_past)
+    written = _twin_numbers(described, 0)
+    assert _past(written, 9999.0) > parsing.census_floor(floor) // 2 and max(written) == 99900.0
+    mean, spread = _errors(cells, written)
+    assert mean > 5 * mean_most and spread > 5 * spread_most
+    if floor == 11:
+        assert _own_census(tmp_path, described, 0, floor) != _census(described)
+
+
+@pytest.mark.parametrize("rows,floor", ((150, 11), (150, 36), (400, 11), (400, 36)))
+def test_a_row_moved_under_the_width_stands_beside_its_inner_neighbour(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, rows: int, floor: int
+) -> None:
+    """Follow-up A's codes beside one far value: the staircase row the end leaves past the width lands beside the codes.
+
+    The end stays past the width at the reach and carries the distance the
+    pair proves, so the row moved under it goes to the boundary's side --
+    the first free value past its inner neighbour, any figure count up to
+    four, the padded ceiling being what the census asks -- and the twin's
+    spread is no further from the real one than 110cb46's. Its mutant aims
+    the row at the width's end, and the walk puts it on `09998`: the first
+    form's fault, which left the spread 0.23 to 0.28 off the real one where
+    110cb46 stood 0.14 off.
+
+    At a floor of 36 the walk's own guard then takes the end under the
+    width as well: with the end at the reach the twin reads the published
+    spread 0.05 low, with nothing past the width 0.002, and the means are
+    0.004 and 0.036 of the real spread off -- taken together the second
+    reads the moments better, so the twin writes `09998` there, its mean
+    and spread both still nearer the real ones than 110cb46's. At eleven
+    the end stays (0.0003 and 0.005 against 0.033 and 0.001).
+    """
+    cells = _beside_one_far(rows)
+    described = _described(tmp_path, f"codes{rows}", cells, floor)
+    mean_most, spread_most = _ON_110CB46[("codes", rows, floor)]
+    for seed in SEEDS:
+        written = _twin_numbers(described, seed)
+        mean, spread = _errors(cells, written)
+        assert mean <= mean_most + _SLACK and spread <= spread_most + _SLACK, f"seed {seed}: {mean} {spread}"
+        if floor == 11:
+            assert max(written) > 9999.0, f"premise: the end stays past the width, seed {seed}"
+            assert not [value for value in written if 9000.0 <= value < 10000.0], f"seed {seed}"
+    facts, layout, values, demands, walk_floor, sides = _walk_calls(described)[0]
+    assert sides and sides[0][4], "premise: the side the reach rule moved"
+    moved, _freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, walk_floor, sides)
+    pulled = [place for place in range(len(values)) if moved[place] != values[place]]
+    assert pulled, "premise: a staircase row is moved under the width"
+    for place in pulled:
+        assert 0.0 < moved[place] - moved[place - 1] <= 2.0, (place, moved[place - 1], moved[place])
+    monkeypatch.setattr(
+        generation,
+        "_targets_under_the_width",
+        lambda _layout, _values, _places, pulled, _side, end: [end for _place in pulled],
+    )
+    aimed, _freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, walk_floor, sides)
+    assert [aimed[place] for place in pulled] == [9998.0 for _place in pulled]
+
+
+def test_the_targets_spread_the_squares_left_outermost_first_and_never_past_the_width() -> None:
+    """`_targets_under_the_width` asked directly, on a tail of three strata above a boundary of 900.
+
+    Where the end's stratum moves too, what the total of squares has left
+    after the stratum staying goes to the moved strata outermost first,
+    each at `sqrt(left / size)` from the boundary and never past the
+    width's end -- so a second stratum still finds squares left after the
+    first is held at the end. Where the end's stratum stays, it carries
+    the distance the pair proves and every moved stratum stands at the
+    boundary.
+    """
+    layout = generation._NumericLayout(
+        sizes=(1, 1, 3, 2, 1), starts=(0, 1, 2, 5, 7), bands=("positive",) * 5, raw_budgets=(), folded_budgets=()
+    )
+    values = [100.0, 900.0, 950.0, 20000.0, 50000.0]
+    side = (True, 900.0, 1.0e10)
+    assert generation._targets_under_the_width(layout, values, [2, 3, 4], [4, 3], side, 9999.0) == [9999.0, 9999.0]
+    assert generation._targets_under_the_width(layout, values, [2, 3, 4], [3], side, 9999.0) == [900.0]
+
+
+def test_a_moved_stratum_takes_exactly_the_widest_count_only_where_a_demand_asks_exactly_that_many() -> None:
+    """`_width_of`: the widest figure count a demand lets a value hold, exact where an unpadded demand asks for it."""
+    assert generation._width_of([(3, 0, 200), (4, 1, 102)]) == (4, True)
+    assert generation._width_of([(4, 0, 400)]) == (4, False)
+    assert generation._width_of([(3, 0, 101), (3, 1, 40)]) == (3, True)
+    assert generation._width_of([(2, 1, 10), (4, 0, 90)]) == (4, False)
+    assert generation._width_of([]) == (0, False)
+
+
+def test_a_free_value_under_the_width_is_the_walk_s_own_rule(tmp_path: pathlib.Path) -> None:
+    """`_free_under_the_width` and `_nearest_under_the_width` asked directly, on a column of whole numbers holding no stand-in.
+
+    Free: held by no other stratum, on the stratum's side of nought, never
+    a stand-in the block does not hold, and of exactly the widest figure
+    count where a demand asks exactly that many, any count up to it where
+    only a padded ceiling asks; never past the width.
+    """
+    facts = _facts(_described(tmp_path, "ten_wide", _ten_wide(), 11))
+    assert facts.integer_valued and facts.kept_stand_ins == ()
+    free = generation._free_under_the_width
+    assert free(9998.0, {}, "positive", (4, True), facts)
+    assert not free(999.0, {}, "positive", (4, True), facts)
+    assert free(999.0, {}, "positive", (4, False), facts)
+    assert not free(10000.0, {}, "positive", (4, False), facts)
+    assert not free(9999.0, {}, "positive", (4, True), facts)
+    assert not free(9998.0, {9998.0: 1}, "positive", (4, True), facts)
+    assert not free(-9998.0, {}, "positive", (4, True), facts)
+    nearest = generation._nearest_under_the_width
+    assert nearest((900.0, 1100.0), {}, "positive", (4, True), 950.0, True, ()) == 1000.0
+    assert nearest((900.0, 1100.0), {}, "positive", (4, False), 950.0, True, ()) == 950.0
+
+
+def test_where_the_end_moves_too_the_moved_strata_carry_the_pair_s_squares(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """4,000 readings beside one `99900`: with the end moved, the tail's one stratum stands where the pair's squares put it.
+
+    Nothing past the width carries the tail's spread, so the moved strata
+    carry what the total of squares has left, outermost first, each at
+    `sqrt(left / size)` from the boundary and never past the width: here
+    the width's end, `9998` (`9999` is a stand-in the block does not
+    hold). Its mutant, read with rule 3 withdrawn, puts it beside the
+    boundary instead, on `1901`, and the spread falls from 0.57 to 0.18 of
+    the real one.
+    """
+    cells = _grid(4000)
+    described = _described(tmp_path, "grid4000", cells, 11)
+    written = _twin_numbers(described, 0)
+    assert written.count(9998.0) == 40 and 9999.0 not in written
+    _rule_three_withdrawn(monkeypatch)
+    monkeypatch.setattr(
+        generation,
+        "_targets_under_the_width",
+        lambda _layout, _values, _places, pulled, side, _end: [side[1] for _place in pulled],
+    )
+    written = _twin_numbers(described, 0)
+    assert written.count(1901.0) == 40 and _errors(cells, written)[1] > 0.8
+
+
+def test_a_far_cell_no_pad_can_hold_is_written_plain(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Follow-up A's codes beside one far value: every cell of the twin is five characters, as every real one is.
+
+    The end G6.6.8 leaves past the width, `12280`, needs every figure of
+    the one field the census names, so no pad can hold it, and the map
+    carries no other point-free form to give the padded style up to; the
+    tail's pair proves a cell past the width on its side, so it is written
+    plain (method G6.3, plan P4-D377). Its mutant keeps the pad and writes
+    `012280`, six characters in a column of five.
+    """
+    for rows in (150, 400):
+        for floor in (11, 20):
+            described = _described(tmp_path, f"codes{rows}_{floor}", _beside_one_far(rows), floor)
+            for seed in SEEDS:
+                cells = _cells(described, seed)
+                assert {len(cell) for cell in cells} == {5}, f"{rows} {floor} seed {seed}"
+                assert max(_numbers(cells)) > 9999.0, f"premise: a cell past the width, {rows} {floor} seed {seed}"
+    monkeypatch.setattr(
+        generation, "_point_free_form_worn", lambda styles, value, whole: _REAL_WORN(styles, value, whole) or "leading_zero"
+    )
+    assert max(len(cell) for cell in _cells(described, 0)) == 6
+
+
+def _negative_codes_beside_ten_far() -> "list[str]":
+    """`-00001` to `-00150` beside ten `-099999`, every cell padded (Codex's review of lane G2, item 2)."""
+    return ["-" + str(value).zfill(5) for value in range(1, 151)] + ["-099999"] * 10
+
+
+def test_a_far_cell_only_the_draw_left_keeps_its_pad(tmp_path: pathlib.Path) -> None:
+    """Negative codes beside ten far ones, a declared measurement at eleven: the twin is 110cb46's, every cell padded.
+
+    The low tail's pair proves a cell past the width, but rule 1 moves no
+    end there, and the walk on that side does not stand: the eleven cells
+    past the width are the draw's, 110cb46's own, and each keeps the
+    padded style as the source's ten far cells did (method G6.3, plan
+    P4-D105). The plain spelling follows the walk the block actually
+    takes, only the cells it leaves past the width. Read off the pair alone
+    on f6a24db, eleven cells were written plain -- the line, not the line
+    less one, so the census named the form -- and the twin missed its
+    census of forms and its padded width, four checks, at seeds 0 and 4
+    (Codex's review of lane G2, item 2).
+    """
+    described = _described_measured(tmp_path, "negative_codes", _negative_codes_beside_ten_far(), 11)
+    facts = _facts(described)
+    widest = generation._widest_demanded(generation._field_demands(facts))
+    assert not contract.reach_moved_an_end(facts), "premise: rule 1 moves no end"
+    assert [side[0] for side in generation._proven_sides(facts, widest)] == [False], "premise: the low side's pair proves a cell past it"
+    block = described.document["columns"][0]
+    assert block["numeric_styles"] == {"leading_zero": 160}, "premise: every source cell padded"
+    for seed in (0, 4):
+        text = kpi_shapes.twin_text(described, seed)
+        assert text == _withdrawn_text(described, seed), f"seed {seed}: the twin is 110cb46's"
+        cells = _cells(described, seed)
+        assert _past(_numbers(cells), generation._width_ceiling(widest)) == 11, f"premise: eleven cells past the width, seed {seed}"
+        assert all(cell.lstrip("-").startswith("0") for cell in cells), f"seed {seed}"
+        own = kpi_shapes.describe(tmp_path / f"own-{seed}", "own", text, 11, measured=["value"]).document["columns"][0]
+        for key in ("numeric_styles", "field_widths", "pad_widths"):
+            assert own[key] == block[key], f"seed {seed}: {key} {own[key]} against {block[key]}"
+        assert _missed(described, seed) == [], f"seed {seed}"
+
+
+def _padded_ten_wide() -> "list[str]":
+    """`01000` to `01089` padded to five beside ten of five figures, `10000` to `10009`: one pad of five names every cell."""
+    return [f"{1000 + step:05}" for step in range(90)] + [str(10000 + step) for step in range(10)]
+
+
+def _padded_thousand_beside_185() -> "list[str]":
+    """A thousand two-figure readings padded to three beside one `185` (the second skeptic's `uniform_1000_185`, padded)."""
+    draw = random.Random("g2/uniform/1000/185")
+    return [f"{draw.randint(10, 99):03}" for _row in range(1000)] + ["185"]
+
+
+def test_a_far_cell_the_walk_leaves_is_written_plain_whichever_walk_stands(tmp_path: pathlib.Path) -> None:
+    """Every cell padded, far cells past the one pad: the walk the block takes leaves them there, and each is written plain.
+
+    `01000` to `01089` beside `10000` to `10009`, at eleven: rule 1 moved
+    the high end, and its walk leaves the tail's five outermost strata past
+    the width without moving one under it. A thousand two-figure readings
+    padded to three beside one `185`, at 36: rule 1 moved nothing, and the
+    side's walk stands because it serves the census better, leaving a cell
+    past `99`. Either way the walk the block took names the side, so each
+    cell it left there is written plain: every cell of the twin is as wide
+    as every source cell and nothing is missed, where 110cb46's twin of the
+    second, its far cell padded to four, misses its padded width. Their
+    mutants -- the walk that moved nothing naming no side, the trial walk's
+    values taken without its sides -- pad those cells one figure wider
+    than the field the census names (Codex's review of lane G2, item 2:
+    the plain spelling follows the walk actually taken).
+    """
+    ten = _described(tmp_path, "padded_ten_wide", _padded_ten_wide(), 11)
+    assert ten.document["columns"][0]["pad_widths"] == {"5": 100}, "premise: one pad of five on every cell"
+    assert contract.reach_moved_an_end(_facts(ten)), "premise: rule 1 moved the high end"
+    facts, layout, values, demands, floor, sides = _walk_calls(ten)[0]
+    assert [(side[0], side[4]) for side in sides] == [(True, True)], "premise: the side rule 1 moved"
+    moved, freed, kept = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
+    assert moved == values and freed > 0, "premise: the walk leaves cells and moves none"
+    assert kept == (True,)
+    for seed in SEEDS:
+        assert {len(cell) for cell in _cells(ten, seed)} == {5}, f"seed {seed}"
+        assert _missed(ten, seed) == [], f"seed {seed}"
+    thousand = _described(tmp_path, "padded_thousand_185", _padded_thousand_beside_185(), 36)
+    facts = _facts(thousand)
+    assert thousand.document["columns"][0]["pad_widths"] == {"3": 1001}, "premise: one pad of three on every cell"
+    assert not contract.reach_moved_an_end(facts), "premise: rule 1 moved nothing"
+    widest = generation._widest_demanded(generation._field_demands(facts))
+    assert [(side[0], side[4]) for side in generation._proven_sides(facts, widest)] == [(True, False)], "premise: a side rule 1 left"
+    for seed in SEEDS:
+        cells = _cells(thousand, seed)
+        assert _past(_numbers(cells), 99.0) >= 1, f"premise: a cell past the width, seed {seed}"
+        assert {len(cell) for cell in cells} == {3}, f"seed {seed}"
+        assert _missed(thousand, seed) == [], f"seed {seed}"
+        theirs = _withdrawn_text(thousand, seed)
+        assert "value:pads.published.3" in kpi_shapes.missed(kpi_shapes.measure(thousand, theirs, f"110cb46-{seed}.csv")), seed
+
+
+def _bell_beside_188_and_334() -> "list[str]":
+    """150 two-figure readings shaped like a bell around 54.5, beside `188` and `334`."""
+    draw = random.Random("g2/bell/150/188/334")
+    return [str(max(10, min(99, int(round(draw.gauss(54.5, 89 / 6)))))) for _row in range(150)] + ["188", "334"]
+
+
+def test_the_cells_are_handed_the_sides_of_the_walk_and_the_reading_the_block_writes(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Where the guard's walk or rule 3's second reading stands, the cells are handed no side, though the first walk named one.
+
+    The width walk, `_wide_enough` and `_number_cells` watched as the
+    generator calls them. 150 bell-shaped two-figure readings beside one
+    `237`, at 36, rule 3 withdrawn: the first walk leaves three cells past
+    `99` and names the high side, the guard takes them under the width,
+    and the walk it keeps names none, so the cells are handed none. 150
+    such readings beside `188` and `334`, at fifty, seeds 0 and 9: the
+    rule's own reading names the high side, and rule 3 writes the reading
+    with the rules withdrawn -- 110cb46's twin, which names none. Neither
+    moves a twin, the reading written holding no cell past the width on
+    that side; their mutants hand on the sides of a walk or a reading the
+    block did not keep (Codex's review of lane G2, item 2: the plain
+    spelling follows the walk the block takes and the reading it writes).
+    """
+    seen: "list[tuple]" = []
+    real_walk = generation._width_walk
+    real_wide = generation._wide_enough
+    real_cells = generation._number_cells
+
+    def walk(*arguments):  # type: ignore[no-untyped-def]
+        nonlocal seen
+        found = real_walk(*arguments)
+        seen += [("walk", found[1])]
+        return found
+
+    def wide(column, facts, layout, rungs, values, floor, sided):  # type: ignore[no-untyped-def]
+        nonlocal seen
+        found = real_wide(column, facts, layout, rungs, values, floor, sided)
+        seen += [("wide", sided, found[1])]
+        return found
+
+    def cells(column, facts, layout, values, floor, kept=()):  # type: ignore[no-untyped-def]
+        nonlocal seen
+        seen += [("cells", kept)]
+        return real_cells(column, facts, layout, values, floor, kept)
+
+    monkeypatch.setattr(generation, "_width_walk", walk)
+    monkeypatch.setattr(generation, "_wide_enough", wide)
+    monkeypatch.setattr(generation, "_number_cells", cells)
+    bell = _described(tmp_path, "bell_237", _bell_beside_237(), 36)
+    with pytest.MonkeyPatch.context() as patch:
+        _rule_three_withdrawn(patch)
+        for seed in SEEDS:
+            seen = []
+            written = _twin_numbers(bell, seed)
+            assert _past(written, 99.0) == 0, f"premise: every far cell under the width, seed {seed}"
+            assert seen[0] == ("walk", (True,)), f"premise: the first walk names the high side, seed {seed}: {seen}"
+            assert seen[1:] == [("walk", ()), ("wide", True, ()), ("cells", ())], f"seed {seed}: {seen}"
+    two = _described(tmp_path, "bell_188_334", _bell_beside_188_and_334(), 50)
+    assert contract.reach_moved_an_end(_facts(two)), "premise: rule 1 moved the high end"
+    for seed in (0, 9):
+        theirs = _withdrawn_text(two, seed)
+        seen = []
+        assert kpi_shapes.twin_text(two, seed) == theirs, f"premise: rule 3 writes 110cb46's twin, seed {seed}"
+        readings = [entry for entry in seen if entry[0] == "wide"]
+        assert readings == [("wide", True, (True,)), ("wide", False, ())], f"premise: the rule's reading names a side: {seen}"
+        assert [entry for entry in seen if entry[0] == "cells"] == [("cells", ())], f"seed {seed}: {seen}"
+
+
+def test_only_a_far_cell_a_pair_proves_gives_its_pad_up_to_a_form_the_map_does_not_name() -> None:
+    """`_padded_style_swaps` and `_proven_side_holds` asked directly: every cell padded, one value no pad can hold.
+
+    `12` in a column whose one pad width is two keeps the padded style
+    where no tail's pair proves a cell past the width (plan P4-D105: the
+    stage-2b style battery gives its named padded count up at eight runs
+    of 1,920, and writing plain there missed it at 34), and is written
+    plain where the high side's pair does (plan P4-D377). A value inside
+    the width, or one on the side no pair proves, is no far cell.
+    """
+    styles = ["leading_zero", "leading_zero", "leading_zero"]
+    holds = [12.0, 3.0, 4.0]
+    swaps = generation._padded_style_swaps
+    assert swaps(styles, holds, {"2": 3}, [], True) == styles
+    assert swaps(styles, holds, {"2": 3}, [], True, (1, (False,))) == styles
+    assert swaps(styles, holds, {"2": 3}, [], True, (1, (True,))) == ["plain", "leading_zero", "leading_zero"]
+    holds_far = generation._proven_side_holds
+    assert holds_far(12.0, (1, (True,)), True)
+    assert not holds_far(9.0, (1, (True,)), True)
+    assert not holds_far(-12.0, (1, (True,)), True)
+    assert holds_far(-12.0, (1, (False, True)), True)
+    assert not holds_far(12.0, (0, (True,)), True)
+
+
+def test_a_run_with_too_little_room_under_the_width_widens_inward(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """K-S3-22's Pareto(2.5) readings: a tail with more strata past `999` than free values beside it under the width.
+
+    The run takes the side's strata under the width beside it, one at a
+    time, until the room between the stratum inside them and the width
+    holds a free value for each, and spreads them down from `999`: no
+    stratum the walk moved is left past the width -- only the cells it
+    leaves there are -- and the order of the values and the count of
+    different ones stand.
+    """
+    short: "list[int]" = []
+    real_tops = generation._tops_under_the_width
+
+    def watched(taken, span, band, width, facts, walked=None):  # type: ignore[no-untyped-def]
+        found = real_tops(taken, span, band, width, facts, walked)
+        if len(found[0]) < span[2]:
+            short.append(span[2])
+        return found
+
+    monkeypatch.setattr(generation, "_tops_under_the_width", watched)
+    for seed in range(10):
+        for floor in (36, 50):
+            described = _described(tmp_path, f"pareto_{seed}_{floor}", reader.pareto(400, seed), floor)
+            for facts, layout, values, demands, walk_floor, sides in _walk_calls(described):
+                if not sides:
+                    continue
+                widest = generation._widest_demanded(demands)
+                tails: "list[int]" = []
+                for side in sides:
+                    tails += generation._side_strata(facts, layout, side[0])
+                moved, freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, walk_floor, sides)
+                left = [place for place in _left_past(facts, moved, widest) if place in tails]
+                assert sum(layout.sizes[place] for place in left) == freed, f"seed {seed} floor {floor}"
+                walked = [moved[place] for place in sorted(tails)]
+                assert walked == sorted(walked) and len(set(moved)) == len(set(values)), f"seed {seed} floor {floor}"
+    assert short, "premise: some run found too few free values beside it on its own"
+
+
+def _two_figures_thousand_beside_185() -> "list[str]":
+    """A thousand two-figure readings 10 to 99 drawn evenly, beside one `185` (the second skeptic's `uniform_1000_185`)."""
+    draw = random.Random("g2/uniform/1000/185")
+    return [str(draw.randint(10, 99)) for _row in range(1000)] + ["185"]
+
+
+def test_a_stratum_taken_into_a_run_frees_its_own_value(tmp_path: pathlib.Path) -> None:
+    """A thousand two-figure readings beside one `185`, at 36: the twin's mean and spread within a hundredth of the real ones.
+
+    The fitted end, `172`, stood past `99` on 110cb46 already, so rule 1
+    moved nothing and the side's walk stands where it serves the census
+    better and neither moment worse. The strata it moves under the width
+    find too few free values beside them, so the run takes the side's
+    strata under the width in, one at a time, and each one taken in frees
+    its own value for the run. Withheld, the run finds too few, the side's
+    walk is given up and the twin is 110cb46's: 37 cells past `99`, the
+    spread 1.07 to 1.10 times the real one and the mean 0.03 to 0.05 of the
+    real spread off, where this writes one cell past `99`, 0.997 and 0.002
+    (the second skeptic of the repair, item 3, its mutant
+    `widen_free_not_released`).
+    """
+    cells = _two_figures_thousand_beside_185()
+    described = _described(tmp_path, "uniform_1000_185", cells, 36)
+    sides = generation._proven_sides(_facts(described), 2)
+    assert [(side[0], side[4], side[5]) for side in sides] == [(True, False, 172.0)], "premise: a side rule 1 left"
+    for seed in SEEDS:
+        mean, spread = _errors(cells, _twin_numbers(described, seed))
+        assert mean <= 0.01 and spread <= 0.01, f"seed {seed}: {mean} {spread}"
+
+
+def _dense_beside_five_far(rows: int) -> "list[str]":
+    """Consecutive whole numbers up to `999999` beside five of seven figures from `999999 + 1.56 rows`, ``rows`` in all (Codex's review of lane G2, item 3)."""
+    return [str(value) for value in range(1000005 - rows, 1000000)] + [
+        str(999999 + (156 * rows) // 100 + step) for step in range(5)
+    ]
+
+
+def test_a_run_widening_over_dense_values_looks_at_each_value_once(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Consecutive whole numbers beside five of seven figures, declared a measurement, at eleven: the search grows with the tail.
+
+    Every value under the width is held, so the far strata find no free
+    value beside them and the run takes the tail's strata in one at a
+    time, each freeing only its own value. Begun again at the width's end
+    for every stratum taken in, the search for free values made 568 checks
+    at 4,000 rows, a tail of 40 strata, and 2,807 at 8,000, a tail of 80
+    (11,881 at 16,000), on f6a24db (Codex's review of lane G2, item 3).
+    Resumed where it stopped, it looks at each value once over the whole
+    widening: no more checks than twice the tail's rows, and twice the
+    rows ask little more than twice the checks. Counted, not timed.
+    """
+    checks = [0]
+    rounds = [0]
+    real_free = generation._free_under_the_width
+    real_tops = generation._tops_under_the_width
+
+    def counted(*arguments):  # type: ignore[no-untyped-def]
+        checks[0] += 1
+        return real_free(*arguments)
+
+    def round_counted(*arguments):  # type: ignore[no-untyped-def]
+        rounds[0] += 1
+        return real_tops(*arguments)
+
+    monkeypatch.setattr(generation, "_free_under_the_width", counted)
+    monkeypatch.setattr(generation, "_tops_under_the_width", round_counted)
+    found: "list[tuple[int, int]]" = []
+    for rows in (4000, 8000):
+        cells = _dense_beside_five_far(rows)
+        assert len(cells) == rows and len(set(cells)) == rows, "premise: every value different"
+        described = kpi_shapes.describe(tmp_path / f"dense{rows}", f"dense{rows}", _text(cells), 11, measured=["value"])
+        tail = described.document["columns"][0]["tails"]["high"]["rows"]
+        checks[0] = 0
+        rounds[0] = 0
+        kpi_shapes.twin_text(described, 0)
+        assert rounds[0] >= tail // 2, f"premise: the run widens over the tail, {rows} rows: {rounds[0]} of {tail}"
+        assert checks[0] <= 2 * tail, f"{rows} rows: {checks[0]} checks for a tail of {tail}"
+        found += [(tail, checks[0])]
+    assert found[1][0] == 2 * found[0][0], f"premise: twice the rows, twice the tail: {found}"
+    assert found[1][1] <= 2.5 * found[0][1], found
+
+
+def test_a_resumed_search_finds_what_one_begun_again_finds() -> None:
+    """`_tops_under_the_width` resumed after a stratum is taken in, against the same walk begun again at the width's end.
+
+    Over seeded runs of held and free values under `9999`, each round
+    taking the stratum inside the run in -- its value freed -- the resumed
+    walk returns the values a fresh one does, round after round, and never
+    looks at more values than the fresh walk's last round did.
+    """
+    facts = types.SimpleNamespace(integer_valued=True, kept_stand_ins=())
+    for seed in range(40):
+        draw = random.Random(f"g2/codex/resume/{seed}")
+        held = sorted({float(draw.randint(9000, 9998)) for _ in range(draw.randint(20, 400))}, reverse=True)
+        taken = {value: 1 + draw.randint(0, 1) for value in held}
+        walked = None
+        for step in range(len(held) - 1):
+            inner = held[step]
+            span = (inner, 9999.0, step + 1)
+            fresh = generation._tops_under_the_width(taken, span, generation._BAND_POSITIVE, (4, False), facts)
+            walked = generation._tops_under_the_width(taken, span, generation._BAND_POSITIVE, (4, False), facts, walked)
+            assert walked[0] == fresh[0] and walked[1:] == fresh[1:], f"seed {seed} round {step}"
+            if len(walked[0]) >= step + 1:
+                break
+            taken[inner] = taken[inner] - 1
+            if taken[inner] < 1:
+                del taken[inner]
+
+
+_HELD_SHAPES = (
+    ("ones", _ones_beside_eleven, 50),
+    ("bell", _ones_bell, 36),
+    ("low", _ones_low_heavy, 50),
+)
+
+
+def _without_the_held_end(facts, layout, values, places, pulled, side, width):  # type: ignore[no-untyped-def]
+    """The fallback withdrawn: the pull is handed no end the width held."""
+    return _REAL_PULLED(facts, layout, values, places, pulled, (side[0], side[1], side[2], None), width)
+
+
+@pytest.mark.parametrize("label,shape,floor", _HELD_SHAPES, ids=[f"{one[0]}_f{one[2]}" for one in _HELD_SHAPES])
+def test_a_stratum_with_no_room_under_the_width_takes_the_end_the_width_held(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, label: str, shape, floor: int  # type: ignore[no-untyped-def]
+) -> None:
+    """One-figure readings beside far cells, every value under the width held: the end goes back to 110cb46's `9`.
+
+    Rule 1 moved the high end past `9`, and the stratum holding it -- most
+    of the tail's rows -- does not fit the line less one and the pair's
+    totals, so the walk moves it under the width; but every whole value
+    from 1 to 9 is held by another stratum, and the side's whole tail
+    taken in finds too few free values. The strata that find none take
+    the end the width held on 110cb46, `9`, beside the stratum holding it.
+    No cell stands past the width, the twin's own census is the source's,
+    its mean and spread are no further off than 110cb46's and it misses
+    nothing. Its mutant, read with rule 3 withdrawn, hands the pull no end:
+    the walk gives the side up, and the end's stratum stays past the width
+    with most of the tail --
+    the first skeptic's first fault, on a column of one figure. 71a7b31
+    wrote 49 of the 401 cells on `10` this way, its mean 0.054 of the
+    real spread off where 110cb46 stood 0.007 off.
+    """
+    cells = shape()
+    described = _described(tmp_path, f"{label}{floor}", cells, floor)
+    sides = generation._proven_sides(_facts(described), 1)
+    assert [(side[0], side[4], side[5]) for side in sides] == [(True, True, 9.0)], "premise: rule 1 moved the end off 9"
+    mean_most, spread_most = _ON_110CB46[(label, len(cells), floor)]
+    for seed in SEEDS:
+        written = _twin_numbers(described, seed)
+        assert _past(written, 9.0) == 0 and max(written) == 9.0, f"seed {seed}"
+        assert _own_census(tmp_path, described, seed, floor) == _census(described), f"seed {seed}"
+        mean, spread = _errors(cells, written)
+        assert mean <= mean_most + _SLACK and spread <= spread_most + _SLACK, f"seed {seed}: {mean} {spread}"
+        assert _missed(described, seed) == [], f"seed {seed}"
+    _rule_three_withdrawn(monkeypatch)
+    monkeypatch.setattr(generation, "_pulled_under_the_width", _without_the_held_end)
+    assert _past(_twin_numbers(described, 0), 9.0) > parsing.census_floor(floor) // 2
+
+
+def _heap_far3() -> "list[str]":
+    """400 readings 9000 to 9500, `9999` fifteen times and `10500`, `50000` and `99999` (the first skeptic's attack shape)."""
+    draw = random.Random("g2skep/heap/400/15/3")
+    return [str(draw.randint(9000, 9500)) for _row in range(400)] + ["9999"] * 15 + ["10500", "50000", "99999"]
+
+
+def test_a_side_the_rule_left_gives_its_walk_up_where_a_stratum_finds_no_room(tmp_path: pathlib.Path) -> None:
+    """Readings 9000 to 9500 beside a heap of `9999` and three far cells, at a floor of eleven: no room under the width.
+
+    Rule 1 moved nothing on this side -- the end stood past the width on
+    110cb46 -- so its walk is weighed against 110cb46's. The end's stratum
+    fits and would stay; the six inside it do not, and the tail's boundary
+    is the heap of `9999` itself, so no value under the width lies past
+    the stratum inside the tail. With no end the width held to fall back
+    to, the side's walk is given up whole: the first step hands the values
+    back as they stood, counts no cell left past the width and names no
+    side, so the walk weighed is 110cb46's and the far cells the draw left
+    keep their pad where a column is padded (method G6.3; Codex's review
+    of lane G2, item 2: the walk declining names nothing). Its mutant keeps
+    the end's cell counted, beside six strata the rule does not allow past
+    the width.
+    """
+    described = _described(tmp_path, "heap_far3", _heap_far3(), 11)
+    calls = [call for call in _walk_calls(described) if call[5]]
+    assert calls, "premise: the side is weighed"
+    facts, layout, values, demands, floor, sides = calls[0]
+    assert [(side[0], side[4]) for side in sides] == [(True, False)], "premise: a side the rule did not move"
+    widest = generation._widest_demanded(demands)
+    assert len(_left_past(facts, values, widest)) > 1, "premise: strata past the width"
+    moved, freed, kept = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
+    assert moved == values and freed == 0 and kept == ()
+
+
+def _run_layout(values: "list[float]") -> "generation._NumericLayout":
+    """One cell a stratum, every stratum positive: the layout the direct tests of the pull hand it."""
+    count = len(values)
+    return generation._NumericLayout(
+        sizes=(1,) * count,
+        starts=tuple(range(count)),
+        bands=("positive",) * count,
+        raw_budgets=(),
+        folded_budgets=(),
+    )
+
+
+def test_the_last_resort_places_what_it_can_on_the_outermost_free_values_and_the_rest_on_the_held_end(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`_pulled_under_the_width` asked directly, on one-figure strata where the side's tail cannot make room.
+
+    Strata 1, 7 and 8 under the width and 15, 15 and 20 past it, the tail
+    the last four. The run of the three past it finds one free value, `9`,
+    takes the stratum at 8 in, finds two, and stops at the body's 7; so
+    the pulled strata alone are moved, the innermost onto `9` -- aimed at
+    the limit, though its own value is shared and every value is open to
+    it -- and the two outermost take the held end. The body is untouched,
+    the order stands, nothing stays past the width. Handed no held end,
+    the two outermost stay where they stood. A held end inside the
+    stratum beside them is lifted to it, and one past the width gives way
+    to the width's own end. A run reaching the column's own edge has no
+    stratum inside it and takes the held end whole.
+    """
+    facts = _facts(_described(tmp_path, "ones50", _ones_beside_eleven(), 50))
+    values = [1.0, 7.0, 8.0, 15.0, 15.0, 20.0]
+    layout = _run_layout(values)
+    places = [2, 3, 4, 5]
+    pulled = [5, 4, 3]
+    width = (1, False)
+    moved = generation._pulled_under_the_width(facts, layout, values, places, pulled, (True, 5.0, 0.0, 9.0), width)
+    assert moved == [1.0, 7.0, 8.0, 9.0, 9.0, 9.0]
+    stood = generation._pulled_under_the_width(facts, layout, values, places, pulled, (True, 5.0, 0.0, None), width)
+    assert stood == [1.0, 7.0, 8.0, 9.0, 15.0, 20.0]
+    lifted = generation._pulled_under_the_width(facts, layout, values, places, pulled, (True, 5.0, 0.0, 8.0), width)
+    assert lifted == [1.0, 7.0, 8.0, 9.0, 9.0, 9.0]
+    beyond = generation._pulled_under_the_width(facts, layout, values, places, pulled, (True, 5.0, 0.0, 12.0), width)
+    assert beyond == [1.0, 7.0, 8.0, 9.0, 9.0, 9.0]
+    # A run reaching the column's own edge has no stratum inside it to find
+    # room beside, and takes the held end whole; handed none, it stands.
+    edge = [15.0, 20.0]
+    held = generation._pulled_under_the_width(facts, _run_layout(edge), edge, [0, 1], [1, 0], (True, 5.0, 0.0, 9.0), width)
+    assert held == [9.0, 9.0]
+    stands = generation._pulled_under_the_width(facts, _run_layout(edge), edge, [0, 1], [1, 0], (True, 5.0, 0.0, None), width)
+    assert stands == edge
+    # A width whose own end is a stand-in the block does not hold: `9999`
+    # is refused there as everywhere, and the held end is `9998`.
+    four = [9995.0, 9996.0, 9997.0, 9998.0, 15000.0, 20000.0]
+    moved = generation._pulled_under_the_width(
+        facts, _run_layout(four), four, [1, 2, 3, 4, 5], [5, 4], (True, 9000.0, 0.0, 15000.0), (4, True)
+    )
+    assert moved == [9995.0, 9996.0, 9997.0, 9998.0, 9998.0, 9998.0]
+
+
+def test_a_run_never_takes_in_a_stratum_past_the_side_s_own_tail(tmp_path: pathlib.Path) -> None:
+    """`_pulled_under_the_width` asked directly: the widening stops at the body however much room lies inside it.
+
+    Strata 1, 7, 8, 15 and 20, the tail the last three. The run of the two
+    past the width takes the stratum at 8 in and finds two free values for
+    three strata; the stratum at 7 belongs to the body, so the run stops
+    there and the last resort places the stratum at 15 on `9` and the
+    held end takes the one at 20. Taking 7 in would have found room enough
+    -- `2` to `9` -- and moved a stratum of the body.
+    """
+    facts = _facts(_described(tmp_path, "ones50", _ones_beside_eleven(), 50))
+    values = [1.0, 7.0, 8.0, 15.0, 20.0]
+    moved = generation._pulled_under_the_width(
+        facts, _run_layout(values), values, [2, 3, 4], [4, 3], (True, 5.0, 0.0, 9.0), (1, False)
+    )
+    assert moved == [1.0, 7.0, 8.0, 9.0, 9.0]
+
+
+# -- 4. the demands, and which walk a side keeps -------------------------------
+
+
+def _demands_less_the_commonest(demands, freed, _facts):  # type: ignore[no-untyped-def]
+    """The demand choice withdrawn: the cells left come off the demand asking for the most cells, of either kind."""
+    if freed < 1 or not demands:
+        return demands
+    chosen = 0
+    for index in range(1, len(demands)):
+        if demands[index][2] > demands[chosen][2] or (
+            demands[index][2] == demands[chosen][2] and demands[index][0] > demands[chosen][0]
+        ):
+            chosen = index
+    return [
+        (wanted, exact, cells - freed if index == chosen else cells)
+        for index, (wanted, exact, cells) in enumerate(demands)
+        if cells - (freed if index == chosen else 0) > 0
+    ]
+
+
+def test_the_cells_left_come_off_the_demand_the_census_counted_them_into(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """200 padded codes beside 100 four-figure numbers, `99999` and `88888`: the unpadded demand gives up the cells.
+
+    The census counts a cell too few to name into its commonest width, and
+    into that width's unpadded part where some of its cells are unpadded
+    (`_counted_into`); the twin writes its far cells plainly too, so they
+    come off the exact demand and the padded ceiling still asks for all
+    200 small values. Where every cell of the commonest width is published
+    padded -- 100 codes beside 40 plus-signed numbers and `99999` -- the
+    census counted the far cell with the padded ones. Its mutant takes the
+    cells off the demand asking for the most, the padded one here, and the
+    twin misses the padded census.
+    """
+    described = _described(tmp_path, "mixed_far2", _mixed(200, 100, ["99999", "88888"], 3), 11)
+    assert _census(described) == ({"4": 302}, {"4": 200}), "premise: two far cells pooled"
+    facts = _facts(described)
+    assert generation._field_demands(facts) == [(3, 0, 200), (4, 1, 102)], "premise: the padded demand is the larger"
+    assert generation._counted_into(facts) == (4, 1)
+    # A tie for the commonest width goes to the first in sorted order, as
+    # the census itself breaks it (`parsing.absorbed_census`).
+    tied = dataclasses.replace(facts, field_widths={"3": 151, "4": 151}, pad_widths={})
+    assert generation._counted_into(tied) == (3, 1)
+    assert generation._demands_less_the_freed([(3, 0, 200), (4, 1, 102)], 2, facts) == [(3, 0, 200), (4, 1, 100)]
+    plus = _facts(_described(tmp_path, "plus_mixed", _plus_mixed(), 11))
+    assert generation._counted_into(plus) == (3, 0)
+    assert generation._field_demands(plus) == [(3, 0, 101), (3, 1, 40)]
+    assert generation._demands_less_the_freed([(3, 0, 101), (3, 1, 40)], 1, plus) == [(3, 0, 100), (3, 1, 40)]
+    for seed in SEEDS:
+        assert _missed(described, seed) == [], f"seed {seed}"
+    monkeypatch.setattr(generation, "_demands_less_the_freed", _demands_less_the_commonest)
+    for seed in SEEDS:
+        assert "value:pads.published.4" in _missed(described, seed), f"seed {seed}"
+
+
+def test_on_a_side_the_reach_rule_left_the_full_walk_stands_where_it_serves_the_census(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Codes beside plain numbers and one far value: 110cb46's walk misses the padded census, the full walk does not.
+
+    60 codes beside 90 plain numbers and `99999`, and 90 beside 59, at a
+    floor of eleven: the end stood past the width on 110cb46 already, so
+    the rule moved nothing, and the full walk -- the tail's other strata
+    moved under the width before any demand is served -- stands because it
+    serves the census better and neither moment worse. Its mutant keeps
+    110cb46's walk, and the twin misses the padded census.
+    """
+    for padded, unpadded, shape_seed in ((60, 90, 2), (90, 59, 1)):
+        described = _described(tmp_path, f"mixed_{padded}_{unpadded}", _mixed(padded, unpadded, ["99999"], shape_seed), 11)
+        sides = generation._proven_sides(_facts(described), 4)
+        assert [(side[0], side[4]) for side in sides] == [(True, False)], "premise: a side the rule did not move"
+        for seed in SEEDS:
+            assert _missed(described, seed) == [], f"{padded}/{unpadded} seed {seed}"
+        with monkeypatch.context() as patch:
+            patch.setattr(generation, "_serves_better", lambda *_arguments: False)
+            missed = [seed for seed in SEEDS if "value:pads.published.4" in _missed(described, seed)]
+        assert len(missed) >= 2, f"{padded}/{unpadded}: {missed}"
+
+
+def test_where_the_full_walk_would_cost_a_moment_the_twin_is_110cb46_s(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """300 four-figure numbers beside nine cells from 20000: the full walk would serve the census and move the mean.
+
+    The side's end stood past the width on 110cb46, and there the walk
+    stands only where neither published moment is worse: the full walk
+    takes the twin's mean from 0.019 to 0.036 real standard deviations
+    off, so the twin is 110cb46's. Its mutant, read with rule 3 withdrawn,
+    takes the full walk always.
+    """
+    cells = _staircase_far(300, 9, 20000)
+    described = _described(tmp_path, "stair", cells, 11)
+    kept = {seed: _errors(cells, _twin_numbers(described, seed))[0] for seed in SEEDS}
+    _rule_three_withdrawn(monkeypatch)
+    monkeypatch.setattr(generation, "_serves_better", lambda *_arguments: True)
+    for seed in SEEDS:
+        assert _errors(cells, _twin_numbers(described, seed))[0] > kept[seed] + 0.01, f"seed {seed}"
+
+
+def test_the_full_walk_stands_only_on_a_census_strictly_better_and_no_moment_further_off(tmp_path: pathlib.Path) -> None:
+    """`_serves_better` asked directly, on the ten-wide column's hundred one-cell strata.
+
+    The trial leaves ten cells past the width and owes nothing; the walk
+    held leaves eleven and owes two. Each published moment is weighed only
+    where it is published: with neither, the census decides; a mean or a
+    spread published nearer the held walk's refuses the trial; both nearer
+    the trial's let it stand; and a trial that serves the census no better
+    is refused whatever its moments.
+    """
+    described = _described(tmp_path, "ten_wide", _ten_wide(), 11)
+    facts, layout, _values, demands, floor, _sides = _walk_calls(described)[0]
+    held = [1000.0 + place for place in range(89)] + [20000.0 + place for place in range(11)]
+    trial = [1000.0 + place for place in range(90)] + [20000.0 + place for place in range(10)]
+    level = [1100.0 + place for place in range(90)] + [30000.0 + place for place in range(10)]
+    owed = generation._census_owed
+    assert owed(facts, layout, trial, demands, floor) == 0 == owed(facts, layout, level, demands, floor)
+    assert owed(facts, layout, held, demands, floor) == 2
+    trial_mean, trial_spread = generation._strata_moments(layout, trial)
+    held_mean, held_spread = generation._strata_moments(layout, held)
+
+    def asked(mean, spread, walks):  # type: ignore[no-untyped-def]
+        published = dataclasses.replace(facts, mean=mean, std=spread)
+        return generation._serves_better(published, layout, walks, demands, floor)
+
+    assert asked(None, None, (trial, held))
+    assert not asked(held_mean, None, (trial, held))
+    assert not asked(None, held_spread, (trial, held))
+    assert asked(trial_mean, trial_spread, (trial, held))
+    level_mean, level_spread = generation._strata_moments(layout, level)
+    assert not asked(level_mean, level_spread, (level, trial))
+
+
+def test_a_moment_level_between_the_two_walks_is_no_further_off() -> None:
+    """`_serves_better` on a tie: a published moment as far from the trial's as from the held walk's lets the trial stand.
+
+    Four one-cell strata and a demand for four cells of exactly four
+    figures: `1000` to `1003` owe nothing, while `999`, `1001`, `1002` and
+    `1004` owe one cell and hold the same mean, 1001.5. With only the mean
+    published, the census decides wherever that mean is: a moment no
+    further off is not a moment worse. Its mutant refuses the trial on the
+    level mean.
+    """
+    layout = generation._NumericLayout(
+        sizes=(1, 1, 1, 1), starts=(0, 1, 2, 3), bands=("positive",) * 4, raw_budgets=(), folded_budgets=()
+    )
+    trial = [1000.0, 1001.0, 1002.0, 1003.0]
+    held = [999.0, 1001.0, 1002.0, 1004.0]
+    demands = [(4, 1, 4)]
+    facts = types.SimpleNamespace(integer_valued=True, mean=1001.5, std=None)
+    assert generation._census_owed(facts, layout, trial, demands, 11) == 0  # type: ignore[arg-type]
+    assert generation._census_owed(facts, layout, held, demands, 11) == 1  # type: ignore[arg-type]
+    assert generation._strata_moments(layout, trial)[0] == generation._strata_moments(layout, held)[0] == 1001.5
+    for mean in (1001.5, 1200.0, 900.0):
+        published = types.SimpleNamespace(integer_valued=True, mean=mean, std=None)
+        assert generation._serves_better(published, layout, (trial, held), demands, 11), mean  # type: ignore[arg-type]
+
+
+def test_where_the_full_walk_serves_the_census_no_better_the_side_keeps_110cb46_s_walk(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """K-S3-22's Pareto(2.5) readings of seed 0 at 36: 16 cells past `999`, as the source holds, where the full walk would leave 7.
+
+    The side's end stood past the width before the reach rule, and its
+    census is served on 110cb46's walk with every wide cell pooled; the
+    full walk would leave the census no better served and only moves the
+    tail's spread, so the side keeps 110cb46's walk. Its mutant, read with
+    rule 3 withdrawn, takes the full walk wherever the census is no worse.
+    """
+    described = _described(tmp_path, "pareto_0_36", reader.pareto(400, 0), 36)
+    sides = generation._proven_sides(_facts(described), 3)
+    assert [(side[0], side[4]) for side in sides] == [(True, False)], "premise: a side the rule did not move"
+    for seed in SEEDS:
+        assert _past(_twin_numbers(described, seed), 999.0) == 16, f"seed {seed}"
+    real = generation._census_owed
+
+    def no_worse(facts, layout, walks, demands, floor):  # type: ignore[no-untyped-def]
+        return real(facts, layout, walks[0], demands, floor) <= real(facts, layout, walks[1], demands, floor)
+
+    _rule_three_withdrawn(monkeypatch)
+    monkeypatch.setattr(generation, "_serves_better", no_worse)
+    assert _past(_twin_numbers(described, 0), 999.0) < 10
+
+
+def test_the_census_owed_counts_the_cells_past_the_width_beyond_the_pool(tmp_path: pathlib.Path) -> None:
+    """What `_serves_better` weighs: the demands' unserved cells, and every cell past the width beyond the line less one.
+
+    The ten-wide column's own strata, one cell each, given four-figure
+    values and then `wide` of them five: up to the line less one the
+    census pools the wide cells into its one width and nothing is owed;
+    each cell past that is owed twice, once to the demand it should have
+    served and once as a cell at a width the source's census does not
+    name.
+    """
+    described = _described(tmp_path, "ten_wide", _ten_wide(), 11)
+    facts, layout, values, demands, floor, _sides = _walk_calls(described)[0]
+    assert demands == [(4, 1, 100)] and set(layout.sizes) == {1}, "premise: a hundred one-cell strata, one demand"
+    room = parsing.census_floor(floor) - 1
+    for wide in (0, 1, room, room + 1, room + 3):
+        trial = [1000.0 + place for place in range(len(values) - wide)]
+        trial += [20000.0 + place for place in range(wide)]
+        assert generation._census_owed(facts, layout, trial, demands, floor) == 2 * max(wide - room, 0), wide
+
+
+def test_the_strata_moments_are_the_cells_own() -> None:
+    """The mean and the n-1 spread of every cell the strata hold, each stratum's value counted once a cell."""
+    layout = generation._NumericLayout(
+        sizes=(3, 1, 4, 2), starts=(0, 3, 4, 8), bands=("positive",) * 4, raw_budgets=(), folded_budgets=()
+    )
+    values = [1.0, 2.5, 7.0, 100.0]
+    cells = [1.0] * 3 + [2.5] + [7.0] * 4 + [100.0] * 2
+    mean, spread = generation._strata_moments(layout, values)
+    assert mean == pytest.approx(statistics.fmean(cells))
+    assert spread == pytest.approx(statistics.stdev(cells))
+    assert generation._strata_moments(layout, [1.0, math.inf, 7.0, 100.0]) == (None, None)
+
+
+# -- 5. a large table -----------------------------------------------------------
+
+
+def test_a_hundred_thousand_rows_keep_their_census_and_their_moments(tmp_path: pathlib.Path) -> None:
+    """The first skeptic's million-row shape at a hundred thousand rows: the far cells the pair carries, and no more.
+
+    `1000` to `1999` beside five cells from `95555` to `99999`, at a floor
+    of eleven. Rule 1 takes the high end to the pair's reach; the walk
+    leaves the tail's outermost strata past the width inside the line less
+    one and the pair's totals, and moves the rest under it. The twin's own
+    census is the source's and its spread no further off than 110cb46's.
+    ONE CHECKER READS BOTH TWINS (the second skeptic of the repair, item
+    1): it misses nothing on this one, and misses `moments.std` on
+    110cb46's, which held every cell under the width and read 0.42 of the
+    real spread -- as 110cb46's own checker did, the spread being held to
+    the window drawn with the reach rule withdrawn too (validation method
+    V6.1-A2); on a million rows the first form wrote a thousand cells on
+    one five-figure value. The rule's reading stands under rule 3 because
+    the mean and the spread are weighed together: its mean stands 0.007 of
+    the real spread off where 110cb46's stood 0.002 off, and its spread
+    0.91 of the real one where 110cb46's stood 0.42; weighed one by one,
+    the block would go back to 110cb46's.
+    """
+    cells = _bulk(100000)
+    described = _described(tmp_path, "bulk", cells, 11)
+    text = kpi_shapes.twin_text(described, 0)
+    written = _numbers([row[0] for row in list(csv.reader(io.StringIO(text)))[1:] if row])
+    assert 0 < _past(written, 9999.0) <= parsing.census_floor(11) - 1
+    own = kpi_shapes.describe(tmp_path / "own", "own", text, 11).document["columns"][0]
+    assert (own["field_widths"], own["pad_widths"]) == _census(described)
+    _mean, spread = _errors(cells, written)
+    assert spread <= _ON_110CB46[("bulk", 100000, 11)][1] + _SLACK, spread
+    assert kpi_shapes.missed(kpi_shapes.measure(described, text, "twin-0.csv")) == []
+    theirs = _withdrawn_text(described, 0)
+    assert "value:moments.std" in kpi_shapes.missed(kpi_shapes.measure(described, theirs, "twin-0-110cb46.csv"))
+
+
+# -- 6. the checker, where rule 1 moved an end ---------------------------------
+
+
+def _moment_check(described: kpi_shapes.Described, text: str, name: str, subcheck: str) -> validation.Check:
+    checks = [check for check in kpi_shapes.measure(described, text, name).checks if check.subcheck == subcheck]
+    assert len(checks) == 1, f"premise: one {subcheck} check"
+    return checks[0]
+
+
+def _shown_ends(published: str) -> "tuple[float, float]":
+    """The two ends of the window a check line prints beside its published value."""
+    inside = published.split("(between ", 1)[1].rstrip(")")
+    low, high = inside.split(" and ")
+    return float(low), float(high)
+
+
+def _moved_sides(facts: contract.NumericFacts) -> "list[str]":
+    """The sides whose end the ladder read with rule 1 and the one read without it hold apart, read off each ladder's own ends.
+
+    A premise read without `contract.reach_moved_an_end`, so a mutant of
+    that one test turns the checker's verdict, not the premise.
+    """
+    ruled = contract.tail_ladder(facts)
+    held = contract.tail_ladder(facts, reach_rule=False)
+    assert ruled is not None and held is not None, "premise: a tail block"
+    return [
+        side
+        for side, mine, theirs in (("low", ruled.low, held.low), ("high", ruled.high, held.high))
+        if mine is not None and theirs is not None and mine.end != theirs.end
+    ]
+
+
+_HELD_GRIDS = (
+    ("grid", 1000, 11),
+    ("grid", 1000, 20),
+    ("grid", 400, 20),
+    ("grid", 400, 36),
+    ("mirrored", 1000, 36),
+    ("mirrored", 400, 20),
+    ("mirrored", 400, 36),
+)
+
+
+@pytest.mark.parametrize(
+    "shape,rows,floor", _HELD_GRIDS, ids=[f"{shape}{rows}_f{floor}" for shape, rows, floor in _HELD_GRIDS]
+)
+def test_where_rule_1_moved_an_end_the_spread_answers_to_the_window_without_it_too(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, shape: str, rows: int, floor: int
+) -> None:
+    """The first skeptic's grid shapes, written as 110cb46 wrote them: `validate` misses their spread again.
+
+    Readings 1000 to 1900 beside one `99900`: rule 1 takes the high end
+    to the pair's reach, and the standard deviation's window, drawn
+    through that end, widens until it reaches the published value -- 0 to
+    36,011.8 against 3,124.9 at 1,001 rows -- so V6.1-A2's half-width test
+    stopped applying. Rule 3 writes these twins as 110cb46 did, their
+    spread 0.37 to 0.50 of the real one, and 110cb46's report MISSED it
+    on the window drawn with the rule withdrawn, 0 to 3,090.8. So where
+    rule 1 moved an end the file answers to that window's half-width test
+    too (validation method V6.1-A2; the second skeptic of the repair, item
+    1). Its mutant draws no second window, and the twins pass. Mirrored
+    below nought, rule 1 moves the low end alone, and at 1,001 rows and 36
+    and at 401 rows and 20 and 36 the twins, their spread 0.48 and 0.34 of
+    the real one, are missed the same way: the checker asks
+    `contract.reach_moved_an_end`, which reads both ends (the leftover
+    round's verifier, finding 1).
+    """
+    cells = _grid(rows) if shape == "grid" else _mirrored_grid(rows)
+    described = _described(tmp_path, f"{shape}{rows}", cells, floor)
+    facts = _facts(described)
+    assert _moved_sides(facts) == (["high"] if shape == "grid" else ["low"]), "premise: rule 1 moved one end"
+    published = described.document["columns"][0]["std"]
+    held = validation._windows_of(described.loaded.columns[0], facts, floor, False)["std"]
+    assert not held[0] <= published <= held[1], "premise: the window without the rule misses the value"
+    for seed in SEEDS:
+        written = _twin_numbers(described, seed)
+        assert written == _withdrawn_numbers(described, seed), f"premise: 110cb46's twin, seed {seed}"
+        text = kpi_shapes.twin_text(described, seed)
+        check = _moment_check(described, text, f"twin-{seed}.csv", "moments.std")
+        low, high = _shown_ends(check.published)
+        assert low <= published <= high, f"premise: the rule's own window reaches the value, seed {seed}"
+        assert check.verdict == validation.MISSED, f"seed {seed}: {check}"
+        assert any("(V6.1-A2)" in line for line in check.note), check.note
+        assert abs(float(check.achieved) / published - 1.0) > 0.45, f"seed {seed}: {check.achieved}"
+    monkeypatch.setattr(contract, "reach_moved_an_end", lambda _facts: False)
+    check = _moment_check(described, kpi_shapes.twin_text(described, 0), "twin-0-mutant.csv", "moments.std")
+    assert check.verdict == validation.WITHIN_BOUND, check
+
+
+def _numbers_beside_two_far() -> "list[str]":
+    """398 numbers from 1000 to 1397 beside `99999` and `88888`: 400 rows (one of the second skeptic's shapes)."""
+    return [str(1000 + step) for step in range(398)] + ["99999", "88888"]
+
+
+def test_where_rule_1_moved_an_end_the_mean_answers_to_the_window_without_it_too(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """398 numbers from 1000 beside `99999` and `88888`, at 20: `validate` misses the twin's mean on the second window.
+
+    Rule 1 takes the high end from `9998` to the pair's reach, and the
+    mean's window drawn through it, 1,245.5 to 2,524.4, reaches the
+    published 1,664.7; drawn with the rule withdrawn it runs 1,232.4 to
+    1,368.3 and does not. The twin's mean, 1,479.6, stands inside the
+    first window and further from the value than half the second's width,
+    so at seeds 0, 4 and 9 it is MISSED on the second window alone, which
+    holds the mean as well as the spread (validation method V6.1-A2; the
+    leftover round's verifier, finding 1). Its mutant hands the second
+    window to the spread alone, and the mean passes.
+    """
+    described = _described(tmp_path, "two_far_400", _numbers_beside_two_far(), 20)
+    facts = _facts(described)
+    assert _moved_sides(facts) == ["high"], "premise: rule 1 moved the high end"
+    published = described.document["columns"][0]["mean"]
+    held = validation._windows_of(described.loaded.columns[0], facts, 20, False)["mean"]
+    assert not held[0] <= published <= held[1], "premise: the window without the rule misses the value"
+    texts = [kpi_shapes.twin_text(described, seed) for seed in SEEDS]
+    for seed, text in zip(SEEDS, texts):
+        check = _moment_check(described, text, f"twin-{seed}.csv", "moments.mean")
+        low, high = _shown_ends(check.published)
+        mean = float(check.achieved)
+        assert low <= published <= high and low <= mean <= high, f"premise: the rule's own window passes it, seed {seed}"
+        assert abs(mean - published) > (held[1] - held[0]) / 2.0, f"premise: past half the second width, seed {seed}"
+        assert check.verdict == validation.MISSED, f"seed {seed}: {check}"
+        assert any(validation._shown_window(*held) in line for line in check.note), check.note
+    real_within = validation._within
+
+    def spread_alone(*arguments, **keywords):  # type: ignore[no-untyped-def]
+        if arguments[1] == "numeric.mean":
+            keywords["held"] = None
+        return real_within(*arguments, **keywords)
+
+    monkeypatch.setattr(validation, "_within", spread_alone)
+    check = _moment_check(described, texts[0], "twin-0-mutant.csv", "moments.mean")
+    assert check.verdict == validation.WITHIN_BOUND, check
+
+
+def test_the_window_without_the_rule_holds_the_file_to_half_its_width_whether_or_not_it_reaches_the_value() -> None:
+    """`validation._within` asked directly with a second window, the one drawn with rule 1 withdrawn.
+
+    The file must stand within half that window's width of the published
+    value, whatever the first window says, and the line keeps printing the
+    first window: a file near the value passes, one further than half the
+    width misses. WHETHER OR NOT THE SECOND WINDOW REACHES THE VALUE: the
+    leftover round asked it only where it did not, so a window reaching the
+    value, however narrow, asked nothing and the rule's wide window was the
+    only bound (Codex's review of lane G2, item 1). AND WHERE IT REACHES THE
+    VALUE ITS OWN ENDS HOLD TOO: half its width around a value near one of
+    its ends runs past that end, so a distance alone passed files the window
+    itself missed (the verifier of that review's corrections). A file
+    outside a reaching second window passes only within ``held_near`` of the
+    value, nought unless the caller says how near: around 10, a second
+    window 8 to 30 passes 8 to 21 and nothing below 8, three either side
+    7 to 21, and 0 to 12 passes 4 to 12, three either side 4 to 13. AND
+    WHERE IT MISSES THE VALUE, the file stands between the window and the
+    value or within ``held_near`` past the value: half the window's width
+    alone held the side away from it to that half, so a spread 1.45 times
+    the real one passed on the leftover round's own column (that review's
+    second verifier). Around 10, a second window 0 to 4 passes 8 to 10, and
+    8 to 11 with one either side; 16 to 30 passes 10 to 17, and 9 to 17
+    with one either side. It holds whichever check it is handed to -- the
+    caller hands it the mean's, the spread's, a moved tail's two distances
+    and each rung's -- and none leaves the first window's verdict alone.
+    """
+    def within(measured, held, anchored=True, near=0.0):  # type: ignore[no-untyped-def]
+        return validation._within(
+            "c", "numeric.std", "moments.std", "10", measured, (0.0, 100.0), "G12.3", 10.0,
+            anchored=anchored, held=held, held_near=near,
+        )
+
+    # A second window that misses the value: 11 stands past the value, on the side away from it, within half its width.
+    away = within(11.0, (0.0, 4.0))
+    assert away.verdict == validation.MISSED and away.published == "10 (between 0.0 and 100.0)"
+    assert any("between 0.0 and 4.0" in line for line in away.note)
+    assert any("on the side away from that window" in line for line in away.note)
+    assert not any("which reaches the" in line for line in away.note)
+    assert within(11.0, (0.0, 4.0), near=1.0).verdict == validation.WITHIN_BOUND
+    assert within(9.0, (0.0, 4.0)).verdict == validation.WITHIN_BOUND
+    far = within(13.0, (0.0, 4.0))
+    assert far.verdict == validation.MISSED and far.published == "10 (between 0.0 and 100.0)"
+    assert any("between 0.0 and 4.0" in line for line in far.note)
+    assert any("does not" in line for line in far.note)
+    # A second window reaching the value near its top: 13 stands inside half its width and outside the window.
+    top = within(13.0, (0.0, 12.0))
+    assert top.verdict == validation.MISSED and top.published == "10 (between 0.0 and 100.0)"
+    assert any("between 0.0 and 12.0" in line for line in top.note)
+    assert any("which reaches the" in line for line in top.note)
+    assert not any("does not" in line for line in top.note)
+    assert within(13.0, (0.0, 12.0), near=3.0).verdict == validation.WITHIN_BOUND
+    nearby = within(13.5, (0.0, 12.0), near=3.0)
+    assert nearby.verdict == validation.MISSED
+    assert any("3.0" in line for line in nearby.note) and any("which reaches the" in line for line in nearby.note)
+    # A second window that reaches the value holds the file to half its width too.
+    reaching = within(13.0, (9.0, 11.0))
+    assert reaching.verdict == validation.MISSED and reaching.published == "10 (between 0.0 and 100.0)"
+    assert any("between 9.0 and 11.0" in line for line in reaching.note)
+    assert not any("does not" in line for line in reaching.note)
+    assert within(10.5, (9.0, 11.0)).verdict == validation.WITHIN_BOUND
+    assert within(9.0, (8.0, 30.0)).verdict == validation.WITHIN_BOUND
+    assert within(21.0, (8.0, 30.0)).verdict == validation.WITHIN_BOUND
+    halfway = within(22.0, (8.0, 30.0))
+    assert halfway.verdict == validation.MISSED and any("than half" in line for line in halfway.note)
+    assert within(-1.5, (8.0, 30.0)).verdict == validation.MISSED
+    assert within(7.5, (8.0, 30.0)).verdict == validation.MISSED
+    assert within(7.5, (8.0, 30.0), near=3.0).verdict == validation.WITHIN_BOUND
+    # Inside the first window: inside the second window, between it and the value or within ``near``, and within half its width.
+    for held, near, low, high in (
+        ((8.0, 30.0), 0.0, 8.0, 21.0),
+        ((8.0, 30.0), 1.0, 8.0, 21.0),
+        ((8.0, 30.0), 3.0, 7.0, 21.0),
+        ((0.0, 12.0), 0.0, 4.0, 12.0),
+        ((0.0, 12.0), 3.0, 4.0, 13.0),
+        ((0.0, 4.0), 0.0, 8.0, 10.0),
+        ((0.0, 4.0), 1.0, 8.0, 11.0),
+        ((16.0, 30.0), 0.0, 10.0, 17.0),
+        ((16.0, 30.0), 1.0, 9.0, 17.0),
+    ):
+        for step in range(-40, 61):
+            measured = 10.0 + step / 4.0
+            if measured == 10.0:
+                continue
+            expected = validation.WITHIN_BOUND if low <= measured <= high else validation.MISSED
+            assert within(measured, held, near=near).verdict == expected, (held, near, measured)
+    assert within(13.0, None).verdict == validation.WITHIN_BOUND
+    assert within(13.0, (0.0, 4.0), anchored=False).verdict == validation.MISSED
+    assert within(11.0, (0.0, 4.0), anchored=False).verdict == validation.MISSED
+    assert within(11.0, (0.0, 4.0), anchored=False, near=1.0).verdict == validation.WITHIN_BOUND
+    assert within(10.0, (0.0, 4.0)).verdict == validation.HELD
+    assert within(10.0, (0.0, 12.0)).verdict == validation.HELD
+    assert within(150.0, (0.0, 4.0)).verdict == validation.MISSED
+
+
+def test_a_file_three_times_the_real_spread_misses_where_the_window_without_the_rule_reaches_the_value(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Readings 1000 to 1900, each 150 times, beside one `99900`, at eleven: a file whose last cell is `300000` misses.
+
+    Rule 1 takes the high end to the pair's reach, and every window drawn
+    through that end widens: the spread's to 0 to 35,004.85 against a
+    published 2,557.30, the high tail's two distances' to 0 to 98,101.
+    Drawn with the rule withdrawn the spread's runs 0 to 3,020.28, which
+    REACHES the published value, so the leftover round's half-width test
+    asked nothing of it, and the tail's distances answered to no second
+    window at all: the file, its spread 7,711.31 -- three times the real
+    one -- passed all seventy checks on f6a24db, where 110cb46's report
+    missed its spread and both of the high tail's distances (Codex's review
+    of lane G2, item 1). Where rule 1 moved an end, the mean and the spread
+    answer to half the second window's width around the published value
+    whether or not that window reaches it, and each tail's two distances
+    answer to the furthest their window drawn the same way admits
+    (validation method V6.1-A2): the three misses come back, and the
+    source itself misses nothing. The twin rule 3 writes there, 110cb46's
+    own, its spread 0.35 of the real one, misses its spread, which the
+    lane's checker and 110cb46's own passed, and nothing else.
+    """
+    cells = _grid(1500)
+    described = _described(tmp_path, "grid1500", cells, 11)
+    facts = _facts(described)
+    assert _moved_sides(facts) == ["high"], "premise: rule 1 moved the high end"
+    column = described.loaded.columns[0]
+    published = described.document["columns"][0]["std"]
+    held = validation._windows_of(column, facts, 11, False)["std"]
+    assert held[0] <= published <= held[1], "premise: the window without the rule reaches the value"
+    assert kpi_shapes.missed(kpi_shapes.measure(described, _text(cells), "source.csv")) == []
+    altered = _text(cells[:-1] + ["300000"])
+    assert kpi_shapes.missed(kpi_shapes.measure(described, altered, "altered.csv")) == [
+        "value:moments.std",
+        "value:tails.high.mean_distance",
+        "value:tails.high.rms_distance",
+    ]
+    spread = _moment_check(described, altered, "altered-std.csv", "moments.std")
+    low, high = _shown_ends(spread.published)
+    assert low <= float(spread.achieved) <= high, "premise: inside the rule's own window"
+    assert float(spread.achieved) > 3.0 * published, "premise: three times the real spread"
+    assert any(validation._shown_window(*held) in line for line in spread.note), spread.note
+    for seed in SEEDS:
+        text = kpi_shapes.twin_text(described, seed)
+        assert text == _withdrawn_text(described, seed), f"premise: rule 3 writes 110cb46's twin, seed {seed}"
+        check = _moment_check(described, text, f"twin-{seed}.csv", "moments.std")
+        assert check.verdict == validation.MISSED and float(check.achieved) < 0.4 * published, f"seed {seed}: {check}"
+        assert _missed(described, seed) == ["value:moments.std"], f"seed {seed}"
+
+
+def _far_side_half_again(cells: "list[str]") -> "list[str]":
+    """Every number above the column's mean taken half again as far from it, written as a whole number."""
+    numbers = [float(cell) for cell in cells]
+    mean = statistics.fmean(numbers)
+    return [str(round(mean + 1.5 * (number - mean))) if number > mean else cell for cell, number in zip(cells, numbers)]
+
+
+# What `validate` misses on Codex's column with its far cell `149100`, or its far side half again as far out, at
+# each floor: 110cb46's own lists for both files. The high tail's root-mean-square distance answers to a second window
+# (0 to 8,199) that misses the published 25,303, and the file's stands past that value, on the side away from the
+# window, further than three tenths of it (the second verifier of the corrections to Codex's review).
+_HALF_AGAIN_MISSES = {
+    11: ["value:moments.std", "value:tails.high.mean_distance", "value:tails.high.rms_distance"],
+    20: ["value:moments.std", "value:tails.high.rms_distance"],
+    36: ["value:moments.std", "value:tails.high.rms_distance"],
+}
+
+
+@pytest.mark.parametrize("floor", (11, 20, 36))
+def test_a_file_half_again_the_real_spread_misses_where_the_window_without_the_rule_reaches_the_value(
+    tmp_path: pathlib.Path, floor: int
+) -> None:
+    """Readings 1000 to 1900, each 150 times, beside one `99900`: a file whose far cell is `149100` misses its spread.
+
+    The spread's second window, 0 to about 3,020 against a published
+    2,557.30, reaches the value near its top, so half its width around the
+    value runs to 4,067: held to that distance alone (Codex's round), a file
+    whose far cell is `149100`, its spread 3,821.84 -- 1.49 times the real
+    one -- passed every check at floors of 11, 20 and 36, and so did one
+    whose far side stood half again as far out, where 110cb46's report
+    missed the spread of both (the verifier of that round's corrections).
+    Where the second window reaches the published value the file must stand
+    inside it or within a tenth of the published spread of it, `K-S3-22`'s
+    own line (validation method V6.1-A2), and both files miss the spread
+    again; the source misses nothing. Each misses what 110cb46's report
+    missed, the high tail's root-mean-square distance among them, whose
+    second window misses the published distance.
+    """
+    cells = _grid(1500)
+    described = _described(tmp_path, f"grid1500_{floor}", cells, floor)
+    facts = _facts(described)
+    assert _moved_sides(facts) == ["high"], "premise: rule 1 moved the high end"
+    column = described.loaded.columns[0]
+    published = described.document["columns"][0]["std"]
+    held = validation._windows_of(column, facts, floor, False)["std"]
+    assert held[0] <= published <= held[1], "premise: the window without the rule reaches the value"
+    assert kpi_shapes.missed(kpi_shapes.measure(described, _text(cells), "source.csv")) == []
+    for name, altered_cells in (("far_cell_149100", cells[:-1] + ["149100"]), ("far_side", _far_side_half_again(cells))):
+        altered = _text(altered_cells)
+        spread = _moment_check(described, altered, f"{name}.csv", "moments.std")
+        measured = float(spread.achieved)
+        low, high = _shown_ends(spread.published)
+        assert low <= measured <= high, f"premise: inside the rule's own window, {name}"
+        assert 1.45 * published < measured < 1.5 * published, f"premise: half again the real spread, {name}"
+        assert abs(measured - published) <= (held[1] - held[0]) / 2.0, f"premise: within half the second width, {name}"
+        assert measured > held[1] and measured - published > 0.1 * published, f"premise: past the second window, {name}"
+        assert spread.verdict == validation.MISSED, f"{name}: {spread}"
+        assert any("which reaches the" in line for line in spread.note), spread.note
+        assert any(validation._shown_window(*held) in line for line in spread.note), spread.note
+        assert kpi_shapes.missed(kpi_shapes.measure(described, altered, f"{name}-all.csv")) == _HALF_AGAIN_MISSES[floor]
+
+
+# The leftover round's own column with its far cell moved out, and what `validate` misses on each file at every
+# floor: the spread at 1.20 times the real one, and beside it at 1.45 times the high tail's root-mean-square distance.
+# 110cb46's report missed both on both files.
+_PAST_THE_VALUE_MISSES = {
+    "119580": ["value:moments.std"],
+    "144180": ["value:moments.std", "value:tails.high.rms_distance"],
+}
+
+
+@pytest.mark.parametrize("floor", (11, 20, 36))
+def test_a_file_past_a_second_window_that_misses_the_value_misses_on_the_side_away_from_it(
+    tmp_path: pathlib.Path, floor: int
+) -> None:
+    """Readings 1000 to 1900, each 100 times, beside one `99900`: a file whose far cell is `119580` or `144180` misses its spread.
+
+    The leftover round's own column. Drawn with rule 1 withdrawn, the
+    spread's second window, 0 to about 3,090, stops just short of the
+    published 3,124.94, and the file was held only to half its width around
+    the value: with its last cell `119580`, its spread 3,744.76 -- 1.20
+    times the real one -- or `144180`, its spread 4,520.40 and 1.45 times,
+    it passed every check at floors of 11, 20 and 36, where 110cb46's report
+    missed its spread and its high tail's root-mean-square distance (the
+    second verifier of the corrections to Codex's review of lane G2). Where
+    the second window misses the published value, the file must stand
+    between that window and the value, or within `K-S3-22`'s line past the
+    value (validation method V6.1-A2): both files miss their spread, the
+    note says the window does not reach the value and the file stands on
+    the side away from it, and the source misses nothing.
+    """
+    cells = _grid(1000)
+    described = _described(tmp_path, f"grid1000_{floor}", cells, floor)
+    facts = _facts(described)
+    assert _moved_sides(facts) == ["high"], "premise: rule 1 moved the high end"
+    published = described.document["columns"][0]["std"]
+    held = validation._windows_of(described.loaded.columns[0], facts, floor, False)["std"]
+    assert held[1] < published < 1.02 * held[1], "premise: the window without the rule stops just short of the value"
+    assert kpi_shapes.missed(kpi_shapes.measure(described, _text(cells), "source.csv")) == []
+    for last, missed in _PAST_THE_VALUE_MISSES.items():
+        altered = _text(cells[:-1] + [last])
+        spread = _moment_check(described, altered, f"far-{last}.csv", "moments.std")
+        measured = float(spread.achieved)
+        low, high = _shown_ends(spread.published)
+        assert low <= measured <= high, f"premise: inside the rule's own window, {last}"
+        assert 1.15 * published < measured < 1.5 * published, f"premise: 1.20 to 1.45 times the real spread, {last}"
+        assert measured - published <= (held[1] - held[0]) / 2.0, f"premise: within half the second width, {last}"
+        assert spread.verdict == validation.MISSED, f"{last}: {spread}"
+        assert any("on the side away from that window" in line for line in spread.note), spread.note
+        assert not any("which reaches the" in line for line in spread.note), spread.note
+        assert any(validation._shown_window(*held) in line for line in spread.note), spread.note
+        assert kpi_shapes.missed(kpi_shapes.measure(described, altered, f"far-{last}-all.csv")) == missed
+
+
+# `K-S3-22`'s column of one far negative value beside 500 to 648, at 36, with its far cell moved out, and what
+# `validate` misses on each file. 110cb46's report missed the spread and the low tail's root-mean-square distance on
+# all three.
+_NEG_FAR_MISSES = {
+    4915: ["value:moments.std"],
+    6058: ["value:moments.std", "value:tails.low.rms_distance"],
+    6287: ["value:moments.std", "value:tails.low.rms_distance"],
+}
+
+
+def test_k_s3_22_s_far_negative_column_misses_its_spread_past_a_second_window_that_misses_the_value(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`-4000` beside 500 to 648, at 36: a file whose far cell is `-4915`, `-6058` or `-6287` misses its spread.
+
+    One of `K-S3-22`'s own column-floors. Drawn with rule 1 withdrawn, the
+    spread's second window, 0 to 374.70, stops 1.24 short of the published
+    375.93, and the file was held only to half its width around the value:
+    with its far cell moved out, its spread 1.20, 1.45 and 1.50 times the
+    real one, it missed none of sixty checks, where 110cb46's report missed
+    its spread and its low tail's root-mean-square distance (the second
+    verifier of the corrections to Codex's review of lane G2). Past the
+    published spread, on the side away from the second window, the file
+    now stands within a tenth of it or misses (validation method V6.1-A2);
+    the source misses nothing.
+    """
+    described = _described(tmp_path, "neg4000_150", reader.far_low(4000, 150), 36)
+    facts = _facts(described)
+    assert _moved_sides(facts) == ["low"], "premise: rule 1 moved the low end"
+    published = described.document["columns"][0]["std"]
+    held = validation._windows_of(described.loaded.columns[0], facts, 36, False)["std"]
+    assert held[1] < published < 1.01 * held[1], "premise: the window without the rule stops just short of the value"
+    assert kpi_shapes.missed(kpi_shapes.measure(described, _text(reader.far_low(4000, 150)), "source.csv")) == []
+    for far, missed in _NEG_FAR_MISSES.items():
+        altered = _text(reader.far_low(far, 150))
+        spread = _moment_check(described, altered, f"far-{far}.csv", "moments.std")
+        measured = float(spread.achieved)
+        low, high = _shown_ends(spread.published)
+        assert low <= measured <= high, f"premise: inside the rule's own window, {far}"
+        assert 1.15 * published < measured < 1.5 * published, f"premise: 1.20 to 1.50 times the real spread, {far}"
+        assert measured - published <= (held[1] - held[0]) / 2.0, f"premise: within half the second width, {far}"
+        assert spread.verdict == validation.MISSED, f"{far}: {spread}"
+        assert any("on the side away from that window" in line for line in spread.note), spread.note
+        assert kpi_shapes.missed(kpi_shapes.measure(described, altered, f"far-{far}-all.csv")) == missed
+
+
+def test_no_second_window_that_misses_the_value_is_called_one_that_reaches_it() -> None:
+    """`validation._within` over 2,000 seeded direct cases: the verdict is the hull's, and the note names the side.
+
+    Each case draws a published value, a second window that reaches it,
+    stops short of it, starts past it or hugs it, half its width or the
+    furthest it admits as the distance (``held_whole``), a band near the
+    value, and a file from nought to two and a half times the value. A file
+    not holding the value is MISSED exactly where it stands outside the hull
+    of the second window and the band, or further from the value than that
+    distance (validation method V6.1-A2). The note under a miss calls the
+    second window one that reaches the value exactly where it does and the
+    file stands outside the hull, and says the file stands on the side away
+    from the window exactly where the window misses the value and the file
+    stands past the value, inside the distance (the second verifier of the
+    corrections to Codex's review of lane G2): the hull alone, under the
+    notes as they stood, said "which reaches" of a window that does not on
+    6,557 of 20,000 such cases.
+    """
+    draw = random.Random("G2/last/within")
+    for case in range(2000):
+        value = draw.choice((10.0, 2557.3, 375.934, 6.43, 15495.161, 1.0))
+        kind = draw.choice(("reach", "below", "above", "tight"))
+        if kind == "reach":
+            low, high = value * draw.uniform(0.0, 0.99), value * draw.uniform(1.0, 1.6)
+        elif kind == "below":
+            low, high = value * draw.uniform(0.0, 0.5), value * draw.uniform(0.5, 0.9999)
+        elif kind == "above":
+            low = value * draw.uniform(1.0001, 1.5)
+            high = low + value * draw.uniform(0.01, 1.0)
+        else:
+            low, high = value * draw.uniform(0.95, 1.0), value * draw.uniform(1.0, 1.05)
+        whole = draw.random() < 0.5
+        near = draw.choice((0.0, 0.05, 0.1, 0.3)) * value
+        measured = value * draw.uniform(0.0, 2.5)
+        if measured == value:
+            continue
+        check = validation._within(
+            "c", "numeric.std", "moments.std", str(value), measured, (0.0, 100.0 * value), "G12.3", value,
+            anchored=True, held=(low, high), held_whole=whole, held_near=near,
+        )
+        reaches = low <= value <= high
+        distance = max(value - low, high - value) if whole else (high - low) / 2.0
+        strayed = not min(low, value - near) <= measured <= max(high, value + near)
+        within = value - distance <= measured <= value + distance
+        expected = validation.MISSED if strayed or not within else validation.WITHIN_BOUND
+        assert check.verdict == expected, (case, value, (low, high), near, whole, measured, check)
+        note = " ".join(line.strip() for line in check.note)
+        assert ("which reaches the" in note) == (strayed and reaches), (case, note)
+        assert ("on the side away from that window" in note) == (strayed and not reaches and within), (case, note)
+
+
+def _low_heavy_beside_2064() -> "list[str]":
+    """1000 readings from 100 to 999 heaped low, `100 + 899 (k / 1000) ** 3`, beside one `2064` (one of the random shapes')."""
+    return [str(int(100 + 899 * (step / 1000) ** 3)) for step in range(1000)] + ["2064"]
+
+
+def _rung_windows(facts: contract.NumericFacts, floor: int, key: str, reach_rule: bool) -> "tuple[float, float]":
+    """G12.2's window of one named rung, drawn through the ladder read with or without rule 1 (a premise only)."""
+    index = list(validation._LADDER_KEYS).index(key)
+    percent = contract.LADDER_PERCENTS[index]
+    ladder = validation._filled_ladder(facts, reach_rule)
+    assert ladder is not None
+    numbers = validation._numeric_cells(facts)
+    reach = 100 * (validation._window_stratum(facts, floor, reach_rule) + 2)
+    whole = 100 * numbers
+    half = validation._half_unit(facts)
+    return (
+        validation._ladder_read(ladder, max(0, percent * numbers - reach), whole) - half,
+        validation._ladder_read(ladder, min(whole, percent * numbers + reach), whole) + half,
+    )
+
+
+def test_a_rung_near_the_moved_end_answers_to_its_window_without_the_rule(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """1000 low-heavy readings from 100 to 999 beside one `2064`, at fifty: a file whose far side stands out further misses its `p95`.
+
+    Rule 1 takes the high end past the width, and the `p95` window, drawn
+    through that end, runs about 640 to 1,263 where 110cb46 drew it to
+    999.5 around a published 870. Every number above the mean taken half
+    again as far out puts the file's `p95` at 1,142, inside the rule's
+    window, which passed on Codex's round, where 110cb46's report missed it
+    (the verifier of that round's corrections, on one of 1,500 random
+    shapes). Where rule 1 moved an end each rung answers to its window drawn
+    with the rule withdrawn as well, as a tail's distances do (validation
+    method V6.1-A2): no further from the published rung than any value that
+    window admits -- a `p95` inside it, though further than half its width
+    from the value, passes -- and, where it reaches the value, inside it or
+    within 0.05 of the published spread, so one between its end and that
+    bound misses too. A rung whose two windows are one is handed no second
+    window. The source misses nothing, and the second windows miss nothing
+    on the twins at seeds 0, 4 and 9 that the first windows alone do not.
+    Withdrawn, the rule's window alone passes the file.
+    """
+    cells = _low_heavy_beside_2064()
+    described = _described(tmp_path, "low_heavy_2064", cells, 50)
+    facts = _facts(described)
+    column = described.loaded.columns[0]
+    assert _moved_sides(facts) == ["high"], "premise: rule 1 moved the high end"
+    assert kpi_shapes.missed(kpi_shapes.measure(described, _text(cells), "source.csv")) == []
+    first = _rung_windows(facts, 50, "p95", True)
+    held = _rung_windows(facts, 50, "p95", False)
+    altered = _text(_far_side_half_again(cells))
+    check = _moment_check(described, altered, "far-side.csv", "ladder.p95")
+    value = float(check.published.split(" ", 1)[0])
+    measured = float(check.achieved)
+    assert _shown_ends(check.published) == first, "premise: the line prints the rule's window"
+    assert held[0] <= value <= held[1] < first[1], "premise: the second window reaches the value and stops short"
+    assert held[1] < measured <= first[1], "premise: inside the rule's window, outside the second"
+    assert check.verdict == validation.MISSED, check
+    assert any(validation._shown_window(*held) in line for line in check.note), check.note
+    assert kpi_shapes.missed(kpi_shapes.measure(described, altered, "far-side-all.csv")) == ["value:ladder.p95"]
+    for seed in SEEDS:
+        text = kpi_shapes.twin_text(described, seed)
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}.csv"))
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(contract, "reach_moved_an_end", lambda _facts: False)
+            alone = kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}-first.csv"))
+        assert missed == alone and not [one for one in missed if one.startswith("value:ladder.")], f"seed {seed}: {missed}"
+
+    def verdict(key: str, rung: float) -> "validation.Check":
+        block = copy.deepcopy(described.document["columns"][0])
+        block["percentiles"][key] = rung
+        found = [one for one in validation._tail_block_checks(column, facts, block, 50) if one.subcheck == f"ladder.{key}"]
+        assert len(found) == 1, found
+        return found[0]
+
+    furthest = max(abs(value - held[0]), abs(held[1] - value))
+    inside = held[0] + 1.0
+    assert abs(inside - value) > (held[1] - held[0]) / 2.0, "premise: inside the second window, past half its width"
+    assert verdict("p95", inside).verdict == validation.WITHIN_BOUND
+    between = (held[1] + value + furthest) / 2.0
+    assert held[1] < between < value + furthest and between - value > 0.05 * facts.std, "premise: inside its bound, past its end"
+    beyond = verdict("p95", between)
+    assert beyond.verdict == validation.MISSED and any("which reaches the" in line for line in beyond.note), beyond
+    assert verdict("p95", value + 1.1 * furthest).verdict == validation.MISSED
+    # A rung whose two windows are one: a file outside it misses on the first window alone, with no second line.
+    middle = _rung_windows(facts, 50, "p50", True)
+    assert middle == _rung_windows(facts, 50, "p50", False), "premise: the median's two windows are one"
+    alone = verdict("p50", middle[1] + 1.0)
+    assert alone.verdict == validation.MISSED, alone
+    assert not any("Drawn with that end held" in line for line in alone.note), alone.note
+    monkeypatch.setattr(contract, "reach_moved_an_end", lambda _facts: False)
+    check = _moment_check(described, altered, "far-side-mutant.csv", "ladder.p95")
+    assert check.verdict == validation.WITHIN_BOUND, check
+
+
+def test_a_rung_s_second_window_reads_the_stratum_bound_with_the_rule_withdrawn(tmp_path: pathlib.Path) -> None:
+    """Stage 3's column of one grouped number, at twenty: a rung's second window is drawn with the stratum bound read without rule 1.
+
+    The bound G12.2's rank windows widen by is read off the ladder each
+    window is drawn through (`taxonomy.window_stratum`): on this column 9
+    strata with the rule and 13 without it, so every published rung's
+    second window, 110cb46's to the last digit, is wider than its first.
+    A median set past both misses on the first window, and its note prints
+    the second drawn with the 13 (validation method V6.1-A2); read with the
+    rule's 9 strata, the second window would be the first and print
+    nothing.
+    """
+    cells, _flags = stage3_battery.SHAPES["numeric_one_grouped_comma"](random.Random(stage3_battery.BATTERY_SEED))
+    text = stage3_battery.rows_text(["value"], [[cell] for cell in cells])
+    described = kpi_shapes.describe(tmp_path / "grouped", "grouped", text, 20)
+    facts = _facts(described)
+    assert contract.reach_moved_an_end(facts), "premise: rule 1 moved an end"
+    assert validation._window_stratum(facts, 20) < validation._window_stratum(facts, 20, False), "premise: two bounds"
+    first = _rung_windows(facts, 20, "p50", True)
+    held = _rung_windows(facts, 20, "p50", False)
+    assert held[0] < first[0] and first[1] < held[1], "premise: the second window is the wider"
+    block = copy.deepcopy(described.document["columns"][0])
+    block["percentiles"]["p50"] = held[1] + 1.0
+    found = [one for one in validation._tail_block_checks(described.loaded.columns[0], facts, block, 20) if one.subcheck == "ladder.p50"]
+    assert len(found) == 1 and found[0].verdict == validation.MISSED, found
+    assert any(validation._shown_window(*held) in line for line in found[0].note), found[0].note
+
+
+def test_the_rule_s_own_twin_just_past_a_reaching_second_window_passes_within_k_s3_22_s_line(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`00001` to `00149` beside one `50000`, at 36: the rule's twin, its mean just past the second window, passes.
+
+    The mean's second window, 72.28 to 411.70, reaches the published
+    407.83 a hair from its top, and the twin the rule writes holds a mean
+    of 412.11 -- outside that window, 0.001 of the published spread from
+    the value. Held to the window's own ends alone it would miss, though
+    `K-S3-22` counts it on the real moments; within 0.05 of the published
+    spread of the value it passes (validation method V6.1-A2), at seeds 0,
+    4 and 9, and the twin misses nothing. With no band near the value
+    it misses its mean.
+    """
+    described = _described(tmp_path, "pad50000_150", reader.shape("pad50000", 150, 1), 36)
+    facts = _facts(described)
+    assert contract.reach_moved_an_end(facts), "premise: rule 1 moved an end"
+    column = described.loaded.columns[0]
+    published = described.document["columns"][0]["mean"]
+    held = validation._windows_of(column, facts, 36, False)["mean"]
+    assert held[0] <= published <= held[1], "premise: the second window reaches the value"
+    texts = [kpi_shapes.twin_text(described, seed) for seed in SEEDS]
+    for seed, text in zip(SEEDS, texts):
+        check = _moment_check(described, text, f"twin-{seed}.csv", "moments.mean")
+        mean = float(check.achieved)
+        assert mean > held[1] and mean - published < 0.05 * facts.std, f"premise: just past the window, seed {seed}"
+        assert check.verdict == validation.WITHIN_BOUND, f"seed {seed}: {check}"
+        assert _missed(described, seed) == [], f"seed {seed}"
+    monkeypatch.setattr(validation, "_MEAN_NEAR", 0.0)
+    check = _moment_check(described, texts[0], "twin-0-mutant.csv", "moments.mean")
+    assert check.verdict == validation.MISSED, check
+
+
+def test_the_band_near_the_value_is_k_s3_22_s_line_for_the_moments_and_a_rung_and_three_tenths_for_a_tail(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every second window `validate` hands out on a moved column, and the band near the value handed with it.
+
+    1000 low-heavy readings beside one `2064`, at fifty: the mean's band is
+    0.05 of the published spread and the spread's a tenth (`K-S3-22`'s line
+    for a twin on the real moments), each rung's the mean's, and each tail
+    distance's three tenths of the published distance (validation method
+    V6.1-A2). Where no finite spread is published the band is nought, the
+    second window's own ends.
+    """
+    cells = _low_heavy_beside_2064()
+    described = _described(tmp_path, "low_heavy_2064_bands", cells, 50)
+    facts = _facts(described)
+    assert contract.reach_moved_an_end(facts), "premise: rule 1 moved an end"
+    handed: "dict[str, tuple]" = {}
+    real = validation._within
+
+    def watched(*arguments, **keywords):  # type: ignore[no-untyped-def]
+        nonlocal handed
+        value = arguments[7] if len(arguments) > 7 else keywords.get("value")
+        handed = {**handed, arguments[2]: (keywords.get("held"), keywords.get("held_near", 0.0), value)}
+        return real(*arguments, **keywords)
+
+    monkeypatch.setattr(validation, "_within", watched)
+    kpi_shapes.measure(described, _text(_far_side_half_again(cells)), "far-side.csv")
+    spread = facts.std
+    assert spread is not None and spread > 0.0
+    assert handed["moments.mean"][0] is not None and handed["moments.mean"][1] == pytest.approx(0.05 * spread)
+    assert handed["moments.std"][0] is not None and handed["moments.std"][1] == pytest.approx(0.10 * spread)
+    rungs = [key for key in handed if key.startswith("ladder.") and handed[key][0] is not None]
+    assert "ladder.p95" in rungs, rungs
+    for key in rungs:
+        assert handed[key][1] == pytest.approx(0.05 * spread), key
+    tails = [key for key in handed if key.startswith("tails.") and key.endswith("_distance")]
+    assert len(tails) == 4, tails
+    for key in tails:
+        assert handed[key][0] is not None, key
+        assert handed[key][1] == pytest.approx(0.30 * abs(handed[key][2])), key
+    assert validation._moment_near(dataclasses.replace(facts, std=None), "mean") == 0.0
+    assert validation._moment_near(dataclasses.replace(facts, std=math.inf), "std") == 0.0
+
+
+def test_a_tail_s_distances_answer_to_the_furthest_the_window_without_the_rule_admits(tmp_path: pathlib.Path) -> None:
+    """`validation._tail_checks` asked of the grid's own description, its high tail's two distances set by hand.
+
+    Rule 1 moved the high end, so the tail's distances answer to the
+    windows drawn with it withdrawn as well. Where that window misses the
+    published distance -- the root-mean-square's, 0 to 8,199 against
+    25,303 -- a distance between the window and the published one passes,
+    though further than half the window's width from it: the rule exists
+    because the tail stands past that window, and half its width would
+    refuse the rule's own twins (Codex's review of lane G2, item 1). Past
+    the published distance, on the side away from the window, the furthest
+    any value of the window stands from it let a distance twice the
+    published one through; it now passes only within three tenths of the
+    published distance (the second verifier of that review's corrections):
+    1.29 times passes, 1.31 times and nine tenths of that furthest miss.
+    Where the window reaches the published distance -- the mean's, 0 to
+    8,199 against 6,533 -- the furthest it admits always holds the whole
+    window, so a distance 1.9 times the published one passed; it now stands
+    inside that window or within three tenths of the published distance
+    (the verifier of that review's corrections): 1.29 times passes, 1.31
+    times misses. Withdrawn, the rule's window alone passes every one of
+    them.
+    """
+    described = _described(tmp_path, "grid1500_tails", _grid(1500), 11)
+    facts = _facts(described)
+    column = described.loaded.columns[0]
+    assert _moved_sides(facts) == ["high"], "premise: rule 1 moved the high end"
+    ladder = validation._filled_ladder(facts)
+    held_ladder = validation._filled_ladder(facts, False)
+    assert ladder is not None and held_ladder is not None
+    tails = facts.tails
+    assert tails is not None and tails.high is not None
+    assert tails.high.mean_distance is not None and tails.high.rms_distance is not None
+    block = described.document["columns"][0]
+    first_mean, first_root = validation._tail_window(facts, 11, ladder, tails.high, False)
+    held_mean, held_root = validation._tail_window(facts, 11, held_ladder, tails.high, False, False)
+
+    def verdict(key: str, distance: float, moved: bool = True) -> str:
+        measured = copy.deepcopy(block)
+        measured["tails"]["high"][key] = distance
+        with pytest.MonkeyPatch.context() as patch:
+            if not moved:
+                patch.setattr(contract, "reach_moved_an_end", lambda _facts: False)
+            checks = validation._tail_checks(column, facts, measured, 11, ladder)
+        return [check.verdict for check in checks if check.subcheck == f"tails.high.{key}"][0]
+
+    # The root-mean-square distance: the second window misses the published one, below it. Between the two the file
+    # passes; past the published distance, only within three tenths of it.
+    root = tails.high.rms_distance
+    assert held_root[1] < root, "premise: the second window misses the published distance, below it"
+    furthest = max(abs(root - held_root[0]), abs(held_root[1] - root))
+    assert furthest > (held_root[1] - held_root[0]) / 2.0, "premise: the furthest the window admits is past half its width"
+    between = held_root[1] + 0.25 * (root - held_root[1])
+    assert root - between > (held_root[1] - held_root[0]) / 2.0, "premise: between the two, past half the window's width"
+    banded = 1.29 * root
+    past = 1.31 * root
+    near = root + 0.9 * furthest
+    far = root + 1.1 * furthest
+    assert past < near <= root + furthest, "premise: inside the furthest the window admits"
+    assert first_root[0] <= between and near < far <= first_root[1], "premise: all inside the rule's own window"
+    assert verdict("rms_distance", between) == validation.WITHIN_BOUND
+    assert verdict("rms_distance", banded) == validation.WITHIN_BOUND
+    assert verdict("rms_distance", past) == validation.MISSED
+    assert verdict("rms_distance", near) == validation.MISSED
+    assert verdict("rms_distance", far) == validation.MISSED
+    assert verdict("rms_distance", near, moved=False) == validation.WITHIN_BOUND
+    assert verdict("rms_distance", far, moved=False) == validation.WITHIN_BOUND
+    # The mean distance: the second window reaches the published one, and a file outside it stands within three tenths.
+    mean = tails.high.mean_distance
+    assert held_mean[0] <= mean <= held_mean[1], "premise: the second window reaches the published distance"
+    furthest = max(abs(mean - held_mean[0]), abs(held_mean[1] - mean))
+    inside = mean + 0.9 * (held_mean[1] - mean)
+    banded = 1.29 * mean
+    past = 1.31 * mean
+    wide = mean + 0.9 * furthest
+    assert held_mean[1] < banded < past < wide <= mean + furthest, "premise: outside the second window, inside its reach"
+    assert first_mean[0] <= wide <= first_mean[1], "premise: inside the rule's own window"
+    assert wide > 1.85 * mean, "premise: near twice the published distance"
+    assert verdict("mean_distance", inside) == validation.WITHIN_BOUND
+    assert verdict("mean_distance", banded) == validation.WITHIN_BOUND
+    assert verdict("mean_distance", past) == validation.MISSED
+    assert verdict("mean_distance", wide) == validation.MISSED
+    assert verdict("mean_distance", wide, moved=False) == validation.WITHIN_BOUND
+
+
+def test_skew_and_kurtosis_keep_their_windows_alone_where_rule_1_moved_an_end(tmp_path: pathlib.Path) -> None:
+    """1000 to 1089 beside ten of five figures, at eleven: a skew inside its window passes, however far from the value.
+
+    Rule 1 moved the high end, and the skew here is checked, not listed. The
+    second window bounds the mean, the spread and the tails' distances only
+    (validation method V6.1-A2): `skew` and `kurtosis` are drawn wide on
+    purpose and keep their windows alone. A measured skew nine tenths of the
+    way from the published one to its window's end stands further from it
+    than half the second skew window's width, and passes.
+    """
+    described = _described(tmp_path, "ten_wide_skew", _ten_wide(), 11)
+    facts = _facts(described)
+    column = described.loaded.columns[0]
+    assert contract.reach_moved_an_end(facts), "premise: rule 1 moved an end"
+    assert not validation._skew_admits_every_value(column, facts, 11), "premise: the skew is checked"
+    published = described.document["columns"][0]["skew"]
+    first = validation._windows_of(column, facts, 11)["skew"]
+    held = validation._windows_of(column, facts, 11, False)["skew"]
+    measured = copy.deepcopy(described.document["columns"][0])
+    measured["skew"] = published + 0.9 * (first[1] - published)
+    assert abs(measured["skew"] - published) > (held[1] - held[0]) / 2.0, "premise: past half the second window's width"
+    checks = validation._moment_checks(column, facts, measured, 11)
+    found = [check for check in checks if check.subcheck == "moments.skew"]
+    assert len(found) == 1 and found[0].verdict == validation.WITHIN_BOUND, found
+
+
+def test_the_tails_second_windows_read_the_stratum_bound_with_the_rule_withdrawn(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The tails' second windows are 110cb46's to the last digit: their stratum bound is read off the ladder with rule 1 withdrawn.
+
+    The bound G12.13's rank windows widen by is read off the ladder each
+    window is drawn through (`taxonomy.window_stratum`), so the second
+    windows read it with the rule withdrawn, as the moments' second windows
+    do. Asked here of the grid's own description, `_tail_checks` reads the
+    bound both ways.
+    """
+    described = _described(tmp_path, "grid1500_bound", _grid(1500), 11)
+    facts = _facts(described)
+    column = described.loaded.columns[0]
+    assert contract.reach_moved_an_end(facts), "premise: rule 1 moved an end"
+    ladder = validation._filled_ladder(facts)
+    assert ladder is not None
+    asked: "list[bool]" = []
+    real = validation._window_stratum
+
+    def watched(facts, floor, reach_rule=True):  # type: ignore[no-untyped-def]
+        nonlocal asked
+        asked += [reach_rule]
+        return real(facts, floor, reach_rule)
+
+    monkeypatch.setattr(validation, "_window_stratum", watched)
+    validation._tail_checks(column, facts, described.document["columns"][0], 11, ladder)
+    assert True in asked and False in asked, asked
