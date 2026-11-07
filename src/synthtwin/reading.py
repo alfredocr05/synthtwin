@@ -4155,6 +4155,151 @@ def _pandas_may_rename(cell: str, cells: "list[str]") -> bool:
     return seen > 1
 
 
+# PANDAS' OWN STEP (lane BT2, plan P4-D448). Pandas' C reader takes the
+# text it is handed in steps of this many characters (the text as the
+# codec decodes it, a byte-order mark left out), and where a record
+# starts with blanks -- spaces, or tabs where the tab is not the
+# delimiter -- and a step ends inside them, it drops the blanks that
+# stand before the step's end: a record holding nothing written
+# ' , ,, ,, ,,,, ' whose first blank was the 1,310,720th character of
+# its file read '' to pandas and ' ' to the survey, and the product
+# refused the twin it wrote (lane BT's verify, the hunt table at 200,000
+# rows, seed 3, row 29109). The number is the library's, not this
+# package's, so `tests/test_stage6_reader_step.py` finds it in the
+# installed pandas, as `_pandas_rows_a_piece`'s is found.
+_PANDAS_STEP_CHARACTERS = 262_144
+
+
+@dataclasses.dataclass
+class _StepBlanks:
+    """The blanks pandas' own step drops at the start of a record, each bound to the record it cut.
+
+    THE SURVEY'S READING STANDS WHERE PANDAS' STEP CUT A RECORD'S
+    LEADING BLANKS (lane BT2, plan P4-D448). A value of the record's
+    first column that pandas read short is settled (`_step_settles`)
+    only when the survey's value is pandas' value behind a run of
+    blanks, and that run is the one a step of `_PANDAS_STEP_CHARACTERS`
+    cut off the start of that very record in this file: each record is
+    found as the survey walks the file, so a line inside a quoted field
+    is no record's start (`dialect.record_starts`), and counted as pandas
+    counts them, a record pandas reads as a blank line left out, so the
+    survey's row ``row`` stands on record ``first_record + row``
+    (Codex's review of lane BT2, item 3). Each record settles once.
+    Pandas' reading of every other value, and of these values past the
+    blanks, is still compared and still refuses. The cuts are found
+    reading the file once, and only once a value differs, so a file the
+    two readers agree on costs nothing more. ``leads`` holds each cut
+    record's lost blanks once read, ``used`` the records settled.
+    """
+
+    table_path: pathlib.Path
+    codec: str
+    blanks: str
+    delimiter: str = ","
+    escape: str = dialect.ESCAPE_DOUBLED
+    initial_space: bool = False
+    first_record: int = 0
+    leads: "dict[int, str] | None" = None
+    used: "set[int]" = dataclasses.field(default_factory=set)
+
+
+def _blank_run(text: str, blanks: str, end: int) -> int:
+    """How many of ``text``'s first ``end`` characters are ``blanks``, read from its start."""
+    if not isinstance(text, str) or not isinstance(blanks, str):
+        raise ValueError("synthtwin internal check: a blank run asked of something other than text")
+    count = 0
+    while count < end and text[count] in blanks:
+        count = count + 1
+    return count
+
+
+def _step_settles(settle: _StepBlanks, mine: str, theirs: str, row: int) -> bool:
+    """Whether the survey's ``mine`` at its row ``row`` is pandas' ``theirs`` behind the blanks a step cut off that row's own record.
+
+    Guarantees: True at most once a record, and only for a value pandas
+    read as the survey's without the leading blanks a step of
+    `_PANDAS_STEP_CHARACTERS` cut off the record the row stands on.
+    Determinism: a fixed function of the file and the values asked.
+    Reads the file once, the first time it is asked.
+    """
+    if not isinstance(mine, str) or not isinstance(theirs, str):
+        raise ValueError("synthtwin internal check: a value settled that is not text")
+    cut = len(mine) - len(theirs)
+    if cut <= 0 or mine[cut:] != theirs or settle.blanks == "":
+        return False
+    lead = mine[:cut]
+    if _blank_run(lead, settle.blanks, cut) != cut:
+        return False
+    if settle.leads is None:
+        settle.leads = _step_cut_leads(
+            settle.table_path, settle.codec, settle.blanks, settle.delimiter, settle.escape, settle.initial_space
+        )
+    record = settle.first_record + row
+    if record in settle.used or record not in settle.leads or settle.leads[record] != lead:
+        return False
+    settle.used |= {record}
+    return True
+
+
+def _blank_to_pandas(body: str, delimiter: str) -> bool:
+    """Whether pandas' C reader skips a one-line record as a blank line: nothing, or spaces and tabs alone, none of them the delimiter.
+
+    Pandas' C reader takes a record for a blank line only while every
+    character it holds is a space or a tab other than the delimiter, its
+    first character too: a record of a two-column tab-delimited file
+    whose cells hold nothing, written as a lone tab, is a record to it,
+    and so to the survey (lane BT2's second repair: the first repair let
+    the delimiter stand first, so the cuts below such a record were
+    counted one record short and the file was refused).
+    """
+    for character in body:
+        if character not in " \t" or character == delimiter:
+            return False
+    return True
+
+
+def _step_cut_leads(
+    table_path: pathlib.Path,
+    codec: str,
+    blanks: str,
+    delimiter: str = ",",
+    escape: str = dialect.ESCAPE_DOUBLED,
+    initial_space: bool = False,
+) -> "dict[int, str]":
+    """The blanks a step of pandas' C reader cuts off the start of a record, by the record's place.
+
+    Each record is walked as the survey walks the file
+    (`dialect.record_starts`), and counted as pandas counts records:
+    one pandas reads as a blank line is left out of the count. A record
+    whose first line starts with a run of ``blanks`` followed by more
+    text loses to pandas the blanks before the LAST step end that falls
+    after the run's first character and at or before its last (a run
+    longer than one step crosses several: Codex's review of lane BT2,
+    item 8); those are listed under the record's place.
+
+    Guarantees: every cut record once. Determinism: a fixed function of
+    the file's text and its form. Reads the file once, a line at a time.
+    """
+    run = _Pass()
+    leads: "dict[int, str]" = {}
+    step = _PANDAS_STEP_CHARACTERS
+    place = 0
+    lines = _opened_lines(table_path, codec, run)
+    for start, first, alone in dialect.record_starts(lines, delimiter, escape, initial_space):
+        body = len(first)
+        while body > 0 and first[body - 1] in "\r\n":
+            body = body - 1
+        if alone and _blank_to_pandas(first[:body], delimiter):
+            continue
+        if blanks != "" and body > 0 and first[0] in blanks:
+            spread = _blank_run(first, blanks, body)
+            cut = ((start + spread) // step) * step - start
+            if spread < body and cut > 0:
+                leads[place] = first[:cut]
+        place = place + 1
+    return leads
+
+
 def _check_against_pandas(
     raw_path: str,
     found: _Reading,
@@ -4272,7 +4417,20 @@ def _check_against_pandas(
     # once, showed it once. The whole frame is therefore one piece holding
     # every row (`_EVERY_ROW`), which pandas parses in the very steps it
     # parses a frame read at once.
+    # PANDAS' OWN STEP (lane BT2, plan P4-D448): the blanks a record's
+    # first cell starts with that pandas' C reader drops where its step of
+    # `_PANDAS_STEP_CHARACTERS` cuts them, each matched to its cut and
+    # read as the survey read them; a new matcher for each pass.
+    blanks = " " if form.delimiter == "\t" else "\t" if form.delimiter == " " else " \t"
+    codec = dialect.READING_CODECS[found.encoding]
+    # The survey's first row stands on this record, counted as pandas
+    # counts them (`_StepBlanks`): past the lines above the header, the
+    # header itself and its rows of column descriptions.
+    first_record = lead + (1 if headed else 0) + offset
     for whole in (False, True):
+        settle = _StepBlanks(
+            file_path, codec, blanks, form.delimiter, form.escape, form.initial_space, first_record
+        )
         if not whole and wanted == 0:
             # Asked for no rows at all, pandas hands over no piece, where
             # the whole frame of no rows still names the columns it read:
@@ -4371,7 +4529,7 @@ def _check_against_pandas(
                     # One column of this piece is turned into text at a
                     # time and dropped again.
                     theirs = [f"{cell}" for cell in list(piece[keys[index]])]
-                    if not _piece_agrees(found, form, index, start, theirs):
+                    if not _piece_agrees(found, form, index, start, theirs, settle):
                         agrees = False
                         break
             found_rows = found_rows + len(piece)
@@ -4466,6 +4624,10 @@ def _check_against_pandas(
             theirs[last] = theirs[last][: len(theirs[last]) - 1]
         for position in range(found.n_rows):
             if theirs[position + offset] != mine[position]:
+                if index == 0 and _step_settles(settle, mine[position], theirs[position + offset], position):
+                    # Pandas' step cut the blanks this record starts
+                    # with; the survey's reading stands (lane BT2).
+                    continue
                 if refusals == REFUSALS_NAME_POSITIONS:
                     # The column's NAME is a string out of this file,
                     # and this file may not be the person's own table,
@@ -4571,6 +4733,7 @@ def _piece_agrees(
     index: int,
     start: int,
     theirs: "list[str]",
+    settle: "_StepBlanks | None" = None,
 ) -> bool:
     """Whether one column of one piece of the checking pass reads as the survey read it.
 
@@ -4582,6 +4745,9 @@ def _piece_agrees(
     took off the text; and the values a run at a time, so a place past
     the survey's last value differs. Nothing is refused here: a piece
     that differs sends the check to the whole frame, which says what.
+    On the record's first column, ``settle`` reads a value pandas' own
+    step cut the leading blanks of as the survey read it (lane BT2, plan
+    P4-D448; `_StepBlanks`).
     """
     count = len(theirs)
     offset = len(form.header_rows)
@@ -4602,4 +4768,12 @@ def _piece_agrees(
                 # pandas reads as part of it.
                 theirs[last - start] = value[: len(value) - 1]
     mine = found.columns[index]
-    return theirs[step:] == mine[position : position + count - step]
+    if theirs[step:] == mine[position : position + count - step]:
+        return True
+    if settle is None or index != 0 or position + count - step > found.n_rows:
+        return False
+    for place in range(count - step):
+        if theirs[step + place] != mine[position + place]:
+            if not _step_settles(settle, mine[position + place], theirs[step + place], position + place):
+                return False
+    return True

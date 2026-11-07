@@ -68,7 +68,10 @@ nothing, and the samples that must report are 3.12 and 3.14 spellings.)
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
 spelling reaches the floor's cells while this file says nothing about it.
-The tree holds EIGHTY such calls (lane GG's twenty-ninth vectors file
+The tree holds EIGHTY-FOUR such calls (counted again at batch 4p's
+merge of lane BT2, 2026-11-05: lane PL's thirty-second vectors file
+adds one beside BT2's; lane BT2's thirty-first vectors file adds one,
+2026-11-04, the figure having stood two short; lane GG's twenty-ninth vectors file
 adds one, 2026-10-28; counted at batch 4h's merge of
 lane SG, 2026-10-23, its `tests/generate_memory_cases.py` adding two:
 the figure below had stood stale since 2026-10-16; lane H1's padded-swap scale test
@@ -85,7 +88,7 @@ having stood one short since the fifteenth vectors file's route arrived
 and that review's mutants adding two). They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so an eighty-first cannot arrive unread.
+holds the tree to that list, so an eighty-fifth cannot arrive unread.
 The `runpy` calls run a COMMITTED FILE of `tools/` or of `tests/`,
 which the folders below already read, and the `exec` and `compile`
 calls are held by what they are handed or by where they run:
@@ -493,6 +496,9 @@ ROUTES_THAT_RUN_SOURCE = {
     # the twenty-ninth past the manifest's cap (plan P4-D295): it runs the
     # same oracle by path, as every file above does.
     ("tools/reference/make_generation_branch_vectors_30.py", "runpy.run_path"): 1,
+    # The thirty-first, A-P4-59's amendment for layer L0 (lane BT2, plan
+    # P4-D448): it runs the same oracle by path, as every file above does.
+    ("tools/reference/make_generation_branch_vectors_31.py", "runpy.run_path"): 1,
     # The thirty-second, lane PL's method G8.3d (plan P4-D453): it runs the
     # same oracle by path, as every file above does.
     ("tools/reference/make_generation_branch_vectors_32.py", "runpy.run_path"): 1,
@@ -734,9 +740,27 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # tools/, which this guard reads directly, so the floor holds for them as
 # it does for the other fifty-six.
 #
+# 55 ON LANE MPg'S BRANCH (plan P4-D456, 2026-11-04, one more on lane
+# MPp's 54): the polish's gate, `tests/test_moment_polish.py`, loads the
+# chain oracle's cases, `tools/reference/oracle_cases.py`, one call, to
+# hold G16.3's polish to the oracle's own setup (A-P4-59). What it loads
+# is a committed file under tools/, which this guard reads directly, so
+# the floor holds for it as it does for the other fifty-four.
+#
+# 56 IN LANE MPg'S REPAIR 2 (2026-11-05, one more): the polish's gate loads
+# K-S6-12's driver, `tools/measurements/kpi_moment_polish.py`, one call,
+# to show its judgement answers an incomplete pair's own spreads. What it
+# loads is a committed file under tools/, which this guard reads directly.
+#
+# 60 AT BATCH 4p'S MERGE OF LANE MPg (2026-11-06): batch 4o's 58 and the
+# lane's two above, each loaded once.
+#
 # 59 ON BATCH 4o's FIX ROUND (plan P4-D453): `tests/test_pool_start_keeps_off_keys.py`'s
 # `_oracle` loads the committed generation oracle under tools/, which this guard reads.
-FILES_LOADED_AS_MODULES = 59
+#
+# 61 AT BATCH 4p'S MERGE OF BATCH 4o'S SEALED HEAD (2026-11-06): the line's 60
+# and the fix round's one above, each loaded once.
+FILES_LOADED_AS_MODULES = 61
 
 
 def _files() -> "list[pathlib.Path]":

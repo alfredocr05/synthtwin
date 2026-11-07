@@ -18,10 +18,12 @@ A description that fills another slot was written by a later landing and
 is refused as one this version cannot check.
 """
 
+import fractions
 
 from synthtwin import chain_moments
 from synthtwin import chain_rules
 from synthtwin import errors
+from synthtwin import patient_rules
 
 
 def _get(mapping: "dict[str, object]", key: str) -> object:
@@ -53,9 +55,13 @@ def _starting_of(name: object) -> object:
 
 
 def check(document: "dict[str, object]") -> None:
-    """Refuse a description whose chain breaks S23 to S28; return where every one holds."""
+    """Refuse a description whose chain breaks S23 to S28, or its patient layer S29 to S33; return where every one holds."""
     relationships = _get(document, "relationships")
     statistical = _get(relationships, "statistical") if isinstance(relationships, dict) else None
+    grain = _get(relationships, "grain") if isinstance(relationships, dict) else None
+    if grain is not None:
+        _check_patients(document, statistical, grain)
+        return
     if statistical is None:
         return
     if not isinstance(statistical, dict):
@@ -79,9 +85,11 @@ def check(document: "dict[str, object]") -> None:
     whole_rows = rows if isinstance(rows, int) and not isinstance(rows, bool) else 0
     blank_rows = chain_rules.records_holding_nothing(document)
     tabled = whole_rows - blank_rows
-    procedure = statistical["procedure"]
-    if procedure != chain_rules.procedure_record(tabled):
-        raise _broken("S24", "procedure", "the constants are this version's (contract 4.6b.14)")
+    # A later amendment moves no older description (4.6b.5): a record of
+    # the version before RULE ONE_BAND is read by its own `L2`.
+    one_band = chain_rules.reads_one_band(statistical["procedure"], tabled)
+    if one_band is None:
+        raise _broken("S24", "procedure", "the constants are this version's or the earlier version's (contract 4.6b.5, 4.6b.14)")
     if statistical["rules"] != [] or statistical["withheld"] != []:
         raise _broken("S28", "rules", "this version carries no rule and no withheld class")
     # -- ineligible and the ladder (S23) --
@@ -112,7 +120,7 @@ def check(document: "dict[str, object]") -> None:
         entry = published[at]
         if not isinstance(entry, dict) or _get(entry, "column") != name:
             raise _broken("S23", name, "the ladder's entries stand in schema order")
-        scale, start = _ladder_of(entry, blocks[name], floor, tabled, blank_rows)
+        scale, start = _ladder_of(entry, blocks[name], floor, tabled, blank_rows, one_band)
         scales[name] = scale
         starts[name] = start
     # -- the moments rule B releases (S39 to S43, contract 4.6d.0) --
@@ -171,8 +179,13 @@ def _ladder_of(
     floor: int,
     tabled: int,
     blank_rows: int,
+    one_band: bool,
 ) -> "tuple[chain_rules.Ladder, chain_rules.Starting]":
-    """One ladder entry read back and checked against its column's own facts (S23)."""
+    """One ladder entry read back and checked against its column's own facts (S23).
+
+    `one_band` is False on a description written before RULE ONE_BAND,
+    whose `L2` is read at `p50` alone, as it was written.
+    """
     name = f"{_get(block, 'name')}"
     if sorted(entry) != ["column", "l0", "l1", "l2", "totals"]:
         raise _broken("S23", name, "a ladder entry holds column, l0, l1, l2 and totals")
@@ -201,10 +214,18 @@ def _ladder_of(
             places += [found]
         if places != sorted(places):
             raise _broken("S23", name, "a band lists its starting bands in band order")
-        if not start.is_label and places != list(range(places[0], places[0] + len(places))):
-            raise _broken("S23", name, "a band of a number, date or clock column is a run of adjacent starting bands")
         bands += [places]
         names += [tuple(start.names[place] for place in places)]
+    if not start.is_label:
+        # A spread band with no cell is no band (4.6b.2), so it stands
+        # between no two bands: adjacency is read without it.
+        standing = [place for place in range(len(start.names)) if start.value[place] or place in used]
+        for places in bands:
+            first = 0
+            while standing[first] != places[0]:
+                first += 1
+            if places != standing[first : first + len(places)]:
+                raise _broken("S23", name, "a band of a number, date or clock column is a run of adjacent starting bands")
     for total in totals:
         if not isinstance(total, int) or isinstance(total, bool) or total < 0 or 0 < total < floor:
             raise _broken("S23", name, "every L0 total is 0 or at least the floor")
@@ -237,6 +258,8 @@ def _ladder_of(
                 raise _broken("S23", name, "a band of a label column counts the published counts of what it joins")
     second = chain_rules.union_closure(bands, start.groups[1])
     third = chain_rules.union_closure(bands, start.groups[2])
+    if one_band:
+        third = chain_rules.coarsest_level(start, bands, second, third, totals)
     if entry["l1"] != chain_rules.bands_of(second, max(second) + 1) or entry["l2"] != chain_rules.bands_of(third, max(third) + 1):
         raise _broken("S23", name, "L1 and L2 are read through L0, so the levels nest")
     ordered = tuple(any(start.value[place] for place in band) for band in bands)
@@ -717,3 +740,649 @@ def check_moments(
     for name in per_column:
         if per_column[name] > chain_moments.PARTNERS:
             raise _broken("S43", name, "at most the stated partners a column")
+# -- THE PATIENT LAYER (contract 4.6c.10; lane GRa, plan P4-D449) ---------
+
+
+def _check_patients(document: "dict[str, object]", statistical: object, grain: object) -> None:
+    """Refuse a description whose patient layer breaks S29 to S33, or whose patient chain breaks S23 to S28 in patients.
+
+    `patient_rules.check` reads the layer's shape (its one call site);
+    the patient chain is then held to section 4.6b's invariants over the
+    patient table, and every row family's certificate, every column's
+    one-cell certificate, every trend's SWING and every row census are
+    recomputed from published counts alone.
+    """
+    if not isinstance(grain, dict):
+        raise _broken("S29", "relationships.grain", "the patient layer is an object")
+    if not isinstance(statistical, dict):
+        raise _broken("S29", "relationships.statistical", "the patient chain stands while the layer does")
+    expected = ("chain", "ineligible", "ladder", "moments", "not_carried", "procedure", "rules", "withheld", "words")
+    if sorted(statistical) != list(expected):
+        raise _broken("S24", "relationships.statistical", "the chain holds exactly its nine keys")
+    settings = _get(document, "settings")
+    floor = _get(settings, "small_cell_floor") if isinstance(settings, dict) else None
+    if not isinstance(floor, int) or isinstance(floor, bool):
+        raise _broken("S23", "settings", "the floor is a whole number")
+    rows = _get(document, "n_rows")
+    whole_rows = rows if isinstance(rows, int) and not isinstance(rows, bool) else 0
+    blank_rows = chain_rules.records_holding_nothing(document)
+    tabled = whole_rows - blank_rows
+    found = patient_rules.check(document, grain, tabled, blank_rows, floor)
+    census = found["census"]
+    classes = found["classes"]
+    patients = found["patients"]
+    if not isinstance(census, patient_rules.Census) or not isinstance(classes, dict) or not isinstance(patients, int):
+        raise _broken("S29", "grain", "the layer's census and classes read back")
+    blocks: "dict[str, dict[str, object]]" = {}
+    schema: "list[str]" = []
+    columns = _get(document, "columns")
+    if isinstance(columns, list):
+        for block in columns:
+            if isinstance(block, dict) and isinstance(_get(block, "name"), str):
+                blocks[f"{block['name']}"] = block
+                schema += [f"{block['name']}"]
+    if statistical["procedure"] != chain_rules.procedure_record(patients):
+        raise _broken("S24", "procedure", "the constants are this version's, read over the patients")
+    if statistical["moments"] is not None or statistical["rules"] != [] or statistical["withheld"] != []:
+        raise _broken("S28", "rules", "this version carries no rule, no moment and no withheld class")
+    scales, eligible, derived, groups = _patient_scales(statistical, grain, blocks, schema, classes, census, floor, patients)
+    _derived_edges(derived, scales, blocks)
+    families = _patient_families(statistical, scales, eligible, floor, patients, derived, groups)
+    cells = _cells_of(grain, families, scales, census, _latest_keyed(families, set(derived)))
+    row_scales, row_groups = _row_scales(grain, blocks, schema, classes, floor, tabled, blank_rows)
+    _recheck_rows(grain, blocks, schema, classes, census, cells, scales, row_scales, derived, floor, tabled, groups, row_groups)
+    _recheck_trends(grain, blocks, families, scales, row_scales, cells, census, derived, floor, tabled)
+    _recheck_fixed_rows(grain, families, scales, census, row_scales)
+
+
+def _patient_scales(
+    statistical: "dict[str, object]",
+    grain: "dict[str, object]",
+    blocks: "dict[str, dict[str, object]]",
+    schema: "list[str]",
+    classes: "dict[str, str]",
+    census: patient_rules.Census,
+    floor: int,
+    patients: int,
+) -> "tuple[dict[str, chain_rules.Ladder], list[str], dict[str, dict[str, object]], dict[str, set[int]]]":
+    """Each column's ladder on the patient table (S23 in patients): patient-fixed columns, `r`, the derived columns.
+
+    With each column's `L0` bands holding an own-fact group as its
+    published block shows them (`chain_rules.small_group_bands`, in
+    patients; `r` and the derived columns publish none), which RULE W1
+    reads (Codex's review of lane GRa, item 6).
+    """
+    derived: "dict[str, dict[str, object]]" = {}
+    written = grain["derived"]
+    if isinstance(written, list):
+        for entry in written:
+            if isinstance(entry, dict) and isinstance(_get(entry, "name"), str):
+                derived[f"{entry['name']}"] = entry
+    table_names = [name for name in schema if classes[name] == patient_rules.CLASS_FIXED] + [patient_rules.R_NAME] + list(derived)
+    reasons = statistical["ineligible"]
+    out_of_ladder: "set[str]" = set()
+    if not isinstance(reasons, list):
+        raise _broken("S27", "ineligible", "a list")
+    for entry in reasons:
+        if not isinstance(entry, dict) or sorted(entry) != ["column", "reason"] or entry["column"] not in table_names or entry["reason"] not in chain_rules.INELIGIBLE_REASONS:
+            raise _broken("S27", "ineligible", "a reason of contract 4.6b.1 for a column of the patient table")
+        out_of_ladder = out_of_ladder | {f"{entry['column']}"}
+    eligible = [name for name in table_names if name not in out_of_ladder]
+    published = statistical["ladder"]
+    if not isinstance(published, list) or len(published) != len(eligible):
+        raise _broken("S23", "ladder", "one entry for every eligible column of the patient table, in its order")
+    scales: "dict[str, chain_rules.Ladder]" = {}
+    groups: "dict[str, set[int]]" = {}
+    for at in range(len(eligible)):
+        name = eligible[at]
+        entry = published[at]
+        if not isinstance(entry, dict) or _get(entry, "column") != name:
+            raise _broken("S23", name, "the ladder's entries stand in the patient table's order")
+        groups[name] = set()
+        if name == patient_rules.R_NAME:
+            built = patient_rules.r_ladder(census)
+            if built is None or entry != chain_rules.published_ladder(built):
+                raise _broken("S23", name, "the rows per patient stand at the census's own bands at every level")
+            scales[name] = built
+        elif name in derived:
+            scales[name] = _derived_ladder(entry, derived[name], floor, patients)
+        else:
+            scale, start = _ladder_of(entry, blocks[name], floor, patients, 0, True)
+            scales[name] = scale
+            groups[name] = chain_rules.small_group_bands(blocks[name], start, scale, floor)
+    return scales, eligible, derived, groups
+
+
+def _derived_edges(derived: "dict[str, dict[str, object]]", scales: "dict[str, chain_rules.Ladder]", blocks: "dict[str, dict[str, object]]") -> None:
+    """S32: each derived column stands in the patient chain, its edges one for each band they open, a first date's its source's rungs (Codex's review of lane GRa, item 9)."""
+    for label in derived:
+        entry = derived[label]
+        if label not in scales:
+            raise _broken("S32", label, "a derived column stands in the patient chain")
+        kind = f"{entry['kind']}"
+        edges = entry["edges"]
+        if not isinstance(edges, list) or len(edges) != patient_rules.edges_expected(kind, scales[label]):
+            raise _broken("S32", label, "a derived column's edges number one for each band they open")
+        if kind != patient_rules.FIRST_DATE:
+            continue
+        source = f"{entry['source']}"
+        rungs = chain_rules.rung_ladder(blocks[source]) if source in blocks else None
+        if not isinstance(rungs, dict) or not rungs:
+            continue
+        expected: "list[object]" = []
+        for band in scales[label].l0:
+            first = band[0] if band else None
+            if isinstance(first, tuple) and len(first) == 2 and first[0] is not None:
+                expected += [rungs[f"{first[0]}"] if f"{first[0]}" in rungs else None]
+        if edges != expected:
+            raise _broken("S32", label, "a first date's edges are its source's rungs at its level")
+
+
+def _derived_ladder(entry: "dict[str, object]", written: "dict[str, object]", floor: int, patients: int) -> chain_rules.Ladder:
+    """A derived column's ladder read back (S32): its bands, its levels, its totals in patients."""
+    name = f"{written['name']}"
+    if sorted(entry) != ["column", "l0", "l1", "l2", "totals"]:
+        raise _broken("S32", name, "a ladder entry holds column, l0, l1, l2 and totals")
+    l0 = entry["l0"]
+    totals = entry["totals"]
+    if not isinstance(l0, list) or not isinstance(totals, list) or len(l0) != len(totals) or len(l0) < 2:
+        raise _broken("S32", name, "one total for every band")
+    least = patient_rules.own_mean_floor(floor) if written["kind"] == patient_rules.OWN_MEAN else floor
+    for total in totals:
+        if not isinstance(total, int) or isinstance(total, bool) or 0 < total < least:
+            raise _broken("S32", name, "every band of a derived column holds 0 or at least its floor of patients")
+    if sum(totals) != patients:
+        raise _broken("S32", name, "a derived column's totals sum to the patients")
+    names: "list[tuple[object, ...]]" = []
+    for band in l0:
+        if not isinstance(band, list) or not band:
+            raise _broken("S32", name, "each band lists what it joins")
+        names += [tuple(_starting_of(one) for one in band)]
+    maps: "list[tuple[int, ...]]" = [tuple(range(len(l0)))]
+    for key in ("l1", "l2"):
+        level = entry[key]
+        mapping = [-1] * len(l0)
+        if not isinstance(level, list):
+            raise _broken("S32", name, "L1 and L2 list the L0 bands they join")
+        for at in range(len(level)):
+            joined = level[at]
+            if not isinstance(joined, list):
+                raise _broken("S32", name, "L1 and L2 list the L0 bands they join")
+            for place in joined:
+                if not isinstance(place, int) or not 0 <= place < len(l0) or mapping[place] >= 0:
+                    raise _broken("S32", name, "every L0 band in one band of each coarser level")
+                mapping[place] = at
+        if min(mapping) < 0:
+            raise _broken("S32", name, "every L0 band in one band of each coarser level")
+        maps += [tuple(mapping)]
+    return chain_rules.Ladder(
+        name, tuple(names), (maps[0], maps[1], maps[2]),
+        (len(l0), max(maps[1]) + 1, max(maps[2]) + 1), tuple(int(one) for one in totals),
+        tuple(True for _band in l0),
+    )
+
+
+def _patient_families(
+    statistical: "dict[str, object]",
+    scales: "dict[str, chain_rules.Ladder]",
+    eligible: "list[str]",
+    floor: int,
+    patients: int,
+    derived: "dict[str, dict[str, object]]",
+    groups: "dict[str, set[int]]",
+) -> "list[chain_rules.Family]":
+    """The patient chain read back (S24, S25 in patients), with the keyed families' rule and the order of its children."""
+    chain = statistical["chain"]
+    if not isinstance(chain, list):
+        raise _broken("S24", "chain", "a chain lists its families")
+    families: "list[chain_rules.Family]" = []
+    seen: "set[str]" = set()
+    for at in range(len(chain)):
+        family = _family_of(chain[at], at, families, scales, eligible, floor, patients, chain_rules.K_MAX)
+        if family.child in seen:
+            raise _broken("S24", family.child, "every eligible column is the child of exactly one family")
+        seen = seen | {family.child}
+        families += [family]
+    if chain and seen != set(eligible):
+        raise _broken("S24", "chain", "every eligible column of the patient table is the child of exactly one family")
+    for at in range(len(families)):
+        if families[at].parents:
+            _offered(families[at], at, families, scales, eligible, floor, patients)
+    failing = chain_rules.w1_refusals(families, scales, groups)
+    if failing:
+        raise _broken("S24", failing[0][0], "RULE W1 in patients: a band holding a small group of the column reaches two bands of every other column's coarsest level")
+    words, implied = chain_rules.words_of(eligible, families)
+    if statistical["words"] != words or statistical["not_carried"] != implied:
+        raise _broken("S27", "words", "every candidate pair of the patient table once, with the word the description gives it")
+    labels = set(derived)
+    r_eligible = patient_rules.R_NAME in scales
+    keyed: "list[chain_rules.Family]" = []
+    for family in families:
+        held = dict(chain_rules.members(family))
+        if not family.parents or not (patient_rules.R_NAME in held or set(held) & labels):
+            continue
+        if r_eligible and set(held) & labels and patient_rules.R_NAME not in held:
+            raise _broken("S31", family.child, "a family holding a derived column holds the rows per patient")
+        for earlier in keyed:
+            for member, level in chain_rules.members(earlier):
+                if member not in held or held[member] > level:
+                    raise _broken("S31", family.child, "a family holding the rows per patient or a derived column holds every member of every earlier one, at its level or finer")
+        if not set(held) & labels and patient_rules.R_NAME in dict(family.parents) and scales[family.child].counts[family.level] != scales[family.child].counts[2]:
+            raise _broken("S31", family.child, "before any derived column, a family whose parents hold the rows per patient takes its child at L2")
+        keyed += [family]
+    return families
+
+
+def _latest_keyed(families: "list[chain_rules.Family]", labels: "set[str]") -> "int | None":
+    """The place of the patient chain's latest KEYED family (departure (3)): parents, and `r` or a derived column among its members; None where none is."""
+    found: "int | None" = None
+    for at in range(len(families)):
+        held = {name for name, _level in chain_rules.members(families[at])}
+        if families[at].parents and (patient_rules.R_NAME in held or bool(held & labels)):
+            found = at
+    return found
+
+
+def _cells_of(
+    grain: "dict[str, object]",
+    families: "list[chain_rules.Family]",
+    scales: "dict[str, chain_rules.Ladder]",
+    census: patient_rules.Census,
+    latest: "int | None",
+) -> patient_rules.Cells:
+    """The grain family's cells as published (4.6c.8 (a)): `G`'s table, or the census's bands.
+
+    `G` is the latest keyed family, which the loader reads off the chain
+    itself (`latest`, `_latest_keyed`): a `grain_family` naming another
+    family, an earlier one or null beside a keyed family, is refused, so
+    every certificate is recomputed on the cells the description's own
+    chain fixes (Codex's review of lane GRa, item 2).
+    """
+    index = grain["grain_family"]
+    if index != latest or isinstance(index, bool):
+        raise _broken("S31", "grain.grain_family", "the grain family is the patient chain's latest keyed family")
+    values = patient_rules.r_band_values(census)
+    if index is None:
+        counts: "list[int]" = []
+        for at in range(len(census.bands)):
+            if census.bands[at]:
+                counts += [census.bands[at]]
+        if census.top_patients:
+            counts += [census.top_patients]
+        members = ((patient_rules.R_NAME, 0),) if patient_rules.R_NAME in scales else ()
+        return patient_rules.Cells(members, (len(values),), tuple(counts), tuple(range(len(values))))
+    if not isinstance(index, int) or isinstance(index, bool) or not 0 <= index < len(families):
+        raise _broken("S31", "grain.grain_family", "the grain family is a family of the patient chain")
+    family = families[index]
+    held = chain_rules.members(family)
+    sizes = tuple(chain_rules.radices(family, scales))
+    names = [name for name, _level in held]
+    r_band = [0] * len(family.table)
+    if patient_rules.R_NAME in names:
+        place = patient_rules.place_in(names, patient_rules.R_NAME)
+        for cell in range(len(family.table)):
+            r_band[cell] = chain_rules.cell_parts(cell, list(sizes))[place]
+    return patient_rules.Cells(tuple(held), sizes, tuple(family.table), tuple(r_band))
+
+
+def _row_scales(
+    grain: "dict[str, object]",
+    blocks: "dict[str, dict[str, object]]",
+    schema: "list[str]",
+    classes: "dict[str, str]",
+    floor: int,
+    tabled: int,
+    blank_rows: int,
+) -> "tuple[dict[str, chain_rules.Ladder], dict[str, set[int]]]":
+    """`grain.ladder` read back (S23 in rows): one entry for each repeated and dealt date column, in schema order, with each one's own-fact groups in rows."""
+    rowed = [name for name in schema if classes[name] in (patient_rules.CLASS_REPEATED, patient_rules.CLASS_DEALT)]
+    written = grain["ladder"]
+    if not isinstance(written, list) or len(written) != len(rowed):
+        raise _broken("S31", "grain.ladder", "one ladder in rows for every repeated and dealt date column")
+    out: "dict[str, chain_rules.Ladder]" = {}
+    groups: "dict[str, set[int]]" = {}
+    for at in range(len(rowed)):
+        entry = written[at]
+        if not isinstance(entry, dict) or _get(entry, "column") != rowed[at]:
+            raise _broken("S31", rowed[at], "each ladder in rows stands in schema order")
+        scale, start = _ladder_of(entry, blocks[rowed[at]], floor, tabled, blank_rows, True)
+        out[rowed[at]] = scale
+        groups[rowed[at]] = chain_rules.small_group_bands(blocks[rowed[at]], start, scale, floor)
+    return out, groups
+
+
+def _derived_of(derived: "dict[str, dict[str, object]]", source: str) -> "dict[str, object] | None":
+    for label in derived:
+        if derived[label]["source"] == source:
+            return derived[label]
+    return None
+
+
+def _restriction(
+    derived_entry: "dict[str, object] | None",
+    cells: patient_rules.Cells,
+    scales: "dict[str, chain_rules.Ladder]",
+    child: chain_rules.Ladder,
+    block: "dict[str, object]",
+    level: int,
+    grid: "patient_rules.Grid | None",
+) -> "patient_rules.Restriction | None":
+    """A derived column's restriction on its source, read on the description (4.6c.2 (c))."""
+    if derived_entry is None:
+        return None
+    label = f"{derived_entry['name']}"
+    place = patient_rules.member_place(cells, label)
+    if place < 0:
+        raise _broken("S31", label, "a derived column whose source is a row family's child is a member of the grain family")
+    edges: "list[fractions.Fraction]" = []
+    if derived_entry["kind"] == patient_rules.OWN_MEAN:
+        written = derived_entry["edges"]
+        read = [patient_rules.fraction_read(one) for one in written] if isinstance(written, list) else []
+        if any(one is None for one in read):
+            raise _broken("S32", label, "an own mean's edges are decimal numbers")
+        exact = [one for one in read if one is not None]
+        edges = patient_rules.own_mean_edges(scales[label], exact, cells.members[place][1])
+    return patient_rules.restriction_for(f"{derived_entry['kind']}", place, child, block, level, grid, edges)
+
+
+def _recheck_rows(
+    grain: "dict[str, object]",
+    blocks: "dict[str, dict[str, object]]",
+    schema: "list[str]",
+    classes: "dict[str, str]",
+    census: patient_rules.Census,
+    cells: patient_rules.Cells,
+    scales: "dict[str, chain_rules.Ladder]",
+    row_scales: "dict[str, chain_rules.Ladder]",
+    derived: "dict[str, dict[str, object]]",
+    floor: int,
+    tabled: int,
+    groups: "dict[str, set[int]]",
+    row_groups: "dict[str, set[int]]",
+) -> None:
+    """S31 recomputed: every row family's parents, table, RULE W1 in rows and certificate, and every other column's one-cell certificate."""
+    values = patient_rules.r_band_values(census)
+    witness_at = patient_rules.threshold(census, floor) + 1
+    counts: "dict[str, int]" = {}
+    children: "set[str]" = set()
+    written = grain["rows"]
+    # R*'S TIE (4.6c.8 step 4): one `R*` for the description, read at the finest
+    # row family's cut of the open top band; a family whose cut crosses another's is refused.
+    everyone = [[cell for cell in range(len(cells.patients)) if cells.patients[cell]]]
+    tie = patient_rules.top_blocks(cells, values, census.lo, everyone, [census.rows])
+    if tie is None:
+        raise _broken("S31", "grain.census", "the grain family's patients hold the census's rows")
+    reads: "list[tuple[str, list[list[int]], list[int], int, bool, patient_rules.Restriction | None, tuple[int | None, bool]]]" = []
+    for entry in written if isinstance(written, list) else []:
+        child = f"{entry['child']}"
+        if child in children:
+            raise _broken("S31", child, "a column is the child of one row family at most")
+        children = children | {child}
+        ladder = row_scales[child]
+        level = _level_of(entry["level"], "S31", child)
+        chosen: "list[tuple[str, int]]" = []
+        parents = entry["parents"]
+        for parent in parents if isinstance(parents, list) else []:
+            if not isinstance(parent, dict) or sorted(parent) != ["column", "level"]:
+                raise _broken("S31", child, "each parent names a column and a level")
+            name = f"{parent['column']}"
+            place = patient_rules.member_place(cells, name)
+            parent_level = _level_of(parent["level"], "S31", child)
+            if place < 0 or parent_level < cells.members[place][1]:
+                raise _broken("S31", child, "every parent is a member of the grain family at its level there or coarser")
+            chosen += [(name, parent_level)]
+        if not chosen or len(chosen) > chain_rules.K_MAX:
+            raise _broken("S31", child, "a row family has one to k_max parents")
+        maps = [chain_rules.coarsen(scales[name], cells.members[patient_rules.member_place(cells, name)][1], parent_level) for name, parent_level in chosen]
+        sizes = [scales[name].counts[parent_level] for name, parent_level in chosen]
+        parent_of, width = patient_rules.parent_cells(cells, tuple(chosen), maps, sizes)
+        bands = ladder.counts[level]
+        table = entry["table"]
+        flat: "list[int]" = []
+        if not isinstance(table, list) or len(table) != width:
+            raise _broken("S31", child, "the table is complete: one row for each parent cell")
+        for row in table:
+            if not isinstance(row, list) or len(row) != bands:
+                raise _broken("S31", child, "the table is complete: one column for each band of the child")
+            flat += [int(cell) for cell in row]
+        by_child = [0] * bands
+        for index in range(len(flat)):
+            by_child[index % bands] += flat[index]
+        if by_child != chain_rules.totals_at(ladder, level):
+            raise _broken("S31", child, "the table's sum over the parents is the child's L0 totals at its level")
+        parents_read: "list[tuple[chain_rules.Ladder, int, frozenset[int] | set[int]]]" = [(scales[name], parent_level, groups[name] if name in groups else set()) for name, parent_level in chosen]
+        if not patient_rules.w1_in_rows(ladder, level, row_groups[child] if child in row_groups else set(), parents_read, flat, bands, width):
+            raise _broken("S31", child, "RULE W1 in rows: a band holding a small group of the child or of a parent reaches two bands of the other's coarsest level")
+        inside: "list[list[int]]" = [[] for _cell in range(width)]
+        for cell in range(len(cells.patients)):
+            if cells.patients[cell]:
+                inside[parent_of[cell]] += [cell]
+        parent_rows = [sum(flat[at * bands : (at + 1) * bands]) for at in range(width)]
+        block = blocks[child]
+        grid = patient_rules.grid_of(block)
+        one = _derived_of(derived, child)
+        restriction = _restriction(one, cells, scales, ladder, block, level, grid)
+        if one is not None and one["kind"] == patient_rules.FIRST_DATE and f"{one['name']}" not in [name for name, _level in chosen]:
+            raise _broken("S31", child, "a first date's source takes the first date as a parent")
+        fine = chain_moments.fine(block)
+        read_by_key = patient_rules.key_read(block)
+        spans = patient_rules.spans_two(ladder, block, level, grid)
+        use_pwit = (fine and not read_by_key and one is None and spans) or (one is not None and one["kind"] == patient_rules.FIRST_DATE)
+        own_blocks = patient_rules.top_blocks(cells, values, census.lo, inside, parent_rows)
+        joined = patient_rules.blocks_joined(tie, own_blocks) if own_blocks is not None else None
+        if joined is None:
+            raise _broken("S31", child, "one R* meets every table holding the rows per patient: no family's top-band cells cross another's")
+        tie = joined
+        reads += [(child, inside, flat, bands, use_pwit, restriction, patient_rules.class_witness(read_by_key, spans, witness_at))]
+    stars = patient_rules.r_star_of(cells, values, census.lo, tie, floor)
+    if stars is None and census.top_patients:
+        raise _broken("S31", "grain.census", "one R* meets every table holding the rows per patient")
+    for child, inside, flat, bands, use_pwit, restriction, witness in reads:
+        if not patient_rules.certificate(cells, values, inside, flat, bands, stars, use_pwit, restriction, witness[0], floor, counts, witness[1]):
+            raise _broken("S31", child, "the row family's certificate holds on its published counts")
+    for name in schema:
+        if classes[name] not in (patient_rules.CLASS_REPEATED, patient_rules.CLASS_DEALT) or name in children:
+            continue
+        if _derived_of(derived, name) is not None:
+            raise _broken("S31", name, "a column whose derived column stands is a row family's child or held")
+        ladder = row_scales[name]
+        block = blocks[name]
+        grid = patient_rules.grid_of(block)
+        read_by_key = patient_rules.key_read(block)
+        supplies = list(ladder.totals)
+        constant = census.top_patients == 0 and len([one for one in census.bands if one]) == 1
+        spans = patient_rules.spans_two(ladder, block, 0, grid)
+        if constant and not read_by_key and chain_moments.fine(block) and spans:
+            if not patient_rules.pwit(census.patients, supplies, floor):
+                raise _broken("S31", name, "the column's one-cell family's certificate holds")
+            continue
+        one_witness, witness_v = patient_rules.class_witness(read_by_key, spans, witness_at)
+        if not patient_rules.certificate(cells, values, everyone, supplies, len(supplies), stars, False, None, one_witness, floor, counts, witness_v):
+            raise _broken("S31", name, "the column's one-cell family's certificate holds")
+    del tabled
+
+
+def _recheck_trends(
+    grain: "dict[str, object]",
+    blocks: "dict[str, dict[str, object]]",
+    families: "list[chain_rules.Family]",
+    scales: "dict[str, chain_rules.Ladder]",
+    row_scales: "dict[str, chain_rules.Ladder]",
+    cells: patient_rules.Cells,
+    census: patient_rules.Census,
+    derived: "dict[str, dict[str, object]]",
+    floor: int,
+    tabled: int,
+) -> None:
+    """S33 recomputed: each trend's grid, the unpinned total's guard and SWING, on published facts."""
+    trend = grain["trend"]
+    grids = grain["grid"]
+    rows = grain["rows"]
+    by_child: "dict[str, dict[str, object]]" = {}
+    for entry in rows if isinstance(rows, list) else []:
+        by_child[f"{entry['child']}"] = entry
+    gridded: "dict[str, dict[str, object]]" = {}
+    for entry in grids if isinstance(grids, list) else []:
+        gridded[f"{entry['column']}"] = entry
+    for name in gridded:
+        grid = patient_rules.grid_of(blocks[name]) if name in blocks else None
+        if grid is None or gridded[name] != patient_rules.grid_written(grid):
+            raise _broken("S33", name, "the grid's u, L and K agree with the column's block")
+    values = patient_rules.r_band_values(census)
+    derived_labels = set(derived)
+    person = grain["person"]
+    person_block = blocks[f"{person}"] if f"{person}" in blocks else {}
+    for entry in trend if isinstance(trend, list) else []:
+        if not isinstance(entry, dict):
+            raise _broken("S33", "grain.trend", "each trend is an object")
+        name = f"{entry['column']}"
+        block = blocks[name] if name in blocks else {}
+        grid = patient_rules.grid_of(block)
+        if grid is None or name not in by_child:
+            raise _broken("S33", name, "a trend stands on a gridded column that is a row family's child")
+        if _get(block, "n_missing") != _get(person_block, "n_missing"):
+            raise _broken("S33", name, "a trend's column holds a reading on every tabled row")
+        family_entry = by_child[name]
+        ladder = row_scales[name]
+        level = _level_of(family_entry["level"], "S33", name)
+        bands = ladder.counts[level]
+        if bands != 2:
+            raise _broken("S33", name, "a trend stands on a row family whose child has two bands")
+        written_parents = family_entry["parents"]
+        chosen = [
+            (f"{parent['column']}", _level_of(parent["level"], "S33", name))
+            for parent in (written_parents if isinstance(written_parents, list) else [])
+            if isinstance(parent, dict)
+        ]
+        wanted = {member for member, _level in chosen if member not in derived_labels} | {patient_rules.R_NAME}
+        f_s = None
+        for family in families:
+            if wanted <= {member for member, _level in chain_rules.members(family)}:
+                f_s = family
+                break
+        if f_s is None:
+            raise _broken("S33", name, "a trend's cell is a cell of the family F_S")
+        members = chain_rules.members(f_s)
+        sizes = chain_rules.radices(f_s, scales)
+        labels = entry["cell"]
+        if not isinstance(labels, list) or len(labels) != len(members):
+            raise _broken("S33", name, "a trend's cell names every member of F_S")
+        parts: "list[int]" = []
+        rho = 0
+        for place in range(len(members)):
+            text = f"{labels[place]}"
+            head = f"{members[place][0]}="
+            read_number = patient_rules.number_after(text, head)
+            if read_number is None:
+                raise _broken("S33", name, "a trend's cell names every member of F_S")
+            number = read_number
+            if members[place][0] == patient_rules.R_NAME:
+                rho = number
+                found = [band for band in range(len(values)) if values[band] == (number, number)]
+                if not found or number < 2:
+                    raise _broken("S33", name, "a trend's cell holds one value of the rows per patient, two or more")
+                number = found[0]
+            parts += [number]
+        index = 0
+        for place in range(1, len(parts)):
+            index = index * sizes[place] + parts[place]
+        cell = index * sizes[0] + parts[0]
+        held = f_s.table[cell] if 0 <= cell < len(f_s.table) else 0
+        if held <= 0:
+            raise _broken("S33", name, "a trend's cell holds patients")
+        maps = []
+        for member, member_level in members:
+            place = patient_rules.member_place(cells, member)
+            if place < 0:
+                raise _broken("S33", name, "F_S's members are members of the grain family")
+            maps += [(place, chain_rules.coarsen(scales[member], cells.members[place][1], member_level))]
+        held_cells: "list[int]" = []
+        for grain_cell in range(len(cells.patients)):
+            grain_parts = chain_rules.cell_parts(grain_cell, list(cells.sizes))
+            if cells.patients[grain_cell] and all(maps[k][1][grain_parts[maps[k][0]]] == parts[k] for k in range(len(members))):
+                held_cells += [grain_cell]
+        one = _derived_of(derived, name)
+        place = patient_rules.member_place(cells, f"{one['name']}") if one is not None else -1
+        edges: "list[fractions.Fraction]" = []
+        if one is not None and one["kind"] == patient_rules.OWN_MEAN and place >= 0:
+            restriction = _restriction(one, cells, scales, ladder, block, level, grid)
+            edges = list(restriction.edges) if restriction is not None else []
+        parent_maps = [chain_rules.coarsen(scales[member], cells.members[patient_rules.member_place(cells, member)][1], member_level) for member, member_level in chosen]
+        parent_sizes = [scales[member].counts[member_level] for member, member_level in chosen]
+        parent_of, parent_count = patient_rules.parent_cells(cells, tuple(chosen), parent_maps, parent_sizes)
+        written_table = family_entry["table"]
+        flat = [int(one_cell) for row in (written_table if isinstance(written_table, list) else []) for one_cell in row]
+        if patient_rules.total_fixed(block) and patient_rules.free_rows(cells, values, parent_of, parent_count, flat, bands, patient_rules.one_code_rows(ladder, block, level, grid)) < floor:
+            raise _broken("S33", name, "a trend stands only where the rows outside its cells keep their code total free")
+        ranges = [patient_rules.code_range(grid, *patient_rules.band_edges(ladder, block, level, band)[:2]) for band in range(bands)]
+        swing = patient_rules.swing_classes(cells, held_cells, held, rho, flat, bands, ranges, grid, edges, place, parent_of)
+        q_value = entry["q"]
+        if swing is None or not isinstance(q_value, int) or not patient_rules.swing_passes(q_value, rho, held, swing[0], swing[1], grid.codes, floor):
+            raise _broken("S33", name, "SWING passes on the trend's published facts")
+
+
+def _recheck_fixed_rows(
+    grain: "dict[str, object]",
+    families: "list[chain_rules.Family]",
+    scales: "dict[str, chain_rules.Ladder]",
+    census: patient_rules.Census,
+    row_scales: "dict[str, chain_rules.Ladder]",
+) -> None:
+    """S30 recomputed: each row census is a function of the rest by either clause of 4.6c.5 (c), and equals it."""
+    del row_scales
+    values = patient_rules.r_band_values(census)
+    rows = grain["rows"]
+    for entry in grain["fixed_rows"] if isinstance(grain["fixed_rows"], list) else []:
+        name = f"{entry['column']}"
+        level = _level_of(entry["level"], "S30", name)
+        found: "list[int] | None" = None
+        for family in families:
+            held = dict(chain_rules.members(family))
+            if name not in held or patient_rules.R_NAME not in held or held[name] != level:
+                continue
+            sizes = chain_rules.radices(family, scales)
+            members = [member for member, _level in chain_rules.members(family)]
+            name_place = patient_rules.place_in(members, name)
+            r_place = patient_rules.place_in(members, patient_rules.R_NAME)
+            counted = [0] * scales[name].counts[level]
+            top_bands: "set[int]" = set()
+            for cell in range(len(family.table)):
+                count = family.table[cell]
+                if not count:
+                    continue
+                parts = chain_rules.cell_parts(cell, sizes)
+                low, high = values[parts[r_place]]
+                if high is None:
+                    top_bands = top_bands | {parts[name_place]}
+                    continue
+                counted[parts[name_place]] += low * count
+            if len(top_bands) <= 1:
+                for band in top_bands:
+                    counted[band] += census.top_rows
+                found = counted
+                break
+        if found is None:
+            for row_entry in rows if isinstance(rows, list) else []:
+                written_parents = row_entry["parents"]
+                parents = [
+                    (f"{parent['column']}", _level_of(parent["level"], "S30", name))
+                    for parent in (written_parents if isinstance(written_parents, list) else [])
+                    if isinstance(parent, dict)
+                ]
+                if (name, level) not in parents:
+                    continue
+                place = [at for at in range(len(parents)) if parents[at] == (name, level)][0]
+                sizes = [scales[member].counts[member_level] for member, member_level in parents]
+                counted = [0] * scales[name].counts[level]
+                written_table = row_entry["table"]
+                for at, row in enumerate(written_table if isinstance(written_table, list) else []):
+                    index = at
+                    parts = [0] * len(sizes)
+                    for k in range(len(sizes) - 1, -1, -1):
+                        parts[k] = index % sizes[k]
+                        index //= sizes[k]
+                    counted[parts[place]] += sum(int(one) for one in row)
+                found = counted
+                break
+        if found is None or found != entry["rows"]:
+            raise _broken("S30", name, "a row census is published only where the rest of the description gives it, and equals it")

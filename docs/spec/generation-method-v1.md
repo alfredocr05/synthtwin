@@ -1072,7 +1072,20 @@ totals (G5.7h) is handed over by the groups its cells fall into, its
 readings and its labels in `labels`, a column of joined numbers by its
 first number's reading, as the profile reads them (lane BT's second
 repair, after its outside review, item 5: every cell of such a column
-had gone to `other`, and G16.6 met no band of it).
+had gone to `other`, and G16.6 met no band of it). **A POOLED DATE IS READ
+AS IT LEAVES** (lane BT2, plan P4-D448, the seam with lane PS2's date
+floor): made without L0, each cell stands at its bucket's start until
+G7.13 draws it inside the bucket, past the placement, with a word this
+call has not seen. A start on an edge read one band below every cell
+drawn after it (at 20,000 rows the zoo's encounters `discharge_ts`, 5,948
+of 20,000 cells between the walk and the file at seed 0), so the cell is
+read at its BUCKET'S MIDDLE; and where the ladder names the column, G7.13
+writes at that middle any draw that would read in another band (a bucket
+a cut crosses), so the band G16 dealt it is the band read back; the
+middle, like every cell, then leaves wearing the column's one mark between
+date and time (G7.9; Codex's review of lane BT2, item 2: the middle,
+chosen after the mark was set, wore the internal `T` again). That
+changes bytes only behind the chain's switch.
 
 **LANE BT'S SECOND REPAIR (after its outside review, items 4 and 8).**
 The call hands over ONE GROUP PER PUBLISHED L0 BAND, IN THE PUBLISHED
@@ -3613,6 +3626,39 @@ in four steps.
    key the real column held once a row is then written once a row (the
    first skeptic's item 4 and the statistics skeptic's item 2:
    `serial` 1 to 20,000 lost one of its values at the floor's size).
+   2b. **THE EDGE VALUE KEEPS TODAY'S COUNT** (lane BT2, plan P4-D448;
+   built before step 2a). Step 2 hands the ranks a cut crosses to the
+   piece's lowest stratum, on whole numbers the edge value itself, which
+   took a band's whole error at one value: 551 of 1,724 edge values
+   stood further from the real count than without L0 (K-S6-02 (vii)). So
+   on a piece whose lowest stratum holds its closed published lower end
+   `e`, beside another value of the piece, with the ladder reading every
+   number laid out: the count at `e` is set to today's (at least the
+   ranks of a proven heap on `e` inside the piece, and leaving the next
+   value one cell; and growing no further into the piece than the first
+   rank a proven heap of the next value holds, step 2's count standing
+   where it already reaches it: Codex's review of lane BT2, item 1, an
+   invented count whose edge took 38 ranks the ladder proves another
+   value holds), its difference from step 2's count taken from, or
+   given to, the piece's next value. Two guards keep the column's
+   distance. `M` is the largest distance, over the published cuts, of
+   today's count below a cut from its rank. The rungs bound the real
+   count at `e`: from `floor(h) + 1` of the last rung at or below `e`,
+   and the last rank of a proven heap on `e`, to `ceil(h)` of the first
+   above it, each less the cut rank, and within the piece. A piece's
+   SHARE is its cells over the different values its strata hold after
+   step 1 (floored). (1) Where the piece's share lies outside those
+   bounds the piece is not even and step 2's count stands, as it does
+   where `e` or the next value is a value a published tail lists. (2)
+   `E` is that share `s`, over `n` different values, and the share `s'`
+   of the piece below, over `m` (no zero piece, and one holding a
+   stratum; else `s` alone), read linearly at the edge, each at its
+   piece's middle value: `floor((s' (n - 1) + s (m + 1)) / (n + m))`,
+   held inside the bounds. Where today's count lies further than
+   `floor(M / 2)` from `E`, the count is the point `floor(M / 2)` from
+   `E` on today's side, held between today's count and step 2's. Nothing
+   is read from a real cell, and every piece keeps its `C_p` cells. Step 4 gives a mode's cells to a neighbour that
+   is no piece's edge value before one that is.
 3. **THE DIFFERENT VALUES KEPT.** A VALUE step 2 left with no cell --
    every stratum of today's twin holding it emptied, for today's twin can
    hold one value in two strata, and one emptied beside another that
@@ -3721,7 +3767,7 @@ nearest inside the piece, so on the uniform two-figure age of G5.7i the
 edge value 73 holds 157 cells against a real 210 (238 without L0) and
 the value 72 holds 281 against 215 (200), at 8 of its 11 edges further
 from the real count than without L0 (measured, plan P4-D429; K-S6-02
-clause 7, owned by lane BT2).
+clause 7), before G5.7c step 2b (lane BT2, plan P4-D448).
 
 #### G5.7d The layout over pieces (withdrawn by lane BT's repair)
 
@@ -3910,11 +3956,20 @@ cell. For lane BT to stamp, it reads:
    MAJOR 4);
 7. on every eligible column of numbers, each edge value the real column
    holds counts no further from the real count with L0 than without it:
-   0 further. OPEN, owned by lane BT2 before lane CHb consumes L0 (lane
-   BT's first skeptic, its item 6): step 2 puts the cells a cut crosses
-   on the piece's nearest stratum, so on a uniform whole-number column
-   the edge value and the value below it take or give the whole band
-   miss of today's twin (G5.7c, "What it does not do"; plan P4-D429).
+   0 further. OPEN (lane BT's first skeptic, its item 6): step 2 put the
+   cells a cut crosses on the piece's nearest stratum, so on a uniform
+   whole-number column the edge value and the value below it took or gave
+   the whole band miss of today's twin (plan P4-D429); G5.7c step 2b
+   (lane BT2, plan P4-D448) keeps today's count where the ladder and the
+   column's distance leave room, measured at 20,000 rows and above 117
+   of 1,546 further (452 of 1,430 before), each named;
+8. (K-S6-02 (ix)) every twin file the battery writes is read back by the product's
+   reader, both its readers agreeing: 0 refused (lane BT2, plan P4-D448);
+   the cells the reader settles where pandas' own step cut a record's
+   leading blanks are counted as it settles them (Codex's review of lane
+   BT2, item 6). Such a cell reads without its leading blanks to a
+   person's own pandas: one cell in the hunt table's twin at 200,000 rows,
+   every other cell alike (stated, plan P4-D448).
 
 The battery: G5.7i's ten-column table at 5,000 and 20,000 rows at two
 table draws, the count of few values of G14.3a case 1, an invented ward
@@ -17635,6 +17690,28 @@ names on a column where `E_eff` falls short of `E`, G4.2a, beside
 so no twin of a description a shipped command loads carries one; G16's
 two print no count of rows.
 
+**AND ONE MORE IN LANE MPg, AMENDED Thursday 2026-11-05** (plan P4-D456,
+repair 3; LANE MPg RULINGS 13 (1)(b)):
+`relationships.statistical.moments.correlations: <n> with <n>`, the
+disclosure of the polish's projection (G16.3, its repair 2 amendment,
+"The goals"). Inside a common row set whose published correlations
+cannot all hold together (the Cholesky test fails), the polish aims at
+the nearest set that can, and each goal it moves past half a step of
+its pair's grid read on r is named: one entry for each moved pair, on
+the block of the pair's later member in the projection's order (the
+first `<n>`, a column's name), the second `<n>` its partner. Its
+published value is the published r to twelve places, its achieved
+value `aimed at` the goal to twelve places, and its note is the
+sentence the report prints: "the published correlations of these
+columns, each taken over the same rows, cannot all hold together, so
+the twin aims at the nearest set that can. Code you write against this
+twin must not rely on this pair's correlation beyond the difference
+shown". Repair 2 of the lane added the note to the generator and not
+here, and the whole suite of its head turned this guard red, which is
+what it is for. The key carries two column names, so it is listed with
+the shapes below; it is behind the chain's switch, so no twin of a
+description a shipped command loads carries it.
+
 * `all_at_midnight`
 * `all_whole_numbers`
 * `band totals`
@@ -17729,6 +17806,11 @@ rules that build them:
 * `tails.<key>.<key>` — one distance of one NUMERIC tail (stage 3,
   contract 6.7a): the first `<key>` is `low` or `high` and the second is
   `mean_distance` or `rms_distance`
+* `relationships.statistical.moments.correlations: <n> with <n>` — one
+  published correlation the polish's projection moved past half a step
+  of its pair's grid (G16.3; amended 2026-11-05, lane MPg's repair 3),
+  the first `<n>` the column whose block carries it and the second its
+  partner, both column names
 
 A name here is a key a report MAY carry, never one it must: every
 entry above is a deviation raised only where the twin did not reach
@@ -18985,7 +19067,7 @@ P4-D329, which removes most of that population; what is left is the
 V6.1-A1 pattern, where the real table passes by exact equality and the
 report says the window does not reach the value.
 
-### G12.15 The windows on an eligible column (layer L0, plan P4-D404; the twin's report BUILT behind the chain's switch, plan P4-D429; the clock's mirror in the quality report owed by lane BT2)
+### G12.15 The windows on an eligible column (layer L0, plan P4-D404; the twin's report BUILT behind the chain's switch, plan P4-D429; the clock's mirror in the quality report BUILT behind the same switch, plan P4-D448)
 
 **On an eligible number column the windows are today's.** The column is
 made as today and G5.7c moves its strata the least the description
@@ -19020,14 +19102,22 @@ between G7A.4d's knots, and the twin's report draws them so (BUILT). On
 an eligible date column nothing changes, because every rung is still a
 pin.
 
-**The quality report's mirror of the clock's knots is OWED BY LANE BT2**
-(the orchestrator's ruling (b) of 2026-10-25 on lane BT's first
-skeptic, its item 7), and it is to be BUILT BEFORE THE LANDING THAT LETS
-`validate` READ A CHAIN (lane CHc). Until then no report a person reads
-can disagree with the twin's own: `validate` refuses a description whose
-`statistical` slot is filled (S12), and K-S6-02 (iv) judges every L0
-twin with the quality report as it is and counts every fact it calls
-missed that the twin without L0 holds.
+**The quality report's mirror of the clock's knots is BUILT** (lane BT2,
+plan P4-D448; the orchestrator's ruling (b) of 2026-10-25 on lane BT's
+first skeptic, its item 7: before the landing that lets `validate` read
+a chain, now lane CHON). `validation.measure`, handed a chain's document,
+first gives each clock column the generator lays with its band totals
+the same cuts (`clock_cuts_mirrored`, G7A.4d's preconditions written out
+from the method's clauses, never imported), and G12.10's windows are read
+between G7A.4d's knots (`_clock_cut_knots`) or the cut census groups'
+halves. A description with no chain is handed back as it is, so no
+shipped report moves. `tests/test_stage6_clock_mirror.py` holds the two
+writings to agreeing, red on the mirror withdrawn and on the knots read
+as an uncut column's, and holds `validation.measure` itself, handed a
+chain's document, to the mirrored windows of a census clock and of a
+knots clock (lane BT2's first repair). No report a person reads can yet disagree with the
+twin's own: `validate` refuses a description whose `statistical` slot is
+filled (S12).
 
 ### G12.16 The published mode pair, met on a listed column and named elsewhere (lane GG, plan P4-D440)
 
@@ -20531,9 +20621,22 @@ twenty-eighth entry point; `tests/test_stage6_band_totals.py` holds the
 product to every answer, and to every case below on the product's own
 twins, each case that names a MUTANT beside that mutant of the product
 (a product function replaced, never an input changed), which must move
-it. Freezing the other cases' cells is an amendment of A-P4-59 recorded
-in plan P4-D429, owed by lane BT2, due Fri 2026-10-30, before lane CHb
-merges.
+it. **A-P4-59's amendment for layer L0 (lane BT2, plan P4-D448):** the
+thirty-first entry point (`generation-branch-vectors-31.json`) freezes
+the cells of case 8, the least move on today's strata of cases 3, 4, 5,
+14 and 15, case 17's room under (P3), case 7 (b)'s windows, case 9's
+knots, the workbook's classes of case 12 and the interface of case 13,
+and, from lane BT2's first repair, step 2b beside the next value's
+proven heap (`l0_cells_next_heap`), step 4's neighbour beside an edge
+(`l0_mode_edge_side`) and a grained date held in its band and wearing
+its one mark (`l0_pooled_in_band`, G4.2b). Case 5's keys are cut near
+their tails, where the band totals give a stratum a second cell and step
+2a writes each once a row (its first column never reached step 2a). On
+cases 3, 4, 5 and 15 the oracle's own number pipeline reaches other
+strata than the product's WITHOUT layer L0, and on case 14 another
+spelling after the move, which predates layer L0 (plan P4-D448): these
+are frozen on the least move itself, from the strata the product's
+pipeline hands it, and the gate asserts those strata.
 
 1. **A count of few values with one rare high value** (G5.7i: the
    product's own twin of this shape put 30,000 of 100,000 rows on the
@@ -20923,6 +21026,63 @@ parents `P` at `F`'s levels, target `t`:
      are each centred on their own cell (step 4), so a cell's own mean
      would order nothing. The cell means of lane MPOL's page are the
      polish's targets (G16.3), not the walk's.
+   - **AMENDED Tuesday 2026-11-03 (lane MPg, plan P4-D456): THE IMPLIED
+     SLOPE, the walk's no-slope fallback.** Where `F` publishes no
+     `slopes`, has a parent, and `c`'s ladder holds a value range (a
+     number, date or clock column), `L` is the IMPLIED SLOPE's, read from
+     what the description already publishes and nothing else:
+     1. *Band scores.* For a column at a level, `n` the published `L0`
+        totals of its value bands holding a row (a band is a value band
+        where one of its `L0` bands joins a range, a level or the pool)
+        and `C_b` those of the value bands before band `b`: the score of
+        `b` is `normal_score((2 C_b + t_b) / (2 n))`, the standard normal
+        quantile at the middle of the band's share; a spread band, or one
+        holding no row, has none.
+     2. *The fit.* For each parent cell `pi` of `F`'s PUBLISHED table:
+        `w` its counts in `c`'s scored bands at `F`'s level and `mu_pi`
+        their mean score (summed in band order, divided once). Over the
+        cells whose RANGED parents (those whose ladder holds a value
+        range) all score at their levels in `F`, with weights `w`: the
+        weighted least-squares coefficients `beta` of `mu` on those
+        parents' band scores (both centred on their weighted means; the
+        normal equations with 1e-9 added to each diagonal term, solved by
+        Gauss-Jordan elimination in order without exchanges) and
+        `sigma = max(0.1, sqrt(max(0, 1 - beta . v)))`, `v` the
+        equations' right-hand side. No ranged parent, or no cell to fit:
+        no `beta`, `sigma = 1`.
+     3. *The order.* `L = (beta_1 (s_1 - m_1) + ... + beta_k (s_k - m_k) +
+        sigma z) + mu_pi`, summed in that order. `s_j` is the row's
+        normal score in ranged parent `j`: its cell's RANK `q` among the
+        `K` cells of that column holding a reading, read from its cell
+        index (G16.2 step 4: a band's first `read` places hold its
+        readings in order), `s_j = normal_score((2 q + 1) / (2 K))`; a
+        row holding none takes nought for the term. `m_j` is the mean of
+        `s_j` over the rows of the row's parent cell holding one, summed
+        in row order and divided once; `mu_pi` is nought where the cell
+        has none.
+     The cell's mean `mu_pi` orders rows ACROSS cells inside a band of
+     `c` (step 4), so a cell whose published rows sit higher in `c`
+     takes the higher cells of a band, and the ranged parents' terms
+     order rows inside a cell by where they stand in their parents. It
+     is no published fact: it is computed from the published table and
+     `L0` totals, as the walk's target is. `normal_score` is P. J.
+     Acklam's rational approximation of the normal quantile (relative
+     error under 1.15e-9): in the centre, `|p - 1/2| <= 1/2 - 0.02425`,
+     a ratio of two polynomials in `(p - 1/2)**2` times `p - 1/2`; in
+     each tail one in `q = sqrt(-2 ln p)` (the upper tail on `1 - p`,
+     its sign changed); `ln x` is written out too: `x = m 2**e` by
+     `frexp` (exact), `m` brought into `[sqrt(1/2), sqrt(2))`, `ln m = 2
+     y (1 + y**2/3 + ... + y**24/25)` with `y = (m - 1) / (m + 1)` by
+     Horner's rule from the last term, then `e ln 2` added. Every
+     constant is the binary64 its decimal names, every polynomial taken
+     by Horner's rule from its leading coefficient, each operation
+     rounded once in the order written (`chain_walk.normal_score`,
+     `natural_log`, `band_scores`, `implied_slope`, `reading_ranks`,
+     `implied_latent`), so no library function decides a byte.
+     MEASURED (lane CG's study, re-measured on the product here, P4-D456):
+     the spline kinks of the walk by hidden scores alone are gone, and
+     lane `E0b`'s battery gains as P4-D456 states. A family publishing
+     `slopes` keeps the bullet above; a label child keeps `L = z`.
 3. **Bands inside each parent cell.** The rows of each parent cell are
    sorted by `L` ascending, ties to the lower row number. Each SPREAD
    band of `c` (contract 4.6b.2), in band order, with target `t(pi, b)`
@@ -21039,6 +21199,125 @@ it moves no family table and no within-column fact. Its words follow
 G16.2's (G16.8). Until that page lands, G16.3 does nothing and draws no
 word.
 
+**AMENDED Tuesday 2026-11-03: THE POLISH AS BUILT (lane MPg, plan
+P4-D456).** The paragraph above and G17 stay as the strict-proof
+design's record; under rule B the polish is this:
+
+- **Which columns.** The POLISHED columns are the number columns of
+  `moments.columns` whose ladder the description publishes and whose
+  code clip its rungs give (contract 4.6d.0 (1)), in schema order, each
+  with at least one TARGET: each other such column with a published
+  correlation, in the moments' order (a PAIR target, its goal `r / 1000`),
+  then each `within` entry of the column, in its order, whose grouping
+  column the ladder holds (a WITHIN target). A held, identifier,
+  sequence or free-text column is no moment column and groups nothing
+  (4.6d.0), so none is ever polished and none of its cells moves; a
+  binary is a target's grouping only (its two levels are two bands, and
+  a frame below keeps them). Dates, clocks and labels of more than two
+  levels group only.
+- **Targets in the twin's own units.** A pair target's FEATURE is the
+  partner's value code standardized by its own mean and standard
+  deviation over the twin's rows holding a reading (exact sums, divided
+  once), nought where the row holds none. A within target's feature is
+  the ENCODING `e_g = (m_g / 10 - mu) / sd` of the row's `L1` band `g` of
+  the grouping column, `m_g` the published band mean and `mu`, `sd` the
+  column's published mean and spread (all in tenths of a code), nought
+  for a band publishing none; its goal is `sum n_g e_g**2 / N - (sum n_g
+  e_g / N)**2` over the published bands. Every target's AIM starts at
+  its goal.
+- **One round of one column.** On the rows holding a reading of the
+  column, in row order (`R`): on at most 2,048 of them at G16.2's spread
+  positions, the features' covariances `C` (each centred on its mean over
+  those rows; every sum of the polish by `math.fsum`, correctly rounded,
+  divided once); `beta = (C + 0.001 I)^-1 a`, `a` the aims (Gauss-Jordan
+  elimination in order without exchanges, a nought pivot passed over);
+  `noise = sqrt(max(1 - beta . a, 0.02))`; each row's SCORE `sum_j beta_j
+  x_j + noise z`, `z` its hidden score from the round's own words.
+  Then THE FRAME: inside each band of the column at its CHAIN LEVEL, the
+  rows of `R` sorted by score (ties to the lower row number) take, in
+  order, the cell-list places those rows hold, sorted (a band's places
+  holding a reading stand in reading order, G16.2 step 4). Where the
+  round is not the last, each aim then moves by its goal less what the
+  column now holds: a pair's correlation over the rows holding both, a
+  within target's covariance with its encoding.
+- **The rounds.** Eight, each over every polished column in schema
+  order, so a column moved earlier is read as moved.
+- **The frame keeps every published fact.** A family reads a column at
+  its chain level or coarser (a parent's level is never finer than its
+  chain level, G16.2), so a row that keeps its band at the chain level
+  keeps every band any family reads: no family table and no `L0` total
+  moves; the column's cells are only permuted among its own rows holding
+  a reading, so it keeps its multiset of cells (spellings, forms) and its
+  blanks, and every other column keeps its bytes. Where the real table was
+  sorted, the rows are then sorted the same way (plan P4-D86), whole rows
+  moving: where the sort's key is itself polished, every column moves
+  with its rows, and each row still holds its cells of every column the
+  polish does not name and its blanks (`K-S6-12` reads the rows as a
+  multiset for this reason). A row may change its
+  `L0` band inside its chain-level band; that frame is wider than the
+  paragraph above's (each row kept in its `L0` band), which lane MPp
+  measured at about 70 % of a free re-assignment's gain, and which kept
+  the published correlations further off on the measured tables (plan
+  P4-D456). The `within` means of OTHER columns in this column's bands
+  may move with it: they are targets, never facts the twin must hold.
+- **Words.** For each round, for each polished column, G16.8's draw
+  again: one `integers` call a block of 65,536 arranged rows, three
+  words a row, the hidden sums of that round. The polish draws `3 n' P
+  e'` words, `P` the rounds and `e'` the polished columns, a function of
+  the description, which the plan counts.
+- **What it publishes and reads.** Nothing is published; the generator
+  reads the description alone (the moments, the ladder, the chain) and
+  the walk's own deal. A test may set the rounds to nought (the walk
+  alone) or keep each row in its `L0` band (the frame's mutant); no
+  option, environment variable or settings file reaches either.
+- **Its oracle.** `tools/reference/chain_oracle.py`'s `polish_column`,
+  every binary64 operation emulated, frozen with its two mutants (each
+  row kept in its `L0` band; the aims never moved) in the chain oracle's
+  vectors, and `tests/test_moment_polish.py` holds the product to it.
+- **Limits, stated.** A date, a clock and a label of more than two levels
+  take no moment (contract 4.6d.0), so the polish moves none of them and
+  aims at none of them: their links to the numbers are the walk's alone
+  (owners: lane RO, the order rules between dates, and a later round of
+  lane MPg). A table in which one person has several rows gets no chain
+  and so no moment and no polish (owners: lanes GRa, the patient layer,
+  and GRb, its generator). A binary is never re-assigned, only read as a
+  grouping. A twin of `n` rows meets a moment to within its own sampling
+  error at `n`, never to the published rounding alone (V13's amended
+  line).
+
+**AMENDED Wednesday 2026-11-04: THE POLISH, REPAIR 1 (lane MPg, plan P4-D456; LANE MPg RULINGS 5 and 6).** The paragraphs above stand except where this one says otherwise:
+
+- **The published units.** Every moment is read in the unit its own count sets (contract 4.6d.0 (3)): a mean in tenths of a code, a column's spread in thousandths, a band's in tenths, a share in ten-thousandths, each one decimal finer for each 100-fold over 20,000 rows, divided once; a correlation as its printed value, the hyperbolic tangent of its grid point of Fisher's z; an incomplete pair's entry `[r, n, [sd, sd]]` gives its `r` and `n`; a grouping published on its `L2` bands (`level: 2`) is read on them.
+- **A column moved earlier is read as moved.** After each round of a polished column, every band of it a target reads is read again from its places (its band at the target's level of each place's `L0` band), so a row moved across an `L1` band inside its chain-level band is read in its new band.
+- **The goals.** The published correlations among the polished numbers, read as one matrix (a refused pair read as 0 and never a target), are projected to the nearest positive semidefinite matrix where any eigenvalue is under `1e-4` (the cyclic Jacobi method in binary64, the pairs row by row; each such eigenvalue set to `1e-4`, the diagonal rescaled to 1); a positive definite matrix is unchanged. A number's means in the bands of a PARTNER, a column it holds a published correlation with, are no target of it: the correlation carries them, and the two features, nearly one, drove the aims apart along their difference.
+- **The features.** A partner is read by its RANK CODE, its reading's place among its readings (a run of equal readings at sorted places `k` to `j` of `n` takes `floor(65536 (k + j + 1) / (2 n))`), as the normal score of `(2 c + 1) / 131072`; the rows past the published clip, which one value code holds, are ordered too. On the sample, each partner's feature is divided by its spread there, so its aim is a correlation; an aim of a correlation stays inside `(-0.999, 0.999)`. The noise's least share is `1e-4`.
+- **The binaries.** A binary moment column (both levels published, so none held) of the ladder is polished too: its two levels, 0 and 1 in band order, are re-assigned among the rows that share every band its families cross it with (its own family's parents at their levels; for each family it is a parent of, that family's child and other parents at theirs): the rows of a group sorted by score take the group's level-0 places, then its level-1 places, so every family table, every `L0` total and the binary's multiset in every group stay as dealt. Its targets: each published `within` entry of a polished number grouped by it on its `L1` bands (`by`: the number's rank score the feature, the number's covariance with the encoding of its means by the binary the goal), and each of its own `within` entries (`share`: the encoding `(s_g - p) / sqrt(p (1 - p))` of its published shares the feature). Its levels go to the rows of highest score, so its measures move by the normal density at its share's quantile `phi` (read as the slope of the written-out quantile, no exponential) times the number's split for `by`, over its spread for `share`; each such aim starts at its goal over that slope and moves by what it missed over it. A binary or label with a held level is no binary of rule B and never moves.
+- **The spreads.** Each `within` target of a number with published band spreads holds a FACTOR a band, 1 at first: after the scores are built, each row's score moves from its band's mean score by its band's factor, in plan order; each round that moves the aims sets each factor to itself times the band's published spread over the spread it now holds, kept inside `[0.25, 4]`.
+- **The order of a round.** Each round polishes the numbers from the one with the most bands at its chain level (its frame) to the one with the fewest, ties in schema order, then the binaries in schema order: the column with the most room in its frame re-sorts last and ends each pair, which the other column's tighter frame could not loosen (measured on the probe table at 10,000 rows, where `dbp`'s frame is its `L0` band: the pair overshot its published correlation by 0.0007 to 0.0014 in schema order and met it to 0.00003 in this one).
+- **The aims stay feasible together.** Where the moved aims ask the score for more than its whole spread (`a . (C + 0.001 I)^-1 a` past `1 - 1e-4`, on the round's sample), every aim is scaled down by one factor to that edge, so no aim stores up what earlier draws missed.
+- **The last round.** The last round re-sorts each column four times on its one draw of hidden sums, moving the aims between the re-sorts (not after the fourth), so it ends on the targets rather than one fresh draw away from them. No word more is drawn.
+- **Working memory.** (STRUCK by repair 2, below: "no list a row of a column is held" was not true of the score or of a frame group's rows and places.) The rows are grouped by frame group in a packed array (a counting sort), the features built 65,536 rows at a time, the score one float a row, every sum of the aims a correctly rounded sum over a generator; the close keeps each place's earlier row packed.
+- **A column a carried rule reads.** Where G16.2 step 5 writes a computed column from others row by row (`B = A + D`), a later polish of `A` would break the rule on the moved rows: such a column is not polished, or step 5's computed columns are written after G16.3 (owner lane RO at its merge, with a gate case then). The generator carries no such rule on this base.
+- **The top-coded age.** Lane MPp's eligibility governs (LANE MPg RULINGS 5 (7)): a top-coded number is polished on its clipped code, its own cells only moving among its own rows inside its chain band, so no value is created and none passes the top code; the lane line "never a moment column" predates that eligibility and is superseded.
+- **Its oracle.** `polish_column` in `tools/reference/chain_oracle.py` mirrors every step above in emulated binary64 on a 64-row twin of three numbers, a binary and a grouping column, frozen with five mutants (each row kept in its `L0` band; the aims never moved; a moved column's bands never read again; no band's spread scaled; the aims never scaled together), and `nearest_correlations` on three matrices.
+- **Limits, measured (repair 1; plan P4-D456 holds the figures).** (a) A number at chain level `L0` whose family's parents leave out a column it is correlated with keeps the walk's order between its `L0` bands: its frame leaves the polish too little room for that link, and a pair resting on it may stay outside its bound (the invented 0.95 pair at 20,000 rows); a frame crossing `L0` bands inside a family cell was measured and not shipped (it broke a near-identical pair); owner lane MPg's next round. (b) A number's means in a correlated partner's bands are no target, so band means are met only as far as the correlation carries them (below a fresh sample's share in `K-S6-12`); owner the same. (c) A column of numbers in 0 to 125 is read as a possible age and top-coded at 90 until its question is answered (HIPAA first), so no twin carries its upper tail and a regression on it reads the top-coded column. (d) A regression on two nearly collinear predictors carries the published `r`'s rounding on its grid of Fisher's z (contract 4.6d.0's limit (b): the 95th percentile of a coefficient's rounding over its standard error 0.84 to 1.02 at a predictor correlation of 0.99 and 2.6 to 2.9 at 0.999, at 20,000 rows); owner lane MPg for the statement, MPp2 for any change of the grid.
+
+**AMENDED Wednesday 2026-11-04: THE POLISH, REPAIR 2 (lane MPg, plan P4-D456; LANE MPg RULINGS 7 to 10, on Codex's one review and the lane's verify).** The paragraphs above stand except where this one says otherwise; it is read on lane MPp's finer grid of z (LANE MPp RULINGS 7), whose published r the polish reads as printed.
+
+- **The goals (Codex's item 2; replaces repair 1's first sentence of "The goals").** Each published correlation is taken on its own pair's rows, so the published matrix need not be positive semidefinite and an unpublished pair is unknown, never an observed nought. Two numbers stand on a COMMON ROW SET where their published pair's count equals both columns' own counts (they hold their readings on the same rows; the relation is an equivalence). Inside a common row set whose every pair is published, the matrix is one sample's: where its Cholesky factor (binary64, each sum in index order) has every pivot over 0 every goal is its published r; where it does not, the goals are the nearest correlation matrix of repair 1 (eigenvalues under `1e-4` set to it, the diagonal rescaled), and every goal it moves past half a step of the pair's grid read on r (`(1 - r**2) / (2 u)`, `u` the pair's count's unit of z, `chain_moments.unit`) is DISCLOSED in the twin's report as a deviation, its published r beside the goal. A common row set holding an unpublished pair keeps every goal (rule B publishes every pair of one row set or none: the same rows give the same counts, the same rows holding neither and the same spreads), a pair across two row sets is never projected, and an unpublished pair is no goal.
+- **A number's partners (the verify's item 2).** A number aims at no more than `chain_moments.PARTNERS` (24) published correlations, the largest in size, ties in the moments' order, held in the moments' order; the rest is left to the walk. A column's step reads `rows x k` features and builds a `k x k` matrix on 2,048 sampled rows, so a number aimed at every other one cost `rows x k^2` a round; capped, a round of `K` numbers costs at most `rows x 24 x K`. The plan is made once a run (`plan_generation`), its projection a Cholesky test and a Jacobi only where a row set fails it.
+- **The aim's bound follows the published r (LANE MPg RULINGS 8 (2)).** A pair's aim stays inside plus or minus the larger of 0.999 and half way from its goal to 1 (`(1 + |goal|) / 2`); every other aim but a `within`'s inside plus or minus 0.999.
+- **An incomplete pair's own spreads (Codex's item 3).** The loader keeps `[r, n, [sd, sd]]`'s two spreads (`RuleBMoments.spreads`, each in a column spread's unit at the pair's count, divided once). Where the pair holds fewer rows than the column's readings, the column's pair target holds the column's published spread over the pair's rows and a FACTOR, 1 at first: after the scores are built (before the `within` spreads), the scores of the rows whose partner holds a reading are moved from their mean by the factor; each round that moves the aims sets the factor to itself times that published spread over the spread the column's codes hold on those rows, kept inside `[1/64, 4]`. The frame fixes the bands those rows stand in, so the pair's spread is met only as far as the column's chain-level bands let it be (limit (e)).
+- **A binary's frame key (Codex's item 1).** The joint key `group * count + band` is formed as an exact whole number and renumbered in order of first meeting BEFORE it is stored in four bytes a row, so two keys `2 ** 32` apart stay two groups (they had become one, and a binary could exchange its levels between two family cells).
+- **Working memory (the verify's item 1; replaces repair 1's sentence "No list a row of a column is held").** The polished column's score is a list of one float a row: the offline audit admits no typed array of floats in the generator (no `array`, and no numpy name but `numpy.random`'s draw). A frame group's places are packed in one pass over the rows and one over the places (a binary's: level 0, then 1, rising), and the group, one at a time, is sorted as one whole number a row, the score's exponent and fraction and the row (`_score_key`), in the order of its (score, row) pairs; the bytes are unchanged (battery tables ST2 and ST4 at 20,000 rows, twin seed 0).
+- **Its oracle.** `tools/reference/chain_oracle.py` mirrors the common row sets, the Cholesky test, the goals and their moves, a number's partners, the pair's spread and the pair's bound in emulated binary64 (`row_sets`, `positive_definite`, `target_correlations`, `chosen_partners`, `polish_column`), and reads only the coefficients an implied slope fitted (`implied_latent`); frozen: Codex's two probes, a row set no data can hold and one positive definite, thirty numbers' partners, the 64-row polish with an incomplete pair's spread, and an implied slope that fits nothing at 20 rows a cell and at the floor.
+- **Limits, restated (repair 2; plan P4-D456 holds the figures).** (a) and (b) stand. (c) stands. (d) The z grid is ten times finer (contract 4.6d.0, LANE MPp RULINGS 7): a coefficient's rounding over its standard error at the 95th percentile, at 20,000 rows, is 0.024 to 0.027, 0.038 to 0.049, at most 0.084 and 0.27 to 0.28 at a predictor correlation of 0.9, 0.95, 0.99 and 0.999 (lane MPp's verify 2, LANE MPp RULINGS 7 (1)); the twin's own error on the two collinear coefficients lies within 0.69 of a standard error at all four (plan P4-D456). (e) An incomplete pair's spread is met inside the column's frame only: where a partner's blanks stand beside one end of the column at a coarse chain level, the twin's complete-case spread stays between the walk's and the real one (plan P4-D456's soft case; owner lane MPg's next round). (f) A number aims at its 24 largest published correlations, and the others are what the walk gives.
+
+**AMENDED Thursday 2026-11-05: THE POLISH, REPAIR 4 (lane MPg, plan P4-D456; LANE MPg RULINGS 14, on the lane's scoped verify 2).** The paragraphs above stand; repair 2's limits gain one, and the frame groups' sort is held.
+
+- **Limits, one more (repair 4; plan P4-D456 holds the figures).** (g) A pair whose columns stand on different row sets can stay far from its kept goal, 0.57 against 0.90, with no line in the twin's report. On Codex's two probes the goals keep the published r, and the twin, twin seeds 0 to 2, reads on the rows holding both: X on the first 10,000 rows, Z on the second and Y throughout, r(x, y) 0.569 to 0.572 against a published 0.8991; three disjoint cohorts of 10,000 rows, r(x, y) 0.642 to 0.649 against 0.9008 and r(x, z) -0.753 to -0.757 against -0.8984; `K-S6-12`'s allowance is about 0.0054 at 10,000 rows. The frame holds the pair there, not the pair's spreads (dropped, the halves' pair reads 0.570). Owner lane MPg2, whose second item is the report's line: a published correlation the twin misses beyond the allowance is named in the twin's report, one line a pair (the goal and the r reached at the polish's end), its CPU cost measured with lane ARR-b's helper (the orchestrator's design call, LANE MPg RULINGS 14 (1)).
+- **The sort, held (LANE MPg RULINGS 14 (3)).** `tests/test_moment_polish_sort.py` asks the shipped twin of a 20,000-row table to be, byte for byte, the twin of the same polish whose frame groups are sorted as plain `(score, row)` tuples, the row last (`tests/moment_polish_reference.py`, which never calls `_score_key`), and two equal scores to go to the lower row on a step of their own; it is the net for lane ARR-b, which rewrites the polish's sorts and sums.
+
 ### G16.4 Cells into rows
 
 For each arranged column, in schema order (a column that is not FINE as
@@ -21125,8 +21404,9 @@ that page lands, a table is arranged in rows like any other.
   of the block: the hidden scores of the family's child for those rows,
   words `3 k`, `3 k + 1` and `3 k + 2` of the call for the block's
   `k`-th row; then, in the same way, for each derived family in the
-  order of `rules`. Then G16.3's words, which lane MPOL's page counts.
-  Nothing is drawn after. The walk draws `3 (e + d) n'` words in all,
+  order of `rules`. Then G16.3's words (AMENDED 2026-11-03, lane MPg:
+  for each round, for each polished column, the same draw, `3 n' P e'`
+  words). Nothing is drawn after. The walk draws `3 (e + d) n'` words in all,
   `d` the derived families, a function of published facts (`e`, `d`,
   `n'`). Each such call is a stage in G3.3's
   sense; lane CHb added them to G4's list of stages (G4.2) in the
@@ -21143,7 +21423,11 @@ that page lands, a table is arranged in rows like any other.
   order written; CPython rounds each operation correctly and fuses none,
   so every comparison falls the same way on every machine. No logarithm,
   exponential or sine is used in generation; the profile's draw uses the
-  stated exponential of contract 4.6b.4.
+  stated exponential of contract 4.6b.4. (AMENDED 2026-11-03, lane MPg:
+  the implied slope's logarithm and normal quantile, G16.2 step 2, and
+  the polish's square roots, G16.3, are written out in `+ - * /` and
+  `sqrt`, each rounded once in order, so this still holds of every
+  library function.)
 - **Order.** Every sort is stable on row number; families in chain
   order; columns in schema order.
 - **What moves.** A stage-6 twin differs from the twin of the same
@@ -21721,6 +22005,13 @@ mutant that must move it:
    own-mean family unmet and unnamed).
 
 ## G17. Between columns: the polish (stage 6, plan P4-D413; specified, NOT BUILT)
+
+**AMENDED Tuesday 2026-11-03 (lane MPg, plan P4-D456).** Under the
+owner's rule B the built polish is G16.3's amended text: a conditional
+re-assignment by score inside each column's chain-level band, towards
+rule B's published correlations and band means, `O(n log n)` a column
+and round. This section's exchanges towards contract 4.6d's sums stay
+the strict-proof design's record and are not built; nothing here runs.
 
 **No generator in this repository runs anything in this section.** It is
 the page G16.3 reserves for lane MPOL: how the arranged rows of the fine

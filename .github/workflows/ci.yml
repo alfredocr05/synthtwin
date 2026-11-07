@@ -806,6 +806,8 @@ jobs:
           wheel required synthtwin/grains.py
           wheel required synthtwin/installation.py
           wheel required synthtwin/parsing.py
+          wheel required synthtwin/patient_layer.py
+          wheel required synthtwin/patient_rules.py
           wheel required synthtwin/paths.py
           wheel required synthtwin/profile.py
           wheel required synthtwin/quality.py
@@ -853,6 +855,8 @@ jobs:
           sdist required ROOT/src/synthtwin/grains.py
           sdist required ROOT/src/synthtwin/installation.py
           sdist required ROOT/src/synthtwin/parsing.py
+          sdist required ROOT/src/synthtwin/patient_layer.py
+          sdist required ROOT/src/synthtwin/patient_rules.py
           sdist required ROOT/src/synthtwin/paths.py
           sdist required ROOT/src/synthtwin/profile.py
           sdist required ROOT/src/synthtwin/quality.py

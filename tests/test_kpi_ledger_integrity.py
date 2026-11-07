@@ -815,6 +815,18 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 1,100,000 from 1,050,000, AT THE INTEGRATION OF BATCH 4P (2026-11-06),
+    # the orchestrator's recorded call D15 (the owner may veto), made ONCE
+    # for the batch and set before the batch began:
+    # lanes BT2's `K-S6-02` and `K-S6-03`, CHa2's and GRa's `K-S6-08`
+    # (RULE ONE_BAND's keys and the patient layer's cases) and MPg's new
+    # `K-S6-12` and `K-S6-13` with `K-S6-01` restated, every entry kept by
+    # id and the note merged clause by clause (1,049,789 bytes after lane
+    # MPg's merge), then batch 4o's sealed head with its two fix rounds'
+    # stamps merged entry by entry (1,065,410 bytes as merged); then the
+    # records' stamps on the merged head. A MEASUREMENT IS NEVER TRIMMED
+    # TO FIT.
+    #
     # 1,050,000 from 950,000, AT THE INTEGRATION OF BATCH 4O (2026-11-04),
     # the orchestrator's recorded call D15 (the owner may veto), set once
     # for the batch, a round figure the merged ledger and the batch's
@@ -1651,7 +1663,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # their evidence and their note clause. The batch integrator settles
     # this beside the other lanes' raises. A MEASUREMENT IS NEVER TRIMMED
     # TO FIT.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 1_050_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 1_100_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

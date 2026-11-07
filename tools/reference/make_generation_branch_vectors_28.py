@@ -15,8 +15,12 @@ G4.2a's reserved cells by spelling in a text file and by class in a
 workbook -- each frozen with the answer the method's text gives it.
 
 **Why a twenty-eighth file.**  No branch file holds a case of layer L0,
-and these are not cells of a column but answers of a rule, as the
-fifteenth file's are, so they open the first number no lane holds.
+and these are the cells layer L0 makes of a column and the answers of
+its rules -- the cells of cases 1 (a), 1 (b), 2 and 7 (a) and of the
+count rule's two sides and the mode kept (`l0_cells_count_short`,
+`l0_cells_count_over`, `l0_cells_mode_kept`), beside the heaps, the
+halves and the reserved cells -- so they open the first number no lane
+holds (lane BT's verify 2, item 3; lane BT2).
 
 **Why the oracle is loaded rather than imported by name.**  The
 provenance guard runs a fixture generator as

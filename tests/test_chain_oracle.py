@@ -203,6 +203,69 @@ def test_one_column_s_ladder_through_the_l0_merge():
     assert lad.ordered[0] and lad.codes(2)[:7] == [0] * 7
 
 
+def test_rule_one_band_reads_the_lowest_l1_cut_with_rows_on_both_sides():
+    """1,000 rows: nought on 550, one on 260, two on 190, so `p10` to `p50`
+    are 0, `p60` to `p80` are 1 and `p90` is 2, the rungs a profiler
+    publishes for these cells (the gate, tests/test_chain_table_layer.py,
+    holds the product's own rungs to them). The edges are `p10`, `p60`, `p90`
+    (the lowest percent naming each value); no row lies below `p10`, so the
+    band [none, p10) joins the one above it and `L0` holds [0, 1), [1, 2),
+    [2, up): 550, 260, 190. `L1`'s `p25` and `p50` read the value 0, gone
+    with that edge; `p75` is the edge `p60` and `p90` itself: three bands.
+    `L2`'s `p50` is gone too, one value band, so RULE ONE_BAND reads `L1`'s
+    lowest cut, 550 against 450. Beside 30 blank cells `missing` stays a band
+    of its own. The exact rung: nought on 601 of 1,001 rows puts `p60` on the
+    last nought, and the edge of one is `p70`: 601 against 400. MUTANT: the
+    level before the rule, one band of 1,000, which would leave the column
+    ineligible."""
+    chain_cases = FROZEN["chain"]
+    case = chain_cases["one_band"]
+    assert case["totals"] == [550, 260, 190]
+    assert case["l1"] == [[0], [1], [2]]
+    assert case["l2"] == [[0], [1, 2]]
+    assert chain_cases["one_band_mutant_before_the_rule"]["l2"] == [[0, 1, 2]]
+    blanks = chain_cases["one_band_beside_blanks"]
+    assert blanks["totals"] == [30, 550, 260, 190]
+    assert blanks["l2"] == [[0], [1], [2, 3]]
+    exact = chain_cases["one_band_at_the_exact_rung"]
+    assert exact["totals"] == [601, 250, 150] and exact["l2"] == [[0], [1, 2]]
+    assert exact["l0"][0][-1] == ["range", "p10", "p70"]
+    for name in ("one_band", "one_band_beside_blanks", "one_band_at_the_exact_rung"):
+        cells, rungs = oc.one_band_cells(name)
+        assert _json(co.ladder_of("visits", "count", cells, rungs=rungs).as_dict()) == chain_cases[name]
+
+
+def test_rule_one_band_reads_a_level_s_rungs_by_the_edges_that_name_them():
+    """Nought on 220, one on 100, two on 400, three to nine on 40 rows each:
+    `p50` reads two, and the edge naming two is `p40`, so `p50` cuts at `p40`
+    and `L2` is 320 against 680; the rule reaches nothing. MUTANT (the
+    skeptic's O7): `L2` read by its key `p50`, which names no edge, one value
+    band, and the rule then cuts 220 against 780."""
+    case = FROZEN["chain"]["one_band_median_named_by_a_lower_rung"]
+    assert case["totals"] == [220, 100, 400, 80, 80, 120]
+    assert case["l2"] == [[0, 1], [2, 3, 4, 5]]
+
+
+def test_rule_one_band_invents_no_cut():
+    """Nought on 970 of 1,000 rows: every rung is nought, `L1` holds one value
+    band and `L2` stays one band, never an empty one; beside 30 blank cells
+    the level is blank against present. MUTANT (the skeptic's O9): the rule
+    taken with one filled `L1` band, writing an empty band."""
+    alone = FROZEN["chain"]["one_band_no_cut"]
+    assert alone["totals"] == [1000] and alone["l2"] == [[0]]
+    blanks = FROZEN["chain"]["one_band_no_cut_beside_blanks"]
+    assert blanks["totals"] == [30, 1000] and blanks["l2"] == [[0], [1]]
+
+
+def test_w_te_is_nought_at_the_oracle_s_default():
+    """Contract 4.6b.14 (amended 2026-11-02): a time-and-event pair named to
+    the default setting raises nothing, and the search beside it draws the
+    chain of the search without it. MUTANT (the skeptic's O8): `Setting(w_te=F(1))`."""
+    case = FROZEN["chain"]["te_raise"]
+    assert case["raise"] == "0"
+    assert case["chain"] == FROZEN["chain"]["search"]["chain"]
+
+
 def test_a_date_and_a_clock_are_cut_at_their_nine_interior_rungs():
     """Contract 4.6b.2: a `datetime` column's `L0` edges are the nine
     interior rungs `p01` to `p99` of `date_percentiles`, a `time_of_day`
@@ -1053,7 +1116,7 @@ def test_the_switched_product_s_chain_against_the_oracle(tmp_path, monkeypatch):
     intended chain is drawn, and a switched run publishing none still
     fails. No draw is ever retried."""
     sys.path.insert(0, str(REPOSITORY / "src"))
-    from synthtwin import cli
+    from synthtwin import asking, cli
 
     data = tmp_path / "data"
     data.mkdir(mode=0o700)
@@ -1076,7 +1139,7 @@ def test_the_switched_product_s_chain_against_the_oracle(tmp_path, monkeypatch):
             if entry["column"] == "ward":
                 entry["your_answer"] = "keep"
         questions.write_text(json.dumps(asked, indent=1) + "\n", encoding="utf-8", newline="\n")
-        code = real(list(argv) + ["--answers", str(questions)], chain=cli.ChainRun(folder=str(tmp_path / "data")))
+        code = real(list(argv) + ["--answers", str(questions)], chain=cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=str(tmp_path / "data")))
         described = json.loads(table.with_name(table.stem + "-profile.json").read_text(encoding="utf-8"))
         published.append(described["relationships"]["statistical"])
         return code

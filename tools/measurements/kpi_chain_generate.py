@@ -16,7 +16,13 @@ at its published levels.
   parent cell's rows) and every odds ratio of two bands in two parent
   cells is the real table's: `rates_off` 0 over `rates_checked`,
   `odds_ratios_off` 0 over `odds_ratios_checked`; no row stands in a
-  published nought: `rows_in_noughts` 0 over `noughts_checked`. A family
+  published nought: `rows_in_noughts` 0 over `noughts_checked`. Every
+  nought the describing step publishes is counted from the description
+  alone, once for each twin made of it (`noughts_published`), and each
+  is checked, in an exact family cell for cell or in a moved one by
+  G16.6's first tier (`noughts_in_moved`): `noughts_unchecked` 0, so the
+  count of noughts checked is held to the description, not to a literal
+  (lane BT2's skeptic 1, item 2; LANE BT2 RULINGS 2 (2)). A family
   dealt against its MOVED TABLE (G16.6: a column made without its band
   totals, or parent cells a move upstream changed) is named in
   `moved_named`, and EVERY one is judged at the product's own size
@@ -297,6 +303,17 @@ def _tables(rows_list: "list[int]", folder: pathlib.Path, zoo: bool, draws: "lis
     return out
 
 
+def _noughts(families: "list[dict[str, object]]") -> int:
+    """How many cells the families' published tables hold at nought."""
+    found = 0
+    for family in families:
+        for line in family["table"]:  # type: ignore[attr-defined]
+            for cell in line:
+                if cell == 0:
+                    found = found + 1
+    return found
+
+
 def measure(rows_list: "list[int]", seeds: "list[int]", zoo: bool, draws: "list[int]") -> "dict[str, object]":
     started = time.time()
     co = _oracle()
@@ -305,6 +322,7 @@ def measure(rows_list: "list[int]", seeds: "list[int]", zoo: bool, draws: "list[
         "rates_checked": 0, "rates_off": 0, "odds_ratios_checked": 0, "odds_ratios_off": 0,
         "noughts_checked": 0, "rows_in_noughts": 0, "moved_families": 0, "moved_checked": 0,
         "moved_off": 0, "moved_exact_checked": 0, "words_off": 0, "stray_rows_named": 0,
+        "noughts_published": 0, "noughts_in_moved": 0,
     }
     moved_named: "list[str]" = []
     off_named: "list[str]" = []
@@ -316,7 +334,13 @@ def measure(rows_list: "list[int]", seeds: "list[int]", zoo: bool, draws: "list[
                 path.unlink(missing_ok=True)
                 continue
             planned = generation.plan_generation(described.loaded).words_planned
+            # THE NOUGHTS THE DESCRIBING STEP PUBLISHES (lane BT2's skeptic 1,
+            # item 2; LANE BT2 RULINGS 2 (2)): counted from the description
+            # alone, once for each twin made of it, so `noughts_checked` is
+            # held to a count no twin decides, not to a literal.
+            published_noughts = _noughts(described.statistical["chain"])  # type: ignore[arg-type]
             for seed in (own or seeds):
+                value["noughts_published"] = int(value["noughts_published"]) + published_noughts  # type: ignore[call-overload]
                 twin = generation.generate_held(described.loaded, seed)
                 value["twins"] = int(value["twins"]) + 1  # type: ignore[call-overload]
                 if twin.words_drawn != planned:
@@ -331,6 +355,7 @@ def measure(rows_list: "list[int]", seeds: "list[int]", zoo: bool, draws: "list[
                     published = family["table"]
                     if family["child"] in moved:
                         value["moved_families"] = int(value["moved_families"]) + 1  # type: ignore[call-overload]
+                        value["noughts_in_moved"] = int(value["noughts_in_moved"]) + _noughts([family])  # type: ignore[call-overload]
                         moved_named += [f"{name}@{seed}: {family['child']}"]
                         rows = [sum(row) for row in table]
                         columns = [sum(table[place][band] for place in range(len(table))) for band in range(len(table[0]))]
@@ -360,6 +385,9 @@ def measure(rows_list: "list[int]", seeds: "list[int]", zoo: bool, draws: "list[
                     if table != published:
                         off_named += [f"{name}@{seed}: {family['child']}"]
             path.unlink(missing_ok=True)
+    # Every published nought is checked: in an exact family cell for cell,
+    # in a moved one by G16.6's first tier (`moved_tiers`).
+    value["noughts_unchecked"] = int(value["noughts_published"]) - int(value["noughts_checked"]) - int(value["noughts_in_moved"])  # type: ignore[call-overload]
     value["moved_named"] = sorted(set(entry.split(": ")[0].split("@")[0] + ": " + entry.split(": ")[1] for entry in moved_named))
     value["off_named"] = off_named
     value["chain_refused"] = sorted(f"{name}: {why}" for name, why in bt.REFUSED.items())

@@ -382,6 +382,138 @@ def _part_c_leak(tables: "list[tuple[int, ...]]") -> bool:
     return False
 
 
+# -- RULE ONE_BAND'S READING (lane CHa2) -------------------------------------
+
+ONE_BAND_ROWS = (56, 14, 20)
+ONE_BAND_GROUP = 6
+ONE_BAND_FLAG = (45, 45)
+
+
+def one_band_ladder() -> rules.Ladder:
+    """A count column whose median is its lowest value, read by the product's own merge and RULE ONE_BAND.
+
+    Nought on 56 rows (`p25` and `p50` there), one on 14 (`p75`), and from
+    `p90` up 20 rows, six of them one value a published count names.
+    """
+    start = rules.Starting(
+        ((None, "p25"), ("p25", "p75"), ("p75", "p90"), ("p90", None)),
+        ((0, 1, 2, 3), (0, 1, 2, 3), (0, 1, 1, 1)),
+        (True, True, True, True),
+        False,
+        ("0", "1", "2"),
+    )
+    found = rules.merge_ladder("count", start, [0, *ONE_BAND_ROWS], F)
+    if found is None:
+        raise ValueError("the fixture holds rows")
+    return found
+
+
+def one_band(variant: str) -> "dict[str, object]":
+    """Every table of the fixture and every description the draw can publish from it.
+
+    `variant` "filter" reads RULE W1 as the product does, the column at
+    RULE ONE_BAND's `L2`; "old_level" is the mutant: the family is published
+    at the new `L2` and RULE W1 reads the column at the level the rule
+    replaced, one band, so the row holding the six rows is never read.
+    """
+    low, middle, high = ONE_BAND_ROWS
+    n = low + middle + high
+    day = one_band_ladder()
+    if day.maps[2] != (0, 1, 1):
+        raise ValueError("RULE ONE_BAND did not read the fixture's L2")
+    flag = binary_scale("post", ONE_BAND_FLAG[0], ONE_BAND_FLAG[1])
+    scales = {"count": day, "post": flag}
+    margins = rules.parent_cells(scales, ("count",), None)
+    offered = rules.offered_levels([flag, day], [0, 0], [1, 0], margins, n, F)
+    preimage: "dict[tuple, list[tuple[int, ...]]]" = {}
+    tables = 0
+    for x1 in range(0, low + 1):
+        for x2 in range(0, middle + 1):
+            x3 = ONE_BAND_FLAG[1] - x1 - x2
+            if not 0 <= x3 <= high:
+                continue
+            for group_flagged in range(0, min(ONE_BAND_GROUP, x3) + 1):
+                if high - x3 < ONE_BAND_GROUP - group_flagged:
+                    continue
+                tables += 1
+                fine = (
+                    low - x1,
+                    x1,
+                    middle - x2,
+                    x2,
+                    ONE_BAND_GROUP - group_flagged,
+                    group_flagged,
+                    high - x3 - (ONE_BAND_GROUP - group_flagged),
+                    x3 - group_flagged,
+                )
+                for key in _one_band_descriptions((x1, x2, x3), day, flag, scales, offered, variant, n):
+                    if key not in preimage:
+                        preimage[key] = []
+                    preimage[key] += [fine]
+    leaks = 0
+    for key in preimage:
+        if _fine_leak(preimage[key], 8, 4):
+            leaks += 1
+    return {"tables": tables, "descriptions": len(preimage), "descriptions_leaking": leaks}
+
+
+def _one_band_descriptions(x, day, flag, scales, offered, variant, n):
+    out = [("none",)]
+    if offered is None:
+        return out
+    for levels in rules.variants_of(offered):
+        day_level = levels[1]
+        rows = rules.totals_at(day, day_level)
+        ones = [0] * len(rows)
+        for at in range(3):
+            ones[day.maps[day_level][at]] += x[at]
+        table: "list[int]" = []
+        for row in range(len(rows)):
+            table += [rows[row] - ones[row], ones[row]]
+        if not all(cell == 0 or cell >= F for cell in table):
+            continue
+        if variant == "filter":
+            families = [
+                rules.Family("count", day_level, (), None, tuple(rows)),
+                rules.Family("post", levels[0], (("count", day_level),), 0, tuple(table)),
+            ]
+            if rules.w1_refusals(families, scales, {"count": {2}, "post": set()}):
+                continue
+        elif day.counts[day_level] == 2:
+            # The mutant: RULE W1 reads the level RULE ONE_BAND replaced, one band.
+            old = rules.Ladder("count", day.l0, ((0, 1, 2), day.maps[1], (0, 0, 0)), (3, day.counts[1], 1), day.totals, day.ordered)
+            one_row = (sum(table[0::2]), sum(table[1::2]))
+            families = [
+                rules.Family("count", 2, (), None, (n,)),
+                rules.Family("post", levels[0], (("count", 2),), 0, one_row),
+            ]
+            if rules.w1_refusals(families, {"count": old, "post": flag}, {"count": {2}, "post": set()}):
+                continue
+        out += [("pair", levels, tuple(table))]
+    return out
+
+
+def _fine_leak(tables: "list[tuple[int, ...]]", cells: int, groups: int) -> bool:
+    """A cross-column union of the finest cells (`groups` of the column by two of the flag) inside 1 to 10 on every table."""
+    survivors: "set[int] | None" = None
+    for table in tables:
+        candidates = range(1, 2**cells) if survivors is None else survivors
+        kept: "set[int]" = set()
+        for mask in candidates:
+            if all(((mask >> (2 * group)) & 1) == ((mask >> (2 * group + 1)) & 1) for group in range(groups)):
+                continue
+            value = 0
+            for i in range(cells):
+                if mask >> i & 1:
+                    value += table[i]
+            if 1 <= value <= F - 1:
+                kept.add(mask)
+        survivors = kept
+        if not survivors:
+            return False
+    return bool(survivors)
+
+
 # -- THE MIRROR AGAINST THE PRODUCER ----------------------------------------
 
 
@@ -523,7 +655,7 @@ def own_fact_case(name: str, product: bool) -> "dict[str, int]":
             chain._named_points = lambda *arguments: []  # type: ignore[assignment]
         elif not product:
             chain.value_run_bands = lambda *arguments: set()  # type: ignore[assignment]
-        chain.describe(table, document, settings, chain.ChainSwitch(name, bytes(32)))
+        chain.describe(table, document, settings, chain.ChainSwitch(name, bytes(32), rows_per_person=chain.ROWS_UNASKED))
     finally:
         chain._root_options = original_options  # type: ignore[assignment]
         chain.value_run_bands = original_runs  # type: ignore[assignment]

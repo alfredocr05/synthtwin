@@ -319,12 +319,19 @@ def measure_table(name: str, folder: pathlib.Path, reference: object) -> "dict[s
     path.write_text(text, encoding="utf-8", newline="\n")
     table = reading.read_table(str(path), small_cell_floor=FLOOR)
     document = profile.build_document(table, settings, list(persons), [], [])
-    chained = chain.describe(table, document, settings, chain.ChainSwitch(f"{name}-{SEED}", KEY))
+    chained = chain.describe(table, document, settings, chain.ChainSwitch(f"{name}-{SEED}", KEY, rows_per_person=chain.ROWS_UNASKED))
     statistical = chained.statistical
     out: "dict[str, object]" = {"table": name, "counts": {k: v for k, v in chained.counts.items() if k.startswith("moments ")}}
-    # The description as the profile command writes it, read back with the chain's switch on.
+    # The description as the profile command writes it, read back with the chain's switch on: on a table naming
+    # its person column, the patient layer's `grain` and its column blocks too, where the layer stands (lane GRa,
+    # plan P4-D449; `cli._chained_description`).
     written = dict(document)
-    written["relationships"] = dict(written["relationships"], statistical=statistical)  # type: ignore[arg-type]
+    relationships = dict(written["relationships"], statistical=statistical)  # type: ignore[arg-type]
+    if chained.grain is not None:
+        relationships["grain"] = chained.grain
+    if chained.columns is not None:
+        written["columns"] = chained.columns
+    written["relationships"] = relationships
     described = folder / f"{name}-profile.json"
     described.write_text(profile.serialize(written), encoding="utf-8", newline="\n")
     try:

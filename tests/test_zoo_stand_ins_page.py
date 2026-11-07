@@ -735,10 +735,18 @@ def test_the_safe_harbor_explanation_names_each_class_the_page_relies_on(covered
 
 
 def test_the_page_cites_no_method_section_this_base_lacks() -> None:
+    # The page's own section, from its heading to the plan's next heading (batch 4p's fix round: the
+    # slice ran to the plan's end, so a later decision citing the method's G7.13, which the method now
+    # holds, failed it). Every G7 section the page cites is a heading of the generation method.
     text = PLAN.read_text(encoding="utf-8")
     start = text.index(PAGE_HEADING)
-    assert "G7.13" not in text[start:]
-    assert "(the G1 floor, contract NF128 and NF129, plan P4-D417)" in _flat(text[start:])
+    section = text[start : text.index("\n## ", start + 1)]
+    assert "G7.13" not in section
+    assert "(the G1 floor, contract NF128 and NF129, plan P4-D417)" in _flat(section)
+    method = (REPOSITORY / "docs" / "spec" / "generation-method-v1.md").read_text(encoding="utf-8")
+    headings = set(re.findall(r"^#+ (G7\.\d+)\b", method, re.MULTILINE))
+    assert {"G7.1", "G7.13"} <= headings
+    assert set(re.findall(r"\bG7\.\d+\b", section)) <= headings
 
 
 def test_a3_settles_row_44_where_today_overpays_its_published_form() -> None:

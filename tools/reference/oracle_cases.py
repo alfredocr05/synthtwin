@@ -9,6 +9,7 @@ of fixed seeds, computed in integers and written into the vectors).
 `make_chain_oracle_vectors.py` writes them, and the tests rebuild them.
 """
 
+import hashlib
 import importlib.util
 import os
 
@@ -98,6 +99,68 @@ def case_ladder_merge():
     cells, rungs = ladder_merge_cells()
     lad = co.ladder_of("stay", "count", cells, rungs=rungs)
     return lad.as_dict()
+
+
+# RULE ONE_BAND's columns (contract 4.6b.2, amended 2026-11-01), each a count
+# column given as (value, rows) pairs, its absent cells, and the rungs `p10` to
+# `p90` a profiler publishes for exactly these cells (the linear-interpolation
+# percentile at 1,000 rows and more, where every one of them is published;
+# lane CHa2's repair: the gate holds the product's own rungs and ladder to
+# each shape). Every rung is a value the column holds, so each cut is exact.
+ONE_BAND_SHAPES = {
+    # nought on 550 of 1,000 rows, one on 260, two on 190: `p10` to `p50`
+    # nought, `p60` to `p80` one, `p90` two.
+    "one_band": (((0, 550), (1, 260), (2, 190)), 0, (0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2)),
+    # the same beside 30 blank cells.
+    "one_band_beside_blanks": (((0, 550), (1, 260), (2, 190)), 30, (0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2)),
+    # the exact rung: nought on 601 of 1,001 rows puts `p60` on the last
+    # nought itself, one on 250, two on 150: `p70` is the edge of one.
+    "one_band_at_the_exact_rung": (((0, 601), (1, 250), (2, 150)), 0, (0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2)),
+    # nought on 220, one on 100, two on 400, then 40 rows of each of three to
+    # nine: `p50` reads two, which `p40` names as an edge, so `p50` still cuts
+    # and the rule reaches nothing; a level read by key finds no edge `p50`.
+    "one_band_median_named_by_a_lower_rung": (
+        ((0, 220), (1, 100), (2, 400), (3, 40), (4, 40), (5, 40), (6, 40), (7, 40), (8, 40), (9, 40)), 0,
+        (0, 0, 1, 1, 2, 2, 2, 2, 3, F(21, 5), 7)),
+    # nought on 970, one on 15, two on 15: every rung nought, no `L1` cut.
+    "one_band_no_cut": (((0, 970), (1, 15), (2, 15)), 0, (0,) * 11),
+    # the same beside 30 blank cells: blank against present is the level.
+    "one_band_no_cut_beside_blanks": (((0, 970), (1, 15), (2, 15)), 30, (0,) * 11),
+}
+
+
+def one_band_cells(name):
+    """The cells and the rungs of one of `ONE_BAND_SHAPES`."""
+    counts, blank, edges = ONE_BAND_SHAPES[name]
+    cells = [("missing",)] * blank
+    for value, rows in counts:
+        cells += [("value", F(value))] * rows
+    return cells, _number_rungs(edges)
+
+
+def one_band_shapes():
+    """The shapes as the vectors carry them, for the product's side of the gate."""
+    out = {}
+    for name in ONE_BAND_SHAPES:
+        counts, blank, edges = ONE_BAND_SHAPES[name]
+        out[name] = {"counts": [[value, rows] for value, rows in counts], "blank": blank,
+                     "rungs": {key: _fraction_text(value) for key, value in _number_rungs(edges).items()}}
+    return out
+
+
+def case_one_band(name="one_band", mutant=False):
+    """RULE ONE_BAND of contract 4.6b.2 (amended 2026-11-01): the median at the lowest value leaves `p50`
+    no row below it, and `L2` reads the lowest `L1` cut with rows on both sides, nought against the rest.
+    The mutant is the level before the rule: one value band."""
+    cells, rungs = one_band_cells(name)
+    if mutant:
+        kept = co._one_band
+        co._one_band = lambda l0, totals, l1, l2: l2
+        try:
+            return co.ladder_of("visits", "count", cells, rungs=rungs).as_dict()
+        finally:
+            co._one_band = kept
+    return co.ladder_of("visits", "count", cells, rungs=rungs).as_dict()
 
 
 TEMPORAL_KEYS = ("p01", "p05", "p10", "p25", "p50", "p75", "p90", "p95", "p99")
@@ -318,6 +381,269 @@ def case_walk40(sort_by_row=False, spread_after=False):
         "index": {c: index[c] for c in ("X", "Y", "Z")},
         "rows": [[lists[c][index[c][r]][0] for c in ("X", "Y", "Z")] for r in range(40)],
     }
+    return out
+
+
+def case_walk40_implied(implied=True):
+    """G16.2 step 2's IMPLIED SLOPE on the 40-row walk (lane MPg, plan P4-D456), no slope published: each
+    family's slope from its published table and the members' published `L0` totals, every row's latent
+    order, the ranged parents' ranks, the hidden sums and the cell indices. MUTANT: `L = z` (the walk
+    before it), which deals other rows."""
+    lads, chain, twin, words, _slopes, _codes = walk40_setup()
+    trace = {}
+    index, lists, dealt = co.walk_rows(chain, lads, twin, words, implied=implied, trace=trace)
+    out = {"index": {c: index[c] for c in ("X", "Y", "Z")}, "dealt": dealt,
+           "met": [d == fam.table for d, fam in zip(dealt, chain)]}
+    if not implied:
+        return out
+    sums = []
+    for fam_words in words:
+        sums += [[sum((w >> shift) & 0xFFFF for w in row for shift in (0, 16, 32, 48)) for row in fam_words]]
+    families = {}
+    for fi in (1, 2):
+        used, beta, sigma, means = trace[fi]["means"]["slope"]
+        families[str(fi)] = {
+            "used": used,
+            "beta": [co.b64_hex(b) for b in beta],
+            "sigma": co.b64_hex(sigma),
+            "means": [None if m is None else co.b64_hex(m) for m in means],
+            "latent": [co.b64_hex(x) for x in trace[fi]["latent"]],
+            "sums": sums[fi],
+            "cells": trace[fi]["cells"],
+            "table": chain[fi].table,
+            "sizes": [len(lads[p].bands(lv)) for p, lv in chain[fi].parents],
+            "parent_scores": [[None if v is None else co.b64_hex(v) for v in co.lad_scores(lads[p], lv)]
+                              for p, lv in chain[fi].parents],
+            "child_scores": [None if v is None else co.b64_hex(v) for v in co.lad_scores(lads[chain[fi].child], chain[fi].level)],
+            "level_totals": {p: [lads[p].band_totals(lv), [any(isinstance(s, tuple) for i in m for s in lads[p].l0[i])
+                                                          for m in lads[p].bands(lv)]]
+                             for p, lv in list(chain[fi].parents) + [(chain[fi].child, chain[fi].level)]},
+        }
+    out["families"] = families
+    out["ranks"] = {}
+    for name in ("X", "Y"):
+        held = []
+        listing = lists[name]
+        readings = [cell for cell in listing if cell[1] is not None]
+        for r in range(40):
+            cell = listing[index[name][r]]
+            held += [None if cell[1] is None else sorted(range(len(readings)), key=lambda k: (readings[k][1], k)).index(
+                [k for k in range(len(readings)) if readings[k] is cell][0])]
+        out["ranks"][name] = held
+    out["readings"] = {name: len([c for c in lists[name] if c[1] is not None]) for name in ("X", "Y")}
+    return out
+
+
+def polish_setup():
+    """A 64-row twin of three FINE number columns, a binary and a grouping column for G16.3's polish (lane MPg).
+
+    `Y`, `X` and `W` hold value codes in cell-list order (sorted, rising), each row's place a SplitMix64
+    permutation; `Y` holds 6 places without a reading (absent cells, the end of its last band); each
+    column's `L0` band is its place's eighth, its `L1` band the same, its `L2` and chain-level band the
+    place's quarter, so a row moved inside its chain-level band may cross an `L1` band; each place's rank
+    code from its reading's place among the readings. `B` is a binary: its first 40 places level 0, its
+    last 24 level 1, its frame `X`'s `L2` band (the one table that crosses it). `G` groups the rows in
+    three `L1` bands. Targets: `Y` with `W` (r -0.300), `Y`'s means in `G`'s bands (with their published
+    spreads) and in `X`'s `L1` bands (a polished grouping column, read again after each of its rounds);
+    `X` with `W` (0.250) and with `Y` (0.600; `Y`'s 58 readings give rank codes off the multiples of 256; the pair
+    holds 58 of `X`'s 64 readings, so it publishes `X`'s own spread over them, 66 codes, a target of the pair since
+    repair 2), each pair's aim bounded by the larger of 0.999 and half way from its goal to 1; `B` by `X`'s split (`X`'s means in `B`'s two bands) and by its shares in `G`'s
+    bands, each at the slope a binary's threshold gives. Each row's hidden sums from SplitMix64 words,
+    one set a round of each polished column. Published figures in the units contract 4.6d.0 (3) sets at
+    their counts (a mean in tenths, a column's spread in thousandths, a band's in tenths, a share in
+    ten-thousandths)."""
+    n = 64
+    words = splitmix64(0x9017, 3 * n * 6)
+    columns = {}
+    for at, name in enumerate(("Y", "X", "W", "B")):
+        perm = list(range(n))
+        draw = splitmix64(0x50 + at, n)
+        perm = [p for _w, p in sorted(zip(draw, perm))]
+        if name == "B":
+            slot_l0 = [0 if k < 40 else 1 for k in range(n)]
+            column = {"index": perm, "slot_codes": list(slot_l0), "slot_has": [1] * n, "slot_l0": slot_l0,
+                      "maps": {0: [0, 1], 1: [0, 1], 2: [0, 1]}, "frame": [slot_l0[perm[r]] for r in range(n)]}
+            columns[name] = column
+            continue
+        slot_codes = [(k * 251) // (n - 1) for k in range(n)]
+        slot_has = [1] * n
+        if name == "Y":
+            for k in range(n - 6, n):
+                slot_has[k] = 0
+                slot_codes[k] = 0
+        slot_l0 = [(8 * k) // n for k in range(n)]
+        column = {"index": perm, "slot_codes": slot_codes, "slot_has": slot_has, "slot_l0": slot_l0,
+                  "maps": {0: list(range(8)), 1: list(range(8)), 2: [b // 2 for b in range(8)]},
+                  "slot_rank": co.rank_codes([c if h else None for c, h in zip(slot_codes, slot_has)])}
+        column["frame"] = [slot_l0[perm[r]] // 2 for r in range(n)]
+        columns[name] = column
+    codes = {name: [c["slot_codes"][c["index"][r]] for r in range(n)] for name, c in columns.items()}
+    has = {name: [c["slot_has"][c["index"][r]] for r in range(n)] for name, c in columns.items()}
+    ranks = {name: [c["slot_rank"][c["index"][r]] for r in range(n)] for name, c in columns.items() if "slot_rank" in c}
+    bands = {("G", 1): [(5 * r) % 3 for r in range(n)],
+             ("X", 1): [columns["X"]["slot_l0"][columns["X"]["index"][r]] for r in range(n)],
+             ("B", 1): [columns["B"]["slot_l0"][columns["B"]["index"][r]] for r in range(n)]}
+    spreads = {name: co.code_spread(codes[name], has[name]) for name in codes}
+    encoding, sds, goal = co.within_target([[20, 1280, 400], [24, 1300, 380], [20, 1350, 420]], 1310, 42000, 58)
+    by_x, by_x_sds, by_x_goal = co.within_target([[7, 1050 + 50 * g, 300] for g in range(8)], 1310, 42000, 58)
+    split, _split_sds, split_goal = co.within_target([[40, 1150, 690], [24, 1450, 620]], 1260, 74000, 64)
+    shares, shares_goal = co.share_target([[20, 3000], [24, 3500], [20, 4500]], 3750, 64)
+    share = co.b64_div(3750, 10000)
+    density = co.normal_density(share)
+    plan = [
+        ("Y", [{"kind": "pair", "name": "W", "goal": co.b64(F(-300, 1000))},
+               {"kind": "within", "name": "G", "goal": goal, "encoding": encoding, "sds": sds,
+                "scales": [F(1)] * 3},
+               {"kind": "within", "name": "X", "goal": by_x_goal, "encoding": by_x}]),
+        ("X", [{"kind": "pair", "name": "W", "goal": co.b64(F(250, 1000))},
+               {"kind": "pair", "name": "Y", "goal": co.b64(F(600, 1000)),
+                "sds": [co.b64_div(66000, co.moment_unit(1000, 58))], "scales": [F(1)]}]),
+        ("B", [{"kind": "by", "name": "X", "goal": split_goal, "encoding": split,
+                "slope": co.b64_mul(co.b64_sub(split[1], split[0]), density)},
+               {"kind": "share", "name": "G", "goal": shares_goal, "encoding": shares,
+                "slope": co.b64_div(density, co.b64_sqrt(co.b64_mul(share, co.b64_sub(1, share))))}]),
+    ]
+    for _name, targets in plan:
+        for target in targets:
+            target.setdefault("slope", F(1))
+            target["aim"] = co.b64_div(target["goal"], target["slope"])
+            if target["kind"] == "pair":
+                target["most"] = max(co.b64(F(999, 1000)), co.b64_div(co.b64_add(F(1), abs(target["goal"])), 2))
+            target.setdefault("encoding", [])
+            target.setdefault("level", 1)
+    sums = []
+    for k in range(6):
+        sums += [[sum((w >> shift) & 0xFFFF for w in words[3 * (k * n + r):3 * (k * n + r) + 3]
+                      for shift in (0, 16, 32, 48)) for r in range(n)]]
+    state = {"rows": n, "codes": codes, "has": has, "ranks": ranks, "bands": bands, "spreads": spreads,
+             "keys": {"B": [("X", 2)]}, "columns": columns}
+    return n, columns, state, plan, sums
+
+
+def case_polish(frame_l0=False, adjust=True, stale=False, spreads_on=True, feasible=True):
+    """G16.3's polish on `polish_setup`'s twin: two rounds of each polished column in plan order, the
+    second the last, which re-sorts each column `POLISH_LAST_STEPS` times on its one set of hidden sums,
+    moving the aims between them: after each re-sort, the column's places, each target's aim and spread
+    factors, and `X`'s `L1` bands as the next re-sort reads them. MUTANTS: each row kept in its `L0` band
+    (G16.3's first frame); the aims never moved; a moved column's bands never read again; no band's spread
+    scaled; the aims never scaled together."""
+    n, columns, state, plan, sums = polish_setup()
+    trail = []
+    turn = 0
+    for rnd in range(2):
+        for name, targets in plan:
+            steps = co.POLISH_LAST_STEPS if rnd == 1 else 1
+            for step in range(steps):
+                moving = adjust and (rnd == 0 or step + 1 < steps)
+                co.polish_column(columns[name], name, targets, sums[turn], state, moving,
+                                 frame_l0=frame_l0, stale=stale, spreads_on=spreads_on, feasible=feasible)
+                trail += [{"column": name, "index": list(columns[name]["index"]),
+                           "aims": [co.b64_hex(t["aim"]) for t in targets],
+                           "scales": [[co.b64_hex(v) for v in t.get("scales", [])] for t in targets],
+                           "x_bands": list(state["bands"][("X", 1)])}]
+            turn += 1
+    return {"rows": n, "trail": trail,
+            "multiset_kept": all(sorted(columns[c]["index"]) == list(range(n)) for c in columns),
+            "b_levels_kept": sum(state["codes"]["B"]) == 24}
+
+
+def case_psd_projection():
+    """G16.3's PSD projection (LANE MPg RULINGS 2 (2)) on three matrices: a 3 x 3 whose correlations no data can
+    hold (0.9, 0.9, -0.9), a 4 x 4 with one refused pair read as 0 and an impossible triple, and the probe's near
+    pair (0.997 beside 0.650 and 0.654), positive definite and so unchanged. Each published value is a binary64
+    number; the projected matrix, the least eigenvalue and the largest change frozen to the bit."""
+    cases = [
+        [["1", "0.9", "0.9"], ["0.9", "1", "-0.9"], ["0.9", "-0.9", "1"]],
+        [["1", "0.95", "0.95", "0"], ["0.95", "1", "0.5", "0.3"], ["0.95", "0.5", "1", "0.2"], ["0", "0.3", "0.2", "1"]],
+        [["1", "0.997", "0.65"], ["0.997", "1", "0.654"], ["0.65", "0.654", "1"]],
+    ]
+    out = []
+    for matrix in cases:
+        held = [[co.b64(F(x)) for x in row] for row in matrix]
+        projected, least, change = co.nearest_correlations(held)
+        out += [{"matrix": [[co.b64_hex(x) for x in row] for row in held],
+                 "projected": [[co.b64_hex(x) for x in row] for row in projected],
+                 "least": co.b64_hex(least), "change": co.b64_hex(change)}]
+    return out
+
+
+def polish_target_inputs():
+    """`case_polish_targets`' five sets: each a list of `(name, own count)`, and the published pairs `{(later, earlier):
+    (printed r, count)}` in the moments' order. The r of 0.9 is printed as rule B prints it at 10,000 or 20,000 rows
+    (ten-thousandths of z: 0.899996296914)."""
+    r9 = 899996296914
+    return {
+        # Codex's first probe: X on the first half, Z on the second, Y throughout; XZ never observed.
+        "halves": ([("X", 10000), ("Y", 20000), ("Z", 10000)], {(1, 0): (r9, 10000), (2, 1): (r9, 10000)}),
+        # Codex's second: three disjoint cohorts of 10,000 rows observe XY, YZ and XZ apart.
+        "cohorts": ([("X", 20000), ("Y", 20000), ("Z", 20000)],
+                    {(1, 0): (r9, 10000), (2, 1): (r9, 10000), (2, 0): (-r9, 10000)}),
+        # One row set whose three correlations no data can hold: projected, each move disclosed.
+        "one_row_set": ([("X", 20000), ("Y", 20000), ("Z", 20000)],
+                        {(1, 0): (r9, 20000), (2, 1): (-r9, 20000), (2, 0): (r9, 20000)}),
+        # One row set, positive definite: every goal its published r.
+        "one_row_set_kept": ([("X", 20000), ("Y", 20000), ("Z", 20000)],
+                             {(1, 0): (997000000000, 20000), (2, 1): (654000000000, 20000), (2, 0): (650000000000, 20000)}),
+        # Thirty numbers, the first one's partners: 29 published r of sizes 0.01 times ceil(k / 2), alternating
+        # in sign, so the 24 largest leave out 1 to 4 and, of the tied 5 and 6, the later one. Every pair
+        # of the others is unpublished, so their one row set holds pairs not published: nothing is projected.
+        "partners": ([(f"N{k:02d}", 20000) for k in range(30)],
+                     {(k, 0): ((-1) ** k * ((k + 1) // 2) * 10000000000, 20000) for k in range(1, 30)}),
+    }
+
+
+def case_polish_targets():
+    """G16.3's correlation goals (lane MPg's repair 2, Codex's item 2, LANE MPg RULINGS 9 (2)) and a number's
+    partners (the verify's item 2): for each set of `polish_target_inputs`, the goals (hex, None where no goal),
+    the disclosed moves and, for `partners`, the chosen partners of the first number. The old projection
+    zero-filled an unobserved pair and moved Codex's two probes' targets (0.9 to about 0.729; to about 0.5)."""
+    out = {}
+    for label, (columns, pairs) in polish_target_inputs().items():
+        size = len(columns)
+        own = [n for _name, n in columns]
+        values = [[F(1) if a == b else None for b in range(size)] for a in range(size)]
+        counts = [[0] * size for _ in range(size)]
+        for (a, b), (printed, n) in pairs.items():
+            values[a][b] = values[b][a] = co.b64(F(printed, 10 ** 12))
+            counts[a][b] = counts[b][a] = n
+        goals, moves = co.target_correlations(own, values, counts)
+        entry = {"goals": [[None if g is None else co.b64_hex(g) for g in row] for row in goals],
+                 "moves": [[b, a, co.b64_hex(p), co.b64_hex(g)] for b, a, p, g in moves]}
+        if label == "partners":
+            entry["chosen"] = co.chosen_partners(values[0], 0, goals[0])
+        out[label] = entry
+    return out
+
+
+def implied_nofit_inputs(half):
+    """`case_implied_nofit`'s inputs at `half` rows a cell: the table, each row's cell, the parent's ranks (None in
+    cell 0, which holds no parent reading; 0 to half - 1 in cell 1) and each row's hidden sum from SplitMix64 words."""
+    n = 2 * half
+    words = splitmix64(0x4E0F, 3 * n)
+    sums = [sum((w >> shift) & 0xFFFF for w in words[3 * r:3 * r + 3] for shift in (0, 16, 32, 48)) for r in range(n)]
+    return [[0, half], [half, 0]], [0] * half + [1] * half, [None] * half + list(range(half)), sums
+
+
+def case_implied_nofit(half=20):
+    """G16.2 step 2 where no published cell holds a reading of every used parent (lane MPg's repair 2, Codex's
+    item 4): the family table ((0, half), (half, 0)), the parent's band scores (None, 0), the child's (None, 0),
+    one ranged parent. Cell 0 holds the child's readings but no parent reading, cell 1 the parent's readings
+    and no child score, so the slope fits nothing: no coefficient, sigma 1, cell means (0, None), and every
+    row's latent order is `sigma z + mu_c`. At 20 rows a cell the forty values are frozen; at 10,000 (the
+    floor's 20,000 rows) their count, the first four and the sha256 of their hex list, comma-joined."""
+    table, cells, ranks, sums = implied_nofit_inputs(half)
+    slope = co.implied_slope(table, [2], [[None, F(0)]], [0], [None, F(0)])
+    z = [F(s - 393210, 65536) for s in sums]
+    latent = co.implied_latent(cells, slope, [(ranks, half)], z)
+    hexes = [co.b64_hex(x) for x in latent]
+    out = {"half": half, "used": list(slope[0]), "beta": [co.b64_hex(b) for b in slope[1]],
+           "sigma": co.b64_hex(slope[2]), "means": [None if m is None else co.b64_hex(m) for m in slope[3]]}
+    if half <= 20:
+        out["latent"] = hexes
+    else:
+        out["count"] = len(hexes)
+        out["head"] = hexes[:4]
+        out["sha256"] = hashlib.sha256(",".join(hexes).encode("ascii")).hexdigest()
     return out
 
 
@@ -542,9 +868,20 @@ def search_lads():
     return lads, len(rows)
 
 
-def case_search():
+def case_te_raise():
+    """`w_te` at the oracle's default (contract 4.6b.14, amended 2026-11-02: nought): a time-and-event
+    pair named to the setting raises its family by `w_te * n`, nothing at the default. The search with
+    the pair named stands beside it, the same chain as without it (the keyed draw reads the setting's name, so
+    both settings are named alike)."""
     lads, n = search_lads()
-    setting = co.Setting("trial", TEST_KEY)
+    setting = co.Setting("trial", TEST_KEY, te_pairs=[("A", "B")])
+    return {"raise": _fraction_text(co.raise_of(setting, n, "B", ["A"])), "chain": case_search(setting)["chain"]}
+
+
+def case_search(setting=None):
+    lads, n = search_lads()
+    if setting is None:
+        setting = co.Setting("trial", TEST_KEY)
     chain, steps = co.search(setting, lads, n)
     out_steps = []
     for step in steps:
@@ -1165,6 +1502,15 @@ def chain_cases():
     return {
         "stated_exponential": case_stated_exponential(),
         "ladder_merge": case_ladder_merge(),
+        "one_band": case_one_band(),
+        "one_band_mutant_before_the_rule": case_one_band(mutant=True),
+        "one_band_beside_blanks": case_one_band("one_band_beside_blanks"),
+        "one_band_at_the_exact_rung": case_one_band("one_band_at_the_exact_rung"),
+        "one_band_median_named_by_a_lower_rung": case_one_band("one_band_median_named_by_a_lower_rung"),
+        "one_band_no_cut": case_one_band("one_band_no_cut"),
+        "one_band_no_cut_beside_blanks": case_one_band("one_band_no_cut_beside_blanks"),
+        "one_band_shapes": one_band_shapes(),
+        "te_raise": case_te_raise(),
         "temporal_ladder": case_temporal_ladder(),
         "temporal_ladder_mutant_number_cuts": case_temporal_ladder(role_as_number=True),
         "floor36": case_floor36(),
@@ -1178,6 +1524,18 @@ def chain_cases():
         "walk40": case_walk40(),
         "walk40_mutant_row_order": case_walk40(sort_by_row=True),
         "walk40_mutant_spread_after": case_walk40(spread_after=True),
+        "walk40_implied": case_walk40_implied(),
+        "walk40_implied_mutant_hidden_score_only": case_walk40_implied(implied=False),
+        "polish": case_polish(),
+        "polish_mutant_l0_frame": case_polish(frame_l0=True),
+        "polish_mutant_aims_fixed": case_polish(adjust=False),
+        "polish_mutant_stale_bands": case_polish(stale=True),
+        "polish_mutant_no_spreads": case_polish(spreads_on=False),
+        "polish_mutant_aims_apart": case_polish(feasible=False),
+        "psd_projection": case_psd_projection(),
+        "polish_targets": case_polish_targets(),
+        "implied_nofit": case_implied_nofit(),
+        "implied_nofit_floor": case_implied_nofit(10000),
         "empty_and_absent": case_empty_and_absent(),
         "label_child": case_label_child(),
         "rule_word": case_rule_word(),

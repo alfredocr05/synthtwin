@@ -480,8 +480,8 @@ def ladder_of(name, role, cells, rungs=None, levels=None, floor=DEFAULT_FLOOR, p
     elif label_role:
         l1, l2 = _label_levels(l0, levels)
     else:
-        l1 = _number_level(l0, starting, NUMBER_L1)
-        l2 = _number_level(l0, starting, NUMBER_L2)
+        l1 = _number_level(l0, starting, _named_edges(NUMBER_L1, rungs, edges))
+        l2 = _one_band(l0, totals, l1, _number_level(l0, starting, _named_edges(NUMBER_L2, rungs, edges)))
     return Ladder(name, role, l0, totals, l1, l2, row_l0, taken_in, ordered, position)
 
 
@@ -515,6 +515,45 @@ def _number_level(l0, starting, keys):
     if current:
         out += [current]
     return out
+
+
+def _named_edges(keys, rungs, edges):
+    """A level's rungs named as `L0`'s edges name them.
+
+    Where several rungs hold one value the edge names the one of lowest
+    percent (contract 4.6b.2), so `p75` beside an equal `p60` cuts at the
+    edge `p60`: the cut is the value's, whichever rung names it.
+    """
+    named = {value: key for key, value in edges}
+    out = []
+    for key in keys:
+        value = rungs.get(key)
+        if value is not None and value in named:
+            out += [named[value]]
+    return out
+
+
+def _one_band(l0, totals, l1, l2):
+    """RULE ONE_BAND (contract 4.6b.2, amended 2026-11-01): `L2` of a number, date or clock column.
+
+    Where `p50` leaves a single value band, `L2` reads the lowest `L1` cut
+    with rows on both sides: `L1`'s first value band holding a row against
+    all the later ones. Spread bands stay their own. Otherwise `L2` is as
+    `_number_level` reads it.
+    """
+    def is_value_band(band):
+        return any(isinstance(s, tuple) for s in l0[band[0]]) or any(
+            any(isinstance(s, tuple) for s in l0[i]) for i in band
+        )
+
+    if len([b for b in l2 if is_value_band(b)]) != 1:
+        return l2
+    filled = [b for b in l1 if is_value_band(b) and sum(totals[i] for i in b) > 0]
+    if len(filled) < 2:
+        return l2
+    low = [i for b in l1 if is_value_band(b) and b[0] <= filled[0][0] for i in b]
+    high = [i for b in l1 if is_value_band(b) and b[0] > filled[0][0] for i in b]
+    return [b for b in l2 if not is_value_band(b)] + [low, high]
 
 
 def _label_levels(l0, levels):
@@ -979,7 +1018,7 @@ class Setting:
     """
 
     def __init__(self, name, key, floor=DEFAULT_FLOOR, k_max=K_MAX, tau=F(2), w_rule=F(1, 20),
-                 w_te=F(1), w_seed=F(1, 20), rule_pairs=(), te_pairs=(), seeds=(), own_groups=(), we=None):
+                 w_te=F(0), w_seed=F(1, 20), rule_pairs=(), te_pairs=(), seeds=(), own_groups=(), we=None):
         self.name = name
         self.key = key
         self.floor = floor
@@ -1244,8 +1283,817 @@ def family_target(fam, sizes, cell_of, child_totals, members_test=False, moved=N
     return table
 
 
+# --- G16.2 step 2's IMPLIED SLOPE (lane MPg, plan P4-D456), in emulated binary64 ---
+
+
+def b64_sqrt(a):
+    """The correctly rounded binary64 square root of a binary64 value at least nought, as a fraction.
+
+    No square root of a binary64 value lies exactly half way between two
+    binary64 values, so rounding to the nearest needs no tie rule: `m` is
+    the floor of the root scaled into `[2 ** 52, 2 ** 53)`, and the root
+    rounds up exactly where `4 y > (2 m + 1) ** 2`, `y` the scaled square.
+    """
+    x = F(a)
+    if x < 0:
+        raise ValueError("no root of a negative number")
+    if x == 0:
+        return F(0)
+    e = (x.numerator.bit_length() - x.denominator.bit_length()) // 2 - 53
+    while True:
+        y = x / (F(4) ** e)
+        m = _isqrt_floor(y)
+        if m >= _TWO53:
+            e += 1
+            continue
+        if m < _TWO52:
+            e -= 1
+            continue
+        break
+    if 4 * y > (2 * m + 1) * (2 * m + 1):
+        m += 1
+    return b64(F(m) * (F(2) ** e))
+
+
+def frexp(a):
+    """`math.frexp` of a binary64 value above nought: `(m, e)`, `a = m 2 ** e`, `1/2 <= m < 1`, exact."""
+    x = F(a)
+    e = x.numerator.bit_length() - x.denominator.bit_length()
+    while x / (F(2) ** e) >= 1:
+        e += 1
+    while x / (F(2) ** e) < F(1, 2):
+        e -= 1
+    return x / (F(2) ** e), e
+
+
+_LN2_TEXT = "0.6931471805599453"
+_ROOT_HALF_TEXT = "0.7071067811865476"
+_ODD = [b64(F(1, 2 * k + 1)) for k in range(13)]
+_CENTRE_TOP = ["-39.69683028665376", "220.9460984245205", "-275.9285104469687",
+               "138.3577518672690", "-30.66479806614716", "2.506628277459239"]
+_CENTRE_BOTTOM = ["-54.47609879822406", "161.5858368580409", "-155.6989798598866",
+                  "66.80131188771972", "-13.28068155288572"]
+_TAIL_TOP = ["-0.007784894002430293", "-0.3223964580411365", "-2.400758277161838",
+             "-2.549732539343734", "4.374664141464968", "2.938163982698783"]
+_TAIL_BOTTOM = ["0.007784695709041462", "0.3224671290700398", "2.445134137142996", "3.754408661907416"]
+_TAIL_EDGE_TEXT = "0.02425"
+_RIDGE_TEXT = "1e-9"
+_LEAST_SPREAD_TEXT = "0.1"
+
+
+def natural_log(x):
+    """`ln x` as G16.2 step 2 writes it: `frexp`, the mantissa into `[sqrt(1/2), sqrt(2))`, then
+    `2 y (1 + y**2/3 + ... + y**24/25) + e ln 2`, `y = (m - 1) / (m + 1)`, by Horner's rule from the
+    last term, each binary64 operation emulated."""
+    if not F(x) > 0:
+        raise ValueError("a logarithm of a number above nought")
+    m, e = frexp(x)
+    if m < b64(F(_ROOT_HALF_TEXT)):
+        m = b64_mul(m, 2)
+        e -= 1
+    y = b64_div(b64_sub(m, 1), b64_add(m, 1))
+    square = b64_mul(y, y)
+    total = _ODD[12]
+    for k in range(11, -1, -1):
+        total = b64_add(b64_mul(total, square), _ODD[k])
+    return b64_add(b64_mul(b64_mul(2, y), total), b64_mul(e, b64(F(_LN2_TEXT))))
+
+
+def normal_score(p):
+    """Acklam's normal quantile as G16.2 step 2 writes it, each binary64 operation emulated."""
+    p = F(p)
+    if not 0 < p < 1:
+        raise ValueError("a share strictly between nought and one")
+    edge = b64(F(_TAIL_EDGE_TEXT))
+    upper_edge = b64_sub(1, edge)
+    if p < edge or p > upper_edge:
+        tail = p if p < edge else b64_sub(1, p)
+        q = b64_sqrt(b64_mul(-2, natural_log(tail)))
+        top = b64(F(_TAIL_TOP[0]))
+        for k in range(1, 6):
+            top = b64_add(b64_mul(top, q), b64(F(_TAIL_TOP[k])))
+        bottom = b64(F(_TAIL_BOTTOM[0]))
+        for k in range(1, 4):
+            bottom = b64_add(b64_mul(bottom, q), b64(F(_TAIL_BOTTOM[k])))
+        bottom = b64_add(b64_mul(bottom, q), 1)
+        value = b64_div(top, bottom)
+        return value if p < edge else -value
+    q = b64_sub(p, F(1, 2))
+    r = b64_mul(q, q)
+    top = b64(F(_CENTRE_TOP[0]))
+    for k in range(1, 6):
+        top = b64_add(b64_mul(top, r), b64(F(_CENTRE_TOP[k])))
+    bottom = b64(F(_CENTRE_BOTTOM[0]))
+    for k in range(1, 5):
+        bottom = b64_add(b64_mul(bottom, r), b64(F(_CENTRE_BOTTOM[k])))
+    bottom = b64_add(b64_mul(bottom, r), 1)
+    return b64_div(b64_mul(top, q), bottom)
+
+
+def band_scores(totals, valued):
+    """Each band's normal score at one level: `normal_score((2 C_b + t_b) / (2 n))` over the value
+    bands holding a row; None for a spread band or one holding none."""
+    count = sum(t for t, v in zip(totals, valued) if v and t > 0)
+    out = []
+    below = 0
+    for t, v in zip(totals, valued):
+        if not v or t <= 0 or count <= 0:
+            out += [None]
+            continue
+        out += [normal_score(b64(F(2 * below + t, 2 * count)))]
+        below += t
+    return out
+
+
+def lad_scores(lad, level):
+    """A ladder's band scores at `level`, from its published `L0` totals."""
+    bands = lad.bands(level)
+    totals = [sum(lad.totals[i] for i in members) for members in bands]
+    valued = [any(isinstance(s, tuple) for i in members for s in lad.l0[i]) for members in bands]
+    return band_scores(totals, valued)
+
+
+def lad_ranged(lad):
+    """Whether a ladder holds a value range."""
+    return any(isinstance(s, tuple) and s[0] == "range" for band in lad.l0 for s in band)
+
+
+def implied_slope(table, sizes, parent_scores, used, child_scores):
+    """G16.2 step 2's implied slope from the published table and band scores alone, every binary64
+    operation emulated in the order the page writes: `(used, beta, sigma, means)`."""
+    means = []
+    weights, xs, ys = [], [], []
+    for cell, row in enumerate(table):
+        parts = [0] * len(sizes)
+        rest = cell
+        for place in range(len(sizes) - 1, -1, -1):
+            parts[place] = rest % sizes[place]
+            rest //= sizes[place]
+        weight = 0
+        total = F(0)
+        for band, count in enumerate(row):
+            score = child_scores[band] if band < len(child_scores) else None
+            if count and score is not None:
+                weight += count
+                total = b64_add(total, b64_mul(count, score))
+        if not weight:
+            means += [None]
+            continue
+        mean = b64_div(total, weight)
+        means += [mean]
+        x = [parent_scores[j][parts[j]] for j in used]
+        if any(v is None for v in x):
+            continue
+        weights += [weight]
+        xs += [x]
+        ys += [mean]
+    width = len(used)
+    if not width or not weights:
+        return list(used), [], F(1), means
+    summed = sum(weights)
+    centre = [F(0)] * width
+    centre_y = F(0)
+    for at in range(len(weights)):
+        for a in range(width):
+            centre[a] = b64_add(centre[a], b64_mul(weights[at], xs[at][a]))
+        centre_y = b64_add(centre_y, b64_mul(weights[at], ys[at]))
+    centre = [b64_div(c, summed) for c in centre]
+    centre_y = b64_div(centre_y, summed)
+    ridge = b64(F(_RIDGE_TEXT))
+    matrix = [[ridge if a == c else F(0) for c in range(width)] + [F(0)] for a in range(width)]
+    for at in range(len(weights)):
+        dy = b64_sub(ys[at], centre_y)
+        for a in range(width):
+            da = b64_sub(xs[at][a], centre[a])
+            for c in range(width):
+                term = b64_div(b64_mul(b64_mul(weights[at], da), b64_sub(xs[at][c], centre[c])), summed)
+                matrix[a][c] = b64_add(matrix[a][c], term)
+            term = b64_div(b64_mul(b64_mul(weights[at], da), dy), summed)
+            matrix[a][width] = b64_add(matrix[a][width], term)
+    moment = [matrix[a][width] for a in range(width)]
+    for a in range(width):
+        pivot = matrix[a][a]
+        for c in range(a, width + 1):
+            matrix[a][c] = b64_div(matrix[a][c], pivot)
+        for other in range(width):
+            if other == a:
+                continue
+            factor = matrix[other][a]
+            for c in range(a, width + 1):
+                matrix[other][c] = b64_sub(matrix[other][c], b64_mul(factor, matrix[a][c]))
+    beta = [matrix[a][width] for a in range(width)]
+    explained = F(0)
+    for a in range(width):
+        explained = b64_add(explained, b64_mul(beta[a], moment[a]))
+    left = b64_sub(1, explained)
+    sigma = b64_sqrt(left if left > 0 else F(0))
+    least = b64(F(_LEAST_SPREAD_TEXT))
+    return list(used), beta, (sigma if sigma > least else least), means
+
+
+def implied_latent(cell_of, slope, ranks, z):
+    """The rows' latent orders under an implied slope: `(sum_j beta_j (s_j - m_j) + sigma z) + mu_c`,
+    `s_j` the normal score of the row's rank `(2 rank + 1) / (2 K)`, every operation emulated. Only the FITTED
+    coefficients are read (lane MPg's repair 2, Codex's item 4): where no published cell holds a reading of
+    every used parent, the slope has none and the latent order is `sigma z + mu_c`, as the product's."""
+    _used, beta, sigma, means = slope
+    n = len(cell_of)
+    latent = [F(0)] * n
+    for j in range(len(beta)):
+        rank, readings = ranks[j]
+        scores = [None] * n
+        sums, many = {}, {}
+        for r in range(n):
+            if rank[r] is None:
+                continue
+            score = normal_score(b64(F(2 * rank[r] + 1, 2 * readings)))
+            scores[r] = score
+            c = cell_of[r]
+            sums[c] = b64_add(sums.get(c, F(0)), score)
+            many[c] = many.get(c, 0) + 1
+        mean = {c: b64_div(sums[c], many[c]) for c in sums}
+        for r in range(n):
+            if scores[r] is not None:
+                latent[r] = b64_add(latent[r], b64_mul(beta[j], b64_sub(scores[r], mean[cell_of[r]])))
+    for r in range(n):
+        c = cell_of[r]
+        centre = means[c] if c < len(means) else None
+        value = b64_add(latent[r], b64_mul(sigma, z[r]))
+        latent[r] = b64_add(value, centre if centre is not None else F(0))
+    return latent
+
+
+# --- G16.3's POLISH onto rule B's moments (lane MPg, plan P4-D456), in emulated binary64 ---
+
+POLISH_SAMPLE = 2048
+_POLISH_RIDGE_TEXT = "1e-3"
+_POLISH_LEAST_NOISE_TEXT = "1e-4"
+_POLISH_STEP_TEXT = "1.0"
+_POLISH_AIM_MOST_TEXT = "0.999"
+POLISH_RANK_STEPS = 65536
+POLISH_SPREAD_LEAST = F(1, 4)
+POLISH_SPREAD_MOST = F(4)
+POLISH_PAIR_SPREAD_LEAST = F(1, 64)
+POLISH_LAST_STEPS = 4
+
+
+def spread_positions(rows, taken):
+    """G16.2's spread positions: the `q`-th of `taken` at `floor((2 q + 1) rows / (2 taken))`."""
+    return [((2 * q + 1) * rows) // (2 * taken) for q in range(taken)] if taken > 0 else []
+
+
+def code_spread(codes, has):
+    """A column's codes' mean and standard deviation over its rows holding one: exact sums, divided once."""
+    count = total = squares = 0
+    for code, held in zip(codes, has):
+        if held:
+            count += 1
+            total += code
+            squares += code * code
+    if count < 2:
+        return F(0), F(0)
+    spread = b64(F(count * squares - total * total, count * (count - 1)))
+    return b64(F(total, count)), (b64_sqrt(spread) if spread > 0 else F(0))
+
+
+def moment_unit(scale, n):
+    """Contract 4.6d.0 (3): a moment's unit at its own count, `scale` and one decimal place finer for
+    each 100-fold, or part of one, that `n` exceeds 20,000."""
+    out, reach = scale, 20000
+    while n > reach:
+        out, reach = out * 10, reach * 100
+    return out
+
+
+POLISH_EIGEN_LEAST_TEXT = "1e-4"
+POLISH_JACOBI_CYCLES = 60
+POLISH_JACOBI_TINY_TEXT = "1e-15"
+
+
+def jacobi(matrix):
+    """Eigenvalues and eigenvectors (columns) of a symmetric matrix by cyclic Jacobi rotations, as G16.3's PSD
+    projection writes them (pairs row by row, a nought element passed over, the classical rotation), each
+    binary64 operation emulated."""
+    size = len(matrix)
+    a = [[F(x) for x in row] for row in matrix]
+    v = [[F(1) if i == j else F(0) for j in range(size)] for i in range(size)]
+    tiny = b64(F(POLISH_JACOBI_TINY_TEXT))
+    for _cycle in range(POLISH_JACOBI_CYCLES):
+        largest = F(0)
+        for i in range(size):
+            largest = max(largest, abs(a[i][i]))
+        off = F(0)
+        for p in range(size):
+            for q in range(p + 1, size):
+                off = max(off, abs(a[p][q]))
+        if off <= b64_mul(tiny, max(largest, F(1))):
+            break
+        for p in range(size):
+            for q in range(p + 1, size):
+                apq = a[p][q]
+                if apq == 0:
+                    continue
+                theta = b64_div(b64_sub(a[q][q], a[p][p]), b64_mul(2, apq))
+                root = b64_sqrt(b64_add(b64_mul(theta, theta), 1))
+                t = b64_div(1, b64_add(theta, root)) if theta >= 0 else b64_div(-1, b64_add(-theta, root))
+                c = b64_div(1, b64_sqrt(b64_add(b64_mul(t, t), 1)))
+                sn = b64_mul(t, c)
+                for k in range(size):
+                    akp, akq = a[k][p], a[k][q]
+                    a[k][p] = b64_sub(b64_mul(c, akp), b64_mul(sn, akq))
+                    a[k][q] = b64_add(b64_mul(sn, akp), b64_mul(c, akq))
+                for k in range(size):
+                    apk, aqk = a[p][k], a[q][k]
+                    a[p][k] = b64_sub(b64_mul(c, apk), b64_mul(sn, aqk))
+                    a[q][k] = b64_add(b64_mul(sn, apk), b64_mul(c, aqk))
+                for k in range(size):
+                    vkp, vkq = v[k][p], v[k][q]
+                    v[k][p] = b64_sub(b64_mul(c, vkp), b64_mul(sn, vkq))
+                    v[k][q] = b64_add(b64_mul(sn, vkp), b64_mul(c, vkq))
+    return [a[i][i] for i in range(size)], v
+
+
+def nearest_correlations(matrix):
+    """G16.3's PSD projection: unchanged where every eigenvalue is at least 1e-4; else `V max(L, 1e-4) V^T`, each
+    element summed in index order, divided by the root of its two diagonal elements. Returns (matrix, least
+    eigenvalue, largest change)."""
+    size = len(matrix)
+    if size < 2:
+        return [[F(x) for x in row] for row in matrix], F(1), F(0)
+    values, vectors = jacobi(matrix)
+    least = min(values)
+    floor = b64(F(POLISH_EIGEN_LEAST_TEXT))
+    if least >= floor:
+        return [[F(x) for x in row] for row in matrix], least, F(0)
+    floored = [value if value >= floor else floor for value in values]
+    built = [[F(0)] * size for _ in range(size)]
+    for i in range(size):
+        for j in range(size):
+            total = F(0)
+            for k in range(size):
+                total = b64_add(total, b64_mul(b64_mul(vectors[i][k], floored[k]), vectors[j][k]))
+            built[i][j] = total
+    out = [[b64_div(built[i][j], b64_sqrt(b64_mul(built[i][i], built[j][j]))) for j in range(size)] for i in range(size)]
+    change = F(0)
+    for i in range(size):
+        for j in range(size):
+            change = max(change, abs(b64_sub(out[i][j], F(matrix[i][j]))))
+    return out, least, change
+
+
+# Contract 4.6d.0 (3): a correlation is rounded on Fisher's z in ten-thousandths at the floor (LANE MPp RULINGS 7).
+FISHER_Z_SCALE = 10000
+PARTNERS = 24
+
+
+def positive_definite(matrix):
+    """Whether a symmetric matrix is positive definite: its Cholesky factor, each sum in index order, every
+    operation emulated, every pivot over 0 (lane MPg's repair 2)."""
+    size = len(matrix)
+    low = [[F(0)] * size for _ in range(size)]
+    for i in range(size):
+        for j in range(i + 1):
+            total = F(matrix[i][j])
+            for k in range(j):
+                total = b64_sub(total, b64_mul(low[i][k], low[j][k]))
+            if i == j:
+                if not total > 0:
+                    return False
+                low[i][i] = b64_sqrt(total)
+            else:
+                low[i][j] = b64_div(total, low[j][j])
+    return True
+
+
+def row_sets(own, values, counts):
+    """The common row sets: columns joined where a published pair's count equals both columns' own counts,
+    each class in rising order of its first member, its members rising (lane MPg's repair 2)."""
+    size = len(own)
+    root = list(range(size))
+
+    def top(a):
+        while root[a] != a:
+            a = root[a]
+        return a
+
+    for a in range(size):
+        for b in range(a):
+            if values[a][b] is not None and counts[a][b] == own[a] == own[b]:
+                ra, rb = top(a), top(b)
+                if ra != rb:
+                    root[max(ra, rb)] = min(ra, rb)
+    classes = {}
+    for a in range(size):
+        classes.setdefault(top(a), []).append(a)
+    return [classes[k] for k in sorted(classes)]
+
+
+def target_correlations(own, values, counts):
+    """G16.3's correlation goals (lane MPg's repair 2, Codex's item 2): the projection acts only inside a common
+    row set whose published matrix is not positive definite (no pair of it unpublished); every other published
+    r is its own goal and an unpublished pair is no goal. Returns the goals and the moves past half a step of
+    the pair's grid of z read on r, each `(earlier column, later column, published, goal)`."""
+    size = len(own)
+    goals = [[values[a][b] for b in range(size)] for a in range(size)]
+    moves = []
+    for members in row_sets(own, values, counts):
+        if len(members) < 2:
+            continue
+        known = [[values[a][b] for b in members] for a in members]
+        if any(v is None for row in known for v in row):
+            continue
+        if positive_definite(known):
+            continue
+        projected, _least, _change = nearest_correlations(known)
+        for x in range(len(members)):
+            for y in range(x):
+                a, b = members[x], members[y]
+                goals[a][b] = goals[b][a] = projected[x][y]
+                published = known[x][y]
+                step = b64_div(F(1, 2), moment_unit(FISHER_Z_SCALE, counts[a][b]))
+                if abs(b64_sub(projected[x][y], published)) > b64_mul(step, b64_sub(1, b64_mul(published, published))):
+                    moves += [(b, a, published, projected[x][y])]
+    return goals, moves
+
+
+def chosen_partners(values_row, mine, goals_row):
+    """A number's partners (lane MPg's repair 2): the `PARTNERS` published correlations largest in size, ties in
+    the moments' order, each with a goal; returned in the moments' order."""
+    ranked = sorted((-abs(v), at) for at, v in enumerate(values_row)
+                    if at != mine and v is not None and goals_row[at] is not None)
+    chosen = {at for _size, at in ranked[:PARTNERS]}
+    return [at for at in range(len(values_row)) if at in chosen]
+
+
+def within_target(groups, mean_units, sd_units, n):
+    """A `within` entry's encoding, band spreads and goal as G16.3 writes them: each published figure
+    divided once by the unit its own count sets (a mean in tenths, a column's spread in thousandths, a
+    band's spread in tenths, finer above 20,000 rows), `e_g = (m_g - mu) / sd`, the goal `sum n e**2 / N
+    - (sum n e / N)**2`, every operation emulated in order. Returns (encoding, band spreads, goal)."""
+    centre = b64_div(mean_units, moment_unit(10, n))
+    spread = b64_div(sd_units, moment_unit(1000, n))
+    encoding = []
+    sds = []
+    count = 0
+    first = F(0)
+    second = F(0)
+    for group in groups:
+        if len(group) < 3 or group[0] <= 0:
+            encoding += [F(0)]
+            sds += [F(0)]
+            continue
+        value = b64_div(b64_sub(b64_div(group[1], moment_unit(10, group[0])), centre), spread)
+        encoding += [value]
+        sds += [b64_div(group[2], moment_unit(10, group[0]))]
+        count += group[0]
+        first = b64_add(first, b64_mul(group[0], value))
+        second = b64_add(second, b64_mul(b64_mul(group[0], value), value))
+    if count <= 0:
+        return encoding, sds, None
+    mean = b64_div(first, count)
+    return encoding, sds, b64_sub(b64_div(second, count), b64_mul(mean, mean))
+
+
+def share_target(groups, share_units, n):
+    """A binary's `within` entry (its shares in a grouping's bands) as G16.3 writes it: each share divided
+    once by its unit (ten-thousandths, finer above 20,000 rows), `e_g = (s_g - p) / sqrt(p (1 - p))`, the
+    goal as `within_target`'s. Returns (encoding, goal)."""
+    share = b64_div(share_units, moment_unit(10000, n))
+    spread = b64_sqrt(b64_mul(share, b64_sub(1, share)))
+    encoding = []
+    count = 0
+    first = F(0)
+    second = F(0)
+    for group in groups:
+        if len(group) < 2 or group[0] <= 0:
+            encoding += [F(0)]
+            continue
+        value = b64_div(b64_sub(b64_div(group[1], moment_unit(10000, group[0])), share), spread)
+        encoding += [value]
+        count += group[0]
+        first = b64_add(first, b64_mul(group[0], value))
+        second = b64_add(second, b64_mul(b64_mul(group[0], value), value))
+    if count <= 0:
+        return encoding, None
+    mean = b64_div(first, count)
+    return encoding, b64_sub(b64_div(second, count), b64_mul(mean, mean))
+
+
+def normal_density(share):
+    """The normal density at the quantile of `share` as G16.3 reads it: one millionth either side, the
+    width over the difference of `normal_score`, each operation emulated."""
+    step = b64(F("1e-6"))
+    low = b64_sub(share, step) if b64_sub(share, step) > 0 else b64_div(share, 2)
+    high = b64_add(share, step) if b64_add(share, step) < 1 else b64_div(b64_add(share, 1), 2)
+    return b64_div(b64_sub(high, low), b64_sub(normal_score(high), normal_score(low)))
+
+
+def rank_codes(values):
+    """Each place's RANK CODE among the readings (None holds none): a run of equal readings at sorted
+    positions `k` to `j` of `n` takes `floor(65536 (k + j + 1) / (2 n))`; a place without one, 0."""
+    places = sorted((v, p) for p, v in enumerate(values) if v is not None)
+    n = len(places)
+    out = [0] * len(values)
+    k = 0
+    while k < n:
+        j = k
+        while j + 1 < n and places[j + 1][0] == places[k][0]:
+            j += 1
+        for t in range(k, j + 1):
+            out[places[t][1]] = (POLISH_RANK_STEPS * (k + j + 1)) // (2 * n)
+        k = j + 1
+    return out
+
+
+_NORMAL_OF_RANK = {}
+
+
+def rank_normal(code):
+    """The normal score of rank code `code`: `normal_score((2 code + 1) / (2 * 65536))`."""
+    if code not in _NORMAL_OF_RANK:
+        _NORMAL_OF_RANK[code] = normal_score(b64(F(2 * code + 1, 2 * POLISH_RANK_STEPS)))
+    return _NORMAL_OF_RANK[code]
+
+
+def polish_feature(target, held, state):
+    """A target's feature on the rows `held`: a partner number's rank score (nought where it holds
+    none) for `pair` and `by`, or the band encoding (nought past its bands) of the grouping column's band
+    at the target's level for `within` and `share`."""
+    if target["kind"] in ("pair", "by"):
+        ranks = state["ranks"][target["name"]]
+        present = state["has"][target["name"]]
+        return [rank_normal(ranks[r]) if present[r] else F(0) for r in held]
+    encoding = target["encoding"]
+    of_row = state["bands"][(target["name"], target.get("level", 1))]
+    return [encoding[of_row[r]] if of_row[r] < len(encoding) else F(0) for r in held]
+
+
+def solved(matrix, goals):
+    """`A^-1 b` by Gauss-Jordan elimination in order without exchanges; a nought pivot's row is passed over."""
+    width = len(goals)
+    work = [list(matrix[a]) + [goals[a]] for a in range(width)]
+    for a in range(width):
+        pivot = work[a][a]
+        if pivot == 0:
+            continue
+        for c in range(a, width + 1):
+            work[a][c] = b64_div(work[a][c], pivot)
+        for other in range(width):
+            if other == a:
+                continue
+            factor = work[other][a]
+            for c in range(a, width + 1):
+                work[other][c] = b64_sub(work[other][c], b64_mul(factor, work[a][c]))
+    return [work[a][width] for a in range(width)]
+
+
+def fsum(values):
+    """`math.fsum`: the exact sum of binary64 values, rounded once."""
+    total = F(0)
+    for value in values:
+        total += F(value)
+    return b64(total)
+
+
+def frame_groups(column, name, state, frame_l0):
+    """Each row's FRAME group: a number's band at its chain level (`frame_l0`: its `L0` band); a binary's
+    joint band over `state["keys"][name]`, numbered by first meeting after each key column."""
+    n = state["rows"]
+    if name not in state["keys"]:
+        return [column["slot_l0"][column["index"][r]] if frame_l0 else column["frame"][r] for r in range(n)]
+    found = [0] * n
+    for key_name, level in state["keys"][name]:
+        other = state["columns"][key_name]
+        count = len(set(other["maps"][level]))
+        bands = [other["maps"][level][other["slot_l0"][other["index"][r]]] for r in range(n)]
+        found = [found[r] * count + bands[r] for r in range(n)]
+        seen = {}
+        for r in range(n):
+            if found[r] not in seen:
+                seen[found[r]] = len(seen)
+            found[r] = seen[found[r]]
+    return found
+
+
+def polish_column(column, name, targets, sums, state, adjust, frame_l0=False, stale=False, spreads_on=True, feasible=True):
+    """One round of G16.3 on one column, as the page writes it, every binary64 operation emulated.
+
+    `column` holds `index` (each row's cell-list place), `frame` (each row's band of the column at its
+    chain level), `slot_l0` (each place's `L0` band), `maps` (each level's band of each `L0` band),
+    `slot_codes` and, for a number, `slot_rank`; `targets` are dicts with `kind` (`pair`, `within`,
+    `by`, `share`), `name`, `goal`, `aim`, `slope`, `encoding`, `level`, `most` (the aim's bound, 0.999
+    unless given; a pair's is the larger of 0.999 and half way from its goal to 1, repair 2) and, for
+    `within`, `sds` and `scales`; a `pair` may hold one of each, its column's published spread over the
+    rows whose partner holds a reading and its factor (repair 2, an incomplete pair's own spread); each
+    `aim` and scale moved in place where `adjust`. `state` holds the rows, each column's
+    row `codes`, `has` and `ranks`, the `bands` a target reads (`bands[(c, l)]`, read again from the
+    column's places right after its re-assignment), the `spreads` (code mean and spread), `keys` (a
+    binary's frame columns and levels) and `columns`. `sums` are the rows' hidden sums. Where the moved
+    aims ask for more than the score's whole spread (`a . (C + ridge I)^-1 a` past `1 - 1e-4`), every aim
+    is scaled by one factor to that edge. MUTANTS: `frame_l0`, each row kept in its `L0` band; `stale`,
+    a moved column's bands never read again; `spreads_on` False, no band's spread scaled; `feasible`
+    False, the aims never scaled together.
+    """
+    own = state["codes"][name]
+    present = state["has"][name]
+    n = state["rows"]
+    held = [r for r in range(n) if present[r]]
+    count = len(held)
+    if count < 2:
+        return
+    width = len(targets)
+    taken = min(count, POLISH_SAMPLE)
+    sampled = [held[p] for p in spread_positions(count, taken)]
+    centred = []
+    unit = [F(1)] * width
+    for j, target in enumerate(targets):
+        values = polish_feature(target, sampled, state)
+        centre = b64_div(fsum(values), taken)
+        shifted = [b64_sub(v, centre) for v in values]
+        if target["kind"] in ("pair", "by"):
+            spread_j = b64_sqrt(b64_div(fsum([b64_mul(v, v) for v in shifted]), taken))
+            if spread_j > 0:
+                unit[j] = b64_div(1, spread_j)
+                shifted = [b64_mul(v, unit[j]) for v in shifted]
+        centred += [shifted]
+    matrix = [[F(0)] * width for _ in range(width)]
+    for a in range(width):
+        for c in range(a, width):
+            matrix[a][c] = b64_div(fsum([b64_mul(x, y) for x, y in zip(centred[a], centred[c])]), taken)
+            matrix[c][a] = matrix[a][c]
+        matrix[a][a] = b64_add(matrix[a][a], b64(F(_POLISH_RIDGE_TEXT)))
+    aims = [target["aim"] for target in targets]
+    beta = solved(matrix, aims)
+    explained = F(0)
+    for j in range(width):
+        explained = b64_add(explained, b64_mul(beta[j], aims[j]))
+    rest = b64_sub(1, explained)
+    least = b64(F(_POLISH_LEAST_NOISE_TEXT))
+    noise = b64_sqrt(rest if rest > least else least)
+    score = [F(0)] * n
+    part = [F(0)] * count
+    for j in range(width):
+        values = polish_feature(targets[j], held, state)
+        weight = b64_mul(beta[j], unit[j])
+        part = [b64_add(t, b64_mul(weight, v)) for t, v in zip(part, values)]
+    for at, r in enumerate(held):
+        score[r] = b64_add(part[at], b64_mul(noise, F(sums[r] - 393210, 65536)))
+    if spreads_on:
+        for target in targets:
+            if target["kind"] == "pair" and target.get("scales"):
+                # A pair's own spread of the column (repair 2): the rows whose partner holds a reading, one band.
+                both = state["has"][target["name"]]
+                rows_p = [r for r in range(n) if present[r] and both[r]]
+                if rows_p:
+                    total = F(0)
+                    for r in rows_p:
+                        total = b64_add(total, score[r])
+                    middle = b64_div(total, len(rows_p))
+                    for r in rows_p:
+                        score[r] = b64_add(middle, b64_mul(target["scales"][0], b64_sub(score[r], middle)))
+                continue
+            if target["kind"] != "within" or not target.get("scales"):
+                continue
+            of_row = state["bands"][(target["name"], target.get("level", 1))]
+            bands = len(target["scales"])
+            totals = [F(0)] * bands
+            counts = [0] * bands
+            for r in range(n):
+                if present[r] and of_row[r] < bands:
+                    totals[of_row[r]] = b64_add(totals[of_row[r]], score[r])
+                    counts[of_row[r]] += 1
+            means = [b64_div(totals[b], counts[b]) if counts[b] else F(0) for b in range(bands)]
+            for r in range(n):
+                if present[r] and of_row[r] < bands:
+                    b = of_row[r]
+                    score[r] = b64_add(means[b], b64_mul(target["scales"][b], b64_sub(score[r], means[b])))
+    index = column["index"]
+    groups = frame_groups(column, name, state, frame_l0)
+    binary = name in state["keys"]
+    by_group = {}
+    for r in held:
+        by_group.setdefault(groups[r], []).append(r)
+    for group in sorted(by_group):
+        members = by_group[group]
+        if binary:
+            places = [p for _c, p in sorted((column["slot_codes"][index[r]], index[r]) for r in members)]
+        else:
+            places = sorted(index[r] for r in members)
+        ranked = sorted(members, key=lambda r: (score[r], r))
+        for k, r in enumerate(ranked):
+            index[r] = places[k]
+            own[r] = column["slot_codes"][places[k]]
+            if name in state["ranks"]:
+                state["ranks"][name][r] = column["slot_rank"][places[k]]
+    if not stale:
+        for key in [key for key in state["bands"] if key[0] == name]:
+            state["bands"][key] = [column["maps"][key[1]][column["slot_l0"][index[r]]] for r in range(n)]
+    if not adjust:
+        return
+    centre, spread = state["spreads"][name]
+    if spread <= 0:
+        return
+    table = [b64_div(b64_sub(code, centre), spread) for code in range(256)]
+    whole_x = fsum([table[own[r]] for r in held])
+    step = b64(F(_POLISH_STEP_TEXT))
+    most = b64(F(_POLISH_AIM_MOST_TEXT))
+    for target in targets:
+        if target["kind"] == "pair":
+            other_centre, other_spread = state["spreads"][target["name"]]
+            other = [b64_div(b64_sub(code, other_centre), other_spread) if other_spread > 0 else F(0) for code in range(256)]
+            partner = state["codes"][target["name"]]
+            both = state["has"][target["name"]]
+            rows_both = [r for r in held if both[r]]
+            m = len(rows_both)
+            if m < 2:
+                continue
+            sx = fsum([table[own[r]] for r in rows_both])
+            sxx = fsum([b64_mul(table[own[r]], table[own[r]]) for r in rows_both])
+            sy = fsum([other[partner[r]] for r in rows_both])
+            syy = fsum([b64_mul(other[partner[r]], other[partner[r]]) for r in rows_both])
+            sxy = fsum([b64_mul(table[own[r]], other[partner[r]]) for r in rows_both])
+            vx = b64_sub(sxx, b64_div(b64_mul(sx, sx), m))
+            vy = b64_sub(syy, b64_div(b64_mul(sy, sy), m))
+            if vx <= 0 or vy <= 0:
+                continue
+            got = b64_div(b64_sub(sxy, b64_div(b64_mul(sx, sy), m)), b64_sqrt(b64_mul(vx, vy)))
+        elif target["kind"] == "by":
+            number_centre, number_spread = state["spreads"][target["name"]]
+            if number_spread <= 0:
+                continue
+            number = [b64_div(b64_sub(code, number_centre), number_spread) for code in range(256)]
+            values = state["codes"][target["name"]]
+            holding = [r for r in range(n) if state["has"][target["name"]][r]]
+            m = len(holding)
+            if m < 2:
+                continue
+            encoding = target["encoding"]
+            of_row = state["bands"][(name, target.get("level", 1))]
+            inside = [r for r in holding if of_row[r] < len(encoding)]
+            sx = fsum([number[values[r]] for r in holding])
+            sy = fsum([encoding[of_row[r]] for r in inside])
+            sxy = fsum([b64_mul(number[values[r]], encoding[of_row[r]]) for r in inside])
+            got = b64_sub(b64_div(sxy, m), b64_mul(b64_div(sx, m), b64_div(sy, m)))
+        else:
+            encoding = target["encoding"]
+            of_row = state["bands"][(target["name"], target.get("level", 1))]
+            inside = [r for r in held if of_row[r] < len(encoding)]
+            sy = fsum([encoding[of_row[r]] for r in inside])
+            sxy = fsum([b64_mul(table[own[r]], encoding[of_row[r]]) for r in inside])
+            got = b64_sub(b64_div(sxy, count), b64_mul(b64_div(whole_x, count), b64_div(sy, count)))
+        target["aim"] = b64_add(target["aim"], b64_div(b64_mul(step, b64_sub(target["goal"], got)), target.get("slope", F(1))))
+        if target["kind"] != "within":
+            bound = target.get("most", most)
+            target["aim"] = min(bound, max(-bound, target["aim"]))
+        if spreads_on and target["kind"] == "pair" and target.get("scales"):
+            both = state["has"][target["name"]]
+            rows_p = [r for r in held if both[r]]
+            k = len(rows_p)
+            t = sum(own[r] for r in rows_p)
+            s = sum(own[r] * own[r] for r in rows_p)
+            wanted = target["sds"][0]
+            if k >= 2 and wanted > 0:
+                spread_now = b64(F(k * s - t * t, k * (k - 1)))
+                if spread_now > 0:
+                    factor = b64_div(b64_mul(target["scales"][0], wanted), b64_sqrt(spread_now))
+                    target["scales"][0] = min(POLISH_SPREAD_MOST, max(POLISH_PAIR_SPREAD_LEAST, factor))
+        if spreads_on and target["kind"] == "within" and target.get("scales"):
+            of_row = state["bands"][(target["name"], target.get("level", 1))]
+            bands = len(target["scales"])
+            held_b = [0] * bands
+            totals = [0] * bands
+            squares = [0] * bands
+            for r in held:
+                if of_row[r] < bands:
+                    b = of_row[r]
+                    held_b[b] += 1
+                    totals[b] += own[r]
+                    squares[b] += own[r] * own[r]
+            for b in range(bands):
+                wanted = target["sds"][b]
+                if held_b[b] < 2 or wanted <= 0:
+                    continue
+                spread_now = b64(F(held_b[b] * squares[b] - totals[b] * totals[b], held_b[b] * (held_b[b] - 1)))
+                if spread_now <= 0:
+                    continue
+                factor = b64_div(b64_mul(target["scales"][b], wanted), b64_sqrt(spread_now))
+                target["scales"][b] = min(POLISH_SPREAD_MOST, max(POLISH_SPREAD_LEAST, factor))
+    if feasible:
+        moved = [target["aim"] for target in targets]
+        asked = solved(matrix, moved)
+        whole = F(0)
+        for j in range(width):
+            whole = b64_add(whole, b64_mul(asked[j], moved[j]))
+        edge = b64_sub(1, least)
+        if whole > edge:
+            factor = b64_sqrt(b64_div(edge, whole))
+            for target in targets:
+                target["aim"] = b64_mul(target["aim"], factor)
+
+
 def walk_rows(chain, lads, cells, words, slopes=None, codes=None, targets=None,
-              sort_by_row=False, spread_after=False, trace=None, moved=None, members_test=False):
+              sort_by_row=False, spread_after=False, trace=None, moved=None, members_test=False,
+              implied=False):
     """Method G16.2 on given words: each arranged row's cell of each eligible column.
 
     `lads` maps each column to its PUBLISHED ladder (band structure and totals);
@@ -1267,6 +2115,11 @@ def walk_rows(chain, lads, cells, words, slopes=None, codes=None, targets=None,
     `trace`, where a dict, receives for each family index its rows'
     latent orders `L` and each slope parent's cell means (exact
     binary64 values as fractions).
+    `implied` (lane MPg, plan P4-D456) orders a family publishing no
+    slope, whose child's ladder holds a value range and which has a
+    parent, by G16.2 step 2's IMPLIED SLOPE (`implied_slope`,
+    `implied_latent`), each ranged parent read through its rows' ranks
+    among its readings; False keeps `L = z`, the walk before it.
     Returns `{column: [cell index of each row]}`, the cell lists, and each
     family's table as dealt.
     """
@@ -1279,6 +2132,7 @@ def walk_rows(chain, lads, cells, words, slopes=None, codes=None, targets=None,
     index = {}
     cell_list = {}
     dealt = []
+    ranks = {}
     for fi, fam in enumerate(chain):
         child = fam.child
         lad = lads[child]
@@ -1330,8 +2184,14 @@ def walk_rows(chain, lads, cells, words, slopes=None, codes=None, targets=None,
                         term = b64_mul(beta, b64_sub(code, means[p][cell_of[r]]))
                     acc = term if acc is None else b64_add(acc, term)
                 latent[r] = b64_add(acc, b64_mul(sigma, z[r]))
+        elif implied and fam.parents and lad_ranged(lad):
+            used = [j for j, (p, lv) in enumerate(fam.parents) if lad_ranged(lads[p]) and p in ranks]
+            slope = implied_slope(fam.table, sizes, [lad_scores(lads[p], lv) for p, lv in fam.parents],
+                                  used, lad_scores(lad, level))
+            latent = implied_latent(cell_of, slope, [ranks[fam.parents[j][0]] for j in used], z)
+            means = {"slope": slope}
         if trace is not None:
-            trace[fi] = {"latent": latent, "means": means}
+            trace[fi] = {"latent": latent, "means": means, "cells": list(cell_of)}
         sort_key = (lambda r: r) if sort_by_row else (lambda r: (latent[r], r))
         band_of = [None] * n
         ordered_band = [any(isinstance(s, tuple) for b in members for s in lad.l0[b]) for members in bands]
@@ -1375,6 +2235,8 @@ def walk_rows(chain, lads, cells, words, slopes=None, codes=None, targets=None,
         listing = []
         idx = [None] * n
         read = [None] * n
+        rank = [None] * n
+        before = 0
         for b, members in enumerate(bands):
             rows = sorted([r for r in range(n) if band_of[r] == b], key=sort_key)
             with_reading = []
@@ -1399,9 +2261,12 @@ def walk_rows(chain, lads, cells, words, slopes=None, codes=None, targets=None,
                     k_without += 1
                 else:
                     idx[r] = start + k_read
+                    rank[r] = before + k_read
                     k_read += 1
                 read[r] = listing[idx[r]][1]
+            before += len(with_reading)
         band_code[child] = band_of
+        ranks[child] = (rank, before)
         reading[child] = read
         index[child] = idx
         cell_list[child] = listing

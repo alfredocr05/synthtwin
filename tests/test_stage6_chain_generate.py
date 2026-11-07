@@ -160,7 +160,9 @@ def _switched(folder: pathlib.Path, name: str, text: str) -> _Switched:
     settings = taxonomy.Settings(small_cell_floor=FLOOR)
     table = reading.read_table(str(path), small_cell_floor=FLOOR)
     document = profile.build_document(table, settings, [], [], [])
-    chained = chain.describe(table, document, settings, chain.ChainSwitch(name, TEST_KEY))
+    # THE GRAIN STATED (lane GRa, plan P4-D449): `K-S6-03`'s driver and this file
+    # measure the WALK, beside a repeating column too; no question is put here.
+    chained = chain.describe(table, document, settings, chain.ChainSwitch(name, TEST_KEY, rows_per_person=chain.ROWS_UNASKED))
     assert chained.statistical is not None, chained.notes
     written = dict(document)
     relationships = dict(written["relationships"])  # type: ignore[call-overload]
@@ -532,6 +534,9 @@ def test_the_twin_is_the_oracle_s_arrangement_cell_for_cell(assoc: _Switched, mo
 
     monkeypatch.setattr(generation, "cells_by_band", cells)
     monkeypatch.setattr(chain_walk, "hidden_sums", sums)
+    # The walk alone: G16.3's polish, which moves cells after it, is held
+    # against its own oracle in tests/test_moment_polish.py (lane MPg).
+    monkeypatch.setattr(generation, "_POLISH_ROUNDS", 0)
     twin = generation.generate_held(assoc.loaded, 2)
     monkeypatch.undo()
     roles = {column.name: column.role for column in assoc.loaded.columns}
@@ -557,7 +562,7 @@ def test_the_twin_is_the_oracle_s_arrangement_cell_for_cell(assoc: _Switched, mo
     flat = [word for block in words for word in block]
     assert len(flat) == 3 * n * len(families)
     by_family = [[tuple(flat[3 * (f * n + r):3 * (f * n + r) + 3]) for r in range(n)] for f in range(len(families))]
-    index, lists, dealt = co.walk_rows(families, lads, interface, by_family)
+    index, lists, dealt = co.walk_rows(families, lads, interface, by_family, implied=True)
     assert dealt == [family.table for family in families]
     names = [column.name for column in assoc.loaded.columns]
     for name in lads:
@@ -866,8 +871,8 @@ def test_the_records_holding_nothing_stay_reserved(ward: _Switched, monkeypatch:
     assert _holding_nothing(ward, ward.twin(0)) == expected
     real = generation._walk_plan
 
-    def everywhere(profile_, reservation):  # type: ignore[no-untyped-def]
-        found = real(profile_, reservation)
+    def everywhere(profile_, reservation, layout=None):  # type: ignore[no-untyped-def]
+        found = real(profile_, reservation, layout)
         if found is None or reservation is None:
             return found
         found.arranged = list(range(profile_.n_rows))
@@ -906,7 +911,8 @@ def test_the_switch_at_its_default_moves_no_byte(assoc: _Switched, monkeypatch: 
 
 
 def test_the_word_count_is_its_formula(assoc: _Switched, ward: _Switched) -> None:
-    """G16.8: the walk draws `3 e n'` words, `e` the families and `n'` the arranged rows, a
+    """G16.8: the walk draws `3 e n'` words, `e` the families and `n'` the arranged rows, and
+    G16.3's polish `3 n' P e'`, `P` its rounds and `e'` the polished columns (lane MPg), each a
     function of published facts, so the plan states every word the twin draws."""
     for switched in (assoc, ward):
         twin = switched.twin(0)
@@ -915,7 +921,8 @@ def test_the_word_count_is_its_formula(assoc: _Switched, ward: _Switched) -> Non
         plain = switched.layered()
         families = len(switched.statistical["chain"])  # type: ignore[arg-type]
         arranged = switched.loaded.n_rows - chain_rules.records_holding_nothing(switched.document)
-        assert twin.words_drawn - plain.words_drawn == 3 * families * arranged
+        polished = len(generation._polish_plan(switched.loaded))
+        assert twin.words_drawn - plain.words_drawn == 3 * arranged * (families + generation._POLISH_ROUNDS * polished)
 
 
 # -- one reading of a decimal rung; the row hash and the sample key (lane CHb's oracle cases) --
@@ -1075,30 +1082,26 @@ def test_a_column_made_without_its_band_totals_meets_g16_6_of_its_own_totals(b3:
     M20), which missed its own target by 258 rows on the claims and 4 to 12 on the encounters; and
     the moved notes dropped (M14)."""
     found = {kind: _against_g16_6(b3[kind], b3[kind].twin(0)) for kind in ("claims", "encounters")}
-    # A STAMP WRITTEN INSIDE ITS GRAIN (batch 4m's merge of this lane beside
-    # lane PS2's date floor, plan P4-D433, merged in batch 4l): at 20,000
-    # rows the encounters' `discharge_ts` is published at the month, its
-    # twin's cells drawn at the month's start, where the walk reads and
-    # deals them, and spelled inside the month only as they leave (method
-    # G7.13), so read back the family's table is off G16.6's by the cells a
-    # spelling moves across an `L0` edge (measured at the merge: 931 and
-    # 1,073 read back where G16.6 asks 811 and 1,193 in its first parent
-    # cell), the family still named. A MEASURED LIMIT of the merge, owner
-    # lane BT2 (the reader's survey: a date's reading before its spelling
-    # step, lane BT's stated limit (7)); every family whose child carries
-    # no grain is met as before.
-    grained = {
-        kind: {column.name for column in b3[kind].loaded.columns if column.time_grain is not None}
-        for kind in found
-    }
+    # A STAMP WRITTEN INSIDE ITS GRAIN (lane BT2, plan P4-D448, closing the
+    # seam batch 4m's merge named beside lane PS2's date floor): at 20,000
+    # rows the encounters' `discharge_ts` is published at the month and its
+    # twin's cells stand at the month's start until they leave (method
+    # G7.13). The walk reads each at its bucket's middle and the draw stays
+    # in that band, so the family meets G16.6 (931 and 1,073 read back at
+    # a5702b71 where G16.6 asks 811 and 1,193 in its first parent cell).
     for kind, (off, moved, named) in found.items():
         without = {note.column for note in b3[kind].twin(0).deviations if note.fact == "band totals"}
         assert without, kind + ": the shape makes a column without its band totals"
-        assert set(off) <= grained[kind], kind
         assert named == moved, kind
-    assert found["claims"][0] == [] and found["encounters"][0] == ["discharge_ts"]
+    assert found["claims"][0] == [] and found["encounters"][0] == []
+    assert any(column.time_grain is not None for column in b3["encounters"].loaded.columns)
     assert "adjustment" in {note.column for note in b3["claims"].twin(0).deviations if note.fact == "band totals"}
-    assert found["claims"][1] == []
+    # RULE ONE_BAND (lane CHa2, plan P4-D451, 2026-11-02): `adjustment`'s
+    # median is its lowest value, so its coarsest level now cuts at the
+    # lowest finer cut with rows on both sides; made without its band
+    # totals, its family takes G16.6's moved table (plan P4-D435's limit
+    # (1), owner lane BT2), met exactly (`off` above) and named.
+    assert found["claims"][1] == ["adjustment"]
     assert found["encounters"][1] != []
 
 
@@ -1148,6 +1151,11 @@ def test_the_reader_s_bands_of_such_a_column_are_the_oracle_s(b3: "dict[str, _Sw
                 rungs = {key: co.F(value) for key, value in rungs.items() if value is not None}
             content, product, present = seen[name]
             cells = [_own_reading(role, content[place]) if place < present else ("missing",) for place in range(len(content))]
+            # A pooled stamp stands at its bucket's start until it leaves
+            # (method G7.13) and is read inside its bucket: a day past the
+            # start, on this shape's month, in the bucket's band.
+            if block.get("time_grain") is not None:
+                cells = [(kind[0], kind[1] + 86400) if kind[0] == "value" else kind for kind in cells]  # type: ignore[operator]
             assert co.reader_bands(lad, cells, rungs) == product, name
     assert set(seen) >= {"adjustment", "admit_ts", "discharge_ts"}
     case = FROZEN["reader_bands"]
@@ -1221,7 +1229,7 @@ def test_a_workbook_cell_keeps_its_class_kind_and_date_through_the_walk(tmp_path
     settings = taxonomy.Settings(small_cell_floor=FLOOR)
     table = reading.read_table(str(book), small_cell_floor=FLOOR)
     document = profile.build_document(table, settings, [], [], [])
-    chained = chain.describe(table, document, settings, chain.ChainSwitch("ward-book", TEST_KEY))
+    chained = chain.describe(table, document, settings, chain.ChainSwitch("ward-book", TEST_KEY, rows_per_person=chain.ROWS_UNASKED))
     assert chained.statistical is not None, chained.notes
     written = dict(document)
     relationships = dict(written["relationships"])  # type: ignore[call-overload]
@@ -1267,7 +1275,7 @@ def _comma_table(rows: int) -> str:
     return "\n".join(lines) + "\n"
 
 
-def test_a_decimal_comma_column_made_without_its_band_totals_meets_its_family(tmp_path: pathlib.Path) -> None:
+def test_a_decimal_comma_column_made_without_its_band_totals_meets_its_family(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Codex's item 1 (lane CHb's second repair): `value` declared a measurement written with a
     decimal comma, 2,000 rows, made without its band totals (rule B3), so the walk bands it by the
     reader (G16.0 (h)). Its numbers are still in the described reading (`110.8`) at their placement
@@ -1275,13 +1283,17 @@ def test_a_decimal_comma_column_made_without_its_band_totals_meets_its_family(tm
     holds, read back with the comma as the profile reads the file, IS its published table and no
     `chain` note names it. MUTANT, a source mutant run on the head outside the suite (plan P4-D435's
     second repair round): the held text read with the comma (`1108`), which missed the published
-    table by 2 rows in four cells here and by 46 at 20,000 rows, named moved."""
+    table by 2 rows in four cells here and by 46 at 20,000 rows, named moved. THE BLOCKS (lane
+    CHb's verify 2, item 1; lane BT2, plan P4-D448): the walk reads its cells `_READ_BLOCK` at a
+    time, here 256, so the 2,000 rows cross 8 blocks; MUTANT X1, beside MC1: only the first block
+    spelled with the comma, which missed Codex's family at 20,000 rows by 46, 11 and 5 rows a cell
+    with a false `chain` note, and here is named `chain`."""
     path = tmp_path / "comma.csv"
     path.write_text(_comma_table(2000), encoding="utf-8", newline="\n")
     settings = taxonomy.Settings(small_cell_floor=FLOOR)
     table = reading.read_table(str(path), small_cell_floor=FLOOR)
     document = profile.build_document(table, settings, [], [], forced_measurements=["value"], forced_decimal_commas=["value"])
-    chained = chain.describe(table, document, settings, chain.ChainSwitch("comma", b"01234567890123456789012345678901"),
+    chained = chain.describe(table, document, settings, chain.ChainSwitch("comma", b"01234567890123456789012345678901", rows_per_person=chain.ROWS_UNASKED),
                              forced_measurements=["value"], forced_decimal_commas=["value"])
     assert chained.statistical is not None, chained.notes
     written = dict(document)
@@ -1289,6 +1301,7 @@ def test_a_decimal_comma_column_made_without_its_band_totals_meets_its_family(tm
     relationships["statistical"] = chained.statistical
     written["relationships"] = relationships
     loaded = contract.load_profile(str(fixtures.write_profile(tmp_path, "comma.json", written)), chain=True)
+    monkeypatch.setattr(generation, "_READ_BLOCK", 256)
     twin = generation.generate_held(loaded, 0)
     assert "value" in {note.column for note in twin.deviations if note.fact == "band totals"}
     assert not [note for note in twin.deviations if note.fact == "chain"]
@@ -1438,7 +1451,11 @@ def test_the_cell_list_takes_each_group_once() -> None:
     number of times, so a label column of 4,000 levels of 11 cells (one `L0` band a level) costs
     its cells, not its bands times its groups (the first build made 16,000,000 group-band checks here, 32,016,000 reads counted).
     MUTANT, a source mutant run outside the suite: the first build's scan of every group for
-    every band."""
+    every band. THE TIES (lane CHb's verify 2, item 2; lane BT2, plan P4-D448): the drawn places
+    are renumbered by a shuffled permutation, so a cell's rank differs from its place and the
+    groups interleave, and equal readings must stand in the interface's order (G16.4); MUTANTS X2
+    (the reader-banded cells tied by place) and X3 (the interface's cells tied by place), which
+    moved 5 and 6 of 18 switched twins, are red here."""
     draw = random.Random(20261028)
     for trial in range(40):
         count = draw.randint(1, 6)
@@ -1448,6 +1465,9 @@ def test_the_cell_list_takes_each_group_once() -> None:
             groups += [tuple(range(place, place + size))]
             readings += [tuple(draw.choice([None, 1.0, 2.0, 2.0, 3.5]) for _ in range(size))]
             place += size
+        shuffled = list(range(place))
+        draw.shuffle(shuffled)
+        groups = [tuple(shuffled[cell] for cell in group) for group in groups]
         joined = [draw.randint(-1, count - 1) for _ in groups]
         to_chain = tuple(range(count))
         by_reader = None

@@ -169,6 +169,27 @@ cases; the orchestrator's AT CZ-D'S MERGE), `tests/test_zoo_dates_in_disguise.py
 cases), each timed alone by one `pytest -q` process on the merged tree
 under Python 3.11, on a machine other work was loading.
 
+THREE ROWS ADDED 2026-11-05, at batch 4p's merge of lanes BT2 and CHa2
+(plans P4-D448 and P4-D451): each lane's new file weighed the default.
+`tests/test_stage6_clock_mirror.py`, 64.23 s (lane BT2's clock mirror in
+the quality report, 9 cases), `tests/test_stage6_reader_step.py`, 16.68 s
+(lane BT2's reader step, 16 cases), and `tests/test_chain_table_layer.py`,
+13.5 s (lane CHa2's gate, 37 cases), each timed alone by one `pytest -q`
+process on the merged tree under Python 3.11, on a machine other work was
+loading.
+
+THREE ROWS ADDED 2026-11-06, at batch 4p's merge of lanes GRa and MPg
+(plans P4-D449 and P4-D456): each lane's new file weighed the default.
+`tests/test_stage6_patient_profile.py`, 264.1 s (lane GRa's gate, 83
+cases, and the merge's case of the patient table's pooled top category),
+`tests/test_moment_polish.py`, 254.43 s (lane MPg's gate, 25 cases), and
+`tests/test_moment_polish_sort.py`, 55.07 s (lane MPg's sort, 2 cases),
+each timed alone by one `pytest -q` process on the merged tree under
+Python 3.11, on a machine other work was loading. RE-TIMED at batch 4p's
+fix round: `tests/test_stage6_patient_profile.py`, 354.3 s (its two gate
+cases of Codex's item 1 and of its sibling sweep added), timed the same
+way on the fix round's tree.
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
 an ordinary small file and runs in its shard from the commit that adds
@@ -192,6 +213,7 @@ SECONDS = {
     "tests/test_ap329_reading_rule_from_version_5.py": 3.17,
     "tests/test_carried_numbers.py": 10.07,
     "tests/test_census_reading_handed_over.py": 1.32,
+    "tests/test_chain_table_layer.py": 13.5,
     "tests/test_ci_demo_steps.py": 1.46,
     "tests/test_ci_shards.py": 0.07,
     "tests/test_claim_inventory.py": 21.1,
@@ -249,6 +271,8 @@ SECONDS = {
     "tests/test_merge_close_2026_09_18.py": 8.38,
     "tests/test_method_citations_resolve.py": 0.48,
     "tests/test_mixture_reader_bounds.py": 78.4,
+    "tests/test_moment_polish.py": 254.43,
+    "tests/test_moment_polish_sort.py": 55.07,
     "tests/test_moment_rule_b.py": 60.27,
     "tests/test_moment_window_anchor.py": 11.3,
     "tests/test_no_quadratic_list_growth.py": 2.35,
@@ -477,6 +501,9 @@ SECONDS = {
     "tests/test_stage5_gate.py": 272.08,
     "tests/test_stage6_band_totals.py": 124.34,
     "tests/test_stage6_chain_generate.py": 288.0,
+    "tests/test_stage6_clock_mirror.py": 64.23,
+    "tests/test_stage6_patient_profile.py": 354.3,
+    "tests/test_stage6_reader_step.py": 16.68,
     "tests/test_stage6_validate_chain.py": 77.1,
     "tests/test_summary_and_properties.py": 41.37,
     "tests/test_tail_back_solve_without_recursion.py": 14.72,

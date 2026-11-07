@@ -141,7 +141,7 @@ structure arrives in a later phase (Phase 5).
 import dataclasses
 import math
 import typing
-from synthtwin import calendar_clock, calendar_rules, chain_rules, chain_walk, contract, dialect, errors, parsing, taxonomy, twinstore
+from synthtwin import calendar_clock, calendar_rules, chain_moments, chain_rules, chain_walk, contract, dialect, errors, parsing, taxonomy, twinstore
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
 from synthtwin import date_counts, grains
 
@@ -944,6 +944,10 @@ class GenerationPlan:
 
     columns: "tuple[_ColumnPlan, ...]"
     words_planned: int
+    # G16.3's plan, made once a run (lane MPg's repair 2: it had been made
+    # three times, its projection a Jacobi of the numbers' matrix each
+    # time); None where nothing is polished. Not part of the plan's value.
+    polish: "_PolishLayout | None" = dataclasses.field(default=None, compare=False, repr=False)
 
 
 # -- the one stream (method G3) ---------------------------------------
@@ -9763,7 +9767,7 @@ def _l0_least_move(
     entries = _l0_heaped(today, heaps)
     held = _HeldValues(entries.values, {})
     entries.pieces = _l0_entry_pieces(column, walls, entries.values)
-    entries = _l0_banded(column, facts, walls, entries, held)
+    entries = _l0_banded(column, facts, walls, entries, held, heaps)
     if facts.n_distinct_values >= total:
         held = _HeldValues(
             [entries.values[at] for at in range(entries.ordered) if entries.sizes[at] > 0], held.added
@@ -9772,7 +9776,7 @@ def _l0_least_move(
     _l0_values_kept(facts, walls, entries, held)
     _l0_heap_lost(facts, walls, entries, distinct, heaps)
     _l0_counted(facts, entries, distinct, _l0_heap_gaps(facts, heaps), floor)
-    _l0_mode_kept(facts, entries, today)
+    _l0_mode_kept(facts, walls, entries, today)
     _l0_counts_met(column, walls, entries)
     by_place = [0 for _place in range(count)]
     added: "list[tuple[float, int]]" = []
@@ -9928,6 +9932,7 @@ def _l0_banded(
     walls: "tuple[_Piece, ...]",
     entries: _Entries,
     held: _HeldValues,
+    heaps: "list[tuple[float, int, int]]",
 ) -> _Entries:
     """Step 2 of `_l0_least_move`: every piece holds exactly its cells.
 
@@ -9953,6 +9958,7 @@ def _l0_banded(
         last_of[piece] = at
     new = [0 for _value in entries.values]
     added: "list[tuple[float, int, int]]" = []
+    proof = _l0_edge_proof(facts, walls, entries, heaps)
     for wall_at in range(len(walls)):
         wall = walls[wall_at]
         low = wall.first
@@ -9970,6 +9976,8 @@ def _l0_banded(
             new[at] = new[at] + max(0, min(starts[at] + entries.sizes[at], high) - max(starts[at], low))
         new[first] = new[first] + max(0, min(starts[first], high) - low)
         new[last] = new[last] + max(0, high - max(starts[last] + entries.sizes[last], low))
+        if proof is not None and _l0_is_edge(walls, entries, first):
+            _l0_edge_kept(entries, new, first, last, wall, proof, _l0_piece_below(entries, walls, wall_at, first_of, last_of))
     extra = sorted(added)
     out = _Entries([], [], [], [], [], [])
     taken = 0
@@ -9994,6 +10002,182 @@ def _l0_banded(
         out.today += [entries.today[at]]
     out.ordered = len(out.values)
     return out
+
+
+@dataclasses.dataclass(frozen=True)
+class _EdgeProof:
+    """What the description proves of a column's cumulative counts, for step 2b of `_l0_least_move` (lane BT2, plan P4-D448).
+
+    ``rungs`` holds each published rung as `(floor(h), ceil(h), value)`
+    at `h = (K - 1) q / 100`; ``heaps`` the proven heaps; ``margin`` the
+    largest distance, over the published cuts, between today's count of
+    numbers below a cut and the cut's published rank: today's twin's
+    Kolmogorov-Smirnov distance to the real column is at least that.
+    """
+
+    rungs: "tuple[tuple[int, int, float], ...]"
+    heaps: "tuple[tuple[float, int, int], ...]"
+    margin: int
+    pinned: "frozenset[float]"
+
+
+def _l0_edge_proof(
+    facts: contract.NumericFacts,
+    walls: "tuple[_Piece, ...]",
+    entries: _Entries,
+    heaps: "list[tuple[float, int, int]]",
+) -> "_EdgeProof | None":
+    """The rungs, heaps and margin step 2b reads (`_EdgeProof`), or None where the ladder was not read over every number laid out."""
+    cells = 0
+    for size in entries.today:
+        cells = cells + size
+    if facts.n_left_out_of_statistics or facts.n_used_in_statistics != cells or cells < 2:
+        return None
+    named: "dict[int, float | None]" = {}
+    for place in range(len(contract.LADDER_PERCENTS)):
+        named[contract.LADDER_PERCENTS[place]] = facts.percentiles.rungs[place]
+    for place in range(len(contract.FINER_LADDER_KEYS)):
+        named[int(contract.FINER_LADDER_KEYS[place][1:])] = facts.percentiles_between[place]
+    rungs: "list[tuple[int, int, float]]" = []
+    for percent in range(101):
+        rung = named[percent] if percent in named else None
+        if rung is not None and math.isfinite(rung):
+            rungs += [(((cells - 1) * percent) // 100, -((-(cells - 1) * percent) // 100), rung)]
+    margin = 0
+    for wall in walls:
+        if wall.low is None or not wall.published_low or wall.low_open or wall.zero:
+            continue
+        below = 0
+        for at in range(len(entries.values)):
+            if entries.values[at] < wall.low:
+                below = below + entries.today[at]
+        margin = max(margin, abs(below - wall.first))
+    pinned: "list[float]" = []
+    if facts.tails is not None:
+        for side in (facts.tails.low, facts.tails.high):
+            if side is not None:
+                pinned += list(side.values)
+    return _EdgeProof(tuple(rungs), tuple(heaps), margin, frozenset(pinned))
+
+
+def _l0_piece_below(
+    entries: _Entries,
+    walls: "tuple[_Piece, ...]",
+    wall_at: int,
+    first_of: "list[int]",
+    last_of: "list[int]",
+) -> "tuple[int, int] | None":
+    """The piece below's cells and the different values its strata hold, or None: none below holds a cell, or it is the zero piece."""
+    if wall_at == 0 or first_of[wall_at - 1] < 0 or walls[wall_at - 1].zero or walls[wall_at - 1].cells <= 0:
+        return None
+    held = 0
+    for at in range(first_of[wall_at - 1], last_of[wall_at - 1] + 1):
+        if entries.sizes[at] > 0 and (at == first_of[wall_at - 1] or entries.values[at] != entries.values[at - 1]):
+            held = held + 1
+    return walls[wall_at - 1].cells, held
+
+
+def _l0_edge_kept(
+    entries: _Entries,
+    new: "list[int]",
+    first: int,
+    last: int,
+    wall: _Piece,
+    proof: _EdgeProof,
+    below: "tuple[int, int] | None" = None,
+) -> None:
+    """Step 2b of `_l0_least_move`: the edge value keeps today's cells, where the column's distance allows (method G5.7c; lane BT2, plan P4-D448).
+
+    Step 2 hands the ranks a cut crosses to the piece's lowest stratum,
+    and on a column of whole numbers that is the edge value: it took a
+    band's whole error at one value (K-S6-02 (vii): 551 of 1,724 edge
+    values further from the real count than without L0). This gives them
+    to the next value the piece holds, so the edge value holds today's
+    count, unless that opens the column's distance past what today's
+    twin holds at a published cut (``proof.margin``). The ladder proves
+    two bounds on the real count at the edge, the last rung at or below
+    it and the first above it. The piece's cells over the different
+    values it holds are its SHARE; a share outside the bounds says the
+    piece is not even, so nothing is read from it and step 2's count
+    stands. Otherwise the ESTIMATE is that share and the piece below's
+    read linearly at the edge, inside the bounds. Otherwise today's count is held while it lies
+    within half the margin of the estimate (half: the estimate has an
+    error of its own), and is else moved toward step 2's count until it
+    does. Nothing here reads a real
+    cell. Moves only ``new``, inside the piece: every piece keeps `C_p`.
+    """
+    edge = wall.low
+    if edge is None or entries.values[first] != edge:
+        return
+    low = wall.first
+    high = wall.first + wall.cells
+    end = first
+    today = 0
+    now = 0
+    while end <= last and entries.values[end] == edge:
+        today = today + entries.today[end]
+        now = now + new[end]
+        end = end + 1
+    # A value a published tail lists keeps its count: `validate` reads it.
+    if end > last or edge in proof.pinned or entries.values[end] in proof.pinned:
+        return
+    least = 0
+    for value, _rank_first, rank_last in proof.heaps:
+        if value == edge and rank_last >= low:
+            least = max(least, min(rank_last, high - 1) - low + 1)
+    kept = min(max(today, least), now + new[end] - 1)
+    if kept == now:
+        return
+    lowest = low
+    highest = high
+    above: "float | None" = None
+    for floor_rank, ceiling_rank, value in proof.rungs:
+        if value <= edge:
+            lowest = max(lowest, floor_rank + 1)
+        elif above is None or value == above:
+            above = value
+            highest = min(highest, ceiling_rank)
+    for value, _rank_first, rank_last in proof.heaps:
+        if value == edge:
+            lowest = max(lowest, rank_last + 1)
+    held = 0
+    for at in range(first, last + 1):
+        if entries.sizes[at] + new[at] > 0 and (at == first or entries.values[at] != entries.values[at - 1]):
+            held = held + 1
+    estimate = wall.cells // max(held, 1)
+    if estimate < lowest - low or estimate > highest - low:
+        return
+    # The edge stands where the piece below ends: the two shares read
+    # linearly, each at its piece's middle value, at the edge.
+    if below is not None:
+        share_below = below[0] // max(below[1], 1)
+        estimate = (share_below * (held - 1) + estimate * (below[1] + 1)) // (held + below[1])
+        estimate = min(max(estimate, lowest - low), highest - low)
+    target = kept
+    if abs(kept - estimate) > proof.margin // 2:
+        target = estimate - proof.margin // 2 if kept < estimate else estimate + proof.margin // 2
+    target = min(max(target, min(now, kept)), max(now, kept))
+    # THE NEXT VALUE'S HEAP KEEPS ITS RANKS (Codex's review of lane BT2,
+    # item 1): the edge grows into the next value's ranks, so it stops
+    # at the first rank a heap of the next value holds; step 2's count
+    # stands where it already reaches past it.
+    if target > now:
+        for value, rank_first, _rank_last in proof.heaps:
+            if value == entries.values[end] and rank_first >= low:
+                target = min(target, max(now, rank_first - low))
+    delta = now - target
+    if delta > 0:
+        give = delta
+        at = first
+        while give > 0 and at < end:
+            part = min(give, new[at])
+            new[at] = new[at] - part
+            give = give - part
+            at = at + 1
+        new[end] = new[end] + delta
+    elif delta < 0:
+        new[end] = new[end] + delta
+        new[first] = new[first] - delta
 
 
 def _l0_spread(
@@ -10205,21 +10389,17 @@ def _l0_donor(
     first: int,
     last: int,
     lost: int,
-    unproven: bool = False,
 ) -> int:
     """The entry of a lost stratum's own piece that gives it a cell back, or -1.
 
     The nearest in value order holding two cells or more, the lower on a
-    tie, and the published mode's only where no other can give; where
-    ``unproven``, never one a proven heap holds (`_l0_heap_lost`).
+    tie, and the published mode's only where no other can give.
     """
     mode = facts.mode
     held_mode = -1
     for reach in range(1, last - first + 1):
         for at in (lost - reach, lost + reach):
             if at < first or at > last or entries.sizes[at] < 2:
-                continue
-            if unproven and entries.proven[at]:
                 continue
             if mode is not None and entries.values[at] == mode:
                 if held_mode < 0:
@@ -10645,7 +10825,7 @@ def _l0_held_count(entries: _Entries) -> int:
     return found
 
 
-def _l0_mode_kept(facts: contract.NumericFacts, entries: _Entries, today: _Entries) -> None:
+def _l0_mode_kept(facts: contract.NumericFacts, walls: "tuple[_Piece, ...]", entries: _Entries, today: _Entries) -> None:
     """Step 4 of `_l0_least_move`: the published mode at its published count, where today's twin held it so.
 
     Where today's twin's first stratum on the mode held exactly
@@ -10690,6 +10870,8 @@ def _l0_mode_kept(facts: contract.NumericFacts, entries: _Entries, today: _Entri
         return
     if len(sides) == 2 and entries.values[sides[1]] - mode < mode - entries.values[sides[0]]:
         sides = [sides[1], sides[0]]
+    if len(sides) == 2 and _l0_is_edge(walls, entries, sides[0]) and not _l0_is_edge(walls, entries, sides[1]):
+        sides = [sides[1], sides[0]]
     over = entries.sizes[own] - wanted
     if over > 0:
         entries.sizes[sides[0]] = entries.sizes[sides[0]] + over
@@ -10704,6 +10886,12 @@ def _l0_mode_kept(facts: contract.NumericFacts, entries: _Entries, today: _Entri
         over = over + given
         if over >= 0:
             return
+
+
+def _l0_is_edge(walls: "tuple[_Piece, ...]", entries: _Entries, at: int) -> bool:
+    """Whether entry ``at`` holds its piece's EDGE VALUE: the published lower cut a piece starts at (G5.7c step 2b)."""
+    wall = walls[entries.pieces[at]]
+    return wall.low is not None and wall.published_low and not wall.low_open and not wall.zero and entries.values[at] == wall.low
 
 
 def _l0_fallback(
@@ -69861,9 +70049,14 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
             dialect.arranging(profile.source.dialect, profile.n_rows, len(plans)),
         )
         if reserving is not None:
-            words = words + 3 * len(profile.relationships.chain) * _walk_rows(
-                profile, len(reserving[0])
-            )
+            arranged = _walk_rows(profile, len(reserving[0]))
+            words = words + 3 * len(profile.relationships.chain) * arranged
+            # ...and G16.3's polish (lane MPg, plan P4-D456): three words an
+            # arranged row for each round of each polished column.
+            if arranged and _POLISH_ROUNDS > 0:
+                layout = _polish_layout(profile)
+                words = words + 3 * arranged * _POLISH_ROUNDS * len(layout.plan)
+                return GenerationPlan(columns=tuple(plans), words_planned=words, polish=layout)
     return GenerationPlan(columns=tuple(plans), words_planned=words)
 
 
@@ -71094,7 +71287,8 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
     # same switch: where the chain places a family with a parent, each
     # eligible column is held in its cell list order, and after the last
     # column's last word the walk puts each cell in its row.
-    walk = _walk_plan(profile, reservation)
+    polish_layout = plan.polish
+    walk = _walk_plan(profile, reservation, polish_layout)
     # EACH COLUMN'S PLAN LET GO ONCE ITS COLUMN IS DONE (plan P4-D415, lane
     # SG). Every plan is made before the first column, and a plan holds
     # what its column's values are drawn from -- a column of numbers its
@@ -71341,7 +71535,7 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
                 )
             ]
         drawn = drawn + len(inside)
-        left, unwritten = _inside_the_grain(column, spelled, inside)
+        left, unwritten = _inside_the_grain(column, spelled, inside, _grain_band_edges(profile, column))
         # The grain's words are spent: none is held into the next column
         # (batch 4i, Codex's review of batch 4h: one integer a row).
         inside = []
@@ -71619,6 +71813,44 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
                 walk, family, sums, finished, arranging, sheet_dealt
             )
             sums = chain_walk.packed(0, chain_walk.SUM_WIDTH)
+        # G16.3: THE POLISH onto rule B's published moments (lane MPg, plan
+        # P4-D456), its words drawn after the walk's, where any is published:
+        # for each round, for each polished column in schema order, G16.8's
+        # draw again, three words a row, one call a block of 65,536 rows.
+        polishing = _polish_state(walk, profile, polish_layout)
+        if polish_layout is not None:
+            # THE PROJECTION DISCLOSED (repair 2, Codex's item 2): each
+            # published correlation the projection moved past its rounding,
+            # its published r beside the goal the polish aims at.
+            deviations += [_projection_deviation(move) for move in polish_layout.moves]
+        if polishing is not None:
+            for turn in range(_POLISH_ROUNDS):
+                for at in range(len(polishing.plan)):
+                    sums = chain_walk.packed(arranged_rows, chain_walk.SUM_WIDTH)
+                    for start in range(0, arranged_rows, chain_walk.BLOCK_ROWS):
+                        size = min(chain_walk.BLOCK_ROWS, arranged_rows - start)
+                        block = generator.integers(
+                            0,
+                            _WORD_CEILING,
+                            size=int(3 * size),
+                            dtype="uint64",
+                            endpoint=True,
+                        )
+                        for first in range(0, size, _SUMMED_ROWS):
+                            last = min(size, first + _SUMMED_ROWS)
+                            summed = chain_walk.hidden_sums([int(word) for word in block[3 * first:3 * last]])
+                            for place in range(len(summed)):
+                                chain_walk.put(sums, start + first + place, summed[place])
+                            summed = []
+                        del block
+                    drawn = drawn + 3 * arranged_rows
+                    _polish_round(polishing, walk, at, sums, turn)
+                    sums = chain_walk.packed(0, chain_walk.SUM_WIDTH)
+            polishing = None
+        # Every column the polish may move was dealt and left in its cell
+        # list; each is placed now, once, by the index its last round left
+        # (the walk's own where it was not moved).
+        _polish_placed(walk, finished, arranging, sheet_dealt)
     # WHERE THE ROWS STAND (plan P4-D86): the order the real table was
     # sorted in, its all-empty records in their places, the row sequence
     # in place. Whole rows move for the sort and cells move only within
@@ -71849,13 +72081,90 @@ def _reservation_shortfall(
     ]
 
 
+def _grain_middle(column: contract.ColumnBlock, cell: str, holes: "frozenset[str]") -> str:
+    """A pooled date's cell written at its bucket's middle: the text G16 reads it by, before the row's word is drawn (method G4.2b).
+
+    ``holes`` is the column's published absent spellings
+    (`_hole_spellings`), made a set once a column by the caller (Codex's
+    review of lane BT2, item 7: built again for each cell, it cost rows
+    times spellings).
+    """
+    grain = column.time_grain
+    if grain is None or grain.rung == grains.HELD or not parsing.folded(cell) or cell in holes:
+        return cell
+    return grains.drawn_inside(cell, grain.reading, grain.rung, _WORD_CEILING // 2)
+
+
+def _grain_joint(column: contract.ColumnBlock) -> str:
+    """The one mark a pooled stamp leaves wearing between its date and its time (G7.9), or "" where the census names none or several."""
+    if not isinstance(column.facts, contract.DatetimeFacts):
+        return ""
+    named = [name for name in sorted(column.facts.datetime_separators) if name != contract.WITHHELD]
+    if len(named) == 1 and len(column.facts.datetime_separators) == 1:
+        return _commonest_mark(column.facts)
+    return ""
+
+
+def _grain_written(
+    column: contract.ColumnBlock,
+    cell: str,
+    word: int,
+    edges: "tuple[object, ...] | None",
+    joint: str,
+) -> str:
+    """One present pooled cell as it leaves (method G7.13): drawn inside its bucket at its own precision with the row's word (`grains.drawn_inside`).
+
+    Where ``edges`` is given (`_grain_band_edges`), a draw the profile's
+    reader would read in another band than the bucket's middle -- a
+    bucket an `L0` cut crosses -- is written at the middle, the band G16
+    dealt it to (method G4.2b's reading of a grained date; lane BT2, plan
+    P4-D448). Then a stamp wearing another joint than the column's one
+    mark (``joint``, `_grain_joint`) leaves wearing that mark, the middle
+    too (G7.9; Codex's review of lane BT2, item 2: the middle, chosen
+    after the mark was set, wore the internal `T` again).
+    """
+    grain = column.time_grain
+    if grain is None:
+        return cell
+    drawn = grains.drawn_inside(cell, grain.reading, grain.rung, word)
+    if edges is not None:
+        middle = grains.drawn_inside(cell, grain.reading, grain.rung, _WORD_CEILING // 2)
+        if _grain_band(column, drawn, edges) != _grain_band(column, middle, edges):
+            drawn = middle
+    if joint and len(drawn) > 10 and drawn[10:11] in ("T", "t", " ") and drawn[10:11] != joint:
+        rejoined = drawn[0:10] + joint + drawn[11:]
+        if parsing.parse_datetime(rejoined, grain.reading.member) is not None:
+            drawn = rejoined
+    return drawn
+
+
+def _grain_band(column: contract.ColumnBlock, cell: str, edges: "tuple[object, ...]") -> int:
+    """The value band the profile's reader reads a pooled date's cell in, or -1 where it holds no value."""
+    kind, value = _reader_reading(column.facts, cell, False)
+    return chain_rules.band_of_value(edges, value) if kind == "value" else -1
+
+
+def _grain_band_edges(profile: contract.Profile, column: contract.ColumnBlock) -> "tuple[object, ...] | None":
+    """The published edges a pooled date's cells stay inside as they leave, or None: no chain names the column, or it is no pooled date."""
+    grain = column.time_grain
+    if grain is None or grain.rung == grains.HELD or not isinstance(column.facts, contract.DatetimeFacts):
+        return None
+    for entry in profile.relationships.ladder:
+        if entry.column == column.name:
+            return _reader_edges(column, entry)
+    return None
+
+
 def _grain_words(column: contract.ColumnBlock, rows: int) -> int:
     """How many words a column's grain draws (method G7.13): one a row where it names one, else none."""
     return rows if column.time_grain is not None else 0
 
 
 def _inside_the_grain(
-    column: contract.ColumnBlock, cells: "list[str]", words: "list[int]"
+    column: contract.ColumnBlock,
+    cells: "list[str]",
+    words: "list[int]",
+    edges: "tuple[object, ...] | None" = None,
 ) -> "tuple[list[str], int]":
     """A column's cells as they leave, inside its published grain (method G7.13, plan P4-D417).
 
@@ -71872,11 +72181,19 @@ def _inside_the_grain(
     was written. Returns the cells and how many made-up values the record
     could not write as a valid value (the generator names them; none on
     any member this module writes).
+
+    ``edges``, given only on a run whose description carries a chain and
+    whose ladder names the column (`_grain_band_edges`), holds each cell
+    in the band G16 dealt it to: a draw that would read in another band
+    than the bucket's middle, a bucket a cut crosses, is written at the
+    middle (method G4.2b's reading of a grained date; lane BT2, plan
+    P4-D448). None changes no byte.
     """
     grain = column.time_grain
     if grain is None or len(words) != len(cells):
         return cells, 0
     holes = _hole_spellings(column)
+    absent = frozenset(holes)
     found: "list[str]" = []
     if grain.rung != grains.HELD:
         cells = _filled_to_the_count(column, cells, holes)
@@ -71884,27 +72201,14 @@ def _inside_the_grain(
         # block's census names a single mark, a built cell that took
         # another to reach the column's count of different values (G7.9)
         # is drawn inside its bucket, so it needs none, and leaves wearing
-        # that mark.
-        joint = ""
-        if isinstance(column.facts, contract.DatetimeFacts):
-            named = [
-                name
-                for name in sorted(column.facts.datetime_separators)
-                if name != contract.WITHHELD
-            ]
-            if len(named) == 1 and len(column.facts.datetime_separators) == 1:
-                joint = _commonest_mark(column.facts)
+        # that mark (`_grain_written`).
+        joint = _grain_joint(column)
         for place in range(len(cells)):
             cell = cells[place]
-            if cell in holes or not parsing.folded(cell):
+            if cell in absent or not parsing.folded(cell):
                 found += [cell]
                 continue
-            drawn = grains.drawn_inside(cell, grain.reading, grain.rung, words[place])
-            if joint and len(drawn) > 10 and drawn[10:11] in ("T", "t", " ") and drawn[10:11] != joint:
-                rejoined = drawn[0:10] + joint + drawn[11:]
-                if parsing.parse_datetime(rejoined, grain.reading.member) is not None:
-                    drawn = rejoined
-            found += [drawn]
+            found += [_grain_written(column, cell, words[place], edges, joint)]
         return found, 0
     padded = grains.column_padded(cells, grain.reading, True)
     # THE PUBLISHED LAYOUTS NO DATE WEARS (repair round 2, the verify's item
@@ -72536,6 +72840,35 @@ class _WalkColumn:
     without: str = ""
     codes: "bytearray | None" = None
     width: int = 1
+    # G16.2 step 2's IMPLIED SLOPE (lane MPg, plan P4-D456): whether the
+    # column's ladder holds a value range (`ranged`), its published `L0`
+    # totals and which `L0` bands hold a value band (`valued`), and, once
+    # dealt where a later family reads it as a parent, each arranged row's
+    # rank among its readings and their count (`chain_walk.reading_ranks`).
+    ranged: bool = False
+    totals: "tuple[int, ...]" = ()
+    valued: "tuple[bool, ...]" = ()
+    ranks: "chain_walk.Packed | None" = None
+    readings: int = 0
+    # G16.3's POLISH (lane MPg, plan P4-D456), filled only where the
+    # description publishes rule B's moments: each cell-list place's `L0`
+    # band (`slot_l0`, `l0_width` bytes a place) and, for a number moment
+    # column, its value code (`slot_codes`); once dealt, each arranged
+    # row's cell index (`index`, `index_width` bytes a row).
+    slot_l0: "bytearray | None" = None
+    l0_width: int = 1
+    slot_codes: "bytearray | None" = None
+    slot_has: "bytearray | None" = None
+    slot_rank: "bytearray | None" = None
+    # A binary moment column's two `L0` level bands, in band order (G16.3's
+    # binaries, lane MPg's repair 1); empty for any other column.
+    levels: "tuple[int, ...]" = ()
+    # A column the polish may move is placed once, after it (repair 1):
+    # its cells wait in their cell list, the walk's index kept.
+    deferred: bool = False
+    clip: "tuple[float, float] | None" = None
+    index: "bytearray | None" = None
+    index_width: int = 3
 
 
 @dataclasses.dataclass
@@ -72580,6 +72913,7 @@ def _walk_rows(profile: contract.Profile, reserved: int) -> int:
 def _walk_plan(
     profile: contract.Profile,
     reservation: "tuple[tuple[int, ...], bool, tuple[bool, ...], tuple[int, int]] | None",
+    layout: "_PolishLayout | None" = None,
 ) -> "_Walk | None":
     """G16's walk over this twin, or None where the section does not run (method G16.0).
 
@@ -72624,13 +72958,145 @@ def _walk_plan(
         maps = (first, tuple(second), tuple(third))
         counts = (count, len(entry.l1), len(entry.l2))
         ordered = [False for _band in range(counts[level])]
+        valued = [False for _band in range(count)]
+        ranged = False
         for place in range(count):
             if any(_value_start(start) for start in entry.bands[place]):
                 ordered[maps[level][place]] = True
+                valued[place] = True
+            if any(isinstance(start, tuple) and len(start) == 2 for start in entry.bands[place]):
+                ranged = True
         columns[entry.column] = _WalkColumn(
-            steps[entry.column], level, maps, counts, tuple(ordered)
+            steps[entry.column], level, maps, counts, tuple(ordered),
+            ranged=ranged, totals=tuple(entry.totals), valued=tuple(valued),
         )
+    moments = profile.relationships.moments
+    if moments is not None:
+        # G16.3's POLISH (lane MPg, plan P4-D456): the moment columns and
+        # the columns they are grouped by keep each place's `L0` band, a
+        # number moment column its value codes too, once dealt.
+        named: "list[str]" = [entry.column for entry in moments.columns]
+        named += [entry.by for entry in moments.within]
+        for entry_column in moments.columns:
+            held = columns[entry_column.column] if entry_column.column in columns else None
+            if held is not None and entry_column.kind == chain_moments.KIND_NUMBER:
+                held.clip = entry_column.clip
+        # A binary moment column (its two levels each one published band,
+        # so none held) keeps its levels, and the columns its families cross
+        # it with keep their places' bands too (repair 1: its frame).
+        for entry_column in moments.columns:
+            held = columns[entry_column.column] if entry_column.column in columns else None
+            if held is None or entry_column.kind != chain_moments.KIND_BINARY:
+                continue
+            levels = _binary_level_bands(profile, entry_column.column)
+            if len(levels) != 2:
+                continue
+            held.levels = levels
+            for family in profile.relationships.chain:
+                if family.child == entry_column.column or any(
+                    parent == entry_column.column for parent, _level in family.parents
+                ):
+                    named += [family.child] + [parent for parent, _level in family.parents]
+        for name in named:
+            if name in columns:
+                columns[name].slot_l0 = bytearray()
+        if _POLISH_ROUNDS > 0:
+            for name, _targets in layout.plan if layout is not None else _polish_plan(profile):
+                if name in columns:
+                    columns[name].deferred = True
     return _Walk(arranged, tuple(reservation[0]), columns, profile.relationships.chain)
+
+
+def _binary_level_bands(profile: contract.Profile, name: str) -> "tuple[int, ...]":
+    """A binary's two `L0` level bands, each one published level (`chain_moments.binary_levels`' rule), else ()."""
+    for entry in profile.relationships.ladder:
+        if entry.column != name:
+            continue
+        found: "list[int]" = []
+        for at in range(len(entry.bands)):
+            band = entry.bands[at]
+            if len(band) == 1 and band[0] == chain_rules.MISSING:
+                continue
+            if len(band) != 1 or not isinstance(band[0], tuple) or len(band[0]) != 1:
+                return ()
+            found += [at]
+        return tuple(found) if len(found) == 2 else ()
+    return ()
+
+
+def _keep_slots(planned: _WalkColumn, slots: "tuple[list[int], list[float | None]]") -> None:
+    """Keeps a column's cell-list places' `L0` bands and, for a number moment column, their codes (G16.3).
+
+    The code is contract 4.6b.6's value code on the clip rule B's moments
+    read (`chain_walk.value_code`, exact on binary64); a place holding no
+    reading takes code 0 and no reading mark.
+    """
+    bands, values = slots
+    width = chain_walk.band_width(planned.counts[0])
+    kept = bytearray(len(bands) * width)
+    for place in range(len(bands)):
+        band = bands[place]
+        for byte in range(width):
+            kept[place * width + byte] = (band >> (8 * byte)) & 255
+    planned.slot_l0 = kept
+    planned.l0_width = width
+    clip = planned.clip
+    if clip is None:
+        return
+    codes = bytearray(len(values))
+    has = bytearray(len(values))
+    seen: "dict[float, int]" = {}
+    for place in range(len(values)):
+        value = values[place]
+        if value is None:
+            continue
+        if value not in seen:
+            seen[value] = chain_walk.value_code(value, clip[0], clip[1])
+        codes[place] = seen[value]
+        has[place] = 1
+    planned.slot_codes = codes
+    planned.slot_has = has
+    planned.slot_rank = _rank_codes(values)
+
+
+def _rank_codes(values: "list[float | None]") -> bytearray:
+    """Each cell-list place's RANK CODE among the column's readings, two bytes a place (G16.3, lane MPg's repair 1).
+
+    Over the `n` places holding a reading, sorted by reading (ties by
+    place), a run of equal readings at sorted positions `k` to `j` takes
+    the code `floor(65536 (k + j + 1) / (2 n))`: the middle of its run as a
+    share of the readings, in 65,536 steps, so equal readings share one
+    code and the code orders the readings past the clip a value code
+    stops at. A place holding none takes 0. The places are already in
+    reading order inside each band and the bands in value order, so the
+    readings are sorted only where they are not.
+    """
+    places = [place for place in range(len(values)) if values[place] is not None]
+    rising = True
+    last = 0.0
+    for at in range(len(places)):
+        value = values[places[at]]
+        if value is not None:
+            if at and value < last:
+                rising = False
+                break
+            last = value
+    if not rising:
+        ordered = sorted((values[place], place) for place in places)
+        places = [entry[1] for entry in ordered]
+        ordered = []
+    count = len(places)
+    found = bytearray(2 * len(values))
+    start = 0
+    while start < count:
+        end = start
+        while end + 1 < count and values[places[end + 1]] == values[places[start]]:
+            end = end + 1
+        code = (65536 * (start + end + 1)) // (2 * count)
+        for at in range(start, end + 1):
+            chain_walk.write_code(found, 2, places[at], code)
+        start = end + 1
+    return found
 
 
 def _group_l0_bands(
@@ -72765,10 +73231,16 @@ def _cell_list_order(
         by_reader = _reader_l0_bands(profile, column, entry, content, readings)
     to_chain = planned.maps[planned.level]
     count = planned.counts[planned.level]
+    slots: "tuple[list[int], list[float | None]] | None" = None
+    if planned.slot_l0 is not None:
+        slots = ([], [])
     listed_cells, sizes, with_reading = _listed_by_band(
-        found.groups, found.readings, joined, to_chain, count, by_reader
+        found.groups, found.readings, joined, to_chain, count, by_reader, slots
     )
     by_reader = None
+    if slots is not None:
+        _keep_slots(planned, slots)
+        slots = None
     arranged = walk.arranged
     if len(listed_cells) != chain_walk.size_of(arranged) or len(found.reserved) != len(walk.reserved):
         raise errors.ProfileError(
@@ -72793,6 +73265,7 @@ def _listed_by_band(
     to_chain: "tuple[int, ...]",
     count: int,
     by_reader: "tuple[bytearray, list[float], bytearray] | None",
+    slots: "tuple[list[int], list[float | None]] | None" = None,
 ) -> "tuple[list[int], list[int], list[int]]":
     """A column's CELL LIST and each band's size and cells holding a reading (method G16.2 step 4, G16.4).
 
@@ -72804,7 +73277,9 @@ def _listed_by_band(
     a group standing in none, `to_chain` from `L0` to the chain level);
     where `by_reader` is given (a column made without its band totals,
     `_reader_l0_bands`), each cell in the band of its own `L0` band, with
-    the reader's reading.
+    the reader's reading. Where `slots` is given (G16.3's polish, lane
+    MPg, plan P4-D456), each place's `L0` band and reading (None for a
+    cell holding none) are added to its two lists, in the list's order.
 
     LINEAR IN THE CELLS AND THE GROUPS (lane CHb's second repair, Codex's
     item 3). The first build scanned every group for every band, so a
@@ -72854,31 +73329,46 @@ def _listed_by_band(
     with_reading = [0 for _band in range(count)]
     listed: "list[int]" = []
     for band in range(count):
-        holding: "list[tuple[float, int, int]]" = []
+        # Each cell holding a reading as (reading, rank, place, its `L0`
+        # band); the rank is unique, so the band never decides the order.
+        holding: "list[tuple[float, int, int, int]]" = []
         empty: "list[int]" = []
+        empty_bands: "list[int]" = []
         if by_reader is None:
             for group in of_band[band]:
                 cells = groups[group]
                 read = readings[group]
+                group_band = joined[group] if slots is not None else -1
                 for at in range(len(cells)):
                     value = read[at]
                     if value is None:
                         empty += [cells[at]]
+                        empty_bands += [group_band]
                     else:
-                        holding += [(value, offsets[group] + at, cells[at])]
+                        holding += [(value, offsets[group] + at, cells[at], group_band)]
         else:
             for slot in range(starts[band], starts[band + 1]):
                 place = chain_walk.item(bucket, slot)
                 if by_reader[2][place]:
-                    holding += [(by_reader[1][place], slot, place)]
+                    holding += [(by_reader[1][place], slot, place, by_reader[0][place])]
                 else:
                     empty += [place]
+                    empty_bands += [by_reader[0][place]]
         sizes[band] = len(holding) + len(empty)
         with_reading[band] = len(holding)
-        listed += [place for _value, _rank, place in sorted(holding)]
+        holding = sorted(holding)
+        listed += [entry[2] for entry in holding]
         listed += empty
+        if slots is not None:
+            # G16.3's polish (lane MPg): each place's `L0` band and reading.
+            slot_bands, slot_values = slots
+            slot_bands += [entry[3] for entry in holding]
+            slot_bands += empty_bands
+            slot_values += [entry[0] for entry in holding]
+            slot_values += [None for _cell in empty]
         holding = []
         empty = []
+        empty_bands = []
     return listed, sizes, with_reading
 
 
@@ -72926,18 +73416,7 @@ def _reader_l0_bands(
             where[start] = place
             if isinstance(start, tuple) and len(start) == 2:
                 ranges += [start]
-    edges: "list[object]" = []
-    for start in ranges[1:]:
-        key = start[0] if isinstance(start, tuple) else None
-        rung = _reader_rung(column, key)
-        if rung is None:
-            raise errors.ProfileError(
-                "synthtwin internal check: an edge of a column's ladder has no "
-                "published rung. This means a mistake in synthtwin; please "
-                "report it. Nothing has been written."
-            )
-        edges += [rung]
-    edge_values = tuple(edges)
+    edge_values = _reader_edges(column, entry)
     order: "list[object]" = [chain_rules.OTHER, chain_rules.LABELS, chain_rules.MISSING] + ranges
     joined_kind: "dict[object, int]" = {}
     for kind in (chain_rules.OTHER, chain_rules.LABELS, chain_rules.MISSING):
@@ -72982,6 +73461,7 @@ def _reader_l0_bands(
     # as it will be written, then read as the profile reads the file.
     spelled = _numbers_written(column) if comma else 0
     written: "list[str]" = []
+    absent = frozenset(_hole_spellings(column))
     for place in range(count):
         if place % _READ_BLOCK == 0:
             written = content[place:place + _READ_BLOCK]
@@ -72990,6 +73470,14 @@ def _reader_l0_bands(
                     column, profile, written,
                     [place + at < spelled for at in range(len(written))],
                 )
+            # ...AND A POOLED DATE AS IT LEAVES (lane BT2, plan P4-D448, the
+            # seam with lane PS2's date floor): its cell is a bucket's start,
+            # spelled inside the bucket only as it leaves (method G7.13), and
+            # a start on an edge reads one band below every cell drawn after
+            # it. Read at the bucket's middle, where `_inside_the_grain`
+            # holds the draw.
+            if column.time_grain is not None and isinstance(facts, contract.DatetimeFacts):
+                written = [_grain_middle(column, cell, absent) for cell in written]
         kind = chain_rules.MISSING
         value: object = None
         if place < column.n_present:
@@ -73046,6 +73534,31 @@ def _numbers_written(column: contract.ColumnBlock) -> int:
     if isinstance(column.facts, contract.CompoundFacts):
         return contract.compound_numbers_view(column).n_present
     return column.n_present
+
+
+def _reader_edges(column: contract.ColumnBlock, entry: contract.LadderEntry) -> "tuple[object, ...]":
+    """The published rungs a column's `L0` ranges are cut at, read as the profile's reader reads them (`_reader_l0_bands`).
+
+    Raises `errors.ProfileError` (an internal check) where an edge the
+    ladder names has no published rung.
+    """
+    ranges: "list[object]" = []
+    for place in range(len(entry.bands)):
+        for start in entry.bands[place]:
+            if isinstance(start, tuple) and len(start) == 2:
+                ranges += [start]
+    edges: "list[object]" = []
+    for start in ranges[1:]:
+        key = start[0] if isinstance(start, tuple) else None
+        rung = _reader_rung(column, key)
+        if rung is None:
+            raise errors.ProfileError(
+                "synthtwin internal check: an edge of a column's ladder has no "
+                "published rung. This means a mistake in synthtwin; please "
+                "report it. Nothing has been written."
+            )
+        edges += [rung]
+    return tuple(edges)
 
 
 def _reader_rung(column: contract.ColumnBlock, key: object) -> object:
@@ -73174,7 +73687,9 @@ def _chain_family(
             "row. This means a mistake in synthtwin; please report it. "
             "Nothing has been written."
         )
-    order = chain_walk.order_by_scores(sums)
+    order = _implied_order(walk, family, child, parents, cells, sums) if _IMPLIED_SLOPE else None
+    if order is None:
+        order = chain_walk.order_by_scores(sums)
     try:
         dealt = chain_walk.deal(cells, cell_count, order, bands, aimed.table)
     except ValueError as broken:
@@ -73187,12 +73702,1360 @@ def _chain_family(
     cells = chain_walk.packed(0, 1)
     child.codes = dealt.bands
     child.width = dealt.band_width
-    finished[child.step] = _placed_by_index(
-        finished[child.step], arranged, dealt, arranging, child.step, sheet_dealt
-    )
+    if child.ranged and _read_later(walk, family):
+        child.ranks, child.readings = chain_walk.reading_ranks(dealt.index, dealt.index_width, bands)
+    if child.slot_l0 is not None:
+        child.index = dealt.index
+        child.index_width = dealt.index_width
+    if not child.deferred:
+        finished[child.step] = _placed_by_index(
+            finished[child.step], arranged, dealt, arranging, child.step, sheet_dealt
+        )
     if aimed.moved:
         return [_moved_family_note(family, aimed, child.without)]
     return []
+
+
+# G16.2 step 2's IMPLIED SLOPE, on (lane MPg, plan P4-D456). A test may set
+# it False to deal every family by its hidden scores alone, the walk
+# before this landing (the measured step and the mutant of its gate).
+_IMPLIED_SLOPE = True
+
+
+def _read_later(walk: _Walk, family: contract.ChainFamily) -> bool:
+    """Whether a family after `family` reads its child as a parent (the ranks are kept only then)."""
+    seen = False
+    for other in walk.families:
+        if other is family:
+            seen = True
+            continue
+        if seen and any(name == family.child for name, _level in other.parents):
+            return True
+    return False
+
+
+def _level_scores(column: _WalkColumn, level: int) -> "list[float | None]":
+    """A walk column's band scores at `level`, from its published `L0` totals (`chain_walk.band_scores`)."""
+    totals = [0 for _band in range(column.counts[level])]
+    valued = [False for _band in range(column.counts[level])]
+    for place in range(len(column.totals)):
+        band = column.maps[level][place]
+        totals[band] = totals[band] + column.totals[place]
+        if column.valued[place]:
+            valued[band] = True
+    return chain_walk.band_scores(totals, valued)
+
+
+def _implied_order(
+    walk: _Walk,
+    family: contract.ChainFamily,
+    child: _WalkColumn,
+    parents: "list[tuple[_WalkColumn, int]]",
+    cells: "chain_walk.Packed",
+    sums: "chain_walk.Packed",
+) -> "chain_walk.Packed | None":
+    """G16.2 step 2 under the IMPLIED SLOPE: the rows sorted by `L`, or None where `L = z` (lane MPg).
+
+    It runs where the family has a parent and its child's ladder holds a
+    value range: the slope, the spread and the cell means from the
+    family's PUBLISHED table and the members' published `L0` totals
+    (`chain_walk.implied_slope`), each ranged parent's rows read through
+    their ranks (`chain_walk.implied_latent`). Reads only the description
+    and the walk's own deal; publishes nothing.
+    """
+    if not family.parents or not child.ranged:
+        return None
+    sizes = [parent.counts[level] for parent, level in parents]
+    scores = [_level_scores(parent, level) for parent, level in parents]
+    used = [at for at in range(len(parents)) if parents[at][0].ranged and parents[at][0].ranks is not None]
+    slope = chain_walk.implied_slope(
+        family.table, sizes, scores, used, _level_scores(child, family.level)
+    )
+    ranks: "list[tuple[chain_walk.Packed, int]]" = []
+    for at in used:
+        held = parents[at][0].ranks
+        if held is not None:
+            ranks += [(held, parents[at][0].readings)]
+    latent = chain_walk.implied_latent(cells, slope, ranks, sums)
+    return chain_walk.order_by_latent_packed(latent)
+
+
+# -- G16.3: THE POLISH ONTO RULE B'S MOMENTS (lane MPg, plan P4-D456) ---------
+#
+# After the last family is dealt, each NUMBER moment column's cells are
+# re-assigned among the arranged rows that hold one of its readings, each
+# row keeping its band of that column at the column's chain level: inside
+# each band the rows are sorted by a SCORE and take the band's cells in
+# reading order (a conditional Iman-Conover step). Each BINARY moment
+# column's two levels are re-assigned the same way among the rows that
+# share every band its families cross it with (repair 1). Every column
+# keeps its cells, its blanks, and so every family table and every `L0`
+# total (G16.3's frame). The score is a least-squares line, from the
+# published moments, of the column on its partners' rank scores and on its
+# published band means or shares in its grouping columns, plus noise drawn
+# from the stream, its spread inside each grouping band scaled toward the
+# published band spread; `_POLISH_ROUNDS` rounds, each but the last moving
+# each target by `_POLISH_STEP` of what it missed.
+
+# Rounds of every polished column (a test may set 0: the walk alone).
+_POLISH_ROUNDS = 8
+# The rows a column's partners' covariances are read on, at most.
+_POLISH_SAMPLE = 2048
+_POLISH_RIDGE = 1e-3
+_POLISH_LEAST_NOISE = 1e-4
+_POLISH_STEP = 1.0
+# The FRAME a row keeps: its band of the column at the column's chain level,
+# the finest level any family reads it at (a parent is read at its chain
+# level or coarser), so no family table and no `L0` total moves; True keeps
+# the row in its `L0` band, the stricter frame of G16.3's first text.
+_POLISH_FRAME_L0 = False
+# A partner's RANK CODE: its reading's place among its readings, in 65,536
+# steps (`_rank_codes`), read as a normal score (repair 1: a value code
+# stops at the published clip, so the rows past it were tied).
+_POLISH_RANK_STEPS = 65536
+# A band's spread factor stays inside these (repair 1's spread targets).
+_POLISH_SPREAD_LEAST = 0.25
+_POLISH_SPREAD_MOST = 4.0
+# A pair's own spread factor may fall to this (repair 2): moving the rows
+# whose partner holds a reading toward the middle of their frame groups is
+# what pulls the pair's spread in where its blanks stand beside one end.
+_POLISH_PAIR_SPREAD_LEAST = 0.015625
+# Rows a score is built for at once (the working lists stay this long).
+_POLISH_CHUNK = 65536
+# Repair 1's two added targets, each a switch a test may turn off: the
+# within-band spreads, and the binaries' levels.
+_POLISH_SPREADS = True
+_POLISH_BINARIES = True
+# A number's means in the bands of a partner it holds a published
+# correlation with are no target of it (repair 1): the correlation carries
+# them, and the two features, nearly one, drove the aims apart along their
+# difference (lane MPg's skeptic 1, item 1).
+_POLISH_WITHIN_PARTNERS = False
+# The last round re-sorts each column this many times on its one draw of
+# hidden sums, moving the aims between them, so the round ends on the
+# targets rather than one fresh draw away from them (repair 1).
+_POLISH_LAST_STEPS = 4
+# The aims are kept feasible together (a test may set False: the mutant).
+_POLISH_FEASIBLE = True
+# A correlation's aim, a binary's latent one too, stays inside this either way.
+_POLISH_AIM_MOST = 0.999
+
+
+@dataclasses.dataclass
+class _PolishTarget:
+    """One target of a polished column (G16.3).
+
+    `kind`: `pair`, a partner number `name` (its rank score; the goal its
+    published correlation); `within`, the column's published means in the
+    bands of `name` at `level` (`encoding[g]`, the band's mean standardized
+    by the column's published mean and spread, 0 where none is published;
+    `sds[g]` the band's published spread on the code, 0 where none);
+    `share`, a binary column's published shares in the bands of `name`
+    (`encoding[g]` the share standardized by the column's own); `by`, a
+    binary column's published split of the number `name`'s mean (its
+    feature the number's rank score, `encoding[g]` the number's mean in
+    the binary's band `g`, standardized). `goal` the covariance the
+    standardized column should hold with the feature, `aim` the score's
+    covariance with the feature, moved by the rounds; `slope` what the
+    goal's measure moves by for each unit of the aim (1 for a number; for
+    a binary, whose levels go to the rows of highest score, the normal
+    density at its share's quantile over its spread, times the split for
+    a `by` target), so the aim starts at `goal / slope` and each round
+    moves it by what it missed over `slope`; `scales[g]` a `within` band's
+    spread factor. A `pair` whose partner leaves some of the column's rows
+    without a reading may hold one band spread (`sds[0]`, the column's
+    published spread over the pair's rows) and its factor (`scales[0]`),
+    and its aim is bounded by `most`, the larger of `_POLISH_AIM_MOST` and
+    half way from its goal to 1 (repair 2); every other aim but a
+    `within`'s by `_POLISH_AIM_MOST`.
+    """
+
+    kind: str
+    name: str
+    goal: float
+    encoding: "tuple[float, ...]" = ()
+    aim: float = 0.0
+    level: int = 1
+    sds: "tuple[float, ...]" = ()
+    scales: "list[float]" = dataclasses.field(default_factory=list)
+    slope: float = 1.0
+    most: float = _POLISH_AIM_MOST
+
+
+# THE PSD PROJECTION (LANE MPg RULINGS 2 (2), repair 1): the published
+# correlations among the polished numbers, read as one matrix (a refused
+# pair 0, no target), are projected to the nearest positive semidefinite
+# one where any eigenvalue falls under `_POLISH_EIGEN_LEAST`: each such
+# eigenvalue set to it, the diagonal rescaled to 1. The cyclic Jacobi
+# method, every rotation in binary64 in a fixed order, at most
+# `_POLISH_JACOBI_CYCLES` cycles, ending once the rotations change no
+# element by more than `_POLISH_JACOBI_TINY` of the largest diagonal.
+_POLISH_EIGEN_LEAST = 1e-4
+_POLISH_JACOBI_CYCLES = 60
+_POLISH_JACOBI_TINY = 1e-15
+
+
+def _jacobi(matrix: "list[list[float]]") -> "tuple[list[float], list[list[float]]]":
+    """The eigenvalues and eigenvectors (columns of the second) of a symmetric matrix, by cyclic Jacobi rotations.
+
+    Each cycle visits the pairs `(p, q)`, `p < q`, row by row; a pair whose
+    element is 0 is passed over. The rotation is the classical one:
+    `theta = (a_qq - a_pp) / (2 a_pq)`, `t = sign(theta) / (|theta| +
+    sqrt(theta ** 2 + 1))`, `c = 1 / sqrt(t ** 2 + 1)`, `s = t c`; each
+    operation rounded once in the order written.
+    """
+    size = len(matrix)
+    a = [row[:] for row in matrix]
+    v = [[1.0 if i == j else 0.0 for j in range(size)] for i in range(size)]
+    for _cycle in range(_POLISH_JACOBI_CYCLES):
+        largest = 0.0
+        for i in range(size):
+            largest = max(largest, abs(a[i][i]))
+        off = 0.0
+        for p in range(size):
+            for q in range(p + 1, size):
+                off = max(off, abs(a[p][q]))
+        if off <= _POLISH_JACOBI_TINY * max(largest, 1.0):
+            break
+        for p in range(size):
+            for q in range(p + 1, size):
+                apq = a[p][q]
+                if apq == 0.0:
+                    continue
+                theta = (a[q][q] - a[p][p]) / (2.0 * apq)
+                root = math.sqrt(theta * theta + 1.0)
+                t = 1.0 / (theta + root) if theta >= 0.0 else -1.0 / (-theta + root)
+                c = 1.0 / math.sqrt(t * t + 1.0)
+                sn = t * c
+                for k in range(size):
+                    akp = a[k][p]
+                    akq = a[k][q]
+                    a[k][p] = c * akp - sn * akq
+                    a[k][q] = sn * akp + c * akq
+                for k in range(size):
+                    apk = a[p][k]
+                    aqk = a[q][k]
+                    a[p][k] = c * apk - sn * aqk
+                    a[q][k] = sn * apk + c * aqk
+                for k in range(size):
+                    vkp = v[k][p]
+                    vkq = v[k][q]
+                    v[k][p] = c * vkp - sn * vkq
+                    v[k][q] = sn * vkp + c * vkq
+    return [a[i][i] for i in range(size)], v
+
+
+def _nearest_correlations(matrix: "list[list[float]]") -> "tuple[list[list[float]], float, float]":
+    """The matrix projected to the nearest positive semidefinite correlation matrix, its least eigenvalue and the largest change.
+
+    Unchanged where every eigenvalue is at least `_POLISH_EIGEN_LEAST`.
+    Else `V max(L, least) V^T`, each element a sum in index order, then
+    divided by the root of its two diagonal elements.
+    """
+    size = len(matrix)
+    if size < 2:
+        return [row[:] for row in matrix], 1.0, 0.0
+    values, vectors = _jacobi(matrix)
+    least = min(values)
+    if least >= _POLISH_EIGEN_LEAST:
+        return [row[:] for row in matrix], least, 0.0
+    floored = [value if value >= _POLISH_EIGEN_LEAST else _POLISH_EIGEN_LEAST for value in values]
+    built = [[0.0 for _j in range(size)] for _i in range(size)]
+    for i in range(size):
+        for j in range(size):
+            total = 0.0
+            for k in range(size):
+                total = total + vectors[i][k] * floored[k] * vectors[j][k]
+            built[i][j] = total
+    out = [[built[i][j] / math.sqrt(built[i][i] * built[j][j]) for j in range(size)] for i in range(size)]
+    change = 0.0
+    for i in range(size):
+        for j in range(size):
+            change = max(change, abs(out[i][j] - matrix[i][j]))
+    return out, least, change
+
+
+def _published_pairs(
+    profile: contract.Profile, names: "list[str]"
+) -> "tuple[list[list[float | None]], list[list[int]], list[list[float | None]]]":
+    """Each two of `names` (numbers in the moments' order): the published r (None where refused), the pair's count,
+    and the first column's own spread over the pair's rows where the pair publishes its two (None elsewhere)."""
+    moments = profile.relationships.moments
+    if moments is None:
+        return [], [], []
+    order: "dict[str, int]" = {}
+    for one in moments.columns:
+        if one.kind == chain_moments.KIND_NUMBER:
+            order[one.column] = len(order)
+    size = len(names)
+    values: "list[list[float | None]]" = [[None for _b in names] for _a in names]
+    counts = [[0 for _b in names] for _a in names]
+    spreads: "list[list[float | None]]" = [[None for _b in names] for _a in names]
+    for a in range(size):
+        values[a][a] = 1.0
+        for b in range(a):
+            i, j = order[names[a]], order[names[b]]
+            low, high = (j, i) if i > j else (i, j)
+            pair = moments.correlations[high][low]
+            if pair is None:
+                continue
+            values[a][b] = pair[0]
+            values[b][a] = pair[0]
+            counts[a][b] = pair[1]
+            counts[b][a] = pair[1]
+            own = moments.spreads[high][low] if high < len(moments.spreads) and low < len(moments.spreads[high]) else None
+            if own is not None:
+                # `own` is (the `high`-th column's, the `low`-th column's).
+                spreads[a][b] = own[0] if i == high else own[1]
+                spreads[b][a] = own[1] if i == high else own[0]
+    return values, counts, spreads
+
+
+def _positive_definite(matrix: "list[list[float]]") -> bool:
+    """Whether a symmetric matrix is positive definite: its Cholesky factor in binary64, each sum in index order, every pivot over 0."""
+    size = len(matrix)
+    low = [[0.0 for _j in range(size)] for _i in range(size)]
+    for i in range(size):
+        for j in range(i + 1):
+            total = matrix[i][j]
+            for k in range(j):
+                total = total - low[i][k] * low[j][k]
+            if i == j:
+                if not total > 0.0:
+                    return False
+                low[i][i] = math.sqrt(total)
+            else:
+                low[i][j] = total / low[j][j]
+    return True
+
+
+@dataclasses.dataclass(frozen=True)
+class _PolishMove:
+    """A published correlation the PSD projection moved past its rounding: the two columns, the published r and the goal."""
+
+    first: str
+    second: str
+    published: float
+    goal: float
+
+
+def _row_sets(names: "list[str]", own: "list[int]", values: "list[list[float | None]]", counts: "list[list[int]]") -> "list[list[int]]":
+    """The COMMON ROW SETS among `names`: columns joined where a published pair holds every reading of both.
+
+    A pair's count equal to both columns' own counts means the two hold
+    their readings on the same rows, so the relation is an equivalence and
+    each class is one row set; every correlation inside a class is taken
+    on those rows, so their matrix is one sample's. Each class in rising
+    order of its first member, its members rising.
+    """
+    size = len(names)
+    root = list(range(size))
+    for a in range(size):
+        for b in range(a):
+            if values[a][b] is None or counts[a][b] != own[a] or counts[a][b] != own[b]:
+                continue
+            ra = a
+            while root[ra] != ra:
+                ra = root[ra]
+            rb = b
+            while root[rb] != rb:
+                rb = root[rb]
+            if ra != rb:
+                root[max(ra, rb)] = min(ra, rb)
+    found: "dict[int, list[int]]" = {}
+    for a in range(size):
+        top = a
+        while root[top] != top:
+            top = root[top]
+        if top not in found:
+            found[top] = []
+        found[top] += [a]
+    return [found[top] for top in sorted(found)]
+
+
+def _target_correlations(
+    profile: contract.Profile, names: "list[str]"
+) -> "tuple[list[list[float | None]], list[_PolishMove], list[list[float | None]]]":
+    """The polish's correlation goals among `names`, the moves the projection made past rounding, and the pairs' own spreads.
+
+    REPAIR 2 (Codex's item 2, LANE MPg RULINGS 9 (2)): published
+    correlations are each taken on their pair's own rows and need not form
+    one positive semidefinite matrix, and an absent pair is unknown, never
+    an observed nought. So the projection acts only inside a COMMON ROW SET
+    (`_row_sets`), whose correlations are one sample's: where its published
+    matrix is positive definite (`_positive_definite`) every goal is the
+    published r; where it is not, the nearest correlation matrix
+    (`_nearest_correlations`) gives the goals, and each one it moves past
+    half a step of the pair's grid (Fisher's z at the pair's count, read
+    on r) is returned to be disclosed. A row set with a pair not published
+    keeps every goal (rule B publishes every pair of one row set or none:
+    the same rows give the same counts); a pair across row sets is never
+    projected. Every pair not published is no goal.
+    """
+    values, counts, spreads = _published_pairs(profile, names)
+    moments = profile.relationships.moments
+    own_n = {one.column: one.n for one in moments.columns} if moments is not None else {}
+    goals: "list[list[float | None]]" = [[value for value in row] for row in values]
+    moves: "list[_PolishMove]" = []
+    for members in _row_sets(names, [own_n[name] for name in names], values, counts):
+        if len(members) < 2:
+            continue
+        known = [[values[a][b] for b in members] for a in members]
+        if any(value is None for row in known for value in row):
+            continue
+        matrix = [[value if value is not None else 0.0 for value in row] for row in known]
+        if _positive_definite(matrix):
+            continue
+        projected, _least, _change = _nearest_correlations(matrix)
+        for x in range(len(members)):
+            for y in range(x):
+                a, b = members[x], members[y]
+                goal = projected[x][y]
+                goals[a][b] = goal
+                goals[b][a] = goal
+                published = matrix[x][y]
+                step = 0.5 / chain_moments.unit(chain_moments.SCALE_FISHER_Z, counts[a][b])
+                if abs(goal - published) > step * (1.0 - published * published):
+                    moves += [_PolishMove(names[b], names[a], published, goal)]
+    return goals, moves, spreads
+
+
+def _within_target(entry: "contract.MomentColumn", within: "contract.MomentWithin", kind: str, name: str) -> "_PolishTarget | None":
+    """A number's `within` entry as a target of the number (`within`) or of its grouping binary (`by`), or None."""
+    encoding: "list[float]" = []
+    sds: "list[float]" = []
+    count = 0
+    first = 0.0
+    second = 0.0
+    for group in within.groups:
+        if group.n <= 0:
+            encoding += [0.0]
+            sds += [0.0]
+            continue
+        value = (group.mean - entry.mean) / entry.sd
+        encoding += [value]
+        sds += [group.sd]
+        count = count + group.n
+        first = first + group.n * value
+        second = second + group.n * value * value
+    if count <= 0:
+        return None
+    goal = second / count - (first / count) * (first / count)
+    return _PolishTarget(
+        kind, name, goal, tuple(encoding), goal, within.level, tuple(sds), [1.0 for _band in within.groups]
+    )
+
+
+def _share_target(entry: "contract.MomentColumn", within: "contract.MomentWithin") -> "_PolishTarget | None":
+    """A binary's `within` entry (its shares in a grouping's bands) as a target of the binary, or None."""
+    share = entry.share
+    if not 0.0 < share < 1.0:
+        return None
+    spread = math.sqrt(share * (1.0 - share))
+    encoding: "list[float]" = []
+    count = 0
+    first = 0.0
+    second = 0.0
+    for group in within.groups:
+        if group.n <= 0:
+            encoding += [0.0]
+            continue
+        value = (group.share - share) / spread
+        encoding += [value]
+        count = count + group.n
+        first = first + group.n * value
+        second = second + group.n * value * value
+    if count <= 0:
+        return None
+    goal = second / count - (first / count) * (first / count)
+    return _PolishTarget("share", within.by, goal, tuple(encoding), goal, within.level)
+
+
+@dataclasses.dataclass
+class _PolishLayout:
+    """G16.3's plan (`_polish_plan`) and the published correlations its projection moved past rounding, to be disclosed."""
+
+    plan: "list[tuple[str, list[_PolishTarget]]]"
+    moves: "list[_PolishMove]"
+
+
+def _polish_plan(profile: contract.Profile) -> "list[tuple[str, list[_PolishTarget]]]":
+    """G16.3's plan alone (`_polish_layout`)."""
+    return _polish_layout(profile).plan
+
+
+def _projection_deviation(move: _PolishMove) -> Deviation:
+    """A published correlation the projection moved (repair 2, Codex's item 2): its r and the polish's goal, named."""
+    return Deviation(
+        column=move.second,
+        fact=f"relationships.statistical.moments.correlations: {move.second} with {move.first}",
+        published=f"{move.published:.12f}",
+        achieved=f"aimed at {move.goal:.12f}",
+        note=(
+            "the published correlations of these columns, each taken over the same rows, cannot all hold "
+            "together, so the twin aims at the nearest set that can. Code you write against this twin must "
+            "not rely on this pair's correlation beyond the difference shown"
+        ),
+    )
+
+
+def _polish_layout(profile: contract.Profile) -> _PolishLayout:
+    """The polished columns, in schema order, each with its targets in a fixed order (G16.3), and the projection's moves.
+
+    A NUMBER moment column of the ladder with a code clip, with at least
+    one target: each other such column with a published correlation, the
+    `chain_moments.PARTNERS` largest in size (ties in the moments' order;
+    repair 2: a number aimed at every other one cost the rows times the
+    numbers a step, and the rest is left to the walk), in the moments'
+    order, its goal from `_target_correlations` and, where the pair holds
+    fewer rows than the column's readings and publishes its own two
+    spreads, the column's spread over the pair's rows as a band spread of
+    the target (repair 2, Codex's item 3), its aim bounded by the larger of
+    `_POLISH_AIM_MOST` and half way from the goal to 1 (repair 2: the
+    bound follows the published r); then each published `within` entry of
+    the column (in its order) whose grouping column the ladder holds. A BINARY moment
+    column of the ladder (both levels published, so none held), with at
+    least one target: each `within` entry of a polished number grouped by
+    it on its `L1` bands (`by`), then each of its own `within` entries
+    whose grouping column the ladder holds (`share`). A fixed function of
+    the description, so the plan counts its words.
+    """
+    moments = profile.relationships.moments
+    if moments is None:
+        return _PolishLayout([], [])
+    laddered = {entry.column: True for entry in profile.relationships.ladder}
+    numbers = [
+        entry for entry in moments.columns
+        if entry.kind == chain_moments.KIND_NUMBER and entry.clip is not None and entry.column in laddered
+    ]
+    number_of = {entry.column: entry for entry in numbers}
+    plan: "list[tuple[str, list[_PolishTarget]]]" = []
+    names = [entry.column for entry in numbers]
+    goals, moves, pair_spreads = _target_correlations(profile, names)
+    values, counts, _spreads = _published_pairs(profile, names)
+    place_of = {numbers[at].column: at for at in range(len(numbers))}
+    for entry in moments.columns:
+        if entry.column not in laddered:
+            continue
+        targets: "list[_PolishTarget]" = []
+        if entry.column in number_of:
+            mine = place_of[entry.column]
+            ranked = sorted(
+                (-abs(published), at)
+                for at, published in enumerate(values[mine])
+                if at != mine and published is not None and goals[mine][at] is not None
+            )
+            chosen = {ranked[k][1]: True for k in range(min(len(ranked), chain_moments.PARTNERS))}
+            for at in range(len(numbers)):
+                goal = goals[mine][at]
+                if at not in chosen or goal is None:
+                    continue
+                own = pair_spreads[mine][at]
+                spread = own if own is not None and counts[mine][at] < entry.n else None
+                targets += [
+                    _PolishTarget(
+                        "pair", numbers[at].column, goal, (), goal, 1,
+                        (spread,) if spread is not None else (), [1.0] if spread is not None else [],
+                        most=max(_POLISH_AIM_MOST, (1.0 + abs(goal)) / 2.0),
+                    )
+                ]
+            partners = {target.name: True for target in targets}
+            if entry.sd > 0.0:
+                for within in moments.within:
+                    if within.column != entry.column or within.by not in laddered:
+                        continue
+                    if not _POLISH_WITHIN_PARTNERS and within.by in partners:
+                        continue
+                    found = _within_target(entry, within, "within", within.by)
+                    if found is not None:
+                        targets += [found]
+        elif entry.kind == chain_moments.KIND_BINARY and _POLISH_BINARIES and 0.0 < entry.share < 1.0:
+            levels = _binary_level_bands(profile, entry.column)
+            ones = _l1_band_of(profile, entry.column, levels)
+            if len(ones) != 2:
+                continue
+            density = _normal_density(entry.share)
+            spread = math.sqrt(entry.share * (1.0 - entry.share))
+            for within in moments.within:
+                number = number_of[within.column] if within.column in number_of else None
+                if within.by != entry.column or number is None or number.sd <= 0.0 or within.level != 1:
+                    continue
+                found = _within_target(number, within, "by", within.column)
+                if found is None or max(ones) >= len(found.encoding):
+                    continue
+                split = found.encoding[ones[1]] - found.encoding[ones[0]]
+                if split != 0.0:
+                    found.slope = split * density
+                    found.aim = found.goal / found.slope
+                    targets += [found]
+            for within in moments.within:
+                if within.column != entry.column or within.by not in laddered:
+                    continue
+                found = _share_target(entry, within)
+                if found is not None:
+                    found.slope = density / spread
+                    found.aim = found.goal / found.slope
+                    targets += [found]
+        if targets:
+            plan += [(entry.column, targets)]
+    # THE ORDER OF A ROUND (repair 1): the numbers from the finest frame to
+    # the coarsest (ties in schema order), then the binaries in schema order,
+    # so the column with the most room in its frame re-sorts last and ends a
+    # pair the other's frame cannot loosen.
+    room = _frame_room(profile)
+    ordered = sorted(
+        (0 if name in number_of else 1, -room[name] if name in number_of and name in room else 0, at, name, targets)
+        for at, (name, targets) in enumerate(plan)
+    )
+    return _PolishLayout([(entry[3], entry[4]) for entry in ordered], moves)
+
+
+def _frame_room(profile: contract.Profile) -> "dict[str, int]":
+    """Each laddered column's bands at its chain level (`_POLISH_FRAME_L0`: its `L0` bands), the polish's frame, from the description."""
+    level_of: "dict[str, int]" = {}
+    for family in profile.relationships.chain:
+        level_of[family.child] = family.level
+    found: "dict[str, int]" = {}
+    for entry in profile.relationships.ladder:
+        level = 0 if _POLISH_FRAME_L0 else (level_of[entry.column] if entry.column in level_of else 0)
+        found[entry.column] = len(entry.bands) if level == 0 else len(entry.l1) if level == 1 else len(entry.l2)
+    return found
+
+
+def _l1_band_of(profile: contract.Profile, name: str, levels: "tuple[int, ...]") -> "tuple[int, ...]":
+    """The `L1` band holding each of a binary's two level bands, in level order, else ()."""
+    for entry in profile.relationships.ladder:
+        if entry.column != name:
+            continue
+        found: "list[int]" = []
+        for level in levels:
+            for band in range(len(entry.l1)):
+                if level in entry.l1[band]:
+                    found += [band]
+        return tuple(found) if len(found) == len(levels) else ()
+    return ()
+
+
+def _normal_density(share: float) -> float:
+    """The standard normal density at the quantile of `share`, from the written-out quantile's slope (no exponential).
+
+    `phi(q(p)) = 1 / q'(p)`, the slope read as the central difference of
+    `chain_walk.normal_score` over `p` give or take one millionth (the
+    normal quantile is smooth there, so the difference agrees with the
+    density to about one part in a million).
+    """
+    step = 1e-6
+    low = share - step if share - step > 0.0 else share / 2.0
+    high = share + step if share + step < 1.0 else (share + 1.0) / 2.0
+    return (high - low) / (chain_walk.normal_score(high) - chain_walk.normal_score(low))
+
+
+def _code_spread(codes: bytearray, has: bytearray) -> "tuple[float, float]":
+    """The mean and standard deviation of a column's codes over its rows holding one (exact sums, divided once)."""
+    count = 0
+    total = 0
+    squares = 0
+    for row in range(len(codes)):
+        if has[row]:
+            code = codes[row]
+            count = count + 1
+            total = total + code
+            squares = squares + code * code
+    if count < 2:
+        return 0.0, 0.0
+    spread = (count * squares - total * total) / (count * (count - 1))
+    return total / count, math.sqrt(spread) if spread > 0.0 else 0.0
+
+
+def _solved(matrix: "list[list[float]]", goals: "list[float]") -> "list[float]":
+    """`A^-1 b` by Gauss-Jordan elimination in order, without exchanges (`A` symmetric, ridged)."""
+    width = len(goals)
+    work = [matrix[a][:] + [goals[a]] for a in range(width)]
+    for a in range(width):
+        pivot = work[a][a]
+        if pivot == 0.0:
+            continue
+        for c in range(a, width + 1):
+            work[a][c] = work[a][c] / pivot
+        for other in range(width):
+            if other == a:
+                continue
+            factor = work[other][a]
+            for c in range(a, width + 1):
+                work[other][c] = work[other][c] - factor * work[a][c]
+    return [work[a][width] for a in range(width)]
+
+
+@dataclasses.dataclass
+class _PolishState:
+    """What G16.3's rounds read and change (lane MPg): the plan, each row's codes, rank codes and bands, the spreads.
+
+    `codes[c]` and `has[c]` hold each arranged row's value code of a
+    number moment column (a binary's level, 0 or 1) and whether it holds
+    a reading; `ranks[c]` a number's rank code, two bytes a row;
+    `bands[(c, l)]` each row's band at level `l` of a column a target
+    reads, read again from the column's cell indices after each of its
+    rounds (a column moved earlier is read as moved); `spreads[c]` a
+    column's mean and standard deviation of its codes over its rows
+    holding one (kept by every exchange); `normal[k]` the normal score of
+    rank code `k`; `keys[b]` the columns and levels a binary's frame reads.
+    """
+
+    plan: "list[tuple[str, list[_PolishTarget]]]"
+    rows: int
+    codes: "dict[str, bytearray]"
+    has: "dict[str, bytearray]"
+    ranks: "dict[str, bytearray]"
+    bands: "dict[tuple[str, int], bytes | list[int]]"
+    spreads: "dict[str, tuple[float, float]]"
+    normal: "list[float]"
+    keys: "dict[str, list[tuple[str, int]]]"
+
+
+def _row_bands(column: _WalkColumn, level: int, rows: int) -> "bytes | list[int]":
+    """Each arranged row's band of `column` at `level`, read from its cell index and its places' `L0` bands (G16.3).
+
+    A byte a row where the column's bands at that level number at most 256
+    (G16.11's memory clause), else a list.
+    """
+    index = column.index
+    slot_l0 = column.slot_l0
+    if index is None or slot_l0 is None:
+        return b""
+    to_level = column.maps[level]
+    if column.counts[level] <= 256:
+        found = bytearray(rows)
+        for row in range(rows):
+            found[row] = to_level[
+                chain_walk.read_code(slot_l0, column.l0_width, chain_walk.read_code(index, column.index_width, row))
+            ]
+        return bytes(found)
+    return [
+        to_level[chain_walk.read_code(slot_l0, column.l0_width, chain_walk.read_code(index, column.index_width, row))]
+        for row in range(rows)
+    ]
+
+
+def _binary_keys(walk: _Walk, name: str) -> "list[tuple[str, int]]":
+    """The columns and levels a binary's level is crossed with in a published table: its frame (G16.3, repair 1).
+
+    Its own family's parents at their levels, and for each family it is a
+    parent of, that family's child at its level and its other parents at
+    theirs. Two rows sharing all of these bands exchange the binary's
+    levels without moving any family table.
+    """
+    found: "list[tuple[str, int]]" = []
+    for family in walk.families:
+        if family.child == name:
+            found += [(parent, level) for parent, level in family.parents]
+        elif any(parent == name for parent, _level in family.parents):
+            found += [(family.child, family.level)]
+            found += [(parent, level) for parent, level in family.parents if parent != name]
+    kept: "list[tuple[str, int]]" = []
+    for key in found:
+        if key not in kept:
+            kept += [key]
+    return kept
+
+
+def _polish_state(walk: _Walk, profile: contract.Profile, layout: "_PolishLayout | None" = None) -> "_PolishState | None":
+    """G16.3's starting state after the walk, or None where nothing is polished (no word is then drawn)."""
+    plan = layout.plan if layout is not None else _polish_plan(profile)
+    if not plan or _POLISH_ROUNDS <= 0:
+        return None
+    rows = chain_walk.size_of(walk.arranged)
+    codes: "dict[str, bytearray]" = {}
+    has: "dict[str, bytearray]" = {}
+    ranks: "dict[str, bytearray]" = {}
+    bands: "dict[tuple[str, int], bytes | list[int]]" = {}
+    keys: "dict[str, list[tuple[str, int]]]" = {}
+    needed: "dict[str, bool]" = {}
+    grouped: "dict[tuple[str, int], bool]" = {}
+    for name, targets in plan:
+        needed[name] = True
+        for target in targets:
+            needed[target.name] = True
+            if target.kind in ("within", "share"):
+                grouped[(target.name, target.level)] = True
+            elif target.kind == "by":
+                grouped[(name, 1)] = True
+    for name in sorted(needed):
+        column = walk.columns[name]
+        index = column.index
+        if index is None or column.slot_l0 is None:
+            continue
+        if column.slot_codes is not None and column.slot_has is not None:
+            row_codes = bytearray(rows)
+            row_has = bytearray(rows)
+            for row in range(rows):
+                place = chain_walk.read_code(index, column.index_width, row)
+                row_codes[row] = column.slot_codes[place]
+                row_has[row] = column.slot_has[place]
+            codes[name] = row_codes
+            has[name] = row_has
+            slot_rank = column.slot_rank
+            if slot_rank is not None:
+                row_ranks = bytearray(2 * rows)
+                for row in range(rows):
+                    place = chain_walk.read_code(index, column.index_width, row)
+                    row_ranks[2 * row] = slot_rank[2 * place]
+                    row_ranks[2 * row + 1] = slot_rank[2 * place + 1]
+                ranks[name] = row_ranks
+    for name, _targets in plan:
+        if name not in codes:
+            keys[name] = _binary_keys(walk, name)
+    for key in sorted(grouped):
+        if walk.columns[key[0]].index is not None:
+            bands[key] = _row_bands(walk.columns[key[0]], key[1], rows)
+    spreads = {name: _code_spread(codes[name], has[name]) for name in codes}
+    normal = [
+        chain_walk.normal_score((2 * step + 1) / (2 * _POLISH_RANK_STEPS)) for step in range(_POLISH_RANK_STEPS)
+    ]
+    return _PolishState(plan, rows, codes, has, ranks, bands, spreads, normal, keys)
+
+
+def _polish_round(state: _PolishState, walk: _Walk, at: int, sums: "chain_walk.Packed", turn: int) -> None:
+    """One round of the plan's `at`-th polished column, on the hidden sums drawn for it (G16.3)."""
+    name, targets = state.plan[at]
+    column = walk.columns[name]
+    if column.index is None or column.slot_l0 is None:
+        return
+    if name not in state.codes and name in state.keys:
+        _binary_codes(state, walk, name)
+    if name not in state.codes:
+        return
+    if turn + 1 < _POLISH_ROUNDS:
+        _polish_column(column, name, targets, sums, state, walk, True)
+        return
+    for step in range(_POLISH_LAST_STEPS):
+        _polish_column(column, name, targets, sums, state, walk, step + 1 < _POLISH_LAST_STEPS)
+
+
+def _binary_codes(state: _PolishState, walk: _Walk, name: str) -> None:
+    """A binary's level at each place (0 or 1: its two `L0` level bands in band order) and each row's, before its first round."""
+    column = walk.columns[name]
+    index = column.index
+    slot_l0 = column.slot_l0
+    if index is None or slot_l0 is None or len(column.levels) != 2:
+        return
+    places = len(slot_l0) // column.l0_width
+    slot_codes = bytearray(places)
+    slot_has = bytearray(places)
+    for place in range(places):
+        band = chain_walk.read_code(slot_l0, column.l0_width, place)
+        if band == column.levels[0] or band == column.levels[1]:
+            slot_has[place] = 1
+            slot_codes[place] = 1 if band == column.levels[1] else 0
+    column.slot_codes = slot_codes
+    column.slot_has = slot_has
+    rows = state.rows
+    row_codes = bytearray(rows)
+    row_has = bytearray(rows)
+    for row in range(rows):
+        place = chain_walk.read_code(index, column.index_width, row)
+        row_codes[row] = slot_codes[place]
+        row_has[row] = slot_has[place]
+    state.codes[name] = row_codes
+    state.has[name] = row_has
+    state.spreads[name] = _code_spread(row_codes, row_has)
+
+
+def _polish_placed(
+    walk: _Walk,
+    finished: "list[twinstore.HeldColumn]",
+    arranging: "dialect.Arranging",
+    sheet_dealt: "list[SheetDealt | None]",
+) -> None:
+    """G16.3's close: each column the polish may move placed once, by the index its last round left (`_moved_from`).
+
+    Arranged row `r` takes the cell at its cell-list place `index[r]`, as
+    G16.4 places every column (`_placed_by_index`); a column the polish
+    did not move keeps the walk's index. Placing once after the polish
+    gives the cells two moves would (the walk's, then the polish's), with
+    no copy of the earlier index and one pass a column.
+    """
+    rows = chain_walk.size_of(walk.arranged)
+    for _step, name in sorted((walk.columns[key].step, key) for key in walk.columns):
+        column = walk.columns[name]
+        index = column.index
+        if not column.deferred or index is None:
+            continue
+        width = column.index_width
+        source = chain_walk.packed(rows, chain_walk.width_for(finished[column.step].count - 1))
+        for at in range(rows):
+            chain_walk.put(source, at, chain_walk.item(walk.arranged, chain_walk.read_code(index, width, at)))
+        finished[column.step] = _moved_from(
+            finished[column.step], walk.arranged, source, arranging, column.step, sheet_dealt
+        )
+        source = chain_walk.packed(0, 1)
+
+
+def _feature(target: _PolishTarget, held: "list[int]", state: _PolishState) -> "list[float]":
+    """A target's feature on the rows `held`: a partner number's rank score (0 where it holds none), or the encoding of a band."""
+    if target.kind in ("pair", "by"):
+        normal = state.normal
+        ranks = state.ranks[target.name]
+        present = state.has[target.name]
+        return [normal[ranks[2 * row] | (ranks[2 * row + 1] << 8)] if present[row] else 0.0 for row in held]
+    encoding = target.encoding
+    of_row = state.bands[(target.name, target.level)]
+    return [encoding[of_row[row]] if of_row[row] < len(encoding) else 0.0 for row in held]
+
+
+def _polish_frame_band(column: _WalkColumn, row: int) -> int:
+    """A row's band of the polish's FRAME: the column's band at its chain level (`_POLISH_FRAME_L0`: its `L0` band)."""
+    index = column.index
+    slot_l0 = column.slot_l0
+    chain_codes = column.codes
+    if index is None or slot_l0 is None:
+        return 0
+    if _POLISH_FRAME_L0 or chain_codes is None:
+        return chain_walk.read_code(slot_l0, column.l0_width, chain_walk.read_code(index, column.index_width, row))
+    return chain_walk.read_code(chain_codes, column.width, row)
+
+
+def _frame_groups(column: _WalkColumn, name: str, state: _PolishState, walk: _Walk) -> "chain_walk.Packed":
+    """Each row's FRAME group: a number's band at its chain level; a binary's joint band in every column its families cross it with."""
+    rows = state.rows
+    if name not in state.keys:
+        groups = chain_walk.packed(rows, 4)
+        for row in range(rows):
+            chain_walk.put(groups, row, _polish_frame_band(column, row))
+        return groups
+    found = chain_walk.packed(rows, 4)
+    for key_name, level in state.keys[name]:
+        other = walk.columns[key_name] if key_name in walk.columns else None
+        if other is None or other.index is None or other.slot_l0 is None:
+            continue
+        bands = _row_bands(other, level, rows)
+        _joint_groups(found, bands, other.counts[level] * _POLISH_KEY_WIDTH, rows)
+        bands = b""
+    return found
+
+
+# A test may widen each key column's band count by this factor (repair 2,
+# LANE MPg RULINGS 9 (1)): a binary's joint keys then pass 2 ** 32 on a
+# small table, and its frame must be the same groups (1 on every run).
+_POLISH_KEY_WIDTH = 1
+
+
+def _joint_groups(found: "chain_walk.Packed", bands: "bytes | list[int]", count: int, rows: int) -> None:
+    """Each row's joint group so far crossed with its band of the next key column, renumbered in order of first meeting.
+
+    The key `group * count + band` is formed as an exact whole number and
+    renumbered BEFORE it is stored (repair 2, Codex's item 1): stored first,
+    in four bytes, two keys `2 ** 32` apart became one group, so a binary
+    could exchange its levels between two family cells (two children of
+    65,537 levels each on 1,572,888 rows). The groups are at most the
+    rows, so the renumbered key fits the four bytes a row.
+    """
+    seen: "dict[int, int]" = {}
+    for row in range(rows):
+        value = chain_walk.item(found, row) * count + bands[row]
+        if value not in seen:
+            seen[value] = len(seen)
+        chain_walk.put(found, row, seen[value])
+
+
+def _rows_by_group(
+    groups: "chain_walk.Packed", present: bytearray, count: int
+) -> "tuple[chain_walk.Packed, list[int], list[int]]":
+    """The rows holding a reading, grouped by frame group in group order and rising inside each, where each group starts, and the groups met in that order.
+
+    A counting sort in two passes over the rows: the rows packed in as
+    few bytes a row as their count needs (G16.11's memory clause), and one
+    start a group, so no list of row numbers is held for the column.
+    """
+    rows = len(present)
+    sizes: "dict[int, int]" = {}
+    for row in range(rows):
+        if present[row]:
+            group = chain_walk.item(groups, row)
+            sizes[group] = sizes[group] + 1 if group in sizes else 1
+    ordered = sorted(sizes)
+    starts = [0]
+    next_slot: "dict[int, int]" = {}
+    for group in ordered:
+        next_slot[group] = starts[-1]
+        starts += [starts[-1] + sizes[group]]
+    grouped = chain_walk.packed(count, chain_walk.width_for(max(rows - 1, 0)))
+    for row in range(rows):
+        if present[row]:
+            group = chain_walk.item(groups, row)
+            chain_walk.put(grouped, next_slot[group], row)
+            next_slot[group] = next_slot[group] + 1
+    return grouped, starts, ordered
+
+
+# Above every magnitude `_score_key` builds, so every key is positive.
+_SCORE_KEY_OFFSET = 1 << 65
+
+
+def _score_key(score: float) -> int:
+    """A whole number in the order of a finite binary64 `score`, equal for equal scores (-0.0 and 0.0 among them).
+
+    `score = f 2 ** e` by `math.frexp` (exact, `0.5 <= |f| < 1`): the
+    magnitude `(e + 1100) 2 ** 53 + |f| 2 ** 53` grows with `|score|`, and
+    the key is the offset plus it for a positive score, less it for a
+    negative one. A sort of `key * span + row` therefore gives the order a
+    sort of `(score, row)` pairs gives, in one whole number a row instead of
+    a pair (repair 2, the column step's memory).
+    """
+    if score == 0.0:
+        return _SCORE_KEY_OFFSET
+    fraction, exponent = math.frexp(score)
+    magnitude = (exponent + 1100) * (1 << 53) + int(abs(fraction) * (1 << 53))
+    return _SCORE_KEY_OFFSET + magnitude if score > 0.0 else _SCORE_KEY_OFFSET - magnitude
+
+
+def _places_by_group(
+    groups: "chain_walk.Packed",
+    present: bytearray,
+    starts: "list[int]",
+    ordered: "list[int]",
+    index: bytearray,
+    index_width: int,
+    slot_codes: bytearray,
+    binary: bool,
+) -> "chain_walk.Packed":
+    """Each frame group's places, in the slots `_rows_by_group` gives its rows: rising (a binary's: level 0, then 1).
+
+    The places held by a group's rows holding a reading, found by one pass
+    over the rows (each place's group) and one over the places in rising
+    order a level, packed (repair 2: no list of a group's places is held).
+    The order is that of sorting the places (a binary's `(level, place)`
+    pairs).
+    """
+    rows = len(present)
+    count = len(slot_codes)
+    # Each place's group's position in `ordered`, plus one (0: no row holding a reading holds the place).
+    position = {ordered[at]: at + 1 for at in range(len(ordered))}
+    of_place = chain_walk.packed(count, 4)
+    for row in range(rows):
+        if present[row]:
+            chain_walk.put(of_place, chain_walk.read_code(index, index_width, row), position[chain_walk.item(groups, row)])
+    position = {}
+    found = chain_walk.packed(starts[-1], chain_walk.width_for(max(count - 1, 0)))
+    next_slot = [starts[group] for group in range(len(starts) - 1)]
+    for level in ((0, 1) if binary else (-1,)):
+        for place in range(count):
+            group = chain_walk.item(of_place, place)
+            if group and (level < 0 or slot_codes[place] == level):
+                chain_walk.put(found, next_slot[group - 1], place)
+                next_slot[group - 1] = next_slot[group - 1] + 1
+    return found
+
+
+def _polish_column(
+    column: _WalkColumn,
+    name: str,
+    targets: "list[_PolishTarget]",
+    sums: "chain_walk.Packed",
+    state: _PolishState,
+    walk: _Walk,
+    adjust: bool,
+) -> None:
+    """One round of G16.3 on one column: score, re-assign inside each frame group, then move the aims.
+
+    The rows holding a reading of the column are `R`. On at most
+    `_POLISH_SAMPLE` of them, spread over `R` (G16.2's spread positions),
+    the features' covariances `C` are read (each feature centred on its
+    mean there; every sum by `math.fsum`, correctly rounded, divided
+    once); `beta = (C + ridge I)^-1 aim`, the noise `sqrt(max(1 - beta .
+    aim, _POLISH_LEAST_NOISE))`. Each row's score is `sum_j beta_j x_j +
+    noise z`, `z` its hidden score; for each `within` target with
+    published band spreads, in plan order, each row's score is then moved
+    from its band's mean score by the band's spread factor. Inside each
+    FRAME group (a number's band at its chain level, `_POLISH_FRAME_L0`
+    its `L0` band; a binary's joint band in every column its families
+    cross it with) the rows sorted by score (ties to the lower row) take
+    the group's places in cell-list order (a binary's: level 0 before
+    level 1). Where `adjust`, each aim then moves by `_POLISH_STEP` of its
+    goal less what the column now holds (a pair's correlation over the
+    rows holding both, a grouping's covariance with its encoding), and
+    each spread factor by the ratio of its band's published spread to the
+    spread the band now holds, kept inside `_POLISH_SPREAD_LEAST` and
+    `_POLISH_SPREAD_MOST`. LINEAR in `R` a target, and a sort inside each
+    group.
+
+    WORKING MEMORY (lane MPg's repairs 1 and 2): the rows are grouped in a
+    packed array and so are the groups' places (`_places_by_group`), the
+    features built `_POLISH_CHUNK` rows at a time, every sum of the aims a
+    correctly rounded sum over a generator; the score is a list of one
+    float a row (the offline audit admits no typed array of floats), and
+    one frame group at a time is sorted as one whole number a row
+    (`_score_key`), in the order of its (score, row) pairs.
+    """
+    index = column.index
+    slot_codes = column.slot_codes
+    if index is None or column.slot_l0 is None or slot_codes is None:
+        return
+    own = state.codes[name]
+    present = state.has[name]
+    ranks = state.ranks[name] if name in state.ranks else None
+    slot_rank = column.slot_rank
+    rows = len(own)
+    count = 0
+    for row in range(rows):
+        count = count + present[row]
+    if count < 2:
+        return
+    width = len(targets)
+    taken = min(count, _POLISH_SAMPLE)
+    positions = chain_walk.spread_positions(count, taken)
+    sampled: "list[int]" = []
+    seen = 0
+    for row in range(rows):
+        if not present[row]:
+            continue
+        if len(sampled) < taken and positions[len(sampled)] == seen:
+            sampled += [row]
+        seen = seen + 1
+    positions = []
+    centred: "list[list[float]]" = []
+    # A partner's rank score is read in units of its spread on the sample,
+    # so its aim is a correlation (repair 1); an encoding keeps its own.
+    unit = [1.0 for _target in targets]
+    for j in range(width):
+        target = targets[j]
+        values = _feature(target, sampled, state)
+        centre = math.fsum(values) / taken
+        shifted = [value - centre for value in values]
+        if target.kind in ("pair", "by"):
+            spread_j = math.sqrt(math.fsum([value * value for value in shifted]) / taken)
+            if spread_j > 0.0:
+                unit[j] = 1.0 / spread_j
+                shifted = [value * unit[j] for value in shifted]
+        centred += [shifted]
+    matrix = [[0.0 for _c in range(width)] for _a in range(width)]
+    for a in range(width):
+        for c in range(a, width):
+            matrix[a][c] = math.fsum([x * y for x, y in zip(centred[a], centred[c])]) / taken
+            matrix[c][a] = matrix[a][c]
+        matrix[a][a] = matrix[a][a] + _POLISH_RIDGE
+    centred = []
+    aims = [target.aim for target in targets]
+    beta = _solved(matrix, aims)
+    explained = 0.0
+    for j in range(width):
+        explained = explained + beta[j] * aims[j]
+    rest = 1.0 - explained
+    noise = math.sqrt(rest if rest > _POLISH_LEAST_NOISE else _POLISH_LEAST_NOISE)
+    # Every row's score, built a chunk of rows at a time (0.0 on a row holding no reading).
+    score = [0.0 for _row in range(rows)]
+    for start in range(0, rows, _POLISH_CHUNK):
+        members = [row for row in range(start, min(rows, start + _POLISH_CHUNK)) if present[row]]
+        part = [0.0 for _row in members]
+        for j in range(width):
+            values = _feature(targets[j], members, state)
+            weight = beta[j] * unit[j]
+            part = [total + weight * value for total, value in zip(part, values)]
+            values = []
+        for at in range(len(members)):
+            row = members[at]
+            score[row] = part[at] + noise * chain_walk.hidden_score(chain_walk.item(sums, row))
+        members = []
+        part = []
+    # Each band's spread toward the published one: a row's score moved from its band's mean by the band's factor.
+    if _POLISH_SPREADS:
+        for target in targets:
+            if target.kind == "pair" and target.scales:
+                # A pair's own spread of the column (repair 2): the rows whose
+                # partner holds a reading, one band, its scores moved from
+                # their mean by the pair's factor; the other rows untouched.
+                both = state.has[target.name]
+                pair_total = 0.0
+                pair_rows = 0
+                for row in range(rows):
+                    if present[row] and both[row]:
+                        pair_total = pair_total + score[row]
+                        pair_rows = pair_rows + 1
+                if pair_rows:
+                    pair_middle = pair_total / pair_rows
+                    pair_factor = target.scales[0]
+                    for row in range(rows):
+                        if present[row] and both[row]:
+                            score[row] = pair_middle + pair_factor * (score[row] - pair_middle)
+                continue
+            if target.kind != "within" or not target.scales:
+                continue
+            of_row = state.bands[(target.name, target.level)]
+            bands = len(target.scales)
+            totals = [0.0 for _band in range(bands)]
+            counts = [0 for _band in range(bands)]
+            for row in range(rows):
+                if present[row] and of_row[row] < bands:
+                    totals[of_row[row]] = totals[of_row[row]] + score[row]
+                    counts[of_row[row]] = counts[of_row[row]] + 1
+            means = [totals[band] / counts[band] if counts[band] else 0.0 for band in range(bands)]
+            factors = target.scales
+            for row in range(rows):
+                if present[row] and of_row[row] < bands:
+                    band = of_row[row]
+                    score[row] = means[band] + factors[band] * (score[row] - means[band])
+    # Inside each frame group: the rows by score take the group's places in order.
+    index_width = column.index_width
+    groups = _frame_groups(column, name, state, walk)
+    grouped, starts, ordered = _rows_by_group(groups, present, count)
+    binary = name in state.keys
+    places = _places_by_group(groups, present, starts, ordered, index, index_width, slot_codes, binary)
+    ordered = []
+    groups = chain_walk.packed(0, 1)
+    # Each row's score and row number as ONE whole number (repair 2): sorted,
+    # they stand in the order of the (score, row) pairs, ties to the lower row.
+    span = 1
+    while span <= rows:
+        span = span * 2
+    for group in range(len(starts) - 1):
+        start = starts[group]
+        ranked = sorted(
+            _score_key(score[row]) * span + row
+            for row in (chain_walk.item(grouped, slot) for slot in range(start, starts[group + 1]))
+        )
+        for k in range(len(ranked)):
+            row = ranked[k] % span
+            place = chain_walk.item(places, start + k)
+            chain_walk.write_code(index, index_width, row, place)
+            own[row] = slot_codes[place]
+            if ranks is not None and slot_rank is not None:
+                ranks[2 * row] = slot_rank[2 * place]
+                ranks[2 * row + 1] = slot_rank[2 * place + 1]
+        ranked = []
+    grouped = chain_walk.packed(0, 1)
+    places = chain_walk.packed(0, 1)
+    score = []
+    # A COLUMN MOVED EARLIER IS READ AS MOVED (G16.3): a row moved inside
+    # its frame may now stand in another of the column's finer bands, so
+    # every band of it a target reads is read again here.
+    for key in [key for key in state.bands if key[0] == name]:
+        state.bands[key] = _row_bands(column, key[1], len(own))
+    if not adjust:
+        return
+    centre, spread = state.spreads[name]
+    if spread <= 0.0:
+        return
+    table = [(code - centre) / spread for code in range(256)]
+    whole_x = math.fsum(table[own[row]] for row in range(rows) if present[row])
+    for j in range(width):
+        target = targets[j]
+        got = 0.0
+        if target.kind == "pair":
+            other_centre, other_spread = state.spreads[target.name]
+            other = [((code - other_centre) / other_spread if other_spread > 0.0 else 0.0) for code in range(256)]
+            partner = state.codes[target.name]
+            both = state.has[target.name]
+            n = 0
+            for row in range(rows):
+                if present[row] and both[row]:
+                    n = n + 1
+            if n < 2:
+                continue
+            sx = math.fsum(table[own[row]] for row in range(rows) if present[row] and both[row])
+            sxx = math.fsum(table[own[row]] * table[own[row]] for row in range(rows) if present[row] and both[row])
+            sy = math.fsum(other[partner[row]] for row in range(rows) if present[row] and both[row])
+            syy = math.fsum(other[partner[row]] * other[partner[row]] for row in range(rows) if present[row] and both[row])
+            sxy = math.fsum(table[own[row]] * other[partner[row]] for row in range(rows) if present[row] and both[row])
+            vx = sxx - sx * sx / n
+            vy = syy - sy * sy / n
+            if vx <= 0.0 or vy <= 0.0:
+                continue
+            got = (sxy - sx * sy / n) / math.sqrt(vx * vy)
+        elif target.kind == "by":
+            # The number's split by this binary, read on the number's rows (the binary's bands just read again).
+            number_centre, number_spread = state.spreads[target.name]
+            if number_spread <= 0.0:
+                continue
+            number = [(code - number_centre) / number_spread for code in range(256)]
+            number_codes = state.codes[target.name]
+            holding = state.has[target.name]
+            encoding = target.encoding
+            of_row = state.bands[(name, target.level)]
+            m = 0
+            for row in range(rows):
+                if holding[row]:
+                    m = m + 1
+            if m < 2:
+                continue
+            sx = math.fsum(number[number_codes[row]] for row in range(rows) if holding[row])
+            sy = math.fsum(encoding[of_row[row]] for row in range(rows) if holding[row] and of_row[row] < len(encoding))
+            sxy = math.fsum(
+                number[number_codes[row]] * encoding[of_row[row]] for row in range(rows) if holding[row] and of_row[row] < len(encoding)
+            )
+            got = sxy / m - (sx / m) * (sy / m)
+        else:
+            encoding = target.encoding
+            of_row = state.bands[(target.name, target.level)]
+            sy = math.fsum(encoding[of_row[row]] for row in range(rows) if present[row] and of_row[row] < len(encoding))
+            sxy = math.fsum(
+                table[own[row]] * encoding[of_row[row]] for row in range(rows) if present[row] and of_row[row] < len(encoding)
+            )
+            got = sxy / count - (whole_x / count) * (sy / count)
+        target.aim = target.aim + _POLISH_STEP * (target.goal - got) / target.slope
+        if target.kind != "within":
+            # A correlation, a binary's latent one too, aims at most at its
+            # bound either way (`most`: `_POLISH_AIM_MOST`, or for a pair
+            # half way from its goal to 1, repair 2): past it the score is
+            # already the features alone, so a larger aim only stores up
+            # what the noise of earlier rounds missed (repair 1).
+            target.aim = min(target.most, max(-target.most, target.aim))
+        if _POLISH_SPREADS and target.kind == "pair" and target.scales:
+            # The pair's own spread of the column: its factor moved by the
+            # published spread over the spread its codes now hold on the
+            # rows whose partner holds a reading (repair 2).
+            both = state.has[target.name]
+            held_pair = 0
+            total_pair = 0
+            squares_pair = 0
+            for row in range(rows):
+                if present[row] and both[row]:
+                    code = own[row]
+                    held_pair = held_pair + 1
+                    total_pair = total_pair + code
+                    squares_pair = squares_pair + code * code
+            wanted = target.sds[0]
+            if held_pair >= 2 and wanted > 0.0:
+                spread_now = (held_pair * squares_pair - total_pair * total_pair) / (held_pair * (held_pair - 1))
+                if spread_now > 0.0:
+                    factor = target.scales[0] * wanted / math.sqrt(spread_now)
+                    target.scales[0] = min(_POLISH_SPREAD_MOST, max(_POLISH_PAIR_SPREAD_LEAST, factor))
+        if _POLISH_SPREADS and target.kind == "within" and target.scales:
+            of_row = state.bands[(target.name, target.level)]
+            bands = len(target.scales)
+            held = [0 for _band in range(bands)]
+            totals = [0 for _band in range(bands)]
+            squares = [0 for _band in range(bands)]
+            for row in range(rows):
+                if present[row] and of_row[row] < bands:
+                    band = of_row[row]
+                    code = own[row]
+                    held[band] = held[band] + 1
+                    totals[band] = totals[band] + code
+                    squares[band] = squares[band] + code * code
+            for band in range(bands):
+                wanted = target.sds[band]
+                if held[band] < 2 or wanted <= 0.0:
+                    continue
+                spread_now = (held[band] * squares[band] - totals[band] * totals[band]) / (held[band] * (held[band] - 1))
+                if spread_now <= 0.0:
+                    continue
+                factor = target.scales[band] * wanted / math.sqrt(spread_now)
+                target.scales[band] = min(_POLISH_SPREAD_MOST, max(_POLISH_SPREAD_LEAST, factor))
+    if _POLISH_FEASIBLE:
+        # THE AIMS STAY FEASIBLE TOGETHER (repair 1): where the moved aims ask
+        # the score for more than its whole spread (`a . (C + ridge I)^-1 a`
+        # past `1 - _POLISH_LEAST_NOISE`, on this round's sample), every aim
+        # is scaled down by one factor to that edge, so no aim stores up what
+        # the others' fresh draws missed and the next re-sort answers its aims.
+        moved = [target.aim for target in targets]
+        asked = _solved(matrix, moved)
+        whole = 0.0
+        for j in range(width):
+            whole = whole + asked[j] * moved[j]
+        edge = 1.0 - _POLISH_LEAST_NOISE
+        if whole > edge:
+            factor = math.sqrt(edge / whole)
+            for target in targets:
+                target.aim = target.aim * factor
 
 
 def _placed_by_index(
@@ -73211,14 +75074,32 @@ def _placed_by_index(
     row holds (G2.1 step 2's second walk reads it) and a workbook's
     classes, format kinds and kinds of date move with the cells.
     """
-    cells = twinstore.column_cells(held)
-    moved = list(cells)
     width = dealt.index_width
     count = chain_walk.size_of(arranged)
     # Each arranged row's source row, packed (G16.11; repair 1 of lane CHb, item 4).
-    source = chain_walk.packed(count, chain_walk.width_for(len(cells) - 1))
+    source = chain_walk.packed(count, chain_walk.width_for(held.count - 1))
     for at in range(count):
         chain_walk.put(source, at, chain_walk.item(arranged, chain_walk.read_code(dealt.index, width, at)))
+    return _moved_from(held, arranged, source, arranging, step, sheet_dealt)
+
+
+def _moved_from(
+    held: "twinstore.HeldColumn",
+    arranged: "chain_walk.Packed | list[int]",
+    source: "chain_walk.Packed",
+    arranging: "dialect.Arranging",
+    step: int,
+    sheet_dealt: "list[SheetDealt | None]",
+) -> "twinstore.HeldColumn":
+    """Arranged row `arranged[at]` takes the cell row `source[at]` holds (G16.4, and G16.3's polish).
+
+    A reserved row keeps its cell. The count of filled records each row
+    holds and a workbook's classes, format kinds and kinds of date move
+    with the cells, as `_placed_by_index` states.
+    """
+    cells = twinstore.column_cells(held)
+    moved = list(cells)
+    count = chain_walk.size_of(arranged)
     for at in range(count):
         moved[chain_walk.item(arranged, at)] = cells[chain_walk.item(source, at)]
     if arranging.placing:

@@ -92,7 +92,7 @@ import json
 import math
 import pathlib
 
-from synthtwin import calendar_clock, calendar_rules, canonical, chain_check, dialect, errors, parsing
+from synthtwin import calendar_clock, calendar_rules, canonical, chain_check, chain_moments, dialect, errors, parsing
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts, a
 # module that imports `parsing` alone.
 from synthtwin import date_counts, grains
@@ -2799,6 +2799,10 @@ class RelationshipManifest:
     # the generator's walk deals. Empty on every description a shipped
     # command loads, so G16 never runs there.
     chain: "tuple[ChainFamily, ...]" = ()
+    # RULE B'S MOMENTS, READ BEHIND THE SAME SWITCH (lane MPg, plan
+    # P4-D456; contract 4.6d.0), which G16.3's polish moves the twin
+    # onto. None on every description a shipped command loads.
+    moments: "RuleBMoments | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -2839,6 +2843,191 @@ class ChainFamily:
     table: "tuple[tuple[int, ...], ...]"
 
 
+@dataclasses.dataclass(frozen=True)
+class MomentColumn:
+    """One column of rule B's moments (contract 4.6d.0), as the polish reads it (lane MPg, plan P4-D456).
+
+    `kind` is `number` or `binary`; `n` its published count; `mean` and
+    `sd` a number's published mean and standard deviation on its code, or
+    `share` a binary's share, each read in the unit its own count sets
+    (`chain_moments.unit`) and divided once; `clip` a number's code clip
+    `(lo, hi)` read from its published rungs.
+    """
+
+    column: str
+    kind: str
+    n: int
+    mean: float = 0.0
+    sd: float = 0.0
+    share: float = 0.0
+    clip: "tuple[float, float] | None" = None
+
+
+@dataclasses.dataclass(frozen=True)
+class MomentGroup:
+    """One band of a `within` entry: its readings `n` and the column's `mean` and `sd` there (a number) or its `share` (a binary).
+
+    Each read in the unit the band's own count sets and divided once; a
+    band holding none of the column's readings has `n` 0 (`[0]`).
+    """
+
+    n: int
+    mean: float = 0.0
+    sd: float = 0.0
+    share: float = 0.0
+
+
+@dataclasses.dataclass(frozen=True)
+class MomentWithin:
+    """One `within` entry: `column`'s groups in each band of `by` at `level` (1, its `L1` bands; 2, its `L2` bands)."""
+
+    column: str
+    by: str
+    groups: "tuple[MomentGroup, ...]"
+    level: int = 1
+
+
+@dataclasses.dataclass(frozen=True)
+class RuleBMoments:
+    """Rule B's published moments (contract 4.6d.0), read after invariants S39 to S43 hold.
+
+    `correlations[i][j]` (j below i) is the `(r, n)` of the `i`-th and
+    `j`-th number columns of `columns`, or None: `r` the published value
+    (the tanh of its point on the count's grid of Fisher's z, printed to
+    12 decimals) divided once, `n` the rows holding both. `spreads[i][j]`,
+    in the same places, an incomplete pair's own two spreads (`[r, n, [sd,
+    sd]]`): the spread of the `i`-th column and of the `j`-th over the rows
+    holding both, on the code, each in a column spread's unit at the pair's
+    count and divided once; None where the pair holds every reading of
+    both or is refused (lane MPg's repair 2, Codex's item 3: the loader
+    had dropped them).
+    """
+
+    columns: "tuple[MomentColumn, ...]"
+    correlations: "tuple[tuple[tuple[float, int] | None, ...], ...]"
+    within: "tuple[MomentWithin, ...]"
+    spreads: "tuple[tuple[tuple[float, float] | None, ...], ...]" = ()
+
+
+def _moment_field(entry: "dict[str, object]", key: str) -> object:
+    """`entry[key]` where the description writes it, else None (the offline scan's idiom for a JSON object)."""
+    return entry[key] if key in entry else None
+
+
+def _moment_whole(value: object) -> int:
+    """A JSON whole number, else 0."""
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
+def _in_units(value: object, scale: int, n: int) -> float:
+    """A published moment `value` in units of `1 / unit(scale, n)`, divided once (exact rational, correctly rounded)."""
+    return _moment_whole(value) / chain_moments.unit(scale, n)
+
+
+def _moment_group(kind: str, group: "list[object]") -> MomentGroup:
+    """One published band of a `within` entry, read in the unit of its own count."""
+    n = _moment_whole(group[0]) if group else 0
+    if n <= 0:
+        return MomentGroup(0)
+    if kind == chain_moments.KIND_BINARY:
+        return MomentGroup(n, share=_in_units(group[1], chain_moments.SCALE_SHARE, n) if len(group) > 1 else 0.0)
+    return MomentGroup(
+        n,
+        mean=_in_units(group[1], chain_moments.SCALE_MEAN, n) if len(group) > 1 else 0.0,
+        sd=_in_units(group[2], chain_moments.SCALE_SPREAD, n) if len(group) > 2 else 0.0,
+    )
+
+
+def rule_b_moments(document: "dict[str, object]") -> "RuleBMoments | None":
+    """Rule B's moments a switched description publishes, or None (lane MPg, plan P4-D456).
+
+    Read only after `chain_check.check` has held them to S39 to S43, so
+    every entry is the shape contract 4.6d.0 writes: each moment in the
+    unit its own count sets (`scales`, one decimal finer for each 100-fold
+    over 20,000 rows; a column's spread in `column_sd`, a band's in `sd`),
+    a correlation as its printed value, a `within` entry on `L2` bands
+    where it names `level: 2`. Guarantees: a fixed function of the
+    document; raises nothing; no I/O of any kind.
+    """
+    relationships = document["relationships"] if "relationships" in document else None
+    if not isinstance(relationships, dict) or "statistical" not in relationships:
+        return None
+    statistical = relationships["statistical"]
+    if not isinstance(statistical, dict):
+        return None
+    moments = statistical["moments"] if "moments" in statistical else None
+    if not isinstance(moments, dict) or _moment_field(moments, "rule") != chain_moments.RULE_B:
+        return None
+    blocks: "dict[str, dict[str, object]]" = {}
+    written = document["columns"] if "columns" in document else []
+    for block in written if isinstance(written, list) else []:
+        if isinstance(block, dict) and isinstance(_moment_field(block, "name"), str):
+            blocks[f"{block['name']}"] = block
+    columns: "list[MomentColumn]" = []
+    kinds: "dict[str, str]" = {}
+    entries = _moment_field(moments, "columns")
+    for entry in entries if isinstance(entries, list) else []:
+        if not isinstance(entry, dict):
+            continue
+        name = f"{_moment_field(entry, 'column')}"
+        kind = f"{_moment_field(entry, 'kind')}"
+        n = _moment_whole(_moment_field(entry, "n"))
+        kinds[name] = kind
+        if kind == chain_moments.KIND_NUMBER and n > 0:
+            clip = chain_moments.code_clip(blocks[name]) if name in blocks else None
+            columns += [
+                MomentColumn(
+                    name, kind, n,
+                    mean=_in_units(_moment_field(entry, "mean"), chain_moments.SCALE_MEAN, n),
+                    sd=_in_units(_moment_field(entry, "sd"), chain_moments.SCALE_COLUMN_SPREAD, n),
+                    clip=clip,
+                )
+            ]
+        elif n > 0:
+            columns += [MomentColumn(name, kind, n, share=_in_units(_moment_field(entry, "share"), chain_moments.SCALE_SHARE, n))]
+    triangle: "list[tuple[tuple[float, int] | None, ...]]" = []
+    spread_triangle: "list[tuple[tuple[float, float] | None, ...]]" = []
+    rows = _moment_field(moments, "correlations")
+    for row in rows if isinstance(rows, list) else []:
+        line: "list[tuple[float, int] | None]" = []
+        spread_line: "list[tuple[float, float] | None]" = []
+        for pair in row if isinstance(row, list) else []:
+            line += [
+                (_moment_whole(pair[0]) / chain_moments.SCALE_CORRELATION, _moment_whole(pair[1]))
+                if isinstance(pair, list) and len(pair) in (2, 3) else None
+            ]
+            own = pair[2] if isinstance(pair, list) and len(pair) == 3 and isinstance(pair[2], list) and len(pair[2]) == 2 else None
+            count = _moment_whole(pair[1]) if own is not None else 0
+            spread_line += [
+                (
+                    _in_units(own[0], chain_moments.SCALE_COLUMN_SPREAD, count),
+                    _in_units(own[1], chain_moments.SCALE_COLUMN_SPREAD, count),
+                )
+                if own is not None and count > 0 else None
+            ]
+        triangle += [tuple(line)]
+        spread_triangle += [tuple(spread_line)]
+    within: "list[MomentWithin]" = []
+    held = _moment_field(moments, "within")
+    for entry in held if isinstance(held, list) else []:
+        if not isinstance(entry, dict):
+            continue
+        column = f"{_moment_field(entry, 'column')}"
+        kind = kinds[column] if column in kinds else chain_moments.KIND_NUMBER
+        groups = _moment_field(entry, "groups")
+        level = _moment_field(entry, "level")
+        within += [
+            MomentWithin(
+                column,
+                f"{_moment_field(entry, 'by')}",
+                tuple(_moment_group(kind, group) for group in groups if isinstance(group, list))
+                if isinstance(groups, list) else (),
+                chain_moments.LEVEL_COARSE if level == chain_moments.LEVEL_COARSE else chain_moments.LEVEL_BANDS,
+            )
+        ]
+    return RuleBMoments(tuple(columns), tuple(triangle), tuple(within), tuple(spread_triangle))
+
+
 def ladder_entries(document: "dict[str, object]") -> "tuple[tuple[LadderEntry, ...], int]":
     """The `L0` ladder and the number of families a switched description publishes (plan P4-D429).
 
@@ -2850,6 +3039,10 @@ def ladder_entries(document: "dict[str, object]") -> "tuple[tuple[LadderEntry, .
     """
     relationships = document["relationships"] if "relationships" in document else None
     if not isinstance(relationships, dict) or "statistical" not in relationships:
+        return (), 0
+    if relationships["grain"] if "grain" in relationships else None:
+        # The patient layer's chain counts patients (lane GRa, plan
+        # P4-D449): its generator is lane GRb's, so the row walk reads none.
         return (), 0
     statistical = relationships["statistical"]
     if not isinstance(statistical, dict):
@@ -2912,6 +3105,10 @@ def chain_families(document: "dict[str, object]") -> "tuple[ChainFamily, ...]":
     """
     relationships = document["relationships"] if "relationships" in document else None
     if not isinstance(relationships, dict) or "statistical" not in relationships:
+        return ()
+    if relationships["grain"] if "grain" in relationships else None:
+        # The patient layer's families count patients (lane GRa, plan
+        # P4-D449): lane GRb's generator reads them, never the row walk.
         return ()
     statistical = relationships["statistical"]
     if not isinstance(statistical, dict):
@@ -4182,6 +4379,17 @@ class _Frame:
     # -- 3b.R2c (P4-D383): the columns the person said hold dates
     # (`forced_date_columns`), whose blocks `_declared_short` marks.
     declared_dates: "tuple[str, ...]" = ()
+    # THE PATIENT LAYER (lane GRa, plan P4-D449; contract 4.6c, NOT IN
+    # FORCE), read only behind the chain's switch where `grain` stands:
+    # the columns whose blocks count PATIENTS (the person column and the
+    # patient-fixed ones) and are checked over `patients` rows, the person
+    # column among them, the columns that publish no block of their own,
+    # and whether a multiplicity map may be withheld (4.6c.3 (c)).
+    in_patients: "tuple[str, ...]" = ()
+    person: str = ""
+    patients: int = 0
+    emptied: "tuple[str, ...]" = ()
+    maps_withheld: bool = False
 
 
 def _category_ceiling(frame: _Frame) -> int:
@@ -5110,6 +5318,21 @@ def _multiplicity(
             f"the largest of them, {largest}, needs {len(f'{largest}')}",
         )
     return kept, pairs
+
+
+def _withheld_or_read(
+    value: object, where: str, withheld: bool
+) -> "tuple[dict[str, int], list[tuple[int, int]]]":
+    """A column's own repetition pattern, or none where the patient layer withholds it (4.6c.3 (c)).
+
+    Behind the chain's switch, where `grain` stands, a multiplicity map
+    that would count rows a patient's value covers is `null` (lane GRa,
+    plan P4-D449; S29 holds which may be): read as an empty pattern,
+    which closes nothing. Everywhere else `_multiplicity` as before.
+    """
+    if withheld and value is None:
+        return {}, []
+    return _multiplicity(value, "n_distinct_by_occurrences", where, None)
 
 
 def _multiplicity_totals(
@@ -6260,6 +6483,7 @@ def _dialect_rules(
     declared: "tuple[str, ...]" = (),
     metadata_rows: int = 0,
     declared_delimiter: str = "",
+    emptied: "tuple[str, ...]" = (),
 ) -> None:
     """The invariants that tie the file's written form to the table (FD1-FD13).
 
@@ -6491,7 +6715,9 @@ def _dialect_rules(
             at > width
             or n_rows < 3
             or sequences[at - 1]
-            or _written_empty(columns[at - 1]) != empties
+            # A block the patient layer empties publishes no count of absent
+            # cells to read (lane GRa, plan P4-D449; S30): its cells are held.
+            or (columns[at - 1].name not in emptied and _written_empty(columns[at - 1]) != empties)
         ):
             raise _broken(
                 "FD7", where,
@@ -7404,9 +7630,11 @@ def _relationships(value: object, chain: bool = False) -> RelationshipManifest:
     for name in RELATIONSHIP_KEYS:
         # THE CHAIN'S SWITCH (lane CHa, plan P4-D418; contract 4.6b, NOT
         # IN FORCE): a caller that asks for it lets `statistical` through
-        # to `chain_check`'s invariants S23 to S28. No shipped command
-        # asks, so S12 stands word for word for every one of them.
-        if chain and name == "statistical":
+        # to `chain_check`'s invariants S23 to S28, and `grain`, the
+        # patient layer (lane GRa, plan P4-D449; contract 4.6c), to its
+        # S29 to S33. No shipped command asks, so S12 stands word for
+        # word for every one of them.
+        if chain and name in ("statistical", "grain"):
             continue
         if mapping[name] is not None:
             raise errors.ProfileError(
@@ -8998,7 +9226,7 @@ def _facts(
         return _empty_facts(mapping, where)
     if role == ROLE_UNREPRESENTABLE:
         return _unrepresentable_facts(
-            mapping, where, n_present, n_distinct
+            mapping, where, n_present, n_distinct, frame.maps_withheld
         )
     # W9 IS ASKED OF ALL FOUR LEVEL ROLES HERE, where `n_distinct` is in
     # hand, and of a compound column's label half by its own reader.
@@ -9141,9 +9369,12 @@ def _facts(
         )
     if role == ROLE_IDENTIFIER:
         return _identifier_facts(
-            mapping, where, n_present, n_distinct, frame.floor
+            mapping, where, n_present, n_distinct, frame.floor,
+            frame.maps_withheld,
         )
-    return _text_facts(mapping, where, n_present, n_distinct, frame.floor)
+    return _text_facts(
+        mapping, where, n_present, n_distinct, frame.floor, frame.maps_withheld
+    )
 
 
 def _empty_facts(mapping: "dict[str, object]", where: str) -> EmptyFacts:
@@ -9190,6 +9421,7 @@ def _unrepresentable_facts(
     where: str,
     n_present: int,
     n_distinct: int,
+    withheld: bool = False,
 ) -> UnrepresentableFacts:
     """A column of numbers this format cannot hold (contract 6.2).
 
@@ -9236,13 +9468,11 @@ def _unrepresentable_facts(
             ),
             f"the column holds {n_present} values",
         )
-    pattern, pairs = _multiplicity(
-        mapping["n_distinct_by_occurrences"],
-        "n_distinct_by_occurrences",
-        where,
-        None,
+    pattern, pairs = _withheld_or_read(
+        mapping["n_distinct_by_occurrences"], where, withheld
     )
-    _pattern_closes(pairs, where, "U3", n_distinct, n_present)
+    if not (withheld and mapping["n_distinct_by_occurrences"] is None):
+        _pattern_closes(pairs, where, "U3", n_distinct, n_present)
     smallest = _whole(mapping["min_length"], "min_length", where, 1)
     largest = _whole(mapping["max_length"], "max_length", where, 1)
     if smallest > largest:
@@ -20532,6 +20762,7 @@ def _identifier_facts(
     n_present: int,
     n_distinct: int,
     floor: int,
+    withheld: bool = False,
 ) -> IdentifierFacts:
     """A column the person declared to hold record numbers (6.8).
 
@@ -20550,13 +20781,11 @@ def _identifier_facts(
             f"the shortest value is {smallest} characters",
             f"the longest is {largest}",
         )
-    pattern, pairs = _multiplicity(
-        mapping["n_distinct_by_occurrences"],
-        "n_distinct_by_occurrences",
-        where,
-        None,
+    pattern, pairs = _withheld_or_read(
+        mapping["n_distinct_by_occurrences"], where, withheld
     )
-    _pattern_closes(pairs, where, "I2", n_distinct, n_present)
+    if not (withheld and mapping["n_distinct_by_occurrences"] is None):
+        _pattern_closes(pairs, where, "I2", n_distinct, n_present)
     layouts = _layout_forms(mapping, where, floor)
     prefixes = _layout_prefixes(mapping, where, layouts, n_distinct, floor)
     return IdentifierFacts(
@@ -21420,6 +21649,7 @@ def _text_facts(
     n_present: int,
     n_distinct: int,
     floor: int,
+    withheld: bool = False,
 ) -> TextFacts:
     """A column no rule claimed (contract 6.9).
 
@@ -21455,13 +21685,11 @@ def _text_facts(
             f"the fewest words in a value is {fewest}",
             f"the most is {most}",
         )
-    pattern, pairs = _multiplicity(
-        mapping["n_distinct_by_occurrences"],
-        "n_distinct_by_occurrences",
-        where,
-        None,
+    pattern, pairs = _withheld_or_read(
+        mapping["n_distinct_by_occurrences"], where, withheld
     )
-    _pattern_closes(pairs, where, "F2", n_distinct, n_present)
+    if not (withheld and mapping["n_distinct_by_occurrences"] is None):
+        _pattern_closes(pairs, where, "F2", n_distinct, n_present)
     return TextFacts(
         figure_openings=_figure_openings(mapping, where),
         shape_forms=_shape_forms(mapping, where, floor, True),
@@ -21552,7 +21780,17 @@ def _columns(
     seen: list[str] = []
     index = 0
     for entry in listed:
-        block = _column(entry, index, frame)
+        named = entry["name"] if isinstance(entry, dict) and "name" in entry else None
+        if isinstance(named, str) and named in frame.emptied:
+            block = _emptied_column(entry, index, frame)
+        elif isinstance(named, str) and named in frame.in_patients:
+            block = _column(
+                _patient_view(entry, named == frame.person, frame.patients),
+                index,
+                dataclasses.replace(frame, n_rows=frame.patients),
+            )
+        else:
+            block = _column(entry, index, frame)
         if block.name in seen:
             raise _broken(
                 "S4",
@@ -21564,6 +21802,75 @@ def _columns(
         blocks += [block]
         index = index + 1
     return tuple(blocks)
+
+
+def _patient_view(entry: object, person: bool, patients: int) -> object:
+    """A block counted in patients, read as the patient table's (lane GRa, plan P4-D449; contract 4.6c.3 (b)).
+
+    A patient-fixed column's block is the patient table's already. The
+    person column keeps its presence and absence in rows (section 5.3);
+    on the patient table it holds one value a patient, so its view
+    reads `patients` values, none absent, each on one row.
+    """
+    if not person or not isinstance(entry, dict):
+        return entry
+    view: "dict[str, object]" = {}
+    for key in entry:
+        view[key] = entry[key]
+    view["n_present"] = patients
+    view["n_missing"] = 0
+    view["n_missing_blank"] = 0
+    view["n_missing_withheld"] = 0
+    view["missing_by_source"] = {}
+    classes = entry["missing_by_class"] if "missing_by_class" in entry else None
+    if isinstance(classes, dict):
+        view["missing_by_class"] = {key: 0 for key in classes}
+    view["n_distinct_by_occurrences"] = {"1": patients}
+    return view
+
+
+def _emptied_column(entry: object, index: int, frame: _Frame) -> ColumnBlock:
+    """A block the patient layer empties, typed as a column of no value (lane GRa, plan P4-D449; S30).
+
+    A position-like or held column publishes no key but its name, place
+    and role (S30, checked by `chain_check`); its rows are written from
+    `grain` by the patient layer's generator (lane GRb), so the typed
+    column here says only that the block publishes no value.
+    """
+    where = f"column number {index + 1}"
+    mapping = _mapping(entry, f"columns[{index}]", where)
+    name = _text(mapping["name"] if "name" in mapping else None, "name", where)
+    position = mapping["position"] if "position" in mapping else None
+    if not isinstance(position, int) or isinstance(position, bool) or position != index + 1:
+        raise _broken("S2", where, "the column's position is not its place", "a block stands at its own place")
+    return ColumnBlock(
+        name=name,
+        position=position,
+        role=ROLE_EMPTY,
+        statistical_type="unknown",
+        quality_state="empty",
+        structural_role="data",
+        n_present=0,
+        n_missing=frame.n_rows,
+        missing_by_class=MissingByClass(
+            blank=frame.n_rows, date_sentinel=0, declared_missing=0,
+            numeric_sentinel=0, text_code=0, withheld=0,
+        ),
+        missing_by_source={},
+        n_missing_blank=frame.n_rows,
+        n_missing_withheld=0,
+        n_distinct=0,
+        n_distinct_folded=0,
+        n_numeric=0,
+        n_not_numeric=0,
+        n_out_of_range=0,
+        n_contradictory=0,
+        n_sentinel_candidates_unpublished=0,
+        sentinel_verdicts=(),
+        detection_evidence="",
+        remarks=(),
+        facts=EmptyFacts(),
+    )
 
 
 def _mixture_pools_bounded(
@@ -23076,9 +23383,21 @@ def _validated(document: "dict[str, object]", chain: bool = False) -> Profile:
     # a total that does not add up, when the reason it does not is that
     # somebody moved a field out of a description made at another floor.
     _nothing_is_held_back(document, settings.small_cell_floor)
+    # THE PATIENT LAYER (lane GRa, plan P4-D449; contract 4.6c, NOT IN
+    # FORCE): behind the switch, where `grain` stands, the chain's
+    # invariants S23 to S33 are read first, on the description itself, and
+    # the blocks the layer counts in patients or empties are read so.
+    layer = _patient_layer_frame(document, chain)
+    if chain:
+        chain_check.check(document)
     columns = _columns(
         document["columns"],
         _Frame(
+            in_patients=layer[0],
+            person=layer[1],
+            patients=layer[2],
+            emptied=layer[3],
+            maps_withheld=bool(layer[1]),
             table_holes=_table_holes(document["columns"]),
             floor=settings.small_cell_floor,
             n_rows=n_rows,
@@ -23098,7 +23417,7 @@ def _validated(document: "dict[str, object]", chain: bool = False) -> Profile:
     _dialect_rules(
         source, columns, n_rows, settings.small_cell_floor,
         settings.forced_identifiers, settings.forced_metadata_rows,
-        settings.forced_delimiter,
+        settings.forced_delimiter, layer[3],
     )
     # ...and the same for a workbook, where the file was one (plan
     # P4-D77). Run beside the written form's rules and for the same
@@ -23115,12 +23434,12 @@ def _validated(document: "dict[str, object]", chain: bool = False) -> Profile:
     # -- the chain's invariants S23 to S28, behind its switch (lane CHa,
     # plan P4-D418; contract 4.6b.11, NOT IN FORCE)
     if chain:
-        chain_check.check(document)
         # ...and its `L0` ladder, which the generator's band totals read
         # (lane BT, plan P4-D429; method G4.2a, G4.2b, G5.7).
         entries, families = ladder_entries(document)
         relationships = dataclasses.replace(
-            relationships, ladder=entries, families=families, chain=chain_families(document)
+            relationships, ladder=entries, families=families, chain=chain_families(document),
+            moments=rule_b_moments(document),
         )
     return Profile(
         profile_version=PROFILE_VERSION,
@@ -23133,6 +23452,51 @@ def _validated(document: "dict[str, object]", chain: bool = False) -> Profile:
         publication_notes=notes,
         columns=columns,
     )
+
+
+def _patient_layer_frame(
+    document: "dict[str, object]", chain: bool
+) -> "tuple[tuple[str, ...], str, int, tuple[str, ...]]":
+    """What the column reading needs of the patient layer: its patient-counted blocks, the person, the patients, the emptied blocks.
+
+    Lane GRa, plan P4-D449 (contract 4.6c, NOT IN FORCE). Empty unless
+    the chain's switch is on and `grain` stands; read before S29 to S33
+    are, so every value is read defensively (a malformed `grain` is
+    refused by `chain_check` before any column is read).
+    """
+    empty: "tuple[tuple[str, ...], str, int, tuple[str, ...]]" = ((), "", 0, ())
+    relationships = document["relationships"] if "relationships" in document else None
+    grain = relationships["grain"] if isinstance(relationships, dict) and "grain" in relationships else None
+    if not chain or not isinstance(grain, dict):
+        return empty
+    person = grain["person"] if "person" in grain else None
+    census = grain["census"] if "census" in grain else None
+    classes = grain["classes"] if "classes" in grain else None
+    if not isinstance(person, str) or not isinstance(census, dict) or not isinstance(classes, list):
+        return empty
+    patients = 0
+    bands = census["bands"] if "bands" in census else None
+    top = census["top"] if "top" in census else None
+    if isinstance(bands, list):
+        for band in bands:
+            count = band["patients"] if isinstance(band, dict) and "patients" in band else 0
+            patients += count if isinstance(count, int) and not isinstance(count, bool) else 0
+    if isinstance(top, dict) and "patients" in top and isinstance(top["patients"], int):
+        patients += int(top["patients"])
+    in_patients: "list[str]" = [person]
+    emptied: "list[str]" = []
+    for entry in classes:
+        if not isinstance(entry, dict):
+            continue
+        name = entry["column"] if "column" in entry else None
+        kind = entry["class"] if "class" in entry else None
+        if not isinstance(name, str):
+            continue
+        if kind == "patient_fixed":
+            in_patients += [name]
+        elif kind in ("position_like", "held"):
+            emptied += [name]
+    return tuple(in_patients), person, patients, tuple(emptied)
 
 
 def _no_duplicate_keys(text: str, shown: str) -> None:

@@ -4528,6 +4528,12 @@ class ChainRun:
     folder: "str | None" = None
     replace_description: bool = False
     new_key: bool = False
+    # THE SUBJECT QUESTION ANSWERED IN ADVANCE (lane GRa, plan P4-D449):
+    # `asking.ANSWER_ONE_ROW_EACH` or `asking.ANSWER_NO_PERSON_COLUMN`, as a
+    # handed-back questions file would answer it (an answer in that file
+    # stands over this one); empty, the question is put and holds the
+    # chain until it is answered.
+    rows_per_person: str = ""
 
 
 @dataclasses.dataclass
@@ -4551,6 +4557,108 @@ class _ChainState:
     # where it did not): the summary file closes on them too (LANE MPp
     # RULINGS 7 (3), verify 2's C2).
     moments_left_out: str = ""
+    # THE SUBJECT QUESTION'S ANSWER (lane GRa, plan P4-D449), as the
+    # handed-back file wrote it, and the column it names, if any.
+    rows_answer: str = ""
+    person_named: str = ""
+    # Whether this run put the subject question (nothing says who the rows
+    # are about), the repeating keys it names, and what it decided.
+    subject_put: bool = False
+    subject_keys: "tuple[str, ...]" = ()
+    rows_per_person: str = ""
+    # THE PERSON QUESTION'S TWO READINGS (RULINGS 1 (1)): the columns said to
+    # identify the person, and a record of the person, kept across rounds.
+    persons_said: "tuple[str, ...]" = ()
+    records_said: "tuple[str, ...]" = ()
+
+
+def _subject_named(chain_state: "_ChainState | None") -> "list[str]":
+    """The column the subject question's handed-back answer names, as a list of none or one (lane GRa, plan P4-D449)."""
+    if chain_state is None or not chain_state.person_named:
+        return []
+    return [chain_state.person_named]
+
+
+def _persons_settled(chain_state: _ChainState, repeating: "tuple[str, ...]") -> "tuple[str, ...]":
+    """Who the rows of a switched run are about: its person columns among the repeating keys, and the subject question's state.
+
+    Lane GRa, plan P4-D449, RULINGS 1 (1). A repeating key is the person
+    only where an answer says so or its name, read whole, says so; other
+    repeating keys beside it are records of the person. Until something
+    says the person the hold stands, and an answer saying only records
+    holds as no column naming the person. Returns the columns the run
+    counts people by. Guarantees: a fixed function of its arguments and
+    the state's answers; reads no cell; called on a switched run alone.
+    """
+    from synthtwin import chain
+
+    chain_state.subject_keys = ()
+    chain_state.subject_put = False
+    if not chain_state.rows_answer and chain_state.run.rows_per_person in (
+        asking.ANSWER_ONE_ROW_EACH, asking.ANSWER_NO_PERSON_COLUMN
+    ):
+        chain_state.rows_answer = chain_state.run.rows_per_person
+    if not repeating:
+        # Nothing repeats among the declared keys: the question stands alone.
+        chain_state.subject_put = True
+        if chain_state.rows_answer == asking.ANSWER_NO_PERSON_COLUMN:
+            chain_state.rows_per_person = chain.ROWS_UNNAMED
+        elif chain_state.rows_answer == asking.ANSWER_ONE_ROW_EACH:
+            chain_state.rows_per_person = chain.ROWS_ONE
+        else:
+            # AN ANSWER NAMING A COLUMN IS NEVER READ AS `one row each`
+            # (Codex's review of lane GRa, item 4): where the column it
+            # names is no repeating key here, the answer is dropped and the
+            # question put again; the column stays declared, and the hold
+            # stands until the next answer.
+            chain_state.rows_answer = ""
+            chain_state.rows_per_person = chain.ROWS_OPEN
+        return repeating
+    said = tuple(name for name in repeating if name in chain_state.persons_said or name == chain_state.person_named)
+    if said:
+        chain_state.persons_said = tuple(sorted(set(chain_state.persons_said) | set(said)))
+        chain_state.rows_per_person = chain.ROWS_PERSON
+        return said
+    if chain_state.rows_answer == asking.ANSWER_ONE_ROW_EACH:
+        # An answer that contradicts a key answered to repeat: no chain.
+        chain_state.subject_put = True
+        chain_state.subject_keys = repeating
+        chain_state.rows_per_person = chain.ROWS_ONE
+        return repeating
+    unread = tuple(name for name in repeating if name not in chain_state.records_said)
+    if chain_state.rows_answer == asking.ANSWER_NO_PERSON_COLUMN or not unread:
+        chain_state.subject_put = True
+        chain_state.subject_keys = repeating
+        chain_state.rows_per_person = chain.ROWS_UNNAMED
+        return repeating
+    by_name = tuple(name for name in unread if asking.names_a_person(name))
+    if len(by_name) == 1:
+        chain_state.rows_per_person = chain.ROWS_PERSON
+        return by_name
+    chain_state.subject_put = True
+    chain_state.subject_keys = unread
+    chain_state.rows_per_person = chain.ROWS_OPEN
+    return repeating
+
+
+def _population_settled(
+    chain_state: "_ChainState | None",
+    table: object,
+    settings: object,
+    declared: "list[str]",
+    codes: "list[str] | None",
+    measurements: "list[str] | None",
+    decimal_commas: "list[str] | None",
+    stored_as: "tuple[str, ...]",
+) -> "tuple[tuple[str, ...], int, str, tuple[object, ...], int, int]":
+    """`_population_of`, and on a switched run its count over the columns said to identify the person alone."""
+    found = _population_of(table, settings, declared, codes, measurements, decimal_commas, stored_as)
+    if chain_state is None:
+        return found
+    persons = _persons_settled(chain_state, found[0])
+    if persons == found[0]:
+        return found
+    return _population_of(table, settings, list(persons), codes, measurements, decimal_commas, stored_as)
 
 
 def _chained_description(
@@ -4564,6 +4672,12 @@ def _chained_description(
     forced_measurements: "list[str]",
     forced_decimal_commas: "list[str]",
     storage: "tuple[str, ...]",
+    held_by_person: "tuple[str, ...]" = (),
+    safe_harbor_no: "tuple[str, ...]" = (),
+    unanswered: "tuple[str, ...]" = (),
+    rare_values_released: bool = True,
+    harbor_year: int = 0,
+    kept_identities: "tuple[str, ...]" = (),
 ) -> "dict[str, object]":
     """The description with its chain, the ledger's decision on it, and the one line on the screen.
 
@@ -4576,16 +4690,44 @@ def _chained_description(
 
     run = chain_state.run
     name = run.name if run.name is not None else table.stem
+    # THE SUBJECT QUESTION'S HOLD (lane GRa, plan P4-D449; `_persons_settled`
+    # read it as the people were counted): while it is open, or answered with
+    # no column naming the person, no chain and no patient layer is drawn.
     chained = chain.describe(
         read,
         published,
         settings,
-        chain.ChainSwitch(name, chain_state.opened.key, held, chain_state.add, chain_state.drop),
+        chain.ChainSwitch(
+            name,
+            chain_state.opened.key,
+            held,
+            chain_state.add,
+            chain_state.drop,
+            chain_state.rows_per_person,
+            held_by_person,
+            safe_harbor_no,
+            unanswered,
+            rare_values_released,
+            harbor_year,
+            kept_identities,
+        ),
         list(forced_codes),
         list(forced_measurements),
         list(forced_decimal_commas),
         storage,
     )
+    # A table of fewer than two eligible columns draws no chain whatever the
+    # answer, and a table with no repeating key decides nothing then; nor
+    # does one whose repeating column the open person question holds, until
+    # that question is answered: the subject question is not put. The hold
+    # stands either way.
+    if (
+        chain_state.subject_put
+        and not chain_state.rows_answer
+        and not chain_state.subject_keys
+        and (chain.too_few_columns(chained) or chain.person_question_holds(chained))
+    ):
+        chain_state.subject_put = False
     relationships = published["relationships"]
     if not isinstance(relationships, dict):
         return published
@@ -4596,6 +4738,12 @@ def _chained_description(
     for key in relationships:
         block[key] = relationships[key]
     block["statistical"] = chained.statistical
+    # THE PATIENT LAYER (lane GRa, plan P4-D449): `grain`, and every column
+    # block as the layer publishes it, where it stands.
+    if chained.grain is not None:
+        block["grain"] = chained.grain
+    if chained.columns is not None:
+        with_chain["columns"] = chained.columns
     with_chain["relationships"] = block
     statistical = chained.statistical
     # THE MOMENTS' FAIL-SAFE (lane MPp, plan P4-D455; LANE MPp RULINGS 6
@@ -5097,6 +5245,17 @@ def _run_profile_body(
                     chain_state.drop,
                     chain_state.unread,
                 ) = asking.between_columns_requests(handed_back)
+                # ...and the subject question's answer (lane GRa, plan
+                # P4-D449): a column it names is declared as record numbers.
+                (
+                    chain_state.rows_answer,
+                    chain_state.person_named,
+                ) = asking.rows_per_person_answer(handed_back)
+                # ...and the person question's two readings it kept.
+                (
+                    chain_state.persons_said,
+                    chain_state.records_said,
+                ) = asking.columns_said(handed_back)
             # HOW THE RUN THAT WROTE THE FILE READ THE TABLE, before
             # anything typed now takes a kept answer out (plan P4-D408).
             kept_reading = asking.kept_reading(handed_back)
@@ -5216,6 +5375,12 @@ def _run_profile_body(
                 for one_name, _answer, family in written.carried
                 if family not in asking.FILE_FAMILIES
             ]
+            # ...and, behind the chain's switch, the column the subject
+            # question's answer names (lane GRa, plan P4-D449; Codex's
+            # review, item 3): it declares that column as record numbers,
+            # by its name under the reading that wrote the file, so it is
+            # bound by every check an `identifier` answer is bound by.
+            + _subject_named(chain_state)
         ):
             # Each name once: a column answered in both sections of the
             # file would otherwise stand twice in one sentence.
@@ -5272,10 +5437,30 @@ def _run_profile_body(
         # (plan P4-D408, third round), so a typed declaration of what the
         # column holds stands beside it; an answer to the question of a
         # point between thousands decides both, and replaces it as before.
+        # ...and, behind the chain's switch, the person question's two
+        # readings of `identifier` (lane GRa, RULINGS 1 (1)).
+        if chain_state is not None:
+            chain_state.persons_said = tuple(
+                sorted(
+                    (set(chain_state.persons_said) - set(written.records_said))
+                    | set(written.persons_said)
+                )
+            )
+            chain_state.records_said = tuple(
+                sorted(
+                    (set(chain_state.records_said) - set(written.persons_said))
+                    | set(written.records_said)
+                )
+            )
         held_by_answer = (
             list(written.codes)
             + list(written.identifiers)
             + list(written.measurements)
+            # ...and the column the subject question's answer names, the
+            # newer statement in the ordinary way (Codex's review of lane
+            # GRa, item 4): it replaces a typed `--date-count`, `--code` or
+            # `--measurement` for its column as an `identifier` answer does.
+            + _subject_named(chain_state)
         )
         spoken_for = held_by_answer + [
             one
@@ -5290,6 +5475,12 @@ def _run_profile_body(
             [one for one in forced_identifiers if one not in spoken_for]
             + list(written.identifiers)
         )
+        # ...AND, BEHIND THE CHAIN'S SWITCH ALONE, THE COLUMN THE SUBJECT
+        # QUESTION'S ANSWER NAMES (lane GRa, plan P4-D449): declared as
+        # record numbers, so that where it repeats it is the person column.
+        for one in _subject_named(chain_state):
+            if one not in forced_identifiers:
+                forced_identifiers = sorted(forced_identifiers + [one])
         forced_measurements = sorted(
             [one for one in forced_measurements if one not in spoken_for]
             + list(written.measurements)
@@ -5908,7 +6099,8 @@ def _run_profile_body(
     # the census reads is read once.
     storage = profile.stored_as_of(read, settings)
     person_columns, population, unit, census_readings, held_rows, floor_people = (
-        _population_of(
+        _population_settled(
+            chain_state,
             read,
             settings,
             forced_identifiers,
@@ -6360,7 +6552,8 @@ def _run_profile_body(
                     held_rows,
                     floor_people,
                 ) = (
-                    _population_of(
+                    _population_settled(
+                        chain_state,
                         read,
                         settings,
                         forced_identifiers,
@@ -6866,6 +7059,17 @@ def _run_profile_body(
             forced_measurements,
             forced_decimal_commas,
             storage,
+            tuple(
+                question.name
+                for question in asked_about
+                if question.reason == asking.BECAUSE_REPEATS_AND_MANY
+                and (question.name in withheld or question.name in candidates)
+            ),
+            tuple(safe_harbor_no),
+            tuple(withheld) + tuple(five_held) + tuple(harbor_held),
+            not identities_open,
+            harbor_year,
+            tuple(identities_kept),
         )
         if chain_state.entry is None:
             return results.REFUSED
@@ -7391,6 +7595,10 @@ def _run_profile_body(
     # plan P4-D441): the result holds one record for each entry of the
     # file, and the file is rendered from those records, so the two
     # cannot differ; a run whose questions file is not written keeps them.
+    # ...and, behind the chain's switch alone, the person question's
+    # `identifier` answer split in two (lane GRa, RULINGS 1 (1)).
+    if chain_state is not None:
+        asked_about = asking.with_the_record_answer(asked_about)
     question_records = asking.question_records(
         # -- P4-D401: a column held back is read as record
         # numbers until answered, and its entry says so (lane SH's
@@ -7483,6 +7691,20 @@ def _run_profile_body(
                     # ...and, behind the chain's switch alone, its one
                     # entry (lane CHa, plan P4-D418).
                     chain_pairs=_chain_pairs(chain_state),
+                    # ...and the subject question, where it was put (lane
+                    # GRa, plan P4-D449), its answer written back.
+                    chain_subject=(
+                        asking.rows_per_person_entry(
+                            chain_state.rows_answer, chain_state.subject_keys
+                        )
+                        if chain_state is not None and chain_state.subject_put
+                        else None
+                    ),
+                    chain_said=(
+                        (chain_state.persons_said, chain_state.records_said)
+                        if chain_state is not None
+                        else ((), ())
+                    ),
                     chain_requests=(
                         (chain_state.add, chain_state.drop)
                         if chain_state is not None

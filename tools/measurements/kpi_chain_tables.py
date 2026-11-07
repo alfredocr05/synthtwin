@@ -22,9 +22,35 @@ Lane CHa's stamp of `K-S6-08` on the fixtures of the design's section 2.7
   0, over `own_fact_options`; the mutant, the groups read on the column's
   own values left out (on the heap fixtures, the single values a published
   count names left unread), confines (`own_fact_mutant_confining` above 0);
+- RULE ONE_BAND'S READING (lane CHa2, plan P4-D451): a count column whose
+  median is its lowest value, nought on 56 rows, one on 14 and two or more on
+  20 of which six are one published value, read by the product's own merge
+  to `L2` at the lowest `L1` cut, beside a yes-or-no column: every table of
+  its fixture and every description: `one_band_leaking`, target 0; the mutant,
+  RULE W1 reading the level the rule replaced, leaks
+  (`one_band_mutant_leaking` above 0);
 - THE MIRROR: on `MIRROR_TABLES` tables sampled across the sets, the
   producer's own search reaches exactly the scan's descriptions
   (`mirror_mismatches`, target 0);
+- THE PATIENT CASES (lane GRa, plan P4-D449; contract 4.6c.10), by exact
+  enumeration (`tests/patient_enumeration.py`): every census of 11 to 20
+  patients of 1 to 5 rows, none eligible with 1 to 10 extra rows; PWIT in
+  every cell of one `r` and the floored split in every cell of two values
+  of `r` at `f = 3`, their passes leaking no union of types; the class
+  witness on the first skeptic's fixture at `f = 11`, refusing every one
+  of the descriptions the class makes leak (its PWIT-only mutant leaks);
+  and, at the owner's table floor, four invented long tables (heavy-tailed
+  rows a patient, the same with a visit number written twice on a few
+  patients, and complete follow-up with and without a heap) described
+  behind the switch:
+  every count of the layer floored, the loader's S23 to S33 met, no trend
+  on complete follow-up; the fifteen visit-trend fixtures under the
+  product's SWING, its passes leaking no union of types; the design's own
+  fixtures ported, R*'s one tie over two families whose cuts of the top band
+  cross, the trend beside the column's exact mean, spread and one heap with a
+  band of one code in the ladder, and `ST2` and `ST2-AGE` at the floor size with
+  change over visits published. The moments' `MF1` to `MF5` are the page's
+  stated limit, cited, never passed;
 - THE STATED LIMITS, reported and never passed: two descriptions of one
   table (`two_key_pairs_leaking` of `two_key_pairs`, on the scan's second
   to fourth sets), and two different tables under one name (the design check's
@@ -73,6 +99,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 
 import chain_enumeration as enumeration  # noqa: E402
 import moment_rule_b_enumeration as moment_enumeration  # noqa: E402
+import patient_enumeration as patients  # noqa: E402
 
 SETS = 24
 SEED = 3
@@ -90,6 +117,8 @@ def measure() -> "dict[str, object]":
     own_facts = enumeration.own_fact_sources()
     part_c = enumeration.part_c("filter")
     mutant = enumeration.part_c("merge")
+    one_band = enumeration.one_band("filter")
+    one_band_mutant = enumeration.one_band("old_level")
     draw = random.Random(SEED)
     mismatches = 0
     for _sample in range(MIRROR_TABLES):
@@ -100,8 +129,21 @@ def measure() -> "dict[str, object]":
         if not enumeration.mirror_agrees(table, scales):
             mismatches += 1
     moments = moment_enumeration.measure()
+    # THE PATIENT CASES (lane GRa, plan P4-D449; contract 4.6c.10): the
+    # census, PWIT, the floored split and the class witness by exact
+    # enumeration, and the layer at the owner's table floor.
+    patient = patients.patient_cases()
+    at_floor = patients.floor_size_checks()
+    trend = patients.trend_fixtures()
+    design: "dict[str, int]" = {}
+    for found in (patients.crossing_cuts(), patients.fixed_rows_readings(), patients.scale_attack(), patients.page_cases(), patients.moment_fixtures(), patients.st2_tables()):
+        design.update(found)
     return {
         **moments,
+        **patient,
+        **at_floor,
+        **trend,
+        **design,
         "descriptions_leaking": scan["descriptions_leaking"],
         "descriptions": scan["descriptions"],
         "tables": scan["tables"],
@@ -109,6 +151,10 @@ def measure() -> "dict[str, object]":
         "part_c_leaking": part_c["descriptions_leaking"],
         "part_c_descriptions": part_c["descriptions"],
         "part_c_mutant_leaking": mutant["descriptions_leaking"],
+        "one_band_tables": one_band["tables"],
+        "one_band_descriptions": one_band["descriptions"],
+        "one_band_leaking": one_band["descriptions_leaking"],
+        "one_band_mutant_leaking": one_band_mutant["descriptions_leaking"],
         "own_fact_options": own_facts["own_fact_options"],
         "own_fact_confining": own_facts["own_fact_confining"],
         "own_fact_mutant_confining": own_facts["own_fact_mutant_confining"],

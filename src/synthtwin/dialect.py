@@ -4019,6 +4019,57 @@ def records(
     return taken
 
 
+@dataclasses.dataclass
+class _Handed:
+    """The lines `record_starts` has handed its walk: how many, and where the last of them starts."""
+
+    count: int = 0
+    start: int = 0
+    total: int = 0
+
+
+def record_starts(
+    lines: "typing.Iterator[str]",
+    delimiter: str,
+    escape: str,
+    initial_space: bool,
+) -> "typing.Iterator[tuple[int, str, bool]]":
+    """Each record of a text handed over a line at a time: the character its first line starts at, that line, and whether it holds no other.
+
+    The record is walked as `survey` walks a file (`_record_at`, one line
+    held at a time), so a line standing inside a quoted field is never a
+    record's start (Codex's review of lane BT2, item 3: the reader's
+    settle of pandas' own step read such a line as one, plan P4-D448).
+    Characters are counted in the text as handed over.
+
+    Guarantees: the records in the order they stand, each once.
+    Determinism: a fixed function of the lines and the form. Raises
+    ValueError (an internal check) where a record does not start on the
+    line last handed over.
+    """
+    handed = _Handed()
+
+    def fed() -> "typing.Iterator[str]":
+        for line in lines:
+            handed.start = handed.total
+            handed.total = handed.total + len(line)
+            handed.count = handed.count + 1
+            yield line
+
+    cursor = _Cursor([], 0, delimiter, escape, initial_space, fed())
+    while True:
+        first = _line_at(cursor)
+        if first is None:
+            return
+        if cursor.index != handed.count - 1:
+            raise ValueError("synthtwin internal check: a record does not start on the line last read")
+        start = handed.start
+        index = cursor.index
+        if _record_at(cursor) is None:
+            return
+        yield start, first, cursor.index == index + 1
+
+
 def opening_lines(text: str, at: int) -> "list[str]":
     """The lines of the text's first megabyte from ``at``: all that detection reads.
 

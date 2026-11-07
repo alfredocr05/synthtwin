@@ -158,6 +158,360 @@ def order_by_latent(latent: "list[float]") -> "list[int]":
     return [row for _value, row in sorted([(latent[row], row) for row in range(len(latent))])]
 
 
+def order_by_latent_packed(latent: "list[float]") -> "Packed":
+    """`order_by_latent`, handed back packed `width_for(n - 1)` bytes a row (G16.11's memory clause).
+
+    The rows sorted on the pairs `(L, row)`, so equal values keep row
+    order: ties go to the lower row number, as `order_by_latent`.
+    """
+    count = len(latent)
+    out = packed(count, width_for(count - 1))
+    at = 0
+    for _value, row in sorted([(latent[row], row) for row in range(count)]):
+        put(out, at, row)
+        at += 1
+    return out
+
+
+# -- G16.2 step 2's IMPLIED SLOPE (lane MPg, plan P4-D456) -------------------
+#
+# Where a family publishes no slope, its child is a column of value ranges
+# and it has a parent, the walk orders its rows by a slope IMPLIED by what
+# the description already publishes: a weighted least-squares line of the
+# child's band scores on its ranged parents' band scores over the family's
+# published cells, plus each cell's mean band score. Nothing new is
+# published, and every number is formed in binary64 `+ - * /` and `sqrt`,
+# each in the order written (zone G), from published counts and the walk's
+# own ranks. `natural_log` and `normal_score` are written out for that
+# reason: no library function decides a byte.
+
+_LN2 = 0.6931471805599453
+_ROOT_HALF = 0.7071067811865476
+# The odd reciprocals 1, 1/3, ..., 1/25 of the series `ln m = 2 atanh y`.
+_ODD = tuple(1.0 / (2 * k + 1) for k in range(13))
+# P. J. Acklam's rational approximation of the normal quantile (relative
+# error below 1.15e-9): its centre and its tails.
+_CENTRE_TOP = (
+    -39.69683028665376,
+    220.9460984245205,
+    -275.9285104469687,
+    138.3577518672690,
+    -30.66479806614716,
+    2.506628277459239,
+)
+_CENTRE_BOTTOM = (
+    -54.47609879822406,
+    161.5858368580409,
+    -155.6989798598866,
+    66.80131188771972,
+    -13.28068155288572,
+)
+_TAIL_TOP = (
+    -0.007784894002430293,
+    -0.3223964580411365,
+    -2.400758277161838,
+    -2.549732539343734,
+    4.374664141464968,
+    2.938163982698783,
+)
+_TAIL_BOTTOM = (
+    0.007784695709041462,
+    0.3224671290700398,
+    2.445134137142996,
+    3.754408661907416,
+)
+_TAIL_EDGE = 0.02425
+# The normal equations' ridge, and the least spread a child keeps.
+_RIDGE = 1e-9
+_LEAST_SPREAD = 0.1
+
+
+def natural_log(x: float) -> float:
+    """`ln x` for a binary64 `x` above nought, in `+ - * /` written in order (G16.2 step 2).
+
+    `x = m 2 ** e` by `math.frexp` (exact), `m` moved into `[sqrt(1/2),
+    sqrt(2))`; then `ln m = 2 y (1 + y**2 / 3 + ... + y**24 / 25)`, `y = (m
+    - 1) / (m + 1)`, summed by Horner's rule from the last term, and `e
+    ln 2` added. Raises ValueError at or below nought.
+    """
+    if not x > 0.0:
+        raise ValueError("a logarithm of a number above nought")
+    mantissa, exponent = math.frexp(x)
+    if mantissa < _ROOT_HALF:
+        mantissa = mantissa * 2.0
+        exponent = exponent - 1
+    y = (mantissa - 1.0) / (mantissa + 1.0)
+    square = y * y
+    total = _ODD[12]
+    for k in range(11, -1, -1):
+        total = total * square + _ODD[k]
+    return 2.0 * y * total + exponent * _LN2
+
+
+def normal_score(p: float) -> float:
+    """The standard normal quantile of `p` (0 < p < 1) by Acklam's approximation, in binary64.
+
+    The centre `|p - 1/2| <= 1/2 - 0.02425` a ratio of polynomials in `(p
+    - 1/2) ** 2`; each tail one in `q = sqrt(-2 ln p)` (`ln` by
+    `natural_log`), the upper tail on `1 - p` with its sign changed. Each
+    polynomial by Horner's rule, each operation rounded once in the order
+    written. Raises ValueError outside `(0, 1)`.
+    """
+    if not 0.0 < p < 1.0:
+        raise ValueError("a share strictly between nought and one")
+    if p < _TAIL_EDGE or p > 1.0 - _TAIL_EDGE:
+        tail = p if p < _TAIL_EDGE else 1.0 - p
+        q = math.sqrt(-2.0 * natural_log(tail))
+        top = _TAIL_TOP[0]
+        for k in range(1, 6):
+            top = top * q + _TAIL_TOP[k]
+        bottom = _TAIL_BOTTOM[0]
+        for k in range(1, 4):
+            bottom = bottom * q + _TAIL_BOTTOM[k]
+        bottom = bottom * q + 1.0
+        value = top / bottom
+        return value if p < _TAIL_EDGE else -value
+    q = p - 0.5
+    r = q * q
+    top = _CENTRE_TOP[0]
+    for k in range(1, 6):
+        top = top * r + _CENTRE_TOP[k]
+    bottom = _CENTRE_BOTTOM[0]
+    for k in range(1, 5):
+        bottom = bottom * r + _CENTRE_BOTTOM[k]
+    bottom = bottom * r + 1.0
+    return top * q / bottom
+
+
+def band_scores(totals: "list[int]", valued: "list[bool]") -> "list[float | None]":
+    """Each band's NORMAL SCORE at one level, from its published totals (G16.2 step 2, implied slope).
+
+    `totals[b]` is band `b`'s published total at the level (its `L0`
+    totals summed), `valued[b]` whether it holds a value band. Over the
+    value bands holding a row, `n` their rows in all and `C_b` the rows of
+    those before `b`: `normal_score((2 C_b + t_b) / (2 n))`, the mid-point
+    of the band's share. A spread band, or one holding no row, scores None.
+    """
+    count = 0
+    for band in range(len(totals)):
+        if valued[band] and totals[band] > 0:
+            count = count + totals[band]
+    out: "list[float | None]" = []
+    below = 0
+    for band in range(len(totals)):
+        if not valued[band] or totals[band] <= 0 or count <= 0:
+            out += [None]
+            continue
+        out += [normal_score((2 * below + totals[band]) / (2 * count))]
+        below = below + totals[band]
+    return out
+
+
+@dataclasses.dataclass(frozen=True)
+class ImpliedSlope:
+    """A family's implied slope (G16.2 step 2): each ranged parent's coefficient, the spread, the cell means.
+
+    `beta[j]` belongs to the `j`-th parent of `used` (places in the
+    family's parent list), `sigma` multiplies the hidden score, and
+    `means[c]` is parent cell `c`'s mean band score of the child (None
+    where the published row holds no row of a scored band).
+    """
+
+    used: "tuple[int, ...]"
+    beta: "tuple[float, ...]"
+    sigma: float
+    means: "tuple[float | None, ...]"
+
+
+def implied_slope(
+    table: "tuple[tuple[int, ...], ...]",
+    sizes: "list[int]",
+    parent_scores: "list[list[float | None]]",
+    used: "list[int]",
+    child_scores: "list[float | None]",
+) -> ImpliedSlope:
+    """G16.2 step 2's implied slope of one family, from its PUBLISHED table and band scores alone.
+
+    `table` is the family's published table (one row a parent cell, the
+    last parent varying fastest; `sizes` each parent's bands at the
+    family's level), `parent_scores[j]` parent `j`'s band scores there,
+    `used` the ranged parents (in order), `child_scores` the child's band
+    scores at its level. For each cell: `w` its rows in scored bands of the
+    child, `y` their mean score (summed in band order, divided once); a
+    cell whose used parents all score enters the fit with weight `w` and
+    `x` their scores. The fit centres `x` and `y` on their weighted means,
+    forms the normal equations `A beta = v` (ridge 1e-9 on `A`'s diagonal),
+    solves them by Gauss-Jordan elimination in order without exchanges,
+    and sets `sigma = max(0.1, sqrt(max(0, 1 - beta . v)))`. Where no
+    parent is used or no cell enters, `beta` is empty and `sigma` 1.
+    Every sum is taken in cell order, each operation rounded once.
+    """
+    cells = len(table)
+    means: "list[float | None]" = []
+    weights: "list[int]" = []
+    xs: "list[list[float]]" = []
+    ys: "list[float]" = []
+    for cell in range(cells):
+        parts = [0 for _parent in sizes]
+        rest = cell
+        for place in range(len(sizes) - 1, -1, -1):
+            parts[place] = rest % sizes[place]
+            rest = rest // sizes[place]
+        weight = 0
+        total = 0.0
+        row = table[cell]
+        for band in range(len(row)):
+            score = child_scores[band] if band < len(child_scores) else None
+            if row[band] and score is not None:
+                weight = weight + row[band]
+                total = total + row[band] * score
+        if not weight:
+            means += [None]
+            continue
+        mean = total / weight
+        means += [mean]
+        x: "list[float]" = []
+        whole = True
+        for parent in used:
+            value = parent_scores[parent][parts[parent]]
+            if value is None:
+                whole = False
+                break
+            x += [value]
+        if whole:
+            weights += [weight]
+            xs += [x]
+            ys += [mean]
+    width = len(used)
+    if not width or not weights:
+        return ImpliedSlope(tuple(used), (), 1.0, tuple(means))
+    summed = 0
+    for weight in weights:
+        summed = summed + weight
+    centre = [0.0 for _a in range(width)]
+    centre_y = 0.0
+    for at in range(len(weights)):
+        for a in range(width):
+            centre[a] = centre[a] + weights[at] * xs[at][a]
+        centre_y = centre_y + weights[at] * ys[at]
+    for a in range(width):
+        centre[a] = centre[a] / summed
+    centre_y = centre_y / summed
+    matrix = [[_RIDGE if a == c else 0.0 for c in range(width)] + [0.0] for a in range(width)]
+    for at in range(len(weights)):
+        dy = ys[at] - centre_y
+        for a in range(width):
+            da = xs[at][a] - centre[a]
+            for c in range(width):
+                matrix[a][c] = matrix[a][c] + weights[at] * da * (xs[at][c] - centre[c]) / summed
+            matrix[a][width] = matrix[a][width] + weights[at] * da * dy / summed
+    moment = [matrix[a][width] for a in range(width)]
+    for a in range(width):
+        pivot = matrix[a][a]
+        for c in range(a, width + 1):
+            matrix[a][c] = matrix[a][c] / pivot
+        for other in range(width):
+            if other == a:
+                continue
+            factor = matrix[other][a]
+            for c in range(a, width + 1):
+                matrix[other][c] = matrix[other][c] - factor * matrix[a][c]
+    beta = tuple(matrix[a][width] for a in range(width))
+    explained = 0.0
+    for a in range(width):
+        explained = explained + beta[a] * moment[a]
+    left = 1.0 - explained
+    sigma = math.sqrt(left if left > 0.0 else 0.0)
+    return ImpliedSlope(tuple(used), beta, sigma if sigma > _LEAST_SPREAD else _LEAST_SPREAD, tuple(means))
+
+
+def reading_ranks(index: "bytes | bytearray", width: int, child: "ChildBands") -> "tuple[Packed, int]":
+    """Each arranged row's RANK among the column's readings, from its cell index (G16.2 step 2).
+
+    The cell list holds band by band the cells holding a reading, sorted,
+    then the others (G16.2 step 4), so a row whose index lies in the first
+    `read[b]` places of an ORDERED band `b` holds the reading of rank
+    `C_b + offset`, `C_b` the readings of the bands before it. Every other
+    row takes the rank `K`, the count of readings (no reading). Handed
+    back packed, with `K`.
+    """
+    starts: "list[int]" = []
+    before: "list[int]" = []
+    start = 0
+    readings = 0
+    for band in range(len(child.sizes)):
+        starts += [start]
+        before += [readings]
+        start = start + child.sizes[band]
+        if child.ordered[band]:
+            readings = readings + child.read[band]
+    count = len(index) // width
+    ranks = packed(count, width_for(readings))
+    band_of = [0 for _place in range(start)]
+    band = 0
+    for place in range(start):
+        while band + 1 < len(starts) and place >= starts[band + 1]:
+            band = band + 1
+        band_of[place] = band
+    for row in range(count):
+        place = read_code(index, width, row)
+        band = band_of[place]
+        offset = place - starts[band]
+        if child.ordered[band] and offset < child.read[band]:
+            put(ranks, row, before[band] + offset)
+        else:
+            put(ranks, row, readings)
+    return ranks, readings
+
+
+def implied_latent(
+    cells: "Packed | list[int]",
+    slope: ImpliedSlope,
+    ranks: "list[tuple[Packed, int]]",
+    totals: "Packed | list[int]",
+) -> "list[float]":
+    """G16.2 step 2's latent order under an implied slope: `L = (sum_j beta_j (s_j - m_j) + sigma z) + mu_c`.
+
+    `cells[r]` is row `r`'s parent cell, `ranks[j]` the `j`-th used
+    parent's ranks and readings count (`reading_ranks`), `totals` the
+    rows' hidden sums. `s_j = normal_score((2 rank + 1) / (2 K))` where
+    the row holds a reading of parent `j`, its term nought otherwise;
+    `m_j` the mean of `s_j` over the rows of the row's cell holding one,
+    summed in row order and divided once (nought where none does); `mu_c`
+    the cell's mean band score, nought where it has none. Summed in that
+    order in binary64.
+    """
+    count = size_of(totals)
+    latent = [0.0 for _row in range(count)]
+    for at in range(len(slope.beta)):
+        held, readings = ranks[at]
+        beta = slope.beta[at]
+        scores: "list[float | None]" = [None for _row in range(count)]
+        sums: "dict[int, float]" = {}
+        many: "dict[int, int]" = {}
+        for row in range(count):
+            rank = item(held, row)
+            if rank >= readings:
+                continue
+            score = normal_score((2 * rank + 1) / (2 * readings))
+            scores[row] = score
+            cell = item(cells, row)
+            sums[cell] = (sums[cell] if cell in sums else 0.0) + score
+            many[cell] = (many[cell] if cell in many else 0) + 1
+        mean = {cell: sums[cell] / many[cell] for cell in sums}
+        for row in range(count):
+            held_score = scores[row]
+            if held_score is not None:
+                latent[row] = latent[row] + beta * (held_score - mean[item(cells, row)])
+        scores = []
+    for row in range(count):
+        cell = item(cells, row)
+        centre = slope.means[cell] if cell < len(slope.means) else None
+        value = latent[row] + slope.sigma * hidden_score(item(totals, row))
+        latent[row] = value + (centre if centre is not None else 0.0)
+    return latent
+
+
 @dataclasses.dataclass(frozen=True)
 class Slope:
     """One slope parent of a family (contract 4.6b.6), as G16.2 step 2 reads it.
@@ -325,6 +679,11 @@ def read_code(data: "bytes | bytearray", width: int, row: int) -> int:
     for place in range(width):
         value = value | (data[at + place] << (8 * place))
     return value
+
+
+def write_code(data: bytearray, width: int, row: int, value: int) -> None:
+    """Writes `value` as a row's whole number in a little-endian store of `width` bytes a row (`read_code`'s inverse)."""
+    _write_code(data, width, row, value)
 
 
 def _write_code(data: bytearray, width: int, row: int, value: int) -> None:

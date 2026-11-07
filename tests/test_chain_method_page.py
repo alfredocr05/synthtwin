@@ -454,7 +454,7 @@ def test_the_time_and_event_raise_is_set_where_the_pair_is_not_first():
     2026-10-20: on A0b's 50-column table the pair is not the strongest
     option, and t1 (the pair first) is kept, 188 against t0's 182."""
     settings = _settings()
-    assert "`w_te`, the time-and-event raise | `\"1\"`, ON (amended 2026-10-20; was `\"0\"`: no measured effect)" in settings
+    assert "`w_te`, the time-and-event raise | `\"0\"`, OFF (amended 2026-11-02, lane CHa2, DECIDED on the product, plan P4-D451; was `\"1\"`, ON (amended 2026-10-20; was `\"0\"`: no measured effect))" in settings
     assert "scored 188 of 287 against `t0`'s 182 (no raise)" in settings
     assert "scoring 0.756 `n`, the pair 0.046 `n`" in settings
     assert "the value is PROVISIONAL until lane CHa's battery run measures it under the draw" in settings

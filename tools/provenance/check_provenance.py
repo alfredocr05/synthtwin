@@ -98,7 +98,16 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 # indentation fits today at 84KB and 99KB -- 939 bytes of headroom on
 # the second, which the next case would spend -- and costs the
 # readability of a diff, which is how a reviewer checks them.
-MAX_FIXTURE_BYTES = 250_000
+#
+# RAISED FROM 250,000 ON 2026-11-06, at batch 4p's merge of lane MPg
+# (plan P4-D456) beside lane CHa2 (plan P4-D451), for the same reason:
+# the chain oracle's vectors, `tests/reference/chain-oracle-vectors.json`,
+# read 87,789 bytes on lane CHa2's branch and 244,533 on lane MPg's (the
+# polish's and the implied slope's cases, frozen with their mutants), and
+# the merged generator writes 251,749. Every other control above stands.
+# A round figure the merged vectors fit under; the orchestrator may set
+# another, or split the file, instead.
+MAX_FIXTURE_BYTES = 300_000
 
 # Seconds a single generator run may take before the checker gives up.
 GENERATOR_TIMEOUT_SECONDS = 120

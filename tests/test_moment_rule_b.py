@@ -49,7 +49,7 @@ import fixtures
 import moment_rule_b_enumeration as enumeration
 import pytest
 
-from synthtwin import canonical, chain, chain_check, chain_moments, cli, contract, errors, profile, reading, taxonomy
+from synthtwin import asking, canonical, chain, chain_check, chain_moments, cli, contract, errors, profile, reading, taxonomy
 
 REPOSITORY = pathlib.Path(__file__).resolve().parents[1]
 CONTRACT = REPOSITORY / "docs" / "spec" / "profile-contract-v6.md"
@@ -93,7 +93,7 @@ def _describe(tmp_path, text, name="clinic", held=(), floor=FLOOR):
     path = fixtures.write(tmp_path, f"{name}.csv", text)
     table = reading.read_table(str(path), small_cell_floor=floor)
     document = profile.build_document(table, settings, [], [], [])
-    chained = chain.describe(table, document, settings, chain.ChainSwitch(name, KEY, tuple(held)))
+    chained = chain.describe(table, document, settings, chain.ChainSwitch(name, KEY, tuple(held), rows_per_person=chain.ROWS_UNASKED))
     return table, document, chained
 
 
@@ -332,7 +332,7 @@ def test_held_identifier_and_date_columns_take_no_moment(tmp_path, clinic):
     assert "record" not in held_named and "record" not in held_by
     settings = taxonomy.Settings(small_cell_floor=FLOOR)
     forced = dict(document, settings=dict(document["settings"], forced_identifiers=["record"]))
-    keyed = chain.describe(table, forced, settings, chain.ChainSwitch("keyed", KEY))
+    keyed = chain.describe(table, forced, settings, chain.ChainSwitch("keyed", KEY, rows_per_person=chain.ROWS_UNASKED))
     keyed_named = {entry["column"] for entry in keyed.statistical["moments"]["columns"]}
     keyed_by = {entry["by"] for entry in keyed.statistical["moments"]["within"]}
     assert "record" not in keyed_named and "record" not in keyed_by
@@ -537,7 +537,7 @@ def test_a_table_of_several_rows_a_person_publishes_no_moment(tmp_path):
     table = reading.read_table(str(path), small_cell_floor=FLOOR)
     document = profile.build_document(table, settings, [], [], [])
     document["settings"] = dict(document["settings"], person_columns=["record"])
-    chained = chain.describe(table, document, settings, chain.ChainSwitch("persons", KEY))
+    chained = chain.describe(table, document, settings, chain.ChainSwitch("persons", KEY, rows_per_person=chain.ROWS_UNASKED))
     assert chained.statistical is None and chained.notes[-1] == f"no chain is published: {chain.OFF_PERSON}"
 
 
@@ -554,7 +554,7 @@ def test_a_top_coded_age_is_read_top_coded(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     path = fixtures.write(tmp_path, "aged.csv", _clinic(n_rows=20000, seed=3, change=old))
     capsys.readouterr()
-    assert cli.main(["profile", "aged.csv"], chain=cli.ChainRun(folder=str(tmp_path / "data"))) == 0
+    assert cli.main(["profile", "aged.csv"], chain=cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=str(tmp_path / "data"))) == 0
     capsys.readouterr()
     document = json.loads((tmp_path / "aged-profile.json").read_text(encoding="utf-8"))
     statistical = document["relationships"]["statistical"]
@@ -877,7 +877,7 @@ def test_the_command_never_writes_moments_its_loader_refuses(tmp_path, monkeypat
     fixtures.write(tmp_path, "failsafe.csv", _clinic(n_rows=1500, seed=4))
     monkeypatch.setattr(chain_check, "check_moments", refuse)
     capsys.readouterr()
-    assert cli.main(["profile", "failsafe.csv"], chain=cli.ChainRun(folder=str(tmp_path / "data")), small_tables_refused=False) == 0
+    assert cli.main(["profile", "failsafe.csv"], chain=cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=str(tmp_path / "data")), small_tables_refused=False) == 0
     said = capsys.readouterr().err
     document = json.loads((tmp_path / "failsafe-profile.json").read_text(encoding="utf-8"))
     statistical = document["relationships"]["statistical"]

@@ -8432,6 +8432,250 @@ BETWEEN_COLUMNS_QUESTION = (
 )
 
 
+# THE SUBJECT QUESTION (lane GRa, plan P4-D449; plan P4-D418 limit (3):
+# "owed before stage 6 ships"), beside the person question of
+# `person_questions`, written only behind the chain's switch, in the
+# chain's one entry of the file. The table layer's proof holds for one
+# row per person (ruling R4), and whether one person may stand on several
+# rows is a fact about the DATA that no rule reads reliably from the
+# cells: a table may hold several rows a person with no column naming the
+# person at all. So where no person column is declared or answered and two
+# eligible columns could draw a chain, the question is put, and until it is
+# answered no chain is drawn.
+ROWS_PER_PERSON = "rows_per_person"
+ROWS_PER_PERSON_QUESTION = (
+    "Can one person (a patient, a participant or another subject) stand on "
+    "more than one row of this table? Write 'one row each' if every row "
+    "describes a different person. If one person may have several rows, "
+    "write the name of the column that identifies the person; if no column "
+    "identifies the person, write 'several rows, no column names the "
+    "person'."
+)
+ROWS_PER_PERSON_SEEN = (
+    "No column is declared or answered as the column that identifies the "
+    "person each row is about."
+)
+ROWS_PER_PERSON_SEEN_KEYS = (
+    "These columns hold record numbers that repeat, and nothing says whether "
+    "each identifies the person or a record of the person (an encounter, an "
+    "order, an account): "
+)
+ROWS_PER_PERSON_STANDING = (
+    "Until this is answered, no relationship between columns is published "
+    "for this table."
+)
+ANSWER_ONE_ROW_EACH = "one row each"
+ANSWER_NO_PERSON_COLUMN = "several rows, no column names the person"
+# THE PERSON QUESTION'S `identifier` ANSWER, SPLIT IN TWO BEHIND THE SWITCH
+# (lane GRa, RULINGS 1 (1)): one question, two readings of the same key. The
+# patient layer counts in patients, so a count over an encounter key would be
+# a count of encounters called patients (MEASURED on the invented lines of
+# the statistics skeptic: 5,663 "patients" for 1,566 people). `identifier`
+# then says the person; `record` a record of the person. Both hold the values.
+ANSWER_RECORD = "record"
+PERSON_ANSWER_MEANS = (
+    "identifies the person -- rows sharing a value of it are one person "
+    "(a patient, a participant or another subject), and it is a key nothing "
+    "should publish"
+)
+RECORD_ANSWER_MEANS = (
+    "identifies a record of the person -- an encounter, an order, an account "
+    "-- so rows sharing a value of it are one record and one person may hold "
+    "several; it is a key nothing should publish"
+)
+# The key under the chain's entry that carries both readings between rounds:
+# the kept answers of `answered_before` read `identifier` for either.
+COLUMNS_SAID = "columns_said"
+# A NAME THAT SAYS THE PERSON SKIPS THE ASKING (the same ruling, optional): a
+# closed list of words read whole, each a word of the column's name split at
+# its marks and at a small letter before a capital. Every word of the name is a
+# person word or a word for a key, or a figure, and one is a person word: so
+# `patient_visit_id` and `patient_name` are asked (a name is shared; a visit is
+# a record). Its false alarms are counted in P4-D449.
+PERSON_WORDS = frozenset((
+    "beneficiary", "client", "enrollee", "individual", "member", "participant",
+    "pat", "patid", "patient", "patientid", "person", "personid", "pid",
+    "ptid", "resident", "subject", "subjectid", "subjid", "usubjid",
+))
+# ...under a name of its own (batch 4p's fix round, the orchestrator's LANE
+# I4p RULINGS 5 (1)): this list was named `KEY_WORDS`, as lane HB's list of
+# words that name a key is (`named_as_a_key`); the merge kept both, the later
+# won at import, and `CSN`, `EMPI` and `uuid` named no key there.
+PERSON_KEY_WORDS = frozenset((
+    "code", "guid", "id", "ident", "identifier", "key", "nbr", "no", "nr",
+    "num", "number", "pseudo", "ref", "reference", "sk", "surrogate", "uid",
+))
+
+
+def _name_words(name: str) -> "list[str]":
+    """A column name's words, lower case, split at every mark and at a small letter or figure before a capital."""
+    if not isinstance(name, str):
+        raise TypeError("a column name is text")
+    words: "list[str]" = []
+    word = ""
+    small_before = False
+    for at in range(len(name)):
+        letter = name[at]
+        cased = letter.lower() != letter.upper()
+        if not cased and not letter.isdigit():
+            if word:
+                words += [word]
+            word = ""
+            small_before = False
+            continue
+        capital = cased and letter != letter.lower()
+        if capital and small_before:
+            words += [word]
+            word = ""
+        word = word + letter.lower()
+        small_before = not capital
+    if word:
+        words += [word]
+    return words
+
+
+def _all_figures(word: str) -> bool:
+    """Whether a word of a name is written in figures alone."""
+    if not isinstance(word, str):
+        raise TypeError("a word is text")
+    return word.isdigit()
+
+
+def names_a_person(name: str) -> bool:
+    """Whether a column's name, read whole, says the person and no record of the person.
+
+    Guarantees: a fixed function of the name; reads no cell. Boundary: the
+    words decide only whether a repeating key declared as record numbers is
+    asked about; the key's values stay held either way.
+    """
+    words = _name_words(name)
+    return any(word in PERSON_WORDS for word in words) and all(word in PERSON_WORDS or word in PERSON_KEY_WORDS or _all_figures(word) for word in words)
+
+
+def with_the_record_answer(asked: "list[Question]") -> "list[Question]":
+    """The person questions of a switched run, their `identifier` answer split in two; every other question as it stands.
+
+    Guarantees: a fixed function of the list; the same questions in the
+    same order; no value of the table. Only a switched run calls it, so
+    no shipped file offers `record`.
+    """
+    out: "list[Question]" = []
+    for question in asked:
+        if question.reason != BECAUSE_REPEATS_AND_MANY or not offers_identifier(question):
+            out += [question]
+            continue
+        choices: "list[Choice]" = []
+        for choice in question.choices:
+            if choice.answer == ANSWER_IDENTIFIER:
+                choices += [
+                    dataclasses.replace(choice, means=PERSON_ANSWER_MEANS),
+                    dataclasses.replace(choice, answer=ANSWER_RECORD, means=RECORD_ANSWER_MEANS),
+                ]
+            else:
+                choices += [choice]
+        out += [dataclasses.replace(question, choices=choices)]
+    return out
+ROWS_PER_PERSON_ANSWERS = (
+    (
+        ANSWER_ONE_ROW_EACH,
+        "every row describes a different person",
+        "the chain between columns, counted in rows",
+    ),
+    (
+        "the name of a column",
+        "that column identifies the person each row is about; its values are held as record numbers",
+        "the patient layer, counted in patients, where the column repeats",
+    ),
+    (
+        ANSWER_NO_PERSON_COLUMN,
+        "one person may have several rows, and no column says whose rows they are",
+        "no relationship between columns",
+    ),
+)
+
+
+def _name_listed(listed: str, name: str) -> str:
+    """A list of column names written out, one more name after a comma."""
+    if not isinstance(name, str):
+        raise TypeError("a column name is text")
+    return name if not listed else listed + ", " + name
+
+
+def rows_per_person_entry(kept: str, keys: "tuple[str, ...]" = ()) -> "dict[str, object]":
+    """The subject question's entry of the file's chain entry, with the answer an earlier run kept.
+
+    `keys` are the repeating columns declared as record numbers that no
+    answer yet reads as the person or a record of the person (a typed
+    `--identifier`, or `identifier` answered to another question): they
+    are named in what the run saw, so a typed key is asked once, here.
+    Guarantees: a fixed function of the two; no value of the table
+    appears in it (the question names only columns).
+    """
+    seen = ROWS_PER_PERSON_SEEN
+    if keys:
+        listed = ""
+        for key in keys:
+            listed = _name_listed(listed, key)
+        seen = ROWS_PER_PERSON_SEEN_KEYS + listed + "."
+    return {
+        "answers_you_can_give": [
+            {"answer": answer, "means": means, "publishes": publishes}
+            for answer, means, publishes in ROWS_PER_PERSON_ANSWERS
+        ],
+        "question": ROWS_PER_PERSON_QUESTION,
+        "read_as_now": ROWS_PER_PERSON_STANDING,
+        "seen": seen,
+        "your_answer": kept,
+    }
+
+
+def _trimmed(text: str) -> str:
+    """A written answer without its outer spaces."""
+    if not isinstance(text, str):
+        raise TypeError("an answer is text")
+    return text.strip()
+
+
+def rows_per_person_answer(document: object) -> "tuple[str, str]":
+    """The subject question's answer in a handed-back file: the answer as written and the column it names, if any.
+
+    Returns `("", "")` where the question was not answered, `(answer, "")`
+    for 'one row each' and for 'several rows, no column names the
+    person', and `(answer, answer)` where the answer names a column (the
+    command checks that the column exists, as it checks every declared
+    identifier). Raises nothing.
+    """
+    if not isinstance(document, dict) or BETWEEN_COLUMNS not in document:
+        return "", ""
+    entry = document[BETWEEN_COLUMNS]
+    question = entry[ROWS_PER_PERSON] if isinstance(entry, dict) and ROWS_PER_PERSON in entry else None
+    answer = question["your_answer"] if isinstance(question, dict) and "your_answer" in question else ""
+    if not isinstance(answer, str) or not _trimmed(answer):
+        return "", ""
+    written = _trimmed(answer)
+    if written in (ANSWER_ONE_ROW_EACH, ANSWER_NO_PERSON_COLUMN):
+        return written, ""
+    return written, written
+
+
+def columns_said(document: object) -> "tuple[tuple[str, ...], tuple[str, ...]]":
+    """The person question's two readings an earlier switched run kept: the persons, and the records.
+
+    Raises nothing; `((), ())` where the file holds none.
+    """
+    if not isinstance(document, dict) or BETWEEN_COLUMNS not in document:
+        return (), ()
+    entry = document[BETWEEN_COLUMNS]
+    said = entry[COLUMNS_SAID] if isinstance(entry, dict) and COLUMNS_SAID in entry else None
+    if not isinstance(said, dict):
+        return (), ()
+    found: "list[tuple[str, ...]]" = []
+    for key in ("person", ANSWER_RECORD):
+        listed = said[key] if key in said else ()
+        found += [tuple(one for one in listed if isinstance(one, str)) if isinstance(listed, list) else ()]
+    return found[0], found[1]
+
+
 def between_columns_requests(
     document: object,
 ) -> "tuple[tuple[tuple[str, str], ...], tuple[tuple[str, str], ...], tuple[str, ...]]":
@@ -8597,6 +8841,8 @@ def questions_document(
     held_dates: "list[tuple[str, str]] | None" = None,
     chain_pairs: "list[list[str]] | None" = None,
     chain_requests: "tuple[tuple[tuple[str, str], ...], tuple[tuple[str, str], ...]]" = ((), ()),
+    chain_subject: "dict[str, object] | None" = None,
+    chain_said: "tuple[tuple[str, ...], tuple[str, ...]]" = ((), ()),
 ) -> "dict[str, object]":
     """The questions file's whole content, as plain data, from the questions themselves.
 
@@ -8613,6 +8859,8 @@ def questions_document(
         answered_columns,
         chain_pairs,
         chain_requests,
+        chain_subject,
+        chain_said,
     )
 
 
@@ -8624,6 +8872,8 @@ def questions_document_of(
     answered_columns: "list[str] | None" = None,
     chain_pairs: "list[list[str]] | None" = None,
     chain_requests: "tuple[tuple[tuple[str, str], ...], tuple[tuple[str, str], ...]]" = ((), ()),
+    chain_subject: "dict[str, object] | None" = None,
+    chain_said: "tuple[tuple[str, ...], tuple[str, ...]]" = ((), ()),
 ) -> "dict[str, object]":
     """The questions file's whole content, as plain data, rendered from its records.
 
@@ -8741,12 +8991,20 @@ def questions_document_of(
     if chain_pairs is not None:
         # The requests the handed-back file made are written back as they
         # were read, never emptied (repair 2, Codex's item 6).
-        written[BETWEEN_COLUMNS] = {
+        chain_entry: "dict[str, object]" = {
             "add": [list(pair) for pair in chain_requests[0]],
             "drop": [list(pair) for pair in chain_requests[1]],
             "pairs_carried_exactly": [list(pair) for pair in chain_pairs],
             "question": BETWEEN_COLUMNS_QUESTION,
         }
+        # ...AND THE SUBJECT QUESTION, where no person column is declared
+        # or answered (lane GRa, plan P4-D449), its kept answer written back.
+        if chain_subject is not None:
+            chain_entry[ROWS_PER_PERSON] = chain_subject
+        # ...and the person question's two readings an answer gave, kept.
+        if chain_said[0] or chain_said[1]:
+            chain_entry[COLUMNS_SAID] = {"person": list(chain_said[0]), ANSWER_RECORD: list(chain_said[1])}
+        written[BETWEEN_COLUMNS] = chain_entry
     return written
 
 
@@ -8896,6 +9154,13 @@ class Answers:
     # hold alone (the orchestrator's LANE CZ-H RULINGS 6 (1), item 3).
     safe_harbor_dates_no: "tuple[str, ...]" = ()
     safe_harbor_dates_yes: "tuple[str, ...]" = ()
+    # ...AND, BEHIND THE CHAIN'S SWITCH ALONE (lane GRa, plan P4-D449), the
+    # person question's two `identifier` readings: the columns answered as
+    # identifying the person, and as identifying a record of the person.
+    # Each also stands in `identifiers`; a file no switched run wrote
+    # offers neither reading, so both stay empty on every shipped path.
+    persons_said: "tuple[str, ...]" = ()
+    records_said: "tuple[str, ...]" = ()
 
 
 def _entry_answer(
@@ -9155,6 +9420,10 @@ def answers_in(document: object, shown: str) -> Answers:
     ages_counted_in: "list[tuple[str, str]]" = []
     safe_harbor_dates_no: "list[str]" = []
     safe_harbor_dates_yes: "list[str]" = []
+    # Behind the chain's switch, the person question's two `identifier`
+    # readings (lane GRa, plan P4-D449).
+    persons_said: "list[str]" = []
+    records_said: "list[str]" = []
     # EVERY ENTRY READ FIRST, so an earlier round's answer can be set
     # against every later one before any is acted on (plan P4-D408).
     entries: "list[tuple[object, str, bool, tuple[str, str, tuple[str, ...]] | None]]" = []
@@ -9203,6 +9472,13 @@ def answers_in(document: object, shown: str) -> Answers:
             codes += [name]
         elif written == ANSWER_IDENTIFIER:
             identifiers += [name]
+            # A question that also offers `record` is the person question
+            # as a switched run writes it: `identifier` says the person.
+            if ANSWER_RECORD in offered:
+                persons_said += [name]
+        elif written == ANSWER_RECORD:
+            identifiers += [name]
+            records_said += [name]
         elif written == ANSWER_MEASUREMENT or written == ANSWER_JOINED:
             measurements += [name]
         elif written == ANSWER_DECIMAL_COMMA:
@@ -9356,6 +9632,8 @@ def answers_in(document: object, shown: str) -> Answers:
         ages_counted_in=tuple(ages_counted_in),
         safe_harbor_dates_no=tuple(safe_harbor_dates_no),
         safe_harbor_dates_yes=tuple(safe_harbor_dates_yes),
+        persons_said=tuple(persons_said),
+        records_said=tuple(records_said),
     )
 
 
@@ -9553,7 +9831,7 @@ def _family_of(answer: str, offered: "tuple[str, ...]") -> str:
         if _comma_offer(offered):
             return _FAMILY_GRAMMAR
         return ""
-    if answer == ANSWER_JOINED:
+    if answer == ANSWER_JOINED or answer == ANSWER_RECORD:
         return _FAMILY_KIND
     if answer == TYPED_FIRST_ROW_AUTOMATIC:
         return _FAMILY_FIRST_ROW

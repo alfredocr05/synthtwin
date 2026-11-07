@@ -5098,6 +5098,10 @@ def measure(
       a description carrying no chain -- the outcome is the one this
       function returned before, byte for byte.
     """
+    # THE QUALITY REPORT'S MIRROR OF THE CLOCK'S KNOTS (method G12.15; lane
+    # BT2, plan P4-D448), on a run made with the chain's switch alone.
+    if chain_document is not None:
+        description = clock_cuts_mirrored(description)
     named = refusal_of(description)
     validated = validate_local_path(path, purpose="input")
     place = pathlib.Path(validated)
@@ -18992,6 +18996,12 @@ def _clock_rank_windows(
                 )
             ]
     knots += [(100 * (high_rank + 1) * word, high_at)]
+    # ON AN ELIGIBLE COLUMN THE RUNGS STAND AT G7A.4d'S KNOTS (method
+    # G12.15, the quality report's mirror; lane BT2, plan P4-D448): the
+    # windows are read between the knots the generator lays, written out
+    # here from the method's clause (`_clock_cut_knots`).
+    if facts.l0 is not None:
+        knots = _clock_cut_knots(facts, parsed, low_rank, high_rank, low_at, high_at)
     windows = _clock_tail_windows(column, facts, floor, holes)
     apart = column.n_distinct - facts.n_unparsed >= parsed
     stepped: "dict[int, tuple[int, int]]" = {}
@@ -19095,16 +19105,245 @@ def _clock_census_windows(
     )
     # A body laid on its minute census (3b.C2, P4-D374; method G7A.4c)
     # gives a heap's ranks its group's reach too, as the construction does.
-    windows = calendar_clock.clock_rank_windows(
-        parsed, tails, body, facts.clock_census, heaps, form, stride, absent,
-        bool(facts.minute_census),
-    )
+    # ...and each `L0` edge cutting the dial on an eligible column, its
+    # groups' halves (method G12.15's mirror of G7A.4d; lane BT2).
+    pairs = _clock_cut_pairs(facts)
+    if pairs:
+        windows = calendar_clock.clock_rank_windows(
+            parsed, tails, body, facts.clock_census, heaps, form, stride, absent,
+            bool(facts.minute_census), pairs,
+        )
+    else:
+        windows = calendar_clock.clock_rank_windows(
+            parsed, tails, body, facts.clock_census, heaps, form, stride, absent,
+            bool(facts.minute_census),
+        )
     if windows is None:
         return None
     return (
         [unit * value for value in windows[0]],
         [unit * value for value in windows[1]],
     )
+
+
+def _clock_cut_pairs(facts: contract.ClockFacts) -> "tuple[tuple[int, int], ...]":
+    """An eligible clock column's edges as ordinals, each with its cut rank `R_j` (G7A.4d); empty elsewhere."""
+    cuts = facts.l0
+    if cuts is None:
+        return ()
+    pairs: "list[tuple[int, int]]" = []
+    running = 0
+    for place in range(len(cuts.edges)):
+        running = running + cuts.counts[place]
+        pairs += [(int(cuts.edges[place]), running)]
+    return tuple(pairs)
+
+
+def _clock_cut_knots(
+    facts: contract.ClockFacts,
+    parsed: int,
+    low_rank: int,
+    high_rank: int,
+    low_at: int,
+    high_at: int,
+) -> "list[tuple[int, int]]":
+    """The body's knots of an eligible clock column laid by G7A.4, as method G7A.4d places them (G12.15's mirror; lane BT2, plan P4-D448).
+
+    Written out from the method's clause, not imported (the validator may
+    not read the generator): in hundredths of a rank times `2**64`, the
+    two boundaries keep their positions; edge `e_j`, its first rung of
+    the ladder's interior at percent `q_j`, stands at its LOWER KNOT
+    `100 R_j 2**64` and its UPPER KNOT `P q_j 2**64`, the upper held
+    between its own lower knot and the next fixed knot; an edge read at a
+    boundary's own rank still cuts; every other published rung of the
+    body is respaced between the fixed knots around it in proportion to
+    its own position. `tests/test_stage6_clock_mirror.py` holds the two
+    writings to agreeing.
+    """
+    form = facts.clock_form
+    word = _TAIL_WORD
+    pairs = _clock_cut_pairs(facts)
+    edges = [edge for edge, _rank in pairs]
+    rungs: "list[tuple[int, int, int]]" = []
+    seen: "dict[int, int]" = {}
+    for index in range(1, len(_LADDER_KEYS) - 1):
+        rung = facts.clock_percentiles[_LADDER_KEYS[index]]
+        if rung is None:
+            continue
+        rank = _rung_rank(_LADDER_PERCENTS[index], parsed)
+        value = _clock_ordinal_or_zero(rung, form)
+        if not low_rank < rank < high_rank and not (value in edges and low_rank <= rank <= high_rank):
+            continue
+        place = -1
+        if value in edges and value not in seen:
+            for edge_place in range(len(edges)):
+                if edges[edge_place] == value and place < 0:
+                    place = edge_place
+            seen[value] = place
+        rungs += [(parsed * _LADDER_PERCENTS[index], value, place)]
+    fixed: "list[tuple[int, int, int]]" = [(100 * low_rank, 100 * low_rank * word, low_at)]
+    for coordinate, value, place in rungs:
+        if place >= 0:
+            fixed += [(coordinate, 100 * pairs[place][1] * word, value)]
+            fixed += [(coordinate, coordinate * word, value)]
+    fixed += [(100 * (high_rank + 1), 100 * (high_rank + 1) * word, high_at)]
+    held: "list[tuple[int, int, int]]" = []
+    at = 0
+    while at < len(fixed):
+        held += [fixed[at]]
+        if 0 < at < len(fixed) - 1 and fixed[at][0] == fixed[at + 1][0] and at + 2 < len(fixed):
+            held += [(fixed[at + 1][0], min(max(fixed[at + 1][1], fixed[at][1]), fixed[at + 2][1]), fixed[at + 1][2])]
+            at = at + 2
+            continue
+        at = at + 1
+    knots: "list[tuple[int, int]]" = []
+    below = 0
+    for coordinate, value, place in rungs:
+        if place >= 0:
+            continue
+        while below + 1 < len(held) and held[below + 1][0] <= coordinate:
+            below = below + 1
+        start = held[below]
+        stop = held[below + 1] if below + 1 < len(held) else held[below]
+        position = start[1]
+        if stop[0] > start[0]:
+            position = start[1] + ((stop[1] - start[1]) * (coordinate - start[0])) // (stop[0] - start[0])
+        knots += [(position, value)]
+    for _coordinate, position, value in held:
+        knots += [(position, value)]
+    return sorted(knots)
+
+
+def _clock_cuts_of(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    entry: contract.LadderEntry,
+    blank: int,
+) -> "contract.L0Cuts | None":
+    """A clock column's `L0` cuts as G7A.4d lays them, or None where the generator lays it without (G5.7a, rule B3; G12.15's mirror).
+
+    Written out from the method's clauses: the bands' range parts cover
+    every reading once each, the edges are published interior rungs that
+    rise, the counts sum to the parsed cells (D1), the two boundaries'
+    pinned ranks stand on their sides of every cut (D2), and on a column
+    laid on its census and step every cut census group's halves fit,
+    where a column laid on its minute census is made without its band
+    totals (G7A.4c).
+    """
+    parsed = column.n_present - facts.n_unparsed
+    spread = {"missing": max(column.n_missing - blank, 0), "other": facts.n_unparsed, "labels": 0}
+    ranges: "list[tuple[object, object, int]]" = []
+    for place in range(len(entry.bands)):
+        total = entry.totals[place] if place < len(entry.totals) else 0
+        lower: object = None
+        upper: object = None
+        ranged = False
+        for start in entry.bands[place]:
+            if isinstance(start, tuple) and len(start) == 2:
+                if not ranged:
+                    lower = start[0]
+                upper = start[1]
+                ranged = True
+            elif isinstance(start, str) and start in spread:
+                total = total - spread[start]
+            else:
+                return None
+        if ranged:
+            ranges += [(lower, upper, total)]
+        elif total != 0:
+            return None
+    if not ranges or ranges[0][0] is not None or ranges[len(ranges) - 1][1] is not None:
+        return None
+    for place in range(len(ranges)):
+        if ranges[place][2] < 0 or (place and ranges[place][0] != ranges[place - 1][1]):
+            return None
+    if facts.low_tail is None or facts.high_tail is None:
+        return None
+    form = facts.clock_form
+    edges: "list[float]" = []
+    counts: "list[int]" = []
+    for place in range(len(ranges)):
+        counts += [ranges[place][2]]
+        if not place:
+            continue
+        key = ranges[place][0]
+        rung = facts.clock_percentiles[key] if isinstance(key, str) and key in facts.clock_percentiles else None
+        if rung is None:
+            return None
+        value = _clock_ordinal_or_zero(rung, form)
+        if edges and not value > int(edges[len(edges) - 1]):
+            return None
+        edges += [float(value)]
+    if sum(counts) != parsed:
+        return None
+    cut = contract.L0Cuts(tuple(edges), tuple(counts), parsed)
+    pinned = (
+        (facts.low_tail.rows, _clock_ordinal_or_zero(facts.low_tail.boundary, form)),
+        (parsed - 1 - facts.high_tail.rows, _clock_ordinal_or_zero(facts.high_tail.boundary, form)),
+    )
+    pairs = _clock_cut_pairs(dataclasses.replace(facts, l0=cut))
+    for edge, rank_cut in pairs:
+        for rank, value in pinned:
+            if (value < edge and rank >= rank_cut) or (value >= edge and rank < rank_cut):
+                return None
+    if facts.clock_step is not None:
+        if facts.minute_census:
+            return None
+        unit = parsing.clock_step(form)
+        heaps = tuple((_clock_ordinal_or_zero(value, form), count) for value, count in facts.clock_heaps)
+        laid = calendar_clock.clock_body_blocks(
+            parsed, (facts.low_tail.rows, facts.high_tail.rows), (pinned[0][1], pinned[1][1]),
+            facts.clock_census, heaps, form, max(1, facts.clock_step // unit),
+            calendar_clock.absent_places(tuple(column.missing_by_source), form), pairs,
+        )
+        if laid is None:
+            return None
+    return cut
+
+
+def clock_cuts_mirrored(description: contract.Profile) -> contract.Profile:
+    """The description with each eligible clock column's `L0` cuts on its facts, as the quality report reads them (method G12.15; lane BT2, plan P4-D448).
+
+    THE QUALITY REPORT'S MIRROR OF THE CLOCK'S KNOTS. Where the
+    description carries a chain (`relationships.ladder`, read only by a
+    run made with the chain's switch), the generator lays an eligible
+    clock column at G7A.4d's knots, or cuts its census groups at the
+    edges, and its own report reads the windows of G12.10 so; this hands
+    the quality report the same cuts (`_clock_cuts_of`), so its windows
+    are drawn between the same knots and halves
+    (`_clock_rank_windows`, `_clock_census_windows`). A description with
+    no chain is handed back as it is, so every report of every shipped
+    run keeps its bytes.
+
+    Guarantees: the same description where it carries no ladder or no
+    family; otherwise each clock column the ladder names and the
+    generator lays with its band totals given its cuts, every other
+    column as it was. Determinism: a function of the description. Raises
+    nothing. No I/O.
+    """
+    relationships = description.relationships
+    if not relationships.ladder or relationships.families <= 0:
+        return description
+    form = description.source.workbook
+    if form is not None:
+        blank = form.empty_rows_inside if form.empty_rows_inside is not None else 0
+    else:
+        shape = description.source.dialect
+        blank = shape.empty_rows_leading + shape.empty_rows_interior + shape.empty_rows_trailing
+    named = {entry.column: entry for entry in relationships.ladder}
+    columns: "list[contract.ColumnBlock]" = []
+    changed = False
+    for column in description.columns:
+        facts = column.facts
+        if isinstance(facts, contract.ClockFacts) and column.name in named:
+            cut = _clock_cuts_of(column, facts, named[column.name], blank)
+            if cut is not None:
+                column = dataclasses.replace(column, facts=dataclasses.replace(facts, l0=cut))
+                changed = True
+        columns += [column]
+    if not changed:
+        return description
+    return dataclasses.replace(description, columns=tuple(columns))
 
 
 def _clock_knot_at(knots: "list[tuple[int, int]]", position: int) -> int:

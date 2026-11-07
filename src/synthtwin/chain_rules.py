@@ -89,10 +89,15 @@ INELIGIBLE_REASONS = (
 K_MAX = 3
 TAU = fractions.Fraction(2)
 W_RULE = fractions.Fraction(1, 20)
-W_TE = fractions.Fraction(1)
+W_TE = fractions.Fraction(0)
 W_SEED = fractions.Fraction(1, 20)
 UNIFORM_SHARE_BITS = 30
 L0_CUT = "deciles"
+# `L2`'s cut (4.6b.2): `p50`, or under RULE ONE_BAND the lowest `L1` cut
+# with rows on both sides. A description written before the rule records
+# no `l2_cut` and `w_te` "1" (`earlier_procedure_record`).
+L2_CUT = "one_band"
+EARLIER_W_TE = fractions.Fraction(1)
 SELFTEST_SMALL = 20000
 SELFTEST_LARGE = 200000
 SELFTEST_LINE = 1000000
@@ -257,6 +262,7 @@ def procedure_record(tabled: int) -> "dict[str, object]":
     return {
         "k_max": K_MAX,
         "l0_cut": L0_CUT,
+        "l2_cut": L2_CUT,
         "selftest_sample": selftest_size(tabled),
         "tau": fraction_text(TAU),
         "uniform_share_bits": UNIFORM_SHARE_BITS,
@@ -264,6 +270,28 @@ def procedure_record(tabled: int) -> "dict[str, object]":
         "w_seed": fraction_text(W_SEED),
         "w_te": fraction_text(W_TE),
     }
+
+
+def earlier_procedure_record(tabled: int) -> "dict[str, object]":
+    """The record a description written before RULE ONE_BAND carries (2026-10-21 to 2026-11-02).
+
+    It holds no `l2_cut`, since `L2` was cut at `p50` alone, and its
+    `w_te` is `"1"`; every other constant is this version's. A later
+    amendment moves no older description (4.6b.5), so the loader reads
+    such a description by its own rules.
+    """
+    record = procedure_record(tabled)
+    return {key: (fraction_text(EARLIER_W_TE) if key == "w_te" else record[key]) for key in record if key != "l2_cut"}
+
+
+def reads_one_band(procedure: object, tabled: int) -> "bool | None":
+    """Which `L2` a recorded `procedure` was cut under: True for RULE ONE_BAND (this version),
+    False for `p50` alone (the earlier one), None for a record of neither (refused, S24)."""
+    if procedure == procedure_record(tabled):
+        return True
+    if procedure == earlier_procedure_record(tabled):
+        return False
+    return None
 
 
 # -- THE LADDER (4.6b.2) -------------------------------------------------
@@ -613,11 +641,52 @@ def merge_ladder(column: str, start: Starting, totals: "list[int]", floor: int) 
         counts = counts[:low] + [counts[low] + counts[high]] + counts[low + 1 : high] + counts[high + 1 :]
     first = tuple(range(len(bands)))
     second = union_closure(bands, start.groups[1])
-    third = union_closure(bands, start.groups[2])
+    third = coarsest_level(start, bands, second, union_closure(bands, start.groups[2]), counts)
     ordered = tuple(any(start.value[place] for place in band) for band in bands)
     names = tuple(tuple(start.names[place] for place in band) for band in bands)
     level_counts = (len(bands), max(second) + 1, max(third) + 1)
     return Ladder(column, names, (first, second, third), level_counts, tuple(counts), ordered)
+
+
+def coarsest_level(
+    start: Starting,
+    bands: "list[list[int]]",
+    second: "tuple[int, ...]",
+    third: "tuple[int, ...]",
+    totals: "list[int]",
+) -> "tuple[int, ...]":
+    """`L2` read through `L0`, with RULE ONE_BAND (4.6b.2, amended 2026-11-01).
+
+    On a number, date or clock column whose cut at `p50` leaves no value
+    band on one side (few values, the median at the lowest of them), `L2`
+    reads instead the lowest `L1` cut with rows on both sides: the first
+    `L1` value band holding a row against every later one. The spread
+    bands stay as they are. A function of the column's published rungs
+    and `L0` totals, so a fact of one column. `third` is returned where
+    `p50` still cuts, where no `L1` cut has rows on both sides, and on a
+    label column, whose `L2` holds no cut.
+    """
+    if start.is_label:
+        return third
+    held: "dict[int, int]" = {}
+    whole: "set[int]" = set()
+    for at in range(len(bands)):
+        if any(start.value[place] for place in bands[at]):
+            held[second[at]] = (held[second[at]] if second[at] in held else 0) + totals[at]
+            whole = whole | {third[at]}
+    filled = [group for group in sorted(held) if held[group] > 0]
+    if len(whole) != 1 or len(filled) < 2:
+        return third
+    out: "list[int]" = []
+    names: "dict[object, int]" = {}
+    for at in range(len(bands)):
+        key: object = third[at]
+        if third[at] in whole:
+            key = "low" if second[at] <= filled[0] else "high"
+        if key not in names:
+            names[key] = len(names)
+        out += [names[key]]
+    return tuple(out)
 
 
 def union_closure(bands: "list[list[int]]", groups: "tuple[int, ...]") -> "tuple[int, ...]":

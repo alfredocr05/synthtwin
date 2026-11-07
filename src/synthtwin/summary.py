@@ -1130,6 +1130,34 @@ _COUNTED_DATES_HELD_EVIDENCE = taxonomy.rendered(
 )
 
 
+# THE PATIENT LAYER'S EMPTIED BLOCKS (lane GRa, plan P4-D449; contract
+# 4.6c.6 (c) and 4.6c.5 (e), S30, NOT IN FORCE): behind the chain's switch
+# alone, a position-like or held column publishes no key but its name,
+# place and role. Its words are lane ST's; here it is named and said to
+# publish nothing of its own.
+_EMPTIED_KEPT = ("name", "position", "role")
+
+
+def _emptied_by_the_patient_layer(column: "dict[str, object]") -> bool:
+    """Whether a block holds no key but its name, place and role (a switched description's patient layer)."""
+    if "statistical_type" not in column or column["statistical_type"] is not None:
+        return False
+    for key in column:
+        if key not in _EMPTIED_KEPT and column[key] not in (None, {}, []):
+            return False
+    return True
+
+
+def _emptied_lines(column: "dict[str, object]") -> "list[str]":
+    """The lines naming a column the patient layer describes by position or holds."""
+    return [
+        f"{_text_of(column['name'])}",
+        "  Nothing of its own is published: with several rows per person, "
+        "this column is described by its place in each person's rows, or "
+        "held.",
+    ]
+
+
 def _column_lines(column: dict[str, object], floor: int) -> list[str]:
     """The block of lines describing one column."""
     role = _text_of(column["role"])
@@ -2059,6 +2087,10 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
     all_invented: list[str] = []
     for entry in _list_of(document["columns"]):
         column = _map_of(entry)
+        # A block the patient layer empties publishes nothing to disclose
+        # (lane GRa, plan P4-D449), and none of its role's keys.
+        if _emptied_by_the_patient_layer(column):
+            continue
         name = _text_of(column["name"])
         role = _text_of(column["role"])
         if role in _ROLES_WITH_LABELS and _list_of(column["levels"]):
@@ -2577,6 +2609,9 @@ def render(document: dict[str, object], encoding_note: str) -> str:
     ]
     floor = _count_of(_map_of(document["settings"])["small_cell_floor"])
     for entry in _list_of(document["columns"]):
+        if _emptied_by_the_patient_layer(_map_of(entry)):
+            lines = lines + _emptied_lines(_map_of(entry)) + [""]
+            continue
         lines = lines + _column_lines(_map_of(entry), floor) + [""]
     lines = lines + [_RULE] + _disclosure_lines(document)
     # The lines are joined by hand: the offline policy accepts a text

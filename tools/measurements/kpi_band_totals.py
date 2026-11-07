@@ -58,6 +58,20 @@ its ladder:
   a carried rule computes would list its moves in
   `computed_columns_moved`, and no description this version loads
   carries one (S28);
+- (ix) THE TWO READERS (lane BT2, plan P4-D448): every twin file the
+  driver writes -- with L0, without it and with the chain's walk emptied
+  -- is read back by the product's reader, which reads it twice (its
+  survey and pandas) and refuses where they disagree:
+  `readers_refused`, target 0, over `twins_read_back`; the cells the
+  two readers read apart and the product settles are reported,
+  `readers_cells_apart`, each one a blank pandas' own step of 262,144
+  characters cuts off a record's start, which the product settles as
+  its survey read it (`reading._step_settles`). In the
+  default `--kpi` run (not with `--no-reread` or a named table) the
+  hunt table of lane BT's verify at 200,000 rows, its twin at seed 3
+  with the switch at its default -- the twin the base refused -- is
+  written and read back the same way (`hunt_200k`), its refusal counted
+  in `readers_refused`;
 - the columns made without their band totals (rule B3, named by exact
   column name): `made_without`, reported; the tables whose switched
   description its own loader refused: `chain_refused`, reported.
@@ -68,7 +82,8 @@ The battery: G5.7i's ten-column table at 5,000 and 20,000 rows, each at
 TWO table draws (table seeds 7 and 11), the count of few values of
 G14.3a case 1 at 20,000, an invented ward of 20,000 rows holding records
 that hold nothing (E > 0) both as a text file and as a workbook, seeds 0
-to 2; the every-role table at 2,000 rows, seeds 0 to 4; and the health
+to 2; lane BT's verify's sparse table at table draw 3 at seeds 0 and 3
+(lane BT2); the every-role table at 2,000 rows, seeds 0 to 4; and the health
 zoo's 25 exports at 20,000 rows (table seed 0) at seeds 0 and 1, unless
 `--no-zoo`. One process of a few hundred megabytes, about an hour with the
 zoo. The 200,000-row leg is a separate run under the heavy-slot guard
@@ -288,6 +303,80 @@ def _lab(rows: int) -> "tuple[list[str], list[list[str]]]":
     return ["lab_value", "score", "arm"], body
 
 
+
+def _sparse3(rows: int) -> "tuple[list[str], list[list[str]]]":
+    """Lane BT's verify's sparse table at table draw 3 (hunt.py's `_sparse2(rows, 3)`): its `c1` at seed 3 needs G5.7c step 3's free grid point to keep today's count of different values (lane BT's verify 2, item 1; lane BT2)."""
+    draw = random.Random(1003)
+    body: "list[list[str]]" = []
+    for place in range(rows):
+        c1 = str(draw.randint(0, 60)) if draw.random() < 115 / rows else ""
+        c2 = str(draw.randint(0, 200)) if draw.random() < 300 / rows else ""
+        c3 = str(min(int(draw.expovariate(0.2)), 30)) if draw.random() < 500 / rows else ""
+        c4 = f"{draw.gauss(7, 2):.1f}" if draw.random() < 150 / rows else ""
+        c5 = str(draw.randint(0, 60)) if draw.random() < 2000 / rows else ""
+        body += [[f"S{place:06d}", c1, c2, c3, c4, c5, draw.choice(["p", "q"])]]
+    return ["key", "c1", "c2", "c3", "c4", "c5", "arm"], body
+
+
+def _hunt(rows: int) -> "tuple[list[str], list[list[str]]]":
+    """Lane BT's verify's hunt table (wave6/BT-verify-work/hunt.py, verbatim): records holding nothing written '', ' ' and mixed, 'NA' records, a key, counts, readings, a date, a clock and labels."""
+    draw = random.Random(91)
+    body: "list[list[str]]" = []
+    start = datetime.date(2022, 1, 3)
+    serial = 0
+    for _place in range(rows):
+        u = draw.random()
+        if u < 0.002:
+            body += [[""] * 10]
+            continue
+        if u < 0.004:
+            body += [[" "] * 10]
+            continue
+        if u < 0.005:
+            body += [[draw.choice(["", " ", "\t", "  "]) for _k in range(10)]]
+            continue
+        if u < 0.006:
+            body += [["NA"] * 10]
+            continue
+        serial += 1
+        w = draw.random()
+        visits = 2 if w < 0.30 else 0 if w < 0.42 else 1 + min(int(draw.expovariate(0.25)), 40)
+        w = draw.random()
+        nights = 7 if w < 0.09 else 1 + min(int(draw.lognormvariate(1.6, 0.7)), 60)
+        w = draw.random()
+        if w < 0.002:
+            glucose = draw.choice(["612.0", "655.5", "701.2"])
+        elif w < 0.0035:
+            glucose = draw.choice(["12.0", "15.5"])
+        elif w < 0.02:
+            glucose = draw.choice(["", " ", "NA"])
+        else:
+            glucose = f"{draw.gauss(100, 15):.1f}"
+        w = draw.random()
+        weight = "70.00" if w < 0.05 else f"{draw.lognormvariate(4.3, 0.2):.2f}"
+        while True:
+            day = start + datetime.timedelta(days=draw.randint(0, 729))
+            if day.weekday() < 5:
+                break
+        if draw.random() < 0.25:
+            day = day - datetime.timedelta(days=day.weekday())
+        if draw.random() < 0.05:
+            first = day.replace(day=1)
+            if first.weekday() < 5:
+                day = first
+        w = draw.random()
+        if w < 0.03:
+            arrival = ""
+        else:
+            hour = draw.choice([7, 8, 8, 9, 9, 9]) if w < 0.5 else draw.randint(5, 23)
+            arrival = f"{hour:02d}:{draw.randint(0, 59):02d}"
+        body += [[
+            str(serial), str(visits), str(nights), glucose, weight, day.isoformat(), arrival,
+            draw.choice(["F", "M"]), draw.choice(["A", "B", "C", "D"]), draw.choice(["", "x", "y"]) if draw.random() < 0.1 else "z",
+        ]]
+    return ["serial", "visits", "nts", "glucose", "weight", "visit_date", "arrival", "gnd", "ward", "flag"], body
+
+
 @dataclasses.dataclass
 class _Described:
     path: pathlib.Path
@@ -307,7 +396,7 @@ def _described(folder: pathlib.Path, name: str, path: pathlib.Path) -> _Describe
     plain_path.write_text(canonical.serialize(document), encoding="utf-8", newline="\n")
     plain = contract.load_profile(str(plain_path))
     workbook = plain.source.workbook is not None
-    chained = chain.describe(table, document, settings, chain.ChainSwitch(name, TEST_KEY))
+    chained = chain.describe(table, document, settings, chain.ChainSwitch(name, TEST_KEY, rows_per_person=chain.ROWS_UNASKED))
     if chained.statistical is None:
         return _Described(path, table, document, None, None, plain, workbook)
     written = dict(document)
@@ -338,9 +427,74 @@ def _twin_file(folder: pathlib.Path, described: _Described, profile_: contract.P
     return out
 
 
-def _l0_totals(path: pathlib.Path, described: _Described) -> "dict[str, list[int]]":
+def _two_readers(path: pathlib.Path) -> "tuple[reading.Table | None, int]":
+    """(ix) THE TWO READERS (lane BT2, plan P4-D448): a twin the driver wrote, read back by the product's reader, and the cells it settled.
+
+    The product's reader reads every file twice, its survey and pandas,
+    and refuses where they disagree (`reading._check_against_pandas`),
+    save the blanks pandas' own step cuts off a record's start, which it
+    settles as the survey read them (`reading._step_settles`). Returns
+    the table read back, or None where the product refused its own twin,
+    and how many of its rows the reader SETTLED: the cells the two
+    readers read apart, counted as the reader answers yes for them, each
+    row once whatever the passes. (Codex's review of lane BT2, item 6:
+    the count read the cuts a file holds, and a cut inside a quoted
+    field, where both readers agree, counted as a cell apart. A first
+    build read the file a third time with pandas alone and compared it
+    column by column; on one twin of the battery that comparison indexed
+    past pandas' columns and the driver stopped, at 504130d4.)
+    """
+    settled: "dict[int, bool]" = {}
+    built = reading._step_settles
+
+    def counted(settle: "reading._StepBlanks", mine: str, theirs: str, row: int) -> bool:
+        verdict = built(settle, mine, theirs, row)
+        if verdict:
+            settled[row] = True
+        return verdict
+
+    reading._step_settles = counted  # type: ignore[assignment]
+    try:
+        back = reading.read_table(str(path), small_cell_floor=FLOOR)
+    except errors.ProfileError:
+        return None, 0
+    finally:
+        reading._step_settles = built  # type: ignore[assignment]
+    return back, len(settled)
+
+
+def _hunt_reread(rows: int, seed: int) -> "dict[str, object]":
+    """(ix) at 200,000 rows: lane BT's verify's hunt table, its twin with the switch at its default (seed 3), written and read back by both readers.
+
+    The twin the product refused at a5702b71 (row 29109, a record holding
+    nothing whose first blank was the last character of pandas' fifth
+    step). Reported: whether the product reads it, the cells the readers
+    read apart and the product settles (the step's cuts the file holds),
+    and the seconds.
+    """
+    started = time.time()
+    with tempfile.TemporaryDirectory(prefix="synthtwin-hunt-reread-") as kept:
+        folder = pathlib.Path(kept)
+        header, body = _hunt(rows)
+        real = folder / "hunt.csv"
+        real.write_text(fixtures.rows_to_csv(header, body), encoding="utf-8", newline="\n")
+        body = []
+        table = reading.read_table(str(real), small_cell_floor=FLOOR)
+        document = profile.build_document(table, taxonomy.Settings(small_cell_floor=FLOOR), [], [], [])
+        plain_path = folder / "hunt-plain.json"
+        plain_path.write_text(canonical.serialize(document), encoding="utf-8", newline="\n")
+        plain = contract.load_profile(str(plain_path))
+        out = folder / f"twin-{seed}.csv"
+        out.write_text("".join(rendering.twin_csv_pieces(generation.generate_held(plain, seed))), encoding="utf-8", newline="")
+        back, apart = _two_readers(out)
+        cuts = len(reading._step_cut_leads(out, "utf-8-sig", " \t"))
+    return {"rows": rows, "seed": seed, "refused": back is None, "cells_apart": apart, "step_cuts": cuts, "seconds": round(time.time() - started, 1)}
+
+
+def _l0_totals(path: pathlib.Path, described: _Described, back: "reading.Table | None" = None) -> "dict[str, list[int]]":
     """Each eligible column's L0 totals in a twin, read the way the profile reads the table: the first `E` records holding nothing no tabled row."""
-    back = reading.read_table(str(path), small_cell_floor=FLOOR)
+    if back is None:
+        back = reading.read_table(str(path), small_cell_floor=FLOOR)
     settings = taxonomy.Settings(small_cell_floor=FLOOR)
     blocks: "dict[str, tuple[int, dict[str, object]]]" = {}
     for place, block in enumerate(described.document["columns"]):  # type: ignore[arg-type]
@@ -454,11 +608,11 @@ def _tables(
     if only:
         # ``only`` names tables of the battery (not of the zoo): those alone.
         small_only = min(max(rows_list), 20000)
-        builders = {"few": _few, "ward": _ward, "codes": _codes, "sparse": _sparse, "lab": _lab}
+        builders = {"few": _few, "ward": _ward, "codes": _codes, "sparse": _sparse, "lab": _lab, "sparse3": _sparse3}
         picked: "list[tuple[str, pathlib.Path, list[int]]]" = [entry for entry in out if entry[0] in only]
         for name in only:
             if name in builders:
-                seeds = [0, 1] if name == "codes" else [0, 1, 2, 3, 4] if name in ("sparse", "lab") else []
+                seeds = [0, 1] if name == "codes" else [0, 1, 2, 3, 4] if name in ("sparse", "lab") else [0, 3] if name == "sparse3" else []
                 picked += [(name, written(name, builders[name](small_only)), seeds)]
             if name == "ward-book":
                 book_only = folder / "ward-book.xlsx"
@@ -477,6 +631,7 @@ def _tables(
     out += [("codes", written("codes", _codes(small)), [0, 1])]
     out += [("sparse", written("sparse", _sparse(small)), [0, 1, 2, 3, 4])]
     out += [("lab", written("lab", _lab(small)), [0, 1, 2, 3, 4])]
+    out += [("sparse3", written("sparse3", _sparse3(small)), [0, 3])]
     every = folder / "every_role.csv"
     every.write_text(fixtures.every_role_table(n_rows=2000), encoding="utf-8", newline="\n")
     out += [("every_role", every, [0, 1, 2, 3, 4])]
@@ -487,6 +642,22 @@ def _tables(
             path = health_zoo.write_table(spec, folder / "zoo", 20000, 0)
             out += [(f"zoo.{spec.name}", path, [0, 1])]
     return out
+
+
+def _read_back_named(value: "dict[str, object]", named: "dict[str, list[str]]", key: str, line: str, count: int) -> None:
+    value[key] = int(value[key]) + count  # type: ignore[call-overload]
+    named[f"{key}_named"] += [line]
+
+
+def _read_both(path: pathlib.Path, label: str, value: "dict[str, object]", named: "dict[str, list[str]]") -> "reading.Table | None":
+    """Clause (ix) on one twin file: read back by both readers, counted, a refusal or a cell apart named."""
+    back, apart = _two_readers(path)
+    value["twins_read_back"] = int(value["twins_read_back"]) + 1  # type: ignore[call-overload]
+    if back is None:
+        _read_back_named(value, named, "readers_refused", f"{label}: refused by the product's reader", 1)
+    if apart:
+        _read_back_named(value, named, "readers_cells_apart", f"{label}: {apart} cell(s) the readers read apart, settled", apart)
+    return back
 
 
 def measure(
@@ -518,6 +689,9 @@ def measure(
         "g16_multiset_differences": 0,
         "g16_facts_lost": 0,
         "g16_notes_gained": 0,
+        "twins_read_back": 0,
+        "readers_refused": 0,
+        "readers_cells_apart": 0,
     }
     named: "dict[str, list[str]]" = {
         "facts_lost_named": [],
@@ -529,6 +703,8 @@ def measure(
         "g16_facts_lost_named": [],
         "g16_notes_gained_named": [],
         "g16_named": [],
+        "readers_refused_named": [],
+        "readers_cells_apart_named": [],
     }
     made_without: "list[str]" = []
     reach: "list[str]" = []
@@ -612,6 +788,7 @@ def measure(
                         if sorted(generation.twin_column(twin, place)) != sorted(generation.twin_column(layered, place)):
                             value["g16_multiset_differences"] = int(value["g16_multiset_differences"]) + 1  # type: ignore[call-overload]
                     layered_path = _twin_file(folder, described, loaded, layered, f"{seed}-layered")
+                    _read_both(layered_path, f"{name}@{seed} layered", value, named)
                     lost_g16 = _missed(described.plain, with_path) - _missed(described.plain, layered_path)
                     value["g16_facts_lost"] = int(value["g16_facts_lost"]) + len(lost_g16)  # type: ignore[call-overload]
                     named["g16_facts_lost_named"] += [f"{name}@{seed}: {column}.{fact}.{subcheck}" for column, fact, subcheck in sorted(lost_g16)]
@@ -621,8 +798,15 @@ def measure(
                     named["g16_notes_gained_named"] += [f"{name}@{seed}: {column}.{fact}" for column, fact in sorted(gained_g16)]
                     named["g16_named"] += [f"{name}@{seed}: {column or 'the file'} {fact}" for column, fact in sorted(walked)]
                     layered_path.unlink()
-                found_totals = _l0_totals(with_path, described)
-                bare_totals = _l0_totals(bare_path, described)
+                with_back = _read_both(with_path, f"{name}@{seed} with L0", value, named)
+                bare_back = _read_both(bare_path, f"{name}@{seed} without L0", value, named)
+                if with_back is None or bare_back is None:
+                    with_path.unlink()
+                    bare_path.unlink()
+                    continue
+                found_totals = _l0_totals(with_path, described, with_back)
+                bare_totals = _l0_totals(bare_path, described, bare_back)
+                with_back = bare_back = None
                 for column_name in judged:
                     if column_name not in found_totals:
                         continue
@@ -716,6 +900,12 @@ def main() -> int:
         only,
         tuple(_argument("--draws", [7, 11])),
     )
+    # (ix) AT 200,000 ROWS: the hunt table's twin the base refused, read
+    # back by both readers (lane BT2), in the default --kpi run.
+    if "--no-reread" not in sys.argv and not only:
+        hunt = _hunt_reread(200000, 3)
+        value["hunt_200k"] = hunt
+        value["readers_refused"] = int(value["readers_refused"]) + (1 if hunt["refused"] else 0)  # type: ignore[call-overload]
     if "--kpi" in sys.argv:
         print("KPI " + json.dumps({"id": "K-S6-02", "value": value, "detail": "layer L0's band totals (lane BT)"}, sort_keys=True))
     else:

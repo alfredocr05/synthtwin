@@ -36,9 +36,10 @@ WHAT IT DOES, in 4.6b's order:
 
 WHAT IT DOES NOT DO. It publishes no slope (ruling R12: no publishing
 region exists while lane MPOL's gate is closed), no moment and no
-patient-layer object; a table whose person column repeats (several rows
-per patient) gets no chain, since the table layer's proof is for one row
-per patient (lane MG's page owns the rest). Lane MR's rule inference is
+patient-layer object itself: a table whose settings name a person
+column is handed to the patient layer (`patient_layer`, contract 4.6c,
+lane GRa), and a table whose subject question is open gets no chain,
+since the table layer's proof is for one row per patient. Lane MR's rule inference is
 not built, so no rule step opens and no column is computed or derived in
 a description this module writes (4.6b.7 stands ready in
 `chain_derived`). The key never reaches anything this module returns.
@@ -58,11 +59,27 @@ import math
 
 from synthtwin import chain_moments as moments
 from synthtwin import chain_rules as rules
-from synthtwin import calendar_rules, parsing, reading, taxonomy
+from synthtwin import calendar_rules, date_counts, parsing, reading, taxonomy
 
 # The reasons a whole chain is not published although the switch is on,
 # each told in the private notes only (inventory rows 4 and 34).
-OFF_PERSON = "several rows per person: the patient layer's (lane MG), not the table layer's"
+OFF_PERSON = "a declared person column: the patient layer's (lane MG), not the table layer's"
+OFF_HELD_REPEATS = (
+    "a column held or declared as an identifier repeats a value and nothing published says each row "
+    "is another person: the table may hold several rows per person"
+)
+# THE SUBJECT QUESTION'S HOLD (lane GRa, plan P4-D449; plan P4-D418 limit
+# (3)): while the question whether one person may stand on several rows is
+# open, or answered with no column naming the person, no chain is drawn.
+OFF_SUBJECT = "the question whether one person may stand on several rows is open"
+OFF_NO_PERSON = "one person may stand on several rows and no column names the person"
+
+# What a switched run knows of who each row is about (`ChainSwitch.rows_per_person`).
+ROWS_UNASKED = ""
+ROWS_OPEN = "open"
+ROWS_ONE = "one row each"
+ROWS_UNNAMED = "several rows, no column names the person"
+ROWS_PERSON = "the settings' person column identifies the person"
 OFF_RECOUNT = "a column's recount disagreed with its published counts"
 OFF_FEW = "fewer than two eligible columns"
 OFF_ROOT = "the root step drew no family"
@@ -71,6 +88,12 @@ FEW_LEVELS = 8
 SCREEN_ALL = 10
 SCREEN_FEW = 3
 SCREEN_ROUNDS = 6
+# THE SCREEN'S BOUND (4.6b.3, amended 2026-11-01, lane CHa2): the triples it
+# counts, every one up to 50 eligible columns (`C(50, 3)`), and past them a
+# list read from positions and published classes alone; half of the budget
+# goes first to the few-level class.
+SCREEN_TRIPLES = 19600
+SCREEN_FEW_TRIPLES = 9800
 
 
 @dataclasses.dataclass(frozen=True)
@@ -93,6 +116,29 @@ class ChainSwitch:
     held: "tuple[str, ...]" = ()
     add: "tuple[tuple[str, str], ...]" = ()
     drop: "tuple[tuple[str, str], ...]" = ()
+    # THE SUBJECT QUESTION (lane GRa, plan P4-D449): `ROWS_OPEN`, the
+    # default, while nothing has said who each row is about, and
+    # `ROWS_UNNAMED` where an answer says no column names the person (no
+    # chain and no patient layer either way); `ROWS_ONE` where it says each
+    # row is a different person; `ROWS_PERSON` where the settings' person
+    # column is said to identify the person; and `ROWS_UNASKED` only where a
+    # caller states in its own line that it measures the walk beside a
+    # repeating column (the chain's drivers: no command reaches it).
+    rows_per_person: str = ROWS_OPEN
+    # The columns the person question's open answer holds (`held` holds
+    # them too): under `ROWS_ONE` every other repeating held column stays
+    # held and ineligible, and these still hold the chain back.
+    held_by_person: "tuple[str, ...]" = ()
+    # WHAT THE ROW DESCRIPTION WAS TOLD, for the patient table's: every
+    # rule it applied holds the patient-fixed columns too (`profile.build_document`).
+    safe_harbor_no: "tuple[str, ...]" = ()
+    unanswered: "tuple[str, ...]" = ()
+    rare_values_released: bool = True
+    # Lane SH2's reference year (years showing an age over 89 pooled, plan
+    # P4-D434) and lane UN-1b's columns answered `keep` (plan P4-D443), as
+    # the row description was told them.
+    harbor_year: int = 0
+    kept_identities: "tuple[str, ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -114,6 +160,10 @@ class Chained:
     chosen: "tuple[tuple[str, tuple[str, ...], tuple[int, ...]], ...]"
     content: str
     moments: "dict[str, object] | None" = None
+    # THE PATIENT LAYER (contract 4.6c; lane GRa, plan P4-D449): `grain`
+    # where it stands, and every column block as it then publishes them.
+    grain: "dict[str, object] | None" = None
+    columns: "list[dict[str, object]] | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -361,6 +411,266 @@ def _recount_agrees(block: "dict[str, object]", totals: "dict[str, int]", tabled
     return readings + totals["pool"] == present
 
 
+# -- THE CELLS AS THE DESCRIPTION READ THEM (batch 4p's fix round) -------
+#
+# The command describes many columns from cells it has CHANGED: the Safe
+# Harbor age top-code with its placeholders set aside and a small top
+# category pooled, the year top-code, dates in disguise held, a column
+# counted absent; and it reads a comma it inferred as the decimal point.
+# The published counts are those of the changed cells, made by the HIPAA
+# rules. `described_cells` reads a column's cells as the description read
+# them, by the same taxonomy functions in `profile.build_document`'s
+# order, from the marks the published block carries and the document's
+# own settings -- as the validator reads a checked file
+# (`validation._top_coded_table` and its neighbours). The patient layer
+# reads through it every column whose recount agrees, so no class,
+# reading, band or position list it publishes reads a value the
+# description held (Codex's review of batch 4p, item 1: a position list
+# read the cells as the file wrote them and published ages of 91 and 92
+# beside a description top-coded at 90). The row chain's own reader
+# still reads the cells as the file wrote them, its recount the check:
+# lane BT3a moves it onto these cells.
+
+
+def declarations_read(
+    document: "dict[str, object]",
+    forced_codes: "list[str] | None",
+    forced_measurements: "list[str] | None",
+    forced_decimal_commas: "list[str] | None",
+) -> "tuple[set[str], set[str], set[str]]":
+    """The columns read as codes, as measurements and with a decimal comma: the caller's beside the description's own.
+
+    The description publishes in its settings (`forced_codes`,
+    `forced_measurements`, `forced_decimal_commas`) every column it read
+    so -- among the commas, one it INFERRED from the cells (lane UN-1b,
+    plan P4-D443), which no person declared and the command does not hand
+    over -- and `_reading_of` reads a column under exactly these three
+    (`stored_as`, the fourth thing it reads, is the reader's, never a
+    declaration). Guarantees: a fixed function of the four; reads no
+    cell. Raises nothing. No I/O.
+    """
+    settings_block = _get(document, "settings")
+    found: "list[set[str]]" = []
+    for key, given in (
+        ("forced_codes", forced_codes),
+        ("forced_measurements", forced_measurements),
+        ("forced_decimal_commas", forced_decimal_commas),
+    ):
+        named = {f"{name}" for name in given or []}
+        published = _get(settings_block, key) if isinstance(settings_block, dict) else None
+        if isinstance(published, list):
+            named |= {f"{name}" for name in published}
+        found += [named]
+    return found[0], found[1], found[2]
+
+
+def _whole_mark(value: object) -> int:
+    """A published mark (`top_coded`, `top_coded_year`, `top_category_pooled`) as a whole number, -1 where none is written."""
+    return value if isinstance(value, int) and not isinstance(value, bool) else -1
+
+
+def _plainly_absent(spellings: "list[str]", settings: taxonomy.Settings) -> "frozenset[str]":
+    """The spellings every reading counts absent: blank, the package's vocabulary of nothing, a declared one (as the validator reads them)."""
+    declared: "dict[str, bool]" = {}
+    for spelling in settings.declared_missing_values:
+        declared[parsing.trimmed(spelling)] = True
+    return frozenset(
+        one for one in spellings
+        if not parsing.trimmed(one) or parsing.is_missing_text(one) or parsing.trimmed(one) in declared
+    )
+
+
+def described_cells(
+    table: reading.Table,
+    place: int,
+    block: "dict[str, object]",
+    settings: taxonomy.Settings,
+    declared: "dict[str, bool]",
+    stored_as: str,
+    exact: bool = False,
+) -> "list[str]":
+    """One column's cells as its published block says the description read them (4.6b.2; 4.6c's reading in rows).
+
+    In `profile.build_document`'s order, each step by the taxonomy
+    function that made the description: (1) DATES IN DISGUISE HELD, where
+    the block carries the remark `REMARK_DATED_VALUES_HELD`
+    (`date_counts.dated_values_blanked`, ages kept up to 125 years in the
+    unit of the column's mark: its `top_coded`, else its name's, else 90,
+    as the validator reads it); (2) A COLUMN COUNTED ABSENT
+    (`present_count_withheld`: every present cell blank); (3) THE AGE
+    TOP-CODE, where the block carries `top_coded`: every value from the
+    mark written as it (`taxonomy.top_coded_cells`, or
+    `top_coded_cells_before_sh3` where the block records no pooling
+    rule), the placeholders past 125 written blank
+    (`age_placeholders_set_aside`), and a top category fewer than
+    `top_category_pooled` rows -- or people of each column of
+    `top_category_people`, read as `profile.subject_keys` reads them --
+    hold written as the value below it (`top_category_pooled`); (4) THE
+    YEAR TOP-CODE, where it carries `top_coded_year`
+    (`year_top_coded_cells`). Each step skips the spellings the column's
+    own reading counts absent and reads the comma of ``declared``
+    (`declarations_read`: the description's own beside the caller's).
+
+    ONCE A SPELLING. Each step is a function of a cell given inputs read
+    off the column's different spellings, so the steps run once a
+    different spelling and the cells are written through the map they
+    make; the pool alone counts rows, read off each spelling's rows held
+    at the floor (`top_category_pooled` decides on fewer than the floor),
+    or off every row where it counts people. Where no step writes a cell
+    blank or pools, the absent spellings are the ones every reading
+    counts absent (`_plainly_absent`), and a recount that disagrees is
+    read again (`read_as_described`); otherwise, and with ``exact``, the
+    ones the column's own reading counts absent (`taxonomy.spellings_read`,
+    as `build_document` reads them, after the dates are held again).
+
+    Guarantees: a column whose block carries none of these marks is
+    returned as `reading.column_values` gives it, the same list, so it is
+    read byte for byte as before, as is one the steps leave whole;
+    otherwise a new list of the same length, a fixed function of the
+    arguments and the table's subject columns. Raises what `taxonomy`
+    raises on a cell that is not text. No I/O.
+    """
+    values = reading.column_values(table, place)
+    remarks = _get(block, "remarks")
+    dated = isinstance(remarks, list) and taxonomy.rendered(taxonomy.REMARK_DATED_VALUES_HELD, ()) in remarks
+    counted_absent = _get(block, "present_count_withheld") is True
+    mark = max(_whole_mark(_get(block, "top_coded")), 0)
+    year = max(_whole_mark(_get(block, "top_coded_year")), 0)
+    if not (dated or counted_absent or mark or year):
+        return values
+    name = f"{_get(block, 'name')}"
+    comma = declared["decimal_comma"]
+    rows_of: "dict[str, int]" = {}
+    for cell in values:
+        rows_of[cell] = rows_of[cell] + 1 if cell in rows_of else 1
+    spellings = [one for one in rows_of]
+    if exact:
+        spelled = taxonomy.spellings_read(
+            values, name, settings, forced_code=declared["code"], forced_measurement=declared["measurement"],
+            forced_decimal_comma=comma, stored_as=stored_as,
+        )
+        absent = frozenset(text for text in spelled if spelled[text][0] == "missing")
+    else:
+        absent = _plainly_absent(spellings, settings)
+    image = spellings
+    blanked = False
+    if dated:
+        unit_mark = mark if mark else (taxonomy.age_mark_named(name) or taxonomy.TOP_CODE)
+        held = date_counts.dated_values_blanked(
+            image, absent, taxonomy.TOP_CODE_REACH_CEILING * unit_mark / taxonomy.TOP_CODE
+        )
+        if held is not None:
+            image = held
+            blanked = True
+            if exact:
+                # ...and the steps below read the column as the description
+                # read it again after its dates were held (`described_from`).
+                dated_map = dict(zip(spellings, image))
+                spelled = taxonomy.spellings_read(
+                    [dated_map[cell] for cell in values], name, settings, forced_code=declared["code"],
+                    forced_measurement=declared["measurement"], forced_decimal_comma=comma, stored_as=stored_as,
+                )
+                absent = frozenset(text for text in spelled if spelled[text][0] == "missing")
+    if counted_absent:
+        image = ["" if parsing.folded(one) and one not in absent else one for one in image]
+        blanked = True
+    pooled_here = False
+    if mark:
+        pooled = _whole_mark(_get(block, "top_category_pooled"))
+        if pooled < 0:
+            # A description written before lane SH3's repair records no
+            # pooling rule and is read as it was made (P4-D454).
+            coded = taxonomy.top_coded_cells_before_sh3(image, comma, absent)
+        else:
+            coded = taxonomy.top_coded_cells(image, comma, absent, mark)
+        aside = taxonomy.age_placeholders_set_aside(coded, comma, absent, settings.small_cell_floor, mark)
+        blanked = blanked or aside != coded
+        coded = aside
+        if pooled > 0:
+            coded = _pooled(table, values, spellings, rows_of, coded, block, settings, comma, absent, pooled, mark)
+            pooled_here = coded != aside
+        image = coded
+    if year:
+        image = taxonomy.year_top_coded_cells(image, comma, absent, year)
+    if not exact and (blanked or pooled_here):
+        return described_cells(table, place, block, settings, declared, stored_as, True)
+    if image == spellings:
+        return values
+    written = dict(zip(spellings, image))
+    return [written[cell] for cell in values]
+
+
+def _pooled(
+    table: reading.Table,
+    values: "list[str]",
+    spellings: "list[str]",
+    rows_of: "dict[str, int]",
+    coded: "list[str]",
+    block: "dict[str, object]",
+    settings: taxonomy.Settings,
+    comma: bool,
+    absent: "frozenset[str]",
+    pooled: int,
+    mark: int,
+) -> "list[str]":
+    """`described_cells`'s third step's pool, each spelling's image beside ``spellings``.
+
+    In rows: `taxonomy.top_category_pooled`, asked of each spelling once
+    with a floor past the column's rows, writes every spelling of the top
+    category as it would pool it (the largest value below the mark, first
+    met, or the mark less one), and the category is pooled where the rows
+    those spellings stand on are fewer than the floor (``pooled``), as the
+    function decides on every row. In the people of each column of
+    `top_category_people`, read as `profile.subject_keys` reads them, it
+    is asked of every row.
+    """
+    people = _get(block, "top_category_people")
+    holders: "list[list[str]]" = []
+    for subject in people if isinstance(people, list) else []:
+        for spot, column_name in enumerate(table.column_names):
+            if column_name == subject:
+                from synthtwin import profile
+
+                holders += [profile.subject_keys(reading.column_values(table, spot), settings.declared_missing_values)]
+                break
+    if holders:
+        image = dict(zip(spellings, coded))
+        cells = [image[cell] for cell in values]
+        found = taxonomy.top_category_pooled(cells, comma, absent, pooled, mark, holders)
+        by_cell = dict(zip(values, found))
+        return [by_cell[one] for one in spellings]
+    found = taxonomy.top_category_pooled(coded, comma, absent, len(values) + 1, mark, None)
+    top_rows = 0
+    for at in range(len(spellings)):
+        if found[at] != coded[at]:
+            top_rows += rows_of[spellings[at]]
+    return found if top_rows < pooled else coded
+
+
+def read_as_described(
+    table: reading.Table,
+    place: int,
+    block: "dict[str, object]",
+    settings: taxonomy.Settings,
+    declared: "dict[str, bool]",
+    stored_as: str,
+    blank_rows: int,
+) -> "tuple[_Read | None, list[str]]":
+    """A column read to its starting bands on its cells as its description read them (`described_cells`), and those cells.
+
+    A recount that disagrees on the cells read with the plain absent
+    spellings is read once more with the column's own (``exact``).
+    """
+    cells = described_cells(table, place, block, settings, declared, stored_as)
+    found = read_column(table, place, block, settings, declared, stored_as, blank_rows, cells)
+    if found is not None and found.agrees:
+        return found, cells
+    again = described_cells(table, place, block, settings, declared, stored_as, True)
+    if again == cells:
+        return found, cells
+    return read_column(table, place, block, settings, declared, stored_as, blank_rows, again), again
+
+
 @dataclasses.dataclass(frozen=True)
 class _Read:
     """One column's starting bands, its rows' starting codes, and the recount."""
@@ -383,9 +693,15 @@ def read_column(
     declared: "dict[str, bool]",
     stored_as: str,
     blank_rows: int,
+    cells: "list[str] | None" = None,
 ) -> "_Read | None":
-    """One column read to its starting bands, row by row, through `reading.column_values`."""
-    values = reading.column_values(table, place)
+    """One column read to its starting bands, row by row, through `reading.column_values`.
+
+    ``cells``, where given, are the column's cells as its description
+    read them (`described_cells`), read in place of the cells as the file
+    wrote them.
+    """
+    values = reading.column_values(table, place) if cells is None else cells
     start = rules.starting_bands(block, (True, True, True))
     if start is None:
         return None
@@ -1221,34 +1537,68 @@ def _triple_score(table: "list[int]", a: int, b: int, c: int) -> float:
     return (chi - df) / math.sqrt(2.0 * df)
 
 
+def _triples_by_span(places: "list[int]", budget: int, kept: "set[tuple[int, int, int]]") -> None:
+    """Grow `kept` to `budget` triples of `places`, the narrowest first (span in the list, then its order)."""
+    count = len(places)
+    for span in range(2, count):
+        for first in range(count - span):
+            for middle in range(first + 1, first + span):
+                if len(kept) >= budget:
+                    return
+                kept |= {(places[first], places[middle], places[first + span])}
+
+
+def screen_triples(few: "list[bool]") -> "list[tuple[int, int, int]]":
+    """The triples the screen counts, in schema order: a function of the columns' places and classes alone.
+
+    `few[i]` says whether eligible column `i` is of the few-level class, a
+    published fact. Up to `SCREEN_TRIPLES` triples exist (50 columns):
+    every one. Past that the list is by construction no longer than
+    `SCREEN_TRIPLES`, whatever the column count: up to
+    `SCREEN_FEW_TRIPLES` of the few-level class, the narrowest in that
+    class's own order first, then every triple of all the columns, the
+    narrowest first (4.6b.3, amended 2026-11-01). It reads no cell, no
+    count and no key, so it adds nothing to the draw's inputs.
+    """
+    count = len(few)
+    if count * (count - 1) * (count - 2) // 6 <= SCREEN_TRIPLES:
+        return [(i, j, k) for i in range(count) for j in range(i + 1, count) for k in range(j + 1, count)]
+    kept: "set[tuple[int, int, int]]" = set()
+    _triples_by_span([place for place in range(count) if few[place]], SCREEN_FEW_TRIPLES, kept)
+    _triples_by_span(list(range(count)), SCREEN_TRIPLES, kept)
+    return sorted(kept)
+
+
 def screen_seeds(columns: "list[Column]") -> "tuple[tuple[int, int, int], ...]":
     """The screen's seeds: the 10 best triples greedily, then 3 best few-level triples not among them.
 
-    Every triple of eligible columns is counted on the sample and scored
+    The triples of `screen_triples` are counted on the sample and scored
     (`_triple_score`); ranked by score, ties by schema order. List (i) takes
     the 10 best, a pair of columns in at most two seeds; list (ii) the 3
     best of the few-level class (each member `binary` or a label column of
     at most 8 levels) not already in (i), a pair in at most two of them
     (4.6b.3, amended 2026-10-20).
     """
-    count = len(columns)
     scored: "list[tuple[float, int, int, int, int]]" = []
     order = 0
-    for i in range(count):
+    held_pair = (-1, -1)
+    pair_codes: "list[int]" = []
+    width = 0
+    for i, j, k in screen_triples([column.few for column in columns]):
         first = columns[i]
-        for j in range(i + 1, count):
-            second = columns[j]
+        second = columns[j]
+        if (i, j) != held_pair:
             pair_codes = [x * second.screen_levels + y for x, y in zip(first.screen, second.screen)]
             width = first.screen_levels * second.screen_levels
-            for k in range(j + 1, count):
-                third = columns[k]
-                levels = third.screen_levels
-                table = [0] * (width * levels)
-                for x, y in zip(pair_codes, third.screen):
-                    table[x * levels + y] += 1
-                value = _triple_score(table, first.screen_levels, second.screen_levels, levels)
-                scored += [(-value, order, i, j, k)]
-                order += 1
+            held_pair = (i, j)
+        third = columns[k]
+        levels = third.screen_levels
+        table = [0] * (width * levels)
+        for x, y in zip(pair_codes, third.screen):
+            table[x * levels + y] += 1
+        value = _triple_score(table, first.screen_levels, second.screen_levels, levels)
+        scored += [(-value, order, i, j, k)]
+        order += 1
     ranked = sorted(scored)
     chosen: "list[tuple[int, int, int]]" = []
     uses: "dict[tuple[int, int], int]" = {}
@@ -1977,6 +2327,16 @@ def _off(note: str, counts: "dict[str, int]", notes: "list[str]", content: str) 
     return Chained(None, tuple(notes + [f"no chain is published: {note}"]), counts, (), (), content)
 
 
+def too_few_columns(chained: Chained) -> bool:
+    """Whether a table drew no chain for want of two eligible columns, so that the subject question would decide nothing."""
+    return bool(chained.notes) and chained.notes[-1] == f"no chain is published: {OFF_FEW}"
+
+
+def person_question_holds(chained: Chained) -> bool:
+    """Whether the open person question holds a repeating column, so that the subject question would decide nothing this round."""
+    return "person_question_holds" in chained.counts
+
+
 def describe(
     table: reading.Table,
     document: "dict[str, object]",
@@ -2031,11 +2391,53 @@ def describe(
     hashes, filled = row_hashes(table)
     content = _hex(content_hash(hashes, filled))
     if persons:
-        return _off(OFF_PERSON, counts, notes, content)
+        # THE PERSON AND THE RECORD (lane GRa, RULINGS 1 (1)): a repeating key
+        # nothing reads as the person holds the layer back, so no count of
+        # encounters is ever published as a count of patients; an answer
+        # `one row each` beside it contradicts itself, and draws nothing.
+        if switch.rows_per_person == ROWS_OPEN:
+            return _off(OFF_SUBJECT, counts, notes, content)
+        if switch.rows_per_person == ROWS_UNNAMED:
+            return _off(OFF_NO_PERSON, counts, notes, content)
+        if switch.rows_per_person == ROWS_ONE:
+            return _off(OFF_PERSON, counts, notes, content)
+        # THE PATIENT LAYER (contract 4.6c; lane GRa, plan P4-D449), its one
+        # call site: a table whose settings name a person column is described
+        # in patients where 4.6c.3's gate holds, else no chain is drawn.
+        from synthtwin import patient_layer
+
+        layer = patient_layer.describe(
+            table, document, settings, switch, filled, persons, identifiers,
+            list(forced_codes or []), list(forced_measurements or []),
+            list(forced_decimal_commas or []), stored_as or (),
+        )
+        for key in layer.counts:
+            counts[key] = layer.counts[key]
+        if layer.statistical is None:
+            return _off(OFF_PERSON, counts, notes + list(layer.notes), content)
+        return Chained(layer.statistical, tuple(notes + list(layer.notes)), counts, (), (), content, None, layer.grain, layer.columns)
+    # A REPEATING COLUMN HELD OR DECLARED, BESIDE NO PERSON COLUMN. A caller
+    # that measures the walk is told at once. Otherwise the check is read
+    # after the eligible columns are counted (the subject question's reach),
+    # and under `one row each` only a key answered `identifier` or a column
+    # the person question still holds keeps it: a column held for another
+    # question (Safe Harbor, a ZIP) stays held and ineligible, and the person
+    # has said its repeats are no person's (the statistics skeptic's item 7).
+    named_key = False
     for place in range(len(blocks)):
         named = _get(blocks[place], "name")
         if (named in held or named in identifiers) and _repeats(reading.column_values(table, place)):
-            return _off(OFF_PERSON, counts, notes, content)
+            if switch.rows_per_person == ROWS_UNASKED:
+                return _off(OFF_HELD_REPEATS, counts, notes, content)
+            # The open person question holds a repeating column: the subject
+            # question cannot settle this table until that one is answered.
+            if named in switch.held_by_person:
+                counts["person_question_holds"] = 1
+            # (The description lists every held column among its declared
+            # ones, so "answered" reads the declared ones no question holds.)
+            if switch.rows_per_person == ROWS_ONE and named not in switch.held_by_person and (named in held or named in switch.unanswered or named not in identifiers):
+                continue
+            named_key = True
     blank_rows = rules.records_holding_nothing(document)
     excluded = bytearray(table.n_rows)
     left = blank_rows
@@ -2142,6 +2544,15 @@ def describe(
     counts["eligible_columns"] = len(eligible)
     if len(eligible) < 2:
         return _off(OFF_FEW, counts, notes, content)
+    # THE SUBJECT QUESTION'S HOLD: read here, where only the question stands
+    # between this table and a chain (a table with fewer than two eligible
+    # columns draws none, whatever the answer, and is not asked).
+    if switch.rows_per_person == ROWS_OPEN:
+        return _off(OFF_SUBJECT, counts, notes, content)
+    if switch.rows_per_person == ROWS_UNNAMED:
+        return _off(OFF_NO_PERSON, counts, notes, content)
+    if named_key:
+        return _off(OFF_HELD_REPEATS, counts, notes, content)
     pairs = time_event_pairs(blocks, eligible)
     seed_places = screen_seeds([columns[name] for name in eligible])
     seeds = tuple((eligible[i], eligible[j], eligible[k]) for i, j, k in seed_places)
@@ -2207,3 +2618,18 @@ def describe(
         notes += [f"the screen offered {len(seeds)} seeds as weights"]
     chosen = tuple((family.child, tuple(name for name, _level in family.parents), tuple(level for _name, level in rules.members(family))) for family in placed)
     return Chained(statistical, tuple(notes), counts, seeds, chosen, content, inputs)
+
+
+# THE PATIENT LAYER'S READ OF THIS MODULE (lane GRa, plan P4-D449): the steps
+# of 4.6b it runs over the patient table, under names another module may read.
+Search = _Search
+draw_step = _draw
+root_options = _root_options
+step_options = _step_options
+clamps_of = _clamps_of
+family_of = _family_of
+is_blank = _is_blank
+repeats = _repeats
+reading_of = _reading_of
+sequence_places = _sequence_places
+codes_at = _codes

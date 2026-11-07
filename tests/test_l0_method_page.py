@@ -418,18 +418,21 @@ def test_k_s6_02_counts_every_b1_miss_and_names_its_yardstick():
     assert "never a pass" in decision
 
 
-def test_g1215_keeps_todays_windows_and_owes_the_clock_mirror_before_chc():
+def test_g1215_keeps_todays_windows_and_builds_the_clock_mirror_before_chon():
     """The statistics skeptic of lane BTp, item 1: one whole unit on both
     ends of every window widened the mean windows of whole-number columns
     by 9 to 20 per cent. Lane BT's repair withdraws the band map, so a
     number column's windows are today's; the orchestrator's ruling (b) of
-    2026-10-25 puts the clock's quality-report mirror in G12.15's own text."""
+    2026-10-25 puts the clock's quality-report mirror in G12.15's own text,
+    and lane BT2 (plan P4-D448) builds it before lane CHON lets `validate`
+    read a chain."""
     windows = _g1215()
     assert "each end widens by ONE unit of the grid, not half" not in windows
     assert "**On an eligible number column the windows are today's.**" in windows
     assert "**Why not one whole unit on both ends everywhere**" in windows
-    assert "**The quality report's mirror of the clock's knots is OWED BY LANE BT2**" in windows
-    assert "BUILT BEFORE THE LANDING THAT LETS `validate` READ A CHAIN (lane CHc)" in windows
+    assert "**The quality report's mirror of the clock's knots is BUILT**" in windows
+    assert "OWED BY LANE BT2" not in windows
+    assert "`validation.measure`, handed a chain's document" in windows
     assert "`validate` refuses a description whose `statistical` slot is filled (S12)" in windows
 
 

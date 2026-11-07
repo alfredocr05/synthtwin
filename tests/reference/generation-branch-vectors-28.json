@@ -7643,7 +7643,7 @@
           ],
           [
             "4",
-            2
+            4
           ],
           [
             "40",
@@ -7671,18 +7671,14 @@
           ],
           [
             "46",
-            3
+            2
           ],
           [
             "48",
-            2
+            3
           ],
           [
             "49",
-            2
-          ],
-          [
-            "5",
             2
           ],
           [
@@ -7699,11 +7695,11 @@
           ],
           [
             "54",
-            3
+            2
           ],
           [
             "55",
-            2
+            3
           ],
           [
             "56",
@@ -7719,10 +7715,14 @@
           ],
           [
             "6",
-            3
+            2
           ],
           [
             "63",
+            1
+          ],
+          [
+            "7",
             1
           ],
           [
@@ -8240,7 +8240,7 @@
           ],
           [
             "4",
-            2
+            3
           ],
           [
             "40",
@@ -8268,11 +8268,11 @@
           ],
           [
             "46",
-            3
+            2
           ],
           [
             "47",
-            2
+            3
           ],
           [
             "48",
@@ -8280,7 +8280,7 @@
           ],
           [
             "5",
-            2
+            1
           ],
           [
             "50",
@@ -8292,11 +8292,11 @@
           ],
           [
             "54",
-            3
+            2
           ],
           [
             "55",
-            2
+            3
           ],
           [
             "56",
@@ -8737,11 +8737,11 @@
           ],
           [
             "19",
-            88
+            100
           ],
           [
             "20",
-            100
+            88
           ],
           [
             "21",
@@ -8773,11 +8773,11 @@
           ],
           [
             "28",
-            68
+            100
           ],
           [
             "29",
-            100
+            68
           ],
           [
             "30",
@@ -8809,11 +8809,11 @@
           ],
           [
             "37",
-            90
+            100
           ],
           [
             "38",
-            100
+            90
           ],
           [
             "39",
@@ -8845,11 +8845,11 @@
           ],
           [
             "46",
-            102
+            100
           ],
           [
             "47",
-            100
+            102
           ],
           [
             "48",
@@ -8881,11 +8881,11 @@
           ],
           [
             "55",
-            97
+            100
           ],
           [
             "56",
-            100
+            97
           ],
           [
             "57",
@@ -8917,11 +8917,11 @@
           ],
           [
             "64",
-            64
+            100
           ],
           [
             "65",
-            100
+            64
           ],
           [
             "66",
@@ -8969,11 +8969,11 @@
           ],
           [
             "77",
-            125
+            100
           ],
           [
             "78",
-            100
+            125
           ],
           [
             "79",
@@ -9025,11 +9025,11 @@
           ],
           [
             "91",
-            127
+            130
           ],
           [
             "92",
-            124
+            121
           ],
           [
             "93",
@@ -10096,5 +10096,5 @@
     "numpy",
     "pandas"
   ],
-  "what": "The cases layer L0 (lane BT, plan P4-D429; method G4.2a, G5.7c, G7.3l and G7A.4d) is frozen on, each with the answer this file computes from the method's text: the cells of G14.3a cases 1 (a), 1 (b), 2 and 7 (a) made by its own number and date pipelines with layer L0 on them, the heaps a ladder proves, a cut census group's halves and a column's reserved cells."
+  "what": "The cases layer L0 (lane BT, plan P4-D429; method G4.2a, G5.7c, G7.3l and G7A.4d) is frozen on, each with the answer this file computes from the method's text: the cells of G14.3a cases 1 (a), 1 (b), 2 and 7 (a) made by its own number and date pipelines with layer L0 on them, the counts at each value of G5.7c step 3's count rule short of today's count of different values (l0_cells_count_short) and over it (l0_cells_count_over) and of step 4's mode kept (l0_cells_mode_kept), the heaps a ladder proves, a cut census group's halves and a column's reserved cells."
 }

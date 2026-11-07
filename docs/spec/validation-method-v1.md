@@ -4023,6 +4023,64 @@ number is printed. Built with the polish, by lane MPg; the regions,
 sums and witness this section names below are the strict-proof design's
 record, which rule B no longer publishes.
 
+**AMENDED Tuesday 2026-11-03 (lane MPg, plan P4-D456): what a moment's
+line reads on a polished twin.** The polish (generation method G16.3)
+moves the twin towards each published moment inside the bands the
+families read; a twin of `n` rows holds a moment only to within its own
+sampling error, never to the published value's last rounded unit. So a
+moment's line reads HELD where the file's value lies within half a unit
+of the published rounding plus TWICE its standard error at the file's
+count, each standard error read from PUBLISHED values (a correlation
+`max(1 - r**2, 1/20) / sqrt(n)`, V13.2's `T`; a mean `s / sqrt(n)`; a
+spread `s / sqrt(2 (n - 1))`; a share `sqrt(p (1 - p) / n)`; `n` the
+file's count of the moment's rows), and MISSED otherwise; the line
+prints its verdict beside the published value and no measured number
+(V13.3), so it says nothing a published fact does not. Lane MPg measures
+exactly this test, privately, as `K-S6-12` (plan P4-D456: every
+published moment of the battery's tables on the shipped twin, with the
+family tables, the `L0` totals and every column's cells and blanks held
+exactly beside it). THE LINES ARE NOT PRINTED YET: the validator's
+report keeps V12's lines, which read every family table and `L0` total
+HELD on each polished twin measured (tests/test_moment_polish.py); the
+printed moment lines are the validator's next lane's, which the
+orchestrator names.
+
+**AMENDED Wednesday 2026-11-04 (lane MPg's repair 1, its statistics
+review's item 1): twice ROOT TWO standard errors.** A file and the
+published value are two samples of the same population, so their
+difference carries root two standard errors, not one: a moment's line
+reads HELD where the file's value lies within half a unit of the
+published rounding (the unit its own count sets; a correlation's half
+step of Fisher's z read on r, `(1 - r**2) / (2 u)` for a grid of `1 / u`)
+plus `2 sqrt(2)` times its standard error at the file's count, the
+standard errors as above. At two standard errors alone a fresh sample of
+the population held about 0.82 of the battery's moments, so the paragraph
+above's yardstick asked of the twin what no new sample holds. `K-S6-12`
+reads the shipped twin at three seeds beside three fresh samples of each
+table's population in the same run, kind by kind, its target that the
+twin hold at least the fresh samples' share in every kind (plan
+P4-D456).
+
+**AMENDED Wednesday 2026-11-04 (lane MPg's repair 2, Codex's item 6,
+LANE MPg RULINGS 9 (6)): THE TOLERANCE AS IT IS.** The line's allowance
+is half a unit of the published rounding plus `2 sqrt(2) T`, where for a
+correlation `T = max(1 - r**2, 0.05) / sqrt(n)` (V13.2's `T`), not two
+root two ordinary standard errors: near `|r| = 1` the floor of 0.05
+governs. At `n = 20,000` and `r = 0.999` the allowance is about
+`0.0010001` (half a step of the ten-thousandths grid of z read on r,
+`1.0e-7`, plus `2 sqrt(2) T = 0.0010000`), against `0.00003998` for two
+root two ordinary standard errors `(1 - r**2) / sqrt(n)`: a twin pair of
+0.9985 counts inside while a regression on the two members reads their
+coefficient far from the real one. MEASURED (plan P4-D456): with the
+aims held under 0.999 the twin's 0.999 pair stood at 0.9985 to 0.9987
+and the coefficient between the two lay 3.05 to 3.98 standard errors
+from the real one on the opposed setting; with each pair's aim bounded
+half way from its goal to 1 (repair 2) the pair stands at 0.99895 to
+0.99901 and every coefficient of the four predictor correlations (0.9,
+0.95, 0.99, 0.999; two settings, three twin seeds) lies within 0.69 of
+its standard error. The floor stays (permitted); a reader judging a
+nearly collinear pair reads the regression, not this line.
+
 **No validator in this repository runs anything in this section.** It
 adds the moments' lines that V12's opening paragraph leaves to lane
 MPOL, against the numbers `docs/spec/profile-contract-v6.md` section

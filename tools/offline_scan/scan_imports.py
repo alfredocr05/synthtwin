@@ -767,7 +767,9 @@ attribute absent from it is not allowed at all:
   draw's gaps are exact fractions because the contract (4.6b.3, 4.6b.4)
   fixes them so and plan P4-D409 part 2 names `fractions` as zone D's
   exact route. Its instances answer to every method under policy case
-  (b): each is arithmetic on the pair.
+  (b): each is arithmetic on the pair. Lane GRa (plan P4-D449): the same,
+  for the patient layer's modules (_PATIENT_MODULES), whose certificates
+  plan P4-D409 places in the same zone.
 * hashlib (lane CHa, plan P4-D418): blake2b, in the chain's modules
   alone. Capability audit: one keyed or unkeyed BLAKE2b digest of the
   bytes it is handed, computed in memory; no I/O, no process, no
@@ -863,6 +865,14 @@ _CHAIN_MODULES = (
     _INSTALLATION,
 )
 
+# The patient layer's certificates and its loader read counts and grid codes
+# as exact fractions too (lane GRa, plan P4-D449; contract 4.6c's setting).
+_PATIENT_MODULES = (
+    "synthtwin.chain_check",
+    "synthtwin.patient_layer",
+    "synthtwin.patient_rules",
+)
+
 # `zlib` belongs to the module that holds the twin's finished columns
 # (plan P4-D415, lane SG): it packs each block of a column's cells and
 # unpacks it before any cell is read, and nothing it writes leaves the
@@ -875,7 +885,7 @@ _MODULE_SCOPED_ADMISSIONS: "dict[str, frozenset[str]]" = {
     "numba": frozenset({_POLISH_KERNEL}),
     # Lane CHa (plan P4-D418): the chain's exact score and draw, its keyed
     # words and digests, and the installation's key, in their own modules.
-    "fractions": frozenset(_CHAIN_MODULES),
+    "fractions": frozenset(_CHAIN_MODULES) | frozenset(_PATIENT_MODULES),
     "hashlib": frozenset(_CHAIN_MODULES),
     "secrets": frozenset({_INSTALLATION}),
     "zlib": frozenset({_TWIN_STORE}),

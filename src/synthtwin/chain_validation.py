@@ -251,6 +251,13 @@ def _repeats(values: "list[str]") -> bool:
     return False
 
 
+def _repeats_as_published(block: "dict[str, object]") -> bool:
+    """Whether a column's published counts say one of its values stands on two or more rows."""
+    distinct = _get(block, "n_distinct")
+    present = _get(block, "n_present")
+    return isinstance(distinct, int) and isinstance(present, int) and distinct < present
+
+
 def _counted_in_people(
     table: reading.Table,
     document: "dict[str, object]",
@@ -268,17 +275,32 @@ def _counted_in_people(
     chain's `OFF_PERSON`), so no published band applies to the file.
     """
     named: "set[str]" = set()
+    # A COLUMN THE CHAIN STANDS BESIDE (lane GRa, the statistics skeptic's item
+    # 7): a column the chain holds ineligible that repeats on the description's
+    # own table repeated when the person said each row is a different person,
+    # so where the chain stands its repeats name nobody; every other column
+    # is read as before.
+    statistical = _get(_get(document, "relationships"), "statistical")
+    released: "set[str]" = set()
+    listed_out = _get(statistical, "ineligible") if isinstance(statistical, dict) else None
+    published = _get(document, "columns")
+    if isinstance(listed_out, list) and isinstance(published, list):
+        out_of_chain = {f"{_get(entry, 'column')}" for entry in listed_out if _get(entry, "reason") in ("held", "identifier")}
+        for block in published:
+            if isinstance(block, dict) and f"{_get(block, 'name')}" in out_of_chain and _repeats_as_published(block):
+                released |= {f"{_get(block, 'name')}"}
     for holder in (document, redescribed):
         settings_block = _get(holder, "settings")
         for key in ("forced_identifiers", "person_columns"):
             listed = _get(settings_block, key)
             if isinstance(listed, list):
                 for name in listed:
-                    named |= {f"{name}"}
+                    if f"{name}" not in released:
+                        named |= {f"{name}"}
         columns = _get(holder, "columns")
         if isinstance(columns, list):
             for block in columns:
-                if isinstance(block, dict) and _get(block, "role") == taxonomy.ROLE_IDENTIFIER:
+                if isinstance(block, dict) and _get(block, "role") == taxonomy.ROLE_IDENTIFIER and f"{_get(block, 'name')}" not in released:
                     named |= {f"{_get(block, 'name')}"}
     for place in range(len(table.column_names)):
         if table.column_names[place] in named and _repeats(reading.column_values(table, place)):
@@ -610,7 +632,11 @@ def _published_scale(
         bands += [places]
         names += [tuple(start.names[place] for place in places)]
     second = chain_rules.union_closure(bands, start.groups[1])
-    third = chain_rules.union_closure(bands, start.groups[2])
+    # `L2` as published: S23 held it to the cut its own `procedure` names
+    # (RULE ONE_BAND, or `p50` alone on a description written before it).
+    third = _published_level(entry["l2"], len(bands))
+    if third is None:
+        return None
     ordered = tuple(any(start.value[place] for place in band) for band in bands)
     scale = chain_rules.Ladder(
         f"{entry['column']}",
@@ -621,6 +647,24 @@ def _published_scale(
         ordered,
     )
     return scale, start
+
+
+def _published_level(written: object, count: int) -> "tuple[int, ...] | None":
+    """Each `L0` band's band at a published level, `l1` or `l2` (the inverse of `chain_rules.bands_of`)."""
+    if not isinstance(written, list):
+        return None
+    out = [-1] * count
+    for at in range(len(written)):
+        band = written[at]
+        if not isinstance(band, list):
+            return None
+        for one in band:
+            if not isinstance(one, int) or isinstance(one, bool) or not 0 <= one < count:
+                return None
+            out[one] = at
+    if -1 in out:
+        return None
+    return tuple(out)
 
 
 def _level_of(written: object) -> int:

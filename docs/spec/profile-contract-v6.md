@@ -3987,6 +3987,31 @@ contradictory, cells without the affixes) and `labels` (on
   two (on a label column an `L0` band joining a level of the ten
   commonest with another joins their `L1` bands). Every choice is a fact
   of one column (plan P4-D363), and `tests/test_chain_profile.py` pins it.
+- **Amended 2026-11-01 (lane CHa2, plan P4-D451): RULE ONE_BAND.** On a
+  number, date or clock column whose `L2`, read as above, holds one
+  value band (its cut at `p50` was removed with an `L0` edge, as on a
+  column of few values whose median is its lowest value: a count that is
+  nought for three people in five, a code of 0, 1 and 2), `L2` reads
+  instead the LOWEST `L1` CUT WITH ROWS ON BOTH SIDES: `L1`'s first value
+  band holding a row is one band of `L2`, and every later value band of
+  `L1` together the other. Its spread bands stay as they were. Where
+  `L1` holds fewer than two value bands with rows (every published rung
+  reads the lowest value, as on a count nought for 97 rows in 100) the
+  rule reaches nothing and the level is unchanged: the column then takes
+  part only where a spread band holds rows beside its value band (blank
+  against present), and is otherwise ineligible (`one_band`, 4.6b.1); on
+  a column whose `p50` still cuts, and on a label column, the rule
+  reaches nothing either. `procedure.l2_cut` records the rule (4.6b.5,
+  amended 2026-11-02): a description written before it records no
+  `l2_cut` and `w_te` `"1"`, and its loader reads its `L2` at `p50`
+  alone, as it was written, never at this cut. The
+  cut is a function of the column's published rungs and `L0` totals, so
+  a fact of one column (plan P4-D363), and each of its two bands holds
+  `f` rows or more, since each is a union of `L0` bands; the three levels
+  still nest. Invariant S23's "among the rungs 4.6b.2 lists for its role
+  and level" reads this cut at `L2` on such a column and no other.
+  `tests/test_chain_table_layer.py` pins it, the oracle mirrors it
+  (`chain_oracle._one_band`) and `K-S6-08` reads it by exact enumeration.
 
 **These four facts are what the generator's band-totals interface (lane
 BTp's `cells_by_band`, plan P4-D404) assumes, stated here as obligations
@@ -4219,6 +4244,21 @@ draw:
   place of O4's one pooled slope in a band. Both publish more, so each
   is a disclosure class whose release lane MPOL decides. The settings
   and their measurements: 4.6b.14.
+
+  **THE SCREEN IS BOUNDED BY CONSTRUCTION (amended 2026-11-01, lane
+  CHa2, plan P4-D451; lane GRa measured 2.2 ms a triple at 3,000 rows,
+  past 70 CPU minutes on 302 columns).** It counts at most 19,600 triples,
+  `C(50, 3)`, so up to 50 eligible columns it counts every one, as above.
+  Past that it counts a LIST written from each eligible column's place
+  in schema order and its class alone: first up to 9,800 triples of the
+  few-level class, then triples of all eligible columns up to 19,600 in
+  all, each walk the narrowest first: by span (the places between the
+  triple's first and last column in the walk's own list), then by first
+  column, then by middle column. No cell, count or key reaches the list,
+  so the bound adds no input to the draw. The two rankings above run
+  over the list. A triple outside the list is not offered as a seed: a
+  weight lost, never an exclusion, and no proof moves. Its price against
+  the unbounded ranking is measured in plan P4-D451.
 
 A raise is read on the score's own scale, which grows with the rows:
 lane `A0a`'s search scored `(X2 - df) / n` and added `0.05` a seed, which
@@ -4564,6 +4604,18 @@ check that 4.6b.2's obligations hold. Each publishes nothing between
 columns, which the base product's description already is, so no proof
 moves; the private notes say which.
 
+**Amended 2026-11-02 (lane CHa2, plan P4-D451): what (a)'s hold says.** A
+held or declared identifier column that repeats a value is not evidence
+that the table holds several rows a person: a place, a date or a device
+repeats on a table of one row a person too, and the private note says
+only what is known, that the table MAY hold several rows per person.
+Nothing the description publishes tells such a column from a person key,
+nor a table of one row a person from a long table with no person column
+(a unique record number stands on both), so (a) stands, measured in plan
+P4-D451: a table of several rows a person never chains in rows through
+this amendment. The release under the subject question's answer that
+each row is another person is lane GRa's (plan P4-D449).
+
 **The tabled rows.** Every table of this section counts the TABLED ROWS:
 every row of the table except the records holding nothing that a
 published count places, `E` of them, the sum of
@@ -4620,6 +4672,15 @@ amendment moves no older description:
 each weight a
 fraction written as a string (`"1/20"`), `uniform_share_bits` 30 and
 `l0_cut` naming the rungs `L0` uses (`deciles` in December).
+**Amended 2026-11-02 (lane CHa2's repair, plan P4-D451):** the record
+also holds `l2_cut`, `"one_band"`: `L2` is cut under RULE ONE_BAND
+(4.6b.2). The loader reads two records: this version's, and the earlier
+one (2026-10-21 to 2026-11-02), which holds no `l2_cut` and `w_te`
+`"1"` with every other constant as here, and whose `L2` it reads at
+`p50` alone (invariant S23 then holds the published `l2` to that cut).
+A record of neither is refused at S24. The validator reads the `l2`
+the description publishes, so a twin of either is judged by its own
+levels.
 
 **`rules`** lists each CARRIED rule (4.6b.7) once, in the order its step
 was taken: `{kind, computed, inputs, carrier, class, derived}`. `kind`
@@ -7264,7 +7325,7 @@ written as a fraction and read on the scale of the score (4.6b.3).
 | `L0`'s cut (`l0_cut`) | `deciles` at every size | FIXED up to 50,000 rows: every fifth percentile scored 366 against 387 at 20,000 rows and 137 against 136 at 50,000 (`A0a`'s setting 10). Above 50,000 rows the design's 100,000-row probe favoured every fifth percentile, 166 against 153 of 279, not on every seed; FIXED there too, every fifth percentile OFF (amended 2026-10-20): at 200,000 rows x 50 columns lane `A0b`'s leg `X5c`, polished, scored every fifth percentile 168 of 287 against the deciles' 188 |
 | placed cuts | off | FIXED (`A0a`'s setting 2; inventory row 13) |
 | `w_seed`, the triple screen's seeds | `"1/20"`, ON (amended 2026-10-20) | ON, by lanes `A0b` and `A0c` at 200,000 rows x 50 columns (one table and one seed; the chain at `k` = 3 with three levels, the deciles and the time-and-event pair first, polished by classes M-a and M-b with the second code at `P` = 4; greedy, without the draw, as above). `A0b`, the screen's 10 seeds on its coarse codes at 0.05 a seed: the three-way xor came back exactly (-3.416 against a real -3.416; -0.017 without seeds) and blood pressure's age-by-group interaction went from 0.036 to 0.206 of a real 0.296, at no pooled cost (186 of 287 with seeds, 188 without). `A0c`, the screen ranking triples twice (4.6b.3: its 10 over all triples on the finer codes and its 3 inside the few-level class, offered at the same 0.05): pooled 202 of 287 (a fresh sample 213, the design's every-pair swap candidate `A2` 215), the logistic models 30 of 38 (a fresh sample 25, `A2` 32), diabetes x current smoker -1.334 against a real -1.442 (1.0 SE, inside its yardstick; 13.3 SE off without its seed), intensive care x old age -0.489 against -0.732 (3.4 SE; 13.5 without), the xor exact. PRIVACY UNCHANGED (MEASURED in every twin of `A0c`): every published family cell 0 or at least 11 (14,740 cells at 200,000 rows, the smallest 11), 0 family cells off after the walk and the polish, the diabetes x smoking x death table's smallest cell 109; the floor judges every family table as before, and the screen adds only which columns sit together, through the draw. THE PRICE: below about 20,000 rows the smallest cell of such an interaction table reaches the floor (about 27 rows at 50,000 and 11 at 20,000, lane `A0c`'s arithmetic), so the floor coarsens or refuses the triple and the interaction is given up, never privacy; and a weight far above 1/20 reorders the chain and costs estimates elsewhere (at 1.0, 173 to 180 of 287; with the few-level seeds alone at 1.0 the offered columns were placed ahead of age, which left the death column's family). OWED: `K-BC-02` re-measured on W5's keyed draw (in the kits 0.05 acted with no draw; lane CHa's battery run); the screen's ranks on the self-test's sample of 4.6b.8 (20,000 rows below 1,000,000), since `A0c` read every row (lane CHa). The history: `A0a` measured seeds costing least squares (347 and 127 against 393 and 140, polished, at 20,000 and 50,000 rows); `A0b`'s early 50-column measurement (2026-10-19) had the seedless chain losing every interaction built into the test table that a fresh sample and `A2` keep (diabetes x current smoker 0.06 against a fresh sample's -1.76; the pure three-way -0.02 against -3.47; an age-by-group interaction in blood pressure 0.02 against 0.30) and question 9's trigger firing at 50,000 x 50 (`A2` ahead by 17.0 points on least squares and 26.5 on logistic models); the library study of 2026-10-19 (MEASURED, greedy, at 50,000 and 200,000 rows) offered the screen's seeds as weights: the three-way xor went from 85.90 and 173.88 SE off to 0.00, while diabetes x current smoker, which the screen ranks 187 to 190 of 19,600 triples on its coarse codes (the top two levels and a pool), stayed off (4.95 to 13.20 SE) and came back (0.00) only when its triple was offered. Seeds enter only as a weight raise, so turning them on changes no proof. A number's slope on another number changing with a yes/no column (blood pressure and a laboratory value on age by group) stays off with the screen's seeds and with M-d (28 to 30 and 43 to 47 SE at 200,000 rows; M-d in the polish 18.0 against 19.7 SE at 50,000 rows): lane MPOL's, with the two carriers of 4.6b.3 (the number's family holding the other number at a finer band with the yes/no column took blood pressure to 0.275 of 0.296, 6.6 SE, when its triple was offered) |
-| `w_te`, the time-and-event raise | `"1"`, ON (amended 2026-10-20; was `"0"`: no measured effect) | KEPT as lane `A0b` measured it, the time-and-event pair first: at 200,000 rows x 50 columns its chain `t1` (the pair offered first, the event its parent) scored 188 of 287 against `t0`'s 182 (no raise), polished, and every 200,000-row figure of this table was measured on `t1`. On that table the pair is NOT already the strongest option: `t0`'s root is blood pressure's two columns, scoring 0.756 `n`, the pair 0.046 `n`; a raise of `1 n` puts the pair first there, as `t1` did (JUDGEMENT on that one table; the value is PROVISIONAL until lane CHa's battery run measures it under the draw). The root pair's orientation stays schema order (on that table the follow-up time is the parent, where `t1` made the event the parent; `A0a`'s panel below found orientation alone moving only the walk). The history: `A0a`'s setting 4 raised no score: it placed the time-and-event pair as the root, the event its parent. On every table of its panel that pair was already the strongest option, by about three times (`X2 - df` of 9,962 to 9,986 at 20,000 rows against 3,234 to 3,408 for the next; 24,665 against 7,705 to 7,860 at 50,000), and its two chains t0 and t1 differ only in the root pair's orientation, every other family, parent and level being the same: the battery's 75 against 56 at 50,000 rows, and the reverse at 20,000, are differences between two walks of one set of tables, so `A0a`'s panel measures that orientation, not this raise. A raise is set only by a measurement on a table where the pair is not already first, which `A0b`'s 50-column table is. MEASURED UNDER THE PRODUCT'S DRAW 2026-10-21 (lane CHa's statistics skeptic, the product's search on that table, each step's best option, supported estimates inside their yardstick), `w_te` 1 against 0: 152 against 157 of 258 at 5,000 rows (inside the draw's spread of 11), 160 against 177 of 273 at 20,000 (keyed draws 156 to 163 against 176 to 177), 131 against 118 of 287 at 200,000. The sign changes with the table's size. At tau 2 a raise of `1 n` acts as a FORCE: the raised steps took a weight share of 0.998 to 1.0, so the detector, pairing `died` and `readmit` (both on the event list) with `fu`, placed `died` under the follow-up and its death rates by age and gender fell to 6 of 17 estimates against 13 of 17 at 0; raising the one pair (`fu`, `event`) alone did not repair 20,000 rows (159; draws 154 to 163) and gained 13 at 5,000 (165). PROVISIONAL, with an owner: the orchestrator rules on all three sizes before the stage-6 gate, after a 200,000-row leg of the one-pair detector and of the detector without the outcome words (`died`, `death`, `mortality`, `readmit`, `readmitted`, `outcome`), which lane CHa's night script names |
+| `w_te`, the time-and-event raise | `"0"`, OFF (amended 2026-11-02, lane CHa2, DECIDED on the product, plan P4-D451; was `"1"`, ON (amended 2026-10-20; was `"0"`: no measured effect)) | DECIDED: on the product's own twins under the keyed draw, keys 1 to 3, `0` against `1`: lane `A0b`'s table at 20,000 rows, supported estimates inside their yardstick 124, 137 and 144 against 131, 124 and 136 of 273 (replicate 227, shuffle 139), death rates by age and gender 11 of 17 each against 3 to 5; at 200,000 rows 99, 94 and 98 against 87, 96 and 84 of 287 (replicate 213, shuffle 102: the chain's own twins stand near the shuffle at that size with either value, plan P4-D451), death rates by age and gender 7, 5 and 7 of 20 against 0; the analyst battery's ST1 at 20,000 rows, pooled 0.426, 0.439 and 0.431 against 0.434, 0.437 and 0.415, the survival family 0.67, 0.53 and 0.53 against 0.20, 0.13 and 0.13, truths recovered 5, 4 and 4 against 2, 2 and 2. WHAT IS PAID: the Kaplan-Meier curve of the pair on lane `A0b`'s table, largest gap in S(t) 0.012 against 0.006 at 20,000 rows (replicate 0.005, shuffle 0.028) and 0.010 against 0.006 at 200,000 (replicate 0.003, shuffle 0.030); and, at 200,000 rows on lane `A0b`'s table, one of `K-BC-02`'s three-way truths, intensive care by old age, recovered with `1` on every key (-0.80, -0.71 and -0.79 against the replicate's -0.655, shuffle -0.057) and lost with `0` (no estimate on keys 1 to 3; at 20,000 rows it is lost with either value, and the replicate gives none) (amended 2026-11-02, lane CHa2's repair; neither value wins on every family, so `K-BC-01` pooled decides, as the step's rule says); the survival models' four hazard ratios stay outside their yardstick either way on that table (0 or 1 of 4), since the pair no longer stands first in the chain; it stays a relation the chain may draw (`u` of the pair is large), and the detector stays, read at weight nought. BEFORE THIS AMENDMENT (the history): KEPT as lane `A0b` measured it, the time-and-event pair first: at 200,000 rows x 50 columns its chain `t1` (the pair offered first, the event its parent) scored 188 of 287 against `t0`'s 182 (no raise), polished, and every 200,000-row figure of this table was measured on `t1`. On that table the pair is NOT already the strongest option: `t0`'s root is blood pressure's two columns, scoring 0.756 `n`, the pair 0.046 `n`; a raise of `1 n` puts the pair first there, as `t1` did (JUDGEMENT on that one table; the value is PROVISIONAL until lane CHa's battery run measures it under the draw). The root pair's orientation stays schema order (on that table the follow-up time is the parent, where `t1` made the event the parent; `A0a`'s panel below found orientation alone moving only the walk). The history: `A0a`'s setting 4 raised no score: it placed the time-and-event pair as the root, the event its parent. On every table of its panel that pair was already the strongest option, by about three times (`X2 - df` of 9,962 to 9,986 at 20,000 rows against 3,234 to 3,408 for the next; 24,665 against 7,705 to 7,860 at 50,000), and its two chains t0 and t1 differ only in the root pair's orientation, every other family, parent and level being the same: the battery's 75 against 56 at 50,000 rows, and the reverse at 20,000, are differences between two walks of one set of tables, so `A0a`'s panel measures that orientation, not this raise. A raise is set only by a measurement on a table where the pair is not already first, which `A0b`'s 50-column table is. MEASURED UNDER THE PRODUCT'S DRAW 2026-10-21 (lane CHa's statistics skeptic, the product's search on that table, each step's best option, supported estimates inside their yardstick), `w_te` 1 against 0: 152 against 157 of 258 at 5,000 rows (inside the draw's spread of 11), 160 against 177 of 273 at 20,000 (keyed draws 156 to 163 against 176 to 177), 131 against 118 of 287 at 200,000. The sign changes with the table's size. At tau 2 a raise of `1 n` acts as a FORCE: the raised steps took a weight share of 0.998 to 1.0, so the detector, pairing `died` and `readmit` (both on the event list) with `fu`, placed `died` under the follow-up and its death rates by age and gender fell to 6 of 17 estimates against 13 of 17 at 0; raising the one pair (`fu`, `event`) alone did not repair 20,000 rows (159; draws 154 to 163) and gained 13 at 5,000 (165). PROVISIONAL, with an owner: the orchestrator rules on all three sizes before the stage-6 gate, after a 200,000-row leg of the one-pair detector and of the detector without the outcome words (`died`, `death`, `mortality`, `readmit`, `readmitted`, `outcome`), which lane CHa's night script names |
 | `w_rule`, the inferred rule's raise | `"1/20"` | PROVISIONAL: never measured (the design's raise of `10 tau` was not measured either, and on the scale of the score it would vanish). Lane CHa carries no rule (the rule step is lane MR's), so lane MR's leg measures it (re-owned 2026-10-21, lane CHa's repair 1) |
 | `tau` | two, provisionally | PROVISIONAL: ruling R5 holds it until it is measured at 50 columns, and no leg of `A0b` measures it. Every figure above was measured greedily; at 5,000 rows, the suite tier of `K-S6-01` (ii), the last steps' scores shrink to about 6 to 27, where `tau` = 2 gives "no family" a real share of each step (the statistics review's arithmetic). Lane CHa's battery run measures the chain under the draw, at `tau` = 2 and with RULE W1 as read here, at 5,000 and 20,000 rows, before the stage-6 gate; a change is a measured amendment. MEASURED 2026-10-21 (lane CHa's statistics skeptic, the product's own search on `A0b`'s 50-column table, supported estimates inside their yardstick): the keyed draw at `tau` = 2 against the same search taking each step's best option, 152.8 (mean of five keys) against 152 of 258 at 5,000 rows, 160.0 against 160 of 273 at 20,000 and 131 against 131 of 287 at 200,000; the draw departs from the best option at 3 to 9 of about 48 steps, mostly among level variants of equal score, and never drew "no family". Two points is ruling R5's condition for moving `tau`; it is not met at any size, so `tau` stays 2 |
 | `selftest_sample` | 20,000 below 1,000,000 tabled rows, 200,000 from there | PROVISIONAL, lane ST's: 100,000 at 2,000,000 rows is the lever behind the hours on the oldest Python synthtwin runs on, 3.11 from lane DEP-1 (plan P4-D407). The sample holds exactly that many rows, or every row of a smaller table, chosen by content and occurrence (4.6b.8). It is never published, so its size moves no proof |
@@ -7555,6 +7616,10 @@ worlds). Step (d) 2 says why: the window holds both parities.
    code: in the grid model each other outside row takes any code of its
    band of two or more codes, and the outside total takes values of both
    parities. Step (d) 4 says what this closes and what stays open.
+   *Amended 2026-11-02 (4.6c.12 item 17, by measurement): `O_free` reads
+   a world, not the worst case: the sentence "taken, at worst, to lie
+   outside" limited the real table, not the set of worlds, and on a
+   reading of rungs one grid step apart it refused every cell.*
 
 `Q_P` is ELIGIBLE when SWING passes, item 6 holds and `x`'s row family
 is eligible under its own certificate (4.6c.8). Every quantity read is
@@ -7758,7 +7823,11 @@ hold on 12 of the 14 route-runs at 20,000 rows and still on all 10 at
 100,000 (6 of 6 on `ST2`); the corrected guard's whole price on run 3
 is those two runs, a table on which every patient holds every visit.
 On a long table (median 20 rows a patient) SWING publishes 0 cells, and
-the trend is not carried (4.6c.11).
+the trend is not carried (4.6c.11). *Corrected 2026-11-02 (4.6c.12 item
+17, the statistics skeptic's item 1): "`ST2` and `ST2-AGE` keep every
+`Q_P`" was false on the built ladder under the worst-case `n_one`, which
+run 3 had not subtracted: the guard refused all 30 runs. Under item 17's
+world they publish the counts given there.*
 
 #### 4.6c.2 Derived patient-level parents: the first date and the own mean (written first; the within-patient correlation's route)
 
@@ -8056,7 +8125,10 @@ exact census of `r`. While the layer is ON:
   `grain.census` instead: its patients sum to `N` and its rows to `n`;
 - `n_distinct`, `n_missing`, the lengths and the literal prefix of
   section 7.12a stay as section 5.3 publishes them: none of them is a
-  count of rows grouped by patient.
+  count of rows grouped by patient. *Amended 2026-11-02 (4.6c.12 item
+  21): the lengths and the prefix are read over the patient table with
+  the forms they stand beside, and a pool of forms of 1 to `f - 1`
+  patients is not published.*
 While the layer is OFF the person column's exact multiset stays
 published, as today, by the base product: a fact of one column (plan
 P4-D363), whose flooring in patients is lane HX2's (plan P4-D406).
@@ -8166,7 +8238,9 @@ patients and `n_top` rows, from which the reader has the top band's
 excess `q = n_top - lo m`. The top band's largest value is never
 published. The
 candidates are every `lo` from 1 to one more than the largest `r` held
-(at the last, the top band is empty).
+(at the last, the top band is empty). *Amended 2026-11-02 (4.6c.12 item
+15): and at most 13, so at most 12 single values stand below the top
+band.*
 
 **(b) Eligibility (inventory row 15; the excess rule for every `q`).**
 A candidate is ELIGIBLE when
@@ -8482,6 +8556,9 @@ of few readings, which the test reads. The first build tested dates
 and FINE numbers at their `L0` bands and defined a dealt date as "not
 position-like" while the test skipped dealt dates (the page's first
 skeptic, item 6); a date is now never tested.
+*Amended 2026-11-02 (4.6c.12 item 16, by measurement): "visit numbers
+are numbers of few readings" fails on the long tables this layer exists
+for, and a FINE number column IS now tested, by its own `V` on ranks.*
 
 **(b) The test (class (b) on a threshold).** With `N2` and `T` as in
 4.6c.5 (a), let `V` be the patients of `N2` holding some level of the
@@ -9112,6 +9189,7 @@ neither its pair nor its values (its code total is then not fixed), or
 published counts and the column's `L0` totals, is at least
 `settings.small_cell_floor` (4.6c.1 (b) 6; no rule reads `min` or
 `max`); the loader recomputes SWING (4.6c.1 (b)) and finds it passes.
+*Amended 2026-11-02: `O_free` as 4.6c.12 item 17 reads it.*
 
 **The inventory rows this section proves (4.6b.9 (b)'s rows owned by
 lane MG, and its new rows).** Each row's decision, its class, and the
@@ -9560,6 +9638,347 @@ visit beyond what their patient-level parents imply.
    lane CHa's product-scale `K-S6-08` run before the stage-6 gate; until
    the ruling, `Q_P` and the own-mean parent stand as this page writes
    them, NOT IN FORCE like the rest of the section.
+   *Ruled 2026-11-05 (the orchestrator's LANE GRa RULINGS 2 (4); 4.6c.12
+   item 17's note): a stated limit, owner lane GRb's stack.* The residue
+   is a count worked out by combining `Q_P` with exact moments, which the
+   owner's principle of 2026-10-01 and rule B (D1 = B) accept; plan
+   P4-D449 states its figures at 20,000 rows and above.
+
+#### 4.6c.12 Amendments of 2026-10-30: the profile side as built (lane GRa, plan P4-D449; NOT IN FORCE)
+
+Lane GRa built 4.6c.1 to 4.6c.8 behind the chain's switch
+(`src/synthtwin/patient_layer.py`, the producer, one call site in
+`chain.describe`; `src/synthtwin/patient_rules.py`, the arithmetic the
+producer and the loader share, the loader's S29 to S33 through one call
+site in `chain_check.check`). Where the build departs from the text
+above it says so here, each departure publishing no more than the page
+allows and each decided on published facts or drawn with an option
+eligible on every table:
+
+1. **The subject question (plan P4-D418 limit (3)).** On a switched
+   run whose settings name no person column, and where two eligible
+   columns could draw a chain, the questions file's chain entry asks
+   whether one person may stand on several rows (answers: `one row
+   each`, the name of the column that identifies the person, or
+   `several rows, no column names the person`); while it is open, or
+   answered with no column, no chain is drawn (the OFF note private),
+   since the table layer's proof holds for one row a person (ruling R4)
+   and no rule reads that fact reliably from the cells. A named column
+   is declared as record numbers, so where it repeats it is the person
+   column and this section applies. A table of fewer than two eligible
+   columns draws no chain whatever the answer and is not asked. A
+   library call that puts no question states the grain itself (the
+   chain's drivers and tests); no shipped command reaches that path.
+2. **`r` at its census's bands in every family** (4.6c.4 (d)): `r`'s
+   `L1` and `L2` equal its `L0`, so a grain cell holds ONE census band
+   and `R*` (4.6c.8 step 4) is read a cell at a time: a band of one
+   value gives every patient that value, and the open top band's cells
+   inside one parent cell share that cell's rows less its other cells'
+   and each takes the deficit search's split at its OWN tight cap. *Proof
+   that this keeps the cap lemma:* every table of the description gives
+   that cell a largest excess at least its tight cap, so a true cap is
+   at least it (the lemma of 4.6c.4 (b) read per cell). Its price: a
+   fine census pairs with fewer columns in the patient chain (measured
+   below).
+3. **Keyed families and the derived columns drawn last** (4.6c.8 (a),
+   4.6c.2 (b)). A KEYED family is one with parents holding `r` or a
+   derived column; it is offered only with every member of every earlier
+   keyed family at its level there or finer (the page's rule on families
+   holding `r`, widened), and where `r` is eligible a family holding a
+   derived column holds `r`. `G` is the latest keyed family (`r`'s census
+   where none stands). The derived columns are drawn after the rest of
+   the patient chain: a level is eligible where its bands hold the floor
+   and a keyed family can hold the column, "no derived column" is
+   eligible on every table (class (a)), and a drawn column's family is
+   drawn among those keyed options, so every derived column is a member
+   of `G`, as 4.6c.8 (a) asks of a row family's source, without a source
+   ever being held for want of it. *Proof:* the rules read the placed
+   chain alone (class (b)), and `G` holds `r` and every member of every
+   family holding `r`, which is all step 4's tie and step 5's cross read.
+4. **The floored split's search** (4.6c.2 (d), 4.6c.8 (a)): a
+   deterministic band-by-band dealing, each band's rows shared among the
+   blocks in proportion to their room and each share split by the
+   deficit search, with an exact bounded subset sum over the valid shares
+   where the proportional shares fail; `TRIES_MAX` bounds the whole
+   (deficit-search steps and subset-sum shifts), its give-up counted. No
+   pattern list is enumerated, so `PATTERNS_MAX` and `NODES_MAX` read
+   nothing, and scipy's HiGHS is not called: a split found is re-checked
+   in Python integers before it is relied on, and one not found is "not
+   eligible" (breadth, never a leak). MEASURED by exact enumeration
+   (`tests/patient_enumeration.py`, `K-S6-08`'s patient keys): at `f =
+   3` the split certifies 194 of 376 cells of two values of `r` and none
+   of them leaks a union of types; PWIT certifies 60 of 98 cells of one
+   `r`, none leaking, and the 38 it refuses all leak.
+5. **The own mean's edges** are the patients' means at their nearest
+   ranks kept to a thousandth of the column's grid step (`u / 1000`) and
+   written as exact decimals; a patient's band reads its exact mean
+   against them. The own mean is offered only for a FINE column with a
+   reading on every tabled row and a grid.
+6. **A column whose derived column stands and which draws no row family
+   is HELD**: its one-cell family would need its patterns restricted per
+   (grain cell, derived band), which this build does not certify.
+7. **Change over visits on a two-band row family only** (4.6c.1): `Q_P`
+   is offered where `x`'s row family takes its child at two bands (the
+   median of 4.6c.2 (e)); SWING sums the rows of every parent cell
+   holding a cell's patients of one own-mean band, a looser bound and
+   never a tighter one.
+8. **The position column** is the first dealt date column in schema
+   order and keeps its place where its own description in rows is later
+   held (its readings still order the rows the trend and the lists read).
+9. **The grid's step `u`**: 1 where every reading is whole
+   (`integer_valued`), `10^-w` where every reading is written to `w`
+   decimal places (one `fraction_widths` entry), else `(H - L) / 4095`.
+10. **The patient-fixed test** reads cells as written (two spellings of
+    one value are two cells), so a column patient-fixed in its values
+    may be classed repeated: breadth, never a leak.
+11. **The loader** holds the patient chain to S23 to S28 over the
+    patient table (the patient-fixed blocks as the patient table's, `r`
+    at its census's bands, each derived column's ladder), recomputes
+    every row family's certificate, every other repeated or dealt date
+    column's one-cell certificate, every trend's SWING and every row
+    census from published counts (RULE W1 in rows read on each column's
+    own-fact groups from its block, as S24 reads them), and reads the
+    person column and the patient-fixed columns over the patients and an
+    emptied block as publishing no value; the row walk's ladder and
+    families (`contract.ladder_entries`, `chain_families`) read none on
+    a description where `grain` stands (lane GRb's generator reads it).
+12. **Computed dates** (4.6c.7 (c)): lane MR's rule inference is not
+    built, so no order rule is carried, no column is classed `computed`
+    and no row family has a difference as its child; every date column
+    not patient-fixed is dealt and declared ordered. S31's words for a
+    carried rule's difference, and G16.16's swaps, wait for lane MR.
+13. **A keyed family that leaves `R*` no world is not offered** (4.6c.8
+    step 4, beside departure 2). The open top band's excess must be shared
+    among the family's cells with a floored split in each; a family with
+    none would certify no row of any column under it, so every column
+    would be held for it. An eligibility rule on the option's own table
+    and the census, as the floor's rule on that table is; "no family" and
+    "no derived column" stand on every table, so no world is removed (class
+    (a)). It costs the derived column of a small top band (measured
+    below).
+14. **The loader's FD7** passes over a block this layer empties: the file's
+    sort order is the file's own fact, published as the plain description
+    publishes it, and an emptied block publishes no count of absent cells
+    to read. A column published empty still refuses.
+
+**Amendments of 2026-11-02 (repair 1: lane GRa's first skeptic and its
+statistics skeptic, the orchestrator's RULINGS 1). Each publishes no more
+than the page allows, or corrects a sentence by measurement.**
+
+15. **The census offers at most 12 single values below its top band**
+    (4.6c.4 (a)), `lo` at most 13, as a column's `L0` holds at most 13 bands.
+    A rule on the candidates alone (class (a)), so every proof of 4.6c.4
+    stands with fewer options. Without it the score `N lo` draws the finest
+    census, departure 2 pins `r` at those bands in every family, and on a
+    long table at 200,000 rows no row family stood at all. S29 repeats it.
+16. **A FINE number column is tested** (4.6c.6 (a), (b)): its `V` is the
+    patients of two or more present readings whose readings do not all
+    differ or, read as their RANKS among the column's different readings,
+    span more than `r + floor(r / 4) + 1` ranks. At `V <= T` it is
+    position-like whatever its readings' number: it publishes the list to
+    `L`, no block, no own mean and no row family. Its list stands whole or
+    not at all: a `null` entry or an order neither rising nor falling leaves
+    the column HELD, never a block; its tie world holds each patient on
+    the list and each row beyond `L` on the run's next value (a step of one
+    reading where one is listed, lane GRb's to write), so `V = 0` there.
+    *Why:* the block of a visit number IS the census of `r`: rows at a
+    value are the patients with `r` at or above it. MEASURED (the first
+    skeptic, 20,000 rows, 1,379 patients): `n_distinct` 833, `tails.high`
+    200 rows on 200 values above `p99`, so exactly one patient holds 833
+    rows. *The class:* not position-like reads `V >= T + 1 >= f`, a count of
+    patients by their EXACT readings, which a world moves by exchanging
+    readings of one `L0` band between rows and no union of types reads
+    (the level of limit 9), so it fixes no union of types; held to the
+    gate's mutant "FINE never tested". A date is still never tested.
+    *Amended 2026-11-05 (lane GRa's repair 2, by measurement; the verify of
+    repair 1, item 2): a visit written twice is a row written twice.* A
+    patient's readings read as a run where its `d` DIFFERENT readings span
+    at most `d + floor(d / 4) + 1` ranks and at most a quarter of its
+    readings, one where it holds three, repeat another of them; "do not
+    all differ" no longer breaks a run by itself. MEASURED (the verify's
+    table: 20,242 rows, one patient of 900 visits beside every other at
+    most 600, 53 patients with one visit written twice): the visit number
+    read `repeated`, and its block published `n_distinct` 900 and the high
+    tail's 203 rows of that one patient, the census of `r` this item
+    withholds; it reads position-like now, its block empty, and the
+    gate's case at 20,469 rows holds it so. The class argument above is
+    unchanged: a world still exchanges readings within a band.
+17. **`O_free` reads a world** (4.6c.1 (b) 6, S33). The outside total is
+    free while a WORLD of the description holds at least `f` rows outside
+    the one-`r` cells in bands of two or more codes; it is read by placing
+    each parent cell's outside rows, within that cell's published rows a
+    band, on the rows of each band of the row family's child that its
+    `L0` totals do not fix at one code (`patient_rules.free_rows`). *The
+    pooled form `min(O, n - n_one)` is not enough:* a band of one code
+    holding every outside row pins their total however many rows other
+    bands hold (`M3` below). MEASURED by exact enumeration, the reader
+    given the row family, the `L0` totals, the exact mean and spread, one
+    heap and `Q_P` (`tests/patient_enumeration.py`, `moment_fixtures`, codes
+    0 to 3 and 0 to 4, one cell of 6 to 8 patients of two rows, 2 to 4 rows
+    outside, `f = 2`): 0 descriptions leak a union of TYPES under this
+    guard, under the pooled form and under the worst case. At finer levels
+    a residue stands under EVERY guard, charged to `Q_P`, the moments
+    beside it not leaking: at unions of exact code vectors, limit 9's, and
+    at unions of patterns over the `L0` bands, where the fixture with no
+    band of one code at all (`L0` finer than the row family) reads it at
+    the same rate, so it is `Q_P`'s beside finer bands, not a band of one
+    code's. Its numbers are `K-S6-08`'s `moment_*` keys. So limit 9 reads
+    "finer than the row family's bands" and not "finer than any band the
+    description publishes". *Amended 2026-11-05 (LANE GRa RULINGS 2 (4)):*
+    limit 9 is a stated limit, not a defect: its residue is a count worked
+    out by combining `Q_P` with exact moments, the residual the owner
+    accepted for moments under rule B, and no count printed on its own
+    moves; its owner is lane GRb's stack, and plan P4-D449 states it once
+    with its figures at 20,000 rows and above.
+18. **One `R*` for the whole description** (4.6c.8 step 4, beside departure
+    2). Each row family cuts the top band's grain cells by its parent
+    cells. A family is offered only where its cut refines or coarsens every
+    placed family's and every certificate holds under the one `R*` read at
+    the finest cut, its cells' rows the shares of that cut's blocks; every
+    one-cell family reads it last. *Why:* the first skeptic's table (top
+    cells of 30, 24, 12 and 30 patients; 30 and 54 extra rows by `x`, 0
+    and 84 by `y`): each family passes alone, and together they put 30
+    extra rows on 12 patients, so "patients with at least 3 extra rows"
+    lies in 1 to 10 on every table. Crossing cuts would need an integer
+    solve over both margins and may have no floored world: they are
+    refused, breadth given up. S31 repeats the tie. `K-S6-08` reads the
+    table at `f = 11` and scaled at `f = 3` (`crossing_cuts`).
+19. **The patient table is described under the row description's rules**:
+    the Safe Harbor top-code and its answers, the columns held for a
+    question, and the floor-size count of dates with each patient a holder
+    (`build_document`'s internal `long_table_dates`, since a patient table
+    is usually far under 20,000 rows). **A top-coded reading takes no grid**,
+    so no own mean, no edge and no `Q_P`: the cells such a reading would read
+    hold the ages the block pools at 90. MEASURED before the repair on the
+    shipped command's path: a fixed age published to 104, a birth date at day
+    grain naming 12 dates, 11 held by 1 to 10 patients.
+20. **The person and the record, and `one row each`** (departure 1). The
+    person question's `identifier` answer splits in two behind the switch:
+    `identifier` says the person, and `record` a record of the person (an
+    encounter, an order, an account); a typed `--identifier` that repeats,
+    or `identifier` answered to another question, is named in the subject
+    question. A repeating key is the person only where an answer says so or
+    its name, read whole, says so (a closed list of person words, no record
+    word beside one); the others beside it are records of the person, so a
+    table of a patient key and an encounter key has one person column.
+    Until something says the person the hold stands, no chain and no layer;
+    an answer of records alone holds as no column naming the person; and
+    `one row each` beside a key answered to repeat contradicts itself and
+    draws nothing. Under `one row each` a repeating column held for another
+    question stays held and ineligible and no longer turns the chain off.
+    The chain's default is the hold (`ROWS_OPEN`): a caller measuring the
+    walk beside a repeating column says so itself (`ROWS_UNASKED`).
+21. **The person block reads its patients** (4.6c.3 (b)): every key but its
+    presence and absence, forms, prefixes and lengths alike. A pool of forms
+    of 1 to `f - 1` patients takes the smallest named form until it reaches
+    `f`, the form's prefix and exclusions going unnamed with it.
+22. **Before any derived column is drawn, a keyed family whose parents hold
+    `r` takes its child at `L2`** (departure 3), so the family a derived
+    column must hold stays inside the floor. A rule on the placed chain and
+    the option's own levels (class (b)); S31 repeats it. Without it the own
+    mean, the correlation's route, was lost on most `ST2` runs at 100,000
+    rows.
+23. **The floored split's budget** (departure 4): one budget a certificate,
+    `SPLIT_TRIES_MAX`, every trial of a share counted whether its split was
+    kept or not, its give-up named and a fixed function of the option's own
+    table, so the loader reaches the producer's outcome; the sixty-four-part
+    double loop is gone, a whole multiple is traded among the eight largest
+    blocks, and the subset sum decides the rest. **At most 64 options of a
+    row family are read, in their fixed order** (`OPTIONS_READ_MAX`), a
+    function of the published grain family alone, where the first build's
+    sixteen certificates depended on other options' unpublished tables. A
+    table's layer then stands under `columns x 64 x SPLIT_TRIES_MAX` trials.
+
+24. **The subject answer is bound as every answer naming a column is**
+    (departure 1; amended 2026-11-05 by lane GRa's repair 2, Codex's review,
+    items 3 and 4). An answer naming a column names it under the reading
+    that wrote the file, so it joins the answers a correction of the
+    reading refuses beside it, nothing written (the person answers the
+    reading first and the next file asks again), and the answers checked
+    against the names the file lists; and it is the newer statement beside
+    a typed declaration, as an `identifier` answer is, so a typed
+    `--date-count` of the same column no longer removes it. An answer
+    naming a column is never read as `one row each`: where its column is
+    no repeating key of the table, the answer is dropped and the question
+    put again, the column staying declared. MEASURED at 20,000 rows on
+    Codex's own cases: `names` for the first row beside the subject answer
+    `column_1` is refused, where the answer re-pointed at the second field
+    and the first field's 1,000 patient keys were published as levels;
+    `--date-count pid excel-1900` beside the answer `pid` on 500 patients
+    of 40 rows is refused by the people floor, where it drew a chain in
+    rows.
+25. **`R*` stands under each block's tight cap** (4.6c.8 step 4, departure
+    2 and item 13; amended 2026-11-05 by lane GRa's repair 2, Codex's item
+    1, by proof): a block of the top band (a parent cell's cut of it)
+    shares its published excess `q` among its grain cells with no cell's
+    share above `ceil(q / m)` rows a patient, `m` the block's patients, its
+    own tight cap; by the cap lemma every table of the description gives
+    the block a largest excess at least that, so `R*`'s world is a table
+    under every cap a reader may know, as step 4 asks, and a certificate
+    read on a world outside it certified nothing. Codex's numbers (37
+    top-band patients of 503 rows at `lo` 13, cap 14 rows): cells of 11, 13
+    and 13 patients took shares of 165, 169 and 169 rows, 15 rows on 11
+    patients; 22 extra rows are no sum of floored shares under the cap, so
+    no `R*` stands and the family is not offered. A block whose published
+    rows hold more a patient than the band's tight cap keeps its own,
+    higher cap, which every table gives it. Each cell's split is searched
+    at most twice, whatever the number of cells (Codex's item 5).
+26. **The loader reads the grain family off the chain** (departure 13 and
+    item 11; amended 2026-11-05 by lane GRa's repair 2, Codex's item 2):
+    `grain_family` names the patient chain's latest keyed family, or is
+    null where none is; any other index, null beside a keyed family
+    included, is refused (S31), so every certificate is recomputed on the
+    cells the description's own chain fixes.
+27. **RULE W1 in the loader, in patients and in rows** (item 11; amended
+    2026-11-05 by lane GRa's repair 2, Codex's item 6): the patient chain's
+    W1 reads each patient-fixed column's own-fact groups from its published
+    block (the first build read none), and every row family's W1 in rows is
+    the producer's one rule (`patient_rules.w1_in_rows`), read in the
+    loader on the groups the blocks publish, a subset of the producer's.
+    Codex's case (24,000 rows, 3,000 patients: a fixed measurement of four
+    readings beside an arm, their family's table separated with its
+    margins kept) is refused at S24, and a row family separated the same
+    way at S31.
+28. **A band of one reading, and the fallback's witness** (4.6c.5 (e) item
+    2; amended 2026-11-05 by lane GRa's repair 2, Codex's item 7, by
+    proof): a band `[low, high)` holds the readings from `low` up to and not
+    including `high`, so it spans two readings only where its edges stand
+    MORE than one grid step apart (`[7, 8)` at a step of 1 holds 7 alone;
+    item 2's "at least one grid step apart" read the edge as a reading). A
+    FINE number or date column some band of which holds one reading takes
+    the floored split WITH the `V_K` witness, `V_K` at least `T + 1` read
+    from the split's own patterns (the swing, which raises `V`, is not
+    read for `V_K` alone), on the producer's and the loader's paths alike.
+29. **S32 reads a derived column's level and edges** (amended 2026-11-05 by
+    lane GRa's repair 2, Codex's item 9): its level is `L0`, `L1` or `L2`;
+    its edges rise strictly (decimal numbers for an own mean, one kind of
+    date text or number for a first date) and number one for each band
+    they open (an own mean's, one a band but the first; a first date's,
+    one a band whose first starting band opens at a rung); a first date's
+    edges are its source's rungs at its level where the source's block
+    stands. Codex's two descriptions (a first date of ten bands and nine
+    edges, its `level` written `garbage`, or its edges written as three
+    `2099-12-31`) are refused.
+
+**MEASURED by the build** (invented tables only; `planning-notes` keeps
+the logs): the census scan of 4.6c.3 (e) reproduced (50,127 censuses of
+11 to 20 patients, 930 with 1 to 10 extra rows, none eligible); the
+class witness on the first skeptic's fixture at `f = 11` refuses all 330
+descriptions the class makes leak (4,990 PWIT passes; it refuses 1,211);
+the fifteen visit-trend fixtures of 4.6c.10 item 3 under the product's
+SWING, every world enumerated: departure 7 offers a trend on the seven
+holding a two-band row family (the page's 1,516 passes read all fifteen
+with every band count, so they are not this count), of whose 17,934
+descriptions 754 pass and none leaks a union of types, 1,331 others
+leaking; on four invented long-table shapes the layer stands, every
+count it publishes 0 or at least `f`, and the switched description
+loads; on a table where every patient has every visit no `Q_P` is
+published (limit 2's December limit). Limit 5's count, today: on 63 of
+the zoo's 64 exports at 20,000 rows the layer stands on 37, the table
+chain on 14 once the subject question is answered, none on 12, 5 of
+them for a second person column; the floored split passes 89.9 per cent
+of 1,791 tries with no bound hit, and the class witness refuses 2. Plan
+P4-D449 gives the numbers.
 
 ### 4.6d `relationships.statistical.moments` — the moment layer: numbers read finer than the bands (specified for stage 6, plan P4-D413; NOT IN FORCE)
 

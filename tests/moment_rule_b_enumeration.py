@@ -257,12 +257,16 @@ def coded(table: object, document: "dict[str, object]", statistical: "dict[str, 
     blocks = {f"{block['name']}": block for block in document["columns"]}  # type: ignore[index, union-attr, attr-defined]
     names = [f"{block['name']}" for block in document["columns"]]  # type: ignore[index, union-attr, attr-defined]
     rows = table.n_rows  # type: ignore[attr-defined]
+    # Which `L2` the description was cut under, read from its own record as
+    # the loader reads it (S24; RULE ONE_BAND, lane CHa2, plan P4-D451).
+    one_band = chain_rules.reads_one_band(statistical["procedure"], rows)
+    assert one_band is not None, "the description's procedure record is of neither version"
     columns: "list[tuple[str, str, list[object]]]" = []
     groupings: "list[tuple[str, list[int], list[int], set[int], list[int]]]" = []
     for entry in statistical["ladder"]:  # type: ignore[attr-defined]
         name = entry["column"]
         block = blocks[name]
-        scale, _start = chain_check._ladder_of(entry, block, floor, rows, 0)
+        scale, _start = chain_check._ladder_of(entry, block, floor, rows, 0, one_band)
         read = chain.read_column(table, names.index(name), block, settings, DECLARED, "", 0)  # type: ignore[arg-type]
         assert read is not None
         to_l0: "dict[object, int]" = {}

@@ -41,7 +41,10 @@ integers. Nothing here is a library float.
 import dataclasses
 import fractions
 
-from synthtwin import chain_rules as rules
+from synthtwin import chain_rules
+
+# The chain's rules under the short name this module reads them by.
+rules = chain_rules
 
 SKEW_CUT = fractions.Fraction(1, 5)
 CLASSES_OFFERED = ("mean",)
@@ -222,6 +225,22 @@ def codes_of(block: "dict[str, object]") -> "Codes | None":
                 second_keys += [key]
             second = tuple(second_keys)
     return Codes(f"{_get(block, 'name')}", low, high, "p50", second, low_value, high_value, tuple(steps))
+
+
+def code_clip(block: "dict[str, object]") -> "tuple[float, float] | None":
+    """A FINE column's code clip `(lo, hi)` as binary64 values, for the generator's polish (lane MPg).
+
+    The values `codes_of` reads from the published rungs, each the exact
+    value of a published binary64 number, so the conversion is exact and
+    `chain_walk.value_code` gives the code `linear_code` gives. None where
+    the column takes no code.
+    """
+    found = codes_of(block) if fine(block) else None
+    if found is None:
+        return None
+    low = found.lo_value
+    high = found.hi_value
+    return low.numerator / low.denominator, high.numerator / high.denominator
 
 
 def _percent(key: str) -> fractions.Fraction:

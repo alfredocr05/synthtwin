@@ -4461,6 +4461,7 @@ def build_document(
     dated_held: "tuple[str, ...]" = (),
     dated_values_no: "list[str] | None" = None,
     dates_answered: "tuple[str, ...]" = (),
+    long_table_dates: bool = False,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -4604,6 +4605,12 @@ def build_document(
       offering `identifier` is open on any column of the table: the
       stand-ins page's rule U (c), repair 1 of lane GG); each column so
       released is named in ``rare_listed`` where that list is given.
+    - ``long_table_dates`` (lane GRa, plan P4-D449; behind the chain's
+      switch alone): the patient table, one row a patient, is usually far
+      under the owner's table floor, and its date columns count each
+      patient as a holder as a table at the floor counts each row, as its
+      top-coded category is pooled (plan P4-D454); only `patient_layer`
+      passes it, so every shipped byte stands.
     - THE SAFE HARBOR NUMBERS (plan P4-D427, lane ZR-b's ZS.1 and ZS.3),
       the command's rule as P4-D401's hold is (``top_code``, which
       `synthtwin profile` passes; False describes every column as
@@ -4746,7 +4753,7 @@ def build_document(
     # library keeps P4-D406's reading.
     dates_in_people: "list[bool]" = []
     for enough in subject_enough:
-        dates_in_people += [enough or table.n_rows >= parsing.TABLE_ROW_FLOOR]
+        dates_in_people += [enough or table.n_rows >= parsing.TABLE_ROW_FLOOR or long_table_dates]
     # Each row its own holder, built once for the date columns no subject
     # column counts in people (plan P4-D433, `rows_as_holders`).
     row_holders: "list[str]" = []
@@ -5332,10 +5339,13 @@ def build_document(
                 # never by a newer rule (Codex's item 4; the orchestrator's
                 # LANE SH3 RULINGS 1 (2)): `top_category_pooled` and
                 # `top_category_people`, written whether or not a category
-                # was pooled.
+                # was pooled. The patient table (``long_table_dates``, lane
+                # GRa's patient layer alone) pools as a table at the floor
+                # does, each patient a holder, as its rows' description pools
+                # in people (batch 4p's merge of lanes GRa and SH3).
                 pool_floor = (
                     settings.small_cell_floor
-                    if table.n_rows >= parsing.TABLE_ROW_FLOOR
+                    if table.n_rows >= parsing.TABLE_ROW_FLOOR or long_table_dates
                     else 0
                 )
                 pool_people: "tuple[str, ...]" = tuple(
@@ -5707,7 +5717,7 @@ def build_document(
         in_rows = (
             described.role == taxonomy.ROLE_DATETIME
             and not any(people_enough)
-            and table.n_rows >= parsing.TABLE_ROW_FLOOR
+            and (table.n_rows >= parsing.TABLE_ROW_FLOOR or long_table_dates)
             and time_grains is None
             and not declarations_are_reconstructed
         )
@@ -9049,6 +9059,11 @@ def _counted_dates_declined(
         if column == name:
             return described.role != taxonomy.ROLE_DATETIME
     return False
+
+
+# The patient table's settings (lane GRa, plan P4-D449): the function under a
+# name another module may read.
+settings_without_held = _without_held
 
 
 def _census_of(described: taxonomy.ColumnProfile) -> "dict[str, object] | None":

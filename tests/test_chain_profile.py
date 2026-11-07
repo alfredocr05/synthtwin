@@ -42,6 +42,7 @@ import fixtures
 import workbooks
 
 from synthtwin import (
+    asking,
     chain,
     chain_moments,
     chain_check,
@@ -88,7 +89,7 @@ def _describe(tmp_path: pathlib.Path, text: str, name: str = "clinic", key: byte
     table_path = fixtures.write(tmp_path, f"{name}.csv", text)
     table = reading.read_table(str(table_path), small_cell_floor=floor)
     document = profile.build_document(table, settings, [], [], [])
-    return table, document, settings, chain.describe(table, document, settings, chain.ChainSwitch(name, key))
+    return table, document, settings, chain.describe(table, document, settings, chain.ChainSwitch(name, key, rows_per_person=chain.ROWS_UNASKED))
 
 
 def _profile(folder: pathlib.Path, table: str, run: "cli.ChainRun | None", capsys) -> "tuple[int, str]":
@@ -115,7 +116,7 @@ def test_switch_off_writes_todays_bytes_and_switch_on_adds_only_the_chain(tmp_pa
     assert code == 0
     monkeypatch.chdir(on_folder)
     data = tmp_path / "data"
-    code, said = _profile(on_folder, "clinic.csv", cli.ChainRun(folder=str(data)), capsys)
+    code, said = _profile(on_folder, "clinic.csv", cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=str(data)), capsys)
     assert code == 0
     assert "Between columns:" in said
     off = json.loads((off_folder / "clinic-profile.json").read_text(encoding="utf-8"))
@@ -143,7 +144,7 @@ def test_switch_off_writes_todays_bytes_and_switch_on_adds_only_the_chain(tmp_pa
 def test_a_re_profile_reproduces_the_description_byte_for_byte(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     fixtures.write(tmp_path, "clinic.csv", _clinic())
-    run = cli.ChainRun(folder=str(tmp_path / "data"))
+    run = cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=str(tmp_path / "data"))
     assert _profile(tmp_path, "clinic.csv", run, capsys)[0] == 0
     first = (tmp_path / "clinic-profile.json").read_bytes()
     assert _profile(tmp_path, "clinic.csv", run, capsys)[0] == 0
@@ -156,7 +157,7 @@ def test_the_key_reaches_no_output(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     fixtures.write(tmp_path, "clinic.csv", _clinic())
     data = tmp_path / "data"
-    code, said = _profile(tmp_path, "clinic.csv", cli.ChainRun(folder=str(data)), capsys)
+    code, said = _profile(tmp_path, "clinic.csv", cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=str(data)), capsys)
     assert code == 0
     key = (data / installation.KEY_FILE).read_bytes()
     assert len(key) == 32
@@ -177,11 +178,11 @@ def test_the_ledger_refuses_a_second_name_and_warns_on_a_name_reused(tmp_path, m
     fixtures.write(tmp_path, "clinic.csv", _clinic())
     fixtures.write(tmp_path, "other.csv", _clinic(seed=8))
     data = str(tmp_path / "data")
-    assert _profile(tmp_path, "clinic.csv", cli.ChainRun(folder=data), capsys)[0] == 0
-    code, said = _profile(tmp_path, "clinic.csv", cli.ChainRun(name="renamed", folder=data), capsys)
+    assert _profile(tmp_path, "clinic.csv", cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=data), capsys)[0] == 0
+    code, said = _profile(tmp_path, "clinic.csv", cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, name="renamed", folder=data), capsys)
     assert code == 1
     assert "described before under the name 'clinic'" in said and "--name clinic" in said
-    code, said = _profile(tmp_path, "other.csv", cli.ChainRun(name="clinic", folder=data), capsys)
+    code, said = _profile(tmp_path, "other.csv", cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, name="clinic", folder=data), capsys)
     assert code == 0
     assert "A different table was described before under the name 'clinic'" in said
 
@@ -658,7 +659,7 @@ def test_the_loader_accepts_the_chain_and_refuses_each_mutation(tmp_path):
 def test_the_loader_reads_the_chain_only_behind_its_switch(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     fixtures.write(tmp_path, "clinic.csv", _clinic())
-    assert _profile(tmp_path, "clinic.csv", cli.ChainRun(folder=str(tmp_path / "data")), capsys)[0] == 0
+    assert _profile(tmp_path, "clinic.csv", cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=str(tmp_path / "data")), capsys)[0] == 0
     described = str(tmp_path / "clinic-profile.json")
     assert contract.load_profile(described, chain=True).n_columns == 7
     with pytest.raises(errors.ProfileError):
@@ -693,7 +694,7 @@ def test_a_table_of_several_rows_per_person_gets_no_chain(tmp_path):
     table_path = fixtures.write(tmp_path, "visits.csv", _csv(["person", "value", "kind"], rows))
     table = reading.read_table(str(table_path), small_cell_floor=FLOOR)
     document = profile.build_document(table, settings, ["person"], [], [])
-    chained = chain.describe(table, document, settings, chain.ChainSwitch("visits", TEST_KEY))
+    chained = chain.describe(table, document, settings, chain.ChainSwitch("visits", TEST_KEY, rows_per_person=chain.ROWS_UNASKED))
     assert chained.statistical is None
     assert any("several rows per person" in note for note in chained.notes)
 
@@ -908,7 +909,7 @@ def test_a_percentile_slice_of_a_few_rows_marks_its_band(tmp_path):
     marked = chain.value_run_bands(block, read.start, ladder, FLOOR, read.readings)
     assert marked == {at for at in range(len(ladder.l0)) if ladder.ordered[at]}
     for key in range(4):
-        found = chain.describe(table, document, settings, chain.ChainSwitch("slice", bytes([key]) * 32))
+        found = chain.describe(table, document, settings, chain.ChainSwitch("slice", bytes([key]) * 32, rows_per_person=chain.ROWS_UNASKED))
         assert _no_confined_row(found.statistical, "age")
 
 
@@ -923,7 +924,7 @@ def test_a_census_remainder_of_a_few_rows_marks_its_band(tmp_path):
     band = [at for at in range(len(ladder.l0)) if any(isinstance(name, tuple) and name[0] == "p25" for name in ladder.l0[at])]
     assert band and band[0] in marked, (rungs, marked)
     for key in range(4):
-        found = chain.describe(table, document, settings, chain.ChainSwitch("clock", bytes([key]) * 32))
+        found = chain.describe(table, document, settings, chain.ChainSwitch("clock", bytes([key]) * 32, rows_per_person=chain.ROWS_UNASKED))
         assert _no_confined_row(found.statistical, "clock")
 
 
@@ -961,7 +962,7 @@ def test_a_one_value_tail_at_the_cap_keeps_time_and_event_eligible(tmp_path, mon
         return options
 
     monkeypatch.setattr(chain, "_root_options", recording)
-    chain.describe(table, document, settings, chain.ChainSwitch("survival", TEST_KEY))
+    chain.describe(table, document, settings, chain.ChainSwitch("survival", TEST_KEY, rows_per_person=chain.ROWS_UNASKED))
     finest = [one for one in seen if one[1] and ((one[0] == "event" and one[2][1] == 0) or (one[0] == "followup_days" and one[2][0] == 0))]
     assert finest
 
@@ -980,15 +981,15 @@ def test_a_blank_record_keeps_the_content_hash_and_the_ledger_refuses_the_copy(t
     fixtures.write(tmp_path, "clinic.csv", text)
     fixtures.write(tmp_path, "copy.csv", text + ",,,,,,\n")
     data = str(tmp_path / "data")
-    assert _profile(tmp_path, "clinic.csv", cli.ChainRun(folder=data), capsys)[0] == 0
-    code, said = _profile(tmp_path, "copy.csv", cli.ChainRun(folder=data), capsys)
+    assert _profile(tmp_path, "clinic.csv", cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=data), capsys)[0] == 0
+    code, said = _profile(tmp_path, "copy.csv", cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=data), capsys)
     assert code == 1 and "described before under the name 'clinic'" in said
 
 
 def test_neither_record_prints_its_key():
     """Skeptic 1's item 8: the two records holding the key print no byte of it."""
     key = bytes(range(100, 132))
-    shown = repr(chain.ChainSwitch("t", key)) + repr(installation.Opened(pathlib.Path("."), key, (), (), "", False))
+    shown = repr(chain.ChainSwitch("t", key, rows_per_person=chain.ROWS_UNASKED)) + repr(installation.Opened(pathlib.Path("."), key, (), (), "", False))
     assert repr(key) not in shown and "key=" not in shown
 
 
@@ -997,7 +998,7 @@ def test_a_declared_person_column_gets_no_chain(tmp_path):
     table, document, settings, chained = _describe(tmp_path, _clinic(), name="persons")
     assert chained.statistical is not None
     document["settings"]["person_columns"] = ["record"]
-    off = chain.describe(table, document, settings, chain.ChainSwitch("persons", TEST_KEY))
+    off = chain.describe(table, document, settings, chain.ChainSwitch("persons", TEST_KEY, rows_per_person=chain.ROWS_UNASKED))
     assert off.statistical is None and any(chain.OFF_PERSON in note for note in off.notes)
 
 
@@ -1114,9 +1115,14 @@ def test_every_coarser_variant_is_an_option_of_its_own():
     assert chain_rules.variants_of([0]) == [(0,), (1,), (2,)]
 
 
-def test_the_raises_are_the_stated_weights_times_the_rows():
-    """Mutants M24 and M36: `w_seed n` a seed's further column and `w_te n` a time-and-event pair."""
+def test_the_raises_are_the_stated_weights_times_the_rows(monkeypatch):
+    """Mutants M24 and M36: `w_seed n` a seed's further column and `w_te n` a time-and-event pair.
+
+    `w_te` stands at 0 since 2026-11-02 (plan P4-D451); the raise is read at 1 here so it stays a live clause.
+    """
     import types
+
+    monkeypatch.setattr(chain_rules, "W_TE", fractions.Fraction(1))
 
     search = types.SimpleNamespace(pairs=frozenset({("fu", "event"), ("event", "fu")}), seeds=(("a", "b", "c"),), tabled=1000, asked=frozenset())
     assert chain._raise_of(search, "fu", ("event",)) == chain_rules.W_TE * 1000
@@ -1250,7 +1256,7 @@ def test_a_one_row_rung_beside_a_published_heap_cuts(tmp_path, heap):
     # The reader's arithmetic: 501 rows, all single but the heap.
     assert named == (12 if heap == "mode" else 11) and block["n_distinct_values"] == 501 - named + 1
     for key in range(4):
-        found = chain.describe(table, document, settings, chain.ChainSwitch(f"heap{heap}", bytes([key]) * 32))
+        found = chain.describe(table, document, settings, chain.ChainSwitch(f"heap{heap}", bytes([key]) * 32, rows_per_person=chain.ROWS_UNASKED))
         assert found.statistical is not None
         assert _no_confined_row(found.statistical, "age"), key
 
@@ -1566,7 +1572,7 @@ def test_a_declared_counted_date_column_keeps_the_chain(tmp_path):
     table = reading.read_table(str(fixtures.write(tmp_path, "visits.csv", _csv(["visit", "age", "gender"], rows))), small_cell_floor=FLOOR)
     document = profile.build_document(table, settings, [], [], [])
     assert document["columns"][0]["role"] == "datetime"
-    found = chain.describe(table, document, settings, chain.ChainSwitch("visits", TEST_KEY))
+    found = chain.describe(table, document, settings, chain.ChainSwitch("visits", TEST_KEY, rows_per_person=chain.ROWS_UNASKED))
     assert found.statistical is not None, found.notes
     assert "visit" in [entry["column"] for entry in found.statistical["ladder"]]
 
@@ -1687,7 +1693,7 @@ def test_the_questions_file_pair_requests_are_applied_and_kept(tmp_path, monkeyp
     monkeypatch.chdir(tmp_path)
     fixtures.write(tmp_path, "clinic.csv", _clinic())
     data = str(tmp_path / "data")
-    assert _profile(tmp_path, "clinic.csv", cli.ChainRun(folder=data), capsys)[0] == 0
+    assert _profile(tmp_path, "clinic.csv", cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=data), capsys)[0] == 0
     first = json.loads((tmp_path / "clinic-profile.json").read_text(encoding="utf-8"))
     together = [one for one in first["relationships"]["statistical"]["chain"] if one["parents"]]
     assert together
@@ -1699,7 +1705,7 @@ def test_the_questions_file_pair_requests_are_applied_and_kept(tmp_path, monkeyp
     entry["add"] = [["pressure", "group"]]
     fixtures.write(tmp_path, "answers.json", json.dumps(questions))
     capsys.readouterr()
-    code = cli.main(["profile", "clinic.csv", "--answers", "answers.json"], chain=cli.ChainRun(folder=data, replace_description=True))
+    code = cli.main(["profile", "clinic.csv", "--answers", "answers.json"], chain=cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=data, replace_description=True))
     said = capsys.readouterr()
     assert code == 0, said
     printed = said.out + said.err
@@ -1720,14 +1726,14 @@ def test_a_questions_file_holding_only_unreadable_pair_requests_is_named(tmp_pat
     monkeypatch.chdir(tmp_path)
     fixtures.write(tmp_path, "clinic.csv", _clinic())
     data = str(tmp_path / "data")
-    assert _profile(tmp_path, "clinic.csv", cli.ChainRun(folder=data), capsys)[0] == 0
+    assert _profile(tmp_path, "clinic.csv", cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=data), capsys)[0] == 0
     questions = json.loads((tmp_path / "clinic-questions.json").read_text(encoding="utf-8"))
     entry = questions["between_columns"]
     entry["add"] = [["age"]]
     entry["drop"] = ["group"]
     fixtures.write(tmp_path, "answers.json", json.dumps(questions))
     capsys.readouterr()
-    code = cli.main(["profile", "clinic.csv", "--answers", "answers.json"], chain=cli.ChainRun(folder=data, replace_description=True))
+    code = cli.main(["profile", "clinic.csv", "--answers", "answers.json"], chain=cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=data, replace_description=True))
     said = capsys.readouterr()
     assert code == 0, said
     printed = said.out + said.err

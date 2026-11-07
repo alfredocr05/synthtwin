@@ -1286,7 +1286,7 @@ def test_k_s6_01(record_property, tmp_path: pathlib.Path) -> None:
     settings = taxonomy.Settings(small_cell_floor=11)
     table = reader.read_table(str(path), small_cell_floor=11)
     document = profile.build_document(table, settings, [], [], [])
-    chained = chain.describe(table, document, settings, chain.ChainSwitch("association", bytes(range(32))))
+    chained = chain.describe(table, document, settings, chain.ChainSwitch("association", bytes(range(32)), rows_per_person=chain.ROWS_UNASKED))
     assert chained.statistical is not None, chained.notes
     written = dict(document)
     written["relationships"] = dict(written["relationships"], statistical=chained.statistical)

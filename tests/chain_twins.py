@@ -21,6 +21,7 @@ import random
 import re
 from fractions import Fraction
 
+from synthtwin import asking
 from synthtwin import cli
 
 REPOSITORY = pathlib.Path(__file__).resolve().parents[1]
@@ -91,7 +92,7 @@ class Described:
             key.chmod(0o600)
         key.write_bytes(oc.TEST_KEY)
         self.data = data
-        code, said = _quiet(lambda: cli.main(["profile", str(self.table), "--out-dir", str(folder)], chain=cli.ChainRun(folder=str(data))))
+        code, said = _quiet(lambda: cli.main(["profile", str(self.table), "--out-dir", str(folder)], chain=cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=str(data))))
         assert code == 0, said
         # A column held by an open question (lane HX: a three-figure
         # measurement read as possible record numbers) holds the chain back;
@@ -113,7 +114,7 @@ class Described:
             code, said = _quiet(
                 lambda: cli.main(
                     ["profile", str(self.table), "--out-dir", str(folder), "--answers", str(questions)],
-                    chain=cli.ChainRun(folder=str(data), replace_description=True),
+                    chain=cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=str(data), replace_description=True),
                 )
             )
             assert code == 0, said
@@ -130,7 +131,7 @@ class Described:
         place = self.folder / f"run{self._runs}"
         place.mkdir()
         measured = _write(place / "twin.csv", header or self.header, rows, empty_at)
-        run = cli.ChainRun() if switched else None
+        run = cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH) if switched else None
         code, said = _quiet(
             lambda: cli.main(["validate", str(description or self.path), "--twin", str(measured), "--out-dir", str(place)], chain=run)
         )

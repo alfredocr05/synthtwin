@@ -75,7 +75,7 @@ from chain_twins import (
     oc,
 )
 
-from synthtwin import chain_rules, chain_validation, cli, quality, validation
+from synthtwin import asking, chain_rules, chain_validation, cli, quality, validation
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -498,7 +498,7 @@ def test_a_description_without_a_chain_validates_to_the_same_bytes_either_way(tm
     for switched in (False, True):
         out = tmp_path / f"out-{switched}"
         out.mkdir()
-        run = cli.ChainRun() if switched else None
+        run = cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH) if switched else None
         code, said = _quiet(lambda: cli.main(["validate", str(described), "--twin", str(table), "--out-dir", str(out)], chain=run))
         runs += [(code, (out / "plain-quality.txt").read_bytes(), said.replace(str(out), "OUT"))]
     assert runs[0] == runs[1]
@@ -547,7 +547,7 @@ def test_the_oracle_agrees_with_v12_s_exact_lines_on_the_switched_case(tmp_path,
             entry["your_answer"] = "keep"
     questions.write_text(json.dumps(asked, indent=1) + "\n", encoding="utf-8", newline="\n")
     code, said = _quiet(
-        lambda: cli.main(["profile", str(table), "--out-dir", str(tmp_path), "--answers", str(questions)], chain=cli.ChainRun(folder=str(data)))
+        lambda: cli.main(["profile", str(table), "--out-dir", str(tmp_path), "--answers", str(questions)], chain=cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=str(data)))
     )
     assert code == 0, said
     path = tmp_path / "trial-profile.json"
@@ -572,7 +572,7 @@ def test_the_oracle_agrees_with_v12_s_exact_lines_on_the_switched_case(tmp_path,
         out = tmp_path / f"v{len(list(tmp_path.glob('v*')))}"
         out.mkdir()
         measured = _write(out / "file.csv", header, candidate)
-        code, said = _quiet(lambda: cli.main(["validate", str(path), "--twin", str(measured), "--out-dir", str(out)], chain=cli.ChainRun()))
+        code, said = _quiet(lambda: cli.main(["validate", str(path), "--twin", str(measured), "--out-dir", str(out)], chain=cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH)))
         report = (out / "file-quality.txt").read_text(encoding="utf-8")
         totals, families = _verdicts(report)
         assert set(totals.values()) == {"HELD"}
@@ -632,7 +632,7 @@ def _write_lines(path, header, rows, before=0, inside=0, after=0, cell=""):
 
 def _validate_file(described, path):
     out = path.parent
-    code, said = _quiet(lambda: cli.main(["validate", str(described.path), "--twin", str(path), "--out-dir", str(out)], chain=cli.ChainRun()))
+    code, said = _quiet(lambda: cli.main(["validate", str(described.path), "--twin", str(path), "--out-dir", str(out)], chain=cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH)))
     return code, (out / (path.stem + "-quality.txt")).read_text(encoding="utf-8"), said
 
 
@@ -887,7 +887,7 @@ def test_a_file_whose_record_numbers_repeat_is_counted_in_people(tmp_path, monke
     key = data / "chain-key"
     key.touch(mode=0o600)
     key.write_bytes(oc.TEST_KEY)
-    code, said = _quiet(lambda: cli.main(["profile", str(table), "--out-dir", str(tmp_path), "--identifier", "id"], chain=cli.ChainRun(folder=str(data))))
+    code, said = _quiet(lambda: cli.main(["profile", str(table), "--out-dir", str(tmp_path), "--identifier", "id"], chain=cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=str(data))))
     assert code == 0, said
     path = tmp_path / "clinic-profile.json"
     assert json.loads(path.read_text(encoding="utf-8"))["relationships"]["statistical"]["chain"]
@@ -895,7 +895,7 @@ def test_a_file_whose_record_numbers_repeat_is_counted_in_people(tmp_path, monke
     for name, candidate in (("self", rows), ("people", [[f"{100000 + at // 10}"] + row[1:] for at, row in enumerate(rows)])):
         (tmp_path / name).mkdir()
         measured = _write(tmp_path / name / "file.csv", ["id", "a", "b"], candidate)
-        code, said = _quiet(lambda: cli.main(["validate", str(path), "--twin", str(measured), "--out-dir", str(tmp_path / name)], chain=cli.ChainRun()))
+        code, said = _quiet(lambda: cli.main(["validate", str(path), "--twin", str(measured), "--out-dir", str(tmp_path / name)], chain=cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH)))
         report = (tmp_path / name / "file-quality.txt").read_text(encoding="utf-8")
         verdicts += [(_verdicts(report), report)]
     (totals, families), _report = verdicts[0]
