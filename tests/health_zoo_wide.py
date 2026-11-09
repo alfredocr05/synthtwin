@@ -3560,4 +3560,62 @@ WIDE_OWNERS[_disguise.KIND_DAY_NUMBERS] += (
              "charges, lane CZ-B's)", covers(columns=("charge_cents",))),
 )
 
+# -- THE SAFE HARBOR IDENTIFIER FORMS (lane CZ-A, plan P4-D445): a shard of
+# their own, as lane CZ-H's forms have theirs. Their 600-row runs are
+# `tests/test_zoo_safe_harbor_forms.py`'s and their 20,000-row runs K-HZ-14's
+# alone: the suite's grid runs the first six shards (`SUITE_SHARDS`; THE
+# SUITE'S TIME rule), and the slow zoo driver (K-HZ-01, K-HZ-02, K-HZ-03 and
+# K-HZ-05, `tools/measurements/kpi_health_zoo.py`) those and lane CZ-H's
+# forms' (`DRIVER_SHARDS`, the orchestrator's LANE CZ-A RULINGS 1 (3) (b)), so
+# the zoo's keys read the catalogue they read before these forms (batch 4q's
+# merge: `SUITE_SHARDS` is lane CZ-H's, bound once).
+import safe_harbor_forms as _forms  # noqa: E402
+
+DRIVER_SHARDS = len(SHARDS)
+WIDE_TABLES = WIDE_TABLES + _forms.CATALOGUE_TABLES
+WIDE_KINDS = WIDE_KINDS + _forms.KINDS
+SHARDS = SHARDS + (tuple(table.name for table in _forms.CATALOGUE_TABLES),)
+_LAYOUT_FALLBACK = (
+    "a held column's twin writes made-up values in the column's own layouts (plan P4-D442), but a layout the walk "
+    "cannot fill under its guards -- nine plain figures beside dashed ones, a letter after figures, letters and "
+    "figures in one cell of two classes -- falls back to a longer stand-in outside the layouts (plan P4-D445's "
+    "limit): held blocks' stand-ins in valid layouts are lane HB2's"
+)
+_ROOM_PAST_INT64 = (
+    "the record-number room opens a made-up identifier of nineteen figures with a figure no real one opens with, "
+    "past the largest whole number pandas holds, so the twin's column reads as text where the real reads as whole "
+    "numbers (plan P4-D445's limit): lane ID-ROOM2's"
+)
+
+
+def _forms_line(kind: str, *checks: str) -> "tuple[str, str, str]":
+    return ("HB2", _LAYOUT_FALLBACK, covers(
+        *checks, *(f"miss {column}" for column in _forms.IDENTIFIERS[kind]), columns=_forms.IDENTIFIERS[kind]))
+
+
+WIDE_OWNERS[_forms.KIND_SSN] = (_forms_line(_forms.KIND_SSN, "social security numbers in their forms"),)
+WIDE_OWNERS[_forms.KIND_MEMBER] = (_forms_line(_forms.KIND_MEMBER, "member numbers of letters and figures"),)
+WIDE_OWNERS[_forms.KIND_NAME_RECORD] = (_forms_line(_forms.KIND_NAME_RECORD, "a name and a record number in one cell"),)
+WIDE_OWNERS[_forms.KIND_RELATIVE] = (_forms_line(
+    _forms.KIND_RELATIVE, "the patient's social security number", "a partner's social security number",
+    "a guardian's number of nine figures"),)
+WIDE_OWNERS[_forms.KIND_TOKENS] = (_forms_line(_forms.KIND_TOKENS, "hexadecimal and base64 tokens"),)
+WIDE_OWNERS[_forms.KIND_DEVICES] = (
+    _forms_line(_forms.KIND_DEVICES, "lot numbers", "serial numbers", "UDIs with their application identifiers"),
+    # ...and the answer round the person census refuses (the orchestrator's
+    # LANE CZ-A RULINGS 1 (3) (a), the statistics skeptic's item 1): the
+    # lot, answered `identifier`, joins the people's union, so the table is
+    # counted as 40 people by `device_lot and patient_ref` and refused at the
+    # answer round, with the table floor on or off (plan P4-D445's limit (f)).
+    ("MG", "a repeating lot answered identifier joins the people's union, so the table is counted as 40 people by "
+           "'device_lot and patient_ref' and refused at the answer round, with the table floor on or off (plan "
+           "P4-D445's limit (f)): the person census is lane MG's", covers("answers")),
+)
+WIDE_OWNERS[_forms.KIND_ACCESSION] = (_forms_line(
+    _forms.KIND_ACCESSION, "accession numbers in three layouts", "ISBT 128 unit numbers"),)
+WIDE_OWNERS[_forms.KIND_LONG] = (
+    ("ID-ROOM2", _ROOM_PAST_INT64, covers("order numbers of nineteen figures", columns=("order_number",))),
+    _forms_line(_forms.KIND_LONG, "claim numbers of sixteen figures"),
+)
+
 _UNUSED = (JUNK, _bad_pattern, _i, _r, _zipf, covers)

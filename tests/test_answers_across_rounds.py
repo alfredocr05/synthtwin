@@ -425,8 +425,17 @@ def test_us_vitals_person_answered_over_two_rounds_is_one_rounds_twin(tmp_path: 
     assert roles["patient_id"] == "identifier"
 
 
-def test_diagnoses_keep_the_encounter_key_and_the_snomed_code(tmp_path: pathlib.Path) -> None:
-    """E0a's second case: enc_id and the SNOMED code column survive round two."""
+def test_diagnoses_keep_the_encounter_key_and_the_snomed_code(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """E0a's second case: enc_id and the SNOMED code column survive round two.
+
+    The concept ids of seventeen figures among the codes put the Safe
+    Harbor question (plan P4-D445, one cell of sixteen figures or more):
+    this case is about answers across rounds, so it takes the description
+    `no` gives back.
+    """
+    keyboard.identifier_forms_answered_no(monkeypatch)
     table, answerer = zoo_table(tmp_path, "diagnoses_procedures")
     rounds, differs = compare(table, answerer)
     assert len(rounds.given) == 2
@@ -1632,7 +1641,20 @@ def answer_and_run(table: Table, wanted: "list[tuple[str, str]]") -> None:
 
 
 def route_four_case(folder: pathlib.Path) -> None:
-    """`code` answered to route four's question in round one, against the checklist's `code` in round two."""
+    """`code` answered to route four's question in round one, against the checklist's `code` in round two.
+
+    The concept ids of seventeen figures among the codes put the Safe
+    Harbor question (plan P4-D445, one cell of sixteen figures or more):
+    this case is about route four's answers, so it takes the description
+    `no` gives back.
+    """
+    with pytest.MonkeyPatch.context() as forms_no:
+        keyboard.identifier_forms_answered_no(forms_no)
+        _route_four_case(folder)
+
+
+def _route_four_case(folder: pathlib.Path) -> None:
+    """`route_four_case`'s rounds, the identifier forms' hold answered `no`."""
     once = diagnoses_table(folder / "once")
     put: "dict[str, list[asking.Question]]" = {"questions": []}
     asks = asking.person_questions
@@ -1870,7 +1892,16 @@ def _measure(folder: pathlib.Path) -> "dict[str, int]":
 
     for kind in zoo.TABLES:
         table, answerer = zoo_table(folder / kind.name, kind.name)
-        measure_table(table, answerer, found)
+        # ...the person answering `no` to the Safe Harbor question the
+        # identifier forms put (plan P4-D445): the diagnoses export's concept
+        # ids of seventeen figures put it alone before their code question,
+        # so that table could not be answered in one round (lane CZ-A's
+        # repair 1 measured answers 91 and not_in_one_round 6 without this),
+        # and this measure is of answers kept across rounds, as the other
+        # answer-round cases take the description `no` gives back.
+        with pytest.MonkeyPatch.context() as forms_no:
+            keyboard.identifier_forms_answered_no(forms_no)
+            measure_table(table, answerer, found)
     for cut in ((3, 6), (1, 8), (5, 7)):
         found["cases"] += 1
         table = mixed_table(folder / f"mixed-{cut[0]}-{cut[1]}")

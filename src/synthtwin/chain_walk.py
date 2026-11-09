@@ -1149,3 +1149,289 @@ def added_decimal(first: str, second: str) -> "str | None":
         return sign + figures
     figures = "0" * max(0, places + 1 - len(figures)) + figures
     return sign + figures[: len(figures) - places] + "." + figures[len(figures) - places:]
+
+
+# -- G16.2 STEP 5: A DERIVED DIFFERENCE'S READINGS AND THE COMPUTED COLUMN (lane RO, plan P4-D459) --
+#
+# Contract 4.6b.7, MR.2's "D's readings in the twin" as repaired twice,
+# in whole numbers: every reading is a multiple of the grain `g`, held
+# here as a count of steps of `g`; every edge is an exact fraction of
+# steps, handed over as (numerator, denominator).
+
+
+def _floor_of(value: "tuple[int, int]") -> int:
+    """The largest whole number at or below a fraction `(numerator, denominator)`, denominator above 0."""
+    return value[0] // value[1]
+
+
+def _spread(first: int, last: int, rows: int) -> "list[int]":
+    """`rows` readings over the multiples `first` to `last`, the `q`-th at position `floor(q m / t)` (MR.2)."""
+    if rows <= 0:
+        return []
+    count = last - first + 1
+    if count <= 0:
+        raise ValueError("a band holds no multiple of the grain")
+    return [first + (q * count) // rows for q in range(rows)]
+
+
+def _rank_of(percent: int, m: int) -> int:
+    return (percent * (m - 1)) // 100
+
+
+def _tied_from(
+    band: int,
+    edges: "list[tuple[int, int]]",
+    published: "list[int]",
+    percents: "tuple[int, ...]",
+) -> "int | None":
+    """The first rank two or more rungs of band `band`'s upper edge enclose, or None where it holds one rung.
+
+    Read on the published totals and the level's percents (MR.6 (e)): a
+    rung at percent `p` stands at the edge where its ranks `k(p)` and
+    `k(p) + 1` (or `k(p)` alone, where the interpolation lands on it) lie
+    in the band; where two do, every rank from the first one's `k(p) + 1`
+    up to the band's end reads the edge.
+    """
+    m = sum(published)
+    below = sum(published[:band])
+    end = below + published[band] - 1
+    at_edge: "list[int]" = []
+    for percent in percents:
+        rank = _rank_of(percent, m)
+        exact = (percent * (m - 1)) % 100 == 0
+        if rank >= below and (rank + 1 <= end or (exact and rank <= end)):
+            at_edge += [rank]
+    if len(at_edge) < 2:
+        return None
+    return at_edge[0] + 1
+
+
+def derived_readings(
+    edges: "list[tuple[int, int]]",
+    published: "list[int]",
+    dealt: "list[int]",
+    percents: "tuple[int, ...]",
+    failing: int,
+) -> "list[list[int]]":
+    """Each value band's readings of `D`, in steps of the grain, ascending (contract 4.6b.7, MR.2).
+
+    `edges` are the level's edges in steps of `g`, `published` the
+    published value band totals, `dealt` the rows the twin deals each band,
+    `percents` the level's percents, `failing` the count class's `v` (0 in
+    the phrase class). An inner band `(lo, hi]` spreads its rows over its
+    multiples; the ranks two rungs of its upper edge enclose take that
+    edge. The lowest band spreads over its multiples from 0 to its edge,
+    or takes its edge on every rank where two or more rungs tie there. In
+    a count class the bands wholly below 0 take their largest multiple at
+    or below their edge, and the band holding 0 gives exactly the failing
+    rows they leave readings below 0 (`-g` in the lowest band; in an inner
+    band its multiples above `lo` and below 0, in turn). The highest band
+    takes `up(lo)` alone where the nearest band's width `w` is at most `g`,
+    else its multiples in `(lo, lo + 3 w]`; where it is published empty,
+    every rank from the top rung's first takes the top edge. A level with
+    no edge takes 0 on every row, its failing rows `-g`. Raises
+    ValueError on a band holding no multiple of `g` (rule 6 refuses it).
+    """
+    bands = len(edges) + 1
+    if len(published) != bands or len(dealt) != bands:
+        raise ValueError("one published total and one dealt count a value band")
+    out: "list[list[int]]" = [[] for _band in range(bands)]
+    if not edges:
+        rows = dealt[0]
+        below = min(failing, rows)
+        out[0] = [-1] * below + [0] * (rows - below)
+        return out
+    left = failing
+    for band in range(bands):
+        upper = edges[band] if band < len(edges) else None
+        if upper is not None and upper[0] < 0:
+            left -= dealt[band]
+    m = sum(published)
+    for band in range(bands):
+        rows = dealt[band]
+        if rows <= 0:
+            continue
+        lower = edges[band - 1] if band > 0 else None
+        upper = edges[band] if band < len(edges) else None
+        if upper is not None and upper[0] < 0:
+            out[band] = [_floor_of(upper)] * rows
+            continue
+        holds_zero = lower is None or lower[0] < 0
+        negative = max(0, min(left, rows)) if (holds_zero and failing) else 0
+        if holds_zero and failing:
+            left -= negative
+        readings: "list[int]" = []
+        if upper is None:
+            # The highest band: no published end, none read.
+            assert lower is not None
+            if len(edges) >= 2:
+                width = (
+                    edges[-1][0] * edges[-2][1] - edges[-2][0] * edges[-1][1],
+                    edges[-1][1] * edges[-2][1],
+                )
+            else:
+                width = edges[0] if edges[0][0] > 0 else (0, 1)
+            up = _floor_of(lower) + 1
+            if width[0] <= width[1]:
+                readings = [up] * rows
+            else:
+                reach = (lower[0] * width[1] + 3 * width[0] * lower[1], lower[1] * width[1])
+                readings = _spread(up, _floor_of(reach), rows)
+        else:
+            top = _floor_of(upper)
+            if lower is None:
+                tied = _tied_from(band, edges, published, percents)
+                if negative:
+                    readings = [-1] * negative
+                if tied is not None and upper[1] == 1:
+                    readings += [upper[0]] * (rows - negative)
+                else:
+                    readings += _spread(0, top, rows - negative)
+            else:
+                first = _floor_of(lower) + 1
+                if negative:
+                    # The multiples above `lo` and below 0, in turn, each read directly: a band
+                    # reaching far below 0 holds as many multiples as its width in grains, and none
+                    # is held (lane RO's repair 2, the outside review's item 9).
+                    span = -first
+                    readings = [first + at % span for at in range(negative)] if span > 0 else [-1] * negative
+                    first = max(first, 0)
+                tied = _tied_from(band, edges, published, percents)
+                rest = rows - negative
+                if tied is not None and upper[1] == 1:
+                    start = sum(published[:band]) + negative
+                    free = max(0, min(rest, tied - start))
+                    readings += _spread(first, top, free) + [upper[0]] * (rest - free)
+                else:
+                    readings += _spread(first, top, rest)
+        out[band] = sorted(readings)
+    # The highest band published empty: every rank from the top rung's first takes the top edge.
+    if published[-1] == 0 and percents and edges[-1][1] == 1:
+        rank = _rank_of(percents[-1], m)
+        band = len(edges) - 1
+        start = sum(published[:band])
+        for at in range(len(out[band])):
+            if start + at >= rank:
+                out[band][at] = edges[-1][0]
+        out[band] = sorted(out[band])
+    return out
+
+
+def written_sum(
+    value: int,
+    places: int,
+    style: str,
+    pad: int,
+    group: str,
+    point: bool = False,
+) -> str:
+    """An exact number (`value` times `10 ** -places`) written in a column's first form (MR.2's table).
+
+    `style` is the first published numeric style (`plain`, `decimal`,
+    `leading_zero`, `leading_plus`), `pad` the first published pad width
+    (a padded form), `group` the mark the column groups its figures with
+    in threes ('' for none). The places are the sum's own (the larger of
+    the two operands'): a point and its figures are written wherever the
+    sum holds places, whatever the style; a sum wider than the pad is
+    written whole; a sum below 0 writes `-` (the column's own negative
+    form is the caller's, `parsing.with_negative_notation`). `point`: the
+    column's first published fraction width is 0, a point after the
+    figures (`42.` + 1 is written `43.`), so a sum holding no places ends
+    in its point (lane RO's repair 2, the outside review's item 2).
+    """
+    negative = value < 0
+    magnitude = -value if negative else value
+    figures = f"{magnitude}"
+    if places:
+        figures = "0" * max(0, places + 1 - len(figures)) + figures
+        whole = figures[: len(figures) - places]
+        fraction = figures[len(figures) - places:]
+    else:
+        whole = figures
+        fraction = ""
+    if group:
+        grouped = ""
+        for at in range(len(whole)):
+            if at and (len(whole) - at) % 3 == 0:
+                grouped += group
+            grouped += whole[at]
+        whole = grouped
+    elif style == "leading_zero" and pad > len(whole):
+        whole = "0" * (pad - len(whole)) + whole
+    text = whole + ("." + fraction if fraction else ("." if point else ""))
+    if negative:
+        return "-" + text
+    if style == "leading_plus":
+        return "+" + text
+    return text
+
+
+def written_form(text: str, comma: bool, prefix: "str | None", suffix: "str | None") -> str:
+    """A written sum in its column's own marks and affix (MR.2's text-decimal row): on a column declared
+    with a decimal comma the point and the grouping comma exchange (`1,234.5` becomes `1.234,5`), as the
+    generator writes such a column; an affixed column's prefix and suffix wrap the core, as written."""
+    if comma:
+        exchanged = ""
+        for letter in text:
+            exchanged += "," if letter == "." else ("." if letter == "," else letter)
+        text = exchanged
+    if prefix is not None and suffix is not None:
+        text = prefix + text + suffix
+    return text
+
+
+def stamp_fraction(precision: str, digits: int) -> "tuple[str, int]":
+    """A computed stamp's written detail and its figures after the second: where its block reads
+    `subsecond`, the fraction is written with `A`'s published count of figures in zeros, as the
+    ordinary writer writes a column's fraction (no new published fact; lane RO's repair 2, the
+    verify's item 1), and to the second where `A` publishes none."""
+    if precision != "subsecond":
+        return precision, 0
+    return ("subsecond", digits) if digits >= 1 else ("second", 0)
+
+
+def held_clock(start: int, gap: int, step: int) -> int:
+    """A clock sum in seconds within the day, on `D`'s side of `A` at the layout's step, held at the day's
+    last value the layout writes (contract 4.6b.7, MR.2 and Theorem R's domain)."""
+    total = start + gap
+    total = -((-total) // step) * step if gap >= 0 else (total // step) * step
+    return max(0, min(total, 86400 - step))
+
+
+def decimal_of_shortest(text: str) -> "tuple[int, int] | None":
+    """A number's shortest text (`repr` of a binary64 value: `3.5`, `-0.25`, `1e-05`, `12000.0`) read
+    exactly as `(figures, places)`, the places trimmed of trailing noughts; None for `nan` or `inf`."""
+    if not isinstance(text, str):
+        raise ValueError("a text")
+    negative = text[:1] == "-"
+    body = text[1:] if negative else text
+    exponent = 0
+    mantissa = body
+    for at in range(len(body)):
+        if body[at] in "eE":
+            mantissa = body[:at]
+            power = body[at + 1 :]
+            sign = -1 if power[:1] == "-" else 1
+            digits = power[1:] if power[:1] in "+-" else power
+            if not _figures(digits):
+                return None
+            exponent = sign * int(digits)
+            break
+    whole = mantissa
+    fraction = ""
+    for at in range(len(mantissa)):
+        if mantissa[at] == ".":
+            whole = mantissa[:at]
+            fraction = mantissa[at + 1 :]
+            break
+    if not _figures(whole) or (fraction and not _figures(fraction)):
+        return None
+    figures = int(whole + fraction)
+    places = len(fraction) - exponent
+    if places < 0:
+        figures = figures * 10 ** (-places)
+        places = 0
+    while places > 0 and figures % 10 == 0:
+        figures = figures // 10
+        places = places - 1
+    return (-figures if negative else figures), places

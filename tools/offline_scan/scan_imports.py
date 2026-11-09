@@ -74,14 +74,18 @@ phase-4-columns.md, P4-D409 and lane DEP-1's P4-D410):
 * Allowed modules for src/: argparse, csv, dataclasses, json, math,
   pathlib, typing, sys (but sys.modules and sys.path may never be read
   or written); from os only the enumerated os.path helpers, os.fspath,
-  os.getcwd, os.lstat, os.isatty, os.sysconf, and read-only os.environ;
+  os.getcwd, os.lstat, os.isatty, os.sysconf and os.cpu_count (both in
+  synthtwin.computer alone, P4-D466), and read-only os.environ;
   from
   importlib.metadata only the version() function; the runtime
   dependency pandas, reduced to read_csv and the one set_option call
   reading.read_table makes; from numpy, `import numpy.random` and the
   single name numpy.random.default_rng (extension E7) -- no other numpy
   module and no other numpy attribute is reachable, by import or by
-  attribute step; from pyarrow, the module pyarrow.csv and its reader
+  attribute step -- save, in the audited array helper synthtwin.arrays
+  alone, `import numpy` and the ten array names plan P4-D466 enumerates
+  (frombuffer, zeros, argsort, bincount, cumsum, where, flatnonzero,
+  concatenate, min and max, each audited below); from pyarrow, the module pyarrow.csv and its reader
   with three option classes; from scipy, scipy.optimize's milp with
   Bounds and LinearConstraint, and scipy.linalg's cho_factor and
   cho_solve; and numba.njit in the one polish-kernel module (P4-D410,
@@ -100,7 +104,14 @@ phase-4-columns.md, P4-D409 and lane DEP-1's P4-D410):
   description's loader or the twin's three writers reach by import,
   from any line, is zone G (_GENERATION_ROOTS), and so is every
   package's `__init__` above a reached module, which Python runs first;
-  every other first-party module is D. Every admitted library module carries the zones it may
+  every other first-party module is D. The audited array helper is
+  ENTERED as zone D (P4-D409 part 3 (c); P4-D466), and a per-function
+  table (_ARRAY_FUNCTION_ZONES) says which of its functions a module of
+  each zone may call: its whole-number functions zones D and G, its float
+  functions and the draw's reader zone G alone, every other zone none;
+  the module itself is no value outside the helper, so every call of it
+  is written by its dotted path, where the table reads it.
+  Every admitted library module carries the zones it may
   run in (_LIBRARY_ZONES; the standard library runs everywhere, and no
   library is admitted for W), a use outside them is a violation, a
   module of zone G or W may not even IMPORT a library not admitted for
@@ -141,10 +152,61 @@ phase-4-columns.md, P4-D409 and lane DEP-1's P4-D410):
   function of a call written in place and nothing else, so map(), a
   stored name or an argument never calls it with arguments no rule
   read; numpy's sort and argsort, wherever a later lane admits them, take
-  kind='stable'; and n_jobs is refused on every call, as a keyword and
+  kind='stable' (argsort is admitted in the audited array helper, P4-D466);
+  the helper's ten numpy names are held to the forms P4-D466 audits, read
+  where each call is written: frombuffer(buffer, dtype=LITERAL) and
+  zeros(n, dtype=LITERAL), each dtype one of u1, <u2, <u4, <u8, <i8 and
+  <f8, frombuffer never writing count or offset; argsort(a,
+  kind="stable"); bincount(x) or bincount(x, minlength=n), never weights,
+  as a keyword or as a second positional; cumsum, flatnonzero, min and
+  max on the array alone; where with exactly three; concatenate of a
+  tuple written in place; and on an array the helper made astype(LITERAL)
+  by position and tolist() with nothing; os.sysconf takes one of
+  SC_PHYS_PAGES and SC_PAGE_SIZE written as text, and os.cpu_count
+  nothing; and n_jobs is refused on every call, as a keyword and
   as the text 'n_jobs' anywhere (a dictionary of keywords expanded
   into a call carries it as a key), because it is how a library starts
   process pools.
+* THE AUDITED ARRAY HELPER AND ITS CLOSURE RULE (plan P4-D466, lane
+  ARR-a; P4-D409 part 3 (c) and (e)). numpy's array names are admitted in
+  synthtwin.arrays alone (_MODULE_SCOPED_ADMISSIONS), whose run-time checks
+  make every operation exact or refuse it (one explicit dtype, int64 or
+  float64; every whole-number bound proved in Python integers below 2 **
+  63, below 2 ** 53 where a whole number meets a float; unique scatter
+  indices; the plain-Python path, with the same bytes, otherwise). What
+  those names make is ONE surface, _ARRAY_ORIGIN: an array, or a value
+  taken out of one, answering to astype and tolist and to no attribute.
+  NO NUMPY OBJECT LEAVES THE HELPER: every expression that may hold such
+  an array is checked where it STANDS (_check_array_position), against an
+  enumeration of the places it may stand -- bound to a local name of a
+  function; an operand of + - * / & | ^, of a shift by a whole-number
+  literal from 0 to 63 with the array on the left, of unary - or ~, or of
+  one comparison of < <= > >= == !=; an argument of an admitted numpy
+  name (a tuple of arrays written in place for concatenate); the receiver
+  of astype or tolist; indexed (by a slice, an index array or a mask) or
+  written through as `view[...] = value`; deleted -- and every other place
+  is refused, so a return, a yield, a global, an attribute, a container
+  member, a default, a closure capture, an exception's argument, an
+  argument of any other call, a truth test, an f-string, `@`, `**`, `//`,
+  `%`, an in-place operator, a loop or a comprehension over an array are
+  each a violation whatever syntax carries them. tolist(), int(),
+  float() and len() are an array's only exits. THE DRAW gets the same
+  rule in every module that draws (a statement naming `integers`): the
+  array the generator's integers method returns, or a word of it, may be
+  bound to a local name, indexed, iterated, deleted, handed to int() or
+  len(), or handed to synthtwin.arrays.hidden_sums -- the ONE first-party
+  function a restricted library value may be handed, by position and
+  first, whose FIRST POSITIONAL PARAMETER carries the draw's surface
+  inside it whatever it is called, and which must be the helper's one
+  binding of that name, a plain def at its top level, undecorated, with
+  a positional parameter first (lane ARR-a's repair 2) -- and nothing
+  else: no operator (so `@` and `**` on it no longer pass unseen), no
+  other call, no container, no return. THE HELPER'S MODULE IS NO VALUE
+  (lane ARR-a's repair 2): outside synthtwin.arrays the module, and the
+  package above it, stand only at the head of a dotted path, so that the
+  per-function zone table reads every call of the helper (a module
+  handed on through typing.cast, a name, a container, an argument or a
+  default would reach its float functions by no path the table reads).
 * THE TWO WORKBOOK MODULES (plan P4-D77). Reading a spreadsheet
   workbook needs a zip reader and an XML parser, and admitting a
   workbook LIBRARY would put a third runtime dependency inside the
@@ -557,14 +619,22 @@ attribute absent from it is not allowed at all:
 * typing: Protocol (a base class: data) and cast (returns its second
   argument unchanged: data). Nothing else -- see the typing note
   above.
-* sys: platform, argv, exit, stdout, stderr, executable, and
-  version_info: data. Nothing else is allowed; the slot table keeps
+* sys: platform, argv, exit, stdout, stderr, executable, version_info
+  and byteorder (plan P4-D466: the text naming this computer's byte
+  order, read by the audited array helper before it views the draw's
+  words in place): data. Nothing else is allowed; the slot table keeps
   entries for settrace, setprofile, addaudithook, set_asyncgen_hooks,
   and call_tracing as a second layer even though the attribute
   enumeration already rejects them.
 * os: fspath, getcwd, lstat, isatty, sysconf (plan P4-D397: it takes a
   configuration name and returns a number, opens nothing and runs
-  nothing), and read-only os.environ: data. Every
+  nothing; since P4-D466 in synthtwin.computer alone and with the two
+  memory names SC_PHYS_PAGES and SC_PAGE_SIZE alone), cpu_count (plan
+  P4-D466, in synthtwin.computer alone, with no argument: it returns the
+  number of logical processors or None, opens nothing, names no path,
+  takes no callable and loads nothing; os.process_cpu_count, Python 3.13
+  and later alone, and os.sched_getaffinity, Linux alone, are not
+  admitted), and read-only os.environ: data. Every
   enumerated os.path helper (join, exists, isfile, dirname, ...) is
   a pure path-text or single-metadata function: data.
 * importlib.metadata: version: data.
@@ -631,7 +701,10 @@ attribute absent from it is not allowed at all:
   statistics depend on row order and on magnitude, so the profiler now
   computes them itself under the rules in taxonomy.py's docstring, and
   reaches no numpy reduction at all. That is still true: what E7 admits
-  below is one random stream and nothing arithmetic. Nothing else from
+  below is one random stream and nothing arithmetic, and what P4-D466
+  admits in the one audited array helper is whole-number counting and
+  arithmetic under proved bounds, stable sorts and elementwise float64
+  + - * / -- no reduction of floats, no transcendental, no power. Nothing else from
   math is allowed -- prod and sumprod are reductions with their own
   ordering behaviour, and the trigonometric and special functions are
   not correctly rounded.
@@ -668,6 +741,36 @@ attribute absent from it is not allowed at all:
   into a first-party Python whole number. spawn is not reachable: it
   is a method of the generator and the generator's method list holds
   one name.
+* numpy's array names (plan P4-D466, lane ARR-a), in the module
+  synthtwin.arrays ALONE (_MODULE_SCOPED_ADMISSIONS), zones D and G
+  through its per-function table, one name at a time. Capability audit,
+  the same for each: it COMPUTES ON THE ARRAYS IT IS HANDED, OPENS
+  NOTHING, STARTS NOTHING, LOADS NOTHING -- no file, path, network,
+  process, thread or callable, and no code compiled or loaded.
+  frombuffer: an array viewing, in memory, the bytes of the buffer it is
+  handed (a bytes or a bytearray checked at run time, or the draw array
+  in its one reader), with one written dtype, never count or offset; it
+  copies and reads nothing else (fromfile and memmap are not admitted).
+  zeros: a new array of noughts of a written length and dtype.
+  argsort, kind="stable": the order of a whole-number array's elements,
+  one result whatever the algorithm. bincount without weights: how many
+  times each whole number occurs, exact. cumsum: running whole-number
+  sums, the bound proved first. where, three arguments: an elementwise
+  choice. flatnonzero: the positions of nonzero elements. concatenate of
+  a tuple: one array of the arrays handed in. min and max: the least and
+  greatest whole number, for the bound checks, ended by int(). On an
+  array the helper made, astype with one written dtype makes a converted
+  copy, and tolist hands back plain Python values. Each of these numpy
+  functions also asks an array-like it is handed for numpy's dispatch
+  protocols (__array_function__, __array_ufunc__); the helper hands them
+  only arrays it made from bytes and lists it checked, so the one code
+  that can run there is a caller's own object converted from a list
+  (residual 1 above). Not admitted, each a mutation case: sum, add and
+  every ufunc's reduce, accumulate, at and reduceat, dot, matmul,
+  einsum, mean, std, var, prod, exp, log, power, sqrt, sort, lexsort,
+  unique, partition, load, save, fromfile, memmap, frompyfunc,
+  vectorize, seterr, errstate, ctypeslib, lib, linalg and fft, and every
+  other name and submodule.
 * pandas.set_option (lane DEP-1, plan P4-D410), zone R. Capability
   audit: it stores one value in pandas' process-wide option registry
   and runs that option's own validator; it performs no I/O, starts no
@@ -861,6 +964,9 @@ _INSTALLATION = "synthtwin.installation"
 _CHAIN_MODULES = (
     "synthtwin.chain",
     "synthtwin.chain_moments",
+    # Lane RO (plan P4-D459): the order rules' inference, a chain module
+    # by the same audit (its failing rows, bands and classes are exact).
+    "synthtwin.chain_order",
     "synthtwin.chain_rules",
     _INSTALLATION,
 )
@@ -879,6 +985,18 @@ _PATIENT_MODULES = (
 # process. Nowhere else may a module pack or unpack.
 _TWIN_STORE = "synthtwin.twinstore"
 
+# Lane ARR-a, 2026-11-05 (plan P4-D466): THE AUDITED ARRAY HELPER. numpy's
+# array names belong to the ONE module plan P4-D409 part 3 (c) ratified
+# and P4-D466 names for zone G: what it computes is checked at run time
+# (one explicit dtype, every bound proved below 2 ** 63, unique scatter
+# indices, the plain-Python path otherwise), no array it makes leaves it
+# (the closure rule, _check_array_position), and nowhere else may a module
+# name them. THE COMPUTER'S READER (P4-D466; LANE ARR RULINGS 1 (3)): the
+# installed memory and the number of processors are read in one small
+# module, and nowhere else.
+_ARRAY_HELPER = "synthtwin.arrays"
+_COMPUTER = "synthtwin.computer"
+
 _MODULE_SCOPED_ADMISSIONS: "dict[str, frozenset[str]]" = {
     "zipfile": frozenset({"synthtwin.reading", "synthtwin.writing"}),
     "xml.parsers.expat": frozenset({"synthtwin.workbook"}),
@@ -889,6 +1007,8 @@ _MODULE_SCOPED_ADMISSIONS: "dict[str, frozenset[str]]" = {
     "hashlib": frozenset(_CHAIN_MODULES),
     "secrets": frozenset({_INSTALLATION}),
     "zlib": frozenset({_TWIN_STORE}),
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): the audited array helper.
+    "numpy": frozenset({_ARRAY_HELPER}),
 }
 
 # The need each scoped admission was argued from, in the words its
@@ -916,6 +1036,12 @@ _SCOPED_ADMISSION_NEEDS: "dict[str, str]" = {
     "zlib": (
         "holding the twin's finished columns packed in memory, unpacked "
         "before any cell is read (plan P4-D415)"
+    ),
+    # Lane ARR-a, 2026-11-05 (plan P4-D466).
+    "numpy": (
+        "the audited array helper's whole-number and elementwise row "
+        "passes, checked at run time (plan P4-D409 part 3 (c) and (e), "
+        "plan P4-D466)"
     ),
 }
 
@@ -975,14 +1101,23 @@ _GENERATION_ROOTS = (
 # (P4-D409 part 3 (b)). A module the table does not name is G when the
 # generation path reaches it and D otherwise. The polish kernel is G
 # wherever it is imported from: what it computes is bytes of the twin.
-# No module is zone P yet: lane ST enters the self-test's.
+# Lane ST (plan P4-D458) entered the first zone P module, the self-test
+# L2b, whose fits run on platform floats and decide nothing published.
+_SELFTEST = "synthtwin.chain_selftest"
 _MODULE_ZONES: "dict[str, str]" = {
     _POLISH_KERNEL: _ZONE_G,
+    _SELFTEST: _ZONE_P,
     "synthtwin.reading": _ZONE_R,
     "synthtwin.workbook": _ZONE_R,
     "synthtwin.writing": _ZONE_W,
     "synthtwin.sheetwriting": _ZONE_W,
     "synthtwin.rendering": _ZONE_W,
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): the audited array helper is
+    # ENTERED, not computed: zone D's, as P4-D409 part 3 (c) ratified (it
+    # keeps its zone-D admissions rather than becoming zone G by part (a)
+    # when the generator imports it), and which of its functions a module
+    # of each zone may call is _ARRAY_FUNCTION_ZONES.
+    _ARRAY_HELPER: _ZONE_D,
 }
 
 # The zones each admitted LIBRARY module may run in, keyed as
@@ -1006,6 +1141,10 @@ _LIBRARY_ZONES: "dict[str, frozenset[str]]" = {
     "numba": frozenset({_ZONE_G}),
     "zipfile": frozenset({_ZONE_R, _ZONE_W}),
     "xml.parsers.expat": frozenset({_ZONE_R}),
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): numpy's array names, in the
+    # audited helper alone (_MODULE_SCOPED_ADMISSIONS), whose whole-number
+    # functions zone D calls and whose float functions zone G alone.
+    "numpy": frozenset({_ZONE_G, _ZONE_D}),
 }
 
 _ZONE_NAMES: "dict[str, str]" = {
@@ -1015,6 +1154,54 @@ _ZONE_NAMES: "dict[str, str]" = {
     _ZONE_R: "zone R (reading the person's file)",
     _ZONE_W: "zone W (writing the twin's file)",
 }
+
+
+# Lane ARR-a, 2026-11-05 (plan P4-D466): THE HELPER'S FUNCTIONS BY ZONE
+# (plan P4-D409 part 3 (a) and (c)). The helper is one module of zone D,
+# but what each of its functions computes decides who may call it: a
+# whole-number function (exact counts, sorts of whole numbers, gathers
+# and scatters, the exact sum rounded once) is zone D's and callable from
+# zones D and G; a float function (the polish's score, the move from a
+# band's mean, the running sums, the float key) and the draw's reader are
+# zone G's alone. A public function the table does not name is callable
+# from no other module: a new function is a row here, entered with its
+# zones by the lane that writes it.
+_ARRAY_INTEGER_ZONES = frozenset({_ZONE_D, _ZONE_G})
+_ARRAY_FLOAT_ZONES = frozenset({_ZONE_G})
+_ARRAY_FUNCTION_ZONES: "dict[str, frozenset[str]]" = {
+    "code_counts": _ARRAY_INTEGER_ZONES,
+    "exact_sum": _ARRAY_INTEGER_ZONES,
+    "hidden_sums": _ARRAY_FLOAT_ZONES,
+    "joint_counts": _ARRAY_INTEGER_ZONES,
+    "joint_groups": _ARRAY_INTEGER_ZONES,
+    "move_from_means": _ARRAY_FLOAT_ZONES,
+    "order_by_score": _ARRAY_FLOAT_ZONES,
+    "places_by_group": _ARRAY_INTEGER_ZONES,
+    "rows_by_group": _ARRAY_INTEGER_ZONES,
+    "running_totals": _ARRAY_FLOAT_ZONES,
+    "scatter_places": _ARRAY_INTEGER_ZONES,
+    "score_rows": _ARRAY_FLOAT_ZONES,
+    "take_codes": _ARRAY_INTEGER_ZONES,
+}
+
+
+def _array_zone_message(dotted: str, zone: str, zones: "frozenset[str] | None") -> str:
+    if zones is None:
+        return (
+            "uses '" + dotted + "', a function of the audited array helper "
+            "that its per-function zone table (_ARRAY_FUNCTION_ZONES, plan "
+            "P4-D466) does not name. Each function the helper offers is "
+            "entered with the zones that may call it before any other "
+            "module calls it."
+        )
+    return (
+        "uses '" + dotted + "' from " + _ZONE_NAMES[zone] + ". That function "
+        "of the audited array helper computes in floats or reads the "
+        "generator's draw, so it is entered for "
+        + ", ".join(_ZONE_NAMES[name] for name in sorted(zones))
+        + " alone (plan P4-D466; P4-D409 part 3 (a) and (c)): a published "
+        "byte never rests on it."
+    )
 
 
 # THE FLOAT POWERS (plan P4-D409 parts 2 and 3 (f); lane DEP-2, plan
@@ -1264,8 +1451,44 @@ def _private_module_message(module: str) -> str:
         "outside zone P (plan P4-D409 part 3 (b)). Zone P's platform "
         "floats may decide the custodian's private words and nothing "
         "else: a computation that chooses anything generated or "
-        "published belongs to zone D, wherever it is written."
+        "published belongs to zone D, wherever it is written. The one "
+        "site that may import it is the row of _PRIVATE_IMPORT_SITES "
+        "(plan P4-D458), named by module and function; a second site is "
+        "a plan decision of its own."
     )
+
+
+# THE ZONE P IMPORT SITES (plan P4-D458, amending P4-D409 part 3 (b) by a
+# dated amendment of lane ST, LANE ST RULINGS 1 (3)): the rule above holds
+# for every import of a zone P module from outside zone P but the sites
+# this table names, each by the importing module, the dotted name of the
+# function the import statement stands in, and the module imported. A row
+# is data: no code path reads the self-test elsewhere, and a second site,
+# in another function or another module, is flagged as before.
+_PRIVATE_IMPORT_SITES: "dict[tuple[str, str, str], str]" = {
+    ("synthtwin.cli", "_private_report", "synthtwin.chain_selftest"): (
+        "the private report of a switched profile run, written after the "
+        "ledger records the run, into the private folder; the description, "
+        "the questions file, the summary and the shared report are written "
+        "before it and read nothing it computes (plan P4-D458)"
+    ),
+}
+
+
+def _import_sites(tree: ast.Module) -> "dict[tuple[int, int], str]":
+    """Each import statement's place, `(line, column)`, and the dotted name of the function it stands in."""
+    out: "dict[tuple[int, int], str]" = {}
+    walking: "list[tuple[ast.AST, str]]" = [(tree, "")]
+    while walking:
+        node, where = walking.pop()
+        for child in ast.iter_child_nodes(node):
+            inside = where
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                inside = child.name if not where else where + "." + child.name
+            walking += [(child, inside)]
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            out[(node.lineno, node.col_offset)] = where
+    return out
 
 
 _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
@@ -1354,6 +1577,24 @@ _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
     # _KNOWN_MODULE_PATHS) so that any other attribute of it lands in
     # the numpy branch of _policy_for with a message that says why.
     "numpy.random": frozenset({"default_rng"}),
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): the audited array helper's
+    # names, one at a time, each with its capability audit in the module
+    # docstring and its argument rule (_ARGUMENT_RULES), in the module
+    # synthtwin.arrays alone (_MODULE_SCOPED_ADMISSIONS).
+    "numpy": frozenset(
+        {
+            "argsort",
+            "bincount",
+            "concatenate",
+            "cumsum",
+            "flatnonzero",
+            "frombuffer",
+            "max",
+            "min",
+            "where",
+            "zeros",
+        }
+    ),
     # Extension E1, and lane DEP-1's `set_option` (plan P4-D410): the one
     # setting reading.read_table makes, written out in full (an argument
     # rule below holds it to that one option and that one value).
@@ -1395,6 +1636,10 @@ _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
             "stdin",
             "stdout",
             "version_info",
+            # Lane ARR-a, 2026-11-05 (plan P4-D466): the byte order of
+            # this computer, a text, which the audited array helper reads
+            # before it views the draw's words in place.
+            "byteorder",
         }
     ),
     "typing": frozenset({"Protocol", "cast"}),
@@ -1643,6 +1888,272 @@ _ZIP_MEMBER_ORIGIN = "zipfile.ZipFile.open"
 _ARROW_TABLE_ORIGIN = "pyarrow.csv.read_csv"
 _ARROW_COLUMN_ORIGIN = "pyarrow.csv.read_csv.column"
 _ARROW_CHUNK_ORIGIN = "pyarrow.csv.read_csv.column.chunk"
+# Lane ARR-a, 2026-11-05 (plan P4-D466): THE HELPER'S ARRAYS. What the
+# admitted numpy names make in synthtwin.arrays -- an array, or one value
+# taken out of one (a numpy scalar, which carries an array's writers and
+# its own `data`) -- is ONE surface of its own: astype, with one literal
+# dtype, and tolist, and NO attribute (no ctypes, data, base, flags, T or
+# shape: len() instead). An element keeps the surface until int() or
+# float() ends it, and tolist() hands back plain values. Where an array
+# may STAND is the closure rule's (_check_array_position).
+_ARRAY_ORIGIN = "numpy.(an array the audited helper made)"
+_ARRAY_CONSTRUCTORS = frozenset(
+    {
+        "numpy.argsort",
+        "numpy.bincount",
+        "numpy.concatenate",
+        "numpy.cumsum",
+        "numpy.flatnonzero",
+        "numpy.frombuffer",
+        "numpy.max",
+        "numpy.min",
+        "numpy.where",
+        "numpy.zeros",
+    }
+)
+# The dtypes the helper writes, each an explicit literal: one byte, and
+# the little-endian whole numbers and binary64 (plan P4-D466).
+_ARRAY_DTYPES = frozenset({"u1", "<u2", "<u4", "<u8", "<i8", "<f8"})
+# The array values of both kinds the closure rule follows.
+_ARRAY_FAMILY = frozenset({_ARRAY_ORIGIN, _DRAW_ARRAY_ORIGIN, _DRAW_SCALAR_ORIGIN})
+# THE CLOSURE RULE (lane ARR-a, 2026-11-05, plan P4-D466; P4-D409 part 3
+# (e)). No numpy object leaves the audited helper, and the generator's
+# draw reaches exactly one first-party function. Each expression that may
+# carry an array is checked where it STANDS, against an enumeration of the
+# places it may stand (a position not listed is refused, whatever syntax
+# Python adds): see _Checker._check_array_position. The operators an array
+# of the helper may be an operand of: + - * / and & | ^ (whole numbers
+# under the helper's run-time bound checks; floats one IEEE operation
+# each), the shifts by a literal count from 0 to 63 with the array on the
+# left, unary - and ~, and one comparison of < <= > >= == !=. Refused on
+# an array, each by name: @, **, //, %, divmod and every in-place form; a
+# chained comparison, `in` and `is`; every other operator.
+_ARRAY_ARITHMETIC = (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.BitAnd, ast.BitOr, ast.BitXor)
+_ARRAY_COMPARISONS = (ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Eq, ast.NotEq)
+_ARRAY_EXITS = frozenset({"float", "int", "len"})
+_DRAW_EXITS = frozenset({"int", "len"})
+# The draw's one first-party reader. Lane ARR-a's repair 2, 2026-11-06
+# (LANE ARR RULINGS 5 (2), Codex's item 2): the reader holds the draw in
+# its FIRST POSITIONAL PARAMETER, whatever that parameter is called,
+# because that is where every caller hands it (by position, first: the
+# closure rule refuses any other handoff); that parameter carries the
+# draw's surface inside the reader, so the reader may do with it what the
+# closure rule lets any module do. The reader is the helper's ONE binding
+# of its name, a plain def at the module's top level with no decorator
+# and a positional parameter first; any other binding or signature is
+# refused (_draw_reader_problem), so no spelling of the reader takes the
+# draw unwatched.
+_DRAW_READER_NAME = "hidden_sums"
+_DRAW_READER = _ARRAY_HELPER + "." + _DRAW_READER_NAME
+# The expressions that may carry an array's origin.
+_ARRAY_CARRIERS = (
+    ast.Name,
+    ast.Attribute,
+    ast.Call,
+    ast.Subscript,
+    ast.BinOp,
+    ast.UnaryOp,
+    ast.Compare,
+    ast.IfExp,
+    ast.BoolOp,
+)
+_OPERATOR_TEXT: "dict[type, str]" = {
+    ast.Add: "+",
+    ast.Sub: "-",
+    ast.Mult: "*",
+    ast.Div: "/",
+    ast.BitAnd: "&",
+    ast.BitOr: "|",
+    ast.BitXor: "^",
+    ast.MatMult: "@",
+    ast.Pow: "**",
+    ast.FloorDiv: "//",
+    ast.Mod: "%",
+    ast.LShift: "<<",
+    ast.RShift: ">>",
+}
+
+
+def _is_shift_count(node: ast.AST) -> bool:
+    """A whole-number literal from 0 to 63, the only count an array is shifted by."""
+    return (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, int)
+        and not isinstance(node.value, bool)
+        and 0 <= node.value <= 63
+    )
+
+
+def _array_position_text(parent: ast.AST, field: str) -> str:
+    """Where an array stands, in a few words, for the closure rule's message."""
+    if isinstance(parent, ast.Return):
+        return "as a return value"
+    if isinstance(parent, (ast.Yield, ast.YieldFrom)):
+        return "as a yielded value"
+    if isinstance(parent, ast.Await):
+        return "as an awaited value"
+    if isinstance(parent, (ast.List, ast.Tuple, ast.Set, ast.Dict)):
+        return "as a member of a container"
+    if isinstance(parent, (ast.ListComp, ast.SetComp, ast.GeneratorExp, ast.DictComp)):
+        return "as an element of a comprehension"
+    if isinstance(parent, ast.comprehension):
+        return "in a comprehension's loop"
+    if isinstance(parent, (ast.For, ast.AsyncFor)):
+        return "as the iterable of a loop"
+    if isinstance(parent, ast.arguments):
+        return "as a parameter's default"
+    if isinstance(parent, ast.Raise):
+        return "as an exception"
+    if isinstance(parent, ast.FormattedValue):
+        return "inside an f-string"
+    if isinstance(parent, (ast.If, ast.While, ast.Assert, ast.BoolOp)) or (
+        isinstance(parent, ast.IfExp) and field == "test"
+    ):
+        return "as a truth value"
+    if isinstance(parent, ast.IfExp):
+        return "as one branch of a conditional expression"
+    if isinstance(parent, ast.Starred):
+        return "unpacked with '*'"
+    if isinstance(parent, ast.NamedExpr):
+        return "bound by ':='"
+    if isinstance(parent, ast.withitem):
+        return "as a context manager"
+    if isinstance(parent, ast.Slice):
+        return "as a slice bound (int() makes it a number first)"
+    if isinstance(parent, ast.Expr):
+        return "as a statement whose value is thrown away"
+    if isinstance(parent, ast.Lambda):
+        return "as a lambda's value"
+    if isinstance(parent, ast.keyword):
+        return "handed by name to a call that is not an admitted numpy name"
+    if isinstance(parent, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+        return "stored somewhere other than a local name of a function (a global, an attribute, a container member or an unpacking)"
+    if isinstance(parent, ast.Attribute):
+        return "under an attribute or a method this audit does not admit on it"
+    return "in a position the closure rule does not admit (" + type(parent).__name__ + "." + field + ")"
+
+
+def _array_closure_message(kinds: "set[str]", where: str) -> str:
+    if "helper" in kinds:
+        return (
+            "lets an array the audited array helper made, or a value taken "
+            "out of one, stand " + where + ". No numpy object leaves "
+            "synthtwin.arrays (plan P4-D466): inside it an array may be "
+            "bound to a local name, be an operand of + - * / & | ^, of a "
+            "shift by a whole-number literal from 0 to 63, of unary - or ~ "
+            "or of one comparison, be an argument of an admitted numpy "
+            "name, the receiver of astype or tolist, indexed or written "
+            "through; tolist(), int(), float() and len() are its only exits."
+        )
+    return (
+        "lets the array the generator's integers method returned, or a "
+        "word taken out of it, stand " + where + ". A drawn array may be "
+        "bound to a local name, indexed, iterated, handed to "
+        "synthtwin.arrays.hidden_sums -- its one first-party reader (plan "
+        "P4-D466) -- or deleted, and a drawn word becomes a plain number by "
+        "int(); no operator, no other call, no container, no return."
+    )
+
+
+def _record_parents(root: ast.AST, parents: "dict[int, tuple[ast.AST, str, int]]") -> None:
+    """Map every node under `root` to the node it stands in, the field and its position in that field."""
+    for node in ast.walk(root):
+        for field, value in ast.iter_fields(node):
+            if isinstance(value, list):
+                for position, child in enumerate(value):
+                    if isinstance(child, ast.AST):
+                        parents[id(child)] = (node, field, position)
+            elif isinstance(value, ast.AST):
+                parents[id(value)] = (node, field, -1)
+
+
+def _draws(statement: ast.AST) -> bool:
+    """True when a statement names the generator's one draw method anywhere inside it."""
+    return any(
+        isinstance(node, ast.Attribute) and node.attr == _DRAW_METHOD
+        for node in ast.walk(statement)
+    )
+
+
+# Lane ARR-a's repair 2, 2026-11-06 (LANE ARR RULINGS 5 (2), Codex's item
+# 2): THE READER'S SHAPE. Every node of the helper that binds the reader's
+# name, in any scope and by any form (a def, a class, an assignment, an
+# import, a loop, a `with`, an `except`, a match capture, a walrus, a
+# parameter, a `del`), is found; the reader is sound only where that is
+# ONE plain def written at the module's top level, undecorated (a
+# decorator's wrapper would take the draw, unwatched), whose parameters
+# begin with a positional one (where every caller hands the draw).
+def _binds_name(node: ast.AST, name: str) -> bool:
+    """True when `node` binds `name` (a store, a deletion, a definition, an import, a parameter or a capture)."""
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return node.name == name
+    if isinstance(node, ast.Name):
+        return node.id == name and not isinstance(node.ctx, ast.Load)
+    if isinstance(node, ast.alias):
+        return (node.asname or node.name.partition(".")[0]) == name
+    if isinstance(node, ast.arg):
+        return node.arg == name
+    if isinstance(node, (ast.ExceptHandler, ast.MatchAs, ast.MatchStar)):
+        return node.name == name
+    if isinstance(node, ast.MatchMapping):
+        return node.rest == name
+    if isinstance(node, (ast.Global, ast.Nonlocal)):
+        return name in node.names
+    return False
+
+
+def _draw_reader_problem(tree: ast.Module) -> "tuple[ast.AST, str] | None":
+    """Where and how the helper's text makes the draw's reader unsound, or None."""
+    binders = [node for node in ast.walk(tree) if _binds_name(node, _DRAW_READER_NAME)]
+    if not binders:
+        return None
+    reader = binders[0]
+    if len(binders) > 1:
+        return binders[1], "binds that name more than once"
+    if not isinstance(reader, ast.FunctionDef) or not any(statement is reader for statement in tree.body):
+        return reader, "binds that name by something other than one plain def at the module's top level"
+    if reader.decorator_list:
+        return reader, "hands that def to a decorator, whose wrapper would take the draw"
+    if not (reader.args.posonlyargs or reader.args.args):
+        return reader, "gives that def no positional parameter first, where every caller hands the draw"
+    return None
+
+
+def _draw_reader_message(problem: str) -> str:
+    return (
+        "writes the draw's one reader, " + _DRAW_READER + ", so that it "
+        + problem + " (plan P4-D466). The generator's draw is handed to "
+        "that function alone, by position and first, and its first "
+        "positional parameter carries the draw's surface inside it; the "
+        "reader is the helper's one plain def of that name, undecorated, "
+        "taking the draw first, or the draw would leave the closure rule's "
+        "view."
+    )
+
+
+# Lane ARR-a's repair 2, 2026-11-06 (LANE ARR RULINGS 5 (1), Codex's item
+# 1): THE HELPER'S MODULE IS NO VALUE. The per-function zone table is
+# read where a function of the helper is written by its dotted path; the
+# module object handed on as data -- through typing.cast, a name, a
+# container, an argument or a default -- would reach the same functions
+# by no path this audit reads. So outside synthtwin.arrays the module,
+# and the package above it, stand only at the head of a dotted path, as
+# the polish kernel's do (the verify of lane DEP-1's repair 1).
+def _array_module_value_message(dotted: str) -> str:
+    what = (
+        "the audited array helper's module"
+        if dotted == _ARRAY_HELPER
+        else "the package above the audited array helper"
+    )
+    return (
+        "refers to " + what + " ('" + dotted + "') as a bare value (plan "
+        "P4-D466). Which of the helper's functions a module may call is "
+        "read where the call names the function by its dotted path "
+        "(_ARRAY_FUNCTION_ZONES); a module handed on as data -- through "
+        "typing.cast, a name, a container, an argument or a default -- "
+        "would reach its float functions and the draw's reader by no path "
+        "this audit reads. Write the call as arrays.<function>(...)."
+    )
 
 _RESTRICTED_SURFACES: "dict[str, tuple[frozenset[str], frozenset[str]]]" = {
     _GENERATOR_ORIGIN: (frozenset({"integers"}), frozenset()),
@@ -1653,6 +2164,8 @@ _RESTRICTED_SURFACES: "dict[str, tuple[frozenset[str], frozenset[str]]]" = {
     _ARROW_TABLE_ORIGIN: (frozenset({"column"}), frozenset({"num_rows"})),
     _ARROW_COLUMN_ORIGIN: (frozenset({"chunk"}), frozenset({"num_chunks"})),
     _ARROW_CHUNK_ORIGIN: (frozenset({"to_pylist"}), frozenset()),
+    # Lane ARR-a, 2026-11-05 (plan P4-D466).
+    _ARRAY_ORIGIN: (frozenset({"astype", "tolist"}), frozenset()),
 }
 
 # How each surface is named in a violation message, in words that say
@@ -1666,6 +2179,7 @@ _SURFACE_DESCRIPTIONS: "dict[str, str]" = {
     _ARROW_TABLE_ORIGIN: "the table pyarrow.csv.read_csv returned",
     _ARROW_COLUMN_ORIGIN: "a column of the table pyarrow.csv.read_csv returned",
     _ARROW_CHUNK_ORIGIN: "a piece of a column of the table pyarrow.csv.read_csv returned",
+    _ARRAY_ORIGIN: "an array the audited array helper made, or a value taken out of one",
     "numpy": "a value produced by numpy",
     "pandas": "a value produced by pandas",
     "numba": "a value produced by numba",
@@ -1683,6 +2197,9 @@ _SURFACE_DESCRIPTIONS: "dict[str, str]" = {
 _RESTRICTED_ELEMENT: "dict[str, str]" = {
     _DRAW_ARRAY_ORIGIN: _DRAW_SCALAR_ORIGIN,
     _DRAW_SCALAR_ORIGIN: _DRAW_SCALAR_ORIGIN,
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): an element of a helper's
+    # array keeps the array's surface.
+    _ARRAY_ORIGIN: _ARRAY_ORIGIN,
 }
 
 # What a PERMITTED method call on a restricted surface hands back. Only
@@ -1693,6 +2210,9 @@ _RESTRICTED_METHOD_RESULTS: "dict[tuple[str, str], str]" = {
     (_GENERATOR_ORIGIN, "integers"): _DRAW_ARRAY_ORIGIN,
     (_ARROW_TABLE_ORIGIN, "column"): _ARROW_COLUMN_ORIGIN,
     (_ARROW_COLUMN_ORIGIN, "chunk"): _ARROW_CHUNK_ORIGIN,
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): astype makes another array;
+    # tolist has no entry, so what it hands back is a plain value.
+    (_ARRAY_ORIGIN, "astype"): _ARRAY_ORIGIN,
 }
 
 # What a method of an ORDINARY api-instance hands back, where the
@@ -2070,7 +2590,39 @@ _OS_ALLOWED_EXACT = {
     "os.lstat",
     "os.isatty",
     "os.sysconf",
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): see _OS_SCOPED.
+    "os.cpu_count",
 }
+
+# Lane ARR-a, 2026-11-05 (plan P4-D466; LANE I4m RULINGS 26 (5) and LANE
+# ARR RULINGS 1 (3)): THE COMPUTER'S READER. Before any hour of work the
+# shipped command will tell the person what the run needs and whether this
+# computer is enough, so it reads the installed memory and the number of
+# processors, and both are read in synthtwin.computer alone. os.cpu_count
+# takes no argument and returns a whole number or None (the logical
+# processors); it opens nothing, names no path, takes no callable and
+# loads nothing. os.sysconf keeps its audit above (P4-D397) and its
+# argument rule holds it to the two memory names. NOT admitted:
+# os.process_cpu_count (Python 3.13 and later alone), os.sched_getaffinity
+# (Linux alone), multiprocessing.cpu_count (a forbidden module). On Windows
+# os.sysconf does not exist and no standard-library route reads the memory
+# without a native call: the reader says None, and the check says so in
+# plain words.
+_OS_SCOPED: "dict[str, frozenset[str]]" = {
+    "os.cpu_count": frozenset({_COMPUTER}),
+    "os.sysconf": frozenset({_COMPUTER}),
+}
+
+
+def _os_scope_message(dotted: str) -> str:
+    return (
+        "uses '" + dotted + "', which reads this computer and is admitted "
+        "for " + ", ".join(sorted(_OS_SCOPED[dotted])) + " only (plan "
+        "P4-D466): the installed memory and the number of processors are "
+        "read in one small module and handed on as whole numbers. Call "
+        "synthtwin.computer's installed_memory() or processor_count() "
+        "instead."
+    )
 
 # Attribute names that are known to name modules when reached through
 # another module's namespace (allowed modules re-export several of
@@ -2632,10 +3184,13 @@ def _numpy_surface_message(dotted: str) -> str:
         "uses '" + dotted + "'. From numpy only the module numpy.random "
         "and, inside it, the single name numpy.random.default_rng are "
         "allowed (extension E7): one random stream, made once from the "
-        "seed. Every other numpy name -- every array constructor, every "
-        "reduction, every reader and writer, and every other submodule "
-        "-- is outside the allowlist, and adding one is a plan-level "
-        "decision rather than a code change."
+        "seed; and, in the audited array helper synthtwin.arrays alone, "
+        "the ten array names plan P4-D466 enumerates (frombuffer, zeros, "
+        "argsort, bincount, cumsum, where, flatnonzero, concatenate, min "
+        "and max). Every other numpy name -- every other array "
+        "constructor, every reduction, every reader and writer, and every "
+        "other submodule -- is outside the allowlist, and adding one is a "
+        "plan-level decision rather than a code change."
     )
 
 
@@ -3147,6 +3702,9 @@ class _Checker(ast.NodeVisitor):
         # admission at all -- an unnamed module is not one of the two
         # that may name the zip API.
         self.module_name = module_name
+        # Each import statement's function, by its place (plan P4-D458's
+        # one zone P import site, _PRIVATE_IMPORT_SITES).
+        self.import_sites: "dict[tuple[int, int], str]" = {}
         # The module's zone (plan P4-D409 parts 2 and 3; lane DEP-1, plan
         # P4-D410): G for a module the generation path reaches, else the
         # zone _MODULE_ZONES names, else D. Empty for a file outside the
@@ -3174,6 +3732,13 @@ class _Checker(ast.NodeVisitor):
         self.watch_solver_results = False
         self.solver_result_positions: set[int] = set()
         self.subscript_values: set[int] = set()
+        # THE CLOSURE RULE (lane ARR-a, 2026-11-05, plan P4-D466): every
+        # node of a watched part of the module -- the audited helper whole,
+        # and elsewhere each top-level statement that draws -- mapped to
+        # the node it stands in, the field and the position (scan_source
+        # fills it); and the nodes already reported, once each.
+        self.array_parents: "dict[int, tuple[ast.AST, str, int]]" = {}
+        self.array_flagged: set[int] = set()
         # A stack of scopes. Each scope maps a local name to the SET of
         # possible origins it may hold: ("module", dotted),
         # ("api", dotted), ("def", name) for functions and classes
@@ -3623,6 +4188,26 @@ class _Checker(ast.NodeVisitor):
                 if not all(_is_safe_data(kind, origin) for kind, origin in origins):
                     return {_UNKNOWN}
             return {("str", "")}
+        # Lane ARR-a, 2026-11-05 (plan P4-D466): a unary operator on an
+        # array, and a comparison with one, make an array, which keeps the
+        # surface so that the closure rule follows it; every other operand
+        # is read as before (untraced).
+        if isinstance(value, ast.UnaryOp):
+            carried = {
+                origin
+                for origin in self._value_origins(value.operand)
+                if origin[0] == "instance" and origin[1] in _ARRAY_FAMILY
+            }
+            return carried or {_UNKNOWN}
+        if isinstance(value, ast.Compare):
+            carried = set()
+            for operand in [value.left] + list(value.comparators):
+                carried |= {
+                    origin
+                    for origin in self._value_origins(operand)
+                    if origin[0] == "instance" and origin[1] in _ARRAY_FAMILY
+                }
+            return carried or {_UNKNOWN}
         if isinstance(value, ast.IfExp):
             return self._value_origins(value.body) | self._value_origins(
                 value.orelse
@@ -3695,7 +4280,12 @@ class _Checker(ast.NodeVisitor):
                 dotted.partition(".")[0] != "builtins"
                 and self._policy_for(dotted, False) is None
             ):
-                out.add(("instance", dotted))
+                # Lane ARR-a, 2026-11-05 (plan P4-D466): every admitted
+                # numpy name makes the one array surface.
+                if dotted in _ARRAY_CONSTRUCTORS:
+                    out.add(("instance", _ARRAY_ORIGIN))
+                else:
+                    out.add(("instance", dotted))
             else:
                 out.add(_UNKNOWN)
         bound = self._lookup(parts[0])
@@ -4409,11 +4999,16 @@ class _Checker(ast.NodeVisitor):
 
         if prefix == "os":
             if dotted in _OS_ALLOWED_EXACT:
+                # Lane ARR-a, 2026-11-05 (plan P4-D466): the computer's
+                # reader's two names, in its module alone.
+                if dotted in _OS_SCOPED and self.module_name not in _OS_SCOPED[dotted]:
+                    return _os_scope_message(dotted)
                 return None
             return (
                 "uses '" + dotted + "'. From the os module only the os.path "
                 "functions, os.fspath, os.getcwd, os.lstat, os.isatty, "
-                "os.sysconf, and reading "
+                "os.sysconf and os.cpu_count (in synthtwin.computer alone, "
+                "plan P4-D466), and reading "
                 "os.environ are allowed."
             )
 
@@ -4426,6 +5021,28 @@ class _Checker(ast.NodeVisitor):
                 "installed version string); everything else can load code "
                 "chosen while the program runs."
             )
+
+        # Lane ARR-a, 2026-11-05 (plan P4-D466): a function of the audited
+        # array helper reached from a module whose zone its row does not
+        # name (_ARRAY_FUNCTION_ZONES).
+        if (
+            prefix == _ARRAY_HELPER
+            and self.zone
+            and self.module_name != _ARRAY_HELPER
+            and (
+                rest[0] not in _ARRAY_FUNCTION_ZONES
+                or self.zone not in _ARRAY_FUNCTION_ZONES[rest[0]]
+            )
+        ):
+            return _array_zone_message(
+                dotted, self.zone, _ARRAY_FUNCTION_ZONES.get(rest[0])
+            )
+
+        # Lane ARR-a, 2026-11-05 (plan P4-D466): a numpy name outside the
+        # helper's enumeration is refused by name wherever it is written,
+        # before the question of where the enumerated ones may be used.
+        if prefix == "numpy" and rest[0] not in _ALLOWED_MODULE_ATTRS["numpy"]:
+            return _numpy_surface_message(dotted)
 
         if prefix in _ALLOWED_MODULE_ATTRS:
             if prefix == "typing" and rest[0] in _TYPING_EVALUATORS:
@@ -4523,6 +5140,14 @@ class _Checker(ast.NodeVisitor):
                 if report:
                     self._check_admitted_import(node, name)
                 continue
+            # Lane ARR-a, 2026-11-05 (plan P4-D466): `import numpy` in the
+            # audited array helper alone; everywhere else it stays refused
+            # below, with the message E7 gives.
+            if name == "numpy" and self.module_name == _ARRAY_HELPER:
+                self._bind(bound_name, ("module", origin))
+                if report:
+                    self._check_admitted_import(node, name)
+                continue
             if name in {"os.path", "importlib.metadata", "numpy.random",
                         "xml.parsers.expat", "pyarrow.csv",
                         "scipy.optimize", "scipy.linalg"}:
@@ -4565,7 +5190,9 @@ class _Checker(ast.NodeVisitor):
                     "seed (extension E7). Importing numpy itself, or any "
                     "other numpy module, brings in array constructors, "
                     "reductions, readers and writers this audit has not "
-                    "cleared.",
+                    "cleared; the one module that imports numpy itself is "
+                    "the audited array helper, synthtwin.arrays (plan "
+                    "P4-D466).",
                 )
             elif top in _LIBRARY_ROOTS:
                 self._flag(node, _library_root_message(name, top))
@@ -4614,7 +5241,10 @@ class _Checker(ast.NodeVisitor):
             return
         target = _MODULE_ZONES.get(module)
         if target == _ZONE_P and self.zone != _ZONE_P:
-            self._flag(node, _private_module_message(module))
+            place = (getattr(node, "lineno", 0), getattr(node, "col_offset", 0))
+            where = self.import_sites[place] if place in self.import_sites else ""
+            if (self.module_name, where, module) not in _PRIVATE_IMPORT_SITES:
+                self._flag(node, _private_module_message(module))
         elif target == _ZONE_R and self.zone in (_ZONE_G, _ZONE_W):
             self._flag(node, _reading_module_message(module, self.zone))
 
@@ -4748,6 +5378,218 @@ class _Checker(ast.NodeVisitor):
 
     # -- expressions -------------------------------------------------
 
+    # -- the closure rule (lane ARR-a, 2026-11-05, plan P4-D466) --------
+
+    def visit(self, node: ast.AST) -> None:
+        if self.array_parents and id(node) in self.array_parents:
+            self._check_array_position(node)
+        super().visit(node)
+
+    def _array_kinds(self, node: ast.AST) -> "set[str]":
+        """Which arrays an expression may hold: 'helper' (the audited
+        helper's), 'draw' (the generator's draw or a word of it), both or
+        neither, read position-blind (a restriction sees every binding)."""
+        kinds: set[str] = set()
+        for kind, origin in self._trust_origins(node):
+            if kind != "instance":
+                continue
+            if origin == _ARRAY_ORIGIN:
+                kinds.add("helper")
+            elif origin in (_DRAW_ARRAY_ORIGIN, _DRAW_SCALAR_ORIGIN):
+                kinds.add("draw")
+        return kinds
+
+    def _in_function_scope(self) -> bool:
+        """True when the walk stands in a function's own scope (not the module, a class or a comprehension)."""
+        return (
+            len(self.scopes) > 1
+            and not self.class_scopes[-1]
+            and not self.comprehension_scopes[-1]
+        )
+
+    def _calls_exactly(self, call: ast.Call, names: "frozenset[str]") -> bool:
+        """True when a call's function resolves, on every binding, to one of `names`."""
+        parts = _chain_parts(call.func)
+        if parts is None:
+            return False
+        resolved = self._resolve_exclusively(parts)
+        return bool(resolved) and all(dotted in names for dotted in resolved)
+
+    def _names_array_helper(self, dotted: str) -> bool:
+        """True where a module path is the audited array helper or a package above it, read outside the helper.
+
+        Lane ARR-a's repair 2, 2026-11-06 (LANE ARR RULINGS 5 (1)): such a
+        path stands only at the head of a dotted path (_array_module_value_message).
+        """
+        return self.module_name != _ARRAY_HELPER and (
+            dotted == _ARRAY_HELPER or _ARRAY_HELPER.startswith(dotted + ".")
+        )
+
+    def _calls_builtin(self, call: ast.Call, names: "frozenset[str]") -> bool:
+        """True when a call's function is one of the built-ins `names`, unshadowed."""
+        return (
+            isinstance(call.func, ast.Name)
+            and call.func.id in names
+            and self._trust_lookup(call.func.id) is None
+        )
+
+    def _check_array_position(self, node: ast.AST) -> None:
+        """Refuse an array standing where it could leave its module or reach
+        library code this audit never enumerated (plan P4-D466).
+
+        Outside the helper only the draw can be held, and only a name, a
+        subscript, an attribute or the draw's own call can hold it there:
+        an operator's result is refused through its operand.
+        """
+        if not isinstance(node, _ARRAY_CARRIERS):
+            return
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            return
+        if isinstance(node, ast.Attribute):
+            # A method or an attribute of an array: the surface's own
+            # rules govern it, and its receiver stands where it is checked.
+            return
+        if self.module_name != _ARRAY_HELPER and (
+            isinstance(node, (ast.BinOp, ast.UnaryOp, ast.Compare, ast.IfExp, ast.BoolOp))
+            or (
+                isinstance(node, ast.Call)
+                and not (isinstance(node.func, ast.Attribute) and node.func.attr == _DRAW_METHOD)
+            )
+        ):
+            return
+        if id(node) in self.array_flagged:
+            return
+        kinds = self._array_kinds(node)
+        if not kinds:
+            return
+        parent, field, position = self.array_parents[id(node)]
+        problem = None
+        if "helper" in kinds:
+            problem = self._helper_position_problem(node, parent, field)
+        if problem is None and "draw" in kinds:
+            problem = self._draw_position_problem(node, parent, field, position)
+        if (
+            problem is None
+            and isinstance(node, ast.Name)
+            and isinstance(node.ctx, ast.Load)
+            and node.id not in self.trust_scopes[-1]
+        ):
+            problem = "taken from an enclosing scope (a closure capture)"
+        if problem is not None:
+            self.array_flagged.add(id(node))
+            self._flag(node, _array_closure_message(kinds, problem))
+
+    def _helper_position_problem(self, node: ast.AST, parent: ast.AST, field: str) -> "str | None":
+        """None where an array of the helper may stand, else where it stands."""
+        if isinstance(node, ast.Subscript) and not isinstance(node.ctx, ast.Load):
+            if isinstance(node.ctx, ast.Store) and isinstance(parent, ast.Assign) and field == "targets":
+                return None
+            return "as the target of a deletion or an in-place operator"
+        if isinstance(parent, ast.Assign) and field == "value":
+            if all(isinstance(target, ast.Name) for target in parent.targets) and self._in_function_scope():
+                return None
+            if all(
+                isinstance(target, ast.Subscript) and "helper" in self._array_kinds(target.value)
+                for target in parent.targets
+            ):
+                return None
+            return _array_position_text(parent, field)
+        if isinstance(parent, ast.AnnAssign) and field == "value":
+            if isinstance(parent.target, ast.Name) and self._in_function_scope():
+                return None
+            return _array_position_text(parent, field)
+        if isinstance(parent, ast.Subscript) and field == "value":
+            return None
+        if isinstance(parent, ast.Subscript) and field == "slice":
+            # An index array or a mask into an array; a lookup in a list or
+            # a dictionary by a value of the helper keeps nothing of it, but
+            # a store or a deletion there would keep it as a key.
+            if isinstance(parent.ctx, ast.Load) or "helper" in self._array_kinds(parent.value):
+                return None
+            return "as the key of a store into a container"
+        if isinstance(parent, ast.BinOp):
+            if isinstance(parent.op, _ARRAY_ARITHMETIC):
+                return None
+            if isinstance(parent.op, (ast.LShift, ast.RShift)):
+                if field == "left" and _is_shift_count(parent.right):
+                    return None
+                return "in a shift whose count is not a whole-number literal from 0 to 63 (or as the count)"
+            return "as an operand of '" + _OPERATOR_TEXT.get(type(parent.op), type(parent.op).__name__) + "'"
+        if isinstance(parent, ast.UnaryOp):
+            if isinstance(parent.op, (ast.USub, ast.Invert)):
+                return None
+            return "under a unary operator other than - and ~"
+        if isinstance(parent, ast.Compare):
+            if len(parent.ops) == 1 and isinstance(parent.ops[0], _ARRAY_COMPARISONS):
+                return None
+            return "in a chained comparison, or under 'in' or 'is'"
+        if isinstance(parent, ast.Call) and field == "args":
+            if self._calls_builtin(parent, _ARRAY_EXITS) or self._calls_exactly(parent, _ARRAY_CONSTRUCTORS):
+                return None
+            return "as an argument of a call that is not an admitted numpy name nor int(), float() or len()"
+        if isinstance(parent, ast.keyword):
+            holder = self.array_parents.get(id(parent))
+            if holder is not None and isinstance(holder[0], ast.Call) and self._calls_exactly(holder[0], _ARRAY_CONSTRUCTORS):
+                return None
+            return _array_position_text(parent, field)
+        if isinstance(parent, ast.Tuple) and field == "elts" and isinstance(parent.ctx, ast.Load):
+            holder = self.array_parents.get(id(parent))
+            if (
+                holder is not None
+                and isinstance(holder[0], ast.Call)
+                and holder[1] == "args"
+                and holder[2] == 0
+                and self._calls_exactly(holder[0], frozenset({"numpy.concatenate"}))
+            ):
+                return None
+            return _array_position_text(parent, field)
+        if isinstance(parent, ast.Attribute) and field == "value":
+            if id(parent) in self.call_targets and parent.attr in ("astype", "tolist"):
+                return None
+            return _array_position_text(parent, field)
+        if isinstance(parent, ast.Delete):
+            return None
+        return _array_position_text(parent, field)
+
+    def _draw_position_problem(self, node: ast.AST, parent: ast.AST, field: str, position: int) -> "str | None":
+        """None where the draw (or a word of it) may stand, else where it stands."""
+        if isinstance(node, ast.Subscript) and not isinstance(node.ctx, ast.Load):
+            return "as the target of a store, a deletion or an in-place operator"
+        if isinstance(parent, ast.Assign) and field == "value":
+            if all(isinstance(target, ast.Name) for target in parent.targets) and self._in_function_scope():
+                return None
+            return _array_position_text(parent, field)
+        if isinstance(parent, ast.AnnAssign) and field == "value":
+            if isinstance(parent.target, ast.Name) and self._in_function_scope():
+                return None
+            return _array_position_text(parent, field)
+        if isinstance(parent, ast.Subscript) and field == "value" and isinstance(parent.ctx, ast.Load):
+            return None
+        if isinstance(parent, (ast.For, ast.comprehension)) and field == "iter":
+            return None
+        if isinstance(parent, ast.Call) and field == "args":
+            if self._calls_builtin(parent, _DRAW_EXITS):
+                return None
+            if position == 0 and self._calls_exactly(parent, frozenset({_DRAW_READER})):
+                return None
+            if (
+                position == 0
+                and self.module_name == _ARRAY_HELPER
+                and self._calls_exactly(parent, frozenset({"numpy.frombuffer"}))
+            ):
+                return None
+            return (
+                "as an argument of a call other than int(), len() and the "
+                "draw's one reader, synthtwin.arrays.hidden_sums"
+            )
+        if isinstance(parent, ast.Delete):
+            return None
+        if isinstance(parent, ast.BinOp):
+            return "as an operand of '" + _OPERATOR_TEXT.get(type(parent.op), type(parent.op).__name__) + "'"
+        if isinstance(parent, (ast.UnaryOp, ast.Compare)):
+            return "under an operator"
+        return _array_position_text(parent, field)
+
     def visit_Name(self, node: ast.Name) -> None:
         self._check_name(node, node.id)
         if isinstance(node.ctx, ast.Load) and id(node) not in self.call_targets:
@@ -4773,6 +5615,16 @@ class _Checker(ast.NodeVisitor):
             if bound:
                 seen: set[str] = set()
                 for kind, origin in sorted(bound):
+                    # Lane ARR-a's repair 2, 2026-11-06 (LANE ARR RULINGS 5
+                    # (1)): the helper's module, or the package above it, as
+                    # a bare value outside the helper.
+                    # The package above it may hold the polish kernel too,
+                    # whose own rule below still speaks.
+                    if kind in ("module", "api") and self._names_array_helper(origin):
+                        message_text = _array_module_value_message(origin)
+                        if message_text not in seen:
+                            seen.add(message_text)
+                            self._flag(node, message_text)
                     if kind in _VALUE_ORIGIN_KINDS:
                         # Reading a scanned definition, an api-instance,
                         # a literal, a plain number, an open output
@@ -4912,6 +5764,15 @@ class _Checker(ast.NodeVisitor):
         is_store = isinstance(node.ctx, (ast.Store, ast.Del))
         seen: set[str] = set()
         for dotted in candidates:
+            # Lane ARR-a's repair 2, 2026-11-06 (LANE ARR RULINGS 5 (1)): a
+            # whole chain naming the helper's module, or the package above
+            # it, is that module used as a bare value.
+            if not is_store and self._names_array_helper(dotted):
+                message_text = _array_module_value_message(dotted)
+                if message_text not in seen:
+                    seen.add(message_text)
+                    self._flag(node, message_text)
+                continue
             message = self._policy_for(dotted, is_store)
             if message is None and not is_store and dotted in self.module_paths:
                 # The chain resolves to a module object used as a plain
@@ -5239,6 +6100,14 @@ class _Checker(ast.NodeVisitor):
         """
         if key == _GENERATOR_ORIGIN and method == _DRAW_METHOD:
             return self._check_draw_arguments(node)
+        if key == _ARRAY_ORIGIN:
+            # Lane ARR-a, 2026-11-05 (plan P4-D466): astype takes one dtype
+            # written as a literal, by position; tolist takes nothing.
+            detail = _array_method_detail(node, method)
+            if detail is not None:
+                self._flag(node, _array_method_message(method, detail))
+                return True
+            return False
         if key == _WRITER_ORIGIN and method in _surface_methods(_WRITER_ORIGIN):
             return self._check_writer_rows(node, method)
         return False
@@ -5623,6 +6492,22 @@ class _Checker(ast.NodeVisitor):
             self.visit(node.target)
 
     def visit_AugAssign(self, node: ast.AugAssign) -> None:
+        # Lane ARR-a, 2026-11-05 (plan P4-D466): no in-place operator on an
+        # array (its operator and its result's dtype are numpy's choice).
+        if self.array_parents and id(node.target) in self.array_parents:
+            target = node.target
+            held = target.value if isinstance(target, (ast.Subscript, ast.Attribute)) else target
+            kinds = (
+                {
+                    "helper" if origin[1] == _ARRAY_ORIGIN else "draw"
+                    for origin in (self._trust_lookup(held.id) or set())
+                    if origin[0] == "instance" and origin[1] in _ARRAY_FAMILY
+                }
+                if isinstance(held, ast.Name)
+                else self._array_kinds(held)
+            ) | self._array_kinds(node.value)
+            if kinds:
+                self._flag(node, _array_closure_message(kinds, "under an in-place operator"))
         self.visit(node.value)
         self.visit(node.target)
 
@@ -5734,7 +6619,22 @@ class _Checker(ast.NodeVisitor):
         all_args = _parameters_of(node.args)
         # Parameters hold caller-supplied values: the explicit unknown
         # member, never discarded when other origins join.
-        self._enter_scope({arg.arg: {_UNKNOWN} for arg in all_args}, False, False)
+        seeds = {arg.arg: {_UNKNOWN} for arg in all_args}
+        # Lane ARR-a, 2026-11-05 (plan P4-D466): the draw's one reader, a
+        # top-level function of the helper, holds the draw in a parameter,
+        # so the closure rule follows the draw inside it too. Lane ARR-a's
+        # repair 2, 2026-11-06 (LANE ARR RULINGS 5 (2)): that parameter is
+        # the FIRST POSITIONAL one, where every caller hands the draw,
+        # whatever it is called (scan_source refuses a reader without one).
+        positional = list(node.args.posonlyargs) + list(node.args.args)
+        if (
+            self.module_name == _ARRAY_HELPER
+            and node.name == _DRAW_READER_NAME
+            and len(self.scopes) == 1
+            and positional
+        ):
+            seeds[positional[0].arg] = {_UNKNOWN, ("instance", _DRAW_ARRAY_ORIGIN)}
+        self._enter_scope(seeds, False, False)
         self._collect_scope_bindings(node.body)
         self._upgrade_gated_parameters(node.body)
         self._build_trust_scope(list(node.body), node.body)
@@ -6291,9 +7191,171 @@ def _rule_stable_sort(checker: "_Checker", node: ast.Call) -> "str | None":
     )
 
 
+# Lane ARR-a, 2026-11-05 (plan P4-D466): THE HELPER'S ARGUMENT RULES, read
+# where each call is written. Every dtype is one literal of _ARRAY_DTYPES;
+# frombuffer never writes count or offset (it views the whole buffer, a
+# bytes or a bytearray checked at run time, or the one draw array);
+# argsort is stable; bincount takes no weights, as a keyword or as a
+# second positional; cumsum, flatnonzero, min and max take the array
+# alone (no axis, dtype, out, initial or where); where takes exactly
+# three; concatenate takes a tuple written in place. No keyword is
+# expanded and no argument starred: the rule must see what is handed in.
+
+
+def _array_call_shape(node: ast.Call, positional: int, keywords: "frozenset[str]") -> "str | None":
+    """The common part of the helper's argument rules: the counts and names of the arguments."""
+    if any(isinstance(value, ast.Starred) for value in node.args):
+        return "with a '*' argument, which hides what is handed in"
+    if len(node.args) != positional:
+        return (
+            "with " + str(len(node.args)) + " positional argument(s) where "
+            "exactly " + str(positional) + " is written"
+        )
+    for keyword in node.keywords:
+        if keyword.arg is None:
+            return "with ** expansion, which hides the settings"
+        if keyword.arg not in keywords:
+            return "with the argument '" + keyword.arg + "', which the audited form never writes"
+    return None
+
+
+def _is_dtype_literal(value: ast.AST) -> bool:
+    return isinstance(value, ast.Constant) and isinstance(value.value, str) and value.value in _ARRAY_DTYPES
+
+
+def _keyword_value(node: ast.Call, name: str) -> "ast.expr | None":
+    for keyword in node.keywords:
+        if keyword.arg == name:
+            return keyword.value
+    return None
+
+
+def _rule_frombuffer(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numpy.frombuffer(buffer, dtype=LITERAL): the whole buffer, viewed with one written dtype."""
+    shape = _array_call_shape(node, 1, frozenset({"dtype"}))
+    if shape is not None:
+        return shape
+    if not _is_dtype_literal(_keyword_value(node, "dtype") or ast.Constant(None)):
+        return "without dtype written by name as one of " + ", ".join(sorted(_ARRAY_DTYPES))
+    return None
+
+
+def _rule_zeros(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numpy.zeros(n, dtype=LITERAL)."""
+    shape = _array_call_shape(node, 1, frozenset({"dtype"}))
+    if shape is not None:
+        return shape
+    if not _is_dtype_literal(_keyword_value(node, "dtype") or ast.Constant(None)):
+        return "without dtype written by name as one of " + ", ".join(sorted(_ARRAY_DTYPES))
+    return None
+
+
+def _rule_argsort(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numpy.argsort(a, kind="stable"): one result whatever the algorithm."""
+    shape = _array_call_shape(node, 1, frozenset({"kind"}))
+    if shape is not None:
+        return shape
+    return _rule_stable_sort(checker, node)
+
+
+def _rule_bincount(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numpy.bincount(x) or numpy.bincount(x, minlength=n): whole-number counts, never weights."""
+    if len(node.args) > 1 or _keyword_value(node, "weights") is not None:
+        return (
+            "with weights: a weighted count is a float sum in an order no "
+            "build promises (plan P4-D409 part 2); counts are whole numbers"
+        )
+    return _array_call_shape(node, 1, frozenset({"minlength"}))
+
+
+def _rule_array_alone(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numpy.cumsum, numpy.flatnonzero, numpy.min and numpy.max: the array alone."""
+    return _array_call_shape(node, 1, frozenset())
+
+
+def _rule_where(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numpy.where(condition, chosen, other): exactly three."""
+    return _array_call_shape(node, 3, frozenset())
+
+
+def _rule_concatenate(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numpy.concatenate((first, second, ...)): a tuple written in place."""
+    shape = _array_call_shape(node, 1, frozenset())
+    if shape is not None:
+        return shape
+    first = node.args[0]
+    if not isinstance(first, ast.Tuple) or any(isinstance(item, ast.Starred) for item in first.elts):
+        return "with something other than a tuple of arrays written in place"
+    return None
+
+
+def _array_method_detail(node: ast.Call, method: str) -> "str | None":
+    """What breaks the audited form of astype or tolist, or None."""
+    if method == "tolist":
+        if node.args or node.keywords:
+            return "with arguments, where tolist takes none"
+        return None
+    if node.keywords or len(node.args) != 1 or not _is_dtype_literal(node.args[0]):
+        return (
+            "with other than one dtype written by position as one of "
+            + ", ".join(sorted(_ARRAY_DTYPES))
+        )
+    return None
+
+
+def _array_method_message(method: str, detail: str) -> str:
+    return (
+        "calls '" + method + "' on an array the audited array helper made "
+        + detail + " (plan P4-D466): what the array becomes is read where "
+        "the call is written."
+    )
+
+
+# THE COMPUTER'S READER'S ARGUMENT RULES (lane ARR-a, 2026-11-05, plan
+# P4-D466): os.sysconf with one of the two memory names written as text,
+# os.cpu_count with nothing.
+_SYSCONF_NAMES = frozenset({"SC_PHYS_PAGES", "SC_PAGE_SIZE"})
+
+
+def _rule_sysconf(checker: "_Checker", node: ast.Call) -> "str | None":
+    """os.sysconf("SC_PHYS_PAGES") or os.sysconf("SC_PAGE_SIZE")."""
+    if (
+        node.keywords
+        or len(node.args) != 1
+        or not isinstance(node.args[0], ast.Constant)
+        or node.args[0].value not in _SYSCONF_NAMES
+    ):
+        return (
+            "with other than one of " + ", ".join(sorted(_SYSCONF_NAMES))
+            + " written as text: the computer's reader asks for its memory "
+            "and nothing else"
+        )
+    return None
+
+
+def _rule_cpu_count(checker: "_Checker", node: ast.Call) -> "str | None":
+    """os.cpu_count(), with nothing."""
+    if node.args or node.keywords:
+        return "with an argument, where it takes none"
+    return None
+
+
 _ARGUMENT_RULES = {
     "numba.njit": _rule_njit,
-    "numpy.argsort": _rule_stable_sort,
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): the helper's ten names and
+    # the computer's reader's two.
+    "numpy.argsort": _rule_argsort,
+    "numpy.bincount": _rule_bincount,
+    "numpy.concatenate": _rule_concatenate,
+    "numpy.cumsum": _rule_array_alone,
+    "numpy.flatnonzero": _rule_array_alone,
+    "numpy.frombuffer": _rule_frombuffer,
+    "numpy.max": _rule_array_alone,
+    "numpy.min": _rule_array_alone,
+    "numpy.where": _rule_where,
+    "numpy.zeros": _rule_zeros,
+    "os.cpu_count": _rule_cpu_count,
+    "os.sysconf": _rule_sysconf,
     "numpy.sort": _rule_stable_sort,
     "pandas.set_option": _rule_set_option,
     "pyarrow.csv.ParseOptions": _rule_pyarrow_parse_options,
@@ -6422,6 +7484,7 @@ def scan_source(
     if not zone and _first_party_module_name_is(module_name):
         zone = _zone_of(module_name, set(_GENERATION_ROOTS))
     checker = _Checker(module_exports, first_party_modules, module_name, zone)
+    checker.import_sites = _import_sites(tree)
     checker.compiled_functions = set(compiled_functions or set())
     if module_name == _POLISH_KERNEL:
         checker.compiled_names = _compiled_function_names(tree)
@@ -6429,6 +7492,21 @@ def scan_source(
             _POLISH_KERNEL + "." + name for name in checker.compiled_names
         }
     checker.watch_solver_results = "milp" in source_text
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): THE CLOSURE RULE watches the
+    # audited helper whole and, in every other module, each top-level
+    # statement that draws: the draw is made nowhere else, and it reaches
+    # no other module but through its one reader.
+    if module_name == _ARRAY_HELPER:
+        _record_parents(tree, checker.array_parents)
+        # Lane ARR-a's repair 2, 2026-11-06 (LANE ARR RULINGS 5 (2)): the
+        # draw's reader is one plain def taking the draw first.
+        reader_problem = _draw_reader_problem(tree)
+        if reader_problem is not None:
+            checker._flag(reader_problem[0], _draw_reader_message(reader_problem[1]))
+    elif _DRAW_METHOD in source_text:
+        for statement in tree.body:
+            if _draws(statement):
+                _record_parents(statement, checker.array_parents)
     # A binding at module or class level is an export: another module
     # imports it, unwatched, and subscripts it there, so the solver's
     # result is bound to a name inside a function alone (the verify of

@@ -27928,6 +27928,257 @@ def widened_layout(name, opening, wanted, limit, at_the_end=False):
     return ""
 
 
+# THE YEARS A HELD DATE COLUMN'S MADE-UP DATES TAKE (G9.6c, P4-D457, lane
+# ID-ROOM2), written from the rule statement: the orders a date's fields
+# stand in on its merged key, and the years a merged key names in one.
+MONTH_KEYS = [word.lower() for word in MONTH_WORDS]
+TWO_FIGURE_ORDERS = ("MDy", "DMy", "DWy")
+
+
+def date_orders(form):
+    """The orders a valid date of a form stands in on its merged key, beside dates (G9.6c, P4-D457)."""
+    fields = date_form_fields(form, True)
+    if fields is None:
+        return ()
+    mark, widths = fields
+    if len(widths) == 1:
+        return ("Y",)
+    if len(widths) == 2:
+        return ("YM",) if widths[0] == 4 else ("MY",)
+    if isinstance(widths[1], str):
+        return ("DWY",) if widths[2] == 4 else ("DWy",)
+    if widths[0] == 4:
+        return ("C",) if mark == "" else ("YMD",)
+    return ("MDY", "DMY") if widths[2] == 4 else ("MDy", "DMy")
+
+
+def years_merged(key, order):
+    """The years every valid date of an order names whose merged key is ``key`` (G9.6c, P4-D457).
+
+    Written from the rule statement: a year of four figures, or two read as
+    their value; a month 1 to 12 in figures or as its word; a day 1 to its
+    month's last (a two-figure year's in the century giving it the most);
+    eight figures alone, year, month and day. No run opens with a nought,
+    save a two-figure year of noughts read as `0`.
+    """
+    if order == "C":
+        found = re.fullmatch(r"([1-9][0-9]{3})([0-9]{2})([0-9]{2})", key)
+        if not found:
+            return set()
+        year, month, day = (int(part) for part in found.groups())
+        return {year} if 1 <= month <= 12 and 1 <= day <= month_days(year, month) else set()
+    pattern = {
+        "Y": r"[1-9][0-9]{3}", "y": r"0|[1-9][0-9]?", "M": r"[1-9][0-9]?", "D": r"[1-9][0-9]?",
+        "W": "|".join(MONTH_KEYS),
+    }
+    years = set()
+
+    def cuts(rest, fields):
+        if not fields:
+            if not rest:
+                yield []
+            return
+        for length in range(1, min(len(rest), 4) + 1):
+            part = rest[:length]
+            if re.fullmatch(pattern[fields[0]], part):
+                for more in cuts(rest[length:], fields[1:]):
+                    yield [part] + more
+
+    for parts in cuts(key, order):
+        named = dict(zip(order, parts))
+        year = int(named.get("Y", named.get("y", "-1")))
+        month = MONTH_KEYS.index(named["W"]) + 1 if "W" in named else int(named.get("M", "1"))
+        day = int(named.get("D", "1"))
+        if not 1 <= month <= 12:
+            continue
+        if "y" in named:
+            last = max(month_days(1900 + year, month), month_days(2000 + year, month))
+        else:
+            last = month_days(year, month)
+        if 1 <= day <= last:
+            years.add(year)
+    return years
+
+
+def room_dates(form, years):
+    """How many dates of a form one run of years holds, counted as `date_of_room_years` steps them (G9.6c)."""
+    fields = date_form_fields(form, True)
+    if fields is None or not years:
+        return 0
+    _mark, widths = fields
+
+    def values(width, last):
+        return 9 if width == 1 else last
+
+    if len(widths) == 1:
+        return len(years)
+    if len(widths) == 2:
+        return len(years) * values(widths[1] if widths[0] == 4 else widths[0], 12)
+    if isinstance(widths[1], str):
+        return len(years) * values(widths[0], 28) * 12
+    if widths[0] == 4:
+        return len(years) * values(widths[1], 12) * values(widths[2], 31)
+    later = 16 if (widths[1] == 2 and widths[2] == 2) else 0
+    return len(years) * values(widths[0], 12) * (values(widths[1], 12) + later)
+
+
+def date_of_room_years(form, index, years):
+    """The ``index``-th date of a form over the given years (G9.6c, P4-D457), written from the rule statement.
+
+    `date_of_years`'s rule with the published years in place of eighty from
+    1940: the index moved round the dates, its place counting the year first,
+    then the first field, then the second; past both readings of a
+    two-figure year, its month-first dates with a second field of 13 to 28.
+    """
+    fields = date_form_fields(form, True)
+    if fields is None or not years:
+        return None
+    mark, widths = fields
+
+    def values(width, last):
+        return list(range(1, 10)) if width == 1 else list(range(1, last + 1))
+
+    if len(widths) == 1:
+        return None if index >= len(years) else f"{years[stepped_around(index, len(years))]:04d}"
+    if len(widths) == 2:
+        month_width = widths[1] if widths[0] == 4 else widths[0]
+        months = values(month_width, 12)
+        if index >= len(years) * len(months):
+            return None
+        place = stepped_around(index, len(years) * len(months))
+        year, month = years[place % len(years)], months[place // len(years)]
+        if widths[0] == 4:
+            return f"{year:04d}{mark}{month:0{month_width}d}"
+        return f"{month:0{month_width}d}{mark}{year:04d}"
+    worded = isinstance(widths[1], str)
+    year_first = widths[0] == 4 and not worded
+    if worded:
+        firsts, seconds = values(widths[0], 28), list(range(1, 13))
+    elif year_first:
+        firsts, seconds = values(widths[1], 12), values(widths[2], 31)
+    else:
+        firsts, seconds = values(widths[0], 12), values(widths[1], 12)
+    dates = len(years) * len(firsts) * len(seconds)
+    if index >= dates:
+        later = list(range(13, 29)) if (not year_first and not worded and widths[1] == 2 and widths[2] == 2) else []
+        index -= dates
+        dates, seconds = len(years) * len(firsts) * len(later), later
+        if index >= dates:
+            return None
+    place = stepped_around(index, dates)
+    year = years[place % len(years)]
+    place //= len(years)
+    first = firsts[place % len(firsts)]
+    second = seconds[place // len(firsts)]
+    written_year = f"{year:02d}" if (not year_first and widths[2] == 2) else f"{year:04d}"
+    if worded:
+        word = MONTH_WORDS[second - 1]
+        word = {"U": word, "T": word.title(), "L": word.lower()}[widths[1]]
+        return f"{first:0{widths[0]}d}{mark}{word}{mark}{written_year}"
+    if year_first:
+        second = min(second, month_days(year, first))
+        return f"{year:04d}{mark}{first:0{widths[1]}d}{mark}{second:0{widths[2]}d}"
+    return f"{first:0{widths[0]}d}{mark}{second:0{widths[1]}d}{mark}{written_year}"
+
+
+def room_of(column):
+    """The four-figure and two-figure years a block's `made_up_years` publishes, or None (contract 7.12c)."""
+    made = column.get("made_up_years")
+    if made is None:
+        return None
+    years = [year for first, last in made for year in range(first, last + 1)]
+    return [year for year in years if year > 99], [year for year in years if year <= 99]
+
+
+def pass_dates_a_year(form):
+    """How many different dates of a form one year holds as the date pass writes it (G9.6c, P4-D457), from the rule statement.
+
+    A year alone 1; a month beside a year 12 (9 where the month is one
+    figure); a month word, its day 1 to 28 (1 to 9 where one figure); a
+    year first, every day of a common year its fields write; a year last,
+    its two fields each 1 to 12 (1 to 9 where one figure), a second field
+    of two figures beside a two-figure year 13 to 28 as well.
+    """
+    fields = date_form_fields(form, True)
+    if fields is None:
+        return 0
+    widths = fields[1]
+    if len(widths) == 1:
+        return 1
+    if len(widths) == 2:
+        return 9 if (widths[1] if widths[0] == 4 else widths[0]) == 1 else 12
+    if isinstance(widths[1], str):
+        return 12 * (9 if widths[0] == 1 else 28)
+    if widths[0] == 4:
+        months = range(1, 10) if widths[1] == 1 else range(1, 13)
+        return sum(min(month_days(2029, month), 9 if widths[2] == 1 else 31) for month in months)
+    firsts = 9 if widths[0] == 1 else 12
+    seconds = (9 if widths[1] == 1 else 12) + (16 if widths[1] == 2 and widths[2] == 2 else 0)
+    return firsts * seconds
+
+
+def pass_share(form, count, distinct):
+    """A named date layout's share of its kind's block on the date pass (G9.6c, P4-D457, repair 2), from the rule statement.
+
+    Twice the fewer of the cells its walk steps and the column's different
+    values, at the date pass's count a year, never past the kind's years
+    (a hundred of two figures, 2028 to 9999 of four); 0 where even those
+    cannot hold the values once.
+    """
+    fields = date_form_fields(form, True)
+    a_year = pass_dates_a_year(form)
+    if fields is None or a_year <= 0:
+        return 0
+    widths = fields[1]
+    two = len(widths) == 3 and widths[0] != 4 and widths[2] == 2
+    available = 100 if two else 9999 - 2028 + 1
+    values = max(min(count, max(distinct, 1)), 1)
+    if (values + a_year - 1) // a_year > available:
+        return 0
+    return min((2 * values + a_year - 1) // a_year, available)
+
+
+def room_date(form, step, room):
+    """One valid date of a form from the room's years of its kind, in runs of eighty, or None (G9.6c)."""
+    fields = date_form_fields(form, True)
+    if fields is None:
+        return None
+    widths = fields[1]
+    two = len(widths) == 3 and widths[0] != 4 and widths[2] == 2
+    years = room[1] if two else room[0]
+    for start in range(0, len(years), DATE_FORM_YEARS):
+        run = years[start:start + DATE_FORM_YEARS]
+        once = room_dates(form, run)
+        if step < once:
+            return date_of_room_years(form, step, run)
+        step -= once
+    return None
+
+
+def room_count(form, room):
+    """How many dates of a form the room holds for its kind of year (G9.6c)."""
+    fields = date_form_fields(form, True)
+    if fields is None:
+        return 0
+    widths = fields[1]
+    two = len(widths) == 3 and widths[0] != 4 and widths[2] == 2
+    years = room[1] if two else room[0]
+    return sum(room_dates(form, years[start:start + DATE_FORM_YEARS]) for start in range(0, len(years), DATE_FORM_YEARS))
+
+
+def stands_off_the_real(date, named, convention, room):
+    """Whether a made-up date stands (G9.6c): in a named date layout, its merged key read in some order of it as a date of a published year."""
+    layout = layout_of(date.strip(), convention)
+    if layout not in named:
+        return False
+    key = merged_key(date)
+    for order in date_orders(layout):
+        published = set(room[1]) if order in TWO_FIGURE_ORDERS else set(room[0])
+        if years_merged(key, order) & published:
+            return True
+    return False
+
+
 def dates_in_their_layouts(column, walked, passed):
     """A column of dates read as record numbers: its date layouts written as valid dates (G9.6b, P4-D442).
 
@@ -27960,6 +28211,34 @@ def dates_in_their_layouts(column, walked, passed):
         return passed
     convention = layout_convention(present)
     holes = tuple(sorted(column.get("missing_by_source") or {}))
+    # ...from the years `made_up_years` publishes, where it does (G9.6c,
+    # P4-D457): a form whose kind of year has none, or a date that does not
+    # stand off the real, keeps the final pass's cell.
+    room = room_of(column)
+    named_dates = {name for name in named if date_orders(name)}
+    # ...each named date layout's dates in its own share of the block's first years, counted with its other
+    # case's, which one walk steps; any other layout's in the whole block (G9.6c, P4-D457, repair 2).
+    walked_counts = {}
+    for name in sorted(named_dates):
+        walked_counts[folded_marks(name)] = walked_counts.get(folded_marks(name), 0) + census[name]
+    shares = {name: pass_share(name, walked_counts[folded_marks(name)], column.get("n_distinct") or 0) for name in named_dates}
+    # ...a layout writing its year first (alone, beside a month, or before a month and a day, with marks) beside one
+    # written year last in figures with a day and a month takes its share of the published years whose second figure
+    # is a nought (G9.6c, P4-D457, batch 4q's merge), where all of them are published; else as before.
+    beside_last = any(order in ("MDY", "DMY", "MDy", "DMy") for name in named_dates for order in date_orders(name))
+
+    def room_for(layout):
+        if room is None or layout not in shares:
+            return room
+        if beside_last and date_orders(layout)[:1] in (("Y",), ("YM",), ("YMD",)):
+            taken = [year for year in room[0] if (year // 100) % 10 == 0][: max(shares[layout], 1)]
+            if len(taken) >= max(shares[layout], 1):
+                return taken, room[1][: shares[layout]]
+        return room[0][: shares[layout]], room[1][: shares[layout]]
+
+    # ...a year alone too, where the column holds cells of figures alone (G9.6c, P4-D457, repair 2).
+    if named_dates and (column.get("n_all_digits") or 0) > 0:
+        named_dates.add("%%%%")
     written, steps, counts, spent, taken, partners, out = {}, {}, {}, {}, set(), {}, []
     for place, cell in enumerate(walked):
         if cell in written:
@@ -27984,12 +28263,22 @@ def dates_in_their_layouts(column, walked, passed):
                 continue
         if layout not in counts:
             counts[layout] = 0
-            while date_filled_form(layout, counts[layout], True) is not None:
-                counts[layout] += 1
+            if room is not None:
+                counts[layout] = room_count(layout, room_for(layout))
+            else:
+                while date_filled_form(layout, counts[layout], True) is not None:
+                    counts[layout] += 1
         count = counts[layout]
+        if not count:
+            out.append(passed[place])
+            continue
         walk = folded_marks(layout)
         step = steps.get(walk, 0)
-        date = date_filled_form(layout, step % count, True)
+
+        def filled(at):
+            return room_date(layout, at % count, room_for(layout)) if room is not None else date_filled_form(layout, at % count, True)
+
+        date = filled(step)
         # A date whose fold was written before, or read as absent, is passed
         # over while the form has another left.
         tries = 0
@@ -27999,9 +28288,11 @@ def dates_in_their_layouts(column, walked, passed):
             if tries > count:
                 spent[walk] = count
                 break
-            date = date_filled_form(layout, step % count, True)
+            date = filled(step)
         steps[walk] = step + 1
-        if reads_as_absent(lead + date + trail, holes):
+        if reads_as_absent(lead + date + trail, holes) or (
+            room is not None and not stands_off_the_real(date, named_dates, convention, room)
+        ):
             written[cell] = passed[place]
             out.append(passed[place])
             continue
@@ -61658,6 +61949,11 @@ def l0_least_move(column, values, sizes, bands, figures):
             high = piece[0] + piece[1]
             today = sum(sizes[place] for place in run if place < len(values))
             count = sum(now.get(place, 0) for place in run)
+            # ...and nothing moves where neither the edge value nor the next
+            # value holds a cell of the piece after step 2: the bound that
+            # leaves the next value one cell would read -1 (batch 4q's merge)
+            if count + now.get(rest[0], 0) < 1:
+                continue
             least = 0
             for value, _rank_first, rank_last in heaps:
                 if value == edge and rank_last >= low:

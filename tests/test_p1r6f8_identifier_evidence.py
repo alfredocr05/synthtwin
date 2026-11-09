@@ -623,7 +623,7 @@ def test_the_real_command_declines_and_declares(
         for value in UNIT_AMOUNTS + CODE_WORDS:
             assert value not in shown
 
-    assert main(["profile", str(table), "--identifier", "record"]) == 0
+    assert main(["profile", str(table), "--identifier", "record", "--replace"]) == 0
     printed = capsys.readouterr().out
     document = json.loads(
         (tmp_path / "clinic-profile.json").read_text(encoding="utf-8")

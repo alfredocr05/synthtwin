@@ -2005,6 +2005,13 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "layout_exclusions"): _OBJECT,
     ("columns", _EACH, "layout_exclusions", _KEY_OF): _EXCLUSION_SCOPE,
     ("columns", _EACH, "layout_exclusions", _ANY_KEY): _LAYOUT_EXCLUSION,
+    # The years a held date column's made-up dates take (lane ID-ROOM2,
+    # plan P4-D457, contract 7.12c): runs `[first, last]` of years no real
+    # cell of it is a date of, four figures from the year after the
+    # reference year, or two-figure years.
+    ("columns", _EACH, "made_up_years"): _ARRAY,
+    ("columns", _EACH, "made_up_years", _EACH): _ARRAY,
+    ("columns", _EACH, "made_up_years", _EACH, _EACH): _COUNT,
     ("columns", _EACH, "n_distinct_by_occurrences"): _OBJECT,
     ("columns", _EACH, "n_distinct_by_occurrences", _KEY_OF): _DIGITS,
     ("columns", _EACH, "n_distinct_by_occurrences", _ANY_KEY): _COUNT,
@@ -4413,6 +4420,56 @@ def _date_question_answered_no(
     return False
 
 
+def _keep_for_the_chain(
+    kept: "dict[int, taxonomy.KeptSpellings]",
+    place: int,
+    held: taxonomy.HeldReading,
+    described: taxonomy.ColumnProfile,
+    identifiers: "list[str]",
+) -> None:
+    """Keep one column's reading for the chain where the chain reads it and the table's bounds hold it (lane CHs, plan P4-D462).
+
+    A READING THE CHAIN NEVER READS IS NOT KEPT (lane CHs's repair 2, the
+    orchestrator's LANE CHs RULINGS 7 (1)): where the chain's own
+    classifier sets the column aside on what its description says
+    (`chain.ineligible_reason`: free text and notes, an identifier, an
+    empty or unrepresentable column, a role the chain does not read),
+    nothing is built, decided here, where the reading is. Its effect is
+    what the byte counter counts (MEASURED, the lane's second verify): a
+    note column of 4,096 characters a row kept its 80,000 spellings,
+    about 341.8 MB, at 80,000 rows until the chain's loop let them go
+    unread, and its 29,384, about 125.5 MB, at 30,000; it keeps none now,
+    and every description and private note is the bytes it was. The
+    footprints are single runs whose spread on one head is as large as
+    the differences first quoted between the heads (541 to 926 MB
+    through the chain's stages at 80,000 rows against repair 1's
+    949 to 955; 608.7 to 1,656.6 MB at 30,000 read one column a group),
+    so none is shown to be the fix's effect. What is kept counts its
+    retained bytes beside its spellings, against the table's bounds.
+
+    THE TABLE'S ROOM BEFORE THE COLUMN (RULINGS 7 (2)): what the kept
+    readings already hold is counted before this column is begun; none is
+    begun where nothing is left, and one is built only into the room left
+    (`taxonomy.keep_spellings` stops at its first spelling past it).
+    """
+    from synthtwin import chain
+
+    if chain.ineligible_reason({"name": described.name, "role": described.role}, False, False, set(identifiers)) is not None:
+        return
+    spellings = 0
+    retained = 0
+    for place_kept in kept:
+        spellings += len(kept[place_kept].spellings)
+        retained += kept[place_kept].retained
+    room_spellings = taxonomy.KEPT_SPELLINGS_A_TABLE - spellings
+    room_bytes = taxonomy.KEPT_BYTES_A_TABLE - retained
+    if room_spellings <= 0 or room_bytes <= 0:
+        return
+    spelled = taxonomy.keep_spellings(held, room_spellings, room_bytes)
+    if spelled is not None:
+        kept[place] = spelled
+
+
 def build_document(
     table: Table,
     settings: taxonomy.Settings,
@@ -4462,6 +4519,7 @@ def build_document(
     dated_values_no: "list[str] | None" = None,
     dates_answered: "tuple[str, ...]" = (),
     long_table_dates: bool = False,
+    kept_spellings: "dict[int, taxonomy.KeptSpellings] | None" = None,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -4863,6 +4921,10 @@ def build_document(
     # as one, and the columns still open to be held for it.
     coordinate_readings: "list[tuple[str, str]]" = []
     coordinates_open: "list[str]" = []
+    # A describe of its own: the readings an earlier describe kept are let go.
+    if kept_spellings is not None:
+        for place in [place for place in kept_spellings]:
+            del kept_spellings[place]
     for position, name in enumerate(table.column_names, start=1):
         # EACH COLUMN ASKED OF THE GENERIC ACCESS (lane SR, plan P4-D400):
         # a table read in groups holds one group, and the next is read
@@ -4927,6 +4989,7 @@ def build_document(
             kept: "tuple[str, ...] | None" = None,
             as_code: bool = False,
             read_as_labels_here: bool = False,
+            readings_kept: "list[taxonomy.HeldReading] | None" = None,
         ) -> taxonomy.ColumnProfile:
             # A column the count in people holds is read under no other
             # declaration than the record number it is described as, as
@@ -4991,10 +5054,22 @@ def build_document(
                     if units_kept or held or name not in read_as_labels
                     else read_as_labels[name]
                 ),
+                kept=readings_kept,
             )
 
-        described = described_from(cells, handed_over)
+        # THE SETTLED READING KEPT FOR THE CHAIN (lane CHs, plan P4-D462;
+        # the orchestrator's LANE CHs RULINGS 2 (2)): in a switched describe
+        # the reading this column is described from is kept as the chain
+        # reads it (`taxonomy.keep_spellings`: one entry a distinct
+        # spelling, with every argument it was read under), and the reading
+        # itself is let go here, one column at a time. The chain takes it
+        # only where it would read under the same arguments.
+        readings_here: "list[taxonomy.HeldReading] | None" = [] if kept_spellings is not None else None
+        described = described_from(cells, handed_over, readings_kept=readings_here)
         handed_over = None
+        if kept_spellings is not None and readings_here:
+            _keep_for_the_chain(kept_spellings, position - 1, readings_here[0], described, described_identifiers)
+        readings_here = None
         # THE UNIT OF THE COLUMN'S AGES, read before the date rule below,
         # which keeps as an age every count no older than 125 years in it
         # (limit (h) of plan P4-D446, wired at lane SH3's merge), and by the
@@ -6062,6 +6137,10 @@ def build_document(
         described = taxonomy.with_layout_exclusions(
             described, cells, settings.small_cell_floor
         )
+        # ...AND THE YEARS ITS MADE-UP DATES TAKE, read off the same cells
+        # (lane ID-ROOM2, plan P4-D457): no twin date of a column of dates
+        # held as record numbers is a real date of it, exact or merged.
+        described = taxonomy.with_made_up_years(described, cells)
         # ...and the walk's own name lets go of the column it described,
         # so no column of one group outlives it while the next is read.
         cells = []
@@ -9173,6 +9252,16 @@ def _without_table_suffix(name: str) -> str:
     if lowered.endswith(".xlsm"):
         return name[: len(name) - 5]
     return name
+
+
+def table_stem(name: str) -> str:
+    """A table's file name without its .csv, .txt, .xlsx or .xlsm ending (lane TT, plan P4-D460).
+
+    The stem every file the profile step names starts with, which
+    `synthtwin twin` names its folder after. A fixed function of the
+    name; raises TypeError where it is not text.
+    """
+    return _without_table_suffix(name)
 
 
 def default_output_paths(

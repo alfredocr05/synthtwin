@@ -105,6 +105,21 @@ FAMILIES = {
 # F1 to F9 and F10, the analyst's code running at all.
 REPORT_FAMILIES = tuple(FAMILIES) + ("F10",)
 REPORT_HEADING = "What you can analyse on this twin"
+# THE CHAIN'S SIDE (K-BC-11 restated to the owner's R7, lane ST, plan
+# P4-D458): each table described with the chain behind its switch under the
+# ledger's fixed test key, the subject question (lane GRa, plan P4-D449)
+# answered `one row each`, so ST2, whose subject column is declared beside
+# that answer, publishes no chain, as before lane GRa's patient layer (batch
+# 4q's merge of lane ST; the self-test judges no patient layer), the
+# product's chain twin generated from it, and the private report the
+# self-test writes beside it. Its trial twin is also drawn under two more
+# keys, and judged on the first fifth of its sample (the sample of a
+# fifth the size, at the whole table's precision) for the sample against
+# the whole.
+CHAIN_KEY = bytes(range(32))
+PERSON_COLUMNS = {"ST2": ("sid",)}
+TRIAL_KEYS = 3
+SAMPLE_PART = 5
 TIERS = {
     # rows, table seeds, twin seeds, automatic term cap, automatic outcomes, pMSE key columns, boosting
     # rounds, and which outcomes a trained model predicts: the seeded one, or every two-valued column
@@ -1099,8 +1114,25 @@ def plan_st6(real: View) -> "list[Analysis]":
     return [Analysis("ST6 curves", run)]
 
 
+def plan_sd(real: View) -> "list[Analysis]":
+    """BC-ARCH 4.2's design (K-BC-11's seventh table): the correlation of each pair, by rank and on the log scale."""
+
+    def run(v: View) -> "list[Estimate]":
+        out: "list[Estimate]" = []
+        for a, b in (("crp", "cost"), ("crp", "age"), ("cost", "age")):
+            out += rho(f"SD/rho:{a}~{b}", "F2", v.num(a), v.num(b))
+        crp, cost = v.num("crp"), v.num("cost")
+        both = [(math.log(x), math.log(y)) for x, y in zip(crp, cost) if x == x and y == y and x > 0 and y > 0]
+        if len(both) >= 10:
+            r = statistics.correlation([x for x, _y in both], [y for _x, y in both])
+            out += [Estimate("SD/r_log:crp~cost", "F2", r, (1.0 - r * r) / math.sqrt(len(both) - 3), len(both))]
+        return out
+
+    return [Analysis("SD pairs", run)]
+
+
 TARGETED = {"ST1": plan_st1, "ST2": plan_st2, "ST3": plan_st3, "ST4": plan_st4,
-           "ST5": plan_st5, "ST6": plan_st6}
+           "ST5": plan_st5, "ST6": plan_st6, "SD": plan_sd}
 
 
 # -- the automatic panel, from the schema alone -----------------------------
@@ -1636,30 +1668,320 @@ def generate(described: object, seed: int) -> "tuple[str, str]":
     return rendering.twin_csv(twin), rendering.report(loaded, twin)
 
 
-def report_reading(report: str) -> "dict[str, object]":
-    """What the twin's report says per analysis family (K-BC-11).
+@dataclasses.dataclass
+class ChainDescribed:
+    """A table described with the chain behind its switch, its private report, and the self-test's words."""
 
-    Plan P4-D398 records the block a later lane is to add: under
-    `REPORT_HEADING`, one line per family F1 to F10 saying `carried`,
-    `approximate` or `not carried` with its reason. Today's report has no
-    such block, and this reads that it has none: the families named and
-    the ones called carried.
+    loaded: object
+    private: str
+    judged: "dict[str, str]"
+    agreement: "dict[str, int]"
+    seconds: float
+    # Each family's word under each trial key, in key order, and its share
+    # of joint estimates under the first.
+    keys: "dict[str, list[str]]" = dataclasses.field(default_factory=dict)
+    joint_shares: "dict[str, float | None]" = dataclasses.field(default_factory=dict)
+    # Each pair: [first, second, its structural word, its judged word, its
+    # table's word alone, the level its table was read at, each key's word].
+    pairs: "list[list[object]]" = dataclasses.field(default_factory=list)
+    # The chain description's path (V12 reads the chain twin against it).
+    path: str = ""
+    # The chain's families, each {"child", "parents"}, in chain order.
+    families: "list[dict[str, object]]" = dataclasses.field(default_factory=list)
+    # The families the share rule left not judged (LANE ST RULINGS 6 (1)(c)).
+    unrelated: "list[str]" = dataclasses.field(default_factory=list)
+    # The families the comparisons rule left not judged (LANE ST RULINGS 7 (1)).
+    few_comparisons: "list[str]" = dataclasses.field(default_factory=list)
+
+
+def _inputs_part(inputs: object, part: int) -> object:
+    """The self-test's inputs on the first ``part`` rows of its sample: the sample of that size (4.6b.8)."""
+    from synthtwin import chain
+
+    columns = []
+    for column in inputs.columns:  # type: ignore[attr-defined]
+        def cut(held: object) -> object:
+            return None if held is None else held[:part]  # type: ignore[index]
+        beyond = column.beyond
+        columns += [dataclasses.replace(column, l0=column.l0[:part], linear=cut(column.linear),
+                                        second=cut(column.second), has=cut(column.has),
+                                        beyond=None if beyond is None else {at: beyond[at] for at in beyond if at < part})]
+    return chain.SelftestInputs(inputs.rows, inputs.hashes[:part], tuple(columns),  # type: ignore[attr-defined]
+                                inputs.families, inputs.pairs)  # type: ignore[attr-defined]
+
+
+def _agreement(part: object, whole: object) -> "dict[str, int]":
+    """Family by family, the words judged on a part of the sample against the whole sample's (BC-ARCH 4.2 item 3)."""
+    out = {"agrees": 0, "overclaims": 0, "underclaims": 0, "not_judged": 0}
+    by_family = {one.family: one.word for one in whole.families}  # type: ignore[attr-defined]
+    for one in part.families:  # type: ignore[attr-defined]
+        other = by_family[one.family]
+        if one.word == "not judged" or other == "not judged":
+            out["not_judged"] += 1
+        elif one.word == other:
+            out["agrees"] += 1
+        elif one.word == "carried":
+            out["overclaims"] += 1
+        elif other == "carried":
+            out["underclaims"] += 1
+        else:
+            out["agrees"] += 1
+    return out
+
+
+def describe_chain(folder: pathlib.Path, stem: str, text: str, table: str, measure: bool = True) -> ChainDescribed:
+    """The table described with the chain's switch (the ledger's fixed test key), loaded with chain=True, and its private report.
+
+    The private report is the self-test's, as `synthtwin profile` writes it:
+    every word the worst of the self-test's ``TRIAL_KEYS`` trial keys (one
+    key at the fast tier, whose report is read for its lines only), and
+    the sample's first ``1 / SAMPLE_PART`` judged against the whole sample
+    under the same keys (`_agreement`).
+    """
+    import fixtures
+    from synthtwin import chain, chain_selftest, contract, errors, profile, reading, taxonomy
+
+    folder.mkdir(parents=True, exist_ok=True)
+    path = fixtures.write(folder, f"{stem}.csv", text)
+    persons = list(PERSON_COLUMNS.get(table, ()))
+    settings = taxonomy.Settings(person_columns=tuple(persons))
+    found = reading.read_table(str(path), small_cell_floor=settings.small_cell_floor)
+    document = profile.build_document(found, settings, persons, [], [])
+    chained = chain.describe(found, document, settings, chain.ChainSwitch(stem, CHAIN_KEY, rows_per_person=chain.ROWS_ONE))
+    statistical = chained.statistical
+    written = dict(document)
+    written["relationships"] = dict(written["relationships"], statistical=statistical)  # type: ignore[arg-type]
+    described_path = fixtures.write_profile(folder, f"{stem}-chain-profile.json", written)
+    try:
+        loaded = contract.load_profile(str(described_path), chain=True)
+    except errors.ProfileError:
+        # The moments' fail-safe, as the command applies it (LANE MPp RULINGS 6 (1)).
+        bare = dict(statistical, moments=None)  # type: ignore[arg-type]
+        written["relationships"] = dict(written["relationships"], statistical=bare)  # type: ignore[arg-type]
+        described_path = fixtures.write_profile(folder, f"{stem}-chain-profile.json", written)
+        loaded = contract.load_profile(str(described_path), chain=True)
+    words = statistical["words"] if isinstance(statistical, dict) else []
+    off = "".join(note[len(chain_selftest.OFF_PREFIX):] for note in chained.notes if note.startswith(chain_selftest.OFF_PREFIX))
+    floor = settings.small_cell_floor
+    keys = TRIAL_KEYS if measure else 1
+    clock = time.perf_counter()
+    judged = chain_selftest.run(chained.selftest, words, floor, off, keys=keys)
+    seconds = time.perf_counter() - clock
+    private = chain_selftest.report_text(judged, words, chained.notes, chained.counts, stem, "(the key file)", None,
+                                         off if chained.selftest is None else None)
+    structural = {(entry["columns"][0], entry["columns"][1]): entry["word"] for entry in words}
+    pairs: "list[list[object]]" = [
+        [one.columns[0], one.columns[1], structural.get(one.columns, ""), one.word, one.table, one.level, list(one.keys)]
+        for one in judged.pairs]
+    agreement: "dict[str, int]" = {}
+    if chained.selftest is not None and measure:
+        part = chain_selftest.run(_inputs_part(chained.selftest, len(chained.selftest.hashes) // SAMPLE_PART), words,
+                                  floor, off, keys=keys)
+        agreement = _agreement(part, judged)
+    agreement["keys_disagreeing"] = sum(1 for one in judged.families if len(set(one.keys)) > 1)
+    families = [{"child": entry["child"], "parents": [parent["column"] for parent in entry["parents"]]}
+                for entry in (statistical["chain"] if isinstance(statistical, dict) else [])]
+    return ChainDescribed(loaded, private, {one.family: one.word for one in judged.families}, agreement, seconds,
+                          {one.family: list(one.keys) for one in judged.families},
+                          {one.family: one.joint_share for one in judged.families}, pairs, str(described_path), families,
+                          [one.family for one in judged.families if one.unrelated],
+                          [one.family for one in judged.families if one.few_comparisons])
+
+
+def report_reading(report: str, private: str = "") -> "dict[str, object]":
+    """What the two reports say per analysis family (K-BC-11, restated to the owner's R7; lane ST, plan P4-D458).
+
+    The SHARED report (the twin's) holds, under `REPORT_HEADING`, one line
+    for each family F1 to F10 in its structural grade (`E`, `P`, `A`, `N`,
+    read off the line's first letter) and one line for each pair, a pair
+    of a family dealt against a moved target named "moved in this twin";
+    the PRIVATE report one line for each family holding the structural
+    grade and the judged word (`carried`, `approximate`, `not carried`,
+    `not judged`). Today's twin's report has no block, and this reads that
+    it has none.
     """
     lines = report.splitlines()
     at = [i for i, line in enumerate(lines) if REPORT_HEADING.lower() in line.lower()]
-    if not at:
-        return {"block": False, "named": [], "carried": []}
     named: "list[str]" = []
-    carried: "list[str]" = []
-    for line in lines[at[0] + 1:]:
-        if not line.strip():
-            break
+    grades: "dict[str, str]" = {}
+    moved: "list[str]" = []
+    if at:
+        for line in lines[at[0] + 1:]:
+            if not line.strip():
+                break
+            for family in REPORT_FAMILIES:
+                head = family + " "
+                if line.strip().startswith(head) and ":" in line:
+                    named += [family]
+                    grades[family] = line.split(":", 1)[1].strip()[:1]
+            if "moved in this twin" in line and " and " in line:
+                moved += [line.strip().split(":", 1)[0]]
+    judged: "dict[str, str]" = {}
+    private_named: "list[str]" = []
+    for line in private.splitlines():
         for family in REPORT_FAMILIES:
-            if line.strip().startswith(family + " ") or line.strip().startswith(family + ":"):
-                named += [family]
-                if " carried" in line and "not carried" not in line:
-                    carried += [family]
-    return {"block": True, "named": named, "carried": carried}
+            if line.strip().startswith(family + " ") and "; judged " in line and ": structural " in line:
+                word = line.split("; judged ", 1)[1]
+                for said in ("not carried", "not judged", "carried", "approximate"):
+                    if word.startswith(said):
+                        judged[family] = said
+                        private_named += [family]
+                        break
+    return {"block": bool(at), "named": named, "grades": grades, "moved": moved, "private_named": private_named,
+            "judged": judged}
+
+
+# -- K-BC-11's structural and pair measures (lane ST's repair 1, plan P4-D458) --
+
+
+NUMERIC_KINDS = ("number", "count")
+
+
+def _quartile_cuts(real: View, c: Column) -> "list[float]":
+    """The real table's quartiles of a number: an analyst's own cuts for a cross-table."""
+    values = sorted(x for x in real.num(c.name) if x == x)
+    if not values:
+        return []
+    return [values[min(len(values) - 1, (len(values) * k) // 4)] for k in (1, 2, 3)]
+
+
+def _numbers_of(v: View, c: Column) -> "list[float]":
+    """A number, a count or a two-valued column as numbers (0 and 1 for the two-valued)."""
+    if c.kind == "binary":
+        return list(column_values(v, c)[c.name])  # type: ignore[call-overload]
+    return list(v.num(c.name))
+
+
+def _levels_of(v: View, c: Column, cuts: "list[float]") -> "list[str | None]":
+    """A column as levels: a number cut at the real table's quartiles, any other column's own text."""
+    if c.kind in NUMERIC_KINDS:
+        out: "list[str | None]" = []
+        for x in v.num(c.name):
+            out += [None if x != x else f"q{sum(1 for cut in cuts if x > cut)}"]
+        return out
+    return v.text(c.name)
+
+
+def pearson(key: str, family: str, a: "list[float]", b: "list[float]") -> "list[Estimate]":
+    """Pearson's correlation on the numbers as they stand (the raw scale), over the rows where both are present."""
+    pairs = [(x, y) for x, y in zip(a, b) if x == x and y == y]
+    if len(pairs) < 10:
+        return []
+    try:
+        value = statistics.correlation([x for x, _y in pairs], [y for _x, y in pairs])
+    except statistics.StatisticsError:
+        return []
+    se = (1.0 - value * value) / math.sqrt(len(pairs) - 3)
+    return [Estimate(key, family, value, max(se, 1e-9), len(pairs))]
+
+
+def pair_plan(table: str, columns: "list[Column]", pairs: "list[tuple[str, str]]", real: View) -> "list[Analysis]":
+    """K-BC-11's PAIRS: each candidate pair the analyst's way, one analysis a pair so a stop costs that pair alone.
+
+    Two numbers, or a number and a two-valued column: Spearman's
+    correlation and Pearson's on the raw scale (key `pair_r:`; the raw
+    scale a code-scale reading can miss, Codex's item 3 of lane ST's
+    review), the pair inside only where both are; any other pair of columns
+    the schema reads (two-valued, labels, a number cut at its real
+    quartiles): Cramer's V. Dates and keys are left out (no analyst
+    correlates them as they stand).
+    """
+    by_name = {c.name: c for c in columns}
+    out: "list[Analysis]" = []
+    for a, b in pairs:
+        if a not in by_name or b not in by_name:
+            continue
+        ca, cb = by_name[a], by_name[b]
+        if ca.kind in ("date", "key") or cb.kind in ("date", "key"):
+            continue
+        key = f"{table}/pair:{a}~{b}"
+        ranked = (ca.kind in NUMERIC_KINDS or cb.kind in NUMERIC_KINDS) and {ca.kind, cb.kind} <= set(NUMERIC_KINDS + ("binary",))
+        if ranked:
+            def by_rank(v: View, key: str = key, ca: Column = ca, cb: Column = cb) -> "list[Estimate]":
+                xs, ys = _numbers_of(v, ca), _numbers_of(v, cb)
+                return rho(key, "pair", xs, ys) + pearson(key.replace("/pair:", "/pair_r:", 1), "pair", xs, ys)
+            out += [Analysis(f"{table} pair {a}~{b}", by_rank)]
+            continue
+        cuts_a = _quartile_cuts(real, ca) if ca.kind in NUMERIC_KINDS else []
+        cuts_b = _quartile_cuts(real, cb) if cb.kind in NUMERIC_KINDS else []
+
+        def by_table(v: View, key: str = key, ca: Column = ca, cb: Column = cb, cuts_a: "list[float]" = cuts_a,
+                     cuts_b: "list[float]" = cuts_b) -> "list[Estimate]":
+            return cramer(key, "pair", _levels_of(v, ca, cuts_a), _levels_of(v, cb, cuts_b))
+        out += [Analysis(f"{table} pair {a}~{b}", by_table)]
+    return out
+
+
+def within_plan(table: str, columns: "list[Column]") -> "list[Analysis]":
+    """K-BC-11's F10 WITHIN COLUMNS: each column read alone as the analyst reads it on the real table.
+
+    A number or a count as numbers, a date as dates, a two-valued column as
+    0 and 1, any other column as text; the share of its cells read. An
+    analysis that runs on the real table and stops on a twin is code run
+    unchanged within one column that the twin does not carry.
+    """
+    out: "list[Analysis]" = []
+    for c in columns:
+        def read_alone(v: View, c: Column = c) -> "list[Estimate]":
+            if c.kind in NUMERIC_KINDS or (c.kind == "binary" and c.levels == ["0", "1"]):
+                held = [x for x in v.num(c.name) if x == x]
+            elif c.kind == "date":
+                # A PRESENT cell that reads as no date stops the analysis, as
+                # an analyst's strict parse does (Codex's item 11 of lane
+                # ST's review): coerced to NaN it would read as a blank.
+                days = v.date_days(c.name)
+                unreadable = sum(1 for x, t in zip(days, v.text(c.name)) if t is not None and x != x)
+                if unreadable:
+                    raise AnalysisError("not dates", f"{unreadable} present cells of {c.name} read as no date")
+                held = [x for x in days if x == x]
+            else:
+                held = [1.0 for x in v.text(c.name) if x is not None]
+            return [Estimate(f"{table}/within:{c.name}", "F10", len(held) / v.rows if v.rows else 0.0, None, len(held),
+                             ("margin",))]
+        out += [Analysis(f"{table} within {c.name}", read_alone)]
+    return out
+
+
+def _yardsticks_off(value: "float | None", real: float, h: float) -> "float | None":
+    """How many yardsticks an estimate stands from the real one; None where it is missing.
+
+    A yardstick of nought (the real table's halves agree exactly) leaves no
+    room: any error at all stands outside every finite threshold (Codex's
+    item 10 of lane ST's review), and no error stands at nought.
+    """
+    if value is None:
+        return None
+    error = abs(value - real)
+    if h > 0:
+        return error / h
+    return math.inf if error > 0 else 0.0
+
+
+def chain_verdicts(described: ChainDescribed, twin_text: str, folder: pathlib.Path) -> "dict[int, str]":
+    """V12 on the product's chain twin: each published family's line (HELD, MISSED, WITHHELD), as `synthtwin validate` reads it.
+
+    A family HELD has its published table exactly on the twin at its
+    published bands, so every estimate at those bands inside it (F1's and
+    F9's rates, F4's model on its banded parents, its pairs' tables) is
+    exact (K-BC-11's structural part, lane ST's repair 1).
+    """
+    import contextlib
+    import re
+
+    from synthtwin import cli
+
+    folder.mkdir(parents=True, exist_ok=True)
+    twin_path = folder / "chain-twin.csv"
+    twin_path.write_text(twin_text, encoding="utf-8", newline="\n")
+    said = io.StringIO()
+    with contextlib.redirect_stdout(said), contextlib.redirect_stderr(said):
+        cli.main(["validate", described.path, "--twin", str(twin_path), "--out-dir", str(folder)],
+                 chain=cli.ChainRun(folder=str(folder / "installation")))
+    written = folder / "chain-twin-quality.txt"
+    report = written.read_text(encoding="utf-8") if written.exists() else ""
+    twin_path.unlink()
+    return {int(at): verdict for at, verdict in
+            re.findall(r"^  family (\d+): .*: (HELD|MISSED|WITHHELD|NOT CHECKABLE)$", report, re.M)}
 
 
 # -- trained models (TSTR) and the broad discriminator --------------------
@@ -1793,6 +2115,15 @@ class TableRun:
     report: "dict[str, object]"
     seconds: float
     product_seconds: float
+    # The self-test's judged words on a part of its sample against its
+    # whole sample, family by family (`_agreement`); {} without the chain.
+    agreement: "dict[str, int]" = dataclasses.field(default_factory=dict)
+    selftest_seconds: float = 0.0
+    # K-BC-11's slow part (lane ST's repair 1): each pair's words and its
+    # estimate on the product's chain twin inside the battery's yardstick,
+    # the within-column analyses stopping there, V12's family lines on it,
+    # the chain's families and each family's word under each trial key.
+    chain_extra: "dict[str, object]" = dataclasses.field(default_factory=dict)
 
 
 def trained_outcomes(columns: "list[Column]", table: str, tier: str) -> "list[Column]":
@@ -1831,8 +2162,16 @@ def _side(y: Yardstick, plan: "list[Analysis]", real: View, view: View, columns:
 
 
 def run_table(table: str, rows: int, seed: int, twins: "tuple[int, ...]", tier: str,
-              folder: pathlib.Path, thin: bool = False) -> TableRun:
-    """One table at one seed: the yardstick, today's twin at each twin seed, the controls, the report."""
+              folder: pathlib.Path, thin: bool = False, chain: bool = False, today: bool = True) -> TableRun:
+    """One table at one seed: the yardstick, today's twin at each twin seed, the controls, the report.
+
+    With ``chain`` the table is also described with the chain behind its
+    switch: the two reports are read (`report_reading`), and above the fast
+    tier the product's chain twin is compared at each twin seed (side
+    "chain") and the self-test's sample is set against its whole. Without
+    ``today`` only the replicate and the chain's twin are compared (no
+    trained models, no shuffled or thin twin): K-BC-11's slow part.
+    """
     started = time.perf_counter()
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f"{table}-{seed}.csv"
@@ -1843,7 +2182,7 @@ def run_table(table: str, rows: int, seed: int, twins: "tuple[int, ...]", tier: 
     plan = TARGETED[table](real) + plan_auto(real, columns, tier, table)
     g = groups_of(real, table, seed)
     y = yardstick(plan, real, g)
-    candidates = trained_outcomes(columns, table, tier)
+    candidates = trained_outcomes(columns, table, tier) if today else []
     a_rows, b_rows = split(g, 0)
     half_a = real.subset(a_rows, "A") if candidates else None
     half_b = real.subset(b_rows, "B") if candidates else None
@@ -1883,21 +2222,87 @@ def run_table(table: str, rows: int, seed: int, twins: "tuple[int, ...]", tier: 
     sides: "dict[str, list[Side]]" = {"twin": [], "replicate": [], "shuffled": [], "thin": []}
     product_seconds = 0.0
     clock = time.perf_counter()
-    described = describe(folder / "product", f"{table}-{seed}", text)
+    described = describe(folder / "product", f"{table}-{seed}", text) if today else None
     described_a = (describe(folder / "product", f"{table}-{seed}-A", rows_text(text, a_rows))
                    if predicted else None)
     product_seconds += time.perf_counter() - clock
     report: "dict[str, object]" = {}
+    chained = None
+    agreement: "dict[str, int]" = {}
+    selftest_seconds = 0.0
+    chain_extra: "dict[str, object]" = {}
+    extras = chain and not today and tier != "fast"
+    p_plan: "list[Analysis]" = []
+    w_plan: "list[Analysis]" = []
+    y_pairs = y_within = None
+    if chain:
+        chained = describe_chain(folder / "chain", f"{table}-{seed}", text, table, measure=tier != "fast")
+        selftest_seconds = chained.seconds
+        agreement = chained.agreement
+        sides["chain"] = []
+        if extras:
+            p_plan = pair_plan(table, columns, [(f"{one[0]}", f"{one[1]}") for one in chained.pairs], real)
+            w_plan = within_plan(table, columns)
+            y_pairs = yardstick(p_plan, real, g)
+            y_within = yardstick(w_plan, real, g)
     for k in twins:
         clock = time.perf_counter()
-        twin_text, twin_report = generate(described, k)
+        twin_text, twin_report = generate(described, k) if described is not None else ("", "")
         twin_a = read(generate(described_a, k)[0], "twin A") if described_a is not None else None
         product_seconds += time.perf_counter() - clock
+        if chained is not None:
+            chain_text, chain_report = generate(chained, k)
+            if not report:
+                report = report_reading(chain_report, chained.private)
+            if tier != "fast":
+                chain_view = read(chain_text, "chain")
+                sides["chain"] += [_side(y, plan, real, chain_view, columns, tier, None, None, [], imp_a, False)]
+                if extras and not chain_extra and y_pairs is not None and y_within is not None:
+                    found = {c.key: c for c in compare(y_pairs, run_panel(p_plan, chain_view))}
+                    fresh = {c.key: c for c in compare(y_pairs, run_panel(
+                        p_plan, read(T.text(table, rows, seed * 1000 + 100 + k), "replicate")))}
+
+                    def measured(first: object, second: object) -> "list[object]":
+                        key = f"{table}/pair:{first}~{second}"
+                        if key not in found:
+                            return [None, None, None]
+                        held = found[key]
+                        inside = held.inside
+                        fresh_inside = fresh[key].inside if key in fresh else None
+                        gap = _yardsticks_off(held.value, held.real, held.h)
+                        # A pair read two ways (Spearman's and Pearson's on the
+                        # raw scale): both must land inside, its gap the larger.
+                        raw = f"{table}/pair_r:{first}~{second}"
+                        if raw in found:
+                            other = found[raw]
+                            inside = inside and other.inside
+                            if fresh_inside is not None and raw in fresh:
+                                fresh_inside = fresh_inside and fresh[raw].inside
+                            other_gap = _yardsticks_off(other.value, other.real, other.h)
+                            gap = None if gap is None or other_gap is None else max(gap, other_gap)
+                        return [inside, fresh_inside, gap]
+
+                    chain_extra = {
+                        "pairs": [one + measured(one[0], one[1]) for one in chained.pairs],
+                        "within_stops": stops(y_within, run_panel(w_plan, chain_view)),
+                        "within_robust": len(y_within.robust),
+                        "verdicts": {f"{at}": verdict for at, verdict in
+                                     chain_verdicts(chained, chain_text, folder / "v12").items()},
+                        "families": chained.families,
+                        "keys": chained.keys,
+                        "joint_shares": chained.joint_shares,
+                        "unrelated": chained.unrelated,
+                        "few_comparisons": chained.few_comparisons,
+                    }
         if not report:
             report = report_reading(twin_report)
+        replicate_seed = seed * 1000 + 100 + k
+        if not today:
+            sides["replicate"] += [_side(y, plan, real, read(T.text(table, rows, replicate_seed), "replicate"),
+                                         columns, tier, None, None, [], imp_a, False)]
+            continue
         sides["twin"] += [_side(y, plan, real, read(twin_text, "twin"), columns, tier, twin_a, half_b,
                                 predicted, imp_a)]
-        replicate_seed = seed * 1000 + 100 + k
         heavy = k in CONTROL_HEAVY_SEEDS
         rep_a = (read(T.text(table, len(a_rows), replicate_seed + 500), "replicate A")
                  if predicted and heavy else None)
@@ -1911,14 +2316,14 @@ def run_table(table: str, rows: int, seed: int, twins: "tuple[int, ...]", tier: 
             view = read(thin_text(table, rows, real.rows, seed * 1000 + 300 + k), "thin")
             panel = run_panel(plan, view)
             sides["thin"] += [Side(compare(y, panel), stops(y, panel), panel, {}, math.nan, [], False)]
-    if table == "ST5":
+    if table == "ST5" and today:
         # On a null table a shuffle IS a perfect twin, so the negative
         # control of the fabrication count is the structured table: ST1
         # at the same seed holds ST5's columns, related.
         panel = run_panel(plan, read(T.text("ST1", rows, seed), "structured"))
         sides["structured"] = [Side(compare(y, panel), stops(y, panel), panel, {}, math.nan, [], False)]
     return TableRun(table, real.rows, seed, y, tstr_yard, sides, report,
-                    time.perf_counter() - started, product_seconds)
+                    time.perf_counter() - started, product_seconds, agreement, selftest_seconds, chain_extra)
 
 
 def run_to_dict(run: TableRun) -> "dict[str, object]":
@@ -1947,19 +2352,21 @@ def run_from_dict(data: "dict") -> TableRun:
                        for s in items]
     return TableRun(data["table"], data["rows"], data["seed"], yard,
                     {k: (v[0], v[1], v[2]) for k, v in data["tstr_yard"].items()}, sides,
-                    dict(data["report"]), data["seconds"], data["product_seconds"])
+                    dict(data["report"]), data["seconds"], data["product_seconds"],
+                    dict(data.get("agreement", {})), float(data.get("selftest_seconds", 0.0)),
+                    dict(data.get("chain_extra", {})))
 
 
 def run_tables(tier: str, folder: pathlib.Path, tables: "tuple[str, ...] | None" = None,
                seeds: "tuple[int, ...] | None" = None, twins: "tuple[int, ...] | None" = None,
-               rows: "int | None" = None) -> "list[TableRun]":
+               rows: "int | None" = None, chain: bool = True) -> "list[TableRun]":
     """Every table and seed of a tier (or the ones named), each in a folder of its own."""
     settings = TIERS[tier]
     out = []
     for table in tables or settings["tables"]:
         for seed in seeds or settings["seeds"]:
             out += [run_table(table, rows or settings["rows"], seed, twins or settings["twins"], tier,
-                              folder / f"{table}-{seed}", thin=tier == "slow")]
+                              folder / f"{table}-{seed}", thin=tier == "slow", chain=chain)]
     return out
 
 
@@ -2511,17 +2918,278 @@ def kpi_10(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
     }
 
 
-def kpi_11(runs: "list[TableRun]") -> "dict[str, object]":
-    """K-BC-11, the honest report: families the twin's report names, and overclaims (none can be: no line exists)."""
-    named: "set[str]" = set()
-    carried: "set[str]" = set()
+def _misses_target(r: TableRun, family: str) -> "bool | None":
+    """Whether the product's chain twin misses K-BC-01's family target on this run (None: too few estimates)."""
+    if family == "F10":
+        stops = [len(s.stops) for s in r.sides.get("chain", [])]
+        rep = [len(s.stops) for s in r.sides.get("replicate", [])]
+        if not stops or not rep:
+            return None
+        return _median([float(n) for n in stops]) > _median([float(n) for n in rep])
+    if family == "F8":
+        return None
+    chain_rows = [c for s in r.sides.get("chain", []) for c in s.compared if c.family == family and _joint(c)]
+    rep_rows = [c for s in r.sides.get("replicate", [])[:1] for c in s.compared if c.family == family and _joint(c)]
+    if not chain_rows or len(rep_rows) < FAMILY_MINIMUM:
+        return None
+    chain_share = sum(1 for c in chain_rows if c.inside) / len(chain_rows)
+    rep_share = sum(1 for c in rep_rows if c.inside) / len(rep_rows)
+    return 100.0 * (rep_share - chain_share) > FAMILY_TARGET
+
+
+_RANK = {"carried": 0, "approximate": 1, "not carried": 2}
+
+
+def _worst(words: "list[str]") -> str:
+    """The worst of several judged words, `not judged` where any is (the self-test's own rule over its keys)."""
+    if not words or any(word not in _RANK for word in words):
+        return "not judged"
+    out = words[0]
+    for word in words[1:]:
+        if _RANK[word] > _RANK[out]:
+            out = word
+    return out
+
+
+def _structural(r: TableRun) -> "dict[str, int]":
+    """K-BC-11's structural part on one run: E parts and exact pairs through V12, F10 within columns (lane ST's repair 1).
+
+    A published family whose V12 line is MISSED on the product's chain
+    twin and none of whose pairs the shared report names "moved in this
+    twin" breaks the E grade of every estimate at its published bands
+    inside it (F1, F4 and F9) and the word of every exact pair it holds;
+    WITHHELD and NOT CHECKABLE lines are not measured. A within-column
+    analysis stopping on the twin and not on the real table breaks code
+    run unchanged's E within columns.
+    """
+    extra = r.chain_extra
+    out = {"families": 0, "pairs": 0, "within": 0, "not_measured": 0, "families_held": 0, "within_read": 0}
+    if not extra:
+        return out
+    moved = set(r.report.get("moved", []))  # type: ignore[arg-type]
+    families = extra.get("families", [])
+    verdicts = extra.get("verdicts", {})
+    broken: "list[set[str]]" = []
+    for at, family in enumerate(families):  # type: ignore[arg-type]
+        members = {f"{family['child']}"} | {f"{name}" for name in family["parents"]}
+        verdict = verdicts.get(f"{at}")  # type: ignore[union-attr]
+        named = any(f"{a} and {b}" in moved for a in members for b in members if a != b)
+        if verdict == "HELD":
+            out["families_held"] += 1
+        elif verdict == "MISSED" and not named:
+            out["families"] += 1
+            broken += [members]
+        elif verdict != "MISSED":
+            out["not_measured"] += 1
+    for one in extra.get("pairs", []):  # type: ignore[union-attr]
+        if one[2] in ("exact", "pinned") and any({one[0], one[1]} <= members for members in broken):
+            out["pairs"] += 1
+    out["within"] = len(extra.get("within_stops", []))  # type: ignore[arg-type]
+    out["within_read"] = int(extra.get("within_robust", 0))  # type: ignore[call-overload]
+    return out
+
+
+# A SET OF PAIRS holds K-BC-01's family target where it holds at least this
+# many pairs: at the replicate's 77 % inside, two shares over 20 pairs differ
+# by 13 points at one standard deviation, so the 25-point bar stands about
+# two of them away from chance (with 6 pairs it is under one: the first
+# reading of repair 1 called ST3-1's six carried pairs a miss, 3 inside
+# against the fresh replicate's 5). A smaller set is read pair by pair: a
+# pair misses where the chain twin's estimate stands more than
+# PAIR_ALONE_YARDSTICKS from the real one while the fresh replicate lands
+# inside (a fresh sample misses by that much 1 time in about 75, Student's
+# t with four degrees of freedom; where the fresh sample itself misses, the
+# battery's yardstick does not measure the pair: Cramer's V of two
+# unrelated columns stands at its boundary of nought).
+PAIR_SET_MINIMUM = 20
+PAIR_ALONE_YARDSTICKS = 3.0
+
+
+def _pairs_missed(pairs: "list[list[object]]", word_of: "Callable[[list[object]], object]") -> "list[str]":
+    """The pairs of one run a reading calls carried that miss K-BC-01's family target on the product's chain twin.
+
+    RULINGS 1 (6) of lane ST: the line for a pair called carried is K-BC-01's
+    family target, no stricter: the pairs called carried, as a set, land
+    inside the battery's yardstick on the chain twin at most `FAMILY_TARGET`
+    points under the fresh replicate on the same pairs; the set's every
+    pair is named where it misses. A set of fewer than `PAIR_SET_MINIMUM`
+    pairs is read pair by pair at `PAIR_ALONE_YARDSTICKS`, where the fresh
+    replicate lands inside.
+    """
+    called = [one for one in pairs if word_of(one) == "carried" and one[7] is not None]
+    if len(called) >= PAIR_SET_MINIMUM:
+        twin = sum(1 for one in called if one[7]) / len(called)
+        fresh = [one for one in called if one[8] is not None]
+        if not fresh:
+            return []
+        replicate = sum(1 for one in fresh if one[8]) / len(fresh)
+        if 100.0 * (replicate - twin) > FAMILY_TARGET:
+            return [f"{one[0]}~{one[1]}" for one in called if not one[7]]
+        return []
+    return [f"{one[0]}~{one[1]}" for one in called
+            if bool(one[8]) and (one[9] is None or float(one[9]) > PAIR_ALONE_YARDSTICKS)]  # type: ignore[arg-type]
+
+
+def kpi_11(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
+    """K-BC-11, the honest reports, restated to the owner's R7 and measured (lane ST, plan P4-D458, repair 1).
+
+    Every family F1 to F10 is one line of the SHARED report (structural
+    grades) and one line of the PRIVATE report (both grades). A JUDGED
+    OVERCLAIM is a family whose private word (the worst of the self-test's
+    trial keys) is `carried` while its estimates on the PRODUCT's chain
+    twin miss K-BC-01's family target (at most `FAMILY_TARGET` points under
+    the replicate) in the same run, or the pairs called `carried` in a run
+    whose analyst's estimates on that twin (Spearman's correlation, or
+    Cramer's V) miss the same target as a set (`_pairs_missed`); an
+    UNDERCLAIM a family judged `approximate` or `not carried` whose chain
+    twin meets the target. A STRUCTURAL OVERCLAIM is measured through V12
+    and the within-column analyses (`_structural`). Each key's own words,
+    and the worse of the first two keys', are recorded beside them, as are
+    the prices of the pairs' and the sparse cells' rules, and the
+    family-runs the share rule left not judged (a share of joint estimates
+    under twice chance) with those whose chain twin misses the target
+    (LANE ST RULINGS 6 (1)(c)), and so the family-runs the comparisons
+    rule left not judged (fewer than five estimates the shuffle moves
+    beyond their yardstick, not every one past the line: LANE ST RULINGS
+    7 (1)). Neither is an overclaim. The families each report leaves unnamed
+    are counted REPORT BY REPORT and added (Codex's item 12 of lane ST's
+    review): one report's lines never stand for another's. Never a count
+    of the word.
+    """
+    unnamed_shared = 0
+    unnamed_private = 0
     block = False
+    counts = {key: 0 for key in (
+        "over_judged", "over_single", "over_two", "under", "carried", "carried_two", "carried_key0", "lost_met",
+        "lost_missed", "pairs_over", "pairs_over_single", "pairs_over_two", "pairs_carried", "pairs_carried_two",
+        "pairs_table_carried", "pairs_stopped_inside", "pairs_stopped_outside", "pairs_measured", "exact_outside",
+        "pairs_sparse", "pairs_coarser", "pairs_under", "s_families", "s_pairs", "s_within", "s_not_measured",
+        "s_families_held", "s_within_read", "unrelated", "unrelated_missed", "few", "few_missed")}
+    which: "list[str]" = []
+    # Not overclaims: the family-runs the share rule left not judged whose
+    # chain twin misses, named apart (LANE ST RULINGS 6 (1)(c)).
+    left_by_share: "list[str]" = []
+    # And those the comparisons rule left (LANE ST RULINGS 7 (1)).
+    left_by_comparisons: "list[str]" = []
+    agreement = {"agrees": 0, "overclaims": 0, "underclaims": 0, "keys_disagreeing": 0}
     for r in runs:
         block = block or bool(r.report.get("block"))
-        named |= set(r.report.get("named", []))  # type: ignore[arg-type]
-        carried |= set(r.report.get("carried", []))  # type: ignore[arg-type]
-    return {"families_unnamed": len(REPORT_FAMILIES) - len(named), "overclaims": 0 if not carried else len(carried),
-            "report_block": block}
+        named_here = set(r.report.get("named", []))  # type: ignore[arg-type]
+        private_here = set(r.report.get("private_named", []))  # type: ignore[arg-type]
+        unnamed_shared += sum(1 for family in REPORT_FAMILIES if family not in named_here)
+        unnamed_private += sum(1 for family in REPORT_FAMILIES if family not in private_here)
+        for key in agreement:
+            agreement[key] += int(r.agreement.get(key, 0))
+        if "chain" not in r.sides or not r.sides["chain"]:
+            continue
+        judged = r.report.get("judged", {})
+        keys = r.chain_extra.get("keys", {})
+        unrelated = set(r.chain_extra.get("unrelated", []))  # type: ignore[arg-type]
+        few = set(r.chain_extra.get("few_comparisons", []))  # type: ignore[arg-type]
+        for family in REPORT_FAMILIES:
+            missed = _misses_target(r, family)
+            counts["unrelated"] += family in unrelated
+            counts["few"] += family in few
+            if missed is None:
+                continue
+            if missed and family in unrelated:
+                counts["unrelated_missed"] += 1
+                left_by_share += [f"{r.table}-{r.seed} {family}"]
+            if missed and family in few:
+                counts["few_missed"] += 1
+                left_by_comparisons += [f"{r.table}-{r.seed} {family}"]
+            word = judged.get(family)  # type: ignore[union-attr]
+            by_key = [f"{one}" for one in keys.get(family, [])] or [f"{word}"]  # type: ignore[union-attr]
+            two = _worst(by_key[:2])
+            counts["carried"] += word == "carried"
+            counts["carried_two"] += two == "carried"
+            counts["carried_key0"] += by_key[0] == "carried"
+            if missed and word == "carried":
+                counts["over_judged"] += 1
+                which += [f"{r.table}-{r.seed} {family} judged"]
+            counts["over_single"] += sum(1 for one in by_key if missed and one == "carried")
+            counts["over_two"] += missed and two == "carried"
+            if not missed and word in ("approximate", "not carried"):
+                counts["under"] += 1
+            if by_key[0] == "carried" and word != "carried":
+                counts["lost_missed" if missed else "lost_met"] += 1
+        pairs = r.chain_extra.get("pairs", [])
+        for one in pairs:  # type: ignore[union-attr]
+            first, second, structural, word, table_word, level, by_key, inside, fresh, gap = one
+            counts["pairs_carried"] += word == "carried"
+            counts["pairs_carried_two"] += _worst([f"{held}" for held in by_key[:2]]) == "carried"
+            counts["pairs_table_carried"] += table_word == "carried"
+            counts["pairs_sparse"] += level == -1
+            counts["pairs_coarser"] += level in (1, 2)
+            if inside is None:
+                continue
+            counts["pairs_measured"] += 1
+            counts["exact_outside"] += structural == "exact" and not inside
+            counts["pairs_under"] += word in ("approximate", "not carried") and bool(inside)
+            if table_word == "carried" and word != "carried":
+                counts["pairs_stopped_inside" if inside else "pairs_stopped_outside"] += 1
+        for reading, key in ((lambda one: one[3], "pairs_over"),
+                             (lambda one: _worst([f"{held}" for held in one[6][:2]]), "pairs_over_two")):
+            missed = _pairs_missed(pairs, reading)  # type: ignore[arg-type]
+            counts[key] += len(missed)
+            if key == "pairs_over":
+                which += [f"{r.table}-{r.seed} pairs judged carried: {name}" for name in missed]
+        for at in range(TRIAL_KEYS):
+            counts["pairs_over_single"] += len(_pairs_missed(pairs, lambda one, at=at: f"{one[6][at]}" if len(one[6]) > at else "not judged"))  # type: ignore[arg-type]
+        found = _structural(r)
+        for key in ("families", "pairs", "within", "not_measured", "families_held", "within_read"):
+            counts["s_" + key] += found[key]
+        if found["families"] or found["pairs"] or found["within"]:
+            which += [f"{r.table}-{r.seed} structural {found}"]
+    out: "dict[str, object]" = {
+        "families_unnamed_shared" + suffix: unnamed_shared if runs else len(REPORT_FAMILIES),
+        "families_unnamed_private" + suffix: unnamed_private if runs else len(REPORT_FAMILIES),
+        "report_block" + suffix: block,
+    }
+    if any("chain" in r.sides and r.sides["chain"] for r in runs):
+        out.update({
+            "overclaims_structural" + suffix: counts["s_families"] + counts["s_pairs"] + counts["s_within"],
+            "overclaims_structural_families" + suffix: counts["s_families"],
+            "overclaims_structural_pairs" + suffix: counts["s_pairs"],
+            "overclaims_structural_within" + suffix: counts["s_within"],
+            "structural_not_measured" + suffix: counts["s_not_measured"],
+            "families_held_on_the_chain_twin" + suffix: counts["s_families_held"],
+            "within_column_analyses_read" + suffix: counts["s_within_read"],
+            "overclaims_judged" + suffix: counts["over_judged"],
+            "overclaims_judged_single_keys" + suffix: counts["over_single"],
+            "overclaims_judged_two_keys" + suffix: counts["over_two"],
+            "underclaims_judged" + suffix: counts["under"],
+            "families_not_judged_by_the_share_rule" + suffix: counts["unrelated"],
+            "families_not_judged_by_the_share_rule_missed" + suffix: counts["unrelated_missed"],
+            "families_not_judged_by_the_comparisons_rule" + suffix: counts["few"],
+            "families_not_judged_by_the_comparisons_rule_missed" + suffix: counts["few_missed"],
+            "families_carried" + suffix: counts["carried"],
+            "families_carried_two_keys" + suffix: counts["carried_two"],
+            "families_carried_first_key" + suffix: counts["carried_key0"],
+            "carried_lost_to_the_keys_met" + suffix: counts["lost_met"],
+            "carried_lost_to_the_keys_missed" + suffix: counts["lost_missed"],
+            "overclaims_pairs_judged" + suffix: counts["pairs_over"],
+            "overclaims_pairs_single_keys" + suffix: counts["pairs_over_single"],
+            "overclaims_pairs_two_keys" + suffix: counts["pairs_over_two"],
+            "pairs_measured" + suffix: counts["pairs_measured"],
+            "pairs_carried" + suffix: counts["pairs_carried"],
+            "pairs_carried_two_keys" + suffix: counts["pairs_carried_two"],
+            "pairs_carried_on_the_table_alone" + suffix: counts["pairs_table_carried"],
+            "pairs_no_longer_carried_inside" + suffix: counts["pairs_stopped_inside"],
+            "pairs_no_longer_carried_outside" + suffix: counts["pairs_stopped_outside"],
+            "pairs_underclaimed" + suffix: counts["pairs_under"],
+            "exact_pairs_outside_on_their_correlation" + suffix: counts["exact_outside"],
+            "pairs_not_judged_for_sparse_cells" + suffix: counts["pairs_sparse"],
+            "pairs_read_at_a_coarser_level" + suffix: counts["pairs_coarser"],
+            "sample_agrees" + suffix: agreement["agrees"],
+            "sample_overclaims" + suffix: agreement["overclaims"],
+            "sample_underclaims" + suffix: agreement["underclaims"],
+            "trial_keys_disagreeing" + suffix: agreement["keys_disagreeing"],
+            "overclaimed" + suffix: "; ".join(which) or "none",
+            "not_judged_by_the_share_rule_missed" + suffix: "; ".join(left_by_share) or "none",
+            "not_judged_by_the_comparisons_rule_missed" + suffix: "; ".join(left_by_comparisons) or "none",
+        })
+    return out
 
 
 # K-BC-12's controls: the replicate's stable-and-inside share is at least

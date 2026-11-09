@@ -1531,10 +1531,13 @@ _GRAINED: "dict[str, tuple[typing.Callable[[], bytes], str, str]]" = {
         "year",
         "43749d64d37c2edc2a42a9a6747aa33d745a127ec94970f02f502b2b3804a9ef",
     ),
+    # ...the held case's digest re-measured at lane ID-ROOM2 (plan P4-D457): its
+    # made-up dates are drawn from the block of years from 2028 its description
+    # publishes, no longer from the G1 floor's fixed span, and nothing else moves.
     "held": (
         lambda: _dated_visits(300, 150, datetime.date(1925, 1, 1), 100 * 365, 19),
         "held",
-        "51c494f5bc7e77a5cde6678d77c2472f6dea8d7a6eca754e920d67bed5df7728",
+        "c613361ebaa7091634a233427ff281c7b48d31f3ce5f9a9a2e5a926c51d52ef9",
     ),
 }
 

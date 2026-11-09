@@ -1251,9 +1251,13 @@ def test_ggs_membership_reads_present_cells_and_keeps_the_blanks() -> None:
 
 
 def test_the_zoo_knows_its_udi_as_a_code_and_answers_it_yes() -> None:
-    """The combined review's item 3: answered `no`, the zoo's own answer would publish its 20 GS1 UDIs."""
+    """The combined review's item 3: answered `no`, the zoo's own answer would publish its 20 GS1 UDIs.
+
+    Declared a device identifier since plan P4-D445 (a UDI carrying a lot
+    is a Safe Harbor device identifier), and still answered `yes`.
+    """
     table = next(table for table in health_zoo.TABLES if table.name == "immunizations")
-    assert table.knows["udi"] == "code"
+    assert table.knows["udi"] == "identifier"
     pattern = re.compile(r"\(01\)\d{14}\(17\)\d{6}\(10\)[A-Z0-9]+")
     assert pattern.fullmatch("(01)69944697887698(17)252216(10)LOT862")
     assert not pattern.fullmatch("(37)69944697887698(52)252216(84)LOT862")  # every figure drawn, as `yes` writes

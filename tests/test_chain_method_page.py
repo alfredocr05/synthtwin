@@ -1062,12 +1062,16 @@ def test_the_addendum_of_19_04_is_written_with_its_measurements():
     assert "from 86 and 174 SE off (50,000 and 200,000 rows) to 0.00" in decision
 
 
-def test_lane_mrs_inference_conditions_are_an_open_precondition():
-    """Verify item 5."""
+def test_lane_mrs_inference_conditions_are_a_precondition_mr4_proves():
+    """Verify item 5, as lane RO's dated amendment reads it (plan P4-D459): the rows stand on one precondition, which MR.4 proves."""
     scope = _proof("h", "zz")
-    assert "proven on one PRECONDITION, open until lane MR's page proves it" in scope
+    assert "proven on one PRECONDITION, proven by MR.4 under the inference of MR.3 exactly as written (AMENDED 2026-11-04, lane RO, plan P4-D459" in scope
     assert "**Open preconditions:**" in scope
-    assert "PRECONDITION, open until lane MR's page proves it" in _section()
+    assert "PRECONDITION, proven by MR.4 under the inference of MR.3 exactly as written (AMENDED 2026-11-04, lane RO, plan P4-D459" in _section()
+    stated = _flat(_section())
+    for quoted in ("4.6b.13's \"open until lane MR's page proves it\"", "it was \"open until lane MR's page proves it\"", "it read \"open until lane MR's page proves it\"", "it read \"open until MR's page proves it\"", "it read \"OPEN until lane MR's page proves it\""):
+        stated = stated.replace(quoted, "")
+    assert "until lane MR's page proves it" not in stated and "until MR's page proves it" not in stated
     assert "on one PRECONDITION, open until lane MR's page proves it" in _decision()
 
 

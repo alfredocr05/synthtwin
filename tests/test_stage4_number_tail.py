@@ -14,7 +14,8 @@ within-column facts, each red on 36ad3061 and green here:
     rule 4 left it, and where rule 4 placed it G12.3's windows were drawn
     through the staircase alone: 200,000 rows missed the column's mean and
     skew and the tail's two distances on 36ad3061, and 1,000,000 rows the
-    mean, skew and kurtosis (`test_the_dense_tail_at_200000_rows_meets_its_moments`).
+    mean, skew and kurtosis (`the_dense_tail_at_200000_rows_meets_its_moments`,
+    run by K-HZ-21's driver since plan P4-D461).
 (c) Counts of a few values piled their high tail on the derived end: 194
     of 200 tail rows on `13` where the source's largest is `12`
     (`test_counts_of_a_few_values_do_not_heap_on_their_derived_end`).
@@ -49,9 +50,11 @@ on 36ad3061's pushed staircase.
 from __future__ import annotations
 
 import dataclasses
+import inspect
 import math
 import pathlib
 import random
+import typing
 
 import pytest
 
@@ -367,8 +370,11 @@ def test_the_oracle_reads_the_shared_staircase_as_the_product_does(tmp_path: pat
 # -- (b) G2's dense tail -------------------------------------------------------------
 
 
-def test_the_dense_tail_at_200000_rows_meets_its_moments(tmp_path: pathlib.Path) -> None:
+def the_dense_tail_at_200000_rows_meets_its_moments(tmp_path: pathlib.Path) -> None:
     """G2's dense tail at 200,000 rows: a dense side though its staircase crowds its end, and the twin misses nothing.
+
+    Run by K-HZ-21's driver, not collected (plan P4-D461): the node
+    `test_the_dense_tail_at_200000_rows_meets_its_moments` it was.
 
     On 36ad3061 the staircase held fifteen rows on the derived end, the
     side was read as no dense side and rule 4 left it: the twin's tail
@@ -397,9 +403,36 @@ def test_the_dense_tail_at_200000_rows_meets_its_moments(tmp_path: pathlib.Path)
     for field, value in (("mean", facts.mean), ("skew", facts.skew), ("kurtosis", facts.kurtosis)):
         assert value is not None
         assert windows[field][0] <= value <= windows[field][1], (field, windows[field], value)
-    # AND THE TWIN'S OWN REPORT DRAWS THE SAME HULL (`generation.
-    # _numeric_approximations`; the repair's item 6, mutant M9): its
-    # windows for the column's moments reach the published values.
+    the_report_reaches_the_dense_moments(described)
+
+
+# THE SMALLEST DENSE TAIL WHOSE REPORT NEEDS THE HULL (plan P4-D461): lane G2T's
+# mutant P8-M9 (the report's windows for the moments drawn through the
+# staircase alone) leaves every other kept case of this file and of
+# tests/test_stage4_million_rows.py green, and turns only this check red.
+# Measured on the lane's head (wave6/SPD2/mut-C.log): with the mutant the
+# report's windows still reach the published moments at 140,000 rows and miss
+# the skew and kurtosis at 160,000; without it they reach all three at both.
+# So the suite keeps the check at 160,000 rows, and K-HZ-21's driver runs the
+# whole 200,000-row case it comes from.
+DENSE_REPORT_ROWS = 160_000
+
+
+def test_the_twin_report_reaches_a_dense_tail_s_moments_where_it_needs_the_hull(tmp_path: pathlib.Path) -> None:
+    """G2's dense tail at the smallest size whose report needs the dense hull: its windows reach the published moments."""
+    described = million._described_tail(tmp_path / "dense", "dense", million._dense_tail(DENSE_REPORT_ROWS))
+    the_report_reaches_the_dense_moments(described)
+
+
+def the_report_reaches_the_dense_moments(described: kpi_shapes.Described) -> None:
+    """AND THE TWIN'S OWN REPORT DRAWS THE SAME HULL (`generation._numeric_approximations`; the repair's item 6, mutant M9).
+
+    Its windows for the column's moments reach the published values. The
+    one check of the 200,000-row case that a lane mutant turns red where
+    no other case of the suite does (plan P4-D461): the suite keeps it on
+    the smallest dense tail that needs the hull, and K-HZ-21's driver runs
+    the whole case at 200,000 rows.
+    """
     twin = generation.generate(described.loaded, 0)
     reported = {one.fact: one for one in twin.approximations if one.fact in ("mean", "skew", "kurtosis")}
     assert sorted(reported) == ["kurtosis", "mean", "skew"], sorted(reported)
@@ -756,10 +789,13 @@ def _negskew(rows: int) -> "list[str]":
     return written
 
 
-def test_two_cells_below_nought_at_250000_rows_keep_the_count_and_the_spellings(
+def two_cells_below_nought_at_250000_rows_keep_the_count_and_the_spellings(
     tmp_path: pathlib.Path, monkeypatch: "pytest.MonkeyPatch"
 ) -> None:
     """`negskew` at 250,000 rows: `n_distinct_values` held and no signed leading-zero spelling written (new item 1).
+
+    Run by K-HZ-21's driver, not collected (plan P4-D461): the node
+    `test_two_cells_below_nought_at_250000_rows_keep_the_count_and_the_spellings` it was.
 
     The source holds `-1.98` and `-11.44` below nought. Read without the
     sign bands, the shared staircase counted a point the twin never
@@ -834,10 +870,13 @@ def _units(facts: contract.NumericFacts, counted: "list[int]") -> "tuple[int, in
     return counted[0], max(ladder.low.rows, ladder.high.rows)
 
 
-def test_the_spread_works_in_near_linear_time(
+def the_spread_works_in_near_linear_time(
     tmp_path: pathlib.Path, monkeypatch: "pytest.MonkeyPatch"
 ) -> None:
     """A Pareto column at two places, 250,000 rows: one ladder's work at most `16 m log2 m` units (new item 2).
+
+    Run by K-HZ-21's driver, not collected (plan P4-D461): the node
+    `test_the_spread_works_in_near_linear_time` it was.
 
     Rescanning every run for each move, and moving the sum back one step
     at a time, one ladder took 321.6 s here (6,017 s at 500,000 rows)
@@ -1166,3 +1205,35 @@ def number_tail_measures(folder: pathlib.Path) -> "dict[str, float]":
         "widest_tail_mean_distance_off_per_thousand": round(tail_off, 1),
         "most_cells_on_a_derived_end": on_end,
     }
+
+
+# -- K-HZ-21: the cases this file hands to the slow driver (plan P4-D461) -------
+
+# The nodes the suite collected on 2af926ce at 200,000 and 250,000 rows and
+# K-HZ-21 runs now, by the same names; the file's 20,000-row cases stay.
+MOVED_NODES = (
+    "test_the_dense_tail_at_200000_rows_meets_its_moments",
+    "test_two_cells_below_nought_at_250000_rows_keep_the_count_and_the_spellings",
+    "test_the_spread_works_in_near_linear_time",
+)
+
+
+def moved_cases() -> "list[tuple[str, typing.Callable[..., None], dict[str, object]]]":
+    """K-HZ-21's items from this file, one a node the suite no longer collects.
+
+    The driver gives each a folder of its own as ``tmp_path`` and, where the
+    case takes one, a ``pytest.MonkeyPatch`` it undoes after the case.
+    """
+    return [
+        (MOVED_NODES[0], the_dense_tail_at_200000_rows_meets_its_moments, {}),
+        (MOVED_NODES[1], two_cells_below_nought_at_250000_rows_keep_the_count_and_the_spellings, {}),
+        (MOVED_NODES[2], the_spread_works_in_near_linear_time, {}),
+    ]
+
+
+def test_k_hz_21_runs_the_cases_this_file_moved() -> None:
+    """The slow driver's items from this file are the moved nodes, each called with its folder and, where it asks, a patch."""
+    cases = moved_cases()
+    assert [name for name, _function, _given in cases] == list(MOVED_NODES)
+    assert [sorted(inspect.signature(function).parameters) for _name, function, _given in cases] == [
+        ["tmp_path"], ["monkeypatch", "tmp_path"], ["monkeypatch", "tmp_path"]]

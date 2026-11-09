@@ -523,7 +523,11 @@ def test_the_measurement_note_counts_what_it_names() -> None:
     assert total == [str(len(off_base))], (
         f"the note says {total} entries stand off {base}; {len(off_base)} do"
     )
-    groups = re.findall(r"AND ([A-Z]+|\d+) (?:MORE )?STANDS? OFF ([0-9a-f]{7})", note)
+    # A group of more than twenty is written as the first block's count is,
+    # a ten joined to a unit by a hyphen (`AND TWENTY-EIGHT STAND OFF`,
+    # batch 4q's seal, 2026-11-08), and `_note_number` reads it; a count
+    # written in any other form still fails the count of STAND OFF below.
+    groups = re.findall(r"AND ([A-Z]+(?:-[A-Z]+)?|\d+) (?:MORE )?STANDS? OFF ([0-9a-f]{7})", note)
     assert groups, "the note no longer counts its groups as this test reads them"
     assert len(re.findall(r"STANDS? OFF", note)) == len(groups) + 1, (
         "the note counts a group in words this test does not read"
@@ -815,6 +819,19 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 1,200,000 from 1,100,000, AT THE INTEGRATION OF BATCH 4Q (2026-11-07),
+    # the orchestrator's recorded call D15 (the owner may veto), made ONCE
+    # for the batch: lanes ARR-a, TT and RO merged under the old bound
+    # (1,097,411 bytes), then lane ST's `K-BC-11` and `K-S6-04`, restated
+    # to its two reports, took the merged ledger past it (1,110,710 bytes at
+    # lane ST's merge); then lane ID-ROOM2's `K-HZ-06` restated, lane CZ-A's
+    # `K-HZ-14` new, batch 4p's records round's readings (`K-HZ-16`,
+    # `K-HZ-17`, `K-HZ-19`, `K-HZ-20` and `K-S3-65`), lane CHs's `K-S6-15`
+    # new and lane SPD2's `K-HZ-21` new with `K-P0-10` restated, every entry
+    # kept by id and the note merged clause by clause (1,150,990 bytes with
+    # every lane of the batch merged); then the records' stamps on the merged
+    # head. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
     # 1,100,000 from 1,050,000, AT THE INTEGRATION OF BATCH 4P (2026-11-06),
     # the orchestrator's recorded call D15 (the owner may veto), made ONCE
     # for the batch and set before the batch began:
@@ -1663,7 +1680,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # their evidence and their note clause. The batch integrator settles
     # this beside the other lanes' raises. A MEASUREMENT IS NEVER TRIMMED
     # TO FIT.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 1_100_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 1_200_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

@@ -1475,9 +1475,23 @@ _FORM_STEPS = 64
 _FIELD_STEPS = 4000
 
 
+def filled_at_its_length(
+    cell: str, reading: Reading, word: int, span: "tuple[int, int]", taken: "dict[str, bool]",
+) -> "str | None":
+    """A made-up cell written as a valid value in the member's own form at its own length, or None (plan P4-D457).
+
+    The G1 floor's value of a layout the census withholds (the verify of
+    lane ID-ROOM2's repair 1, item 2): only at the made-up cell's length
+    and on its side of the code alphabet, so the held block's lengths and
+    `n_code_alphabet` hold; where the member's own form writes no value
+    so, None, and the cell is left as the walk wrote it.
+    """
+    return _filled_own(cell, reading, word, span, taken, True, True)
+
+
 def _filled_own(
     cell: str, reading: Reading, word: int, span: "tuple[int, int]", taken: "dict[str, bool]",
-    keep_length: bool = False,
+    keep_length: bool = False, keep_side: bool = False,
 ) -> "str | None":
     """A made-up cell no date wears, written as a valid value in the member's own form (the G1 floor's last step).
 
@@ -1490,7 +1504,8 @@ def _filled_own(
     any form -- so the held block's `n_code_alphabet` holds wherever a date
     can keep it, and every cell is valid. ``keep_length`` asks the
     made-up cell's length alone (the generator's one refill of a length
-    the column would otherwise lose); None where none is found.
+    the column would otherwise lose), and ``keep_side`` its side of the
+    code alphabet too (`filled_at_its_length`); None where none is found.
     """
     first, end = span
     clocked = reading.kind == CLOCK or (
@@ -1512,7 +1527,7 @@ def _filled_own(
         (0, None, 20000),
     )
     if keep_length:
-        tries = ((len(cell), None, _FORM_STEPS * 6),)
+        tries = ((len(cell), code if keep_side else None, _FORM_STEPS * 6),)
     for size, side, steps in tries:
         moment = start
         for _step in range(steps):

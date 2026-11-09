@@ -368,10 +368,29 @@ def regions_of(
     return [(tuple(sorted(columns)), tuple(sorted(nodes))) for columns, nodes in groups]
 
 
+def at_level(codes: "bytes | list[int]", mapping: "tuple[int, ...] | list[int]") -> "bytes | list[int]":
+    """Each `L0` code read through a ladder's map to a coarser level: one byte a row where every result fits one (lane CHs, plan P4-D462)."""
+    if not mapping or max(mapping) < 256:
+        return bytes(mapping[code] for code in codes)
+    return [mapping[code] for code in codes]
+
+
+def _level_of(
+    held: "tuple[bytes | list[int], bytes | list[int] | None, bytes | list[int] | None]",
+    scale: rules.Ladder,
+    level: int,
+) -> "bytes | list[int]":
+    """A column's codes at `level`: held, or read from its `L0` codes through the ladder's map (the same codes)."""
+    found = held[level]
+    if found is not None:
+        return found
+    return at_level(held[0], scale.maps[level])
+
+
 def sums_of(
     families: "list[rules.Family]",
     scales: "dict[str, rules.Ladder]",
-    level_codes: "dict[str, tuple[bytes | list[int], bytes | list[int], bytes | list[int]]]",
+    level_codes: "dict[str, tuple[bytes | list[int], bytes | list[int] | None, bytes | list[int] | None]]",
     value_codes: "dict[str, tuple[bytes, bytes | None, bytearray]]",
     offers: "list[tuple[str, int]]",
 ) -> "list[dict[str, object]]":
@@ -391,7 +410,7 @@ def sums_of(
             if held[member][0] == name:
                 place = member
         pure = pure_bands(scales[name], held[place][1])
-        streams = [level_codes[member][level] for member, level in held]
+        streams = [_level_of(level_codes[member], scales[member], level) for member, level in held]
         linear, second, has = value_codes[name]
         for which, codes in (("L", linear), ("S", second)):
             if codes is None:
@@ -580,6 +599,12 @@ class Grouping:
     totals: "tuple[int, ...]"
     small: "frozenset[int]"
     coarsest: "tuple[int, ...]"
+    # Lane CHs (plan P4-D462): a grouping may hand its `L0` codes and the
+    # `L0` to `L1` map instead of its bands; `released` then reads its
+    # bands one grouping at a time (the same bands), so the groupings'
+    # bands are never held all at once.
+    l0: "bytes | list[int] | None" = None
+    to_bands: "tuple[int, ...]" = ()
 
 
 def binary_levels(ladder: rules.Ladder) -> "tuple[int, int] | None":
@@ -1105,6 +1130,8 @@ def released(
     ranked: "dict[str, list[tuple[fractions.Fraction, int, dict[str, object]]]]" = {column.name: [] for column in kept}
     for place in range(len(groupings)):
         grouping = groupings[place]
+        if grouping.l0 is not None:
+            grouping = dataclasses.replace(grouping, bands=at_level(grouping.l0, grouping.to_bands), l0=None)
         for column in kept:
             if grouping.name == column.name:
                 continue

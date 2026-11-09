@@ -27,7 +27,9 @@ keywords = ["synthetic-data", "privacy", "tabular", "offline"]
 # specification fixes (P2-D13, E7 and E8). Phase 1 review round 1
 # showed its float REDUCTIONS made published statistics depend on row
 # order, so no published statistic comes from one (P1-D2, P1-D11);
-# P4-D409 admits integer-exact use in zone D, one name at a time.
+# P4-D409 admits integer-exact use in zone D, one name at a time, and
+# P4-D466 admits ten array names in the one audited helper,
+# `synthtwin.arrays` (zones G and D through it), under run-time checks.
 # 2.4.6 is the last numpy for Python 3.11; 3.12 and later get 2.5.
 #
 # pyarrow: P4-D409, zone R (a reader handed only a validated local path

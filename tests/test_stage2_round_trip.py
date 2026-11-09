@@ -943,7 +943,7 @@ def _a_value_preserving_neighbour(text: str) -> str:
 
 @pytest.mark.parametrize("seed", [1, 7])
 def test_a_column_of_wide_keys_keeps_the_spelling_its_own_values_write(
-    seed: int, tmp_path: pathlib.Path
+    seed: int, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Landing 2b.13's canonical question, asked at last (plan P4-D90).
 
@@ -965,6 +965,10 @@ def test_a_column_of_wide_keys_keeps_the_spelling_its_own_values_write(
     numbers passes every line below with the defect still in place: the
     keys have to be wide enough that a neighbour exists at all.
     """
+    # ...and `no` to the Safe Harbor question whole numbers of seventeen
+    # figures are put (plan P4-D445): this test is about how they are
+    # spelled, so it takes the description `no` gives back.
+    keyboard.identifier_forms_answered_no(monkeypatch)
     cells = _wide_keys(seed)
     # Declared what they are (plan P4-D401): seventeen figures all one
     # width are asked whether they are record numbers, and held as such
@@ -1026,7 +1030,7 @@ def test_a_column_of_wide_keys_keeps_the_spelling_its_own_values_write(
 
 
 def test_a_real_export_that_respells_its_wide_keys_is_not_accused(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The false accusation plan P4-D66.2 ended, kept ended (plan P4-D90).
 
@@ -1038,6 +1042,10 @@ def test_a_real_export_that_respells_its_wide_keys_is_not_accused(
     `respelled`, the obligation is LISTED rather than checked, and the
     file meets its own description.
     """
+    # ...and `no` to the Safe Harbor question whole numbers of seventeen
+    # figures are put (plan P4-D445): this test is about how they are
+    # spelled, so it takes the description `no` gives back.
+    keyboard.identifier_forms_answered_no(monkeypatch)
     draw = _numbers(101)
     cells: "list[str]" = []
     for _step in range(800):
@@ -1098,7 +1106,7 @@ WIDE_DRESSES = (
 
 @pytest.mark.parametrize("notation", ["brackets", "minus_sign", "one_space"])
 def test_a_real_export_whose_wide_keys_wear_a_sign_or_a_space_is_not_accused(
-    notation: str, tmp_path: pathlib.Path
+    notation: str, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The false accusation P4-D66.2 ended, restored and ended again (P4-D91).
 
@@ -1114,6 +1122,10 @@ def test_a_real_export_whose_wide_keys_wear_a_sign_or_a_space_is_not_accused(
     exited 0; the bracketed and minus-signed columns below did the same
     with 388 and 392 cells moved. Each is a perfectly good export.
     """
+    # ...and `no` to the Safe Harbor question whole numbers of seventeen
+    # figures are put (plan P4-D445): this test is about how they are
+    # spelled, so it takes the description `no` gives back.
+    keyboard.identifier_forms_answered_no(monkeypatch)
     draw = _numbers(311)
     cells: "list[str]" = []
     moved = 0
@@ -1191,6 +1203,10 @@ def test_a_wide_column_that_groups_or_pads_its_keys_still_says_so(
     worth nothing if the check beside it never fired.
     """
     keyboard.every_reading_kept(monkeypatch)
+    # ...and `no` to the Safe Harbor question whole numbers of seventeen
+    # figures are put (plan P4-D445): this test is about how they are
+    # spelled, so it takes the description `no` gives back.
+    keyboard.identifier_forms_answered_no(monkeypatch)
     _name, wear, form = dress
     figures = _wide_keys(313)
     cells = [wear(figure) for figure in figures]
@@ -1255,7 +1271,7 @@ def test_a_wide_column_that_groups_or_pads_its_keys_still_says_so(
 
 @pytest.mark.parametrize("floor,word", [("11", "none"), ("1", "canonical")])
 def test_the_wide_run_word_is_held_to_the_smallest_group_size(
-    floor: str, word: str, tmp_path: pathlib.Path
+    floor: str, word: str, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The word names a FORM, so the floor holds it as NS1 holds its sibling.
 
@@ -1265,6 +1281,11 @@ def test_the_wide_run_word_is_held_to_the_smallest_group_size(
     2b.13's first version read no floor at all and published `canonical`
     at both.
     """
+    # ...and `no` to the Safe Harbor question a whole number of sixteen
+    # figures or more is put on one cell (plan P4-D445, lane CZ-A's repair
+    # 1): this test is about the wide-run word, so it takes the
+    # description `no` gives back.
+    keyboard.identifier_forms_answered_no(monkeypatch)
     draw = _numbers(317)
     cells: "list[str]" = []
     for _step in range(795):
@@ -1287,7 +1308,7 @@ def test_the_wide_run_word_is_held_to_the_smallest_group_size(
 
 
 def test_a_lone_wide_key_the_styles_floor_pooled_is_not_named_by_the_word(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The word must not say what the forms map pooled to avoid saying (P4-D91).
 
@@ -1298,6 +1319,11 @@ def test_a_lone_wide_key_the_styles_floor_pooled_is_not_named_by_the_word(
     it and filed the ceiling as HELD, which tells the reader exactly
     what the pool was hiding.
     """
+    # ...and `no` to the Safe Harbor question a whole number of sixteen
+    # figures or more is put on one cell (plan P4-D445, lane CZ-A's repair
+    # 1): this test is about the wide-run word, so it takes the
+    # description `no` gives back.
+    keyboard.identifier_forms_answered_no(monkeypatch)
     draw = _numbers(319)
     cells: "list[str]" = []
     for _step in range(799):

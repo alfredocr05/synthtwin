@@ -85,6 +85,11 @@ class Expect:
     ``tally`` for profile too, its tally its columns, the questions it
     asked, those put at a prompt, the checklist's columns and the
     columns held.
+
+    Written at lane TT (plan P4-D460): ``steps`` a `twin` run's steps,
+    each the row of the command it runs (its `<FOLDER>` the twin's own
+    folder), in order; the run's own row is its class, exit, refusal,
+    files, cautions, floor, questions and next command.
     """
 
     verdict: str
@@ -107,6 +112,9 @@ class Expect:
     approximate: "tuple[tuple[str, str, str], ...] | None" = None
     fallback_keys: int = 0
     questions: "tuple[tuple[str, str], ...] | None" = None
+    # Written at lane TT (plan P4-D460): a `twin` run's steps, each the
+    # row of the command it runs, in order.
+    steps: "tuple[Expect, ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -777,7 +785,7 @@ def lay_unrecorded(case: Case, root: pathlib.Path) -> pathlib.Path:
     """Make an unrecorded case's folder (or find its base case's) and lay its inputs."""
     folder = root / (case.on or case.key)
     folder.mkdir(parents=True, exist_ok=True)
-    if case.build in ("table",):
+    if case.build in ("table", "tiny"):
         build(case.build, folder, root)
     elif case.build:
         build_unrecorded(case.build, folder, root)
@@ -799,6 +807,94 @@ def build_unrecorded(name: str, folder: pathlib.Path, root: pathlib.Path) -> Non
         raise AssertionError(f"no builder is named {name}")
 
 
+# THE TWIN COMMAND'S CASES (lane TT, plan P4-D460): `synthtwin twin`, the
+# whole journey in one run and one folder, each step the row of the command
+# it runs. Step 0's table described with its record number declared, nobody
+# at the keyboard: profile as G1, generate as G2 (the weight's commonest
+# value given up at the floor, so missed), validate as G3, the twin missed
+# with exit 3, and taught the command that puts the weight's open question
+# on screen. Again in its folder: refused by the one overwrite rule, then
+# with --replace the same run, asking nothing. A table under the floor, a
+# seed it cannot read, the persons table whose reader ends input at its
+# question (Q1's), and the good twin of the table without its weight.
+_TWIN_FILES_ALL = _PROFILE_FILES + _TWIN_FILES + _QUALITY_FILES
+_NEXT_VALIDATE_IN = ("synthtwin", "validate", f"{_FOLDER}/t-profile.json", "--twin", f"{_FOLDER}/t-twin.csv")
+# ...the person's whole command line, its declaration kept (lane TT's
+# repair, the orchestrator's LANE TT RULINGS 2 (3)).
+_NEXT_ANSWERS = (
+    "synthtwin", "twin", "t.csv", "--out-dir", f"{_FOLDER}/t-synthtwin",
+    "--answers", f"{_FOLDER}/t-synthtwin/t-questions.json", "--replace",
+    "--identifier", "record_no",
+)
+_G1N_APPROXIMATE = tuple(entry for entry in _G1_APPROXIMATE if entry[0] != "weight")
+_TWIN_T = ("twin", "t.csv", "--identifier", "record_no")
+# Each step's exit is its own command's: generate's miss exits 0.
+_TWIN_STEPS = (
+    dataclasses.replace(_profiled("safe-harbor"), exit=0),
+    dataclasses.replace(
+        _generated("missed", breaks=(_MODE_COUNT,), first_tier="count", every_tier="count"),
+        next_words=_NEXT_VALIDATE_IN,
+        exit=0,
+    ),
+    dataclasses.replace(_validated(), exit=0),
+)
+_TWIN_MISSED = Expect(
+    "missed", command="twin", files=_TWIN_FILES_ALL, exit=3, floor=11,
+    warnings=("safe-harbor", "made-up-columns"), next_words=_NEXT_ANSWERS,
+    next_purpose="answer-questions", questions=_ASKED_WEIGHT, steps=_TWIN_STEPS,
+)
+TWIN_CASES: "tuple[Case, ...]" = (
+    Case("T1", _TWIN_T, build="table", recorded=False, expect=_TWIN_MISSED),
+    Case(
+        "T2", _TWIN_T, on="T1", recorded=False,
+        expect=Expect("refused", command="twin", exit=1, step="outputs", carried=(), questions=()),
+    ),
+    Case("T3", _TWIN_T + ("--replace",), on="T1", recorded=False, expect=_TWIN_MISSED),
+    Case(
+        "T4", ("twin", "tiny.csv"), build="tiny", recorded=False,
+        expect=Expect(
+            "refused", command="twin", exit=1, step="content", carried=(), questions=(),
+            steps=(dataclasses.replace(_refused("profile", "content"), exit=1),),
+        ),
+    ),
+    Case(
+        "T5", ("twin", "t.csv", "--seed", "-1"), recorded=False,
+        expect=Expect("unusable", command="twin", exit=2, step="command-line", carried=(), questions=()),
+    ),
+    Case(
+        "T6", ("twin", "p.csv"), build="persons", recorded=False, fault="reader",
+        expect=Expect(
+            "refused", command="twin", exit=1, step="questions", carried=(), questions=(),
+            next_words=("synthtwin", "twin", "p.csv"), next_purpose="twin",
+            steps=(
+                Expect("refused", command="profile", exit=1, step="questions", carried=(), questions=(), tally=()),
+            ),
+        ),
+    ),
+    Case(
+        "T7", _TWIN_T, build="no-weight", recorded=False,
+        expect=Expect(
+            "no-miss", command="twin", files=_TWIN_FILES_ALL, exit=0, floor=11,
+            warnings=("made-up-columns",), questions=(),
+            steps=(
+                Expect(
+                    "no-miss", command="profile", files=_PROFILE_FILES, exit=0, floor=11,
+                    next_words=_NEXT_GENERATE, next_purpose="generate",
+                    carried=(_MADE_UP, _NOT_MODELED), questions=(), tally=_profile_tally(0, 3),
+                ),
+                Expect(
+                    "no-miss", command="generate", files=_TWIN_FILES, exit=0, floor=11,
+                    warnings=("made-up-columns",), next_words=_NEXT_VALIDATE_IN,
+                    next_purpose="validate", carried=(_MADE_UP, _NOT_MODELED),
+                ),
+                Expect(
+                    "no-miss", command="validate", files=_QUALITY_FILES, exit=0, floor=11,
+                    carried=(_MADE_UP, _NOT_MODELED), approximate=_G1N_APPROXIMATE,
+                ),
+            ),
+        ),
+    ),
+)
 # THE CASES `K-S5-01` ALONE RUNS (part 5): the reader that ends input at
 # its first prompt (Q1), the two injected faults (I1, I2), the doctor's
 # three memory readings (DR1 to DR3, the reading fixed by the test), and a
@@ -911,7 +1007,8 @@ UNRECORDED: "tuple[Case, ...]" = (
             next_purpose="doctor", carried=(),
         ),
     ),
-)
+) + TWIN_CASES
+
 
 # The recorded cases the suite's gate leaves to CI's guarded recorder:
 # the every-role run at the table floor took 281 seconds under the guard

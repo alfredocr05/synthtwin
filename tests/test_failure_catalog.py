@@ -256,6 +256,40 @@ CASES: "dict[str, tuple[object, ...]]" = {
         ["/data/clinic-twin.csv"],
     ),
     "twin_out_of_memory": ("/data/clinic-profile.json",),
+    # The one overwrite rule's words (lane TT, plan P4-D460): the template
+    # `outputs_already_there` and `quality_target_already_there` are made
+    # from, here at profile's three files; and the twin command's folder,
+    # named and not there, or taken by something that is not a folder.
+    "outputs_taken": (
+        ["/data/clinic-profile.json", "/data/clinic-profile.txt", "/data/clinic-questions.json"],
+        ["/data/clinic-profile.json"],
+        "describing the table again",
+    ),
+    "twin_folder_missing": ("/data/reports",),
+    "twin_folder_taken": ("/data/clinic-synthtwin",),
+    # ...and, from lane TT's repair, a name of the twin's folder that
+    # leads back to the table (Codex's item 1): the name, then the table.
+    "twin_output_would_replace_the_table": (
+        "/data/clinic-synthtwin/clinic-twin.csv",
+        "/data/clinic.csv",
+    ),
+    # ...and the folder's kept answers handed back by themselves only to the
+    # file they were given about, read as they were (Codex's items 3 and 4):
+    # given about another file, bound to none, or under another option.
+    "twin_answers_about_another_table": (
+        "/data/reports/clinic-questions.json",
+        "/data/reports",
+    ),
+    "twin_answers_not_bound": ("/data/reports/clinic-questions.json",),
+    # ...and a twin's own folder this computer will not let it make (Codex's
+    # item 8): the folder's path.
+    "twin_folder_not_made": ("/data/clinic-synthtwin",),
+    "twin_answers_read_otherwise": (
+        "/data/reports/clinic-questions.json",
+        "--missing-value",
+        "given once",
+        "given 0 times",
+    ),
     # Checking a written file against a description (plan P3-D1). The
     # first two belong to the command, the third to the machine. The
     # source noun in the second is one of the two written out in

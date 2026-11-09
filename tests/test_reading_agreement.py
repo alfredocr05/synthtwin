@@ -263,7 +263,7 @@ def test_the_command_refuses_and_then_accepts_the_answer(
     taken = capsys.readouterr().out
     assert f"{_HEADERLESS_ROWS} rows" in taken, taken
     assert "column_1" in taken, taken
-    assert cli.main(["profile", str(target), "--first-row", "data"]) == 0
+    assert cli.main(["profile", str(target), "--first-row", "data", "--replace"]) == 0
     written = capsys.readouterr().out
     assert f"{_HEADERLESS_ROWS} rows" in written, written
     assert "column_1" in written, written

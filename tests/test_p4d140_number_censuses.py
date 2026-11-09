@@ -194,7 +194,7 @@ def _wide_keys() -> "list[str]":
 
 
 def test_one_respelled_wide_key_moves_nothing_a_reader_can_see(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """THE FIRST BLOCKER, AS A TEST (plan P4-D140).
 
@@ -211,7 +211,9 @@ def test_one_respelled_wide_key_moves_nothing_a_reader_can_see(
     assert float(changed[432]) == float(cells[432])
     # Declared what they are (plan P4-D401): eighteen figures all one
     # width are asked whether they are record numbers, and held as such
-    # until answered; this test is about how they are spelled.
+    # until answered; this test is about how they are spelled. And `no`
+    # to the Safe Harbor question such numbers are put (plan P4-D445).
+    keyboard.identifier_forms_answered_no(monkeypatch)
     kept = _round_trip(tmp_path / "kept", ["code"], [[c] for c in cells], "1",
                        flags=_MEASURED)
     moved = _round_trip(tmp_path / "moved", ["code"], [[c] for c in changed], "1",
@@ -224,7 +226,7 @@ def test_one_respelled_wide_key_moves_nothing_a_reader_can_see(
 
 
 def test_a_group_of_respelled_keys_still_moves_the_word_and_the_ceiling_bites(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The word still says what a GROUP of cells does, and the check can fail.
 
@@ -232,6 +234,7 @@ def test_a_group_of_respelled_keys_still_moves_the_word_and_the_ceiling_bites(
     canonical description handed a file with eleven respelled keys misses
     `styles.canonical.wide`, and one with ten does not.
     """
+    keyboard.identifier_forms_answered_no(monkeypatch)
     cells = _wide_keys()
     group = list(cells)
     for step in range(11):

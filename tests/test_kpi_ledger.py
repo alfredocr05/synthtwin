@@ -2253,16 +2253,19 @@ def test_k_s4_18(record_property) -> None:
 # -- the terminal: install and first run (lane TI, plan P4-D397) ----------------
 
 
-def test_k_s8_01(record_property) -> None:
-    """What README asks of a new user, from a folder to a validated twin (lane TI, plan P4-D397).
+def test_k_s8_05(record_property) -> None:
+    """One help page of at most 60 lines for each command, and the examples page (lane TT, plan P4-D460).
 
-    Counted from README.md: the commands that install, the `synthtwin`
-    commands of the run it teaches, and the files it tells the reader to
-    write answers into. `tests/test_terminal_install.py` owns the measure.
+    Machine-free: the lines `synthtwin COMMAND --help` shows for each of
+    the five command words, the pages that are their command's own and
+    the same as `synthtwin help COMMAND`, and the examples page's lines.
+    `tests/test_terminal_twin.py` owns the measure. `K-S8-01`, measured
+    from README by lane TI until lane TT, is the journey itself since
+    then, with `K-S8-03` read off it by `tools/measurements/kpi_terminal.py`.
     """
-    import test_terminal_install as terminal
+    import test_terminal_twin as twin
 
-    _kpi(record_property, "K-S8-01", terminal.journey_measures())
+    _kpi(record_property, "K-S8-05", twin.help_measures())
 
 
 def test_k_s8_04(record_property, tmp_path: pathlib.Path) -> None:
@@ -2308,7 +2311,12 @@ def test_the_health_zoo_shards_are_the_suites() -> None:
 
     # ...the seventh, the forms of dates in disguise, is K-HZ-16's gate's at
     # 600 rows and the drivers' at 20,000 (THE SUITE'S TIME rule).
-    assert len(health_zoo.shards()) == len(HEALTH_ZOO_SHARDS) + 1
+    # ...and the eighth, the Safe Harbor identifier forms (plan P4-D445), is
+    # K-HZ-14's gate's at 600 rows and K-HZ-14's driver's alone at 20,000
+    # (THE SUITE'S TIME rule; the slow zoo driver runs the first seven, the
+    # orchestrator's LANE CZ-A RULINGS 1 (3) (b)).
+    assert len(health_zoo.shards()) == len(HEALTH_ZOO_SHARDS) + 2
+    assert health_zoo._wide().DRIVER_SHARDS == len(HEALTH_ZOO_SHARDS) + 1
     assert health_zoo._wide().SUITE_SHARDS == len(HEALTH_ZOO_SHARDS)
 
 
@@ -2467,3 +2475,300 @@ def test_k_hz_04(record_property, tmp_path: pathlib.Path) -> None:
         "twins_failing_validation": measured["twins_failing_validation"],
     }
     _kpi(record_property, "K-HZ-04", value)
+
+
+# -- K-HZ-21's driver: the suite's large cases moved under plan P4-D461 ---------
+
+
+def test_the_moved_cases_driver_runs_every_node_the_suite_moved() -> None:
+    """K-HZ-21's value has no item count but `cases`, so a dropped node would stay green: its items are pinned by name."""
+    import test_stage4_describe_memory
+    import test_stage4_number_tail
+    import test_stage4_numbers_and_codes
+    import test_zoo_identifiers
+
+    driver = _load_tool("tools/measurements/kpi_moved_cases.py", "kpi_moved_cases_under_test")
+    names = [name for name, _function, _given in driver.items()]  # type: ignore[attr-defined]
+    expected = [f"tests/{module.__name__}.py::{node}" for module in (
+        test_zoo_identifiers, test_stage4_numbers_and_codes, test_stage4_number_tail, test_stage4_describe_memory)
+        for node in module.MOVED_NODES]
+    assert sorted(names) == sorted(expected)
+    assert len(names) == len(set(names)) == 55
+    # ...and no line it prints spells a short-arc shape whose root is a
+    # product's arcs: those two are printed by their place (Codex's review of
+    # batch 4q, item 4; `test_zoo_identifiers.SHOWN_AS`).
+    shown = driver.shown_names()  # type: ignore[attr-defined]
+    printed = [shown[name] if name in shown else name for name in names]
+    assert len(shown) == 2 and len(set(printed)) == 55
+    for shape in test_zoo_identifiers.PRODUCT_ARC_SHAPES:
+        assert not any(shape in line for line in printed), shape
+
+
+@pytest.mark.parametrize(("typed", "code", "said"), [
+    (["--kpi", "--only", "tests/test_stage4_number_tail.py::*"], 2, "never writes the KPI line"),
+    (["--only", "tests/test_zoo_identifiers.py::no_such_node*"], 1, "nothing was measured"),
+])
+def test_the_moved_cases_driver_refuses_a_partial_record_and_an_empty_choice(
+    tmp_path: pathlib.Path, typed: "list[str]", code: int, said: str
+) -> None:
+    """`--only` beside `--kpi` is refused, and a choice of no item exits 1 with nothing measured."""
+    driver = REPO / "tools" / "measurements" / "kpi_moved_cases.py"
+    run = subprocess.run([sys.executable, f"{driver}"] + typed, capture_output=True, text=True, timeout=300,
+                         env={**os.environ, "TMPDIR": f"{tmp_path}", "TEMP": f"{tmp_path}", "TMP": f"{tmp_path}"})
+    assert run.returncode == code, run.stdout + run.stderr
+    assert said in run.stdout + run.stderr
+    assert "KPI " not in run.stdout
+
+
+def test_a_failing_moved_case_fails_the_driver_and_names_its_assert(tmp_path: pathlib.Path) -> None:
+    """A moved case that fails reads exit 1 and its assert's own line, a passing one exit 0 and a KPI line of 0 failing."""
+    script = tmp_path / "drive.py"
+    script.write_text(
+        "import runpy, sys\n"
+        f"sys.path[:0] = [{str(REPO / 'tests')!r}, {str(REPO / 'src')!r}]\n"
+        f"driver = runpy.run_path({str(REPO / 'tools' / 'measurements' / 'kpi_moved_cases.py')!r})\n"
+        "def passing(tmp_path):\n"
+        "    assert tmp_path.is_dir()\n"
+        "def failing(tmp_path, monkeypatch, rows):\n"
+        "    assert rows == 20000 and monkeypatch is not None\n"
+        "    assert rows < 600\n"
+        "chosen = sys.argv[1]\n"
+        "cases = [('tests/a.py::passing', passing, {})]\n"
+        "if chosen == 'failing':\n"
+        "    cases += [('tests/a.py::failing', failing, {'rows': 20000})]\n"
+        "driver['main'].__globals__['items'] = lambda: cases\n"
+        "sys.exit(driver['main'](['--kpi']))\n",
+        encoding="utf-8", newline="\n")
+    environment = {**os.environ, "TMPDIR": f"{tmp_path}", "TEMP": f"{tmp_path}", "TMP": f"{tmp_path}"}
+    failed = subprocess.run([sys.executable, f"{script}", "failing"], capture_output=True, text=True,
+                            timeout=300, env=environment)
+    assert failed.returncode == 1, failed.stdout + failed.stderr
+    assert "tests/a.py::failing: FAIL" in failed.stdout and "assert rows < 600" in failed.stdout, failed.stdout
+    assert '"cases_failing": 1' in failed.stdout, failed.stdout
+    passed = subprocess.run([sys.executable, f"{script}", "passing"], capture_output=True, text=True,
+                            timeout=300, env=environment)
+    assert passed.returncode == 0, passed.stdout + passed.stderr
+    assert "tests/a.py::passing: PASS" in passed.stdout and '"cases_failing": 0' in passed.stdout, passed.stdout
+
+
+def _moved_cases_stubbed(tmp_path: pathlib.Path, cases: str, typed: "list[str]",
+                         flags: "list[str] | None" = None, more: "dict[str, str] | None" = None
+                         ) -> "subprocess.CompletedProcess[str]":
+    """K-HZ-21's driver run as a script whose items are ``cases`` (Python source binding `cases`), with ``typed``."""
+    script = tmp_path / "drive.py"
+    script.write_text(
+        "import runpy, sys\n"
+        f"sys.path[:0] = [{str(REPO / 'tests')!r}, {str(REPO / 'src')!r}]\n"
+        f"driver = runpy.run_path({str(REPO / 'tools' / 'measurements' / 'kpi_moved_cases.py')!r})\n"
+        "import pytest\n"
+        + cases +
+        "def chosen():\n"
+        "    print('THE CASES WERE IMPORTED', flush=True)\n"
+        "    return cases\n"
+        "driver['main'].__globals__['items'] = chosen\n"
+        f"sys.exit(driver['main']({typed!r}))\n",
+        encoding="utf-8", newline="\n")
+    environment = {**os.environ, "TMPDIR": f"{tmp_path}", "TEMP": f"{tmp_path}", "TMP": f"{tmp_path}", **(more or {})}
+    if not more:
+        environment.pop("PYTHONOPTIMIZE", None)
+    return subprocess.run([sys.executable] + (flags or []) + [f"{script}"], capture_output=True, text=True,
+                          timeout=300, env=environment)
+
+
+def test_a_moved_case_ending_in_a_pytest_outcome_or_an_exit_fails_alone_and_the_run_goes_on(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Codex's review of lane SPD2, item 5, and its skeptic 1, item 3 (plan P4-D461).
+
+    `pytest.raises` whose exception never comes raises pytest's `Failed`, a
+    BaseException: so would the moved million-row pool's case were its
+    `_Captured` or its `_TooMuchWork` suppressed, and the driver stopped
+    there, recording nothing for the ten tail and memory items after it.
+    A case may also end in `SystemExit(0)`, which read as the whole run's
+    green exit with no tally. Each is now its own item's FAIL, the item
+    after them still runs, and the driver exits 1 with every item counted.
+    """
+    run = _moved_cases_stubbed(tmp_path, (
+        "import test_stage4_numbers_and_codes as million\n"
+        "def captured_never(tmp_path):\n"
+        "    with pytest.raises(million._Captured):\n"
+        "        pass\n"
+        "def too_much_work_never(tmp_path):\n"
+        "    with pytest.raises(million._TooMuchWork):\n"
+        "        pass\n"
+        "def ends_in_an_exit(tmp_path):\n"
+        "    raise SystemExit(0)\n"
+        "def later(tmp_path):\n"
+        "    assert tmp_path.is_dir()\n"
+        "cases = [('tests/a.py::captured_never', captured_never, {}),\n"
+        "         ('tests/a.py::too_much_work_never', too_much_work_never, {}),\n"
+        "         ('tests/a.py::ends_in_an_exit', ends_in_an_exit, {}), ('tests/a.py::later', later, {})]\n"
+    ), ["--kpi"])
+    lines = run.stdout.splitlines()
+    assert run.returncode == 1, run.stdout + run.stderr
+    for name, said in (("captured_never", "Failed: DID NOT RAISE"), ("too_much_work_never", "Failed: DID NOT RAISE"),
+                       ("ends_in_an_exit", "SystemExit")):
+        line = [one for one in lines if one.startswith(f"tests/a.py::{name}: ")]
+        assert len(line) == 1 and ": FAIL " in line[0] and said in line[0], run.stdout + run.stderr
+    assert any(one.startswith("tests/a.py::later: PASS") for one in lines), run.stdout + run.stderr
+    assert "4 moved cases, 3 failing" in run.stdout and '"cases_failing": 3' in run.stdout, run.stdout
+
+
+@pytest.mark.parametrize(("flags", "more"), [(["-O"], None), ([], {"PYTHONOPTIMIZE": "1"})])
+def test_the_moved_cases_driver_refuses_an_optimizing_python_before_importing_a_case(
+    tmp_path: pathlib.Path, flags: "list[str]", more: "dict[str, str] | None"
+) -> None:
+    """Codex's review of lane SPD2, item 4: under `-O` or `PYTHONOPTIMIZE` Python drops a bare assert.
+
+    A moved case whose every check is an assert would return, and read
+    PASS with a real identifier in its twin. The driver refuses, exit 2
+    and no KPI line, before it imports a case.
+    """
+    run = _moved_cases_stubbed(tmp_path, (
+        "def unchecked(tmp_path):\n"
+        "    assert False, 'a check that must run'\n"
+        "cases = [('tests/a.py::unchecked', unchecked, {})]\n"
+    ), ["--kpi"], flags, more)
+    assert run.returncode == 2, run.stdout + run.stderr
+    assert "refused: this Python runs optimized" in run.stdout, run.stdout
+    assert "THE CASES WERE IMPORTED" not in run.stdout and "unchecked: PASS" not in run.stdout, run.stdout
+    assert "KPI " not in run.stdout
+
+
+def test_only_names_an_item_by_its_exact_name_brackets_and_all(tmp_path: pathlib.Path) -> None:
+    """Skeptic 1 of lane SPD2, item 2: `--only` read every name as a shell pattern, so a parametrized node's brackets were a character class and its exact id chose nothing. One exact id runs that item alone."""
+    run = _moved_cases_stubbed(tmp_path, (
+        "def passing(tmp_path):\n"
+        "    assert tmp_path.is_dir()\n"
+        "cases = [('tests/a.py::case[4-20000]', passing, {}), ('tests/a.py::case[5-20000]', passing, {}),\n"
+        "         ('tests/a.py::case0', passing, {})]\n"
+    ), ["--only", "tests/a.py::case[4-20000]"])
+    assert run.returncode == 0, run.stdout + run.stderr
+    assert "tests/a.py::case[4-20000]: PASS" in run.stdout and "1 moved cases, 0 failing" in run.stdout, run.stdout
+    assert "case[5-20000]" not in run.stdout and "case0" not in run.stdout, run.stdout
+
+
+# -- K-P0-11's driver: the five-shard wall read from one finished run ---------
+
+
+def _five_shard_run(folder: pathlib.Path, seconds: "list[float]", files: "list[list[str]]",
+                    exits: "list[str]") -> pathlib.Path:
+    """A finished run of the five shards as the suite runner leaves it: each shard's files, log and exit.
+
+    Each file holds two cases (`_manifest`): a shard of three files ran five and skipped one.
+    """
+    folder.mkdir(parents=True, exist_ok=True)
+    for place, (spent, names, code) in enumerate(zip(seconds, files, exits), 1):
+        (folder / f"shard-{place}.files").write_text("\n".join(names) + "\n", encoding="utf-8", newline="\n")
+        (folder / f"shard-{place}.log").write_text(
+            f"....\n{max(2 * len(names) - 1, 0)} passed, 1 skipped in {spent:.2f}s (0:00:00)\n", encoding="utf-8",
+            newline="\n")
+        (folder / f"shard-{place}.exit").write_text(f"{code}\n", encoding="utf-8", newline="\n")
+    return folder
+
+
+def _manifest(path: pathlib.Path, files: "list[str]") -> pathlib.Path:
+    """`pytest --collect-only -q`'s output over a revision whose test files hold two cases each."""
+    nodes = [f"{name}::test_{case}" for name in files for case in ("one", "two")]
+    path.write_text("\n".join(nodes) + f"\n\n{len(nodes)} tests collected in 0.10s\n", encoding="utf-8",
+                    newline="\n")
+    return path
+
+
+def test_the_five_shard_driver_reads_the_heaviest_shard_and_refuses_a_run_that_is_not_one(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """K-P0-10 and K-P0-11: the heaviest shard's seconds and the five summed; a file in two shards, a red shard or no run are refused.
+
+    K-P0-10's dated amendment of 2026-11-06 bounds the five shards' summed
+    and heaviest seconds beside its collected count: this driver prints
+    those three for it, and K-P0-11's line beside them.
+    """
+    driver = _load_tool("tools/measurements/kpi_suite_shards.py", "kpi_suite_shards_under_test")
+    files = [[f"tests/test_{shard}_{k}.py" for k in range(3)] for shard in range(5)]
+    collected = driver.read_manifest(  # type: ignore[attr-defined]
+        _manifest(tmp_path / "collected.txt", [name for shard in files for name in shard]))[0]
+    good = _five_shard_run(tmp_path / "good", [10.5, 30.25, 20.0, 5.0, 1.0], files, ["0"] * 5)
+    measures, problems = driver.read_run(good, collected)  # type: ignore[attr-defined]
+    assert problems == []
+    assert measures["heaviest_shard_seconds"] == 30.25 and measures["summed_shard_seconds"] == 66.75
+    assert measures["test_files"] == 15 and measures["cases"] == 30
+    capsys.readouterr()
+    assert driver.main(["--kpi", "--suite", f"{good}", "--collected", f"{tmp_path / 'collected.txt'}"]) == 0  # type: ignore[attr-defined]
+    lines = {json.loads(line[4:])["id"]: json.loads(line[4:])["value"]
+             for line in capsys.readouterr().out.splitlines() if line.startswith("KPI ")}
+    assert lines["K-P0-10"] == {"collected": 30, "summed_shard_seconds": 66.75, "heaviest_shard_seconds": 30.25}
+    assert lines["K-P0-11"] == {"heaviest_shard_seconds": 30.25, "summed_shard_seconds": 66.75, "test_files": 15,
+                                "cases": 30}
+    twice = _five_shard_run(tmp_path / "twice", [1.0] * 5, files[:4] + [files[0][:1]], ["0"] * 5)
+    assert any("in shard 1 and in shard 5" in one for one in driver.read_run(twice, collected)[1])  # type: ignore[attr-defined]
+    red = _five_shard_run(tmp_path / "red", [1.0] * 5, files, ["0", "0", "1", "0", "0"])
+    assert any("shard 3 exited 1" in one for one in driver.read_run(red, collected)[1])  # type: ignore[attr-defined]
+    (good / "shard-4.log").write_text("....\nInterrupted\n", encoding="utf-8", newline="\n")
+    assert any("shard 4" in one for one in driver.read_run(good, collected)[1])  # type: ignore[attr-defined]
+    assert driver.main(["--kpi", "--suite", f"{red}", "--collected", f"{tmp_path / 'collected.txt'}"]) == 1  # type: ignore[attr-defined]
+    assert driver.main(["--kpi"]) == 2  # type: ignore[attr-defined]
+    assert driver.main(["--kpi", "--suite", f"{red}"]) == 2  # type: ignore[attr-defined]
+
+
+def test_the_five_shard_driver_refuses_a_run_that_is_not_the_whole_manifest_run_to_its_end(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Codex's review of lane SPD2, items 2 and 3: each probe read as a normal K-P0-11 record before.
+
+    Five green shards of one quick file each while the revision collects
+    fifteen; empty file lists; a sixth shard's files beside the five; a log
+    ending in a collection's summary, `3220 tests collected in 0.10s`,
+    after `PYTEST_ADDOPTS=--collect-only` ran no case; a failure summary
+    beside a stale exit file of 0; and a shard that ran fewer cases than
+    the manifest collects in its files.
+    """
+    driver = _load_tool("tools/measurements/kpi_suite_shards.py", "kpi_suite_shards_under_test")
+    files = [[f"tests/test_{shard}_{k}.py" for k in range(3)] for shard in range(5)]
+    collected = driver.read_manifest(  # type: ignore[attr-defined]
+        _manifest(tmp_path / "collected.txt", [name for shard in files for name in shard]))[0]
+
+    def refused(folder: pathlib.Path, said: str) -> None:
+        problems = driver.read_run(folder, collected)[1]  # type: ignore[attr-defined]
+        assert any(said in one for one in problems), (said, problems)
+        assert driver.main(["--kpi", "--suite", f"{folder}", "--collected",  # type: ignore[attr-defined]
+                            f"{tmp_path / 'collected.txt'}"]) == 1
+
+    refused(_five_shard_run(tmp_path / "one_each", [1.0] * 5, [one[:1] for one in files], ["0"] * 5),
+            "tests/test_0_1.py is collected and in no shard")
+    empty = _five_shard_run(tmp_path / "empty", [1.0] * 5, files[:4] + [[]], ["0"] * 5)
+    refused(empty, "shard 5: its file list is empty")
+    sixth = _five_shard_run(tmp_path / "sixth", [1.0] * 5, files, ["0"] * 5)
+    (sixth / "shard-6.log").write_text("1 passed in 1.00s\n", encoding="utf-8", newline="\n")
+    refused(sixth, "shard-6.log is no file of shards 1 to 5")
+    collecting = _five_shard_run(tmp_path / "collecting", [1.0] * 5, files, ["0"] * 5)
+    (collecting / "shard-2.log").write_text("\n3220 tests collected in 0.10s\n", encoding="utf-8", newline="\n")
+    refused(collecting, "shard 2: its log ends without pytest's summary")
+    stale = _five_shard_run(tmp_path / "stale", [1.0] * 5, files, ["0"] * 5)
+    (stale / "shard-3.log").write_text("1 failed, 4 passed, 1 skipped in 2.00s\n", encoding="utf-8", newline="\n")
+    refused(stale, "shard 3: its summary says 1 failed")
+    short = _five_shard_run(tmp_path / "short", [1.0] * 5, files, ["0"] * 5)
+    (short / "shard-4.log").write_text("4 passed, 1 skipped in 2.00s\n", encoding="utf-8", newline="\n")
+    refused(short, "shard 4 ran 5 cases where the manifest collects 6 in its files")
+
+
+def test_the_suite_cost_entry_bounds_the_five_shards_summed_and_heaviest_seconds() -> None:
+    """Codex's review of lane SPD2, item 1: K-P0-10's dated amendment of 2026-11-06 bounds both shard seconds.
+
+    On f9be5138 the entry carried 1578bee's one-process `suite_seconds`
+    and bounded neither five-shard key, so a value with both at 999,999 s
+    was judged a PASS. Judged as on the quiet reference machine, either
+    key past its bound is a FAIL now and the recorded value is not; the
+    one-process key is gone from the rule and the record, and the entry's
+    driver is the one that emits both keys (LANE SPD2 RULINGS 2 (2), 3 (1)).
+    """
+    entry = kpi_rules.entries_by_id(kpi_rules.load_ledger())["K-P0-10"]
+    recorded = dict(entry["value_at"]["value"])
+    assert "suite_seconds" not in entry["expected"] and "suite_seconds" not in recorded
+    assert entry["driver"] == "tools/measurements/kpi_suite_shards.py --kpi"
+    assert kpi_rules.judge(entry, recorded, seconds_count=True).word == kpi_rules.PASS
+    for key in ("summed_shard_seconds", "heaviest_shard_seconds"):
+        assert entry["key_kinds"][key] == "seconds_below", key
+        assert kpi_rules.judge(entry, dict(recorded, **{key: 999_999.0}), seconds_count=True).word == kpi_rules.FAIL, key
+    both = dict(recorded, summed_shard_seconds=999_999.0, heaviest_shard_seconds=999_999.0)
+    assert kpi_rules.judge(entry, both, seconds_count=True).word == kpi_rules.FAIL

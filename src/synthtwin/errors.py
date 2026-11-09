@@ -2558,6 +2558,165 @@ def quality_out_of_memory(path: str) -> str:
     )
 
 
+# THE ONE OVERWRITE RULE'S WORDS (lane TT, plan P4-D460): every command
+# that finds a name it would write already taken stops, writes nothing and
+# says so in these words, which name what it writes, what is in the way,
+# the usual reason to replace it and the one flag that does, `--replace`.
+# `generate`'s two files and `validate`'s one file read as they always
+# did (the stage-5 battery's R3 and R4, byte for byte); `profile`'s three
+# and `twin`'s six read the same way.
+BUILDING_AGAIN = "building the twin again with a different seed"
+CHECKING_AGAIN = "checking the same twin again"
+DESCRIBING_AGAIN = "describing the table again"
+MAKING_AGAIN = "making the twin again"
+_HOW_MANY_FILES = ("no files", "one file", "two files", "three files", "four files", "five files", "six files")
+
+
+def outputs_taken(written: "list[str]", taken: "list[str]", usual: str) -> str:
+    """Message for a run whose output names are taken (lane TT, plan P4-D460).
+
+    ``written`` names every file the run writes, as shown; ``taken`` those
+    already there; ``usual`` the usual reason to replace them. One file
+    is named once; two or more are all named, and the ones in the way
+    named again, for the reasons `outputs_already_there` gives. A fixed
+    function of the three; raises nothing. One paragraph, as every
+    message here is.
+    """
+    if len(written) == 1:
+        return (
+            f"synthtwin stopped because something is already at the name it "
+            f"would write. This run writes one file, {written[0]}, and it is "
+            f"already there. Nothing was written and nothing was changed. If "
+            f"that file can be replaced -- the usual reason is {usual} -- add "
+            f"--replace to the command. If not, move or rename what is there, "
+            f"or give --out-dir a different folder to write into, then run "
+            f"the command again."
+        )
+    names = ""
+    place = 0
+    for name in written:
+        place = place + 1
+        if not names:
+            names = name
+        elif place == len(written):
+            names = f"{names} and {name}"
+        else:
+            names = f"{names}, {name}"
+    many = (
+        _HOW_MANY_FILES[len(written)]
+        if len(written) < len(_HOW_MANY_FILES)
+        else f"{len(written)} files"
+    )
+    one_only = len(taken) == 1
+    is_are = "this one is" if one_only else "these are"
+    it_them = "that file" if one_only else "those files"
+    return (
+        f"synthtwin stopped because something is already at one of the "
+        f"names it would write. This run writes {many}, {names}, and "
+        f"{is_are} already there: {_listed(taken)}. Nothing was written and "
+        f"nothing was changed. If {it_them} can be replaced -- the usual "
+        f"reason is {usual} -- add --replace to the command. If not, move "
+        f"or rename what is there, or give --out-dir a different folder to "
+        f"write into, then run the command again."
+    )
+
+
+def twin_folder_missing(path: str) -> str:
+    """Message for `synthtwin twin --out-dir` naming a folder that is not there (lane TT, plan P4-D460)."""
+    return (
+        f"The folder {path} does not exist, so synthtwin cannot write the "
+        f"twin's six files there. Nothing was read and nothing was written. "
+        f"Create the folder first, or leave --out-dir out to write them into "
+        f"a folder of their own beside your table."
+    )
+
+
+def twin_folder_taken(path: str) -> str:
+    """Message for a twin whose own folder's name is taken by something that is not a folder (lane TT, plan P4-D460)."""
+    return (
+        f"Something that is not a folder is already at {path}, the folder "
+        f"synthtwin twin writes this table's six files into. Nothing was read "
+        f"and nothing was written. Move or rename what is there, or give "
+        f"--out-dir a folder to write into, then run the command again."
+    )
+
+
+def twin_output_would_replace_the_table(output: str, path: str) -> str:
+    """Message for a twin one of whose file names leads back to the table it was given (lane TT's repair).
+
+    Codex's review of lane TT, item 1: a link at the twin's name in its
+    folder, pointing at the table, would have had the twin written over
+    the real table. ``output`` is the name in the folder, ``path`` the
+    table, both as shown.
+    """
+    return (
+        f"synthtwin stopped because writing {output} would have replaced "
+        f"your own table at {path}. That would have destroyed the data you "
+        f"asked it to describe. This usually means a file of that name in "
+        f"the twin's folder is a link pointing back at the table. Remove that "
+        f"link, or give --out-dir a different folder, then run the command "
+        f"again. Nothing was read and nothing was written."
+    )
+
+
+def twin_folder_not_made(path: str) -> str:
+    """Message for a twin whose own folder cannot be made where the table is (lane TT's repair, Codex's item 8)."""
+    return (
+        f"synthtwin cannot make the folder {path} for the twin's six files: "
+        f"this computer does not let it save a folder there. Nothing was "
+        f"written. Give --out-dir a folder you can save files in, such as "
+        f"one inside your Documents folder, then run the command again."
+    )
+
+
+def twin_answers_about_another_table(path: str, folder: str) -> str:
+    """Message for a twin whose folder's kept answers were given about another file (lane TT's repair, Codex's item 4).
+
+    ``path`` is the folder's questions file and ``folder`` the folder,
+    both as shown. The file read is not the one those answers name: its
+    size or fingerprint differs, or another sheet was read.
+    """
+    return (
+        f"synthtwin stopped because the answers kept in {path} were given "
+        f"about another file, another sheet of it, or this one before it "
+        f"changed, so they are not handed back to it: answers about one table must never "
+        f"decide how another is read. Nothing was written. To make this "
+        f"table's twin in {folder}, move or delete {path} and run the "
+        f"command again with --replace, which puts its questions again; or "
+        f"give --out-dir a different folder."
+    )
+
+
+def twin_answers_not_bound(path: str) -> str:
+    """Message for a twin whose folder holds a questions file that names no file its answers were given about (lane TT's repair, Codex's item 4)."""
+    return (
+        f"synthtwin stopped because {path} does not say which file its "
+        f"answers were given about, so synthtwin twin does not hand it back "
+        f"by itself. Nothing was read and nothing was written. To use those "
+        f"answers, name the file with --answers and add --replace; to start "
+        f"again, move or delete it and run the command again with --replace, "
+        f"or give --out-dir a different folder."
+    )
+
+
+def twin_answers_read_otherwise(path: str, option: str, then: str, now: str) -> str:
+    """Message for a twin whose folder's kept answers were given under another reading option (lane TT's repair, Codex's item 3).
+
+    ``option`` is the option, ``then`` and ``now`` how it stood when the
+    answers were given and in this run, in words: "set to 12" for the
+    smallest group, "given once" or "given 0 times" for a declaration.
+    """
+    return (
+        f"synthtwin stopped because the answers kept in {path} were given "
+        f"when the table was read with {option} {then}, and in this run "
+        f"{option} is {now}: the same answers could then read a column "
+        f"another way. Nothing was read and nothing was written. Give "
+        f"{option} as you did the first time and run the command again; to "
+        f"read the table the new way, move or delete {path} and run the "
+        f"command again with --replace, or give --out-dir a different folder."
+    )
+
+
 def quality_target_already_there(target: str) -> str:
     """Message for a `validate` run whose one output name is taken.
 
@@ -2572,15 +2731,7 @@ def quality_target_already_there(target: str) -> str:
     shown as a VALUE on its way to the screen, so a line feed inside one
     reaches the reader as text rather than as layout.
     """
-    return (
-        f"synthtwin stopped because something is already at the name it "
-        f"would write. This run writes one file, {target}, and it is "
-        f"already there. Nothing was written and nothing was changed. If "
-        f"that file can be replaced -- the usual reason is checking the "
-        f"same twin again -- add --replace to the command. If not, move "
-        f"or rename what is there, or give --out-dir a different folder "
-        f"to write into, then run the command again."
-    )
+    return outputs_taken([target], [target], CHECKING_AGAIN)
 
 
 # WHY THE FOUR REFUSALS OF METHOD G12 ARE NAMED HERE (amendment
@@ -2775,20 +2926,7 @@ def outputs_already_there(
     a message that laid its paths out in a column would reach the reader
     as one long line with the escapes in it.
     """
-    listed = _listed(taken)
-    one_only = len(taken) == 1
-    is_are = "this one is" if one_only else "these are"
-    it_them = "that file" if one_only else "those files"
-    return (
-        f"synthtwin stopped because something is already at one of the "
-        f"names it would write. This run writes two files, {first} and "
-        f"{second}, and {is_are} already there: {listed}. Nothing was "
-        f"written and nothing was changed. If {it_them} can be replaced -- "
-        f"the usual reason is building the twin again with a different "
-        f"seed -- add --replace to the command. If not, move or rename "
-        f"what is there, or give --out-dir a different folder to write "
-        f"into, then run the command again."
-    )
+    return outputs_taken([first, second], taken, BUILDING_AGAIN)
 
 
 def the_questions_were_not_finished() -> str:

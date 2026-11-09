@@ -80,7 +80,16 @@ The layers:
    `cho_solve`; and `numba.njit` in the one polish-kernel module, only
    as `njit(fastmath=False, parallel=False, cache=False)` over a
    top-level function, which every module then calls and does nothing
-   else with (numba's dispatcher carries its compiler settings). Every
+   else with (numba's dispatcher carries its compiler settings); and,
+   in the one audited array helper `synthtwin.arrays` alone (P4-D466),
+   numpy's `frombuffer`, `zeros`, `argsort` (stable), `bincount` (no
+   weights), `cumsum`, `where`, `flatnonzero`, `concatenate`, `min` and
+   `max`, each in its one audited form, under run-time checks that
+   keep every result equal to the plain Python's, with a closure rule
+   that lets no array leave that module and the generator's draw reach
+   one first-party function, and the module itself no value elsewhere;
+   `os.cpu_count` and `os.sysconf` (its two memory names) are read in
+   `synthtwin.computer` alone. Every
    library is admitted for the ZONES it may run in (P4-D409 part 2):
    no library float decides a byte of the twin (zone G, the modules
    the generator, the description's loader and the twin's writers
@@ -1024,8 +1033,11 @@ which may be called only with a path the validator produced, and the
 one `set_option` call that fixes its string storage. numpy is justified
 in `docs/plans/phase-2-generator.md` (P2-D8) and reduced to
 `numpy.random.default_rng` and the one `integers` call on the stream it
-returns; the generator, which opens no file at all, is the one module
-that uses it. pyarrow and scipy are justified in
+returns, the generator's, which opens no file at all; and, since plan
+P4-D466, to ten array names in the one audited array helper,
+`synthtwin.arrays`, in zones G and D through that one module, each a
+computation on the arrays it is handed that opens, starts and loads
+nothing. pyarrow and scipy are justified in
 `docs/plans/phase-4-columns.md` (P4-D409): pyarrow reads (zone R) and,
 once lanes adopt it, holds text as exact bytes; scipy's HiGHS searches
 (zone D's search side, everything it exhibits re-checked in Python
@@ -1040,7 +1052,7 @@ the question an auditor actually cares about answered per row:
 | Role | Contents | Executes on a user machine? | Pinned by |
 | --- | --- | --- | --- |
 | Runtime, direct | `numpy`, `pyarrow`, `scipy`, `pandas` | yes | bounds in `pyproject.toml` (floors installed and tested by the `minimums` CI job on Python 3.11); by hash in `requirements-install.lock` for the offline bundle, the only distribution (the owner's D3, plan P4-D416), and CI's institutional install |
-| Runtime, transitive | `python-dateutil`, `six`, and (on Windows) `tzdata` - the closure pandas brings; numpy is in pandas' and scipy's closures too. numpy was withdrawn at Phase 1 review round 1 because its REDUCTIONS made published statistics depend on row order; the profiler still computes those statistics itself in exact whole-number arithmetic, rounding once at the end, and the zones of P4-D409 keep every library float away from published bytes. What returned at Phase 2 is the generator's one random stream, reduced by the scanner to `default_rng` and one `integers` call | yes | by hash in `requirements-install.lock`; the complete closure is also in `requirements-dev.lock`, consumed frozen in CI |
+| Runtime, transitive | `python-dateutil`, `six`, and (on Windows) `tzdata` - the closure pandas brings; numpy is in pandas' and scipy's closures too. numpy was withdrawn at Phase 1 review round 1 because its REDUCTIONS made published statistics depend on row order; the profiler still computes those statistics itself in exact whole-number arithmetic, rounding once at the end, and the zones of P4-D409 keep every library float away from published bytes. What returned at Phase 2 is the generator's one random stream, reduced by the scanner to `default_rng` and one `integers` call; since plan P4-D466, the audited array helper `synthtwin.arrays` alone, in zones G and D, adds whole-number counting and arithmetic under proved bounds, stable sorts and elementwise float64 `+ - * /`, never a float reduction | yes | by hash in `requirements-install.lock`; the complete closure is also in `requirements-dev.lock`, consumed frozen in CI |
 | Runtime, optional | `numba` with `llvmlite` (the `polish` extra), compiling the one audited polish kernel; not on Intel Macs | only where installed, and only once CI proves the kernel byte-identical (P4-D409 part 4) | by hash in `requirements-dev.lock`; not in the offline bundle, whose lock is `requirements-install.lock`, until lane MPn's kernel is adopted on green vectors from the `numba-vectors` CI job (P4-D416) |
 | Test-only | `openpyxl`, `statsmodels`, `scikit-learn` (zone P: independent readers and second implementations) | no - contributor and CI machines only; `src/` never imports them | hash-locked in `requirements-dev.lock`, consumed frozen |
 | Build frontend | `pip` / `python -m build` in CI | no | `build` is hash-locked in `requirements-dev.lock`, consumed frozen (CI fails on drift); `pip` ships with the runner interpreter, its exact version recorded in CI logs every run |
@@ -1121,7 +1133,9 @@ and runs the whole test suite against them.
    `requirements-install.lock` pins the whole closure by hash. Then
    `grep -rn numpy src/`: every use is in the generator, and every one
    of them is `numpy.random.default_rng` or the single `integers` call
-   the method specification fixes -- `synthtwin doctor` imports
+   the method specification fixes, or in the audited array helper
+   `src/synthtwin/arrays.py` and its ten names (plan P4-D466) --
+   `synthtwin doctor` imports
    `numpy.random` only to report that it loads, and the profiler, which
    is the half that reads the real table, imports numpy nowhere. Run
    `synthtwin doctor`: it names the version of every runtime library

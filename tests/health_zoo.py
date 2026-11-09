@@ -2172,7 +2172,10 @@ TABLES: "tuple[Table, ...]" = (
         "immunizations", ".csv", immunizations,
         lambda header, rows: csv_bytes(header, rows),
         {"immunizations_providers": ("patient_id", "cvx", "mvx", "npi", "udi", "dose_number")},
-        {"patient_id": "identifier", "cvx": "code", "mvx": "code", "npi": "code", "udi": "code"},
+        # The UDI is a device identifier (lane CZ-A, plan P4-D445: a UDI
+        # carrying a lot or a serial is a Safe Harbor device identifier, held
+        # by lane SH2's hold until `no`), not a code: declared so since.
+        {"patient_id": "identifier", "cvx": "code", "mvx": "code", "npi": "code", "udi": "identifier"},
         _csv_reader(),
         (
             _pattern("immunizations_providers", "CVX two or three figures", "cvx", r"\d{2,3}"),
@@ -3723,6 +3726,14 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
                 "2000 to 2029, two figures for the year, which the 1900s read as 1900 to 1929 (made-up "
                 "dates; a span inside the declared window is lane PS's follow-up)",
          covers("birth years read into the 1900s fall from 1930 to 1999", columns=("dob_short",))),
+        # ...and since lane ID-ROOM2 (plan P4-D457) no made-up date of the held column may be a real one:
+        # its real years take a year of every block of two-figure years its values need, so its twin
+        # writes record numbers kept off the real, which no date reader takes.
+        ("ID-ROOM2", "held as an identifier; by design (plan P4-D457, contract 7.12c): the column's real "
+                     "birth dates take a year of the block of two-figure years its made-up dates would "
+                     "need, so its twin writes its made-up values as record numbers kept off every real "
+                     "value, not as dates",
+         covers("dob_short parses as %d/%m/%y")),
     ),
     "wearables": (
         ("PS2", POOLED_FEW_HOURS, covers("miss ts")),

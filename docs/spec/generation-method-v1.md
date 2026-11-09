@@ -3656,7 +3656,12 @@ in four steps.
    piece's middle value: `floor((s' (n - 1) + s (m + 1)) / (n + m))`,
    held inside the bounds. Where today's count lies further than
    `floor(M / 2)` from `E`, the count is the point `floor(M / 2)` from
-   `E` on today's side, held between today's count and step 2's. Nothing
+   `E` on today's side, held between today's count and step 2's. Where
+   step 2 left neither `e` nor the next value a cell of the piece, nothing
+   moves: the bound that leaves the next value one cell cannot be met
+   there, and the step had handed the next value a cell no stratum gave,
+   which the internal check (G5.7g) refused (batch 4q's proof of
+   `K-BC-11`, plan P4-D448; the oracle mirrors the guard). Nothing
    is read from a real cell, and every piece keeps its `C_p` cells. Step 4 gives a mode's cells to a neighbour that
    is no piece's edge value before one that is.
 3. **THE DIFFERENT VALUES KEPT.** A VALUE step 2 left with no cell --
@@ -16758,6 +16763,114 @@ reads nothing real to make it so:
    cells are the spill. Keys of three and four figures, every first figure
    held, were the spill: 1,172 to 3,504 twin cells holding a real key of
    four at 20,000 rows; 0 now.
+9. **Amended by batch 4q's fix rounds (plan P4-D432, 2026-11-08; Codex's
+   review of batch 4q, item 1, and the round's verify, blocker 1).** A RUN
+   OF FIVE FIGURES OR MORE INSIDE A WIDER VALUE IS WRITTEN UNDER ITS
+   OPENING. The writer is unchanged: an excluded template of a layout of
+   two words or more (contract 7.12b) may carry, beside its exclusion, the
+   opening of each such run as written places, which step 2 reads as it
+   reads the exclusion's own, so a value written in it opens each such run
+   as no real run of the run's merged width opens: none of those runs is a
+   real cell's run of its width, however it is glued in its word. Lane CZ-A's hold of a name beside a record number (plan P4-D445)
+   had kept only the whole cell off the real: 46 twin cells of
+   `Cedar, Abc [1000000]` at 20,000 rows (1,000 people of 20 records) held
+   a complete real record number on batch 4q's review head, and 46, 46 and
+   47 with the number glued to its label (`[MR1000000]`), after `#` and a
+   label, or before a letter (`[1000000A]`) on the fix round's first head;
+   0 now, measured by the fix rounds' builders.
+
+
+### G9.6c A made-up date of a held date column kept off the real dates (lane ID-ROOM2, plan P4-D457, 2026-11-04)
+
+A COLUMN OF DATES HELD AS RECORD NUMBERS WRITES NO REAL DATE OF ITS
+COLUMN, EXACT OR MERGED, BY CONSTRUCTION. The G1 floor (G7.13) drew such a
+column's made-up dates from 2000 on and the date pass (G9.6b, step 9) from
+1940 on, never reading a real value, so a made-up date equalled a real one
+by chance: at 20,000 rows 733 of an ISO column of birth dates, 7,055 of a
+column of two-figure years, 3,138 of diagnosis dates. Where the block
+publishes `made_up_years` (contract 7.12c) -- one block a kind of year,
+fixed by the published facts, that no real date of the column takes --
+both writers draw from those years alone:
+
+1. **The G1 floor**, where its grain reads dates (a grain reading stamps,
+   clock times or counted dates is written from its own span as before:
+   repair 1 of lane ID-ROOM2, Codex's item 1), takes as its spans the
+   published runs of the reading's kind of year -- four-figure years, or,
+   where the reading writes two figures (a `{YY...}` layout, a two-digit
+   member), the two-figure years read from 2000, the figures alone being
+   written -- in place of the record's spans and the fixed span; it fills
+   each made-up value of a published layout in its own form only (no
+   refill for a length), and a kind of year with no run leaves the column
+   as the walk wrote it. A made-up value of a layout the census withholds,
+   which no date wears in its own form, is written in the member's own
+   form from the same spans, a spelling the census does not publish
+   (repair 1, Codex's item 3) -- at its own length and on its side of the
+   code alphabet, else left as the walk's value (repair 2: a withheld
+   value of the other width of year written at the room's width failed
+   validation).
+2. **The date pass** takes the published years of the form's kind in runs
+   of eighty, in order, in place of eighty from 1940: year first, year,
+   month and day; year last, two fields of 1 to 12 each (then, for a
+   two-figure year, a second field of 13 to 28), valid read month first and
+   day first; a month word's day 1 to 28; a month beside a year; a year
+   alone; each run's dates filled before the next, the step moved around
+   the run (`_stepped_around`). The run a step falls in is found by
+   division, every run but the last holding the same number of dates, so a
+   date costs the same however many years the block holds (repair 1,
+   Codex's item 4). A form whose kind of year has no run keeps the final
+   pass's cell. Each named layout takes only its own share of the block's
+   first years (contract 7.12c, repair 2 (4), `taxonomy.made_up_share`, read off the
+   census and the column's different values), any other form the whole
+   block; a value of figures alone, where the column holds such cells, is
+   written as a year alone of the block (repair 2). Beside a named layout
+   written year last in figures (a month and a day before the year), a
+   layout writing its year first -- alone, beside a month, or before a
+   month and a day -- takes its share of the published years whose second
+   figure is a nought, in order (contract 7.12c, batch 4q's merge and fix
+   rounds (1): 2028 to 2099, then 3000 to 3099 and so on;
+   `taxonomy.made_up_year_first_share`, `generation._room_of_layout`),
+   which the published runs hold whole; where they do not hold them all (a
+   description of the release before), the block's first years, as
+   before. No month-first merged key opens with such a year, so a
+   month-first cell read year first (`02/01/1958` merges to `211958`, 8
+   May 2119) takes none of this share's years. The published years
+   exclude, by the producer's rule, every year the readings of contract
+   7.12c (2) give a real cell's own text (a compact stamp no letter is
+   glued to, a clock set aside wherever it stands and a month's word
+   glued to its figures included); of the spellings the round's generator
+   writes, four classes stay open (contract 7.12c, batch 4q's fix round
+   3). Batch 4q's fix round 4 adds to those readings a stamp a zone the
+   clock reader names or a meridiem ends, SAS's datetime with a
+   two-figure year past 23, a count in each of the
+   twelve counting systems the product names and a day of the year in
+   seven or five figures or beside a year, and the same four classes stay
+   the only open ones among the spellings its enlarged generator writes;
+   spellings beyond it, a day of the year with its clock run on and SAS's
+   datetime with a two-figure year of 00 to 23 among them, are stated
+   limits (contract 7.12c). The pass itself is unchanged,
+   and a form whose kind of year finds no run keeps the final pass's
+   cell, as above.
+3. **Every date written is checked before it stands**: it wears a named
+   layout of the column that a date can wear, and its merged key, read in
+   some order that layout's dates stand in, is a valid date of a published
+   year of that order's kind. The producer published no year any real
+   cell's merged key names in any of the column's orders, so a real cell
+   with that merged key would have held the year: no twin date is a real
+   cell's merged key, nor its spelling. The G1 floor's value of a
+   withheld layout, in no named layout, is read in every order of the
+   named date layouts, which the producer read every cell in, so the same
+   holds. A year alone is named beside them where the column holds cells
+   of figures alone, which the producer read every cell as. A date that
+   does not stand keeps the walk's value (the G1 floor) or the final
+   pass's (the date pass), each off the real by G9.6b.
+
+A description publishing no `made_up_years` (a producer before it) is
+written as before. The oracle mirrors step 2, its shares and its check
+(`tools/reference/make_generation_reference_vectors.py`, `room_date`,
+`pass_share`, `stands_off_the_real`), the year-first share in `room_for`
+(batch 4q's fix round: an oracle case of 18,000 ISO and 2,000 month-first
+values publishing `[[2028, 2126], [3000, 3026]]`, red on the twin's and
+on the oracle's mutant that take the block's first years there too).
 
 ## G10. Absent cells, straggler stand-ins, unrepresentable values
 
@@ -17712,6 +17825,13 @@ what it is for. The key carries two column names, so it is listed with
 the shapes below; it is behind the chain's switch, so no twin of a
 description a shipped command loads carries it.
 
+**AND ONE MORE IN LANE RO** (plan P4-D459): `rules`, the note on a
+column a carried order rule computes (G16.2 step 5): the twin writes it
+from its rule on every row and it publishes nothing read from its own
+cells. It is behind the chain's switch, and its rule steps are off unless
+a caller asks, so no twin of a description a shipped command loads
+carries it; it prints no count of rows.
+
 * `all_at_midnight`
 * `all_whole_numbers`
 * `band totals`
@@ -17757,6 +17877,7 @@ description a shipped command loads carries it.
 * `pad_widths`
 * `percentiles`
 * `resolution_mix`
+* `rules`
 * `shape_forms`
 * `subsecond_digits`
 * `suppressed_levels`
@@ -21113,6 +21234,11 @@ parents `P` at `F`'s levels, target `t`:
    is not FINE is final here, and G16.4 writes it at once.
 5. **Carried rules, after the last family.** The entries of `rules`
    are taken in their published order.
+   AMENDED Saturday 2026-11-07 (batch 4q's merge of lane RO beside lane
+   MPg's polish, plan P4-D459): where G16.3's polish runs, this step runs
+   after it and after every column the polish may move is placed, so a
+   computed column is written from its inputs' final cells and its
+   derived family's words are drawn after the polish's.
    - A DERIVED column's family `{D | A}` is dealt by steps 1 to 4 as a
      family whose one parent is `A` at the family's level of `A`, read
      from the band of `A`'s cell in each row (its `L0` group, G16.0,
@@ -21142,6 +21268,59 @@ parents `P` at `F`'s levels, target `t`:
      of its output and every other row.
    - The rule words of the description are zeros of family targets, met
      by step 3, which deals no row into a cell whose target is nought.
+   - AMENDED 2026-11-04 (lane RO, plan P4-D459), as contract 4.6b.7
+     reads it (MR.2, MR.6 (a)): `B` is written in its OWN first layout,
+     never `A`'s (the words above, "in `A`'s published layout words",
+     stood before the rules page): a number's first style, pad width and
+     grouping mark around the exact sum at the larger number of places of
+     `A`'s and `D`'s (`chain_walk.written_sum`); a date's, a stamp's or a
+     clock's first layout. `A` is read as its twin writes it (a top-coded
+     `A` at 90). The derived family's three words a row are drawn after
+     the chain's families, one family a carried derived rule in the
+     rules' order, and `A`'s band in each row is read from the cell its
+     twin writes, at the published `L0` edges. `D`'s readings are MR.2's
+     as repaired twice (`chain_walk.derived_readings`): every reading a
+     multiple of the grain `g`; an inner band spread over its multiples,
+     the ranks two rungs of its upper edge enclose at that edge; the
+     lowest band from 0 to its edge, or at its edge on every rank where
+     two or more rungs tie there; in a count class exactly `v` readings
+     below 0; the highest band at `up(lo)` where the nearest band is one
+     step wide, else over `(lo, lo + 3 w]`; an empty highest band's ranks
+     from the top rung's first at the top edge; a level with no edge 0,
+     its failing rows `-g`; each band's rows take its readings in the
+     order of their hidden scores (a clock pair's by `A`, latest first).
+     A sum `B`'s layout writes coarser than `A + D` is written on `D`'s
+     side of `A`, and a clock's sum is held at the day's last value its
+     layout writes (`chain_walk.held_clock`); a source's `D` is read from
+     its own twin cells times the unit. Behind the switch, where a caller
+     asks for the rule steps.
+   - AMENDED 2026-11-05 (lane RO's repair 1, plan P4-D459): `B`'s own
+     first form is the whole of it, read from its computed block's
+     layout words as the ordinary writer reads a column's censuses (G7.5):
+     a number's declared decimal comma and its affix around the sum
+     (`chain_walk.written_form`); a date's field widths and month-name
+     style; a stamp keeps `A`'s offset, spelled as `B`'s first published
+     offset, where that offset is one, writes `B`'s first offset where
+     `A`'s cell holds none, and writes none where `B`'s first is
+     `(none)`. A stamp written to fractions of a second was written to
+     the second, the computed block naming no count of their figures
+     (repair 2 amends it, below).
+   - AMENDED 2026-11-06 (lane RO's repair 2, LANE RO RULINGS 5 (1) and 6
+     (1) to (3)): a number keeps its point after figures holding no places
+     where its first fraction width is 0 (`42.` + 1 is written `43.`), its
+     published negative form (`parsing.with_negative_notation`, brackets
+     included) and its own affix whatever the rule's role; a stamp written
+     to fractions of a second writes `A`'s published count of figures
+     after the second in zeros, as G7.5 writes a fraction
+     (`chain_walk.stamp_fraction`), and the second where `A` publishes
+     none; a leading point and a padded text decimal are written in the
+     ordinary writer's form, the description publishing no word for
+     either. `A`'s `L0` band is read through its own reader, a declared
+     decimal comma included; a source's missing marker is no reading of
+     `D`, so `B` stays absent beside it; the band holding 0 gives its
+     failing rows the multiples above its lower edge read one by one,
+     never its whole span (a band reaching 250,000,000,749,999 steps below
+     0 asked as many integers).
 
 **Why every family's target is met (by induction on the chain).** When
 `F` is dealt, each row's parent cell is fixed by families dealt before
@@ -21297,7 +21476,7 @@ design's record; under rule B the polish is this:
 - **The aims stay feasible together.** Where the moved aims ask the score for more than its whole spread (`a . (C + 0.001 I)^-1 a` past `1 - 1e-4`, on the round's sample), every aim is scaled down by one factor to that edge, so no aim stores up what earlier draws missed.
 - **The last round.** The last round re-sorts each column four times on its one draw of hidden sums, moving the aims between the re-sorts (not after the fourth), so it ends on the targets rather than one fresh draw away from them. No word more is drawn.
 - **Working memory.** (STRUCK by repair 2, below: "no list a row of a column is held" was not true of the score or of a frame group's rows and places.) The rows are grouped by frame group in a packed array (a counting sort), the features built 65,536 rows at a time, the score one float a row, every sum of the aims a correctly rounded sum over a generator; the close keeps each place's earlier row packed.
-- **A column a carried rule reads.** Where G16.2 step 5 writes a computed column from others row by row (`B = A + D`), a later polish of `A` would break the rule on the moved rows: such a column is not polished, or step 5's computed columns are written after G16.3 (owner lane RO at its merge, with a gate case then). The generator carries no such rule on this base.
+- **A column a carried rule reads.** Where G16.2 step 5 writes a computed column from others row by row (`B = A + D`), a later polish of `A` would break the rule on the moved rows: such a column is not polished, or step 5's computed columns are written after G16.3 (owner lane RO at its merge, with a gate case then). The generator carries no such rule on this base. AMENDED Saturday 2026-11-07 at batch 4q's merge of lane RO: the second form is taken. Step 5 runs after G16.3 and after the polished columns are placed (G16.2 step 5's dated amendment), so a carried rule reads its input as the polish leaves it; the gate case `test_a_carried_rule_reads_its_input_as_the_polish_leaves_it` in `tests/test_stage6_order_rules.py` holds an order rule whose input the polish moves (2,000 rows, a test size) and is red on the mutant that runs step 5 before G16.3.
 - **The top-coded age.** Lane MPp's eligibility governs (LANE MPg RULINGS 5 (7)): a top-coded number is polished on its clipped code, its own cells only moving among its own rows inside its chain band, so no value is created and none passes the top code; the lane line "never a moment column" predates that eligibility and is superseded.
 - **Its oracle.** `polish_column` in `tools/reference/chain_oracle.py` mirrors every step above in emulated binary64 on a 64-row twin of three numbers, a binary and a grouping column, frozen with five mutants (each row kept in its `L0` band; the aims never moved; a moved column's bands never read again; no band's spread scaled; the aims never scaled together), and `nearest_correlations` on three matrices.
 - **Limits, measured (repair 1; plan P4-D456 holds the figures).** (a) A number at chain level `L0` whose family's parents leave out a column it is correlated with keeps the walk's order between its `L0` bands: its frame leaves the polish too little room for that link, and a pair resting on it may stay outside its bound (the invented 0.95 pair at 20,000 rows); a frame crossing `L0` bands inside a family cell was measured and not shipped (it broke a near-identical pair); owner lane MPg's next round. (b) A number's means in a correlated partner's bands are no target, so band means are met only as far as the correlation carries them (below a fresh sample's share in `K-S6-12`); owner the same. (c) A column of numbers in 0 to 125 is read as a possible age and top-coded at 90 until its question is answered (HIPAA first), so no twin carries its upper tail and a regression on it reads the top-coded column. (d) A regression on two nearly collinear predictors carries the published `r`'s rounding on its grid of Fisher's z (contract 4.6d.0's limit (b): the 95th percentile of a coefficient's rounding over its standard error 0.84 to 1.02 at a predictor correlation of 0.99 and 2.6 to 2.9 at 0.999, at 20,000 rows); owner lane MPg for the statement, MPp2 for any change of the grid.
@@ -21356,6 +21535,12 @@ G16.2 step 5), and no latent score or second sort is needed.
   already have. How often that happens is lane CHb's count on the
   battery (`K-S6-02`). The held page's fix, an exchange of an eligible
   column's cell, would break a family table, and is withdrawn.
+  BUILT 2026-11-04 (lane RO, plan P4-D459): `generation._reservation`
+  keeps every column a carried rule computes or reads (its `computed`,
+  `inputs` and source `carrier`) out of the givers, and reads no computed
+  column's cells holding nothing in `E_eff`: such a column is written from
+  its rule after the walk, absent wherever its input is, so it holds
+  nothing on every reserved row.
 - **The row sequence** is written in place last (G2.1 step 1), and the
   sort by `row_order` moves whole rows (G2.1 step 3), the reserved rows
   staying where they stand. Neither moves a cell of any table.

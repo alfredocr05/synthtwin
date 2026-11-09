@@ -13,7 +13,10 @@ evidence either way. One more word, `synthtwin doctor`, is no step of a
 run: it checks this computer before the first one -- Python, the four
 libraries it needs (numpy, pandas, pyarrow and scipy, each with its
 version), the output folder, the memory against a named table's size --
-and reads no table (plans P4-D397 and P4-D410).
+and reads no table (plans P4-D397 and P4-D410). And `synthtwin twin
+<table>` runs the three in one command and one folder, the questions on
+screen before any file is written, while `synthtwin help` shows one page
+for each command and the worked examples (plan P4-D460).
 
 Zero-code use is the requirement (charter principle 2): each command
 works with one path and nothing else. Everything else is an option with
@@ -102,7 +105,7 @@ import pathlib
 import sys
 import typing
 
-from synthtwin import asking, dialect, errors, parsing
+from synthtwin import asking, computer, dialect, errors, parsing
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts, a
 # module of the package's own that imports `parsing` alone.
 from synthtwin import date_counts
@@ -172,6 +175,33 @@ _MISSING_VALUE_HELP = (
     "not about the columns. May be given more than once"
 )
 
+# THE HELP FOR `--keep-value`, held as a constant beside `--missing-value`'s
+# for the same reason (lane TT, plan P4-D460): it is printed whole on the
+# whole-tool page and on the pages of `profile` and `twin`, which read it,
+# so the disclosure a person reads before typing a value is one text.
+_KEEP_VALUE_HELP = (
+    "a value that is real data in your table, even though "
+    "synthtwin would otherwise read it as 'no value'. Use it when "
+    "a code such as NA is a genuine answer -- a region really "
+    "called NA, or -999 as a real reading. A value that reads as "
+    "a number is matched as a NUMBER, so -999 also covers "
+    "-999.00; anything else is matched as text, ignoring "
+    "surrounding spaces and upper or lower case -- with one "
+    "exception, NaT, which synthtwin matches exactly as written "
+    "because ignoring its capitals would make it a person's "
+    "name. In the settings "
+    "block the profile records how many different values you "
+    "named, the rule that matched them, and -- where what you "
+    "named is one of synthtwin's own words for 'no value', such "
+    "as NA or -999 -- which of "
+    "those words it was; a word of your own is never written "
+    "into the settings block, which is a rule about that block "
+    "and not about the columns. And a value you name this way IS data "
+    "from then on, so the word itself can appear wherever its "
+    "column publishes values, for instance as that column's "
+    "smallest number. May be given more than once"
+)
+
 # The three commands of a run, as the words a person types.
 _PROFILE = "profile"
 _GENERATE = "generate"
@@ -182,6 +212,27 @@ _VALIDATE = "validate"
 # runs it again with their table's path to weigh its size against this
 # computer's memory before `profile` reads it.
 _DOCTOR = "doctor"
+# ...THE WHOLE JOURNEY IN ONE COMMAND (lane TT, plan P4-D460): `twin` runs
+# `profile`, the questions on screen, `generate` and `validate` in one run
+# and one folder. And `help` shows one command's page, or the examples.
+_TWIN = "twin"
+_HELP_WORD = "help"
+# The words `help` takes after it: a command's page, or the examples page.
+_EXAMPLES = "examples"
+# THE COMMAND WORDS THE PARSER SHOWS, as the base showed them: the
+# whole-tool help page is the stage-5 battery's G10.2, held byte for byte
+# (plan P4-D395 part 5), so the two new words are taken by the parser
+# without being added to the line that page prints (lane TT, plan P4-D460),
+# nor to the words a refused command word is told: argparse names an
+# argument by its metavar where it has one, and `argument command:` read
+# `argument {profile,generate,validate,doctor}:` with `'twin', 'help'` among
+# the choices until lane TT's repair (skeptic 1's item 4). So a command line
+# that names neither new word is read by the base's own argument -- its four
+# choices, no metavar -- and only one that names `twin` or `help` takes all
+# six, behind this metavar (`_parse_arguments`). The list the skeptic named
+# (a list whose `in` takes the two words) would need a double-underscore
+# method, which the offline audit refuses in synthtwin source.
+_COMMANDS_SHOWN = "{profile,generate,validate,doctor}"
 
 # THE SEED'S ACCEPTED SPELLING AND RANGE (plan P2-D8). synthtwin states
 # its own range rather than passing whatever was typed to the library
@@ -321,6 +372,303 @@ _HELP_EPILOG = """examples:
       check this computer before a first run, and weigh the size of
       data.csv against its memory without opening the file
 """
+
+
+# -- ONE HELP PAGE FOR EACH COMMAND (lane TT, plan P4-D460) ----------
+#
+# `synthtwin COMMAND --help` and `synthtwin help COMMAND` show that
+# command's page: what it reads and writes, and each option it reads on a
+# line, at most 60 lines at 80 columns (`K-S8-05`), the help of
+# `--keep-value` and `--missing-value` printed whole wherever a command
+# reads them, because it is the disclosure a person reads before typing a
+# value (plan amendment A-P3-31). `synthtwin --help` keeps the page for the
+# whole tool, every option in full, byte for byte (the stage-5 battery's
+# G10.2), and `synthtwin help examples` the worked examples. The pages are
+# reached through the one parser every command line is read by, and
+# `tests/test_terminal_twin.py` holds every option a page names to the
+# parser's own (`_LONG_OPTIONS`), and every option a command reads to its
+# page (`_READ_BY`).
+
+# The options each command reads, in the order its page lists them.
+_PROFILE_DECLARATIONS = (
+    "--identifier",
+    "--code",
+    "--measurement",
+    "--decimal-comma",
+    "--date-column",
+    "--date-count",
+    "--century",
+    "--twelve-hour",
+    "--day-first",
+    "--first-row",
+    "--metadata-rows",
+    "--delimiter",
+    "--sheet",
+    "--answers",
+    "--smallest-group",
+    "--keep-value",
+    "--missing-value",
+)
+_READ_BY = {
+    _PROFILE: ("--out-dir", "--replace") + _PROFILE_DECLARATIONS,
+    _GENERATE: ("--seed", "--out-dir", "--replace"),
+    _VALIDATE: ("--twin", "--out-dir", "--sheet", "--replace"),
+    _DOCTOR: ("--out-dir",),
+    _TWIN: ("--out-dir", "--replace", "--seed") + _PROFILE_DECLARATIONS,
+}
+
+# Each option's line: what is typed after it, and what it does, short.
+_SHORT_HELP = {
+    "--out-dir": ("FOLDER", "write into FOLDER, which must exist"),
+    "--replace": ("", "write over files an earlier run left there"),
+    "--seed": ("NUMBER", "which twin to build, a whole number (default 0)"),
+    "--twin": ("PATH", "the CSV file to measure (default: the twin)"),
+    "--identifier": ("COLUMN", "record numbers: no value of it is published"),
+    "--code": ("COLUMN", "codes, not measurements: kept as written"),
+    "--measurement": ("COLUMN", "numbers in one cell that are quantities: 120/80"),
+    "--decimal-comma": ("COLUMN", "numbers with a comma for the decimal point"),
+    "--date-column": ("COLUMN", "dates, though some values are written otherwise"),
+    "--date-count": ("COLUMN SYSTEM", "dates written as numbers, counted in SYSTEM"),
+    "--century": ("COLUMN=YEAR", "two-figure years: the first year of the century"),
+    "--twelve-hour": ("COLUMN", "times on a 12-hour clock with no AM or PM"),
+    "--day-first": ("", "dates are written day first: 03/04 is 3 April"),
+    "--first-row": ("{names,data}", "the first row holds the names, or a record"),
+    "--metadata-rows": ("N", "N rows under the names describe the columns"),
+    "--delimiter": ("CHARACTER", "the character between columns: , ; | or tab"),
+    "--sheet": ("NAME", "the sheet of a workbook that holds the table"),
+    "--answers": ("FILE", "a questions file with your answers written in"),
+    "--smallest-group": ("ROWS", "raise the smallest group from 11, never lower"),
+    "--keep-value": ("VALUE", ""),
+    "--missing-value": ("VALUE", ""),
+}
+_LONG_HELP = {"--keep-value": _KEEP_VALUE_HELP, "--missing-value": _MISSING_VALUE_HELP}
+
+_PAGE_WIDTH = 79
+_OPTION_COLUMN = 30
+
+# What each command does, and what its page says first.
+_PAGE_HEADS = {
+    _PROFILE: (
+        "usage: synthtwin profile TABLE [options]",
+        "Describe TABLE, a CSV file or a workbook, and write TABLE-profile.json, "
+        "its summary TABLE-profile.txt and TABLE-questions.json beside it. At "
+        "the keyboard the questions come first: nothing is written before they "
+        "are answered.",
+    ),
+    _GENERATE: (
+        "usage: synthtwin generate DESCRIPTION [options]",
+        "Build the twin from DESCRIPTION, the file 'synthtwin profile' wrote, "
+        "and from nothing else, and write the twin (TABLE-twin.csv, or "
+        "TABLE-twin.xlsx for a workbook) and its report (TABLE-twin-report.txt) "
+        "beside it. The same description, seed and version always give the "
+        "same twin, byte for byte.",
+    ),
+    _VALIDATE: (
+        "usage: synthtwin validate DESCRIPTION [options]",
+        "Measure the twin beside DESCRIPTION, or the file --twin names, "
+        "against the description, and write the quality report "
+        "(TABLE-twin-quality.txt). It cannot tell a synthetic file from a "
+        "real one. Exit status: 0 nothing was missed, 3 something was, 1 the "
+        "check could not run, 2 the command line could not be used.",
+    ),
+    _DOCTOR: (
+        "usage: synthtwin doctor [TABLE] [options]",
+        "Check this computer before a first run: Python, the four libraries "
+        "synthtwin needs (numpy, pandas, pyarrow and scipy), the output "
+        "folder and the memory, and weigh TABLE's size against that memory "
+        "when you name one. It never opens TABLE.",
+    ),
+    _TWIN: (
+        "usage: synthtwin twin TABLE [options]",
+        "The whole journey in one command: describe TABLE, ask on screen what "
+        "its values cannot settle, build the twin and measure it. Nothing is "
+        "written before the questions are answered. The six files go into one "
+        "folder, TABLE-synthtwin beside the table unless --out-dir names "
+        "another, and the answers stay in its questions file: the next run "
+        "there asks nothing where it reads the same file with the same "
+        "--smallest-group and as many --missing-value and --keep-value.",
+    ),
+}
+# The options a page names in a sentence rather than a line each: the
+# declarations `twin` hands to its profile step, which `profile`'s page
+# lists one by one.
+_PAGE_PROSE = {
+    _TWIN: (
+        "It reads every option of synthtwin profile that says what a column "
+        "holds, and hands it to the profile step: --identifier, --code, "
+        "--measurement, --decimal-comma, --date-column, --date-count, "
+        "--century, --twelve-hour, --day-first, --first-row, --metadata-rows, "
+        "--delimiter, --sheet and --smallest-group (synthtwin help profile "
+        "says what each does), and these two:"
+    ),
+}
+_PROSE_NAMES = (
+    "--identifier",
+    "--code",
+    "--measurement",
+    "--decimal-comma",
+    "--date-column",
+    "--date-count",
+    "--century",
+    "--twelve-hour",
+    "--day-first",
+    "--first-row",
+    "--metadata-rows",
+    "--delimiter",
+    "--sheet",
+    "--smallest-group",
+)
+# ...and what it says last, its exit statuses where they differ.
+_PAGE_FEET = {
+    _TWIN: (
+        "Exit status: 0 every step ran and nothing was missed; 3 a step missed "
+        "something its report names; 1 a step could not run; 2 the command "
+        "line could not be used.",
+    ),
+}
+_PAGE_END = "In full: synthtwin --help. Examples: synthtwin help examples."
+
+# THE INDEX `synthtwin help` shows, and the examples page.
+_HELP_INDEX = """synthtwin makes a synthetic twin of a table, on this computer.
+
+The whole journey in one command:
+  synthtwin twin my-table.csv
+
+The same three steps one at a time, each printing the next:
+  synthtwin profile my-table.csv
+  synthtwin generate my-table-profile.json
+  synthtwin validate my-table-profile.json
+
+Before a first run, check this computer:
+  synthtwin doctor my-table.csv
+
+One page for each command:
+  synthtwin help twin
+  synthtwin help profile
+  synthtwin help generate
+  synthtwin help validate
+  synthtwin help doctor
+Worked examples:
+  synthtwin help examples
+Every option in full:
+  synthtwin --help
+"""
+
+_EXAMPLES_PAGE = """examples:
+  synthtwin twin data.csv
+      describe data.csv, ask on screen what its values cannot settle,
+      build the twin and measure it, all into the folder data-synthtwin
+      beside data.csv
+
+  synthtwin twin data.csv --replace --seed 2
+      a second twin in that folder, over the first: it asks nothing,
+      because the answers given the first time are kept there
+
+  synthtwin twin data.csv --out-dir reports --identifier record_no
+      the same journey into the folder 'reports', the column record_no
+      named as record numbers, so no question is asked about it
+
+  synthtwin profile data.csv
+      describe data.csv and write data-profile.json, data-profile.txt
+      and data-questions.json beside it
+
+  synthtwin profile data.csv --answers data-questions.json
+      describe it again with the answers written into that file
+
+  synthtwin profile data.csv --replace
+      describe it again over the three files an earlier run left there
+
+  synthtwin generate data-profile.json --seed 7
+      build a different twin from the same description
+
+  synthtwin validate data-profile.json
+      measure data-twin.csv against that description and write
+      data-twin-quality.txt beside it
+
+  synthtwin validate data-profile.json --twin somewhere/other.csv
+      measure that file instead, and write other-quality.txt
+
+  synthtwin doctor data.csv
+      check this computer before a first run, and weigh the size of
+      data.csv against its memory without opening the file
+"""
+
+
+def _wrapped(text: str, indent: str, width: int = _PAGE_WIDTH) -> str:
+    """``text`` laid out in lines of at most ``width`` characters, each after ``indent``.
+
+    Words are cut at single spaces and never inside, the way the page's
+    reader reads them. Built a character at a time, for the offline
+    audit's reason (no method of the value is called). A fixed function
+    of its arguments; raises nothing.
+    """
+    lines = ""
+    line = ""
+    word = ""
+    for character in text + " ":
+        if character != " ":
+            word = word + character
+            continue
+        if not word:
+            continue
+        if line and len(indent) + len(line) + 1 + len(word) > width:
+            lines = lines + indent + line + "\n"
+            line = word
+        else:
+            line = word if not line else line + " " + word
+        word = ""
+    if line:
+        lines = lines + indent + line + "\n"
+    return lines
+
+
+def _option_line(option: str) -> str:
+    """One option's lines on a command's page: its name, what follows it, what it does."""
+    metavar, said = _SHORT_HELP[option]
+    named = option if not metavar else f"{option} {metavar}"
+    if option in _LONG_HELP:
+        return f"  {named}\n" + _wrapped(_LONG_HELP[option], "    ")
+    lead = f"  {named}"
+    if len(lead) + 1 > _OPTION_COLUMN:
+        return f"{lead}\n{' ' * _OPTION_COLUMN}{said}\n"
+    return f"{lead}{' ' * (_OPTION_COLUMN - len(lead))}{said}\n"
+
+
+def command_page(command: str) -> str:
+    """The help page of one command word (lane TT, plan P4-D460; `K-S8-05`).
+
+    Guarantees: for each of `profile`, `generate`, `validate`, `doctor`
+    and `twin`, a page of at most 60 lines of at most 79 characters: its
+    usage line, what it reads and writes, and each option it reads
+    (`_READ_BY`) -- on a line of its own, or named in its one sentence
+    (`_PAGE_PROSE`, the declarations `twin` hands to its profile step),
+    `--keep-value` and `--missing-value` always with their whole help, as
+    the whole-tool page prints it -- and where every option is given in
+    full. A fixed function of the word; raises KeyError for another word.
+    No I/O.
+    """
+    usage, said = _PAGE_HEADS[command]
+    page = f"{usage}\n\n" + _wrapped(said, "") + "\noptions:\n"
+    prose = _PAGE_PROSE[command] if command in _PAGE_PROSE else ""
+    for option in _READ_BY[command]:
+        if option in _LONG_HELP or (prose and option in _PROSE_NAMES):
+            continue
+        page = page + _option_line(option)
+    if prose:
+        page = page + "\n" + _wrapped(prose, "")
+    for option in _READ_BY[command]:
+        if option in _LONG_HELP:
+            page = page + _option_line(option)
+    for foot in _PAGE_FEET[command] if command in _PAGE_FEET else ():
+        page = page + "\n" + _wrapped(foot, "")
+    return page + "\n" + _wrapped(_PAGE_END, "")
+
+
+def _page_for(command: "object", whole: str) -> str:
+    """The page a help option shows: the command's own where one was read before it, else the whole page."""
+    if isinstance(command, str) and command in _READ_BY:
+        return command_page(command)
+    return whole
 
 
 def _shown(value: object) -> str:
@@ -576,6 +924,29 @@ class _Session:
     # and reason, and how many were put, answered there or not (lane S5b).
     put: "list[tuple[str, str, str]]" = dataclasses.field(default_factory=list)
     prompted: int = 0
+    # THE TWIN COMMAND'S (lane TT, plan P4-D460): each step's own result,
+    # in order, on the twin's session; and on a step's session, that it is
+    # one (its teaching line is not shown: the twin goes on by itself), the
+    # verdict the steps before it reached (validate's exit line names the
+    # twin's status), and the folder it makes once its questions are
+    # answered, so nothing exists before then.
+    steps: "list[results.Result]" = dataclasses.field(default_factory=list)
+    twin_step: bool = False
+    before: str = ""
+    folder_to_make: str = ""
+    # ...AND THE FILE THE ANSWERS IT KEEPS ARE BOUND TO (lane TT's repair;
+    # `_bound_reading`): on a profile step handed its folder's own
+    # questions file, the file's size, fingerprint and sheet the answers
+    # were given about, which its reading must find again; and the
+    # sentence binding the answers this step keeps to its own reading,
+    # written into its questions file.
+    bound_to: "tuple[int, int, str] | None" = None
+    binding: str = ""
+    # ...and, on the twin's session, the questions its profile step's
+    # prompt puts, or would put with somebody at the keyboard, each by its
+    # column, role and reason: what the taught answers command can put on
+    # screen (Codex's item 9, skeptic 1's item 5).
+    promptable: "list[tuple[str, str, str]]" = dataclasses.field(default_factory=list)
 
 
 @dataclasses.dataclass
@@ -1553,6 +1924,13 @@ def _refused_as_argparse_refuses(help_page: str, message: str) -> "typing.NoRetu
     raise _Unusable()
 
 
+def _commands_read(argv: "list[str] | None") -> "list[str]":
+    """The command words the parser takes for this line: the base's four, and `twin` and `help` where the line names one (skeptic 1's item 4)."""
+    if _command_word(argv) in (_TWIN, results.HELP):
+        return [_PROFILE, _GENERATE, _VALIDATE, _DOCTOR, _TWIN, _HELP_WORD]
+    return [_PROFILE, _GENERATE, _VALIDATE, _DOCTOR]
+
+
 def _parse_arguments(
     argv: "list[str] | None", internal_smallest_group: "int | None"
 ) -> _Options:
@@ -1617,7 +1995,10 @@ def _parse_arguments(
         "command",
         nargs="?",
         default=None,
-        choices=[_PROFILE, _GENERATE, _VALIDATE, _DOCTOR],
+        # The four words it always showed; the two new ones only on a line
+        # that names one of them, the page showing the four all the same.
+        choices=_commands_read(argv),
+        metavar=None if len(_commands_read(argv)) == 4 else _COMMANDS_SHOWN,
         help=(
             "what to do: 'profile' describes a CSV table on this "
             "computer, 'generate' builds the synthetic twin from a "
@@ -1941,28 +2322,7 @@ def _parse_arguments(
         action="append",
         default=None,
         metavar="VALUE",
-        help=(
-            "a value that is real data in your table, even though "
-            "synthtwin would otherwise read it as 'no value'. Use it when "
-            "a code such as NA is a genuine answer -- a region really "
-            "called NA, or -999 as a real reading. A value that reads as "
-            "a number is matched as a NUMBER, so -999 also covers "
-            "-999.00; anything else is matched as text, ignoring "
-            "surrounding spaces and upper or lower case -- with one "
-            "exception, NaT, which synthtwin matches exactly as written "
-            "because ignoring its capitals would make it a person's "
-            "name. In the settings "
-            "block the profile records how many different values you "
-            "named, the rule that matched them, and -- where what you "
-            "named is one of synthtwin's own words for 'no value', such "
-            "as NA or -999 -- which of "
-            "those words it was; a word of your own is never written "
-            "into the settings block, which is a rule about that block "
-            "and not about the columns. And a value you name this way IS data "
-            "from then on, so the word itself can appear wherever its "
-            "column publishes values, for instance as that column's "
-            "smallest number. May be given more than once"
-        ),
+        help=_KEEP_VALUE_HELP,
     )
     parser.add_argument(
         "--missing-value",
@@ -2089,7 +2449,7 @@ def _parse_arguments(
             # cannot be named; a refused reading takes no help option.
             continue
         if before.help:
-            _show(_OUT, help_page)
+            _show(_OUT, _page_for(before.command, help_page))
             raise _HelpShown()
     try:
         args, not_understood = parser.parse_known_args(words)
@@ -2100,7 +2460,7 @@ def _parse_arguments(
     if args.help:
         # Taken where no candidate stood (none is known): the whole line
         # read without a refusal, so the page is what argparse showed.
-        _show(_OUT, help_page)
+        _show(_OUT, _page_for(args.command, help_page))
         raise _HelpShown()
     # THE COMMAND IS THE ONE ARGPARSE READ (lane S5a's repair 2, Codex's
     # item 1): a command word standing as an option's value, such as
@@ -2129,6 +2489,11 @@ def _parse_arguments(
         _refuse_the_command_line(
             "Please say which file to describe, for example: "
             "synthtwin profile my-table.csv"
+        )
+    if args.command == _TWIN and args.path is None:
+        _refuse_the_command_line(
+            "Please say which table to make a twin of, for example: "
+            "synthtwin twin my-table.csv"
         )
     if args.command == _GENERATE and args.path is None:
         _refuse_the_command_line(
@@ -2538,8 +2903,17 @@ def _key_shown(answer: str, question: asking.Question) -> str:
     return _KEY_OF[answer]
 
 
-def _the_question(question: asking.Question, place: int, total: int) -> str:
+def _the_question(
+    question: asking.Question, place: int, total: int, held: bool = False
+) -> str:
     """One column's question, as the person sees it.
+
+    ``held`` is whether the column is held back while the question is
+    open (`asking.unanswered_identities`): Enter leaves the question
+    open, as a run with nobody at the keyboard leaves it, so the last
+    line says the column stays held rather than that the first reading
+    above is kept (lane TT's repair, the orchestrator's LANE TT RULINGS
+    2 (1)).
 
     IT RENDERS THE QUESTION'S OWN DATA AND WRITES NONE OF ITS OWN
     (amendment A-P4-58). The choices, what each publishes, and the
@@ -2562,12 +2936,18 @@ def _the_question(question: asking.Question, place: int, total: int) -> str:
             f"\n      [{key}] {choice.means}\n"
             f"          then the description publishes {choice.publishes}"
         )
+    enter = (
+        "    Press Enter to keep it held as record numbers until it is "
+        "answered: none of its values is published."
+        if held
+        else "    Press Enter to keep the reading synthtwin made, which is "
+        "the first one above."
+    )
     return (
         f"\n  Column {place} of {total}: '{_shown(question.name)}'\n"
         f"    what synthtwin saw: {question.shape}.\n"
         f"    What does this column hold?{lines}\n"
-        f"    Press Enter to keep the reading synthtwin made, "
-        f"which is the first one above."
+        f"{enter}"
     )
 
 
@@ -3656,13 +4036,27 @@ def _asked(prompt: str) -> "str | None":
     return line
 
 
+# WHAT ENTER GIVES AT A PROMPT: NO ANSWER (lane TT's repair; the
+# orchestrator's LANE TT RULINGS 2 (1)). The question is left open, as a
+# run with nobody at the keyboard leaves it, so the key a person presses
+# when they do not know never releases more than nobody's run does:
+# measured on lane TT's head c4925cd8 at 20,000 rows, Enter at the record
+# number's question took it as answered `keep`, and 19,998 of 20,000 real
+# record numbers reached the twin, where the same run with nobody at the
+# keyboard held the column and wrote none. No key reaches this word and no
+# question offers it, so it is never recorded as an answer.
+_LEFT_OPEN = "(left open)"
+
+
 def _read_one_answer(
     standing: str = asking.ANSWER_MEASUREMENT, keep_on_one: bool = False
 ) -> "str | None":
     """One typed answer, or None where the person ended the run.
 
-    Enter alone keeps the reading synthtwin already made, so a person
-    who does not know can press through and lose nothing they had.
+    Enter alone gives ``standing``: the question put at the keyboard
+    hands `_LEFT_OPEN`, so Enter leaves it unanswered and a person who
+    does not know can press through and lose nothing they had, nor
+    release anything a run with nobody at the keyboard holds.
     Anything unrecognized is asked again rather than assumed: this is
     the one place a wrong guess would be recorded in the profile as a
     fact the person had stated.
@@ -3687,7 +4081,7 @@ def _read_one_answer(
             return _ANSWER_KEYS[typed]
         _say(
             "    Please type one of the numbers offered, or press Enter "
-            "to keep the reading synthtwin made."
+            "to leave the question unanswered."
         )
 
 
@@ -3844,12 +4238,18 @@ def _answer_typed(standing: str, keep_on_one: bool) -> "str | None":
 
 def _put_the_questions(
     questions: "list[asking.Question]",
-) -> "tuple[list[str], list[str], list[str], list[str], list[str], list[tuple[str, str]]] | None":
-    """Put every question; return the columns named as codes and as IDs.
+    held: "tuple[str, ...]" = (),
+) -> "tuple[list[str], list[str], list[str], list[str], list[str], list[tuple[str, str]], list[tuple[str, str, str]]] | None":
+    """Put every question; return the columns named as codes and as IDs, and the questions left open.
 
     None where the person ended the run at a prompt: Ctrl-C and Ctrl-D
     mean stop, and stopping must not write a profile built on half an
-    interview.
+    interview. ``held`` names the columns held back while their
+    question is open; the last item returned names each question Enter
+    left unanswered (`_LEFT_OPEN`) by its column, role and reason
+    (`asking.question_put`), which the run then reads as nobody's run
+    reads an unanswered question (lane TT's repair; the orchestrator's
+    LANE TT RULINGS 2 (1)).
     """
     total = len(questions)
     _say(
@@ -3858,7 +4258,8 @@ def _put_the_questions(
         f"{'=' * 66}\n"
         f"synthtwin cannot tell a coding system from a measurement -- "
         f"they are written identically, and only you know which these "
-        f"are. Press Enter to keep the reading it made. Your answers "
+        f"are. Press Enter to leave a question unanswered, as a run with "
+        f"nobody at the keyboard leaves it. Your answers "
         f"are recorded in the profile, and the exact "
         f"options to repeat this run without typing are printed at the "
         f"end."
@@ -3870,12 +4271,13 @@ def _put_the_questions(
     twelve: list[str] = []
     # -- 3b.R4 (P4-D384): the columns answered with a counting system.
     counted: "list[tuple[str, str]]" = []
+    left_open: "list[tuple[str, str, str]]" = []
     place = 0
     for question in questions:
         place = place + 1
-        _say(_the_question(question, place, total))
+        _say(_the_question(question, place, total, question.name in held))
         both = _keep_beside_measurement(question)
-        answer = _answer_typed(question.taken, both)
+        answer = _answer_typed(_LEFT_OPEN, both)
         # ONLY AN ANSWER THIS QUESTION OFFERS IS TAKEN (landing T1, its
         # second skeptic's item 2). `_read_one_answer` knows every key,
         # so `6` typed at a column of codes recorded a 12-hour clock on
@@ -3887,12 +4289,14 @@ def _put_the_questions(
         while answer is not None and not _offered_here(answer, question):
             _say(
                 "    Please type one of the numbers offered, or press Enter "
-                "to keep the reading synthtwin made."
+                "to leave the question unanswered."
             )
-            answer = _answer_typed(question.taken, both)
+            answer = _answer_typed(_LEFT_OPEN, both)
         if answer is None:
             return None
-        if answer == asking.ANSWER_CODE:
+        if answer == _LEFT_OPEN:
+            left_open += [asking.question_put(question)]
+        elif answer == asking.ANSWER_CODE:
             codes += [question.name]
         elif answer == asking.ANSWER_IDENTIFIER:
             identifiers += [question.name]
@@ -3909,7 +4313,7 @@ def _put_the_questions(
             twelve += [question.name]
         elif answer in date_counts.MEMBERS:
             counted += [(question.name, answer)]
-    return codes, identifiers, measurements, commas, twelve, counted
+    return codes, identifiers, measurements, commas, twelve, counted, left_open
 
 
 def _how_to_repeat(
@@ -4521,7 +4925,11 @@ class ChainRun:
     file's name without its extension); `folder` the installation's data
     folder (None: the platform's own, `installation.data_folder`);
     `replace_description` and `new_key` are 4.6b.4's
-    `--replace-description` and `--new-key`.
+    `--replace-description` and `--new-key`. `private_folder` is where the
+    PRIVATE report goes (lane ST, plan P4-D458; contract 4.6b.8): None
+    reads the `private-reports` folder inside the installation's data
+    folder, where the key file lives; a folder that holds the description
+    or a twin, or lies inside the description's folder, is refused.
     """
 
     name: "str | None" = None
@@ -4534,6 +4942,9 @@ class ChainRun:
     # stands over this one); empty, the question is put and holds the
     # chain until it is answered.
     rows_per_person: str = ""
+    # The rule steps (contract 4.6b.7; lane RO, plan P4-D459), off unless asked.
+    rules: bool = False
+    private_folder: "str | None" = None
 
 
 @dataclasses.dataclass
@@ -4570,6 +4981,17 @@ class _ChainState:
     # identify the person, and a record of the person, kept across rounds.
     persons_said: "tuple[str, ...]" = ()
     records_said: "tuple[str, ...]" = ()
+    # What the PRIVATE report reads (lane ST, plan P4-D458): the table's
+    # name, the self-test's inputs (`chain.SelftestInputs`, never
+    # published), the chain's counters and the published patient layer.
+    name: str = ""
+    selftest: "typing.Any" = None
+    counts: "dict[str, int]" = dataclasses.field(default_factory=dict)
+    grain: "typing.Any" = None
+    # The description's own readings, kept column by column for the chain
+    # (`taxonomy.KeptSpellings`; lane CHs, plan P4-D462): filled by the
+    # description and emptied by the chain.
+    kept: "dict[int, typing.Any]" = dataclasses.field(default_factory=dict)
 
 
 def _subject_named(chain_state: "_ChainState | None") -> "list[str]":
@@ -4710,12 +5132,15 @@ def _chained_description(
             rare_values_released,
             harbor_year,
             kept_identities,
+            rules=run.rules,
         ),
         list(forced_codes),
         list(forced_measurements),
         list(forced_decimal_commas),
         storage,
+        chain_state.kept,
     )
+    chain_state.kept = {}
     # A table of fewer than two eligible columns draws no chain whatever the
     # answer, and a table with no repeating key decides nothing then; nor
     # does one whose repeating column the open person question holds, until
@@ -4731,13 +5156,11 @@ def _chained_description(
     relationships = published["relationships"]
     if not isinstance(relationships, dict):
         return published
-    with_chain: "dict[str, object]" = {}
-    for key in published:
-        with_chain[key] = published[key]
-    block: "dict[str, object]" = {}
-    for key in relationships:
-        block[key] = relationships[key]
-    block["statistical"] = chained.statistical
+    # Each column a carried rule computes is written as its computed block
+    # (contract 4.6b.7; lane RO, plan P4-D459), and the chain beside it.
+    with_chain: "dict[str, object]" = chain.with_rules(published, chained)
+    block_written = with_chain["relationships"]
+    block: "dict[str, object]" = block_written if isinstance(block_written, dict) else {}
     # THE PATIENT LAYER (lane GRa, plan P4-D449): `grain`, and every column
     # block as the layer publishes it, where it stands.
     if chained.grain is not None:
@@ -4780,6 +5203,14 @@ def _chained_description(
     )
     chain_state.notes = chained.notes
     chain_state.statistical = statistical
+    chain_state.name = name
+    chain_state.selftest = chained.selftest
+    chain_state.counts = chained.counts
+    # The patient layer as the description WRITES it (`block`: contract
+    # 4.6b.8's patient words read from `grain` as 4.6c.9 writes it), never
+    # the description as it stood before the chain, whose `grain` is null
+    # (batch 4q's merge of lane ST beside lane GRa's layer).
+    chain_state.grain = block["grain"] if "grain" in block else None
     if decision.verdict == installation.REFUSE:
         _warn(decision.words, step=results.STEP_CONTENT)
         return with_chain
@@ -4796,6 +5227,246 @@ def _chained_description(
     if chain_state.add or chain_state.drop or chain_state.unread:
         _say(_requests_line(chain_state.add, chain_state.drop, chain_state.unread, statistical))
     return with_chain
+
+
+def _private_folder_refusal(folder: pathlib.Path, profile_path: pathlib.Path, os_name: str) -> str:
+    """Why the private report may not go in `folder` ('' where it may): beside or inside the description's folder, beside a twin, or open.
+
+    `os_name` is `installation.system_name()`: on POSIX a folder that
+    already stands is refused where any group or other bit is set. Every
+    look at the folder here may raise `OSError` (a folder no one may read):
+    the caller holds that inside the report's own handler.
+    """
+    here = pathlib.Path(f"{pathlib.Path(f'{folder}').resolve()}")
+    described = pathlib.Path(os.path.dirname(f"{pathlib.Path(f'{profile_path}').resolve()}"))
+    if here == described or described in here.parents:
+        return (
+            "The private report was not written: the folder named for it, "
+            f"{_shown(str(folder))}, is the folder that holds the description or lies inside it, and the private "
+            "report never travels beside the files that are shared. Name a private folder of your own, outside it."
+        )
+    if here.is_dir():
+        for entry in here.iterdir():
+            named = os.path.basename(f"{entry}")
+            if named.endswith((_TWIN_SUFFIX, _WORKBOOK_TWIN_SUFFIX, _REPORT_SUFFIX, "-profile.json")):
+                return (
+                    "The private report was not written: the folder named for it, "
+                    f"{_shown(str(folder))}, holds a description or a twin, and the private report never travels "
+                    "beside the files that are shared. Name a private folder of your own."
+                )
+        # A folder that already stands is the person's own only where no
+        # other account may read or change it (LANE ST RULINGS 3 (1)(a)),
+        # as the installation asks of its own data folder.
+        if os_name != "nt" and here.stat().st_mode & 0o077 != 0:
+            return (
+                "The private report was not written: the folder named for it, "
+                f"{_shown(str(folder))}, can be read or changed by other accounts on this computer, and the "
+                "private report holds what was measured on your own table. Make it yours alone (on macOS or "
+                f"Linux: chmod 700 '{folder}'), or name another private folder of your own, then run again."
+            )
+    return ""
+
+
+def _private_report_lands_on(
+    names: "tuple[pathlib.Path, ...]", places: "tuple[tuple[pathlib.Path, str], ...]"
+) -> "tuple[pathlib.Path, str] | None":
+    """The first of `names` that resolves onto one of `places` (a file this run reads or writes), with its noun; None where none does.
+
+    The samefile test the profile step uses for its own outputs
+    (`writing.is_the_same_file`): a link, a second name of one file, or the
+    file itself (Codex's item 1 of lane ST's review).
+    """
+    from synthtwin import writing
+
+    for name in names:
+        for place, noun in places:
+            if name == place or writing.is_the_same_file(name, place):
+                return name, noun
+    return None
+
+
+def _dates_not_carried(document: "dict[str, object]") -> "tuple[str, ...]":
+    """The columns of a description written whose twin writes record numbers where the table holds dates, shown.
+
+    F10's line of the private report names them (Codex's review of batch
+    4q, item 3; `chain_grades.NOT_DATES`), read off the column blocks as
+    written by the rule the twin's shared report reads off the loaded
+    description (`generation.dates_written_as_record_numbers`): a block
+    held as an identifier whose published `made_up_years` holds no run of
+    a kind of year one of its date layouts, or its grain's reading,
+    writes. A block of any other shape names nothing. Raises nothing.
+    """
+    from synthtwin import generation
+
+    columns = document["columns"] if "columns" in document else None
+    named: "list[str]" = []
+    if not isinstance(columns, list):
+        return ()
+    for block in columns:
+        if not isinstance(block, dict) or "role" not in block or block["role"] != "identifier":
+            continue
+        years = block["made_up_years"] if "made_up_years" in block else None
+        if not isinstance(years, list):
+            continue
+        runs: "list[tuple[int, int]]" = []
+        for run in years:
+            if isinstance(run, list) and len(run) == 2 and isinstance(run[0], int) and isinstance(run[1], int):
+                runs += [(run[0], run[1])]
+        forms = block["layout_forms"] if "layout_forms" in block else None
+        grain = block["time_grain"] if "time_grain" in block else None
+        kind = grain["kind"] if isinstance(grain, dict) and "kind" in grain else None
+        member = grain["reading"] if isinstance(grain, dict) and "reading" in grain else None
+        if generation.dates_written_as_record_numbers(
+            [f"{layout}" for layout in forms] if isinstance(forms, dict) else [],
+            tuple(runs),
+            kind if isinstance(kind, str) else None,
+            member if isinstance(member, str) else "",
+        ):
+            named += [parsing.visible(f"{block['name'] if 'name' in block else ''}")]
+    return tuple(named)
+
+
+def _private_report(
+    chain_state: _ChainState,
+    profile_path: pathlib.Path,
+    floor: int,
+    places: "tuple[tuple[pathlib.Path, str], ...]" = (),
+    not_dates: "tuple[str, ...]" = (),
+) -> None:
+    """Write the PRIVATE report of a switched profile run (lane ST, plan P4-D458; contract 4.6b.8, NOT IN FORCE).
+
+    THE ONE SITE that imports the zone P self-test (the offline scanner's
+    `_PRIVATE_IMPORT_SITES`): it runs after the ledger recorded the run and
+    the description, its summary and the questions' inputs were written,
+    and nothing it computes reaches them. The report holds both grades for
+    every pair and analysis family, says which to act on and which twin to
+    use, and names the key file's PATH, never the key. It goes in the
+    private folder (`ChainRun.private_folder`), made with mode 0700, as a
+    file of mode 0600, written whole and moved into place; a folder beside
+    the description or a twin is refused in plain words and nothing is
+    written.
+
+    THE PERSON'S OWN FILES FIRST (LANE ST RULINGS 5 (1), Codex's items 1, 2
+    and 8): the folder named is validated AS GIVEN by the locality gate
+    (`validate_local_path`: a network form is refused on the string, before
+    any filesystem call, and on Windows a link on its own metadata) before
+    anything looks at it; every look at the folder (whether it stands, its
+    mode, what it holds) sits inside the report's own handler, so a folder
+    no one may read leaves the exit code, every shared byte and the
+    questions file as they are, and says so; the report's file and its
+    temporary name are refused where either resolves onto `places` (the
+    table, the answers file, the description, its summary and the
+    questions file this run reads or writes), before anything is written
+    or removed; and the file's name keeps a digest of the table's exact
+    name (`chain_selftest.report_stem`), so two names never share a report.
+    """
+    from synthtwin import chain_selftest, installation
+
+    run = chain_state.run
+    raw = (
+        run.private_folder
+        if run.private_folder is not None
+        else str(pathlib.Path(chain_state.opened.folder, chain_selftest.FOLDER))
+    )
+    try:
+        folder = validate_local_path(raw, purpose="private folder")
+    except (ValueError, OSError, RuntimeError) as refused:
+        # `PathValidationError` is a ValueError; a link that loops, or a part
+        # that cannot be examined, is refused alike, and never moves the run.
+        _warn(
+            f"The private report was not written. {refused} The description is written; nothing of the "
+            "self-test reaches it.",
+            caution=results.CAUTION_CHAIN,
+        )
+        return
+    try:
+        refusal = _private_folder_refusal(folder, profile_path, installation.system_name())
+    except (OSError, RuntimeError) as failed:
+        _warn(
+            "The private report was not written: the folder named for it, "
+            f"{_shown(str(folder))}, could not be looked into ({_shown(str(failed))}). The description, its "
+            "summary and the questions file are written as they would be without it; make that folder yours "
+            "and readable, or name another private folder of your own, then run again.",
+            caution=results.CAUTION_CHAIN,
+        )
+        return
+    if refusal:
+        _warn(refusal, caution=results.CAUTION_CHAIN)
+        return
+    statistical = chain_state.statistical
+    words = statistical["words"] if isinstance(statistical, dict) and isinstance(statistical["words"], list) else []
+    off = ""
+    prefix = chain_selftest.OFF_PREFIX
+    for note in chain_state.notes:
+        # The prefix read at its own length (Codex's item 16: 23 figures).
+        if note[: len(prefix)] == prefix:
+            off = note[len(prefix) :]
+    # A chain is published where `statistical` stands: the table layer's,
+    # whose self-test inputs `describe` hands over, or the patient layer's
+    # (lane GRa, plan P4-D449), which hands none. The self-test judges a
+    # chain of one row a person, so a patient layer's families read not
+    # judged with that reason, never as a table whose chain is off (batch
+    # 4q's merge of lane ST).
+    published = isinstance(statistical, dict)
+    why = chain_selftest.PATIENT_LAYER if published and chain_state.selftest is None else off
+    key_file = str(installation.key_path(chain_state.opened.folder))
+    text = ""
+    for stopped in (False, True):
+        # The description, its summary and the questions' inputs are
+        # written: a self-test that stops (a fit, a number, any fault of
+        # its own below the system-exit family) leaves them and the exit
+        # code as they are, and its report then reads every word not
+        # judged, the self-test having stopped (LANE ST RULINGS 3 (1)(b)).
+        try:
+            judged = (
+                chain_selftest.not_judged(chain_selftest.STOPPED, words)
+                if stopped
+                else chain_selftest.run(chain_state.selftest, words, floor, why)
+            )
+            text = chain_selftest.report_text(
+                judged, words, chain_state.notes, chain_state.counts, chain_state.name, key_file, chain_state.grain,
+                None if published else off, not_dates,
+            )
+            break
+        except Exception:  # noqa: BLE001 -- zone P never decides the run's exit code
+            continue
+    if not text:
+        _warn(
+            "The private report was not written: the self-test stopped. The description is written; "
+            "nothing of the self-test reaches it.",
+            caution=results.CAUTION_CHAIN,
+        )
+        return
+    stem = chain_selftest.report_stem(f"{chain_state.name}")
+    target = pathlib.Path(folder, stem + "-" + chain_selftest.REPORT_FILE + "." + "txt")
+    temporary = pathlib.Path(folder, stem + "-" + chain_selftest.REPORT_FILE + ".new")
+    try:
+        landing = _private_report_lands_on((target, temporary), places)
+        if landing is not None:
+            _warn(
+                "The private report was not written: its file, "
+                f"{_shown(str(landing[0]))}, is the {landing[1]} under another name, and synthtwin never "
+                "writes over or removes a file this run reads or writes. Name another private folder of your "
+                "own, then run again.",
+                caution=results.CAUTION_CHAIN,
+            )
+            return
+        folder.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if temporary.exists():
+            temporary.unlink()
+        temporary.touch(mode=0o600, exist_ok=False)
+        temporary.write_text(text, encoding="utf-8", newline="\n")
+        temporary.replace(target)
+    except OSError as failed:
+        _warn(
+            f"The private report could not be written in {_shown(str(folder))} ({_shown(str(failed))}). The "
+            "description is written; run the command again once that folder can be written, or name another "
+            "private folder of your own.",
+            caution=results.CAUTION_CHAIN,
+        )
+        return
+    _wrote((results.FILE_PRIVATE_REPORT, target))
+    _say(f"The private report, for you alone (keep it out of anything you share): {_shown(str(target))}")
 
 
 def _chain_refusal(document: "dict[str, object]") -> str:
@@ -4896,6 +5567,59 @@ def _chain_pairs(chain_state: "_ChainState | None") -> "list[list[str]] | None":
     return exact
 
 
+def _profile_outputs_taken(
+    table: str, out_dir: "str | None"
+) -> "tuple[list[str], list[str]]":
+    """The files a profile run writes, and those already at their names, as shown (lane TT, plan P4-D460).
+
+    Decided from the names alone, as `generate` and `validate` decide
+    theirs, so the one overwrite rule refuses before the table is read.
+    Guarantees: (written, taken), each a list of shown paths; both empty
+    where a name cannot be settled yet -- a folder that is not there, a
+    path the locality gate refuses -- which the run then refuses at the
+    step it always did, in its own words. A description or summary name
+    that resolves onto the table is left to the table's own guard (its
+    refusal, later in the run, the stage-5 battery's L2), and a questions
+    file name that resolves onto an input is no file of the run (it is
+    never written, a caution, the battery's L1). Opens nothing. RAISES
+    the ProfileError the names raise where something stands at one that
+    cannot be written over -- a folder, or a name that cannot be looked
+    at -- so the run refuses it before the table is read, in the words it
+    always used (lane TT's repair; Codex's review of lane TT, item 7:
+    with `data-profile.json` a folder, the empty lists let `profile`
+    read, describe and ask about the table before refusing it).
+    """
+    from synthtwin import profile
+
+    try:
+        if out_dir is not None and not pathlib.Path(
+            validate_local_path(out_dir, purpose="output folder")
+        ).is_dir():
+            return ([], [])
+        source = pathlib.Path(validate_local_path(table, purpose="input"))
+    except (PathValidationError, OSError):
+        return ([], [])
+    try:
+        profile_path, summary_path = profile.default_output_paths(
+            pathlib.Path(table), out_dir
+        )
+        questions_path = profile.questions_output_path(pathlib.Path(table), out_dir)
+    except (PathValidationError, OSError):
+        return ([], [])
+    for target in (profile_path, summary_path):
+        if target == source or profile.is_the_same_file(target, source):
+            return ([], [])
+    targets = [profile_path, summary_path]
+    if not any(
+        questions_path == place or profile.is_the_same_file(questions_path, place)
+        for place in (source, profile_path, summary_path)
+    ):
+        targets += [questions_path]
+    written = [_shown(target) for target in targets]
+    taken = [_shown(target) for target in targets if _already_there(target)]
+    return (written, taken)
+
+
 def _run_profile(
     table: str,
     out_dir: "str | None",
@@ -4920,6 +5644,7 @@ def _run_profile(
     first_row_typed: bool = False,
     chain: "ChainRun | None" = None,
     small_tables_refused: bool = True,
+    replace: bool = False,
 ) -> str:
     """Do the work of `synthtwin profile`; return the exit code (`_run_profile_body`).
 
@@ -4952,6 +5677,7 @@ def _run_profile(
             date_columns_given=date_columns_given,
             first_row_typed=first_row_typed,
             small_tables_refused=small_tables_refused,
+            replace=replace,
         )
     from synthtwin import installation
 
@@ -4991,6 +5717,7 @@ def _run_profile(
             first_row_typed=first_row_typed,
             chain_state=_ChainState(chain, opened),
             small_tables_refused=small_tables_refused,
+            replace=replace,
         )
     finally:
         installation.release(opened)
@@ -5020,11 +5747,15 @@ def _run_profile_body(
     first_row_typed: bool = False,
     chain_state: "_ChainState | None" = None,
     small_tables_refused: bool = True,
+    replace: bool = False,
 ) -> str:
     """Do the work of `synthtwin profile`; return the exit code.
 
     ``small_tables_refused`` is `main`'s internal parameter of the same name
-    (plan P4-D425): no command-line option sets it.
+    (plan P4-D425): no command-line option sets it. ``replace`` is
+    `--replace` (lane TT, plan P4-D460): without it, and without
+    `--answers`, a file already at one of the run's names is refused
+    before the table is read (`_profile_outputs_taken`).
 
     The order of operations is a control, not a convenience, and review
     round 1 found it inverted. Nothing is written until every target has
@@ -5191,6 +5922,10 @@ def _run_profile_body(
     # answered `keep` (plan P4-D401): nothing is declared, and their
     # values are published as their reading publishes them.
     identities_kept: "tuple[str, ...]" = ()
+    # ...and the columns whose entry offering `identifier` the file left
+    # blank under that reading (plan P4-D445): held as record numbers
+    # until answered, a checklist entry's column among them.
+    identities_held: "tuple[str, ...]" = ()
     # ...and the answers an earlier run kept that still stand, each set
     # against the section this run writes, and the answers the file gave
     # about the rows under the column names and the windows that stand
@@ -5531,6 +6266,7 @@ def _run_profile_body(
         if not reading_changed:
             identities_kept = written.identities_kept
             identities_kept_answered = written.identities_kept_answered
+            identities_held = written.identities_held
             names_by_answer += named_columns
             names_by_answer += list(identities_kept_answered)
             safe_harbor_no = list(written.safe_harbor_no)
@@ -5667,6 +6403,28 @@ def _run_profile_body(
         # -- 3b.R4 (P4-D384)
         forced_date_counts=_counted_settings(counted),
     )
+    # THE ONE OVERWRITE RULE (lane TT, plan P4-D460), decided from the
+    # names alone, before a byte of the table is read: a run that would
+    # write over a file already at one of its names stops and changes
+    # nothing, in the words `generate` and `validate` use, unless the
+    # command line says so -- `--replace`, as on every command, or
+    # `--answers`, the round that hands back an earlier run's questions to
+    # describe the same table again, which writes over that round's files
+    # as it always has (the stage-5 battery's G7).
+    if not replace and answers_path is None:
+        try:
+            names_written, names_taken = _profile_outputs_taken(table, out_dir)
+        except errors.ProfileError as error:
+            _warn(_shown(error), step=results.STEP_OUTPUTS)
+            return results.REFUSED
+        if names_taken:
+            _warn(
+                errors.outputs_taken(
+                    names_written, names_taken, errors.DESCRIBING_AGAIN
+                ),
+                step=results.STEP_OUTPUTS,
+            )
+            return results.REFUSED
     read = reading.read_table(
         table, first_row, sheet=sheet, metadata_rows=metadata_rows,
         # ...and whether the person confirmed a declaration the file
@@ -5705,6 +6463,34 @@ def _run_profile_body(
         # step below asks its columns of `reading.column_values`.
         in_groups=True,
     )
+    # THE ANSWERS A TWIN KEEPS ARE BOUND TO THE FILE THEY WERE GIVEN ABOUT
+    # (lane TT's repair; the orchestrator's LANE TT RULINGS 1 item 4,
+    # Codex's item 4), decided from this one reading: a twin's profile step
+    # handed its folder's own questions file reads the file those answers
+    # name -- its size, fingerprint and sheet -- or stops here, having
+    # written nothing (measured on c4925cd8: answers given about one table
+    # decided the reading of another of the same name in the same folder).
+    # And every twin's profile step binds the answers it keeps to its own
+    # reading, in a sentence of its questions file (`_bound_reading`).
+    reading_now = _current()
+    if reading_now is not None and reading_now.twin_step:
+        bound = (
+            read.file_bytes,
+            read.fingerprint,
+            read.book.chosen if read.book is not None else "",
+        )
+        if reading_now.bound_to is not None and reading_now.bound_to != bound:
+            kept_at = _shown(answers_path)
+            _warn(
+                errors.twin_answers_about_another_table(
+                    kept_at, _shown(pathlib.Path(f"{answers_path}").parent)
+                ),
+                step=results.STEP_INPUT,
+            )
+            return results.REFUSED
+        reading_now.binding = _binding_sentence(
+            bound, smallest_group, len(typed_missing), len(typed_kept)
+        )
     # FROM HERE A REFUSAL IS ABOUT WHAT THE TABLE HOLDS (plan P4-D395:
     # the step a run's result names).
     _at(results.STEP_CONTENT)
@@ -6204,6 +6990,9 @@ def _run_profile_body(
         dated_values=dated_values,
         dated_values_no=safe_harbor_dates_no,
         dates_answered=tuple(answered_missing_dates + answered_real_values),
+        # The description's own readings kept for the chain (lane CHs,
+        # plan P4-D462): only behind the chain's switch.
+        kept_spellings=chain_state.kept if chain_state is not None else None,
     )
     # Handed over once: the description has taken the reading as its own.
     census_readings = ()
@@ -6428,10 +7217,40 @@ def _run_profile_body(
     coded_about = list(codes_seen.questions)
     listed_about = first_questions.listed
     answered = False
+    # THE QUESTIONS ANSWERED AT THE KEYBOARD, each by its column, role and
+    # reason (`asking.question_put`): an answer typed by its key. Enter
+    # leaves a question unanswered (`_LEFT_OPEN`), and every question this
+    # list does not name -- left open by Enter, or put only in the
+    # questions file -- is read below as a run with nobody at the keyboard
+    # reads it: whatever nobody's run holds stays held (lane TT's repair;
+    # the orchestrator's LANE TT RULINGS 2 (1)). Empty where nobody is
+    # asked, so that run reads every question as it always did.
+    answered_here: "list[tuple[str, str, str]]" = []
     assumptions_said = False
     if asked_about:
+        # ...the questions this prompt puts, or would put, kept for the twin
+        # that teaches the answers command (Codex's item 9).
+        prompting = _current()
+        if prompting is not None and prompting.twin_step:
+            prompting.promptable = [asking.question_put(one) for one in asked_about]
         if _there_is_somebody_to_ask():
-            given = _put_the_questions(asked_about)
+            given = _put_the_questions(
+                asked_about,
+                asking.unanswered_identities(
+                    asked_about,
+                    document,
+                    tuple(
+                        forced_identifiers
+                        + forced_codes
+                        + forced_measurements
+                        + list(forced_decimal_commas)
+                        + list(twelve_hours)
+                        + list(date_columns)
+                        + sorted(counted)
+                    )
+                    + identities_kept,
+                ),
+            )
             if given is not None:
                 _put_at_a_prompt(asked_about)
             if given is None:
@@ -6442,8 +7261,13 @@ def _run_profile_body(
                 return results.REFUSED
             (
                 new_codes, new_identifiers, new_measured, new_commas,
-                new_twelve, new_counted,
+                new_twelve, new_counted, left_open,
             ) = given
+            answered_here = [
+                asking.question_put(question)
+                for question in asked_about
+                if asking.question_put(question) not in left_open
+            ]
             # -- 3b.R4 (P4-D384): a column answered with a counting system
             # is read as those dates from here, and is no measurement.
             if new_counted:
@@ -6635,6 +7459,9 @@ def _run_profile_body(
                     dated_values=dated_values,
                     dated_values_no=safe_harbor_dates_no,
                     dates_answered=tuple(answered_missing_dates + answered_real_values),
+                    # The description's own readings kept for the chain (lane CHs,
+                    # plan P4-D462): only behind the chain's switch.
+                    kept_spellings=chain_state.kept if chain_state is not None else None,
                 )
                 census_readings = ()
                 # And the role check is asked again of the rebuilt
@@ -6783,36 +7610,26 @@ def _run_profile_body(
     # numbers until it is answered, and the run says so. The questions
     # below are worked out from the description as the rules read it, so
     # the file asks exactly what it asked before; only what is WRITTEN
-    # holds the column back. A person at the keyboard answered every
-    # question put, Enter included, and nothing is held.
-    withheld: "tuple[str, ...]" = ()
-    if not answered:
-        # EVERY DECLARATION IS AN ANSWER (Codex's review of lane HX, item
-        # 1): `--decimal-comma amount` says `amount` holds measurements,
-        # and a column also held as a record number would stand in two
-        # declarations the contract refuses together (S8a).
-        withheld = asking.unanswered_identities(
-            asked_about + dates_asked + coded_about,
-            document,
-            tuple(
-                forced_identifiers
-                + forced_codes
-                + forced_measurements
-                + list(forced_decimal_commas)
-                + list(twelve_hours)
-                + list(date_columns)
-                + sorted(counted)
-            )
-            + identities_kept,
-        )
-    # THE CANDIDATES OF THE OPEN PERSON QUESTION ARE SUBJECTS whether or
-    # not their own description is held (Codex's review of lane HX2,
-    # item 4): a key read as free text publishes no value of its own, so
-    # it is held by nothing above, yet every other value is still counted
-    # in it.
-    candidates: "list[str]" = []
-    if not answered:
-        declared_here = (
+    # holds the column back. A PERSON AT THE KEYBOARD ANSWERED ONLY WHAT
+    # THEY TYPED A KEY FOR (lane TT's repair; the orchestrator's LANE TT
+    # RULINGS 2 (1)): a question Enter left open, and one the prompt does
+    # not put, holds its column exactly as it does with nobody there.
+    # Until that repair, Enter took every question put as answered and
+    # nothing was held: 19,998 of 20,000 real record numbers reached the
+    # twin at 20,000 rows where nobody's run wrote none.
+    still_open = [
+        question
+        for question in asked_about
+        if asking.question_put(question) not in answered_here
+    ]
+    # EVERY DECLARATION IS AN ANSWER (Codex's review of lane HX, item
+    # 1): `--decimal-comma amount` says `amount` holds measurements,
+    # and a column also held as a record number would stand in two
+    # declarations the contract refuses together (S8a).
+    withheld: "tuple[str, ...]" = asking.unanswered_identities(
+        still_open + dates_asked + coded_about,
+        document,
+        tuple(
             forced_identifiers
             + forced_codes
             + forced_measurements
@@ -6820,17 +7637,68 @@ def _run_profile_body(
             + list(twelve_hours)
             + list(date_columns)
             + sorted(counted)
-            + list(identities_kept)
         )
-        for question in asked_about:
-            if (
-                question.reason == asking.BECAUSE_REPEATS_AND_MANY
-                and asking.offers_identifier(question)
-                and question.name not in declared_here
-                and question.name not in withheld
-                and question.name not in candidates
-            ):
-                candidates += [question.name]
+        + identities_kept,
+    )
+    # ...AND A BLANK UNDER `identifier` HOLDS (plan P4-D445): a column
+    # held whole in people while the person question was open had its
+    # checklist entry written under `identifier` (`held_back` below),
+    # and left blank it stays held once that question is answered
+    # with no person column -- the checklist puts no open question
+    # that would hold it, and the table is counted in rows. Where a
+    # person column is declared or answered, every value is counted
+    # in its people (plan P4-D406) as the same answers given at once
+    # count it, so the blank keeps the column's own reading (plan
+    # P4-D408: one round or several, the same bytes). It holds whoever is at
+    # the keyboard, as every hold here does since lane TT's repair (batch 4q's
+    # merge of lane CZ-A), and, as that hold does, not a column whose
+    # question offering `identifier` the person answered at the prompt in
+    # this run: what they typed stands (LANE TT RULINGS 2 (1)). Held anyway,
+    # `1` typed in both rounds beside the Safe Harbor question answered `no`
+    # in the file left a column of incomes in hundreds held as record
+    # numbers at 20,000 rows, and the real table missed its own description.
+    declared_by_blank = (
+        forced_identifiers + forced_codes + forced_measurements
+        + list(forced_decimal_commas) + list(twelve_hours) + list(date_columns)
+        + sorted(counted) + list(identities_kept)
+    )
+    answered_at_the_prompt = asking.unanswered_identities(
+        [question for question in asked_about if asking.question_put(question) in answered_here], document
+    )
+    withheld = withheld + tuple(
+        name
+        for name in identities_held
+        if not person_columns
+        and name in read.column_names
+        and name not in withheld
+        and name not in declared_by_blank
+        and name not in answered_at_the_prompt
+    )
+    # THE CANDIDATES OF THE OPEN PERSON QUESTION ARE SUBJECTS whether or
+    # not their own description is held (Codex's review of lane HX2,
+    # item 4): a key read as free text publishes no value of its own, so
+    # it is held by nothing above, yet every other value is still counted
+    # in it.
+    candidates: "list[str]" = []
+    declared_here = (
+        forced_identifiers
+        + forced_codes
+        + forced_measurements
+        + list(forced_decimal_commas)
+        + list(twelve_hours)
+        + list(date_columns)
+        + sorted(counted)
+        + list(identities_kept)
+    )
+    for question in still_open:
+        if (
+            question.reason == asking.BECAUSE_REPEATS_AND_MANY
+            and asking.offers_identifier(question)
+            and question.name not in declared_here
+            and question.name not in withheld
+            and question.name not in candidates
+        ):
+            candidates += [question.name]
     # RULE U (c) (the stand-ins page's ZS.1 and ZS.3; repair 1 of lane GG,
     # its skeptic 1, item 3): while ANY question offering `identifier` is
     # open on any column of the table, `no` to a few-valued column's Safe
@@ -6838,8 +7706,8 @@ def _run_profile_body(
     # floor hold (measured: a `7` on 5 rows of 20,000 listed and written on
     # exactly 5 twin cells beside a patient key whose question was open).
     identities_open = bool(withheld) or bool(candidates)
-    if not answered and not identities_open:
-        for question in asked_about + dates_asked + coded_about:
+    if not identities_open:
+        for question in still_open + dates_asked + coded_about:
             if asking.offers_identifier(question) and question.name not in (
                 declared_here
             ):
@@ -6883,6 +7751,16 @@ def _run_profile_body(
             and name not in safe_harbor_yes
             and name not in withheld
             and name not in five_held
+            # ...but an identifier form the count in a DECLARED person
+            # column's people holds whole already (plan P4-D406) is held so,
+            # and put no Safe Harbor question: no answer could give one of
+            # its values back (plan P4-D445; lane HX2's register beside a
+            # declared person column).
+            and not (
+                name in harbor_reasons
+                and harbor_reasons[name] in taxonomy.IDENTIFIER_FORM_HOLDS
+                and name in counted_in_people
+            )
         ):
             five_held += [name]
     # ...and a column answered `yes` to that question is held so for good,
@@ -6998,6 +7876,9 @@ def _run_profile_body(
             dated_held=dated_held,
             dated_values_no=safe_harbor_dates_no,
             dates_answered=tuple(answered_missing_dates + answered_real_values),
+            # The description's own readings kept for the chain (lane CHs,
+            # plan P4-D462): only behind the chain's switch.
+            kept_spellings=chain_state.kept if chain_state is not None else None,
         )
     if counted_in_rows:
         _warn(
@@ -7013,24 +7894,24 @@ def _run_profile_body(
     # declared code column beside 2,000 letter-only patient names publish
     # its census with that question open.
     questions_open: "list[str]" = []
-    if not answered:
-        declared_now = (
-            forced_identifiers
-            + forced_codes
-            + forced_measurements
-            + list(forced_decimal_commas)
-            + list(twelve_hours)
-            + list(date_columns)
-            + sorted(counted)
-            + list(identities_kept)
-        )
-        for question in asked_about + dates_asked + coded_about:
-            if (
-                asking.offers_identifier(question)
-                and question.name not in declared_now
-                and question.name not in questions_open
-            ):
-                questions_open += [question.name]
+    declared_now = (
+        forced_identifiers
+        + forced_codes
+        + forced_measurements
+        + list(forced_decimal_commas)
+        + list(twelve_hours)
+        + list(date_columns)
+        + sorted(counted)
+        + list(identities_kept)
+    )
+    # ...every question still open, Enter's among them (lane TT's repair).
+    for question in still_open + dates_asked + coded_about:
+        if (
+            asking.offers_identifier(question)
+            and question.name not in declared_now
+            and question.name not in questions_open
+        ):
+            questions_open += [question.name]
     if questions_open:
         published = profile.without_census_places(published)
     if counted_in_people:
@@ -7091,6 +7972,7 @@ def _run_profile_body(
     if chain_state is not None and chain_state.moments_left_out:
         text = text + parsing.visible_lines(chain_state.moments_left_out) + "\n"
     _at(results.STEP_OUTPUTS)
+    _make_the_twins_folder()
     profile_path, summary_path = profile.default_output_paths(
         pathlib.Path(table), out_dir
     )
@@ -7333,6 +8215,25 @@ def _run_profile_body(
         (results.FILE_SUMMARY, summary_path),
     )
     _described_carried(profile_path, chain_state is not None)
+    # THE PRIVATE REPORT (lane ST, plan P4-D458), behind the chain's switch
+    # alone, once the ledger holds the run and the description is written.
+    if chain_state is not None:
+        # A list grown in place and frozen once (the quadratic-growth guard,
+        # tests/test_no_quadratic_list_growth.py), never a tuple copied.
+        places: "list[tuple[pathlib.Path, str]]" = [
+            (pathlib.Path(source), errors.INPUT_TABLE),
+            (profile_path, errors.INPUT_DESCRIPTION),
+            (summary_path, errors.INPUT_SUMMARY),
+            (questions_path, "questions file"),
+        ]
+        if answers_path is not None:
+            places += [(pathlib.Path(answers_path), "questions file you answered")]
+        # ...F10 naming each column of dates whose twin writes record
+        # numbers, read off the description written (Codex's review of batch
+        # 4q, item 3; `_dates_not_carried`).
+        _private_report(
+            chain_state, profile_path, settings.small_cell_floor, tuple(places), _dates_not_carried(published)
+        )
     if left_behind:
         # A caution, not a refusal. The profile is good, so the exit
         # code stays 0; the reader is simply told what to delete.
@@ -7445,9 +8346,10 @@ def _run_profile_body(
     # checklist, since it raised a question of its own.
     # ...where an open question offering `identifier` holds the column,
     # that question is the one put; a question answered at the keyboard
-    # holds nothing, so the Safe Harbor question is put to the file then
-    # (measured: incomes in hundreds asked the date-count question at the
-    # keyboard stayed held as ZIP-shaped with no question to free them).
+    # by a key holds nothing, so the Safe Harbor question is put to the
+    # file then (measured: incomes in hundreds asked the date-count
+    # question at the keyboard stayed held as ZIP-shaped with no question
+    # to free them); one Enter left open is open (lane TT's repair).
     # EVERY OPEN QUESTION OFFERING `identifier` counts, not only those of
     # the columns held as record numbers (the second repair of lane SH,
     # item 2): ZIP+4 cells held for their figures and put the two-numbers
@@ -7462,7 +8364,7 @@ def _run_profile_body(
             for question in asked_about
             if question.name in withheld
             or (
-                not answered
+                asking.question_put(question) not in answered_here
                 and asking.offers_identifier(question)
                 and question.name not in identities_kept
             )
@@ -7602,9 +8504,17 @@ def _run_profile_body(
     question_records = asking.question_records(
         # -- P4-D401: a column held back is read as record
         # numbers until answered, and its entry says so (lane SH's
-        # five-figure holds among them, plan P4-D427).
-        asking.held_back(asked_about, withheld + tuple(five_held)),
-        listed_about,
+        # five-figure holds among them, plan P4-D427) -- AND A COLUMN
+        # HELD WHOLE IN PEOPLE (plan P4-D445; lane CZ-H's skeptic 1, the
+        # orchestrator's measurement wave6/OQ): its own question, put
+        # beside the hold under another reading, named `measurement`,
+        # and a blank kept that reading once the person question was
+        # answered, so the column published with its question open. Its
+        # entry names `identifier` now, and a blank keeps it held.
+        asking.held_back(asked_about, withheld + tuple(five_held) + tuple(counted_in_people)),
+        # ...and the checklist's entries too, so a blank keeps such a
+        # column held (`Answers.identities_held`).
+        asking.held_back(listed_about, withheld + tuple(five_held) + tuple(counted_in_people)),
         asking.file_questions(
             surveyed is not None
             and surveyed.metadata_shape
@@ -7645,7 +8555,7 @@ def _run_profile_body(
                 f"\n{_LOWERED_FLOOR_REMINDER}",
                 caution=results.CAUTION_LOWERED_FLOOR_REMINDER,
             )
-        _say(_teaching_generate(profile_path))
+        _teach(_teaching_generate(profile_path))
         return results.NO_MISS
     written_questions = True
     questions_state = writing.DiskState()
@@ -7663,8 +8573,10 @@ def _run_profile_body(
                     # the description's own words, because this file
                     # travels on its own and a page naming the columns
                     # of a small table without saying it is a small
-                    # table says less than the other four do.
-                    _table_sentences(document),
+                    # table says less than the other four do. A twin's
+                    # profile step adds the sentence binding its answers
+                    # to its reading (lane TT's repair, `_bound_reading`).
+                    _table_sentences(document) + _binding_said(),
                     # ...and EVERY ANSWER THIS RUN ACTED ON, from the file,
                     # from an earlier run's kept answers or from the
                     # command line, so that handing this file back keeps
@@ -7763,7 +8675,7 @@ def _run_profile_body(
             f"\n{_LOWERED_FLOOR_REMINDER}",
             caution=results.CAUTION_LOWERED_FLOOR_REMINDER,
         )
-    _say(_teaching_generate(profile_path))
+    _teach(_teaching_generate(profile_path))
     return results.NO_MISS
 
 
@@ -8126,7 +9038,7 @@ def _run_generate(
         # file that may hold real-derived text.
         _left_behind(left_behind, _left_behind_note(left_behind, "twin"))
     _say(f"\nWritten:\n  {shown_twin_path}\n  {shown_report_path}")
-    _say(_teaching_validate(description, twin_path))
+    _teach(_teaching_validate(description, twin_path))
     return results.NO_MISS
 
 
@@ -8502,6 +9414,13 @@ def _run_validate(
     _say(f"\nWritten:\n  {shown_quality_path}")
     # THE STATUS THE LINES NAME IS THE RESULT'S (plan P4-D395 part 4).
     code = results.exit_code(results.Result(results.VALIDATE, verdict))
+    # ...AND IN THE TWIN COMMAND, THE TWIN'S (lane TT, plan P4-D460): the
+    # status its run will end with, the most severe of its steps'.
+    session = _current()
+    if session is not None and session.twin_step:
+        code = results.exit_code(
+            results.Result(results.TWIN, _more_severe(session.before, verdict))
+        )
     _say(_verdict_lines(outcome.census.missed, code))
     return verdict
 
@@ -8674,24 +9593,8 @@ def _check_scipy() -> _Check:
 
 
 def _total_memory() -> "int | None":
-    """This computer's total memory in bytes, or None where it cannot be read.
-
-    `os.sysconf` reports it on macOS and Linux and does not exist on
-    Windows, and the standard library has no other way to ask without
-    starting a program or calling native code, which this package never
-    does (charter principle 3). Total memory, not free memory: no
-    portable call reports what is free.
-    """
-    if sys.platform == "win32":
-        return None
-    try:
-        pages = os.sysconf("SC_PHYS_PAGES")
-        page_size = os.sysconf("SC_PAGE_SIZE")
-    except (ValueError, OSError, AttributeError):
-        return None
-    if pages <= 0 or page_size <= 0:
-        return None
-    return pages * page_size
+    """This computer's installed memory in bytes, or None where it cannot be read (`computer.installed_memory`, plan P4-D466)."""
+    return computer.installed_memory()
 
 
 def _size_words(size: int) -> str:
@@ -9016,6 +9919,790 @@ def _teaching_profile(table: "str | None", out_dir: "str | None" = None) -> str:
     )
 
 
+# -- the whole journey in one command (lane TT, plan P4-D460) ------------
+#
+# `synthtwin twin TABLE` runs `profile`, `generate` and `validate` in one
+# run and one folder, each step the command line a person would type
+# apart (`_twin_words`), read by the same parser and run by the same
+# dispatch, so its six files are the three commands' files byte for byte
+# and each step's result is that command's own (`steps`). The questions
+# are the profile step's, put on screen before any file is written; the
+# answers stay in the folder's questions file, beside the description,
+# which a later run in the folder hands back and puts no question: it
+# asks nothing and reads the table as the earlier run did. The run's
+# verdict, misses, unjudged obligations and refusal are its most severe
+# step's (plan P4-D395 part 4), its exit status `results.exit_code`'s.
+
+# The folder a twin is written into when no `--out-dir` names one: the
+# table's own name and this mark, beside the table and never the table's
+# own folder, so the answers kept there are never beside the real table
+# unless the person names that folder.
+_TWIN_FOLDER_MARK = "-synthtwin"
+# How severe each verdict is, the most first: the step a twin takes its
+# verdict from (plan P4-D395 part 4: the later of two equally severe).
+_SEVERITY = {results.UNUSABLE: 0, results.REFUSED: 1, results.MISSED: 2, results.NO_MISS: 3}
+
+
+def _more_severe(earlier: str, later: str) -> str:
+    """The more severe of two verdicts, the later where they are alike; the later where the earlier is empty."""
+    if earlier not in _SEVERITY:
+        return later
+    if later not in _SEVERITY:
+        return earlier
+    return earlier if _SEVERITY[earlier] < _SEVERITY[later] else later
+
+
+def _teach(lines: str) -> None:
+    """Show a next-command teaching line, unless the run is a step of the twin (lane TT, plan P4-D460).
+
+    A step's next command is still recorded in its result: the line is
+    composed (`_next`), only not shown, because the twin goes on to that
+    command by itself.
+    """
+    session = _current()
+    if session is not None and session.twin_step:
+        return
+    _say(lines)
+
+
+# THE SENTENCE BINDING A TWIN'S KEPT ANSWERS TO THE FILE THEY WERE GIVEN
+# ABOUT (lane TT's repair; the orchestrator's LANE TT RULINGS 1 items 3 and
+# 4, Codex's items 3 and 4): written by a twin's profile step among its
+# questions file's sentences about the table, and read back by the next
+# twin in that folder before it hands the file back by itself. It names the
+# file's size, its fingerprint (`reading._fold_of`) and the sheet read, and
+# the reading options the questions file does not carry -- the smallest
+# group and how many times `--missing-value` and `--keep-value` were given
+# -- so answers are never handed to another file, nor read under other
+# options, without the person saying so. It names no value of the table:
+# counts, one number of the file's bytes and a sheet's name, which the
+# description publishes too.
+_BINDING_HEAD = (
+    "synthtwin twin hands these answers back by itself only to the file "
+    "they were given about"
+)
+_BINDING_SIZE = ": a file of "
+_BINDING_FOLD = " bytes whose fingerprint is "
+_BINDING_SHEET = ", its sheet '"
+_BINDING_FLOOR = ", read with the smallest group "
+_BINDING_MISSING = ", --missing-value given "
+_BINDING_KEPT = " time(s) and --keep-value given "
+_BINDING_END = " time(s)."
+
+
+def _binding_sentence(
+    bound: "tuple[int, int, str]", floor: int, missing: int, kept: int
+) -> str:
+    """The sentence binding kept answers to ``bound`` (size, fingerprint, sheet) and to the reading options given."""
+    size, fold, sheet = bound
+    sheet_said = f"{_BINDING_SHEET}{sheet}'" if sheet else ""
+    return (
+        f"{_BINDING_HEAD}{_BINDING_SIZE}{size}{_BINDING_FOLD}{fold}"
+        f"{sheet_said}{_BINDING_FLOOR}{floor}{_BINDING_MISSING}{missing}"
+        f"{_BINDING_KEPT}{kept}{_BINDING_END}"
+    )
+
+
+def _binding_said() -> "list[str]":
+    """The binding sentence a twin's profile step writes into its questions file; none on any other run."""
+    session = _current()
+    if session is None or not session.twin_step or not session.binding:
+        return []
+    return [session.binding]
+
+
+def _place_of(text: str, marker: str, start: int = 0) -> int:
+    """Where ``marker`` first stands in ``text`` from ``start``, or -1, compared a slice at a time (the offline audit's form)."""
+    place = start
+    while place + len(marker) <= len(text):
+        if text[place : place + len(marker)] == marker:
+            return place
+        place = place + 1
+    return -1
+
+
+def _whole_number_after(text: str, marker: str) -> "int | None":
+    """The figures standing right after ``marker`` in ``text`` as a number, or None."""
+    place = _place_of(text, marker)
+    if place < 0:
+        return None
+    start = place + len(marker)
+    end = start
+    while end < len(text) and text[end] in "0123456789":
+        end = end + 1
+    if end == start:
+        return None
+    return int(text[start:end])
+
+
+def _bound_reading(
+    kept_file: "dict[str, object]",
+) -> "tuple[tuple[int, int, str], int, int, int] | None":
+    """What a twin's questions file binds its answers to: (size, fingerprint, sheet), the floor and the two counts; None where it binds them to nothing.
+
+    The sentence `_binding_sentence` writes, read back from the file's
+    sentences about the table. A questions file `profile` wrote, or an
+    edited one that lost the sentence, binds nothing. A fixed function of
+    the file's content; raises nothing.
+    """
+    said = kept_file["about_your_table"] if "about_your_table" in kept_file else []
+    if not isinstance(said, list):
+        return None
+    for sentence in said:
+        if not isinstance(sentence, str) or sentence[: len(_BINDING_HEAD)] != _BINDING_HEAD:
+            continue
+        size = _whole_number_after(sentence, _BINDING_SIZE)
+        fold = _whole_number_after(sentence, _BINDING_FOLD)
+        floor = _whole_number_after(sentence, _BINDING_FLOOR)
+        missing = _whole_number_after(sentence, _BINDING_MISSING)
+        kept = _whole_number_after(sentence, _BINDING_KEPT)
+        if size is None or fold is None or floor is None or missing is None or kept is None:
+            return None
+        sheet = ""
+        opened = _place_of(sentence, _BINDING_SHEET)
+        closed = _place_of(sentence, f"'{_BINDING_FLOOR}")
+        if opened >= 0 and closed > opened:
+            sheet = sentence[opened + len(_BINDING_SHEET) : closed]
+        return ((size, fold, sheet), floor, missing, kept)
+    return None
+
+
+def _read_otherwise(
+    options: _Options, floor: int, missing: int, kept: int
+) -> "tuple[str, str, str] | None":
+    """The first reading option given otherwise than when the kept answers were given: (option, then, now), or None.
+
+    The options a questions file does not carry (Codex's item 3): the
+    smallest group, and how many times `--missing-value` and `--keep-value`
+    were given. Each is said in words: the floor as its number, the others
+    as a count of times. A fixed function of its arguments; raises nothing.
+    """
+
+    def times(count: int) -> str:
+        return "given once" if count == 1 else f"given {count} times"
+
+    if options.smallest_group != floor:
+        return ("--smallest-group", f"set to {floor}", f"set to {options.smallest_group}")
+    if len(options.missing_values) != missing:
+        return ("--missing-value", times(missing), times(len(options.missing_values)))
+    if len(options.kept_values) != kept:
+        return ("--keep-value", times(kept), times(len(options.kept_values)))
+    return None
+
+
+def _make_the_twins_folder() -> None:
+    """Make the twin's own folder, where the run in progress is a twin's profile step that owns one.
+
+    Called once the questions are answered and before any output name
+    is settled, so a twin stopped at a question leaves no folder behind.
+    """
+    session = _current()
+    if session is None or not session.folder_to_make:
+        return
+    folder = pathlib.Path(session.folder_to_make)
+    # A FOLDER THAT CANNOT BE MADE IS A REFUSAL, NOT A STACK TRACE (lane
+    # TT's repair; Codex's review of lane TT, item 8): a table in a folder
+    # that takes no new folder was profiled, its questions answered, and
+    # `mkdir` raised. The twin's preflight refuses it before the table is
+    # read where the folder's own mode says so (`_a_folder_can_be_made_in`);
+    # one this cannot foresee is refused here, before any file is written.
+    try:
+        folder.mkdir(exist_ok=True)
+    except OSError as error:
+        raise errors.ProfileError(errors.twin_folder_not_made(_shown(folder))) from error
+    session.folder_to_make = ""
+
+
+def _a_folder_can_be_made_in(parent: pathlib.Path) -> bool:
+    """Whether a folder's own mode lets a folder be made in it, read without writing anything (lane TT's repair, Codex's item 8).
+
+    On POSIX a folder whose mode grants nobody writing (no `w` bit at
+    all, read from `stat`) takes no new folder; any other answer is left
+    to `mkdir`, whose refusal `_make_the_twins_folder` turns into words.
+    On Windows the read-only mark does not stop a folder being made, so
+    nothing is decided here. A folder that cannot be looked at is one
+    that takes nothing. Raises nothing.
+    """
+    if sys.platform == "win32":
+        return True
+    try:
+        mode = pathlib.Path(f"{parent}").stat().st_mode
+    except OSError:
+        return False
+    return (mode & 0o222) != 0
+
+
+def _twin_folder(table: str, out_dir: "str | None") -> "tuple[pathlib.Path, bool]":
+    """The twin's one output folder, and whether the run is to make it.
+
+    `--out-dir` names a folder that must exist, as on every command;
+    otherwise it is TABLE-synthtwin beside the table, made by the run
+    once the questions are answered. Raises ProfileError where the named
+    folder is not there or the default name is taken by something that
+    is not a folder, and PathValidationError where a path is not a plain
+    local one. Creates nothing.
+    """
+    from synthtwin import profile
+
+    if out_dir is not None:
+        named = pathlib.Path(validate_local_path(out_dir, purpose="output folder"))
+        if not named.is_dir():
+            raise errors.ProfileError(errors.twin_folder_missing(_shown(named)))
+        return (named, False)
+    source = pathlib.Path(table)
+    folder = pathlib.Path(
+        validate_local_path(
+            f"{source.parent / (profile.table_stem(source.name) + _TWIN_FOLDER_MARK)}",
+            purpose="output folder",
+        )
+    )
+    if _already_there(folder) and not folder.is_dir():
+        raise errors.ProfileError(errors.twin_folder_taken(_shown(folder)))
+    return (folder, not folder.is_dir())
+
+
+def _twin_outputs(table: str, folder: pathlib.Path) -> "list[pathlib.Path]":
+    """The six files a twin writes into ``folder``, in the order written; none where the folder is not there yet.
+
+    The names the three steps settle for themselves: the profile step's
+    description, summary and questions file, the twin and its report
+    (a workbook's twin is a workbook: the table's kind is read off its
+    opening bytes by the reader's own test, never its name, Codex's item
+    6), and the quality report. Each passes the locality gate, as the step
+    that writes it passes it, so a link at a name is resolved to where it
+    leads, and a folder standing at any of them is refused as the step
+    would refuse it, before any step runs (Codex's item 7). Reads the
+    table's opening bytes alone; raises what the locality gate raises,
+    and ProfileError for a folder at a name.
+    """
+    from synthtwin import profile, reading, writing
+
+    if not pathlib.Path(folder).is_dir():
+        return []
+    source = pathlib.Path(table)
+    profile_path, summary_path = profile.default_output_paths(source, f"{folder}")
+    questions_path = profile.questions_output_path(source, f"{folder}")
+    packaged = reading.opens_as_a_workbook(table)
+    twin_path, report_path = _twin_paths(profile_path, None, packaged)
+    quality_path = _quality_path(profile_path, f"{twin_path}", None)
+    for target, words in (
+        (twin_path, errors.TWIN_WORDS),
+        (report_path, errors.TWIN_WORDS),
+        (quality_path, errors.QUALITY_WORDS),
+    ):
+        writing.refuse_if_folder(target, words)
+    return [
+        profile_path,
+        summary_path,
+        questions_path,
+        twin_path,
+        report_path,
+        quality_path,
+    ]
+
+
+def _twin_output_on_the_table(
+    named: "list[pathlib.Path]", source: pathlib.Path
+) -> str:
+    """The refusal of a twin one of whose six names leads onto its own table, or "" (lane TT's repair).
+
+    Codex's review of lane TT, item 1, the orchestrator's LANE TT RULINGS
+    1 item 1: with `TABLE-synthtwin/TABLE-twin.csv` a link to the table,
+    `twin --replace` let generate write the twin over the real table,
+    since each step guards only the file it was handed and generate is
+    handed the description. So every name of the three steps is asked,
+    before any step runs, by the test the profile step asks of its own
+    two (`profile.is_the_same_file`, after the resolved paths are
+    compared): the description's and the summary's refusal is the profile
+    step's own words, every other name's says which file it is. A fixed
+    function of the names and what the filesystem says of them; writes
+    nothing.
+    """
+    from synthtwin import profile
+
+    for place, target in enumerate(named):
+        if target == source or profile.is_the_same_file(target, source):
+            if place < 2:
+                return errors.output_would_replace_the_table(_shown(source))
+            return errors.twin_output_would_replace_the_table(
+                _shown(target), _shown(source)
+            )
+    return ""
+
+
+def _twin_words(
+    command: str, given: str, folder: pathlib.Path, options: _Options
+) -> "list[str]":
+    """One step of the twin as the command line a person types apart (lane TT, plan P4-D460).
+
+    The path first, then the folder, then every option the step reads,
+    each in its `--option=value` form so a value is never read as an
+    option; `--date-count`'s two values follow it. A fixed function of
+    its arguments; raises nothing.
+    """
+    path = given if given[:1] != "-" else os.path.join(".", given)
+    words = [command, path, f"--out-dir={folder}"]
+    if command == _GENERATE:
+        words += [f"--seed={options.seed}"]
+    if command == _PROFILE:
+        for option, values in (
+            ("--identifier", options.identifiers),
+            ("--code", options.codes),
+            ("--measurement", options.measurements),
+            ("--decimal-comma", options.decimal_commas),
+            ("--twelve-hour", options.twelve_hours),
+            ("--century", options.centuries),
+            ("--date-column", options.date_columns),
+            ("--keep-value", options.kept_values),
+            ("--missing-value", options.missing_values),
+        ):
+            for value in values:
+                words += [f"{option}={value}"]
+        for pair in options.date_counts:
+            words += ["--date-count"] + [f"{one}" for one in pair]
+        if options.first_row_typed:
+            words += [f"--first-row={options.first_row}"]
+        if options.day_first:
+            words += ["--day-first"]
+        if options.metadata_rows:
+            words += [f"--metadata-rows={options.metadata_rows}"]
+        if options.delimiter:
+            words += [f"--delimiter={options.delimiter}"]
+        if options.sheet:
+            words += [f"--sheet={options.sheet}"]
+        if options.floor_chosen:
+            words += [f"--smallest-group={options.smallest_group}"]
+        if options.answers is not None:
+            words += [f"--answers={options.answers}"]
+    if options.replace:
+        words += ["--replace"]
+    return words
+
+
+def _twin_step(
+    words: "list[str]",
+    ask: "list[str | None] | str | None",
+    before: str,
+    folder_to_make: str,
+    chain: "ChainRun | None",
+    small_tables_refused: bool,
+    internal_smallest_group: "int | None",
+    bound_to: "tuple[int, int, str] | None" = None,
+) -> results.Result:
+    """Run one step of the twin as its own command, in a session of its own; return its result.
+
+    The step shows on the twin's screen and reads from ``ask`` (None
+    where nobody is asked); its result is the command's own, as `run`
+    makes it for that command line. ``bound_to`` is the file a profile
+    step handed its folder's own questions file must read (lane TT's
+    repair); the questions its prompt puts, or would put, are kept on the
+    twin's session (`_Session.promptable`).
+    """
+    parent = _current()
+    assert parent is not None
+    step = _Session(parent.screen, ask)
+    step.twin_step = True
+    step.before = before
+    step.folder_to_make = folder_to_make
+    step.bound_to = bound_to
+    _OPEN.sessions += [step]
+    try:
+        verdict = _dispatch(words, chain, small_tables_refused, internal_smallest_group)
+    except (_Unusable, _HelpShown):
+        verdict = results.UNUSABLE
+    finally:
+        del _OPEN.sessions[len(_OPEN.sessions) - 1]
+    if step.promptable:
+        parent.promptable = list(step.promptable)
+    return _result_of(step, verdict)
+
+
+def _run_twin(
+    options: _Options,
+    chain: "ChainRun | None",
+    small_tables_refused: bool,
+    internal_smallest_group: "int | None",
+) -> str:
+    """Do the work of `synthtwin twin`; return the run's verdict (lane TT, plan P4-D460).
+
+    Guarantees:
+
+    - Order: the seed and the folder are settled, and the one overwrite
+      rule decided from the six names, before the table is read; the
+      profile step then reads the table once and puts its questions on
+      screen where somebody is at the keyboard, before any file or the
+      folder exists; `generate` and `validate` follow it in the same
+      folder. A step that does not finish ends the run there.
+    - The answers: a folder already holding this table's questions file
+      hands it back to the profile step (`--answers`) and nobody is
+      asked, so a second run asks nothing and reads the table as the
+      first did; `--answers FILE` typed hands that file back, and the
+      questions it leaves open are put at the keyboard, as `profile`
+      puts them.
+    - The result: each step's own result in `steps`; the verdict, the
+      misses, the unjudged obligations, the carried entries, the tally
+      and the refusal of the most severe step (the later of two alike);
+      every step's files, cautions and leftovers in order; the profile
+      step's questions; the next command its purposes `twin` and
+      `answer-questions` name, where one is owed.
+    - Boundary: the table is read by the profile step alone, once; the
+      generate step never reaches the reader and the validate step never
+      reaches the generator, each importing its modules in its own
+      branch, as when the commands run apart. THE TABLE'S OWN PATH PASSES
+      THE LOCALITY GATE FIRST (lane TT's repair; Codex's review of lane
+      TT, item 2), its words checked before any call of the filesystem
+      that involves it: on Windows `\\\\server\\share\\data.csv` with
+      `--out-dir C:\\local` reached the check below, which resolves it,
+      before the UNC check ran. And no name of the three steps may lead
+      onto the table (`_twin_output_on_the_table`, Codex's item 1).
+    """
+    session = _current()
+    assert session is not None
+    table = f"{options.given}"
+    seed, refusal = _seed_or_refusal(options.seed)
+    if seed is None:
+        _warn(refusal)
+        return results.UNUSABLE
+    try:
+        source = pathlib.Path(validate_local_path(table, purpose="input"))
+    except PathValidationError as error:
+        _warn(_shown(error))
+        return results.REFUSED
+    _at(results.STEP_OUTPUTS)
+    try:
+        folder, to_make = _twin_folder(table, options.out_dir)
+        named = _twin_outputs(table, folder)
+    except PathValidationError as error:
+        _warn(_shown(error))
+        return results.REFUSED
+    except errors.ProfileError as error:
+        _warn(_shown(error), step=results.STEP_OUTPUTS)
+        return results.REFUSED
+    on_the_table = _twin_output_on_the_table(named, source)
+    if on_the_table:
+        _warn(on_the_table, step=results.STEP_OUTPUTS)
+        return results.REFUSED
+    if to_make and not _a_folder_can_be_made_in(folder.parent):
+        _warn(errors.twin_folder_not_made(_shown(folder)), step=results.STEP_OUTPUTS)
+        return results.REFUSED
+    if not options.replace:
+        taken = [target for target in named if _already_there(target)]
+        if taken:
+            _warn(
+                errors.outputs_taken(
+                    [_shown(target) for target in named],
+                    [_shown(target) for target in taken],
+                    errors.MAKING_AGAIN,
+                ),
+                step=results.STEP_OUTPUTS,
+            )
+            return results.REFUSED
+    saved = named[2] if len(named) == 6 else None
+    ask = session.ask
+    # What the person typed, before the folder's own file is handed back:
+    # the commands the run teaches are made from it (`_twin_again`).
+    typed = options
+    bound_to: "tuple[int, int, str] | None" = None
+    if options.answers is None and saved is not None and pathlib.Path(saved).is_file():
+        # HANDED BACK BY ITSELF ONLY TO THE FILE ITS ANSWERS NAME, READ AS
+        # THEY WERE GIVEN (lane TT's repair; LANE TT RULINGS 1 items 3 and
+        # 4): a questions file binding its answers to no file is not handed
+        # back, nor one whose reading options this run gives otherwise; the
+        # file it names is held to the profile step's own reading.
+        from synthtwin import contract
+
+        try:
+            kept_file = contract.load_answers(f"{saved}")
+        except (PathValidationError, errors.ProfileError) as error:
+            _warn(_shown(error), step=results.STEP_INPUT)
+            return results.REFUSED
+        binding = _bound_reading(kept_file)
+        if binding is None:
+            _warn(errors.twin_answers_not_bound(_shown(saved)), step=results.STEP_INPUT)
+            return results.REFUSED
+        otherwise = _read_otherwise(options, binding[1], binding[2], binding[3])
+        if otherwise is not None:
+            _warn(
+                errors.twin_answers_read_otherwise(_shown(saved), *otherwise),
+                step=results.STEP_INPUT,
+            )
+            return results.REFUSED
+        bound_to = binding[0]
+        options = dataclasses.replace(options, answers=f"{saved}")
+        ask = None
+    session.steps += [
+        _twin_step(
+            _twin_words(_PROFILE, table, folder, options),
+            ask,
+            "",
+            f"{folder}" if to_make else "",
+            chain,
+            small_tables_refused,
+            internal_smallest_group,
+            bound_to,
+        )
+    ]
+    reached = session.steps[0].verdict
+    described = [one.path for one in session.steps[0].files if one.kind == results.FILE_DESCRIPTION]
+    for command in (_GENERATE, _VALIDATE):
+        if reached not in (results.NO_MISS, results.MISSED) or not described:
+            break
+        session.steps += [
+            _twin_step(
+                _twin_words(command, described[0], folder, options),
+                None,
+                reached,
+                "",
+                chain,
+                small_tables_refused,
+                internal_smallest_group,
+            )
+        ]
+        reached = _more_severe(reached, session.steps[len(session.steps) - 1].verdict)
+    return _twin_ended(session, table, folder, typed, session.ask is not None)
+
+
+# How many files, in the words the one overwrite rule counts them in.
+_FILES_COUNTED = ("no files", "one file", "two files", "three files", "four files", "five files", "six files")
+
+
+def _files_counted(count: int) -> str:
+    """``count`` files in words: "six files", "five files", "one file"."""
+    if 0 <= count < len(_FILES_COUNTED):
+        return _FILES_COUNTED[count]
+    return f"{count} files"
+
+
+def _option_words(option: str, value: object) -> "list[str]":
+    """An option and its value as the words a person types: two, or one joined by `=` where the value starts with a minus sign.
+
+    argparse reads a word starting with `-` as an option of its own, so
+    `--missing-value -99` is written `--missing-value=-99`, as
+    `_typed_option` prints it. A fixed function of the two; raises nothing.
+    """
+    text = f"{value}"
+    if text[:1] == "-":
+        return [f"{option}={text}"]
+    return [option, text]
+
+
+def _twin_again(table: str, options: _Options) -> "list[str]":
+    """The twin's command line as the person typed it, every option kept (lane TT's repair).
+
+    The orchestrator's LANE TT RULINGS 2 (3) and RULINGS 1 item 5 (skeptic
+    1's item 3, Codex's item 5): the commands a twin teaches dropped every
+    option but `--out-dir`, so the one taught after a run stopped at a
+    question was refused by the overwrite rule or asked nothing, and the
+    answers command read the first sheet where the person had named
+    `--sheet Study`, without their `--missing-value`, floor or seed.
+    Here: `synthtwin twin TABLE`, then `--out-dir`, `--answers`,
+    `--replace` and `--seed` where given, then each declaration the
+    profile step reads in `_twin_words`'s order, each option and its value
+    as `_option_words` writes them, `--date-count` with its two values, a
+    flag alone. A seed of 0 is the one given where none is typed, so it is
+    left out. A fixed function of its arguments; raises nothing.
+    """
+    words = ["synthtwin", _TWIN, table if table[:1] != "-" else os.path.join(".", table)]
+    if options.out_dir is not None:
+        words += _option_words("--out-dir", options.out_dir)
+    if options.answers is not None:
+        words += _option_words("--answers", options.answers)
+    if options.replace:
+        words += ["--replace"]
+    if options.seed != "0":
+        words += _option_words("--seed", options.seed)
+    for option, values in (
+        ("--identifier", options.identifiers),
+        ("--code", options.codes),
+        ("--measurement", options.measurements),
+        ("--decimal-comma", options.decimal_commas),
+        ("--twelve-hour", options.twelve_hours),
+        ("--century", options.centuries),
+        ("--date-column", options.date_columns),
+        ("--keep-value", options.kept_values),
+        ("--missing-value", options.missing_values),
+    ):
+        for value in values:
+            words += _option_words(option, value)
+    for pair in options.date_counts:
+        words += ["--date-count"] + [f"{one}" for one in pair]
+    if options.first_row_typed:
+        words += _option_words("--first-row", options.first_row)
+    if options.day_first:
+        words += ["--day-first"]
+    if options.metadata_rows:
+        words += _option_words("--metadata-rows", options.metadata_rows)
+    if options.delimiter:
+        words += _option_words("--delimiter", options.delimiter)
+    if options.sheet:
+        words += _option_words("--sheet", options.sheet)
+    if options.floor_chosen:
+        words += _option_words("--smallest-group", options.smallest_group)
+    return words
+
+
+def _typed_words(words: "list[str] | tuple[str, ...]") -> str:
+    """A command's words as the person types them, each value quoted for the shell (lane TT's repair).
+
+    The words `_twin_again` makes: `synthtwin`, the command word and the
+    path (`_typed_path`), then each option -- a flag alone, a word joined
+    by `=` read as its option and value, `--date-count` with its two
+    values, any other with the word after it -- and its value through
+    `_typed_option`, so the line is the one lane TI's teaching lines
+    print. A fixed function of the words and the platform; raises nothing.
+    """
+    line = f"{words[0]} {words[1]} {_typed_path(words[2])}"
+    place = 3
+    while place < len(words):
+        word = words[place]
+        if word[:2] == "--" and "=" in word:
+            cut = _place_of(word, "=")
+            line = f"{line} {_typed_option(word[:cut], word[cut + 1 :])}"
+            place = place + 1
+            continue
+        if word == "--date-count" and place + 2 < len(words):
+            line = (
+                f"{line} {_typed_option(word, words[place + 1])} "
+                f"{_shown(_quoted_for_the_shell(words[place + 2]))}"
+            )
+            place = place + 3
+            continue
+        if word in _SHORT_HELP and _SHORT_HELP[word][0] and place + 1 < len(words):
+            line = f"{line} {_typed_option(word, words[place + 1])}"
+            place = place + 2
+            continue
+        line = f"{line} {_shown(word)}"
+        place = place + 1
+    return line
+
+
+def _twin_ended(
+    session: _Session,
+    table: str,
+    folder: pathlib.Path,
+    options: _Options,
+    asked: bool,
+) -> str:
+    """Fill the twin's result from its steps, show its last lines, and return its verdict.
+
+    ``options`` are the ones the person typed, before the folder's own
+    questions file was handed back, so every command the run teaches is
+    the person's own command line (`_twin_again`). Where the questions
+    file holds questions still open, the next command is the one that
+    puts them on screen at a terminal (`answer-questions`), whoever was at
+    the keyboard: Enter leaves a question open, as nobody does (lane TT's
+    repair 2; the orchestrator's LANE TT RULINGS 3 (1)). ``asked`` is
+    whether somebody was at the keyboard, and chooses only the words the
+    line opens with.
+    """
+    deciding = session.steps[0]
+    for step in session.steps:
+        if _more_severe(deciding.verdict, step.verdict) == step.verdict:
+            deciding = step
+    session.misses = deciding.misses
+    session.unjudged = deciding.unjudged
+    session.carried = deciding.carried
+    session.tally = deciding.tally
+    session.questions = session.steps[0].questions
+    for step in session.steps:
+        session.warnings += list(step.warnings)
+        session.files += list(step.files)
+        session.left_behind += list(step.left_behind)
+        if step.floor is not None:
+            session.floor = step.floor
+            session.floor_lowered = step.floor_lowered
+    if deciding.refusal is not None:
+        session.step = deciding.refusal.step
+        session.key = deciding.refusal.key
+        session.refusal_words = [deciding.refusal.words]
+        session.on_disk = deciding.refusal.on_disk
+    first = session.steps[0]
+    if first.refusal is not None and first.refusal.step == results.STEP_QUESTIONS:
+        line = _typed_words(_next(results.PURPOSE_TWIN, *_twin_again(table, options)).words)
+        _say(
+            f"\nNothing was written. To answer the questions, run it again:\n"
+            f"  {line}{_quoting_said(line)}"
+        )
+        return deciding.verdict
+    if deciding.verdict not in (results.NO_MISS, results.MISSED):
+        return deciding.verdict
+    kept = [one.path for one in first.files if one.kind == results.FILE_QUESTIONS]
+    # HOW MANY FILES, AS THE STEPS RECORDED THEM (lane TT's repair; Codex's
+    # item 10): a questions file the profile step would not write -- its
+    # name leading onto the description, a caution -- left five, and the
+    # line said six.
+    _say(
+        f"\nThe twin's {_files_counted(len(session.files))} are in:\n"
+        f"  {_shown(folder)}"
+    )
+    open_now = [
+        one
+        for one in first.questions
+        if one.section in (results.SECTION_ABOUT_FILE, results.SECTION_ASKED)
+    ]
+    # ...AND THE QUESTIONS THE ANSWERS COMMAND CAN PUT ON SCREEN, apart from
+    # those answered in the file alone (lane TT's repair; Codex's item 9,
+    # skeptic 1's item 5): the Safe Harbor questions and those about the
+    # file itself are never put at a prompt, and the line counted them as
+    # though they were (measured: 6 said, 3 put).
+    on_screen = [
+        one
+        for one in open_now
+        if one.section == results.SECTION_ASKED
+        and (one.column, one.role, one.reason) in session.promptable
+    ]
+    if kept:
+        _say(
+            f"Its questions and the answers given stay in {_shown(kept[0])}: "
+            f"the next run of synthtwin twin on this table and folder asks "
+            f"nothing."
+        )
+        if open_now:
+            # The person's own command line, into this folder, its
+            # questions file handed back and its files written over:
+            # taught wherever a question is still open, after Enter too
+            # (lane TT's repair 2; the verify of repair 1 measured a
+            # person who pressed Enter at 3 questions taught no command).
+            words = _twin_again(
+                table,
+                dataclasses.replace(
+                    options, out_dir=f"{folder}", answers=kept[0], replace=True
+                ),
+            )
+            command = _next(results.PURPOSE_ANSWER_QUESTIONS, *words)
+            line = _typed_words(command.words)
+            in_the_file = len(open_now) - len(on_screen)
+            opened = (
+                f"{len(open_now)} question(s) are still open"
+                if asked
+                else f"Nobody was at the keyboard to answer {len(open_now)} question(s)"
+            )
+            said = (
+                f"{opened}, so each of their columns kept the reading that "
+                f"file names for it."
+            )
+            if on_screen:
+                said = (
+                    f"{said} {len(on_screen)} of them can be answered on "
+                    f"screen: run this at a terminal\n  {line}"
+                    f"{_quoting_said(line)}"
+                )
+                if in_the_file:
+                    said = (
+                        f"{said}\nThe other {in_the_file} are answered in "
+                        f"{_shown(kept[0])} itself: write each answer beside "
+                        f"'your_answer', then run that command."
+                    )
+            else:
+                said = (
+                    f"{said} They are answered in {_shown(kept[0])} itself: "
+                    f"write each answer beside 'your_answer', then run this:"
+                    f"\n  {line}{_quoting_said(line)}"
+                )
+            _say(said)
+    return deciding.verdict
+
+
 def main(
     argv: "list[str] | None" = None,
     chain: "ChainRun | None" = None,
@@ -9038,8 +10725,14 @@ def main(
       the `profile` command word with its options, the `generate`
       command word with `--seed`, `--out-dir` and `--replace`, the
       `validate` command word with `--twin`, `--out-dir` and
-      `--replace`, and the `doctor` command word with an optional table
-      path and `--out-dir` (plan P4-D397).
+      `--replace`, the `doctor` command word with an optional table
+      path and `--out-dir` (plan P4-D397), the `twin` command word with
+      a table and the options of `profile` and `generate`, and the
+      `help` command word with an optional command or `examples` (plan
+      P4-D460). ONE OVERWRITE RULE (plan P4-D460): `profile`, `generate`,
+      `validate` and `twin` each refuse, with code 1 and nothing
+      written, a file already at one of their names, unless `--replace`
+      is given (or, for `profile`, the answers round, `--answers`).
     - `small_tables_refused`, keyword only and INTERNAL (plan P4-D425): True, the
       default and the only value a typed command ever runs with, makes
       `profile` refuse, writing nothing, a table under
@@ -9104,6 +10797,12 @@ def main(
 
       `doctor` returns 0 when every check it printed passed and 1 when
       any did not, each failed line saying what to do next.
+
+      `twin` returns the code of its most severe step: 0 when every step
+      ran and nothing was missed, 3 when a step missed something (a fact
+      the twin gave up, or an obligation the check found missed), 1 when
+      a step could not run and 2 when the command line could not be
+      used (plan P4-D395 part 4).
     - Determinism: the same table and the same options produce the same
       two files, byte for byte, on the same platform (plan D12 and
       P1-D11); so do the same description, the same seed and the same
@@ -9297,6 +10996,7 @@ def _result_of(session: _Session, verdict: str) -> results.Result:
         left_behind=tuple(session.left_behind),
         next_command=session.next_command,
         refusal=refusal,
+        steps=tuple(session.steps),
     )
 
 
@@ -9334,6 +11034,16 @@ def _dispatch(
     if options.command == _DOCTOR:
         session.command = results.DOCTOR
         return _run_doctor(options.given, options.out_dir)
+
+    # ONE PAGE FOR EACH COMMAND, AND THE EXAMPLES (lane TT, plan P4-D460).
+    if options.command == _HELP_WORD:
+        session.command = results.HELP
+        return _run_help(options.given)
+
+    # THE WHOLE JOURNEY IN ONE COMMAND (lane TT, plan P4-D460).
+    if options.command == _TWIN and options.given is not None:
+        session.command = results.TWIN
+        return _run_twin(options, chain, small_tables_refused, internal_smallest_group)
 
     named = options.given
     if named is None or options.command is None:
@@ -9386,6 +11096,7 @@ def _dispatch(
             options.first_row_typed,
             chain=chain,
             small_tables_refused=small_tables_refused,
+            replace=options.replace,
         )
     except PathValidationError as error:
         # The message is treated as a VALUE, not as something synthtwin
@@ -9442,17 +11153,45 @@ def _dispatch(
         return results.REFUSED
 
 
+def _run_help(topic: "str | None") -> str:
+    """Show `synthtwin help [TOPIC]`: the index, one command's page, or the examples (lane TT, plan P4-D460).
+
+    A word no page answers to is refused as an unusable command line,
+    with the words to type instead (exit 2), and nothing else is shown.
+    """
+    if topic is None:
+        _say(_HELP_INDEX, "")
+        return results.NO_MISS
+    if topic == _EXAMPLES:
+        _say(_EXAMPLES_PAGE, "")
+        return results.NO_MISS
+    if topic in _READ_BY:
+        _say(command_page(topic), "")
+        return results.NO_MISS
+    _warn(
+        f"synthtwin has no help page called {_shown(topic)}. Type one of  "
+        f"synthtwin help twin  ,  synthtwin help profile  ,  synthtwin help "
+        f"generate  ,  synthtwin help validate  ,  synthtwin help doctor  or  "
+        f"synthtwin help examples  , or  synthtwin --help  for every option "
+        f"in full."
+    )
+    return results.UNUSABLE
+
+
 def _command_word(argv: "list[str] | None") -> str:
     """The command a command line names, read before it is parsed, or "".
 
-    The first of `profile`, `generate`, `validate` and `doctor` among the
-    words, so a command line refused before its command ran still says
-    which command it was for; the branch that runs sets it again.
+    The first of `profile`, `generate`, `validate`, `doctor`, `twin` and
+    `help` among the words, so a command line refused before its command
+    ran still says which command it was for; the branch that runs sets it
+    again.
     """
     words = sys.argv[1:] if argv is None else argv
     for word in words:
-        if word in (_PROFILE, _GENERATE, _VALIDATE, _DOCTOR):
+        if word in (_PROFILE, _GENERATE, _VALIDATE, _DOCTOR, _TWIN):
             return f"{word}"
+        if word == _HELP_WORD:
+            return results.HELP
     return ""
 
 

@@ -49,7 +49,14 @@ problems must still demonstrate the checking that was performed.
    mutation case red without it, and the plan decision that admits it
    (the dependency protocol, plan P4-D409 part 7) is NOT a weakening:
    review the audit, the zones and the mutation case instead. An entry
-   without them is.
+   without them is. numpy's array names are such entries in the audited
+   array helper `synthtwin.arrays` alone (plan P4-D466): a numpy object
+   leaving it, the generator's draw handed to any function but
+   `synthtwin.arrays.hidden_sums` (which takes it first, by position),
+   the helper's module handed on as a value outside it, or an operator
+   or a float reduction the closure rule does not admit is a weakening,
+   and so is the computer's reader (`os.cpu_count`, `os.sysconf`) read
+   outside `synthtwin.computer`.
 2. **Silent statistical wrongness.** Output that looks plausible but is
    statistically wrong is the worst product failure: nothing crashes,
    no message appears, and the user trusts a twin that lies. Hunt for

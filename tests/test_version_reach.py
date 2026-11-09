@@ -760,7 +760,57 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 #
 # 61 AT BATCH 4p'S MERGE OF BATCH 4o'S SEALED HEAD (2026-11-06): the line's 60
 # and the fix round's one above, each loaded once.
-FILES_LOADED_AS_MODULES = 61
+#
+# 59 ON LANE RO (plan P4-D459): the order rules' gate,
+# `tests/test_stage6_order_rules.py`, loads the committed chain oracle
+# `tools/reference/chain_oracle.py` once, `_oracle`, to hold the rule
+# step's word and `D`'s readings in the twin to the oracle's own functions
+# (A-P4-59). What it loads is a committed file under tools/, which this
+# guard reads directly, so the floor holds for it as it does for the other
+# fifty-eight.
+#
+# 60 ON LANE RO's REPAIR 2: the same gate loads the committed driver
+# `tools/measurements/kpi_chain_rules.py` once, `_driver`, to hold
+# K-BC-10's readings, each twin judged against its class and every
+# fixture's own rule inventory, to the driver's own functions. What it
+# loads is a committed file under tools/, which this guard reads directly,
+# so the floor holds for it as it does for the other fifty-nine.
+#
+# 63 AT BATCH 4q'S MERGE OF LANE RO (2026-11-07): the line's 61 and the
+# lane's two above (59 and 60 on its branch, on batch 4o's 58), each loaded once.
+#
+# 59 ON LANE ST (plan P4-D458), on batch 4o's 58: the self-test's gate,
+# `tests/test_stage6_selftest_reports.py`, loads the committed offline
+# scanner `tools/offline_scan/scan_imports.py` through one call, to hold
+# the scanner's one zone P import site and its second site red. What it
+# loads is a committed file under tools/, which this guard reads
+# directly, so the floor holds for it as it does for the other
+# fifty-eight.
+#
+# 64 AT BATCH 4q'S MERGE OF LANE ST (2026-11-07): the line's 63 and the
+# lane's one above (59 on its branch, on batch 4o's 58), loaded once.
+#
+# 54 ON LANE ID-ROOM2 (plan P4-D457), on batch 4n's 53: its gate loads the
+# committed reference oracle once, `tests/test_held_dates_off_the_real.py`'s
+# `_the_oracle`, to hold method G9.6c's room to the oracle's own functions
+# (A-P4-59); what it loads is a committed file under tools/, which this
+# guard reads directly, so the floor holds for it as for the other fifty-three.
+#
+# 65 AT BATCH 4q'S MERGE OF LANE ID-ROOM2 (2026-11-07): the line's 64 and the
+# lane's one above (54 on its branch, on batch 4n's 53), loaded once.
+#
+# 59 ON LANE CHs (plan P4-D462, its repair 2 of 2026-11-06), on batch 4o's
+# step-2 head `5220c90c`'s 58: the gate of the chain's describe at scale,
+# `tests/test_stage6_chain_describe_scale.py`, loads the lane's KPI driver
+# `tools/measurements/kpi_chain_describe_scale.py` through `_driver`, one
+# call read from beside the test file, to hold the driver's CPU projection
+# and its cut-short run to their cases. What it loads is a committed file
+# under tools/, which this guard reads directly, so the floor holds for it
+# as it does for the other fifty-eight.
+#
+# 66 AT BATCH 4q'S MERGE OF LANE CHs (2026-11-07): the line's 65 and the
+# lane's one above (59 on its branch, on batch 4o's step-2 head's 58), loaded once.
+FILES_LOADED_AS_MODULES = 66
 
 
 def _files() -> "list[pathlib.Path]":

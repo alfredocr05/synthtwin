@@ -56,8 +56,10 @@ import fractions
 import hashlib
 import json
 import math
+import typing
 
 from synthtwin import chain_moments as moments
+from synthtwin import chain_order
 from synthtwin import chain_rules as rules
 from synthtwin import calendar_rules, date_counts, parsing, reading, taxonomy
 
@@ -94,6 +96,17 @@ SCREEN_ROUNDS = 6
 # goes first to the few-level class.
 SCREEN_TRIPLES = 19600
 SCREEN_FEW_TRIPLES = 9800
+
+# THE STAGE PROBE (lane CHs, plan P4-D462): `describe` calls `_probed` by
+# its written-out name at the end of each of its stages, with the stage's
+# name and its work counters. Here it does nothing; a measurement driver
+# puts its own reading of the clocks and the memory counters in its place
+# (`tools/measurements/kpi_chain_describe_scale.py`, K-S6-15). Nothing
+# returned or published reads it.
+
+
+def _probed(stage: str, counts: "dict[str, int]") -> None:
+    """The end of a stage of `describe`: nothing, unless a measurement driver stands here."""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -139,6 +152,12 @@ class ChainSwitch:
     # the row description was told them.
     harbor_year: int = 0
     kept_identities: "tuple[str, ...]" = ()
+    # THE RULE STEPS (contract 4.6b.7; lane RO, plan P4-D459), behind the
+    # switch and off unless a caller asks: a description carrying a rule
+    # writes its computed columns' blocks in `columns` (`with_rules`), which
+    # every writer of a switched description must do before it is read;
+    # lane CHON turns the rule steps on with the chain.
+    rules: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -164,6 +183,74 @@ class Chained:
     # where it stands, and every column block as it then publishes them.
     grain: "dict[str, object] | None" = None
     columns: "list[dict[str, object]] | None" = None
+    # A carried rule's computed column's block (contract 4.6b.7, MR.6 (a)),
+    # by name: the caller writes it in the column's place in `columns`
+    # (`with_rules`). Empty where no rule is carried.
+    computed: "tuple[tuple[str, dict[str, object]], ...]" = ()
+    # THE SELF-TEST'S INPUTS (lane ST, plan P4-D458): what the self-test
+    # L2b reads, never published and never written (`SelftestInputs`);
+    # None where no chain is published.
+    selftest: "SelftestInputs | None" = None
+
+
+# The page's names (contract 4.6b.7, MR.12): lanes RD and RZ call these.
+infer_rules = chain_order.infer_rules
+computed_block = chain_order.computed_block
+
+
+@dataclasses.dataclass(frozen=True)
+class SampleColumn:
+    """One eligible column on the self-test's sample rows (lane ST, plan P4-D458), never published.
+
+    `l0` is each sampled row's `L0` band code, in sample order; `linear`,
+    `second` and `has` a FINE column's value codes and reading map on the
+    same rows (4.6d.1), None elsewhere (`second` None where the column is
+    not skewed); `binary` a binary's two `L0` value bands (read 0 and 1,
+    `chain_moments.binary_levels`); `missing` the `L0` band holding the
+    column's empty cells, -1 where none does; `skew` the quantile skew
+    `(p90 + p10 - 2 p50) / (p90 - p10)` read from the published rungs
+    (BC-ARCH inventory row 23), None where they do not give one; `lo` and
+    `hi` the linear code's clip values (4.6d.1); `beyond` the sample rows
+    (places in sample order) whose reading lies beyond the clip, each with
+    its reading, from which the self-test reads its RAW SCALE (LANE ST
+    RULINGS 5 (2)): inside the clip a reading is read at its code's
+    mid-point, within half of 1/256 of the clip's span.
+    """
+
+    name: str
+    role: str
+    ladder: rules.Ladder
+    l0: "bytes | list[int]"
+    linear: "bytes | None"
+    second: "bytes | None"
+    has: "bytes | None"
+    binary: "tuple[int, int] | None"
+    missing: int
+    skew: "float | None"
+    lo: "float | None"
+    hi: "float | None"
+    beyond: "dict[int, float] | None" = None
+
+
+@dataclasses.dataclass(frozen=True)
+class SelftestInputs:
+    """What the self-test L2b reads (contract 4.6b.8; lane ST, plan P4-D458), never published.
+
+    `rows` is the table's tabled rows `n`; `hashes` each sampled row's
+    content hash read as a whole number from its first 8 bytes, in sample
+    order (the SplitMix64 words are keyed by them); `columns` each
+    eligible column on the sample rows, in schema order; `families` the
+    placed families in chain order (their tables counted on every tabled
+    row, as published); `pairs` the time-and-event pairs, each as
+    `(time, event)`. Held in memory only: nothing here is written to a
+    file, a log or the description.
+    """
+
+    rows: int
+    hashes: "tuple[int, ...]"
+    columns: "tuple[SampleColumn, ...]"
+    families: "tuple[rules.Family, ...]"
+    pairs: "tuple[tuple[str, str], ...]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -172,13 +259,19 @@ class Column:
 
     name: str
     ladder: rules.Ladder
-    codes: "tuple[bytes | list[int], bytes | list[int], bytes | list[int]]"
+    # `L0`'s codes, one byte a row; `L1` and `L2` read from them through the
+    # ladder's maps where None (`_level_codes`; lane CHs, plan P4-D462).
+    codes: "tuple[bytes | list[int], bytes | list[int] | None, bytes | list[int] | None]"
     groups: "frozenset[int]"
     screen: bytes
     screen_levels: int
     few: bool
     blank: int
     value_codes: "tuple[bytes, bytes | None, bytearray] | None" = None
+    # The self-test's sample rows (places in sample order) whose reading
+    # lies beyond the clip, each with its reading (lane ST, plan P4-D458):
+    # never published.
+    beyond: "dict[int, float] | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -271,6 +364,8 @@ def _reading_of(
     settings: taxonomy.Settings,
     declared: "dict[str, bool]",
     stored_as: str,
+    kept: "list[tuple[list[str], dict[str, tuple[str, float | None, str]]]] | None" = None,
+    spellings_kept: "taxonomy.KeptSpellings | None" = None,
 ) -> "dict[str, tuple[str, object]]":
     """Each distinct cell text read as 4.6b.2's starting bands read it.
 
@@ -278,6 +373,13 @@ def _reading_of(
     holding no reading of the value bands); `labels`; `value` with the
     reading in the column's own order (a number, a canonical date, a
     clock ordinal); `level` with the published label; `pool`.
+
+    `kept`, where given, receives the cells and the spellings read (lane
+    RO); `spellings_kept` is the description's own reading of the column
+    (`taxonomy.KeptSpellings`, lane CHs, plan P4-D462), which
+    `taxonomy.spellings_read` takes only where it was read under every
+    argument it reads under here. The two lanes each named theirs `kept`;
+    batch 4q's merge renamed lane CHs's.
     """
     name = f"{_get(block, 'name')}"
     role = f"{_get(block, 'role')}"
@@ -290,7 +392,10 @@ def _reading_of(
         forced_measurement=declared["measurement"],
         forced_decimal_comma=comma,
         stored_as=stored_as,
+        kept=spellings_kept,
     )
+    if kept is not None:
+        kept += [(values, spelled)]
     out: "dict[str, tuple[str, object]]" = {}
     present: "list[str]" = []
     for text in spelled:
@@ -676,13 +781,17 @@ class _Read:
     """One column's starting bands, its rows' starting codes, and the recount."""
 
     start: rules.Starting
-    codes: "list[int]"
+    codes: "bytearray | list[int]"
     agrees: bool
     blanks: bytearray
     linear: "bytes | None"
     second: "bytes | None"
     has_reading: bytearray
     readings: "tuple[tuple[object, int], ...]" = ()
+    # A FINE column's rows whose reading lies beyond its clip (4.6d.1), each
+    # with its reading as a float: what the self-test reads its raw scale
+    # from (lane ST, plan P4-D458; LANE ST RULINGS 5 (2)). None elsewhere.
+    beyond: "dict[int, float] | None" = None
 
 
 def read_column(
@@ -694,75 +803,95 @@ def read_column(
     stored_as: str,
     blank_rows: int,
     cells: "list[str] | None" = None,
+    kept: "list[tuple[list[str], dict[str, tuple[str, float | None, str]]]] | None" = None,
+    spellings_kept: "taxonomy.KeptSpellings | None" = None,
 ) -> "_Read | None":
     """One column read to its starting bands, row by row, through `reading.column_values`.
 
     ``cells``, where given, are the column's cells as its description
     read them (`described_cells`), read in place of the cells as the file
     wrote them.
+
+    `kept`, where a caller passes it, receives the column's cells and its
+    own reader's decision on each spelling, so the rule steps read the
+    column from what this read (lane RO, plan P4-D459): nothing is read
+    twice.
+
+    `spellings_kept` is the description's own reading of the column,
+    kept as the chain reads it (`taxonomy.KeptSpellings`; lane CHs, plan
+    P4-D462): taken where it was read under every argument this reading
+    reads under, so the column's spellings are what they would be read
+    as here; never where `cells` stand in for the file's cells.
     """
     values = reading.column_values(table, place) if cells is None else cells
     start = rules.starting_bands(block, (True, True, True))
     if start is None:
         return None
-    meaning = _reading_of(block, values, settings, declared, stored_as)
+    meaning = _reading_of(block, values, settings, declared, stored_as, kept, spellings_kept if cells is None else None)
     places = _starting_index(start)
     value_places = _value_places(start)
     role = f"{_get(block, 'role')}"
+    # ONE BYTE A ROW (lane CHs, plan P4-D462): the rows of each distinct
+    # text counted first, then each text's starting band and kind read once
+    # and its kind counted by its rows, and each row's band looked up by its
+    # text into one byte a row (a number a row where a column has more than
+    # 256 starting bands); the blank cells are marked where a blank text
+    # stands. The recount reads the same counts the first build's walk did.
+    rows_of: "dict[str, int]" = {}
+    for text in values:
+        rows_of[text] = rows_of[text] + 1 if text in rows_of else 1
     code_of: "dict[str, int]" = {}
     kinds: "dict[str, int]" = {"missing": 0, "other": 0, "labels": 0, "value": 0, "pool": 0}
-    kind_of: "dict[str, str]" = {}
+    agrees = True
     for text in meaning:
         kind, value = meaning[text]
         if kind == "missing":
             code = places[rules.MISSING]
-            kind_of[text] = "missing"
+            counted_as = "missing"
         elif kind == "other":
             code = places[rules.OTHER]
-            kind_of[text] = "other"
+            counted_as = "other"
         elif kind == "labels":
             code = places[rules.LABELS]
-            kind_of[text] = "labels"
+            counted_as = "labels"
         elif kind == "pool":
             code = places[rules.POOL] if rules.POOL in places else -1
-            kind_of[text] = "pool"
+            counted_as = "pool"
         elif kind == "level":
             code = places[(value,)] if (value,) in places else -1
-            kind_of[text] = "value"
+            counted_as = "value"
         else:
             index = rules.band_of_value(start.values, value)
             code = value_places[index] if index < len(value_places) else -1
-            kind_of[text] = "value"
-        code_of[text] = code
-    codes: "list[int]" = []
-    blanks = bytearray(len(values))
-    agrees = True
-    rows_of: "dict[str, int]" = {}
-    for row in range(len(values)):
-        text = values[row]
-        if text not in code_of:
-            agrees = False
-            codes += [0]
-            continue
-        rows_of[text] = rows_of[text] + 1 if text in rows_of else 1
-        code = code_of[text]
+            counted_as = "value"
+        kinds[counted_as] += rows_of[text] if text in rows_of else 0
         if code < 0:
             agrees = False
             code = 0
-        codes += [code]
-        kinds[kind_of[text]] += 1
-        if _is_blank(text):
-            blanks[row] = 1
+        code_of[text] = code
+    # A text the reading left without a band reads band 0 and counts in
+    # nothing, and the recount disagrees, as the first build's walk did.
+    unknown = [text for text in rows_of if text not in code_of]
+    for text in unknown:
+        agrees = False
+        code_of[text] = 0
+        del rows_of[text]
+    codes: "bytearray | list[int]"
+    if len(start.names) <= 256:
+        codes = bytearray(code_of[text] for text in values)
+    else:
+        codes = [code_of[text] for text in values]
+    blank_texts = {text for text in rows_of if _is_blank(text)}
+    blanks = bytearray(1 if text in blank_texts else 0 for text in values) if blank_texts else bytearray(len(values))
     missing = _get(block, "n_missing")
     tabled_missing = (missing if isinstance(missing, int) else 0) - blank_rows
     if role in rules.LABEL_ROLES:
         # A published level's rows are its published count.
         counted: "dict[str, int]" = {}
-        for row in range(len(values)):
-            text = values[row]
-            if text in meaning and meaning[text][0] == "level":
+        for text in rows_of:
+            if meaning[text][0] == "level":
                 label = f"{meaning[text][1]}"
-                counted[label] = counted[label] + 1 if label in counted else 1
+                counted[label] = counted[label] + rows_of[text] if label in counted else rows_of[text]
         for label, count in rules.label_levels(block):
             if (counted[label] if label in counted else 0) != count:
                 agrees = False
@@ -771,10 +900,14 @@ def read_column(
     # column: read here once, for the inputs `chain_moments` computes.
     linear: "bytes | None" = None
     second: "bytes | None" = None
+    beyond: "dict[int, float] | None" = None
     has_reading = bytearray(len(values))
     found = moments.codes_of(block) if moments.fine(block) else None
     if found is not None:
         by_text: "dict[str, tuple[int, int]]" = {}
+        # The readings beyond the clip, each as a float (the self-test's
+        # raw scale, lane ST): a few rows a column, read in this one pass.
+        beyond_text: "dict[str, float]" = {}
         for text in meaning:
             kind, value = meaning[text]
             if kind != "value":
@@ -783,14 +916,19 @@ def read_column(
             if exact is None:
                 continue
             by_text[text] = (moments.linear_code(found, exact), moments.second_code(found, exact))
+            if exact < found.lo_value or exact > found.hi_value:
+                beyond_text[text] = float(exact)
         first_codes = bytearray(len(values))
         second_codes = bytearray(len(values))
+        beyond = {}
         for row in range(len(values)):
             if values[row] in by_text:
                 pair = by_text[values[row]]
                 first_codes[row] = pair[0]
                 second_codes[row] = pair[1]
                 has_reading[row] = 1
+                if values[row] in beyond_text:
+                    beyond[row] = beyond_text[values[row]]
         linear = bytes(first_codes)
         second = bytes(second_codes) if found.second is not None else None
     # Each value with its rows, ascending: what `value_run_bands` reads.
@@ -801,7 +939,7 @@ def read_column(
             by_value[value] = by_value[value] + rows_of[text] if value in by_value else rows_of[text]
     ordered: "list[object]" = sorted(by_value)  # type: ignore[type-var]
     readings = tuple((value, by_value[value]) for value in ordered)
-    return _Read(start, codes, agrees, blanks, linear, second, has_reading, readings)
+    return _Read(start, codes, agrees, blanks, linear, second, has_reading, readings, beyond)
 
 
 # -- OWN-FACT GROUPS READ ON THE COLUMN'S OWN VALUES (4.6b.3, amended by repair 1) --
@@ -1313,8 +1451,8 @@ def _periodic_marks(
 # -- THE CONTENT HASH AND THE SELF-TEST SAMPLE (4.6b.8) ------------------
 
 
-def row_hashes(table: reading.Table) -> "tuple[list[bytes], bytearray]":
-    """Each row's CONTENT HASH, and which rows hold nothing in every column.
+def row_hash_buffer(table: reading.Table) -> "tuple[bytearray, bytearray]":
+    """Each row's CONTENT HASH, 32 bytes a row in ONE buffer, and which rows hold nothing in every column.
 
     THE CELL-BY-CELL FORM (4.6b.8 as amended by lane CHa's repair 2,
     Codex's item 4). Each cell is written as the column name's UTF-8
@@ -1336,7 +1474,9 @@ def row_hashes(table: reading.Table) -> "tuple[list[bytes], bytearray]":
     number a row: the first form held a table read in groups as its
     framed rows at once (about 1.25 kB a row at 50 columns, MEASURED;
     3.2 GB of payload at 2,000,000 x 50 by Codex's count, over the
-    2.5 GB watchdog by itself).
+    2.5 GB watchdog by itself). The finished hashes stand in one buffer,
+    row `r`'s at bytes `32 r` to `32 r + 32` (lane CHs, plan P4-D462: a
+    list of hashes held a Python object of about 80 bytes a row).
     """
     names = list(table.column_names)
     rows = table.n_rows
@@ -1357,12 +1497,18 @@ def row_hashes(table: reading.Table) -> "tuple[list[bytes], bytearray]":
                 sums[row] += int(digest, 16)
                 if not filled[row] and not blank:
                     filled[row] = 1
-    hashes: "list[bytes]" = []
+    held = bytearray(32 * rows)
     for row in range(rows):
         total = _bytes32(sums[row] % (1 << 256))
         sums[row] = 0
-        hashes += [hashlib.blake2b(total, digest_size=32, person=b"synthtwin.row.2").digest()]
-    return hashes, filled
+        held[32 * row : 32 * row + 32] = hashlib.blake2b(total, digest_size=32, person=b"synthtwin.row.2").digest()
+    return held, filled
+
+
+def row_hashes(table: reading.Table) -> "tuple[list[bytes], bytearray]":
+    """Each row's content hash as its own 32 bytes (`row_hash_buffer`'s, row by row), and which rows hold nothing."""
+    held, filled = row_hash_buffer(table)
+    return [bytes(held[32 * row : 32 * row + 32]) for row in range(table.n_rows)], filled
 
 
 def _bytes32(value: int) -> bytes:
@@ -1370,7 +1516,7 @@ def _bytes32(value: int) -> bytes:
     return bytes([(value >> (8 * (31 - at))) & 255 for at in range(32)])
 
 
-def content_hash(hashes: "list[bytes]", filled: "bytearray | None" = None) -> bytes:
+def content_hash(hashes: "list[bytes] | bytearray", filled: "bytearray | None" = None) -> bytes:
     """The table's content hash: its rows' hashes summed modulo 2**256, written in 32 bytes.
 
     A row blank in every column is left out where `filled` marks it
@@ -1379,14 +1525,71 @@ def content_hash(hashes: "list[bytes]", filled: "bytearray | None" = None) -> by
     table the ledger knows).
     """
     total = 0
-    for row in range(len(hashes)):
+    for row in range(_hash_count(hashes)):
         if filled is not None and not filled[row]:
             continue
-        total = (total + rules.big_endian(hashes[row])) % (1 << 256)
+        total = (total + rules.big_endian(_hash_at(hashes, row))) % (1 << 256)
     return _bytes32(total)
 
 
-def sample_rows(hashes: "list[bytes]", tabled: "list[int]", size: int) -> "list[int]":
+def _hash_count(hashes: "list[bytes] | bytearray") -> int:
+    """How many rows' hashes `hashes` holds: a list of them, or one buffer of 32 bytes a row."""
+    return len(hashes) if isinstance(hashes, list) else len(hashes) // 32
+
+
+def _hash_at(hashes: "list[bytes] | bytearray", row: int) -> bytes:
+    """Row `row`'s 32-byte content hash, from a list of them or from one buffer of 32 bytes a row."""
+    if isinstance(hashes, list):
+        return hashes[row]
+    return bytes(hashes[32 * row : 32 * row + 32])
+
+
+def _rows_of(rows: int, excluded: "list[int]") -> "typing.Iterator[int]":
+    """The tabled rows of a table of `rows` rows in row order: every row but the ones `excluded` lists (ascending).
+
+    Nothing is held a row (lane CHs, plan P4-D462: the first build held a
+    list of the tabled rows' places, a Python number each).
+    """
+    start = 0
+    for row in excluded:
+        yield from range(start, row)
+        start = row + 1
+    yield from range(start, rows)
+
+
+def _rows_at(places: "list[int]", excluded: "list[int]") -> "list[int]":
+    """The row of each tabled place in `places`, in their order: a table's rows but the ones `excluded` lists (ascending).
+
+    One number a place, never one a row: what lane ST's self-test reads of
+    its sample (plan P4-D458) beside lane CHs's tabled rows, which list
+    only the rows set aside (plan P4-D462; batch 4q's merge). `places`
+    are distinct places in the tabled rows (the sample's).
+    """
+    if not excluded:
+        return list(places)
+    rows = [0] * len(places)
+    skipped = 0
+    for place, at in sorted((places[at], at) for at in range(len(places))):
+        while skipped < len(excluded) and excluded[skipped] <= place + skipped:
+            skipped += 1
+        rows[at] = place + skipped
+    return rows
+
+
+def _tabled_texts(texts: "list[str]", excluded: "list[int]") -> "list[str]":
+    """A column's cells on the tabled rows alone, in row order: the cells themselves where no row is set aside.
+
+    What lane RO's rule steps read the tabled rows from (plan P4-D459),
+    beside lane CHs's tabled rows (plan P4-D462; batch 4q's merge): a
+    list of the cells, made only where a record holding nothing is set
+    aside, one column at a time.
+    """
+    if not excluded:
+        return texts
+    return [texts[row] for row in _rows_of(len(texts), excluded)]
+
+
+def sample_rows(hashes: "list[bytes] | bytearray", tabled: "typing.Sequence[int]", size: int) -> "list[int]":
     """The self-test's sample: the `min(m, n)` tabled rows of smallest SAMPLE KEY, sorted by key.
 
     Each row's key is BLAKE2b (`digest_size=8`, `person=b"synthtwin.smp.1"`)
@@ -1394,17 +1597,89 @@ def sample_rows(hashes: "list[bytes]", tabled: "list[int]", size: int) -> "list[
     of the same hash) as 8 bytes big-endian; equal keys are taken in
     order of content hash and then occurrence (4.6b.8). Returns places in
     `tabled` (indices into the tabled rows).
+
+    MEMORY (lane CHs, plan P4-D462, beside lane ST's bounded heap of
+    P4-D458). At most `min(m, n)` keyed entries are held, in a heap whose
+    top is the largest entry kept: a row whose entry is not below the top
+    is never held. Every entry is distinct (its place in `tabled` is its
+    last part), so the `m` smallest are one set, and sorted they are the
+    first build's rows in the first build's order. The occurrences are
+    read without a dictionary over every row: a first walk marks each
+    row's first 25 bits in one bit a mark, and a mark met twice in a
+    second; a row whose mark no other row holds is the only row of its
+    hash (occurrence 0), and only the rows of marks met twice are counted
+    in a dictionary of their hashes, in row order, which gives each its
+    occurrence exactly.
     """
+    return _selection(hashes, tabled, tabled, min(size, len(tabled)))
+
+
+def _selection(
+    hashes: "list[bytes] | bytearray",
+    first: "typing.Iterable[int]",
+    second: "typing.Iterable[int]",
+    wanted: int,
+) -> "list[int]":
+    """`sample_rows`'s selection over the tabled rows, walked twice (`first`, then `second`, the same rows)."""
+    if wanted <= 0:
+        return []
+    once = bytearray(1 << 22)
+    twice = bytearray(1 << 22)
+    for row in first:
+        one = _hash_at(hashes, row)
+        mark = (one[0] << 17) | (one[1] << 9) | (one[2] << 1) | (one[3] >> 7)
+        bit = 1 << (mark & 7)
+        if once[mark >> 3] & bit:
+            twice[mark >> 3] |= bit
+        else:
+            once[mark >> 3] |= bit
+    del once
     seen: "dict[bytes, int]" = {}
-    keyed: "list[tuple[bytes, bytes, int, int]]" = []
-    for at in range(len(tabled)):
-        one = hashes[tabled[at]]
-        occurrence = seen[one] if one in seen else 0
-        seen[one] = occurrence + 1
+    heap: "list[tuple[bytes, bytes, int, int]]" = []
+    for at, row in enumerate(second):
+        one = _hash_at(hashes, row)
+        mark = (one[0] << 17) | (one[1] << 9) | (one[2] << 1) | (one[3] >> 7)
+        occurrence = 0
+        if twice[mark >> 3] & (1 << (mark & 7)):
+            occurrence = seen[one] if one in seen else 0
+            seen[one] = occurrence + 1
         key = hashlib.blake2b(one + _length_word(occurrence), digest_size=8, person=b"synthtwin.smp.1").digest()
-        keyed += [(key, one, occurrence, at)]
-    keyed = sorted(keyed)
-    return [entry[3] for entry in keyed[: min(size, len(keyed))]]
+        entry = (key, one, occurrence, at)
+        if len(heap) < wanted:
+            _heap_add(heap, entry)
+        elif entry < heap[0]:
+            _heap_replace_top(heap, entry)
+    return [entry[3] for entry in sorted(heap)]
+
+
+def _heap_add(heap: "list[tuple[bytes, bytes, int, int]]", entry: "tuple[bytes, bytes, int, int]") -> None:
+    """Add an entry to a heap whose top (place 0) is its LARGEST entry (lane ST's, plan P4-D458)."""
+    heap += [entry]
+    at = len(heap) - 1
+    while at > 0:
+        up = (at - 1) // 2
+        if heap[up] >= entry:
+            break
+        heap[at] = heap[up]
+        at = up
+    heap[at] = entry
+
+
+def _heap_replace_top(heap: "list[tuple[bytes, bytes, int, int]]", entry: "tuple[bytes, bytes, int, int]") -> None:
+    """Put `entry` in place of a heap's largest entry and sift it down (lane ST's, plan P4-D458)."""
+    size = len(heap)
+    at = 0
+    while True:
+        child = 2 * at + 1
+        if child >= size:
+            break
+        if child + 1 < size and heap[child + 1] > heap[child]:
+            child = child + 1
+        if heap[child] <= entry:
+            break
+        heap[at] = heap[child]
+        at = child
+    heap[at] = entry
 
 
 # -- THE TRIPLE SCREEN (4.6b.3, inventory row 12) ------------------------
@@ -1772,10 +2047,58 @@ class _Search:
     # The questions file's pairs, each in both orders (`ChainSwitch`).
     asked: "frozenset[tuple[str, str]]" = frozenset()
     dropped: "frozenset[tuple[str, str]]" = frozenset()
+    # The carried rules' derived families `{D | A}`, placed at their rule
+    # steps before the chain (RULE W1 reads `D` through `A`, rule 4).
+    derived: "tuple[rules.Derived, ...]" = ()
+    # Each count above 256 the cached tables hold, as one number object the
+    # search shares among them (`_interned`; lane CHs, plan P4-D462).
+    shared: "dict[int, int]" = dataclasses.field(default_factory=dict)
+
+
+# The most cells a family's table may hold at every member's `L0` for the
+# walk over the rows to count it there and sum it to the levels it is
+# asked at (lane CHs, plan P4-D462); a wider one is counted at those
+# levels, each member read through its own ladder's map.
+L0_TABLE_CELLS = 4096
+
+
+def _interned(search: _Search, table: "list[int] | tuple[int, ...]") -> "tuple[int, ...]":
+    """A table's counts, each count above 256 the one number object the search holds for that count.
+
+    THE TABLES CACHE, A POINTER A CELL (lane CHs, plan P4-D462). Python
+    shares the numbers up to 256, so a cached table's cell cost 8 bytes
+    while its counts were small and 36 once they passed 256: the cache
+    grew with the rows, +453 MB of the switched describe's peak at
+    200,000 rows of 50 numbers (MEASURED). Each count above 256 now
+    stands once, shared by every cell holding it: the same numbers, and
+    a cell costs a pointer however many rows the table counts.
+    """
+    shared = search.shared
+    for count in table:
+        if count > 256 and count not in shared:
+            shared[count] = count
+    return tuple(shared[count] if count > 256 else count for count in table)
+
+
+def _level_codes(column: Column, level: int) -> "bytes | list[int]":
+    """A column's codes at `level`: held, or read from its `L0` codes through the ladder's map (the same codes)."""
+    held = column.codes[level]
+    if held is not None:
+        return held
+    return moments.at_level(column.codes[0], column.ladder.maps[level])
 
 
 def _table_at(search: _Search, child: str, parents: "tuple[str, ...]", base: "tuple[int, ...]", levels: "tuple[int, ...]") -> "tuple[int, ...]":
-    """A candidate's complete table at `levels`, counted once at `base` (W3 and NE's levels) and summed coarser."""
+    """A candidate's complete table at `levels`, counted once at `base` (W3 and NE's levels) and summed coarser.
+
+    THE WALK OVER THE ROWS READS `L0` (lane CHs, plan P4-D462), where only
+    `L0`'s codes are held: a table asked at every member's `L0` is counted
+    there; another, where the table at every member's `L0` holds at most
+    `L0_TABLE_CELLS` cells, is counted there and summed to `base`, the
+    same whole numbers a count at `base` gives; a wider one is counted at
+    `base`, each member's codes read through its own ladder's map. Either
+    way each `base` table is one walk over the rows.
+    """
     key = (child, parents, levels)
     if key in search.tables:
         return search.tables[key]
@@ -1785,12 +2108,27 @@ def _table_at(search: _Search, child: str, parents: "tuple[str, ...]", base: "tu
         sizes = [search.scales[names[at]].counts[base[at]] for at in range(len(names))]
         to_sizes = [search.scales[names[at]].counts[levels[at]] for at in range(len(names))]
         maps = [rules.coarsen(search.scales[names[at]], base[at], levels[at]) for at in range(len(names))]
-        table = tuple(aggregate(finest, sizes, maps, to_sizes))
+        table = _interned(search, aggregate(finest, sizes, maps, to_sizes))
     else:
-        child_codes = search.columns[child].codes[levels[0]]
-        parent_codes = [search.columns[parents[at]].codes[levels[at + 1]] for at in range(len(parents))]
-        bands = [search.scales[parents[at]].counts[levels[at + 1]] for at in range(len(parents))]
-        table = tuple(count_table(child_codes, parent_codes, search.scales[child].counts[levels[0]], bands))
+        l0_sizes = [search.scales[names[at]].counts[0] for at in range(len(names))]
+        cells = 1
+        for size in l0_sizes:
+            cells *= size
+        if any(levels) and cells <= L0_TABLE_CELLS:
+            counted = count_table(
+                search.columns[child].codes[0],
+                [search.columns[parent].codes[0] for parent in parents],
+                l0_sizes[0],
+                l0_sizes[1:],
+            )
+            sized = [search.scales[names[at]].counts[levels[at]] for at in range(len(names))]
+            mapped = [rules.coarsen(search.scales[names[at]], 0, levels[at]) for at in range(len(names))]
+            table = _interned(search, aggregate(counted, l0_sizes, mapped, sized))
+        else:
+            child_codes = _level_codes(search.columns[child], levels[0])
+            parent_codes = [_level_codes(search.columns[parents[at]], levels[at + 1]) for at in range(len(parents))]
+            bands = [search.scales[parents[at]].counts[levels[at + 1]] for at in range(len(parents))]
+            table = _interned(search, count_table(child_codes, parent_codes, search.scales[child].counts[levels[0]], bands))
         search.counts["tables_counted"] += 1
     search.tables[key] = table
     return table
@@ -1838,9 +2176,19 @@ class _Clamps:
     bands: "dict[tuple[str, int], list[list[tuple[int, tuple[int, ...]]]]]"
     projected: "dict[tuple[str, str, int, int, tuple[str, ...], tuple[int, ...]], frozenset[int]]"
     narrowed: "dict[tuple[str, str, int], frozenset[int]]"
+    # Each derived family's parent `A` clamped to each of its chain-level
+    # bands (RULE W1 reads `D` through `A`, contract 4.6b.7 rule 4).
+    derived: "dict[tuple[str, int], list[list[tuple[int, tuple[int, ...]]]]]" = dataclasses.field(default_factory=dict)
+    # The carried rules' derived families themselves.
+    families: "tuple[rules.Derived, ...]" = ()
 
 
-def _clamps_of(search: _Search, placed: "list[rules.Family]", need_bands: bool) -> _Clamps:
+def _clamps_of(
+    search: _Search,
+    placed: "list[rules.Family]",
+    need_bands: bool,
+    derived_families: "tuple[rules.Derived, ...]" = (),
+) -> _Clamps:
     """The supports W1's fast check reads at one step (4.6b.9 (c)).
 
     `groups` clamps each placed column to each of its chain-level bands
@@ -1866,14 +2214,22 @@ def _clamps_of(search: _Search, placed: "list[rules.Family]", need_bands: bool) 
     # Which families each clamp NARROWS: where it leaves every non-zero cell of
     # a family feasible, the projection onto any parents is every parent cell
     # the family's table holds, and the option's own table answers alone.
+    derived: "dict[tuple[str, int], list[list[tuple[int, tuple[int, ...]]]]]" = {}
+    homes = {family.child: family.level for family in placed}
+    for one in derived_families:
+        if one.parent not in homes:
+            continue
+        for band in range(search.scales[one.parent].counts[homes[one.parent]]):
+            if (one.parent, band) not in derived:
+                derived[(one.parent, band)] = rules.beliefs(support, (one.parent, {band}))
     narrowed: "dict[tuple[str, str, int], frozenset[int]]" = {}
-    for which, held in (("group", groups), ("band", bands)):
+    for which, held in (("group", groups), ("band", bands), ("derived", derived)):
         for key in held:
             reached = held[key]
             narrowed[(which, key[0], key[1])] = frozenset(
                 at for at in range(len(placed)) if len(reached[at]) != len(support.cells[at])
             )
-    return _Clamps(support, groups, bands, {}, narrowed)
+    return _Clamps(support, groups, bands, {}, narrowed, derived, derived_families)
 
 
 def _projector(search: _Search, anchor: rules.Family, parents: "tuple[str, ...]", levels: "tuple[int, ...]") -> "list[tuple[int, list[int], int]]":
@@ -1932,6 +2288,8 @@ def _w1_holds(
         return True
     if clamps is None or anchor_at is None:
         return True
+    if not _derived_w1(search, clamps, anchor_at, anchor, child, parents, levels, table, clamps.families):
+        return False
     width = len(table) // child_bands
     whole: "set[int]" = set()
     for row in range(width):
@@ -1974,6 +2332,82 @@ def _w1_holds(
     return True
 
 
+def _derived_w1(
+    search: _Search,
+    clamps: "_Clamps | None",
+    anchor_at: "int | None",
+    anchor: "rules.Family | None",
+    child: str,
+    parents: "tuple[str, ...]",
+    levels: "tuple[int, ...]",
+    table: "tuple[int, ...]",
+    derived: "tuple[rules.Derived, ...]",
+) -> bool:
+    """RULE W1 for a carried rule's derived column `D`, read through `A` (contract 4.6b.7, rule 4).
+
+    `{D | A}` is placed at its rule's step, before the chain, so `D` joins
+    the support through `A` once `A`'s own family is placed (the oracle's
+    `tree_edges`). An option whose child is `A` reads `D` beside every
+    group already placed; an option whose child is new and stands beside
+    a placed `A` reads `D` beside the child's own groups; `A`'s own groups
+    were read by rule 4 at the rule's step. Each reach takes `D`'s bands
+    over `A`'s `L0` bands inside its admitted bands (`rules.derived_reach`).
+    """
+    if not derived:
+        return True
+    child_bands = search.scales[child].counts[levels[0]]
+    width = len(table) // child_bands
+    for one in derived:
+        a_ladder = search.scales[one.parent]
+        if anchor is None:
+            parent = parents[0]
+            if child == one.parent:
+                for group in search.columns[parent].groups:
+                    row = search.scales[parent].maps[levels[1]][group]
+                    feasible = {c for c in range(child_bands) if table[row * child_bands + c]}
+                    if not rules.derived_reach_holds(rules.derived_reach(a_ladder, levels[0], feasible, one), one, False):
+                        return False
+            elif parent == one.parent:
+                for group in search.columns[child].groups:
+                    column = search.scales[child].maps[levels[0]][group]
+                    feasible = {r for r in range(width) if table[r * child_bands + column]}
+                    if not rules.derived_reach_holds(rules.derived_reach(a_ladder, levels[1], feasible, one), one, False):
+                        return False
+            continue
+        if clamps is None or anchor_at is None:
+            continue
+        if child == one.parent:
+            for key in clamps.groups:
+                if anchor_at in clamps.narrowed[("group", key[0], key[1])]:
+                    reachable = _projected(search, clamps, "group", key, anchor_at, anchor, parents, levels[1:])
+                else:
+                    reachable = frozenset(range(width))
+                feasible = {c for c in range(child_bands) if any(table[row * child_bands + c] for row in reachable)}
+                if not rules.derived_reach_holds(rules.derived_reach(a_ladder, levels[0], feasible, one), one, False):
+                    return False
+            continue
+        if one.parent not in clamps.support.home:
+            continue
+        a_level = clamps.support.chain_level[one.parent]
+        own = {search.scales[child].maps[levels[0]][group] for group in search.columns[child].groups}
+        for band in sorted(own):
+            holding = {row for row in range(width) if table[row * child_bands + band]}
+            feasible_bands: "set[int]" = set()
+            for a_band in range(a_ladder.counts[a_level]):
+                key = (one.parent, a_band)
+                if key not in clamps.derived:
+                    continue
+                if anchor_at in clamps.narrowed[("derived", key[0], key[1])]:
+                    reachable = _projected(search, clamps, "derived", key, anchor_at, anchor, parents, levels[1:])
+                else:
+                    reachable = frozenset(range(width)) if clamps.derived[key][anchor_at] else frozenset()
+                if reachable & holding:
+                    feasible_bands = feasible_bands | {a_band}
+            if not rules.derived_reach_holds(rules.derived_reach(a_ladder, a_level, feasible_bands, one), one, False):
+                return False
+    return True
+
+
 def _projected(
     search: _Search,
     clamps: _Clamps,
@@ -1992,7 +2426,8 @@ def _projected(
     slot = (which, key[0], key[1], anchor_at, parents, plevels)
     if slot in clamps.projected:
         return clamps.projected[slot]
-    feasible = (clamps.groups if which == "group" else clamps.bands)[key][anchor_at]
+    held = clamps.groups if which == "group" else (clamps.bands if which == "band" else clamps.derived)
+    feasible = held[key][anchor_at]
     projector = _projector(search, anchor, parents, plevels)
     found = frozenset(_fold(projector, parts) for _index, parts in feasible)
     clamps.projected[slot] = found
@@ -2118,7 +2553,9 @@ def _root_options(search: _Search, x0: "dict[str, int] | None", room: int) -> "l
                 if not _floored(table, search.floor):
                     search.counts["floor_refusals"] += 1
                     continue
-                if not _w1_holds(search, None, None, None, child, (parent,), levels, table):
+                if not _w1_holds(search, None, None, None, child, (parent,), levels, table) or (
+                    search.derived and not _derived_w1(search, None, None, None, child, (parent,), levels, table, search.derived)
+                ):
                     search.counts["w1_refusals"] += 1
                     search.refused[(child, (parent,), levels)] = True
                     continue
@@ -2144,11 +2581,20 @@ def _draw(search: _Search, switch: ChainSwitch, index: int, options: "list[Optio
     return rules.choose(word, weights)
 
 
+def _release(search: _Search, child: str) -> None:
+    """Let go of the cached tables and scores of a column just placed: no later step offers it as a child (lane CHs, plan P4-D462)."""
+    for key in [key for key in search.tables if key[0] == child]:
+        del search.tables[key]
+    for key in [key for key in search.scored if key[0] == child]:
+        del search.scored[key]
+
+
 def search_chain(search: _Search, switch: ChainSwitch, x0: "dict[str, int] | None", room: int) -> "tuple[list[rules.Family], list[str]]":
     """The chain, step by step, each step DRAWN among its eligible options (4.6b.3, 4.6b.4)."""
     notes: "list[str]" = []
     roots = _root_options(search, x0, room)
     search.counts["eligible_options"] += len(roots)
+    _probed("search step", search.counts)
     pick = _draw(search, switch, 0, roots)
     if pick == 0:
         notes += [f"the root step drew no family among {len(roots)} eligible options"]
@@ -2160,6 +2606,8 @@ def search_chain(search: _Search, switch: ChainSwitch, x0: "dict[str, int] | Non
         rules.Family(root.child, root.levels[0], ((parent, root.levels[1]),), 0, root.table),
     ]
     notes += [f"step 0 drew {root.child} under {parent} among {len(roots)} eligible options"]
+    _release(search, parent)
+    _release(search, root.child)
     margins: "dict[tuple[int, tuple[str, ...]], rules.ParentCells]" = {}
     index = 1
     while len(placed) < len(search.eligible):
@@ -2168,12 +2616,14 @@ def search_chain(search: _Search, switch: ChainSwitch, x0: "dict[str, int] | Non
             for name in search.eligible
             if name not in {family.child for family in placed}
         )
-        clamps = _clamps_of(search, placed, need_bands)
+        clamps = _clamps_of(search, placed, need_bands, search.derived)
         options = _step_options(search, placed, clamps, margins)
         search.counts["eligible_options"] += len(options)
+        _probed("search step", search.counts)
         pick = _draw(search, switch, index, options)
         chosen = options[pick]
         placed += [_family_of(chosen)]
+        _release(search, chosen.child)
         if chosen.parents:
             notes += [f"step {index} drew {chosen.child} under {_listed(chosen.parents)} among {len(options)} eligible options"]
         else:
@@ -2227,6 +2677,45 @@ def _codes(values: "list[int]") -> "bytes | list[int]":
     if not values or max(values) < 256:
         return bytes(values)
     return values
+
+
+def _tabled(data: "bytes | bytearray | list[int]", excluded: "list[int]") -> "bytes | bytearray | list[int]":
+    """One entry a row read on the tabled rows alone: the rows `excluded` lists (ascending) left out.
+
+    Nothing is copied where no row is left out; otherwise the runs between
+    the rows left out are joined, bytes as bytes and numbers as numbers.
+    """
+    if not excluded:
+        return data
+    start = 0
+    if isinstance(data, list):
+        numbers: "list[int]" = []
+        for row in excluded:
+            numbers += data[start:row]
+            start = row + 1
+        numbers += data[start:]
+        return numbers
+    out = bytearray()
+    for row in excluded:
+        out += data[start:row]
+        start = row + 1
+    out += data[start:]
+    return out
+
+
+def _mapped(codes: "bytes | bytearray | list[int]", mapping: "list[int] | tuple[int, ...]") -> "bytes | list[int]":
+    """Each code read through `mapping`, one byte a row where every result fits one, else a number a row."""
+    if not mapping or max(mapping) < 256:
+        return bytes(mapping[code] for code in codes)
+    return _codes([mapping[code] for code in codes])
+
+
+def _count_codes(codes: "bytes | bytearray | list[int]", size: int) -> "list[int]":
+    """How many rows stand at each of `size` codes."""
+    out = [0] * size
+    for code in codes:
+        out[code] += 1
+    return out
 
 
 def moment_inputs(
@@ -2297,14 +2786,15 @@ def released_moments(
         column = columns[name]
         role = _get(blocks[name], "role")
         ladder = scales[name]
-        level_one = column.codes[1]
         groupings += [
             moments.Grouping(
                 name,
-                level_one,
+                b"",
                 tuple(rules.totals_at(ladder, 1)),
                 frozenset(ladder.maps[1][band] for band in column.groups),
                 tuple(rules.coarsen(ladder, 1, 2)),
+                column.codes[0],
+                ladder.maps[1],
             )
         ]
         if role in rules.NUMBER_ROLES and column.value_codes is not None:
@@ -2321,6 +2811,82 @@ def released_moments(
         present = bytearray(1 if level_zero[row] in levels else 0 for row in range(len(level_zero)))
         picked += [moments.Released(name, moments.KIND_BINARY, values, present)]
     return moments.released(picked, groupings, floor)
+
+
+def _quantile_skew(block: "dict[str, object]") -> "float | None":
+    """The quantile skew `(p90 + p10 - 2 p50) / (p90 - p10)` of a column's published rungs, or None."""
+    rungs = rules.rung_ladder(block)
+    if rungs is None:
+        return None
+    role = f"{_get(block, 'role')}"
+    p10 = moments.ordinal(role, _get(rungs, "p10"), block)
+    p50 = moments.ordinal(role, _get(rungs, "p50"), block)
+    p90 = moments.ordinal(role, _get(rungs, "p90"), block)
+    if p10 is None or p50 is None or p90 is None or p10 == p90:
+        return None
+    return float((p90 + p10 - 2 * p50) / (p90 - p10))
+
+
+def selftest_inputs(
+    sample: "list[int]",
+    tabled: int,
+    sample_hashes: "tuple[int, ...]",
+    eligible: "list[str]",
+    columns: "dict[str, Column]",
+    blocks: "dict[str, dict[str, object]]",
+    placed: "list[rules.Family]",
+    pairs: "frozenset[tuple[str, str]]",
+) -> SelftestInputs:
+    """The self-test's inputs (lane ST, plan P4-D458): each eligible column's codes on the sample rows.
+
+    Reads only what `describe` already holds at its return, one pass over
+    the sample a column: nothing here grows with the table's rows.
+    `tabled` is the count of tabled rows and `sample_hashes` each sampled
+    row's content hash's first eight bytes as a number, in sample order,
+    read where the sample is drawn (batch 4q's merge of lane CHs, whose
+    describe lets the row hashes go there and holds no list of the
+    tabled rows).
+    """
+    picked: "list[SampleColumn]" = []
+    for name in eligible:
+        column = columns[name]
+        block = blocks[name]
+        role = f"{_get(block, 'role')}"
+        ladder = column.ladder
+        level_zero = column.codes[0]
+        l0 = _codes([level_zero[at] for at in sample])
+        linear: "bytes | None" = None
+        second: "bytes | None" = None
+        has: "bytes | None" = None
+        lo: "float | None" = None
+        hi: "float | None" = None
+        if column.value_codes is not None:
+            held_linear, held_second, held_has = column.value_codes
+            linear = bytes(held_linear[at] for at in sample)
+            second = None if held_second is None else bytes(held_second[at] for at in sample)
+            has = bytes(held_has[at] for at in sample)
+            found = moments.codes_of(block)
+            if found is not None:
+                lo = float(found.lo_value)
+                hi = float(found.hi_value)
+        missing = -1
+        for at in range(len(ladder.l0)):
+            if rules.MISSING in ladder.l0[at]:
+                missing = at
+        binary = moments.binary_levels(ladder) if role == rules.ROLE_BINARY else None
+        picked += [
+            SampleColumn(
+                name, role, ladder, l0, linear, second, has, binary, missing, _quantile_skew(block), lo, hi, column.beyond
+            )
+        ]
+    oriented = tuple((first, other) for first, other in sorted(pairs) if _get(blocks[first], "role") != rules.ROLE_BINARY)
+    return SelftestInputs(
+        tabled,
+        sample_hashes,
+        tuple(picked),
+        tuple(placed),
+        oriented,
+    )
 
 
 def _off(note: str, counts: "dict[str, int]", notes: "list[str]", content: str) -> Chained:
@@ -2346,8 +2912,14 @@ def describe(
     forced_measurements: "list[str] | None" = None,
     forced_decimal_commas: "list[str] | None" = None,
     stored_as: "tuple[str, ...] | None" = None,
+    kept: "dict[int, taxonomy.KeptSpellings] | None" = None,
 ) -> Chained:
     """The chain of `document`'s table: its `statistical` object and the private notes (4.6b).
+
+    `kept` holds the description's own readings, kept column by column by
+    `profile.build_document` (lane CHs, plan P4-D462): each is taken by
+    `read_column` where it was read under the chain's own arguments, and
+    let go as its column is read.
 
     Guarantees: reads the table through `reading.column_values` and the
     description `profile.build_document` wrote of it, under the same
@@ -2370,6 +2942,7 @@ def describe(
         "sample_rows": 0,
     }
     notes: "list[str]" = []
+    _probed("start", counts)
     floor = settings.small_cell_floor
     blocks: "list[dict[str, object]]" = []
     columns_published = _get(document, "columns")
@@ -2388,8 +2961,9 @@ def describe(
         named = _get(settings_block, "person_columns")
         if isinstance(named, list):
             persons = [f"{name}" for name in named]
-    hashes, filled = row_hashes(table)
+    hashes, filled = row_hash_buffer(table)
     content = _hex(content_hash(hashes, filled))
+    _probed("row hashes", counts)
     if persons:
         # THE PERSON AND THE RECORD (lane GRa, RULINGS 1 (1)): a repeating key
         # nothing reads as the person holds the layer back, so no count of
@@ -2401,6 +2975,12 @@ def describe(
             return _off(OFF_NO_PERSON, counts, notes, content)
         if switch.rows_per_person == ROWS_ONE:
             return _off(OFF_PERSON, counts, notes, content)
+        # THE KEPT READINGS ARE THE TABLE LAYER'S (lane CHs, plan P4-D462):
+        # the patient layer reads none of them, so they are let go before it
+        # runs (batch 4q's merge of lane CHs beside lane GRa's layer).
+        if kept is not None:
+            for place in [place for place in kept]:
+                del kept[place]
         # THE PATIENT LAYER (contract 4.6c; lane GRa, plan P4-D449), its one
         # call site: a table whose settings name a person column is described
         # in patients where 4.6c.3's gate holds, else no chain is drawn.
@@ -2438,19 +3018,39 @@ def describe(
             if switch.rows_per_person == ROWS_ONE and named not in switch.held_by_person and (named in held or named in switch.unanswered or named not in identifiers):
                 continue
             named_key = True
+    # THE PERSON COLUMN'S STATE FOR THE RULE STEPS (contract 4.6b.7, MR.3;
+    # lane RO, plan P4-D459), as lane GRa's subject question leaves it (plan
+    # P4-D449): a person column has gone to the patient layer above, and a
+    # repeating key no answer excuses holds the layer back below
+    # (OFF_HELD_REPEATS); a column the answer `one row each` excuses is no
+    # person's, so the rule steps read no person there.
+    person_state = named_key
     blank_rows = rules.records_holding_nothing(document)
-    excluded = bytearray(table.n_rows)
+    # THE TABLED ROWS (lane CHs, plan P4-D462): the rows set aside, a record
+    # holding nothing each, listed (E of them); every row reads on the
+    # tabled rows through `_tabled`, so nothing is held a row for them.
+    excluded: "list[int]" = []
     left = blank_rows
     for row in range(table.n_rows):
         if left and not filled[row]:
-            excluded[row] = 1
+            excluded += [row]
             left -= 1
     if left:
         return _off(OFF_RECOUNT, counts, notes, content)
-    tabled_rows = [row for row in range(table.n_rows) if not excluded[row]]
-    tabled = len(tabled_rows)
-    sample = sample_rows(hashes, tabled_rows, rules.selftest_size(tabled))
+    tabled = table.n_rows - len(excluded)
+    sample = _selection(
+        hashes, _rows_of(table.n_rows, excluded), _rows_of(table.n_rows, excluded), min(rules.selftest_size(tabled), tabled)
+    )
+    # THE SAMPLE'S ROWS AND THEIR HASHES (lane ST's self-test, plan P4-D458,
+    # beside lane CHs's tabled rows, P4-D462; batch 4q's merge): the row of
+    # each sampled place, and the first eight bytes of its content hash read
+    # as a number, read before the hashes are let go; the self-test's inputs
+    # and its readings beyond the clip read them, a number a sampled row.
+    sampled_rows = _rows_at(sample, excluded)
+    sample_hashes = tuple(rules.big_endian(_hash_at(hashes, row)[:8]) for row in sampled_rows)
+    del hashes
     counts["sample_rows"] = len(sample)
+    _probed("sample", counts)
     sequences = _sequence_places(document)
     declared_codes = set(forced_codes or [])
     declared_measurements = set(forced_measurements or [])
@@ -2461,18 +3061,45 @@ def describe(
     columns: "dict[str, Column]" = {}
     moment_blocks: "dict[str, dict[str, object]]" = {}
     scales: "dict[str, rules.Ladder]" = {}
+    # THE RULE STEPS' READINGS (lane RO, plan P4-D459; G4): each column's
+    # readings under the kinds the inference reads, taken in the loop below
+    # from the cells it reads, held compactly, and let go after the inference.
+    gathered = chain_order.gathered_for(tabled) if switch.rules else None
     for place in range(len(blocks)):
         block = blocks[place]
         name = f"{_get(block, 'name')}"
-        reason = ineligible_reason(block, place in sequences, name in held, identifiers)
-        if reason is not None:
-            ineligible += [{"column": name, "reason": reason}]
-            continue
         declared = {
             "code": name in declared_codes,
             "measurement": name in declared_measurements,
             "decimal_comma": name in declared_commas,
         }
+        reason = ineligible_reason(block, place in sequences, name in held, identifiers)
+        takes = gathered is not None and chain_order.takes_part(block, reason is None, held, identifiers)
+        if reason is not None:
+            # An ineligible column's kept reading is let go here, before the
+            # search, which never reads it (lane CHs, plan P4-D462).
+            if kept is not None and place in kept:
+                del kept[place]
+            ineligible += [{"column": name, "reason": reason}]
+            if takes and gathered is not None:
+                # A candidate `B` the families never read: read once, here, in its place.
+                texts = reading.column_values(table, place)
+                spelled = taxonomy.spellings_read(
+                    texts,
+                    name,
+                    settings,
+                    forced_code=declared["code"],
+                    forced_measurement=declared["measurement"],
+                    forced_decimal_comma=declared["decimal_comma"],
+                    stored_as=storage[place] if place < len(storage) else "",
+                )
+                chain_order.gather(gathered, name, block, _tabled_texts(texts, excluded), spelled, declared, range(tabled))
+            continue
+        cells_kept: "list[tuple[list[str], dict[str, tuple[str, float | None, str]]]] | None" = [] if takes else None
+        handed: "taxonomy.KeptSpellings | None" = None
+        if kept is not None and place in kept:
+            handed = kept[place]
+            del kept[place]
         read = read_column(
             table,
             place,
@@ -2481,13 +3108,22 @@ def describe(
             declared,
             storage[place] if place < len(storage) else "",
             blank_rows,
+            kept=cells_kept,
+            spellings_kept=handed,
         )
+        if cells_kept and gathered is not None:
+            # The rule steps read the tabled rows alone (lane RO): the cells on
+            # them, row by row, in place of a list of their places, which lane
+            # CHs no longer holds (batch 4q's merge; the same readings).
+            chain_order.gather(gathered, name, block, _tabled_texts(cells_kept[0][0], excluded), cells_kept[0][1], declared, range(tabled))
+        cells_kept = None
+        del handed
+        _probed("read column", counts)
         if read is None or not read.agrees:
             notes += [f"the recount of column {name} disagreed with its published counts"]
             return _off(OFF_RECOUNT, counts, notes, content)
-        starting_totals = [0] * len(read.start.names)
-        for row in tabled_rows:
-            starting_totals[read.codes[row]] += 1
+        start_codes = _tabled(read.codes, excluded)
+        starting_totals = _count_codes(start_codes, len(read.start.names))
         ladder = rules.merge_ladder(name, read.start, starting_totals, floor)
         role = _get(block, "role")
         if ladder is None:
@@ -2507,42 +3143,100 @@ def describe(
             for start_place in range(len(read.start.names)):
                 if read.start.names[start_place] in ladder.l0[at]:
                     start_to_l0[start_place] = at
-        first = [start_to_l0[read.codes[row]] for row in tabled_rows]
-        second = [ladder.maps[1][code] for code in first]
-        third = [ladder.maps[2][code] for code in first]
+        # `L0`'s codes through the starting bands' map, one byte a row; `L1`
+        # and `L2` are read from them where they are asked for
+        # (`_level_codes`): the same codes the first build held.
+        first = _mapped(start_codes, start_to_l0)
         screen_map, screen_levels, few = _screen_codes(block, read, ladder)
-        screen = bytes(screen_map[read.codes[tabled_rows[at]]] for at in sample)
-        blank = 0
-        for row in tabled_rows:
-            blank += read.blanks[row]
+        screen = bytes(screen_map[start_codes[at]] for at in sample)
+        del start_codes
+        blank = sum(read.blanks) - sum(read.blanks[row] for row in excluded)
         groups = rules.small_group_bands(block, read.start, ladder, floor) | value_run_bands(
             block, read.start, ladder, floor, read.readings
         )
         value_codes: "tuple[bytes, bytes | None, bytearray] | None" = None
         if read.linear is not None:
-            linear_rows = read.linear
             second_rows = read.second
             value_codes = (
-                bytes(linear_rows[row] for row in tabled_rows),
-                None if second_rows is None else bytes(second_rows[row] for row in tabled_rows),
-                bytearray(read.has_reading[row] for row in tabled_rows),
+                bytes(_tabled(read.linear, excluded)),
+                None if second_rows is None else bytes(_tabled(second_rows, excluded)),
+                bytearray(_tabled(read.has_reading, excluded)),
             )
             moment_blocks[name] = block
+        # THE SELF-TEST'S RAW SCALE (lane ST, plan P4-D458): the sample's
+        # rows whose reading lies beyond the clip, read from this pass.
+        beyond: "dict[int, float] | None" = None
+        if read.beyond is not None:
+            held_beyond = read.beyond
+            beyond = {}
+            for at in range(len(sample)):
+                if sampled_rows[at] in held_beyond:
+                    beyond[at] = held_beyond[sampled_rows[at]]
         columns[name] = Column(
             name,
             ladder,
-            (_codes(first), _codes(second), _codes(third)),
+            (first, None, None),
             frozenset(groups),
             screen,
             screen_levels,
             few,
             blank,
             value_codes,
+            beyond,
         )
         scales[name] = ladder
         eligible += [name]
+        _probed("ladder and codes", counts)
+    # THE RULE STEPS (contract 4.6b.7, MR.3 and MR.7; lane RO, plan P4-D459):
+    # every rule whose step opens, one step a rule, all before the chain,
+    # each DRAWN among "not carried" and its eligible carried options. A
+    # carried rule's computed column leaves the eligible columns.
+    inference = chain_order.Inference((), (), (), 0)
+    if gathered is not None:
+        for name in list(gathered.present):
+            if name not in scales and chain_order.computed_refused(block_of_name(blocks, name), held, identifiers):
+                # Neither a `B` OPEN1 admits nor an eligible column: its readings are not read.
+                chain_order.let_go(gathered, name)
+        inference = chain_order.infer_rules(
+            gathered,
+            blocks,
+            settings,
+            dict(scales),
+            {name: columns[name].groups for name in eligible},
+            {name: columns[name].codes[0] for name in eligible},
+            tabled,
+            held,
+            identifiers,
+            _requested(switch.drop, [f"{_get(block, 'name')}" for block in blocks]),
+            person_state,
+        )
+        gathered = None
+    carried, rule_notes, rule_pairs = _rule_steps(inference, switch, [f"{_get(block, 'name')}" for block in blocks])
+    notes += rule_notes
+    counts["rules_opened"] = len(inference.rules)
+    counts["rules_carried"] = len(carried)
+    computed_names = {rule.computed for rule, _option in carried}
+    if computed_names:
+        eligible = [name for name in eligible if name not in computed_names]
+        for name in computed_names:
+            if name in columns:
+                del columns[name]
+                del scales[name]
+            if name in moment_blocks:
+                del moment_blocks[name]
+        place_in_schema = {f"{_get(blocks[at], 'name')}": at for at in range(len(blocks))}
+        # (`ineligible_entries`, not `kept`: since lane CHs, `kept` names the description's kept readings.)
+        ineligible_entries = [entry for entry in ineligible if entry["column"] not in computed_names]
+        ineligible_entries += [{"column": name, "reason": "computed"} for name in computed_names]
+        ranked = sorted((place_in_schema[f"{ineligible_entries[at]['column']}"], at) for at in range(len(ineligible_entries)))
+        ineligible = [ineligible_entries[at] for _place, at in ranked]
+    derived_families = tuple(
+        rules.derived_of(rule.inputs[0], option.a_level, option.table, not option.level[2])
+        for rule, option in carried
+        if option.carrier == rules.CARRIER_DERIVED and option.a_level is not None and option.level is not None
+    )
     counts["eligible_columns"] = len(eligible)
-    if len(eligible) < 2:
+    if len(eligible) < 2 and not carried:
         return _off(OFF_FEW, counts, notes, content)
     # THE SUBJECT QUESTION'S HOLD: read here, where only the question stands
     # between this table and a chain (a table with fewer than two eligible
@@ -2556,6 +3250,7 @@ def describe(
     pairs = time_event_pairs(blocks, eligible)
     seed_places = screen_seeds([columns[name] for name in eligible])
     seeds = tuple((eligible[i], eligible[j], eligible[k]) for i, j, k in seed_places)
+    _probed("screen", counts)
     place_of: "dict[str, int]" = {}
     for at in range(len(eligible)):
         place_of[eligible[at]] = at
@@ -2563,28 +3258,44 @@ def describe(
     dropped = _requested(switch.drop, eligible)
     if asked or dropped:
         notes += [f"the questions file asked to add {len(asked) // 2} and drop {len(dropped) // 2} pairs of eligible columns"]
-    search = _Search(columns, scales, tuple(eligible), place_of, tabled, floor, pairs, seeds, {}, counts, {}, {}, asked, dropped)
+    # W5's raise for every opened rule step (contract 4.6b.7, MR.12): the pair
+    # `{A, B}`, or `{D, A}` where a source carries it, read beside the
+    # questions file's pairs, one raise a family (as the oracle's `rule_pairs`).
+    raised = asked | frozenset(pair for pair in rule_pairs if pair[0] in place_of and pair[1] in place_of)
+    search = _Search(
+        columns, scales, tuple(eligible), place_of, tabled, floor, pairs, seeds, {}, counts, {}, {}, raised, dropped,
+        derived_families,
+    )
     blank_counts = {name: columns[name].blank for name in eligible}
     x0 = rules.blank_cell(scales, blank_counts)
     room = rules.blank_record_room(document, floor) + rules.outside_cells(document, set(eligible))
-    placed, step_notes = search_chain(search, switch, x0, room)
+    placed: "list[rules.Family]" = []
+    if len(eligible) >= 2:
+        placed, step_notes = search_chain(search, switch, x0, room)
+        notes += step_notes
     counts["w1_refused_options"] = len(search.refused)
-    notes += step_notes
     if not placed:
-        return _off(OFF_ROOT, counts, notes, content)
-    refused = rules.w1_refusals(placed, scales, {name: set(columns[name].groups) for name in eligible})
+        if not carried:
+            return _off(OFF_ROOT, counts, notes, content)
+        # A RULES-ONLY description (4.6b.3): every eligible column at `L0`, in schema order, beside the carried rules.
+        placed = [rules.Family(name, 0, (), None, tuple(scales[name].totals)) for name in eligible]
+        notes += ["the chain is rules only: every eligible column at L0 beside the carried rules"]
+    refused = rules.w1_refusals(placed, scales, {name: set(columns[name].groups) for name in eligible}, derived_families)
     for family in placed:
         if not _floored(family.table, floor):
             refused += [(family.child, -1, "")]
+    _probed("chain check", counts)
     if refused:
         notes += [f"the chain's own check found {len(refused)} refusals"]
         return _off("the chain's own check failed", counts, notes, content)
     inputs = moment_inputs(placed, scales, columns, moment_blocks, floor)
+    _probed("moment inputs", counts)
     for key, name in (("moment_region_columns", "codes"), ("moment_offers", "offers"), ("moment_regions", "regions"), ("moment_sums", "sums")):
         listed = inputs[name]
         counts[key] = len(listed) if isinstance(listed, list) else 0
     block_of: "dict[str, dict[str, object]]" = {f"{_get(block, 'name')}": block for block in blocks}
     released, released_counts = released_moments(eligible, block_of, columns, scales, floor)
+    _probed("released moments", counts)
     for key in released_counts:
         counts[f"moments {key}"] = released_counts[key]
     words, implied = rules.words_of(eligible, placed)
@@ -2610,14 +3321,32 @@ def describe(
         "moments": released,
         "not_carried": implied,
         "procedure": rules.procedure_record(tabled),
-        "rules": [],
+        "rules": [_rule_entry(rule, option) for rule, option in carried],
         "withheld": [],
         "words": words,
     }
     if seeds:
         notes += [f"the screen offered {len(seeds)} seeds as weights"]
     chosen = tuple((family.child, tuple(name for name, _level in family.parents), tuple(level for _name, level in rules.members(family))) for family in placed)
-    return Chained(statistical, tuple(notes), counts, seeds, chosen, content, inputs)
+    computed: "list[tuple[str, dict[str, object]]]" = []
+    for rule, _option in carried:
+        own = block_of[rule.computed]
+        template = block_of[rule.inputs[0]]
+        role = rules.computed_role(rule.kind, [f"{_get(block_of[name], 'role')}" for name in rule.inputs])
+        computed += [(rule.computed, chain_order.computed_block(own, template, role, floor))]
+    selftest = selftest_inputs(sample, tabled, sample_hashes, eligible, columns, block_of, placed, pairs)
+    _probed("statistical object", counts)
+    return Chained(
+        statistical,
+        tuple(notes),
+        counts,
+        seeds,
+        chosen,
+        content,
+        inputs,
+        computed=tuple(computed),
+        selftest=selftest,
+    )
 
 
 # THE PATIENT LAYER'S READ OF THIS MODULE (lane GRa, plan P4-D449): the steps
@@ -2633,3 +3362,114 @@ repeats = _repeats
 reading_of = _reading_of
 sequence_places = _sequence_places
 codes_at = _codes
+
+
+def block_of_name(blocks: "list[dict[str, object]]", name: str) -> "dict[str, object]":
+    """The published block of the column named `name` (an empty block where none is)."""
+    for block in blocks:
+        if _get(block, "name") == name:
+            return block
+    return {}
+
+
+def _rule_steps(
+    inference: chain_order.Inference,
+    switch: ChainSwitch,
+    names: "list[str]",
+) -> "tuple[list[tuple[chain_order.Inferred, chain_order.Option]], list[str], frozenset[tuple[str, str]]]":
+    """Each rule's step DRAWN among "not carried" and its eligible carried options (4.6b.7, MR.7).
+
+    In step order; a rule whose computed column a rule carried before it
+    computes or reads, or one of whose inputs it computes, has "not
+    carried" alone, and a source option whose carrier a rule carried
+    before it computes is not offered (no carried rule reads a computed
+    column; lane RO's repair 2, the outside review's item 7). The word is
+    keyed by the rule's IDENTITY, `[kind,
+    computed, inputs]`, beside the table's column names in schema order
+    (a fact every table of the preimage shares before any step: the
+    eligible columns move with the steps' outcomes), never by its place.
+    Returns the carried rules with their options, private notes (no
+    count) and W5's raise: every opened rule's pair `{A, B}`, or `{D, A}`
+    where a source carries it, each in both orders, where the rule's
+    antecedent (both columns reading) holds at least `f` rows (4.6b.7's
+    opening paragraph; a weight, which the draw masks): a step whose
+    computed column never reads under its input's kind raises nothing.
+    """
+    carried: "list[tuple[chain_order.Inferred, chain_order.Option]]" = []
+    computed: "set[str]" = set()
+    read: "set[str]" = set()
+    raised: "set[tuple[str, str]]" = set()
+    notes: "list[str]" = []
+    for rule in inference.rules:
+        first = rule.inputs[0]
+        blocked = rule.computed in computed or rule.computed in read or any(name in computed for name in rule.inputs)
+        options = [] if blocked else [option for option in rule.options if option.carrier == rules.CARRIER_DERIVED or option.carrier not in computed]
+        scores = [fractions.Fraction(0)] + [option.score for option in options]
+        word = step_word(switch.key, switch.name, rules.STEP_RULE, rules.rule_key(rule.kind, rule.computed, list(rule.inputs)), names)
+        pick = rules.choose(word, rules.weights_of(scores, rules.TAU))
+        if pick == 0:
+            if rule.antecedent:
+                raised |= {(first, rule.computed), (rule.computed, first)}
+            why = "blocked by a rule carried before it" if blocked else (rule.why or "drawn")
+            notes += [f"the rule {rule.computed} on or after {first} was not carried among {len(options) + 1} eligible options ({why})"]
+            continue
+        option = options[pick - 1]
+        carried += [(rule, option)]
+        computed |= {rule.computed}
+        read |= set(rule.inputs)
+        if option.carrier == rules.CARRIER_DERIVED:
+            raised |= {(first, rule.computed), (rule.computed, first)}
+            notes += [f"the rule {rule.computed} on or after {first} is carried by a derived difference among {len(options) + 1} eligible options"]
+        else:
+            read |= {option.carrier}
+            raised |= {(option.carrier, first), (first, option.carrier)}
+            notes += [f"the rule {rule.computed} on or after {first} is carried by the source column {option.carrier} among {len(options) + 1} eligible options"]
+    return carried, notes, frozenset(raised)
+
+
+def _rule_entry(rule: chain_order.Inferred, option: chain_order.Option) -> "dict[str, object]":
+    """A carried rule's entry of `rules` (4.6b.5 as amended by MR.2 and MR.8)."""
+    derived: "dict[str, object] | None" = None
+    if option.carrier == rules.CARRIER_DERIVED and option.level is not None and option.a_level is not None:
+        derived = {
+            "edges": [rules.decimal_text(edge) for edge in option.level[2]],
+            "name": option.level[0],
+            "parent": {"column": rule.inputs[0], "level": rules.LEVELS[option.a_level]},
+            "table": [list(line) for line in option.table],
+            "totals": list(option.totals),
+        }
+    return {
+        "carrier": option.carrier,
+        "class": option.klass,
+        "computed": rule.computed,
+        "derived": derived,
+        "grain": rule.grain,
+        "inputs": list(rule.inputs),
+        "kind": rule.kind,
+        "op": None,
+        "unit": option.unit,
+    }
+
+
+def with_rules(document: "dict[str, object]", chained: Chained) -> "dict[str, object]":
+    """The description with its chain in `relationships.statistical` and each computed column's block
+    in the column's place (contract 4.6b.7): what a caller of the switch writes."""
+    written: "dict[str, object]" = {}
+    for key in document:
+        written[key] = document[key]
+    computed = dict(chained.computed)
+    columns = _get(document, "columns")
+    if computed and isinstance(columns, list):
+        replaced: "list[object]" = []
+        for block in columns:
+            name = _get(block, "name") if isinstance(block, dict) else None
+            replaced += [computed[name] if isinstance(name, str) and name in computed else block]
+        written["columns"] = replaced
+    relationships = _get(document, "relationships")
+    if isinstance(relationships, dict):
+        block_out: "dict[str, object]" = {}
+        for key in relationships:
+            block_out[key] = relationships[key]
+        block_out["statistical"] = chained.statistical
+        written["relationships"] = block_out
+    return written

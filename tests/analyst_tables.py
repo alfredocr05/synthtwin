@@ -344,10 +344,27 @@ def st4_chapter_b_fit(rows: int, seed: int) -> "tuple[float, float]":
     return K.glm(K.Design(columns, terms), y, "logistic").coef("B")
 
 
-BUILDERS = {"ST1": st1, "ST2": st2, "ST3": st3, "ST4": st4, "ST5": st5, "ST6": st6}
+# BC-ARCH 4.2's design, a seventh table outside the battery's six (K-BC-11's
+# pairs, lane ST, plan P4-D458): a skewed lab value, a skewed cost that
+# follows it, and an age, each pair related.
+SD_COLUMNS = ["crp", "cost", "age"]
+
+
+def sd(rows: int, seed: int) -> "Iterator[list[str]]":
+    """BC-ARCH 4.2's design: crp and cost log-normal and correlated, age beside them."""
+    r = random.Random(seed)
+    for _ in range(rows):
+        z1, z2 = r.gauss(0, 1), r.gauss(0, 1)
+        crp = max(0.01, round(math.exp(1.2 * z1), 2))
+        cost = max(1.0, round(math.exp(7 + 1.0 * (0.5 * z1 + 0.866 * z2)), 0))
+        age = round(50 + 15 * (0.4 * z1 + 0.917 * r.gauss(0, 1)), 0)
+        yield [f"{crp}", f"{cost:.0f}", f"{age:.0f}"]
+
+
+BUILDERS = {"ST1": st1, "ST2": st2, "ST3": st3, "ST4": st4, "ST5": st5, "ST6": st6, "SD": sd}
 HEADERS = {
     "ST1": ST1_COLUMNS, "ST2": ST2_COLUMNS, "ST3": ST3_COLUMNS,
-    "ST4": ST4_COLUMNS, "ST5": ST5_COLUMNS, "ST6": ST6_COLUMNS,
+    "ST4": ST4_COLUMNS, "ST5": ST5_COLUMNS, "ST6": ST6_COLUMNS, "SD": SD_COLUMNS,
 }
 
 

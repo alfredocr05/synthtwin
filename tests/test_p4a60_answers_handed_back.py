@@ -553,3 +553,51 @@ def test_an_edited_layout_is_still_read(
         (tmp_path / "clinic-profile.json").read_text(encoding="utf-8")
     )["settings"]
     assert settings["forced_codes"] == ["born"]
+
+
+def test_a_key_typed_at_the_prompt_stands_over_a_blank_handed_back_under_identifier(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    """Batch 4q's merge of lane CZ-A: a blank under `identifier` held a column whose question was answered at the prompt.
+
+    Incomes in hundreds at the table floor, 20,000 rows, the person at the
+    keyboard typing `1` (not a person, the reading it has now is right)
+    at every question the prompt puts, in both runs. The first run holds
+    the column as record numbers until the Safe Harbor question, which the
+    prompt does not put, is answered; the file goes back with it answered
+    `no` and the person question left blank under `identifier`. The second
+    run reads the column as the count it is: the key typed stands (LANE TT
+    RULINGS 2 (1); the plan's rule holds a blank's column until its
+    question is answered). MUTANT, the merged head b93f128a, where the
+    blank held whoever was at the keyboard: the column stayed held as
+    record numbers, and validate of the real table against its own
+    description exited 3.
+    """
+    keyboard.dates_in_disguise_answered_no(monkeypatch)
+    monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
+    lines = {"read": 0}
+
+    def typed(*_given: object) -> "str | None":
+        # ...the prompt's own reader maps the key; past four lines the
+        # input ends, so a prompt asking again cannot hold the run.
+        lines["read"] += 1
+        return "1" if lines["read"] <= 4 else None
+
+    monkeypatch.setattr(cli, "_asked", typed)
+    draw = random.Random(17)
+    cells = [str(int(round(draw.lognormvariate(10.8, 0.7), -2))) for _row in range(20000)]
+    table = fixtures.write(tmp_path, "incomes.csv", "value\n" + "".join(cell + "\n" for cell in cells))
+    assert cli.main(["profile", f"{table}", "--replace"]) == 0
+    first = json.loads((tmp_path / "incomes-profile.json").read_text(encoding="utf-8"))
+    assert first["columns"][0]["role"] == taxonomy.ROLE_IDENTIFIER
+    questions = tmp_path / "incomes-questions.json"
+    document = json.loads(questions.read_text(encoding="utf-8"))
+    for entry in document["asked"]:
+        offered = [choice["answer"] for choice in entry["answers_you_can_give"]]
+        if offered == [asking.ANSWER_SAFE_HARBOR_NO, asking.ANSWER_SAFE_HARBOR_YES]:
+            entry["your_answer"] = asking.ANSWER_SAFE_HARBOR_NO
+    questions.write_text(json.dumps(document), encoding="utf-8", newline="\n")
+    assert cli.main(["profile", f"{table}", "--replace", "--answers", f"{questions}"]) == 0
+    capsys.readouterr()
+    second = json.loads((tmp_path / "incomes-profile.json").read_text(encoding="utf-8"))
+    assert second["columns"][0]["role"] == taxonomy.ROLE_COUNT

@@ -2738,3 +2738,364 @@ def sample_of(hashes, size, cut=False):
         keyed += [(key, one, occurrence, at)]
     keyed.sort()
     return [entry[3] for entry in keyed[: min(size, n)]]
+
+
+# --- rules between columns: an order rule carried by its difference D (contract 4.6b.7; lane RO, plan P4-D459) ---
+#
+# Read from the rules page (MR.1 to MR.7) alone, in exact fractions: the
+# inference limit, D's nested levels and right-closed bands, row 9's one
+# test in its closed form (Proposition T), rules 1 to 6 of a derived
+# option with rule 1 as repaired, the rule step's word and choice, D's
+# readings in the twin (MR.2, repaired twice) and a sum written in the
+# computed column's own first form.
+
+DERIVED_LEVELS = (("L0", (10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90)), ("L1", (25, 50, 75, 90)),
+                  ("L2", (50,)), ("one", ()))
+
+
+def rule_limit(n, f=DEFAULT_FLOOR):
+    """`L(n) = max(f, floor(n / 100))` (MR.1)."""
+    return max(f, n // 100)
+
+
+def first_rank(p, m):
+    """`k(p) = floor(p (m - 1) / 100)`."""
+    return (p * (m - 1)) // 100
+
+
+def rung_at(readings, p):
+    """A rung by the contract's interpolation rule over sorted readings: `x(k) + frac (x(k + 1) - x(k))`."""
+    m = len(readings)
+    position = F(p * (m - 1), 100)
+    k = position.numerator // position.denominator
+    low = F(readings[k])
+    high = F(readings[k + 1]) if k + 1 < m else low
+    return low + (position - k) * (high - low)
+
+
+def derived_levels(readings):
+    """D's four nested levels, each `(name, percents, edges)`, tied edges taken once (4.6b.7)."""
+    ordered = sorted(F(x) for x in readings)
+    out = []
+    for name, percents in DERIVED_LEVELS:
+        edges = []
+        for p in percents:
+            edge = rung_at(ordered, p)
+            if not edges or edge != edges[-1]:
+                edges += [edge]
+        out += [(name, percents, edges)]
+    return out
+
+
+def derived_band(edges, x):
+    """The value band holding `x`, bands closed on the RIGHT (MR.2 item 1): the count of edges below `x`."""
+    return sum(1 for edge in edges if edge < F(x))
+
+
+def band_totals(edges, readings):
+    totals = [0] * (len(edges) + 1)
+    for x in readings:
+        totals[derived_band(edges, x)] += 1
+    return totals
+
+
+def rule_one(totals, percents, f=DEFAULT_FLOOR, first_text=False):
+    """Rule 1 AS REPAIRED (MR.2): True where met. `first_text` reads the first text (every band at its bound, no clause)."""
+    bound = max(2 * f, f + 4)
+    m = sum(totals)
+    if m == 0:
+        return False
+    if first_text:
+        return all(t >= bound for t in totals)
+    if any(t < bound for t in totals[:-1]) or 0 < totals[-1] < bound:
+        return False
+    ks = [first_rank(p, m) for p in percents]
+    if any(ks[i + 1] - ks[i] < f + 1 for i in range(len(ks) - 1)):
+        return False
+    if totals[-1] == 0 and (not ks or (m - 1) - ks[-1] < f + 1):
+        return False
+    return True
+
+
+def partition_passes(readings, f, limit):
+    """Proposition T read for the WHOLE partition: no class `v` from `f` to `min(L, R)` has `R - v` in 1 to `f - 1`."""
+    return all(not (1 <= readings - v <= f - 1) for v in range(f, min(limit, readings) + 1))
+
+
+def class_of(v, readings, f, limit, phrase_only=False):
+    """The class the real `v` falls in, among a partition that passed whole; None where none."""
+    if v <= f - 1:
+        return "phrase"
+    if phrase_only or v > limit or not partition_passes(readings, f, limit):
+        return None
+    return v
+
+
+def derived_eligible(edges, percents, totals, table, spread_rows, missing_alone, group_rows, klass, g,
+                     f=DEFAULT_FLOOR, rule5=True):
+    """Rules 1 to 6 of a derived option (4.6b.7 as amended): `(eligible, the first rule that refuses)`."""
+    if klass is None:
+        return False, "class"
+    if not rule_one(totals, percents, f):
+        return False, "rule 1"
+    values = len(edges) + 1
+    if not missing_alone or any(table[r][b] for r in spread_rows for b in range(values)):
+        return False, "rule 2"
+    if any(0 < cell < f for row in table for cell in row):
+        return False, "rule 3"
+    holding = {b for b in range(values + 1) if any(row[b] for row in table)}
+    for r in group_rows:
+        reached = {b for b in range(values + 1) if table[r][b] > 0}
+        if len(reached) < 2 and not (reached and reached == holding) and not (not edges and table[r][values] == 0):
+            return False, "rule 4"
+    if rule5 and isinstance(klass, int):
+        left = klass
+        for b in range(values):
+            upper = edges[b] if b < len(edges) else None
+            lower = edges[b - 1] if b > 0 else None
+            if upper is not None and upper < 0:
+                left -= totals[b]
+                continue
+            if lower is None or lower < 0:
+                below = max(0, min(left, totals[b]))
+                if 0 < below < f or 0 < totals[b] - below < f:
+                    return False, "rule 5"
+                left -= below
+    g = F(g)
+    for b in range(1, len(edges)):
+        lo, hi = edges[b - 1], edges[b]
+        up = (lo / g).numerator // (lo / g).denominator + 1
+        if up * g > hi:
+            return False, "rule 6"
+    return True, "eligible"
+
+
+def rule_word(key, name, kind, computed, inputs, columns):
+    """A rule step's word, keyed by the rule's IDENTITY `[kind, computed, inputs]` (4.6b.4, MR.4 (f))."""
+    return word(key, name, "rule", [kind, computed, list(inputs)], list(columns))
+
+
+def derived_readings(edges, published, dealt, percents, failing, g):
+    """D's readings in the twin, each band's ascending (MR.2 as repaired twice), as exact fractions.
+
+    Every reading is a multiple of `g`. An inner band `(lo, hi]` spreads its
+    `t` rows over its multiples at positions `floor(q m / t)`; the ranks
+    two rungs of its upper edge enclose take that edge. The lowest band
+    spreads over its multiples from 0 to its edge, or takes its edge on
+    every rank where two or more rungs tie there. In a count class the
+    bands wholly below 0 take their largest multiple at or below their
+    edge and the band holding 0 gives the failing rows they leave readings
+    below 0 (`-g` in the lowest band; in an inner band its multiples above
+    `lo` and below 0, in turn). The highest band takes `up(lo)` alone where
+    the nearest band's width is at most `g`, else its multiples in `(lo,
+    lo + 3 w]`; where it is published empty, every rank from the top
+    rung's first takes the top edge. A level with no edge: 0 on every row,
+    its failing rows `-g`.
+    """
+    g = F(g)
+    values = len(edges) + 1
+    out = [[] for _ in range(values)]
+
+    def floor_steps(x):
+        q = F(x) / g
+        return q.numerator // q.denominator
+
+    def spread(first, last, t):
+        m = last - first + 1
+        return [(first + (q * m) // t) * g for q in range(t)] if t > 0 else []
+
+    m_all = sum(published)
+
+    def tied_from(b):
+        below = sum(published[:b])
+        end = below + published[b] - 1
+        at = []
+        for p in percents:
+            k = first_rank(p, m_all)
+            exact = (p * (m_all - 1)) % 100 == 0
+            if k >= below and (k + 1 <= end or (exact and k <= end)):
+                at += [k]
+        return at[0] + 1 if len(at) >= 2 else None
+
+    if not edges:
+        t = dealt[0]
+        below = min(failing, t)
+        out[0] = [-g] * below + [F(0)] * (t - below)
+        return out
+    left = failing - sum(dealt[b] for b in range(len(edges)) if edges[b] < 0)
+    for b in range(values):
+        t = dealt[b]
+        if t <= 0:
+            continue
+        lower = edges[b - 1] if b > 0 else None
+        upper = edges[b] if b < len(edges) else None
+        if upper is not None and upper < 0:
+            out[b] = [floor_steps(upper) * g] * t
+            continue
+        holds_zero = lower is None or lower < 0
+        negative = max(0, min(left, t)) if (holds_zero and failing) else 0
+        if holds_zero and failing:
+            left -= negative
+        readings = []
+        if upper is None:
+            width = (edges[-1] - edges[-2]) if len(edges) >= 2 else max(edges[0], F(0))
+            up = floor_steps(lower) + 1
+            readings = [up * g] * t if width <= g else spread(up, floor_steps(lower + 3 * width), t)
+        elif lower is None:
+            tied = tied_from(b)
+            readings = [-g] * negative
+            if tied is not None and (upper / g).denominator == 1:
+                readings += [F(upper)] * (t - negative)
+            else:
+                readings += spread(0, floor_steps(upper), t - negative)
+        else:
+            first = floor_steps(lower) + 1
+            if negative:
+                # Each multiple above `lo` and below 0 read directly, never the band's whole span.
+                span = -first
+                readings = [(first + i % span) * g if span > 0 else -g for i in range(negative)]
+                first = max(first, 0)
+            tied = tied_from(b)
+            rest = t - negative
+            if tied is not None and (upper / g).denominator == 1:
+                start = sum(published[:b]) + negative
+                free = max(0, min(rest, tied - start))
+                readings += spread(first, floor_steps(upper), free) + [F(upper)] * (rest - free)
+            else:
+                readings += spread(first, floor_steps(upper), rest)
+        out[b] = sorted(readings)
+    if published[-1] == 0 and percents and (edges[-1] / g).denominator == 1:
+        k = first_rank(percents[-1], m_all)
+        b = len(edges) - 1
+        start = sum(published[:b])
+        out[b] = sorted(F(edges[-1]) if start + i >= k else out[b][i] for i in range(len(out[b])))
+    return out
+
+
+def negative_written(text, form="minus"):
+    """A negative sum's figures `text` in the column's published negative form: `-` in front, accounting
+    brackets, the minus sign in front, or `-` after the figures where they hold a point (an amount)."""
+    if form == "brackets":
+        return "(" + text + ")"
+    if form == "minus_sign":
+        return "−" + text
+    if form == "trailing_minus" and "." in text:
+        return text + "-"
+    return "-" + text
+
+
+def written_sum(value, style="plain", pad=0, group="", point=False, negative="minus"):
+    """An exact sum written in the computed column's own first form (MR.2's table of forms): `point` where
+    its first fraction width is 0, a point after figures holding no places (`42.` + 1 is `43.`), and a
+    negative in its published negative form (lane RO's repair 2)."""
+    value = F(value)
+    places = 0
+    while (value * 10 ** places).denominator != 1:
+        places += 1
+    scaled = value * 10 ** places
+    magnitude = abs(scaled.numerator)
+    figures = str(magnitude).rjust(places + 1, "0") if places else str(magnitude)
+    whole, fraction = (figures[:-places], figures[-places:]) if places else (figures, "")
+    if group:
+        whole = "".join(("" if (i == 0 or (len(whole) - i) % 3) else group) + ch for i, ch in enumerate(whole))
+    elif style == "leading_zero" and pad > len(whole):
+        whole = "0" * (pad - len(whole)) + whole
+    text = whole + ("." + fraction if fraction else ("." if point else ""))
+    if scaled.numerator < 0:
+        return negative_written(text, negative)
+    return ("+" + text) if style == "leading_plus" else text
+
+
+def stamp_fraction(precision, digits):
+    """A computed stamp's written detail and figures after the second (MR.2; lane RO's repair 2): a block
+    reading `subsecond` writes `A`'s published count of figures in zeros, to the second where it is none."""
+    if precision != "subsecond":
+        return precision, 0
+    return ("subsecond", digits) if digits >= 1 else ("second", 0)
+
+
+def written_form(text, comma=False, prefix=None, suffix=None):
+    """A written sum in the computed column's own marks and affix (MR.2's text-decimal row): a declared decimal
+    comma exchanges the point and the grouping comma; an affix wraps the core as written (lane RO's repair 1)."""
+    if comma:
+        text = "".join("," if ch == "." else ("." if ch == "," else ch) for ch in text)
+    if prefix is not None and suffix is not None:
+        text = prefix + text + suffix
+    return text
+
+
+def offset_like(seconds, model, zulu="upper"):
+    """`A`'s offset (seconds east of UTC) written in the spelling of `B`'s first published offset `model`
+    (MR.2: "A's offset kept", in B's own form; lane RO's repair 1): `Z` beside a model `Z`, else `+HH:MM`,
+    `+HHMM` or `+HH` as the model writes it."""
+    if seconds == 0 and model in ("Z", "z"):
+        return "z" if zulu == "lower" else "Z"
+    sign = "-" if seconds < 0 else "+"
+    hours, minutes = divmod(abs(seconds) // 60, 60)
+    colon = f"{sign}{hours:02d}:{minutes:02d}"
+    if model in ("Z", "z"):
+        return colon
+    figures = "".join(ch for ch in model if ch.isdigit())
+    if ":" not in model and len(figures) == 4:
+        return f"{sign}{hours:02d}{minutes:02d}"
+    if ":" not in model and len(figures) == 2 and minutes == 0:
+        return f"{sign}{hours:02d}"
+    return colon
+
+
+def one_band_worth(edges, zero_rows, both_rows):
+    """MR.7's item on ONE derived option (REPAIR 2, AMENDED 2026-11-05 by the orchestrator's ruling, lane RO's
+    repair 1): a level with no edge writes `B` as `A`; it is worth carrying only where the real gap is 0 on at
+    least 99 of 100 of the rows where both read. A level with an edge is not judged by this item."""
+    if edges:
+        return True
+    return both_rows > 0 and F(zero_rows, both_rows) >= F(99, 100)
+
+
+def rule_option_score(worth, u, n, w_rule=F(1, 20)):
+    """A carried derived option's score (MR.7): `w_rule n` plus the family's `u`, `-w_rule n` where NOT WORTH."""
+    return w_rule * n + F(u) if worth else -w_rule * n
+
+
+def share_between(values, groups):
+    """A reading's exact share of variance between a column's bands (eta squared) over the rows it reads:
+    `values` one reading or None a row, `groups` each row's band (MR.7's association and presence items)."""
+    held = [(g, F(v)) for v, g in zip(values, groups) if v is not None]
+    if len(held) < 2:
+        return F(0)
+    mean = sum(v for _g, v in held) / len(held)
+    spread = sum((v - mean) ** 2 for _g, v in held)
+    if spread == 0:
+        return F(0)
+    between = F(0)
+    for band in sorted({g for g, _v in held}):
+        inside = [v for g, v in held if g == band]
+        between += len(inside) * (sum(inside) / len(inside) - mean) ** 2
+    return between / spread
+
+
+def association_lost(columns):
+    """MR.7's association item (AMENDED 2026-11-05, LANE RO RULINGS 3 (4)): over the other eligible columns,
+    each given as (D's share between its bands, B's own share between them), the largest of the smaller."""
+    return max([min(F(lost), F(kept)) for lost, kept in columns], default=F(0))
+
+
+def tighter_refuses(candidate, others, computed):
+    """MR.7's tighter-rule item (its clause read; AMENDED 2026-11-05 for the tie, LANE RO RULINGS 3 (3)):
+    `candidate` and each of `others` are (input, |median D|, mean |D|) of worth rules computing one column;
+    another refuses it where its input is no column a worth rule computes and its median is smaller, or equal
+    with a smaller mean."""
+    _a, median, mean = candidate
+    for other_a, other_median, other_mean in others:
+        if other_a in computed:
+            continue
+        if F(other_median) < F(median) or (F(other_median) == F(median) and F(other_mean) < F(mean)):
+            return True
+    return False
+
+
+def held_clock(a_seconds, d_seconds, step):
+    """A clock sum on D's side of A at the layout's step, held at the day's last value (MR.2, Theorem R's domain)."""
+    total = a_seconds + d_seconds
+    total = -((-total) // step) * step if d_seconds >= 0 else (total // step) * step
+    return max(0, min(total, 86400 - step))

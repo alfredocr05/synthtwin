@@ -99,7 +99,8 @@ from, not a promise that no twin row can equal a real one.
 
 ## The outputs, and which of them exist today
 
-Built now, by the three commands that exist:
+Built now, by the three commands that exist (and `synthtwin twin`, which
+runs those three in one command and one folder, plan P4-D460):
 
 1. **The synthetic twin table** - same shape and the same published
    behaviour column by column, every cell derived from the profile and
@@ -282,7 +283,10 @@ though it existed:
   offline scanner, P4-D410): every product module is in one zone. In
   zone G, generation, nothing but Python integers, numpy integer
   arrays, elementwise + - * / and sqrt in a fixed order and the one
-  seeded `integers` stream decide a byte of the twin - no float
+  seeded `integers` stream decide a byte of the twin (numpy's array
+  operations only through the one audited array helper,
+  `synthtwin.arrays`, its ten names admitted by plan P4-D466 and no
+  array leaving it) - no float
   reduction, transcendental, BLAS or LAPACK, scipy, threaded kernel or
   numba setting beyond the audited kernel's. In zone D, description and
   shared report, a published byte comes only from integer-exact

@@ -119,6 +119,17 @@ column's Safe Harbor question is answered `no`. Where neither the cells
 nor the name give a unit, the ages are read in years and that question
 also asks the unit.
 
+**The same journey in one command.** `synthtwin twin my-table.csv` runs
+the three commands above in one run and writes their six files into one
+folder, `my-table-synthtwin` beside the table, or the folder `--out-dir`
+names. Before any file is written it puts on the screen the questions
+your values cannot settle, and it keeps the answers in that folder's
+questions file, so the next run there asks nothing. A run that finds
+files of its own already at its names stops and changes nothing unless
+`--replace` is given, which is the rule of every command, `profile`
+included. `synthtwin help twin` shows its one page, and `synthtwin help`
+the page of each command.
+
 The profiler reads what each column holds -- whole numbers, measured
 numbers, dates, a set of categories, two-value columns, free text --
 says in words why it read it that way, reports what is missing and how

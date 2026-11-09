@@ -416,6 +416,12 @@ def test_the_names_of_the_counts_are_not_a_wish_list() -> None:
     for described in _nothing_publishing().values():
         for key in described.details:
             carried = carried | {key}
+    # ...and a column of dates held as record numbers, which carries the
+    # years its made-up dates take (lane ID-ROOM2, plan P4-D457).
+    dates = [f"{1950 + k % 40}-{k % 12 + 1:02d}-{k % 28 + 1:02d}" for k in range(200)]
+    held = taxonomy.with_made_up_years(describe(dates, forced=True), dates)
+    for key in held.details:
+        carried = carried | {key}
     for key in taxonomy.KEYS_THAT_CARRY_NO_VALUE:
         assert key in carried, (
             f"{key} is named as carrying no value but no block carries it"

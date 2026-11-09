@@ -1136,6 +1136,21 @@ def _chain_lines(lines_in: validation.ChainLines) -> "list[str]":
                 rest //= size
             label = f"({_chain_cell_name(parts)}) " if parts else ""
             lines += [f"        {label}{_chain_numbers(family.table[row_at])}"]
+    if lines_in.rules:
+        lines += [
+            "",
+            "The carried rules, one line a rule (contract 4.6b.7): a rule's line",
+            "says whether this file's rows breaking it lie in the published class,",
+            "and a derived column's line whether its family, recomputed on this",
+            "file as the later column less the earlier, holds the published",
+            "table. Each prints its verdict alone: no count of rows is printed.",
+        ]
+        for rule in lines_in.rules:
+            named = f"'{_shown(rule.computed)}' on or after '{_shown(rule.inputs[0])}'" if rule.inputs else f"'{_shown(rule.computed)}'"
+            carrier = "a derived difference" if rule.carrier == "derived" else f"the column '{_shown(rule.carrier)}'"
+            lines += [f"  rule {rule.index} ({rule.line}): {named}, carried by {carrier}, class {_shown(rule.klass)}: {_chain_verdict(rule.verdict)}"]
+            if rule.reason:
+                lines += [f"      {_shown(rule.reason)}"]
     lines += [
         "",
         "Every pair of eligible columns, one line a pair, with the word the",
@@ -1358,7 +1373,7 @@ def _floor_gate_lines(floor: int) -> "list[str]":
     ]
 
 
-def _withheld_census_lines(withheld: int, not_judged: int = 0) -> "list[str]":
+def _withheld_census_lines(withheld: int, not_judged: int = 0, rules_among: bool = False) -> "list[str]":
     """How many times the rule above bit on THIS run, said from the census.
 
     THE DEFECT THIS CLOSES (review of the shipped reports,
@@ -1379,10 +1394,21 @@ def _withheld_census_lines(withheld: int, not_judged: int = 0) -> "list[str]":
     family line whose column missed its published band totals reads
     WITHHELD in V12.3's words "not judged", which is not the rule above:
     ``not_judged`` counts those lines, said apart, and is 0 on every
-    report without the chain's lines.
+    report without the chain's lines. ``rules_among``: a carried rule's
+    line is among them (lane RO, plan P4-D459, its repair 2), said in
+    words that name a rule's line beside a family's; every report
+    without one keeps its bytes.
     """
     lines = _withheld_rule_census(withheld)
-    if not_judged:
+    if not_judged and rules_among:
+        lines += [
+            f"{not_judged} more between-columns family or rule line(s) read",
+            "WITHHELD for another reason, said on each of them: a column",
+            "the family or the rule reads missed its published band totals,",
+            "so its table or its class is not judged ('not judged')",
+            "whatever it holds.",
+        ]
+    elif not_judged:
         lines += [
             (
                 f"{not_judged} more between-columns family line(s) read "
@@ -1415,7 +1441,7 @@ def _withheld_rule_census(withheld: int) -> "list[str]":
 
 
 def _handling_lines(
-    description: contract.Profile, withheld: int, not_judged: int = 0
+    description: contract.Profile, withheld: int, not_judged: int = 0, rules_among: bool = False
 ) -> "list[str]":
     """Where the numbers came from, and how the six files are handled.
 
@@ -1515,7 +1541,7 @@ def _handling_lines(
         "  number.",
     ] + _floor_gate_lines(floor) + [
         "",
-    ] + _withheld_census_lines(withheld, not_judged) + [
+    ] + _withheld_census_lines(withheld, not_judged, rules_among) + [
         "",
         "WHAT WITHHELD PROTECTS, AND WHAT IT DOES NOT -- said here rather",
         "than left for you to assume. What it protects is this page, for a",
@@ -1693,8 +1719,12 @@ def _report_lines(
     lines += _expectations_lines(outcome.chain)
     lines += [""]
     not_judged = 0 if outcome.chain is None else outcome.chain.not_judged
+    # A carried rule's line withheld as not judged is counted there too (lane RO's repair 2).
+    rules_among = outcome.chain is not None and any(
+        line.verdict == validation.WITHHELD and line.reason[:10] == "not judged" for line in outcome.chain.rules
+    )
     lines += _handling_lines(
-        description, outcome.census.withheld - not_judged, not_judged
+        description, outcome.census.withheld - not_judged, not_judged, rules_among
     )
     return lines
 

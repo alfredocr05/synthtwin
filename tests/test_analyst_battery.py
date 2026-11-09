@@ -127,15 +127,42 @@ def test_an_estimate_under_the_support_floor_is_never_scored(tmp_path: pathlib.P
 
 
 def test_the_report_reading_finds_family_lines_where_a_block_exists() -> None:
-    """A block under the heading is read line by line; no heading, no block; carried means not 'not carried'."""
+    """K-BC-11 restated to the two reports (plan P4-D458): the shared block's structural grades, the private report's words."""
     report = "\n".join([
-        "Something before.", "", B.REPORT_HEADING + ":",
-        "F1 subgroup rates: carried", "F6 time to event: not carried (method)",
-        "F10 your code runs: approximate", "", "after"])
-    reading = B.report_reading(report)
-    assert reading == {"block": True, "named": ["F1", "F6", "F10"], "carried": ["F1"]}
-    assert B.report_reading("no block here") == {"block": False, "named": [], "carried": []}
-    assert B.kpi_11([]) == {"families_unnamed": 10, "overclaims": 0, "report_block": False}
+        "Something before.", "", "1. " + B.REPORT_HEADING,
+        "F1 subgroup rates: E (exact at the published bands) inside each family; A (approximate) across families.",
+        "F6 time to event: A (approximate: as the chain implies).",
+        "F10 code run unchanged: E (exact) within columns.", "", "after"])
+    private = "\n".join([
+        "  F1 subgroup rates: structural E inside; judged not carried (the worst word of its parts).",
+        "  F6 time to event: structural A; judged approximate (outside the yardstick on some estimates).",
+        "  F10 code run unchanged: structural E within columns; judged carried (each model runs)."])
+    moved = report.replace("within columns.\n", "within columns.\n   age and ward: exact; moved in this twin, so A (approximate) here\n")
+    reading = B.report_reading(moved, private)
+    assert reading == {"block": True, "named": ["F1", "F6", "F10"], "grades": {"F1": "E", "F6": "A", "F10": "E"},
+                       "moved": ["age and ward"], "private_named": ["F1", "F6", "F10"],
+                       "judged": {"F1": "not carried", "F6": "approximate", "F10": "carried"}}
+    assert B.report_reading("no block here") == {"block": False, "named": [], "grades": {}, "moved": [],
+                                                 "private_named": [], "judged": {}}
+    assert B.kpi_11([]) == {"families_unnamed_shared": 10, "families_unnamed_private": 10, "report_block": False}
+
+
+def test_the_pairs_called_carried_miss_as_a_set_or_one_by_one() -> None:
+    """K-BC-11's pairs (lane ST's repair 1): a set of twenty at K-BC-01's family target; a smaller one pair by pair."""
+    def pair(at: int, word: str, inside: bool, fresh: bool, gap: float) -> "list[object]":
+        return [f"a{at}", f"b{at}", "implied", word, word, 0, [word] * 3, inside, fresh, gap]
+
+    def first(one: "list[object]") -> object:
+        return one[3]
+
+    big = [pair(at, "carried", at < 10, True, 0.5 if at < 10 else 2.0) for at in range(20)]
+    assert len(B._pairs_missed(big, first)) == 10
+    fine = [pair(at, "carried", at < 16, at < 15, 0.5) for at in range(20)]
+    assert B._pairs_missed(fine, first) == []
+    small = [pair(0, "carried", False, True, 3.5), pair(1, "carried", False, False, 6.0),
+             pair(2, "carried", False, True, 2.5), pair(3, "approximate", False, True, 9.0)]
+    assert B._pairs_missed(small, first) == ["a0~b0"]
+    assert B.PAIR_SET_MINIMUM == 20 and B.PAIR_ALONE_YARDSTICKS == 3.0
 
 
 def test_a_value_the_ledger_cannot_hold_is_written_as_none() -> None:

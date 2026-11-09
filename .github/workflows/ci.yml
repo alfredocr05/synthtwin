@@ -787,16 +787,21 @@ jobs:
           #   formats are never allowed anywhere, plan D13)
           wheel required synthtwin/__init__.py
           wheel required synthtwin/__main__.py
+          wheel required synthtwin/arrays.py
           wheel required synthtwin/calendar_clock.py
           wheel required synthtwin/calendar_rules.py
           wheel required synthtwin/canonical.py
           wheel required synthtwin/chain.py
           wheel required synthtwin/chain_check.py
+          wheel required synthtwin/chain_grades.py
           wheel required synthtwin/chain_moments.py
+          wheel required synthtwin/chain_order.py
           wheel required synthtwin/chain_rules.py
+          wheel required synthtwin/chain_selftest.py
           wheel required synthtwin/chain_validation.py
           wheel required synthtwin/chain_walk.py
           wheel required synthtwin/cli.py
+          wheel required synthtwin/computer.py
           wheel required synthtwin/contract.py
           wheel required synthtwin/date_counts.py
           wheel required synthtwin/dialect.py
@@ -836,16 +841,21 @@ jobs:
           sdist required ROOT/SECURITY.md
           sdist required ROOT/src/synthtwin/__init__.py
           sdist required ROOT/src/synthtwin/__main__.py
+          sdist required ROOT/src/synthtwin/arrays.py
           sdist required ROOT/src/synthtwin/calendar_clock.py
           sdist required ROOT/src/synthtwin/calendar_rules.py
           sdist required ROOT/src/synthtwin/canonical.py
           sdist required ROOT/src/synthtwin/chain.py
           sdist required ROOT/src/synthtwin/chain_check.py
+          sdist required ROOT/src/synthtwin/chain_grades.py
           sdist required ROOT/src/synthtwin/chain_moments.py
+          sdist required ROOT/src/synthtwin/chain_order.py
           sdist required ROOT/src/synthtwin/chain_rules.py
+          sdist required ROOT/src/synthtwin/chain_selftest.py
           sdist required ROOT/src/synthtwin/chain_validation.py
           sdist required ROOT/src/synthtwin/chain_walk.py
           sdist required ROOT/src/synthtwin/cli.py
+          sdist required ROOT/src/synthtwin/computer.py
           sdist required ROOT/src/synthtwin/contract.py
           sdist required ROOT/src/synthtwin/date_counts.py
           sdist required ROOT/src/synthtwin/dialect.py

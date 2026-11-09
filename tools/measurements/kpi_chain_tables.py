@@ -138,12 +138,32 @@ def measure() -> "dict[str, object]":
     design: "dict[str, int]" = {}
     for found in (patients.crossing_cuts(), patients.fixed_rows_readings(), patients.scale_attack(), patients.page_cases(), patients.moment_fixtures(), patients.st2_tables()):
         design.update(found)
+    # THE RULE CLAUSE (contract 4.6b.7, MR.6 (f); lane RO, plan P4-D459): a derived order rule's
+    # every table of 12 rows at f = 3 and limit 4, its level, class and eligibility decided by the
+    # product's own functions, with its two mutants (the exact count under f; rule 3 off).
+    ruled = enumeration.rules_derived_leg(n=12, f=3, limit=4)
+    exact = enumeration.rules_derived_leg(n=12, f=3, limit=4, mutant="exact")
+    third = enumeration.rules_derived_leg(n=12, f=3, limit=4, mutant="rule3")
+    # MR.2's table of number forms, one fixture a form (`42.` + 1 written `43.` among them; lane RO's
+    # repair 2): the product's writer against the oracle's frozen vectors, with its mutant (the point dropped).
+    vectors = json.loads((ROOT / "tests" / "reference" / "chain-oracle-vectors.json").read_text(encoding="utf-8"))
+    forms = enumeration.rules_forms_leg(vectors)
+    forms_mutant = enumeration.rules_forms_leg(vectors, point=False)
     return {
         **moments,
         **patient,
         **at_floor,
         **trend,
         **design,
+        "rules_forms_checked": forms["checked"],
+        "rules_forms_off": forms["off"],
+        "rules_forms_mutant_point_off": forms_mutant["off"],
+        "rules_tables": ruled["tables"],
+        "rules_descriptions": ruled["descriptions"],
+        "rules_unions": ruled["unions"],
+        "rules_leaking": ruled["leaking"],
+        "rules_mutant_exact_leaking": exact["leaking"],
+        "rules_mutant_rule3_leaking": third["leaking"],
         "descriptions_leaking": scan["descriptions_leaking"],
         "descriptions": scan["descriptions"],
         "tables": scan["tables"],

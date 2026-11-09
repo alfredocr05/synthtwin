@@ -50,7 +50,7 @@ called.
 
 import dataclasses
 
-from synthtwin import chain, chain_rules, reading, taxonomy, validation
+from synthtwin import chain, chain_order, chain_rules, reading, taxonomy, validation
 
 # V12.3's fixed words where a total line of a family's member reads MISSED.
 NOT_JUDGED = "not judged: the file's band totals differ from the published ones"
@@ -862,7 +862,9 @@ def lines_of(
         if name in unchecked:
             groups[name] = set(range(len(scales[name].l0)))
             blank_counts[name] = _whole(_get(published_blocks[name], "n_missing_blank")) - holding_nothing
-    gate_open = not chain_rules.w1_refusals(families, scales, groups)
+    # Each carried rule's derived family `{D | A}`, read through its parent as the loader reads it (rule
+    # 4), stands beside the file's own facts too (lane RO's repair 2, the outside review's item 6).
+    gate_open = not chain_rules.w1_refusals(families, scales, groups, _derived_families(statistical["rules"], scales))
     x0 = chain_rules.blank_cell(scales, blank_counts)
     room = chain_rules.blank_record_room(redescribed, floor) + chain_rules.outside_cells(redescribed, set(eligible))
     if x0 is not None and chain_rules.cell_bound(x0, families, scales, tabled) > room:
@@ -925,11 +927,24 @@ def lines_of(
                     low, _high = dealing_spread(implied, tabled)
                     spread = spread_text(low)
             pairs += [validation.ChainPair((first, second), word, holding, (levels[first], levels[second]), shares, spread, why)]
+    # -- the carried rules (V12.2's two rows; contract 4.6b.7; lane RO, plan P4-D459) --
+    rule_lines = _rule_lines(
+        statistical["rules"], published_blocks, file_blocks, file_place, table, settings,
+        (declared_codes, declared_measured, declared_commas), stored_as, held_totals, unchecked,
+        gate_open, tabled_mask, scales, codes, floor,
+    )
     counted_lines: "dict[str, int]" = {validation.HELD: 0, validation.MISSED: 0, validation.WITHHELD: 0, "": 0}
     for total in totals:
         counted_lines[total.verdict] += 1
     for line in lines:
         counted_lines[line.verdict] += 1
+    for rule_line in rule_lines:
+        counted_lines[rule_line.verdict] += 1
+        # A rule's line WITHHELD because a column it reads missed its band totals is counted with the
+        # family lines withheld for that reason, never given the disclosure rule as its cause (lane RO's
+        # repair 2, the outside review's item 14).
+        if rule_line.verdict == validation.WITHHELD and rule_line.reason == NOT_JUDGED:
+            not_judged += 1
     return validation.ChainLines(
         tuple(_legend(entry) for entry in entries),
         tuple(totals),
@@ -940,7 +955,148 @@ def lines_of(
         counted_lines[validation.WITHHELD],
         counted_lines[""],
         not_judged,
+        tuple(rule_lines),
     )
+
+
+def _derived_families(listed: object, scales: "dict[str, chain_rules.Ladder]") -> "tuple[chain_rules.Derived, ...]":
+    """Each published derived family `{D | A}` as RULE W1 reads it (rule 4): `A`'s level, the bands of `D`
+    each band of `A` holds rows in, and whether `D`'s level has no edge."""
+    out: "list[chain_rules.Derived]" = []
+    if not isinstance(listed, list):
+        return ()
+    levels = {"L0": 0, "L1": 1, "L2": 2}
+    for entry in listed:
+        written = _get(entry, "derived") if isinstance(entry, dict) else None
+        if not isinstance(written, dict) or _get(entry, "carrier") != chain_rules.CARRIER_DERIVED:
+            continue
+        parent = written["parent"]
+        table = written["table"]
+        first = f"{_get(parent, 'column')}"
+        if not isinstance(parent, dict) or not isinstance(table, list) or first not in scales:
+            continue
+        out += [chain_rules.derived_of(first, levels[f"{parent['level']}"] if f"{parent['level']}" in levels else 0, table, not written["edges"])]
+    return tuple(out)
+
+
+def _rule_lines(
+    listed: object,
+    published_blocks: "dict[str, dict[str, object]]",
+    file_blocks: "dict[str, dict[str, object]]",
+    file_place: "dict[str, int]",
+    table: reading.Table,
+    settings: taxonomy.Settings,
+    declarations: "tuple[list[str], list[str], list[str]]",
+    stored_as: "tuple[str, ...]",
+    held_totals: "set[str]",
+    unchecked: "dict[str, str]",
+    gate_open: bool,
+    tabled_mask: "tuple[bytearray, int]",
+    scales: "dict[str, chain_rules.Ladder]",
+    codes: "dict[str, bytearray | list[int]]",
+    floor: int,
+) -> "list[validation.ChainRule]":
+    """V12.2's two rows for every carried rule: its failing rows inside its class, and a derived column's
+    family recomputed on the file as `B - A` (contract 4.6b.7). Each prints its verdict alone (V12.3):
+    no count of the computed column's rows and no count of failing rows."""
+    out: "list[validation.ChainRule]" = []
+    if not isinstance(listed, list):
+        return out
+    mask, _count = tabled_mask
+    tabled_rows = [row for row in range(len(mask)) if mask[row]]
+    codes_d, measured, commas = declarations
+    for at in range(len(listed)):
+        entry = listed[at]
+        if not isinstance(entry, dict):
+            continue
+        first = f"{entry['inputs'][0]}" if isinstance(entry["inputs"], list) and entry["inputs"] else ""
+        target = f"{entry['computed']}"
+        carrier = f"{entry['carrier']}"
+        klass = f"{entry['class']}"
+        base = [first] + ([] if carrier == chain_rules.CARRIER_DERIVED else [carrier])
+        kinds = ["rule"] + (["derived family"] if carrier == chain_rules.CARRIER_DERIVED else [])
+
+        def line(kind: str, verdict: str, reason: str = "") -> validation.ChainRule:
+            return validation.ChainRule(at, target, (first,), carrier, klass, kind, verdict, reason)
+
+        missing = [name for name in base if name in unchecked]
+        if missing or target not in file_place or target not in file_blocks:
+            reason = unchecked[missing[0]] if missing else NO_SUCH_COLUMN
+            out += [line(kind, "", reason) for kind in kinds]
+            continue
+        if any(name not in held_totals for name in base):
+            out += [line(kind, validation.WITHHELD, NOT_JUDGED) for kind in kinds]
+            continue
+        if not gate_open:
+            out += [line(kind, validation.WITHHELD, GATE_CLOSED) for kind in kinds]
+            continue
+        a_block = published_blocks[first]
+        kind_of_pair = chain_rules.kind_of_role(_get(a_block, "role"))
+        if kind_of_pair is None:
+            out += [line(kind, "", ANOTHER_ROLE) for kind in kinds]
+            continue
+
+        def read(name: str, block: "dict[str, object]", kind: str) -> chain_order.Readings:
+            place = file_place[name]
+            declared = {"code": name in codes_d, "measurement": name in measured, "decimal_comma": name in commas}
+            return chain_order.read_under(
+                table, place, block, kind, settings, declared, stored_as[place] if place < len(stored_as) else "", tabled_rows,
+            )
+
+        a = read(first, a_block, kind_of_pair)
+        b = read(target, file_blocks[target], kind_of_pair)
+        pair = chain_order.pair_reading(kind_of_pair, a_block, published_blocks[target], a, b)
+        if carrier == chain_rules.CARRIER_DERIVED:
+            failing = chain_order.failing_rows(pair, a, b, len(tabled_rows))
+            held = failing <= floor - 1 if klass == chain_rules.CLASS_PHRASE else f"{failing}" == klass
+            out += [line("rule", validation.HELD if held else validation.MISSED)]
+            out += [line("derived family", _derived_verdict(entry["derived"], pair, a, b, scales[first], codes[first]))]
+            continue
+        d = read(carrier, published_blocks[carrier], chain_rules.KIND_NUMBER)
+        unit = f"{entry['unit']}"
+        seconds = kind_of_pair == chain_rules.KIND_CLOCK or pair.seconds
+        units = dict(chain_rules.TIME_UNITS)
+        b_step = chain_rules.first_step(published_blocks[target], kind_of_pair)
+        b_end = None
+        if kind_of_pair == chain_rules.KIND_CLOCK and b_step is not None:
+            b_end = 86399 if b_step == 1 else 86340
+        failing = chain_order.source_failing(pair, a, b, d, units[unit] if unit in units else 1, b_end, floor)
+        held_source = failing <= floor - 1 and (not seconds or unit in units)
+        out += [line("rule", validation.HELD if held_source else validation.MISSED)]
+    return out
+
+
+def _derived_verdict(
+    written: object,
+    pair: chain_order.PairReading,
+    a: chain_order.Readings,
+    b: chain_order.Readings,
+    ladder: chain_rules.Ladder,
+    a_codes: "bytearray | list[int]",
+) -> str:
+    """A derived column's family recomputed on the file: `B - A` banded at its published edges, `A` at its
+    published level, against the published table cell for cell (V12.2)."""
+    if not isinstance(written, dict):
+        return validation.MISSED
+    edges = [chain_rules.decimal_value(edge) for edge in written["edges"]]
+    if any(edge is None for edge in edges):
+        return validation.MISSED
+    exact = [edge for edge in edges if edge is not None]
+    parent = written["parent"]
+    level = {"L0": 0, "L1": 1, "L2": 2}[f"{parent['level']}"] if isinstance(parent, dict) else 0
+    unit = chain_rules.Exact(1, 10 ** max(a.places, b.places)) if pair.kind == chain_rules.KIND_NUMBER else chain_rules.Exact(1)
+    width = len(exact) + 2
+    counted = [[0] * width for _band in range(ladder.counts[level])]
+    for row in range(a.rows):
+        code = a_codes[row]
+        if not code:
+            return validation.MISSED
+        band = ladder.maps[level][code - 1]
+        gap, _fails = chain_order.gap_of(pair, a, b, row)
+        column = width - 1 if gap is None else chain_rules.derived_band_of(exact, chain_rules.Exact(gap) * unit)
+        counted[band][column] += 1
+    published = written["table"]
+    return validation.HELD if counted == published else validation.MISSED
 
 
 def with_lines(outcome: validation.Outcome, lines: validation.ChainLines) -> validation.Outcome:

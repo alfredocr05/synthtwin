@@ -1914,7 +1914,7 @@ def test_the_person_question_offers_the_record_answer_only_behind_the_switch(tmp
     def answers_of(document: "dict[str, object]") -> "list[str]":
         return [choice["answer"] for entry in document["asked"] if entry["column"] == "ref" for choice in entry["answers_you_can_give"]]
     assert asking.ANSWER_RECORD not in answers_of(plain) and asking.ANSWER_IDENTIFIER in answers_of(plain)
-    written, asked = _switched_run(tmp_path, ["profile", "lines.csv"], capsys)
+    written, asked = _switched_run(tmp_path, ["profile", "lines.csv", "--replace"], capsys)
     assert asking.ANSWER_RECORD in answers_of(asked) and asking.ANSWER_IDENTIFIER in answers_of(asked)
     assert written["relationships"]["grain"] is None
     for entry in asked["asked"]:

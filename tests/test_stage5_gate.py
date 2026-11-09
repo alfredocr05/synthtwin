@@ -104,7 +104,9 @@ class _Produced:
 
 
 def _kept(result: results.Result) -> "dict[str, bytes]":
-    """A profile's files as the run left them, by kind; nothing for another command."""
+    """A profile's files as the run left them, by kind; a twin's profile step's (lane TT); nothing for another command."""
+    if result.command == results.TWIN and result.steps:
+        return _kept(result.steps[0])
     if result.command != results.PROFILE:
         return {}
     return {one.kind: pathlib.Path(one.path).read_bytes() for one in result.files}
@@ -301,7 +303,7 @@ _UNIVERSAL_FIELDS = frozenset(
 # plan P4-D429) and, since batch 4m's merge of lane CHb (plan P4-D435, method G16), the chain's
 # moved-family note (`chain`, G16.6) and its stray rows (`empty_rows`, G16.5): no shipped run
 # reaches them, so no registry group names them yet.
-_SWITCHED_ONLY_KEYS = frozenset({"band totals", "chain", "empty_rows"})
+_SWITCHED_ONLY_KEYS = frozenset({"band totals", "chain", "empty_rows", "rules"})
 
 
 def _next_words_met(
@@ -405,7 +407,8 @@ def recorded_fields_unmet(run: Ran, result: results.Result) -> "list[str]":
     for one in result.files:
         if not (run.folder / one.path).exists():
             found += [f"(j) {one.path} is named among the files and does not exist"]
-    if run.outcome is not None and result.verdict != "refused":
+    # (A twin's validate step is read against its outcome as its own row, lane TT.)
+    if run.outcome is not None and result.verdict != "refused" and result.command != results.TWIN:
         keyed = dict(validation.WITHHELD_RULES)
         wanted = [
             keyed.get(check.citation, validation.WITHHELD_FALLBACK)
@@ -523,6 +526,8 @@ def unmet(run: Ran, result: results.Result) -> "list[str]":
     """
     case = run.case
     expect = case.expect if case.expect is not None else battery.EXPECTED[case.key]
+    if expect.command == results.TWIN or result.command == results.TWIN:
+        return _twin_unmet(run, result, expect)
     found: "list[str]" = []
     # (a) nothing reached the process's streams and nothing was read
     if run.capture.strays or run.capture.reads:
@@ -773,6 +778,107 @@ def unmet(run: Ran, result: results.Result) -> "list[str]":
     return found
 
 
+# THE TWIN COMMAND'S CASES (lane TT, plan P4-D460): the run's own fields
+# against its row, then each step against the row of the command it runs,
+# with that command's producers: the generate step's twin and the validate
+# step's outcome, which the spies kept for the twin's run.
+_SEVERITY = ("unusable", "refused", "missed", "no-miss")
+
+
+def _deciding(steps: "tuple[results.Result, ...]") -> "results.Result | None":
+    """The step a twin takes its verdict from, by the page's rule (the test's own reading): the most severe, the later of two alike."""
+    found: "results.Result | None" = None
+    for step in steps:
+        if found is None or _SEVERITY.index(step.verdict) <= _SEVERITY.index(found.verdict):
+            found = step
+    return found
+
+
+def _twin_unmet(run: Ran, result: results.Result, expect: battery.Expect) -> "list[str]":
+    """Why a `twin` run does not meet its row, under `K-S5-01` read through its steps; empty when met."""
+    found: "list[str]" = []
+    if run.capture.strays or run.capture.reads:
+        found += ["(a) the run reached the process's own streams"]
+    if result.command != results.TWIN or expect.command != results.TWIN:
+        found += [f"(j) command {result.command!r}, the row writes {expect.command!r}"]
+    if result.verdict != expect.verdict:
+        found += [f"(b) verdict {result.verdict}, the row writes {expect.verdict}"]
+    if results.exit_code(result) != expect.exit:
+        found += [f"(c) exit {results.exit_code(result)}, the row writes {expect.exit}"]
+    if len(result.steps) != len(expect.steps):
+        found += [f"(t) {len(result.steps)} steps, the row writes {len(expect.steps)}"]
+    deciding = _deciding(result.steps)
+    if deciding is not None:
+        if result.verdict != deciding.verdict:
+            found += ["(t) the verdict is not the most severe step's"]
+        same = (
+            result.misses == deciding.misses
+            and result.unjudged == deciding.unjudged
+            and result.carried == deciding.carried
+            and result.tally == deciding.tally
+        )
+        if not same:
+            found += ["(t) the misses, unjudged, carried or tally are not the deciding step's"]
+        if (result.refusal is None) != (deciding.refusal is None) or (
+            result.refusal is not None
+            and deciding.refusal is not None
+            and (result.refusal.step, result.refusal.key, result.refusal.words)
+            != (deciding.refusal.step, deciding.refusal.key, deciding.refusal.words)
+        ):
+            found += ["(t) the refusal is not the deciding step's"]
+        if result.questions != result.steps[0].questions:
+            found += ["(t) the questions are not the profile step's"]
+    if result.verdict in ("refused", "unusable"):
+        if result.refusal is None or result.refusal.step != expect.step or result.refusal.key != expect.key:
+            found += [f"(e) refusal {result.refusal}, the row writes step {expect.step} key {expect.key!r}"]
+    elif result.refusal is not None:
+        found += ["(e) a refusal on a run that finished"]
+    joined_files = tuple(one for step in result.steps for one in step.files)
+    if result.files != joined_files:
+        found += ["(t) the files are not the steps' files in order"]
+    if tuple(one.kind for one in result.files) != expect.files:
+        found += [f"(j) files {[one.kind for one in result.files]}, the row writes {expect.files}"]
+    for one in result.files:
+        if not pathlib.Path(one.path).exists():
+            found += [f"(j) {one.path} is named among the files and does not exist"]
+    joined_warnings = tuple(one for step in result.steps for one in step.warnings)
+    if result.warnings != joined_warnings:
+        found += ["(t) the cautions are not the steps' cautions in order"]
+    if tuple(one.key for one in result.warnings) != expect.warnings:
+        found += [f"(g) warnings {[one.key for one in result.warnings]}, the row writes {expect.warnings}"]
+    if result.floor != expect.floor or result.floor_lowered != expect.floor_lowered:
+        found += [f"(g) floor {result.floor}/{result.floor_lowered}, the row writes {expect.floor}/{expect.floor_lowered}"]
+    resolved = os.path.realpath(run.folder)
+    if not expect.next_words:
+        if result.next_command is not None:
+            found += ["(g) a next command where the row writes none"]
+    elif result.next_command is None or result.next_command.purpose != expect.next_purpose or not _next_words_met(
+        result.next_command.words, expect.next_words, resolved
+    ):
+        found += [f"(g) next command {result.next_command}, the row writes {expect.next_words} {expect.next_purpose}"]
+    if expect.questions is not None:
+        placed = tuple((one.section, one.column) for one in result.questions)
+        if placed != expect.questions:
+            found += [f"(k) questions {placed}, the row writes {expect.questions}"]
+    # Each step against its own row, with its own producers.
+    folder = pathlib.Path(result.files[0].path).parent if result.files else run.folder
+    for place, (step, row) in enumerate(zip(result.steps, expect.steps)):
+        words = {"profile": ("profile", "t.csv"), "generate": ("generate", "t-profile.json"), "validate": ("validate", "t-profile.json")}
+        step_case = battery.Case(f"{run.case.key}.{place + 1}", words.get(step.command, (step.command,)), recorded=False, expect=row)
+        step_run = Ran(
+            step_case,
+            step,
+            run.capture,
+            folder,
+            run.outcome if step.command == results.VALIDATE else None,
+            run.twin if step.command == results.GENERATE else None,
+            None,
+            run.kept if step.command == results.PROFILE else {},
+        )
+        found += [f"step {place + 1} ({step.command}): {why}" for why in unmet(step_run, step)]
+    return found
+
+
 def classed(ran: Battery) -> "dict[str, Ran]":
     """The cases that name a class (`K-S5-01`): every case run but G5's, which pin bytes only."""
     return {
@@ -895,6 +1001,12 @@ def _corruptions(ran: Battery) -> "list[tuple[str, Ran, results.Result]]":
     one = ran.runs["G1"]
     found += [("a profile's made-up column dropped from carried", one, dataclasses.replace(one.result, carried=one.result.carried[1:]))]
     found += [("a profile's tally miscounted", one, dataclasses.replace(one.result, tally=one.result.tally[:-1] + (("held", 1),)))]
+    # Lane TT (plan P4-D460): a twin's verdict that is not its most severe
+    # step's, a step dropped, and a step's own result changed.
+    twin = ran.runs["T1"]
+    found += [("a twin's verdict made no-miss where a step missed", twin, dataclasses.replace(twin.result, verdict="no-miss"))]
+    found += [("a twin's step dropped", twin, dataclasses.replace(twin.result, steps=twin.result.steps[:2]))]
+    found += [("a twin step's verdict changed", twin, dataclasses.replace(twin.result, steps=(dataclasses.replace(twin.result.steps[0], verdict="missed"),) + twin.result.steps[1:]))]
     return found
 
 
@@ -1154,7 +1266,7 @@ def test_every_key_the_generator_writes_is_named_as_the_registry_names_it() -> N
     groups = sorted({group for group, _field in _registry_pairs()} - {"universal", "document"})
     wrong = []
     switched = [key for _line, key in keys if key in _SWITCHED_ONLY_KEYS]
-    assert sorted(switched) == ["band totals", "chain", "empty_rows"], switched
+    assert sorted(switched) == ["band totals", "chain", "empty_rows", "rules"], switched
     for line, key in keys:
         if key in _SWITCHED_ONLY_KEYS:
             continue
@@ -1441,6 +1553,22 @@ def test_the_ambiguity_rule_is_this_python_s() -> None:
     assert cli._AMBIGUITY_SORTED_FIRST == _argparse_sorts_first()
 
 
+def _help_shown(argv: "tuple[str, ...]", whole: "list[tuple[str, str]]") -> "list[tuple[str, str]]":
+    """What a help option shows where argparse takes it: the page of the command word before it, else the whole page.
+
+    ONE PAGE FOR EACH COMMAND (lane TT, plan P4-D460): argparse decides
+    where the help option is taken, as before; a command word read before
+    it shows that command's own page (`cli.command_page`) in place of the
+    whole-tool page, which a help word with no command before it keeps.
+    """
+    for word in argv:
+        if cli._could_ask_for_help(word):
+            break
+        if word in cli._READ_BY:
+            return [("out", cli.command_page(word))]
+    return whole
+
+
 def test_an_ambiguous_word_after_the_help_word_is_refused_as_before(tmp_path: pathlib.Path) -> None:
     """A word abbreviating several options, after the help word: answered as this Python's argparse answered it.
 
@@ -1465,7 +1593,7 @@ def test_an_ambiguous_word_after_the_help_word_is_refused_as_before(tmp_path: pa
         wanted = [("err", usage + f"synthtwin: error: ambiguous option: {matches}\n")]
         status, verdict = 2, "unusable"
         if not _argparse_sorts_first():
-            wanted, status, verdict = page.runs, 0, "no-miss"
+            wanted, status, verdict = _help_shown(argv, page.runs), 0, "no-miss"
         through_main = RECORDER.capture(argv, tmp_path)
         assert (through_main.exit, through_main.runs) == (status, wanted), argv
 
@@ -1554,7 +1682,8 @@ def test_argparse_s_own_answer_on_this_python_is_kept(tmp_path: pathlib.Path) ->
             assert not any(text.startswith("usage: ") for _stream, text in through_main.runs), argv
             continue
         stopped = stopped + 1
-        assert (through_main.exit, through_main.runs) == (oracle.exit, oracle.strays), argv
+        wanted = _help_shown(argv, oracle.strays) if oracle.exit == 0 else oracle.strays
+        assert (through_main.exit, through_main.runs) == (oracle.exit, wanted), argv
         screen: "list[tuple[str, str]]" = []
 
         def listed(given: "list[str]", write: "typing.Callable[[str, str], None]") -> int:
@@ -1564,7 +1693,7 @@ def test_argparse_s_own_answer_on_this_python_is_kept(tmp_path: pathlib.Path) ->
             return results.exit_code(result)
 
         through_run = RECORDER.capture(argv, tmp_path, listed)
-        assert (through_run.exit, through_run.runs, through_run.strays) == (oracle.exit, oracle.strays, []), argv
+        assert (through_run.exit, through_run.runs, through_run.strays) == (oracle.exit, wanted, []), argv
         if oracle.exit == 0:
             assert quiet.verdict == "no-miss" and quiet.command == "help", argv
             continue
@@ -1741,6 +1870,14 @@ def test_what_validate_carries_follows_the_description_whatever_the_file_lacks(
     assert kinds == {True, False}
 
 
+def _validate_step(result: results.Result) -> results.Result:
+    """A twin's validate step, or the twin itself, refused, where it has none (lane TT, plan P4-D460)."""
+    for step in result.steps:
+        if step.command == results.VALIDATE:
+            return step
+    return dataclasses.replace(result, verdict="refused")
+
+
 def test_a_window_s_ends_are_carried_where_the_report_prints_them(
     ran: Battery, dense_dates: "tuple[results.Result, validation.Outcome]"
 ) -> None:
@@ -1759,6 +1896,12 @@ def test_a_window_s_ends_are_carried_where_the_report_prints_them(
     # tails (batch 4l: since lane PS2 the battery's dates carry none, and a
     # tail's distances were the windows printed in a note).
     runs = [(key, run.outcome, run.result) for key, run in ran.runs.items()]
+    # ...a twin run read through its validate step, whose result the
+    # outcome is (lane TT, plan P4-D460).
+    runs = [
+        (key, outcome, _validate_step(result) if result.command == results.TWIN else result)
+        for key, outcome, result in runs
+    ]
     runs += [("dense-dates", dense_dates[1], dense_dates[0])]
     for key, outcome, result in runs:
         if outcome is None or result.verdict == "refused":

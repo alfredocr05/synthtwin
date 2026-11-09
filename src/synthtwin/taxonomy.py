@@ -569,6 +569,12 @@ KEYS_THAT_CARRY_NO_VALUE = (
     # is what the column does NOT hold, never a character any value has at
     # its place (`with_layout_exclusions`, `contract._layout_exclusions`).
     "layout_exclusions",
+    # ...AND THE YEARS A HELD DATE COLUMN'S MADE-UP DATES TAKE (lane
+    # ID-ROOM2, plan P4-D457): one block of years a kind, fixed by the
+    # published facts, NO real cell of the column is a date of, read on the
+    # merged key; nothing stepped over, nothing counted
+    # (`with_made_up_years`, `contract._made_up_years`).
+    "made_up_years",
     "max_length",
     "min_length",
     "n_all_digits",
@@ -1169,6 +1175,12 @@ REMARK_HELD_COUNTS_ARE_MADE_UP = "remark_held_counts_are_made_up"
 # contract NF135): those cells are blank here and on the twin, and its
 # reading is the one its own cells gave.
 REMARK_DATED_VALUES_HELD = "remark_dated_values_held"
+# ...AND A COLUMN OF DATES HELD AS RECORD NUMBERS WHOSE MADE-UP DATES ARE
+# KEPT OFF ITS REAL ONES (lane ID-ROOM2, plan P4-D457): drawn from years no
+# date of the table takes, or, where none was found, written as record
+# numbers off every value of the table.
+REMARK_MADE_UP_DATES_OFF_THE_REAL = "remark_made_up_dates_off_the_real"
+REMARK_MADE_UP_DATES_NOT_DATES = "remark_made_up_dates_not_dates"
 
 # EVERY form, with how many arguments it takes. This mapping is the
 # enumeration: a name that is not a key here is not a form, and `note`
@@ -1392,6 +1404,8 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_HELD_DATES_ARE_VALID: 0,
     REMARK_HELD_COUNTS_ARE_MADE_UP: 0,
     REMARK_DATED_VALUES_HELD: 0,
+    REMARK_MADE_UP_DATES_OFF_THE_REAL: 0,
+    REMARK_MADE_UP_DATES_NOT_DATES: 0,
 }
 
 # The same names as a sorted tuple, for a reader and for the tests that
@@ -2623,6 +2637,29 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"the same way -- all as counts in one spelling, or all as text "
             f"-- and name it again"
         )
+    if form == REMARK_MADE_UP_DATES_OFF_THE_REAL:
+        return (
+            "this column holds dates read as record numbers, so its twin "
+            "writes made-up dates in the column's own layouts -- days that "
+            "exist -- from years no date of your table takes: years of four "
+            "figures from the year after this release's reference year on, "
+            "or two-figure years from that year's two figures on, none of "
+            "which any date of the column is, written with either width of "
+            "year -- so no twin date is one of yours: not exact, not merged, "
+            "and not the same day written with the other year width -- and "
+            "code that reads the column as dates runs on the twin, save on a "
+            "value of a layout too rare for this description to name, or the "
+            "value of figures alone that carries the column's longest length, "
+            "either of which the twin may write as a record number"
+        )
+    if form == REMARK_MADE_UP_DATES_NOT_DATES:
+        return (
+            "this column holds dates read as record numbers, and some of its "
+            "dates fall in the years the twin's made-up dates of some of its "
+            "layouts would take, so its twin writes the made-up values of "
+            "those layouts as record numbers kept off every value of your "
+            "table, not as dates"
+        )
     if form == REMARK_HELD_DATES_ARE_VALID:
         return (
             "this column holds dates or times, so its twin writes real ones "
@@ -2630,8 +2667,10 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "inside the day -- drawn inside the last span its `time_grain` "
             "names, or from 2000 to 2029 where it names none (to a later "
             "year, by whole decades, where the column holds more different "
-            "values than those years leave room for), never from your "
-            "table, so code that reads the column as dates runs on the twin"
+            "values than those years leave room for), so code that reads "
+            "the column as dates runs on the twin, and a twin value drawn "
+            "inside a span your table's values fill may by chance be one "
+            "your table holds"
         )
     if form == REMARK_HELD_COUNTS_ARE_MADE_UP:
         return (
@@ -13209,14 +13248,22 @@ def _layout_prefixes(
     ):
         return {parsing.PREFIX_OF_THE_COLUMN: whole}
     found: "dict[str, str]" = {}
+    # EACH CELL'S LAYOUT READ ONCE (lane CZ-A, plan P4-D445): read again
+    # for every named layout, a column of a thousand opaque tokens, each
+    # its own layout, read twenty million layouts at 20,000 rows and one
+    # description took minutes. The cells wearing each layout keep the
+    # column's own order, so every prefix is the one it was.
+    wearing_by_layout: "dict[str, list[str]]" = {}
+    for value in cells.present:
+        form = parsing.layout_form(value, convention)
+        if form in wearing_by_layout:
+            wearing_by_layout[form] += [value]
+        else:
+            wearing_by_layout[form] = [value]
     for layout in sorted(layouts):
         if layout == SUPPRESSED_LABEL:
             continue
-        wearing = [
-            value
-            for value in cells.present
-            if parsing.layout_form(value, convention) == layout
-        ]
+        wearing = wearing_by_layout[layout] if layout in wearing_by_layout else []
         prefix = parsing.literal_prefix(wearing, convention)
         if not prefix:
             continue
@@ -29289,6 +29336,16 @@ def with_layout_exclusions(
                 needs[layout] = min(int(f"{forms[layout]}"), column.n_distinct)
                 deepest = max(deepest, _list_deepest(layout, needs[layout]))
         firsts = _list_key_firsts(present, deepest) if needs else {}
+        # ...AND A RUN OF FIVE FIGURES OR MORE INSIDE A WIDER VALUE, HOWEVER
+        # IT IS GLUED THERE (`inner_runs`; Codex's review of batch 4q, item 1,
+        # and its fix round 2) is kept off every real run of its width by its
+        # opening, the openings counted over every run of every real cell.
+        run_widths: "dict[int, bool]" = {}
+        for layout in named:
+            if layout not in needs:
+                for _place, figures in inner_runs(layout):
+                    run_widths[figures] = True
+        runs_held = _run_firsts(present, run_widths) if run_widths else {}
         for layout in named:
             if layout in needs:
                 listed = _list_exclusion_of(layout, firsts, floor, needs[layout], deepest)
@@ -29299,19 +29356,18 @@ def with_layout_exclusions(
             template = parsing.layout_template(layout, prefix, whole_places)
             length = parsing.merged_length(template)
             folded = parsing.folded_layout(layout)
+            arc = parsing.first_arc_places(template) if folded in uids and uids[folded] else 0
+            keys_of_length = keyed[length] if length in keyed else []
+            need = min(sharing[folded], column.n_distinct)
             found = _exclusion_of(
-                keyed[length] if length in keyed else [],
-                layout,
-                template,
-                prefix,
-                floor,
-                int(f"{forms[layout]}"),
-                min(sharing[folded], column.n_distinct),
-                parsing.first_arc_places(template)
-                if folded in uids and uids[folded]
-                else 0,
-                texts,
+                keys_of_length, layout, template, prefix, floor, int(f"{forms[layout]}"), need, arc, texts,
             )
+            runs = inner_runs(layout)
+            if runs and found and not _openings_kept(found, runs, runs_held):
+                found = _exclusion_with_openings(
+                    keys_of_length, layout, template, prefix, floor, int(f"{forms[layout]}"), need, arc, texts,
+                    runs, runs_held,
+                )
             if len(found) == 1:
                 exclusions[layout] = found[0]
             elif found:
@@ -29324,6 +29380,207 @@ def with_layout_exclusions(
         details[key] = column.details[key]
     details["layout_exclusions"] = exclusions
     return dataclasses.replace(column, details=details)
+
+
+# A RUN OF FIGURES STANDING AS ITS OWN WORD BESIDE TEXT IS A KEY OF ITS OWN
+# (Codex's review of batch 4q, item 1; plan P4-D432). Lane CZ-A's hold of a
+# name beside a record number read a column of `Cedar, Abc [1000000]` as
+# record numbers where it had been free text, and its excluded template
+# wrote one letter out (`Z&&&&, @&& [%%%%%%%]`): the whole cell stood off
+# the real, but the record number inside it was drawn as any seven figures,
+# and 46 twin cells of Codex's 20,000 rows (1,000 people of 20 records, the
+# numbers 1000000 to 1019999) held a complete real record number, where as
+# free text the column's runs had worn `figure_openings` and none did. The
+# same letter alone kept a blood unit's sequence beside its facility code
+# (`Z%%%% %% %%%%%% %%`) off nothing, on the public line too. So, as a list
+# cell's keys are kept (LANE HB RULINGS 3), a run of `_LIST_KEY_FIGURES`
+# figures or more INSIDE A WIDER VALUE (`inner_runs`) is kept off the real by
+# its
+# OPENING: written at the run's first place, the shortest no real run of the
+# run's merged width opens with (`_list_opening_of`, never the whole run),
+# counted over every maximal run of figures of every real cell
+# (`_run_firsts`), beside the layout's own exclusion, chosen with the
+# openings written (`_exclusion_with_openings`). An exclusion that already
+# writes such an opening at every such run stands byte for byte
+# (`_openings_kept`); a run with no free opening, or a template whose room
+# left is too small, leaves its layout no exclusion, so its cells are
+# written as the spill, past every real length.
+#
+# ...HOWEVER IT IS GLUED (batch 4q's fix round 2, the verify's blocker 1):
+# the first round reached a run standing as its own word only, so a record
+# number glued to its label or with a letter after it inside a name
+# (`Cedar, Abc [MR1013474]`, `Cedar, Abc #MR1013474`, `Cedar, Abc
+# [1013474A]`), which lane CZ-A's route holds as a name beside a record
+# number too, kept the one-letter exclusion, and 46, 46 and 47 twin cells of
+# Codex's construction held a complete real record number (`Zvyva, Hhw
+# [IE1013474]` beside a real `[MR1013474]`), none on the public line, where
+# the column was free text. A run is now reached wherever the layout holds a
+# word beside the run's own -- words parted by a space and by every mark
+# that joins no code's parts (`_WORD_PARTS`) -- whatever stands beside the
+# run inside its word: a letter, a mark joining a code's parts or nothing. A
+# layout of one word (`MR1234567`, `#MR1234567`, `S24-123456`) is one key,
+# kept off the real whole by the layout's own exclusion, and is read as
+# before byte for byte.
+_RUN_NOT_TEXT = "a layout or a cell must be text"
+# The marks that join the parts of one code, so a run beside them stands in
+# that code's word (`inner_runs`): `REC-12345`, `S24.012345`, `A/12345`.
+OWN_WORD_JOINS = "-./_+"
+# The characters that part a value's words (`inner_runs`): a space, and
+# every layout mark (`parsing.LAYOUT_MARKS`) joining no code's parts --
+# brackets, braces, `#`, `:`, `*` and a comma.
+_WORD_PARTS = " :#*()[],{}"
+# The six placeholders a layout writes for a value's characters (a word holds
+# one at least).
+_LAYOUT_PLACEHOLDER_MARKS = (
+    parsing.LAYOUT_DIGIT + parsing.LAYOUT_UPPER + parsing.LAYOUT_LOWER + parsing.LAYOUT_LOWER_HEX
+    + parsing.LAYOUT_UPPER_HEX + parsing.LAYOUT_LEADING_ZERO
+)
+
+
+def inner_runs(layout: str) -> "list[tuple[int, int]]":
+    """Each run of five figures or more a layout writes inside a wider value: its first place and its figures (plan P4-D432).
+
+    A maximal run of `parsing.LAYOUT_DIGIT` marks, `_LIST_KEY_FIGURES` or
+    more, in a layout of TWO WORDS OR MORE: a word is a stretch of the
+    layout that no space and no mark parting words (`_WORD_PARTS`) breaks,
+    holding a placeholder -- letters, figures and the marks joining a code's
+    parts (`OWN_WORD_JOINS`) stand inside it. However the run is glued in
+    its word -- as the word itself (`[1234567]`, `#1234567`), after a label
+    (`[MR1234567]`, `#MR1234567`), before a letter (`[1234567A]`) or joined
+    by a code's marks (`[REC-1234567]`) -- the value holds more beside it
+    (batch 4q's fix round 2, the verify's blocker 1). A layout of one word
+    (`MR1234567`, `#MR1234567`, `S24-123456`) holds none: it is one key.
+    A fixed function of the layout. Raises TypeError for a non-string. No
+    I/O.
+    """
+    if not isinstance(layout, str):
+        raise TypeError(_RUN_NOT_TEXT)
+    words = 0
+    worded = False
+    for place in range(len(layout) + 1):
+        if place == len(layout) or layout[place] in _WORD_PARTS:
+            words = words + 1 if worded else words
+            worded = False
+        elif layout[place] in _LAYOUT_PLACEHOLDER_MARKS:
+            worded = True
+    found: "list[tuple[int, int]]" = []
+    if words < 2:
+        return found
+    start = -1
+    for place in range(len(layout) + 1):
+        if place < len(layout) and layout[place] == parsing.LAYOUT_DIGIT:
+            if start < 0:
+                start = place
+            continue
+        if start >= 0 and place - start >= _LIST_KEY_FIGURES:
+            found += [(start, place - start)]
+        start = -1
+    return found
+
+
+def _run_firsts(present: "list[str]", widths: "dict[int, bool]") -> "dict[int, dict[str, int]]":
+    """For each merged width ``widths`` names, how many real runs of figures open with each opening (plan P4-D432).
+
+    Every maximal run of ASCII figures of every present cell, read on its
+    MERGED figures (the noughts before them dropped, as `parsing.merged_key`
+    drops them); a run of a width named counts each of its openings of one
+    figure to one fewer than its width. Each different cell is read once and
+    counted as often as it stands: linear in the cells. Raises TypeError for
+    a cell that is not text. No I/O.
+    """
+    stands: "dict[str, int]" = {}
+    for cell in present:
+        if not isinstance(cell, str):
+            raise TypeError(_RUN_NOT_TEXT)
+        stands[cell] = stands[cell] + 1 if cell in stands else 1
+    held: "dict[int, dict[str, int]]" = {}
+    for cell in stands:
+        start = -1
+        for place in range(len(cell) + 1):
+            if place < len(cell) and "0" <= cell[place] <= "9":
+                if start < 0:
+                    start = place
+                continue
+            if start < 0:
+                continue
+            nought = start
+            while nought < place and cell[nought] == "0":
+                nought = nought + 1
+            start = -1
+            if place - nought not in widths:
+                continue
+            if place - nought not in held:
+                held[place - nought] = {}
+            counts = held[place - nought]
+            opening = ""
+            for at in range(nought, place - 1):
+                opening = opening + cell[at]
+                counts[opening] = counts[opening] + stands[cell] if opening in counts else stands[cell]
+    return held
+
+
+def _openings_kept(found: "list[str]", runs: "list[tuple[int, int]]", held: "dict[int, dict[str, int]]") -> bool:
+    """Whether every spelling of a layout's exclusion opens each of its inner runs as no real run of its width opens (plan P4-D432).
+
+    The figures a spelling writes out from the run's first place, a
+    nought never first and never the whole run, held by no real run of the
+    run's merged width (`_run_firsts`). Raises nothing. No I/O.
+    """
+    for spelling in found:
+        for place, figures in runs:
+            opening = ""
+            at = place
+            while at < place + figures and "0" <= spelling[at] <= "9":
+                opening = opening + spelling[at]
+                at = at + 1
+            counts = held[figures] if figures in held else {}
+            if not opening or opening[0] == "0" or len(opening) >= figures or opening in counts:
+                return False
+    return True
+
+
+def _exclusion_with_openings(
+    keys: "list[str]",
+    layout: str,
+    template: str,
+    prefix: str,
+    floor: int,
+    published: int,
+    need: int,
+    first: int,
+    texts: "dict[str, bool]",
+    runs: "list[tuple[int, int]]",
+    held: "dict[int, dict[str, int]]",
+) -> "list[str]":
+    """A layout's exclusions with each inner run's opening written out, or none (plan P4-D432; Codex's review of batch 4q, item 1).
+
+    Each run's opening is the shortest no real run of its merged width
+    opens with (`_list_opening_of` over `_run_firsts`' counts, read as its
+    scan reads them: an opening the floor's runs hold passed over, one 1 to
+    ``floor`` - 1 hold ending its size; never the whole run). The layout's
+    own exclusion (`_exclusion_of`) is then chosen with the openings
+    written in its template, so its room is read with them, and each of its
+    spellings carries them. None where a run has no such opening, where no
+    exclusion is left with them, or where a spelling is a real cell's text
+    (``texts``, folded). Raises nothing. No I/O.
+    """
+    written = template
+    openings: "list[tuple[int, str]]" = []
+    for place, figures in runs:
+        counts = held[figures] if figures in held else {}
+        opening = _list_opening_of(counts, figures, floor, 1, figures - 1)
+        if not opening:
+            return []
+        openings += [(place, opening)]
+        written = written[:place] + opening + written[place + len(opening):]
+    spelled: "list[str]" = []
+    for spelling in _exclusion_of(keys, layout, written, prefix, floor, published, need, first, texts):
+        for place, opening in openings:
+            spelling = spelling[:place] + opening + spelling[place + len(opening):]
+        if parsing.folded(spelling) in texts:
+            return []
+        spelled += [spelling]
+    return spelled
 
 
 # A key of a list cell (plan P4-D442): letters, then five figures or more,
@@ -32676,12 +32933,83 @@ HELD_CITY_STATES = "places-beside-their-states"
 # ...AND THE PARTS OF AN ADDRESS: a house, apartment, unit or suite number
 # (lane SH3, plan P4-D454; `named_as_an_address_part`).
 HELD_ADDRESS_PARTS = "named-as-address-parts"
+# THE SAFE HARBOR IDENTIFIER FORMS (plan P4-D445, lane CZ-A; 45 CFR
+# 164.514(b)(2)(i)(A), (G), (I), (M) and (R)): numbers and codes given to
+# one person, or to one device a person carries, that a table writes in
+# forms the person question reads only while it is open -- a column of
+# them answered `keep` there (not the people the rows are about: a
+# relative's number, a device's, a specimen's) was read as free text,
+# whose twin writes no figure of the form, or, with a thousand people or
+# fewer, as labels whose levels are the real numbers. Each is held whole
+# and put the Safe Harbor question, as lane SH2's device numbers are,
+# until it is answered `no`:
+# - a social security number, three, two and four figures joined by a
+#   dash or a space of any kind (an en dash, a minus sign, a non-breaking
+#   hyphen or space among them), a letter of either case after it or not,
+#   a space before that letter or not, ONE cell of it whatever its share
+#   (repair 1, skeptic 1 item 1) (a column holding one holds social
+#   security numbers -- a payer's member numbers often are -- and its
+#   nine figures written plain beside it are the same numbers);
+# - a beneficiary identifier in the public eleven-character layout (a
+#   figure, a letter, either, a figure, a letter, either, a figure, two
+#   letters, two figures; letters but S, L, O, I, B and Z), plain or
+#   dashed four, three and four, one cell of it whatever its share;
+# - a name and a record number in one cell, `Lastname, Firstname M
+#   [1234567]` or `Lastname,Firstname (1234567)`, the number labelled
+#   (`[REC 1234567]`, `(REC: 1234567)`) or after a number sign
+#   (`#1234567`), six figures at least (repair 1, skeptic 1 item 3, and
+#   the orchestrator's LANE CZ-A RULINGS 1 (2): a procedure's code of four
+#   or five figures beside its name is none), the given name a sole
+#   initial with its point (`Lastname, F. [1234567]`) and a family name
+#   written with a curly apostrophe among them (repair 2, Codex item 2),
+#   one cell of it whatever its share: both parts are Safe Harbor
+#   identifiers;
+# - an opaque token, 32 or 64 hexadecimal characters in one case -- the
+#   32 also as a UUID writes them, five groups of 8, 4, 4, 4 and 12 joined
+#   by dashes, in braces or not (repair 2, the verify's item 1) -- or
+#   base64 of 22, 24, 43 or 44 characters with its padding or without
+#   (repair 1, skeptic 1 item 2), on two in three of the cells;
+# - a column whose NAME says it holds a device's lot or serial number
+#   (`lot`, `serial`, `sn` (repair 2, the verify's item 5) and their
+#   compounds, read whole as the place words are; never beside a word of
+#   a date, so an Excel serial date is none);
+# - an accession number, one to three capitals, a two-figure year and a
+#   sequence, dashed (`S24-012345`), undashed or year first (`24S012345`,
+#   `24S-012345`), on two in three of the cells, one at least dashed --
+#   the year first with its dash among them (repair 2, Codex item 1 and
+#   the verify's item 3) -- or both the undashed layouts in the column
+#   (repair 1, skeptic 1 item 4);
+# - a blood-unit number in the ISBT 128 layout, a facility code (a capital
+#   and four figures), a two-figure year, a six-figure sequence, then two
+#   flag figures, a check character, both or neither, spaced or bare, the
+#   data identifier `=` before it or none (repair 1, skeptic 1 item 5), on
+#   two in three of the cells;
+# - whole numbers of fifteen figures or more on two in three of the
+#   cells, or of sixteen or more on ONE cell whatever its share (repair 1,
+#   skeptic 1 item 7) -- in figures, or in the exponent form a spreadsheet
+#   stores a number cell in, fifteen significant figures or more
+#   (`1.2345678901234568E+18`; repair 2, the verify's item 2) -- which a
+#   float or a spreadsheet changes (a float keeps about fifteen figures):
+#   held as text of their own widths, never read as numbers meanwhile.
+HELD_SOCIAL_SECURITY = "social-security-numbers"
+HELD_BENEFICIARIES = "beneficiary-identifiers"
+HELD_NAMES_WITH_NUMBERS = "names-beside-record-numbers"
+HELD_TOKENS = "opaque-tokens"
+HELD_DEVICE_NAMES = "named-as-device-numbers"
+HELD_ACCESSIONS = "accession-numbers"
+HELD_UNIT_NUMBERS = "blood-unit-numbers"
+HELD_LONG_NUMBERS = "numbers-of-fifteen-figures-or-more"
+IDENTIFIER_FORM_HOLDS = (
+    HELD_SOCIAL_SECURITY, HELD_BENEFICIARIES, HELD_NAMES_WITH_NUMBERS,
+    HELD_TOKENS, HELD_DEVICE_NAMES, HELD_ACCESSIONS, HELD_UNIT_NUMBERS,
+    HELD_LONG_NUMBERS,
+)
 SAFE_HARBOR_HOLDS = (
     HELD_YEARS, HELD_YEARS_BESIDE, HELD_DATES, HELD_PLACES, HELD_ZIP3,
     HELD_DEVICES, HELD_ZIP_DATES, HELD_COORDINATES, HELD_CITY_STATES,
     HELD_LEVELS_OF_FEW_PEOPLE,
     HELD_ADDRESS_PARTS,
-)
+) + IDENTIFIER_FORM_HOLDS
 # The words of a column's name that say it holds a place smaller than a
 # state (45 CFR 164.514(b)(2)(i)(B): "street address, city, county,
 # precinct, ZIP code, and their equivalent geocodes"), read whole -- a
@@ -32790,6 +33118,10 @@ _ZIP3_MARKS = ("**", "XX", "xx", "--")
 # (lot), `11` (made on), `17` (expiry) or `21` (serial) -- after a scanner's
 # symbology mark or none (lane SH2's repair 1, skeptic 1 item 3).
 _GS1_OPENING = "(01)"
+# ...and in square brackets, as some printers and forms write them (lane
+# CZ-A's repair 1, skeptic 1 item 6: `[01]` and fourteen figures, a serial
+# after `[21]`, published whole when answered a reading that publishes).
+_GS1_SQUARE = "[01]"
 _GS1_FIGURES = 14
 _GS1_BARE = "01"
 _GS1_NEXT = ("10", "11", "17", "21")
@@ -33773,8 +34105,8 @@ def _a_zip3(text: str) -> bool:
 def _a_device_identifier(text: str) -> bool:
     """Whether a text holds a unique device identifier of one of the three issuing agencies (plan P4-D434).
 
-    GS1: `(01)` and fourteen figures, spaces allowed between, anywhere in
-    the text; or, from the text's start (after a scanner's symbology mark),
+    GS1: `(01)` or `[01]` and fourteen figures, spaces allowed between,
+    anywhere in the text; or, from the text's start (after a scanner's symbology mark),
     `01`, fourteen figures and the application identifier `10`, `11`,
     `17` or `21`. HIBCC: `+`, a labeler code of four letters or figures
     opening with a letter, and more, eight characters at least, in
@@ -33786,17 +34118,18 @@ def _a_device_identifier(text: str) -> bool:
     """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT_HERE)
-    # ...each piece after an opening `(01)`, up to the next, its spaces
-    # set aside: fourteen figures there (a next opening inside them would
-    # put a mark among them, so the pieces read as the whole text would).
-    pieces = text.split(_GS1_OPENING)
-    for piece in pieces[1:]:
-        start = 0
-        while start < len(piece) and piece[start] == " ":
-            start += 1
-        figures = piece[start: start + _GS1_FIGURES]
-        if len(figures) == _GS1_FIGURES and _figures_alone(figures):
-            return True
+    # ...each piece after an opening `(01)` or `[01]`, up to the next, its
+    # spaces set aside: fourteen figures there (a next opening inside them
+    # would put a mark among them, so the pieces read as the whole text
+    # would).
+    for pieces in (text.split(_GS1_OPENING), text.split(_GS1_SQUARE)):
+        for piece in pieces[1:]:
+            start = 0
+            while start < len(piece) and piece[start] == " ":
+                start += 1
+            figures = piece[start: start + _GS1_FIGURES]
+            if len(figures) == _GS1_FIGURES and _figures_alone(figures):
+                return True
     body = parsing.trimmed(text)
     for symbology in _SYMBOLOGY_MARKS:
         if body[: len(symbology)] == symbology:
@@ -33861,6 +34194,690 @@ def _udi_characters(text: str) -> bool:
     return True
 
 
+# THE IDENTIFIER FORMS' CELLS (plan P4-D445): each test a fixed function
+# of one cell, its edge spaces set aside.
+# A social security number's three groups, and the marks one may be
+# written with between them: a dash, a space, an en dash or an em dash,
+# and the other dashes and spaces a word processor or a form writes -- a
+# hyphen, a non-breaking hyphen, a figure dash, a minus sign, a small and
+# a full-width hyphen-minus, a non-breaking and a narrow non-breaking
+# space (lane CZ-A's repair 1, skeptic 1 item 1: numbers written with a
+# non-breaking hyphen, a minus sign or a hyphen were read as labels and
+# published whole when answered a reading that publishes).
+_SSN_GROUPS = (3, 2, 4)
+_SSN_MARKS = (
+    "-", " ", "\u2013", "\u2014", "\u2010", "\u2011", "\u2012", "\u2212",
+    "\ufe63", "\uff0d", "\u00a0", "\u202f",
+)
+_SSN_FIGURES = 9
+# The longest cell a social security number written with its marks takes:
+# eleven characters, a space and a letter after them.
+_SSN_LONGEST = 13
+# A beneficiary identifier's places: `9` a figure, `A` a letter of
+# `_BENEFICIARY_LETTERS`, `X` either; and its letters, every capital but
+# S, L, O, I, B and Z, in either case.
+_BENEFICIARY_PLACES = "9AX9AX9AA99"
+_BENEFICIARY_LETTERS = "ACDEFGHJKMNPQRTUVWXYacdefghjkmnpqrtuvwxy"
+_BENEFICIARY_DASHED = 13
+# A name beside a record number: the brackets the number stands in; the
+# letters that may label it there, at most four, and the mark and spaces
+# after them (`[REC 1234567]`, `(REC: 1234567)`, `[#1234567]`); the mark
+# a number may follow unbracketed (`#1234567`); and the fewest figures it
+# holds -- six: a record number runs six to ten figures, and a procedure's
+# or a test's code beside its name (`(41234)`, `[5678]`, `(5000MG)`) four
+# or five (the orchestrator's LANE CZ-A RULINGS 1 (2)). A family name may
+# hold small words before its last (`de la Cruz`, `van der Berg`), each of
+# at most three small letters, and a word ending in a point (`Jr.`). A word
+# of a name holds letters, and an apostrophe -- straight or curly -- or a
+# dash among them (`_NAME_MARKS`), and a given name may be a sole initial
+# with its point (lane CZ-A's repair 2, Codex item 2: `Lastname, F.
+# [2000000]`, and a family name written with the curly apostrophe U+2019,
+# were read as no name and published whole when answered a reading that
+# publishes).
+_NAME_MARKS = "'\u2019-"
+_NUMBER_BRACKETS = (("[", "]"), ("(", ")"))
+_NUMBER_LABEL_LETTERS = 4
+_NUMBER_LABEL_MARKS = ":#"
+_NUMBER_SIGN = "#"
+_NUMBER_FIGURES_AT_LEAST = 6
+_NAME_PARTICLE_LETTERS = 3
+# An opaque token's lengths: hexadecimal; base64 without its padding --
+# 22 and 24 characters (a token of sixteen and of eighteen bytes), 43 and
+# 44 (a key of thirty-two and of thirty-three bytes) -- and base64 with
+# the padding a token of sixteen bytes (`==`) or of thirty-two (`=`)
+# carries (lane CZ-A's repair 1, skeptic 1 item 2: tokens of 24 base64
+# characters with no padding were read as labels and published whole when
+# answered a reading that publishes).
+_HEX_LENGTHS = (32, 64)
+_BASE64_LENGTHS = (22, 24, 43, 44)
+_BASE64_PADDED = ((22, 2), (43, 1))
+_BASE64_PAD = "="
+_BASE64_MARKS = "+/-_"
+# A UUID: 32 hexadecimal characters in one case written as five groups of
+# 8, 4, 4, 4 and 12 joined by dashes, 36 characters, or in braces, 38 --
+# their most common spelling (lane CZ-A's repair 2, the verify's item 1:
+# a column of them was read as labels and published whole when answered a
+# reading that publishes).
+_UUID_DASHES = (8, 13, 18, 23)
+_UUID_LENGTH = 36
+_UUID_BRACES = ("{", "}")
+_TOKEN_SIZES = (22, 24, 32, 36, 38, 43, 44, 64)
+# A device's lot and serial numbers named so: the words of a name, read
+# whole as the place words are (`name_words`), and the words of a date
+# beside which `serial` names a spreadsheet's day count instead. AND `sn`,
+# a serial number's short name (lane CZ-A's repair 2, the verify's item 5:
+# a column named `sn` holding serial numbers was read as labels and
+# published whole when answered a reading that publishes; no column name
+# of the zoo or the batteries holds it). NOT `batch`, the lot's other
+# name: the shared test table's constant column is named so, and holding
+# it moves the twin goldens -- the price, measured and named in plan
+# P4-D445, lane CZ-A2's.
+DEVICE_NUMBER_WORDS = frozenset({
+    "lot", "lots", "lotno", "lotnum", "lotnumber", "lotnbr", "lotid",
+    "serial", "serials", "serialno", "serialnum", "serialnumber",
+    "serialnbr", "serialid", "udi", "udis", "sn",
+})
+_DEVICE_WORDS_NOT_BESIDE = frozenset({
+    "date", "dates", "day", "days", "time", "times", "dt", "dttm",
+    "excel", "stamp", "timestamp",
+})
+# An accession number: one to three capitals, a two-figure year, then a
+# sequence of four to eight figures after a dash or none; or the year
+# first, one to three capitals and one to eight figures, a dash before the
+# figures or none -- a layout written with its dash is a dashed one, the
+# year first among them (lane CZ-A's repair 2, Codex item 1 and the
+# verify's item 3: a column of `24S-100000` and of `24S-012345` beside
+# `24S012345`, read as no dashed layout, published whole when answered a
+# reading that publishes).
+_ACCESSION_LETTERS = (1, 3)
+_ACCESSION_YEAR = 2
+_ACCESSION_SEQUENCE = (4, 8)
+_ACCESSION_YEAR_FIRST_SEQUENCE = (1, 8)
+# ...and a dash between the capitals and the year, the letters first or
+# the year first (`S-24-012345`, `24-S-012345`; lane CZ-A's repair 2, the
+# verify's item 4: such a column, read as no accession number, published
+# whole when answered a reading that publishes), so the longest cell is
+# three capitals, two dashes, the year and eight figures.
+_ACCESSION_LONGEST = 15
+# ...but no month's abbreviation stands beside such a dash: `06-NOV-22`
+# and `NOV-06-2022` are dates (repair 2's price: the zoo's two-figure-year
+# dates `01-APR-20`, read as accession numbers the year first beside a
+# dash, would have been held), so where the capitals are a month's they are
+# read as before the repair -- `06NOV-22` the year first, as it was.
+_MONTH_ABBREVIATIONS = frozenset({
+    "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+})
+# A blood-unit number in the ISBT 128 layout: a facility code of a capital
+# and four figures, a two-figure year, a six-figure sequence, then two flag
+# figures, a check character (a figure, a capital or `*`), both or
+# neither, the parts spaced or bare, and the data identifier `=` before it
+# or none (lane CZ-A's repair 1, skeptic 1 item 5: numbers written with
+# their check character were read as labels and published whole when
+# answered a reading that publishes).
+_UNIT_PARTS = (4, 2, 6)
+_UNIT_FLAGS = 2
+_UNIT_CHECK = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ*"
+_UNIT_IDENTIFIER = "="
+_UNIT_SIZES = (13, 21)
+# Whole numbers of this many figures and more are no measurement, held
+# where two in three of a column's cells are one; and of this many and
+# more, held on ONE cell whatever its share (lane CZ-A's repair 1,
+# skeptic 1 item 7, the orchestrator's LANE CZ-A RULINGS 1 (1): claim
+# numbers of twelve to eighteen figures in one column, half of them
+# fifteen or more, were read as a count): no float holds such a number
+# exactly (2**53 has sixteen figures), so it is held as a possible
+# identifier -- a record, account or claim number may be so long, and so
+# may a measurement in small units, which `no` frees (repair 2, Codex
+# item 5).
+LONG_NUMBER_FIGURES = 15
+LONG_NUMBER_FIGURES_ON_ONE_CELL = 16
+# ...and such a number in the EXPONENT FORM a spreadsheet stores a number
+# cell in, typed or computed (lane CZ-A's repair 2, the verify's item 2:
+# identifiers of nineteen figures stored as numbers read back as
+# `1.2345678901234568E+18`, or `1.23456789012345E+18` after the
+# spreadsheet's cut to fifteen figures, and a column of them, read as
+# labels, published whole when answered a reading that publishes): a
+# mantissa of `LONG_NUMBER_SIGNIFICANT` significant figures or more,
+# `E` or `e`, a `+` or no sign and the exponent, whose value is a whole
+# number of `LONG_NUMBER_FIGURES_ON_ONE_CELL` figures or more (the
+# mantissa's decimals no more than the exponent): held on ONE cell as the
+# figures are. A measurement written so keeps few figures (`6.02E+23`), and
+# a float's own spelling past twenty figures is a magnitude, no record
+# number (a spread near the float's range, `1.5568479229996504e+308`: the
+# whole suite's taxonomy contract read it so).
+LONG_NUMBER_SIGNIFICANT = 15
+LONG_NUMBER_FIGURES_IN_EXPONENT_FORM_AT_MOST = 20
+_EXPONENT_MARKS = "Ee"
+_EXPONENT_SIGN = "+"
+_EXPONENT_SHORTEST = LONG_NUMBER_SIGNIFICANT + 4
+# The share a column's present cells must hold of a form read on two in
+# three of them: at least `_FORM_SHARE_OVER` in `_FORM_SHARE_OF`.
+_FORM_SHARE_OVER = 2
+_FORM_SHARE_OF = 3
+
+
+def _spaced_words(text: str) -> "list[str]":
+    """The pieces of a text between its single spaces, an empty piece where two stand together."""
+    pieces: "list[str]" = []
+    piece = ""
+    for character in text:
+        if character == " ":
+            pieces += [piece]
+            piece = ""
+        else:
+            piece = piece + character
+    return pieces + [piece]
+
+
+def _figure_run(text: str, start: int, count: int) -> bool:
+    """Whether ``count`` figures stand in a text from ``start``."""
+    if start + count > len(text):
+        return False
+    return _figures_alone(text[start: start + count])
+
+
+def social_security_form(text: str) -> str:
+    """How a cell writes a social security number: `separated`, `plain`, or none (plan P4-D445).
+
+    `separated`: three, two and four figures joined by one of `_SSN_MARKS`,
+    the same mark twice (`900-12-3456`, `900 12 3456`, `900\u201312\u20133456`,
+    `900\u201112\u20113456`); `plain`: nine figures. Either may carry one
+    letter after it, a capital or a small one, a space before it or none
+    (`900-12-3456A`, `900123456A`, `900-12-3456a`, `900-12-3456 A`).
+    Guarantees: a fixed function of the cell. Raises TypeError for a cell
+    that is not text. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    body = parsing.trimmed(text)
+    if body and ("A" <= body[-1] <= "Z" or "a" <= body[-1] <= "z"):
+        body = body[:-1]
+        if body[-1:] == " ":
+            body = body[:-1]
+    if len(body) == _SSN_FIGURES and _figures_alone(body):
+        return "plain"
+    first, second, third = _SSN_GROUPS
+    if len(body) != first + second + third + 2:
+        return ""
+    mark = body[first: first + 1]
+    if mark not in _SSN_MARKS or body[first + 1 + second: first + 2 + second] != mark:
+        return ""
+    if (
+        _figure_run(body, 0, first)
+        and _figure_run(body, first + 1, second)
+        and _figure_run(body, first + 2 + second, third)
+    ):
+        return "separated"
+    return ""
+
+
+def _a_beneficiary_number(text: str) -> bool:
+    """Whether a cell is a beneficiary identifier in the public layout, plain or dashed four, three and four (plan P4-D445)."""
+    body = parsing.trimmed(text)
+    if len(body) == _BENEFICIARY_DASHED and body[4:5] == "-" and body[8:9] == "-":
+        body = body[0:4] + body[5:8] + body[9:13]
+    if len(body) != len(_BENEFICIARY_PLACES) or body[0:1] == "0":
+        return False
+    for place in range(len(_BENEFICIARY_PLACES)):
+        wanted = _BENEFICIARY_PLACES[place]
+        character = body[place]
+        figure = _a_figure(character)
+        letter = character in _BENEFICIARY_LETTERS
+        if (wanted == "9" and not figure) or (wanted == "A" and not letter) or (
+            wanted == "X" and not (figure or letter)
+        ):
+            return False
+    return True
+
+
+def _a_name_word(text: str) -> bool:
+    """Whether a text is one word of a person's name: a capital, then letters, an apostrophe (straight or curly) or a dash."""
+    if not text or not (_a_letter(text[0]) and _a_capital(text[0])):
+        return False
+    for character in text[1:]:
+        if not (_a_letter(character) or character in _NAME_MARKS):
+            return False
+    return True
+
+
+def _a_name_particle(text: str) -> bool:
+    """Whether a text is a small word a family name holds before its last word: `de`, `la`, `van`, `der`."""
+    if not text or len(text) > _NAME_PARTICLE_LETTERS:
+        return False
+    for character in text:
+        if not ("a" <= character <= "z"):
+            return False
+    return True
+
+
+def _a_family_name(words: "list[str]") -> bool:
+    """Whether words are a family name: name words, small words before the last among them, a point after one or none."""
+    if not words:
+        return False
+    for place in range(len(words)):
+        word = words[place]
+        if word[-1:] == ".":
+            word = word[:-1]
+        if not (_a_name_word(word) or (place < len(words) - 1 and _a_name_particle(word))):
+            return False
+    return True
+
+
+def _a_record_number(text: str) -> bool:
+    """Whether a text is a record number as a name's cell writes it (plan P4-D445).
+
+    At most `_NUMBER_LABEL_LETTERS` letters labelling it, one of
+    `_NUMBER_LABEL_MARKS` and spaces after them or none, then letters and
+    figures alone, `_NUMBER_FIGURES_AT_LEAST` figures at least: `1234567`,
+    `MR1234567`, `REC 1234567`, `REC: 1234567`, `#1234567`.
+    """
+    body = parsing.trimmed(text)
+    place = 0
+    while place < len(body) and place < _NUMBER_LABEL_LETTERS and _a_letter(body[place]):
+        place += 1
+    if place < len(body) and body[place] in _NUMBER_LABEL_MARKS:
+        place += 1
+    place = _past_the_spaces(body, place)
+    figures = 0
+    for character in body[place:]:
+        if _a_figure(character):
+            figures += 1
+        elif not _a_letter(character):
+            return False
+    return figures >= _NUMBER_FIGURES_AT_LEAST
+
+
+def _a_name_before(text: str) -> bool:
+    """Whether a text is a person's name family name first: a family name, a comma, a given name and an initial or none."""
+    name = parsing.trimmed(text)
+    comma = -1
+    for place in range(len(name)):
+        if name[place] == ",":
+            comma = place
+            break
+    if comma < 1:
+        return False
+    family = _spaced_words(name[:comma])
+    given = _spaced_words(parsing.trimmed(name[comma + 1:]))
+    if given and len(given[-1]) == 2 and given[-1][1] == "." and _a_letter(given[-1][0]) and _a_capital(given[-1][0]):
+        # ...an initial with its point stands for its word, the given
+        # name's only one among them (`Lastname, F. [2000000]`).
+        given = given[:-1] + [given[-1][:1]]
+    if given and len(given[-1]) <= 2 and len(given) > 1:
+        initial = given[-1]
+        if initial[-1:] == ".":
+            initial = initial[:-1]
+        if len(initial) == 1 and _a_letter(initial) and _a_capital(initial):
+            given = given[:-1]
+    return _a_family_name(family) and all(_a_name_word(word) for word in given)
+
+
+def _a_name_beside_a_number(text: str) -> bool:
+    """Whether a cell is a name and a record number, `Lastname, Firstname M [1234567]` (plan P4-D445).
+
+    A family name of one or more words (small words such as `de` or `van`
+    before its last, a point after one such as `Jr.`, an apostrophe
+    straight or curly), a comma, a given name and an initial or none, or a
+    sole initial with its point, then a record number (`_a_record_number`:
+    six figures at least, letters allowed among them, a label of at most
+    four letters, a `:` or a `#` before it or none) in square or round
+    brackets, or after a `#` with no bracket: `Lastname, Firstname M [REC
+    1234567]`, `Lastname Jr., Firstname (REC: 1234567)`, `Lastname,
+    Firstname M #1234567`.
+    """
+    body = parsing.trimmed(text)
+    for opening, closing in _NUMBER_BRACKETS:
+        if body[-1:] != closing:
+            continue
+        at = -1
+        for place in range(len(body)):
+            if body[place] == opening:
+                at = place
+        if at < 3:
+            continue
+        if _a_record_number(body[at + 1: -1]) and _a_name_before(body[:at]):
+            return True
+    at = -1
+    for place in range(len(body)):
+        if body[place] == _NUMBER_SIGN:
+            at = place
+    return at >= 3 and _a_record_number(body[at:]) and _a_name_before(body[:at])
+
+
+def _a_hexadecimal_or_base64_token(text: str) -> bool:
+    """Whether a cell is an opaque token: 32 or 64 hexadecimal characters in one case, or base64 (plan P4-D445).
+
+    Base64: 22, 24, 43 or 44 characters with no padding, or 22 with `==`
+    or 43 with `=` (`_BASE64_LENGTHS`, `_BASE64_PADDED`). The 32
+    hexadecimal characters also as a UUID: five groups of 8, 4, 4, 4 and
+    12 joined by dashes, in braces or not (`0123abcd-0123-4567-89ab-
+    0123456789ab`, `{...}`); its dashes and braces set aside, it is read
+    as the 32 are.
+
+    A hexadecimal token holds a figure and a letter at least; a base64
+    token a capital, a small letter and a figure at least, as a random
+    token nearly always does and a word or a code of one case never does.
+    """
+    body = parsing.trimmed(text)
+    if len(body) == _UUID_LENGTH + len(_UUID_BRACES) and (body[:1], body[-1:]) == _UUID_BRACES:
+        body = body[1:-1]
+    if len(body) == _UUID_LENGTH:
+        if any(body[place] != "-" for place in _UUID_DASHES):
+            return False
+        body = body[:8] + body[9:13] + body[14:18] + body[19:23] + body[24:]
+    if len(body) in _HEX_LENGTHS:
+        small = capital = figure = 0
+        for character in body:
+            if "0" <= character <= "9":
+                figure += 1
+            elif "a" <= character <= "f":
+                small += 1
+            elif "A" <= character <= "F":
+                capital += 1
+            else:
+                return False
+        return figure > 0 and (small > 0) != (capital > 0)
+    padding = 0
+    while padding < 2 and body[len(body) - padding - 1: len(body) - padding] == _BASE64_PAD:
+        padding += 1
+    body = body[: len(body) - padding]
+    if (len(body), padding) not in _BASE64_PADDED and not (padding == 0 and len(body) in _BASE64_LENGTHS):
+        return False
+    small = capital = figure = 0
+    for character in body:
+        if "0" <= character <= "9":
+            figure += 1
+        elif "a" <= character <= "z":
+            small += 1
+        elif "A" <= character <= "Z":
+            capital += 1
+        elif character not in _BASE64_MARKS:
+            return False
+    return figure > 0 and small > 0 and capital > 0
+
+
+def named_as_device_numbers(name: str) -> bool:
+    """Whether a column's name says it holds a device's lot or serial number (plan P4-D445).
+
+    A word of the name (`name_words`) is one of `DEVICE_NUMBER_WORDS`,
+    and no word of a date stands beside it in the name: `case_date_serial`
+    is a spreadsheet's day count. Guarantees: a fixed function of the
+    name. Raises TypeError for a name that is not text. No I/O.
+    """
+    words = name_words(name)
+    if any(word in _DEVICE_WORDS_NOT_BESIDE for word in words):
+        return False
+    return any(word in DEVICE_NUMBER_WORDS for word in words)
+
+
+def _capitals_then(body: str, fewest: int, most: int) -> int:
+    """How many capitals open a text, where ``fewest`` to ``most`` do, else -1."""
+    count = 0
+    while count < len(body) and "A" <= body[count] <= "Z":
+        count += 1
+    return count if fewest <= count <= most else -1
+
+
+def accession_form(text: str) -> str:
+    """How a cell writes an accession number: `dashed`, `undashed`, `year first`, `year first dashed`, or none (plan P4-D445).
+
+    `S24-012345` dashed, `S24012345` undashed; the year first, `24S012345`
+    and `24S-012345` with its dash (`year first dashed`, lane CZ-A's
+    repair 2). A dash may stand between the capitals and the year too, the
+    letters first or the year first (`S-24-012345`, `SP-24012345`,
+    `24-S-012345`): a layout with a dash is a dashed one (lane CZ-A's
+    repair 2, the verify's item 4). Guarantees: a fixed function of the
+    cell. No I/O.
+    """
+    body = parsing.trimmed(text)
+    fewest, most = _ACCESSION_LETTERS
+    letters = _capitals_then(body, fewest, most)
+    shortest, longest = _ACCESSION_SEQUENCE
+    if letters > 0:
+        rest = body[letters:]
+        dashed = rest[:1] == "-"
+        if dashed:
+            if body[:letters] in _MONTH_ABBREVIATIONS:
+                return ""
+            rest = rest[1:]
+        if not _figure_run(rest, 0, _ACCESSION_YEAR):
+            return ""
+        rest = rest[_ACCESSION_YEAR:]
+        if rest[:1] == "-":
+            dashed = True
+            rest = rest[1:]
+        if shortest <= len(rest) <= longest and _figures_alone(rest):
+            return "dashed" if dashed else "undashed"
+        return ""
+    if _figure_run(body, 0, _ACCESSION_YEAR):
+        rest = body[_ACCESSION_YEAR:]
+        dashed = rest[:1] == "-"
+        if dashed:
+            rest = rest[1:]
+        letters = _capitals_then(rest, fewest, most)
+        if letters < 0 or (dashed and rest[:letters] in _MONTH_ABBREVIATIONS):
+            return ""
+        month = rest[:letters] in _MONTH_ABBREVIATIONS
+        rest = rest[letters:]
+        if rest[:1] == "-":
+            dashed = True
+            rest = rest[1:]
+        low, high = _ACCESSION_YEAR_FIRST_SEQUENCE
+        if low <= len(rest) <= high and _figures_alone(rest):
+            return "year first dashed" if dashed and not month else "year first"
+    return ""
+
+
+def _a_blood_unit_number(text: str) -> bool:
+    """Whether a cell is a blood-unit number in the ISBT 128 layout, spaced or bare (plan P4-D445).
+
+    `Q4012 24 123456 00`, `Q40122412345600`, `Q4012 24 123456 K`,
+    `Q401224123456K`, `Q4012 24 123456 00 K`, `=Q40122412345600`: the
+    facility's code, the year and the sequence, then the flags, the check
+    character, both or neither (`_unit_ending`).
+    """
+    body = parsing.trimmed(text)
+    if body[:1] == _UNIT_IDENTIFIER:
+        body = body[1:]
+    if not body or not ("A" <= body[0] <= "Z"):
+        return False
+    spaced = _spaced_words(body)
+    ending = ""
+    if len(spaced) >= len(_UNIT_PARTS):
+        parts = [spaced[0][1:]] + spaced[1: len(_UNIT_PARTS)]
+        for piece in spaced[len(_UNIT_PARTS):]:
+            if not piece:
+                return False
+            ending = ending + piece
+    else:
+        parts = []
+        place = 1
+        for width in _UNIT_PARTS:
+            parts += [body[place: place + width]]
+            place += width
+        ending = body[place:]
+    for place in range(len(_UNIT_PARTS)):
+        if len(parts[place]) != _UNIT_PARTS[place] or not _figures_alone(parts[place]):
+            return False
+    return _unit_ending(ending)
+
+
+def _unit_ending(text: str) -> bool:
+    """Whether a text ends a blood-unit number: nothing, two flag figures, a check character, or both in that order."""
+    if text and text[-1] in _UNIT_CHECK and len(text) in (1, _UNIT_FLAGS + 1):
+        text = text[:-1]
+    return not text or (len(text) == _UNIT_FLAGS and _figures_alone(text))
+
+
+def _a_long_whole_number(text: str) -> bool:
+    """Whether a cell is a whole number of `LONG_NUMBER_FIGURES` figures or more (plan P4-D445)."""
+    body = parsing.trimmed(text)
+    return len(body) >= LONG_NUMBER_FIGURES and _figures_alone(body)
+
+
+def _a_long_number_in_exponent_form(text: str) -> bool:
+    """Whether a cell writes a whole number of sixteen figures or more in exponent form, as a spreadsheet stores it (plan P4-D445).
+
+    `1.2345678901234568E+18`, `1.23456789012345E+18`, `1.2345678901234568e18`:
+    figures, a point and figures or none, `E` or `e`, a `+` or no sign
+    and the exponent's figures; fifteen significant figures or more in
+    the mantissa, its decimals no more than the exponent, and a whole
+    number of `LONG_NUMBER_FIGURES_ON_ONE_CELL` to
+    `LONG_NUMBER_FIGURES_IN_EXPONENT_FORM_AT_MOST` figures.
+    Guarantees: a fixed function of the cell. No I/O.
+    """
+    body = parsing.trimmed(text)
+    at = -1
+    for place in range(len(body)):
+        if body[place] in _EXPONENT_MARKS:
+            at = place
+            break
+    if at < 1:
+        return False
+    mantissa = body[:at]
+    exponent = body[at + 1:]
+    if exponent[:1] == _EXPONENT_SIGN:
+        exponent = exponent[1:]
+    if not exponent or len(exponent) > 3 or not _figures_alone(exponent):
+        return False
+    whole = mantissa
+    decimals = ""
+    for place in range(len(mantissa)):
+        if mantissa[place] == ".":
+            whole = mantissa[:place]
+            decimals = mantissa[place + 1:]
+            break
+    if not whole or not _figures_alone(whole) or (decimals and not _figures_alone(decimals)):
+        return False
+    noughts = 0
+    while noughts < len(whole) and whole[noughts] == "0":
+        noughts += 1
+    before = len(whole) - noughts
+    power = int(exponent)
+    return (
+        before > 0
+        and len(decimals) <= power
+        and LONG_NUMBER_FIGURES_ON_ONE_CELL <= before + power <= LONG_NUMBER_FIGURES_IN_EXPONENT_FORM_AT_MOST
+        and before + len(decimals) >= LONG_NUMBER_SIGNIFICANT
+    )
+
+
+# The share forms' marks in `_forms_of_a_cell`'s answer, one bit a form,
+# and the mark of an accession number written dashed.
+_SHARE_FORMS = (HELD_TOKENS, HELD_ACCESSIONS, HELD_UNIT_NUMBERS, HELD_LONG_NUMBERS)
+_DASHED_ACCESSION = 16
+_YEAR_FIRST_ACCESSION = 32
+_UNDASHED_ACCESSION = 64
+
+
+def _forms_of_a_cell(body: str) -> "tuple[str, int]":
+    """One cell's identifier forms (plan P4-D445): its one-cell hold or none, and its share forms as bits.
+
+    ``body`` is the cell, its edge spaces set aside. The bits follow
+    `_SHARE_FORMS` (1 a token, 2 an accession number, 4 a blood-unit
+    number, 8 a whole number of fifteen figures or more), and
+    `_DASHED_ACCESSION`, `_YEAR_FIRST_ACCESSION` and `_UNDASHED_ACCESSION`
+    mark the layout an accession number is written in; -1 is a cell with
+    nothing in it. A whole number of sixteen figures or more is a one-cell
+    hold (`LONG_NUMBER_FIGURES_ON_ONE_CELL`), in figures or in the
+    exponent form a spreadsheet stores (`_a_long_number_in_exponent_
+    form`). Each test is asked only of a
+    cell of a length it can hold. A fixed function of the cell. No I/O.
+    """
+    if not body:
+        return "", -1
+    size = len(body)
+    if _SSN_FIGURES + 2 <= size <= _SSN_LONGEST and social_security_form(body) == "separated":
+        return HELD_SOCIAL_SECURITY, 0
+    if size in (11, 13) and _a_beneficiary_number(body):
+        return HELD_BENEFICIARIES, 0
+    if (body[-1:] in ("]", ")") or _NUMBER_SIGN in body) and _a_name_beside_a_number(body):
+        return HELD_NAMES_WITH_NUMBERS, 0
+    if size >= LONG_NUMBER_FIGURES_ON_ONE_CELL and _figures_alone(body):
+        return HELD_LONG_NUMBERS, 0
+    if size >= _EXPONENT_SHORTEST and _a_long_number_in_exponent_form(body):
+        return HELD_LONG_NUMBERS, 0
+    bits = 0
+    if size in _TOKEN_SIZES and _a_hexadecimal_or_base64_token(body):
+        bits += 1
+    if 4 <= size <= _ACCESSION_LONGEST:
+        written = accession_form(body)
+        if written:
+            bits += 2
+        if written == "dashed":
+            bits += _DASHED_ACCESSION
+        elif written == "year first dashed":
+            bits += _DASHED_ACCESSION + _YEAR_FIRST_ACCESSION
+        elif written == "year first":
+            bits += _YEAR_FIRST_ACCESSION
+        elif written == "undashed":
+            bits += _UNDASHED_ACCESSION
+    if _UNIT_SIZES[0] <= size <= _UNIT_SIZES[1] and _a_blood_unit_number(body):
+        bits += 4
+    if size >= LONG_NUMBER_FIGURES and _a_long_whole_number(body):
+        bits += 8
+    return "", bits
+
+
+def identifier_form_hold(name: str, cells: "list[str]", absent: "frozenset[str]") -> str:
+    """Which of the identifier forms' holds reaches a column, one of `IDENTIFIER_FORM_HOLDS`, or none (plan P4-D445).
+
+    In this order: a social security number written with its marks, a
+    beneficiary identifier, a name beside a record number, or a whole
+    number of sixteen figures or more on one cell at least, whatever its
+    share (the first such cell decides); and on two in three of the
+    present cells (absent spellings and empty cells aside) an opaque
+    token, an accession number (one at least dashed, the year first with
+    its dash among them, or the year-first and the letters-first layouts
+    both undashed in one column: one code system writes one layout), a
+    blood-unit number or a whole number of fifteen
+    figures or more. (A
+    name that says it holds a device's lot or serial number is asked by
+    `safe_harbor_hold` after lane SH2's device identifiers, so a column of
+    UDIs keeps that hold's own words.) ONE PASS over the cells, each
+    different cell read once up to `_SAFE_HARBOR_MEMO` of them: linear in
+    the column. ``name`` is the column's, kept for the callers' one call.
+    Guarantees: a fixed function of the three. Raises TypeError for a
+    cell that is not text. No I/O.
+    """
+    memo: "dict[str, tuple[str, int]]" = {}
+    present = 0
+    passing = [0, 0, 0, 0]
+    dashed = False
+    year_first = False
+    undashed = False
+    for cell in cells:
+        if cell in absent:
+            continue
+        if cell in memo:
+            found, bits = memo[cell]
+        else:
+            found, bits = _forms_of_a_cell(parsing.trimmed(cell))
+            if len(memo) < _SAFE_HARBOR_MEMO:
+                memo[cell] = (found, bits)
+        if found:
+            return found
+        if bits < 0:
+            continue
+        present += 1
+        for place in range(len(_SHARE_FORMS)):
+            if bits & (1 << place):
+                passing[place] += 1
+        if bits & _DASHED_ACCESSION:
+            dashed = True
+        if bits & _YEAR_FIRST_ACCESSION:
+            year_first = True
+        if bits & _UNDASHED_ACCESSION:
+            undashed = True
+    for place in range(len(_SHARE_FORMS)):
+        form = _SHARE_FORMS[place]
+        if form == HELD_ACCESSIONS and not (dashed or (year_first and undashed)):
+            continue
+        if present and passing[place] * _FORM_SHARE_OF >= present * _FORM_SHARE_OVER:
+            return form
+    return ""
+
+
 def _mostly(cells: "list[str]", absent: "frozenset[str]", devices: bool) -> bool:
     """Whether one present cell at least of a column is a device identifier, or a ZIP area.
 
@@ -33914,8 +34931,14 @@ def safe_harbor_hold(
     coordinate (`named_as_a_coordinate`; a pair of coordinates read from
     their cells is the caller's, `coordinates_held`), and
     `HELD_CITY_STATES` where two in three of its cells are a place beside
-    its state (`Lake City, MN`). Guarantees: a fixed function of the seven.
-    Raises TypeError for a cell that is not text. No I/O.
+    its state (`Lake City, MN`). AND THE IDENTIFIER FORMS FIRST (plan
+    P4-D445, `identifier_form_hold`), on every role but a held identifier,
+    an empty column and one no number type holds, free text among them --
+    a column of social security numbers, a relative's among them, read as
+    free text published nothing but wrote no number of the form, and one
+    of a thousand people read as labels published them -- and the device
+    identifiers on free text too. Guarantees: a fixed function of the
+    seven. Raises TypeError for a cell that is not text. No I/O.
     """
     absent = frozenset(column.absent_spellings)
     # A NAME SAYING A PART OF AN ADDRESS IS ASKED FIRST, before any date,
@@ -33924,6 +34947,14 @@ def safe_harbor_hold(
     # published in their census), free text aside, which publishes nothing.
     if column.role not in ROLES_PUBLISHING_NOTHING and named_as_an_address_part(name):
         return HELD_ADDRESS_PARTS
+    if column.role not in (ROLE_IDENTIFIER, ROLE_EMPTY, ROLE_UNREPRESENTABLE):
+        form = identifier_form_hold(name, cells, absent)
+        if form:
+            return form
+        if column.role not in SAFE_HARBOR_UNREACHED_ROLES and _mostly(cells, absent, True):
+            return HELD_DEVICES
+        if named_as_device_numbers(name):
+            return HELD_DEVICE_NAMES
     if column.role == ROLE_DATETIME:
         count_form = column.details["count_form"] if "count_form" in column.details else None
         if count_form is not None and safe_harbor_reach(
@@ -35940,6 +36971,7 @@ def profile_column(
     counted_unit: int = 0,
     described_as_affixed: bool = False,
     units_kept: str = "",
+    kept: "list[HeldReading] | None" = None,
 ) -> ColumnProfile:
     """Describe one column: its role, its statistics, what was withheld.
 
@@ -36083,6 +37115,33 @@ def profile_column(
             counted_unit=counted_unit,
             units_kept=units_kept,
         )
+    # THE READING HANDED TO THE CHAIN (lane CHs, plan P4-D462): where the
+    # caller asks, the reading this column was described from is recorded
+    # with every argument it was read under, so the chain's own reading of
+    # the column is worked out from it where every argument is the one the
+    # chain reads under (`keep_spellings`, `KeptSpellings`); the caller
+    # lets it go before the next column. No caller but the switched
+    # describe asks.
+    if kept is not None:
+        kept += [
+            HeldReading(
+                values,
+                n_rows,
+                settings,
+                forced_identifier,
+                forced_code,
+                forced_measurement,
+                forced_decimal_comma,
+                described_as_pair,
+                kept_placeholder_days,
+                judged_candidates,
+                read,
+                stored_as,
+                counted_unit,
+                described_as_affixed,
+                units_kept,
+            )
+        ]
     cells = read.cells
     present = read.present
     missing = read.missing
@@ -37296,6 +38355,157 @@ def window_population_deviation(values: "list[float]", count: int) -> float:
 # -- THE CHAIN'S READING OF ONE COLUMN (lane CHa, plan P4-D418) -----------
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
+class KeptSpellings:
+    """One column's spellings as `spellings_read` reads them, worked out from the description's own reading.
+
+    THE SETTLED READING HANDED TO THE CHAIN (lane CHs, plan P4-D462; the
+    orchestrator's LANE CHs RULINGS 2 (2)). The switched describe read
+    every eligible column twice: once to describe it, once for the chain
+    (`spellings_read`, taxonomy's whole decision again, 96 per cent of
+    the chain's column reading, MEASURED). The description's reading is
+    kept here as the chain reads it -- one entry a distinct spelling,
+    never a cell -- beside every argument it was read under, and the
+    chain takes it only where `spellings_read` would read under the same
+    arguments (`_kept_matches`), so what it reads is what it read before,
+    whole. The reading itself is let go with its column.
+    """
+
+    n_rows: int
+    settings: Settings
+    forced_code: bool
+    forced_measurement: bool
+    forced_decimal_comma: bool
+    stored_as: str
+    spellings: "dict[str, tuple[str, float | None, str]]"
+    # What the map retains, in bytes, counted as it was built (`_Room`).
+    retained: int = 0
+
+
+# THE BOUNDS ON THE KEPT READINGS (lane CHs, plan P4-D462): the most
+# spellings a column's kept reading may hold, and the most spellings and
+# RETAINED BYTES all of a table's may hold together. A column past them
+# is read again by the chain, as before, so the chain writes the same
+# bytes either way. The counts were raised at the lane's repair 1 from
+# 65,536 and 524,288, time first (LANE I4m RULINGS 25 and 26): at those
+# bounds the chain read ten columns of a table of many spellings again,
+# 71 CPU seconds more at 200,000 rows (MEASURED). A count says nothing of
+# a spelling's length, so a table's kept readings are also held to
+# KEPT_BYTES_A_TABLE, the raised figure in bytes (repair 2, LANE CHs
+# RULINGS 7 (1)): twenty columns of 100,000 different notes of 2,000
+# characters passed both counts at 2,000,000 rows, and their maps would
+# have held about 4.3 GB (Codex's case). A spelling retains its
+# characters (one byte each where it is ASCII; at most four, and a
+# longer header, otherwise) beside KEPT_SLOT_BYTES of the map's slot,
+# its entry and its number: MEASURED with tracemalloc, 175.4 bytes for
+# six-character numbers in a map of 200,000, 108.2 at 2,000 characters.
+KEPT_SPELLINGS_A_COLUMN = 1 << 18
+KEPT_SPELLINGS_A_TABLE = 1 << 21
+KEPT_BYTES_A_TABLE = 345 << 20
+KEPT_SLOT_BYTES = 176
+
+
+def _kept_bytes(text: str) -> int:
+    """What one kept spelling retains, in bytes: its characters beside `KEPT_SLOT_BYTES`.
+
+    Raises TypeError if handed anything that is not a string instance.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a kept spelling's bytes were asked of something else")
+    if text.isascii():
+        return KEPT_SLOT_BYTES + len(text)
+    return KEPT_SLOT_BYTES + 32 + 4 * len(text)
+
+
+@dataclasses.dataclass
+class _Room:
+    """What a kept reading may still take while it is built: spellings, and bytes retained (`_room_takes`)."""
+
+    spellings: int
+    retained: int
+    taken: int = 0
+
+
+def _room_takes(room: _Room, text: str) -> bool:
+    """One spelling more taken from `room`; False at the first past either bound, where the building stops."""
+    cost = _kept_bytes(text)
+    room.spellings -= 1
+    room.retained -= cost
+    room.taken += cost
+    return room.spellings >= 0 and room.retained >= 0
+
+
+def keep_spellings(
+    held: HeldReading,
+    room_spellings: "int | None" = None,
+    room_bytes: "int | None" = None,
+) -> "KeptSpellings | None":
+    """A column's kept spellings, worked out from the reading it was described from; None where the chain cannot take it.
+
+    The chain reads a column with no identifier, pair, placeholder-day,
+    judged-candidate, counted-unit, affixed or kept-unit argument
+    (`spellings_read`); a reading taken under any of them is not its own.
+
+    BUILT INTO ITS ROOM (lane CHs's repair 2, LANE CHs RULINGS 7 (2)): the
+    map stops at its first spelling past `KEPT_SPELLINGS_A_COLUMN` or past
+    the room the table's kept readings leave (`room_spellings` and
+    `room_bytes`, read by the caller before the column is begun; a whole
+    table's bounds where it names none), and the column is refused there:
+    a column refused makes at most its room, never its whole map first
+    (Codex measured 189,516,400 bytes made, then dropped, for a column of
+    two million different notes).
+    """
+    if (
+        held.forced_identifier
+        or held.described_as_pair
+        or held.kept_placeholder_days
+        or held.judged_candidates
+        or held.counted_unit
+        or held.described_as_affixed
+        or held.units_kept
+        or held.n_rows != len(held.values)
+    ):
+        return None
+    room = _Room(
+        min(KEPT_SPELLINGS_A_TABLE if room_spellings is None else room_spellings, KEPT_SPELLINGS_A_COLUMN),
+        KEPT_BYTES_A_TABLE if room_bytes is None else room_bytes,
+    )
+    spellings: "dict[str, tuple[str, float | None, str]]" = {}
+    if not _spellings_into(spellings, held.reading, held.values, held.forced_decimal_comma, room):
+        return None
+    return KeptSpellings(
+        held.n_rows,
+        held.settings,
+        held.forced_code,
+        held.forced_measurement,
+        held.forced_decimal_comma,
+        held.stored_as,
+        spellings,
+        room.taken,
+    )
+
+
+def _kept_matches(
+    kept: KeptSpellings,
+    n_rows: int,
+    settings: Settings,
+    forced_code: bool,
+    forced_measurement: bool,
+    forced_decimal_comma: bool,
+    stored_as: str,
+) -> bool:
+    """Whether `kept` was read under every argument `spellings_read` reads under here (`_same_reading`'s settings rule)."""
+    if (
+        kept.n_rows != n_rows
+        or kept.forced_code != forced_code
+        or kept.forced_measurement != forced_measurement
+        or kept.forced_decimal_comma != forced_decimal_comma
+        or kept.stored_as != stored_as
+    ):
+        return False
+    return dataclasses.replace(kept.settings, person_columns=()) == dataclasses.replace(settings, person_columns=())
+
+
 def spellings_read(
     values: "list[str]",
     name: str,
@@ -37304,6 +38514,7 @@ def spellings_read(
     forced_measurement: bool = False,
     forced_decimal_comma: bool = False,
     stored_as: str = "",
+    kept: "KeptSpellings | None" = None,
 ) -> "dict[str, tuple[str, float | None, str]]":
     """Each spelling of one column read as `profile_column` reads it: (kind, number, text read).
 
@@ -37335,6 +38546,10 @@ def spellings_read(
     turns on.
     """
     narrowed = counted_for_the_column(for_the_column(settings, name), name)
+    if kept is not None and _kept_matches(
+        kept, len(values), narrowed, forced_code, forced_measurement, forced_decimal_comma, stored_as
+    ):
+        return kept.spellings
     read = _read_the_column(
         values,
         len(values),
@@ -37344,18 +38559,43 @@ def spellings_read(
         forced_decimal_comma=forced_decimal_comma,
         stored_as=stored_as,
     )
+    return _spellings_from(read, values, forced_decimal_comma)
+
+
+def _spellings_from(
+    read: _ColumnReading, values: "list[str]", forced_decimal_comma: bool
+) -> "dict[str, tuple[str, float | None, str]]":
+    """`spellings_read`'s map, worked out from the column's reading (`_read_the_column`'s) and its cells."""
     out: "dict[str, tuple[str, float | None, str]]" = {}
+    _spellings_into(out, read, values, forced_decimal_comma, None)
+    return out
+
+
+def _spellings_into(
+    out: "dict[str, tuple[str, float | None, str]]",
+    read: _ColumnReading,
+    values: "list[str]",
+    forced_decimal_comma: bool,
+    room: "_Room | None",
+) -> bool:
+    """`_spellings_from`'s map built into `out`; False, part built, at the first spelling past `room`."""
     for text, _reason in read.missing:
+        if room is not None and text not in out and not _room_takes(room, text):
+            return False
         out[text] = ("missing", None, text)
     for cell in read.cells.classified:
         if cell.text not in out:
+            if room is not None and not _room_takes(room, cell.text):
+                return False
             out[cell.text] = (cell.kind, cell.value, cell.text)
     for text in read.present:
         if text not in out:
+            if room is not None and not _room_takes(room, text):
+                return False
             out[text] = ("", None, text)
     counted = read.counted
     if counted is None:
-        return out
+        return True
     mark = date_counts.COMMA if forced_decimal_comma else date_counts.POINT
     as_read: "dict[str, str]" = {}
     for text in values:
@@ -37368,6 +38608,10 @@ def spellings_read(
         moment = date_counts.moment_of(counted.member, numerator, denominator, counted.settled)
         if moment is None or date_counts.placeholder_day_named(moment, counted.settled):
             continue
+        # Counted as it is met: a spelling read as a counted date joins
+        # the map below.
+        if room is not None and not _room_takes(room, text):
+            return False
         as_read[text] = date_counts.iso_text(moment, counted.settled, counted.unit)
     # Kept only where the spellings give back the reading's own cells, row by row.
     kept: "dict[str, int]" = {}
@@ -37383,12 +38627,12 @@ def spellings_read(
             continue
         given[one] = given[one] + 1 if one in given else 1
     if given != kept:
-        return out
+        return True
     for text in as_read:
         one = as_read[text]
         if one in out:
             out[text] = (out[one][0], out[one][1], one)
-    return out
+    return True
 
 
 def core_read(
@@ -37406,3 +38650,1551 @@ def spelling_read(text: str, decimal_comma: bool = False) -> "tuple[str, float |
     """One spelling classified as a cell is: (kind, number)."""
     cell = _classify_all([text], decimal_comma)[0]
     return cell.kind, cell.value
+
+
+# ---------------------------------------------------------------------------
+# A MADE-UP DATE IN A HELD DATE COLUMN, KEPT OFF THE REAL DATES (lane
+# ID-ROOM2, plan P4-D457). A column of dates held as record numbers -- a
+# birth date lane SH2 holds whole, a column of mostly different dates read
+# as an identifier -- has its twin written as valid dates in its own date
+# layouts (the G1 floor, plan P4-D417; the date pass, plan P4-D442), drawn
+# without reading a real value, so one in twenty matched a real date of its
+# column by chance (733 of 20,000 cells of the zoo's ISO birth dates, 7,055
+# of its two-figure ones). A HELD date is held as an identifier, so the
+# identifier rule binds it (P4-D432): no twin cell equals a real one of its
+# column, exact or merged, by construction. The producer, which reads the
+# cells, publishes the YEARS the made-up dates may take, `made_up_years`
+# (contract 7.12c): ONE block of years a kind, fixed by the published facts
+# alone -- four-figure years from the one after the release's reference
+# year (2027, so 2028) on, two-figure years from its figures' next (`28`)
+# on -- as many as hold twice the column's made-up values, used only where
+# no real cell of the column is a date of any year in it, read on its
+# merged key in every order a date of the column's layouts is written in.
+# Nothing is stepped over and nothing is counted, so what is published is
+# one fact a kind of year: that block holds no real date; where it holds
+# one, the twin writes that kind's made-up values as the identifier walk
+# wrote them, kept off the real by the exclusion or the spill.
+# The first year of four figures a made-up date takes, and the last.
+MADE_UP_FIRST_YEAR = SAFE_HARBOR_REFERENCE_YEAR + 1
+MADE_UP_LAST_YEAR = 9999
+# How many made-up values of a layout the block holds over: twice them,
+# as the G1 floor's fixed span holds (`grains.FIXED_ROOM`), so a draw
+# finds a value no earlier one took near where it began.
+MADE_UP_ROOM = 2
+# THE READINGS THE ROOM SERVES (Codex's review of lane ID-ROOM2, item 1): a
+# held column's G1 floor draws the room's years only where its grain reads
+# DATES (`grains.DATE`, as the `time_grain` record writes its `kind`); a
+# held column read as stamps, clock times or counted dates publishes `[]`
+# and its twin is written by the G1 floor's own span as before, so it
+# stays readable. The date pass (no grain) writes only its date layouts.
+MADE_UP_GRAIN_KIND = "date"
+# How many merged keys the producer remembers having read, so a value on
+# several rows is read once (Codex's review of lane ID-ROOM2, item 6): the
+# keys alone, never what they hold, and no more than this many; past them
+# every cell is read again, its years added to the two bounded sets.
+MADE_UP_KEYS_REMEMBERED = 1024
+# A common year, whose months' lengths count the days a year of made-up
+# dates holds (`made_up_dates_a_year`): February of 28 days.
+_A_COMMON_YEAR = 2029
+# The orders a date's fields stand in on its merged key: `Y` a year of
+# four figures, `y` one of two, `M` a month of figures, `W` a month word,
+# `D` a day; `C` eight figures alone, year, month and day.
+MADE_UP_ORDERS_FOUR = ("Y", "YM", "MY", "YMD", "MDY", "DMY", "DWY", "C")
+MADE_UP_ORDERS_TWO = ("MDy", "DMy", "DWy")
+_MONTH_KEYS = (
+    "jan", "feb", "mar", "apr", "may", "jun",
+    "jul", "aug", "sep", "oct", "nov", "dec",
+)
+
+
+def date_merged_orders(form: str, dated: bool = False) -> "tuple[str, ...]":
+    """The orders a valid date of ``form`` stands in on its merged key; () where it is no date's form (plan P4-D457).
+
+    `parsing.date_form_fields` reads the form (``dated``: the column's
+    other forms are dates', so eight figures, a month beside a year and a
+    year alone are too). A year written last beside two fields of figures
+    stands both month first and day first, as the twin writes either.
+    Guarantees: a fixed function of the two. Raises nothing. No I/O.
+    """
+    fields = parsing.date_form_fields(form, dated)
+    if fields is None:
+        return ()
+    mark, widths = fields
+    if len(widths) == 1:
+        return ("Y",)
+    if len(widths) == 2:
+        return ("YM",) if widths[0] == 4 else ("MY",)
+    if widths[1] < 0:
+        return ("DWY",) if widths[2] == 4 else ("DWy",)
+    if widths[0] == 4:
+        return ("C",) if mark == "" else ("YMD",)
+    if widths[2] == 4:
+        return ("MDY", "DMY")
+    return ("MDy", "DMy")
+
+
+def _merged_run(text: str, zero: bool) -> int:
+    """A run of a merged key read as a field: its value, or -1 where no field writes it so.
+
+    Figures alone, never opened by a nought, which a merged key drops --
+    save the lone `0` a two-figure year of noughts leaves where ``zero``.
+    """
+    if not text or not parsing.is_digit_text(text):
+        return -1
+    if text[0] == "0" and not (zero and text == "0"):
+        return -1
+    value = 0
+    for character in text:
+        value = value * 10 + ord(character) - ord("0")
+    return value
+
+
+def _date_field_splits(key: str, order: str) -> "list[list[str]]":
+    """Every way ``key`` cuts into ``order``'s fields at the lengths each can be written in."""
+    lengths: "dict[str, tuple[int, ...]]" = {
+        "Y": (4,), "y": (1, 2), "M": (1, 2), "D": (1, 2), "W": (3,),
+    }
+    found: "list[list[str]]" = [[]]
+    for field in order:
+        grown: "list[list[str]]" = []
+        for parts in found:
+            used = 0
+            for part in parts:
+                used = used + len(part)
+            for length in lengths[field]:
+                if used + length <= len(key):
+                    grown += [parts + [key[used:used + length]]]
+        found = grown
+    whole: "list[list[str]]" = []
+    for parts in found:
+        used = 0
+        for part in parts:
+            used = used + len(part)
+        if used == len(key):
+            whole += [parts]
+    return whole
+
+
+def years_of_merged_date(key: str, order: str, last_day: int = 31) -> "tuple[int, ...]":
+    """The years of every valid date written in ``order`` whose merged key is ``key`` (plan P4-D457).
+
+    ``key`` is a merged key (`parsing.merged_key`): folded, its marks
+    dropped, every run of figures without the noughts opening it. A year
+    of four figures is returned as itself, one of two as its two figures'
+    value (0 to 99); a month is 1 to 12, as figures or as its word, and a
+    day 1 to its month's last -- for a two-figure year, of the century
+    that gives it the most -- and never past ``last_day`` (the days the
+    date pass writes in the order, `MADE_UP_DATE_PASS_DAYS`; eight figures
+    alone are read whole). () where no date of the order is written so.
+    Guarantees: a fixed function of the three. Raises nothing. No I/O.
+    """
+    if order == "C":
+        if len(key) != 8 or not parsing.is_digit_text(key) or key[0] == "0":
+            return ()
+        year = _merged_run(key[0:4], False)
+        month = int(key[4:6])
+        day = int(key[6:8])
+        if 1 <= month <= 12 and 1 <= day <= calendar_rules.month_length(year, month):
+            return (year,)
+        return ()
+    years: "dict[int, bool]" = {}
+    for parts in _date_field_splits(key, order):
+        year = -1
+        month = 1
+        day = 1
+        valid = True
+        for place in range(len(order)):
+            field = order[place]
+            part = parts[place]
+            if field == "W":
+                month = 0
+                for place_of in range(len(_MONTH_KEYS)):
+                    if _MONTH_KEYS[place_of] == part:
+                        month = place_of + 1
+                valid = valid and month > 0
+                continue
+            value = _merged_run(part, field == "y")
+            if field in ("Y", "y"):
+                year = value
+            elif field == "M":
+                month = value
+            else:
+                day = value
+            valid = valid and value >= 0
+        if not valid or year < 0 or not 1 <= month <= 12 or day < 1:
+            continue
+        if order[-1] == "y" or order[0] == "y":
+            last = max(
+                calendar_rules.month_length(1900 + year, month),
+                calendar_rules.month_length(2000 + year, month),
+            )
+        else:
+            last = calendar_rules.month_length(year, month)
+        if day <= min(last, last_day):
+            years[year] = True
+    found: "list[int]" = []
+    for year in sorted(years):
+        found += [year]
+    return tuple(found)
+
+
+# THE DAYS THE DATE PASS WRITES IN EACH ORDER (repair 2 of lane ID-ROOM2,
+# plan P4-D457): its dates of a year written last in four figures take both
+# fields from 1 to 12, so the date is valid read month first and day first;
+# of a year written last in two figures, a second field to 28 as well; of a
+# month word, a day to 28. Read in one of these orders, a merged key names a
+# date the date pass can write only where its day is no later; the G1
+# floor, which writes any day, reads every day.
+MADE_UP_DATE_PASS_DAYS: "dict[str, int]" = {
+    "MDY": 12, "DMY": 12, "MDy": 28, "DMy": 12, "DWY": 28, "DWy": 28,
+}
+
+
+def made_up_year_room(held: "dict[int, bool]", needed: int) -> "list[int] | None":
+    """The block of four-figure years a column's made-up dates take, from `MADE_UP_FIRST_YEAR`; None where a real date takes one (plan P4-D457).
+
+    The ``needed`` years from `MADE_UP_FIRST_YEAR` (one at least), never
+    past `MADE_UP_LAST_YEAR`: the block a column's published facts fix.
+    ``held`` names each year some real cell is a date of. Where it names
+    any year of the block, there is no room: nothing is stepped over, so
+    what is published says only that the block holds no real date.
+    Guarantees: a fixed function of the two. Raises nothing. No I/O.
+    """
+    years: "list[int]" = []
+    year = MADE_UP_FIRST_YEAR
+    while year <= MADE_UP_LAST_YEAR and (not years or len(years) < needed):
+        if year in held:
+            return None
+        years += [year]
+        year = year + 1
+    return years
+
+
+# A YEAR-FIRST LAYOUT BESIDE DATES WRITTEN YEAR LAST (batch 4q's merge, the
+# proof of K-HZ-13 on its head b93f128a; plan P4-D457). A month-first
+# date's merged key runs its month and day together before the year
+# (`02/01/1955` merges to `211955`), so read year first it names a year whose
+# first two figures are a month and a day (2119). On the date pass a
+# year-first layout's share, sized by the column's different values, ran
+# from 2028 past 2100 into such years: ISO and month-first births of 1930 to
+# 1999 at 200,000 rows asked 2028 to 2300, of which 21 years were held (2101,
+# 2111, 2119, ...), and the whole column was written as record numbers,
+# 200,000 cells no date. Beside a layout whose dates are written year last in
+# figures, a year-first layout's share takes, in order, the block's years
+# whose second figure is a nought (2028 to 2099, 3000 to 3099, ..., 9000 to
+# 9099): no month written first opens a merged key so, for a month opens
+# with no nought and is never 20 to 90. A fixed rule of the named layouts,
+# nothing stepped over by what the cells hold: the producer still reads
+# every cell in the layout's own orders over the share (a day-first `20` or
+# `30` can name such a year, and is held as any other reading), and the
+# block it publishes holds the share's years past its own last.
+MADE_UP_YEAR_FIRST_ORDERS = ("Y", "YM", "YMD")
+MADE_UP_YEAR_LAST_ORDERS = ("MDY", "DMY", "MDy", "DMy")
+
+
+def made_up_year_first(form: str) -> bool:
+    """Whether a date layout writes its year first in four figures with marks, or alone (`MADE_UP_YEAR_FIRST_ORDERS`; plan P4-D457).
+
+    Guarantees: a fixed function of the form. Raises nothing. No I/O.
+    """
+    read = date_merged_orders(form, True)
+    return len(read) > 0 and read[0] in MADE_UP_YEAR_FIRST_ORDERS
+
+
+def made_up_beside_year_last(layouts: "list[str]") -> bool:
+    """Whether named layouts include one whose dates are written year last in figures, a day and a month before it (plan P4-D457).
+
+    Guarantees: a fixed function of the layouts. Raises nothing. No I/O.
+    """
+    for layout in layouts:
+        for order in date_merged_orders(layout, True):
+            if order in MADE_UP_YEAR_LAST_ORDERS:
+                return True
+    return False
+
+
+def made_up_year_first_share(years: "list[int]", share: int) -> "list[int] | None":
+    """The first ``share`` of ``years`` (one at least) whose second figure is a nought, in order; None where fewer are there (plan P4-D457).
+
+    ``years`` are four-figure years in order: the block the producer
+    reads from `MADE_UP_FIRST_YEAR` to `MADE_UP_LAST_YEAR`, or the years a
+    description publishes. Guarantees: a fixed function of the two.
+    Raises nothing. No I/O.
+    """
+    taken: "list[int]" = []
+    for year in years:
+        if len(taken) >= max(share, 1):
+            break
+        if (year // 100) % 10 == 0:
+            taken += [year]
+    if len(taken) < max(share, 1):
+        return None
+    return taken
+
+
+def short_year_room(held: "dict[int, bool]", needed: int) -> "list[int] | None":
+    """The block of two-figure years a column's made-up dates take; None where a real date takes one (plan P4-D457).
+
+    The ``needed`` two-figure years (one at least) from the figures of the
+    year after the reference year (`28`, `29`, ... round past `99` to
+    `00`), the block a column's published facts fix; more than a hundred
+    is no room, for a twin coming round on too few dates would no longer
+    hold the column's count of different values. ``held`` names each
+    two-figure year some real cell is a date of; where it names any year
+    of the block, there is no room. Nothing is stepped over, so a year at
+    or before the Safe Harbor cut is never named apart from the others,
+    and a block that holds no real date says only that. Guarantees: a
+    fixed function of the two. Raises nothing. No I/O.
+    """
+    if needed > 100:
+        return None
+    years: "list[int]" = []
+    start = (SAFE_HARBOR_REFERENCE_YEAR + 1) % 100
+    for step in range(max(needed, 1)):
+        figures = (start + step) % 100
+        if figures in held:
+            return None
+        years += [figures]
+    return years
+
+
+def _year_spans(years: "list[int]") -> "list[list[int]]":
+    """Years in order written as their runs, `[first, last]` each, in order of the first."""
+    spans: "list[list[int]]" = []
+    for year in sorted(years):
+        if spans and spans[len(spans) - 1][1] == year - 1:
+            spans[len(spans) - 1][1] = year
+            continue
+        spans += [[year, year]]
+    return spans
+
+
+def _a_uid_layout(layout: str) -> bool:
+    """Whether a layout is one a UID can wear: a first arc of one figure and two arcs or more, figures alone (plan P4-D442)."""
+    arcs: "list[str]" = []
+    arc = ""
+    for character in layout:
+        if character == ".":
+            arcs += [arc]
+            arc = ""
+            continue
+        arc = arc + character
+    arcs += [arc]
+    if len(arcs) < 3 or arcs[0] != parsing.LAYOUT_DIGIT:
+        return False
+    for arc in arcs:
+        if not arc:
+            return False
+        for character in arc:
+            if character != parsing.LAYOUT_DIGIT:
+                return False
+    return True
+
+
+def _days_a_year(month_width: int, day_width: int) -> int:
+    """The days of a common year a month field and a day field of these widths write (one figure: 1 to 9)."""
+    days = 0
+    for month in range(1, (9 if month_width == 1 else 12) + 1):
+        days = days + min(calendar_rules.month_length(_A_COMMON_YEAR, month), 9 if day_width == 1 else 31)
+    return days
+
+
+def made_up_dates_a_year(form: str, grained: bool) -> int:
+    """How many different made-up dates of ``form`` one year holds, as its twin's writer writes them (plan P4-D457).
+
+    Codex's review of lane ID-ROOM2, item 2: the block was sized at 366
+    dates a year for every layout of three fields, while the date pass
+    writes a year written last in four figures with its two other fields
+    each 1 to 12 (valid read month first and day first), 144 a year, so
+    1,000 different dates asked six years and the twin held 864. Each
+    writer's own count at the form's widths (a field of one figure takes
+    1 to 9), over a common year:
+
+    * the G1 floor (``grained``) writes any day its fields can: a month
+      and a day each to its own last (365 where both are two figures,
+      the fewer of the two orders where the year is written last); a
+      month beside a year 12; a year alone 1;
+    * the date pass writes a year first with its month and day as the G1
+      floor does (a day past its month's last is written as that last
+      day); a year last in four figures, its two fields each 1 to 12:
+      144; in two figures, its second field also 13 to 28 where both
+      are two figures: 336; a month word, its day 1 to 28: 336; a month
+      beside a year 12; a year alone 1.
+
+    0 where the form is no date's. A fixed function of the two. Raises
+    nothing. No I/O.
+    """
+    fields = parsing.date_form_fields(form, True)
+    if fields is None:
+        return 0
+    widths = fields[1]
+    if len(widths) == 1:
+        return 1
+    if len(widths) == 2:
+        return 9 if widths[1 if widths[0] == 4 else 0] == 1 else 12
+    if widths[1] < 0:
+        if grained:
+            return _days_a_year(2, widths[0])
+        return 12 * (9 if widths[0] == 1 else 28)
+    if widths[0] == 4:
+        return _days_a_year(widths[1], widths[2])
+    if grained:
+        return min(_days_a_year(widths[0], widths[1]), _days_a_year(widths[1], widths[0]))
+    firsts = 9 if widths[0] == 1 else 12
+    seconds = 9 if widths[1] == 1 else 12
+    if widths[2] == 2 and widths[1] == 2:
+        seconds = seconds + 16
+    return firsts * seconds
+
+
+def _years_asked(values: int, a_year: int, available: int) -> int:
+    """The years a block of one kind takes for ``values`` made-up values at ``a_year`` a year; 0 where no block can hold them (plan P4-D457).
+
+    `MADE_UP_ROOM` times the values, never past the ``available`` years
+    of the kind; where even those cannot hold the values once, none (the
+    year cap: the column's made-up values of that kind are written as
+    record numbers, NF137, and the report names the different values it
+    could not keep, as before).
+    """
+    if a_year <= 0:
+        return 0
+    once = (max(values, 1) + a_year - 1) // a_year
+    if once > available:
+        return 0
+    return min((MADE_UP_ROOM * max(values, 1) + a_year - 1) // a_year, available)
+
+
+def made_up_share(form: str, count: int, distinct: int, grained: bool) -> int:
+    """The years of its kind's block a date layout's made-up values take, from the first; 0 where none can hold them (plan P4-D457).
+
+    ``count`` is the cells the census names in the layout, with its other
+    case's, which one walk of the date pass steps (`parsing.folded_layout`),
+    and ``distinct`` the column's different values: `MADE_UP_ROOM` times the
+    fewer of the two at the writer's own count a year (`_years_asked`). The
+    producer sizes a kind's block by its layouts' largest share, and the
+    date pass writes each layout's dates in its own share of the block's
+    first years (repair 2 of lane ID-ROOM2). A fixed function of the four.
+    Raises nothing. No I/O.
+    """
+    read = date_merged_orders(form, True)
+    if not read:
+        return 0
+    available = MADE_UP_LAST_YEAR - MADE_UP_FIRST_YEAR + 1
+    if any(order in MADE_UP_ORDERS_TWO for order in read):
+        available = 100
+    return _years_asked(min(count, max(distinct, 1)), made_up_dates_a_year(form, grained), available)
+
+
+def _shares_hold(
+    two: bool,
+    shares: "dict[str, int]",
+    by_order: "dict[str, dict[int, bool]]",
+    own: "dict[int, bool]",
+    cross: "dict[int, bool]",
+    alone: int,
+    stepped: "dict[str, list[int]] | None" = None,
+) -> bool:
+    """Whether each date layout of one kind of year finds no year held in its share of the block (the date pass; plan P4-D457).
+
+    A layout's share -- the first years of the block its own values take
+    (`made_up_share`), or for a layout ``stepped`` names the years given
+    there (`made_up_year_first_share`) -- may hold no year a real cell's
+    merged key names read in that layout's own orders at the days the
+    date pass writes there (`MADE_UP_DATE_PASS_DAYS`), nor a year any real
+    cell is a date of in its own layout (``own``), nor one the cross rule
+    holds (``cross``); and where ``alone``, the block's first ``alone``
+    years, and every year ``stepped`` names, hold no year a real cell's
+    merged key names read as a year alone.
+    """
+    steps: "dict[str, list[int]]" = stepped if stepped is not None else {}
+    for layout in sorted(shares):
+        read = date_merged_orders(layout, True)
+        if any(order in MADE_UP_ORDERS_TWO for order in read) != two:
+            continue
+        held: "dict[int, bool]" = {}
+        for year in own:
+            held[year] = True
+        for year in cross:
+            held[year] = True
+        for order in read:
+            for year in by_order[order]:
+                held[year] = True
+        if not two and layout in steps:
+            for year in steps[layout]:
+                if year in held:
+                    return False
+            continue
+        if two and short_year_room(held, shares[layout]) is None:
+            return False
+        if not two and made_up_year_room(held, shares[layout]) is None:
+            return False
+    if alone and not two:
+        held = {}
+        for year in own:
+            held[year] = True
+        for year in cross:
+            held[year] = True
+        for year in by_order["Y"]:
+            held[year] = True
+        if made_up_year_room(held, alone) is None:
+            return False
+        for layout in sorted(steps):
+            for year in steps[layout]:
+                if year in held:
+                    return False
+    return True
+
+
+def _year_first_shares(named: "list[str]", shares: "dict[str, int]") -> "dict[str, list[int]] | None":
+    """Each year-first layout's share of the four-figure block beside a year-last layout, on the date pass (plan P4-D457); None where one finds too few years.
+
+    {} where no named layout writes its dates year last in figures
+    (`made_up_beside_year_last`): every share is the block's first years,
+    as before. Else each named layout writing its year first
+    (`made_up_year_first`) takes the first years of its share whose second
+    figure is a nought (`made_up_year_first_share`), from
+    `MADE_UP_FIRST_YEAR`; past the 772 such years to `MADE_UP_LAST_YEAR`
+    there is no room. A fixed function of the two. Raises nothing. No I/O.
+    """
+    stepped: "dict[str, list[int]]" = {}
+    if not made_up_beside_year_last(named):
+        return stepped
+    block: "list[int]" = []
+    for year in range(MADE_UP_FIRST_YEAR, MADE_UP_LAST_YEAR + 1):
+        block += [year]
+    for layout in sorted(shares):
+        if not made_up_year_first(layout):
+            continue
+        taken = made_up_year_first_share(block, shares[layout])
+        if taken is None:
+            return None
+        stepped[layout] = taken
+    return stepped
+
+
+def _a_clock_layout(layout: str) -> bool:
+    """Whether a layout writes a clock: a figure on each side of a `:`, a stamp's time or a clock time (plan P4-D457)."""
+    for place in range(1, len(layout) - 1):
+        if (
+            layout[place] == ":"
+            and layout[place - 1] == parsing.LAYOUT_DIGIT
+            and layout[place + 1] == parsing.LAYOUT_DIGIT
+        ):
+            return True
+    return False
+
+
+def _own_date_orders(core: str) -> "tuple[str, ...]":
+    """The orders a cell's own layout stands in on its merged key (`date_merged_orders`; plan P4-D457).
+
+    Its layout as the census writes it in a column whose layouts are dates'
+    (figure marks: `parsing.LAYOUT_PLAIN`); one whose fields single spaces
+    part is read as the same with hyphens, so `01 Feb 1930` reads as
+    `01-Feb-1930` does. () where it is no date's form.
+    """
+    layout = parsing.layout_form(core, parsing.LAYOUT_PLAIN)
+    found = date_merged_orders(layout, True)
+    if found or " " not in layout:
+        return found
+    hyphened = ""
+    for character in layout:
+        hyphened = hyphened + ("-" if character == " " else character)
+    return date_merged_orders(hyphened, True)
+
+
+# THE READINGS OF THE PRODUCT'S OWN DATE READER (Codex's review of batch 4q,
+# item 2; plan P4-D457). `_own_date_orders` reads a cell in the orders its
+# layout's merged key stands in, and a layout naming a month first by its
+# word (`Jan 01, 2028`), a month in full (`01 January 2028`), a quarter or a
+# date beside a clock stands in none, though `parsing.parse_datetime` reads
+# each as a day: eleven such cells of 2028 beside 19,989 ISO births left 2028
+# free, and the twin wrote eight of those real days as ISO dates. So every
+# cell is read by the reader too, every member of `parsing.DATE_FORMATS` (the
+# joint ISO member aside: its readings are its two members'), and each year
+# a reading names is held as the cell's own.
+_READER_ASKED_APART = ("iso-mixed",)
+
+
+def date_reader_years(text: str) -> "tuple[list[int], list[int]]":
+    """The years every date the product's own date reader reads ``text`` as names: four-figure years, and two-figure ones (plan P4-D457).
+
+    Each member of `parsing.DATE_FORMATS` is asked (`parsing.parse_datetime`)
+    but the joint ISO reading, whose readings are its two members': a month
+    by its name in full or in three letters, before or after its day, the
+    dotted, slashed, compact and two-figure forms, a month beside its year,
+    a quarter and a date beside a clock. A member writing its year in two
+    figures gives their value (0 to 99), its century being the reader's
+    pivot and no fact of the cell; every other member its year of four
+    figures. Both empty where no member reads the text. A fixed function of
+    the text. Raises TypeError for a non-string. No I/O.
+    """
+    four: "list[int]" = []
+    two: "list[int]" = []
+    for member in parsing.DATE_FORMATS:
+        if member in _READER_ASKED_APART:
+            continue
+        found = parsing.parse_datetime(text, member)
+        if found is None or len(found[0]) < 4 or not parsing.is_digit_text(found[0][0:4]):
+            continue
+        year = int(found[0][0:4])
+        if "two-digit" in member:
+            if year % 100 not in two:
+                two += [year % 100]
+        elif year not in four:
+            four += [year]
+    return four, two
+
+
+# ...AND EVERY RUN OF EXACTLY FOUR FIGURES A CELL HOLDS (batch 4q's fix
+# round, the sweep of Codex's item 2): `Jan. 05, 2028`, a month word with a
+# point, is read by no member of the reader, and eleven such cells of 2028
+# beside 19,989 ISO births left 2028 free: the twin wrote eight of those
+# real days as ISO dates, as the review head did for `Jan 05, 2028`. A
+# year written in four figures, in a spelling the reader takes or not, is
+# such a run whatever stands beside it, so each run is held as a year of
+# its cell: no made-up year is a four-figure run of any real cell.
+
+
+def four_figure_runs(text: str) -> "list[int]":
+    """The value of each maximal run of exactly four figures in ``text`` that opens with no nought (plan P4-D457).
+
+    A year written in four figures in any spelling, read by the product's
+    date reader or not (`Jan. 05, 2028`, `5th January 2028`, `2028 Jan
+    05`); a run of another width, or one opening with a nought, is none.
+    A fixed function of the text. Raises TypeError for a non-string. No
+    I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_RUN_NOT_TEXT)
+    found: "list[int]" = []
+    start = -1
+    for place in range(len(text) + 1):
+        if place < len(text) and "0" <= text[place] <= "9":
+            if start < 0:
+                start = place
+            continue
+        if start >= 0 and place - start == 4 and text[start] != "0":
+            value = int(text[start:place])
+            if value not in found:
+                found += [value]
+        start = -1
+    return found
+
+
+# ...AND EVERY READING OF A CELL'S OWN FIELDS (batch 4q's fix round 2, the
+# verify's blocker 2): a two-figure year in a spelling neither the reader nor
+# the layout's orders read (`Jan 01, 28`, `Jan 01 '28`), and a year written
+# first in two figures (`28-01-01`, read by its layout's orders day first
+# alone, 28 January 2001), named a year of the room: eleven such cells of
+# 2028 beside 19,989 ISO births left 2028 free, and the twin wrote eight of
+# those real days as ISO dates in each spelling, none on the public line. So
+# a cell NO READING READS has its fields read every way a person may write a
+# day or a month (`unread_years`), a year of one to three figures as a
+# two-figure year; and a cell of three runs of one or two figures is read
+# with its year first too (`year_first_years`): the room takes no year a
+# reading of a real cell names.
+_MONTH_NAMES = (
+    "january", "february", "march", "april", "may", "june",
+    "july", "august", "september", "october", "november", "december",
+)
+# The longest run of figures a compact date is written in (`20280101`), and
+# the shortest (`12828`, a month and a day of one figure each).
+_COMPACT_LONGEST = 8
+_COMPACT_SHORTEST = 5
+# The letters an ordinal day wears glued to its figures (`1st`, `22nd`).
+_ORDINAL_ENDINGS = ("st", "nd", "rd", "th")
+# The last day of the longest month: a run of figures past it is no day.
+_A_MONTH_S_LAST_DAY = 31
+
+
+def _field_value(figures: str) -> int:
+    """The value of a run of ASCII figures, read figure by figure."""
+    value = 0
+    for character in figures:
+        value = value * 10 + ord(character) - ord("0")
+    return value
+
+
+# ...AND (batch 4q's fix round 3, the verify of fix round 2) A CLOCK
+# WHEREVER IT STANDS: a clock written first (`09:15 01/01/28`, `9:15 AM 01
+# Jan 28`), glued to the date (`01/01/2809:15`, `NovT09:15`) or followed by a
+# word (`09:15:30 28-01-01 (Sat)`) left no field once a clock and what
+# followed it were set aside, and ten such cells beside 19,989 ISO births
+# left 2028 in the room. A clock is now set aside alone: its hour's figures
+# (the last two of a longer run where they read 0 to 23, else the last one;
+# both are read, `_field_readings`), a `T` glued before them, its minutes,
+# seconds and a fraction, a meridiem and a zone after them; the fields on
+# both sides of it are read.
+_CLOCK_MERIDIEMS = ("a.m.", "p.m.", "a.m", "p.m", "am", "pm")
+_CLOCK_ZONES = (
+    "utc", "gmt", "est", "edt", "cst", "cdt", "mst", "mdt", "pst", "pdt", "cet", "cest", "bst", "z",
+)
+# The hours of a day: a glued run's last two figures read past this are no
+# hour, and its last figure is.
+_CLOCK_LAST_HOUR = 23
+
+
+def _ascii_figures(text: str, place: int, most: int) -> int:
+    """How many ASCII figures stand in ``text`` from ``place`` on, at most ``most``."""
+    count = 0
+    while place + count < len(text) and count < most and "0" <= text[place + count] <= "9":
+        count = count + 1
+    return count
+
+
+def _a_word_at(text: str, place: int, words: "tuple[str, ...]") -> int:
+    """The length of the first of ``words`` written at ``place`` in any case and followed by no ASCII letter; 0 where none is."""
+    for word in words:
+        end = place + len(word)
+        if end > len(text) or parsing.folded(text[place:end]) != word:
+            continue
+        if end < len(text) and ("a" <= text[end] <= "z" or "A" <= text[end] <= "Z"):
+            continue
+        return len(word)
+    return 0
+
+
+def _clock_span(text: str, colon: int, short: bool) -> "tuple[int, int]":
+    """Where the clock whose first `:` stands at ``colon`` begins and ends in ``text`` (plan P4-D457).
+
+    Its hour is the run of figures before the `:` -- of a longer run, the
+    last two figures where they read 0 to `_CLOCK_LAST_HOUR` and ``short``
+    is false, else the last one, the rest staying a field (`2809:15`: the
+    year 28); of a run of two that read past `_CLOCK_LAST_HOUR`, the last
+    one where ``short`` (fix round 4: `37-4-79:15`, the month 7 and then
+    `9:15` glued) --, with a `T` glued before it where no letter stands before
+    the `T` (a month's word keeps its letters: `NovT09:15` is read by
+    `_field_month`, `Oct09:15` keeps its `t`); then two figures of minutes,
+    `:` and two of seconds, a point or a comma and a fraction's figures, a
+    meridiem (`_CLOCK_MERIDIEMS`) and a zone (`_CLOCK_ZONES`, `+05:00`,
+    `-0500`) after spaces or none.
+    """
+    start = colon
+    while start > 0 and "0" <= text[start - 1] <= "9":
+        start = start - 1
+    hour = colon - start
+    late = hour >= 2 and _field_value(text[colon - 2:colon]) > _CLOCK_LAST_HOUR
+    if hour > 2 or (hour == 2 and short and late):
+        hour = 1 if short or late else 2
+    start = colon - hour
+    if start > 0 and text[start - 1] in ("T", "t") and not (
+        start > 1 and ("a" <= text[start - 2] <= "z" or "A" <= text[start - 2] <= "Z")
+    ):
+        start = start - 1
+    end = colon + 1 + _ascii_figures(text, colon + 1, 2)
+    if end < len(text) and text[end] == ":" and _ascii_figures(text, end + 1, 2) == 2:
+        end = end + 3
+    if end < len(text) and text[end] in (".", ",") and _ascii_figures(text, end + 1, 1):
+        end = end + 1
+        while end < len(text) and "0" <= text[end] <= "9":
+            end = end + 1
+    look = end
+    while look < len(text) and text[look] == " ":
+        look = look + 1
+    width = _a_word_at(text, look, _CLOCK_MERIDIEMS)
+    if width:
+        end = look + width
+        look = end
+        while look < len(text) and text[look] == " ":
+            look = look + 1
+    width = _a_word_at(text, look, _CLOCK_ZONES)
+    if width:
+        end = look + width
+        look = end
+    if look < len(text) and text[look] in ("+", "-") and _ascii_figures(text, look + 1, 2) == 2:
+        end = look + 3
+        if end < len(text) and text[end] == ":" and _ascii_figures(text, end + 1, 2) == 2:
+            end = end + 3
+        elif _ascii_figures(text, end, 2) == 2:
+            end = end + 2
+    return start, end
+
+
+def _without_clocks(text: str, short: bool) -> str:
+    """``text`` with each clock (a `:` standing between two figures and what `_clock_span` reads around it) written as one space.
+
+    Fix round 4 (the verify of fix round 3, blocker 2): exactly two
+    figures before a `:` that read past `_CLOCK_LAST_HOUR` are no clock's
+    hour where ``short`` is false, so that `:` is the joint between a date
+    and its clock, kept as a mark, and the clock opens at the next one:
+    SAS's DATETIME and DATEAMPM write a two-figure year so
+    (`01JAN28:09:15:30`, `01JAN28:09:15`, `01JAN28:09:15:30 AM`), and the
+    year once left with the clock. Where ``short``, the last of the two is
+    the hour (`_clock_span`), the first a field.
+    """
+    if ":" not in text:
+        # ...no clock: the text itself (fix round 4, the readers' price)
+        return text
+    kept = ""
+    place = 0
+    last = 0
+    while place < len(text):
+        if (
+            0 < place < len(text) - 1
+            and text[place] == ":"
+            and "0" <= text[place - 1] <= "9"
+            and "0" <= text[place + 1] <= "9"
+        ):
+            run = place
+            while run > last and "0" <= text[run - 1] <= "9":
+                run = run - 1
+            if not short and place - run == 2 and _field_value(text[run:place]) > _CLOCK_LAST_HOUR:
+                kept = kept + text[place]
+                place = place + 1
+                continue
+            start, end = _clock_span(text, place, short)
+            # ...never reaching back into the clock before it (`09:15:30:45`)
+            start = max(start, last)
+            kept = kept[0:len(kept) - (place - start)] + " "
+            place = end
+            last = end
+            continue
+        kept = kept + text[place]
+        place = place + 1
+    return kept
+
+
+def _date_fields(text: str, short: bool = False) -> "list[str]":
+    """A cell's runs of ASCII figures and of ASCII letters, in order, everything else parting them; each clock set aside wherever it stands.
+
+    A clock is a `:` standing between two figures and what `_clock_span`
+    reads around it (`09:15`, `9:15 AM`, `T09:15:30Z`, `09:15:30+05:00`),
+    read with its hour's last figure alone where ``short``
+    (`_without_clocks`); the fields on both sides of it stay. An ordinal's
+    letters glued to a day (`1st`, `22nd`, `3rd`, `5th`) are no field.
+    """
+    kept = _without_clocks(text, short)
+    fields: "list[str]" = []
+    field = ""
+    kind = 0
+    glued = False
+    for place in range(len(kept) + 1):
+        character = kept[place] if place < len(kept) else " "
+        now = 1 if "0" <= character <= "9" else 2 if "a" <= character <= "z" or "A" <= character <= "Z" else 0
+        if now != kind and field:
+            if not (kind == 2 and glued and parsing.folded(field) in _ORDINAL_ENDINGS):
+                fields += [field]
+            glued = kind == 1 and now == 2
+            field = ""
+        if now:
+            field = field + character
+        kind = now
+    return fields
+
+
+def _field_readings(text: str) -> "list[list[str]]":
+    """The cell's fields (`_date_fields`), and, where a glued clock's hour may be its last figure alone, those too."""
+    fields = _date_fields(text)
+    if ":" not in text:
+        return [fields]
+    short = _date_fields(text, True)
+    return [fields] if short == fields else [fields, short]
+
+
+def _field_month(field: str) -> int:
+    """The month a field names: figures 1 to 12 of one or two figures, or a month's word -- three letters, the name in full or between, any case, a stamp's `T` glued after it aside (`NovT09:15`) --; else 0."""
+    if _figures_alone(field):
+        value = _field_value(field)
+        return value if len(field) <= 2 and 1 <= value <= 12 else 0
+    word = parsing.folded(field)
+    if len(word) < 3:
+        return 0
+    for place in range(len(_MONTH_NAMES)):
+        if _MONTH_NAMES[place][0:len(word)] == word:
+            return place + 1
+    if len(word) > 3 and word[len(word) - 1] == "t":
+        for place in range(len(_MONTH_NAMES)):
+            if _MONTH_NAMES[place][0:len(word) - 1] == word[0:len(word) - 1]:
+                return place + 1
+    return 0
+
+
+def _field_year(field: str) -> "tuple[int, int]":
+    """A field read as a year: (its four figures, -1), or (-1, a two-figure year: the last two of one to three figures), or (-1, -1)."""
+    if not _figures_alone(field) or len(field) > 4:
+        return -1, -1
+    if len(field) == 4:
+        return (-1, -1) if field[0] == "0" else (_field_value(field), -1)
+    return -1, _field_value(field[-2:])
+
+
+def _field_day_year(year: str, month: int, day: str) -> "tuple[int, int]":
+    """The year of the day ``year``, ``month`` and ``day`` name, as `_field_year` writes it, where that day is valid (a two-figure year's in either century); else (-1, -1)."""
+    four, two = _field_year(year)
+    if month < 1 or not _figures_alone(day) or len(day) > 2 or (four < 0 and two < 0):
+        return -1, -1
+    value = _field_value(day)
+    if four >= 0:
+        last = calendar_rules.month_length(four, month)
+    else:
+        last = max(calendar_rules.month_length(1900 + two, month), calendar_rules.month_length(2000 + two, month))
+    return (four, two) if 1 <= value <= last else (-1, -1)
+
+
+def _compact_runs(text: str) -> "list[str]":
+    """Each maximal run of five ASCII figures or more of a text with no ASCII letter glued to it, save a `T` before a clock's figures and a zone or a meridiem after a stamp's clock (`280101`, `D:20280101`, `20280101T091530`, `20280101091530Z`; not `R10052028`, a key's figures).
+
+    Batch 4q's fix round 3 (the verify of fix round 2): a compact stamp,
+    its clock run on in the same run of figures (`202801010915`,
+    `2801010915`, `20280101091530`), after a `T` (`20280101T091530`, the
+    basic form of ISO 8601) or with a fraction after a point
+    (`20280101091530.000000`), is read too; `unread_years` reads a run of
+    more than `_COMPACT_LONGEST` figures by its first eight and its first six.
+    Fix round 4 (the verify of fix round 3, blocker 1): a run of more than
+    `_COMPACT_LONGEST` figures -- a date with its clock run on -- ended by
+    a zone (`_CLOCK_ZONES`: the layout grammar's `Z`, `UTC` and `GMT`
+    among them) or a meridiem (`_CLOCK_MERIDIEMS`) that no letter follows
+    is such a stamp too, not a key's figures glued to a letter
+    (`20280101091530Z`, ASN.1's GeneralizedTime; `280101091530Z`, its
+    UTCTime; `202801010915AM`).
+    """
+    found: "list[str]" = []
+    start = -1
+    for place in range(len(text) + 1):
+        if place < len(text) and "0" <= text[place] <= "9":
+            if start < 0:
+                start = place
+            continue
+        if start >= 0 and place - start >= _COMPACT_SHORTEST:
+            before = text[start - 1] if start > 0 else " "
+            after = text[place] if place < len(text) else " "
+            stamp = after in ("T", "t") and place + 1 < len(text) and "0" <= text[place + 1] <= "9"
+            zoned = place - start > _COMPACT_LONGEST and _a_word_at(text, place, _CLOCK_ZONES + _CLOCK_MERIDIEMS) > 0
+            glued = "a" <= before <= "z" or "A" <= before <= "Z" or (
+                ("a" <= after <= "z" or "A" <= after <= "Z") and not stamp and not zoned
+            )
+            if not glued:
+                found += [text[start:place]]
+        start = -1
+    return found
+
+
+def _cell_compact_runs(text: str) -> "list[str]":
+    """A cell's compact runs (`_compact_runs`), and the runs a clock glued to them parted (`31122509:15`, `09:1502292060`: batch 4q's fix round 3), each once, in order."""
+    runs = _compact_runs(text)
+    if ":" not in text:
+        return runs
+    for short in (False, True):
+        for run in _compact_runs(_without_clocks(text, short)):
+            if run not in runs:
+                runs += [run]
+    return runs
+
+
+def year_first_years(text: str) -> "list[int]":
+    """The two-figure years three neighbouring runs of one or two figures in a cell name read with the year first, or between where it can be no day (plan P4-D457).
+
+    The verify of batch 4q's fix round, blocker 2: `28-01-01` stands in its
+    layout's orders with its year last alone (28 January 2001), while a
+    person writes 2028-01-01 so too. Each three neighbouring fields
+    (`_field_readings`: a clock set aside wherever it stands) that are runs
+    of one or two figures -- whatever marks part them, whatever stands
+    beside them (`Sat 28-01-01`, `09:15 28-01-01`, `28-01-01T09:15 EST`:
+    batch 4q's fix round 3) -- name, read year first, the first as a
+    two-figure year where the second is a month and the third a day of it
+    in either century; and (batch 4q's fix round 3) a middle run past 31,
+    which can be no day and no month, names itself as the year where the
+    other two are a month and a day of it, either first (`07-37-04`; a
+    cell's merged key may stand in its layout's orders by another cut,
+    `7-3-74`). A month written by its word (`28-Jan-01`) is read as its
+    layout's orders read it, its year last; a middle run of 31 or less is
+    read as the day of `mm-dd-yy` and `dd-mm-yy` (`01-28-05`). [] where
+    none does. A fixed function of the text. Raises TypeError for a
+    non-string. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_RUN_NOT_TEXT)
+    found: "list[int]" = []
+    for fields in _field_readings(text):
+        for at in range(len(fields) - 2):
+            if not all(_figures_alone(field) and len(field) <= 2 for field in fields[at:at + 3]):
+                continue
+            named = [_field_day_year(fields[at], _field_month(fields[at + 1]), fields[at + 2])]
+            if _field_value(fields[at + 1]) > _A_MONTH_S_LAST_DAY:
+                named += [_field_day_year(fields[at + 1], _field_month(fields[at]), fields[at + 2])]
+                named += [_field_day_year(fields[at + 1], _field_month(fields[at + 2]), fields[at])]
+            for _four, two in named:
+                if two >= 0 and two not in found:
+                    found += [two]
+    return found
+
+
+def unread_years(text: str) -> "tuple[list[int], list[int]]":
+    """The years every reading of the fields of a cell no reading reads names: four-figure years, and two-figure ones (plan P4-D457).
+
+    For a cell that no member of the product's date reader and no order of
+    its own layout reads (`Jan 01, 28`, `Jan 01 '28`, `Mar 05, 45`, `Jan
+    1st, 28`: the verify of batch 4q's fix round, blocker 2; `202801010915`,
+    `20280101T091530`, `09:15 01/01/28`: the verify of fix round 2). The
+    cell's FIELDS are its runs of ASCII figures and of ASCII letters,
+    everything else parting them, each clock set aside wherever it stands
+    (`_field_readings`), read every way a person writes a day or a month:
+    EACH THREE NEIGHBOURING FIELDS as a year, a month (figures 1 to 12, or a
+    month's word: `_field_month`) and a day, in all six orders; a cell of
+    TWO FIELDS as a month and a year in either order (`Jan 28`, `01/28`);
+    a month's word beside its day and year run together, wherever the two
+    stand (`Jan0128`, `Mar132045`, `206029Feb`); and each run of five
+    figures or more no letter is glued to (`_compact_runs`) as a compact
+    date -- a run of five to eight figures whole, a longer one by its
+    first eight and first six (a stamp's date before its clock) --, its
+    year of two or four figures first or last, of three in a run of seven
+    (`280101`, `01012028`, `202801010915`, `1208098`). A year of one to
+    three figures names a two-figure year, its last two figures (`8`,
+    `28`, `028`), where its day is valid in either century; one of four
+    figures names itself, none opening with a nought. Both empty where no
+    reading names a day or a month (`99/99/9999`, `R10052028`). A fixed
+    function of the text. Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_RUN_NOT_TEXT)
+    named: "list[tuple[int, int]]" = []
+    for fields in _field_readings(text):
+        for at in range(len(fields) - 2):
+            for at_year, at_month, at_day in ((0, 1, 2), (0, 2, 1), (1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0)):
+                month = _field_month(fields[at + at_month])
+                named += [_field_day_year(fields[at + at_year], month, fields[at + at_day])]
+        if len(fields) == 2:
+            for at_year, at_month in ((0, 1), (1, 0)):
+                month = _field_month(fields[at_month])
+                if month:
+                    named += [_field_year(fields[at_year])]
+        # ...a month's word beside its day and year run together, wherever
+        # the pair stands and whatever the year's width (batch 4q's fix
+        # round 3: `Mar132045`, `206029Feb`, `9812Aug (Sat)`)
+        for at in range(len(fields) - 1):
+            for at_year, at_month in ((at, at + 1), (at + 1, at)):
+                joined = fields[at_year]
+                if not (_figures_alone(joined) and 3 <= len(joined) <= 6) or _figures_alone(fields[at_month]):
+                    continue
+                month = _field_month(fields[at_month])
+                for cut in (1, 2):
+                    left = len(joined) - cut
+                    if 1 <= left <= 2:
+                        named += [_field_day_year(joined[cut:], month, joined[:cut])]
+                        named += [_field_day_year(joined[:cut], month, joined[cut:])]
+                    elif 3 <= left <= 4 and len(joined) > 4:
+                        # ...a year of three or four figures, before or after the day
+                        named += [_field_day_year(joined[cut:], month, joined[:cut])]
+                        named += [_field_day_year(joined[:left], month, joined[left:])]
+    for run in _cell_compact_runs(text):
+        # ...a compact stamp by the date its run opens with, its first eight
+        # figures and its first six (batch 4q's fix round 3), and a run of
+        # seven with a year of three too. Not its first seven: read so, the
+        # commonest stamp, `yyyymmddhhmm`, names years of the room
+        # (`195204300259`: 2043, `193301211743`: 2093) and a held column of
+        # them loses its room.
+        pieces = [run]
+        if len(run) > _COMPACT_LONGEST:
+            pieces = [run[0:_COMPACT_LONGEST], run[0:_COMPACT_LONGEST - 2]]
+        for piece in pieces:
+            for width in (2, 3, 4):
+                if width == 3 and len(piece) != _COMPACT_LONGEST - 1:
+                    continue
+                for front in (True, False):
+                    written = piece[:width] if front else piece[len(piece) - width:]
+                    rest = piece[width:] if front else piece[:len(piece) - width]
+                    for cut in (1, 2):
+                        if 1 <= len(rest) - cut <= 2:
+                            named += [_field_day_year(written, _field_month(rest[:cut]), rest[cut:])]
+                            named += [_field_day_year(written, _field_month(rest[cut:]), rest[:cut])]
+    four: "list[int]" = []
+    two: "list[int]" = []
+    for year_four, year_two in named:
+        if year_four >= 0 and year_four not in four:
+            four += [year_four]
+        if year_two >= 0 and year_two not in two:
+            two += [year_two]
+    return four, two
+
+
+# ...AND A DATE WRITTEN AS A COUNT (batch 4q's fix round 4, the verify of fix
+# round 3, blocker 3): Excel's serials `46753` to `46763` (1 to 11 January
+# 2028) beside 19,989 ISO births were read by nothing, 2028 stayed in the
+# room, and the twin wrote eight of those eleven real days as ISO dates; ten
+# such cells withheld, seven; Unix seconds, eight. The product names twelve
+# counting systems as how exports write dates (`date_counts.MEMBERS`,
+# `--date-count`), and a counted date on a person is a date, so a cell the
+# count grammar reads is read in every one of them.
+def counted_years(text: str) -> "list[int]":
+    """The four-figure year of the day each counting system the product names reads ``text`` as (plan P4-D457).
+
+    Every member of `date_counts.MEMBERS` -- Excel's 1900 and 1904
+    serials, days, seconds and milliseconds from 1960, days to
+    nanoseconds from 1970, days from 1840 and seconds from 1582 -- reads a
+    cell its count grammar takes (`date_counts.counted`, with either
+    decimal mark) as the moment it names, to the nanosecond
+    (`date_counts.moment_of`), and the year of the day that moment falls
+    on is held; a count naming no date names none. [] where the grammar
+    reads no count. A fixed function of the text. Raises TypeError for a
+    non-string. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_RUN_NOT_TEXT)
+    found: "list[int]" = []
+    if not text or not ("0" <= text[0] <= "9" or text[0] == "-"):
+        # ...the grammar's count opens with a figure or a minus
+        return found
+    for mark in date_counts.MARKS:
+        if (mark != date_counts.POINT and mark not in text) or date_counts.written_count(text, mark) is None:
+            # ...a cell writing no comma reads with it as with the point, or not at all
+            continue
+        for member in date_counts.MEMBERS:
+            written = date_counts.counted(member, text, mark)
+            if written is None:
+                continue
+            numerator, denominator = date_counts.exact_value(written)
+            moment = date_counts.moment_of(member, numerator, denominator, date_counts.NANOSECOND)
+            if moment is None:
+                continue
+            year = parsing.civil_from_days(moment // date_counts.DAY)[0]
+            if year not in found:
+                found += [year]
+    return found
+
+
+# ...AND A DAY OF THE YEAR (batch 4q's fix round 4, the verify of fix round
+# 3, blocker 4): `2028001` to `2028010` and `2028020` (`%Y%j`: SAS's
+# JULIAN7., the ask-first layout `{YYYY}{DDD}`), and `28001` and on
+# (`%y%j`: JULIAN5.), beside 19,989 ISO births left 2028 in the room, and
+# the twin wrote eight of those eleven real days as ISO dates in each.
+def _days_of_the_year(year: int) -> int:
+    """How many days a year of four figures holds: 366 in a leap year, else 365."""
+    return 366 if calendar_rules.month_length(year, 2) == 29 else 365
+
+
+def _ordinal_year(year: str, day: str) -> "tuple[int, int]":
+    """``year`` -- two figures, or four opening with no nought -- read as the year whose day of the year ``day`` names, as `_field_year` writes it, where that day is valid in either century; else (-1, -1)."""
+    if not _figures_alone(year) or len(year) not in (2, 4) or not _figures_alone(day) or len(day) != 3:
+        return -1, -1
+    four, two = _field_year(year)
+    if four >= 0:
+        last = _days_of_the_year(four)
+    elif two >= 0:
+        last = max(_days_of_the_year(1900 + two), _days_of_the_year(2000 + two))
+    else:
+        return -1, -1
+    return (four, two) if 1 <= _field_value(day) <= last else (-1, -1)
+
+
+def day_of_year_years(text: str) -> "tuple[list[int], list[int]]":
+    """The years a day of the year written in a cell names: four-figure years, and two-figure ones (plan P4-D457).
+
+    Each compact run of a cell (`_cell_compact_runs`: five figures or
+    more no letter is glued to, the runs a clock parts too) of exactly
+    seven figures, its first four a year opening with no nought and its
+    last three a day of that year (`2028001`: SAS's JULIAN7., the
+    ask-first layout `{YYYY}{DDD}`), or of exactly five, its first two a
+    year and its last three a day of it in either century (`28001`:
+    JULIAN5., `{YY}{DDD}`); and each two neighbouring fields of a cell
+    (`_field_readings`, a clock set aside wherever it stands), a year of
+    two or of four figures then three figures that are a day of it,
+    whatever mark parts them (`28-001`, `2028-001`: ISO 8601's ordinal
+    date). Both empty where none does. A fixed function of the text.
+    Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_RUN_NOT_TEXT)
+    named: "list[tuple[int, int]]" = []
+    for run in _cell_compact_runs(text):
+        if len(run) == _COMPACT_LONGEST - 1:
+            named += [_ordinal_year(run[0:4], run[4:])]
+        elif len(run) == _COMPACT_SHORTEST:
+            named += [_ordinal_year(run[0:2], run[2:])]
+    for fields in _field_readings(text):
+        for at in range(len(fields) - 1):
+            named += [_ordinal_year(fields[at], fields[at + 1])]
+    four: "list[int]" = []
+    two: "list[int]" = []
+    for year_four, year_two in named:
+        if year_four >= 0 and year_four not in four:
+            four += [year_four]
+        if year_two >= 0 and year_two not in two:
+            two += [year_two]
+    return four, two
+
+
+def cell_date_years(text: str) -> "tuple[list[int], list[int]]":
+    """The years of four figures and of two a held date column's cell names by the readings the room holds against (plan P4-D457).
+
+    What `with_made_up_years` reads of each present cell apart from the
+    orders of the column's named layouts: the cell in the orders of its
+    own layout on its merged key (`_own_date_orders`); every member of the
+    product's date reader (`date_reader_years`); each run of four figures
+    (`four_figure_runs`); three neighbouring runs of one or two figures
+    read year first (`year_first_years`); the day each of the twelve
+    counting systems the product names reads it as, where its count
+    grammar takes it (`counted_years`), and a day of the year written in
+    seven or five figures or beside a year (`day_of_year_years`: batch
+    4q's fix round 4), not one whose clock is run on in its figures
+    (`28001091530`); and, where neither its own layout's orders nor the
+    reader read it, the readings `unread_years` gives its fields. The
+    cross rule then holds a two-figure year as 19yy and 20yy where the
+    column's layouts write four figures, and a four-figure year as its
+    last two where they write two. The unit sweep of the generated
+    spellings (tools/measurements/date_spellings.py, batch 4q's fix rounds
+    3 and 4) asks this of each spelling: of SAS's DATETIME and DATEAMPM,
+    the forms with a year of four figures or a two-figure year from 28 (a
+    two-figure year from 24 to 27 or below is a year of the room only
+    where a two-figure room passes 99, which the sweep does not ask); of a
+    day of the year, the four forms with no clock (`%Y%j`, `%y%j`, `%y-%j`,
+    `%Y-%j`). What stays open beyond the generated spellings is named in
+    `with_made_up_years` (plan P4-D457). A fixed function of the text.
+    Raises TypeError for a non-string. No I/O.
+    """
+    core = parsing.trimmed(text)
+    key = parsing.merged_key(text)
+    four: "list[int]" = []
+    two: "list[int]" = []
+    own_read = False
+    for order in _own_date_orders(core):
+        for year in years_of_merged_date(key, order):
+            own_read = True
+            if order in MADE_UP_ORDERS_TWO:
+                if year not in two:
+                    two += [year]
+            elif year not in four:
+                four += [year]
+    reader_four, reader_two = date_reader_years(core)
+    ordinal_four, ordinal_two = day_of_year_years(core)
+    found_four = reader_four + four_figure_runs(core) + counted_years(core) + ordinal_four
+    found_two = reader_two + year_first_years(core) + ordinal_two
+    if not own_read and not reader_four and not reader_two:
+        unread_four, unread_two = unread_years(core)
+        found_four += unread_four
+        found_two += unread_two
+    for year in found_four:
+        if year not in four:
+            four += [year]
+    for year in found_two:
+        if year not in two:
+            two += [year]
+    return four, two
+
+
+def with_made_up_years(column: ColumnProfile, cells: "list[str]") -> ColumnProfile:
+    """A record-number block of dates with the years its twin's made-up dates take (lane ID-ROOM2, plan P4-D457).
+
+    Asked once the block's census and exclusions are final, of a column
+    held as an identifier whose named layouts include a date's form and
+    whose twin writes them as dates: the G1 floor (a `time_grain`), or the
+    date pass (no grain, no layout a UID can wear). A grain that reads no
+    dates (stamps, clock times, counted dates: Codex's review, item 1)
+    publishes `[]` and keeps its remarks: its twin is the G1 floor's own,
+    as before. Every present cell that is no absent spelling is read on
+    its MERGED KEY in every order a date of the column's date layouts
+    stands in (`date_merged_orders`), and in the orders of its own layout,
+    one the census withholds included (`_own_date_orders`; the verify of
+    repair 1, item 1), and each year it is a valid date of is held, into
+    one bounded set a kind of year (Codex's review, item 6: no record kept
+    a key; a cell's text read is remembered, up to `MADE_UP_KEYS_REMEMBERED`,
+    so a value on several rows is read once). Where the layouts write BOTH
+    kinds of year (skeptic 1 of lane ID-ROOM2, item 1), or a cell read in
+    its own layout's orders names a kind of year no named layout writes,
+    each four-figure year held is held for the two-figure kind as its
+    last two figures, and each two-figure year held for the four-figure
+    kind as 1900 and 2000 plus it, so no made-up date is a real one
+    written with the other year width. It publishes
+    `made_up_years` (contract 7.12c): the block of four-figure years from
+    `MADE_UP_FIRST_YEAR` (`made_up_year_room`) where a layout writes a
+    year of four figures, and the block of two-figure years from `28`
+    (`short_year_room`) where one writes two, each as many years as hold
+    `MADE_UP_ROOM` times the layout's made-up values at its writer's own
+    count a year (`made_up_dates_a_year`, Codex's review, item 2), never
+    past the calendar, and each only where no real cell is a date of any
+    year in it. A kind of year with no room publishes no run, and its
+    layouts' twin is the walk's. No year a real cell is a date of is
+    published, nothing is stepped over and nothing counted.
+
+    REPAIR 2 (the verify of repair 1 and the suite of its head): with no
+    grain, a named stamp or clock publishes `[]` (`_a_clock_layout`), cells
+    of figures alone are read as a year alone too, and each named layout's
+    SHARE of the block (`made_up_share`) is checked against its own orders
+    read at the days the date pass writes (`MADE_UP_DATE_PASS_DAYS`),
+    every cell's own dates and the cross rule (`_shares_hold`), where the
+    G1 floor's whole block is checked against every order.
+
+    BATCH 4q'S MERGE (K-HZ-13's proof on b93f128a): with no grain, beside a
+    named layout whose dates are written year last in figures, a layout
+    writing its year first takes as its share the years of the block whose
+    second figure is a nought (`_year_first_shares`), a fixed rule of the
+    named layouts, checked as any share is; the block published holds those
+    years past its own last. BATCH 4q'S FIX ROUND (Codex's review, item 2):
+    each cell's years are also those every member of the product's date
+    reader reads it as (`date_reader_years`) and the value of each run of
+    four figures it holds (`four_figure_runs`); and (fix round 2, the
+    verify's blocker 2) a cell of three runs of one or two figures names its
+    first as a year too (`year_first_years`: `28-01-01`), and a cell no
+    member of the reader and no order of its own layout reads names the
+    years these readings of its fields give (`unread_years`: three neighbouring
+    fields as a year, a month and a day in any order, two as a month and a
+    year, a run of five figures or more no letter is glued to as a compact
+    date; a year of one to three figures read as a two-figure one), each
+    cell read once by its text (`cell_date_years`). FIX ROUND 3 (the verify
+    of fix round 2; the spellings now generated, not listed:
+    tools/measurements/date_spellings.py): a compact stamp is read by the
+    date its run opens with, a `T` before its clock no glued letter
+    (`202801010915`, `20280101T091530`); a clock is set aside wherever it
+    stands, the fields on both sides read (`09:15 01/01/28`); a month's
+    word glued to its day and year is read wherever it stands
+    (`Mar132045`); and a middle run past 31 of three runs of one or two
+    figures is read as the year (`07-37-04`). FIX ROUND 4 (the verify of
+    fix round 3): a zone or a meridiem glued to a stamp's clock run on in
+    its figures ends the run (`20280101091530Z`, `202801010915AM`); two
+    figures past a day's last hour before a `:` are a year, not an hour
+    (SAS's `01JAN28:09:15:30`), two of 00 to 23 staying the hour; each of
+    the twelve counting systems the product names reads as a count a cell
+    its count grammar takes (`counted_years`: Excel's `46757`, Unix
+    seconds); and a day of the year written in seven or five figures
+    or beside a year is read (`day_of_year_years`: `2028005`, `28005`,
+    `28-005`), not one whose clock is run on in its figures.
+
+    So, FOR THE SPELLINGS THE GENERATOR WRITES (tools/measurements/
+    date_spellings.py: the date part in every order of year, month and
+    day, with a year of one to four figures, a month in figures or in
+    words, no mark, a hyphen, a slash, a point, a space or a comma between
+    the fields, and each of its clocks and decorations; its zones and
+    meridiems; SAS's DATETIME and DATEAMPM at every width from 7 to 40,
+    with a year of four figures or a two-figure year from 28 (from 24 to
+    27 and below, only where no two-figure room passes 99); its counts;
+    and a day of the year with no clock, `%Y%j`, `%y%j`, `%y-%j` and
+    `%Y-%j`), a spelling of a real day leaves no year it names to the
+    room, save four classes where the year stands where common layouts
+    put a day or a year's own figures (lane ID-ROOM2): a two-figure year
+    first beside a month's word, read as its layout's orders read it, its
+    year last (`28-Jan-01` names 2001); a two-figure year between the
+    month and the day that reads as a day (`01-28-05`); a compact run with
+    its year between the month and the day (`012805`); and a three-figure
+    year in a compact stamp, its clock run on (`02801050915`), whose
+    reading by a stamp's first seven figures would name years of the room
+    in the commonest stamp (`195204300259`: 2043). Spellings the generator
+    does not write are not closed, and among them these stay open, stated
+    limits (lane ID-ROOM3, plan P4-D457): a month alone (`202801`, `January of 28`);
+    month words outside English, roman months and ranges of days
+    (`01-ENE-28`, `01.I.28`, `Jan 1 to 4 '28`); letters glued to a date's
+    run (`DOB20280101`) and a zone glued to a compact date with no clock
+    (`20280105Z`); the rare compact forms (`028001`, `12801010915`,
+    `28010109`) and a day of the year in six figures (`128001`); a day of
+    the year with its clock run on in its figures (`28001091530`,
+    `20280010915`, `2028001091530Z`); SAS's DATETIME and DATEAMPM with a
+    two-figure year of 00 to 23, read as the hour, where a two-figure room
+    passes 99 (`09JAN03:21:45:05`); counts outside the count grammar
+    (`46,753`, `[46757]`, a leading plus); and a zone word outside the
+    clock's list glued to a stamp's clock (`20280101091530IST`).
+    Guarantees: a fixed function of the two. Raises nothing. No I/O.
+    """
+    if column.role != ROLE_IDENTIFIER or "layout_forms" not in column.details:
+        return column
+    forms = column.details["layout_forms"]
+    if not isinstance(forms, dict):
+        return column
+    named: "list[str]" = []
+    counts: "dict[str, int]" = {}
+    for layout in sorted(forms):
+        if layout != SUPPRESSED_LABEL:
+            named += [f"{layout}"]
+            counts[f"{layout}"] = int(f"{forms[layout]}")
+    grain = column.details["time_grain"] if "time_grain" in column.details else None
+    grained = isinstance(grain, dict)
+    if not any(parsing.date_form_fields(layout) is not None for layout in named):
+        return column
+    if not grained and any(_a_uid_layout(layout) for layout in named):
+        return column
+    details: "dict[str, object]" = {}
+    for name in column.details:
+        details[name] = column.details[name]
+    if isinstance(grain, dict) and ("kind" not in grain or grain["kind"] != MADE_UP_GRAIN_KIND):
+        details["made_up_years"] = []
+        return dataclasses.replace(column, details=details)
+    # ...AND THE DATE PASS'S COLUMN NAMING A STAMP OR A CLOCK, which the date
+    # pass does not write (the verify of lane ID-ROOM2's repair 1, item 3
+    # (i): ISO dates beside hourly stamps held with `--identifier`, 19,600
+    # of 20,000 twin cells no date under NF136): `[]`, its remarks kept, so
+    # no remark says its twin's cells are dates.
+    if not grained and any(_a_clock_layout(layout) for layout in named):
+        details["made_up_years"] = []
+        return dataclasses.replace(column, details=details)
+    orders: "list[str]" = []
+    # The years each kind's block takes: 0 where no layout writes the kind,
+    # -1 where a layout's values fit no block of it (the year cap); each
+    # layout's own share of it (`made_up_share`), on the date pass counted
+    # with its other case's, which one walk steps.
+    needed_four = 0
+    needed_two = 0
+    walked: "dict[str, int]" = {}
+    for layout in named:
+        if date_merged_orders(layout, True):
+            folded = parsing.folded_layout(layout)
+            walked[folded] = (walked[folded] if folded in walked else 0) + counts[layout]
+    shares: "dict[str, int]" = {}
+    for layout in named:
+        read = date_merged_orders(layout, True)
+        if not read:
+            continue
+        for order in read:
+            if order not in orders:
+                orders += [order]
+        count = counts[layout] if grained else walked[parsing.folded_layout(layout)]
+        asked = made_up_share(layout, count, column.n_distinct, grained)
+        shares[layout] = asked
+        if any(order in MADE_UP_ORDERS_TWO for order in read):
+            needed_two = -1 if asked == 0 or needed_two < 0 else max(needed_two, asked)
+        else:
+            needed_four = -1 if asked == 0 or needed_four < 0 else max(needed_four, asked)
+    if not orders:
+        return column
+    # ...AND EVERY CELL AS A YEAR ALONE, where the column holds cells of
+    # figures alone (`n_all_digits`, which the census does not name): the
+    # date pass writes such a value of four figures as a year of the block
+    # (the verify of repair 1, item 3 (iii): 1,008 years alone of 20,000
+    # diagnosis dates were written as eleven-figure numbers under NF136),
+    # so no real cell's merged key may be a year of it.
+    all_digits = column.details["n_all_digits"] if "n_all_digits" in column.details else 0
+    alone = isinstance(all_digits, int) and all_digits > 0 and "Y" not in orders
+    if alone:
+        orders += ["Y"]
+    absent: "dict[str, bool]" = {}
+    for spelling in column.absent_spellings:
+        absent[spelling] = True
+    # Each order's years, read on the date pass at the days it writes there
+    # (`MADE_UP_DATE_PASS_DAYS`; repair 2 of lane ID-ROOM2: `1952-10-01`
+    # read day first is the 19th of May 2101, a day the date pass's
+    # month-first dates never write), and the years of each kind every cell
+    # is a date of in its own layout.
+    by_order: "dict[str, dict[int, bool]]" = {}
+    for order in orders:
+        by_order[order] = {}
+    own_four: "dict[int, bool]" = {}
+    own_two: "dict[int, bool]" = {}
+    remembered: "dict[str, bool]" = {}
+    # ...AND EVERY CELL IN THE ORDERS OF ITS OWN LAYOUT, a layout the census
+    # withholds included (the verify of lane ID-ROOM2's repair 1, item 1:
+    # twelve four-figure births of 1928 to 1937 in three withheld layouts
+    # beside two-figure ones of 2000 to 2025 were read in no order of
+    # theirs, and 20 two-figure twin cells named 7 of them at 20,000 rows),
+    # noting the kinds of year those readings name.
+    read_four = False
+    read_two = False
+    for value in cells:
+        core = parsing.trimmed(value)
+        if not core or value in absent:
+            continue
+        # ...a cell read once BY ITS TEXT (batch 4q's fix round 2): the
+        # readings below read its text, which two cells of one merged key
+        # may write apart (`Jan 12, 8` and `Jan 1, 28`).
+        if core in remembered:
+            continue
+        if len(remembered) < MADE_UP_KEYS_REMEMBERED:
+            remembered[core] = True
+        key = parsing.merged_key(value)
+        for order in orders:
+            last_day = 31
+            if not grained and order in MADE_UP_DATE_PASS_DAYS:
+                last_day = MADE_UP_DATE_PASS_DAYS[order]
+            for year in years_of_merged_date(key, order, last_day):
+                by_order[order][year] = True
+        # ...AND IN THE ORDERS OF ITS OWN LAYOUT, IN EVERY READING THE
+        # PRODUCT'S OWN DATE READER GIVES IT (Codex's review of batch 4q, item
+        # 2: eleven `Jan 01, 2028` to `Jan 11, 2028` beside 19,989 ISO births
+        # were read in no order of theirs, 2028 stayed free, and the twin
+        # wrote eight of those real days as ISO dates), EACH RUN OF FOUR
+        # FIGURES (`Jan. 05, 2028`), THREE RUNS OF ONE OR TWO FIGURES READ
+        # YEAR FIRST (fix round 2: `28-01-01`) and EVERY READING OF THE FIELDS
+        # OF A CELL NO READING READS (fix round 2: `Jan 01, 28`, `Mar 05,
+        # 45`; fix round 3: compact stamps, `202801010915`, and a clock
+        # written first, `09:15 01/01/28`; fix round 4: a zone glued to a
+        # stamp's clock, SAS's datetimes, counts and a day of the year):
+        # `cell_date_years`.
+        cell_four, cell_two = cell_date_years(core)
+        for year in cell_four:
+            own_four[year] = True
+            read_four = True
+        for year in cell_two:
+            own_two[year] = True
+            read_two = True
+    remembered = {}
+    held_four: "dict[int, bool]" = {}
+    held_two: "dict[int, bool]" = {}
+    for order in orders:
+        for year in by_order[order]:
+            if order in MADE_UP_ORDERS_TWO:
+                held_two[year] = True
+            else:
+                held_four[year] = True
+    for year in own_four:
+        held_four[year] = True
+    for year in own_two:
+        held_two[year] = True
+    cross_four: "dict[int, bool]" = {}
+    cross_two: "dict[int, bool]" = {}
+    if (needed_four and needed_two) or (read_four and not needed_four) or (
+        read_two and not needed_two
+    ):
+        # ...THE SAME DAY WRITTEN WITH THE OTHER YEAR WIDTH (skeptic 1 of
+        # lane ID-ROOM2, item 1: `06-Mar-1932` real, `06-Mar-32` made up,
+        # 2,335 of 5,903 two-figure twin cells a real birth date at 20,000
+        # rows): read from the cells alone, never from each other -- where
+        # the named layouts write both kinds, or a cell, named or withheld,
+        # reads in a kind no named layout writes (the verify's item 1).
+        for year in held_four:
+            cross_two[year % 100] = True
+        for year in held_two:
+            cross_four[1900 + year] = True
+            cross_four[2000 + year] = True
+    for year in cross_two:
+        held_two[year] = True
+    for year in cross_four:
+        held_four[year] = True
+    # THE ROOM: on the G1 floor, which draws over the whole block, a kind's
+    # block holds no year held in any order; on the date pass, which writes
+    # each layout's dates in its own share from the block's first year,
+    # each share holds none of its own (`_shares_hold`; repair 2 of lane
+    # ID-ROOM2: ISO and month-first births of 1930 to 1999, the block of
+    # 2028 to 2138 that the month-first layout's 144 dates a year asked held
+    # 2119, a month-first `02/01/1955` read year first, and the whole column
+    # was written as record numbers, where the ISO dates take 2028 to 2093).
+    spans: "list[list[int]]" = []
+    if needed_four > 0:
+        room = made_up_year_room(held_four, needed_four)
+        if not grained:
+            room = None
+            # ...a year-first layout beside dates written year last taking
+            # the years whose second figure is a nought (`_year_first_shares`;
+            # batch 4q's merge): the block holds them past its own last.
+            stepped = _year_first_shares(named, shares)
+            if stepped is not None and _shares_hold(
+                False, shares, by_order, own_four, cross_four, needed_four if alone else 0, stepped
+            ):
+                room = made_up_year_room({}, needed_four)
+                if room is not None:
+                    published: "dict[int, bool]" = {}
+                    for year in room:
+                        published[year] = True
+                    for layout in sorted(stepped):
+                        for year in stepped[layout]:
+                            if year not in published:
+                                published[year] = True
+                                room += [year]
+        if room:
+            spans += _year_spans(room)
+    if needed_two > 0:
+        short = short_year_room(held_two, needed_two)
+        if not grained:
+            short = None
+            if _shares_hold(True, shares, by_order, own_two, cross_two, 0):
+                short = short_year_room({}, needed_two)
+        if short:
+            spans += _year_spans(short)
+    details["made_up_years"] = sorted(spans)
+    # ...and the remark says where its made-up dates come from: the G1
+    # floor's (dates of a fixed span) no longer holds where this does.
+    remarks: "list[Note]" = []
+    for remark in column.remarks:
+        if remark.form != REMARK_HELD_DATES_ARE_VALID:
+            remarks += [remark]
+    four_room = any(first > 99 for first, _last in spans)
+    two_room = any(first <= 99 for first, _last in spans)
+    if (needed_four and four_room) or (needed_two and two_room):
+        remarks += [note(REMARK_MADE_UP_DATES_OFF_THE_REAL)]
+    if (needed_four and not four_room) or (needed_two and not two_room):
+        remarks += [note(REMARK_MADE_UP_DATES_NOT_DATES)]
+    return dataclasses.replace(column, details=details, remarks=remarks)

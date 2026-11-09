@@ -1166,6 +1166,7 @@ def w1_refusals(
     families: "list[Family]",
     scales: "dict[str, Ladder]",
     groups: "dict[str, set[int]]",
+    derived: "tuple[Derived, ...]" = (),
 ) -> "list[tuple[str, int, str]]":
     """RULE W1 in full (4.6b.3): every (column, chain-level band, other column) that fails.
 
@@ -1194,7 +1195,74 @@ def w1_refusals(
                 coarse = coarsen(scales[other], support.chain_level[other], 2)
                 if len({coarse[at] for at in reached}) < 2:
                     failing += [(name, band, other)]
+            # A carried rule's derived family `{D | A}`, placed at its rule's step before `A`'s own
+            # family and joined to it (contract 4.6b.7, rule 4): `D`, read at its one level as its
+            # coarsest, is reached through `A`'s bands.
+            for one in derived:
+                if one.parent not in support.home:
+                    continue
+                admitted = column_bands(support, reached_all, one.parent)
+                reach = derived_reach(scales[one.parent], support.chain_level[one.parent], admitted, one)
+                if not derived_reach_holds(reach, one, name == one.parent):
+                    failing += [(name, band, f"{DERIVED_PREFIX}{one.parent}")]
     return failing
+
+
+DERIVED_PREFIX = "the difference beside "
+
+
+@dataclasses.dataclass(frozen=True)
+class Derived:
+    """A carried rule's derived family `{D | A}` as RULE W1 reads it (contract 4.6b.7, rule 4).
+
+    `parent` is `A`, `level` the level of `A` the family holds, and
+    `reach[a]` the bands of `D` (its value bands, then its `missing`
+    band) where band `a` of `A` at that level holds a row.
+    """
+
+    parent: str
+    level: int
+    reach: "tuple[frozenset[int], ...]"
+    flat: bool = False
+
+
+def derived_of(parent: str, level: int, table: "list[list[int]] | tuple[tuple[int, ...], ...]", flat: bool) -> Derived:
+    """A derived family read for RULE W1 from its published table; `flat` where `D`'s level has no edge."""
+    return Derived(parent, level, tuple(frozenset(band for band in range(len(line)) if line[band] > 0) for line in table), flat)
+
+
+def derived_reach_holds(reach: "set[int]", derived: Derived, own: bool) -> bool:
+    """RULE W1 for `D`: at least two of its bands reached, or every band of `D` that holds a row (a
+    `D` holding rows in one band alone is confined by nothing, as a column of one band is); and rule
+    4's reading for `A`'s own group on a level with no edge, where the group's rows stand in `D`'s one
+    value band and none in its `missing` band, as met (the group's rows all stand in the one band,
+    whose count is the group's own)."""
+    if len(reach) >= 2:
+        return True
+    holding: "set[int]" = set()
+    for line in derived.reach:
+        holding = holding | set(line)
+    if reach and reach == holding:
+        return True
+    return own and derived.flat and reach == {0}
+
+
+def derived_reach(ladder: Ladder, chain_level: int, admitted: "set[int]", derived: Derived) -> "set[int]":
+    """The bands of `D` some feasible combination reaches, given `A`'s admitted bands at its chain level.
+
+    Every `L0` band of `A` holding a row inside an admitted band stands
+    beside it (its `L0` totals are published and floored), so the bands
+    of `A` at the family's level are read exactly, coarser or finer than
+    `A`'s chain level alike.
+    """
+    reached: "set[int]" = set()
+    for place in range(len(ladder.totals)):
+        if ladder.totals[place] <= 0 or ladder.maps[chain_level][place] not in admitted:
+            continue
+        band = ladder.maps[derived.level][place]
+        if band < len(derived.reach):
+            reached = reached | set(derived.reach[band])
+    return reached
 
 
 # -- RULE WE (4.6b.3) -----------------------------------------------------
@@ -1317,3 +1385,608 @@ def words_of(eligible: "list[str]", families: "list[Family]") -> "tuple[list[dic
             if word == "implied":
                 implied += [[eligible[at], other]]
     return words, implied
+
+
+# -- RULES BETWEEN COLUMNS (contract 4.6b.7 as amended by lane MR's page, MR.1 to MR.13;
+# lane RO, plan P4-D459) --------------------------------------------------------------
+#
+# Every function below reads published facts alone (a column's block, its
+# ladder, a rule's published entry), so the producer and the loader reach
+# the same decision (S28): the producer decides which options a rule's
+# step offers with them, and `chain_check` recomputes each from the
+# description. Exact arithmetic throughout: a difference `D` is an
+# integer (whole days or seconds) or a `fractions.Fraction` (a number
+# pair), and no binary64 value decides a band, a class or a failing row.
+
+RULE_ORDER = "order"
+RULE_FORMULA = "formula"
+# MR.7 amends the step order: ties by kind take `formula` first, then `order`.
+RULE_KINDS = (RULE_FORMULA, RULE_ORDER)
+STEP_RULE = "rule"
+CLASS_PHRASE = "phrase"
+CARRIER_DERIVED = "derived"
+GRAIN_A = "A"
+GRAIN_DAY = "day"
+DAY_SECONDS = 86400
+# A number pair's source unit, and a date, stamp or clock pair's, largest first (MR.3, 4.6b.5).
+UNIT_ONE = "1"
+TIME_UNITS = (("day", 86400), ("hour", 3600), ("minute", 60), ("second", 1))
+# D's nested levels (4.6b.7): the deciles with p25 and p75, then p25, p50,
+# p75 and p90, then p50, then one value band; a level is NAMED in the
+# rule's entry (MR.4 (d)), so the loader reads its percents.
+DERIVED_LEVELS = (
+    ("L0", (10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90)),
+    ("L1", (25, 50, 75, 90)),
+    ("L2", (50,)),
+    ("one", ()),
+)
+# The keys a carried rule's entry holds (4.6b.5 as amended by MR.2 and MR.8).
+RULE_ENTRY_KEYS = ("carrier", "class", "computed", "derived", "grain", "inputs", "kind", "op", "unit")
+DERIVED_ENTRY_KEYS = ("edges", "name", "parent", "table", "totals")
+
+
+def rule_limit(n: int, f: int) -> int:
+    """`L(n) = max(f, floor(n / 100))`, the inference limit (MR.1): JUDGEMENT on a published fact."""
+    return max(f, n // 100)
+
+
+def derived_band_bound(f: int) -> int:
+    """Rule 1's bound on a derived value band, `max(2 f, f + 4)` (the orchestrator's ruling 3 (1))."""
+    return max(2 * f, f + 4)
+
+
+def first_rank(percent: int, m: int) -> int:
+    """`k(p) = floor(p (m - 1) / 100)`, the first rank a rung at percent `p` reads over `m` readings."""
+    return (percent * (m - 1)) // 100
+
+
+def decimal_text(value: fractions.Fraction) -> str:
+    """An exact value written as decimal text; raises ValueError where it does not terminate."""
+    sign = "-" if value < 0 else ""
+    magnitude = -value if value < 0 else value
+    denominator = magnitude.denominator
+    twos = 0
+    fives = 0
+    while denominator % 2 == 0:
+        denominator //= 2
+        twos += 1
+    while denominator % 5 == 0:
+        denominator //= 5
+        fives += 1
+    if denominator != 1:
+        raise ValueError("a published edge is a terminating decimal")
+    places = max(twos, fives)
+    scaled = magnitude.numerator * (10**places) // magnitude.denominator
+    figures = f"{scaled}"
+    if not places:
+        return sign + figures
+    figures = "0" * max(0, places + 1 - len(figures)) + figures
+    return sign + figures[: len(figures) - places] + "." + figures[len(figures) - places :]
+
+
+def figures_of(text: str) -> "int | None":
+    """A text of the figures 0 to 9 read as a whole number; None where it holds anything else or nothing."""
+    if not isinstance(text, str):
+        raise TypeError("a text")
+    if not text:
+        return None
+    value = 0
+    for letter in text:
+        if letter < "0" or letter > "9":
+            return None
+        value = value * 10 + ord(letter) - 48
+    return value
+
+
+def decimal_value(text: object) -> "fractions.Fraction | None":
+    """Decimal text (an optional `-`, figures, an optional point and figures) as an exact value."""
+    if not isinstance(text, str):
+        return None
+    negative = text[:1] == "-"
+    body = text[1:] if negative else text
+    point = -1
+    for at in range(len(body)):
+        if body[at] == ".":
+            if point >= 0:
+                return None
+            point = at
+    whole = body if point < 0 else body[:point]
+    fraction = "" if point < 0 else body[point + 1 :]
+    if point >= 0 and not fraction:
+        return None
+    figures = figures_of(whole + fraction)
+    if figures is None or not whole:
+        return None
+    value = fractions.Fraction(figures, 10 ** len(fraction))
+    return -value if negative else value
+
+
+def reading_at(values: "list[fractions.Fraction]", cumulative: "list[int]", rank: int) -> fractions.Fraction:
+    """The reading at `rank` (0-based) of a sorted histogram: `values` ascending, `cumulative[i]` the rows up to `values[i]`."""
+    low = 0
+    high = len(cumulative) - 1
+    while low < high:
+        middle = (low + high) // 2
+        if cumulative[middle] > rank:
+            high = middle
+        else:
+            low = middle + 1
+    return values[low]
+
+
+def rung_of(values: "list[fractions.Fraction]", cumulative: "list[int]", percent: int) -> fractions.Fraction:
+    """A rung at `percent` by the contract's interpolation rule: `x(k) + frac (x(k + 1) - x(k))`."""
+    m = cumulative[-1]
+    position = fractions.Fraction(percent * (m - 1), 100)
+    k = position.numerator // position.denominator
+    low = reading_at(values, cumulative, k)
+    high = reading_at(values, cumulative, k + 1) if k + 1 < m else low
+    return low + (position - k) * (high - low)
+
+
+def derived_levels(histogram: "list[tuple[fractions.Fraction, int]]") -> "list[tuple[str, tuple[int, ...], tuple[fractions.Fraction, ...]]]":
+    """D's nested levels from its readings: `(name, percents, edges)`, tied edges taken once (4.6b.7).
+
+    `histogram` lists each reading with its rows, ascending. Empty where D
+    has no reading.
+    """
+    if not histogram:
+        return []
+    values: "list[fractions.Fraction]" = []
+    cumulative: "list[int]" = []
+    total = 0
+    for value, rows in histogram:
+        total += rows
+        values += [value]
+        cumulative += [total]
+    out: "list[tuple[str, tuple[int, ...], tuple[fractions.Fraction, ...]]]" = []
+    for name, percents in DERIVED_LEVELS:
+        edges: "list[fractions.Fraction]" = []
+        for percent in percents:
+            edge = rung_of(values, cumulative, percent)
+            if not edges or edge != edges[-1]:
+                edges += [edge]
+        out += [(name, percents, tuple(edges))]
+    return out
+
+
+def derived_band_of(edges: "tuple[fractions.Fraction, ...] | list[fractions.Fraction]", reading: fractions.Fraction) -> int:
+    """The value band of D holding `reading`, bands closed on the RIGHT (MR.2 item 1).
+
+    Band `k` holds `edge(k - 1) < x <= edge(k)`; the lowest every reading
+    up to its edge, the highest every reading above the last edge.
+    """
+    low = 0
+    high = len(edges)
+    while low < high:
+        middle = (low + high) // 2
+        if edges[middle] < reading:
+            low = middle + 1
+        else:
+            high = middle
+    return low
+
+
+def derived_totals(edges: "tuple[fractions.Fraction, ...]", histogram: "list[tuple[fractions.Fraction, int]]") -> "list[int]":
+    """Each value band's rows under right-closed bands."""
+    totals = [0] * (len(edges) + 1)
+    for value, rows in histogram:
+        totals[derived_band_of(edges, value)] += rows
+    return totals
+
+
+def rule_one_refusal(totals: "list[int]", percents: "tuple[int, ...]", f: int) -> "str | None":
+    """Rule 1 of a derived option AS REPAIRED (MR.2, repair 1): None where met, else why not.
+
+    Every value band but the highest holds at least `max(2 f, f + 4)`
+    rows, the highest that many or 0; every two consecutive percents
+    `p < q` of the level, tied rungs included, have `k(q) - k(p) >= f + 1`;
+    where the highest band holds 0 rows, `(m - 1) - k(p_top) >= f + 1`.
+    """
+    bound = derived_band_bound(f)
+    m = sum(totals)
+    if m <= 0:
+        return "rule 1: no reading"
+    for band in range(len(totals) - 1):
+        if totals[band] < bound:
+            return "rule 1: a value band under its bound"
+    if 0 < totals[-1] < bound:
+        return "rule 1: the highest value band under its bound"
+    ranks = [first_rank(percent, m) for percent in percents]
+    for at in range(len(ranks) - 1):
+        if ranks[at + 1] - ranks[at] < f + 1:
+            return "rule 1: two consecutive rungs fewer than f + 1 ranks apart"
+    if not totals[-1]:
+        if not ranks:
+            return "rule 1: no reading"
+        if (m - 1) - ranks[-1] < f + 1:
+            return "rule 1: an empty highest band too near the top"
+    return None
+
+
+def count_class_passes(readings: int, v: int, f: int) -> bool:
+    """Proposition T (ii): a count class `v` passes exactly where `R - v` is 0 or at least `f`."""
+    return readings - v == 0 or readings - v >= f
+
+
+def partition_passes(readings: int, f: int, limit: int) -> bool:
+    """Row 9's one test read once on the base for the WHOLE partition (MR.5, Proposition T).
+
+    The phrase passes on every table; the classes `f` to `L(n)` that hold
+    a world (`v <= R`) pass together exactly where none has `R - v` in 1
+    to `f - 1`, that is where `R` is not in `f + 1` to `L + f - 1`.
+    """
+    return not (f + 1 <= readings <= limit + f - 1)
+
+
+def one_test_partition(readings: int, f: int, limit: int) -> str:
+    """Which partition row 9's one test lets a derived carrier read (MR.5): `count` where the whole
+    partition passes (the phrase to `f - 1`, each count from `f` to `L(n)`), `phrase` where only the
+    phrase-only partition does (it passes on every table, Proposition T (i))."""
+    return "count" if partition_passes(readings, f, limit) else CLASS_PHRASE
+
+
+def class_of(v: int, readings: int, f: int, limit: int, phrase_only: bool) -> "str | int | None":
+    """The class the real `v` falls in, among a partition that passed whole; None where it falls in none.
+
+    `phrase_only` reads the phrase-only partition (a source carrier, a
+    formula, a table of several rows a person).
+    """
+    if v < 0:
+        raise ValueError("a count of failing rows is not negative")
+    if v <= f - 1:
+        return CLASS_PHRASE
+    if phrase_only or v > limit or not partition_passes(readings, f, limit):
+        return None
+    return v
+
+
+def multiple_above(low: fractions.Fraction, step: fractions.Fraction) -> fractions.Fraction:
+    """`up(lo)`: the smallest multiple of `step` strictly above `low` (MR.2)."""
+    quotient = low / step
+    return (quotient.numerator // quotient.denominator + 1) * step
+
+
+def rule_six_holds(edges: "tuple[fractions.Fraction, ...]", step: fractions.Fraction) -> bool:
+    """NEW RULE 6: every INNER band `(edge(k - 1), edge(k)]` holds a multiple of the grain `g`."""
+    for at in range(1, len(edges)):
+        if multiple_above(edges[at - 1], step) > edges[at]:
+            return False
+    return True
+
+
+def cut_at_zero(edges: "tuple[fractions.Fraction, ...]", totals: "list[int]", v: int) -> "list[tuple[int, int]]":
+    """Each value band's rows below 0 and at or above 0, from the class's `v` and the published totals.
+
+    The bands wholly below 0 hold failing rows only; the band holding 0
+    holds the rest of the `v` failing rows (MR.2 item 1, rule 5).
+    """
+    out: "list[tuple[int, int]]" = []
+    left = v
+    for band in range(len(totals)):
+        upper = edges[band] if band < len(edges) else None
+        lower = edges[band - 1] if band > 0 else None
+        if upper is not None and upper < 0:
+            out += [(totals[band], 0)]
+            left -= totals[band]
+        elif lower is None or lower < 0:
+            below_zero = max(0, min(left, totals[band]))
+            out += [(below_zero, totals[band] - below_zero)]
+            left -= below_zero
+        else:
+            out += [(0, totals[band])]
+    return out
+
+
+def rule_five_holds(edges: "tuple[fractions.Fraction, ...]", totals: "list[int]", v: int, f: int) -> bool:
+    """RULE 5: in a COUNT class, the level cut at 0 leaves every part 0 or at least `f`."""
+    for below_zero, rest in cut_at_zero(edges, totals, v):
+        if 0 < below_zero < f or 0 < rest < f:
+            return False
+    return True
+
+
+def derived_option_refusal(
+    level: "tuple[str, tuple[int, ...], tuple[fractions.Fraction, ...]]",
+    totals: "list[int]",
+    table: "list[list[int]]",
+    missing_rows: "set[int]",
+    missing_alone: bool,
+    group_rows: "set[int]",
+    klass: "str | int | None",
+    step: fractions.Fraction,
+    f: int,
+) -> "str | None":
+    """Rules 1 to 6 of a derived option (4.6b.7 as amended): None where eligible, else why not.
+
+    `table` is the family `{D | A}`: one row a band of `A` at the family's
+    level, one count a value band of D and the last D's `missing` band.
+    `missing_rows` are the rows of `A`'s spread bands (`missing`, `other`,
+    `labels`: no reading of `A`), `missing_alone` whether `A`'s `missing`
+    band is an `L0` band of its own, `group_rows` the rows holding an
+    own-fact group of `A`, `klass` the class the option reads (rule 5),
+    `step` the grain `g` (rule 6).
+    """
+    name, percents, edges = level
+    if klass is None:
+        return "the class: the real count falls in no class of a partition that passed"
+    refused = rule_one_refusal(totals, percents, f)
+    if refused is not None:
+        return refused
+    if not missing_alone:
+        return "rule 2: A's missing band merged"
+    values = len(edges) + 1
+    for row in missing_rows:
+        if any(table[row][band] for band in range(values)):
+            return "rule 2: A absent beside a reading of D"
+    for line in table:
+        for cell in line:
+            if 0 < cell < f:
+                return "rule 3: a family cell of 1 to f - 1"
+    holding = {band for band in range(values + 1) if any(line[band] for line in table)}
+    for row in group_rows:
+        reached = {band for band in range(values + 1) if table[row][band] > 0}
+        # RULE W1 read with D at its one level as its coarsest: two of D's bands
+        # reached, or every band of D holding a row (D then confined by
+        # nothing, as a column of one band is), or a level with no edge with no
+        # row in D's missing band beside the group's band (rule 4's reading).
+        if len(reached) >= 2 or (reached and reached == holding) or (not edges and not table[row][values]):
+            continue
+        return "rule 4: RULE W1"
+    if isinstance(klass, int) and not rule_five_holds(edges, totals, klass, f):
+        return "rule 5: the cut at 0"
+    if not rule_six_holds(edges, step):
+        return "rule 6: an inner band holds no multiple of the grain"
+    return None
+
+
+def derived_option_eligible(
+    level: "tuple[str, tuple[int, ...], tuple[fractions.Fraction, ...]]",
+    totals: "list[int]",
+    table: "list[list[int]]",
+    missing_rows: "set[int]",
+    missing_alone: bool,
+    group_rows: "set[int]",
+    klass: "str | int | None",
+    step: fractions.Fraction,
+    f: int,
+) -> bool:
+    """Whether a derived option meets rules 1 to 6 and its class (`derived_option_refusal` finds none)."""
+    return derived_option_refusal(level, totals, table, missing_rows, missing_alone, group_rows, klass, step, f) is None
+
+
+def rule_key(kind: str, computed: str, inputs: "list[str]", op: "str | None" = None) -> "list[object]":
+    """A rule's IDENTITY, the array its step's word is keyed by (4.6b.4, MR.4 (f)): never its place."""
+    key: "list[object]" = [kind, computed, list(inputs)]
+    if op is not None:
+        key += [op]
+    return key
+
+
+def step_order(position: "dict[str, int]", kind: str, computed: str, inputs: "list[str]") -> "tuple[int, int, tuple[int, ...]]":
+    """A rule step's place: the computed column's schema order, then `formula` before `order`, then the inputs."""
+    rank = 0
+    for at in range(len(RULE_KINDS)):
+        if RULE_KINDS[at] == kind:
+            rank = at
+    return (position[computed], rank, tuple(position[name] for name in inputs))
+
+
+def layout_holds_clock(layout: str) -> bool:
+    """Whether a published date layout writes a time of day (`iso-datetime`, `month-first-datetime`, ...)."""
+    return "datetime" in layout or "time" in layout or layout == "iso-mixed"
+
+
+def every_layout_clocked(block: "dict[str, object]") -> bool:
+    """Whether every layout a date column publishes holds a clock (MR.2: D in seconds)."""
+    mix = _get(block, "resolution_mix")
+    if not isinstance(mix, dict) or not mix:
+        return _get(block, "resolution") == "datetime"
+    return all(isinstance(layout, str) and layout_holds_clock(layout) and layout != "iso-mixed" for layout in mix)
+
+
+def grain_step(block: "dict[str, object]", grain: "str | None") -> "fractions.Fraction | None":
+    """`g`, the smallest step `A`'s published layouts write, in D's unit (MR.2).
+
+    A number: `10 ** -p`, `p` its largest published fraction width. A
+    date pair: one day, or under grain `A` with every layout clocked, a
+    minute or a second (the published `time_precision`). A clock: a
+    minute or a second (its `clock_form`). None where the role reads no
+    step.
+    """
+    role = _get(block, "role")
+    if role in (ROLE_COUNT, ROLE_CONTINUOUS, ROLE_AFFIXED):
+        widths = _get(block, "fraction_widths")
+        places = 0
+        if isinstance(widths, dict):
+            for width in widths:
+                if isinstance(width, str):
+                    read = figures_of(width)
+                    if read is not None:
+                        places = max(places, read)
+        return fractions.Fraction(1, 10**places)
+    if role == ROLE_DATETIME:
+        if grain == GRAIN_DAY or not every_layout_clocked(block):
+            return fractions.Fraction(1)
+        return fractions.Fraction(1) if _get(block, "time_precision") == "second" else fractions.Fraction(60)
+    if role == ROLE_CLOCK:
+        form = _get(block, "clock_form")
+        if isinstance(form, str) and form in parsing.CLOCK_FORMS:
+            return fractions.Fraction(parsing.clock_step(form))
+        return None
+    return None
+
+
+def computed_role(kind: str, input_roles: "list[str]") -> str:
+    """A computed column's published role, read from its RULE (MR.6 (a)), never from its cells."""
+    if kind == RULE_ORDER:
+        return input_roles[0]
+    return ROLE_COUNT if all(role == ROLE_COUNT for role in input_roles) else ROLE_CONTINUOUS
+
+
+# -- WHAT A RULE READS OF A COLUMN'S PUBLISHED LAYOUT (OPEN1, MR.3, MR.6 (a)) ------------
+
+KIND_NUMBER = "number"
+KIND_DATE = "date"
+KIND_CLOCK = "clock"
+NUMBER_PAIR_ROLES = (ROLE_COUNT, ROLE_CONTINUOUS, ROLE_AFFIXED)
+# The keys that name a column's layout or written form, by role: what a
+# computed column keeps (each word held by at least `f` rows, most rows
+# first, without its count; contract 4.6b.7, MR.6 (a)), as lists ...
+LAYOUT_LISTS = {
+    ROLE_COUNT: ("numeric_styles", "fraction_widths", "pad_widths", "thousands_marks"),
+    ROLE_CONTINUOUS: ("numeric_styles", "fraction_widths", "pad_widths", "thousands_marks"),
+    ROLE_AFFIXED: ("numeric_styles", "fraction_widths", "pad_widths", "thousands_marks"),
+    ROLE_DATETIME: ("resolution_mix", "datetime_separators", "date_field_widths", "utc_offsets", "month_name_styles"),
+    ROLE_CLOCK: (),
+}
+# ... and as single words.
+LAYOUT_WORDS = {
+    ROLE_COUNT: ("group_separator", "negative_form"),
+    ROLE_CONTINUOUS: ("group_separator", "negative_form"),
+    ROLE_AFFIXED: ("group_separator", "negative_form", "affix_prefix", "affix_suffix"),
+    ROLE_DATETIME: ("format", "resolution", "time_precision", "zulu_case"),
+    ROLE_CLOCK: ("clock_form",),
+}
+# A number's own affix, which a computed number column keeps whatever its rule's role (`B` affixed
+# beside an `A` written bare; lane RO's repair 2, the outside review's item 1).
+AFFIX_WORDS = ("affix_prefix", "affix_suffix")
+EXPONENT_STYLES = ("exponent_lower", "exponent_upper")
+
+
+def kind_of_role(role: object) -> "str | None":
+    """The pair kind MR.2 lists for `A`'s role; None for a role that opens no step (limit 9)."""
+    if role in NUMBER_PAIR_ROLES:
+        return KIND_NUMBER
+    if role == ROLE_DATETIME:
+        return KIND_DATE
+    if role == ROLE_CLOCK:
+        return KIND_CLOCK
+    return None
+
+
+def ranked_words(census: object) -> "list[str]":
+    """A layout key's words, most rows first: a census ranked (ties in its own order), a computed block's list as written."""
+    if isinstance(census, list):
+        return [f"{word}" for word in census]
+    if not isinstance(census, dict):
+        return []
+    ranked: "list[tuple[int, int, str]]" = []
+    for key in census:
+        rows = census[key]
+        if isinstance(rows, int) and not isinstance(rows, bool):
+            ranked += [(-rows, len(ranked), f"{key}")]
+    return [word for _rows, _at, word in sorted(ranked)]
+
+
+def has_exponent(block: "dict[str, object]") -> bool:
+    """Whether a column's published `numeric_styles` hold E-notation."""
+    styles = _get(block, "numeric_styles")
+    if isinstance(styles, (dict, list)):
+        return any(key in EXPONENT_STYLES for key in styles)
+    return False
+
+
+def first_style(block: "dict[str, object]") -> "str | None":
+    """A number column's FIRST published form: the style held by most rows, a tie putting E-notation first (OPEN1)."""
+    styles = _get(block, "numeric_styles")
+    if isinstance(styles, list):
+        return f"{styles[0]}" if styles else None
+    if not isinstance(styles, dict) or not styles:
+        return None
+    entries: "list[tuple[str, int]]" = []
+    for key in styles:
+        rows = styles[key]
+        if isinstance(rows, int) and not isinstance(rows, bool):
+            entries += [(f"{key}", rows)]
+    if not entries:
+        return None
+    top = max(rows for _key, rows in entries)
+    tied = [key for key, rows in entries if rows == top]
+    for style in EXPONENT_STYLES:
+        if style in tied:
+            return style
+    return tied[0]
+
+
+def first_places(block: "dict[str, object]") -> int:
+    """The places a number column's first form writes: the commonest fraction width of a decimal, else 0."""
+    if first_style(block) != "decimal":
+        return 0
+    for width in ranked_words(_get(block, "fraction_widths")):
+        read = figures_of(width)
+        if read is not None:
+            return read
+    return 0
+
+
+def first_layout_clocked(block: "dict[str, object]") -> bool:
+    """Whether a date column's first published layout (its commonest) writes a time of day."""
+    layouts = ranked_words(_get(block, "resolution_mix"))
+    if layouts:
+        return layout_holds_clock(layouts[0]) and layouts[0] != "iso-mixed"
+    return _get(block, "resolution") == "datetime"
+
+
+def first_step(block: "dict[str, object]", kind: str) -> "fractions.Fraction | None":
+    """The step `B`'s first published layout writes, in seconds for a date or clock (MR.3's third source condition)."""
+    if kind == KIND_NUMBER:
+        return fractions.Fraction(1, 10 ** first_places(block))
+    if kind == KIND_CLOCK:
+        form = _get(block, "clock_form")
+        if isinstance(form, str) and form in parsing.CLOCK_FORMS:
+            return fractions.Fraction(parsing.clock_step(form))
+        return None
+    if _get(block, "role") != ROLE_DATETIME:
+        return None
+    if not first_layout_clocked(block):
+        return fractions.Fraction(DAY_SECONDS)
+    return fractions.Fraction(1) if _get(block, "time_precision") == "second" else fractions.Fraction(60)
+
+
+# An exact value of `D` (a whole number of days or seconds, or a number's exact difference).
+Exact = fractions.Fraction
+
+
+def unit_in(unit: str, seconds: bool) -> fractions.Fraction:
+    """A source unit in `D`'s unit: seconds where `D` reads seconds, else whole days (1 on a number pair)."""
+    if unit == UNIT_ONE:
+        return fractions.Fraction(1)
+    units = dict(TIME_UNITS)
+    return fractions.Fraction(units[unit]) if seconds else fractions.Fraction(units[unit], DAY_SECONDS)
+
+
+def source_refusal(
+    unit: object,
+    kind: str,
+    seconds: bool,
+    step: fractions.Fraction,
+    d_block: "dict[str, object]",
+    b_block: "dict[str, object]",
+) -> "str | None":
+    """MR.3's three SOURCE CONDITIONS on published facts (REPAIR 1 and 2): None where they hold.
+
+    On a date, stamp or clock pair the unit is a whole multiple of the
+    pair's `g` and `D`'s published `integer_valued` is true; and `B`'s
+    first published layout writes every step the sum writes (on a number
+    pair, the places of `A`'s grain and of `D`'s first form).
+    """
+    b_step = first_step(b_block, kind)
+    if kind == KIND_NUMBER:
+        if unit != UNIT_ONE:
+            return "a number pair's source unit is 1"
+        d_step = fractions.Fraction(1, 10 ** first_places(d_block))
+        if b_step is None or min(step, d_step) % b_step != 0:
+            return "B's first layout does not write every step the sum writes"
+        return None
+    if not isinstance(unit, str) or unit not in dict(TIME_UNITS):
+        return "a date, stamp or clock pair's source unit is a day, an hour, a minute or a second"
+    if unit_in(unit, seconds) % step != 0:
+        return "the unit is not a whole multiple of the pair's grain"
+    if _get(d_block, "integer_valued") is not True:
+        return "D's published integer_valued is not true"
+    if b_step is None:
+        return "B's first layout writes no step of the pair"
+    if step % (b_step if seconds else b_step / DAY_SECONDS) != 0:
+        return "B's first layout does not write every step the pair's grain writes"
+    return None

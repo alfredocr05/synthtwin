@@ -4745,3 +4745,499 @@ def test_a_neighbouring_zlib_name_goes_red_in_the_twin_store(tmp_path):
         code = _TWIN_STORE_PACKING.replace("zlib.compress(raw, 1)", "zlib." + name + "(raw)")
         violations = _scan_in(tmp_path / name, "twinstore", code)
         _assert_red(violations, "zlib." + name)
+
+
+# -- lane ARR-a, 2026-11-05 (plan P4-D466): the audited array helper --------
+#
+# numpy's array names enter the audit one at a time, in the module
+# synthtwin.arrays alone, each held to an argument rule read where the
+# call is written; an array the helper makes answers to astype and
+# tolist and to no attribute; the CLOSURE RULE refuses every place such
+# an array could leave the module or reach library code this audit never
+# enumerated; the generator's draw reaches one first-party function,
+# synthtwin.arrays.hidden_sums; the helper's float functions are zone G's
+# alone; and the computer's reader (synthtwin.computer) alone calls
+# os.cpu_count and os.sysconf, the latter with its two memory names. Every
+# refused form below is a mutant that must go red, every admitted form
+# must stay clean.
+
+_HELPER_HEAD = 'import numpy\n\n\ndef helper(data, count, values):\n    found = numpy.frombuffer(data, dtype="<i8")\n'
+
+
+def _helper_scan(body, head=_HELPER_HEAD, module="synthtwin.arrays", zone="D"):
+    """Scan a helper-shaped module: `body` runs after an int64 view of `data` named `found`."""
+    return _SCANNER.scan_source(head + body, module_name=module, zone=zone)
+
+
+def _red(found, needle):
+    assert found, "expected the scanner to go red on this mutation, but it reported nothing"
+    joined = "\n".join(message for _line, message in found)
+    assert needle in joined, "expected a violation mentioning " + repr(needle) + ", got:\n" + joined
+
+
+def test_the_helper_s_admitted_forms_stay_clean():
+    """Every admitted name, operator, method and position, as the helper writes them."""
+    body = (
+        "    other = numpy.zeros(count, dtype=\"<i8\") + 1\n"
+        "    wide = found.astype(\"<f8\")\n"
+        "    mixed = (wide + 1.5) * 2.0 - wide / 4.0\n"
+        "    bits = (found & 255) | (found ^ other)\n"
+        "    shifted = (found >> 8) + (found << 63)\n"
+        "    turned = -found + ~found\n"
+        "    small = found < 3\n"
+        "    chosen = numpy.flatnonzero(small)\n"
+        "    order = numpy.argsort(found[chosen], kind=\"stable\")\n"
+        "    counts = numpy.bincount(found[order], minlength=4)\n"
+        "    starts = numpy.cumsum(counts)\n"
+        "    joined = numpy.concatenate((numpy.zeros(1, dtype=\"<i8\"), starts))\n"
+        "    picked = numpy.where(small, found, other)\n"
+        "    top = int(numpy.max(picked)) + int(numpy.min(joined)) + len(joined)\n"
+        "    first = float(mixed[0])\n"
+        "    view = numpy.frombuffer(values, dtype=\"u1\")\n"
+        "    low = bits & 255\n"
+        "    view[0:count] = low.astype(\"u1\")\n"
+        "    view[chosen] = 0\n"
+        "    del view\n"
+        "    listed = turned.tolist()\n"
+        "    return top, first, listed, shifted.tolist(), picked.tolist(), order.tolist()\n"
+    )
+    assert _helper_scan(body) == []
+
+
+@pytest.mark.parametrize(
+    "body, needle",
+    [
+        ("    return found @ found\n", "'@'"),
+        ("    return (found ** 2).tolist()\n", "'**'"),
+        ("    return (found // 2).tolist()\n", "'//'"),
+        ("    return (found % 2).tolist()\n", "'%'"),
+        ("    return divmod(found, 2)\n", "not an admitted numpy name"),
+        ("    found += 1\n    return 0\n", "in-place"),
+        ("    found[0:2] *= 2\n    return 0\n", "in-place"),
+        ("    return (found << count).tolist()\n", "whole-number literal from 0 to 63"),
+        ("    return (found >> 64).tolist()\n", "whole-number literal from 0 to 63"),
+        ("    return (1 << found).tolist()\n", "whole-number literal from 0 to 63"),
+        ("    return (+found).tolist()\n", "unary operator other than - and ~"),
+        ("    return not found\n", "as a return value"),
+        ("    return 3 in found\n", "as a return value"),
+        ("    picked = 0 < found < 3\n    return 0\n", "chained comparison"),
+    ],
+)
+def test_an_unadmitted_operator_on_an_array_goes_red(body, needle):
+    _red(_helper_scan(body), needle)
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["sum", "min", "max", "sorted", "any", "all", "iter", "list", "tuple", "enumerate", "zip", "reversed", "print", "str", "repr", "bool", "abs", "hash"],
+)
+def test_a_built_in_over_an_array_goes_red(name):
+    _red(_helper_scan("    return " + name + "(found)\n"), "not an admitted numpy name nor int(), float() or len()")
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "    total = 0\n    for word in found:\n        total = total + int(word)\n    return total\n",
+        "    return [int(word) for word in found]\n",
+        "    return {int(word) for word in found}\n",
+        "    return list(map(int, found))\n",
+        "    return list(filter(None, found))\n",
+    ],
+)
+def test_a_loop_or_a_comprehension_over_an_array_goes_red(body):
+    assert _helper_scan(body), body
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "sum", "add", "dot", "matmul", "einsum", "mean", "std", "var", "prod", "exp", "log", "power",
+        "sqrt", "sort", "lexsort", "unique", "partition", "load", "save", "fromfile", "memmap",
+        "frompyfunc", "vectorize", "seterr", "errstate", "ctypeslib", "lib", "linalg", "fft",
+        "asarray", "array", "arange", "dtype", "ndarray", "frombuffer_like", "searchsorted",
+    ],
+)
+def test_a_numpy_name_outside_the_enumeration_goes_red(name):
+    # `load` is refused by its own rule first (a dynamic loader's name on
+    # anything but json), which names the attribute rather than the path.
+    _red(_helper_scan("    return numpy." + name + "(found)\n"), "'load'" if name == "load" else "numpy." + name)
+
+
+@pytest.mark.parametrize("method", ["reduce", "accumulate", "at", "reduceat", "outer"])
+def test_a_ufunc_s_methods_go_red(method):
+    assert _helper_scan("    return numpy.add." + method + "(found)\n")
+
+
+@pytest.mark.parametrize("name", ["ctypes", "data", "base", "flags", "T", "shape", "dtype", "strides", "__array_function__", "__array_ufunc__"])
+def test_an_attribute_of_an_array_goes_red(name):
+    assert _helper_scan("    held = found." + name + "\n    return 0\n")
+
+
+@pytest.mark.parametrize("method", ["sum", "tofile", "dump", "view", "reshape", "copy", "item", "tobytes", "sort", "fill"])
+def test_a_method_of_an_array_other_than_astype_and_tolist_goes_red(method):
+    _red(_helper_scan("    return found." + method + "()\n"), "calls the method '" + method + "'")
+
+
+@pytest.mark.parametrize(
+    "body, needle",
+    [
+        ("    return found\n", "as a return value"),
+        ("    yield found\n", "as a yielded value"),
+        ("    return found[0]\n", "as a return value"),
+        ("    return numpy.max(found)\n", "as a return value"),
+        ("    return [found]\n", "as a member of a container"),
+        ("    return (found, 1)\n", "as a member of a container"),
+        ("    return {1: found}\n", "as a member of a container"),
+        ("    values.held = found\n    return 0\n", "stored somewhere other than a local name"),
+        ("    values[0] = found\n    return 0\n", "stored somewhere other than a local name"),
+        ("    first, second = found, found\n    return 0\n", "as a member of a container"),
+        ("    raise ValueError(found)\n", "not an admitted numpy name"),
+        ("    return helper(found, 1, 2)\n", "not an admitted numpy name"),
+        ("    return f\"{found}\"\n", "inside an f-string"),
+        ("    if found:\n        return 1\n    return 0\n", "as a truth value"),
+        ("    return found if count else None\n", "conditional expression"),
+        ("    held = (copy := found)\n    return 0\n", "bound by ':='"),
+        ("    return helper(*found)\n", "unpacked with '*'"),
+        ("    picked = found[0:numpy.max(found)]\n    return 0\n", "as a slice bound"),
+        ("    def inner():\n        return int(numpy.max(found))\n    return inner()\n", "closure capture"),
+        ("    return [int(numpy.max(found)) for _k in range(3)]\n", "closure capture"),
+        ("    with found:\n        return 0\n", "as a context manager"),
+        ("    keys = {}\n    keys[numpy.max(found)] = 1\n    return keys\n", "as the key of a store into a container"),
+        ("    return helper(1, 2, values=found)\n", "handed by name"),
+    ],
+)
+def test_the_closure_rule_keeps_every_array_inside_the_helper(body, needle):
+    _red(_helper_scan(body), needle)
+
+
+def test_an_array_held_at_module_level_or_as_a_default_goes_red():
+    _red(
+        _SCANNER.scan_source('import numpy\n\nHELD = numpy.zeros(3, dtype="<i8")\n', module_name="synthtwin.arrays", zone="D"),
+        "stored somewhere other than a local name",
+    )
+    _red(
+        _SCANNER.scan_source(
+            'import numpy\n\n\ndef helper(found=numpy.zeros(3, dtype="<i8")):\n    return 0\n',
+            module_name="synthtwin.arrays",
+            zone="D",
+        ),
+        "as a parameter's default",
+    )
+    _red(
+        _SCANNER.scan_source(
+            'import numpy\n\n\nclass Holder:\n    held = numpy.zeros(3, dtype="<i8")\n',
+            module_name="synthtwin.arrays",
+            zone="D",
+        ),
+        "stored somewhere other than a local name",
+    )
+
+
+@pytest.mark.parametrize(
+    "call, needle",
+    [
+        ("numpy.frombuffer(data)", "dtype written by name"),
+        ("numpy.frombuffer(data, dtype=\"<i8\", count=2)", "'count'"),
+        ("numpy.frombuffer(data, dtype=\"<i8\", offset=8)", "'offset'"),
+        ("numpy.frombuffer(data, dtype=\">i8\")", "dtype written by name"),
+        ("numpy.frombuffer(data, dtype=\"i8\")", "dtype written by name"),
+        ("numpy.frombuffer(data, dtype=values)", "dtype written by name"),
+        ("numpy.frombuffer(data, \"<i8\")", "positional"),
+        ("numpy.zeros(count)", "dtype written by name"),
+        ("numpy.zeros(count, dtype=\"<f4\")", "dtype written by name"),
+        ("numpy.argsort(found)", "kind='stable'"),
+        ("numpy.argsort(found, kind=\"quicksort\")", "kind='stable'"),
+        ("numpy.argsort(found, kind=\"stable\", axis=0)", "'axis'"),
+        ("numpy.bincount(found, weights=found)", "weights"),
+        ("numpy.bincount(found, found)", "weights"),
+        ("numpy.bincount(found, minlength=3, **values)", "** expansion"),
+        ("numpy.cumsum(found, dtype=\"<f8\")", "'dtype'"),
+        ("numpy.cumsum(found, 0)", "positional"),
+        ("numpy.where(found)", "positional"),
+        ("numpy.flatnonzero(found, found)", "positional"),
+        ("numpy.concatenate([found, found])", "a tuple of arrays written in place"),
+        ("numpy.concatenate((found, found), axis=0)", "'axis'"),
+        ("numpy.concatenate((*values,))", "a tuple of arrays written in place"),
+        ("numpy.min(found, axis=0)", "'axis'"),
+        ("numpy.max(found, initial=0)", "'initial'"),
+        ("found.astype(\"<f4\")", "astype"),
+        ("found.astype(dtype=\"<f8\")", "astype"),
+        ("found.astype(\"<f8\", copy=False)", "astype"),
+        ("found.tolist(0)", "tolist"),
+    ],
+)
+def test_the_helper_s_argument_rules_go_red(call, needle):
+    _red(_helper_scan("    picked = " + call + "\n    return 0\n"), needle)
+
+
+@pytest.mark.parametrize(
+    "head, needle",
+    [
+        ('import numpy as np\n\n\ndef helper(data):\n    return int(np.sum(np.frombuffer(data, dtype="<i8")))\n', "numpy.sum"),
+        ("from numpy import argsort\n\n\ndef helper(found):\n    return argsort(found)\n", "kind='stable'"),
+        ("from numpy import sum\n\n\ndef helper(found):\n    return 0\n", "numpy.sum"),
+        ("import numpy\n\nsorter = numpy.argsort\n", "numpy.argsort"),
+        ("import numpy\n\n\ndef helper():\n    return numpy.random.Generator\n", "numpy.random.Generator"),
+        ("import numpy\n\n\ndef helper():\n    return numpy.random.default_rng(1).random(3)\n", "random"),
+        ("import numpy\n\n\ndef helper():\n    return numpy.lib.stride_tricks\n", "numpy.lib"),
+        ("import numpy.linalg\n", "numpy.linalg"),
+    ],
+)
+def test_an_alias_a_from_import_or_a_stored_name_reaches_nothing_more(head, needle):
+    _red(_SCANNER.scan_source(head, module_name="synthtwin.arrays", zone="D"), needle)
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        'import numpy\n\n\ndef f(data):\n    return numpy.frombuffer(data, dtype="u1")\n',
+        'from numpy import frombuffer\n\n\ndef f(data):\n    return 0\n',
+        "import numpy\n",
+    ],
+)
+def test_the_helper_s_names_and_numpy_itself_are_refused_in_every_other_module(code):
+    for module, zone in (("synthtwin.generation", "G"), ("synthtwin.taxonomy", "D"), ("synthtwin.chain_selftest", "P")):
+        _red(_SCANNER.scan_source(code, module_name=module, zone=zone), "numpy")
+
+
+def _arrays_exports():
+    defined = {"code_counts", "hidden_sums", "score_rows", "order_by_score", "undeclared"}
+    return {"synthtwin.arrays": (defined, set(), set())}, {"synthtwin", "synthtwin.arrays", "synthtwin.chain_walk"}
+
+
+@pytest.mark.parametrize(
+    "zone, call, clean",
+    [
+        ("D", "arrays.code_counts(b'', None, None, 1)", True),
+        ("G", "arrays.code_counts(b'', None, None, 1)", True),
+        ("G", "arrays.score_rows(1, 2, 3, 4, 5, 6)", True),
+        ("D", "arrays.score_rows(1, 2, 3, 4, 5, 6)", False),
+        ("D", "arrays.order_by_score(1, 2, 3, 4)", False),
+        ("D", "arrays.hidden_sums(1, 2, 3)", False),
+        ("R", "arrays.code_counts(b'', None, None, 1)", False),
+        ("W", "arrays.code_counts(b'', None, None, 1)", False),
+        ("G", "arrays.undeclared()", False),
+    ],
+)
+def test_the_helper_s_functions_answer_to_their_zones(zone, call, clean):
+    """A float function of the helper called from zone D (taxonomy) is red; its whole-number ones are D's and G's."""
+    exports, first_party = _arrays_exports()
+    code = "from synthtwin import arrays\n\n\ndef f():\n    return " + call + "\n"
+    found = _SCANNER.scan_source(code, exports, first_party, module_name="synthtwin.taxonomy", zone=zone)
+    if clean:
+        assert found == []
+    else:
+        _red(found, "synthtwin.arrays.")
+    from_import = "from synthtwin.arrays import score_rows\n\n\ndef f():\n    return score_rows(1, 2, 3, 4, 5, 6)\n"
+    _red(_SCANNER.scan_source(from_import, exports, first_party, module_name="synthtwin.taxonomy", zone="D"), "score_rows")
+
+
+def test_every_public_function_of_the_helper_has_its_zone_row():
+    """The per-function table and the module's public functions are the same names: no row outlives its function, no function goes without one."""
+    tree = ast.parse((SRC_TREE / "arrays.py").read_text(encoding="utf-8"))
+    public = {node.name for node in tree.body if isinstance(node, ast.FunctionDef) and not node.name.startswith("_")}
+    assert public == set(_SCANNER._ARRAY_FUNCTION_ZONES)
+
+
+_DRAW_HEAD = (
+    "import numpy.random\nfrom synthtwin import arrays, chain_walk\n\n\n"
+    "def draw(seed, out):\n"
+    "    generator = numpy.random.default_rng(seed)\n"
+    "    block = generator.integers(0, 18446744073709551615, size=30, dtype=\"uint64\", endpoint=True)\n"
+)
+
+
+def _draw_scan(body):
+    exports = {
+        "synthtwin.arrays": ({"hidden_sums"}, set(), set()),
+        "synthtwin.chain_walk": ({"hidden_sums", "put"}, set(), set()),
+    }
+    first_party = {"synthtwin", "synthtwin.arrays", "synthtwin.chain_walk"}
+    return _SCANNER.scan_source(_DRAW_HEAD + body, exports, first_party, module_name="synthtwin.generation", zone="G")
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "    arrays.hidden_sums(block, out, 0)\n",
+        "    words = [int(word) for word in block[0:30]]\n    return chain_walk.hidden_sums(words)\n",
+        "    total = 0\n    for word in block:\n        total = total + int(word)\n    del block\n    return total + len(out)\n",
+    ],
+)
+def test_the_draw_s_admitted_uses_stay_clean(body):
+    assert _draw_scan(body) == []
+
+
+@pytest.mark.parametrize(
+    "body, needle",
+    [
+        ("    return chain_walk.hidden_sums(block)\n", "the draw's one reader"),
+        ("    arrays.hidden_sums(out, block, 0)\n", "the draw's one reader"),
+        ("    chain_walk.put(out, 0, block[0])\n", "the draw's one reader"),
+        ("    return block @ block\n", "'@'"),
+        ("    return block ** 2\n", "'**'"),
+        ("    return -block\n", "under an operator"),
+        ("    return block[0] & 65535\n", "'&'"),
+        ("    return block * block\n", "'*'"),
+        ("    return block << 3\n", "'<<'"),
+        ("    return block == 0\n", "under an operator"),
+        ("    return block\n", "as a return value"),
+        ("    return [block]\n", "as a member of a container"),
+        ("    print(block)\n", "the draw's one reader"),
+        ("    return str(block[0])\n", "the draw's one reader"),
+        ("    block[0] = 5\n", "the target of a store"),
+        ("    return f\"{block[0]}\"\n", "inside an f-string"),
+    ],
+)
+def test_the_draw_reaches_one_first_party_function_and_no_operator(body, needle):
+    """P4-D466: the draw array is the ONE restricted value a first-party function may be handed, and only hidden_sums; @ and ** no longer pass unseen."""
+    _red(_draw_scan(body), needle)
+
+
+def test_the_draw_s_reader_holds_the_draw_in_its_parameter():
+    """Inside hidden_sums the parameter `draw` carries the draw's surface: viewed by frombuffer, counted by len, iterated; nothing else."""
+    head = 'import numpy\n\n\ndef hidden_sums(draw, out, start):\n'
+    clean = head + '    piece = numpy.frombuffer(draw, dtype="<u2")\n    words = [int(word) for word in draw]\n    return len(draw) + len(words) + len(piece.tolist())\n'
+    assert _SCANNER.scan_source(clean, module_name="synthtwin.arrays", zone="D") == []
+    for body, needle in (
+        ("    return draw\n", "as a return value"),
+        ("    held = draw.data\n    return 0\n", "attribute"),
+        ("    return draw + 1\n", "'+'"),
+        ("    return helper(draw)\n", "the draw's one reader"),
+    ):
+        _red(_SCANNER.scan_source(head + body, module_name="synthtwin.arrays", zone="D"), needle)
+    elsewhere = 'import numpy\n\n\ndef other_reader(draw):\n    return draw.data\n'
+    assert _SCANNER.scan_source(elsewhere, module_name="synthtwin.arrays", zone="D") == []
+
+
+@pytest.mark.parametrize(
+    "module, call, needle",
+    [
+        ("synthtwin.cli", "os.cpu_count()", "admitted for synthtwin.computer only"),
+        ("synthtwin.generation", "os.cpu_count()", "admitted for synthtwin.computer only"),
+        ("synthtwin.cli", 'os.sysconf("SC_PHYS_PAGES")', "admitted for synthtwin.computer only"),
+        ("synthtwin.computer", "os.cpu_count(1)", "with an argument"),
+        ("synthtwin.computer", "os.cpu_count(logical=True)", "with an argument"),
+        ("synthtwin.computer", 'os.sysconf("SC_NPROCESSORS_ONLN")', "SC_PAGE_SIZE, SC_PHYS_PAGES"),
+        ("synthtwin.computer", "os.sysconf(name)", "SC_PAGE_SIZE, SC_PHYS_PAGES"),
+        ("synthtwin.computer", 'os.sysconf("SC_" + name)', "SC_PAGE_SIZE, SC_PHYS_PAGES"),
+        ("synthtwin.computer", "os.process_cpu_count()", "os.process_cpu_count"),
+        ("synthtwin.computer", "os.sched_getaffinity(0)", "os.sched_getaffinity"),
+    ],
+)
+def test_the_computer_s_allowance_is_two_names_in_one_module(module, call, needle):
+    code = "import os\n\n\ndef read(name):\n    return " + call + "\n"
+    _red(_SCANNER.scan_source(code, module_name=module, zone="D"), needle)
+
+
+def test_the_computer_s_reader_stays_clean_and_multiprocessing_stays_forbidden():
+    code = 'import os\nimport sys\n\n\ndef read():\n    if sys.platform == "win32":\n        return None\n    return os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE"), os.cpu_count()\n'
+    assert _SCANNER.scan_source(code, module_name="synthtwin.computer", zone="D") == []
+    _red(
+        _SCANNER.scan_source("import multiprocessing\n\n\ndef read():\n    return multiprocessing.cpu_count()\n", module_name="synthtwin.computer", zone="D"),
+        "multiprocessing",
+    )
+    _red(_SCANNER.scan_source("import os\n\nreader = os.cpu_count\n", module_name="synthtwin.computer", zone="D"), "os.cpu_count")
+
+
+def test_the_real_helper_and_reader_scan_clean_and_the_admission_is_theirs():
+    """The real synthtwin.arrays and synthtwin.computer are clean, and the same text under another module's name is red."""
+    helper = (SRC_TREE / "arrays.py").read_text(encoding="utf-8")
+    reader = (SRC_TREE / "computer.py").read_text(encoding="utf-8")
+    assert _SCANNER.scan_source(helper, module_name="synthtwin.arrays", zone="D") == []
+    assert _SCANNER.scan_source(reader, module_name="synthtwin.computer", zone="D") == []
+    _red(_SCANNER.scan_source(helper, module_name="synthtwin.generation", zone="G"), "numpy")
+    _red(_SCANNER.scan_source(reader, module_name="synthtwin.cli", zone="D"), "admitted for synthtwin.computer only")
+
+
+# -- lane ARR-a's repair 2, 2026-11-06 (LANE ARR RULINGS 5 (1) and (2); Codex's items 1 and 2) --------
+#
+# (1) The helper's module is no value outside it: the per-function zone
+# table reads a call where the function is named by its dotted path, and
+# typing.cast(object, arrays).running_totals(...) reached a float function
+# from zone D with no diagnostic (it kept the module's origin and skipped
+# the dotted path). Every way of handing the module on as data is red.
+# (2) The draw's reader holds the draw in its FIRST POSITIONAL PARAMETER,
+# whatever it is called, and is one plain def taking the draw first: a
+# reader whose parameter was renamed or reordered let `return words` scan
+# clean, and a caller could then write the returned draw to a file.
+
+
+def _helper_exports_scan(code, module="synthtwin.taxonomy", zone="D"):
+    """Scan a module beside a helper that exports every function its zone table names."""
+    exports = {"synthtwin.arrays": (set(_SCANNER._ARRAY_FUNCTION_ZONES), set(), set())}
+    first_party = {"synthtwin", "synthtwin.arrays", "synthtwin.taxonomy", "synthtwin.generation"}
+    return _SCANNER.scan_source(code, exports, first_party, module_name=module, zone=zone)
+
+
+_FROM_IMPORT = "import typing\nfrom synthtwin import arrays\n\n\n"
+_PACKAGE_IMPORT = "import typing\nimport synthtwin\n\n\n"
+_SUBMODULE_IMPORT = "import typing\nimport synthtwin.arrays\n\n\n"
+
+
+@pytest.mark.parametrize(
+    "code, needle",
+    [
+        # Codex's case, word for word: the cast kept the module's origin and hid the dotted path.
+        (_FROM_IMPORT + "def f(score):\n    return typing.cast(object, arrays).running_totals(score, None, None, None, 1)\n", "the audited array helper's module"),
+        (_FROM_IMPORT + "def f(score):\n    held = arrays\n    return held.running_totals(score, None, None, None, 1)\n", "the audited array helper's module"),
+        (_FROM_IMPORT + "def g(held, score):\n    return 0\n\n\ndef f(score):\n    return g(arrays, score)\n", "the audited array helper's module"),
+        (_FROM_IMPORT + "def f(score, held=arrays):\n    return 0\n", "the audited array helper's module"),
+        (_FROM_IMPORT + "def f(score):\n    return [arrays][0].running_totals(score, None, None, None, 1)\n", "the audited array helper's module"),
+        (_FROM_IMPORT + "HELD = arrays\n", "the audited array helper's module"),
+        (_FROM_IMPORT + "class Holder:\n    held = arrays\n", "the audited array helper's module"),
+        (_PACKAGE_IMPORT + "def f(score):\n    return typing.cast(object, synthtwin).arrays.running_totals(score, None, None, None, 1)\n", "the package above the audited array helper"),
+        (_PACKAGE_IMPORT + "def f(score):\n    return typing.cast(object, synthtwin.arrays).running_totals(score, None, None, None, 1)\n", "the audited array helper's module"),
+        (_SUBMODULE_IMPORT + "def f(score):\n    return typing.cast(object, synthtwin.arrays).running_totals(score, None, None, None, 1)\n", "the audited array helper's module"),
+    ],
+)
+def test_the_helper_s_module_is_no_value_outside_it(code, needle):
+    _red(_helper_exports_scan(code), needle)
+
+
+@pytest.mark.parametrize(
+    "code, zone",
+    [
+        (_FROM_IMPORT + "def f(codes):\n    return arrays.code_counts(codes, None, None, 1)\n", "D"),
+        (_FROM_IMPORT + "def f(score):\n    return arrays.running_totals(score, None, None, None, 1)\n", "G"),
+        (_SUBMODULE_IMPORT + "def f(codes):\n    return synthtwin.arrays.code_counts(codes, None, None, 1)\n", "D"),
+        ("from synthtwin.arrays import code_counts\n\n\ndef f(codes):\n    return code_counts(codes, None, None, 1)\n", "D"),
+    ],
+)
+def test_the_helper_s_functions_named_by_their_path_stay_clean(code, zone):
+    assert _helper_exports_scan(code, zone=zone) == []
+
+
+@pytest.mark.parametrize(
+    "reader, needle",
+    [
+        # Codex's renamed parameter and reordered parameters: the draw is in the first positional one.
+        ("def hidden_sums(words, out, start):\n    return words\n", "as a return value"),
+        ("def hidden_sums(out, draw, start):\n    return out\n", "as a return value"),
+        ("def hidden_sums(words, /, out, start):\n    held = words.data\n    return 0\n", "attribute"),
+        ("def hidden_sums(*, draw, out, start):\n    return draw\n", "no positional parameter first"),
+        ("def hidden_sums(*draw):\n    return draw\n", "no positional parameter first"),
+        ("def keep(function):\n    return function\n\n\n@keep\ndef hidden_sums(draw, out, start):\n    return 0\n", "decorator"),
+        ("def reader(draw, out, start):\n    return 0\n\n\nhidden_sums = reader\n", "other than one plain def"),
+        ("class hidden_sums:\n    def __init__(self, draw, out, start):\n        self.kept = draw\n", "other than one plain def"),
+        ("async def hidden_sums(draw, out, start):\n    return 0\n", "other than one plain def"),
+        ("def hidden_sums(draw, out, start):\n    return 0\n\n\nhidden_sums = sorted\n", "more than once"),
+    ],
+)
+def test_the_draw_s_reader_takes_the_draw_first_whatever_its_spelling(reader, needle):
+    _red(_SCANNER.scan_source("import numpy\n\n\n" + reader, module_name="synthtwin.arrays", zone="D"), needle)
+
+
+def test_codex_s_leak_through_a_renamed_reader_goes_red():
+    """The renamed reader hands the draw back; the caller writes it to a file: the pair now has the reader's violation."""
+    reader = "import numpy\n\n\ndef hidden_sums(words, out, start):\n    return words\n"
+    caller = _draw_scan("    leaked = arrays.hidden_sums(block, out, 0)\n    leaked.tofile(\"extra.csv\")\n")
+    found = _SCANNER.scan_source(reader, module_name="synthtwin.arrays", zone="D") + caller
+    _red(found, "as a return value")
+    renamed = (
+        'import numpy\n\n\ndef hidden_sums(words, out, start):\n'
+        '    piece = numpy.frombuffer(words, dtype="<u2")\n'
+        '    return len(words) + len(piece.tolist())\n'
+    )
+    assert _SCANNER.scan_source(renamed, module_name="synthtwin.arrays", zone="D") == []

@@ -10103,7 +10103,8 @@ def _l0_edge_kept(
     read linearly at the edge, inside the bounds. Otherwise today's count is held while it lies
     within half the margin of the estimate (half: the estimate has an
     error of its own), and is else moved toward step 2's count until it
-    does. Nothing here reads a real
+    does. Where step 2 left neither the edge value nor the next value a
+    cell of the piece, nothing moves. Nothing here reads a real
     cell. Moves only ``new``, inside the piece: every piece keeps `C_p`.
     """
     edge = wall.low
@@ -10120,6 +10121,15 @@ def _l0_edge_kept(
         end = end + 1
     # A value a published tail lists keeps its count: `validate` reads it.
     if end > last or edge in proof.pinned or entries.values[end] in proof.pinned:
+        return
+    # NOTHING MOVES WHERE NEITHER VALUE HOLDS A CELL OF THE PIECE (batch
+    # 4q's merge, K-BC-11's slow part). Where today's twin stands short at
+    # the cut by more than both values' cells, step 2 gives neither a rank
+    # of the piece; the bound below, which leaves the next value one cell,
+    # then reads -1, and the next value was handed a cell no stratum gave:
+    # on ST1 at 20,000 rows, table seed 3, `crp` stood one cell over in
+    # four pieces and the internal check refused the twin.
+    if now + new[end] < 1:
         return
     least = 0
     for value, _rank_first, rank_last in proof.heaps:
@@ -52846,6 +52856,22 @@ def _dates_in_their_layouts(
     if not present:
         return cells
     convention = parsing.layout_convention(present)
+    # ...FROM THE YEARS THE PRODUCER FOUND NO REAL DATE IN, where it
+    # publishes them (lane ID-ROOM2, plan P4-D457): every date checked
+    # against them before it stands, else the final pass's value.
+    room = _room_years(facts)
+    published = _room_published(room) if room is not None else None
+    named_dates = _named_date_layouts(facts) if room is not None else {}
+    # ...each named layout's dates in its own share of the block's first
+    # years, as the producer checked them (`taxonomy.made_up_share`; repair
+    # 2 of lane ID-ROOM2); any other layout's in the whole block.
+    shares = _room_shares(facts, column.n_distinct) if room is not None else {}
+    # ...a year-first layout's beside dates written year last, from the years
+    # whose second figure is a nought (`taxonomy.made_up_year_first_share`).
+    beside_last = room is not None and taxonomy.made_up_beside_year_last(
+        [layout for layout in facts.layout_forms if layout != contract.WITHHELD]
+    )
+    rooms: "dict[str, tuple[list[int], list[int]]]" = {}
     written: "dict[str, str]" = {}
     # ...each walk value's fold, mapped to the date its first value took.
     partners: "dict[str, str]" = {}
@@ -52860,7 +52886,14 @@ def _dates_in_their_layouts(
             continue
         lead, core, trail, _cell = _edges(cell)
         layout = parsing.layout_form(core, convention) if core else ""
-        count = _date_form_dates(layout, True) if layout else 0
+        here = room
+        if room is not None:
+            if layout not in rooms:
+                rooms[layout] = _room_of_layout(room, layout, shares, beside_last)
+            here = rooms[layout]
+            count = _room_form_dates(layout, here) if layout else 0
+        else:
+            count = _date_form_dates(layout, True) if layout else 0
         if not count or _is_a_hole_spelling(cell, holes):
             out += [cells[place]]
             continue
@@ -52875,7 +52908,11 @@ def _dates_in_their_layouts(
         # are not two values written as one.
         folded_layout = parsing.folded_layout(layout)
         step = steps[folded_layout] if folded_layout in steps else 0
-        date = _date_filled_form(layout, step % count, True)
+        date = (
+            _room_filled_form(layout, step % count, here)
+            if here is not None
+            else _date_filled_form(layout, step % count, True)
+        )
         # ...a date not written before while the form has one left: a day
         # past its month's last is written as that last day, so two steps
         # may name one date.
@@ -52890,9 +52927,19 @@ def _dates_in_their_layouts(
                 # the walk's values come round onto them.
                 spent[folded_layout] = count
                 break
-            date = _date_filled_form(layout, step % count, True)
+            date = (
+                _room_filled_form(layout, step % count, here)
+                if here is not None
+                else _date_filled_form(layout, step % count, True)
+            )
         steps[folded_layout] = step + 1
         if date is not None and _is_a_hole_spelling(f"{lead}{date}{trail}", holes):
+            date = None
+        if (
+            date is not None
+            and published is not None
+            and not _off_the_real_years(date, named_dates, convention, published)
+        ):
             date = None
         if date is not None and parsing.folded(date) not in taken:
             taken[parsing.folded(date)] = True
@@ -52903,6 +52950,390 @@ def _dates_in_their_layouts(
         written[cell] = new
         out += [new]
     return out
+
+
+# THE YEARS A HELD DATE COLUMN'S MADE-UP DATES TAKE (lane ID-ROOM2, plan
+# P4-D457, method G9.6c). Where a column of dates held as record numbers
+# publishes `made_up_years` (contract 7.12c), its made-up dates are drawn
+# from those years alone -- four-figure years from the one after the
+# release's reference year, two-figure years no real date of the column
+# takes -- and each one written is checked against them before it stands
+# (`_off_the_real_years`): its merged key read in every order its layout's
+# dates stand in names only published years, so no real cell of the column
+# is written so (the producer published no year any real cell is a date
+# of, in any of those orders). A value whose kind of year has no room, or
+# whose date fails the check, keeps the walk's value, kept off the real by
+# the exclusion or the spill. A description publishing none is written as
+# before.
+
+
+def _room_years(facts: contract.IdentifierFacts) -> "tuple[list[int], list[int]] | None":
+    """The four-figure and the two-figure years `made_up_years` publishes, each in order; None where it publishes none (plan P4-D457)."""
+    if facts.made_up_years is None:
+        return None
+    four: "list[int]" = []
+    two: "list[int]" = []
+    for first, last in facts.made_up_years:
+        for year in range(first, last + 1):
+            if year <= 99:
+                two += [year]
+            else:
+                four += [year]
+    return four, two
+
+
+def _reads_two_figure_years(reading: grains.Reading) -> bool:
+    """Whether a held column's reading writes its year in two figures (plan P4-D457)."""
+    member = reading.member
+    if parsing.is_layout_name(member):
+        return parsing.layout_two_figure_year(member) > 0
+    return "two-digit" in member
+
+
+def dates_written_as_record_numbers(
+    layouts: "list[str]",
+    made_up_years: "tuple[tuple[int, int], ...] | None",
+    grain_kind: "str | None",
+    grain_member: str,
+) -> bool:
+    """Whether a held column's twin writes the made-up values of some date layout of it as record numbers (plan P4-D457).
+
+    From the description's own facts, as this module writes the twin: a
+    column whose `made_up_years` is published (contract 7.12c) and whose
+    kind of year, four figures or two, has no published run for a layout
+    the twin writes as a date keeps the walk's values there, which are
+    record numbers, not dates (remark NF137, or the `[]` of a date pass
+    naming a stamp or a clock). With a grain, the G1 floor's reading
+    decides (`_room_spans`): a grain reading no dates is written from its
+    own span and is never one; with none, the date pass's named layouts do
+    (`_dates_in_their_layouts`, `_room_form_dates`). A description that
+    publishes no `made_up_years` is written as before and is never one.
+    Read by both chain reports' F10 line (Codex's review of batch 4q,
+    item 3). A fixed function of the four. Raises nothing. No I/O.
+    """
+    if made_up_years is None:
+        return False
+    four: "list[int]" = []
+    two: "list[int]" = []
+    for first, last in made_up_years:
+        for year in range(first, last + 1):
+            if year <= 99:
+                two += [year]
+            else:
+                four += [year]
+    if grain_kind is not None:
+        if grain_kind != grains.DATE:
+            return False
+        return not _room_spans((four, two), grains.Reading(kind=grain_kind, member=grain_member))
+    dated = False
+    for layout in layouts:
+        if layout != contract.WITHHELD and _date_form_fields(layout) is not None:
+            dated = True
+    if not dated:
+        return False
+    for layout in layouts:
+        if layout != contract.WITHHELD and _date_form_fields(layout, True) is not None:
+            if _room_form_dates(layout, (four, two)) == 0:
+                return True
+    return False
+
+
+def _room_spans(room: "tuple[list[int], list[int]]", reading: grains.Reading) -> "list[tuple[int, int]]":
+    """The G1 floor's spans over a room's years for a held column's reading, in order; [] where its kind of year has none (plan P4-D457).
+
+    One span a run of years, from the first day of its first to the first
+    of the year after its last, in nanoseconds as `grains` reads them: the
+    four-figure years, or, where the reading writes two figures, the
+    two-figure years read in 2000 to 2099 (the figures alone are written,
+    and the reading's own window reads them). A date of a kind of reading
+    other than a date's draws from none.
+    """
+    if reading.kind != grains.DATE:
+        return []
+    two = _reads_two_figure_years(reading)
+    years = room[1] if two else room[0]
+    spans: "list[tuple[int, int]]" = []
+    first = -1
+    last = -1
+    for year in years:
+        held = 2000 + year if two else year
+        if first >= 0 and held == last + 1:
+            last = held
+            continue
+        if first >= 0:
+            spans += [(
+                parsing.days_from_civil(first, 1, 1) * date_counts.DAY,
+                parsing.days_from_civil(last + 1, 1, 1) * date_counts.DAY,
+            )]
+        first = held
+        last = held
+    if first >= 0:
+        spans += [(
+            parsing.days_from_civil(first, 1, 1) * date_counts.DAY,
+            parsing.days_from_civil(last + 1, 1, 1) * date_counts.DAY,
+        )]
+    return spans
+
+
+def _two_figure_form(widths: "list[int]") -> bool:
+    """Whether a date form's year is written last in two figures (plan P4-D457)."""
+    return len(widths) == 3 and widths[0] != 4 and widths[2] == 2
+
+
+def _room_dates_once(form: str, years: "list[int]") -> int:
+    """How many steps `_date_of_room_years` answers a form with a date over one run of years (plan P4-D457)."""
+    fields = _date_form_fields(form, True)
+    if fields is None or not years:
+        return 0
+    _mark, widths = fields
+    if len(widths) == 1:
+        return len(years)
+    if len(widths) == 2:
+        return len(years) * len(
+            _date_field_values(widths[1] if widths[0] == 4 else widths[0], 12)
+        )
+    if widths[1] < 0:
+        return len(years) * len(_date_field_values(widths[0], _DATE_FORM_WORD_DAYS)) * 12
+    if widths[0] == 4:
+        return len(years) * len(_date_field_values(widths[1], 12)) * len(
+            _date_field_values(widths[2], 31)
+        )
+    seconds = len(_date_field_values(widths[1], 12)) + (
+        _DATE_FORM_WORD_DAYS - 12 if widths[1] == 2 and widths[2] == 2 else 0
+    )
+    return len(years) * len(_date_field_values(widths[0], 12)) * seconds
+
+
+def _room_form_dates(form: str, room: "tuple[list[int], list[int]]") -> int:
+    """How many different steps `_room_filled_form` answers a form with a date (plan P4-D457); 0 where its kind of year has no room.
+
+    Each run of years holds its years times one year's dates, so the whole
+    room holds its years times them: read once, never run by run (Codex's
+    review of lane ID-ROOM2, item 4). A function of the two; no I/O.
+    """
+    fields = _date_form_fields(form, True)
+    if fields is None:
+        return 0
+    years = room[1] if _two_figure_form(fields[1]) else room[0]
+    if not years:
+        return 0
+    return len(years) * _room_dates_once(form, years[0:1])
+
+
+def _room_filled_form(form: str, step: int, room: "tuple[list[int], list[int]]") -> "str | None":
+    """One valid date of a form, its year one the room publishes, or None (plan P4-D457).
+
+    As `_date_filled_form`, with the years the room publishes for the
+    form's kind of year in place of the method's eighty from 1940: each
+    run of `_DATE_FORM_YEARS` filled before the next, the step moved
+    around the run. The run a step falls in is found by division, every
+    run but the last holding the same number of dates, so a date costs
+    the same however many years the room holds (Codex's review of lane
+    ID-ROOM2, item 4: 40,000, 80,000 and 160,000 different values took
+    3.9, 11.6 and 36.7 CPU seconds when every step rebuilt the runs). A
+    function of the three. Raises nothing. No I/O.
+    """
+    fields = _date_form_fields(form, True)
+    if fields is None or step < 0:
+        return None
+    years = room[1] if _two_figure_form(fields[1]) else room[0]
+    if not years:
+        return None
+    a_year = _room_dates_once(form, years[0:1])
+    if a_year <= 0:
+        return None
+    a_run = a_year * _DATE_FORM_YEARS
+    run = step // a_run
+    first = run * _DATE_FORM_YEARS
+    if first >= len(years):
+        return None
+    return _date_of_room_years(form, step - run * a_run, years[first:first + _DATE_FORM_YEARS])
+
+
+def _date_of_room_years(form: str, index: int, years: "list[int]") -> "str | None":
+    """One valid date of a form over the given years, its ``index``-th, or None past them (plan P4-D457).
+
+    `_date_of_years`'s rule over ``years`` -- four-figure years, or the
+    values of two-figure ones -- in place of eighty from a first year:
+    year first, year, month and day; year last, two fields of 1 to 12
+    each (then, for a two-figure year, a second field of 13 to 28), so
+    the date is valid read month first and day first; a month word's day
+    1 to 28; a month beside a year, 1 to 12; a year alone. The index is
+    moved around the dates (`_stepped_around`). A function of the three.
+    Raises nothing. No I/O.
+    """
+    fields = _date_form_fields(form, True)
+    if fields is None or not years:
+        return None
+    mark, widths = fields
+    if len(widths) == 1:
+        if index >= len(years):
+            return None
+        return f"{years[_stepped_around(index, len(years))]:04d}"
+    if len(widths) == 2:
+        year_at = 0 if widths[0] == 4 else 1
+        months = _date_field_values(widths[1 - year_at], 12)
+        dates = len(years) * len(months)
+        if index >= dates:
+            return None
+        place = _stepped_around(index, dates)
+        year = years[place % len(years)]
+        month = months[place // len(years)]
+        written_month = f"{month:0{widths[1 - year_at]}d}"
+        if year_at == 0:
+            return f"{year:04d}{mark}{written_month}"
+        return f"{written_month}{mark}{year:04d}"
+    year_first = widths[0] == 4
+    worded = widths[1] < 0
+    if worded:
+        firsts = _date_field_values(widths[0], _DATE_FORM_WORD_DAYS)
+        seconds = _date_field_values(2, 12)
+    elif year_first:
+        firsts = _date_field_values(widths[1], 12)
+        seconds = _date_field_values(widths[2], 31)
+    else:
+        firsts = _date_field_values(widths[0], 12)
+        seconds = _date_field_values(widths[1], 12)
+    dates = len(years) * len(firsts) * len(seconds)
+    later = (
+        [value for value in range(13, _DATE_FORM_WORD_DAYS + 1)]
+        if not year_first and not worded and widths[1] == 2 and widths[2] == 2
+        else []
+    )
+    if index >= dates:
+        index = index - dates
+        dates = len(years) * len(firsts) * len(later)
+        seconds = later
+        if index >= dates:
+            return None
+    place = _stepped_around(index, dates)
+    year = years[place % len(years)]
+    place = place // len(years)
+    first = firsts[place % len(firsts)]
+    second = seconds[place // len(firsts)]
+    written_year = f"{year:02d}" if widths[2] == 2 and not year_first else f"{year:04d}"
+    if worded:
+        return f"{first:0{widths[0]}d}{mark}{_month_word(second, widths[1])}{mark}{written_year}"
+    if year_first:
+        second = min(second, calendar_rules.month_length(year, first))
+        return (
+            f"{year:04d}{mark}{first:0{widths[1]}d}{mark}{second:0{widths[2]}d}"
+        )
+    return f"{first:0{widths[0]}d}{mark}{second:0{widths[1]}d}{mark}{written_year}"
+
+
+def _room_published(
+    room: "tuple[list[int], list[int]]",
+) -> "tuple[dict[int, bool], dict[int, bool]]":
+    """A room's four-figure and two-figure years, each read once into a set for `_off_the_real_years` (plan P4-D457)."""
+    four: "dict[int, bool]" = {}
+    two: "dict[int, bool]" = {}
+    for year in room[0]:
+        four[year] = True
+    for year in room[1]:
+        two[year] = True
+    return four, two
+
+
+def _off_the_real_years(
+    value: str,
+    named: "dict[str, bool]",
+    convention: str,
+    published: "tuple[dict[int, bool], dict[int, bool]]",
+    unnamed: bool = False,
+) -> bool:
+    """Whether a made-up date stands: in a named date layout, its merged key read as a date of a year the room publishes (plan P4-D457).
+
+    The producer read every real cell's merged key in every order the
+    column's date layouts' dates stand in and published no year any of
+    those readings names (`taxonomy.with_made_up_years`); so a value whose
+    merged key, read in some order of its own named layout
+    (`taxonomy.date_merged_orders`), is a date of a published year of that
+    order's kind is no real cell's merged key -- that cell's reading would
+    have named the year -- and no real cell's spelling. ``unnamed`` (the
+    G1 floor's value of a withheld layout, Codex's review of lane
+    ID-ROOM2, item 3): a value in a layout the column does not name is
+    read in every order of the named ones, which the producer read every
+    cell in, so the same holds. Raises nothing. No I/O.
+    """
+    _lead, core, _trail, _cell = _edges(value)
+    layout = parsing.layout_form(core, convention) if core else ""
+    orders: "list[str]" = []
+    if layout in named:
+        orders = [order for order in taxonomy.date_merged_orders(layout, True)]
+    elif unnamed:
+        for form in sorted(named):
+            for order in taxonomy.date_merged_orders(form, True):
+                if order not in orders:
+                    orders += [order]
+    if not orders:
+        return False
+    key = parsing.merged_key(value)
+    for order in orders:
+        years = published[1] if order in taxonomy.MADE_UP_ORDERS_TWO else published[0]
+        for year in taxonomy.years_of_merged_date(key, order):
+            if year in years:
+                return True
+    return False
+
+
+def _room_shares(facts: contract.IdentifierFacts, distinct: int) -> "dict[str, int]":
+    """Each named date layout's share of its kind's block on the date pass, as the producer sized it (`taxonomy.made_up_share`; plan P4-D457).
+
+    A layout counted with its other case's, which one walk steps
+    (`parsing.folded_layout`); read off the published census and different
+    values alone, so the twin's share is the producer's.
+    """
+    walked: "dict[str, int]" = {}
+    for layout in facts.layout_forms:
+        if layout != contract.WITHHELD and taxonomy.date_merged_orders(layout, True):
+            folded = parsing.folded_layout(layout)
+            walked[folded] = (walked[folded] if folded in walked else 0) + facts.layout_forms[layout]
+    shares: "dict[str, int]" = {}
+    for layout in facts.layout_forms:
+        if layout != contract.WITHHELD and taxonomy.date_merged_orders(layout, True):
+            shares[layout] = taxonomy.made_up_share(
+                layout, walked[parsing.folded_layout(layout)], distinct, False
+            )
+    return shares
+
+
+def _room_of_layout(
+    room: "tuple[list[int], list[int]]", layout: str, shares: "dict[str, int]", beside_last: bool = False
+) -> "tuple[list[int], list[int]]":
+    """The years a date layout's made-up dates take on the date pass: its share of the block's first years where it is named, the whole block otherwise (plan P4-D457).
+
+    ``beside_last`` (the column names a layout written year last in
+    figures, `taxonomy.made_up_beside_year_last`; batch 4q's merge): a
+    layout writing its year first takes its share of the published years
+    whose second figure is a nought (`taxonomy.made_up_year_first_share`),
+    the years the producer read it over, which the block it publishes
+    holds whole; where they are not all published (a description of the
+    release before), its share of the block's first years, as before.
+    """
+    if layout not in shares:
+        return room
+    share = shares[layout]
+    if beside_last and taxonomy.made_up_year_first(layout):
+        taken = taxonomy.made_up_year_first_share(room[0], share)
+        if taken is not None:
+            return taken, room[1][0:share]
+    return room[0][0:share], room[1][0:share]
+
+
+def _named_date_layouts(facts: contract.IdentifierFacts) -> "dict[str, bool]":
+    """A record number's named layouts a date can wear beside dates (`taxonomy.date_merged_orders`; plan P4-D457)."""
+    named: "dict[str, bool]" = {}
+    for layout in facts.layout_forms:
+        if layout != contract.WITHHELD and taxonomy.date_merged_orders(layout, True):
+            named[layout] = True
+    # ...and a year alone, where the column holds cells of figures alone the
+    # census does not name (the verify of lane ID-ROOM2's repair 1, item 3
+    # (iii)): the producer read every cell as a year alone too, so the date
+    # pass's year of the block in such a value's place stands off the real.
+    if named and facts.n_all_digits > 0:
+        named[parsing.LAYOUT_DIGIT * 4] = True
+    return named
 
 
 def _a_date_taken(date: "str | None", taken: "dict[str, bool]", holes: "tuple[str, ...]") -> bool:
@@ -62640,6 +63071,22 @@ def _layout_identifier(
                     parsing.layout_room(layout), _LAYOUT_STEPS
                 )
                 continue
+            if _fillings_outside_the_band(band, layout):
+                # A LAYOUT EVERY FILLING OF WHICH RECOUNTS INTO ANOTHER
+                # BAND (plan P4-D445): the `+` or `/` of a base64 token
+                # puts every filling in the wide band, a letter mark or a
+                # dash every filling in the code band, so a slot of the
+                # other band would read the whole ceiling and find
+                # nothing. On a column of a thousand opaque tokens, each
+                # its own layout, a slot was offered hundreds of such
+                # layouts at 4,096 fillings each, and the twin of 20,000
+                # rows had not been written after three hours. The step
+                # moves as the search would have moved it, so every later
+                # filling is the one it was.
+                steps[layout] = steps[layout] + min(
+                    parsing.layout_room(layout), _LAYOUT_STEPS
+                )
+                continue
             found = _layout_spelling(
                 kind, band, layout, convention, steps, used, holes
             )
@@ -62648,6 +63095,65 @@ def _layout_identifier(
             quotas[layout] = quotas[layout] - covering
             return found
     return None
+
+
+def _fillings_outside_the_band(band: str, layout: str) -> bool:
+    """Whether `_layout_spelling` would read a layout's whole ceiling for a slot of ``band`` and take nothing.
+
+    True where every filling of the layout recounts into bands other than
+    ``band`` (`_bands_a_layout_fills`), so `_reads_in_band` refuses each one,
+    and the layout's first filling does not open a formula, which
+    `_layout_spelling` gives up at once, one step on, rather than reading
+    the ceiling. A fixed function of its arguments; no I/O.
+    """
+    if not layout:
+        return False
+    opening = layout[0]
+    if opening not in (
+        parsing.LAYOUT_DIGIT, parsing.LAYOUT_UPPER, parsing.LAYOUT_LOWER,
+        parsing.LAYOUT_LOWER_HEX, parsing.LAYOUT_UPPER_HEX,
+        parsing.LAYOUT_LEADING_ZERO,
+    ) and (opening == _SPACE or opening in _FORMULA_LEADERS) and not (
+        _signs_a_number(layout) or _dials_a_number(layout)
+    ):
+        return False
+    return band not in _bands_a_layout_fills(layout)
+
+
+def _bands_a_layout_fills(layout: str) -> "tuple[str, ...]":
+    """Every band `_reads_in_band` may recount a filling of ``layout`` into.
+
+    `_filled_layout` writes a figure for `%`, a nought for `!`, a letter
+    for `@` and `&`, a figure or a letter for `~` and `^`, and every other
+    character as itself, and `_reads_in_band` reads the filling trimmed. So
+    a character outside the code alphabet left once the layout's own edge
+    spaces are trimmed puts every filling in the wide band; else a letter
+    mark, a letter, a dash or an underscore puts every one in the code band;
+    else a hexadecimal mark may write figures alone or not; else every
+    filling is figures alone. A fixed function of the layout; no I/O.
+    """
+    body = parsing.trimmed(layout)
+    if not body:
+        return (_BAND_WIDE,)
+    lettered = False
+    either = False
+    for character in body:
+        if character in (parsing.LAYOUT_DIGIT, parsing.LAYOUT_LEADING_ZERO) or "0" <= character <= "9":
+            continue
+        if character in (parsing.LAYOUT_UPPER, parsing.LAYOUT_LOWER, "-", "_") or (
+            "a" <= character <= "z" or "A" <= character <= "Z"
+        ):
+            lettered = True
+            continue
+        if character in (parsing.LAYOUT_LOWER_HEX, parsing.LAYOUT_UPPER_HEX):
+            either = True
+            continue
+        return (_BAND_WIDE,)
+    if lettered:
+        return (_BAND_CODE,)
+    if either:
+        return (_BAND_DIGITS, _BAND_CODE)
+    return (_BAND_DIGITS,)
 
 
 def _figures_alone_outside_their_band(band: str, layout: str, convention: str) -> bool:
@@ -70003,6 +70509,12 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
     cut_columns = _l0_columns(profile)
     for place in range(len(profile.columns)):
         column = profile.columns[place]
+        if column.computed_from:
+            # A COLUMN A CARRIED RULE COMPUTES (method G16.2 step 5; lane RO,
+            # plan P4-D459): not made by G4 to G14, it draws no word and is
+            # written from its rule after the walk.
+            plans += [_ColumnPlan(column, 0, 0, None, (), ())]
+            continue
         made_without = ""
         if column.name in cut_columns:
             cut, made_without = cut_columns[column.name]
@@ -70050,7 +70562,7 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
         )
         if reserving is not None:
             arranged = _walk_rows(profile, len(reserving[0]))
-            words = words + 3 * len(profile.relationships.chain) * arranged
+            words = words + 3 * (len(profile.relationships.chain) + _derived_families(profile)) * arranged
             # ...and G16.3's polish (lane MPg, plan P4-D456): three words an
             # arranged row for each round of each polished column.
             if arranged and _POLISH_ROUNDS > 0:
@@ -70058,6 +70570,11 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
                 words = words + 3 * arranged * _POLISH_ROUNDS * len(layout.plan)
                 return GenerationPlan(columns=tuple(plans), words_planned=words, polish=layout)
     return GenerationPlan(columns=tuple(plans), words_planned=words)
+
+
+def _derived_families(profile: contract.Profile) -> int:
+    """The carried rules' derived families `{D | A}`, each dealt by G16.2 steps 1 to 4 (step 5)."""
+    return len([rule for rule in profile.relationships.rules if rule.derived is not None])
 
 
 def _records_holding_nothing(profile: contract.Profile) -> int:
@@ -71315,6 +71832,30 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
             )
         each = handed
         column = each.column
+        if column.computed_from:
+            # A COLUMN A CARRIED RULE COMPUTES (method G16.2 step 5; lane RO,
+            # plan P4-D459): held empty here, it draws no word, and is written
+            # from its rule after the walk (`_carried_rules`).
+            finished += [twinstore.held_column(["" for _row in range(profile.n_rows)])]
+            outcomes += [
+                ColumnOutcome(
+                    name=column.name,
+                    position=column.position,
+                    role=column.role,
+                    statistical_type="",
+                    quality_state="",
+                    structural_role="",
+                    n_present=0,
+                    n_missing=0,
+                    n_distinct=0,
+                    n_distinct_folded=0,
+                    content_words=0,
+                    placement_words=0,
+                    deviations=(),
+                    approximations=(),
+                )
+            ]
+            continue
         words: list[int] = []
         if each.content_words > 0:
             words = [
@@ -71851,6 +72392,37 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
         # list; each is placed now, once, by the index its last round left
         # (the walk's own where it was not moved).
         _polish_placed(walk, finished, arranging, sheet_dealt)
+    # THE CARRIED RULES (method G16.2 step 5; lane RO, plan P4-D459), after
+    # the last family, in their published order: each derived family `{D |
+    # A}` dealt by steps 1 to 4 on its own three words a row, then each
+    # computed column written from its rule. They run after G16.3's polish
+    # and its placement above (batch 4q's merge, step 5's dated amendment),
+    # so a computed column reads its inputs' final cells.
+    for rule in profile.relationships.rules:
+        rule_sums = chain_walk.packed(0, chain_walk.SUM_WIDTH)
+        if rule.derived is not None and walk is not None:
+            # G16.8: three words a row for the derived family `{D | A}`, for each
+            # block of 65,536 arranged rows, drawn here where the stream is made.
+            arranged_rows = chain_walk.size_of(walk.arranged)
+            rule_sums = chain_walk.packed(arranged_rows, chain_walk.SUM_WIDTH)
+            for start in range(0, arranged_rows, chain_walk.BLOCK_ROWS):
+                size = min(chain_walk.BLOCK_ROWS, arranged_rows - start)
+                block = generator.integers(
+                    0,
+                    _WORD_CEILING,
+                    size=int(3 * size),
+                    dtype="uint64",
+                    endpoint=True,
+                )
+                for first in range(0, size, _SUMMED_ROWS):
+                    last = min(size, first + _SUMMED_ROWS)
+                    summed = chain_walk.hidden_sums([int(word) for word in block[3 * first:3 * last]])
+                    for at in range(len(summed)):
+                        chain_walk.put(rule_sums, start + first + at, summed[at])
+                    summed = []
+                del block
+            drawn = drawn + 3 * arranged_rows
+        deviations = deviations + _carried_rule(profile, rule, walk, finished, rule_sums)
     # WHERE THE ROWS STAND (plan P4-D86): the order the real table was
     # sorted in, its all-empty records in their places, the row sequence
     # in place. Whole rows move for the sort and cells move only within
@@ -72020,10 +72592,17 @@ def _reservation(
     n_rows = profile.n_rows
     form = profile.source.workbook
     eligible = {entry.column for entry in profile.relationships.ladder}
+    # G16.5: every column a carried rule computes or reads keeps its cells
+    # (lane RO, plan P4-D459).
+    ruled: "set[str]" = set()
+    for rule in profile.relationships.rules:
+        ruled = ruled | {rule.computed} | set(rule.inputs)
+        if rule.carrier != chain_rules.CARRIER_DERIVED:
+            ruled = ruled | {rule.carrier}
     givers: "list[bool]" = []
     for place in range(width):
         column = plans[place].column
-        givers += [column.name not in eligible and _sequence_start(profile, column) < 0]
+        givers += [column.name not in eligible and column.name not in ruled and _sequence_start(profile, column) < 0]
     if width < 2:
         return (), form is not None, tuple(givers), (0, 0)
     fewest = n_rows
@@ -72031,6 +72610,10 @@ def _reservation(
     for place in range(width):
         each = plans[place]
         column = each.column
+        if column.computed_from:
+            # Written from its rule after the walk, absent wherever its input
+            # is: it holds nothing on every reserved row.
+            continue
         absent = _absent_cells(column, each.decimal_comma)
         if form is not None:
             census = form.columns[place].cell_classes if place < len(form.columns) else {}
@@ -72233,6 +72816,25 @@ def _inside_the_grain(
     # the description alone, the made-up values' own count where the block
     # names none.
     spans = grains.held_spans(grain, column.n_distinct if column.n_distinct > 0 else len(values))
+    # ...OR THE YEARS THE PRODUCER FOUND NO REAL DATE IN (lane ID-ROOM2,
+    # plan P4-D457, method G9.6c): where the block publishes them, the
+    # made-up values are drawn from them alone, in the made-up value's own
+    # form, each checked before it stands; none for the column's kind of
+    # year, and the twin keeps the walk's values.
+    room = _room_years(facts) if isinstance(facts, contract.IdentifierFacts) else None
+    # ...ONLY WHERE THE GRAIN READS DATES (Codex's review of lane ID-ROOM2,
+    # item 1): a held column read as stamps, clock times or counted dates
+    # publishes `[]` and is written from its own span as before, so it stays
+    # readable (`taxonomy.MADE_UP_GRAIN_KIND`).
+    if grain.reading.kind != grains.DATE:
+        room = None
+    room_sets = _room_published(room) if room is not None else None
+    named_dates: "dict[str, bool]" = {}
+    if room is not None and isinstance(facts, contract.IdentifierFacts):
+        spans = _room_spans(room, grain.reading)
+        if not spans:
+            return cells, 0
+        named_dates = _named_date_layouts(facts)
     values = {}
     made: "dict[str, str]" = {}
     taken: "dict[str, bool]" = {}
@@ -72255,11 +72857,52 @@ def _inside_the_grain(
         # unrepeated, a repeat in the last: a valid value, never made up.
         valid: "str | None" = None
         for span in spans:
-            valid = grains.filled(cell, grain.reading, words[place], span, padded, taken)
+            valid = grains.filled(
+                cell, grain.reading, words[place], span, padded, taken, False, room is None
+            )
+            if valid is not None and room_sets is not None and not _off_the_real_years(
+                valid, named_dates, convention, room_sets
+            ):
+                valid = None
             if valid is not None:
                 break
         if valid is None:
-            valid = grains.filled(cell, grain.reading, words[place], spans[len(spans) - 1], padded, {})
+            valid = grains.filled(
+                cell, grain.reading, words[place], spans[len(spans) - 1], padded, {}, False,
+                room is None,
+            )
+            if valid is not None and room_sets is not None and not _off_the_real_years(
+                valid, named_dates, convention, room_sets
+            ):
+                valid = None
+        # ...AND A VALUE OF A LAYOUT THE CENSUS WITHHOLDS, which no date
+        # wears in its own form (`!      !`), is written as a valid date of
+        # the column's reading from the room, in the member's own form at
+        # its length -- a spelling the census does not publish, as the real
+        # cells it stands for are -- never the walk's own value (Codex's
+        # review of lane ID-ROOM2, item 3: twelve such values of 20,000
+        # month-first birth dates were left unreadable). ONLY AT ITS OWN
+        # LENGTH AND ON ITS SIDE OF THE CODE ALPHABET (the verify of repair
+        # 1, item 2: a withheld value of the other year width written at
+        # the room's, nine characters where eleven stood, and validation
+        # exited 3): the room's runs are the reading's kind of year, so a
+        # value no date of that kind is as long as keeps the walk's value,
+        # as before repair 1. It stands where its merged key, read in some
+        # order of the column's named date layouts, is a date of a
+        # published year.
+        if (
+            valid is None
+            and room_sets is not None
+            and parsing.layout_form(cell, convention) not in published
+        ):
+            for span in spans:
+                valid = grains.filled_at_its_length(cell, grain.reading, words[place], span, taken)
+                if valid is not None and not _off_the_real_years(
+                    valid, named_dates, convention, room_sets, True
+                ):
+                    valid = None
+                if valid is not None:
+                    break
         if valid is None:
             valid = cell
             unwritten = unwritten + 1
@@ -72271,7 +72914,7 @@ def _inside_the_grain(
     # another length; where that leaves the column without its longest or
     # its shortest made-up length, the first made-up value of that length
     # is filled once more at its own length, whatever its side.
-    lengths = [len(cell) for cell in made]
+    lengths = [len(cell) for cell in made] if room is None else []
     for extreme in sorted({max(lengths), min(lengths)}) if lengths else []:
         if any(len(made[cell]) == extreme for cell in made):
             continue
@@ -72904,7 +73547,7 @@ def _walk_rows(profile: contract.Profile, reserved: int) -> int:
     relationships = profile.relationships
     if not relationships.ladder or relationships.families <= 0 or not relationships.chain:
         return 0
-    if not any(family.parents for family in relationships.chain):
+    if not any(family.parents for family in relationships.chain) and not _derived_families(profile):
         return 0
     arranged = profile.n_rows - reserved
     return arranged if arranged >= 2 else 0
@@ -75174,6 +75817,505 @@ def _moved_family_note(
         f"table, because {cause}; a check of this family against its published "
         f"table reads it as not met.{noughts}",
     )
+
+
+def _rule_view(column: contract.ColumnBlock) -> "dict[str, object]":
+    """The published facts of a rule's input that the rules page reads (its role and layouts), as a block."""
+    view: "dict[str, object]" = {"name": column.name, "role": column.role}
+    facts = column.facts
+    numbers = facts.numbers if isinstance(facts, contract.AffixedFacts) else facts
+    if isinstance(numbers, contract.NumericFacts):
+        view["fraction_widths"] = dict(numbers.fraction_widths)
+        view["numeric_styles"] = dict(numbers.numeric_styles)
+    if isinstance(facts, contract.DatetimeFacts):
+        view["resolution"] = facts.resolution
+        view["resolution_mix"] = dict(facts.resolution_mix)
+        view["time_precision"] = facts.time_precision
+        view["format"] = facts.parser_family
+    if isinstance(facts, contract.ClockFacts):
+        view["clock_form"] = facts.clock_form
+    return view
+
+
+def _layout_of(column: contract.ColumnBlock) -> "dict[str, object]":
+    """A computed column's own layout words, as its block lists them (contract 4.6b.7, MR.6 (a))."""
+    out: "dict[str, object]" = {"name": column.name, "role": column.role}
+    for key, value in column.computed_layout:
+        out[key] = list(value) if isinstance(value, tuple) else value
+    return out
+
+
+def _exact_text(text: str, column: contract.ColumnBlock, comma: bool) -> "tuple[int, int] | None":
+    """One twin cell of a number column read exactly, as its own reader reads it: `(figures, places)`."""
+    facts = column.facts
+    if isinstance(facts, contract.AffixedFacts):
+        core = taxonomy.core_read(text, facts.affix_prefix, facts.affix_suffix, comma)
+        if core is None or core[0] != parsing.NUMBER or core[1] is None:
+            return None
+        number = core[1]
+    else:
+        kind, value = taxonomy.spelling_read(text, comma)
+        if kind != parsing.NUMBER or value is None:
+            return None
+        number = value
+    written = f"{float(number)!r}"
+    return chain_walk.decimal_of_shortest(written)
+
+
+def _moment_text(text: str, column: contract.ColumnBlock) -> "tuple[int, int | None, str] | None":
+    """One twin cell of a date column read exactly: (day, seconds or None where it holds no clock, the
+    UTC offset the cell writes, '' where none)."""
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts):
+        return None
+    parsed = parsing.parse_datetime(text, facts.parser_family)
+    if parsed is None:
+        return None
+    canonical = parsed[0]
+    day = parsing.days_from_civil(int(canonical[0:4]), int(canonical[5:7]), int(canonical[8:10]))
+    if len(canonical) >= 19:
+        return day, day * 86400 + 3600 * int(canonical[11:13]) + 60 * int(canonical[14:16]) + int(canonical[17:19]), parsed[1]
+    return day, None, parsed[1]
+
+
+def _offset_written_seconds(offset: str) -> "int | None":
+    """A written UTC offset (`Z`, `+05:30`, `-0800`, `+01`) in seconds east of UTC; None for none."""
+    if offset in ("Z", "z"):
+        return 0
+    if len(offset) < 3 or offset[0] not in "+-":
+        return None
+    figures = ""
+    for letter in offset[1:]:
+        if "0" <= letter <= "9":
+            figures += letter
+    if len(figures) not in (2, 4):
+        return None
+    hours = int(figures[0:2])
+    minutes = int(figures[2:4]) if len(figures) == 4 else 0
+    seconds = 3600 * hours + 60 * minutes
+    return -seconds if offset[0] == "-" else seconds
+
+
+def _offset_like(seconds: int, model: str, zulu: str) -> str:
+    """An offset of `seconds` east of UTC written in the spelling of `model`, `B`'s first published offset
+    (MR.2: `A`'s offset kept, in `B`'s own form): `Z` beside a model `Z`, else `+HH:MM`, `+HHMM` or `+HH`."""
+    if seconds == 0 and model in ("Z", "z"):
+        return parsing.written_offset("Z", zulu)
+    sign = "-" if seconds < 0 else "+"
+    hours, minutes = divmod(abs(seconds) // 60, 60)
+    colon = f"{sign}{hours:02d}:{minutes:02d}"
+    if model in ("Z", "z"):
+        return colon
+    figures = ""
+    for letter in model:
+        if "0" <= letter <= "9":
+            figures += letter
+    if ":" not in model and len(figures) == 4:
+        return f"{sign}{hours:02d}{minutes:02d}"
+    if ":" not in model and len(figures) == 2 and minutes == 0:
+        return f"{sign}{hours:02d}"
+    return colon
+
+
+def _iso_offset(offset: str) -> str:
+    """An offset in ISO's spelling (`Z` or `+HH:MM`), as a layout's own offset field takes it; '' for none."""
+    if not offset:
+        return ""
+    if offset in ("Z", "z"):
+        return "Z"
+    seconds = _offset_written_seconds(offset)
+    return "" if seconds is None else _offset_like(seconds, "+00:00", "upper")
+
+
+def _ranked_census(words: object) -> "dict[str, int]":
+    """A computed column's list of layout words, most rows first, as a census whose weights keep that order."""
+    if not isinstance(words, list):
+        return {}
+    return {f"{words[at]}": len(words) - at for at in range(len(words))}
+
+
+def _rule_date_style(layout: "dict[str, object]", family: str) -> _DateStyle:
+    """`B`'s own first date form, read from its computed block's layout words the way the ordinary writer
+    reads a column's censuses (`_commonest_style`): its field widths, month-name style, zone-letter case
+    and a slashed stamp's clock (MR.2, MR.6 (a))."""
+    zulu = layout["zulu_case"] if "zulu_case" in layout and layout["zulu_case"] in parsing.ZULU_CASES else "upper"
+    clock = parsing.DEFAULT_CLOCK_STYLE
+    if family in contract.CLOCK_FORM_MEMBERS:
+        for word in chain_rules.ranked_words(layout["datetime_separators"] if "datetime_separators" in layout else []):
+            style = parsing.stamp_style(word)
+            if style is not None:
+                clock = style
+                break
+    return _DateStyle(
+        family=family,
+        width=_joint_width_of(_ranked_census(layout["date_field_widths"] if "date_field_widths" in layout else [])),
+        name_style=_commonest_of(
+            _ranked_census(layout["month_name_styles"] if "month_name_styles" in layout else []), parsing.DEFAULT_NAME_STYLE
+        ),
+        marker="upper",
+        zulu=f"{zulu}",
+        clock=clock,
+    )
+
+
+def _rule_l0_bands(
+    column: contract.ColumnBlock, entry: contract.LadderEntry, cells: "list[str]", comma: bool = False
+) -> "list[int]":
+    """Each row's `L0` band of a rule's input `A`, read from the cell its twin writes (method G16.2 step 5).
+
+    The value bands by the published edges (`_l0_published_edges`, left
+    closed, as the ladder cuts them), an absent cell in the band holding
+    `missing`, a present cell holding no reading in the band holding
+    `other` (or `missing` where none holds it). A number cell is read as
+    its own reader reads it, a declared decimal comma included (lane RO's
+    repair 2, the outside review's item 4).
+    """
+    edges = _l0_published_edges(column, entry)
+    value_bands = [at for at in range(len(entry.bands)) if any(isinstance(start, tuple) and len(start) == 2 for start in entry.bands[at])]
+    missing_band = 0
+    other_band = -1
+    for at in range(len(entry.bands)):
+        if "missing" in entry.bands[at]:
+            missing_band = at
+        if "other" in entry.bands[at] or "labels" in entry.bands[at]:
+            other_band = at
+    if other_band < 0:
+        other_band = missing_band
+    holes = set(column.missing_by_source)
+    facts = column.facts
+    out: "list[int]" = []
+    seen: "dict[str, int]" = {}
+    for text in cells:
+        if text in seen:
+            out += [seen[text]]
+            continue
+        band = missing_band
+        if not dialect.holds_nothing(text) and text not in holes:
+            reading: "float | None" = None
+            if isinstance(facts, contract.DatetimeFacts):
+                parsed = parsing.parse_datetime(text, facts.parser_family)
+                if parsed is not None:
+                    reading = float(_ordinal_of(parsed[0], _ordinal_space(facts)))
+            elif isinstance(facts, contract.ClockFacts):
+                ordinal = parsing.clock_ordinal(text, facts.clock_form)
+                reading = None if ordinal is None else float(ordinal)
+            else:
+                exact = _exact_text(text, column, comma)
+                reading = None if exact is None else exact[0] / 10 ** exact[1]
+            if reading is None:
+                band = other_band
+            else:
+                place = 0
+                for edge in edges:
+                    if reading >= edge:
+                        place += 1
+                band = value_bands[min(place, len(value_bands) - 1)] if value_bands else other_band
+        seen[text] = band
+        out += [band]
+    return out
+
+
+def _carried_rule(
+    profile: contract.Profile,
+    rule: contract.RuleEntry,
+    walk: "_Walk | None",
+    finished: "list[twinstore.HeldColumn]",
+    sums: "chain_walk.Packed",
+) -> "list[Deviation]":
+    """Method G16.2 step 5 (lane RO, plan P4-D459; contract 4.6b.7, MR.2 and MR.6): every carried rule.
+
+    Each rule in the published order. A DERIVED family `{D | A}` is dealt by
+    steps 1 to 4 as a family whose one parent is `A` at the family's level,
+    read from the band of `A`'s twin cell in each row, on its three words a
+    row (`sums`, drawn by `generate_held`); each band's rows, sorted by their hidden score (a clock
+    pair by `A`, latest first), take the band's readings in order (the
+    SORTED MATCHING, `chain_walk.derived_readings`). A SOURCE carrier reads
+    `D` from its own twin cells times the unit. `B` is then written row by
+    row as `A + D` where both hold a reading and absent elsewhere, in `B`'s
+    OWN first layout, on `D`'s side of `A` at `B`'s writable resolution,
+    and held at the last value `B`'s layout writes. Returns the deviations.
+    """
+    columns = {column.name: column for column in profile.columns}
+    steps = {column.name: place for place, column in enumerate(profile.columns)}
+    entries = {entry.column: entry for entry in profile.relationships.ladder}
+    notes: "list[Deviation]" = []
+    rows = profile.n_rows
+    for rule in (rule,):
+        first = columns[rule.inputs[0]]
+        target = columns[rule.computed]
+        view = _rule_view(first)
+        layout = _layout_of(target)
+        kind = chain_rules.kind_of_role(first.role)
+        if kind is None:
+            continue
+        a_cells = list(twinstore.column_cells(finished[steps[first.name]]))
+        seconds = kind == chain_rules.KIND_CLOCK or (
+            kind == chain_rules.KIND_DATE and rule.grain == chain_rules.GRAIN_A and chain_rules.every_layout_clocked(view)
+        )
+        step = chain_rules.grain_step(view, rule.grain)
+        if step is None:
+            continue
+        # Each row's reading of A, exactly, in D's unit: (value, places) of a number, a day, or seconds.
+        readings: "list[tuple[int, int] | None]" = []
+        comma = _declared_a_decimal_comma(first, profile)
+        for text in a_cells:
+            readings += [_rule_reading(text, first, kind, seconds, comma)]
+        gaps: "list[tuple[int, int] | None]" = [None for _row in range(rows)]
+        if rule.derived is not None and walk is not None:
+            gaps = _derived_gaps(rule, first, entries[first.name], a_cells, readings, walk, step, kind, sums, comma)
+        elif rule.carrier in columns:
+            source = columns[rule.carrier]
+            d_cells = list(twinstore.column_cells(finished[steps[source.name]]))
+            unit = chain_rules.unit_in(rule.unit if rule.unit is not None else chain_rules.UNIT_ONE, seconds)
+            for row in range(rows):
+                # A source's missing marker (a placeholder such as `-99` the source names) is no reading of
+                # `D`: `B` stays absent there (lane RO's repair 2, the outside review's item 3).
+                if dialect.holds_nothing(d_cells[row]) or d_cells[row] in source.missing_by_source:
+                    continue
+                exact = _exact_text(d_cells[row], source, _declared_a_decimal_comma(source, profile))
+                if exact is None:
+                    continue
+                scaled = exact[0] * unit.numerator
+                if unit.denominator != 1 and scaled % unit.denominator:
+                    continue
+                gaps[row] = (scaled // unit.denominator, exact[1])
+        offsets = [_rule_offset(text, first) for text in a_cells] if kind == chain_rules.KIND_DATE else []
+        written = _written_rule(
+            rule, first, target, layout, kind, seconds, readings, gaps, offsets, _declared_a_decimal_comma(target, profile)
+        )
+        finished[steps[target.name]] = twinstore.held_column(written)
+        notes += [
+            _deviation(
+                target.name,
+                "rules",
+                "a column a carried rule computes",
+                "written from its rule",
+                f"This column is computed from '{parsing.visible(first.name)}' by a carried order rule, so the twin "
+                "writes it from that rule on every row: it publishes nothing read from its own cells, and its "
+                "written forms follow its own first layout.",
+            )
+        ]
+    return notes
+
+
+def _rule_reading(text: str, column: contract.ColumnBlock, kind: str, seconds: bool, comma: bool) -> "tuple[int, int] | None":
+    """One twin cell of a rule's input read exactly in D's unit: (value, places) of a number, else (days or seconds, 0)."""
+    if dialect.holds_nothing(text) or text in column.missing_by_source:
+        return None
+    if kind == chain_rules.KIND_NUMBER:
+        return _exact_text(text, column, comma)
+    if kind == chain_rules.KIND_CLOCK:
+        facts = column.facts
+        if not isinstance(facts, contract.ClockFacts):
+            return None
+        ordinal = parsing.clock_ordinal(text, facts.clock_form)
+        if ordinal is None:
+            return None
+        return ordinal * parsing.clock_step(facts.clock_form), 0
+    moment = _moment_text(text, column)
+    if moment is None:
+        return None
+    if seconds:
+        return (moment[1], 0) if moment[1] is not None else None
+    return moment[0], 0
+
+
+def _rule_offset(text: str, column: contract.ColumnBlock) -> str:
+    """The UTC offset a rule's input's twin cell writes, '' where it writes none (MR.2: `A`'s offset kept)."""
+    if dialect.holds_nothing(text) or text in column.missing_by_source:
+        return ""
+    moment = _moment_text(text, column)
+    return "" if moment is None else moment[2]
+
+
+def _derived_gaps(
+    rule: contract.RuleEntry,
+    first: contract.ColumnBlock,
+    entry: contract.LadderEntry,
+    a_cells: "list[str]",
+    readings: "list[tuple[int, int] | None]",
+    walk: "_Walk",
+    step: "chain_rules.Exact",
+    kind: str,
+    sums: "chain_walk.Packed",
+    comma: bool = False,
+) -> "list[tuple[int, int] | None]":
+    """A derived family `{D | A}` dealt by G16.2 steps 1 to 4 on its hidden-score sums (G16.8), and each row's
+    reading of `D` (MR.2)."""
+    derived = rule.derived
+    assert derived is not None
+    rows = len(a_cells)
+    arranged = walk.arranged
+    count = chain_walk.size_of(arranged)
+    l0 = _rule_l0_bands(first, entry, a_cells, comma)
+    level = derived.parent[1]
+    to_level = list(range(len(entry.bands)))
+    for coarse, joined in ((1, entry.l1), (2, entry.l2)):
+        if level == coarse:
+            for band in range(len(joined)):
+                for place in joined[band]:
+                    to_level[place] = band
+    cell_count = len(derived.table)
+    cells = chain_walk.packed(count, chain_walk.width_for(max(1, cell_count - 1)))
+    counts = [0 for _cell in range(cell_count)]
+    for at in range(count):
+        cell = min(to_level[l0[chain_walk.item(arranged, at)]], cell_count - 1)
+        chain_walk.put(cells, at, cell)
+        counts[cell] += 1
+    width = len(derived.table[0]) if derived.table else 1
+    sizes = [sum(line[band] for line in derived.table) for band in range(width)]
+    # The twin's arranged rows against the tabled rows the table counts: any
+    # difference stands in D's `missing` band (B absent there), named by the
+    # moved table where it moves one (G16.6).
+    sizes[-1] = max(0, sizes[-1] + count - sum(sizes))
+    if sum(sizes) != count:
+        sizes[0] = max(0, sizes[0] + count - sum(sizes))
+    aimed = chain_walk.target_of(derived.table, counts, sizes)
+    order = chain_walk.order_by_scores(sums)
+    dealt_sizes = [sum(line[band] for line in aimed.table) for band in range(width)]
+    child = chain_walk.ChildBands(
+        tuple(dealt_sizes),
+        tuple(dealt_sizes[:-1]) + (0,),
+        tuple([True] * (width - 1) + [False]),
+    )
+    dealt = chain_walk.deal(cells, cell_count, order, child, aimed.table)
+    values = width - 1
+    by_band: "list[list[int]]" = [[] for _band in range(width)]
+    for at in range(count):
+        place = chain_walk.item(order, at)
+        by_band[chain_walk.read_code(dealt.bands, dealt.band_width, place)] += [place]
+    if kind == chain_rules.KIND_CLOCK:
+        # A clock pair sorts each band's rows by A, latest first (MR.2).
+        for band in range(values):
+            keyed: "list[tuple[int, int]]" = []
+            for place in by_band[band]:
+                reading = readings[chain_walk.item(arranged, place)]
+                keyed += [(-(reading[0] if reading is not None else 0), place)]
+            by_band[band] = [place for _latest, place in sorted(keyed)]
+    edges: "list[tuple[int, int]]" = []
+    for text in derived.edges:
+        value = chain_rules.decimal_value(text)
+        assert value is not None
+        ratio = value / step
+        edges += [(ratio.numerator, ratio.denominator)]
+    percents = dict(chain_rules.DERIVED_LEVELS)[derived.name]
+    failing = rule.klass if isinstance(rule.klass, int) else 0
+    steps_of = chain_walk.derived_readings(edges, list(derived.totals), dealt_sizes[:values], percents, failing)
+    gaps: "list[tuple[int, int] | None]" = [None for _row in range(rows)]
+    # A number pair's grain is `10 ** -p` (D's readings then carry `p` places); a date's or a clock's a
+    # whole number of days or seconds.
+    places = len(f"{step.denominator}") - 1 if kind == chain_rules.KIND_NUMBER else 0
+    whole = step.numerator if kind != chain_rules.KIND_NUMBER else 1
+    for band in range(values):
+        for rank in range(len(by_band[band])):
+            row = chain_walk.item(arranged, by_band[band][rank])
+            gaps[row] = (steps_of[band][rank] * whole, places)
+    return gaps
+
+
+def _written_rule(
+    rule: contract.RuleEntry,
+    first: contract.ColumnBlock,
+    target: contract.ColumnBlock,
+    layout: "dict[str, object]",
+    kind: str,
+    seconds: bool,
+    readings: "list[tuple[int, int] | None]",
+    gaps: "list[tuple[int, int] | None]",
+    offsets: "list[str]",
+    comma: bool,
+) -> "list[str]":
+    """`B` written row by row from its rule: `A + D` where both hold a reading, absent elsewhere, in `B`'s
+    OWN first form (MR.2, MR.6 (a)): a number in its style, padding, grouping mark, declared decimal comma
+    and affix; a date in its layout, field widths and month names, a stamp with `A`'s offset kept where
+    `B`'s first published offset is one."""
+    out: "list[str]" = []
+    if kind == chain_rules.KIND_NUMBER:
+        style = chain_rules.first_style(layout) or "plain"
+        pads = chain_rules.ranked_words(layout["pad_widths"] if "pad_widths" in layout else [])
+        read_pad = chain_rules.figures_of(pads[0]) if pads else None
+        pad = read_pad if read_pad is not None else 0
+        marks = chain_rules.ranked_words(layout["thousands_marks"] if "thousands_marks" in layout else [])
+        group = marks[0] if marks and marks[0] in parsing.GROUP_MARKS else ""
+        prefix = layout["affix_prefix"] if "affix_prefix" in layout and isinstance(layout["affix_prefix"], str) else None
+        suffix = layout["affix_suffix"] if "affix_suffix" in layout and isinstance(layout["affix_suffix"], str) else None
+        # `B`'s first fraction width 0 writes its point after the figures, and its negatives wear its own
+        # published negative form, brackets included (lane RO's repair 2, the outside review's item 2).
+        widths = chain_rules.ranked_words(layout["fraction_widths"] if "fraction_widths" in layout else [])
+        point = bool(widths) and widths[0] == "0"
+        worn = layout["negative_form"] if "negative_form" in layout else None
+        negative = worn if isinstance(worn, str) and worn in parsing.NEGATIVE_FORMS else parsing.NEGATIVE_MINUS
+        for row in range(len(readings)):
+            reading = readings[row]
+            gap = gaps[row]
+            if reading is None or gap is None:
+                out += [""]
+                continue
+            places = max(reading[1], gap[1])
+            total = reading[0] * 10 ** (places - reading[1]) + gap[0] * 10 ** (places - gap[1])
+            text = parsing.with_negative_notation(chain_walk.written_sum(total, places, style, pad, group, point), negative)
+            out += [chain_walk.written_form(text, comma, prefix, suffix)]
+        return out
+    if kind == chain_rules.KIND_CLOCK:
+        written_form = layout["clock_form"] if "clock_form" in layout else None
+        form = written_form if isinstance(written_form, str) else None
+        if form is None or form not in parsing.CLOCK_FORMS:
+            facts = first.facts
+            form = facts.clock_form if isinstance(facts, contract.ClockFacts) else "hh-mm"
+        unit = parsing.clock_step(form)
+        for row in range(len(readings)):
+            reading = readings[row]
+            gap = gaps[row]
+            if reading is None or gap is None:
+                out += [""]
+                continue
+            # On D's side of A at B's writable resolution, held at the day's last value.
+            total = chain_walk.held_clock(reading[0], gap[0], unit)
+            out += [parsing.clock_spelling(total // unit, form)]
+        return out
+    layouts = chain_rules.ranked_words(layout["resolution_mix"] if "resolution_mix" in layout else [])
+    family = layouts[0] if layouts and layouts[0] in parsing.DATE_FORMATS else (f"{layout['format']}" if "format" in layout else "iso-date")
+    if family not in parsing.DATE_FORMATS or family == "iso-mixed":
+        family = "iso-datetime" if chain_rules.first_layout_clocked(layout) else "iso-date"
+    clocked = chain_rules.first_layout_clocked(layout)
+    written_precision = layout["time_precision"] if "time_precision" in layout else None
+    # A computed block names no count of a second's figures: a fraction is written with `A`'s published
+    # count in zeros, as the ordinary writer writes it, and to the second where `A` publishes none.
+    first_facts = first.facts
+    precision, figures = chain_walk.stamp_fraction(
+        written_precision if isinstance(written_precision, str) else "minute",
+        first_facts.subsecond_digits if isinstance(first_facts, contract.DatetimeFacts) else 0,
+    )
+    separators = chain_rules.ranked_words(layout["datetime_separators"] if "datetime_separators" in layout else [])
+    mark = parsing.SEPARATOR_MARKS[separators[0]] if separators and separators[0] in parsing.SEPARATOR_MARKS else " "
+    unit = 1 if precision in ("second", "subsecond") else 60
+    date_style = _rule_date_style(layout, family)
+    # `B`'s first published offset: where it is one, `B` keeps `A`'s (MR.2), else writes none.
+    models = chain_rules.ranked_words(layout["utc_offsets"] if "utc_offsets" in layout else [])
+    model = models[0] if models and models[0] not in (contract.NO_OFFSET, contract.WITHHELD) else ""
+    model_seconds = _offset_written_seconds(model) if model else None
+    layout_family = parsing.is_layout_name(family)
+    for row in range(len(readings)):
+        reading = readings[row]
+        gap = gaps[row]
+        if reading is None or gap is None:
+            out += [""]
+            continue
+        if not clocked:
+            day = reading[0] + gap[0] if not seconds else (reading[0] + gap[0]) // 86400
+            out += [_cell_of_ordinal(day, "date", "date", 0, "", date_style)]
+            continue
+        total = reading[0] + gap[0] if seconds else (reading[0] + gap[0]) * 86400
+        total = -((-total) // unit) * unit if gap[0] >= 0 else (total // unit) * unit
+        offset = ""
+        if model_seconds is not None:
+            kept = _offset_written_seconds(offsets[row]) if row < len(offsets) and offsets[row] else None
+            offset = _offset_like(kept if kept is not None else model_seconds, model, date_style.zulu)
+        if layout_family:
+            out += [_cell_of_ordinal(total, "datetime", precision, figures, mark, date_style, _iso_offset(offset))]
+        else:
+            out += [_cell_of_ordinal(total, "datetime", precision, figures, mark, date_style) + offset]
+    return out
 
 
 def _stray_rows_note(arranging: "dialect.Arranging") -> "list[Deviation]":

@@ -1629,7 +1629,7 @@ def questions_and_splits_for(
                     name,
                     role,
                     BECAUSE_EACH_ON_ONE_ROW,
-                    _each_on_one_row_said(present, comma, name),
+                    _each_on_one_row_said(present, comma, name, role),
                     _each_on_one_row_choices(role, settings.small_cell_floor),
                     ANSWER_KEEP,
                 )
@@ -1784,7 +1784,7 @@ def questions_and_splits_for(
             if reason == BECAUSE_EACH_ON_ONE_ROW:
                 # ...said under the column's own decimal comma and name,
                 # as the rule read it (Codex's review of lane HX5, item 4).
-                said = _each_on_one_row_said(present, comma, name)
+                said = _each_on_one_row_said(present, comma, name, role)
             asked += [
                 Question(
                     name,
@@ -2409,7 +2409,11 @@ def _an_arc_naming_an_item(uid: str) -> bool:
 #   one to twelve letters, an opening of letters, one to four figures and
 #   a mark (`S24-`, `AB12_`), or with a mark (`-`, `_` or `.`) and one or
 #   two letters after them (`300001-A`, `300001.A`;
-#   `_a_whole_number_after_letters`) -- and at most one present cell in a
+#   `_a_whole_number_after_letters`), or, where the column is read as an
+#   affixed number, between the prefix and the suffix that reading takes
+#   where the suffix holds a figure (`P200000Q4444`;
+#   `_a_whole_number_between_affixes`, lane ID-ROOM2, plan P4-D457) --
+#   and at most one present cell in a
 #   hundred that is none of these (`_STRAY_SHARE`; lane HX4's addendum: one
 #   ordinary token must not defeat a hold, so `99708.5` or `RPT300008A`
 #   among references is set aside, never the column's reach);
@@ -2533,6 +2537,42 @@ def _a_whole_number_after_letters(value: str) -> "tuple[str, str, str] | None":
     return value[:place].upper(), figures, closing
 
 
+def _a_whole_number_between_affixes(value: str, comma: bool = False) -> "tuple[str, str, str] | None":
+    """The opening, figures and closing of an affixed number whose suffix holds a figure (lane ID-ROOM2, plan P4-D457).
+
+    BATCH 4n OWES 10 (C1): sequential keys with a constant prefix AND
+    suffix, each once (`P200000Q4444` upward), were read as affixed numbers
+    and asked nothing, their percentiles were published and the twin wrote
+    the real keys (19,998 of 20,000 cells at 20,000 rows), while the same
+    keys bare or with the prefix alone were asked. The affixed reading's
+    own split (`taxonomy.affixed_split`: the longest number in the cell,
+    the text either side of it) is read here as the opening, the figures
+    and the closing, where the figures are a plain whole number and the
+    closing holds a figure: a unit or a currency written beside a number
+    (`12345mg`, `12345 EUR`) holds none, and stays unread as before.
+    The opening and closing are returned in upper case, as
+    `_a_whole_number_after_letters` returns them; None where the cell is
+    not of this form. A fixed function of the two. Raises TypeError for a
+    non-string. No I/O.
+    """
+    if not isinstance(value, str):
+        raise TypeError("a cell to ask about must be text")
+    try:
+        split = taxonomy.affixed_split(value, comma)
+    except errors.ProfileError:
+        return None
+    if split is None:
+        return None
+    prefix, core, suffix = split
+    figures = parsing.trimmed(core)
+    if not _is_plain_whole_number(figures):
+        return None
+    for character in suffix:
+        if "0" <= character <= "9":
+            return parsing.trimmed(prefix).upper(), figures, parsing.trimmed(suffix).upper()
+    return None
+
+
 def _without_leading_noughts(figures: str) -> str:
     """Figures with their leading noughts off, `0` where nothing else is left (P4-D436)."""
     if not isinstance(figures, str):
@@ -2568,14 +2608,16 @@ def _the_row_sequence(name: str, present: "list[str]") -> bool:
 
 
 def _each_on_one_row_arm(
-    present: "list[str]", comma: bool = False, name: str = ""
+    present: "list[str]", comma: bool = False, name: str = "", affixed: bool = False
 ) -> "tuple[str, bool]":
     """Which arm of lane HX5's rule reaches the cells, and whether a cell was set aside unread (P4-D436).
 
     ("", False) where none does. See the note above. A fixed function of
-    the cells, the column's declared decimal comma and its name, in time
-    linear in the cells. Raises nothing. No I/O, and no cell reaches what
-    it returns.
+    the cells, the column's declared decimal comma, its name and whether it
+    is read as an affixed number (``affixed``: its cells are also read
+    between the affixes that reading takes, `_a_whole_number_between_affixes`;
+    lane ID-ROOM2, plan P4-D457), in time linear in the cells. Raises
+    nothing. No I/O, and no cell reaches what it returns.
     """
     if _the_row_sequence(name, present):
         return "", False
@@ -2615,8 +2657,17 @@ def _each_on_one_row_arm(
                     opening = "-"
         if figures is None:
             lettered = _a_whole_number_after_letters(value)
+            if lettered is None and affixed:
+                lettered = _a_whole_number_between_affixes(value, comma)
             if lettered is None:
                 stray = stray + 1
+                # ...and once more than one present cell in a hundred is read
+                # by no arm, none reaches the column (the stray line below),
+                # so the rest are not read: the affixed reading costs a
+                # split a cell (lane ID-ROOM2, plan P4-D457), and a column of
+                # numbers beside a unit, every cell unread, stops here.
+                if stray * _STRAY_SHARE > len(present):
+                    return "", False
                 continue
             opening, figures, closing = lettered
         cells = cells + 1
@@ -2700,12 +2751,14 @@ def _whole_numbers_each_on_one_row(
     """
     if role not in _EACH_ON_ONE_ROW_ROLES:
         return False
-    return _each_on_one_row_arm(present, comma, name)[0] != ""
+    return _each_on_one_row_arm(present, comma, name, role == taxonomy.ROLE_AFFIXED)[0] != ""
 
 
-def _each_on_one_row_said(present: "list[str]", comma: bool = False, name: str = "") -> str:
+def _each_on_one_row_said(
+    present: "list[str]", comma: bool = False, name: str = "", role: str = ""
+) -> str:
     """What `_whole_numbers_each_on_one_row` saw, in words carrying no value or count (P4-D436)."""
-    arm, unread = _each_on_one_row_arm(present, comma, name)
+    arm, unread = _each_on_one_row_arm(present, comma, name, role == taxonomy.ROLE_AFFIXED)
     if arm == _ARM_DIFFERENT:
         said = "and every one is different, so each stands on one row"
     elif arm == _ARM_NEARLY:
@@ -4080,7 +4133,7 @@ def date_columns_seen_in_a_walk(
         # (`without_merged_questions`).
         comma = name in decimal_commas
         if _whole_numbers_each_on_one_row(present, role, comma, name):
-            dated_said = f"{_each_on_one_row_said(present, comma, name)}; and {dated_said}"
+            dated_said = f"{_each_on_one_row_said(present, comma, name, role)}; and {dated_said}"
             dated_choices += [_each_on_one_row_identifier_choice(role, floor)]
         found += [
             Question(name, role, reason, dated_said, dated_choices, ANSWER_KEEP)
@@ -6347,6 +6400,23 @@ BECAUSE_SAFE_HARBOR_FEW_PEOPLE = "levels-few-people-hold-of-an-unclear-column"
 # ...and, from lane SH3 (plan P4-D454), a name that says a house,
 # apartment, unit or suite number.
 BECAUSE_SAFE_HARBOR_ADDRESS_PARTS = "a-name-that-says-parts-of-an-address"
+# ...and the identifier forms (plan P4-D445, lane CZ-A): numbers and codes
+# given to one person or one device, each held whole and put the same one
+# question, its own sentence saying what was seen.
+BECAUSE_SAFE_HARBOR_SOCIAL_SECURITY = "social-security-numbers"
+BECAUSE_SAFE_HARBOR_BENEFICIARIES = "beneficiary-identifiers"
+BECAUSE_SAFE_HARBOR_NAMES_WITH_NUMBERS = "names-beside-record-numbers"
+BECAUSE_SAFE_HARBOR_TOKENS = "opaque-tokens"
+BECAUSE_SAFE_HARBOR_DEVICE_NAMES = "a-name-that-says-device-numbers"
+BECAUSE_SAFE_HARBOR_ACCESSIONS = "accession-numbers"
+BECAUSE_SAFE_HARBOR_UNIT_NUMBERS = "blood-unit-numbers"
+BECAUSE_SAFE_HARBOR_LONG_NUMBERS = "numbers-of-fifteen-figures-or-more"
+IDENTIFIER_FORM_REASONS = (
+    BECAUSE_SAFE_HARBOR_SOCIAL_SECURITY, BECAUSE_SAFE_HARBOR_BENEFICIARIES,
+    BECAUSE_SAFE_HARBOR_NAMES_WITH_NUMBERS, BECAUSE_SAFE_HARBOR_TOKENS,
+    BECAUSE_SAFE_HARBOR_DEVICE_NAMES, BECAUSE_SAFE_HARBOR_ACCESSIONS,
+    BECAUSE_SAFE_HARBOR_UNIT_NUMBERS, BECAUSE_SAFE_HARBOR_LONG_NUMBERS,
+)
 SH2_SAFE_HARBOR_REASONS = (
     BECAUSE_SAFE_HARBOR_YEARS, BECAUSE_SAFE_HARBOR_YEARS_HELD,
     BECAUSE_SAFE_HARBOR_DATES, BECAUSE_SAFE_HARBOR_PLACES,
@@ -6355,7 +6425,7 @@ SH2_SAFE_HARBOR_REASONS = (
     BECAUSE_SAFE_HARBOR_COORDINATES, BECAUSE_SAFE_HARBOR_CITY_STATES,
     BECAUSE_SAFE_HARBOR_FEW_PEOPLE,
     BECAUSE_SAFE_HARBOR_ADDRESS_PARTS,
-)
+) + IDENTIFIER_FORM_REASONS
 # ...of which the reasons that hold a column whole: its question is put
 # alone, every other question of the column waiting for `no` (lane SH2's
 # repair 1, Codex item 4).
@@ -6366,7 +6436,7 @@ SH2_HELD_REASONS = (
     BECAUSE_SAFE_HARBOR_YEARS_BESIDE, BECAUSE_SAFE_HARBOR_COORDINATES,
     BECAUSE_SAFE_HARBOR_CITY_STATES, BECAUSE_SAFE_HARBOR_FEW_PEOPLE,
     BECAUSE_SAFE_HARBOR_ADDRESS_PARTS,
-)
+) + IDENTIFIER_FORM_REASONS
 # Each of lane SH2's holds (`taxonomy.SAFE_HARBOR_HOLDS`) and the reason
 # its question gives.
 _HELD_BECAUSE: "dict[str, str]" = {
@@ -6381,6 +6451,14 @@ _HELD_BECAUSE: "dict[str, str]" = {
     taxonomy.HELD_CITY_STATES: BECAUSE_SAFE_HARBOR_CITY_STATES,
     taxonomy.HELD_LEVELS_OF_FEW_PEOPLE: BECAUSE_SAFE_HARBOR_FEW_PEOPLE,
     taxonomy.HELD_ADDRESS_PARTS: BECAUSE_SAFE_HARBOR_ADDRESS_PARTS,
+    taxonomy.HELD_SOCIAL_SECURITY: BECAUSE_SAFE_HARBOR_SOCIAL_SECURITY,
+    taxonomy.HELD_BENEFICIARIES: BECAUSE_SAFE_HARBOR_BENEFICIARIES,
+    taxonomy.HELD_NAMES_WITH_NUMBERS: BECAUSE_SAFE_HARBOR_NAMES_WITH_NUMBERS,
+    taxonomy.HELD_TOKENS: BECAUSE_SAFE_HARBOR_TOKENS,
+    taxonomy.HELD_DEVICE_NAMES: BECAUSE_SAFE_HARBOR_DEVICE_NAMES,
+    taxonomy.HELD_ACCESSIONS: BECAUSE_SAFE_HARBOR_ACCESSIONS,
+    taxonomy.HELD_UNIT_NUMBERS: BECAUSE_SAFE_HARBOR_UNIT_NUMBERS,
+    taxonomy.HELD_LONG_NUMBERS: BECAUSE_SAFE_HARBOR_LONG_NUMBERS,
 }
 ANSWER_SAFE_HARBOR_NO = "no"
 ANSWER_SAFE_HARBOR_YES = "yes"
@@ -6530,6 +6608,8 @@ def _sh2_seen(reason: str, cutoff: int, held: str) -> str:
             f"person, such as a plan number, an account number or a name; "
             f"{held}"
         )
+    if reason in IDENTIFIER_FORM_REASONS:
+        return f"{_identifier_form_seen(reason)}; {held}"
     if reason == BECAUSE_SAFE_HARBOR_DEVICES:
         return (
             f"some of its values are unique device identifiers -- GS1's mark "
@@ -6543,6 +6623,73 @@ def _sh2_seen(reason: str, cutoff: int, held: str) -> str:
         f"placeholders and words set aside, are whole numbers of five "
         f"figures, as ZIP codes are written, each count naming one date; "
         f"{held}"
+    )
+
+
+def _identifier_form_seen(reason: str) -> str:
+    """What the Safe Harbor question says it saw of a column held for an identifier form (plan P4-D445), naming no value."""
+    if reason == BECAUSE_SAFE_HARBOR_SOCIAL_SECURITY:
+        return (
+            "some of its values are written as social security numbers are "
+            "-- three, two and four figures joined by a dash, a space or a "
+            "long dash, a letter after them or not -- and a social security "
+            "number is given to one person, a patient's relative or "
+            "household member among them"
+        )
+    if reason == BECAUSE_SAFE_HARBOR_BENEFICIARIES:
+        return (
+            "some of its values are written in the eleven-character layout "
+            "of a health plan's beneficiary identifier (a figure, letters "
+            "and figures in fixed places), and a beneficiary identifier is "
+            "given to one person"
+        )
+    if reason == BECAUSE_SAFE_HARBOR_NAMES_WITH_NUMBERS:
+        return (
+            "some of its values are a name written family name first, a "
+            "comma and a given name, beside a number of six figures or more "
+            "in brackets or after a number sign, and both a person's name "
+            "and a record number name one person"
+        )
+    if reason == BECAUSE_SAFE_HARBOR_TOKENS:
+        return (
+            "most of its values are opaque tokens -- 32 or 64 hexadecimal "
+            "characters, or 22 to 44 base64 characters -- as a system writes "
+            "a key it issued, and a key issued to one person or record names "
+            "it"
+        )
+    if reason == BECAUSE_SAFE_HARBOR_DEVICE_NAMES:
+        return (
+            "its name says it holds a device's lot or serial number, and a "
+            "device's serial number names one device a person carries or was "
+            "treated with"
+        )
+    if reason == BECAUSE_SAFE_HARBOR_ACCESSIONS:
+        return (
+            "most of its values are written as accession numbers are -- one "
+            "to three capitals, a two-figure year and a sequence, in one or "
+            "more layouts -- and an accession number is given to one "
+            "person's specimen"
+        )
+    if reason == BECAUSE_SAFE_HARBOR_UNIT_NUMBERS:
+        return (
+            "most of its values are written as blood-unit numbers are in the "
+            "ISBT 128 layout -- a facility code, a two-figure year, a "
+            "six-figure sequence, then flag figures, a check character or "
+            "both -- and a unit number is given to one donation"
+        )
+    # ...A POSSIBLE IDENTIFIER, NEVER A CERTAIN ONE (lane CZ-A's repair 2,
+    # Codex item 5): a duration counted in nanoseconds is a measurement as
+    # long, so the words say what such a number may be, and the hold stays.
+    return (
+        f"some of its values are whole numbers of "
+        f"{taxonomy.LONG_NUMBER_FIGURES_ON_ONE_CELL} figures or more -- "
+        f"written in figures, or in the exponent form a spreadsheet stores "
+        f"a number cell in -- or most of them of "
+        f"{taxonomy.LONG_NUMBER_FIGURES} or more; a float keeps about "
+        f"fifteen figures, so they are read as text of their own widths, "
+        f"never as numbers, and a number so long may be a record, account "
+        f"or claim number given to one person, or a measurement counted in "
+        f"small units, such as a duration in nanoseconds"
     )
 
 
@@ -8299,7 +8446,7 @@ def date_codes_pending_in_a_walk(
         # question, offering `identifier` and holding until answered.
         if _whole_numbers_each_on_one_row(present, role, comma, name):
             codes = dataclasses.replace(
-                codes, each_on_one_row=_each_on_one_row_said(present, comma, name)
+                codes, each_on_one_row=_each_on_one_row_said(present, comma, name, role)
             )
         pending += [(name, role, position - 1, codes)]
         if codes.reading in _MONTH_FIRST_MEMBERS or _month_first_layout(
@@ -9117,6 +9264,12 @@ class Answers:
     # blank answers it again -- and a checklist of forty columns left
     # blank is not forty answers to keep.
     identities_kept_answered: "tuple[str, ...]" = ()
+    # ...and the columns whose entry offering `identifier` was left blank
+    # under the reading `identifier` (plan P4-D445): held as record numbers
+    # until answered where no person column counts the table -- a
+    # checklist entry among them, which no open question holds, written
+    # so where its column was held whole in people (`held_back`).
+    identities_held: "tuple[str, ...]" = ()
     # ...and the columns answered `keep` to question Q-UNIT (plan P4-D438;
     # the orchestrator's LANE UN-1a RULINGS 1 (2)): nothing is declared,
     # and Q-UNIT is not put to them again, as Q6's `keep` is kept.
@@ -9289,6 +9442,28 @@ def _left_under_a_reading(entry: object) -> str:
     return ""
 
 
+def _left_held(entry: object) -> str:
+    """The column a blank entry leaves under the reading `identifier`, on a question offering it (plan P4-D445).
+
+    The empty text where the entry is anything else. Read by index and
+    never by `.get`, as `_left_under_a_reading` reads. Raises nothing. No
+    I/O.
+    """
+    if not isinstance(entry, dict):
+        return ""
+    if "column" not in entry or "read_as_now" not in entry or "answers_you_can_give" not in entry:
+        return ""
+    name = entry["column"]
+    standing = entry["read_as_now"]
+    choices = entry["answers_you_can_give"]
+    if not isinstance(name, str) or not name or standing != ANSWER_IDENTIFIER or not isinstance(choices, list):
+        return ""
+    for choice in choices:
+        if isinstance(choice, dict) and "answer" in choice and choice["answer"] == ANSWER_IDENTIFIER:
+            return name
+    return ""
+
+
 def _entries_of(
     document: object, shown: str
 ) -> "list[tuple[object, str, bool]]":
@@ -9411,6 +9586,7 @@ def answers_in(document: object, shown: str) -> Answers:
     date_columns_kept: "list[str]" = []
     identities_kept: "list[str]" = []
     identities_kept_answered: "list[str]" = []
+    identities_held: "list[str]" = []
     units_kept: "list[str]" = []
     commas_kept: "list[str]" = []
     carried: "list[tuple[str, str, str]]" = []
@@ -9446,13 +9622,18 @@ def answers_in(document: object, shown: str) -> Answers:
             # question offering it, the column is not held back for want
             # of an answer (plan P4-D401): a file synthtwin wrote names
             # another reading there only after an answer or for a column
-            # it did not hold. Measured on lane HX's build: `keep`
-            # answered, the next file asked again under `read_as_now:
-            # keep`, and handing that file back blank held the column
-            # once more.
+            # it did not hold -- a column held whole in people among the
+            # held ones since plan P4-D445 (`held_back`). Measured on lane
+            # HX's build: `keep` answered, the next file asked again under
+            # `read_as_now: keep`, and handing that file back blank held
+            # the column once more.
             kept_blank = _left_under_a_reading(entry)
             if kept_blank:
                 identities_kept += [kept_blank]
+            else:
+                held_blank = _left_held(entry)
+                if held_blank and held_blank not in identities_held:
+                    identities_held += [held_blank]
             continue
         name, written, offered = read
         if from_before and written in offered:
@@ -9623,6 +9804,7 @@ def answers_in(document: object, shown: str) -> Answers:
         date_columns=tuple(date_columns),
         identities_kept=tuple(identities_kept),
         identities_kept_answered=tuple(identities_kept_answered),
+        identities_held=tuple(identities_held),
         units_kept=tuple(units_kept),
         commas_kept=tuple(commas_kept),
         carried=tuple(carried),

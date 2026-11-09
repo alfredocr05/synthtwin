@@ -51,11 +51,13 @@ from __future__ import annotations
 import contextlib
 import csv
 import datetime
+import inspect
 import io
 import json
 import pathlib
 import random
 import re
+import typing
 
 import pytest
 
@@ -66,7 +68,45 @@ import unanswered_identifier_shapes as shapes
 
 UID = re.compile(r"[012](\.(0|[1-9]\d*))+")
 ROOT = "1.2.840.113619.2.55.3."
-SIZES = (600, 20_000)
+# THE SUITE'S TIME, PART 2 (plan P4-D461, lane SPD2; the orchestrator's rule of
+# 2026-10-26: checks at 20,000 rows or more run in a KPI driver or as one case
+# a writer). The suite runs every case below at 600 rows; the 20,000-row leg
+# of every case parametrized on SIZES, and `the_real_vcf_meets_its_own_forms_at_20000`,
+# run in K-HZ-21's driver (tools/measurements/kpi_moved_cases.py), which calls
+# these same functions with MOVED_SIZE and the same parameters (`moved_cases`).
+# The floor-size proof of this file's one writer, the CSV, stays in the suite:
+# `test_c_rare_widths_that_clear_the_floor_keep_the_prefix_at_20000`, and so does
+# the one 20,000-row leg a lane mutant needs (STAYS_AT_20000, below).
+SIZES = (600,)
+MOVED_SIZE = 20_000
+# The size of the one case parametrized on SIZES whose 20,000-row leg stays
+# (`test_b_record_numbers_of_three_widths_write_their_noughts`, below).
+STAYS_AT_20000 = (20_000,)
+# THE FLOOR-SIZE LEG OF EACH HOLD ROUTE (LANE SPD2 RULINGS 4 and 5, the lane's
+# skeptic 1, item 1, and its verify of repair 1, finding 1; HIPAA first). A change
+# that holds a column at 600 rows and publishes it at the floor's size -- a
+# SIZE-GATED mutant, its route skipped from 10,000 present cells upward -- turns
+# no 600-row leg red, and CI runs no slow driver. So the suite keeps one 20,000-row
+# leg of the cases below wherever such a mutant lets a real identifier out and no
+# other kept case goes red (`FLOOR_LEGS`), each beside its case's 600-row legs
+# (`_with_the_floor_leg`); `moved_cases` hands K-HZ-21 only the legs the suite no
+# longer runs. Each kept leg names its size-gated mutants, which plan P4-D461
+# records with the routes they reach and what each lets out.
+FLOOR_LEGS = (
+    "test_a_short_arc_study_uid_is_never_published_as_the_root[ge-20000]",
+    "test_a_short_arc_study_uid_is_never_published_as_the_root[noorg-20000]",
+    "test_repeating_uids_are_put_q_id_and_held[20-20000]",
+    "test_d_keys_beside_any_word_or_placeholder_are_held[7-20000]",
+    "test_d_keys_beside_words_on_two_cells_in_five_are_held[Unknown-AB-20000]",
+    "test_d_keys_beside_a_placeholder_on_two_cells_in_five_are_held[R-20000]",
+)
+
+
+def _with_the_floor_leg(
+    rows: "list[tuple[object, ...]]", *kept: "tuple[object, ...]"
+) -> "list[tuple[object, ...]]":
+    """A case's rows of its other parameters at every size of SIZES, then each row of ``kept`` at the floor's size, 20,000 rows."""
+    return [(*row, n) for row in rows for n in SIZES] + [(*one, STAYS_AT_20000[0]) for one in kept]
 
 
 def _pick(draw: random.Random, pool: "tuple[tuple[str, float], ...]") -> str:
@@ -349,6 +389,12 @@ SHORT_ROOTS = {
     "siemens": (SIEMENS_SHORT, "1.3.12.2.1107.5.2.32."),
 }
 
+# The two short-arc shapes whose roots are a product's arcs, as the fixture
+# names them: the registry below (`MOVED_NODES`) and the driver's lines
+# (`SHOWN_AS`) name them through this, never spelling a shape the fixture
+# spells (Codex's review of batch 4q, item 4).
+PRODUCT_ARC_SHAPES = tuple(shape for shape in sorted(SHORT_ROOTS) if shape not in ("ge", "noorg"))
+
 
 def test_the_root_is_the_organisation_s_and_names_no_study_series_or_device() -> None:
     """The ruling's cut on its four named roots. Mutants: `_root_of_the_organisation`
@@ -426,8 +472,18 @@ def test_a_siemens_root_is_cut_before_the_scanner_serial(tmp_path: pathlib.Path)
         assert "35162" not in text
 
 
-@pytest.mark.parametrize("n", SIZES)
-@pytest.mark.parametrize("shape", sorted(SHORT_ROOTS))
+# ITS `ge` AND `noorg` LEGS STAY AT 20,000 ROWS (FLOOR_LEGS), each publishing a
+# study UID as the root at the floor's size under its size-gated mutants and
+# leaving every 600-row leg green. `noorg` (no organisation arc): MU5 (the
+# short-arc root's caps skipped) and MU4 (the organisation's cut skipped).
+# `ge` (the root after an organisation arc), the verify of repair 1's finding 1:
+# MU9 (the organisation's cut skipped only where an organisation arc is found,
+# which also publishes the `sop` shape's series UID and the `study` shape's
+# study UID) and MU5a (only the caps after an organisation arc skipped, which
+# also publishes the study UIDs of the two shapes whose roots are a product's
+# arcs, `PRODUCT_ARC_SHAPES`); both leave `noorg` whole.
+@pytest.mark.parametrize(("shape", "n"), _with_the_floor_leg(
+    [(shape,) for shape in sorted(SHORT_ROOTS)], ("ge",), ("noorg",)))
 def test_a_short_arc_study_uid_is_never_published_as_the_root(
     tmp_path: pathlib.Path, n: int, shape: str
 ) -> None:
@@ -523,8 +579,11 @@ REPEATING = {
 }
 
 
-@pytest.mark.parametrize("n", SIZES)
-@pytest.mark.parametrize("every", sorted(REPEATING))
+# ITS `20` LEG STAYS AT 20,000 ROWS (FLOOR_LEGS): red on the size-gated mutant
+# MU1 (Q-ID's UID cells skipped, `asking._uid_cells` reading none): no question,
+# not held, all 1,000 real series UIDs in the description's texts and every
+# twin cell a real one at the floor's size, every 600-row leg green.
+@pytest.mark.parametrize(("every", "n"), _with_the_floor_leg([(every,) for every in sorted(REPEATING)], (20,)))
 def test_repeating_uids_are_put_q_id_and_held(tmp_path: pathlib.Path, n: int, every: int) -> None:
     """Skeptic 1, item 4: a series UID on the rows of its images, read as labels, is held.
 
@@ -627,7 +686,12 @@ def _found_linear(
     return found, equal
 
 
-@pytest.mark.parametrize("n", SIZES)
+# ITS 20,000-ROW LEG STAYS IN THE SUITE (plan P4-D461): of lane CODES-3's mutants it
+# is the one case red on N9 and N10 (rule A1 without a prefix removed, in the
+# producer and in the validator), which leave its 600-row leg and every other
+# kept case of this file green; the four-figure layout's room is refused only
+# at the floor.
+@pytest.mark.parametrize("n", SIZES + STAYS_AT_20000)
 def test_b_record_numbers_of_three_widths_write_their_noughts(tmp_path: pathlib.Path, n: int) -> None:
     """The verify of repair 1, finding 2: `1500+k`, `150000+k` and `15000000+k`, each `.00`, declared.
 
@@ -737,8 +801,11 @@ def _the_real_file_meets_its_forms(tmp_path: pathlib.Path) -> None:
         assert "layout" not in line and "prefix" not in line and "length" not in line, line
 
 
-def test_c_the_real_vcf_meets_its_own_forms_at_20000(tmp_path: pathlib.Path) -> None:
+def the_real_vcf_meets_its_own_forms_at_20000(tmp_path: pathlib.Path) -> None:
     """The owner's floor size, the real file against its description (the verify of repair 1, finding 7).
+
+    Run by K-HZ-21's driver, not collected (plan P4-D461): the node
+    `test_c_the_real_vcf_meets_its_own_forms_at_20000` it was.
 
     A strict xfail pinned to plan P4-D428's stated limit (10) until lane
     ID-ROOM's repair (plan P4-D432): at 20,000 rows C6-131b takes back
@@ -982,8 +1049,11 @@ MEASURED_WORDS = (
 )
 
 
-@pytest.mark.parametrize("n", SIZES)
-@pytest.mark.parametrize("case", range(len(MEASURED_WORDS)))
+# ITS CASE 7 LEG (`PAD` beside `N.K.`) STAYS AT 20,000 ROWS (FLOOR_LEGS): red
+# on the size-gated mutant MU8w (a word with a mark or a space no longer set
+# aside beside keys, placeholders still set aside), which the placeholder
+# leg below does not see, every 600-row leg green.
+@pytest.mark.parametrize(("case", "n"), _with_the_floor_leg([(case,) for case in range(len(MEASURED_WORDS))], (7,)))
 def test_d_keys_beside_any_word_or_placeholder_are_held(
     tmp_path: pathlib.Path, n: int, case: int
 ) -> None:
@@ -1011,9 +1081,12 @@ def two_in_five_rows(form: str, n: int, word: str) -> "tuple[list[str], list[lis
     return ["key", "test"], rows
 
 
-@pytest.mark.parametrize("n", SIZES)
-@pytest.mark.parametrize("form", sorted(PLAIN_KEYS))
-@pytest.mark.parametrize("word", ["Unknown", "Not recorded"])
+# ITS `Unknown`, `AB` LEG STAYS AT 20,000 ROWS (FLOOR_LEGS): red on the
+# size-gated mutant MU2 (keys beside words skipped, `asking._keys_beside_words`
+# answering False), which publishes every real key at the floor's size and
+# leaves every 600-row leg green.
+@pytest.mark.parametrize(("word", "form", "n"), _with_the_floor_leg(
+    [(word, form) for word in ["Unknown", "Not recorded"] for form in sorted(PLAIN_KEYS)], ("Unknown", "AB")))
 def test_d_keys_beside_words_on_two_cells_in_five_are_held(
     tmp_path: pathlib.Path, n: int, form: str, word: str
 ) -> None:
@@ -1035,8 +1108,10 @@ def test_d_keys_beside_words_on_two_cells_in_five_are_held(
     assert counted["twin_cells"] == 0, counted
 
 
-@pytest.mark.parametrize("n", SIZES)
-@pytest.mark.parametrize("form", ["R", "PAD"])
+# ITS `R` LEG STAYS AT 20,000 ROWS (FLOOR_LEGS): red on the size-gated mutants
+# MU7 (placeholders capped at one cell in three again) and MU8 (only words of
+# letters alone set aside beside keys), every 600-row leg green.
+@pytest.mark.parametrize(("form", "n"), _with_the_floor_leg([("R",), ("PAD",)], ("R",)))
 def test_d_keys_beside_a_placeholder_on_two_cells_in_five_are_held(
     tmp_path: pathlib.Path, n: int, form: str
 ) -> None:
@@ -1092,6 +1167,159 @@ def test_d_codes_and_scales_beside_words_are_not_asked() -> None:
         beside = ["Unknown"] * 120 + cells[120:]
         assert not asking._keys_beside_words(beside), name
         assert not asking._a_key_of_figures_repeating(beside), name
+
+
+# -- K-HZ-21: the 20,000-row legs this file hands to the slow driver (plan P4-D461) --
+
+
+def _collected_rows(function: "typing.Callable[..., None]") -> "list[list[tuple[str, object]]]":
+    """Every row of parameters the suite collects for a case, each as (name, value) pairs in its node id's order.
+
+    Read from the case's own parametrize marks, nearest the function first
+    as pytest names a node; a mark over several names (`_with_the_floor_leg`)
+    gives its rows whole.
+    """
+    rows: "list[list[tuple[str, object]]]" = [[]]
+    for mark in getattr(function, "pytestmark", []):
+        if mark.name != "parametrize":
+            continue
+        names = mark.args[0]
+        names = [one.strip() for one in names.split(",")] if isinstance(names, str) else list(names)
+        given: "list[list[tuple[str, object]]]" = []
+        for value in mark.args[1]:
+            given += [[(names[0], value)] if len(names) == 1 else list(zip(names, value))]
+        rows = [row + more for row in rows for more in given]
+    return rows
+
+
+def moved_cases() -> "list[tuple[str, typing.Callable[..., None], dict[str, object]]]":
+    """K-HZ-21's items from this file, one a node the suite no longer collects (plan P4-D461).
+
+    Every case parametrized on its rows ``n``: the 20,000-row leg
+    (``MOVED_SIZE``) of each row of its other parameters that the suite
+    runs at 600 rows and not at the floor's size, read from the case's own
+    marks so the shapes, words, shares and forms are the suite's, never a
+    copy; and the real VCF at the floor. The legs the suite keeps at
+    20,000 rows (`FLOOR_LEGS`, and `STAYS_AT_20000`'s) are not handed on.
+    Each is named by the node it was in the suite and handed with its
+    parameters; the driver gives it a folder of its own as ``tmp_path``.
+    """
+    found: "list[tuple[str, typing.Callable[..., None], dict[str, object]]]" = []
+    for name in sorted(globals()):
+        function = globals()[name]
+        if not name.startswith("test_") or not callable(function):
+            continue
+        rows = [row for row in _collected_rows(function) if any(key == "n" for key, _value in row)]
+        kept = [[pair for pair in row if pair[0] != "n"] for row in rows if dict(row)["n"] == MOVED_SIZE]
+        for row in rows:
+            if dict(row)["n"] not in SIZES or [pair for pair in row if pair[0] != "n"] in kept:
+                continue
+            moved = [(key, MOVED_SIZE if key == "n" else value) for key, value in row]
+            label = "-".join(f"{value}" for _key, value in moved)
+            found += [(f"{name}[{label}]", function, dict(moved))]
+    found += [("test_c_the_real_vcf_meets_its_own_forms_at_20000", the_real_vcf_meets_its_own_forms_at_20000, {})]
+    return found
+
+
+# The nodes the suite collected at 20,000 rows on 2af926ce and K-HZ-21 runs
+# now, one item each, by the same name; the eight it keeps are
+# `test_c_rare_widths_that_clear_the_floor_keep_the_prefix_at_20000`,
+# `test_b_record_numbers_of_three_widths_write_their_noughts[20000]` and
+# the six FLOOR_LEGS.
+MOVED_NODES = (
+    "test_a_declared_uid_keeps_its_root_and_its_grammar[20000]",
+    "test_a_declared_root_is_the_organisation_s_and_the_twin_writes_no_real_uid[sop-20000]",
+    "test_a_declared_root_is_the_organisation_s_and_the_twin_writes_no_real_uid[study-20000]",
+    *(f"test_a_short_arc_study_uid_is_never_published_as_the_root[{shape}-20000]" for shape in PRODUCT_ARC_SHAPES),
+    "test_the_dicom_standard_s_own_uids_are_not_asked[sop_class-20000]",
+    "test_the_dicom_standard_s_own_uids_are_not_asked[transfer_syntax-20000]",
+    "test_a_declared_uid_of_several_tail_lengths_keeps_its_root[short_tail-20000]",
+    "test_a_declared_uid_of_several_tail_lengths_keeps_its_root[sop_series-20000]",
+    "test_repeating_uids_are_put_q_id_and_held[4-20000]",
+    "test_repeating_uids_are_put_q_id_and_held[5-20000]",
+    "test_repeating_uids_are_put_q_id_and_held[6-20000]",
+    "test_repeating_uids_are_put_q_id_and_held[40-20000]",
+    "test_b_a_whole_record_number_writes_its_noughts[20000]",
+    "test_b_whole_record_numbers_written_as_decimals_are_held_unanswered[.00-20000]",
+    "test_b_whole_record_numbers_written_as_decimals_are_held_unanswered[.0-20000]",
+    "test_c_a_prefixed_id_s_rare_layouts_are_counted_in_its_commonest[20000]",
+    "test_c_the_real_vcf_meets_its_own_forms_at_20000",
+    "test_d_plain_keys_beside_a_word_are_held_with_the_question_put[pure-AB-20000]",
+    "test_d_plain_keys_beside_a_word_are_held_with_the_question_put[pure-PAD-20000]",
+    "test_d_plain_keys_beside_a_word_are_held_with_the_question_put[pure-R-20000]",
+    "test_d_plain_keys_beside_a_word_are_held_with_the_question_put[one-AB-20000]",
+    "test_d_plain_keys_beside_a_word_are_held_with_the_question_put[one-PAD-20000]",
+    "test_d_plain_keys_beside_a_word_are_held_with_the_question_put[one-R-20000]",
+    "test_d_plain_keys_beside_a_word_are_held_with_the_question_put[third-AB-20000]",
+    "test_d_plain_keys_beside_a_word_are_held_with_the_question_put[third-PAD-20000]",
+    "test_d_plain_keys_beside_a_word_are_held_with_the_question_put[third-R-20000]",
+    "test_d_keys_beside_any_word_or_placeholder_are_held[0-20000]",
+    "test_d_keys_beside_any_word_or_placeholder_are_held[1-20000]",
+    "test_d_keys_beside_any_word_or_placeholder_are_held[2-20000]",
+    "test_d_keys_beside_any_word_or_placeholder_are_held[3-20000]",
+    "test_d_keys_beside_any_word_or_placeholder_are_held[4-20000]",
+    "test_d_keys_beside_any_word_or_placeholder_are_held[5-20000]",
+    "test_d_keys_beside_any_word_or_placeholder_are_held[6-20000]",
+    "test_d_keys_beside_any_word_or_placeholder_are_held[8-20000]",
+    "test_d_keys_beside_any_word_or_placeholder_are_held[9-20000]",
+    "test_d_keys_beside_any_word_or_placeholder_are_held[10-20000]",
+    "test_d_keys_beside_any_word_or_placeholder_are_held[11-20000]",
+    "test_d_keys_beside_words_on_two_cells_in_five_are_held[Unknown-PAD-20000]",
+    "test_d_keys_beside_words_on_two_cells_in_five_are_held[Unknown-R-20000]",
+    "test_d_keys_beside_words_on_two_cells_in_five_are_held[Not recorded-AB-20000]",
+    "test_d_keys_beside_words_on_two_cells_in_five_are_held[Not recorded-PAD-20000]",
+    "test_d_keys_beside_words_on_two_cells_in_five_are_held[Not recorded-R-20000]",
+    "test_d_keys_beside_a_placeholder_on_two_cells_in_five_are_held[PAD-20000]",
+)
+# ...and the moved-case driver prints each of those two nodes under the
+# shape's place in `PRODUCT_ARC_SHAPES`, not its name (Codex's review of
+# batch 4q, item 4); `--only` reads either.
+SHOWN_AS = {
+    f"test_a_short_arc_study_uid_is_never_published_as_the_root[{shape}-20000]":
+    f"test_a_short_arc_study_uid_is_never_published_as_the_root[product arc {place}-20000]"
+    for place, shape in enumerate(PRODUCT_ARC_SHAPES, start=1)
+}
+
+
+def test_k_hz_21_runs_every_20000_row_leg_this_file_moved() -> None:
+    """The slow driver's items from this file are the moved nodes, one to one, and each runs with its own parameters.
+
+    And the suite runs every leg it keeps at the floor's size: the six
+    FLOOR_LEGS and the three widths' leg, each at 20,000 rows and none of
+    them handed to the driver (LANE SPD2 RULINGS 4 (1) and 5 (1)).
+    """
+    cases = moved_cases()
+    assert sorted(name for name, _function, _given in cases) == sorted(MOVED_NODES)
+    assert len(cases) == len(MOVED_NODES) == 44
+    for name, function, given in cases:
+        assert given.get("n", MOVED_SIZE) == MOVED_SIZE == 20_000, name
+        assert set(inspect.signature(function).parameters) == {"tmp_path"} | set(given), name
+    at_the_floor: "list[str]" = []
+    for name in sorted(globals()):
+        if name.startswith("test_") and callable(globals()[name]):
+            for row in _collected_rows(globals()[name]):
+                if ("n", 20_000) in row:
+                    at_the_floor += [f"{name}[{'-'.join(f'{value}' for _key, value in row)}]"]
+    assert sorted(at_the_floor) == sorted(FLOOR_LEGS + ("test_b_record_numbers_of_three_widths_write_their_noughts[20000]",))
+    assert not set(at_the_floor) & set(MOVED_NODES)
+
+
+def test_the_moved_registry_and_its_comment_name_the_product_arc_shapes_only_through_the_fixture() -> None:
+    """Codex's review of batch 4q, item 4: the registry of moved nodes and the comment above the short-arc case
+    name the two shapes whose roots are a product's arcs only through `PRODUCT_ARC_SHAPES`, and the moved-case
+    driver prints those two nodes by their place (`SHOWN_AS`); the fixture, unchanged, alone spells them.
+    Red on 29fdf3aa (no `PRODUCT_ARC_SHAPES`). MUTANT: either line written out as it was there.
+    """
+    source = pathlib.Path(__file__).read_text(encoding="utf-8")
+    start = source.index("MOVED_NODES = (")
+    registry = source[start:source.index("\n)\n", start)]
+    above = source[source.index("# ITS `ge` AND `noorg` LEGS STAY"):source.index(
+        "def test_a_short_arc_study_uid_is_never_published_as_the_root")]
+    assert len(PRODUCT_ARC_SHAPES) == 2
+    for shape in PRODUCT_ARC_SHAPES:
+        assert shape not in registry and shape not in above, shape
+        assert all(shape not in printed for printed in SHOWN_AS.values()), shape
+    assert sorted(SHOWN_AS) == sorted(node for node in MOVED_NODES if "is_never_published_as_the_root[" in node)
 
 
 # -- K-HZ-04: the zoo's identifier cells out of pattern ------------------

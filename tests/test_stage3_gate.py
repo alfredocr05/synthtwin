@@ -283,6 +283,10 @@ _place(
         # top-coded column at the table floor whether or not one was
         # pooled, held by no row.
         "columns.[].top_category_pooled",
+        # ...and the years a held date column's made-up dates take (lane
+        # ID-ROOM2, plan P4-D457): a block the published facts fix, from the
+        # year after the reference year, that no row's date is in.
+        "columns.[].made_up_years.[].[]",
         "source.dialect.blank_lines",
         "source.dialect.blank_lines.[].after",
         "source.dialect.blank_lines.[].lines",

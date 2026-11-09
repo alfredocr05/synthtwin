@@ -695,6 +695,9 @@ def test_a_padded_column_of_wide_keys_is_asked_the_canonical_question(
     padded codes passes every line below with the defect still in place.
     """
     keyboard.every_reading_kept(monkeypatch)
+    # ...and `no` to the Safe Harbor question nineteen figures are put
+    # (plan P4-D445): this test is about how the keys are spelled.
+    keyboard.identifier_forms_answered_no(monkeypatch)
     cells = _canonical_wide_keys(seed)
     folder = tmp_path / "padded"
     first, second, written, twin_exit, real_exit = _round_trip(
@@ -747,6 +750,7 @@ def test_a_real_padded_export_that_respells_its_keys_is_never_accused(
     checked.
     """
     keyboard.every_reading_kept(monkeypatch)
+    keyboard.identifier_forms_answered_no(monkeypatch)
     cells = [
         _a_value_preserving_neighbour(cell)
         for cell in _canonical_wide_keys(seed)

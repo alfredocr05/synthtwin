@@ -367,6 +367,58 @@ def merged_equal_cells(
     )
 
 
+# THE SAME DAY, ANY WIDTH OF YEAR (LANE ID-ROOM2 RULINGS 6 (5)): a twin date naming a day a real cell
+# of its column names -- read in an ordinary form, a four-figure year as written, a two-figure year in
+# the 1900s and in the 2000s, month first and day first both -- is a real date written another way.
+_FOUR_FIGURE_DAYS = ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%d-%b-%Y", "%d %b %Y", "%Y%m%d")
+_TWO_FIGURE_DAYS = ("%m/%d/%y", "%d/%m/%y", "%d-%b-%y", "%d %b %y")
+
+
+def days_named(cell: str) -> "frozenset[tuple[int, int, int]]":
+    """Every day a cell names in an ordinary date form, as (year, month, day); two-figure years in both centuries."""
+    import datetime
+
+    found: "set[tuple[int, int, int]]" = set()
+    for form in _FOUR_FIGURE_DAYS:
+        try:
+            read = datetime.datetime.strptime(cell, form)
+        except ValueError:
+            continue
+        found.add((read.year, read.month, read.day))
+    for form in _TWO_FIGURE_DAYS:
+        try:
+            read = datetime.datetime.strptime(cell, form)
+        except ValueError:
+            continue
+        for century in (1900, 2000):
+            try:
+                datetime.date(century + read.year % 100, read.month, read.day)
+            except ValueError:
+                continue
+            found.add((century + read.year % 100, read.month, read.day))
+    return frozenset(found)
+
+
+def same_day_cells(real: "list[str]", twin: "list[str]", absent: "frozenset[str]" = frozenset()) -> int:
+    """Twin cells, present, naming a day a present real cell of the same column names (`days_named`).
+
+    Linear: the real cells' days in one set, each different cell read once.
+    """
+    days: "set[tuple[int, int, int]]" = set()
+    for cell in set(real):
+        if cell.strip() and cell not in absent:
+            days |= days_named(cell.strip())
+    hits: "dict[str, bool]" = {}
+    count = 0
+    for cell in twin:
+        if not cell.strip() or cell in absent:
+            continue
+        if cell not in hits:
+            hits[cell] = bool(days_named(cell.strip()) & days)
+        count += hits[cell]
+    return count
+
+
 def equal_cells(real: "list[str]", twin: "list[str]", absent: "frozenset[str]" = frozenset()) -> int:
     """Twin cells, present, spelled exactly as a present real cell of the same column.
 
@@ -492,7 +544,9 @@ def zoo_tables() -> "tuple[object, ...]":
 # (batch 4n) the diagnosis dates of `tumor_registry.dx_date` join them: held as record numbers, their
 # twin is written as valid dates from the constant range by lane HB's rule 10 (plan P4-D442), never
 # reading a real value, and matches a real date of its column by chance as measured (LANE HB RULINGS
-# 8 (4) and 11 (4)), so it too counts under keys of its own with its own bound.
+# 8 (4) and 11 (4)), so it too counts under keys of its own with its own bound. Since lane ID-ROOM2
+# (plan P4-D457) the six draw their made-up dates from a block of years no real date of theirs takes,
+# so each pair of keys reads 0, a column apart still, so no date can offset a key.
 ZOO_HELD_DATES = (
     "patients.dob_iso",
     "patients.dob_us",
@@ -511,15 +565,27 @@ def zoo_held_date_keys(column: str) -> "tuple[str, str]":
     return f"{stem}_equal", f"{stem}_merging"
 
 
-def tally_zoo(value: "dict", by_column: "dict[str, tuple[int, int]]") -> None:
+def zoo_held_date_same_day_key(column: str) -> str:
+    """K-HZ-06's same-day key for one of `ZOO_HELD_DATES` (LANE ID-ROOM2 RULINGS 6 (5)): ..._same_day."""
+    return "zoo_" + column.replace(".", "_") + "_same_day"
+
+
+def tally_zoo(
+    value: "dict", by_column: "dict[str, tuple[int, int]]", same_days: "dict[str, int] | None" = None
+) -> None:
     """Add one zoo run's counts, `table.column` -> (equal, merging), to K-HZ-06's value.
 
     Each of `ZOO_HELD_DATES` under its own two keys (present, at 0, whether or not it was read);
     every other identifier column into `ZOO_EQUAL` and `ZOO_MERGING`, never into a date's keys.
+    Where ``same_days`` is given (`zoo_equal_cells`), each of `ZOO_HELD_DATES` also under its
+    same-day key: its twin cells naming a day a real cell of it names, either width of year.
     """
     for column in ZOO_HELD_DATES:
         for key in zoo_held_date_keys(column):
             value[key] = int(value.get(key, 0))
+        if same_days is not None:
+            key = zoo_held_date_same_day_key(column)
+            value[key] = int(value.get(key, 0)) + int(same_days.get(column, 0))
     for column, (equal, merged) in sorted(by_column.items()):
         if column in ZOO_HELD_DATES:
             on_equal, on_merged = zoo_held_date_keys(column)
@@ -529,11 +595,39 @@ def tally_zoo(value: "dict", by_column: "dict[str, tuple[int, int]]") -> None:
         value[on_merged] = int(value.get(on_merged, 0)) + merged
 
 
+def refused_for_the_people_floor(result: object) -> bool:
+    """Whether a `health_zoo.run_table` run stopped on the command's refusal for the people floor (LANE I4q RULINGS 15 (3)).
+
+    Its profile or answers step exited 1 with the command's own words for a table of too few people
+    (`errors.the_population_is_too_small`, counted in people: 'This table holds 40 people, and synthtwin
+    describes a table of 100 people or more.'), read off the product's own sentence, never copied. Any other
+    exit, any other words, or a run with no such step is no such refusal.
+    """
+    from synthtwin import errors
+
+    marker = "987654321"
+    said = errors.the_population_is_too_small(int(marker), "people", "")
+    opening = said[: said.index(marker)]
+    rest = said[said.index(marker) + len(marker):]
+    rest = rest[: rest.index(".") + 1]
+    steps = result.get("steps") if isinstance(result, dict) else None
+    if not isinstance(steps, dict):
+        return False
+    for step in ("profile", "answers"):
+        seen = steps.get(step)
+        if isinstance(seen, dict) and seen.get("exit") == 1:
+            error = f"{seen.get('error') or ''}"
+            if error.startswith(opening) and rest in error:
+                return True
+    return False
+
+
 def zoo_equal_cells(
     folder: pathlib.Path,
     n: int,
     tables: "tuple[object, ...] | None" = None,
     by_column: "dict[str, tuple[int, int]] | None" = None,
+    same_days: "dict[str, int] | None" = None,
 ) -> "dict[str, int]":
     """The health data zoo's identifier columns: twin cells spelled as a real cell of their column.
 
@@ -543,16 +637,21 @@ def zoo_equal_cells(
     the zoo's general facts, generated at seed 0 -- and every column its description writes as an
     identifier, each read in its table's own dialect. Returns the equal cells, the cells whose
     merged key is a real cell's, the identifier columns read, those NOT read (a failure: no column
-    goes uncounted), the tables whose twin was not written and the tables run. Where `by_column`
-    is given, each column read adds its own (equal, merging) under `table.column` (`tally_zoo`).
+    goes uncounted), the tables whose twin was not written, those the command REFUSED for the people
+    floor apart from them (`refused_by_floor`, `refused_for_the_people_floor`: the refusal is the
+    command's, by design, where any other failure to write stays counted as not written) and the
+    tables run. Where `by_column`
+    is given, each column read adds its own (equal, merging) under `table.column` (`tally_zoo`);
+    where `same_days` is, each of `ZOO_HELD_DATES` read adds its twin cells naming a real day
+    (`same_day_cells`).
     """
     import health_zoo
 
-    found = {"equal": 0, "merged": 0, "columns": 0, "unread": 0, "unwritten": 0, "tables": 0}
+    found = {"equal": 0, "merged": 0, "columns": 0, "unread": 0, "unwritten": 0, "refused_by_floor": 0, "tables": 0}
     for table in zoo_tables() if tables is None else tables:
         where = folder / table.name  # type: ignore[attr-defined]
         found["tables"] += 1
-        health_zoo.run_table(table, where, n, health_zoo.seed_of(table))  # type: ignore[arg-type]
+        done = health_zoo.run_table(table, where, n, health_zoo.seed_of(table))  # type: ignore[arg-type]
         profile = where / f"{table.name}-profile.json"
         twin = where / f"{table.name}-twin{table.suffix}"
         if not twin.is_file():
@@ -562,7 +661,10 @@ def zoo_equal_cells(
             # counted as not written, their identifier columns never read).
             twin = where / f"{table.name}-twin.csv"
         if not profile.is_file() or not twin.is_file():
-            found["unwritten"] += 1
+            # ...apart, a table the command refused for the people floor (LANE I4q RULINGS 15 (3): a
+            # fixture of 40 people at 20,000 rows, which the command rightly refuses, read as a table
+            # not written).
+            found["refused_by_floor" if refused_for_the_people_floor(done) else "unwritten"] += 1
             continue
         document = json.loads(profile.read_text(encoding="utf-8"))
         absent: "frozenset[str]" = frozenset()
@@ -580,8 +682,10 @@ def zoo_equal_cells(
             merged = merged_equal_cells(real, made, absent)
             found["equal"] += equal
             found["merged"] += merged
+            named = f"{table.name}.{block['name']}"  # type: ignore[attr-defined]
             if by_column is not None:
-                named = f"{table.name}.{block['name']}"  # type: ignore[attr-defined]
                 before = by_column.get(named, (0, 0))
                 by_column[named] = (before[0] + equal, before[1] + merged)
+            if same_days is not None and named in ZOO_HELD_DATES:
+                same_days[named] = same_days.get(named, 0) + same_day_cells(real, made, absent)
     return found

@@ -1934,7 +1934,7 @@ def test_the_counted_forms_can_miss(tmp_path: pathlib.Path) -> None:
 
 
 def test_whole_numbers_past_the_exact_range_meet_their_own_description(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A real column of whole numbers past 2**53 validates at exit 0.
 
@@ -1956,7 +1956,12 @@ def test_whole_numbers_past_the_exact_range_meet_their_own_description(
     text = "\n".join(["record_id,amount"] + lines) + "\n"
     # Sixteen figures, every value one width: the fixed-width question asks
     # whether they are record numbers, and unanswered they are held back
-    # (plan P4-D401). Declared measurements here, as this file's subject.
+    # (plan P4-D401). Declared measurements here, as this file's subject,
+    # and `no` to the Safe Harbor question numbers of fifteen figures or
+    # more are put (plan P4-D445).
+    import keyboard
+
+    keyboard.identifier_forms_answered_no(monkeypatch)
     measured = ("--measurement", "amount")
     result = _round_trip(tmp_path / "wide", text.encode(), measured)
     assert result["exits"]["real"] == 0, result["exits"]

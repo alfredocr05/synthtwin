@@ -99,6 +99,9 @@ PLAN_LANES = (
     # ...and lane HB, the held blocks' made-up values in valid layouts (the
     # orchestrator's HB RULINGS 2 (1)), named at batch 4l part b's merge.
     "HB",
+    # ...and lane ID-ROOM2, a held date column's made-up dates kept off the
+    # real ones (plan P4-D457): a column of two-figure years with no room.
+    "ID-ROOM2",
 )
 
 # The kinds the lane's step names, and the ones its reviews found missing
@@ -203,7 +206,7 @@ def test_every_kind_the_lane_names_is_in_the_catalogue() -> None:
             assert not check.column or check.column in header, f"{table.name}: {check.name}"
     assert named == set(zoo.all_kinds())
     assert set(REQUIRED_KINDS) == set(zoo.KINDS)
-    assert set(E0C_KINDS) | set(wide._disguise.KINDS) == set(wide.WIDE_KINDS)
+    assert set(E0C_KINDS) | set(wide._disguise.KINDS) | set(wide._forms.KINDS) == set(wide.WIDE_KINDS)
     assert len(zoo.all_kinds()) == len(set(zoo.all_kinds()))
     assert set(zoo.file_kinds()) <= set(zoo.all_kinds())
     assert set(wide.MERGED.values()) <= set(zoo.KINDS), "a merged item names a kind of E0a's catalogue"
@@ -1017,9 +1020,14 @@ def test_the_driver_prints_only_what_it_measured(
         if line.startswith("KPI "):
             record = json.loads(line[4:])
             printed[record["id"]] = record["value"]
-    shards = zoo.shards()
+    # ...the suite's shards: the Safe Harbor identifier forms' shard is
+    # K-HZ-14's alone (plan P4-D445; the orchestrator's LANE CZ-A RULINGS 1
+    # (3) (b)), so the zoo's keys read the catalogue they read before it.
+    shards = module.run_shards()  # type: ignore[attr-defined]
+    assert len(shards) == len(zoo.shards()) - 1 == zoo._wide().DRIVER_SHARDS == zoo._wide().SUITE_SHARDS + 1  # type: ignore[attr-defined]
     assert sizes == [(600, len(shard)) for shard in shards] + [(20_000, len(shard)) for shard in shards]
-    delimited = [table for table in zoo.catalogue() if table.suffix != ".xlsx"]
+    run = [table for shard in shards for table in shard]
+    delimited = [table for table in run if table.suffix != ".xlsx"]
     delimited_kinds = sum(len(table.kinds) for table in delimited)
     assert printed["K-HZ-01"]["kinds_passing_csv"] == delimited_kinds
     assert printed["K-HZ-03"]["tables_run_csv"] == 2 * len(delimited)
@@ -1028,9 +1036,10 @@ def test_the_driver_prints_only_what_it_measured(
     assert printed["K-HZ-05"]["kinds_refused_by_floor"] == 0
     assert printed["K-HZ-01"]["kinds_smoke_600_rows_running_csv"] == delimited_kinds
     if reader:
-        assert printed["K-HZ-01"]["kinds_passing"] == len(zoo.all_kinds())
-        assert printed["K-HZ-01"]["kinds_smoke_600_rows_running"] == len(zoo.all_kinds())
-        assert printed["K-HZ-03"]["tables_run"] == 2 * len(zoo.catalogue())
+        kinds = sum(len(table.kinds) for table in run)
+        assert printed["K-HZ-01"]["kinds_passing"] == kinds == len(zoo.all_kinds()) - len(zoo._wide()._forms.KINDS)  # type: ignore[attr-defined]
+        assert printed["K-HZ-01"]["kinds_smoke_600_rows_running"] == kinds
+        assert printed["K-HZ-03"]["tables_run"] == 2 * len(run)
     else:
         # Codex item 6: the smoke over the delimited exports alone is never
         # printed as the whole catalogue's.
@@ -1066,8 +1075,11 @@ def test_a_kind_whose_smoke_stops_does_not_pass(
             record = json.loads(line[4:])
             printed[record["id"]] = record["value"]
     labs = set(zoo.table_named("labs").kinds)
-    assert printed["K-HZ-01"]["kinds_passing"] == len(zoo.all_kinds()) - len(labs)
-    assert printed["K-HZ-01"]["kinds_smoke_600_rows_running"] == len(zoo.all_kinds()) - len(labs)
+    # ...over the kinds the driver runs: the suite's shards, the forms' shard
+    # K-HZ-14's alone (plan P4-D445).
+    kinds = sum(len(table.kinds) for shard in module.run_shards() for table in shard)  # type: ignore[attr-defined]
+    assert printed["K-HZ-01"]["kinds_passing"] == kinds - len(labs)
+    assert printed["K-HZ-01"]["kinds_smoke_600_rows_running"] == kinds - len(labs)
     assert all(kind in printed["K-HZ-01"]["kinds_failing_named"] for kind in labs)
 
 

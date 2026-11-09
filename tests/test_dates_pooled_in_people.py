@@ -361,32 +361,37 @@ def _years_apart(written: str) -> str:
 
 
 def test_a_held_column_writes_valid_dates_from_its_spans(tmp_path: pathlib.Path) -> None:
-    """The G1 floor: where no rung serves, the held column's twin parses in its own layout, inside its record's last span.
+    """The G1 floor: where no rung serves, the held column's twin parses in its own layout, off every real date.
 
     2043 lies inside the years' span and three patients alone hold it, so
-    every rung is thin and the column is held; its twin draws inside the
-    span its record publishes (2041 to 2045), never the method's fixed
-    span (2000 to 2029), and never prints 2043.
+    every rung is thin and the column is held. Its record still publishes
+    its span (2041 to 2045), but since lane ID-ROOM2 (plan P4-D457, method
+    G9.6c) a column of dates held as record numbers draws its made-up
+    dates from the block of years its description publishes under
+    `made_up_years` -- from 2028, as many as its values need, no real date
+    in it -- never inside that span, where a made-up date could be a real
+    one, and never prints 2043.
     """
     described = _profiled(tmp_path, "visits", _years_apart("%m/%d/%Y"), "--identifier", "patient")
     block = _block(described, "seen")
     assert block["role"] == "identifier" and block["time_grain"]["rung"] == grains.HELD
-    assert any("drawn inside the last span" in f"{remark}" for remark in block["remarks"])
+    assert any("from years no date of your table takes" in f"{remark}" for remark in block["remarks"])
+    assert not any("drawn inside the last span" in f"{remark}" for remark in block["remarks"])
     assert "2043" not in json.dumps(block)
+    runs = block["made_up_years"]
+    assert runs and runs[0][0] == 2028 and runs[-1][1] < 2041, runs
     loaded = contract.load_profile(f"{tmp_path / 'visits-profile.json'}")
     record = [one for one in loaded.columns if one.name == "seen"][0].time_grain
     assert record is not None and record.spans
-    # The record's own last span, read apart from `grains.held_span`.
     rung, first, last = record.spans[-1]
-    end = grains.after(last, rung)
     assert grains.span_text(first, grains.DATE)[:4] == "2041" and grains.span_text(last, grains.DATE)[:4] == "2045"
     twin, _real = _generated_and_validated(tmp_path, "visits")
     assert twin == set()
     cells = _column(tmp_path / "visits-twin.csv", "seen")
     assert _parses(cells, "%m/%d/%Y") == 0, cells[:5]
     for cell in cells:
-        moment = grains.moment_of(cell, record.reading)
-        assert moment is not None and first <= moment < end, (cell, record.spans)
+        assert runs[0][0] <= int(cell[-4:]) <= runs[-1][1], (cell, runs)
+    assert not set(cells) & set(_column(tmp_path / "visits.csv", "seen"))
     assert _counted_few(tmp_path, "visits") == 0
 
 

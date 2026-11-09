@@ -120,7 +120,8 @@ def test_running_twice_produces_identical_files(
     table = _table(tmp_path)
     main(["profile", str(table)])
     first = (tmp_path / "clinic-profile.json").read_bytes()
-    main(["profile", str(table)])
+    # ...written over on purpose (the one overwrite rule, plan P4-D460).
+    assert main(["profile", str(table), "--replace"]) == 0
     capsys.readouterr()
     assert (tmp_path / "clinic-profile.json").read_bytes() == first
 
@@ -293,7 +294,7 @@ def test_a_working_file_left_behind_is_named_and_the_run_still_succeeds(
     kept = tmp_path / f"clinic-profile.json{profile.KEPT_SUFFIX}-1"
     _refuse_to_delete(monkeypatch, kept)
 
-    assert main(["profile", str(table)]) == 0, (
+    assert main(["profile", str(table), "--replace"]) == 0, (
         "the profile is written and correct, so this is a caution and "
         "not a failure: the exit code may not change"
     )
@@ -329,7 +330,7 @@ def test_an_ordinary_run_says_nothing_about_working_files(
     (tmp_path / "clinic-profile.json").write_text(
         "last week's profile\n", encoding="utf-8", newline="\n"
     )
-    assert main(["profile", str(table)]) == 0
+    assert main(["profile", str(table), "--replace"]) == 0
     captured = capsys.readouterr()
     assert _working_files(tmp_path) == [], (
         "an ordinary run leaves no working file in the output folder"
@@ -381,7 +382,7 @@ def test_a_left_behind_path_cannot_instruct_the_terminal(
     kept = folder / f"clinic-profile.json{profile.KEPT_SUFFIX}-1"
     _refuse_to_delete(monkeypatch, kept)
 
-    assert main(["profile", str(table), "--out-dir", str(folder)]) == 0
+    assert main(["profile", str(table), "--out-dir", str(folder), "--replace"]) == 0
     told = capsys.readouterr().err
     _assert_the_caution_shows_the_control(told)
 

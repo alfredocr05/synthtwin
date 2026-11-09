@@ -35,6 +35,7 @@ import dataclasses
 import datetime
 import gc
 import hashlib
+import inspect
 import io
 import json
 import math
@@ -42,6 +43,7 @@ import pathlib
 import random
 import tracemalloc
 import types
+import typing
 import weakref
 
 import pytest
@@ -448,8 +450,15 @@ def _profile_peak(folder: pathlib.Path, rows: int) -> int:
         tracemalloc.stop()
 
 
-def test_describe_holds_under_three_hundred_bytes_a_row_it_adds(tmp_path: pathlib.Path) -> None:
-    """A register of 2,000 codes, two arms and dates: 66bca69 held 1,079 bytes per added row, the lane 124 (`K-S4-08`)."""
+def describe_holds_under_three_hundred_bytes_a_row_it_adds(tmp_path: pathlib.Path) -> None:
+    """A register of 2,000 codes, two arms and dates: 66bca69 held 1,079 bytes per added row, the lane 124 (`K-S4-08`).
+
+    Run by K-HZ-21's driver, not collected (plan P4-D461): the node
+    `test_describe_holds_under_three_hundred_bytes_a_row_it_adds` it was. The
+    suite still measures the same bytes per added row, with the same
+    `_profile_peak` at 2,000, 40,000 and 80,000 rows and the same bound of
+    300, in `test_kpi_ledger.py::test_k_s4_08` (`describe_memory_measures`).
+    """
     _profile_peak(tmp_path, 2_000)
     smaller = _profile_peak(tmp_path, 40_000)
     larger = _profile_peak(tmp_path, 80_000)
@@ -806,7 +815,15 @@ def _h3_traced_a_row(values: "list[str]", monkeypatch: pytest.MonkeyPatch) -> fl
 # (plan P4-D423) from 470 to 400 for record numbers and stamps: 339.4 and
 # 344.7, 342.0 and 342.9 on Python 3.11, with no folded copy of a label written
 # in capitals and no unit, set or pair a stamp counted.
-@pytest.mark.parametrize("rows", [20_000, 40_000])
+# THE 40,000-ROW LEGS OF THIS GRID AND THE NEXT RUN IN K-HZ-21's DRIVER (plan
+# P4-D461), at MOVED_ROWS with each shape and bound (`moved_cases`): lane H3's
+# mutants of these grids are red on their 20,000-row legs or on neither size.
+# The 80,000-row stamps below stay: they hold the growth past 40,000 rows.
+KEPT_ROWS = [20_000]
+MOVED_ROWS = 40_000
+
+
+@pytest.mark.parametrize("rows", KEPT_ROWS)
 @pytest.mark.parametrize(("shape", "bound"), [("rec", 400), ("num", 200), ("stamp", 400)])
 def test_a_column_whose_values_all_differ_holds_under_its_bound_a_row(
     shape: str, bound: int, rows: int, monkeypatch: pytest.MonkeyPatch
@@ -1361,7 +1378,7 @@ def test_pairs_are_ranked_by_instant_text_and_offset_as_4682d6ad_ranked_them() -
 # (732 on 34bb5902), `M/D/YYYY H:MM` 322.7 / 323.4 (604), stamps with offsets
 # 480.7 / 480.9 (620), stamps to the second 342.0 / 342.9 / 342.0 (431 / 435 /
 # 462-465 on 34bb5902: they no longer rise past 40,000 rows).
-@pytest.mark.parametrize("rows", [20_000, 40_000])
+@pytest.mark.parametrize("rows", KEPT_ROWS)
 @pytest.mark.parametrize(("shape", "bound"), [("twelve", 380), ("mdy", 380), ("stampoff", 540)])
 def test_the_mixed_table_s_stamp_forms_hold_under_their_bound_a_row(
     shape: str, bound: int, rows: int, monkeypatch: pytest.MonkeyPatch
@@ -1604,3 +1621,56 @@ def test_the_date_questions_describe_a_column_beside_its_own_group_alone(
     assert ("seen_on", (2,)) in described and ("taken", (8,)) in described, described
     for name, held in described:
         assert len(held) == 1, (name, held)
+
+
+# -- K-HZ-21: the case this file hands to the slow driver (plan P4-D461) --------
+
+# The nodes the suite collected on 2af926ce and K-HZ-21 runs now, by the same
+# names: the bytes a row added from 40,000 to 80,000 rows, which K-S4-08's own
+# case in the suite measures by the same function against the same bound, and
+# the 40,000-row legs of the two grids above.
+MOVED_NODES = (
+    "test_describe_holds_under_three_hundred_bytes_a_row_it_adds",
+    "test_a_column_whose_values_all_differ_holds_under_its_bound_a_row[rec-400-40000]",
+    "test_a_column_whose_values_all_differ_holds_under_its_bound_a_row[num-200-40000]",
+    "test_a_column_whose_values_all_differ_holds_under_its_bound_a_row[stamp-400-40000]",
+    "test_the_mixed_table_s_stamp_forms_hold_under_their_bound_a_row[twelve-380-40000]",
+    "test_the_mixed_table_s_stamp_forms_hold_under_their_bound_a_row[mdy-380-40000]",
+    "test_the_mixed_table_s_stamp_forms_hold_under_their_bound_a_row[stampoff-540-40000]",
+)
+
+
+def moved_cases() -> "list[tuple[str, typing.Callable[..., None], dict[str, object]]]":
+    """K-HZ-21's items from this file, one a node the suite no longer collects.
+
+    The grids' shapes and bounds are read from the cases' own marks, at
+    MOVED_ROWS. The driver gives each a folder as ``tmp_path`` where it
+    takes one, and a ``pytest.MonkeyPatch`` undone after it where it
+    takes one.
+    """
+    found: "list[tuple[str, typing.Callable[..., None], dict[str, object]]]" = [
+        (MOVED_NODES[0], describe_holds_under_three_hundred_bytes_a_row_it_adds, {})]
+    for function in (test_a_column_whose_values_all_differ_holds_under_its_bound_a_row,
+                     test_the_mixed_table_s_stamp_forms_hold_under_their_bound_a_row):
+        marks = [mark for mark in getattr(function, "pytestmark", []) if mark.name == "parametrize"]
+        pairs = [mark for mark in marks if mark.args[0] == ("shape", "bound")][0].args[1]
+        for shape, bound in pairs:
+            name = f"{function.__name__}[{shape}-{bound}-{MOVED_ROWS}]"
+            found += [(name, function, {"shape": shape, "bound": bound, "rows": MOVED_ROWS})]
+    return found
+
+
+def test_k_hz_21_runs_the_case_this_file_moved_and_k_s4_08_measures_its_bound() -> None:
+    """The slow driver's items from this file are the moved nodes; K-S4-08's case reads the first one's measure at its bound."""
+    import kpi_rules
+
+    cases = moved_cases()
+    assert [name for name, _function, _given in cases] == list(MOVED_NODES)
+    assert [list(inspect.signature(function).parameters) for _name, function, _given in cases][:1] == [["tmp_path"]]
+    for name, function, given in cases[1:]:
+        assert given["rows"] == MOVED_ROWS == 40_000 and MOVED_ROWS not in KEPT_ROWS, name
+        assert set(inspect.signature(function).parameters) == set(given) | {"monkeypatch"}, name
+    entry = kpi_rules.entries_by_id(kpi_rules.load_ledger())["K-S4-08"]
+    assert entry["expected"]["describe_held_bytes_per_added_row"] == 300.0
+    assert entry["test"] == "tests/test_kpi_ledger.py::test_k_s4_08"
+    assert "_profile_peak(folder, 40_000)" in inspect.getsource(describe_memory_measures)

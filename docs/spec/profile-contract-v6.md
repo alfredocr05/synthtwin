@@ -2094,10 +2094,11 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 129 forms and 129 argument positions.
+**The census.** The table holds 131 forms and 129 argument positions.
 Of those, 93 are whole numbers, 14 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
-other kind. Lane CZ-H (plan P4-D446) added the two forms NF134 and NF135
+other kind. Lane ID-ROOM2 (plan P4-D457) added the two forms NF136 and NF137
+and no position. Lane CZ-H (plan P4-D446) added the two forms NF134 and NF135
 and no position. Lane PL (plan P4-D453) added the two forms NF132 and NF133
 and two whole-number positions, the pool's levels and rows. Lane PS (plan P4-D417) added the two forms NF128 and NF129
 and no position. Lane HX (plan P4-D401) added the one form NF125 and no
@@ -2163,7 +2164,7 @@ class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
 the table below is closed over all 129 of them exactly as the form table
-is closed over the 129 forms. A position nobody bound is a number a
+is closed over the 131 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -3776,7 +3777,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 129 in section 4.5.1 |
+| NG14 | the form is one of the 131 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -4913,9 +4914,10 @@ phrase-only partition is read the same way; where neither passes, only
 the real table, and owes that every table a carried rule's description
 allows opens the same step: its conditions are to be implied by the
 base, the class and the antecedent bound (Lemma 2, 4.6b.9 (b)). That is
-a PRECONDITION of the proof for inventory rows 9, 9b, 10 and 14, OPEN
-until lane MR's page proves it: those rows are proven on that condition
-only (4.6b.9 (h)).
+a PRECONDITION of the proof for inventory rows 9, 9b, 10 and 14,
+proven by MR.4 under the inference of MR.3 exactly as written (AMENDED
+2026-11-04, lane RO, plan P4-D459; it read "OPEN until lane MR's page
+proves it"): those rows are proven on that condition only (4.6b.9 (h)).
 Which partition applies is a function of the base, which the description
 publishes whenever the rule is carried, and the class is published with
 the rule, so a carried option's eligibility is a function of the
@@ -5787,8 +5789,43 @@ report (every item reads the real table and none is a condition of the
 inference, so no proof moves; REPAIR 1 added the items so marked, and
 lane RO builds the list as written, nothing more):
 - `B` is finer than `A` (a clock beside `A`'s dates; more places than
-  `A`): computing it would erase what it writes. Limit 4;
+  `A`): computing it would erase what it writes. Limit 4. AMENDED
+  2026-11-06 (lane RO's repair 2, the sibling check LANE RO RULINGS 6
+  (1) orders): a stamp's places are its figures after the second as its
+  block publishes them (`subsecond_digits` under `subsecond`), so a stamp
+  written to the microsecond beside one to the second is finer than `A`;
+  computed, it was written to `A`'s second and code parsing its fraction
+  on the real column failed on every twin cell. AMENDED 2026-11-06 again
+  (the orchestrator's ruling, LANE RO RULINGS 7 (2); lane RO's follow-up,
+  the second verify of repair 2's item 2): where `B` writes a fraction,
+  its figures after the second are read both ways, so a `B` written to
+  fewer figures than `A` (to the millisecond beside one to the
+  microsecond) is not worth computing either: computed, it was written
+  with `A`'s six figures on every cell against three on every real cell,
+  and a reader fixed at three figures refused the twin. MEASURED (20,000
+  rows, three twin seeds): not computed, `B` keeps three figures on every
+  cell and, written as the twin without rules writes it, stands before
+  `A` on 9,971 to 10,103 rows (3 real; 0 while it was carried);
 - the rule's option has `grain` other than `B`'s own;
+- the pair is read at its instants (both columns write UTC offsets; BREAK
+  reads them so since lane RO's repair 2), and the offsets `B` holds on
+  the rows where both read are other than those `A` holds there: computing
+  `B` writes `A`'s offset on every row (MR.2), so `B`'s own would be
+  erased (ADDED 2026-11-06, the orchestrator's ruling, LANE RO RULINGS 7
+  (1); lane RO's follow-up, the second verify of repair 2's item 1). Two
+  columns of one zone hold the same offsets, so a row across that zone's
+  clock change, `A` before it and `B` after, keeps the rule (the zoo's
+  encounters, carried by LANE RO RULINGS 3 (4)). MEASURED (20,000 rows,
+  three twin seeds): `sent_at` at `-05:00` beside `seen_at` a minute
+  later at the instant, written at `+03:00`, was carried with `seen_at` at
+  `-05:00` on every twin cell, its local clock eight hours back; not
+  computed, `seen_at` keeps `+03:00` and its local clock on every cell
+  and, written as the twin without rules writes it, stands before
+  `sent_at` at the instant on 8,517 to 8,662 rows (0 on the two local
+  clocks); the zoo's encounters hold other offsets in the two columns on
+  768 rows and the same offsets over the rows both read, so they keep the
+  rule and 0 rows out of order, where reading the offsets row by row
+  refused it and broke their order on 9,532 to 9,571 rows;
 - BREAK under 1/100: the exact share of pairs (a reading of `A`, a reading
   of `B`) with `B` below `A`. A pair the twin keeps dealt apart is not
   worth a column's own facts: birth before admission, or a blood pressure
@@ -5805,7 +5842,17 @@ lane RO builds the list as written, nothing more):
   rows above its top rung, whose levels with an edge rule 1 refuses, and
   the twin then broke the order on about half its rows; carried at the
   one band, `B` is `A`, 0 twin rows break it, and the rows above are
-  written at 0 (MEASURED, limit 19);
+  written at 0 (MEASURED, limit 19). AMENDED 2026-11-05 (the
+  orchestrator's rulings, LANE RO RULINGS 2 (5) and 3 (1); lane RO's
+  repair 1): the item reads each derived option. A level of `D` with no edge writes `B`
+  as `A`, so where the real gap is 0 on fewer than 99 of 100 of the rows
+  where both read it scores `-w_rule n` whether or not a level with an
+  edge is eligible: where `D` is dealt apart from `A`, every level's `u`
+  is about 0, and repair 2's words left the one band as likely as each
+  level with an edge (MEASURED on lane RO's build, 20,000 rows: 25 to 44
+  per cent of the draw's weight on the event table's `closed_at` step and
+  45 to 65 on the stay's release, whose twin then agreed with its own
+  duration on 22.3 per cent of rows). A score moves no proof;
 - `B`'s own role is a label, or fewer than 99 of 100 of its present cells
   read under `A`'s kind, or `B` holds a reading on more than 1/100 of
   its present cells where `A` holds none (REPAIR 1: a dense column is
@@ -5814,7 +5861,27 @@ lane RO builds the list as written, nothing more):
   20,000, which the twin would then write on 959);
 - `B`'s strongest association with a column other than `A`, read on the
   real table, is lost by computing it (REPAIR 1; lane RO sets the line
-  and measures it on `K-BC-01`): MR.9's two dependence shapes;
+  and measures it on `K-BC-01`): MR.9's two dependence shapes. AMENDED
+  2026-11-05 (the orchestrator's ruling, LANE RO RULINGS 3 (4); lane RO's
+  repair 1, the statistics review's item 2): what
+  is lost on another eligible column `C` is `D`'s share of variance
+  between `C`'s `L0` bands, but no more than `B` dealt apart from `A`
+  would keep, `B`'s own share between them (`B` read under `A`'s kind in
+  the pair's unit); the item reads the smaller of the two, column by
+  column, and the largest over the columns, at 1/20 (MEASURED by the
+  statistics review on lane RO's build: `D`'s share alone refused a
+  visit's departure from its arrival, the arrivals spread over two years,
+  and the twin then broke the order on half its rows and kept the length
+  by acuity neither way);
+- `B`'s presence (its rows reading under `A`'s kind) has a share of
+  variance of at least 1/20 between another eligible column's `L0` bands,
+  read on the real table, `A`, `B` and the rule's named sources set aside
+  (ADDED 2026-11-05, the orchestrator's ruling, LANE RO RULINGS 3 (5); the
+  statistics review's item 4): a computed `B` is present where `D` reads,
+  and `{D | A}` deals `D`'s absences by `A` alone, so a presence another
+  column sets would be lost (MEASURED on lane RO's build: the battery's
+  survival table's event date, present exactly where the status is not
+  `censored`, came back present on 57.4 per cent of censored rows);
 - it holds both ways, and computes the earlier column;
 - a formula rule computes the same column: **AMENDS the step order: ties by
   kind take `formula` first, then `order`**, since `units <= total` would
@@ -5826,7 +5893,14 @@ lane RO builds the list as written, nothing more):
   median gap (REPAIR 1: among worth rules only; with a surgery date
   after the discharge date in the schema, the first text's words
   computed the discharge from the surgery, 5,908 rows, and gave up the
-  admission's rule, MEASURED by skeptic 1);
+  admission's rule, MEASURED by skeptic 1). AMENDED 2026-11-05 (the
+  orchestrator's ruling, LANE RO RULINGS 3 (3); lane RO's repair 1): at
+  equal median gaps the smaller mean gap is the tighter; and an input
+  another worth rule computes is no input "not computed", which lane RO's
+  build did not read (MEASURED there: a chain of events' departure was
+  refused from its arrival for a rule from its first provider's stamp,
+  itself blocked as a computed column, and the twin broke the departure
+  after the provider on about 10,000 of 20,000 rows);
 - a formula with an input the description calls `constant`.
 
 `w_rule` stays PROVISIONAL; lane RO's leg measures it (4.6b.14). At
@@ -6124,6 +6198,78 @@ near-rule is in none of the three.
   breaking the rule, no count of the computed column). `chain_oracle`: the
   mirror (A-P4-59). The inference on arrays, with a time bar (limit 15).
   `K-S6-06` (i), (ii), (v), (vii); `K-BC-10`'s three readings.
+  **BUILT 2026-11-04 (lane RO, plan P4-D459)**, behind the chain's switch
+  and off unless a caller asks (`chain.ChainSwitch(..., rules=True)`;
+  every switched writer of today splices `statistical` alone, so a rule
+  carried there would leave a computed column's own block beside it:
+  lane CHON turns the steps on with the chain). The module
+  `chain_order` holds the inference and `computed_block`; `chain` names
+  them `infer_rules` and `computed_block`. Each departure, with its
+  reason: (1) the step's word reads `[kind, computed, inputs]` beside the
+  table's column names in schema order, not the eligible columns, which
+  move with the steps' outcomes, so the word is a fact every table of the
+  preimage shares before any step (MR.4 (f)); (2) W5's raise goes to a
+  step whose ANTECEDENT, the rows where both columns read, numbers at
+  least `f` (this section's opening paragraph): a raise is a weight the
+  draw masks, and a step whose computed column never reads under its
+  input's kind raised every pair of a number beside a label; (3) rule 4,
+  and RULE W1 through `D`, read `D` as confined by nothing where every
+  band of `D` holding a row is reached (a `D` holding rows in one band is
+  a column of one band); (4) the inference takes its readings from the
+  cells the describe reads, in schema order, and reads no column of the
+  file again (a candidate `B` the families never read is read once, in
+  its place); it holds them as bytes, a palette of a column's different
+  readings and one byte a row or its readings in two to four bytes a row,
+  and reads a pair a block of rows at a time, letting its joint with
+  `A`'s bands go once its options are read (REPAIR 1 of lane RO,
+  2026-11-05, LANE RO RULINGS 2 (1)); numpy past the generator's one
+  random stream is outside the offline policy (the offline scan admits
+  `numpy.random.default_rng` alone), so the inference runs on the
+  standard library and its time bar is measured on this route (plan
+  P4-D459); (5) MR.7's association item reads, at a line of 1/20, the
+  smaller of `D`'s share of variance between another eligible column's
+  `L0` bands and `B`'s own share between them (AMENDED above), the rule's
+  named source columns set aside (computing `B` from one keeps it), and
+  so is a column equal to `D` in one unit on 99 of 100 rows (the stay's
+  own duration column beside its release), a weight to be decided on
+  `K-BC-01` with `w_rule`; (6) a computed
+  column's layout words are, by role, its styles, fraction widths, pad
+  widths and grouping marks with its group mark and minus form, or its
+  layouts, separators, field widths, offsets and month names with its
+  format, resolution, precision and zone case, or its clock form; (7)
+  REPAIR 1 (2026-11-05): `B`'s own first form is the whole of it, a
+  stamp keeping `A`'s offset, spelled as `B`'s first published offset,
+  where that offset is one, a date its own field widths and month names,
+  a number its affix and its declared decimal comma; REPAIR 2
+  (2026-11-06, LANE RO RULINGS 5 (1) and 6 (1) to (3)): a stamp written
+  to fractions of a second is written with `A`'s published count of
+  figures after the second, in zeros, as the ordinary writer writes a
+  fraction (no new published fact; the second where `A` publishes none,
+  and a `B` finer than `A` is not worth computing, MR.7); a number keeps
+  its point after figures holding no places (`42.` + 1 written `43.`),
+  its published negative form, brackets included, and its own affix
+  whatever the rule's role (S28 reads the two affix words beside the
+  role's keys); a leading point (`.42`) and a padded text decimal
+  (`003.50`) are written in the ordinary writer's form, as the twin
+  without rules writes them, since the description publishes no word for
+  either: MR.2's table and its text-decimal row are built for neither;
+  MR.7's tighter-rule item reads its clause "from an input
+  not computed", which the build left out; describe hands the inference
+  the person column's state it computes; MR.10's NEAR-RULE reading stays
+  owed (lane RO2, LANE RO RULINGS 3 (8)); and W5's raise applies to
+  every opened step the draw meets, worth or not, as this item writes it
+  (RULINGS 3 (8): on the analyst battery, measured by the statistics
+  review on the build, `K-BC-01` read 30.6 points under the replicate with
+  the rules against 31.1 without, its first family 0.28 against 0.13,
+  its seventh 0.14 against 0 and its eighth 0.10 against 0; AMENDED
+  2026-11-06, lane RO's repair 2, LANE RO RULINGS 4 (3): re-read on lane
+  RO's repair 1, it reads 30.5 points against 31.1, its nine families
+  with the rules against without 0.28 / 0.13, 0.53 / 0.49, 0.44 / 0.46,
+  0.55 / 0.54, 0.40 / 0.43, 0.07 / 0.08, 0.14 / 0.00, 0.10 / 0.00 and,
+  the family of missing cells, 0.53 / 0.71; the battery carries no rule
+  on that head, so every difference is the raise, the fall of missing
+  cells included and not the presence item's, and restoring that family
+  without losing the first, seventh and eighth is lane RO2's first item).
 - **RD (computed columns).** Stacked on RO's head. `chain.infer_rules`'s
   formula half with MR.8's reading of a total written from binary64
   (a sum's bound too, REPAIR 2),
@@ -6195,7 +6341,16 @@ near-rule is in none of the three.
    a departure day against the departure stamp's day, breaks on about
    2,200 rows each way, against 0 in the real table. Owner: lane RO2,
    which enters the chain's plan after RO, what it must publish and prove
-   in MR.12; `K-S6-06` (vii) measures the failure until it ships.
+   in MR.12; `K-S6-06` (vii) measures the failure until it ships. AMENDED
+   2026-11-06 (lane RO's repair 2; the combined verify of repair 1, LANE
+   RO RULINGS 6 (5)): measured on the product at 20,000 rows, a surgery
+   date written after the discharge date in the schema, each computed from
+   the admission (the discharge from the surgery refused, since `B` reads
+   where `A` holds none), stands after the discharge on 1,287 of 5,986
+   twin rows; a reference range whose limits its test sets is refused,
+   and its low limit stands above its high on 8,011 to 8,061 twin rows
+   with the rules and without. `K-BC-10`'s UNPLACED reading counts such
+   pairs.
 2. **One rule a column.** `total = units x rate` beside `total = covered +
    copay` keeps the first; the second is unplaced. Carrying the formula
    moves the pairs beside it (the statistics review): `covered <= total`
@@ -6208,7 +6363,18 @@ near-rule is in none of the three.
    factors. Theorem R would cover each, as one more option with its
    parameter published. Owner: RD, then January, with the battery's count.
 4. **A column finer than its partner is not computed from it:** a stamp from
-   a date; the pair reads `implied`. Owner: RO2.
+   a date; the pair reads `implied`. Owner: RO2. AMENDED 2026-11-06 (lane
+   RO's repair 2): a stamp written to fractions of a second beside one to
+   the second as well (MR.7's item, a stamp's places after the second). A
+   stamp written to the second beside one to the minute is still computed,
+   its form kept but its seconds written as the pair's grain of a minute
+   allows: 0 of 20,000 twin cells hold a second other than 0 against 98
+   per cent of the real cells (the sibling check, LANE RO RULINGS 6 (1));
+   carried, owner RO2. AMENDED 2026-11-06 again (lane RO's follow-up, LANE
+   RO RULINGS 7 (2)): the sibling the other way, a stamp written to fewer
+   figures after the second than `A` (to the millisecond beside one to the
+   microsecond), is not computed either (MR.7), since its fraction would
+   be written to `A`'s count of figures on every cell.
 5. **Rules on several rows a person** stand under 4.6c.7's route, not this
    page's theorem: until lane GR counts failing rows in people, no count
    class and no derived option off that route (MR.3). Owner: GR with RO;
@@ -6250,6 +6416,24 @@ near-rule is in none of the three.
    `B - A` by less than one of its steps (MR.2). The statistics review's
    figures, on the first text's readings. `K-S6-11` names each move; a
    source `D` keeps its own tail. Owner: RO, measured beside `K-S6-11`.
+   AMENDED 2026-11-05 (lane RO's repair 1): a computed `B` is held at no
+   largest value, its block withholding its range (MR.6 (a)): on a
+   cohort whose last contact stops at the study's end, the twin wrote it
+   after the real table's last date on 4,734 of 20,000 rows (23.7 per
+   cent), its largest gap 1,841 days against 1,825 (the statistics
+   review, on lane RO's build). Holding `B` at its plain block's largest
+   value needs that value published beside the rule: owner RO2 (the
+   orchestrator's ruling, LANE RO RULINGS 3 (6)). AMENDED 2026-11-06 (lane
+   RO's repair 2; the combined verify of repair 1, its first carried item,
+   LANE RO RULINGS 6 (5)): a few-valued `B` computed from `A` is spread
+   within `D`'s bands. Two reference limits set apart independently, the
+   upper computed from the lower at `L0` in the phrase: no twin row has
+   the upper below the lower, but the upper takes 777 to 781 different
+   values against 5 real and 0.114 to 0.116 of its cells are a real value
+   (20,000 rows, three keys); without the rule it keeps its 5 values and
+   7,963 to 8,047 rows are inverted. A gap capped at 30 days on 70 rows in
+   100 comes back at the cap on 0.50 of rows against a real 0.70.
+   Publishing `D`'s values would be a new published fact: owner RO2.
 9. **`joined_numbers`, `numbers_with_labels`, partial dates and clock pairs
    crossing midnight on more than `L` rows** carry no rule. Owner: RD,
    January.
@@ -6277,7 +6461,27 @@ near-rule is in none of the three.
     MR.7's new item keeps such a `B` out where RO's line reads the loss.
     Owner: RO (`K-BC-01` read with and without the rules, the
     orchestrator's ruling 1 (4); `w_rule` decided there), and RO2 for the
-    carrier `{D | A, X}` with its own proof.
+    carrier `{D | A, X}` with its own proof. AMENDED 2026-11-05 (the
+    orchestrator's ruling, LANE RO RULINGS 3 (5); lane RO's repair 1): a
+    computed `B` is present where `D` reads, and `{D | A}` deals `D`'s
+    `missing` band by `A` alone, so `B`'s presence keeps no relation to
+    another column either (on lane RO's build the battery's survival
+    table's event date, present exactly where the status is not
+    `censored`, came back present on 57.4 per cent of censored rows, and
+    `K-BC-01`'s family of missing cells read 0.529 against 0.706 without
+    the rules; the statistics review, three keys). MR.7's presence item
+    keeps such a `B` out: on lane RO's repair head the event date and the
+    censoring date (each present by the status, a share of 1) are not
+    computed, and the twin writes event dates on 0 censored rows under
+    three keys at 20,000 rows. Its price is the order those rules kept:
+    MEASURED at 20,000 rows, the test key: on MR.9's emergency shape a
+    departure absent on one visit in a hundred, with its minutes and its
+    day, is refused with seven more rules, and the twin breaks departure
+    after arrival on 9,864 rows (9,959 without the rules; 25, its keyed
+    class, on lane RO's build); on the survival table the twin's event and
+    censoring dates fall before entry on 2,483 and 753 rows, as without
+    the rules. What remains is RO2's `{D | A, X}`, `X` the column the
+    presence follows.
 14. **A derived family refused** (REPAIR 1). A gap the levels cannot
     carry, a reference range's upper limit beside its lower one, where
     each test's gap stands alone in its band, fails rules 1 and 4 at every
@@ -6289,7 +6493,15 @@ near-rule is in none of the three.
     at 2,000,000 rows and 50 columns it scales to hours (ARITHMETIC, about
     6 for the order pairs and 3 for the formulas, `L` growing with `n`).
     RO's inference runs on arrays, with a time bar that lane's leg sets.
-    Owner: RO.
+    Owner: RO. AMENDED 2026-11-05 (lane RO's repair 1, the orchestrator's
+    LANE RO RULINGS 2 (1), (2) and 3 (7)): the inference runs on the
+    standard library, numpy past the generator's random stream being
+    outside the offline policy; it takes its readings from the cells the
+    describe reads, holds them as bytes (2.3 bytes a cell), and its time
+    is judged in CPU seconds: on numbers, dates and stamps mixed, 50
+    columns, 11.4 s at 20,000 rows, 23.0 at 100,000 and 36.5 at 200,000,
+    about six minutes projected at 2,000,000 against the bar of 2 CPU
+    hours; the 2,000,000-row run is owed to a night window.
 16. **The command's path** (REPAIR 1). `synthtwin profile`, unanswered,
     holds or top-codes columns the library's describe leaves plain, so a
     rule's `A` may be top-coded and pairs on held columns open no step
@@ -6305,7 +6517,15 @@ near-rule is in none of the three.
     millions of rows rarely has 10 failures or fewer. A carrier that keeps
     both, the gap beside its first column and the source column, is RO2's
     `{D | A, X}` (limit 13). Owner: RO, the owner told at the rules
-    gate.
+    gate. AMENDED 2026-11-05 (lane RO's repair 1, MEASURED on its head at
+    20,000 rows): with the one band no longer drawn (MR.7 as amended), the
+    twin agrees with the duration on 12.1 per cent of rows at 11 keyed rows
+    and 12.4 at 100 (real 99.94 and 99.5), on every row at 0 and 5 keyed
+    rows by the source, and on 0.2 per cent at 1,000, over `L`; the
+    build's 22.3 at 11 keyed rows was the one band writing the release as
+    the admission. The orchestrator's bar of 99 per cent of rows from 11
+    keyed rows (LANE RO RULINGS 2 (5)) needs the duration computed from the
+    dates or `D` dealt beside it: owners RD and RO2.
 19. **A heap with 1 to 21 rows above its top rung** (REPAIR 2, at `f` =
     11). Rule 1's band bound refuses every level with an edge, its
     highest band holding 1 to `max(2 f, f + 4) - 1` rows. At a heap of 0
@@ -6335,6 +6555,18 @@ near-rule is in none of the three.
     loss needs `v` and the rows above together past 1 in 100 of the rows,
     and `v` is at most `L`, so the corner is narrow; MR.7's item and
     `K-S6-08`'s fixtures stay as they are. Owner: RO.
+20. **A number column mixing bare figures and a trailing point** (ADDED
+    2026-11-06, lane RO's follow-up; the second verify of lane RO's
+    repair 2, LANE RO RULINGS 7 (3)). The rule writer reads `B`'s point
+    from its first fraction width, which counts only the cells written in
+    the decimal style, so a `B` written `43` on 0.70 of the rows and `43.`
+    on 0.30 is written `43.` on every computed cell, although its first
+    form is the bare one (the twin without rules: 0.70 bare and 0.095 with
+    the point; lane RO's repair 1: every cell bare). `float()` reads both
+    forms and `int()` fails on the real column too, so no conversion that
+    succeeds on the real column fails on the twin. The fix when taken:
+    write the point only where `B`'s first style is the decimal style and
+    its first width is 0. Carried, owner RO2.
 
 **4.6b.9 (h), read with this page.** Out of "checked, not proven": a carried
 rule's class beside the chain's families; beside its base columns' own facts;
@@ -6429,7 +6661,8 @@ R7 (2)).**
   pair, an analysis judged approximate or not carried). It names why a
   family was not placed or a rule not published, the rows each rule
   fails on (`K-BC-10`), and the key file's path, never the key. Lanes ST
-  and TT build it; the owner's words are R7 (2).
+  and TT build it; the owner's words are R7 (2). (The sentence on which
+  twin to use is amended 2026-11-05, in the self-test's amendments below.)
 
 **The CONTENT HASH of a row** is BLAKE2b (`hashlib.blake2b`, unkeyed,
 `digest_size=32`, `person=b"synthtwin.row.1"`) over the row's cells as
@@ -6495,6 +6728,440 @@ measures it under the 2.5 GB watchdog. Its simulation's words are SplitMix64
 outputs keyed by a constant and by the sampled rows' hashes (lane ST
 writes them). The triple screen's seeds (4.6b.3) read the same sample.
 No content hash is ever a draw input of RULE W5 (R6).
+
+**Amended 2026-11-04 (lane ST, plan P4-D458): the self-test `L2b`, its
+yardstick, its judged words and the two reports, as built behind the
+chain's switch.** Zone P (`synthtwin.chain_selftest`, the only zone P
+module, imported from one site, `cli._private_report`; plan P4-D409 part
+3 (b) as amended the same day). It reads the inputs `chain.describe`
+hands back beside its result and never publishes (`Chained.selftest`:
+each eligible column's `L0` band code, value codes and reading map on the
+sample rows, its ladder, its binary levels, its empty band, the quantile
+skew of its published rungs and its clip values; the placed families; the
+time-and-event pairs; the sampled rows' content hashes), and nothing it
+computes enters the description, the questions file, the summary, the
+twin or the shared report.
+- THE SAMPLE is selected as above in a bounded heap: one occurrence count
+  for each different row while the sample is drawn and at most `m` keyed
+  entries, the same rows in the same order as the first build. MEASURED
+  under the machine's guard (phys_footprint, an import-only step
+  subtracted): the selection's peak, less the content hashes `describe` already holds (13, 39, 76 and 154 MB), reads 20, 59, 147 and 241 MB at 200,000, 500,000, 1,000,000 and 2,000,000 rows of which a fifth repeat an earlier row (a sample of 20,000, then 200,000), in 0.6, 1.5, 6.0 and 10.1 s; the first build also held every row's keyed tuple and sorted them.
+- THE WORDS. Each sampled row has its own SplitMix64 stream (Steele, Lea
+  and Flood 2014), seeded by `(0x53594E5448545354 XOR h) + p *
+  0x9E3779B97F4A7C15` modulo `2**64`, `h` the first 8 bytes of the row's
+  content hash read big-endian and `p` its place among the sample's rows
+  of that hash; its `k`-th word (from 0) is SplitMix64's mix of `seed + (k
+  + 1) * 0x9E3779B97F4A7C15`. Word 0's low four bits are the row's group
+  of sixteen and split `j`'s half is bit `j` (the four fixed half-splits);
+  family `f` of the chain reads words `1 + 3 f` to `3 + 3 f` as G16.8's
+  three words a row; column `c` of a chain of `F` families is shuffled by
+  ordering the rows by word `1 + 3 F + c`, ties by row. The words are a
+  function of the table's content; `tools/reference/selftest_oracle.py`
+  and its frozen vectors hold them.
+- THE TRIAL TWIN is each eligible column's own sample cells, dealt into
+  rows by the chain's walk through the shared module alone (generation
+  method G16.9): a family's child dealt against the family's table counted
+  on the sample, on the parents' bands as dealt before it (the generator's
+  `_chain_family` orchestration, held equal to it by the gate's "one
+  walk" case, handed the same words), a column no family places dealt
+  alone. It is held in memory only. It is the arrangement the walk deals,
+  BEFORE the polish (lane MPg's), and the private report says so.
+- THE PANEL, from the schema alone (S2's automatic panel as the product
+  can afford it): `F1`, each two-valued column's rate in each `L0` band of
+  every other column (at the published bands), in sixteen equal bins of
+  every fine column's linear code (between the published cuts) and in the
+  cells of two of its eight strongest partners' `L2` bands (three columns
+  together); `F2`, Pearson's correlation of every pair of fine columns on
+  the linear code and, where one is skewed, on the second code; `F3`, least
+  squares of each fine number; `F4`, a logistic model of each two-valued
+  column; `F5`, a Poisson model of each count (read back from its linear
+  code between its clip rungs); `F6`, a Cox model (Breslow's ties) of each
+  time-and-event pair; each model on its outcome's strongest partners by
+  |r| on the sample, at most six and at most events over ten less one,
+  numbers standardized on the sample, two-valued columns 0 and 1, at most
+  twelve models of a kind; `F9`, each column's empty cells by the bands of
+  every other column; `F10`, the panel's models that stop on the trial twin
+  (a singular system, no convergence, a separation) and not on the
+  sample, read at best `approximate` where two or more date or time
+  columns stand and no rule orders them (the rule step is lane RO's): code
+  reading one date against another may stop on a twin that does not keep
+  their order. `F7` reads `not judged` (the chain is published only where each
+  person has one row); `F8` reads `not judged` in December (a trained
+  model's time is outside the self-test's). Newton's steps are solved by
+  `scipy.linalg.cho_factor` and `cho_solve`; the eight halves' logistic and
+  count models are one Newton step from the sample's fit, least squares
+  exact from each group's sums; the exponential is this section's stated
+  exponential (4.6b.4), so no library exponential or logarithm is admitted
+  for zone P. MEASURED: on the battery's first table at 20,000 rows the stated exponential and the library's `exp` judged every family and every pair alike (0 of 10 and 0 of 136 differ), the stated one 50.2 s against 45.3 s, the two within 1.6e-13 of each other in relative terms over 0 to 700.
+- THE YARDSTICK. Of each estimate, `h`, the root mean square over the four
+  splits of half 0's value less half 1's (of a pair's `L0` table, the total
+  variation distance between its two halves' tables), SCALED to the whole
+  table, `h * sqrt(n_s / n)` (BC-ARCH 4.2 item 1). Supported estimates
+  only: every defining cell at least 22 rows on the sample and 11 in every
+  half, events and non-events alike (`analyst_battery.SUPPORT`). RULE W2:
+  a pair is judged only where `n` times its scaled yardstick reaches `f`,
+  else it reads `not judged`.
+- THE CONTROLS, in every run. The REPLICATE is split 0's two halves, one
+  held against the other, within `sqrt(2)` times the yardstick of splits 1
+  to 3 (a half against a half, unscaled: a fresh sample's rate is about
+  three in four); the SHUFFLE is the sample with each column in an order
+  of its own, held to `h`. An estimate is JOINT where its sample value
+  stands more than `h` from its value were the columns unrelated (a rate's
+  overall rate, nought for a correlation or a coefficient). A run judges
+  nothing, every family and pair reading `not judged` with the reason in
+  the private report, where the replicate lands inside on less than half
+  of the supported estimates or the shuffle lands inside on the joint ones
+  within 25 points of the replicate's share there; a table where no
+  estimate is joint is judged, a twin without relationships missing none.
+- THE JUDGED WORDS (private only). An estimate is INSIDE where the trial
+  twin's gap from the sample is within its scaled yardstick. A family, or
+  a part of one (`F1`'s three, `F2`'s two scales), of at least five supported
+  estimates reads `carried` where its share inside stands at most 25
+  points under the replicate's (`K-BC-01`'s family target) AND, over its
+  estimates the shuffle moves beyond their yardstick (five or more), the
+  median of the trial twin's gap over the shuffle's is at most the
+  replicate's (one half against the other): it keeps the relationships as
+  a fresh half does, which the first build did not ask, and it called `F1`
+  carried where the product's chain twin missed it; inside but keeping
+  less, `approximate`; otherwise `not carried` where that median of the
+  twin's is at least one half (THE LINE, decided on measurement: on the battery's ST1, ST4 and ST6 at 20,000 rows the replicate's median gap over the shuffle's read 0.03 to 0.56 family by family, the shuffle's own is 1 by construction, and the trial twin's read 0.42 to 0.79 on the families the product's chain twin misses its target on and 0.30 to 0.44 on those it meets);
+  otherwise `approximate`; with fewer estimates `not judged`. A family with parts
+  reads the worst word of them. A pair reads `carried` where its `L0`
+  table's distance from the sample's is within its scaled yardstick, `not
+  carried` where it is at least half the shuffle's, `approximate`
+  otherwise. THE CEILING: a raw-scale analysis of a skewed column, and a
+  log-scale one of a skewed column with no second code, read at best
+  `approximate` whatever the sample finds; a column is skewed where the
+  quantile skew of its published `p10`, `p50` and `p90` reaches 1/5 in
+  magnitude, the threshold at which section 4.6d gives a fine column its
+  second code, decided on that measurement (plan P4-D455). The self-test
+  reads codes only (a fine column's raw scale is its linear code between
+  its clip rungs, its log scale its second code), so the private report
+  names the raw and log scales of each skewed column at best approximate
+  beside the family's word.
+- THE PRIVATE REPORT is written by a switched `synthtwin profile` run once
+  the ledger holds the run and the description is written, into the
+  private folder (by default `private-reports` in the installation's data
+  folder, beside the key file; made 0700, the file 0600; refused in plain
+  words where the folder is or lies inside the description's folder or
+  holds a description or a twin), named `<the table's name>-private-report`
+  with the text file's ending; nothing is written where the ledger refuses
+  the run. It holds the sentences on which grade to act on and which twin
+  to use, the precision line ("Judged on a sample of N rows of your M-row
+  table, at the precision of your whole table."), the controls, each
+  family `F1` to `F10` with its structural grade and its judged word (and its
+  parts' words), each pair with the description's word and its judged
+  word, every private note of `describe` (why a family was not placed, the
+  refusals, why no chain is published), rule B's moments by kind and
+  reason as `describe` counts them, never a value, the patient words of
+  4.6c.11 read from `grain` as 4.6c.9 writes it (built on hand-built
+  `grain` objects until lane GRa's layer merges), and the key file's path,
+  never the key. A run whose chain is off still writes it, naming the
+  reason. *Amended Saturday 2026-11-07 (batch 4q's merge of lane ST
+  beside lane GRa's patient layer, plan P4-D458):* the patient words read
+  `grain` as the description is written with its chain; where a
+  description's chain is its patient layer's, the self-test, which judges
+  a chain of one row a person, has no inputs, every family and pair reads
+  not judged for that reason, and the structural grades are those of a
+  description with a patient layer; while the subject question holds the
+  chain, the patient line gives the reason no chain is published and never
+  says that each row is one person's.
+- THE SHARED REPORT, on a twin of a description loaded with the chain's
+  switch whose `statistical` stands, prints in the independence
+  paragraph's first item's place the block "What you can analyse on this
+  twin": one line for each family `F1` to `F10` in its structural grade (`P`
+  only where the description's `words` reads `pinned`; code run unchanged
+  `E` within columns and `A` between columns where no rule is published), one line for each
+  pair with the description's own word, never recomputed, a family dealt
+  against a moved target read `A` and named "moved in this twin" on its
+  pairs, and 4.6b.13's line. Nothing else: no estimate, rate, gap,
+  precision, sample size, judged word or reason a pair was left out. Every
+  other twin's report keeps the independence paragraph word for word.
+  *Amended Sunday 2026-11-08 (batch 4q's fix round, Codex's review of
+  batch 4q, item 3; plan P4-D458):* in both reports, a chain published or
+  not, `F10`'s grade within columns reads `E (exact) within columns, except
+  within <columns>, whose twin writes record numbers where the table holds
+  dates, which read N (not carried)`, naming each held column of dates
+  whose published `made_up_years` (7.12c) holds no run of the kind of year
+  one of its date layouts, or its grain's reading, writes -- empty, or
+  beside the remark NF137 -- since its twin writes those values as record
+  numbers and code reading the column as dates does not run there; both
+  reports read the columns from the description's own facts by one rule,
+  the twin's own (`generation.dates_written_as_record_numbers`), and every
+  other word stands. `F10` names nothing for a column whose room is
+  published while the date pass writes no date in it (a layout the census
+  withholds) or that names a UID's layout: stated, plan P4-D458.
+
+**Amended 2026-11-05 (lane ST's repair 1, plan P4-D458; LANE ST RULINGS 3
+and 4): the self-test's keys, its shares, F1's label part, a pair's word,
+the table without relationships, the sentence on which twin to use, and the
+run the self-test never moves.** Zone P and the inputs stand as above; the
+self-test's word on every family and pair changes as follows.
+- THE TRIAL KEYS. The self-test runs under its constant and the constant
+  plus 1 and plus 2, ONE KEY AFTER ANOTHER (a key's memory is let go before
+  the next, so the increment stays one key's), and every family and pair
+  reads the WORST of the three keys' words, `not judged` where any key
+  does not judge it; a key whose controls fail leaves every word `not
+  judged`. The private report keeps each key's word. MEASURED on lane
+  `A0b`'s 50-column table at 200,000 rows (48 eligible columns, the machine
+  loaded, the run holding about half a processor): a key took 170 to 181 s
+  on a 20,000-row sample, 891 to 958 s on 100,000 rows and 1,812 to 2,087 s on
+  200,000; three keys 528, 2,761 and 5,832 s, two keys 358, 1,870 and 4,020
+  s. The 200,000-row sample's three keys used 51 minutes of the process's
+  processor time, inside the hour lane ST's RULINGS 3 (2)(a) sets for a
+  quiet machine; the keys running one after another, the footprint stood
+  at most 515 MB above its level before them (the process's peak 1,778 MB,
+  `describe`'s state let go). On the battery at 20,000 rows (`K-BC-11`, 21
+  table-seeds) three keys read 15 families carried where the first key alone
+  and the worse of two read 17: the third key took two carried words, both
+  where the product's chain twin meets `K-BC-01`'s target, none where it
+  misses; the first key alone held one judged overclaim, two keys and three
+  none.
+- THE SHARES. A family's share of estimates inside the scaled yardstick,
+  and the replicate's, are read on its JOINT estimates (the set `K-BC-01`'s
+  family target counts), on all its supported estimates where fewer than
+  five are joint (the constant `JOINT_MINIMUM`).
+- F1'S PART OF ITS OWN. Each level of a label column holding 22 rows or
+  more on the sample (its ten largest, its empty band aside) is read as a 0
+  and 1 outcome in each `L0` band of every other column, a part of F1 judged
+  as the others, `F1` reading the worst of its parts. MEASURED (the battery's
+  tables at 20,000 rows, table seed 1, the machine loaded): the part took 0.8,
+  1.4, 2.2, 2.8 and 3.2 s over the three keys on ST3, ST4, ST5, ST1 and ST6,
+  beside 20, 86, 91, 182 and 226 s for the three keys' self-test whole; on ST3
+  it read 62 of its 543 supported estimates inside, and `F1` not carried there,
+  where the build had read it carried (the battery's eight cross-tables of the
+  label `status` by `stage`).
+- A PAIR'S WORD. The pair's table is read at the finest level whose every
+  cell holding rows holds 22 rows on the sample and 11 in every half (`L0`,
+  then `L1`, then `L2`); where none does, the pair reads `not judged` and the
+  private report says why. A pair that holds a fine column also reads its
+  CODE-SCALE CORRELATION (Pearson's r of the fine column's linear code with
+  the other's linear code or its 0 and 1, the correlation ratio by a
+  label's levels, each of 22 rows and 11 in every half, and the same on the
+  second code where a column is skewed), and reads the WORST of its table's
+  word and its correlations'; the code scale of a pair holding a skewed
+  column reads at best `approximate` (THE CEILING, printed on the pair's
+  line); a correlation reads `not carried` only where the sample shows the
+  relationship (the estimate is joint), a table where the shuffle moves it
+  beyond its yardstick. A pair's table at `L0` holding the same bands as
+  one family's published table can sit at nought distance while the walk
+  deals the rows apart inside the bands: on BC-ARCH 4.2's design the first
+  build read crp and cost `carried` where the product's chain twin missed
+  their correlation by 17.7 whole-table yardsticks (lane ST's statistics
+  skeptic). MEASURED on the battery at 20,000 rows (`K-BC-11`, 21
+  table-seeds, 1,239 pairs the analyst measures): 1,229 pairs read carried
+  on their table alone and 484 on table and correlation (507 under two keys);
+  of the pairs no longer carried 246 stand outside the battery's yardstick on
+  the product's chain twin and 429 inside, the price; 129 exact pairs miss on
+  their correlation there, which the word `exact` no longer claims; 33 pairs
+  read `not judged` for a sparse cell at every level and 383 read their table
+  at a coarser level. On lane `A0b`'s table at 200,000 rows, on a sample of
+  200,000, 997 pairs read carried on their table alone and 280 on both (324
+  under two keys).
+- THE TABLE WITHOUT RELATIONSHIPS. A family between columns (`F1` to `F6`,
+  `F9`) with fewer than five joint estimates, or whose share of joint
+  estimates stands under TWICE CHANCE, reads `not judged`, the panel seeing no
+  relationship it could carry or miss: chance is
+  0.116, the yardstick being read from four half-splits (the ratio of an
+  estimate's distance from its null to `h` is Student's t with four degrees
+  of freedom over two, P(|t_4| > 2) = 0.116, where a yardstick known exactly
+  gives 0.046). The line is read family by family: over a whole run the
+  joint share read 0.103 to 0.105 on the null table ST5 and 0.112 to 0.119
+  on ST4, a table with relationships, at 20,000 rows, so no line over a run
+  tells the two apart. Family by family on the battery (`K-BC-11`): on ST5
+  the shares read 0.087 to 0.101 for `F1`, 0.051 to 0.154 for `F2` and 0.101
+  to 0.133 for `F9`; on the tables with relationships `F1` reads 0.32 to 0.34
+  on ST1, ST3 and ST6 and `F2` 0.67 to 0.74. A LIMIT, measured: the panel's
+  models take each outcome's strongest partners on the sample, so where
+  nothing is related their coefficients stand beyond their yardstick from
+  nought more often than chance, and on ST5 at table seed 1 the linear
+  model's family read `not carried` under all three keys (6 of its 18
+  coefficients joint); setting the line for models chosen that way is lane
+  ST2's.
+- THE CEILING names the skewed columns under `F2` to `F6` (logistic and Cox
+  models with a skewed predictor on its raw scale included) and on each
+  pair holding one.
+- WHICH TWIN TO USE. The sentence of this section's private report that
+  read "where the twin's numbers can stand in for the real table's (an
+  `exact` or `pinned` pair, an analysis judged carried), and where the twin
+  is for developing code only, which is then run unchanged on the real
+  table (an `implied` pair, an analysis judged approximate or not carried)"
+  reads from this date "where the twin's numbers can stand in for the real
+  table's (a pair or an analysis JUDGED carried; a pair whose word is
+  `exact` is exact at its family's published bands, so an analysis at those
+  bands gives the real table's numbers and any other analysis of the pair
+  reads as its judged word says), and where the twin is for developing code
+  only, which is then run unchanged on the real table (an `implied` pair, a
+  pair or an analysis judged approximate, not carried or not judged)". The
+  private report prints an `exact` pair as "exact at its family's published
+  bands", and the shared report's pair heading says exact at the published
+  bands of the one family that holds both.
+- THE LINE between `approximate` and `not carried` stays one half, a
+  CONVENTION, the conservative one: over the battery's three seeds the
+  replicate's median gap over the shuffle's read 0 to 1.36 (its 95th
+  percentile 0.59), the trial twin's 0.26 to 1.03 where the product's chain
+  twin misses its target and 0.05 to 0.98 where it meets it (lane ST's
+  statistics skeptic), so the line does not separate the controls; no
+  advice rests on it, `approximate` and `not carried` alike saying develop
+  the code on the twin and run it unchanged on the real table.
+- WHAT WAS LEFT OUT. The private report counts the rate cells,
+  correlations, models and pairs' tables the support rule left out and the
+  pairs RULE W2 left `not judged`, and says that RULE W2 binds only below the
+  table floor: at 20,000 rows it refused none of 4,392 pair judgements
+  (lane ST's statistics skeptic), and none on ST1 to ST6 and lane `A0b`'s
+  50-column table at 20,000 rows (lane ST's repair 1). It names the panel's models by
+  outcome and partners; at most twelve outcomes of a kind are modelled, the
+  first in the table's order (a STATED LIMIT, for the self-test's seconds
+  under G4), and no line says every column of a kind is. On a sample smaller
+  than the table it says once that pairs read approximate more often than on
+  a larger sample: an underclaim, never an overclaim (4.6b.14).
+- THE RUN THE SELF-TEST NEVER MOVES. Any fault of the self-test below the
+  system-exit family (a fit that stops, a number out of range, any other)
+  leaves the exit code of a run whose description and twin were written, and
+  every shared byte, as with the self-test replaced by a stub; the private
+  report, where it can be written, reads every word `not judged` because the
+  self-test stopped. A private folder that already stands with any group or
+  other permission (POSIX) is refused in plain words, as the installation's
+  own data folder is.
+- THE FITS' SOLVE. Newton's steps are solved by the Cholesky factor of
+  the information matrix written out in Python floats (at most seven
+  unknowns, a pivot that is not positive a singular system), no longer by
+  `scipy.linalg.cho_factor` and `cho_solve`: scipy 1.18, which Python 3.12
+  and later install, refuses a list where 1.17 took one, and zone P builds
+  no array. MEASURED on the battery's ST1, ST3, ST6 and SD at 20,000 rows,
+  table seed 1, under Python 3.11's scipy 1.17: every key's word of 40
+  families and 320 pairs the same either way, the written-out solve 182.5
+  against 186.0 s on ST1 and 231.7 against 239.4 s on ST6, so `K-BC-11`'s
+  stamp, taken before the change, stands for it.
+- THE SHARED REPORT. Its `F1` line reads "...; `N` for three or more
+  columns across families" as this section grades it, and on a twin of a
+  description made with the switch that publishes no chain the block grades
+  `F1` to `F9` `N` and code run unchanged `E` within columns and `N` between
+  them, with no reason and no pair.
+
+**Amended 2026-11-05 again (lane ST's repair 2, plan P4-D458; LANE ST RULINGS
+5 and 6, on the outside review and the combined verify of repair 1): the
+share rule alone, the raw scale, a comparison skipped, the complete cases,
+the moved family's lines, the report with no chain, the private folder and
+RULE W2's scope.** Zone P and the inputs stand as above, with one field
+more: `describe` hands the self-test, beside each fine column's codes, the
+sample rows whose reading lies beyond the column's clip (4.6d.1), each with
+its reading, held in memory and never published or written.
+- THE TABLE WITHOUT RELATIONSHIPS reads the SHARE alone: the share rule
+  leaves a family between columns `not judged` only where its share of joint
+  estimates stands under twice chance. The clause "fewer than five joint
+  estimates" of the amendment above is withdrawn: it dropped at family level
+  the fallback of the shares to every supported estimate, and on invented
+  tables of 20,000 rows it was the rule that left unjudged a heavily
+  censored table's logistic model with three of its eight coefficients 3.5
+  to 8.7 yardsticks from nought and missed on the trial twin. That model,
+  and a 40 %-blank table's linear model with three coefficients near 14
+  yardsticks missed, still read `not judged` once the clause is withdrawn: A
+  COMPARISON SKIPPED IS NO AFFIRMATION, below, leaves them (three or four
+  comparisons against the shuffle), and from 2026-11-06 their reason says
+  how many of their estimates showing a relationship the trial twin keeps
+  inside (none of three; the amendment of that date). The private report
+  gives the family's counts ("only k of its m supported estimates stand
+  beyond their yardstick from their value were the columns unrelated, under
+  twice the share chance gives, so it is not judged") and never says that
+  the panel sees no relationship or that nothing could be carried or missed;
+  where no estimate of the run is joint, nothing between columns is judged,
+  and the report says that none stands beyond its yardstick. Whether the
+  share is read per column and partner inside `F1` and `F9` is lane ST2's.
+- A COMPARISON SKIPPED IS NO AFFIRMATION. A family or part inside the
+  yardstick about as often as the replicate reads `carried` only where at
+  least five of its estimates are moved beyond their yardstick by the
+  shuffle and the trial twin keeps of them what a fresh half keeps; with
+  fewer it reads `not judged`, the comparison not made.
+- THE RAW SCALE. A pair holding a number also reads its correlation on the
+  RAW SCALE (Pearson's r, or the correlation ratio by a label's levels): a
+  reading beyond the clip as it stands, every other reading at its code's
+  mid-point (within half of 1/256 of the clip's span), the trial twin's
+  rows holding the sample's readings as its walk deals them. A pair reads
+  the worst of its table's word and its correlations' on the code scale,
+  the second code and the raw scale; where the raw-scale correlation moves
+  beyond its scaled yardstick, the pair reads at best `approximate` and the
+  private report prints "On the raw scale of a and b (extreme values): at
+  best approximate."; a skewed column's raw scale reads at best
+  `approximate` (THE CEILING); a pair holding no number has no raw scale
+  and says so. A pair whose cross-table and codes the trial twin keeps
+  exactly can lose a correlation the extremes beyond the clip make: two
+  equal invented numbers, 20 rows at each of plus and minus 1,000,000 among
+  19,960 readings within 100 of nought, read `carried` before this date
+  where the trial twin's raw correlation falls from 1.0 to about 0.08.
+  Its cost, measured on the battery's invented ST6 (18 columns, nine of them
+  fine) at 200,000 rows, the sample forced to 200,000 rows, one key, the
+  machine loaded: about one second of the key's 350 s of processor time, and
+  6.7 MB for the readings beyond the clip over the three tables (0.9 to 2.0
+  per cent of the sample's rows a column), beside the key's 384 MB. The
+  self-test's part is a function of the sample alone; `describe`'s reading
+  pass holds, one column at a time, that column's rows beyond the clip
+  (computed, not measured: about 5 MB a column at 2,000,000 rows).
+- THE COMPLETE CASES. A label pair's levels are counted on the rows holding
+  both the label and a reading (22 rows on the sample, 11 in every half),
+  the rows its correlation ratio reads.
+- THE CEILING'S LINE. Where a skewed column holds a second code, its log
+  scale is judged on that code, so its line reads "On the raw scale of ...
+  (skewed): at best approximate"; "raw or log" only where no second code
+  exists.
+- A FAMILY MOVED IN THIS TWIN. The shared report's `F1`, `F4` and `F9`
+  lines read `E` inside each family "except in the families of x, moved in
+  this twin, which read A (approximate)", as the family's pair lines do.
+- NO CHAIN. Where no chain is published, the private report's structural
+  grades are the ones the shared block prints for such a description (`N`
+  for every family that needs a chain, `E` within columns for code run
+  unchanged), every judged line names the reason no chain is published, and
+  a table of several rows a person is said to hold them, the description
+  describing none of them.
+- THE PRIVATE FOLDER. The folder named passes the locality gate as given,
+  a network form refused on the string, before any filesystem call; every
+  look at it sits inside the report's own handler, so a folder no one may
+  read leaves the run, its exit code, every shared byte and the questions
+  file as they are and says so; the report's file and its temporary name
+  are refused where either resolves onto the table, the answers file, the
+  description, its summary or the questions file; the file is named by
+  the table name's letters, a dash and twelve figures of a digest of the
+  exact name, so two names never share one report.
+- RULE W2'S SCOPE. The report says that RULE W2 leaves a pair not judged
+  where the table's rows times its yardstick fall under the floor: at the
+  floor of 11 on a table of 20,000 rows or more, a pair whose yardstick on
+  the sample is under 11 in 20,000 (a yardstick of nought at any size); a
+  raised floor leaves out more. A part's count is printed on its own basis
+  (its joint estimates where its shares were read on them), and the report
+  says once that a pair's words belong to its description, the chain being
+  drawn under the description's name and key.
+
+**Amended 2026-11-06 (lane ST's follow-up, plan P4-D458; LANE ST RULINGS 7
+(1) to (3), on the scoped verify of repair 2): every comparison past the
+line, and the count in the reason.** The bullet A COMPARISON SKIPPED IS NO
+AFFIRMATION above read "with fewer it reads `not judged`, the comparison
+not made"; from this date it reads "with fewer it reads `not carried` where
+every one of those estimates reads `not carried` on its own (outside its
+scaled yardstick, a relationship shown, the trial twin's gap at least half
+the shuffle's), and `not judged` otherwise; either way its reason says how
+many of its estimates standing beyond their yardstick from their value were
+the columns unrelated are inside on the trial twin ('k of its j estimates
+... are inside on the trial twin'), and where fewer than five of them are
+joint, that the share inside was read over all its supported estimates".
+So 'inside the yardstick about as often as the replicate' is never the
+whole of the reason. A comparison the trial twin keeps inside its scaled
+yardstick never stands past the line, whatever its gap over the shuffle's:
+the case of the amendment above (five joint estimates, all inside on the
+trial twin, four moved by the shuffle and the twin's gap .727 of the
+shuffle's on each) stays `not judged`, counting 5 of 5 inside, where the
+ratio alone would call it `not carried`. MEASURED on the scoped verify's
+invented tables at 20,000 rows, three trial keys, the words read before and
+after by one counter: the heavily censored table's logistic model at table
+seed 1 (keys `not judged`, `approximate`, `not judged`) and at seed 2
+(`not carried`, `not judged`, `not carried`), and the 40 %-blank table's
+linear model at seed 1 (`not judged` under every key), still read `not
+judged`, because under each key the comparisons rule reads, one of their
+strongest coefficients keeps the trial twin at 0.25 to 0.38 of the
+shuffle's gap, short of the line (outside its yardstick, but within half
+the shuffle's distance of the sample's value); their reasons now count 0
+of 3, 1 of 4 and 0 of 3 of their estimates showing a relationship inside.
+The rule costs a count over a family's estimates, no second pass over the
+sample.
 
 #### 4.6b.9 Why no small count can be worked out: the proofs
 
@@ -6613,7 +7280,9 @@ facts `D` publishes, then the preimage of `D` is `CONS(D)`.
 reads facts `D` publishes, which `T` shares, so it decides as it did on
 the real table. Each rule step `D` carries opens on `T` too (lane MR's
 obligation, 4.6b.7: a PRECONDITION of this proof for rows 9, 9b, 10 and
-14, open until MR's page proves it), and a rule step `T` opens that `D` does not list
+14, proven by MR.4 under the inference of MR.3 exactly as written;
+AMENDED 2026-11-04, lane RO, plan P4-D459; it read "open until MR's page
+proves it"), and a rule step `T` opens that `D` does not list
 can draw "not carried", which is always eligible. At each drawn step
 the offered options are the same (row 3 below is (b)), in the same
 option order, and the option `D` placed is eligible on `T`, since its
@@ -6682,7 +7351,7 @@ covers the rows marked MBC.
 | 6 | a source column's `L0` merge | a fact of one column (P4-D363); its taken-in sub-band is an own-fact group, so W1 covers its counts across columns | MBC |
 | 7 | rule inference and the rule raise | (a): weights only, and opening a rule step whose "not carried" is always eligible; an inferred rule not carried is neither published nor named | MBC with MR |
 | 8 | rule words | (b): every qualifying zero of a placed family's table | MBC |
-| 9, 9b, 10 | an order rule or formula rule carried, and "computed"; a source column taken as `D` | (a): drawn at the rule's step, "not carried" always eligible; a carried option is eligible under row 9's ONE test read once on the rule's base (facts published in either outcome) and the antecedent bound (4.6b.7), a source carrier and a formula rule on the phrase only; PRECONDITION, open until lane MR's page proves it: MR's inference conditions implied by the base, the class and the antecedent bound | MBC with MR; MR prices it |
+| 9, 9b, 10 | an order rule or formula rule carried, and "computed"; a source column taken as `D` | (a): drawn at the rule's step, "not carried" always eligible; a carried option is eligible under row 9's ONE test read once on the rule's base (facts published in either outcome) and the antecedent bound (4.6b.7), a source carrier and a formula rule on the phrase only; PRECONDITION, proven by MR.4 under the inference of MR.3 exactly as written (AMENDED 2026-11-04, lane RO, plan P4-D459; it was "open until lane MR's page proves it"): MR's inference conditions implied by the base, the class and the antecedent bound | MBC with MR; MR prices it |
 | 11 | time-and-event pairs raised | (b) for the detection (published roles and names); (a) for the raise | MBC, CHa |
 | 12 | the triple screen's seeds: its two rankings (all triples on the finer codes, its 10; the few-level class, its 3) and its finer coding of few-level columns | (a): offered as weights only, never forced, both lists through W5's keyed draw; read on the self-test's sample, never published; on in December at `w_seed` = 1/20 (amended 2026-10-20, 4.6b.14) | MBC |
 | 13 | placed cuts | off in December; if ever on, each cut set enters as a level option, (a) | MBC |
@@ -6990,7 +7659,9 @@ and nothing in it enters a shared file.
   carried rule's class over its base, nor, for an order rule carried by
   a derived column, over the whole description ((e)). The carried
   rules' rows (inventory rows 9, 9b, 10 and 14) are proven on one
-  PRECONDITION, open until lane MR's page proves it: that MR's
+  PRECONDITION, proven by MR.4 under the inference of MR.3 exactly as
+  written (AMENDED 2026-11-04, lane RO, plan P4-D459; it read "open
+  until lane MR's page proves it"): that MR's
   inference conditions are implied by the base, the class and the
   antecedent bound, so that every table a carried rule's description
   allows opens the same rule step (Lemma 2; 4.6b.7). "No count" means none beyond each column's
@@ -7023,8 +7694,9 @@ and nothing in it enters a shared file.
   from rule B's published moments (4.6d.0 (1)), which stand on rule B's
   floor and rounding, not on a proof; no published slope is CHECKED, NOT
   PROVEN, because none is published apart.
-- **Open preconditions:** lane MR's inference conditions, above, for
-  rows 9, 9b, 10 and 14.
+- **Open preconditions:** none. AMENDED 2026-11-04 (lane RO, plan
+  P4-D459): lane MR's inference conditions for rows 9, 9b, 10 and 14,
+  open here until the rules page, are proven by MR.4 (4.6b.7).
 - **The other three threats.** Identifiers and free text are ineligible
   (4.6b.1). No end of any column is published: every edge, and the
   code's clip, is an interior published rung. Real rows: a twin meeting
@@ -7192,6 +7864,37 @@ position-like column publishes no block of its own beyond its values by
 position; the patient layer's objects are counted in their own units; no
 family counted in rows has a free visit-position parent.
 
+AMENDED 2026-11-04 (lane RO, plan P4-D459): S28 AS THE RULES PAGE AMENDS
+IT (4.6b.7, MR.1 to MR.6), built in `chain_check.check_rules`, the one
+call that replaces this version's refusal of every rule. Each entry of
+`rules` holds exactly `carrier`, `class`, `computed`, `derived`, `grain`,
+`inputs`, `kind`, `op` and `unit`; `kind` is `order` (a formula rule is
+lane RD's) with `op` null and one input, an eligible column of a role
+MR.2 reads with no E-notation; rule identities are unique, a column is
+computed by at most one entry and no entry reads a computed column; the
+`grain` is the one the input's layouts and the computed column's first
+layout give. A derived carrier names no `unit`, its class is the phrase
+or a count from the floor to `L(n)` whose whole partition passes row 9's
+one test on the base (Proposition T), and its `derived` entry names its
+level (`L0`, `L1`, `L2` or `one`), its edges as exact decimals strictly
+increasing, its totals, its parent the input at a level, and a complete
+table summing to the input's totals at that level and to its own totals,
+meeting rules 1 to 6 with its class; RULE W1 (S24) reads it through its
+parent, `D` at its one level as its coarsest. A source carrier takes the
+phrase alone, is another eligible number column whose block publishes
+`n_negative` 0, and meets MR.3's three source conditions on published
+facts. A computed column's block holds the keys of its rule's role, its
+name, place and the rule's role, its layout words as lists, and every
+other key `null`, `{}` or `[]`, checked key by key; the loader reads such
+a block only behind the switch (`contract._computed_column`, the waiver
+in its minimal form) and reads no invariant of a withheld key on it.
+AMENDED 2026-11-06 (lane RO's repair 2, LANE RO RULINGS 5 (1), the
+outside review's item 1): a computed number column whose own block is
+affixed holds its two affix words beside its rule's role's keys,
+whatever that role, so `B` written with a unit keeps it beside an `A`
+written bare (computed at `A`'s role alone, it lost its unit on every
+twin cell); no other key is added.
+
 #### 4.6b.12 Dispositions (in force with the landing that ships stage 6; until then section 9.1's `relationships` row stands)
 
 | field | disposition | why |
@@ -7221,7 +7924,8 @@ installation; proven for the published numbers (4.6b.9 (a)) and for the
 procedure through the draw lemma ((b)), with the own-fact groups of each
 column covered by RULE W1 ((c), case (ii) read as ruled), the census of
 records holding nothing by RULE WE ((b)), and the carried rules as (b),
-(d) and (e) state, on lane MR's open precondition, each remainder named
+(d) and (e) state, on lane MR's precondition, proven by MR.4 (AMENDED
+2026-11-04, lane RO, plan P4-D459; it read "open"), each remainder named
 in (h). "No count"
 means none beyond each column's own facts, which the base product
 publishes as today (P4-D363).
@@ -7254,7 +7958,17 @@ the oldest Python synthtwin runs on is 3.11 (the owner, 2026-10-19,
 Python 3.10 (about 7.3 to 11.2 hours with the two savings that remain)
 no longer applies, and `K-S6-15` measures 3.11 once. The search over
 every tabled row, the level variants and RULE W1's full check are not
-yet priced (plan P4-D407).
+yet priced (plan P4-D407). (Amended 2026-11-05, lane CHs, plan P4-D462,
+its figures restated at the lane's repair 1 the same day: `K-S6-15`'s
+describe part prices the switched describe on Python 3.11, PROJECTED on
+50 numbers, one head and one hash seed, at 2,000,000 x 50: about 4.0
+CPU hours through 20,000 and 200,000 rows with the screen read on the
+self-test's sample of 200,000 rows, and 4.1 to 4.2 through 200,000 and
+500,000 rows; the plain description about 2.6 of them and the search
+over every tabled row, its level variants and RULE W1's full check
+about 48 minutes on the first line and 57 on the second, 7,869 tables
+counted at 500,000 rows; measured, never projected, on lane SX's
+nights.)
 
 **Not promised:** a Bayesian reader's belief beyond full support (limit
 1); several descriptions of one table (limit 2); the reading of case
@@ -7328,7 +8042,7 @@ written as a fraction and read on the scale of the score (4.6b.3).
 | `w_te`, the time-and-event raise | `"0"`, OFF (amended 2026-11-02, lane CHa2, DECIDED on the product, plan P4-D451; was `"1"`, ON (amended 2026-10-20; was `"0"`: no measured effect)) | DECIDED: on the product's own twins under the keyed draw, keys 1 to 3, `0` against `1`: lane `A0b`'s table at 20,000 rows, supported estimates inside their yardstick 124, 137 and 144 against 131, 124 and 136 of 273 (replicate 227, shuffle 139), death rates by age and gender 11 of 17 each against 3 to 5; at 200,000 rows 99, 94 and 98 against 87, 96 and 84 of 287 (replicate 213, shuffle 102: the chain's own twins stand near the shuffle at that size with either value, plan P4-D451), death rates by age and gender 7, 5 and 7 of 20 against 0; the analyst battery's ST1 at 20,000 rows, pooled 0.426, 0.439 and 0.431 against 0.434, 0.437 and 0.415, the survival family 0.67, 0.53 and 0.53 against 0.20, 0.13 and 0.13, truths recovered 5, 4 and 4 against 2, 2 and 2. WHAT IS PAID: the Kaplan-Meier curve of the pair on lane `A0b`'s table, largest gap in S(t) 0.012 against 0.006 at 20,000 rows (replicate 0.005, shuffle 0.028) and 0.010 against 0.006 at 200,000 (replicate 0.003, shuffle 0.030); and, at 200,000 rows on lane `A0b`'s table, one of `K-BC-02`'s three-way truths, intensive care by old age, recovered with `1` on every key (-0.80, -0.71 and -0.79 against the replicate's -0.655, shuffle -0.057) and lost with `0` (no estimate on keys 1 to 3; at 20,000 rows it is lost with either value, and the replicate gives none) (amended 2026-11-02, lane CHa2's repair; neither value wins on every family, so `K-BC-01` pooled decides, as the step's rule says); the survival models' four hazard ratios stay outside their yardstick either way on that table (0 or 1 of 4), since the pair no longer stands first in the chain; it stays a relation the chain may draw (`u` of the pair is large), and the detector stays, read at weight nought. BEFORE THIS AMENDMENT (the history): KEPT as lane `A0b` measured it, the time-and-event pair first: at 200,000 rows x 50 columns its chain `t1` (the pair offered first, the event its parent) scored 188 of 287 against `t0`'s 182 (no raise), polished, and every 200,000-row figure of this table was measured on `t1`. On that table the pair is NOT already the strongest option: `t0`'s root is blood pressure's two columns, scoring 0.756 `n`, the pair 0.046 `n`; a raise of `1 n` puts the pair first there, as `t1` did (JUDGEMENT on that one table; the value is PROVISIONAL until lane CHa's battery run measures it under the draw). The root pair's orientation stays schema order (on that table the follow-up time is the parent, where `t1` made the event the parent; `A0a`'s panel below found orientation alone moving only the walk). The history: `A0a`'s setting 4 raised no score: it placed the time-and-event pair as the root, the event its parent. On every table of its panel that pair was already the strongest option, by about three times (`X2 - df` of 9,962 to 9,986 at 20,000 rows against 3,234 to 3,408 for the next; 24,665 against 7,705 to 7,860 at 50,000), and its two chains t0 and t1 differ only in the root pair's orientation, every other family, parent and level being the same: the battery's 75 against 56 at 50,000 rows, and the reverse at 20,000, are differences between two walks of one set of tables, so `A0a`'s panel measures that orientation, not this raise. A raise is set only by a measurement on a table where the pair is not already first, which `A0b`'s 50-column table is. MEASURED UNDER THE PRODUCT'S DRAW 2026-10-21 (lane CHa's statistics skeptic, the product's search on that table, each step's best option, supported estimates inside their yardstick), `w_te` 1 against 0: 152 against 157 of 258 at 5,000 rows (inside the draw's spread of 11), 160 against 177 of 273 at 20,000 (keyed draws 156 to 163 against 176 to 177), 131 against 118 of 287 at 200,000. The sign changes with the table's size. At tau 2 a raise of `1 n` acts as a FORCE: the raised steps took a weight share of 0.998 to 1.0, so the detector, pairing `died` and `readmit` (both on the event list) with `fu`, placed `died` under the follow-up and its death rates by age and gender fell to 6 of 17 estimates against 13 of 17 at 0; raising the one pair (`fu`, `event`) alone did not repair 20,000 rows (159; draws 154 to 163) and gained 13 at 5,000 (165). PROVISIONAL, with an owner: the orchestrator rules on all three sizes before the stage-6 gate, after a 200,000-row leg of the one-pair detector and of the detector without the outcome words (`died`, `death`, `mortality`, `readmit`, `readmitted`, `outcome`), which lane CHa's night script names |
 | `w_rule`, the inferred rule's raise | `"1/20"` | PROVISIONAL: never measured (the design's raise of `10 tau` was not measured either, and on the scale of the score it would vanish). Lane CHa carries no rule (the rule step is lane MR's), so lane MR's leg measures it (re-owned 2026-10-21, lane CHa's repair 1) |
 | `tau` | two, provisionally | PROVISIONAL: ruling R5 holds it until it is measured at 50 columns, and no leg of `A0b` measures it. Every figure above was measured greedily; at 5,000 rows, the suite tier of `K-S6-01` (ii), the last steps' scores shrink to about 6 to 27, where `tau` = 2 gives "no family" a real share of each step (the statistics review's arithmetic). Lane CHa's battery run measures the chain under the draw, at `tau` = 2 and with RULE W1 as read here, at 5,000 and 20,000 rows, before the stage-6 gate; a change is a measured amendment. MEASURED 2026-10-21 (lane CHa's statistics skeptic, the product's own search on `A0b`'s 50-column table, supported estimates inside their yardstick): the keyed draw at `tau` = 2 against the same search taking each step's best option, 152.8 (mean of five keys) against 152 of 258 at 5,000 rows, 160.0 against 160 of 273 at 20,000 and 131 against 131 of 287 at 200,000; the draw departs from the best option at 3 to 9 of about 48 steps, mostly among level variants of equal score, and never drew "no family". Two points is ruling R5's condition for moving `tau`; it is not met at any size, so `tau` stays 2 |
-| `selftest_sample` | 20,000 below 1,000,000 tabled rows, 200,000 from there | PROVISIONAL, lane ST's: 100,000 at 2,000,000 rows is the lever behind the hours on the oldest Python synthtwin runs on, 3.11 from lane DEP-1 (plan P4-D407). The sample holds exactly that many rows, or every row of a smaller table, chosen by content and occurrence (4.6b.8). It is never published, so its size moves no proof |
+| `selftest_sample` | 20,000 below 1,000,000 tabled rows, 200,000 from there | FIXED (amended 2026-11-04, lane ST, plan P4-D458). NOTE 2026-11-05 (lane ST's repair 1; LANE ST RULINGS 4 (4)): a 20,000-row sample UNDERCLAIMS PAIRS: on lane `A0b`'s 50-column table at 200,000 rows 805 of 1,128 pairs (71 per cent) read approximate on a 20,000-row sample where the 200,000-row sample reads carried, and on the statistics skeptic's eight-column table 4 of 28 at 20,000 rows and none at 100,000: the trial twin is dealt at the sample's precision and judged at the table's, so where the table holds ten times the sample an estimate the walk deals lands outside its scaled yardstick whatever the chain does. It is an underclaim, never an overclaim, and the private report says so once. The value is NOT re-decided here: lane ST2 decides, on measurement after lane CHs's move to arrays and lane MPg's polish, between 100,000 rows for tables of 200,000 to 999,999 rows (424 s more a key on that table, recovering 700 of the 805) and a deal-noise term from two trial keys. Decided on measurement on 2026-11-04: on lane `A0b`'s 50-column table at 200,000 rows (48 eligible columns, the machine loaded) the self-test took 149, 573 and 922 s on samples of 20,000, 100,000 and 200,000 rows, its own increment 281 and 481 MB at the two larger, a function of the sample alone; judged against the whole table, the 20,000-row sample read two families not carried that the whole reads approximate and the 100,000-row one one, and neither called a family carried that the whole did not (no overclaim). A quarter of an hour at 2,000,000 rows, projected, sits well inside the owner's hours, and the larger sample underclaims least, so 200,000 stands; 100,000 stays the lever, about six minutes and 200 MB less, should lane CHs's memory budget for `describe` at 2,000,000 x 50 need it. The history: PROVISIONAL, lane ST's: 100,000 at 2,000,000 rows is the lever behind the hours on the oldest Python synthtwin runs on, 3.11 from lane DEP-1 (plan P4-D407). The sample holds exactly that many rows, or every row of a smaller table, chosen by content and occurrence (4.6b.8). It is never published, so its size moves no proof |
 | the polish (lane MPOL's) | classes M-a and M-b cell means, with the second code on skewed fine columns, at `P` = 4 proposals a fine cell at every size, PROVISIONAL | recorded here for MPOL's page, which fixes them (`A0a`'s settings 5 to 8: M-d off, spreads off; section 4.6d's settings, generation G17): lane `A0b` measured `P` = 2 at 172 of 287 supported estimates against 188 at `P` = 4 at 200,000 rows x 50 columns, so no smaller `P` is taken at any size; lane MPp measures 2, 4 and 8 at 1,000,000 rows (aligned to section 4.6d's measured text at batch 4e's integration, 2026-10-21) |
 
 ### 4.6c `relationships.grain` — the patient layer: several rows per patient (specified for stage 6, plan P4-D412; NOT IN FORCE)
@@ -12725,9 +13439,9 @@ and then, always:
 
 > this table has several rows a person, so this column's dates and times are published only at the coarser grain its `time_grain` names, where every value published is held by at least the smallest group size of people: each value here is the start of its year, quarter, month, day, block of hours, hour, minute or second, the values before the first such span or after the last are counted in those two, and the twin writes a value inside each span, in your column's own form
 
-**NF129. `remark_held_dates_are_valid` — a held column of dates or times writes valid ones** — arity 0 (lane PS, plan P4-D417; the G1 floor). A remark of a column NF126 holds whose own reading was of dates, stamps, clock times or counted dates and that no grain serves -- its walk found no span at its ladder's top, or the description at every rung from the one the walk reached to the top would still publish, or leave to subtraction, a count one to ten people hold (NF128). Its block is NF126's and carries `time_grain` at the rung `held` (TG1): the spans its walk passed (none on a clock), so its twin writes VALID values in each of its own layouts -- days that exist, clock times inside the day, the fraction's own figures, counts from the member's own epoch, offsets of nought figures -- drawn inside the deepest of those spans wide enough for its published count of different values, measured at its finest written detail, or inside the method's fixed span, 1 January 2000 to 31 December 2029 (a clock: its whole day), widened by whole decades until it holds twice that count (repair round 3 of lane PS), never from the table; a made-up value in a layout the block publishes that no value of the member wears (a word such as `pending`) stays as made up, as the real cells it stands for do not read either (repair round 2 of lane PS); a made-up value no date wears -- a stand-in of a withheld layout -- is written in the member's own form, at its length and on its side of the code alphabet where a date can wear both; two made-up values never take one value, so the census of repetition the block publishes holds (method G7.13).
+**NF129. `remark_held_dates_are_valid` — a held column of dates or times writes valid ones** — arity 0 (lane PS, plan P4-D417; the G1 floor). A remark of a column NF126 holds whose own reading was of dates, stamps, clock times or counted dates and that no grain serves -- its walk found no span at its ladder's top, or the description at every rung from the one the walk reached to the top would still publish, or leave to subtraction, a count one to ten people hold (NF128). Its block is NF126's and carries `time_grain` at the rung `held` (TG1): the spans its walk passed (none on a clock), so its twin writes VALID values in each of its own layouts -- days that exist, clock times inside the day, the fraction's own figures, counts from the member's own epoch, offsets of nought figures -- drawn inside the deepest of those spans wide enough for its published count of different values, measured at its finest written detail, or inside the method's fixed span, 1 January 2000 to 31 December 2029 (a clock: its whole day), widened by whole decades until it holds twice that count (repair round 3 of lane PS); the twin reads the description alone, but a value drawn inside a span the table's own values fill may by chance be one the table holds, as the remark says (the follow-up of lane ID-ROOM2, plan P4-D457: a held birth-date column whose layout census is withheld whole draws from its grain's span, owner lane ID-ROOM3); a made-up value in a layout the block publishes that no value of the member wears (a word such as `pending`) stays as made up, as the real cells it stands for do not read either (repair round 2 of lane PS); a made-up value no date wears -- a stand-in of a withheld layout -- is written in the member's own form, at its length and on its side of the code alphabet where a date can wear both; two made-up values never take one value, so the census of repetition the block publishes holds (method G7.13). Where the column publishes `made_up_years` (section 7.12c), NF136 or NF137 stands in its place (lane ID-ROOM2, plan P4-D457).
 
-> this column holds dates or times, so its twin writes real ones in the column's own layouts -- days that exist and clock times inside the day -- drawn inside the last span its `time_grain` names, or from 2000 to 2029 where it names none (to a later year, by whole decades, where the column holds more different values than those years leave room for), never from your table, so code that reads the column as dates runs on the twin
+> this column holds dates or times, so its twin writes real ones in the column's own layouts -- days that exist and clock times inside the day -- drawn inside the last span its `time_grain` names, or from 2000 to 2029 where it names none (to a later year, by whole decades, where the column holds more different values than those years leave room for), so code that reads the column as dates runs on the twin, and a twin value drawn inside a span your table's values fill may by chance be one your table holds
 
 **NF130. `evidence_held_in_rows` — a column of dates counted in rows, held** — arity 0 (lane PS2, plan P4-D433). The detection evidence of a column read as dates or stamps (6.6, counted dates included) on a table of `parsing.TABLE_ROW_FLOOR` rows or more beside which NO subject column counts in people -- a table of one row a person, whose person column never repeats, or one with no person column; a person column that repeats counts the column in its people whatever their number, one of fewer people than the smallest group size included (repair round 2 of lane PS2), and the sentence never says that no person repeats (repair round 1, Codex's item 6) -- where EACH ROW IS ITS OWN HOLDER: every word its own reading would publish that names a date (a point along the range, a tail's boundary or value, a mode, a heavy date, a census entry) is read as the calendar part it names -- its day, or its month or quarter where it names only that -- and one that one to the floor's number less one of rows fall on sends the column down NF128's ladder with each row a holder; where no rung serves, the column takes this evidence, NF126's block and NF129's remark and `time_grain` at the rung `held`, so its twin writes valid dates in its own layouts. A column every published date of which the floor's number of rows or more fall on keeps its block byte for byte: a dense admission day stays at the day, and a stamp keeps its time of day (in rows the date is counted, not the instant). Below `parsing.TABLE_ROW_FLOOR` rows the command describes no table (plan P4-D425) and the library describes the column as before. Clock times of day name no date and are not reached.
 
@@ -12752,6 +13466,14 @@ and then, always:
 **NF135. `remark_dated_values_held` — a column's values that read as dates are held** — arity 0 (lane CZ-H, plan P4-D446). A remark of a column read as labels or as numbers whose values that read as dates in disguise are read as blank cells while its Safe Harbor question is open or answered `yes`. Report-only as every remark is; the validator reads it to read a column of labels as labels on the twin, where its other values alone would read as numbers beside labels, and to hold the same values of whatever table it measures; the generator reads it to draw no number inside a band (method G7.15). The sentence:
 
 > some values of this column read as dates, so until its Safe Harbor question is answered `no` each of them is read as a blank cell, in this description and on the twin, which writes those cells blank where your table holds a value
+
+**NF136. `remark_made_up_dates_off_the_real` — a held column of dates writes no real date of its column** — arity 0 (lane ID-ROOM2, plan P4-D457, section 7.12c). The remark of a column of dates held as record numbers that publishes `made_up_years` with a run for a kind of year its date layouts write; it stands in place of NF129, whose fixed span no longer holds there. Its sentence:
+
+> this column holds dates read as record numbers, so its twin writes made-up dates in the column's own layouts -- days that exist -- from years no date of your table takes: years of four figures from the year after this release's reference year on, or two-figure years from that year's two figures on, none of which any date of the column is, written with either width of year -- so no twin date is one of yours: not exact, not merged, and not the same day written with the other year width -- and code that reads the column as dates runs on the twin, save on a value of a layout too rare for this description to name, or the value of figures alone that carries the column's longest length, either of which the twin may write as a record number
+
+**NF137. `remark_made_up_dates_not_dates` — a held column of dates whose made-up values of a layout are no dates** — arity 0 (lane ID-ROOM2, plan P4-D457, section 7.12c). The remark of such a column whose `made_up_years` holds no run for a kind of year one of its date layouts writes: those layouts' made-up values are the identifier walk's, off the real by 7.12b. A held column's date layout of figures alone with a two-figure year (`%%/%%/%%`) is written so at the table floor WHATEVER its real years: its merged key runs the fields together (`12/28/05` merges to `12285`, read month first as 22 January 1985), so nearly every two-figure year is held and its block from `28` finds no room (repair 1 of lane ID-ROOM2, skeptic 1's item 4); and a column whose census withholds a pool of the other width of year whose years take the named kind's block (repair 2). Its sentence:
+
+> this column holds dates read as record numbers, and some of its dates fall in the years the twin's made-up dates of some of its layouts would take, so its twin writes the made-up values of those layouts as record numbers kept off every value of your table, not as dates
 
 **TG1. The key `time_grain` -- the grain a column was pooled at, chosen by its own published facts** (lane PS, plan P4-D417). The ONE key a column block carries only where it says something (5.1's exception): on a block NF128, NF129, NF130 or NF131 describes, and on no other, so every description without such a column is the one written before. An object of eight keys: `rung`, one of `year`, `quarter`, `month`, `day`, `four hours`, `hour`, `minute`, `second`, or `held` on a record-number block and on no other role; `finest`, the column's own precision, a rung; `kind`, `date`, `stamp`, `clock` or `counted`; `reading`, the date member (a member of 6.6 or a layout), the clock form or the counting system its cells read under, the block's own `format` or `clock_form` where it publishes one; `mark`, a count's decimal mark; `rows`, the block's own `n_present`; `people`, the people the subject columns name (the fewest, under several: the population the description counts), never more than the table's rows (repair round 2 of lane PS, Codex's item 5); and `spans`, a list of `[rung, first, last]`, the starts of the first and the last bucket at that rung that the floor's number of people hold under every subject column that counts in people, written `YYYY-MM-DD`, `YYYY-MM-DD HH:MM:SS` or `HH:MM:SS`, first at most last. The ladder runs, coarsest first, `year`, `quarter`, `month`, `day` for dates; on to `hour`, `minute`, `second` for stamps; `four hours`, `hour`, `minute`, `second` for clock times; down to `finest`. THE SPANS ARE A WALK THE RECORD'S OWN FACTS ALLOW, and a loader refuses any other: the spans are the walk's, one a rung from the top, and each finer span REACHES both ends of the one before (its first bucket inside the coarser first, its last inside the coarser last) and holds at most the buckets the whole square root of `rows` times `people` -- an estimate of the visits, between the people and the rows -- covers at twice the floor a bucket (`grains.estimate`, `grains.walk_holds`); a pooled record's rung is its last span's, and a held one's spans stop where its walk stopped. WHERE THE WALK STOPPED IS NOT RECORDED (repair round 1 of lane PS): it goes no finer where the finer rung has no span, its span reaches no end or holds too many buckets, or the description there would publish or leave to subtraction a count one to ten people hold (NF128's STEP BACK), and the record says none of these -- so a record stopping above where its spans would let it go is the step back, and loads. So the grain is a function of published facts and of one fact more, that the column is not described finer, which fixes no count of one to ten people (plan P4-D417, its proof). Each span's ends are points of the description, counted in people as every point is.
 
@@ -16535,13 +17257,14 @@ taking: when the guess was right it published no more than free text
 publishes, and when it was wrong it destroyed a distribution the twin
 exists to reproduce.
 
-**Added keys** — nine, beyond the universal keys of section 5.1:
+**Added keys** — nine, beyond the universal keys of section 5.1, and one OPTIONAL (`made_up_years`, section 7.12c):
 
 | key | JSON type | range | meaning |
 |---|---|---|---|
 | `layout_forms` | object | section 7.12 | how many present cells were written in each shared LAYOUT, under the floor, with the pooled key `(withheld)` |
 | `layout_prefixes` | object | section 7.12a | the literal text every present cell opens with, under the key `(column)`, or the text every cell of one named layout opens with, under that layout; `{}` where there is none (owner ruling of 2026-09-17, item 1) |
 | `layout_exclusions` | object | section 7.12b | beside a named layout, that layout with places written as characters NO real cell's merged key holds there (one text, or a list of several spellings of one block), and under `(spill)` the column's prefix and figures, longer than every present cell; `{}` where the producer published none (lane ID-ROOM, plan P4-D432); a layout of keys between commas (letters then five figures or more, or letters and figures) carries one only where every key's opening -- the shortest no real key of its merged width opens with, one figure or more, the real keys read between `,`, `;` and `|` -- is written out, else none (lane HB, plan P4-D442; LANE HB RULINGS 3); and where a field is wider than the narrowest real key of five figures or more, every field opens with one figure no real key of any width up to its own opens with, written once more than its width exceeds the narrowest's (Codex's review of lane HB, item 8) |
+| `made_up_years` | array, OPTIONAL | section 7.12c | on a column of dates held as record numbers, the runs `[first, last]` of years its twin's made-up dates take: four-figure years from 2028, the year after the release's reference year, to 9999, or two-figure years 0 to 99, in order and apart; no real cell of the column is a date of any of them, read on its merged key in every order the column's date layouts' dates stand in and its own layout's (with either width of year where both are written, or a cell names the other) -- on a block with no grain, each named date layout's share of them from the first, read in that layout's orders at the days the date pass writes; `[]` where none was found, or where the column's grain reads no dates, or, with no grain, it names a stamp; absent where the producer published none, and never `null` (lane ID-ROOM2, plan P4-D457) |
 | `min_length` | integer ≥ 1 | ≤ `max_length` | the shortest present value's length in characters |
 | `max_length` | integer ≥ 1 | ≥ `min_length` | the longest present value's length in characters |
 | `all_whole_numbers` | boolean | — | true when every present cell is a whole number and there is at least one |
@@ -21533,7 +22256,31 @@ than a nought or a letter.
    has every value of its twin written wider than every real cell, and
    its census entry and the lengths are then the real table's, listed by
    the validator and named by the twin's report (method G9.6b, validation
-   method V4.1-A1).
+   method V4.1-A1). *Amended by batch 4q's fix rounds (2026-11-08; Codex's
+   review of batch 4q, item 1, and the round's verify, blocker 1; plan
+   P4-D432):* in a layout of TWO WORDS OR MORE -- words parted by a space
+   and by every layout mark that joins no code's parts (a bracket, a
+   brace, `#`, `:`, `*` and a comma; `-`, `.`, `/`, `_` and `+` join one
+   code's parts) -- each maximal run of five figures or more, however it
+   is glued inside its word (the word itself, after a label, before a
+   letter, or joined by a code's marks), is also kept off the real by its
+   OPENING: written at the run's first place, the shortest opening no real
+   run of the run's merged width opens with, counted over every maximal
+   run of figures of every present cell and read as a list key's opening
+   is (an opening `small_cell_floor` runs or more hold passed over, one 1
+   to `small_cell_floor` - 1 hold ending its size), never a nought first
+   and never the whole run, beside the layout's own exclusion, chosen with
+   the openings written. An exclusion that already writes such an opening
+   at every such run stands byte for byte; a run with no free opening, or
+   a template whose room left is too small, leaves the layout no
+   exclusion, so its cells are written as the spill. A layout of one word
+   (`MR1234567`, `S24-123456`) is one key, kept off the real
+   whole as before. So no such run of a twin cell of such a layout is a
+   real cell's run of its width (a real run inside a longer twin run, a
+   fragment at chance, aside), and the opening, as the exclusion, publishes
+   what the column does not hold (item 3). A column whose every cell is
+   `#MR` and a record number is read as an affixed number and is not held
+   by this rule (plan P4-D445 (3)(e)).
 2. **Under `(spill)`, on every block holding a present cell, the spill**:
    the `(column)` prefix's layout where one is published, and then
    figures alone, `max_length` and one characters long where every
@@ -21581,6 +22328,211 @@ validator reads the key to know what the twin gives up: a real table's
 cells hold none of the written characters, by construction, and a twin's
 cells written wider than every real cell are named where the census and
 the lengths are checked.
+
+### 7.12c `made_up_years` (lane ID-ROOM2, plan P4-D457, 2026-11-04)
+
+NO TWIN DATE OF A COLUMN OF DATES HELD AS RECORD NUMBERS IS A REAL DATE OF
+IT, BY CONSTRUCTION. A block of the `identifier` role whose named layouts
+include a date's form (`parsing.date_form_fields`), and whose twin writes
+them as dates -- the G1 floor where it carries a `time_grain` whose `kind`
+is `date`, the date pass where it carries none and names no layout a UID
+can wear -- carries `made_up_years`, which the producer writes after
+`layout_exclusions`, reading the column's present cells that are no absent
+spelling. A block whose `time_grain` reads stamps, clock times or counted
+dates carries `[]`, and its twin is the G1 floor's own as NF129 says, so it
+stays readable (repair 1 of lane ID-ROOM2, Codex's item 1: such a column
+gained a block its floor could not draw from, and none of its 20,000 twin
+cells parsed). Each cell is read on its MERGED KEY (7.12b) in every ORDER a
+date of the column's date layouts stands in on a merged key: a year alone,
+a month beside a year, year, month and day, a year written last beside two
+fields of figures read month first and day first, a month word between a
+day and a year, eight figures alone; and each year a valid date of it
+names in any of those orders is HELD. WHERE THE LAYOUTS WRITE BOTH A
+FOUR-FIGURE AND A TWO-FIGURE YEAR, each four-figure year held is also held
+for the two-figure kind as its last two figures, and each two-figure year
+held for the four-figure kind as 1900 and 2000 plus it, both read from the
+cells alone (repair 1, skeptic 1's item 1: `06-Mar-1932` real and
+`06-Mar-32` made up, 2,335 of 5,903 two-figure twin cells a real birth date
+at 20,000 rows), so no made-up date is a real one written with the other
+year width.
+
+1. **Four-figure years**, where a date layout writes its year in four
+   figures: ONE BLOCK, from 2028, the year after the release's reference
+   year (2027, the year Safe Harbor's age of 90 is read in, plan P4-D434),
+   as many years as hold twice the layout's made-up values at its writer's
+   own count of dates a year (repair 1, Codex's item 2: the G1 floor every
+   day its fields write, 365 where month and day are two figures; the date
+   pass a year written last in four figures with two fields of 1 to 12,
+   144; a two-figure year written last, or a month word, 336; a year first,
+   365; a field of one figure 1 to 9; a month beside a year 12; a year
+   alone 1), one at least, never past 9999 -- a block the published facts
+   alone fix -- taken only where no year of it is held; where the years
+   left after 2027 cannot hold the layout's values once (the year cap), the
+   kind has no room. Nothing is stepped over for what a cell holds and
+   nothing is counted (the year-first share below steps by the named
+   layouts alone): a held column
+   of several rows a person counts its holders in people, and a year
+   stepped over because many rows hold it might be held by few people.
+2. **Two-figure years**, where a date layout writes two: one block the
+   same way, from the figures of the year after the reference year (`28`)
+   round past `99`, at most a hundred years (none where a hundred cannot
+   hold the layout's values once), taken only where no year of it is held.
+   So a two-figure year at or before the Safe Harbor cut is never named
+   apart from the rest of its block. A date layout of figures alone with a
+   two-figure year (`%%/%%/%%`) finds no room at the table floor whatever
+   its real years: its merged key runs the fields together, so nearly every
+   two-figure year is held (repair 1, skeptic 1's item 4); beside a layout
+   of four-figure years those held years are held for it too, 1900 and 2000
+   plus each, so neither kind has room and the column is written as record
+   numbers.
+3. **Written** as the runs of the block's years, `[first, last]`, in
+   order; a kind of year with no room publishes no run, and `[]` where
+   neither has one. The loader refuses anything but runs of two whole years in
+   order and apart, both two-figure years or both four-figure years from
+   2028 to 9999 (`contract._made_up_years`), and refuses an explicit `null`
+   (R15): only a description written before the key omits it, and is
+   written as before (repair 1, Codex's item 5: a null read as an omission
+   let the twin write 368 cells equal to eleven real values); what it
+   cannot check is the producer's promise that no real cell is a date of
+   any year in them.
+
+The twin (method G9.6c) draws every made-up date of such a column from
+those years alone, in the made-up value's own layout, and keeps one only
+where its merged key, read in some order of its named layout, is a date
+of a published year of that order's kind: a real cell with that merged
+key would have held the year. A value whose kind of year has no room, or
+whose date does not stand, keeps the identifier walk's value, off the real
+by 7.12b. On the G1 floor a value of a layout the census withholds is
+written as a valid date of the column's reading from the block, in the
+member's own form, a spelling the census does not publish, and stands
+where its merged key, read in some order of the column's named date
+layouts, is a date of a published year (repair 1, Codex's item 3). What it
+publishes is what the column does not hold, one fact a kind of year: its
+block holds no real date; no count, no year a real date takes, and no year
+at or before the cut alone.
+
+REPAIR 2 OF LANE ID-ROOM2 (2026-11-06; plan P4-D457). (1) Each present
+cell is also read in the orders of its OWN layout, one the census withholds
+included (a layout whose fields single spaces part read as with hyphens),
+and where a cell so read names a kind of year no named layout writes, the
+cross rule above applies as where both are named: twelve withheld
+four-figure births beside two-figure ones were read in no order of theirs,
+and 20 of the twin's two-figure dates named 7 of them at 20,000 rows. (2)
+With no grain, a block naming a layout that writes a clock (a figure each
+side of `:`, a stamp) carries `[]`, its remarks kept: the date pass writes
+no stamp. (3) With no grain, where the block holds cells of figures alone
+(`n_all_digits`), every cell is also read as a year alone, and the twin
+writes such a value of four figures as a year of the block. (4) With no
+grain, each named date layout
+takes its own SHARE of the block's first years: as many as hold twice its
+values (counted with its other case's, which one walk steps) at the date
+pass's count a year (`taxonomy.made_up_share`), the block being the largest
+share; each share holds no year read in that layout's own orders at the
+days the date pass writes there (no day past 12 in a year written last, 28
+in a second field beside a two-figure year or beside a month word:
+`MADE_UP_DATE_PASS_DAYS`), no year any cell is a date of in its own layout,
+and none the cross rule holds -- else the kind has no room. A grain's block
+is read whole in every order at every day, as above.
+
+BATCH 4q'S MERGE AND FIX ROUNDS (2026-11-08; plan P4-D457). (1) THE
+YEAR-FIRST SHARE: with no grain, beside a named layout whose dates are
+written year last in figures (a month and a day before the year), a named
+layout writing its year first (a year alone, a month beside a year, or
+year, month and day) takes as its share the block's years whose second
+figure is a nought, in order -- 2028 to 2099, then 3000 to 3099, and so on
+to 9000 to 9099, 772 years (`taxonomy.made_up_year_first_share`) -- checked
+as any share is; a share of 72 years or fewer is the block's first years,
+as before. No month-first merged key opens with such a year (a month never
+opens with a nought, and none is 20 to 90), so the share is a rule of the
+named layouts alone, and the runs written hold those years past the
+block's own last year: `[[2028, 2719], [3000, 3099], [4000, 4099], [5000,
+5000]]` on an ISO and month-first column of 49,797 different birth dates,
+where the block's first years held years that month-first cells name read
+year first (`02/01/1958` merges to `211958`) and no room stood. (2) THE
+READINGS OF A CELL BELOW HOLD ITS YEARS: each present cell is also read by its
+own text, not by its merged key (`Jan 12, 8` and `Jan 1, 28` share one),
+and each year so named is held: every year a member of the product's own
+date reader (`parsing.DATE_FORMATS`) reads it as, a member writing two
+figures naming a two-figure year (`taxonomy.date_reader_years`); the value
+of each run of exactly four figures it holds that opens with no nought,
+whatever stands beside it (`taxonomy.four_figure_runs`); the first of
+every three neighbouring runs of one or two figures, wherever they stand,
+as a two-figure year where the second is a month and the third a day of
+it, and a middle run past 31, which can be no day and no month, as the
+year where the other two are a month and a day of it
+(`taxonomy.year_first_years`: `28-01-01`, `07-37-04`); and, for a cell
+that no member of the reader and no order of its own layout reads, every
+year a reading of its fields names (`taxonomy.unread_years`: three
+neighbouring fields as a year, a month and a day in all six orders, two as
+a month and a year, a month's word glued to its day and year wherever the
+two stand (`Mar132045`), a run of five figures or more no letter is glued
+to as a compact date -- a `T` before a clock's figures being no glued
+letter and a point with figures after the run stopping nothing -- read
+whole up to eight figures and, longer, by its first eight and its first
+six, a stamp's date before its clock (`202801010915`, `20280101T091530`),
+a run of seven also with a year of three figures, and a year of one to
+three figures as a two-figure year; `Jan 01, 28`, `Jan 01 '28`). In every
+reading of a cell's fields each clock -- a `:` between two figures, with
+its hour, a `T` before it, its minutes, seconds, fraction, meridiem and
+zone -- is set aside wherever it stands, and the fields on both sides are
+read (`09:15 01/01/28`). Since batch 4q's fix round 4, the last round of
+date spellings, four families of the product's own date vocabulary are
+read too: a compact run of more than eight figures that a zone the
+clock reader names (the layout grammar's `Z`, `UTC` and `GMT` and eleven
+other zone words) or a
+meridiem ends, no letter after it, is a stamp, not a key's figures glued
+to a letter (`20280101091530Z`, `202801010915AM`); in the reading with the
+hour's two figures, exactly two figures past 23 before a `:` are the
+date's joint, kept as a mark, and the clock opens at the next `:`
+(`01JAN28:09:15:30`), and in the reading with the hour's last figure
+alone they are a field and a one-figure hour; each of the twelve
+counting systems of `date_counts.MEMBERS` reads, with either decimal mark
+and to the nanosecond, a cell its count grammar of 6.6.2 takes, and
+the year of the day it falls on is held (`taxonomy.counted_years`:
+`46753`); and a compact run of seven figures or of five, or two
+neighbouring fields, a year of four or two figures and three figures,
+whose three figures are a day of that year names that year
+(`taxonomy.day_of_year_years`: `2028001`, `28001`, `28-001`). Each cell's
+readings are one function, `taxonomy.cell_date_years`. A two-figure year
+so named brings the cross rule above, 1900 and 2000 plus it. So
+`made_up_years` holds no year that any of these readings names (Codex's
+review of batch 4q, item 2, and its fix rounds' verifies: eleven real
+days of January 2028 beside 19,989 ISO births, written `Jan 01, 2028`,
+`Jan 01, 28`, `Jan 01 '28` or `28-01-01`, or as a compact stamp,
+`202801010915` and five more spellings, or as a stamp a zone or a
+meridiem ends, `20280101091530Z`, as Excel's serials, `46753` to `46763`,
+as Unix seconds or as a day of the year, `2028001` or `28001`, left 2028
+to the room, and the twin wrote 8 of them as ISO dates; ten such days
+written after a clock, `09:15 01/01/28`, or as SAS writes a datetime,
+`01JAN28:09:15:30`, left 2028 in it). OF THE SPELLINGS A GENERATOR OF THEM
+WRITES, FOUR CLASSES STAY OPEN, a stated limit (plan P4-D457; a spelling
+it does not write is not measured by it; at fix round 4, 3,902 of the
+197,442 of its 232,596 spellings that name a year of the room, every one
+in these classes), each a reading whose year stands where common layouts
+put a day or a year's own figures, so that holding it would take the room
+of every held column of those layouts: a two-figure year of 31 or less
+written first beside a month's word (`28-Jan-01`, `28JAN01`, `28 Jan 01`),
+read year last, as its layout's orders read it (a two-figure year above 31
+so written is held); a two-figure year between the month and the day that
+reads as a day (`01-28-05`), read as the date reader reads it; a compact
+run with its year between the month and the day (`012805`, `01202805`);
+and a three-figure year in a compact stamp, its clock run on
+(`02801050915`). The room is claimed closed for the spellings the
+generator writes save these four classes (of SAS's datetimes, those with
+a year of four figures or a two-figure year from 28; of the day of the
+year, those with no clock), and for nothing more: spellings
+beyond it -- a month alone, month words outside English, roman months,
+ranges of days, letters glued to a date's run, the rare compact forms, a
+day of the year with its clock run on in its figures (`28001091530`),
+SAS's datetime with a two-figure year of 00 to 23, read as the hour,
+where the two-figure room wraps past 99 (`09JAN03:21:45:05`), and
+the other forms plan P4-D457's stopping rule leaves open -- stay open, stated
+limits (plan P4-D457, with their numbers). A column one of whose real cells names a year of its
+block by any reading here has no room for that kind of year, and its twin
+writes record numbers (NF137); a cell of figures alone that is no date
+counts so too where some counting system reads it as a day of a year of
+the block (three `99999`, a placeholder, beside 19,997 ISO births leave
+the column no room: plan P4-D457's price, lane ID-ROOM3).
 
 ### 7.13 `number_spellings`
 
@@ -22395,7 +23347,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 129 the note grammar enumerates |
+| NG14 | for every form: one of the 131 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -23722,7 +24674,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 129 closed forms: 129 argument positions, of which 93 are whole numbers, 14 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 131 closed forms: 129 argument positions, of which 93 are whole numbers, 14 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -24786,7 +25738,7 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 129 forms
+### 14.8 The note grammar — 131 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
 argument. 129 argument positions: 93 whole numbers, 14 package words, 17
@@ -24974,6 +25926,8 @@ nested forms, 5 bound affix strings.
 | NG133 | `evidence_counted_absent` | 0 |
 | NG134 | `remark_held_counts_are_made_up` | 0 |
 | NG135 | `remark_dated_values_held` | 0 |
+| NG136 | `remark_made_up_dates_off_the_real` | 0 |
+| NG137 | `remark_made_up_dates_not_dates` | 0 |
 
 **The twenty-one words of dates written as counts** (landing R4, plan
 P4-D384) are package words too: the twelve systems of 6.6.2, each at

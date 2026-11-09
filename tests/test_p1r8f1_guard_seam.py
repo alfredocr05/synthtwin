@@ -665,7 +665,7 @@ def test_the_command_says_both_files_were_written_and_names_the_leftover(
     kept = pathlib.Path(f"{first}{profile.KEPT_SUFFIX}-1")
 
     _interrupt_the_unlink_under(monkeypatch, tmp_path)
-    caught = _what_escapes(main, ["profile", f"{table}"])
+    caught = _what_escapes(main, ["profile", f"{table}", "--replace"])
     told = capsys.readouterr()
     assert isinstance(caught, KeyboardInterrupt)
 

@@ -289,6 +289,10 @@ RETIRED_CLAIMS = (
 # and the command's own help (tests/test_terminal_install.py).
 NOT_A_STEP_OF_THE_RUN = {
     "doctor": "checks this computer before a run; reads no table, writes no file of the run",
+    # Lane TT (plan P4-D460): the whole run in one command, which runs the
+    # three steps above it, and a page of help.
+    "twin": "runs profile, generate and validate in one command: the whole run, not a step of it",
+    "help": "shows one command's page of help, or the examples; reads no table, writes no file",
 }
 
 
@@ -322,7 +326,10 @@ def _shipped_command_words() -> "tuple[str, ...]":
     ):
         cli._parse_arguments(["a-word-no-command-can-be"], None)
     said = complaint.getvalue()
-    found = re.search(r"argument command:[^(]*\(choose from ([^)]*)\)", said)
+    # The argument is named by the words its help page shows for it since
+    # lane TT (plan P4-D460: `{profile,generate,validate,doctor}`, which the
+    # whole-tool page has always printed), by `command` before.
+    found = re.search(r"argument [^:]*:[^(]*\(choose from ([^)]*)\)", said)
     assert found is not None, (
         "The shipped command line no longer refuses an unknown command "
         "in a form this test can read, so the command inventory below "

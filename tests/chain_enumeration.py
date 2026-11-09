@@ -30,6 +30,7 @@ THE FIXTURES (BC-ARCH 2.7, as lane CHa stamps them):
 """
 
 import itertools
+import typing
 
 from synthtwin import chain_rules as rules
 
@@ -693,3 +694,156 @@ def own_fact_sources() -> "dict[str, int]":
         out["own_fact_confining"] += found["confining"]
         out["own_fact_mutant_confining"] += mutant["confining"]
     return out
+
+
+# -- K-S6-08's RULE CLAUSE (contract 4.6b.7, MR.6 (f); lane RO, plan P4-D459) ------------------
+#
+# A derived order rule `A <= B` carried by `D = B - A`, its eligibility, level and class decided by
+# the PRODUCT's own functions (`chain_rules.derived_levels`, `derived_totals`, `class_of`,
+# `derived_option_refusal`): `A` in `a_count` bands, each its own reading, or absent; `D`'s readings
+# over `values` or absent; every whole-number table of `n` rows. A DESCRIPTION is the level's name
+# and edges, the family `{D | A}`'s complete table (with `A`'s absent row) and the class; its
+# preimage every table publishing it. A union of raw cells LEAKS where its count lies inside 1 to
+# `f - 1` in every table of the preimage (the page's `derived3` leg, at the product's functions).
+
+
+def _compositions(total: int, cells: int) -> "typing.Iterator[tuple[int, ...]]":
+    """Every tuple of `cells` whole numbers summing to `total`, in a fixed order."""
+    if cells == 1:
+        yield (total,)
+        return
+    for first in range(total + 1):
+        for rest in _compositions(total - first, cells - 1):
+            yield (first,) + rest
+
+
+def _leaks(keys: "dict[object, set[tuple[int, ...]]]", f: int) -> "tuple[int, int]":
+    """(unions judged, leaking unions) over every description's preimage."""
+    judged = 0
+    leaking = 0
+    for rows_of in keys.values():
+        rows = list(rows_of)
+        size = len(rows[0])
+        judged += (1 << size) - 1
+        tops = [max(row[cell] for row in rows) for cell in range(size)]
+        small = [cell for cell in range(size) if 0 < tops[cell] <= f - 1]
+        if not small:
+            continue
+        seen = {tuple(row[cell] for cell in small) for row in rows}
+        if tuple(0 for _cell in small) in seen:
+            continue
+        for width in range(1, len(small) + 1):
+            for picks in itertools.combinations(range(len(small)), width):
+                low = min(sum(vector[pick] for pick in picks) for vector in seen)
+                high = max(sum(vector[pick] for pick in picks) for vector in seen)
+                if low >= 1 and high <= f - 1:
+                    leaking += 1
+    return judged, leaking
+
+
+def rules_derived_leg(n: int = 12, f: int = 3, limit: int = 4, mutant: str = "", values: "tuple[int, ...]" = (-1, 0, 1, 2)) -> "dict[str, int]":
+    """The derived order rule's leg through the product's functions; `mutant` is '', 'exact' (the exact
+    count under `f` published), 'rule3' (rule 3 off) or 'rule1' (the first text's rule 1, its bound alone)."""
+    from fractions import Fraction
+
+    a_count = 2
+    width = len(values)
+    keys: "dict[object, set[tuple[int, ...]]]" = {}
+    tables = 0
+    placements = 0
+    original_refusal = rules.derived_option_refusal
+    original_rule_one = rules.rule_one_refusal
+
+    def no_rule3(level, totals, table, missing_rows, missing_alone, group_rows, klass, step, floor):  # type: ignore[no-untyped-def]
+        refused = original_refusal(level, totals, table, missing_rows, missing_alone, group_rows, klass, step, floor)
+        return None if refused is not None and refused.startswith("rule 3") else refused
+
+    def first_rule_one(totals, percents, floor):  # type: ignore[no-untyped-def]
+        bound = rules.derived_band_bound(floor)
+        return None if sum(totals) and all(total >= bound for total in totals) else "rule 1"
+
+    if mutant == "rule3":
+        rules.derived_option_refusal = no_rule3  # type: ignore[assignment]
+    if mutant == "rule1":
+        rules.rule_one_refusal = first_rule_one  # type: ignore[assignment]
+    try:
+        for table in _compositions(n, a_count * width + a_count + 1):
+            tables += 1
+            absent = table[-1]
+            if 0 < absent < f:
+                continue
+            a_rows = [table[a * width : (a + 1) * width] for a in range(a_count)]
+            gone = table[a_count * width : a_count * width + a_count]
+            if any(0 < sum(a_rows[a]) + gone[a] < f for a in range(a_count)):
+                continue
+            histogram = [(Fraction(values[at]), sum(a_rows[a][at] for a in range(a_count))) for at in range(width)]
+            histogram = [pair for pair in histogram if pair[1]]
+            if not histogram:
+                continue
+            v = sum(rows for value, rows in histogram if value < 0)
+            if v > limit:
+                continue
+            readings = sum(sum(a_rows[a]) + gone[a] for a in range(a_count))
+            klass = rules.class_of(v, readings, f, limit, False)
+            if mutant == "exact" and v < f:
+                klass = v
+            for name, percents, edges in rules.derived_levels(histogram):
+                totals = rules.derived_totals(edges, histogram)
+                bands = len(edges) + 1
+                family: "list[list[int]]" = []
+                for a in range(a_count):
+                    line = [0] * (bands + 1)
+                    for at in range(width):
+                        line[rules.derived_band_of(edges, Fraction(values[at]))] += a_rows[a][at]
+                    line[bands] = gone[a]
+                    family += [line]
+                spread: "set[int]" = set()
+                if absent:
+                    family += [[0] * bands + [absent]]
+                    spread = {a_count}
+                refused = rules.derived_option_refusal(
+                    (name, percents, edges), totals, family, spread, True, set(), klass if mutant != "exact" or v >= f else rules.CLASS_PHRASE, Fraction(1), f,
+                )
+                if refused is not None:
+                    continue
+                placements += 1
+                key = (name, tuple(edges), tuple(tuple(line) for line in family), klass)
+                keys.setdefault(key, set()).add(table)
+    finally:
+        rules.derived_option_refusal = original_refusal  # type: ignore[assignment]
+        rules.rule_one_refusal = original_rule_one  # type: ignore[assignment]
+    judged, leaking = _leaks(keys, f)
+    return {"tables": tables, "placements": placements, "descriptions": len(keys), "unions": judged, "leaking": leaking}
+
+
+# -- K-S6-08's RULE CLAUSE, MR.2's table of number forms (lane RO's repair 2) ----------------------------
+#
+# One fixture a number form of MR.2's table, `42.` + 1 written `43.` among them: the PRODUCT's writer
+# (`chain_walk.written_sum`, `parsing.with_negative_notation`, `chain_walk.written_form`) against the
+# oracle's frozen vectors (`tests/reference/chain-oracle-vectors.json`, A-P4-59).
+
+
+def rules_forms_leg(vectors: "dict[str, typing.Any]", point: bool = True) -> "dict[str, int]":
+    """Each form checked and those the product writes otherwise than the oracle; `point` False is the
+    mutant that drops the point after figures holding no places."""
+    from synthtwin import chain_walk, parsing
+
+    def summed(value: int, places: int, style: str, pad: int, group: str, ends: bool = False, negative: str = "minus") -> str:
+        return parsing.with_negative_notation(chain_walk.written_sum(value, places, style, pad, group, ends and point), negative)
+
+    product = [
+        summed(43, 0, "plain", 0, ""), summed(142, 2, "decimal", 0, ""), summed(43, 0, "leading_plus", 0, ""),
+        summed(43, 0, "leading_zero", 5, ""), summed(1043, 0, "plain", 0, ","), summed(-5, 0, "leading_plus", 0, ""),
+        summed(-25, 1, "decimal", 0, ""),
+        chain_walk.written_form(summed(123456, 2, "decimal", 0, ","), True, None, None),
+        chain_walk.written_form(summed(1769, 0, "plain", 0, ""), False, "", " mg"),
+        chain_walk.written_form(summed(-25, 1, "decimal", 0, ""), True, "$ ", ""),
+        chain_walk.written_form(summed(43, 0, "leading_zero", 5, ""), False, None, None),
+        summed(43, 0, "plain", 0, "", True), summed(-43, 0, "plain", 0, "", True, "brackets"),
+        summed(-125, 2, "decimal", 0, "", False, "brackets"), summed(-125, 2, "decimal", 0, "", False, "trailing_minus"),
+        summed(-43, 0, "plain", 0, "", False, "trailing_minus"), summed(-43, 0, "plain", 0, "", False, "minus_sign"),
+        summed(425, 2, "decimal", 0, "", True),
+    ]
+    chain = vectors["chain"]
+    oracle = list(chain["rules_written"]["forms"]) + list(chain["rules_forms"]["forms"]) + list(chain["rules_repair2"]["forms"])
+    return {"checked": len(oracle), "off": sum(1 for written, wanted in zip(product, oracle) if written != wanted) + abs(len(product) - len(oracle))}

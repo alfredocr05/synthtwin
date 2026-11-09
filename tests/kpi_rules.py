@@ -125,7 +125,14 @@ HEADLINES_AT_LEAST = 20
 # stage adds one headline of its own -- `K-S3-38`, time of day comes
 # back -- while `K-S3-31` widens in place to "the calendar comes back".
 # A deliberate raise, never a demotion made to fit.
-HEADLINES_AT_MOST = 36
+#
+# 37 from 36, THE ORCHESTRATOR'S RECORDED CALL D15 OF THE DECEMBER PLAN
+# (2026-11-04, plan P4-D459, LANE RO RULINGS 1 (7); the owner may veto
+# it): lane RO stamps the rules gate's headline `K-S6-06` -- rules between
+# columns holding on the twin, an end on or after its start -- as the
+# rules page (contract 4.6b.7, MR.10) fixed it. One step, with its reason;
+# nothing is demoted.
+HEADLINES_AT_MOST = 37
 
 # Verdict words, printed by the runner and stored in its report.
 PASS = "PASS"

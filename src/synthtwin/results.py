@@ -182,6 +182,9 @@ FILE_QUESTIONS = "questions"
 FILE_TWIN = "twin"
 FILE_TWIN_REPORT = "twin-report"
 FILE_QUALITY_REPORT = "quality-report"
+# The PRIVATE report of a switched profile run (lane ST, plan P4-D458;
+# contract 4.6b.8): its path only, in the private folder; nothing of it.
+FILE_PRIVATE_REPORT = "private-report"
 
 
 @dataclasses.dataclass(frozen=True)

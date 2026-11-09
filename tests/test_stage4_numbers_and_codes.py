@@ -40,10 +40,12 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import inspect
 import pathlib
 import sys
 import tracemalloc
 import types
+import typing
 
 import pytest
 
@@ -1003,8 +1005,12 @@ def _held_back_of_a_million_rows() -> "list[str]":
     return kept
 
 
-def test_the_pool_of_a_million_row_register_is_placed_in_a_bounded_number_of_questions(tmp_path: pathlib.Path) -> None:
+def the_pool_of_a_million_row_register_is_placed_in_a_bounded_number_of_questions(tmp_path: pathlib.Path) -> None:
     """The 46,581 held-back codes of 1,000,000 rows of decimal codes: under 16 census forms a group; as built, stopped there.
+
+    Run by K-HZ-21's driver, not collected (plan P4-D461): the node
+    `test_the_pool_of_a_million_row_register_is_placed_in_a_bounded_number_of_questions`
+    it was, 2,041 s of this file's 2,326 s in the suite's run of 2af926ce.
 
     As built each group stepped out past the places the groups before it
     took, up to 2,048 of them: 763 s of `generate` on a quiet machine and
@@ -1162,3 +1168,23 @@ def test_k_s4_15_judges_its_counts_unrounded() -> None:
     for over in (work_count_values(1001, 123_904, 1_936, 3_199, 400, 1670, 800),
                  work_count_values(1001, 123_903, 1_936, 3_200, 400, 1670, 800)):
         assert kpi_rules.judge(entry, over).word == kpi_rules.FAIL, over
+
+
+# -- K-HZ-21: the case this file hands to the slow driver (plan P4-D461) --------
+
+# The node the suite collected on 2af926ce and K-HZ-21 runs now, by the
+# same name. The file's other million-row cases stay in the suite, each
+# under half a minute there.
+MOVED_NODES = ("test_the_pool_of_a_million_row_register_is_placed_in_a_bounded_number_of_questions",)
+
+
+def moved_cases() -> "list[tuple[str, typing.Callable[..., None], dict[str, object]]]":
+    """K-HZ-21's items from this file, one a node the suite no longer collects; the driver gives each a folder as ``tmp_path``."""
+    return [(MOVED_NODES[0], the_pool_of_a_million_row_register_is_placed_in_a_bounded_number_of_questions, {})]
+
+
+def test_k_hz_21_runs_the_million_row_pool_this_file_moved() -> None:
+    """The slow driver's item from this file is the moved node, called with nothing but its folder."""
+    cases = moved_cases()
+    assert [name for name, _function, _given in cases] == list(MOVED_NODES)
+    assert [list(inspect.signature(function).parameters) for _name, function, _given in cases] == [["tmp_path"]]

@@ -2803,6 +2803,19 @@ class RelationshipManifest:
     # P4-D456; contract 4.6d.0), which G16.3's polish moves the twin
     # onto. None on every description a shipped command loads.
     moments: "RuleBMoments | None" = None
+    # THE CARRIED RULES, READ BEHIND THE SAME SWITCH (lane RO, plan P4-D459;
+    # contract 4.6b.7, method G16.2 step 5), in step order. Empty on every
+    # description a shipped command loads.
+    rules: "tuple[RuleEntry, ...]" = ()
+    # EACH CANDIDATE PAIR'S STRUCTURAL WORD, read behind the same switch
+    # (lane ST, plan P4-D458; contract 4.6b.8): `(first, second, word)` in
+    # the description's own order, which the twin's shared report prints
+    # as published, never recomputed. Empty on every shipped description.
+    words: "tuple[tuple[str, str, str], ...]" = ()
+    # Whether the description was loaded with the chain's switch: a twin's
+    # shared report then grades the families even where no chain is
+    # published (lane ST, plan P4-D458). False on every shipped load.
+    switched: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -2823,6 +2836,39 @@ class LadderEntry:
     totals: "tuple[int, ...]"
     l1: "tuple[tuple[int, ...], ...]" = ()
     l2: "tuple[tuple[int, ...], ...]" = ()
+
+
+@dataclasses.dataclass(frozen=True)
+class DerivedEntry:
+    """A carried rule's derived column `D` (contract 4.6b.5, 4.6b.7): its one level and its family `{D | A}`.
+
+    `name` names the level (`L0`, `L1`, `L2` or `one`), `edges` its edges
+    in `D`'s unit as the exact decimal texts published, `totals` its value bands' rows,
+    `parent` `(A, level)`, and `table` the family's complete table, one
+    row a band of `A` at that level, one count a value band of `D`, the
+    last `D`'s `missing` band.
+    """
+
+    name: str
+    edges: "tuple[str, ...]"
+    totals: "tuple[int, ...]"
+    parent: "tuple[str, int]"
+    table: "tuple[tuple[int, ...], ...]"
+
+
+@dataclasses.dataclass(frozen=True)
+class RuleEntry:
+    """One carried rule of `rules` (contract 4.6b.5 as amended by MR.2 and MR.8; lane RO, plan P4-D459)."""
+
+    kind: str
+    computed: str
+    inputs: "tuple[str, ...]"
+    carrier: str
+    klass: "str | int"
+    derived: "DerivedEntry | None"
+    op: "str | None"
+    unit: "str | None"
+    grain: "str | None"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3148,6 +3194,116 @@ def chain_families(document: "dict[str, object]") -> "tuple[ChainFamily, ...]":
                 tuple(rows),
             )
         ]
+    return tuple(out)
+
+
+def rule_entries(document: "dict[str, object]") -> "tuple[RuleEntry, ...]":
+    """The carried rules a switched description publishes, in step order (lane RO, plan P4-D459).
+
+    Read only after `chain_check.check` has held them to S28, so every
+    entry is the shape 4.6b.5 writes. ``()`` where the slot is null.
+    Guarantees: a fixed function of the document; raises nothing; no I/O.
+    """
+    relationships = document["relationships"] if "relationships" in document else None
+    if not isinstance(relationships, dict) or "statistical" not in relationships:
+        return ()
+    statistical = relationships["statistical"]
+    listed = statistical["rules"] if isinstance(statistical, dict) and "rules" in statistical else None
+    if not isinstance(listed, list):
+        return ()
+    out: "list[RuleEntry]" = []
+    for entry in listed:
+        if not isinstance(entry, dict):
+            continue
+        derived_entry: "DerivedEntry | None" = None
+        written = entry["derived"] if "derived" in entry else None
+        if isinstance(written, dict):
+            edges: "list[str]" = []
+            for edge in written["edges"] if isinstance(written["edges"], list) else []:
+                if isinstance(edge, str):
+                    edges += [edge]
+            parent = written["parent"] if isinstance(written["parent"], dict) else {}
+            level = parent["level"] if "level" in parent else "L0"
+            rows: "list[tuple[int, ...]]" = []
+            for row in written["table"] if isinstance(written["table"], list) else []:
+                if isinstance(row, list):
+                    rows += [tuple(cell for cell in row if isinstance(cell, int) and not isinstance(cell, bool))]
+            derived_entry = DerivedEntry(
+                f"{written['name']}",
+                tuple(edges),
+                tuple(total for total in written["totals"] if isinstance(total, int) and not isinstance(total, bool))
+                if isinstance(written["totals"], list) else (),
+                (f"{parent['column'] if 'column' in parent else ''}", _CHAIN_LEVELS[level] if level in _CHAIN_LEVELS else 0),
+                tuple(rows),
+            )
+        klass = entry["class"]
+        out += [
+            RuleEntry(
+                f"{entry['kind']}",
+                f"{entry['computed']}",
+                tuple(f"{name}" for name in entry["inputs"]) if isinstance(entry["inputs"], list) else (),
+                f"{entry['carrier']}",
+                klass if isinstance(klass, (str, int)) and not isinstance(klass, bool) else f"{klass}",
+                derived_entry,
+                entry["op"] if isinstance(entry["op"], str) else None,
+                entry["unit"] if isinstance(entry["unit"], str) else None,
+                entry["grain"] if isinstance(entry["grain"], str) else None,
+            )
+        ]
+    return tuple(out)
+
+
+def computed_columns(document: "dict[str, object]") -> "dict[str, str]":
+    """Each column a carried rule computes, with the input it is computed from (lane RO, plan P4-D459).
+
+    Read from the raw description before its columns, so the loader reads
+    those blocks as computed ones (contract 4.6b.7's waiver, behind the
+    chain's switch alone). `chain_check` holds the rules and the blocks to
+    S28 afterwards. Guarantees: a fixed function of the document; raises
+    nothing; no I/O.
+    """
+    relationships = document["relationships"] if "relationships" in document else None
+    if not isinstance(relationships, dict) or "statistical" not in relationships:
+        return {}
+    statistical = relationships["statistical"]
+    if not isinstance(statistical, dict):
+        return {}
+    listed = statistical["rules"] if "rules" in statistical else None
+    out: "dict[str, str]" = {}
+    if isinstance(listed, list):
+        for entry in listed:
+            if not isinstance(entry, dict):
+                continue
+            computed = entry["computed"] if "computed" in entry else None
+            inputs = entry["inputs"] if "inputs" in entry else None
+            if isinstance(computed, str) and isinstance(inputs, list) and inputs and isinstance(inputs[0], str):
+                out[computed] = inputs[0]
+    return out
+
+
+def pair_words(document: "dict[str, object]") -> "tuple[tuple[str, str, str], ...]":
+    """Each candidate pair's structural word a switched description publishes, in its order (lane ST, plan P4-D458).
+
+    Read only after `chain_check.check` has held `words` to S27, so every
+    entry is `{columns, word}` as 4.6b.8 writes it. ``()`` where the slot
+    is null. Guarantees: a fixed function of the document; raises
+    nothing; no I/O of any kind.
+    """
+    relationships = document["relationships"] if "relationships" in document else None
+    if not isinstance(relationships, dict) or "statistical" not in relationships:
+        return ()
+    statistical = relationships["statistical"]
+    if not isinstance(statistical, dict):
+        return ()
+    words = statistical["words"] if "words" in statistical else None
+    out: "list[tuple[str, str, str]]" = []
+    for entry in words if isinstance(words, list) else []:
+        if not isinstance(entry, dict):
+            continue
+        names = entry["columns"] if "columns" in entry else None
+        word = entry["word"] if "word" in entry else None
+        if isinstance(names, list) and len(names) == 2 and isinstance(names[0], str) and isinstance(names[1], str) and isinstance(word, str):
+            out += [(names[0], names[1], word)]
     return tuple(out)
 
 
@@ -3857,6 +4013,15 @@ class IdentifierFacts:
     layout_exclusions: "dict[str, tuple[str, ...]]" = dataclasses.field(
         default_factory=dict
     )
+    # THE YEARS ITS MADE-UP DATES TAKE (7.12c; lane ID-ROOM2, plan
+    # P4-D457). On a column of dates held as record numbers, runs
+    # `(first, last)` of years no real cell of it is a date of: four
+    # figures from `MADE_UP_FIRST_YEAR` on, or two-figure years 0 to 99.
+    # None where the block carries none (a producer before it, or a
+    # column whose twin writes no date), which the twin then writes as
+    # before; empty where no year was found, and the twin writes the
+    # walk's values.
+    made_up_years: "tuple[tuple[int, int], ...] | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4187,6 +4352,15 @@ class ColumnBlock:
     # reads it so and pools nothing.
     top_category_pooled: int = -1
     top_category_people: "tuple[str, ...]" = ()
+    # A COLUMN A CARRIED RULE COMPUTES (contract 4.6b.7, MR.6 (a); lane RO,
+    # plan P4-D459), read only behind the chain's switch: the rule's input
+    # it is computed from, '' for every other column, and its own layout
+    # words as its block lists them (key, words). Such a block publishes
+    # nothing read from its cells, so every count above is a placeholder
+    # (0) the generator and the validator never read: the generator
+    # writes the column from its rule (method G16.2 step 5).
+    computed_from: str = ""
+    computed_layout: "tuple[tuple[str, object], ...]" = ()
 
 
 # -- the two halves of a compound column, as columns ------------------
@@ -8507,6 +8681,28 @@ def _column(
             if key != "top_coded_year":
                 kept_year[key] = mapping[key]
         mapping = kept_year
+    # ...AND THE YEARS A HELD DATE COLUMN'S MADE-UP DATES TAKE (lane
+    # ID-ROOM2, plan P4-D457, contract 7.12c): on a record number only,
+    # read apart; absent, none published.
+    made_up_value: object = None
+    if "made_up_years" in mapping:
+        if role != ROLE_IDENTIFIER:
+            raise _unknown("made_up_years", where)
+        made_up_value = mapping["made_up_years"]
+        # ...PRESENT, IT IS A LIST (Codex's review of lane ID-ROOM2, item
+        # 5): an explicit null is no omission -- read as one, the twin wrote
+        # 368 cells equal to eleven real values under NF136 -- so it is
+        # refused; only a description written before the key omits it.
+        if made_up_value is None:
+            raise _wrong_type(
+                "made_up_years", where, made_up_value,
+                "a list of runs of years (an empty list where none is published)",
+            )
+        kept_made_up: "dict[str, object]" = {}
+        for key in mapping:
+            if key != "made_up_years":
+                kept_made_up[key] = mapping[key]
+        mapping = kept_made_up
     if "time_grain" in mapping:
         if role not in GRAIN_ROLES:
             raise _unknown("time_grain", where)
@@ -8675,6 +8871,7 @@ def _column(
         verdicts,
         n_not_numeric,
         pooled_in_people=pool_in_people,
+        made_up=made_up_value,
     )
     return ColumnBlock(
         name=name,
@@ -8715,6 +8912,71 @@ def _column(
         top_category_pooled=top_category_pooled,
         top_category_people=top_category_people,
     )
+
+
+# THE YEARS A HELD DATE COLUMN'S MADE-UP DATES TAKE (lane ID-ROOM2, plan
+# P4-D457, contract 7.12c): four-figure years from the one after the
+# release's reference year (`taxonomy.SAFE_HARBOR_REFERENCE_YEAR`, 2027;
+# the gate holds the two together) to the calendar's last, or two-figure
+# years; at most `MADE_UP_RUNS_AT_MOST` runs.
+MADE_UP_FIRST_YEAR = 2028
+MADE_UP_LAST_YEAR = 9999
+MADE_UP_RUNS_AT_MOST = 200
+
+
+def _made_up_years(
+    value: object, where: str
+) -> "tuple[tuple[int, int], ...]":
+    """A block's `made_up_years`, checked (7.12c; lane ID-ROOM2, plan P4-D457).
+
+    A list of runs `[first, last]`, each two whole years with the first
+    at most the last, both two-figure years (0 to 99) or both four-figure
+    years from `MADE_UP_FIRST_YEAR` to `MADE_UP_LAST_YEAR`, in order and
+    apart (each run's first after the last one's last), at most
+    `MADE_UP_RUNS_AT_MOST`. What it cannot check is the producer's
+    promise that no real cell is a date of any year in them: that is
+    `taxonomy.with_made_up_years`'s, read off the cells. Raises
+    ProfileError for anything else.
+    """
+    runs = _runs_of_made_up_years(value)
+    if runs is None:
+        raise _out_of_range(
+            "made_up_years",
+            where,
+            "something else",
+            "a list of runs of years, each two whole years in order: two-figure "
+            f"years, or four-figure years from {MADE_UP_FIRST_YEAR} to "
+            f"{MADE_UP_LAST_YEAR}, the runs in order and apart",
+        )
+    return runs
+
+
+def _runs_of_made_up_years(value: object) -> "tuple[tuple[int, int], ...] | None":
+    """`_made_up_years`'s runs, or None where the value is not runs of years as 7.12c writes them (lane ID-ROOM2, plan P4-D457)."""
+    if not isinstance(value, list) or len(value) > MADE_UP_RUNS_AT_MOST:
+        return None
+    runs: "list[tuple[int, int]]" = []
+    last = -1
+    for entry in value:
+        if not isinstance(entry, list) or len(entry) != 2:
+            return None
+        first, final = entry[0], entry[1]
+        if (
+            isinstance(first, bool)
+            or isinstance(final, bool)
+            or not isinstance(first, int)
+            or not isinstance(final, int)
+            or first > final
+            or first <= last
+        ):
+            return None
+        two = 0 <= first and final <= 99
+        four = MADE_UP_FIRST_YEAR <= first and final <= MADE_UP_LAST_YEAR
+        if not two and not four:
+            return None
+        runs += [(first, final)]
+        last = final
+    return tuple(runs)
 
 
 # THE SAFE HARBOR TOP-CODE (plan P4-D427): the number a block carrying
@@ -9215,6 +9477,7 @@ def _facts(
     verdicts: "tuple[SentinelVerdict, ...]",
     n_not_numeric: int = 0,
     pooled_in_people: bool = False,
+    made_up: object = None,
 ) -> ColumnFacts:
     """Everything the ROLE adds, checked by the rules of its section.
 
@@ -9370,7 +9633,7 @@ def _facts(
     if role == ROLE_IDENTIFIER:
         return _identifier_facts(
             mapping, where, n_present, n_distinct, frame.floor,
-            frame.maps_withheld,
+            frame.maps_withheld, made_up=made_up,
         )
     return _text_facts(
         mapping, where, n_present, n_distinct, frame.floor, frame.maps_withheld
@@ -20763,6 +21026,7 @@ def _identifier_facts(
     n_distinct: int,
     floor: int,
     withheld: bool = False,
+    made_up: object = None,
 ) -> IdentifierFacts:
     """A column the person declared to hold record numbers (6.8).
 
@@ -20813,6 +21077,9 @@ def _identifier_facts(
             largest,
             _truth(mapping["all_whole_numbers"], "all_whole_numbers", where),
         ),
+        # ...and the years its made-up dates take, read apart where the
+        # block carries them (7.12c, lane ID-ROOM2, plan P4-D457).
+        made_up_years=None if made_up is None else _made_up_years(made_up, where),
     )
 
 
@@ -21765,9 +22032,14 @@ def _between(
 
 
 def _columns(
-    value: object, frame: _Frame
+    value: object, frame: _Frame, computed: "dict[str, str] | None" = None
 ) -> "tuple[ColumnBlock, ...]":
-    """Every column block, in the document's own list order (S1 to S4)."""
+    """Every column block, in the document's own list order (S1 to S4).
+
+    `computed` names the columns a carried rule computes, behind the
+    chain's switch alone (lane RO, plan P4-D459): each is read by
+    `_computed_column`, the waiver contract 4.6b.7 grants such a block.
+    """
     listed = _listing(value, "columns", _AT_THE_TOP)
     if len(listed) != frame.n_columns:
         raise _broken(
@@ -21781,7 +22053,9 @@ def _columns(
     index = 0
     for entry in listed:
         named = entry["name"] if isinstance(entry, dict) and "name" in entry else None
-        if isinstance(named, str) and named in frame.emptied:
+        if computed and isinstance(named, str) and named in computed:
+            block = _computed_column(entry, index, frame, computed[named])
+        elif isinstance(named, str) and named in frame.emptied:
             block = _emptied_column(entry, index, frame)
         elif isinstance(named, str) and named in frame.in_patients:
             block = _column(
@@ -21870,6 +22144,69 @@ def _emptied_column(entry: object, index: int, frame: _Frame) -> ColumnBlock:
         detection_evidence="",
         remarks=(),
         facts=EmptyFacts(),
+    )
+
+
+def _computed_column(value: object, index: int, frame: _Frame, source: str) -> ColumnBlock:
+    """A column a carried rule computes, read behind the chain's switch (contract 4.6b.7, MR.6 (a)).
+
+    THE WAIVER, IN ITS MINIMAL FORM (the orchestrator's LANE RO RULINGS 1
+    (2)): only where the description is loaded with `chain=True` and only
+    on a column `ineligible` as `computed`, its keys may be `null`, `{}`
+    or `[]`, and the invariants that read a withheld key (P1, P3, D13,
+    SF3, LF3, LF4 and every other one a role reads) are not read on it.
+    Its `name`, `position` and `role` are read here; every other key,
+    key by key against the block of its role, is S28's
+    (`chain_check.check`), which runs before this description is used.
+    Its counts are placeholders the generator and validator never read:
+    the column publishes nothing read from its cells.
+    """
+    seat = f"in the block for column number {index + 1}"
+    mapping = _mapping(value, f"columns[{index}]", "in the list of columns")
+    for key in ("name", "position", "role"):
+        if key not in mapping:
+            raise _missing(key, seat, "every column")
+    name = _filled_text(mapping["name"], "name", seat)
+    where = f"in the block for the column named '{name}'"
+    role = _one_of(mapping["role"], "role", where, ROLES)
+    position = mapping["position"]
+    if isinstance(position, bool) or not isinstance(position, int) or position != index + 1:
+        raise _out_of_range("position", where, "another place", f"its place in the list, {index + 1}")
+    layout: "list[tuple[str, object]]" = []
+    for key in mapping:
+        kept = mapping[key]
+        if key in ("name", "position", "role") or kept is None or kept == {} or kept == []:
+            continue
+        if isinstance(kept, list):
+            layout += [(key, tuple(f"{word}" for word in kept))]
+        else:
+            layout += [(key, kept)]
+    return ColumnBlock(
+        name=name,
+        position=index + 1,
+        role=role,
+        statistical_type="",
+        quality_state="",
+        structural_role="",
+        n_present=0,
+        n_missing=0,
+        missing_by_class=MissingByClass(0, 0, 0, 0, 0, 0),
+        missing_by_source={},
+        n_missing_blank=0,
+        n_missing_withheld=0,
+        n_distinct=0,
+        n_distinct_folded=0,
+        n_numeric=0,
+        n_not_numeric=0,
+        n_out_of_range=0,
+        n_contradictory=0,
+        n_sentinel_candidates_unpublished=0,
+        sentinel_verdicts=(),
+        detection_evidence="",
+        remarks=(),
+        facts=EmptyFacts(),
+        computed_from=source,
+        computed_layout=tuple(layout),
     )
 
 
@@ -23390,6 +23727,9 @@ def _validated(document: "dict[str, object]", chain: bool = False) -> Profile:
     layer = _patient_layer_frame(document, chain)
     if chain:
         chain_check.check(document)
+    # THE COLUMNS A CARRIED RULE COMPUTES, read as such only behind the
+    # chain's switch (lane RO, plan P4-D459; contract 4.6b.7's waiver).
+    computed = computed_columns(document) if chain else {}
     columns = _columns(
         document["columns"],
         _Frame(
@@ -23412,6 +23752,7 @@ def _validated(document: "dict[str, object]", chain: bool = False) -> Profile:
             declared_days=settings.declared_missing_values.built_in_dates,
             declared_dates=settings.forced_date_columns,
         ),
+        computed,
     )
     _cross_checks(columns, settings, notes)
     _dialect_rules(
@@ -23438,8 +23779,14 @@ def _validated(document: "dict[str, object]", chain: bool = False) -> Profile:
         # (lane BT, plan P4-D429; method G4.2a, G4.2b, G5.7).
         entries, families = ladder_entries(document)
         relationships = dataclasses.replace(
-            relationships, ladder=entries, families=families, chain=chain_families(document),
+            relationships,
+            ladder=entries,
+            families=families,
+            chain=chain_families(document),
             moments=rule_b_moments(document),
+            rules=rule_entries(document),
+            words=pair_words(document),
+            switched=True,
         )
     return Profile(
         profile_version=PROFILE_VERSION,

@@ -63,7 +63,7 @@ otherwise only from this package.
 
 import typing
 
-from synthtwin import contract, dialect, generation, parsing, roles
+from synthtwin import chain_grades, contract, dialect, generation, parsing, roles
 
 # -- the twin's bytes (method G2) -------------------------------------
 
@@ -679,6 +679,87 @@ def _independence_lines() -> "list[str]":
         "   your analysis on the twin, then run the finished analysis on",
         "   your real table, inside the environment that holds it.",
     ]
+
+
+def _between_columns_lines(profile: contract.Profile, twin: generation.Twin) -> "list[str]":
+    """THE SHARED REPORT'S BLOCK, on a twin of a switched description only (lane ST, plan P4-D458; contract 4.6b.8).
+
+    Under the heading `chain_grades.HEADING`, one line for each analysis
+    family F1 to F10 in its STRUCTURAL grade (`chain_grades`), one line
+    for each pair with the word the description's `words` holds, read and
+    never recomputed, a family this twin dealt against a moved target
+    graded `A` and named "moved in this twin" on its pairs, and 4.6b.13's
+    line on describing each table once. Nothing else: no estimate, rate,
+    gap, precision, sample size, judged word or reason a pair was left
+    out. On a twin of a switched description that publishes no chain, the
+    block grades every family between columns `N` and gives no reason. On
+    a twin of any other description it is empty, and the independence
+    paragraph stands word for word.
+    """
+    relationships = profile.relationships
+    # ...F10 naming each column of dates whose twin writes record numbers
+    # (Codex's review of batch 4q, item 3), from the description's own facts.
+    not_dates = _not_date_twins(profile)
+    if not relationships.ladder:
+        if not relationships.switched:
+            return []
+        # A description made with the switch whose chain is off: the
+        # block, every family between columns graded N, and no reason.
+        off = ["1. " + chain_grades.HEADING]
+        off += [f"{code} {name}: {grade}." for code, name, grade in chain_grades.off_grades(not_dates)]
+        return off + [chain_grades.ONCE_LINE, ""]
+    words = relationships.words
+    pinned = any(word == "pinned" for _first, _second, word in words)
+    moved_children = {deviation.column for deviation in twin.deviations if deviation.fact == "chain"}
+    # A family moved in this twin downgrades the family lines too, before
+    # they are written (LANE ST RULINGS 5 (3), Codex's item 6).
+    moved_named = tuple(_shown(family.child) for family in relationships.chain if family.child in moved_children)
+    lines = ["1. " + chain_grades.HEADING]
+    for code, name, grade in chain_grades.family_grades(pinned, False, moved_named, not_dates):
+        lines += [f"{code} {name}: {grade}."]
+    moved_pairs: "set[tuple[str, str]]" = set()
+    for family in relationships.chain:
+        if family.child not in moved_children:
+            continue
+        members = [family.child] + [name for name, _level in family.parents]
+        for first in members:
+            for second in members:
+                if first != second:
+                    moved_pairs |= {(first, second)}
+    lines += [chain_grades.PAIRS_HEADING]
+    for first, second, word in words:
+        said = word
+        if (first, second) in moved_pairs:
+            said = f"{word}; {chain_grades.MOVED}, so A (approximate) here"
+        lines += [f"   {_shown(first)} and {_shown(second)}: {said}"]
+    lines += [chain_grades.ONCE_LINE, ""]
+    return lines
+
+
+def _not_date_twins(profile: contract.Profile) -> "tuple[str, ...]":
+    """The columns whose twin writes record numbers where the table holds dates, shown (`chain_grades.NOT_DATES`).
+
+    Each column held as an identifier whose twin writes the made-up values
+    of some date layout of it as record numbers, from the description's own
+    facts (`generation.dates_written_as_record_numbers`: its published
+    `made_up_years` holding no run of a kind of year a date layout or its
+    grain's reading writes), as the private report reads the description it
+    wrote (Codex's review of batch 4q, item 3).
+    """
+    named: "list[str]" = []
+    for column in profile.columns:
+        facts = column.facts
+        if not isinstance(facts, contract.IdentifierFacts):
+            continue
+        grain = column.time_grain
+        if generation.dates_written_as_record_numbers(
+            list(facts.layout_forms),
+            facts.made_up_years,
+            grain.reading.kind if grain is not None else None,
+            grain.reading.member if grain is not None else "",
+        ):
+            named += [_shown(column.name)]
+    return tuple(named)
 
 
 def _invented_columns(profile: contract.Profile) -> "frozenset[str]":
@@ -2005,7 +2086,16 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
         _RULE,
         "",
     ]
-    lines = lines + _independence_lines()
+    block = _between_columns_lines(profile, twin)
+    standing = _independence_lines()
+    if block:
+        # ON A SWITCHED TWIN THE BLOCK TAKES PARAGRAPH 1'S PLACE (plan
+        # P4-D458); paragraphs 2 and 3 stand word for word.
+        second = 0
+        while second < len(standing) and standing[second][:3] != "2. ":
+            second = second + 1
+        standing = standing[second:]
+    lines = lines + block + standing
     lines += [
         "",
         _RULE,

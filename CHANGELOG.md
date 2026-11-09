@@ -6,6 +6,777 @@ exists).
 
 ## [Unreleased]
 
+### Batch 4q's fix rounds: the outside review's four items, the date room at 200,000 rows, layer L0's step 2b, an answer typed at the prompt, the second verify's compact stamps and clocks written first, and the third verify's zone glued to a stamp's clock, SAS's datetimes, dates written as counts and day of the year, each closed with its gate case (2026-11-08 and 2026-11-09)
+
+**Eighteen commits on the sealed head `b159eb50`, in order**: the three the
+outside review read with the merged line (the date room's year-first share,
+layer L0's step 2b, the answer typed at the prompt), the first fix round's
+nine, the second's four, the third's one and the fourth's one. They change
+the product, its tests, the generation oracle, three drivers and one new
+measurement tool; the records are this section, the plan (P4-D432,
+P4-D445, P4-D448, P4-D457, P4-D458, P4-D461), contract 7.12b, 7.12c and
+4.6b.8, method G5.7c, G9.6b and G9.6c, STATE and the measurement tools'
+index. Every figure is at 20,000 rows and a builder's, a verifier's or a
+diagnosis's own run unless named; the second round's figures are its
+builder's, re-derived by its scoped verify with counters of its own and by
+its fifteen proofs on its head (below); that verify found a class of date
+spellings, compact stamps and a clock written first, which the third round
+closed for the spellings its generator writes save four classes, its figures its builder's;
+the third round's verify found four families of the product's own date
+vocabulary the generator did not write, which the fourth round, the last
+round of date spellings, wrote into the generator and closed for the
+spellings it writes save the same four classes, its figures
+its builder's (they reproduce that verify's own exactly). The suite collects
+18,032 cases, 186 more than the sealed head (395 files).
+
+- **Names beside record numbers keep their runs off the real** (the outside
+  review's item 1, HIGH, and the first round's verify, blocker 1; plans
+  P4-D432 and P4-D445, contract 7.12b, method G9.6b). Lane CZ-A's hold read
+  a column of `Cedar, Abc [1000000]` as record numbers where it had been
+  free text, and kept only the whole cell off the real: on the review's
+  table (1,000 people of 20 records) 46 twin cells held a complete real
+  record number, none on batch 4p's final head. A run of five figures or
+  more inside a value of two words or more now opens, beside the layout's
+  exclusion, as no real run of its width opens, however it is glued: 0 on
+  that table and 0 at 200,000 rows (4,441 before); 0 for the number glued to
+  its label, after `#` and a label, or before a letter (46, 46 and 47 on the
+  first round's head); and 0 for the public tree's own sibling the first
+  round's sweep found, a blood unit's sequence beside its facility code (40
+  on batch 4p's final head). `K-HZ-14`'s driver now fails a complete real
+  run inside a wider twin cell, and reads names beside record numbers on a
+  person's rows. Four identifier columns of one value a row move on the
+  default path, holding more (the second round's verify; P4-D432):
+  `MR{n} A` with nothing declared, 55 complete real runs inside wider
+  twin cells on batch 4p's final head and the first round's head, 0 now;
+  `ACC{n} 01`, 41 to 0; `+1 319{n}`, declared or not, 0 and 0; and a pair
+  of five-figure runs declared, 8,146 to 0. A layout of one word is
+  unchanged (`MR{n}`, 50 such runs on all three trees, the stated limit,
+  lane CZ-A2).
+- **The held-date room reads the date reader's spellings, four-figure runs, a two-figure year written first and an unread cell's fields** (the review's
+  item 2, HIGH, and the verify's blocker 2; plan P4-D457, contract 7.12c).
+  The room ignored date spellings the product's own date reader accepts,
+  so the twin wrote real singleton days as dates: 8 of eleven days of
+  January 2028 written `Jan 01, 2028` beside 19,989 ISO births, none on
+  batch 4p's final head. Every reading of the date reader, every run of
+  four figures, a two-figure year written first and the readings the
+  second round gives the fields of a cell no reading reads (three
+  neighbouring fields in any order, two as a month and a year, a compact
+  run of five to eight figures, a year of one to three figures) now hold
+  their years: 0 days for the
+  review's spelling and for 32 spellings of the eleven days (11 of them wrote 8
+  days each before); 0 for `Jan 01, 28`, `Jan 01 '28`, `28-01-01` and births
+  `Mar 01, 45` (8 days each on the first round's head) and for 56 of 57
+  year spellings swept. The review's 21 pairs of date layouts publish the
+  same rooms; the zoo's six held date columns and the mixed birth dates at
+  200,000 rows keep their twins byte for byte.
+- **The held-date room reads the second verify's compact stamps and clocks written first, and the spellings its generator writes save four classes** (the second round's verify, its
+  blocker and carry 1; plan P4-D457, contract 7.12c). A date written as a
+  compact stamp, its clock run on in its figures (`202801010915`,
+  `2801010915`, `20280101091530`), after a `T` (`20280101T091530`,
+  `280101T0915`) or with a fraction (`20280101091530.000000`), was read by
+  nothing, so 2028 stayed in the room and the twin wrote 8 of eleven real
+  days of January 2028 as ISO dates for each spelling on the second round's
+  head, none on batch 4p's final head; a clock written first (`09:15
+  01/01/28`) left 2028 in the room too. A long run is now read by its first
+  eight and six figures, a clock is set aside wherever it stands, a month's
+  word glued to its figures is read wherever it stands and every three
+  neighbouring runs are read year first: no room and 0 days on each such
+  table. `tools/measurements/date_spellings.py` writes 186,336 spellings of
+  a day combinatorially (every order, years of one to four figures, months
+  in figures, three letters and in full, no mark, a hyphen, a slash, a
+  point, a space or a comma between the fields, 21 placements of a
+  clock, a weekday, brackets, a label); of the 153,450 that name a year of
+  the room, 23,589 were open on the second round's head and 720 are now, all
+  in the four classes stated below, and `tests/test_held_dates_spellings.py`
+  (29 cases) pins the rest, red on the second round's head and on five
+  mutants. Of 64 such spellings run through profile and generate, 23 wrote
+  174 real days on the second round's head and 7 write 46 now, each in an
+  open class and as before. Every table the round's reach measure read on
+  both heads (160: the zoo's, the battery's, the analyst tables and the
+  shapes of two proofs' drivers) keeps its description and twin byte for
+  byte, and the 14 it read on the head alone hold no held date column; the
+  review's 21 pairs publish the same runs (digest 8bb5de0dc06ce2df, 0 real
+  cells in the room), and the zoo's six held date columns and the mixed
+  birth dates at 200,000 rows keep their twins byte for byte, so the second
+  round's proofs stand for this head.
+- **The held-date room reads the third verify's four families: a zone or a
+  meridiem glued to a stamp's clock, SAS's datetimes, dates written as
+  counts and a day of the year**
+  (the third round's verify, its four blockers; plan P4-D457, contract
+  7.12c). Four families of the product's own date vocabulary were read by
+  nothing: on the review's construction (eleven days of January 2028 in
+  the family's spelling beside 19,989 ISO births, 20,000 rows, the column
+  held) a zone or a meridiem glued to a stamp's run-on clock
+  (`20280101091530Z`, `280101091530Z`, `202801010915AM`), Excel's serials
+  (`46753` to `46763`) and Unix seconds, and a day of the year
+  (`2028001`, `28001`) each left 2028 in the room, and the twin wrote 8 of
+  the eleven real days as ISO dates on the third round's head (Excel's
+  serials, ten withheld, 7 of ten); SAS's datetime (`01JAN28:09:15:30`),
+  ten withheld, left 2028 in the room with no day written. Batch 4p's
+  final head, which has no room, writes none of those days, and its twin
+  of the same construction writes about 11,753 cells equal to a real ISO
+  day by chance. A run of more than eight figures that a zone of the
+  clock's list or a meridiem ends is now a stamp; two figures past 23 before a colon are a
+  year, the clock opening at the next colon; each of the twelve counting
+  systems the product names reads, to the nanosecond, a cell its count
+  grammar takes; and a run of seven or five figures, or a year beside
+  three figures, whose three are a day of that year names that year: no
+  room and 0 days on each such table. The generator writes the five
+  families in full (every zone word and offset the product's layout
+  grammar and clock reader name and every meridiem glued to a run-on
+  clock or after a clock; SAS's forms at every width from 7 to 40, with
+  a year of four figures or a two-figure year from 28; a count in each
+  of the twelve counting systems the product names; four day-of-the-year
+  forms with no clock; a clock
+  glued with an hour of one figure): of its 232,596 spellings, 197,442
+  name a year of the room and 3,902 are open, all in the four classes
+  stated below, where the third round's head left 5,836 open outside
+  them; `tests/test_held_dates_export_spellings.py` (57 cases) pins each
+  of the four families at 20,000 rows, red on the third round's head and on a mutant of
+  its rule. This is the last round of date spellings: the room is claimed
+  closed for the spellings the generator writes save the four classes,
+  which take in the four families of the product's own date vocabulary
+  the third round's verify found open in the forms the generator writes,
+  and for nothing more (the stated limits below). The orchestrator
+  applied that stopping rule to the three items the round's own verify
+  then found, each a stated limit below with its reason, and further
+  spellings of the product's date vocabulary are the next batch's first
+  work. Read cell by cell on the proofs' own 917
+  tables (9,532,431 cells), against the third round's head by the round's
+  builder and against the second round's by the records round, the
+  readings leave 3 columns that could enter a room with a cell whose
+  years differ, and asked at the room's own call those 3 differ in
+  nothing; the review's 21 pairs publish the same runs, and the zoo's six
+  held date columns and the mixed birth dates at 200,000 rows keep their
+  twins byte for byte, so the second round's proofs stand for this head
+  too. The docstrings of the room's readings and the two spelling test
+  files' texts say which forms of SAS's datetimes and of the day of the
+  year the generated spellings ask, and name what stays open; no
+  executable line changed.
+- **The date room holds on mixed birth dates at 200,000 rows** (`K-HZ-13`
+  RED on the merged head; plan P4-D457, method G9.6c). Lane ID-ROOM2's
+  share of the made-up years for ISO dates beside month-first ones passed
+  2099 and held years that month-first cells name read year first, so no
+  room stood and the twin wrote record numbers in all 200,000 cells, no
+  real value published. Beside a layout written year last, a layout written
+  year first now takes the block's years whose second figure is a nought
+  (2028 to 2099, then 3000 to 3099 and on): 0 invalid dates, 0 equal and 0
+  merged at 200,000 rows, the twin as varied as the real column. A made-up
+  full date there may fall in 3000 to 9099, unreadable by a nanosecond date
+  type past 2262 (price (a)).
+- **F10 reads N inside a held date column whose twin writes record
+  numbers** (the review's item 3, Medium; plan P4-D458, contract 4.6b.8):
+  both reports had claimed `E (exact) within columns` where no twin cell
+  was a date.
+- **Layer L0's step 2b moves nothing where neither the edge value nor the
+  next value holds a cell of its piece** (behind the chain's switch;
+  `K-BC-11` RED on the merged head; plan P4-D448, method G5.7c). In the
+  public tree since batch 4p: the step handed out a cell no stratum gave and
+  the internal check refused the column (the analyst battery's ST1, table
+  seed 3, a seeded lab value); nothing was written. The oracle's mirror
+  takes the same guard.
+- **An answer typed at the prompt stands over a blank in the answers file**
+  (the default path; the merge of lanes CZ-A and TT; plan P4-D445). A blank
+  under `identifier` held a column whose question the person answered at the
+  prompt in the same run, and validate of the real table against its own
+  description exited 3; a question offering `identifier` answered at the
+  prompt now frees the column, and Enter, a question the prompt did not
+  put and a run with nobody at the keyboard hold as before.
+- Two lines of plan P4-D461's moved-case table, the moved-case registry and
+  its driver name the two short-arc shapes whose roots are a product's arcs
+  through the fixture alone (the review's item 4, Low).
+- `K-HZ-06`'s zoo leg counts a table the command refuses for the people
+  floor apart from one not written (`refused_by_floor`): lane CZ-A's
+  `implant_log` fixture holds 40 people at 20,000 rows.
+- The private report's F10 readers grow lists and freeze them once (the
+  source guard against quadratic growth was red on the first round's head),
+  and a docstring names the rule it reads.
+
+**The price.** Measured at 200,000 rows: the record-number rule moves no
+step beyond noise (describe 45.8 CPU s against 45.6, generate 75.2 against
+75.7, validate 29.9 against 29.0, peak 357 MB against 350 on the review's
+table; 34.6 against 33.7, 47.5 against 47.5 and 19.4 against 17.8 with the
+label glued); the date room's readings add about 1.9 CPU s for each held
+date column in the first round (the producer over the review's 21 pairs,
+142.1 CPU s against 101.6) and about 0.3 to 0.4 in the second, taken in two
+interleaved pairs at load 5 to 8 (133.4 against 127.7, then 128.7 against
+120.1; its builder read 103.8 against 94.7 back to back, its verify 155.7
+against 131.5 run apart), and about 0.7 in the third, taken in two
+interleaved pairs at load 4 to 6 (121.8 against 109.5, then 133.1 against
+116.8), 2.2 CPU s more to describe a worst case of 200,000 births, 40 per
+cent of them written as stamps; the fourth round's, taken in two
+interleaved pairs at load 3.8 to 5.8, no increase measured on the mixed
+birth dates (describe 49.8 and 50.7 s as the probe times it against 51.4
+and 59.3, generate 26.3 and 26.3 CPU s against 27.1 and 29.3) and at most
+3.2 CPU s more to describe a worst case of 200,000 births, 40 per cent of
+them in one family (Excel's serials 15.2 and 15.2 against 12.3 and 16.3, a
+day of the year 16.6 and 16.4 against 13.4 and 14.4, SAS's datetime 5.7
+and 5.4 against 5.1 and 5.4, stamps with their zone 14.2 and 13.3 against
+11.3 and 11.3). PROJECTED at
+2,000,000 by 50 on a quiet machine (linear, ten times): the date room's
+readings under 0.02 CPU hours (the first round), under 0.01 (the second),
+under 0.01 (the third) and under 0.03 (the fourth) with a few held date
+columns, 0.27, 0.04 to 0.06, 0.10 to 0.31 and about 0.4 hours if all fifty
+were; the record-number rule under 0.01 CPU hours with a few such
+columns, 0.13 if all fifty were. Generate and validate are unchanged.
+
+**Stated, each with its owner** (STATE and the plan carry the numbers): lane
+CZ-A2: `K-HZ-16`'s price of six of lane CZ-A's held columns, the PCORnet
+export's codes of nine figures held whole (`K-HZ-02`), the `implant_log`
+fixture's people, a run inside a value of one word (a fragment at chance),
+name columns on lane CZ-A's route whose cells carry no layout, written by
+the spill (generate 106 to 115 CPU s at 20,000 rows against about 8 without
+the mark), and a column of `#MR` and a record number, read as an affixed
+number, whose twin writes 19,999 of 20,000 cells equal to a real cell, on
+batch 4p's final head as on the fix heads, and a column of a family name,
+a given name and a record number joined by commas with no space
+(`Cedar,Abc,1000000`), read as an affixed number, whose description
+publishes 1,000 person prefixes with their record numbers' statistics and
+whose twin writes 18,000 of 20,000 cells equal to a real cell and 1,998
+more holding a complete real record number, on the public tree as on the
+records head (batch 4q's push critic); lane ID-ROOM2: four classes of
+the generated date spellings the fourth round leaves open, 3,902 of the
+197,442 that name a year of the room, a spelling its generator does not
+write not measured by it (a two-figure year written first beside a month's
+word, `28-Jan-01`, `28JAN01` and `28 Jan 01`, 8 days each on the second
+round's head and none on batch 4p's final head; a two-figure year between
+the month and the day that reads as a day, `01-28-05`; a compact run with
+its year between the month and the day, `012805`; a three-figure year in a
+compact stamp, `02801050915`), the date fallback to record numbers where a
+real cell names a year of the block, which ten-figure stamps written
+`yymmddhhmm` reach too since the third round and stamps written with
+their zone (`760101091530Z`) since the fourth (over-holds; a count, now
+read in all twelve counting systems, names years from 2028 too, where the
+builder's probes of births written as counts published no room on the
+third round's head already), years past 9998 and digits
+outside ASCII (not measured beyond the generator), a held date column with
+a few cells of a day and a month and no year (`Jan 28`), which now loses
+its room, and a withheld layout's room where F10 reads E; lane ID-ROOM3,
+each a spelling beyond the generator and, by the last round's stopping
+rule, beyond the product's own date vocabulary, not shown written by an
+export, or naming no year of the room, or, for SAS's two-figure years
+below, not new against batch 4p's final head and writing fewer of its
+days: month words
+outside English (`01-ENE-28`, 8 real days, 9 by a broader reading), roman
+months (`01.I.28`, 8) and ranges of days (`Jan 1 to 4 '28`, 8), a month
+alone (`202801`: the room holds 2028 and 22 twin cells name January 2028,
+at seeds 0 to 3), letters glued to a date's run and the rare compact forms
+(`DOB20280101`, `028001`, `12801010915`, `28010109`, 8 days each), each
+measured by the third round's verify on the review's construction and read
+the same on the fourth round's head; measured by the fourth round's
+verify, a day of the year with its clock run on in its figures
+(`28001091530`, `20280010915`, `2028001091530Z`: 8 of 11 real days
+written on the fourth round's head as on the third's, none on batch 4p's
+final head; no export shown writing it), an hour alone run on a date of a
+two-figure year with a zone (`28010109Z`, 8 of 11), and SAS's datetime
+with a two-figure year of 00 to 23, read as the hour, where the two-figure
+room wraps past 99 (on a table of 20,000 rows that wraps it the room
+`[[0, 7], [28, 99]]` holds 03 and the twin writes 3 of ten real days, and
+3 and 2 in its forms of 2000 and 2001, where batch 4p's final head, with
+no room, writes 8, 4 and 8); and, not measured by the generator, a zone
+glued to a compact date with no clock (`20280105Z`), a day of the year in
+six figures, counts outside the count grammar (grouped, in brackets, with
+a plus) and a zone word outside the clock's list glued to a stamp's
+clock; and, the lane's first item, a held date column holding a
+figures-only cell that is no date, which loses its room since the fourth
+round (three `99999` beside 19,997 ISO births: `[[2028, 2137]]` on the
+third round's head, `[]` on the fourth's, every twin cell a record
+number; eleven `99999`, eleven `55555` and three `77777` alike), a count
+being read in all twelve counting systems: NF137's price widened, not an
+exposure, the item setting all-nines and all-noughts aside before the
+count reading; lane BT2's successor: no case pins the
+oracle's guard of step 2b; lane PS3: the real table's repetition pattern on
+a column held as record numbers; lane HB2: the vitals export's twin, which
+writes 4 weight cells past the top code of 90 its description publishes
+(reproduced on the fix head; no real value published).
+
+**Measured on the second round's head `c22837e6`** (its fifteen proofs in
+ten runners side by side, beside the round's whole suite, the machine
+loaded, so no seconds were judged; the records round's commits move no
+product code): lane HB's five label-key shapes 0 real keys and 0 real runs
+at 20,000 rows, as on the merged head but generation seconds; the stage-5
+goldens 257 records, 0 differing; `K-HZ-13` OPEN-held at its bounds, 1
+invalid date string (200,001 on the merged head) and 18,175 real dates
+written by chance where batch 4p's stamp read 143,097 (lane ID-ROOM2's
+room); `K-HZ-06` OPEN-held, the five held birth-date columns and
+`tumor_registry.dx_date` 0 twin cells equal to, merging with or naming the
+same day as a real cell (734 to 7,656 on batch 4p's stamp), every other zoo
+identifier column and all 186 shapes 0, its zoo bounds restated to lane
+CZ-A's 154 tables and 311 identifier columns and the table its fixture holds
+below the people floor counted apart (`refused_by_floor` 1, at most 1, none
+once lane CZ-A2's fixture holds 1,000 people); `K-BC-11` PASS, no overclaim
+of any kind, its recorded keys moved against lane ST's head (underclaims 31
+against 7) and alike on the diagnosis's head and both fix heads, so moved by
+the merged line's batch 4p and not by the fix rounds (by reading, not split
+by a run); `K-HZ-16` OPEN-held, every key as on batch 4p's fix-round head
+but the price's two, restated to the measured 28 and 9 (six of lane CZ-A's
+held identifier columns; 22 and 6 their targets, lane CZ-A2); `K-HZ-14` OPEN
+at its bounds, 84 items with the driver's own form, 2 failing, the count
+lane CZ-A stamped, 0 complete real record tokens inside wider twin cells, that
+key's bound and target added; `K-HZ-07`, `K-HZ-15`, `K-HZ-19`, `K-HZ-20` (94
+and 79 questions put), `K-S3-65`, `K-S3-64`, `K-HZ-01`, `K-HZ-02` (158
+failures over 45 kinds, every one owned), `K-HZ-05`, `K-S8-01`, `K-S8-03`,
+`K-S8-05`, `K-S5-01` and `K-S5-02` every key as on the merged head,
+`K-HZ-17` too but its seconds, and `K-HZ-03` its machine-free keys, its
+seconds red at the stamp on a loaded machine as before. The round's whole
+suite: 17,872 passed, 56 skipped, 15 expected to fail and 3 failed, the
+17,946 collected, the three the records' own (the registry's two seal cases
+and the ledger's case on `K-HZ-06`'s stamp), which this round's stamps and
+seal clear; `kpi_suite_shards.py` refuses a run with failed cases, so
+`K-P0-10`'s seconds and `K-P0-11` stay owed. The ledger reads 1,163,160
+bytes after the stamps, under the bound of 1,200,000; the shard weights gain
+the rounds' four new test files and weigh again the six they grew, each
+timed alone. The third round's one commit acts only on a held date column's
+room, and its reach measure (the same tables and seeds on `c22837e6` and on
+its head) moved no description or twin byte of any table it read on both
+heads, so these stamps stand for this head. Its whole suite on its head
+`36023624`: 17,901 passed, 56 skipped, 15 expected to fail and 3 failed, the
+17,975 collected, the same three, refused by `kpi_suite_shards.py` alike.
+The ledger reads 1,169,259 bytes with its records; the shard weights gain
+its gate file (91.74 s, 29 cases, timed alone). The fourth round's one
+commit acts only on a held date column's room too: its reach, read
+cell by cell against the third round's head on the proofs' own tables
+and at the room's own call where a column could enter a room, and the
+reach of the third and fourth rounds together, read so against
+`c22837e6` at the records round, are null, so these stamps stand for the
+final head. The fourth round ran no whole suite: the whole suite runs
+once on the final records head, beside the push critic, and `K-P0-10`'s
+seconds and `K-P0-11` wait for that run. The ledger reads 1,173,601
+bytes with its records; the shard weights gain its gate file (93.35 s,
+57 cases) and weigh again the grown one (99.14 s, 29 cases), each
+timed alone.
+
+### Batch 4q sealed: lanes ARR-a, TT, RO, ST, ID-ROOM2, CZ-A, CHs and SPD2 landed, their KPIs stamped on the merged head, five proofs red for the fix round (2026-11-08)
+
+**Measured on the merged head `b93f128a`** (the eight lanes on batch 4p's fix-round head, with batch 4p's final head; plans P4-D445, P4-D457 to P4-D462 and P4-D466, each with its landing line; eight proof runners side by side on a loaded machine, so no seconds were judged): lane HB's five label-key shapes 0 real keys and 0 real runs at 20,000 rows, as on batch 4p's heads; the stage-5 goldens 257 records, 0 differing; `K-HZ-07`, `K-HZ-15`, `K-S3-64`, `K-HZ-01`, `K-HZ-05`, `K-HZ-19`, `K-HZ-20` (94 and 79 questions put) and `K-S3-65` every key as batch 4p's stamps read them, `K-HZ-17` too but its seconds, and `K-HZ-03` its machine-free keys, its seconds red at the stamp on a loaded machine as before; `K-HZ-02` 158 failures over 45 kinds at 20,000 rows, every failure owned, its moved keys each a lane's, measured table by table: lane ID-ROOM2's held two-figure birth dates no longer write real years by chance (the real values its leak scan finds, 79 to 44 and 84 to 54), and lane CZ-A moves three of its checks (a device identifier's code check no longer runs; two code columns' twins no longer write their codes of nine figures); `K-S6-02`, `K-S6-03`, `K-S6-05`, `K-S6-08`, `K-S6-01`, `K-S6-12` and `K-S6-14` every key as stamped but seconds; `K-S6-13` open, its projected generate peak at 2,000,000 rows read on a loaded machine and not judged; each merged lane's own: `K-S8-01`, `K-S8-03`, `K-S8-05`, `K-S5-02`, `K-S6-04` and `K-HZ-21` PASS as their lanes stamped them, `K-S5-01` PASS over lane TT's seven new battery cases, `K-S6-06` open, every judged key as lane RO stamped it, and `K-P0-01` PASS, 42 source files and 0 violations. **Five proofs read RED and keep their stamps for the batch's records round**: `K-HZ-06` (every held date column 0 equal, merging or naming the same day; lane CZ-A's eight zoo tables move its exact counts, and one table its fixture holds below the people floor is refused), `K-HZ-13` (lane ID-ROOM2's date room loses its room on mixed birth dates at 200,000 rows and the twin writes record numbers there; no real value or date published), `K-HZ-14` (as lane CZ-A stamped it, 2 items failing), `K-HZ-16` (six of lane CZ-A's identifier columns priced, held) and `K-BC-11` (its driver stops in layer L0's step 2b, lane BT2's, in the public tree since batch 4p behind the switch). `K-S6-15` was not run, its run owed; `K-S4-09`'s reading on this head is owed. The suite collects 17,846 cases; its whole suite on the merged head, run beside the proofs, failed 4 (the registry's two seal cases, `K-HZ-06`'s stamp, and one regression of the line, the fix round's). The ledger reads 1,154,215 bytes after the stamps, under the bound of 1,200,000.
+
+- STATE names what the batch closed and what stays open: the two defects of the public head FIXED on the shipped path (Enter at an on-screen question, lane TT; keys with a constant prefix and suffix, lane ID-ROOM2); OPEN, owner batch 4q's fix round, each measured: names beside record numbers holding complete real record numbers inside wider twin cells and a held date room that ignores date spellings the product's own reader accepts (the outside review's items 1 and 2, HIGH), the date room on mixed birth dates at 200,000 rows, layer L0's step 2b, and an answer typed at the prompt that a blank in the answers file overrides. Its CI row records batch 4q sealed and not pushed.
+
+### Batch 4q's merge records: batch 4p's push named, the ledger's bound raised once, the owed records of batch 4p's push critic and records verify (2026-11-07)
+
+- Batch 4p was pushed on 2026-11-07 at 08:53 (-0600) as one commit, `d0eaa273`,
+  on `2018de5c`, its tree batch 4p's final sealed head's (`f0ce1e06`): CI run
+  42383694868 on that head, success, 86 of 86 (the run is recorded in
+  STATE's CI row).
+- The ledger's byte bound rises once for this batch, from 1,100,000 to
+  1,200,000 (the orchestrator's recorded call D15; the owner may veto): lane
+  ST's merge took the merged ledger past the old bound (1,110,710 bytes), and
+  with every lane merged it reads 1,150,990 bytes, before the batch's stamps. No
+  entry is trimmed and no key dropped.
+- Three stated limits get owners (plans P4-D448, P4-D449 and P4-D456): the
+  crossing cuts of the top band, refused and not solved, lane GRb; the
+  trained-model family F8, not scored by lane MPg's battery run, lane MPg2;
+  and the one cell of blanks a person's own pandas reads without its leading
+  blanks is outside the product, pandas' own reading, nothing owed. P4-D456's
+  limit (2) is restated: behind the switch the patient layer publishes a
+  patient chain and no moment of a repeated column.
+- `K-HZ-17`, `K-HZ-19` and `K-S3-65`: the key-word rename of batch 4p's fix
+  round reaches some of their columns by name, and their run on `d8f5e147`,
+  reading those columns as keys, moved no key (`K-HZ-17`'s seconds aside;
+  their entries and P4-D449 say so); this batch's proofs read them on its merged head.
+- Carried, lane RO2's first item (P4-D459): the switched command stops with a
+  `KeyError` in `summary._tail_lines` when a caller asks for the rule steps,
+  on lane RO's invented event table at 4,000 and at 20,000 rows; the switch
+  off, and on without the rule steps, exit 0; nothing is published past the
+  stop.
+- Four figures at 2,000,000 by 50 in three plan rows of this batch (lanes CZ-A,
+  RO and ARR-a), and one in lane ST's contract amendment, now say they are
+  projected.
+
+### Lane SPD2, the suite's time part 2: the shard weights measured whole on the head, and the largest cases of four files run by a slow driver (plan P4-D461, 2026-11-05; repairs 1 and 2, 2026-11-06)
+
+**The shards are packed from the head's own seconds.**
+`tools/ci/shard_weights.py` had last been measured whole on 2026-10-01,
+and 49 files had no row and weighed 2.0 s, four of them taking 934 to
+2,327 s each: on the base `2af926ce`, one run of the five shards with
+`--durations=0` took 4,871 to 10,314 s a shard (37,119 s summed) where
+the rows projected 3,837 s each. Every row is now one file's seconds
+from one such run of the head, every collected file has a row, and the
+packing is still longest-first.
+
+**55 cases leave the suite for `K-HZ-21`'s driver,
+`tools/measurements/kpi_moved_cases.py`.** The 20,000-row leg of every
+case of `tests/test_zoo_identifiers.py` parametrized on its sizes but
+seven, and the real VCF at the floor; the million-row pool of
+`tests/test_stage4_numbers_and_codes.py`; the three cases of
+`tests/test_stage4_number_tail.py` at 200,000 and 250,000 rows; and the bytes describe holds a row added at 80,000 rows and the 40,000-row legs of its two grids of bytes a row, in `tests/test_stage4_describe_memory.py`.
+Their files' KPIs name no driver, so the driver is new; each item calls
+the function its node called, imported from its module, with the same
+parameters. Every 600-row leg stays, and so does each file's floor-size
+case. Each lane's recorded mutants ran against what stays: two checks a
+mutant turns red only in a moved case stay in the suite (the 20,000-row
+leg of the three-widths record numbers, red on rule A1 without a prefix
+removed; the dense tail's report windows, kept at 160,000 rows, the
+smallest size its mutant turns red). No product byte moves.
+
+**Repairs 1 and 2 keep six floor-size legs of the zoo's hold routes in
+the suite (HIPAA first).** A change that holds a column at 600 rows and
+publishes it from 10,000 present cells upward turned no 600-row leg red,
+and CI runs no slow driver: with Q-ID's UID cells skipped so, all 1,000
+real series UIDs were published at 20,000 rows, and with keys beside
+words skipped, every real key. Each hold route the moved legs reach took
+such a size-gated mutant, and one 20,000-row leg stays wherever one lets a
+real identifier out and no other kept case goes red: five legs, 81 s of
+the base run, each red on its mutants through the suite's own file.
+Repair 2 keeps a sixth, the short-arc root's `ge` leg (52 s of the base
+run): two size-gated mutants of the root after an organisation arc
+published a real series or study UID as the root at 20,000 rows and left
+every other kept case green; the leg is red on both. The
+drivers no longer report success where nothing ran or nothing was
+bounded: the moved cases' driver fails an item on every ending but its
+return and goes on, refuses an optimizing Python and takes a node's exact
+name; the five-shard driver takes the revision's collection and refuses a
+run that is not exactly its five shards run to their end.
+
+**Measured** (through the suite runner, the five shards at once): base run 1 took 4,871 to 10,314 s a shard, 37,119 s summed. The new packing first ran on the lane's head before repair 1, `f9be5138`: 5,954 to 6,125 s a shard, 30,101 s summed, 0.59 of the base's heaviest shard and 0.81 of its sum, its shard 1 red on one case, the decontamination scan of the plan's own text, rewritten in repair 1. The earlier measurement `e45eaecc` ran the old packing, 4,341 to 9,114 s a shard and 34,152 s summed, its shard 1 red on four cases of the records then in progress. Repair 1's head `8ad59431` ran green, 5,438 to 5,599 s a shard and 27,656 s summed (0.54 and 0.75 of the base's). The lane merged in batch 4q, so its acceptance is judged from batch 4q's whole suite on its sealed head against base run 1, and `K-P0-11` is registered from that run; no dedicated interleaved runs are made.
+
+**Records.** `K-HZ-21` new, 55 cases and none failing; `K-P0-10`
+restated by dated amendment: its one-process seconds are dropped, the
+five shards' summed and heaviest seconds are bounded at 0.90 and 0.70 of
+base run 1's and unresolved for this head until batch 4q's suite, and its
+driver is the five-shard reader; `K-P0-11`, the heaviest shard, is
+registered from batch 4q's suite. Stage 3b's gate's prose mutations were not
+written again, a stated limit. STATE's suite row gives the head's count
+and files and the shard times measured so far.
+
+**At batch 4q's merge** (2026-11-07). The lane merged last, without a rebase,
+and no product code moved: on the merged head the suite collects 17,846
+cases, the 17,885 before it less the 55 moved and with the 16 added, and
+the node ids the merge removes are exactly the 55 `K-HZ-21`'s driver runs.
+The shard weights keep the lane's table and add the rows the lanes merged
+after its base had added, and the nine test files of the merged line that
+had no row are timed alone on the merged tree; `tools/ci/shards.py --of 5
+--prove` holds on the merged collection (389 files). The suite-time bar is
+read from batch 4q's whole suite, not claimed here.
+
+### Lane CHs: the chain's describe at scale, behind its switch (2026-11-05; repair 1 the same day)
+
+**The switched describe holds a byte or a word a row, and reads each column once** (plan P4-D462; `K-S6-15`, new, OPEN, its describe part projected). Behind the chain's switch, `chain.describe` holds each column's starting bands in one byte a row, maps its levels one byte a row and keeps `L0` alone, reads the tabled rows through the short list of the records holding nothing, holds the row hashes in one buffer of 32 bytes a row, keeps the self-test's sample in a bounded heap counting occurrences without a dictionary over every row, counts the search's tables over the rows at `L0` where they are small and lets a placed column's cached tables go. The description's own reading of each column is handed to the chain (`taxonomy.KeptSpellings`), so the chain no longer runs taxonomy's whole decision again for each column, and the loop over the columns lets go of every kept reading before the search, an ineligible column's included (repair 1). On 50 numbers at 200,000 rows the switched describe takes 1,479.3 s and 301.6 MB where it took 1,749.5 s and 702.6 MB, its column reading 20.6 s where it took 321.7. PROJECTED at 2,000,000 x 50 on one head and one hash seed, its time has two readings: the stage table through 20,000 and 200,000 rows, the screen read on the 200,000-row sample the self-test takes from 1,000,000 tabled rows, sums to 3.98 CPU hours, and the line through 200,000 and 500,000 rows gives 4.14 (4.20 on the larger sample, 4.07 by least squares), so the bar of 4 CPU hours is not shown to hold; the search carries the most of the rise (lane CHs2), and the re-measure with lane CHa2's bounded screen at the rebase decides it. Its peak projects to 1,864 MB (1,793 by least squares), the search's (562.0 MB at 500,000 rows against the plain description's 504.0), inside the run-to-run spread of the 1,900 MB line, so it is not judged to fit; the decision on lane CHON's size guard stays with the orchestrator, and the 302-column table's 2.5 hours at 20,000 rows are a stated limit of the screen's triples, owned by lane CHa2's bounded screen and lane CHON's guard. The search's cached tables hold one number object for each count above 256. Time first (the orchestrator's rulings of 2026-11-05), the bounds on the kept readings are raised to 262,144 spellings a column and 2,097,152 a table: on a table of many spellings at 200,000 rows the chain no longer reads ten columns again, 68 CPU seconds less. From repair 2 a column the chain sets aside on its description (free text and notes, an identifier) keeps no reading at all, a table's kept readings are held to 345 MiB counted in the bytes they retain (a count of spellings says nothing of their length: twenty columns of 100,000 notes of 2,000 characters at 2,000,000 rows passed both counts, about 4.35 GB, where the bound keeps about 218 MB, one column), and each map is built only into the room its bounds leave; `K-S6-15` binds every shape's bars, its CPU key read with the screen on the sample a table of 2,000,000 rows draws. Every switched description and private note is the bytes it was; without the switch nothing changes. The new driver `tools/measurements/kpi_chain_describe_scale.py` measures each stage's exact peak and seconds and counts the search's cache at every step; its code-heavy and many-spellings shapes publish a chain; the three hash seeds at 500,000 rows and the traced 200,000-row run are owed to lane SX's nights.
+
+**At batch 4q's merge** (2026-11-07). The lane merged without a rebase beside the lanes that changed the chain's describe since its base (BT2, CHa2, GRa, MPg, RO and ST): lane RO's argument `kept` keeps its name and this lane's kept reading is `spellings_kept`; lane ST's self-test reads the sample's rows and hashes where the sample is drawn, and lane RO's rule steps read the cells on the tabled rows, since this lane holds no list of them; a table described in patients lets the kept readings go before the patient layer. The gate and the driver answer the subject question `one row each`. Measured on the line without the lane and on the merged head: the gate's two tables, lane RO's three invented tables and the gate's paths table with and without records holding nothing, and the lane's bytes battery of 20 tables give the same bytes; the gate's frozen digests are the line's (plan P4-D462).
+
+### Lane CZ-A: Safe Harbor identifier forms held while unanswered, each a kind of the zoo, and a blank under a column held in people holds (2026-11-04)
+
+**Eight Safe Harbor identifier forms are held whole and put the Safe Harbor
+question** (plan P4-D445). A column holding one social security number
+written with its marks (a dash, a space or an en dash, a capital letter
+after it or not), one beneficiary identifier in the public eleven-character
+layout, or one name beside a bracketed record number, whatever its share;
+or, on two in three of its cells, opaque tokens (32 or 64 hexadecimal, 22
+base64 characters), accession numbers, ISBT 128 blood-unit numbers or whole
+numbers of fifteen figures or more; or named as a device's lot or serial
+number, is held while its question is open, on free text too, and lane
+SH2's device identifiers reach free text as well. `code`, `keep` or
+`measurement` is no release; `no` frees the column to the reading it had;
+where the count in a declared person column's people holds the column whole
+already, that hold stands and no question is added.
+
+**A blank keeps a column held in people held** where no person column
+counts the table: its checklist entry is written under `identifier`, and a
+blank there no longer publishes it once the person question is answered
+`keep`. Over the zoo at 20,000 rows one column took that path on the base,
+a code column (no identifier or date element).
+
+**A held column of opaque tokens is described and written in minutes.**
+The held walk passes over a layout every filling of which recounts into a
+band not the slot's (a base64 token's `+` or `/` puts every filling in the
+wide band, a letter mark in the code band), moving that layout's step as
+the search would have, so every twin is the same bytes; and a declared
+column's layout prefixes read each cell's layout once. A thousand tokens
+on 20,000 rows, each its own layout, had taken 48 minutes to describe and
+had not been written after three hours; it is described in 202.5 s and
+written in 425.1 s now.
+
+**The zoo** holds the eight forms as kinds of its seventh shard
+(`tests/safe_harbor_forms.py`), the immunizations export's UDI declared a
+device identifier (it was declared a code); `K-HZ-14` measures each form at
+600 and 20,000 rows (at 20,000 rows 0 real values shown and 0 twin cells
+equal to one; OPEN at 2 of 70 items, the device log answered truthfully or
+`no` at 20,000 rows, whose lot the people's union counts, so the person
+census refuses the table, with the table floor on or off, as on the base:
+lane MG's); the gate is `tests/test_zoo_safe_harbor_forms.py`. The tests
+about how wide keys and large whole numbers are spelled answer `no` to the
+question those numbers are now put.
+
+**Repair 1: seven variants of the forms that published whole are held**
+(plan P4-D445, the orchestrator's LANE CZ-A RULINGS 1). Answered a reading
+that publishes, with the person question `keep` for every column, each of
+these was published whole at 20,000 rows before the repair (1,000 real
+values in the description and 20,000 twin cells equal to one each, but
+the last below, the numbers among shorter ones read as a count: 1 value
+and 20 cells): social
+security numbers joined by another dash or space (a non-breaking hyphen, a
+minus sign, a full-width hyphen-minus, a non-breaking space) or with a
+small letter after them; base64 tokens of 24 characters with no padding,
+and keys of 43 and 44; a name beside a labelled record number (`[REC
+1234567]`, `(REC: 1234567)`, `#1234567`, `Lastname Jr.`, `de la
+Lastname`); UDIs whose application identifiers stand in square brackets;
+ISBT 128 unit numbers with their check character or `=`; accession
+numbers in two layouts with no dash; and numbers of twelve to eighteen
+figures in one column, now held on one cell of sixteen figures or more.
+Each is held whole and put the Safe Harbor question. A name's number counts
+from six figures, so a label beside a procedure's code of four or five
+figures is no name. THE PRICE: a closed list of codes the forms' rule
+reaches -- codes of three capitals, two figures, a dash and four figures,
+of 32 small hexadecimal characters, of 15 to 18 figures, and three of the
+zoo's code columns holding a concept id of seventeen figures -- is held
+until the person answers `no`; only `no` frees such a column (lane CZ-A2).
+`K-HZ-14` gains a variant column for each reading and four closed lists,
+counts the false alarms `no` frees at 20,000 rows, reads the twin's report
+and quality files, and reads the chance of a figure run once a column
+against twenty unseen tables; the slow zoo driver runs the suite's six
+shards, the forms' left to `K-HZ-14`; the blank's hold and the person
+count's exemption each gain a case.
+
+**Repair 2: seven more spellings of the forms are held** (plan P4-D445,
+the orchestrator's LANE CZ-A RULINGS 2 and 3). Answered a reading that
+publishes, with the person question `keep` for every column, each of these
+was published whole at 20,000 rows on repair 1's head (1,000 real values
+in the description and 20,000 of 20,000 twin cells equal to one each):
+UUIDs, the 32 hexadecimal characters in five groups joined by dashes, in
+braces or not; identifiers of nineteen figures stored as a spreadsheet's
+NUMBER cells and read back in exponent form (`1.2345678901234568E+18`);
+accession numbers the year first with their dash (`24S-100000`) or with a
+dash between their capitals and their year (`S-24-012345`,
+`24-S-012345`); a name beside a record number with a sole initial and its
+point (`Lastname, F. [2000000]`) or a family name written with a curly
+apostrophe; and serial numbers in a column named `sn`. Each is held whole
+and put the Safe Harbor question. A month's abbreviation beside such a dash
+is no accession number, so dates written `01-APR-20` stay dates; the word
+`batch` is left out of the device names (the shared test table's constant
+column is named so). The long numbers' question now says such a number
+may be a record number or a measurement in small units. `K-HZ-14` gains a
+variant column for each spelling and the long identifiers' workbook of
+number cells, counts what a round showed before a later refusal, and reads
+every run of five figures of a real value in its chance of a figure run
+(at 20,000 rows 36 of 38 items pass, 0 real values shown and 0 twin cells
+equal to one; the two others the device log the person census refuses, as
+before); the tokens' form writes 64 hexadecimal capitals too; the gate
+splits in two files.
+
+### Lane ID-ROOM2: a made-up date in a held date column kept off the real dates (2026-11-04; repair 1 2026-11-05; repair 2 and its follow-up 2026-11-06)
+
+**No twin date of a column of dates held as record numbers, where its
+description names a date layout, is a real date of it, exact, merged, or
+the same day written with the other year width, by construction**
+(P4-D457; contract 7.12c, notes
+NF136 and NF137; method G9.6c). The producer reads every present cell of
+such a column on its merged key, in every order a date of its date
+layouts stands in, and publishes `made_up_years`: one block a kind of
+year, fixed by the published facts -- four-figure years from 2028, the
+year after the release's reference year, two-figure years from `28` --
+used only where no real cell is a date of any year in it, nothing stepped
+over and nothing counted. The G1 floor and the date pass
+draw their made-up dates from those years alone and check each before it
+stands; a kind of year with no room keeps the identifier walk's values,
+kept off the real by the exclusions. At 20,000 rows the zoo's five held
+birth-date columns and its diagnosis dates read 0 equal and 0 merging
+(733, 758, 747, 756, 7,055 and 3,138 equal on `2af926ce`), their twins
+validating with no check missed; `K-HZ-06`'s twelve keys of those six
+columns read 0 (re-stamped on `9478abb`). The price, stated in P4-D457: made-up
+birth dates fall in 2028 or later, a held column whose record published
+spans draws from the block instead, and a column of two-figure years whose
+real dates take a year of its block (the zoo's `dob_short`) is written as
+record numbers, not dates, as is, at the table floor, any held column's
+date layout of figures alone with a two-figure year.
+
+Repair 1 (skeptic 1 and Codex's review of `18b17a9c`). Where a column's
+layouts write both widths of year, each year read in one width is held in
+the other, so a two-figure made-up date names no real birth day (2,335 of
+5,903 two-figure cells did at 20,000 rows; the two-figure kind is now
+written as record numbers there). The block is sized by what each writer
+writes in a year (144 dates for a year written last in four figures, not
+366), so a column of 1,000 dates keeps 1,000 (864 before) and ten years of
+dates validate; a held column read as stamps publishes `[]` and is written
+as before, readable (0 of 20,000 cells parsed); a withheld layout's value
+is a valid date (12 were left unreadable); `made_up_years: null` is
+refused; the date pass finds a step's run directly and the producer keeps
+no record a key. And sequential keys with a constant prefix and suffix,
+read as affixed numbers, are now asked the identifier question as the same
+keys bare or prefixed are, and held unanswered: 0 of 20,000 twin cells
+real where 19,998 were, P4-D457 part (b): a defect of the public head,
+FIXED on the shipped path (its gate case
+`test_c1_keys_with_a_prefix_and_a_suffix_are_asked_and_held`, at 20,000
+rows through the command). HIPAA comes before G1: the
+questions file, the description and the twin of a table holding such
+keys change their bytes. The identifier route's walk (BATCH 4n OWES 11)
+stays open, owner lane ID-ROOM2.
+
+Repair 2 (the verify of repair 1 and the suite of its head; every figure at
+20,000 rows). Every cell is also read in its own layout's orders, a layout
+too rare to be named included, and a cell of the other width of year brings
+the cross rule: twelve four-figure births of 1928 to 1937 beside two-figure
+ones wrote 20 two-figure cells naming 7 of them, and now none (the reverse,
+7; the price, the column's other cells written as record numbers). On the
+date pass each layout writes its dates in its own
+share of the block at the days it writes, so ISO and month-first births
+keep their dates (the whole column was written as record numbers); a
+column naming a stamp publishes `[]` (NF136 had promised dates over 19,600
+stamps); a year alone is written as a year of the block (1,008 were
+eleven-figure numbers). A withheld value is written as a date only at its
+own length (validation exited 3), and NF136 names the cells that may still
+be record numbers. `K-HZ-06`'s counter counts the held date columns' cells
+naming a real day too.
+
+Follow-up (the scoped verify of repair 2). A held birth-date column held in
+people whose layout census is withheld whole, a rare layout held by too few
+people, names no date layout, and its G1 floor draws from its grain's span:
+17,513 to 17,517 of 20,000 twin cells equal a real birth date by chance at
+20,000 rows and validation exits 3, the same on the public head; no birth
+at or before the cut is named. It stays open, owner lane ID-ROOM3, and
+`K-HZ-06` is OPEN-held for it. The remark such a column carries (NF129) no
+longer says its twin's values come "never from your table": it says a value
+drawn inside a span the table's values fill may by chance be one the table
+holds, so the description of a column carrying it changes that remark's
+bytes. A unit case pins the withheld value's side of the code alphabet.
+
+### Lane ST: the self-test L2b and the two reports of chain A, behind the chain's switch (2026-11-04; repairs 1 and 2, 2026-11-05; follow-up, 2026-11-06)
+
+**The person who runs synthtwin on their own table is told what the twin carries, and which twin to use** (plan P4-D458, contract 4.6b.8 and 4.6b.14 amended; the owner's R7). Behind the chain's switch, `synthtwin profile` runs a self-test on a content-keyed sample of the table: a trial twin of the sample's own cells, arranged by the chain's walk through the generator's shared module, judged by a panel generated from the schema (subgroup rates, correlations, linear, logistic, count and Cox models, missing cells, code that stops) against each estimate's half-split yardstick scaled to the whole table, with a replicate and a shuffled sample as controls in every run. Its words go to a PRIVATE report, written beside the installation's key file and never beside the description or the twin: both grades for every pair and analysis family, which grade to act on, which twin to use, the precision line, the chain's private notes, rule B's moments by kind and reason, the patient words and the key file's path. The twin's SHARED report says what can be analysed on it in structural grades only, one line a family and one line a pair as the description publishes it. The sample is now chosen in a bounded heap, the same rows in the same order. Measured on invented tables: the self-test takes about 45 s on a 17-column sample of 20,000 rows and 15 minutes on a 48-column sample of 200,000, its memory a function of the sample alone; on the analyst battery at 20,000 rows its words, held against the product's chain twin, are counted by K-BC-11, restated in place to the two reports (no structural overclaim and one judged one in 18 table-seeds, from 3 and 15 on the lane's first build), and K-S6-04, widened in place to both reports, reads 0 on every new key. Nothing changes with the switch at its default. **Repair 1 (2026-11-05):** every judged word is now the worst of three trial keys run one after another, each key's word kept in the private report; a family's shares are read on its joint estimates; F1 reads each level of a label column as a part of its own; a pair holding a number reads the worse of its table's word (at the finest level its cells support) and its correlation's, a skewed pair's at best approximate; a family whose estimates show no relationship beyond twice chance is not judged; the private report says the twin's numbers stand in only for what is judged carried, an exact pair being exact at its family's published bands, names its models and counts what it left out. A named private folder open to other accounts is refused, and a fault of the self-test never moves the run. The shared F1 line adds N for three or more columns across families, and a switched twin with no chain grades every family N. Measured on invented tables at 20,000 rows: K-BC-11 reads no structural, judged or pair overclaim on the product's chain twin over 21 table-seeds, BC-ARCH 4.2's skewed design among them, and every published family's table holds there; three keys take a 200,000-row sample by 48 columns about 51 minutes of processor time. **Repair 2 (2026-11-05):** the private report never writes over or removes a file the run reads or writes, its folder passes the locality gate as given before anything looks at it, a folder no one may read never stops the run, and two names never share one report; a pair holding a number also reads its correlation on the raw scale, so extremes the trial twin parts are no longer called carried; the share rule leaves a family unjudged only where its share of related estimates stands under twice chance, and says its counts (the two models the withdrawn clause had left unjudged still read not judged, under the comparisons rule); fewer than five comparisons against the shuffle never read carried; a label pair counts its support on its complete cases; a family moved in the twin reads A on its F1, F4 and F9 lines too; a report with no chain grades as its shared report does and names its reason; and K-BC-11 reads raw-scale correlations, an error against a yardstick of nought, unreadable dates and each report's own family lines. Measured on invented tables at 20,000 rows over 21 table-seeds: K-BC-11 still reads no structural, judged or pair overclaim on the product's chain twin, now reading each pair of numbers on the raw scale too, and records the 26 family-runs the share rule leaves. **Follow-up (2026-11-06):** a family with fewer than five comparisons against the shuffle reads not carried only where every one of them is lost past the line on its own, and otherwise not judged, its reason now counting the estimates showing a relationship that the trial twin keeps inside, so "about as often as the replicate" is never the whole reason; K-BC-11 records the family-runs that rule leaves; five behaviours of repair 2 gain a guard each. Measured on invented tables at 20,000 rows: the two models repair 2 named still read not judged, one strong coefficient under each key keeping the trial twin short of the line, and their reasons now say that none of their three estimates showing a relationship is inside; over 21 table-seeds K-BC-11 still reads no structural, judged or pair overclaim and records the one family-run the comparisons rule leaves, its chain twin meeting the target.
+
+**At batch 4q's merge, beside lane GRa's patient layer and its subject question** (P4-D449; contract 4.6b.8 amended 2026-11-07). The lane's gate and drivers say who each row is about, as the line's other chain tests do, so their tables read as when the lane stamped them. The private report read the patient layer from the description before its chain and read a run that hands the self-test no inputs as a run whose chain is off: on a switched description that publishes its patient layer (an invented table of 2,500 people of eight rows, 20,000 rows) it said that no chain is published, graded the families between columns and F7 `N`, and said each row is read as one person's. It now reads the patient layer as the description is written, grades the families as a description with a patient layer, and says every family is not judged because the self-test judges a chain of one row a person; while the subject question holds the chain, its patient line gives that reason. Two gate cases pin it, each red on the merge commit's code.
+
+### Lane RO: order rules carried through their difference D, behind the chain's switch (2026-11-04; repair 1, 2026-11-05; repair 2 and its follow-up, 2026-11-06)
+
+**Rules between columns are built** (plan P4-D459, contract 4.6b.7 as lane MR's page amends it). Behind the chain's switch, and only where a caller asks for the rule steps, the profile infers every order rule the page's three conditions open, draws one step a rule before the chain, keyed by the rule's identity, and carries a rule by a source column equal to its difference or by a derived difference placed as its own family; the computed column publishes its name, its place, its rule's role and its own layout words, and no count and no ladder. The loader holds every rule to S28 as the page amends it and reads a computed column's block behind the switch alone; the generator writes the computed column from its rule in its own first layout, the derived difference's readings placed as the page writes them; the validator prints each rule's two lines, its verdict alone. On the invented event table at 20,000 rows and three twin seeds, `K-S6-06` reads 0 rows ending before they start, 0 disagreeing with their duration, 0 closed before they open, and a keyed class of 150 placed exactly; a chain of events is still a star (lane RO2). Repair 1 takes the inference's readings from the cells the describe already reads and holds them as bytes, so no column of the file is read again; its readings hold 2.3 bytes a cell on a mixed table (the build's inference traced 39 bytes a cell), held compactly where a column's readings fit a palette or four bytes a row and as the interpreter's whole numbers, about 40 bytes a cell, where its scaled span reaches 2 to the 32, and it takes 36.5 CPU seconds at 200,000 rows by 50 columns (the build: 614 s), about six CPU minutes projected at 2,000,000. The score no longer draws a level of the difference with no edge, which wrote the end equal to its start and erased the gap, unless the gap is 0 on 99 of 100 rows; a rule whose input another worth rule computes no longer refuses a looser one, so a chain of events keeps its departure after its arrival; a computed column whose dealt-apart self would keep nothing of an association is carried, and one whose presence follows another column is not; and the computed column is written in its own form, its offset, its month names, its unit and its decimal comma, so code that parses the real column parses the twin's. Repair 2 fixes what an outside review and the verify measured on ordinary tables: a band of the difference reaching far below 0 no longer asks for its whole span (250 trillion integers on one invented case), and a column writing more than 255 UTC offsets, or a month beside a date, no longer raises; a computed number keeps its own unit beside a bare input, its point after its figures (`43.`) and its brackets, and a computed stamp keeps its fraction of a second, so code converting or parsing the real column converts the twin's; a source's missing marker is no reading, a declared decimal comma bands the input by its own reading, no source reads a computed column, the score reads a pair's own decimal scale and stamps at their instants, and a stamp finer than its input is not computed from it; nor, since the follow-up, is a stamp written in another time zone than its input or to fewer figures after the second, which the rule wrote at its input's offset (a local clock eight hours off on every cell of one invented pair) or with its input's six figures, so each keeps its own offset and figures, written as without the rules and its order beside its input then not kept (two stamps of one zone across its clock change keep their rule); the validator reads each rule's derived family where it judges a file and counts a rule's lines not judged where the report's closing account looks; `K-S6-06` judges every twin's placement of every carried rule. With the switch at its default, every byte stays.
+
+### Lane TT: one command for the whole journey -- `synthtwin twin`, one overwrite rule, one help page for each command (plan P4-D460, 2026-11-04; builds P4-D395's `twin`)
+
+**`synthtwin twin TABLE [--out-dir FOLDER]`** runs profile, generate and
+validate in one run and one folder, each step the command line a person
+would type apart, read by the same parser and run by the same dispatch:
+its six files are those three commands' files, byte for byte, and each
+step's result is that command's own (`Result.steps`). The profile step
+puts its questions on screen where somebody is at the keyboard, before
+any file or the folder exists, so a run stopped at its first question
+leaves nothing behind. The folder is `TABLE-synthtwin` beside the table
+unless `--out-dir` names one; its questions file keeps the answers, and
+a later run there hands it back and asks nothing, writing the same six
+files. The run's verdict, misses and refusal are its most severe step's
+and its exit status `results.exit_code`'s (3 where a step missed), with
+the next command `twin` after a run stopped at a question and
+`answer-questions` after a run that leaves a question open, whoever was
+at the keyboard. **One overwrite rule**: `profile` now refuses, before reading the
+table, a file already at one of its three names, in the words `generate`
+and `validate` use (one template now, their messages unchanged), unless
+`--replace` is given -- today's `profile --replace` keeps working as
+written -- or the run is the answers round (`--answers`), which writes
+over that round's files as it always has. **One help page each**:
+`synthtwin COMMAND --help` and `synthtwin help COMMAND` show that
+command's page, at most 60 lines at 80 columns, the help of
+`--keep-value` and `--missing-value` printed whole wherever they are
+read; `synthtwin help` an index, `synthtwin help examples` the examples;
+`synthtwin --help` keeps the whole-tool page byte for byte. Seven twin
+cases join the stage-5 battery (T1 to T7, `K-S5-01` alone). Measured at
+20,000 rows, stamped on eef48fd8: `K-S8-01` (headline) 1 install command,
+1 run command and 0 files edited by hand, where README's count read 1,
+5 and 1; `K-S8-03` (new) 0 files before the answers, 0 questions on a
+second run and 4 of 4 commands under one rule, where the base's profile
+read 0, 1 and 2; `K-S8-05` (new) the longest command page 60 lines, 5
+pages of their own and an examples page of 37, where every command showed
+the one page of 340; re-run, `K-S5-01` 60 of 60 cases met and 0 of 33
+corrupted results met, `K-S5-02` 0 of 257 records moved. Existing tests that profiled twice into one
+folder now pass `--replace` to the second run: four cases of
+`test_cli_profile.py`, two of `test_chain_profile.py`, and one each of
+`test_p1r6f8_identifier_evidence.py`, `test_p1r8f1_guard_seam.py` and
+`test_reading_agreement.py`.
+
+**Repair 1 (2026-11-05; the orchestrator's LANE TT RULINGS 2 and 1).**
+Enter at a prompt now leaves the question open, as a run with nobody at
+the keyboard leaves it, so the key a person presses when unsure never
+releases more than nobody's run does: it had been taken as `keep`, and
+at 20,000 rows 19,998 of 20,000 real record numbers reached the twin
+(found on the lane's base, fixed here): a defect of the public head,
+FIXED on the shipped path (its gate cases
+`test_enter_at_every_question_writes_what_nobody_s_run_writes` and
+`test_enter_keeps_the_record_numbers_held` in
+`tests/test_terminal_twin_held.py`, at 20,000 rows through the command).
+Profile's screen changes where
+somebody presses Enter (a held column's prompt line, the banner, the
+asked-again line); no golden records such a run. The commands a twin
+teaches are the person's whole command line; a folder's kept answers
+are handed back by themselves only to the file they were given about
+(its size and fingerprint, read in the one reading) read with the same
+`--smallest-group` and as many `--missing-value` and `--keep-value`; no name of the
+twin's six may lead onto the table; the table's path passes the locality
+gate before anything touches it; a workbook's twin is named by the
+table's content; a folder at a name, or a twin folder that cannot be
+made, is refused in words before the table is read where it can be; the
+ending counts the files written and the questions the screen can put;
+and an unknown command word is refused in the base's words again.
+The gate is two files under 180 CPU seconds each (29 cases in 78.4,
+11 in 157.4, under load; the twin against the three commands run apart
+is `K-S8-03`'s driver's alone). Measured on be984176: `K-S8-01` 1, 1 and
+0, `K-S8-03` 0, 0, 4 and 0, `K-S8-05` 60, 5 and 37, stamped again; on
+7da4e789 `K-S5-01` 60 of 60 cases met and 0 of 33 corrupted results met, `K-S5-02`
+0 of 257 records moved. A case that pinned Enter as an answer now pins it
+as none (`test_privacy_unanswered_identifiers.py`), and the route-four
+mutant case shows its check live with the code's key typed.
+
+**Repair 2 (2026-11-05; the orchestrator's LANE TT RULINGS 3).** A twin
+that leaves a question open now teaches the answers command whoever was
+at the keyboard: a person who pressed Enter, which leaves a question
+open, had been taught none. With somebody at the keyboard the line
+opens "N question(s) are still open". The gate is 30 cases in 78.3
+CPU seconds and 12 in 153.6. Measured on 053b4eb: `K-S8-01` 1, 1 and
+0, `K-S8-03` 0, 0, 4 and 0, `K-S8-05` 60, 5 and 37, stamped again;
+re-run, `K-S5-01` 60 of 60 cases met and 0 of 33 corrupted results
+met, `K-S5-02` 0 of 257 records moved.
+
+### Lane ARR-a: the audited array helper and the computer's reader, numpy's array operations admitted in one module (2026-11-05)
+
+**Added** (plan P4-D466; P4-D409 part 3 (c) and (e), built). `synthtwin.arrays`,
+the one module where the offline audit admits numpy's array operations, one
+name at a time: `frombuffer`, `zeros`, `argsort` (stable), `bincount` (no
+weights), `cumsum`, `where`, `flatnonzero`, `concatenate`, `min` and `max`,
+each held to its argument form, and `astype` and `tolist` on the arrays it
+makes, no attribute. Its thirteen functions hold the polish's row passes
+(counts and an exact sum rounded once for every `math.fsum` over rows, the
+score, the band moves, the counting sorts, the order by score, the
+write-back, the hidden sums, the gathers), each with run-time checks and
+the plain loop it replaces, the same bytes: every function equals lane
+MPg's loops, frozen in `tests/arrays_as_built.py`, byte for byte, 3 to 40
+times faster at 1,000,000 rows. `synthtwin.computer` reads the installed
+memory and the number of processors for the start-of-run check; on Windows
+the memory cannot be read inside the offline audit, and the reader says so.
+
+**Changed.** The offline scanner gains a closure rule: no numpy object
+leaves the helper, and the generator's draw reaches one first-party
+function (`hidden_sums`) and no operator (`@` and `**` on it passed unseen
+before). The helper's float functions are zone G's alone. `os.cpu_count`
+and `os.sysconf` (its two memory names) are read in `synthtwin.computer`
+alone; `cli`'s doctor keeps its reading through a one-line delegate.
+Nothing in `src` calls the helper yet: no twin, description or printed
+byte moves (lane ARR-b adopts it in the polish after batch 4p).
+
+**Fixed** (the lane's repair 1, 2026-11-06; LANE ARR RULINGS 3 and 4). Every
+check of a caller's input is made before the helper chooses its path, so a
+malformed input raises the same ValueError on a little- and a big-endian
+computer; finiteness is read on the bits; numpy's path of the score and
+the moves is taken only below 2 ** 500 in every value they read, so no
+product or sum can overflow and numpy prints no warning the plain loop
+would not; the band totals gather their scores once. The two fallbacks
+that decide bytes, seven of the checks, the overflow cases and the path's
+end each gained cases on both paths, red on their mutants. The records
+state the band count of each measured gain, the pair sums' cost below
+about 50,000 rows and the paths the first bench did not time. CI's wheel
+and sdist allowlists name the helper and the computer's reader.
+
+**Fixed** (the lane's repair 2, 2026-11-06; LANE ARR RULINGS 5, on the outside
+review's four items, and the verify of repair 1). The helper's module is no
+value outside it, so the zone table reads every call of it (a cast of the
+module reached a float function from zone D unseen); the draw's one reader
+takes the draw in its first positional parameter, whatever it is called, and
+must be one plain def taking it first (a renamed parameter let the draw be
+handed back). The write-back refuses a buffer it writes handed again as
+another argument, the places' starts are read as whole numbers on both paths,
+a draw of more than one dimension is refused, and a count, a width or a start
+that is not a whole number is refused before the path, so both paths give
+one result on every such input. The noise's, the normal scores' and an
+encoding's 2 ** 500 bounds and the write width's range are pinned by cases.
+The computer's reader states that inside a container it reads the host's
+memory. No product byte moves.
+
 ### Batch 4p's records after the fix round's verify: a third gate case, the owed readings, every carry with its owner (2026-11-07)
 
 **Tests and records only** (the orchestrator's LANE I4p RULINGS 7; no product code moves). The fix round's scoped verify re-derived its eleven tables with a counter of its own and read 39 invented tables of 20,000 to 24,000 rows through the switched command: on the fix head none publishes a value the description holds back, where the sealed head published one on six shapes of the verify's own beside the fix round's four (a year of birth beside a stray cell, a run of years, ages in months past their top-code, a run of 12 visits, a first visit at 92, ages written with a leading space). A third gate case pins the position list's own text: on 2,000 patients whose first visit's age is 92 before visits at 80 to 89, the list's first position reads 90, red on the sealed head and on a mutant whose lists read the cells as the file wrote them, which the other two cases left green. `tests/test_module_names_once.py` reads a top-level `for` target and a `with` target as a binding, red on a second `KEY_WORDS` bound either way. `K-HZ-16` and `K-HZ-20` are stamped on the fix head, every key as batch 4o stamped them; `K-HZ-17`, `K-HZ-19` and `K-S3-65` keep batch 4o's stamps, their runs on the sealed head reading every key the same (`K-HZ-17`'s seconds aside).
@@ -20,7 +791,7 @@ exists).
 
 **Carried.** Codex's item 2, a source column named like the layer's own census, `(rows per patient)`, stops the switched profile with an `IndexError` (24,000 rows of 2,000 patients with 12 rows, two fixed binary groupings; named `arm` the description completes): the census and the derived columns are published under such names, so keeping them apart from a source column's changes the switched description and its loader, more than this round's forty lines; lane GRb's stack, with Codex's case (plan P4-D449). Also lane GRb's, stated: where the rows' description pooled a patient-fixed column's whole top category, the patient table's block publishes the rows' figures without the top-code's marks, which stand on the rows' block alone (every published figure the same).
 
-**Records.** `K-S6-14`'s rule and evidence and its row in `tools/measurements/README.md` said the generator reads no moment; since lane MPg's merge a switched description's moments reach it through the polish (plan P4-D456): the entry checks the published moments and their rounding, and the twin's fidelity to them is `K-S6-12`'s (Codex's item 3). Re-run through guard.sh, print only, on the fix round's head `f608375d`, before the key-word rename: the stage-5 goldens, 257 records reproduced, 0 differing; `K-S6-08` PASS, its 98 keys equal to the stamp but its seconds, the floor-size scan among them (four tables of 1,000 patients or more, every count of the layer 0 or at least the floor, no loader refusal, no age above 90 in a block, an edge or a position list); `K-S6-14` PASS, its 66 keys equal to the stamp but its seconds (its ST2 is read with its person column, so the layer is reached). The patient layer's change reaches only the proofs that describe with a person column behind the switch, these two, and with the switch at its default it moves no byte. The key-word rename changes the shipped path: it reaches the command's questions on columns named with the words the two lists differ on, giving back batch 4o's reading, re-run on the fix head `ba87102b`: the goldens, 257 records reproduced, 0 differing; `K-HZ-20`, 94 and 79 questions put at 20,000 and 600 rows (84 and 78 on the sealed head `d8f5e147`), every other key as batch 4o stamped it; `K-HZ-16`, all 339 keys as batch 4o stamped them (four had moved on `d8f5e147`, plan P4-D449); lane HB's five label-key shapes as on batch 4o's merged head. `K-HZ-17`, `K-HZ-19` and `K-S3-65`, re-run on `d8f5e147` with the defect in, read every key as batch 4o stamped them (`K-HZ-17`'s seconds aside): their drivers run the shipped command, and the rename gives back the word list their stamps were read under. Every other proof stands. The price, behind the switch only and measured as process time on a loaded machine: on an invented table of six columns, three of which the description changed (an age top-coded at 90, a reading the age reach top-codes, a year of birth top-coded at 1937), the switched profile took 12.56 and 12.62 CPU seconds at 20,000 rows against 9.74 and 9.89 on the sealed head, and 124.8 at 200,000 rows against 96.6, each such column read a second time on its described cells (7.3 to 10.5 CPU seconds a column at 200,000 rows) and every other column as before; the shipped command, the switch off, adds nothing. `K-S6-05`, run on the sealed head, is restated: its meaning, no more whole real rows than a fresh real sample, is unchanged (the chain's twin 17,542.25 on average against a fresh sample's 17,601.2; the switch off 13,179.6, exactly as stamped), and its three fixed-seed bounds move to 17,542.25, 17,612 and 1,078.75 because the chain's twin now follows the real joint structure: lane MPg's polish moved them, the line just before its merge reading 15,146.9, 15,209 and 844.0 (plans P4-D451 and P4-D456).
+**Records.** `K-S6-14`'s rule and evidence and its row in `tools/measurements/README.md` said the generator reads no moment; since lane MPg's merge a switched description's moments reach it through the polish (plan P4-D456): the entry checks the published moments and their rounding, and the twin's fidelity to them is `K-S6-12`'s (Codex's item 3). Re-run through guard.sh, print only, on the fix round's head `f608375d`, before the key-word rename: the stage-5 goldens, 257 records reproduced, 0 differing; `K-S6-08` PASS, its 98 keys equal to the stamp but its seconds, the floor-size scan among them (four tables of 1,000 patients or more, every count of the layer 0 or at least the floor, no loader refusal, no age above 90 in a block, an edge or a position list); `K-S6-14` PASS, its 66 keys equal to the stamp but its seconds (its ST2 is read with its person column, so the layer is reached). The patient layer's change reaches only the proofs that describe with a person column behind the switch, these two, and with the switch at its default it moves no byte. The key-word rename changes the shipped path: it reaches the command's questions on columns named with the words the two lists differ on, giving back batch 4o's reading, re-run on the fix head `ba87102b`: the goldens, 257 records reproduced, 0 differing; `K-HZ-20`, 94 and 79 questions put at 20,000 and 600 rows (84 and 78 on the sealed head `d8f5e147`), every other key as batch 4o stamped it; `K-HZ-16`, all 339 keys as batch 4o stamped them (four had moved on `d8f5e147`, plan P4-D449); lane HB's five label-key shapes as on batch 4o's merged head. `K-HZ-17`, `K-HZ-19` and `K-S3-65`, re-run on `d8f5e147` with the defect in, read every key as batch 4o stamped them (`K-HZ-17`'s seconds aside): their drivers run the shipped command; the rename reaches some of their columns by name (36, 15 and 28 string literals of their form modules read differently under the two key-word lists, the records verify's count over literals), and that run, reading those columns as keys, moved no key; batch 4q's proofs read them again on its merged head, key by key against the stamps. Every other proof stands. The price, behind the switch only and measured as process time on a loaded machine: on an invented table of six columns, three of which the description changed (an age top-coded at 90, a reading the age reach top-codes, a year of birth top-coded at 1937), the switched profile took 12.56 and 12.62 CPU seconds at 20,000 rows against 9.74 and 9.89 on the sealed head, and 124.8 at 200,000 rows against 96.6, each such column read a second time on its described cells (7.3 to 10.5 CPU seconds a column at 200,000 rows) and every other column as before; the shipped command, the switch off, adds nothing. `K-S6-05`, run on the sealed head, is restated: its meaning, no more whole real rows than a fresh real sample, is unchanged (the chain's twin 17,542.25 on average against a fresh sample's 17,601.2; the switch off 13,179.6, exactly as stamped), and its three fixed-seed bounds move to 17,542.25, 17,612 and 1,078.75 because the chain's twin now follows the real joint structure: lane MPg's polish moved them, the line just before its merge reading 15,146.9, 15,209 and 844.0 (plans P4-D451 and P4-D456).
 
 ### Batch 4p sealed: lanes BT2, CHa2, GRa and MPg landed, their KPIs stamped on the merged head (2026-11-06)
 
@@ -35,9 +806,9 @@ exists).
 - Behind the chain's switch alone: a patient-fixed column's block, which lane GRa's patient layer publishes from the patient table (one row a patient, under the table floor), now pools a top-coded category that fewer than the floor's patients hold below the mark, as the rows' description pools it in people (plan P4-D454, lane SH3; plan P4-D449). On an invented table of 24,000 rows and 2,000 patients, five of them aged 92 to 101, the merged head's patient-table block published 90 in its high tail (20 rows at a mean distance of 1.25, so five patients) while the rows' description pooled it; now both pool it and the switched description loads. A gate case at 24,000 rows holds it, red on the mutant that reads the patient table's own row count. Every shipped byte stands: only the patient layer passes the setting.
 - Lane GRa's subject question holds the chain back while it is open; lane MPp's moment tests, lane MPg's polish tests and the drivers of `K-S6-12`, `K-S6-13` and `K-S6-14` were written before it and now say who each row is about as lane GRa's chain tests do (`ROWS_UNASKED` in the library, `one row each` through the command). `K-S6-14`'s driver writes a table's patient layer beside its chain as the command does, so the one table that names its person column loads as before.
 
-### Lane MPg: the twin meets the owner's rule B, behind the chain's switch (2026-11-03; repairs 1 and 2, 2026-11-04; repairs 3 and 4, 2026-11-05)
+### Lane MPg: the twin is moved onto the published moments of the owner's rule B, behind the chain's switch (2026-11-03; repairs 1 and 2, 2026-11-04; repairs 3 and 4, 2026-11-05)
 
-**The chain's twin now meets the moments rule B publishes** (plan P4-D456, generation method G16.2 step 2 and G16.3, validation method V13, each amended and dated). Where a family publishes no slope, the walk orders a child's rows inside each published cell by the slope the family's published table implies: a weighted least-squares line of the child's band scores on its parents', plus the cell's mean band score, read from the description alone. After the walk, a polish re-assigns each number moment column's own cells among its own rows, eight rounds towards the published correlations and band means, each row kept in its band of the column at its chain level: every column keeps its multiset of cells and its blanks, every family table and `L0` total stays met, and a held, identifier or label column never moves. The chain oracle mirrors both in emulated binary64, and `tests/test_moment_polish.py` holds the product to it. MEASURED on the analyst battery at 20,000 rows (`K-BC-01`, all 18 table-seeds, three keys, three twin seeds a step): the share of estimates inside their yardstick rises from the walk's 0.432 (0.423 to 0.438) to 0.486 with the implied slope and 0.511 (0.506 to 0.519) polished, against a fresh sample's 0.765 and the shuffled twin's 0.394; the missing-data family keeps its 0.67; the truths recovered rise from 9.4 to 12.2 of 96, and the coefficients significant on the real table change sign on 11.9 % of the polished twin's estimates against 19.1 % of the walk's (a fresh sample 2.8 %). `K-S6-01`'s rank-correlation gap falls from 0.393 to 0.029. On lane `A0b`'s 50-column table at 20,000 rows the polished twin meets 188 to 201 of 273 estimates against the walk's 123 to 135 (a fresh sample 227). At 200,000 rows the polished twin meets 141 of 287 against the walk's 88 (a fresh sample 213). Describe, chain and the polished generate project to 10.7 hours and 1.3 GB at 2,000,000 rows by 50 columns, the polish growing as `n` to the 1.10 (`K-S6-13`, the machine loaded). `K-S6-12` and `K-S6-13` are new; `K-S6-01` is stamped again.
+**The chain's twin is now moved onto the moments rule B publishes** (plan P4-D456, generation method G16.2 step 2 and G16.3, validation method V13, each amended and dated). Where a family publishes no slope, the walk orders a child's rows inside each published cell by the slope the family's published table implies: a weighted least-squares line of the child's band scores on its parents', plus the cell's mean band score, read from the description alone. After the walk, a polish re-assigns each number moment column's own cells among its own rows, eight rounds towards the published correlations and band means, each row kept in its band of the column at its chain level: every column keeps its multiset of cells and its blanks, every family table and `L0` total stays met, and a held, identifier or label column never moves. The chain oracle mirrors both in emulated binary64, and `tests/test_moment_polish.py` holds the product to it. MEASURED on the analyst battery at 20,000 rows (`K-BC-01`, all 18 table-seeds, three keys, three twin seeds a step): the share of estimates inside their yardstick rises from the walk's 0.432 (0.423 to 0.438) to 0.486 with the implied slope and 0.511 (0.506 to 0.519) polished, against a fresh sample's 0.765 and the shuffled twin's 0.394; the missing-data family keeps its 0.67; the truths recovered rise from 9.4 to 12.2 of 96, and the coefficients significant on the real table change sign on 11.9 % of the polished twin's estimates against 19.1 % of the walk's (a fresh sample 2.8 %). `K-S6-01`'s rank-correlation gap falls from 0.393 to 0.029. On lane `A0b`'s 50-column table at 20,000 rows the polished twin meets 188 to 201 of 273 estimates against the walk's 123 to 135 (a fresh sample 227). At 200,000 rows the polished twin meets 141 of 287 against the walk's 88 (a fresh sample 213). Describe, chain and the polished generate project to 10.7 hours and 1.3 GB at 2,000,000 rows by 50 columns, the polish growing as `n` to the 1.10 (`K-S6-13`, the machine loaded). `K-S6-12` and `K-S6-13` are new; `K-S6-01` is stamped again.
 
 **Repair 1: the twin meets near-collinear pairs and rare binary outcomes, each published moment within half its rounding unit plus 2 root two times `T` (for a correlation `T = max(1 - r^2, 0.05) / sqrt(n)`, so near `|r| = 1` the 0.05 floor governs: about 0.0010 at 20,000 rows and r = 0.999, against 0.00004 for two root two ordinary standard errors; repair 2 restates the measured misses), in a few bytes a row** (2026-11-04; LANE MPg RULINGS 5 and 6; plan P4-D456, generation method G16.3 and validation method V13, each amended and dated). Rebased onto lane MPp's repair 2, the polish reads every moment in the unit its own count sets, a correlation on Fisher's z, an incomplete pair's entry and a grouping on its `L2` bands. A moved column's bands are read again after each of its rounds. A partner is read by its rank's normal score in units of its spread, so the rows past the published clip are ordered too; an aim of a correlation stays inside 0.999 and the aims are kept feasible together; a number's means in a correlated partner's bands are no target; the last round re-sorts four times on its one draw; a round runs from the finest frame to the coarsest. A binary with both levels published is re-assigned among the rows sharing every band its families cross it with, toward the numbers' means by it and its shares, at its threshold's slopes; a two-valued column with a held level never moves. Each band's score spread is scaled toward the published spread. The published correlations are projected to the nearest positive semidefinite matrix where they are not one (repair 2: only inside a common row set). The polish holds no list a row (struck by repair 2: the score and a frame group's rows were such lists), and a column it may move is placed once after it; the twin is the same bytes. Product, oracle and frozen vectors moved together (A-P4-59). Measured on the repaired head (lane MPg's harness and `kpi_run.py --slow`, the machine loaded): on the reviewer's probe table at 20,000 rows (its diastolic column lifted past the age reach's 0 to 125), three twin seeds, the pair's correlation on codes 0.99701 to 0.99703 against 0.99700, the regression of one on age and the other within 1.2 standard errors of the real slope and 0.0001 of its R squared, lab's coefficients on the pair none significant with standard errors 0.99 to 1.02 times the real ones, and the rare event's logistic coefficients within 1.4 standard errors (the build's polish: 6 to 8 off); `K-S6-12` 0.929 to 0.931 of 5,748 moments inside at root two standard errors against three fresh samples' 0.927 to 0.940, every kind at least the fresh samples' share but band means; `K-S6-13` the shipped generate's footprint projected on a line to 1,805 MB at 2,000,000 by 50 and the run to 8.91 hours. Stated limits: a 0.95 pair whose member stands at chain level `L0` with its family's parents leaving out a correlated column stays outside its bound at 20,000 rows; band means in correlated partners' bands are untargeted; a column read as a possible age is top-coded at 90 until its question is answered; the projections of the description and the chain pass 2,500 MB (owners named in P4-D456).
 
@@ -57,7 +828,7 @@ exists).
 **Repair 4: the records the scoped verify 2 corrected, the CPU hours beside the clock, and the polish's sort held to a plain sort** (2026-11-05; LANE MPg RULINGS 14, on the lane's scoped verify 2 of `aea59493`, which repair 3 began before and did not carry; plan P4-D456 and generation method G16.3 amended and dated). Nothing in `src` changes; the twin's bytes and the oracle's vectors do not move.
 - A stated limit (g), owner lane MPg2: a pair whose columns stand on different row sets can stay far from its kept goal, 0.57 against 0.90, with no line in the twin's report (Codex's two probes, repair 2's line above: the frame holds the pair, not its spreads). MPg2's second item is that line: a published correlation the twin misses beyond `K-S6-12`'s allowance named in the twin's report, one line a pair, its CPU cost measured with lane ARR-b's helper.
 - P4-D456 no longer says the column step's one-group penalty is gone at 500,000 rows: it is reduced from about 128 to about 40 to 50 bytes a row (219.0 against 218.0 MB on the repair's run; 206.7 against 185.0 on the verify's exact counter).
-- CPU HOURS at 2,000,000 by 50, process time beside `K-S6-13`'s wall-clock: the polish's own 257.9 and 2,344.2 s at 20,000 and 200,000 rows, exponent 0.959, 5.92 CPU hours, the figure lane MPg2 must cut to 3.5; the shipped generate 7.96, the walk with the implied slope 2.06, describe 0.52 and the chain 0.54 (repair 3's run on `03ead853`); on the verify's run the shipped generate about 8.5 on a line (7.9 by the exponent 0.97), the polish about 5.4 to 6.9 of them. Both runs were loaded, so these figures are on the high side of a quiet machine's. `K-S6-13`'s footprint on the verify's exact counter projects 1,996 to 2,008 MB, above the 1,900 MB line and far under the working budget of 8 GB: the entry stays OPEN-held, its bound restated to 8 GB at the stage-6 close.
+- CPU HOURS at 2,000,000 by 50, PROJECTED from process time beside `K-S6-13`'s wall-clock: the polish's own 257.9 and 2,344.2 s at 20,000 and 200,000 rows, exponent 0.959, projected 5.92 CPU hours, the figure lane MPg2 must cut to 3.5; the shipped generate 7.96, the walk with the implied slope 2.06, describe 0.52 and the chain 0.54 (repair 3's run on `03ead853`); on the verify's run the shipped generate about 8.5 on a line (7.9 by the exponent 0.97), the polish about 5.4 to 6.9 of them. Both runs were loaded, so these figures are on the high side of a quiet machine's. `K-S6-13`'s footprint on the verify's exact counter projects 1,996 to 2,008 MB, above the 1,900 MB line and far under the working budget of 8 GB: the entry stays OPEN-held, its bound restated to 8 GB at the stage-6 close.
 - `tests/test_moment_polish_sort.py` holds the shipped twin of an invented 20,000-row table of two cohorts (every kind of target) to the twin of the same polish whose frame groups are sorted as plain `(score, row)` tuples (`tests/moment_polish_reference.py`), byte for byte: the net for lane ARR-b, which rewrites the polish's sorts and sums. A step of its own pins two equal scores to their places in row order. The score key's fraction cut to 20 bits and ties to the higher row, the verify's two survivors, are each red on both cases; the case costs about 37 s of process time.
 ### Several rows per patient, the profile side, built behind the chain's switch, and the subject question (lane GRa, 2026-10-30 to 2026-11-01)
 
@@ -148,7 +919,7 @@ shapes without L0, named in P4-D448. Its first repair (lane BT2's skeptic
 step cut, walked with the survey's quote states, and at the last step end
 inside a long run of blanks; a person's own pandas still reads such a
 cell without its leading blanks (one cell in the hunt twin at 200,000
-rows). Step 2b stops at the first rank a proven heap of the next value
+rows), outside the product: pandas' own reading, nothing owed. Step 2b stops at the first rank a proven heap of the next value
 holds; a date held at its bucket's middle leaves wearing the column's one
 mark; the quality report's own call is held to the clock's mirror; and
 K-S6-03's noughts are held to the count the describing step publishes.

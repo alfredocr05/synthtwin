@@ -828,6 +828,11 @@ def test_step_2b_today_far_from_the_estimate_moves_toward_step_2s_count() -> Non
     assert _edge_step([199, 301, 300], [298, 202, 300], 800, (198, 398), 99)[0] == 217
 
 
+def test_step_2b_moves_nothing_where_neither_the_edge_nor_the_next_value_holds_a_cell_of_the_piece() -> None:
+    """Batch 4q's merge, K-BC-11's slow part: step 2 left the edge value and the next value none of the piece's ranks (today's twin short at the cut by more than both values' cells); the bound that leaves the next value one cell read -1, and with the estimate within half the margin of it the next value was handed a cell no stratum gave. On ST1 at 20,000 rows, table seed 3, the chain's twin at twin seed 0, `crp`'s pieces at 4.1, 5.2, 8.7 and 11.8 each held one cell over its count and the internal check refused the twin. Step 2's counts stand."""
+    assert _edge_step([60, 60, 60, 60, 60], [0, 0, 100, 100, 100], 300, (0, 300), 240) == [0, 0, 100, 100, 100]
+
+
 def test_the_count_cases_hold_todays_count_of_different_values(tmp_path: pathlib.Path) -> None:
     """Lane BT's verify, item 1: the twin with L0 holds the count today's twin holds, short or over before the rule."""
     for name in ("l0_cells_count_short", "l0_cells_count_over"):

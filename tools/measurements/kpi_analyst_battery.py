@@ -173,6 +173,42 @@ def run_kpi(folder: pathlib.Path) -> None:
     emit_values(values)
 
 
+def run_selftest(folder: pathlib.Path) -> None:
+    """K-BC-11's slow part (lane ST, plan P4-D458 and its repair 1): the two reports and the chain's twin at 20,000 rows.
+
+    The battery's six tables and BC-ARCH 4.2's design (SD), table seeds 1
+    to 3, each described with the chain behind its switch under the
+    ledger's fixed test key (ST2 with its subject column declared), the
+    product's chain twin at twin seed 0 beside the fresh replicate, the
+    private report's judged words (the worst of three trial keys, each
+    key's word kept), the analyst's estimate of every pair on the chain
+    twin, V12's family lines on it and each column read alone there, and a
+    fifth of the sample against the whole. Prints K-BC-11's `_20k` keys.
+    """
+    started = time.perf_counter()
+    runs = []
+    for table in B.TIERS["slow"]["tables"] + ("SD",):
+        for seed in B.TIERS["slow"]["seeds"]:
+            run = B.run_table(table, B.TIERS["slow"]["rows"], seed, (0,), "slow", folder / f"{table}-{seed}",
+                              chain=True, today=False)
+            print(f"{table} seed {seed}: {run.seconds:.0f} s (the self-test {run.selftest_seconds:.1f} s); "
+                  f"judged {run.report.get('judged')}; agreement {run.agreement}", flush=True)
+            kept = os.environ.get("SYNTHTWIN_ANALYST_RUNS")
+            if kept:
+                saved = pathlib.Path(kept) / f"selftest-{table}-{seed}.json"
+                saved.parent.mkdir(parents=True, exist_ok=True)
+                saved.write_text(json.dumps({"run": B.run_to_dict(run)}), encoding="utf-8", newline="\n")
+            runs += [run]
+    value = B.kpi_11(runs, "_20k")
+    value["selftest_seconds_max_20k"] = round(max(r.selftest_seconds for r in runs), 1)
+    value["_detail"] = (f"overclaimed: {value.pop('overclaimed_20k')}; "
+                        f"left by the share rule, the chain twin missing: {value.pop('not_judged_by_the_share_rule_missed_20k')}; "
+                        f"left by the comparisons rule, the chain twin missing: "
+                        f"{value.pop('not_judged_by_the_comparisons_rule_missed_20k')}; "
+                        f"{round(time.perf_counter() - started, 1)} s for the {len(runs)} runs")
+    emit_values({"K-BC-11": value})
+
+
 def run_one(table: str, rows: int, folder: pathlib.Path, out: pathlib.Path) -> None:
     """One table of the night in this process; its runs, seconds and peak written to ``out``."""
     started = time.perf_counter()
@@ -244,6 +280,7 @@ def run_night(folder: pathlib.Path) -> None:
 def main(argv: "list[str] | None" = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--kpi", action="store_true", help="the 20,000-row tier")
+    parser.add_argument("--selftest", action="store_true", help="K-BC-11's slow part: the chain's twin and the two reports")
     parser.add_argument("--night", action="store_true", help="the 200,000-row tier, a child per table")
     parser.add_argument("--one", metavar="TABLE", help="one table in this process (a night's child)")
     parser.add_argument("--rows", type=int, default=B.TIERS["night"]["rows"])
@@ -259,6 +296,8 @@ def main(argv: "list[str] | None" = None) -> int:
         folder.mkdir(parents=True, exist_ok=True)
         if args.kpi:
             run_kpi(folder / "slow")
+        if args.selftest:
+            run_selftest(folder / "selftest")
         if args.night:
             (folder / "night").mkdir(parents=True, exist_ok=True)
             run_night(folder / "night")

@@ -3707,9 +3707,17 @@ parents' cell) and printed as shares of the tabled rows to four
 decimals, its dealing spread bounded by integer square roots and written
 to four decimals. The design's 3.6 (BC-ARCH version 2.3) asked for a
 moved target and for mutant 5's descendants read OUTSIDE; V12.2, V12.3
-and V12.4 below replace both, and this build follows them. Slopes,
-carried rules and derived columns have no line: this version's loader
-refuses a description carrying one (S26, S28). Measured (wave6/CHv,
+and V12.4 below replace both, and this build follows them. Slopes have
+no line: this version's loader refuses a description carrying one (S26).
+AMENDED 2026-11-04 (lane RO, plan P4-D459): the sentence read "Slopes,
+carried rules and derived columns have no line"; a carried rule now has
+V12.2's two lines behind the switch (`chain_validation._rule_lines`): its
+failing rows read on the file under MR.2's reading against the published
+class, and a derived column recomputed as `B - A` at its published edges
+and counted at its parent's published level against its table, each the
+verdict alone, judged only where the rule's base columns' total lines
+read HELD and V5.3's gate stands open; a computed column's own counts are
+neither checked nor printed (V12.3). Measured (wave6/CHv,
 `cost.py`, a loaded machine): on a clinic table of five columns the
 lines add 0.6 s to the measurement's 6.6 s at 20,000 rows and 8.3 s to
 63.1 s at 200,000 rows, at a peak of 230 MB; 2,000,000 rows are not run
@@ -3843,7 +3851,12 @@ line whose form tells a number the line withholds. So:
   bands are the published ones, and where the published table is
   ELIGIBLE on the file's own description, which V2.1 builds: the floor,
   RULE WE read with the file's census of records holding nothing, and
-  RULE W1 read with the file's own-fact groups (contract 4.6b.3). Where
+  RULE W1 read with the file's own-fact groups (contract 4.6b.3), each
+  carried rule's derived family read through its parent as the loader
+  reads it (AMENDED 2026-11-06, lane RO's repair 2, the outside review's
+  item 6: a file whose new small group of `A` the derived family
+  confines read both rule lines HELD; a rule's line not judged is counted
+  with the family lines not judged, its item 14). Where
   a total line reads MISSED, the line says in fixed words "not judged:
   the file's band totals differ from the published ones"; where the
   published table is not eligible beside the file's own facts, V5.3's

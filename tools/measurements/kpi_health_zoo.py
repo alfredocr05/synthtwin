@@ -5,7 +5,9 @@ exports and lane E0c's widening to every kind of the zoo plan's section
 6 (b), each profiled, answered with general facts about the data,
 generated, validated and read by the analyst's own script on the real
 table and on the twin -- shard by shard (`health_zoo.shards()`, at most
-thirty kinds a shard, a table's kinds in one), twice, in this process:
+thirty kinds a shard, a table's kinds in one; the suite's shards,
+`run_shards`: the Safe Harbor identifier forms' shard is K-HZ-14's alone,
+the orchestrator's LANE CZ-A RULINGS 1 (3) (b)), twice, in this process:
 at the suite's 600 rows, BELOW THE OWNER'S TABLE FLOOR, with the
 command's internal switch off as the suite runs it; then at 20,000 rows,
 the KPI size, with the SHIPPED floor on (plan P4-D425: `cli.main`'s
@@ -66,11 +68,16 @@ def _peak_megabytes() -> "float | None":
     return round(peak * scale / 1_000_000, 1)
 
 
+def run_shards() -> "tuple[tuple, ...]":
+    """The shards this driver runs: the suite's and lane CZ-H's forms' (`health_zoo_wide.DRIVER_SHARDS`), the identifier forms' left to K-HZ-14 (plan P4-D445)."""
+    return health_zoo.shards()[: health_zoo._wide().DRIVER_SHARDS]  # type: ignore[attr-defined]
+
+
 def _run_shards(folder: pathlib.Path, rows: int) -> "tuple[list[dict], list[float]]":
-    """Every shard at one size, in order: the results, and each shard's seconds."""
+    """Every shard this driver runs at one size, in order: the results, and each shard's seconds."""
     results: "list[dict]" = []
     seconds: "list[float]" = []
-    for place, tables in enumerate(health_zoo.shards(), 1):
+    for place, tables in enumerate(run_shards(), 1):
         home = folder / f"{rows}-shard-{place}"
         started = time.perf_counter()
         results += health_zoo.run_zoo(home, rows, tables=tables)
@@ -109,7 +116,7 @@ def main() -> None:
     passing = [kind for kind in kinds if measured_large["kinds"][kind]["passed"] and smoke.get(kind)]
     workbook = set(health_zoo.workbook_kinds())
     failing = ", ".join(kind for kind in kinds if kind not in passing) or "none"
-    every_table = health_zoo.catalogue()
+    every_table = tuple(table for shard in run_shards() for table in shard)
     left_out = [table.name for table in every_table if table not in health_zoo.runnable_tables(every_table)]
     # Where the workbook reader is absent the workbooks are not run, so the
     # keys over every export are left out rather than printed short; the
@@ -157,7 +164,7 @@ def main() -> None:
     found: "dict[str, object]" = {
         "seconds_600_rows": round(sum(small_seconds), 1),
         "shards": len(large_seconds),
-        "kinds_in_largest_shard": max(sum(len(table.kinds) for table in shard) for shard in health_zoo.shards()),
+        "kinds_in_largest_shard": max(sum(len(table.kinds) for table in shard) for shard in run_shards()),
         "tables_run_csv": sum(1 for result in small + large if health_zoo.table_named(result["table"]).suffix != ".xlsx"),
     }
     for place, seconds in enumerate(small_seconds, 1):

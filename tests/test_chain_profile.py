@@ -92,9 +92,9 @@ def _describe(tmp_path: pathlib.Path, text: str, name: str = "clinic", key: byte
     return table, document, settings, chain.describe(table, document, settings, chain.ChainSwitch(name, key, rows_per_person=chain.ROWS_UNASKED))
 
 
-def _profile(folder: pathlib.Path, table: str, run: "cli.ChainRun | None", capsys) -> "tuple[int, str]":
+def _profile(folder: pathlib.Path, table: str, run: "cli.ChainRun | None", capsys, *more: str) -> "tuple[int, str]":
     capsys.readouterr()
-    code = cli.main(["profile", table], chain=run)
+    code = cli.main(["profile", table, *more], chain=run)
     captured = capsys.readouterr()
     return code, captured.out + captured.err
 
@@ -147,7 +147,7 @@ def test_a_re_profile_reproduces_the_description_byte_for_byte(tmp_path, monkeyp
     run = cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=str(tmp_path / "data"))
     assert _profile(tmp_path, "clinic.csv", run, capsys)[0] == 0
     first = (tmp_path / "clinic-profile.json").read_bytes()
-    assert _profile(tmp_path, "clinic.csv", run, capsys)[0] == 0
+    assert _profile(tmp_path, "clinic.csv", run, capsys, "--replace")[0] == 0
     assert (tmp_path / "clinic-profile.json").read_bytes() == first
     loaded = contract.load_profile(str(tmp_path / "clinic-profile.json"), chain=True)
     assert loaded.n_rows == 800
@@ -179,7 +179,7 @@ def test_the_ledger_refuses_a_second_name_and_warns_on_a_name_reused(tmp_path, m
     fixtures.write(tmp_path, "other.csv", _clinic(seed=8))
     data = str(tmp_path / "data")
     assert _profile(tmp_path, "clinic.csv", cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=data), capsys)[0] == 0
-    code, said = _profile(tmp_path, "clinic.csv", cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, name="renamed", folder=data), capsys)
+    code, said = _profile(tmp_path, "clinic.csv", cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, name="renamed", folder=data), capsys, "--replace")
     assert code == 1
     assert "described before under the name 'clinic'" in said and "--name clinic" in said
     code, said = _profile(tmp_path, "other.csv", cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, name="clinic", folder=data), capsys)

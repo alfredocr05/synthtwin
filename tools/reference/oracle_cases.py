@@ -1498,6 +1498,186 @@ def case_sample_key(cut=False):
             "of_the_second": sum(1 for at in taken if at >= 200), "first_places": taken[:8]}
 
 
+# --- rules between columns (contract 4.6b.7; lane RO, plan P4-D459) ---------------------
+
+
+def _texts(values):
+    return [co.written_sum(v) for v in values]
+
+
+def case_rules_limit():
+    """MR.1's limit `L(n) = max(f, floor(n / 100))` at the floor of 11."""
+    return [[n, co.rule_limit(n, 11)] for n in (500, 1100, 1199, 20000, 20099, 2000000)]
+
+
+def skeptic_one_readings():
+    """Skeptic 1's table of MR.6 (e): readings 0 to 9 on 24, 23, 1, 23, 22, 23, 23, 47, 22 and 24 rows."""
+    out = []
+    for value, rows in zip(range(10), (24, 23, 1, 23, 22, 23, 23, 47, 22, 24)):
+        out += [value] * rows
+    return out
+
+
+def case_rules_levels(first_text=False):
+    """D's four levels on skeptic 1's table, right-closed totals and rule 1 (MUTANT: the first text's rule 1)."""
+    readings = skeptic_one_readings()
+    out = []
+    for name, percents, edges in co.derived_levels(readings):
+        totals = co.band_totals(edges, readings)
+        out += [{"name": name, "edges": _texts(edges), "totals": totals,
+                 "rule1": co.rule_one(totals, percents, 11, first_text=first_text)}]
+    return out
+
+
+def case_rules_partition():
+    """Proposition T read for the whole partition at `f` = 11, `L` = 200: `R` from 11 to 212."""
+    return {"passing": [r for r in range(11, 213) if co.partition_passes(r, 11, 200)],
+            "classes": [[v, 300, str(co.class_of(v, 300, 11, 200))] for v in (0, 10, 11, 150, 200, 201)],
+            "phrase_only": [str(co.class_of(v, 300, 11, 200, phrase_only=True)) for v in (10, 11)]}
+
+
+def case_rules_family(rule5=True):
+    """A derived option in the count class 15, its band holding 0 cut into 15 below and 9 at or above 0
+    (rule 5 refuses it; MUTANT: rule 5 off), and the same table in the phrase class (eligible)."""
+    edges = [F(0), F(4)]
+    totals = [24, 60, 60]
+    table = [[24, 60, 60, 0], [0, 0, 0, 30]]
+    counted = co.derived_eligible(edges, (25, 75), totals, table, {1}, True, set(), 15, 1, 11, rule5=rule5)
+    phrase = co.derived_eligible(edges, (25, 75), totals, table, {1}, True, set(), "phrase", 1, 11, rule5=rule5)
+    sixth = co.derived_eligible([F(1, 4), F(3, 4)], (25, 75), totals, table, {1}, True, set(), "phrase", 1, 11)
+    return {"count": list(counted), "phrase": list(phrase), "rule6": list(sixth)}
+
+
+def case_rules_readings():
+    """D's readings in the twin (MR.2): a gap of 7 on every row; gaps of 0 and 1 day on half the rows
+    each, its median edge 1/2 alone; a count class of 15 below 0; the highest band of an L2 level; an
+    empty highest band."""
+    out = {}
+    seven = [7] * 200
+    for name, percents, edges in co.derived_levels(seven):
+        if name == "L0":
+            totals = co.band_totals(edges, seven)
+            out["seven"] = {"edges": _texts(edges), "totals": totals,
+                            "readings": [_texts(b) for b in co.derived_readings(edges, totals, totals, percents, 0, 1)]}
+    halves = [0] * 100 + [1] * 100
+    for name, percents, edges in co.derived_levels(halves):
+        if name == "L2":
+            totals = co.band_totals(edges, halves)
+            out["halves"] = {"edges": _texts(edges), "totals": totals,
+                             "readings": [_texts(b) for b in co.derived_readings(edges, totals, totals, percents, 0, 1)]}
+    counted = [-1] * 15 + [0] * 45 + [2] * 70 + [5] * 70
+    for name, percents, edges in co.derived_levels(counted):
+        if name == "L2":
+            totals = co.band_totals(edges, counted)
+            out["count15"] = {"edges": _texts(edges), "totals": totals,
+                              "readings": [_texts(b) for b in co.derived_readings(edges, totals, totals, percents, 15, 1)]}
+    spread = [x // 10 for x in range(300)]
+    for name, percents, edges in co.derived_levels(spread):
+        if name == "L1":
+            totals = co.band_totals(edges, spread)
+            out["spread_l1"] = {"edges": _texts(edges), "totals": totals,
+                                "readings": [_texts(b) for b in co.derived_readings(edges, totals, totals, percents, 0, 1)]}
+    capped = [x % 20 for x in range(60)] + [30] * 140
+    for name, percents, edges in co.derived_levels(capped):
+        if name == "L2":
+            totals = co.band_totals(edges, capped)
+            out["capped_l2"] = {"edges": _texts(edges), "totals": totals,
+                                "readings": [_texts(b) for b in co.derived_readings(edges, totals, totals, percents, 0, 1)]}
+    return out
+
+
+def case_rules_written():
+    """MR.2's table of number forms, and a clock sum held at the day's last minute."""
+    return {"forms": [co.written_sum(43), co.written_sum(F(142, 100)), co.written_sum(43, "leading_plus"),
+                      co.written_sum(43, "leading_zero", 5), co.written_sum(1043, group=","),
+                      co.written_sum(-5, "leading_plus"), co.written_sum(F(-25, 10))],
+            "clock": [co.held_clock(86280, 180, 60), co.held_clock(86270, 30, 60), co.held_clock(3600, -30, 60)]}
+
+
+def case_rules_forms():
+    """`B` in its own form (lane RO's repair 1): a sum in a declared decimal comma and grouped, an affixed
+    sum, both; `A`'s offset written in `B`'s first offset's spelling."""
+    forms = [co.written_form(co.written_sum(F(123456, 100), group=","), comma=True),
+             co.written_form(co.written_sum(1769), prefix="", suffix=" mg"),
+             co.written_form(co.written_sum(F(-25, 10)), comma=True, prefix="$ ", suffix=""),
+             co.written_form(co.written_sum(43, "leading_zero", 5))]
+    offsets = [co.offset_like(7200, "+02:00"), co.offset_like(7200, "+0200"), co.offset_like(-18000, "-05"),
+               co.offset_like(19800, "+05"), co.offset_like(0, "Z", "lower"), co.offset_like(0, "+00:00"),
+               co.offset_like(3600, "Z")]
+    return {"forms": forms, "offsets": offsets}
+
+
+def case_rules_one_band(amended=True):
+    """MR.7's one-band item per option (AMENDED 2026-11-05): a level with no edge NOT WORTH unless the gap is 0
+    on 99 of 100 rows where both read; scores at n = 20,000 (MUTANT: the build's reading, one band judged only
+    where no level with an edge is eligible, so it keeps its score beside one)."""
+    out = []
+    for edges, zero, both, edged_beside in (((), 0, 20000, True), ((), 2400, 20000, True), ((), 19800, 20000, True),
+                                            ((), 19799, 20000, False), ((F(0), F(3)), 0, 20000, True), ((), 0, 0, False)):
+        worth = co.one_band_worth(edges, zero, both) if amended else (bool(edges) or edged_beside or co.one_band_worth(edges, zero, both))
+        out += [{"edges": len(edges), "zero": zero, "both": both, "worth": worth,
+                 "score": str(co.rule_option_score(worth, F(-30), 20000))}]
+    return out
+
+
+def case_rules_items(amended=True):
+    """MR.7's items as amended 2026-11-05 (LANE RO RULINGS 3): the association read as the smaller of D's
+    share and B's own (MUTANT: D's share alone, the build's), the tighter-rule item with its clause and its
+    tie (MUTANT: the build's loop, no clause and no tie), and a presence's share between bands."""
+    d_ten = [x % 10 for x in range(40)]
+    by_ten = [x % 10 for x in range(40)]
+    flat = [x // 4 for x in range(40)]
+    groups = [x % 4 for x in range(40)]
+    lost_kept = [(co.share_between(d_ten, by_ten), co.share_between(flat, by_ten)),
+                 (co.share_between(d_ten, groups), co.share_between(d_ten, groups))]
+    association = co.association_lost(lost_kept) if amended else max(lost for lost, _kept in lost_kept)
+    if amended:
+        tight = [co.tighter_refuses(("arrived_at", 60, 70), [("seen_at", 30, 40)], {"seen_at"}),
+                 co.tighter_refuses(("arrived_at", 0, 40), [("left_at", 0, 0)], set()),
+                 co.tighter_refuses(("arrived_at", 0, 0), [("left_at", 0, 40)], set())]
+    else:
+        tight = [True, False, False]
+    presence = co.share_between([1, 1, 1, 0, 0, 0, 1, 1], [0, 0, 0, 1, 1, 1, 2, 2])
+    return {"association": str(association), "shares": [[str(lost), str(kept)] for lost, kept in lost_kept],
+            "tighter": tight, "presence": str(presence)}
+
+
+def case_rules_repair2():
+    """Lane RO's repair 2: `B`'s own forms (a point after figures holding no places, `42.` + 1 written `43.`;
+    a negative in brackets, the minus sign, or a hyphen-minus after an amount), a stamp's fraction (`A`'s
+    count of figures in zeros, to the second where it is none), and `D`'s readings in a band reaching far
+    below 0 read one by one (the outside review's item 9, its own case: 600 gaps of -10**9, -1, 0, 1, 2 and
+    3 at a grain of 10**-6 on 150, 50, 100, 150, 90 and 60 rows, class 200, its L1 level), each band
+    summed up as its rows, its least and largest reading and its readings below 0 (the build's ring held
+    the band's whole span of 250,000,000,749,999 multiples: no mutant outcome can be computed beside it)."""
+    forms = [co.written_sum(43, point=True), co.written_sum(-43, point=True, negative="brackets"),
+             co.written_sum(F(-125, 100), negative="brackets"), co.written_sum(F(-125, 100), negative="trailing_minus"),
+             co.written_sum(-43, negative="trailing_minus"), co.written_sum(-43, negative="minus_sign"),
+             co.written_sum(F(425, 100), point=True)]
+    fraction = [list(co.stamp_fraction(word, digits)) for word, digits in (("subsecond", 3), ("subsecond", 0), ("second", 3), ("minute", 6))]
+    gaps = [-10**15] * 150 + [-10**6] * 50 + [0] * 100 + [10**6] * 150 + [2 * 10**6] * 90 + [3 * 10**6] * 60
+    wide = {}
+    for name, percents, edges in co.derived_levels(gaps):
+        if name != "L1":
+            continue
+        totals = co.band_totals(edges, gaps)
+        bands = co.derived_readings(edges, totals, totals, percents, 200, 1)
+        summary = [[len(b), str(min(b)) if b else "", str(max(b)) if b else "", sum(1 for x in b if x < 0)] for b in bands]
+        wide = {"edges": _texts(edges), "totals": totals, "bands": summary}
+    return {"forms": forms, "fraction": fraction, "wide": wide}
+
+
+def case_rules_step():
+    """A rule step's word keyed by the rule's identity, and the option it draws among three scores."""
+    columns = ["started_on", "ended_on", "opened_at", "closed_at"]
+    out = []
+    for computed, inputs in (("closed_at", ["opened_at"]), ("ended_on", ["started_on"])):
+        w = co.rule_word(TEST_KEY, "event", "order", computed, inputs, columns)
+        place, how, _weights = co.choose(w, [F(0), F(1000), F(1003)], F(2))
+        out += [{"computed": computed, "word": w.hex(), "choice": place, "how": how}]
+    return out
+
+
 def chain_cases():
     return {
         "stated_exponential": case_stated_exponential(),
@@ -1591,6 +1771,21 @@ def chain_cases():
         "reader_joins_mutant_earlier_never": case_reader_joins(join="earlier_never"),
         "sample_key": case_sample_key(),
         "sample_key_mutant_cut": case_sample_key(cut=True),
+        "rules_limit": case_rules_limit(),
+        "rules_levels": case_rules_levels(),
+        "rules_levels_mutant_first_text": case_rules_levels(first_text=True),
+        "rules_partition": case_rules_partition(),
+        "rules_family": case_rules_family(),
+        "rules_family_mutant_rule5_off": case_rules_family(rule5=False),
+        "rules_readings": case_rules_readings(),
+        "rules_written": case_rules_written(),
+        "rules_step": case_rules_step(),
+        "rules_forms": case_rules_forms(),
+        "rules_one_band": case_rules_one_band(),
+        "rules_one_band_mutant_build": case_rules_one_band(amended=False),
+        "rules_items": case_rules_items(),
+        "rules_items_mutant_build": case_rules_items(amended=False),
+        "rules_repair2": case_rules_repair2(),
     }
 
 

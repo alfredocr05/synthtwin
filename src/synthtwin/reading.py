@@ -502,6 +502,12 @@ class Table:
     # reads the file again for another; where it is None, ``columns``
     # holds every column and `column_values` hands one over.
     source: "ColumnSource | None" = None
+    # THE FILE'S SIZE AND FINGERPRINT, as this reading read it (lane TT's
+    # repair; `_fold_of`): the same from one run to the next, so the
+    # answers a twin keeps are bound to the file they were given about.
+    # Neither is published in the description.
+    file_bytes: int = 0
+    fingerprint: int = 0
 
 
 @dataclasses.dataclass(frozen=True)
@@ -2561,11 +2567,17 @@ def read_table(
             raise errors.ProfileError(
                 errors.delimiter_declared_on_a_workbook(shown)
             )
-        return _read_workbook_table(
-            f"{table_path}", shown, sheet, first_row, refusals,
-            published_header,
-            missing_under=missing_under,
-            floor=small_cell_floor,
+        # ...its size and fingerprint from the bytes read above (lane TT's
+        # repair, `_fold_of`).
+        return dataclasses.replace(
+            _read_workbook_table(
+                f"{table_path}", shown, sheet, first_row, refusals,
+                published_header,
+                missing_under=missing_under,
+                floor=small_cell_floor,
+            ),
+            file_bytes=len(data),
+            fingerprint=_fold_of(data),
         )
     try:
         found = _read_authoritatively(
@@ -2637,6 +2649,8 @@ def read_table(
         header_by_convention=found.header_by_convention,
         first_row_seen=found.first_row_seen,
         survey=found.survey,
+        file_bytes=len(data),
+        fingerprint=_fold_of(data),
     )
 
 
@@ -2714,6 +2728,35 @@ _OPENING_CHARACTERS = 8
 _DIGEST_STEP = 1_000_003
 _DIGEST_MODULUS = (1 << 61) - 1
 
+# THE FILE'S FINGERPRINT, THE SAME FROM ONE RUN TO THE NEXT (lane TT's
+# repair; the orchestrator's LANE TT RULINGS 1 item 4, Codex's item 4):
+# each piece of the file -- a line as read, or a piece of its bytes -- held
+# as the tuple of its characters' or bytes' numbers, whose hash Python
+# gives the same from one run to the next (only a text's or a bytes' own
+# hash changes with the process), folded in turn modulo the prime above.
+# It binds the answers `synthtwin twin` keeps in a folder to the file they
+# were given about, so answers about one table are never handed to another
+# table of the same name. Computed in the reading the command makes anyway,
+# never by a reading of its own; a delimited file is always read by its
+# lines here and a workbook by its bytes, so one file always finds one
+# number. It publishes nothing: one number of the file's content.
+_FOLD_PIECE = 1 << 20
+
+
+def _folded(fold: int, piece: "tuple[int, ...]") -> int:
+    """``fold`` with one more piece of the file after it, modulo `_DIGEST_MODULUS`."""
+    return (fold * _DIGEST_STEP + hash(piece)) % _DIGEST_MODULUS
+
+
+def _fold_of(data: bytes) -> int:
+    """The fingerprint of a file's whole bytes, read in pieces of `_FOLD_PIECE`."""
+    fold = 0
+    start = 0
+    while start < len(data):
+        fold = _folded(fold, tuple(data[start : start + _FOLD_PIECE]))
+        start = start + _FOLD_PIECE
+    return fold
+
 # The characters that make a Latin-1 reading a Windows-1252 one where
 # that reading stands (`dialect.decoded`): bytes 0x80 to 0x9F.
 _WINDOWS_ONLY = (
@@ -2745,7 +2788,8 @@ class _Facts:
     say whether the text holds a zero character, a line break, (read as
     Latin-1) a byte between 0x80 and 0x9F, and two quotes side by side. ``lines`` and ``digest`` are the
     reading's (`_Pass`), and ``file_bytes`` and ``changed_at`` the file's
-    size and the moment it last changed.
+    size and the moment it last changed. ``fold`` is the file's
+    fingerprint (`_folded`), its lines folded as read.
     """
 
     codec: str
@@ -2764,6 +2808,7 @@ class _Facts:
     digest: int
     file_bytes: int
     changed_at: int
+    fold: int = 0
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3410,6 +3455,29 @@ def _opening_of(table_path: pathlib.Path) -> bytes:
     return bytes([ord(character) for character in found[:_OPENING_CHARACTERS]])
 
 
+def opens_as_a_workbook(raw_path: str) -> bool:
+    """Whether a table's file is a workbook, decided from its opening bytes as `read_table` decides it (lane TT's repair).
+
+    Codex's review of lane TT, item 6: `synthtwin twin` names the six
+    files it will write before the table is read, and a workbook's twin is
+    a workbook, so the kind is asked here of the file's first bytes, by
+    `workbook.kind_of` over `_opening_of` -- the reader's own test, which
+    never consults the name: a workbook named `data.csv` is a workbook.
+    Guarantees: the path passes the locality gate first; False where the
+    file is not there or cannot be opened, which `read_table` then refuses
+    in its own words. Reads the opening bytes alone; raises what the
+    locality gate raises.
+    """
+    validated = validate_local_path(raw_path, purpose="input")
+    table_path = pathlib.Path(validated)
+    if not table_path.is_file():
+        return False
+    try:
+        return workbook.kind_of(_opening_of(table_path)) == workbook.KIND_PACKAGE
+    except OSError:
+        return False
+
+
 def _facts_under(
     table_path: pathlib.Path, shown: str, codec: str, encoding: str, marked: bool
 ) -> "_Facts | None":
@@ -3423,8 +3491,10 @@ def _facts_under(
     high = False
     doubled = False
     first = True
+    fold = 0
     try:
         for line in _opened_lines(table_path, codec, run):
+            fold = _folded(fold, tuple(ord(character) for character in line))
             if first:
                 first = False
                 if marked:
@@ -3474,6 +3544,7 @@ def _facts_under(
         digest=run.digest,
         file_bytes=file_bytes,
         changed_at=changed_at,
+        fold=fold,
     )
 
 
@@ -4070,6 +4141,8 @@ def _read_in_groups(
             header_by_convention=found.header_by_convention,
             first_row_seen=found.first_row_seen,
             survey=found.survey,
+            file_bytes=facts.file_bytes,
+            fingerprint=facts.fold,
         )
     reading = swept.reading
     if reading.header_source == HEADER_FROM_FILE:
@@ -4127,6 +4200,8 @@ def _read_in_groups(
             walks=swept.walks,
             proofs=swept.proofs,
         ),
+        file_bytes=facts.file_bytes,
+        fingerprint=facts.fold,
     )
 
 

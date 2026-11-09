@@ -112,6 +112,12 @@ def test_a_rule_removed_leaves_its_column_unread(monkeypatch: pytest.MonkeyPatch
     """The mutants of the inventory: the UDI rule dropped, and the `identifier` answer ignored."""
     kept = tuple(rule for rule in zoo.SENSITIVE_NAMES if not rule[0].search("udi"))
     monkeypatch.setattr(zoo, "SENSITIVE_NAMES", kept)
+    # ...and its `identifier` answer too, since the UDI is declared a device
+    # identifier (plan P4-D445), so the rule is what the inventory reads.
+    monkeypatch.setattr(zoo, "TABLES", tuple(
+        dataclasses.replace(table, knows={k: v for k, v in table.knows.items() if k != "udi"})
+        if table.name == "immunizations" else table for table in zoo.TABLES
+    ))
     assert ("immunizations", "udi", "values") not in _inventory()
     monkeypatch.undo()
     fhir = zoo.table_named("fhir_observations")

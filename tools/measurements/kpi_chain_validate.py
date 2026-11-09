@@ -18,6 +18,15 @@ here from the oracle until it lands (`tests/chain_twins.py`).
   (`families_without_one_line`), every line HELD on the table itself
   (`lines_not_held_on_the_table`), and V12.4's six data mutants as the
   method states them (`mutants_as_expected` of `mutants`, at 800 rows).
+  WIDENED IN PLACE (lane ST, plan P4-D458): the two reports of the same
+  switched clinic at 800 and 20,000 rows, the installation's folder beside
+  the output folder: every family F1 to F10 one line of the shared report
+  (`shared_families_without_one_line`), no shared line but the structural
+  grades, the description's words and 4.6b.13's line, and no private-only
+  phrase in the description, summary, questions file or shared report
+  (`shared_lines_with_a_value_reason_or_judged_word`), and every pair and
+  family of the private report with both grades
+  (`private_pairs_or_families_without_both_grades`).
 - Whole real rows in the twin, over K-S6-01's table (1,000 rows of age,
   sbp, group and died; `tests/kpi_shapes.association_table`) and twin
   seeds 0 to 19: today's twin and the oracle-arranged chain twin, each row
@@ -89,6 +98,89 @@ def _structure(described):
         "families": families,
         "families_without_one_line": families - one_line,
         "lines_not_held_on_the_table": not_held + (1 if code != 0 else 0),
+    }
+
+
+# THE TWO REPORTS (K-S6-04 widened in place, lane ST, plan P4-D458): the
+# phrases only the private report may hold.
+PRIVATE_ONLY = ("judged carried", "judged approximate", "judged not carried", "judged not judged",
+                "Judged on a sample", "The replicate", "WHICH GRADE TO ACT ON", "before the polish",
+                "no chain is published")
+
+
+def _reports(folder, size):
+    """The two reports of a switched run of the clinic: the shared block's lines, and the private report's.
+
+    The installation's folder stands beside the output folder, never in it,
+    so the private report is written (contract 4.6b.8). Counts the families
+    without one line of the shared block, the shared lines that are not the
+    structural grades, the description's words and 4.6b.13's line (a
+    value, a reason or a judged word), the private-only phrases in any
+    shared file, and the pairs and families of the private report without
+    both grades.
+    """
+    import json as json_module
+
+    from synthtwin import asking, chain_grades, chain_selftest, contract, generation, rendering
+
+    out = folder / "out"
+    out.mkdir(parents=True)
+    data = folder / "data"
+    data.mkdir(mode=0o700)
+    if os.name != "nt":
+        data.chmod(0o700)
+    key = data / "chain-key"
+    key.touch(mode=0o600)
+    if os.name != "nt":
+        key.chmod(0o600)
+    key.write_bytes(twins.oc.TEST_KEY)
+    table = twins._write(out / "clinic.csv", twins.HEADER, twins._clinic_rows(size))
+    code, said = twins._quiet(lambda: cli.main(["profile", str(table), "--out-dir", str(out)], chain=cli.ChainRun(folder=str(data), rows_per_person=asking.ANSWER_ONE_ROW_EACH)))
+    questions = out / "clinic-questions.json"
+    asked = json_module.loads(questions.read_text(encoding="utf-8"))
+    if asked["asked"]:
+        for entry in asked["asked"]:
+            offered = str(entry["answers_you_can_give"])
+            if "'measurement'" in offered:
+                entry["your_answer"] = "measurement"
+            elif "'keep'" in offered:
+                entry["your_answer"] = "keep"
+        questions.write_text(json_module.dumps(asked, indent=1) + "\n", encoding="utf-8", newline="\n")
+        run = cli.ChainRun(folder=str(data), replace_description=True, rows_per_person=asking.ANSWER_ONE_ROW_EACH)
+        code, said = twins._quiet(lambda: cli.main(["profile", str(table), "--out-dir", str(out), "--answers", str(questions)], chain=run))
+    if code != 0:
+        raise SystemExit(f"profile failed: {said}")
+    loaded = contract.load_profile(str(out / "clinic-profile.json"), chain=True)
+    twin = generation.generate(loaded, 1)
+    report = rendering.report(loaded, twin)
+    lines = report.splitlines()
+    start = [at for at, line in enumerate(lines) if chain_grades.HEADING in line][0]
+    end = start
+    while lines[end].strip():
+        end += 1
+    block = lines[start:end]
+    words = loaded.relationships.words
+    expected = ["1. " + chain_grades.HEADING]
+    expected += [f"{code_} {name}: {grade}." for code_, name, grade in chain_grades.family_grades(any(w == "pinned" for _a, _b, w in words), False)]
+    expected += [chain_grades.PAIRS_HEADING] + [f"   {a} and {b}: {w}" for a, b, w in words] + [chain_grades.ONCE_LINE]
+    without_line = sum(1 for code_, _name in chain_grades.FAMILIES if sum(1 for line in block if line.startswith(code_ + " ")) != 1)
+    other_lines = sum(1 for line in block if line not in expected) + abs(len(block) - len(expected))
+    shared = [report] + [(out / name).read_text(encoding="utf-8") for name in ("clinic-profile.json", "clinic-profile.txt", "clinic-questions.json")]
+    phrases = sum(1 for text in shared for phrase in PRIVATE_ONLY if phrase in text)
+    private = (data / "private-reports" / f"{chain_selftest.report_stem('clinic')}-{chain_selftest.REPORT_FILE}.txt").read_text(encoding="utf-8")
+    private_lines = private.splitlines()
+    missing = 0
+    for code_, name in chain_grades.FAMILIES:
+        if not any(line.strip().startswith(f"{code_} {name}: structural ") and "; judged " in line for line in private_lines):
+            missing += 1
+    for a, b, w in words:
+        structural = chain_selftest.EXACT_AT if w == "exact" else w
+        if f"  {a} and {b}: structural {structural}; judged " not in private:
+            missing += 1
+    return {
+        "shared_families_without_one_line": without_line,
+        "shared_lines_with_a_value_reason_or_judged_word": other_lines + phrases,
+        "private_pairs_or_families_without_both_grades": missing,
     }
 
 
@@ -257,6 +349,7 @@ def measure():
             place.mkdir()
             described = twins.Described(place, twins.HEADER, twins._clinic_rows(size))
             found = _structure(described)
+            found.update(_reports(folder / f"reports{size}", size))
             for key, value in found.items():
                 structure[key] = structure.get(key, 0) + value
             if size == SIZES[0]:

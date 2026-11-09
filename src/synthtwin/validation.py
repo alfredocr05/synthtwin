@@ -1834,6 +1834,29 @@ class ChainPair:
 
 
 @dataclasses.dataclass(frozen=True)
+class ChainRule:
+    """V12.2's line of one carried rule (contract 4.6b.7; lane RO, plan P4-D459): the verdict alone.
+
+    ``line`` is ``rule`` (the file's failing rows inside the published
+    class) or ``derived family`` (the derived column recomputed on the
+    file as `B - A` and counted at its published levels). ``verdict`` is
+    HELD or MISSED; WITHHELD where V12.3 lets no verdict stand
+    (``reason`` holds its fixed words); "" where NOT CHECKABLE. No count
+    of the computed column's rows and no count of failing rows is held
+    here (V12.3).
+    """
+
+    index: int
+    computed: str
+    inputs: "tuple[str, ...]"
+    carrier: str
+    klass: str
+    line: str
+    verdict: str
+    reason: str = ""
+
+
+@dataclasses.dataclass(frozen=True)
 class ChainLines:
     """Every V12 line of one switched run (`chain_validation.lines_of`), and their census."""
 
@@ -1848,6 +1871,8 @@ class ChainLines:
     # Of the withheld, the family lines V12.3's "not judged" words stand
     # on (a member's band totals missed), not V5.3's rule.
     not_judged: int = 0
+    # The carried rules' lines (V12.2's two rows; lane RO, plan P4-D459).
+    rules: "tuple[ChainRule, ...]" = ()
 
 
 # -- V2.2: the settings the file is re-described under ----------------
@@ -5507,6 +5532,12 @@ def measure(
     unrebuildable = unrebuildable_columns(description)
     listings = _listings(description, headed)
     for column in description.columns:
+        if column.computed_from:
+            # A COLUMN A CARRIED RULE COMPUTES publishes nothing read from
+            # its cells (contract 4.6b.7), so this report checks and prints
+            # none of its counts (V12.3); its rule's lines stand between
+            # columns (lane RO, plan P4-D459).
+            continue
         # A membership test and a subscript, never `get`: the offline
         # policy accepts no method call on a value it cannot trace
         # (plan D6.2), and this mapping's values are prose.

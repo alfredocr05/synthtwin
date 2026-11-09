@@ -326,16 +326,33 @@ def test_answering_identifier_counts_the_people(tmp_path: pathlib.Path) -> None:
     assert code == 1, "44 people is under the population floor"
 
 
-def test_a_person_at_the_keyboard_has_answered(
+def test_a_person_at_the_keyboard_has_answered_only_what_they_typed(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Enter at the keyboard is an answer: the reading it keeps is published."""
+    """Enter at the keyboard is no answer: the column is held as with nobody there; a key typed is one.
+
+    Lane TT's repair (the orchestrator's LANE TT RULINGS 2 (1)): Enter
+    leaves the question open, so it never releases more than a run with
+    nobody at the keyboard (the reader hands back what Enter gives, its
+    first argument). Until then Enter was taken as `keep`, and the reading
+    it keeps was published. A key typed for that reading (`keep`) is an
+    answer, and the reading is published. Red on the mutant that hands
+    the reader the question's own reading again.
+    """
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
-    monkeypatch.setattr(cli, "_read_one_answer", lambda standing: "")
+    monkeypatch.setattr(cli, "_read_one_answer", lambda standing, *_rest: standing)
     table, _real = shapes.write_table(tmp_path, "record", _ROWS)
     assert cli.main(["profile", f"{table}", "--out-dir", f"{tmp_path}"]) == 0
     document = json.loads(
         (tmp_path / "record_long-profile.json").read_text(encoding="utf-8")
+    )
+    assert _block(document, "record")["role"] == taxonomy.ROLE_IDENTIFIER
+    typed = tmp_path / "typed"
+    typed.mkdir()
+    monkeypatch.setattr(cli, "_read_one_answer", lambda *_given: asking.ANSWER_KEEP)
+    assert cli.main(["profile", f"{table}", "--out-dir", f"{typed}"]) == 0
+    document = json.loads(
+        (typed / "record_long-profile.json").read_text(encoding="utf-8")
     )
     assert _block(document, "record")["role"] == taxonomy.ROLE_CATEGORICAL
 
@@ -625,15 +642,20 @@ def test_route_four_is_put_to_a_column_of_counts(tmp_path: pathlib.Path) -> None
     _check_held(seen, "randkey")
 
 
-def _enter_at_route_four(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _enter_at_route_four(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, typed: str = ""
+) -> None:
     """Enter at the keyboard on a patient key route four reaches declares no code.
 
-    Route four's question offers `code` (plan P4-D420), and Enter keeps
-    the reading standing still gives, `keep`: never `code`, which would
-    publish every key 11 or more rows share (skeptic 1 of lane HX3, item 2).
+    Route four's question offers `code` (plan P4-D420), and Enter declares
+    nothing: never `code`, which would publish every key 11 or more rows
+    share (skeptic 1 of lane HX3, item 2). Since lane TT's repair Enter
+    leaves the question open whatever reading it stands on. ``typed`` is
+    the line typed at every prompt, Enter where it is empty.
     """
+    tmp_path.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
-    monkeypatch.setattr("builtins.input", lambda prompt="": "")
+    monkeypatch.setattr("builtins.input", lambda prompt="": typed)
     table, _real = shapes.write_table(tmp_path, "randkey", _ROWS)
     assert cli.main(["profile", f"{table}", "--out-dir", f"{tmp_path}"]) == 0
     document = json.loads(
@@ -653,7 +675,15 @@ def test_enter_at_route_fours_question_declares_no_code(
 def test_mutant_route_four_standing_on_code_is_seen(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The mutant: route four's question stands on `code`, so Enter declares the key a code."""
+    """The mutant: route four's question stands on `code`; Enter still declares no code, and the code's key typed is seen.
+
+    Until lane TT's repair Enter gave the reading a question stands on, so
+    this mutant made Enter declare the key a code, and that was what the
+    case saw. Enter now leaves the question open whatever it stands on
+    (the orchestrator's LANE TT RULINGS 2 (1)), so the mutant declares
+    nothing; the check is shown to see a declared code by a person typing
+    the code's key, `2`, at the same question.
+    """
     real = asking.person_questions
 
     def code_standing(*arguments: object, **named: object) -> "list[asking.Question]":
@@ -665,8 +695,9 @@ def test_mutant_route_four_standing_on_code_is_seen(
         ]
 
     monkeypatch.setattr(asking, "person_questions", code_standing)
+    _enter_at_route_four(tmp_path / "enter", monkeypatch)
     with pytest.raises(AssertionError, match="Enter declared a code"):
-        _enter_at_route_four(tmp_path, monkeypatch)
+        _enter_at_route_four(tmp_path / "typed", monkeypatch, typed="2")
 
 
 def test_a_wider_placeholder_and_a_narrow_measurement() -> None:

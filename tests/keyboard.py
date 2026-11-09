@@ -1,13 +1,16 @@
-"""A person at the keyboard who presses Enter at every question (plan P4-D401).
+"""A person at the keyboard who keeps every reading synthtwin made, by answering (plan P4-D401).
 
 Where nobody is at the keyboard, a column put a question offering
 `identifier` is described as record numbers until the question is
 answered (lane HX). A test about something else -- how a long tail writes
 its stand-ins, how a padded number is spelled -- whose column such a
 question reaches takes the reading the rules made by answering every
-question with Enter, which is what a person who presses through does:
-the description is the one a scripted run wrote before lane HX, byte for
-byte, since Enter keeps every reading and declares nothing.
+question with that reading, which is what a person who knows the columns
+are read right does: the description is the one a scripted run wrote
+before lane HX, byte for byte, since that answer keeps every reading and
+declares nothing. Enter is no such answer since lane TT's repair (the
+orchestrator's LANE TT RULINGS 2 (1)): it leaves the question open, as a
+run with nobody at the keyboard leaves it.
 """
 
 from __future__ import annotations
@@ -18,7 +21,12 @@ from synthtwin import cli, taxonomy
 
 
 def every_reading_kept(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Somebody is there, and every answer they type is Enter."""
+    """Somebody is there, and every answer they give keeps the reading and declares nothing.
+
+    The reader hands back a word no key reaches and no question names,
+    which the prompt takes as an answer that declares nothing (Enter's
+    own word, `cli._LEFT_OPEN`, leaves the question open instead).
+    """
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
     monkeypatch.setattr(cli, "_read_one_answer", lambda *_given: "")
 
@@ -37,6 +45,21 @@ def safe_harbor_answered_no(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(taxonomy, "safe_harbor_reach", lambda *_given, **_named: "")
     # ...and to lane SH2's (plan P4-D434): every Safe Harbor question.
     sh2_answered_no(monkeypatch)
+
+
+def identifier_forms_answered_no(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The person answers `no` to every Safe Harbor question the identifier forms put (plan P4-D445).
+
+    A test about something else -- how a padded key of nineteen figures is
+    spelled, how a column named `lot` pools its held-back codes -- whose
+    column the identifier forms' hold takes (whole numbers of fifteen
+    figures or more, a name that says a device's lot) takes the
+    description `no` gives back, byte for byte: the one written before
+    lane CZ-A, the hold then reaching nothing. Lane SH2's own holds are
+    untouched.
+    """
+    monkeypatch.setattr(taxonomy, "identifier_form_hold", lambda *_given, **_named: "")
+    monkeypatch.setattr(taxonomy, "named_as_device_numbers", lambda *_given, **_named: False)
 
 
 def sh2_answered_no(monkeypatch: pytest.MonkeyPatch) -> None:

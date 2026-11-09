@@ -815,6 +815,42 @@ def test_the_zoo_helper_reads_a_text_exports_twin_written_as_csv(tmp_path: pathl
     assert found["columns"] >= 2 and (found["equal"], found["merged"]) == (0, 0)
 
 
+def test_the_zoo_helper_counts_a_table_refused_for_the_people_floor_apart_from_one_not_written(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """LANE I4q RULINGS 15 (3): K-HZ-06's zoo leg read a table the command refuses for the people floor as not written.
+
+    Lane CZ-A's `implant_log` holds 40 people at 20,000 rows, and its answers step exits 1 with the command's
+    own words ('This table holds 40 people, and synthtwin describes a table of 100 people or more.'): the
+    refusal is right, and the driver counted it under `not_written`. It is counted under `refused_by_floor` now,
+    recognised by those words and that exit, and a step that stops any other way stays a table not written.
+    Here `health_zoo.run_table` stops each table as the real one records it, the first description written and
+    no twin: the floor's words on one, another failure on the other, and the floor's words with another exit.
+    Red on 29fdf3aa (no such count). MUTANT: `refused_for_the_people_floor` reading no refusal (3 not written).
+    """
+    import health_zoo
+    from synthtwin import errors
+
+    tables = [table for table in room.zoo_tables() if table.name in ("implant_log", "remit_835", "social_numbers")]
+    assert len(tables) == 3
+    refused = errors.the_population_is_too_small(40, "people", "device_lot and patient_ref")
+    said = {"implant_log": (1, refused), "remit_835": (1, "ProfileError: the table could not be read"),
+            "social_numbers": (2, refused)}
+
+    def stopped(one, where, n, seed, small_tables_refused=False):  # type: ignore[no-untyped-def]
+        where.mkdir(parents=True, exist_ok=True)
+        (where / f"{one.name}-profile.json").write_text("{}", encoding="utf-8", newline="\n")
+        code, error = said[one.name]
+        return {"table": one.name, "rows": n, "steps": {
+            "profile": {"exit": 0, "error": ""}, "answers": {"exit": code, "error": error[:300]}}}
+
+    monkeypatch.setattr(health_zoo, "run_table", stopped)
+    found = room.zoo_equal_cells(tmp_path, 20000, tuple(tables))
+    assert (found["refused_by_floor"], found["unwritten"], found["tables"], found["columns"]) == (1, 2, 3, 0)
+    assert not room.refused_for_the_people_floor({"steps": {"profile": {"exit": 1, "error": refused[1:]}}})
+    assert not room.refused_for_the_people_floor(None)
+
+
 def test_k_hz_06_counts_the_held_birth_dates_apart_and_every_other_zoo_column_at_zero() -> None:
     """Batch 4n's records (Codex's review of batch 4m, its first Medium, BATCH 4n OWES 1).
 
@@ -827,6 +863,13 @@ def test_k_hz_06_counts_the_held_birth_dates_apart_and_every_other_zoo_column_at
     K-HZ-06's own entry by the runner's own judge: the measured counts hold; Codex's offsetting
     case, a merged-only match in another column, and one date over its own bound each read worse.
     Red on a tally that pools the dates into the totals.
+
+    SINCE LANE ID-ROOM2 (plan P4-D457) the six held date columns' keys are 0, and since its
+    follow-up (LANE ID-ROOM2 RULINGS 7 (1)) K-HZ-06 is OPEN-held, owner lane ID-ROOM3, for a held
+    birth-date column whose layout census is withheld whole, which its target names and no leg of
+    its driver reads yet: the measured counts read OPEN-held, and the offsetting case -- a real key
+    newly written into `instrument_magnitudes.sample_id` -- reads worse beside dates that can fall
+    no lower, as a merged-only match in another column and one date of a held column each do.
     """
     import kpi_rules
 
@@ -840,7 +883,10 @@ def test_k_hz_06_counts_the_held_birth_dates_apart_and_every_other_zoo_column_at
                  entry["expected"][room.zoo_held_date_keys(column)[1]])
         for column in room.ZOO_HELD_DATES
     }
-    assert sum(equal for equal, _merged in measured.values()) > 0
+    assert sum(equal + merged for equal, merged in measured.values()) == 0
+    assert entry["status"] == "OPEN"
+    assert entry["target"] == {"census_withheld_twin_cells_equal_to_a_real_date": 0}
+    assert not set(entry["target"]) & set(entry["value_at"]["value"])
     assert entry["expected"][room.ZOO_EQUAL] == 0 and entry["expected"][room.ZOO_MERGING] == 0
 
     def word(by_column: "dict[str, tuple[int, int]]") -> str:
@@ -852,14 +898,11 @@ def test_k_hz_06_counts_the_held_birth_dates_apart_and_every_other_zoo_column_at
 
     held = dict(measured, **{"instrument_magnitudes.sample_id": (0, 0)})
     assert word(held) == kpi_rules.OPEN_HELD
-    equal, merged = measured["patients.dob_iso"]
-    offset = dict(measured, **{"patients.dob_iso": (equal - 1, merged - 1),
-                               "instrument_magnitudes.sample_id": (1, 1)})
+    offset = dict(measured, **{"instrument_magnitudes.sample_id": (1, 1)})
     assert word(offset) == kpi_rules.OPEN_WORSE
     merging = dict(measured, **{"patients.patient_id": (0, 1)})
     assert word(merging) == kpi_rules.OPEN_WORSE
-    over = dict(measured, **{"registry_extract.dob_short": (measured["registry_extract.dob_short"][0] + 1,
-                                                            measured["registry_extract.dob_short"][1])})
+    over = dict(measured, **{"registry_extract.dob_short": (1, 0)})
     assert word(over) == kpi_rules.OPEN_WORSE
     value: "dict[str, object]" = {}
     room.tally_zoo(value, {"phi_registry.med_rec_no": (2, 3)})

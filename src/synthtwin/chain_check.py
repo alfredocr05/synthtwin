@@ -90,8 +90,9 @@ def check(document: "dict[str, object]") -> None:
     one_band = chain_rules.reads_one_band(statistical["procedure"], tabled)
     if one_band is None:
         raise _broken("S24", "procedure", "the constants are this version's or the earlier version's (contract 4.6b.5, 4.6b.14)")
-    if statistical["rules"] != [] or statistical["withheld"] != []:
-        raise _broken("S28", "rules", "this version carries no rule and no withheld class")
+    if statistical["withheld"] != []:
+        raise _broken("S28", "withheld", "this version carries no withheld class")
+    computed = _computed_named(statistical["rules"])
     # -- ineligible and the ladder (S23) --
     reasons = statistical["ineligible"]
     out_of_ladder: "set[str]" = set()
@@ -104,11 +105,13 @@ def check(document: "dict[str, object]") -> None:
             raise _broken("S27", "ineligible", "each entry names a column and a reason in words")
         if entry["column"] not in blocks or entry["reason"] not in chain_rules.INELIGIBLE_REASONS:
             raise _broken("S27", f"{entry['column']}", "a reason of contract 4.6b.1 for a column of this table")
-        if entry["reason"] == "computed":
-            # S28: a `computed` column is named by exactly one carried rule,
-            # and this version carries none (Codex's item 9 on repair 1).
-            raise _broken("S28", f"{entry['column']}", "a column ineligible as computed is named by a carried rule, and this version carries none")
+        if (entry["reason"] == "computed") != (entry["column"] in computed):
+            # S28: a column is ineligible as `computed` exactly where one
+            # carried rule computes it (Codex's item 9 on repair 1).
+            raise _broken("S28", f"{entry['column']}", "a column is ineligible as computed exactly where one carried rule computes it")
         out_of_ladder = out_of_ladder | {f"{entry['column']}"}
+    if not computed <= out_of_ladder:
+        raise _broken("S28", "rules", "every column a carried rule computes is ineligible as computed")
     eligible = [name for name in schema if name not in out_of_ladder]
     published = statistical["ladder"]
     if not isinstance(published, list) or len(published) != len(eligible):
@@ -144,16 +147,19 @@ def check(document: "dict[str, object]") -> None:
         families += [family]
     if seen_children != set(eligible):
         raise _broken("S24", "chain", "every eligible column is the child of exactly one family")
-    if all(not family.parents for family in families):
+    if all(not family.parents for family in families) and not statistical["rules"]:
         raise _broken("S24", "chain", "a chain of families with no parent stands only beside a carried rule")
+    # -- the carried rules (S28 as contract 4.6b.7 amends it; lane RO, plan P4-D459) --
+    derived = check_rules(statistical["rules"], document, blocks, schema, eligible, scales, groups, floor, tabled)
     # W3 and NE: each placed family's levels among the variants offered.
     for at in range(len(families)):
         family = families[at]
         if not family.parents:
             continue
         _offered(family, at, families, scales, eligible, floor, tabled)
-    # RULE W1, in full (the own-fact groups read above, before the moments).
-    failing = chain_rules.w1_refusals(families, scales, groups)
+    # RULE W1, in full (the own-fact groups read above, before the moments),
+    # each carried rule's derived family read through its parent (rule 4).
+    failing = chain_rules.w1_refusals(families, scales, groups, derived)
     if failing:
         raise _broken("S24", failing[0][0], "RULE W1: a band holding a small group of the column reaches two bands of every other column's coarsest level")
     # RULE WE.
@@ -171,6 +177,218 @@ def check(document: "dict[str, object]") -> None:
         raise _broken("S27", "words", "every candidate pair once, in schema order, with the word the description gives it")
     if statistical["not_carried"] != implied:
         raise _broken("S27", "not_carried", "exactly the pairs reading implied")
+
+
+def _computed_named(listed: object) -> "set[str]":
+    """The columns the carried rules compute, as `rules` names them (read before the ladder, S28)."""
+    if not isinstance(listed, list):
+        raise _broken("S28", "rules", "a list")
+    out: "set[str]" = set()
+    for entry in listed:
+        if isinstance(entry, dict) and isinstance(_get(entry, "computed"), str):
+            out = out | {f"{entry['computed']}"}
+    return out
+
+
+def check_rules(
+    listed: object,
+    document: "dict[str, object]",
+    blocks: "dict[str, dict[str, object]]",
+    schema: "list[str]",
+    eligible: "list[str]",
+    scales: "dict[str, chain_rules.Ladder]",
+    groups: "dict[str, set[int]]",
+    floor: int,
+    tabled: int,
+) -> "tuple[chain_rules.Derived, ...]":
+    """S28 as contract 4.6b.7 amends it (MR.1 to MR.6; lane RO, plan P4-D459): every carried rule.
+
+    Each clause of the derived option's rules 1 to 6; the class `phrase`,
+    or a count from `f` to `L(n)` for a derived carrier only, its
+    partition passing row 9's one test on the base; a source carrier's
+    own block publishing `n_negative` 0, under MR.3's three source
+    conditions; the computed column's block key by key; rule identities
+    unique; no rule reading a computed column. Returns each derived
+    family as RULE W1 reads it (rule 4, beside the chain's families).
+    """
+    if not isinstance(listed, list):
+        raise _broken("S28", "rules", "a list")
+    limit = chain_rules.rule_limit(tabled, floor)
+    computed: "set[str]" = set()
+    read: "set[str]" = set()
+    derived: "list[chain_rules.Derived]" = []
+    for at in range(len(listed)):
+        entry = listed[at]
+        where = f"rules[{at}]"
+        if not isinstance(entry, dict) or sorted(entry) != list(chain_rules.RULE_ENTRY_KEYS):
+            raise _broken("S28", where, "a carried rule holds carrier, class, computed, derived, grain, inputs, kind, op and unit")
+        kind = entry["kind"]
+        target = entry["computed"]
+        inputs = entry["inputs"]
+        carrier = entry["carrier"]
+        klass = entry["class"]
+        if kind != chain_rules.RULE_ORDER:
+            raise _broken("S28", where, "this version carries order rules alone (a formula rule is lane RD's)")
+        if entry["op"] is not None:
+            raise _broken("S28", where, "an order rule names no operation")
+        if not isinstance(target, str) or target not in blocks:
+            raise _broken("S28", where, "a rule computes a column of this table")
+        if not isinstance(inputs, list) or len(inputs) != 1 or not isinstance(inputs[0], str) or inputs[0] not in eligible:
+            raise _broken("S28", where, "an order rule reads one eligible column")
+        first = inputs[0]
+        if target in computed or target in read or first in computed or first == target:
+            raise _broken("S28", target, "a column is computed by at most one carried rule, and no carried rule reads a computed column")
+        a_block = blocks[first]
+        kind_of_pair = chain_rules.kind_of_role(_get(a_block, "role"))
+        if kind_of_pair is None or chain_rules.has_exponent(a_block):
+            raise _broken("S28", first, "a rule's input has a role of the kind its pair reads and no E-notation")
+        b_block = blocks[target]
+        _computed_block(target, b_block, a_block, kind, schema)
+        if chain_rules.first_style(b_block) in chain_rules.EXPONENT_STYLES:
+            raise _broken("S28", target, "a computed column is not first written in E-notation")
+        grain = entry["grain"]
+        if kind_of_pair == chain_rules.KIND_NUMBER:
+            wanted_grain: "str | None" = None
+        elif kind_of_pair == chain_rules.KIND_CLOCK:
+            wanted_grain = chain_rules.GRAIN_A
+        elif chain_rules.every_layout_clocked(a_block) and not chain_rules.first_layout_clocked(b_block):
+            wanted_grain = chain_rules.GRAIN_DAY
+        else:
+            wanted_grain = chain_rules.GRAIN_A
+        if grain != wanted_grain:
+            raise _broken("S28", where, "the rule's grain is the one its pair's published layouts give")
+        step = chain_rules.grain_step(a_block, grain)
+        if step is None:
+            raise _broken("S28", where, "the input's published layouts give the pair a step")
+        seconds = kind_of_pair == chain_rules.KIND_CLOCK or (
+            kind_of_pair == chain_rules.KIND_DATE and grain == chain_rules.GRAIN_A and chain_rules.every_layout_clocked(a_block)
+        )
+        if carrier == chain_rules.CARRIER_DERIVED:
+            if entry["unit"] is not None:
+                raise _broken("S28", where, "a derived carrier names no unit")
+            readings = sum(scales[first].totals[place] for place in range(len(scales[first].totals)) if scales[first].ordered[place])
+            if klass == chain_rules.CLASS_PHRASE:
+                pass
+            elif _whole(klass) and isinstance(klass, int) and floor <= klass <= limit:
+                if not chain_rules.partition_passes(readings, floor, limit):
+                    raise _broken("S28", where, "a count class stands only where row 9's one test passes its whole partition")
+            else:
+                raise _broken("S28", where, "the class is the phrase, or a count from the floor to the inference limit")
+            derived += [_derived_entry(entry["derived"], where, first, scales[first], groups[first] if first in groups else set(), klass, step, floor)]
+        else:
+            if klass != chain_rules.CLASS_PHRASE or entry["derived"] is not None:
+                raise _broken("S28", where, "a source carrier takes the phrase alone and names no derived column")
+            if not isinstance(carrier, str) or carrier not in eligible or carrier in (first, target) or carrier in computed:
+                raise _broken("S28", where, "a source carrier is another eligible column")
+            d_block = blocks[carrier]
+            if _get(d_block, "role") not in chain_rules.NUMBER_PAIR_ROLES or chain_rules.has_exponent(d_block):
+                raise _broken("S28", carrier, "a source carrier is a number column with no E-notation")
+            if _get(d_block, "n_negative") != 0:
+                raise _broken("S28", carrier, "a source carrier's own block publishes n_negative 0")
+            refused = chain_rules.source_refusal(entry["unit"], kind_of_pair, seconds, step, d_block, b_block)
+            if refused is not None:
+                raise _broken("S28", where, f"a source carrier meets MR.3's three source conditions ({refused})")
+            read = read | {carrier}
+        computed = computed | {target}
+        read = read | {first}
+    return tuple(derived)
+
+
+def _computed_block(
+    name: str,
+    block: "dict[str, object]",
+    template: "dict[str, object]",
+    kind: str,
+    schema: "list[str]",
+) -> None:
+    """A computed column's block, key by key (contract 4.6b.7, MR.6 (a)): its name, position and the
+    rule's role, its own layout words, and every other key `null`, `{}` or `[]`; a number column's own
+    affix words beside its rule's role's keys (lane RO's repair 2)."""
+    role = chain_rules.computed_role(kind, [f"{_get(template, 'role')}"])
+    extra = set(block) - set(template)
+    affixed = role in chain_rules.NUMBER_PAIR_ROLES and extra == set(chain_rules.AFFIX_WORDS)
+    if not set(template) <= set(block) or (extra and not affixed):
+        raise _broken("S28", name, "a computed column's block holds the keys of its rule's role")
+    place = 0
+    for at in range(len(schema)):
+        if schema[at] == name:
+            place = at + 1
+    if _get(block, "role") != role or _get(block, "position") != place:
+        raise _broken("S28", name, "a computed column's block holds its name, its place and its rule's role")
+    lists = chain_rules.LAYOUT_LISTS[role] if role in chain_rules.LAYOUT_LISTS else ()
+    words = (chain_rules.LAYOUT_WORDS[role] if role in chain_rules.LAYOUT_WORDS else ()) + (chain_rules.AFFIX_WORDS if affixed else ())
+    for key in block:
+        value = block[key]
+        if key in ("name", "position", "role"):
+            continue
+        if key in lists and isinstance(value, list) and all(isinstance(word, str) for word in value):
+            continue
+        if key in words and (value is None or isinstance(value, str)):
+            continue
+        if value is not None and value != {} and value != []:
+            raise _broken("S28", name, f"a computed column publishes nothing read from its cells ({key})")
+
+
+def _derived_entry(
+    written: object,
+    where: str,
+    first: str,
+    ladder: "chain_rules.Ladder",
+    groups: "set[int]",
+    klass: "str | int",
+    step: "chain_rules.Exact",
+    floor: int,
+) -> "chain_rules.Derived":
+    """A derived column's entry (S28): one named level, its family `{D | A}` complete, rules 1 to 6."""
+    if not isinstance(written, dict) or sorted(written) != list(chain_rules.DERIVED_ENTRY_KEYS):
+        raise _broken("S28", where, "a derived carrier names its derived column's edges, level, parent, table and totals")
+    names = {name: percents for name, percents in chain_rules.DERIVED_LEVELS}
+    level_name = written["name"]
+    if not isinstance(level_name, str) or level_name not in names:
+        raise _broken("S28", where, "a derived column's level is one of L0, L1, L2 and one")
+    percents = names[level_name]
+    edges_written = written["edges"]
+    edges: "list[chain_rules.Exact]" = []
+    for edge in edges_written if isinstance(edges_written, list) else [None]:
+        value = chain_rules.decimal_value(edge)
+        if value is None or (edges and not edges[-1] < value):
+            raise _broken("S28", where, "a derived column's edges are exact decimals, strictly increasing")
+        edges += [value]
+    if len(edges) > len(percents) or (percents and not edges):
+        raise _broken("S28", where, "a derived column's edges are its level's rungs, tied edges taken once")
+    parent = written["parent"]
+    if not isinstance(parent, dict) or sorted(parent) != ["column", "level"] or parent["column"] != first:
+        raise _broken("S28", where, "a derived family's one parent is the rule's input")
+    a_level = _level_of(parent["level"], "S28", where)
+    totals = written["totals"]
+    if not isinstance(totals, list) or len(totals) != len(edges) + 1 or not all(_whole(total) and total >= 0 for total in totals):
+        raise _broken("S28", where, "one total for every value band of the derived column")
+    table = written["table"]
+    rows = ladder.counts[a_level]
+    if not isinstance(table, list) or len(table) != rows:
+        raise _broken("S28", where, "the derived family's table holds one row for every band of its parent")
+    for line in table:
+        if not isinstance(line, list) or len(line) != len(edges) + 2 or not all(_whole(cell) and cell >= 0 for cell in line):
+            raise _broken("S28", where, "the derived family's table is complete, one count a band of the derived column and its missing band")
+    parent_totals = chain_rules.totals_at(ladder, a_level)
+    for row in range(rows):
+        if sum(table[row]) != parent_totals[row]:
+            raise _broken("S28", where, "the derived family's table sums to its parent's totals at its level")
+    for band in range(len(edges) + 1):
+        if sum(table[row][band] for row in range(rows)) != totals[band]:
+            raise _broken("S28", where, "the derived family's table sums to the derived column's totals")
+    spread: "set[int]" = set()
+    for band in range(rows):
+        members = [place for place in range(len(ladder.totals)) if ladder.maps[a_level][place] == band]
+        if members and not any(ladder.ordered[place] for place in members):
+            spread = spread | {band}
+    missing_alone = all(not (chain_rules.MISSING in band and len(band) > 1) for band in ladder.l0)
+    group_rows = {ladder.maps[a_level][band] for band in groups}
+    level = (level_name, percents, tuple(edges))
+    refused = chain_rules.derived_option_refusal(level, list(totals), table, spread, missing_alone, group_rows, klass, step, floor)
+    if refused is not None:
+        raise _broken("S28", where, f"a derived option meets rules 1 to 6 ({refused})")
+    return chain_rules.derived_of(first, a_level, table, not edges)
 
 
 def _ladder_of(
