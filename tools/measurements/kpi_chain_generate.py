@@ -95,7 +95,6 @@ from synthtwin import (  # noqa: E402
 )
 
 FLOOR = 11
-SPELLED = {"code": False, "measurement": False, "decimal_comma": False}
 MOVED_CELLS = 12
 MOVED_ROWS = 400
 
@@ -156,9 +155,15 @@ def _codes_back(path: pathlib.Path, described: "bt._Described") -> "dict[str, tu
     held = []
     out: "dict[str, tuple[list[int], list[list[int]], list[int]]]" = {}
     assert described.statistical is not None
+    # A twin is read under the declarations its description published, a comma
+    # the description inferred among them, as the chain read the real table
+    # (lane BT3a, plan P4-D467: `chain.declarations_read`).
+    codes_read, measured_read, commas_read = chain.declarations_read(described.document, [], [], [])
     for entry in described.statistical["ladder"]:  # type: ignore[union-attr]
         place, block = blocks[entry["column"]]
-        read = chain.read_column(back, place, block, settings, SPELLED, "", blank)
+        name = f"{entry['column']}"
+        spelled = {"code": name in codes_read, "measurement": name in measured_read, "decimal_comma": name in commas_read}
+        read = chain.read_column(back, place, block, settings, spelled, "", blank)
         assert read is not None
         to_l0: "dict[object, int]" = {}
         for band, names in enumerate(entry["l0"]):

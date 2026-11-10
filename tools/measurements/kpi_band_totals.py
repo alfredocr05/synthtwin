@@ -72,6 +72,13 @@ its ladder:
   with the switch at its default -- the twin the base refused -- is
   written and read back the same way (`hunt_200k`), its refusal counted
   in `readers_refused`;
+- (x) THE READER ON THE COMMAND'S PATH (lane BT3a, plan P4-D467;
+  `kpi_chain_recount`, in the default `--kpi` run, not with
+  `--no-recount` or a named table): the shipped command, switched, over
+  the reach of lane BT3a's step 0 at 20,000 rows and the code-heavy and
+  mixed tables at 200,000: `recount_off`, target 0, over
+  `recount_columns`, each table's chain or its other reason named in
+  `reach_named`, `scan_hits` and `loader_refused`, target 0;
 - the columns made without their band totals (rule B3, named by exact
   column name): `made_without`, reported; the tables whose switched
   description its own loader refused: `chain_refused`, reported.
@@ -127,7 +134,6 @@ from synthtwin import (  # noqa: E402
 
 FLOOR = 11
 TEST_KEY = bytes(range(32))
-SPELLED = {"code": False, "measurement": False, "decimal_comma": False}
 RANGED = ("count", "continuous", "datetime", "time_of_day", "affixed_number")
 LABELS = ("binary", "categorical", "long_tail_labels", "constant")
 NUMBERS = ("count", "continuous", "affixed_number")
@@ -510,9 +516,15 @@ def _l0_totals(path: pathlib.Path, described: _Described, back: "reading.Table |
     held = []
     found: "dict[str, list[int]]" = {}
     assert described.statistical is not None
+    # A twin is read under the declarations its description published, a comma
+    # the description inferred among them, as the chain read the real table
+    # (lane BT3a, plan P4-D467: `chain.declarations_read`).
+    codes_read, measured_read, commas_read = chain.declarations_read(described.document, [], [], [])
     for entry in described.statistical["ladder"]:  # type: ignore[union-attr]
         place, block = blocks[entry["column"]]
-        read = chain.read_column(back, place, block, settings, SPELLED, "", blank)
+        name = f"{entry['column']}"
+        spelled = {"code": name in codes_read, "measurement": name in measured_read, "decimal_comma": name in commas_read}
+        read = chain.read_column(back, place, block, settings, spelled, "", blank)
         if read is None:
             continue
         start = [0] * len(read.start.names)
@@ -906,6 +918,11 @@ def main() -> int:
         hunt = _hunt_reread(200000, 3)
         value["hunt_200k"] = hunt
         value["readers_refused"] = int(value["readers_refused"]) + (1 if hunt["refused"] else 0)  # type: ignore[call-overload]
+    # (x) THE READER ON THE COMMAND'S PATH (lane BT3a, plan P4-D467).
+    if "--no-recount" not in sys.argv and not only:
+        import kpi_chain_recount
+
+        value.update(kpi_chain_recount.measure())
     if "--kpi" in sys.argv:
         print("KPI " + json.dumps({"id": "K-S6-02", "value": value, "detail": "layer L0's band totals (lane BT)"}, sort_keys=True))
     else:

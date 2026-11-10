@@ -7346,6 +7346,231 @@ def _classify(text: str, decimal_comma: bool = False) -> _Cell:
     )
 
 
+# -- EACH NUMBER READER ASKED ONCE A SPELLING (lane PRT-a, plan P4-D468) ------
+#
+# The census of a numeric column walks its cells about ten times -- the
+# forms four times over, the pads, the widths, the marks twice, the plus
+# of the decimals, the wide runs and the widths after the point -- and
+# every walk asked the parser again what each cell is. `numeric_style`,
+# `parsing.thousands_mark`, `_whole_figures`, `parsing.number_core` and
+# `parsing.fraction_width` are each a fixed function of the text it
+# reads, so the rows that write one spelling were asked one question
+# once a walk: 14 to 30 calls of `number_core` a cell, 15 per cent of the
+# numeric describe at 200,000 rows (lane PRT-0). The tally holds what
+# each of them answered, keyed by the very text it read (the spelling
+# the number rules read, `_Cell.numeric_text`, which carries a declared
+# decimal comma; or the cell with its points and commas exchanged, which
+# `_grouping_evidence` reads under that declaration), for the whole of
+# the column's reading: the two passes of `_numeric_styles` and every
+# walk after the first read the answer.
+#
+# BOUNDED AS LANE S4d BOUNDS A MEMO, WITHOUT ITS GROWTH (`_held_again`).
+# A memo of one pass takes texts up to `parsing.SPELLING_MEMO_TEXTS`, and
+# past them only while it has answered as many rows as it holds
+# (`parsing.memo_takes`): a column whose values never repeat stops at the
+# bound. A memo the walks share is answered again by every walk, so that
+# clause would let it take every text of such a column by its fourth
+# walk, and its bytes would grow with the rows (the suite's memory cases
+# of lane H3, `tests/test_stage4_describe_memory.py`, hold them flat). So
+# a reader's memo here takes texts up to the bound, then only those its
+# note of texts met once holds when they are met again
+# (`parsing.memo_notes`, `_Asked`), and none once it holds the bound and
+# `_SHARED_MEMO_NOTES` notes, whatever the rows and the walks. A column
+# of fewer different spellings than the bound -- every column of the
+# lane's three shapes but its near-unique ones -- is asked each once.
+#
+# HOW FAR PAST THE BOUND, IN NOTES (the lane's repair 2, on Codex's review
+# of the lane, item 1). A column writing each spelling twice in a row
+# (`1000.00, 1000.00, 1000.01, 1000.01, ...`) meets every spelling again
+# while the note still holds it, so the note alone let each memo take
+# every spelling: 499,947 texts a memo at 1,000,000 rows, growing with the
+# rows. So the memo takes no text once it holds the bound and this many
+# notes, 229,376 texts at the shipped sizes (twice the note for each of
+# about ten walks, what the plan decision allowed), and a text past them
+# is answered per row, exactly as before the lane.
+_SHARED_MEMO_NOTES = 20
+
+
+@dataclasses.dataclass
+class _Asked:
+    """What one reader's memo refused, and how many rows it answered from what it holds.
+
+    `noted` and `older` are lane S4d's note of texts met once
+    (`parsing.SPELLING_MEMO_NOTED`): the newer takes a refused text while
+    `parsing.memo_notes` allows it, and when it is full it becomes the
+    older and a new one starts. A text met again while either holds it
+    is taken then, whatever the memo holds. The answers are the memo's
+    own; nothing here holds one. `answered` is counted and read by the
+    memos of one pass (`_takes`); the memo the census walks share
+    (`_held_again`) neither counts nor reads it.
+    """
+
+    noted: "dict[str, bool]"
+    older: "dict[str, bool]"
+    answered: int = 0
+
+
+def _asked() -> _Asked:
+    """An empty `_Asked`, a memo's before its first text."""
+    return _Asked(noted={}, older={})
+
+
+def _held_again(asked: _Asked, held: int, text: str) -> bool:
+    """Whether a memo the census walks share, holding ``held`` answers, takes the one just worked out for ``text``.
+
+    Up to `parsing.SPELLING_MEMO_TEXTS` texts, and past them a text its
+    note holds, met again, until it holds the bound and
+    `_SHARED_MEMO_NOTES` notes, past which it takes none; a text it
+    refuses below that is noted, the note turning over when it is full
+    (`parsing.memo_notes`). Never on the strength of its answers, which
+    every walk gives again (the note above `_Asked`).
+    Guarantees: a function of the three and of the note, which it
+    updates. Raises nothing. No I/O of any kind.
+    """
+    if held >= parsing.SPELLING_MEMO_TEXTS + _SHARED_MEMO_NOTES * parsing.SPELLING_MEMO_NOTED:
+        return False
+    if text in asked.noted or text in asked.older:
+        return True
+    if held < parsing.SPELLING_MEMO_TEXTS:
+        return True
+    if parsing.memo_notes(len(asked.noted)):
+        asked.noted[text] = True
+    else:
+        asked.older = asked.noted
+        asked.noted = {}
+    return False
+
+
+def _takes(asked: _Asked, held: int, text: str) -> bool:
+    """Whether a memo holding ``held`` answers takes the one just worked out for ``text``.
+
+    Lane S4d's rule (`parsing.memo_takes`, `parsing.memo_notes`): a text
+    its note holds is taken, met again; otherwise the memo takes texts up
+    to `parsing.SPELLING_MEMO_TEXTS`, and past them while it has answered
+    as many rows as it holds; a text it refuses is noted, the note
+    turning over when it is full. Guarantees: a function of the three and
+    of the note, which it updates. Raises nothing. No I/O of any kind.
+    """
+    if text in asked.noted or text in asked.older:
+        return True
+    if parsing.memo_takes(held, asked.answered):
+        return True
+    if parsing.memo_notes(len(asked.noted)):
+        asked.noted[text] = True
+    else:
+        asked.older = asked.noted
+        asked.noted = {}
+    return False
+
+
+@dataclasses.dataclass
+class _ReadOnce:
+    """Each number reader's answers to the texts one column's reading asked it, one a spelling (plan P4-D468).
+
+    Keyed by the text each reader read, each answer the one that reader
+    returned for that text, so a walk reading an answer here reads what
+    asking again would have answered. Held by the tally
+    (`_Cells.read_once`); never compared, printed or published.
+    """
+
+    styles: "dict[str, str]"
+    styles_asked: _Asked
+    marks: "dict[str, str]"
+    marks_asked: _Asked
+    figures: "dict[str, int]"
+    figures_asked: _Asked
+    cores: "dict[str, str]"
+    cores_asked: _Asked
+    widths: "dict[str, int]"
+    widths_asked: _Asked
+
+
+def _read_once() -> _ReadOnce:
+    """An empty `_ReadOnce`, a tally's before its first walk."""
+    return _ReadOnce(
+        styles={},
+        styles_asked=_asked(),
+        marks={},
+        marks_asked=_asked(),
+        figures={},
+        figures_asked=_asked(),
+        cores={},
+        cores_asked=_asked(),
+        widths={},
+        widths_asked=_asked(),
+    )
+
+
+def _style_once(cells: "_Cells", cell: _Cell) -> str:
+    """`numeric_style` of the spelling the number rules read, asked once a spelling for the reading ``cells`` holds (plan P4-D468).
+
+    KEYED BY THAT SPELLING, `cell.numeric_text`, which carries a declared
+    decimal comma, and never by the file's own (`cell.text`): `1,5` is
+    `1.5` to a declared column and the text `1,5` to every other, so the
+    declaration is part of the key, as it is of the answer.
+    """
+    once = cells.read_once
+    text = cell.numeric_text
+    if text in once.styles:
+        return once.styles[text]
+    style = numeric_style(text)
+    if _held_again(once.styles_asked, len(once.styles), text):
+        once.styles[text] = style
+    return style
+
+
+def _mark_once(cells: "_Cells", text: str) -> str:
+    """`parsing.thousands_mark(text)`, asked once a spelling for the reading ``cells`` holds (plan P4-D468)."""
+    once = cells.read_once
+    if text in once.marks:
+        return once.marks[text]
+    mark = parsing.thousands_mark(text)
+    if _held_again(once.marks_asked, len(once.marks), text):
+        once.marks[text] = mark
+    return mark
+
+
+def _figures_once(cells: "_Cells", text: str) -> int:
+    """`_whole_figures(text)`, asked once a spelling for the reading ``cells`` holds (plan P4-D468)."""
+    once = cells.read_once
+    if text in once.figures:
+        return once.figures[text]
+    figures = _whole_figures(text)
+    if _held_again(once.figures_asked, len(once.figures), text):
+        once.figures[text] = figures
+    return figures
+
+
+def _core_once(cells: "_Cells", cell: _Cell) -> str:
+    """`parsing.number_core` of the spelling the number rules read, asked once a spelling for the reading ``cells`` holds (plan P4-D468).
+
+    Keyed by `cell.numeric_text`, as `_style_once` is.
+    """
+    once = cells.read_once
+    text = cell.numeric_text
+    if text in once.cores:
+        return once.cores[text]
+    core = parsing.number_core(text)
+    if _held_again(once.cores_asked, len(once.cores), text):
+        once.cores[text] = core
+    return core
+
+
+def _width_once(cells: "_Cells", cell: _Cell) -> int:
+    """`fraction_width` of the spelling the number rules read, asked once a spelling for the reading ``cells`` holds (plan P4-D468).
+
+    Keyed by `cell.numeric_text`, as `_style_once` is.
+    """
+    once = cells.read_once
+    text = cell.numeric_text
+    if text in once.widths:
+        return once.widths[text]
+    width = fraction_width(text)
+    if _held_again(once.widths_asked, len(once.widths), text):
+        once.widths[text] = width
+    return width
+
+
 @dataclasses.dataclass(frozen=True)
 class _Cells:
     """Everything the role rules are allowed to consult, decided once.
@@ -7461,6 +7686,13 @@ class _Cells:
     label_spellings: "dict[str, dict[str, int]]"
     all_digits: int
     code_alphabet: int
+    # EACH NUMBER READER'S ANSWER, ONE A SPELLING, FOR THE WHOLE READING
+    # (lane PRT-a, plan P4-D468; `_ReadOnce`): what the census walks asked
+    # the parser of each text, so a walk after the first reads it. A copy
+    # of this record made with `dataclasses.replace` holds the same
+    # answers, which are fixed functions of the texts. It is never
+    # compared and never published.
+    read_once: "_ReadOnce" = dataclasses.field(compare=False, repr=False)
     # EACH DIFFERENT TEXT IS SPLIT ONCE (plan P4-D380), by the grammar it
     # was split under. `affixed_split` is a function of the text and the
     # grammar alone, and a column the earlier rules decline was split four
@@ -7808,6 +8040,7 @@ def _tally(
         label_spellings=label_spellings,
         all_digits=all_digits,
         code_alphabet=code_alphabet,
+        read_once=_read_once(),
     )
 
 
@@ -8776,7 +9009,16 @@ def is_published_vocabulary(spelling: str) -> bool:
 def _declared_spelling(
     text: str, declarations: "list[_Declaration]"
 ) -> bool:
-    """True when a declaration that names no number matches this spelling."""
+    """True when a declaration that names no number matches this spelling.
+
+    NO FOLD WHERE NOTHING IS DECLARED (lane PRT-a, plan P4-D468): the list
+    is empty unless `--keep-value` or `--missing-value` was typed, and
+    folding every cell against an empty list was 11 to 15 of the
+    describe's calls a cell to `parsing.folded` (lane PRT-0). A cell that
+    is not text still raises TypeError, through `parsing.folded`.
+    """
+    if not declarations and isinstance(text, str):
+        return False
     folded = parsing.folded(text)
     for declaration in declarations:
         if declaration.exact is None and folded == declaration.folded:
@@ -8865,6 +9107,17 @@ def split_missing(
     that as a check of its own -- so no declared number is ever needed
     here to rescue a value from that table.
 
+    ONE QUESTION A SPELLING (lane PRT-a, plan P4-D468). `_missing_class`
+    is a fixed function of the cell's text and of the two declaration
+    lists, which are fixed for the call, so the rows that write one
+    spelling share its answer: it is asked once a different text, never
+    once a row (about seven calls of this function a column, each asking
+    every row, were 8.8 to 14.7 per cent of the describe at 200,000 rows,
+    lane PRT-0). The texts it holds are bounded as lane S4d bounds a memo
+    of one answer per spelling (`parsing.memo_takes`, with the note of
+    texts met once, `parsing.memo_notes`); each row keeps its own text in
+    what is returned.
+
     Guarantees: accepts the column's cells as text; returns the values
     that are present and the pairs that are not, in row order. Raises
     TypeError if a value is not text. No I/O of any kind.
@@ -8875,8 +9128,28 @@ def split_missing(
     )
     present: list[str] = []
     missing: list[tuple[str, str]] = []
+    known: "dict[str, str]" = {}
+    noted: "dict[str, str]" = {}
+    older: "dict[str, str]" = {}
+    answered = 0
     for value in values:
-        named = _missing_class(value, kept, declared_missing)
+        if value in known:
+            answered = answered + 1
+            named = known[value]
+        elif value in noted or value in older:
+            # MET AGAIN PAST THE BOUND: taken now, with its first answer.
+            named = noted[value] if value in noted else older[value]
+            known[value] = named
+            answered = answered + 1
+        else:
+            named = _missing_class(value, kept, declared_missing)
+            if parsing.memo_takes(len(known), answered):
+                known[value] = named
+            elif parsing.memo_notes(len(noted)):
+                noted[value] = named
+            else:
+                older = noted
+                noted = {}
         if named:
             missing += [(value, named)]
             continue
@@ -11337,7 +11610,7 @@ def _written_forms_clear(reading: "_Affixed", cells: _Cells) -> bool:
     for cell in _classify_all(reading.cores, cells.decimal_comma):
         if cell.kind != parsing.NUMBER:
             continue
-        style = numeric_style(cell.numeric_text)
+        style = _style_once(cells, cell)
         forms[style] = (forms[style] if style in forms else 0) + 1
         if style == parsing.STYLE_DECIMAL:
             text = cell.numeric_text
@@ -12585,9 +12858,9 @@ def _fraction_widths(cells: _Cells, styles: "dict[str, int]") -> dict[str, int]:
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
-        style = numeric_style(cell.numeric_text)
+        style = _style_once(cells, cell)
         if style == parsing.STYLE_DECIMAL:
-            width = fraction_width(cell.numeric_text)
+            width = _width_once(cells, cell)
             _added_to(counts, width, 1)
             _counted_add(counted, cell, width, _least_fraction(cell, width))
         elif absorbing == parsing.STYLE_DECIMAL and style not in styles:
@@ -14404,7 +14677,7 @@ def _padded_cells(cells: _Cells) -> int:
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
-        if numeric_style(cell.numeric_text) != parsing.STYLE_LEADING_ZERO:
+        if _style_once(cells, cell) != parsing.STYLE_LEADING_ZERO:
             continue
         counted = counted + 1
     return counted
@@ -14422,7 +14695,7 @@ def _form_tally(cells: _Cells) -> "dict[str, int]":
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
-        style = numeric_style(cell.numeric_text)
+        style = _style_once(cells, cell)
         if style in counts:
             counts[style] = counts[style] + 1
         else:
@@ -14572,7 +14845,7 @@ def _width_censuses(
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
-        style = numeric_style(cell.numeric_text)
+        style = _style_once(cells, cell)
         if style not in POINT_FREE_STYLES or style not in styles:
             if form == parsing.STYLE_LEADING_ZERO and style not in styles:
                 if banded and _is_whole(cell):
@@ -15464,7 +15737,9 @@ def _marks_exchanged(text: str) -> str:
     return out
 
 
-def _grouping_evidence(cell: _Cell, decimal: bool) -> "tuple[bool, bool, str]":
+def _grouping_evidence(
+    cells: _Cells, cell: _Cell, decimal: bool
+) -> "tuple[bool, bool, str]":
     """What one numeric cell proves about the mark between thousands.
 
     THE ONE EVIDENCE RULE, asked by `_group_separator` and
@@ -15493,16 +15768,23 @@ def _grouping_evidence(cell: _Cell, decimal: bool) -> "tuple[bool, bool, str]":
        EXCHANGE, so a proven point comes back as a comma and each caller
        publishes it as the point that column writes.
 
-    Guarantees: accepts one classified numeric cell and whether its
-    column declared a decimal comma; returns (refuses, eligible, mark),
-    the mark "" wherever the cell is not eligible. Determinism: a fixed
-    function of the two. Raises nothing. No I/O of any kind.
+    ITS THREE READERS ARE ASKED ONCE A SPELLING FOR THE READING (lane
+    PRT-a, plan P4-D468): the form, the mark and the whole figures are
+    read through the tally's memo (`_ReadOnce`), each keyed by the text
+    it reads, so the second walk over the column and every row that
+    repeats a spelling read the answers already worked out.
+
+    Guarantees: accepts the column's tally, one classified numeric cell
+    of it and whether its column declared a decimal comma; returns
+    (refuses, eligible, mark), the mark "" wherever the cell is not
+    eligible. Determinism: a fixed function of the cell and the flag.
+    Raises nothing. No I/O of any kind.
     """
     written = cell.text
     if decimal:
         written = _marks_exchanged(cell.text)
-    style = numeric_style(cell.numeric_text)
-    mark = parsing.thousands_mark(written)
+    style = _style_once(cells, cell)
+    mark = _mark_once(cells, written)
     if decimal and mark == "" and "," in written:
         # A DECLARED COLUMN IS READ IN ITS OWN GRAMMAR, which drops
         # every point whatever groups it leaves, so its proof is the
@@ -15515,7 +15797,7 @@ def _grouping_evidence(cell: _Cell, decimal: bool) -> "tuple[bool, bool, str]":
             mark = ","
     if style not in _GROUPABLE_STYLES:
         return (bool(mark) or "," in written, False, "")
-    if _whole_figures(written) < 4:
+    if _figures_once(cells, written) < 4:
         return (False, False, "")
     return (False, True, mark)
 
@@ -15586,7 +15868,7 @@ def _group_separator(cells: _Cells) -> str:
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
-        refuses, eligible, mark = _grouping_evidence(cell, decimal)
+        refuses, eligible, mark = _grouping_evidence(cells, cell, decimal)
         if refuses:
             return ""
         if not eligible:
@@ -15862,7 +16144,7 @@ def _reader_bounds(
             if cell.sign == parsing.SIGN_NEGATIVE:
                 counted += [cell]
             continue
-        refuses, eligible, mark = _grouping_evidence(cell, cells.decimal_comma)
+        refuses, eligible, mark = _grouping_evidence(cells, cell, cells.decimal_comma)
         if eligible and mark and not refuses:
             counted += [cell]
     spellings: "dict[str, int]" = {}
@@ -15874,7 +16156,7 @@ def _reader_bounds(
     if notations:
         pointed = 0
         for cell in counted:
-            if "." in parsing.number_core(cell.numeric_text):
+            if "." in _core_once(cells, cell):
                 pointed += 1
         capacities = [everyone, everyone, everyone, pointed]
         if pointed >= everyone:
@@ -16336,7 +16618,7 @@ def _thousands_marks(cells: _Cells) -> "dict[str, int]":
         if cell.kind != parsing.NUMBER:
             continue
         numeric += 1
-        refuses, eligible, mark = _grouping_evidence(cell, decimal)
+        refuses, eligible, mark = _grouping_evidence(cells, cell, decimal)
         if refuses:
             # A CELL THAT REFUSES THE MARK TO THE COLUMN REFUSES THE
             # CENSUS TOO (plan P4-D141). `_group_separator` publishes no
@@ -16448,10 +16730,10 @@ def _decimal_plus(cells: _Cells, styles: "dict[str, int]") -> "dict[str, int]":
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
-        if numeric_style(cell.numeric_text) != parsing.STYLE_DECIMAL:
+        if _style_once(cells, cell) != parsing.STYLE_DECIMAL:
             continue
         decimals += 1
-        if parsing.number_core(cell.numeric_text)[:1] == "+":
+        if _core_once(cells, cell)[:1] == "+":
             counted += 1
     # OVER THE `decimal` COUNT THE FORMS MAP PUBLISHES (plan P4-D222). The
     # map counts a form below the line into its commonest form, so the
@@ -16695,8 +16977,7 @@ def _wide_runs(cells: _Cells, styles: "dict[str, int]") -> str:
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
-        text = cell.numeric_text
-        style = numeric_style(text)
+        style = _style_once(cells, cell)
         if style not in POINT_FREE_STYLES:
             continue
         if SUPPRESSED_LABEL not in styles and style not in styles:
@@ -16708,7 +16989,7 @@ def _wide_runs(cells: _Cells, styles: "dict[str, int]") -> str:
         value = cell.value
         if value is None:
             continue
-        core = parsing.number_core(text)
+        core = _core_once(cells, cell)
         if not parsing.is_a_wide_run(core, value):
             continue
         counted = counted + 1
@@ -17980,6 +18261,28 @@ class _SlashedEvidence:
     day_only: int
 
 
+def _parses_once(
+    parsed: "dict[str, bool]", asked: _Asked, value: str, format_name: str
+) -> bool:
+    """Whether `parsing.parse_datetime` reads ``value`` under ``format_name``, asked once a spelling of one walk (plan P4-D468).
+
+    ONE READING A SPELLING AND A FORMAT (lane PRT-a). A walk asks one
+    format of every cell, and what it answers is a fixed function of the
+    text and the format, so the rows that write one spelling share it:
+    ``parsed`` holds the walk's answers, keyed by the text, as lane S4d
+    bounds a memo of one answer per spelling (`_takes`). Dates repeat
+    94.8 per cent of their cells on the mixed table at 200,000 rows (lane
+    PRT-0). Raises TypeError for a value that is not text. No I/O.
+    """
+    if value in parsed:
+        asked.answered = asked.answered + 1
+        return parsed[value]
+    found = parsing.parse_datetime(value, format_name) is not None
+    if _takes(asked, len(parsed), value):
+        parsed[value] = found
+    return found
+
+
 def _reads(present: "list[str]", format_name: str) -> "list[bool]":
     """Which of these cells one reading parses.
 
@@ -17998,10 +18301,14 @@ def _reads(present: "list[str]", format_name: str) -> "list[bool]":
     that has watched the numeric path since P1-R6-F10 turned red at
     once, measuring 14.4 times the work for four times the values
     where proportional growth is about 4.
+
+    Each spelling is read once (`_parses_once`, plan P4-D468).
     """
     answers: list[bool] = []
+    parsed: "dict[str, bool]" = {}
+    asked = _asked()
     for value in present:
-        answers += [parsing.parse_datetime(value, format_name) is not None]
+        answers += [_parses_once(parsed, asked, value, format_name)]
     return answers
 
 
@@ -18043,13 +18350,16 @@ def _reads_within(
     ``room`` cells have failed no later cell can bring the reading back to
     the line (landing R2a, the design's lever b). `_reads_rest` finishes a
     list this stopped, so a reading that turns out to be wanted is read
-    once in all. Determinism: a function of the three. Raises nothing. No
+    once in all. Each spelling is read once (`_parses_once`, plan
+    P4-D468). Determinism: a function of the three. Raises nothing. No
     I/O of any kind.
     """
     answers: list[bool] = []
     missed = 0
+    parsed: "dict[str, bool]" = {}
+    asked = _asked()
     for value in present:
-        found = parsing.parse_datetime(value, format_name) is not None
+        found = _parses_once(parsed, asked, value, format_name)
         answers += [found]
         if not found:
             missed = missed + 1
@@ -18061,10 +18371,12 @@ def _reads_within(
 def _reads_rest(
     present: "list[str]", format_name: str, answers: "list[bool]"
 ) -> "list[bool]":
-    """`_reads` over the cells a stopped `_reads_within` did not reach."""
+    """`_reads` over the cells a stopped `_reads_within` did not reach, each spelling read once (`_parses_once`)."""
     place = len(answers)
+    parsed: "dict[str, bool]" = {}
+    asked = _asked()
     while place < len(present):
-        answers += [parsing.parse_datetime(present[place], format_name) is not None]
+        answers += [_parses_once(parsed, asked, present[place], format_name)]
         place = place + 1
     return answers
 
@@ -18143,6 +18455,30 @@ def _slashed_evidence(
     )
 
 
+# THE YEARS THE PLACEHOLDER DAYS ARE WRITTEN IN (lane PRT-a, plan P4-D468):
+# the first four figures of each day of `parsing.CALENDAR_PLACEHOLDERS`,
+# `1900` and `9999`. A cell writing neither denotes neither day under any
+# reading `_remainder_reading` tries (its docstring says why).
+_PLACEHOLDER_YEARS: "tuple[str, ...]" = tuple(
+    day[0:4] for day in parsing.CALENDAR_PLACEHOLDERS
+)
+
+
+def _writes_a_placeholder_year(present: "list[str]") -> bool:
+    """Whether some present cell writes the year of a placeholder day (`_PLACEHOLDER_YEARS`), as written.
+
+    Guarantees: a fixed function of the cells. Raises TypeError for a cell
+    that is not text. No I/O of any kind.
+    """
+    for value in present:
+        if not isinstance(value, str):
+            raise TypeError("a cell must be text")
+        for year in _PLACEHOLDER_YEARS:
+            if year in value:
+                return True
+    return False
+
+
 def _remainder_reading(
     present: "list[str]", settings: Settings
 ) -> "str | None":
@@ -18176,10 +18512,30 @@ def _remainder_reading(
     Judged in the declared reading the four days span January 1 to
     March 12 and all 400 values stand, which is what the column holds.
 
+    NO PLACEHOLDER DAY WITHOUT ITS YEAR (lane PRT-a, plan P4-D468). A cell
+    denotes a day of `parsing.CALENDAR_PLACEHOLDERS` under a reading only
+    where it writes that day's year, `1900` or `9999`: `placeholder_day_of`
+    compares the day AS WRITTEN, with no offset arithmetic; every reading
+    this pass tries that names a day takes its four-figure year from the
+    cell exactly as written, a two-figure year reads 1969 to 2068, and a
+    month or a quarter names no day. So a column none of whose present
+    cells writes either year has no candidate under any reading, and the
+    answer is None before the twenty trials and the slashed pairs'
+    evidence (which decides only which member a trial reads): 11.0 per
+    cent of the mixed describe at 200,000 rows (lane PRT-0). The readings
+    the pass can try are held to this, each by name, by a test that fails
+    for a reading added to the table until it is classed.
+
+    Each format's two walks read a spelling once (lane PRT-a: the
+    placeholder day and the reading of the rest, each a fixed function of
+    the text and the format), as lane S4d bounds a memo (`_takes`).
+
     Guarantees: accepts the present cells and the settings; returns a
     format member or None. Determinism: a function of the two, in the
     format table's own order. Raises nothing. No I/O of any kind.
     """
+    if not _writes_a_placeholder_year(present):
+        return None
     for format_name in parsing.DATE_FORMATS:
         reading = format_name
         for pair in SLASHED_PAIRS:
@@ -18194,8 +18550,17 @@ def _remainder_reading(
                 reading = weighed.used
         remainder: list[str] = []
         placeholders = 0
+        days: "dict[str, bool]" = {}
+        days_asked = _asked()
         for value in present:
-            if parsing.placeholder_day_of(value, reading) is not None:
+            if value in days:
+                days_asked.answered = days_asked.answered + 1
+                placeholder = days[value]
+            else:
+                placeholder = parsing.placeholder_day_of(value, reading) is not None
+                if _takes(days_asked, len(days), value):
+                    days[value] = placeholder
+            if placeholder:
                 placeholders = placeholders + 1
                 continue
             remainder += [value]
@@ -18204,8 +18569,16 @@ def _remainder_reading(
         needed = _needed(settings.minimum_parse_rate, len(remainder))
         pairs: "list[tuple[str, str]]" = []
         sources: "list[str]" = []
+        read_pairs: "dict[str, tuple[str, str] | None]" = {}
+        read_asked = _asked()
         for value in remainder:
-            found = parsing.parse_datetime(value, reading)
+            if value in read_pairs:
+                read_asked.answered = read_asked.answered + 1
+                found = read_pairs[value]
+            else:
+                found = parsing.parse_datetime(value, reading)
+                if _takes(read_asked, len(read_pairs), value):
+                    read_pairs[value] = found
             if found is not None:
                 pairs += [found]
                 sources += [value]
@@ -19759,8 +20132,11 @@ def _best_date_reading(present: list[str]) -> "tuple[str, int]":
     best_count = 0
     for format_name in parsing.DATE_FORMATS:
         parsed = 0
+        # Each spelling read once a format (`_parses_once`, plan P4-D468).
+        read: "dict[str, bool]" = {}
+        asked = _asked()
         for value in present:
-            if parsing.parse_datetime(value, format_name) is not None:
+            if _parses_once(read, asked, value, format_name):
                 parsed = parsed + 1
         if parsed > best_count:
             best_name = format_name
@@ -31484,7 +31860,13 @@ _PLACEHOLDERS_AT_MOST = 3
 # most: finer figures are written as zeros (Codex's review of lane SH,
 # item 4: a search at twenty places did not end).
 _TOP_CODE_PLACES = 6
-# How many different cells a column's reading remembers, at most.
+# How many different cells a place or device reading of a column remembers,
+# at most (`_mostly_beside_states`, `_mostly`). The readings of a cell AS A
+# NUMBER (`safe_harbor_number` and the kinds, codes and widths read off it)
+# remember theirs as lane S4d bounds a memo of one answer per spelling
+# since lane PRT-a (plan P4-D468, `_takes`): past 4,096 different cells
+# every later row was read again, one to eight per cent of the describe at
+# 200,000 rows (lane PRT-0).
 _SAFE_HARBOR_MEMO = 4096
 _NOT_TEXT_HERE = "a cell must be text"
 # What one cell is to each reach: for ages, set aside, in the reach (of
@@ -31733,6 +32115,13 @@ _AGE_OLD_UNITS = (
     "years", "year", "yrs", "yr", "months", "month", "mos", "mo",
     "weeks", "week", "wks", "wk", "days", "day",
 )
+# THE AFFIXES IN THE ORDER `_age_affix_start` TRIES THEM, made once when this
+# module loads (lane PRT-a, plan P4-D468): the four of `_AGE_SLASHED`, then
+# each unit word of `_AGE_OLD_UNITS` with `-old` and with ` old`. The list
+# was built again on every call, once a cell of every Safe Harbor walk.
+_AGE_AFFIXES: "tuple[str, ...]" = _AGE_SLASHED + tuple(
+    ending for unit in _AGE_OLD_UNITS for ending in (unit + "-old", unit + " old")
+)
 
 
 def _age_affix_start(rest: str) -> int:
@@ -31746,12 +32135,7 @@ def _age_affix_start(rest: str) -> int:
     if not isinstance(rest, str):
         raise TypeError(_NOT_TEXT_HERE)
     lowered = _in_small_letters(rest)
-    endings: "list[str]" = []
-    for slashed in _AGE_SLASHED:
-        endings += [slashed]
-    for unit in _AGE_OLD_UNITS:
-        endings += [unit + "-old", unit + " old"]
-    for ending in endings:
+    for ending in _AGE_AFFIXES:
         if len(lowered) > len(ending) and lowered[len(lowered) - len(ending):] == ending:
             before = rest[: len(rest) - len(ending)]
             figures = before
@@ -31819,15 +32203,17 @@ def ages_written_with_units(cells: "list[str]", comma: bool, absent: "frozenset[
     numbers = 0
     with_unit = 0
     memo: "dict[str, int]" = {}
+    asked = _asked()
     for cell in cells:
         if cell in absent or not parsing.trimmed(cell) or parsing.trimmed(cell) in absent:
             continue
         if cell in memo:
+            asked.answered = asked.answered + 1
             kind = memo[cell]
         else:
             read = safe_harbor_number(cell, comma)
             kind = 0 if read is None else (2 if _cell_age_unit(read) else 1)
-            if len(memo) < _SAFE_HARBOR_MEMO:
+            if _takes(asked, len(memo), cell):
                 memo[cell] = kind
         if kind:
             numbers += 1
@@ -32004,6 +32390,7 @@ def safe_harbor_reach(
     No I/O.
     """
     memo: "dict[str, tuple[int, int, float]]" = {}
+    asked = _asked()
     written_of: "dict[str, float]" = {}
     present = 0
     age_in = 0
@@ -32020,10 +32407,11 @@ def safe_harbor_reach(
             continue
         present += 1
         if cell in memo:
+            asked.answered = asked.answered + 1
             kind = memo[cell]
         else:
             kind = _safe_harbor_kind(cell, comma, mark)
-            if len(memo) < _SAFE_HARBOR_MEMO:
+            if _takes(asked, len(memo), cell):
                 memo[cell] = kind
         age, postal, value = kind
         if age == _AGE_ASIDE:
@@ -32132,15 +32520,17 @@ def age_placeholders_set_aside(
     a cell that is not text. No I/O.
     """
     memo: "dict[str, tuple[int, int, float]]" = {}
+    asked = _asked()
     outside: "dict[float, int]" = {}
     for cell in cells:
         if cell in absent or not _holds_a_figure(cell):
             continue
         if cell in memo:
+            asked.answered = asked.answered + 1
             kind = memo[cell]
         else:
             kind = _safe_harbor_kind(cell, comma, mark)
-            if len(memo) < _SAFE_HARBOR_MEMO:
+            if _takes(asked, len(memo), cell):
                 memo[cell] = kind
         read = safe_harbor_number(cell, comma) if kind[0] == _AGE_OUTSIDE else None
         if read is not None and _a_placeholder_spelling(read.value):
@@ -32226,10 +32616,14 @@ def _padded_widths(
     """The widths a column pads its numbers to: those of its cells written with a leading zero."""
     widths: "dict[int, bool]" = {}
     seen: "dict[str, bool]" = {}
+    asked = _asked()
     for cell in cells:
-        if cell in seen or cell in absent:
+        if cell in seen:
+            asked.answered = asked.answered + 1
             continue
-        if len(seen) < _SAFE_HARBOR_MEMO:
+        if cell in absent:
+            continue
+        if _takes(asked, len(seen), cell):
             seen[cell] = True
         read = safe_harbor_number(cell, comma, affixes)
         if read is not None and not read.exponent and len(read.whole) >= 2 and read.whole[:1] == "0":
@@ -32310,9 +32704,11 @@ def top_coded_cells_before_sh3(
     """
     padded = _padded_widths(cells, comma, absent, False)
     memo: "dict[str, str]" = {}
+    asked = _asked()
     written: "list[str]" = []
     for cell in cells:
         if cell in memo:
+            asked.answered = asked.answered + 1
             written += [memo[cell]]
             continue
         coded = cell
@@ -32341,7 +32737,7 @@ def top_coded_cells_before_sh3(
                     if read.places:
                         figures = figures + ("," if comma or read.decimal_comma else ".") + "0" * read.places
                 coded = read.head + ("+" if read.plus else "") + figures + read.tail
-        if len(memo) < _SAFE_HARBOR_MEMO:
+        if _takes(asked, len(memo), cell):
             memo[cell] = coded
         written += [coded]
     return written
@@ -32372,9 +32768,11 @@ def top_coded_cells(
     """
     padded = _padded_widths(cells, comma, absent)
     memo: "dict[str, str]" = {}
+    asked = _asked()
     written: "list[str]" = []
     for cell in cells:
         if cell in memo:
+            asked.answered = asked.answered + 1
             written += [memo[cell]]
             continue
         coded = cell
@@ -32391,7 +32789,7 @@ def top_coded_cells(
                 )
             ):
                 coded = _top_coded_text(read, comma, padded, mark)
-        if len(memo) < _SAFE_HARBOR_MEMO:
+        if _takes(asked, len(memo), cell):
             memo[cell] = coded
         written += [coded]
     return written
@@ -32427,14 +32825,31 @@ def top_category_pooled(
     top: "list[int]" = []
     below_years = -1.0
     below_cell = ""
+    # EACH SPELLING READ ONCE (lane PRT-a, plan P4-D468): a cell's age in
+    # years, or None where it is absent, holds no figure or is written in no
+    # age's form, is a fixed function of the cell, the declaration and the
+    # mark, which the walk holds fixed, so the rows that write one spelling
+    # share it, remembered as lane S4d bounds a memo of one answer per
+    # spelling (`_takes`). The walk read every row again: 7.6 per cent of
+    # the numeric describe at 200,000 rows (lane PRT-0).
+    ages: "dict[str, float | None]" = {}
+    asked = _asked()
     for place in range(len(cells)):
         cell = cells[place]
-        if cell in absent or not _holds_a_figure(cell):
+        if cell in ages:
+            asked.answered = asked.answered + 1
+            age = ages[cell]
+        else:
+            age = None
+            if cell not in absent and _holds_a_figure(cell):
+                read = safe_harbor_number(cell, comma)
+                if read is not None and _an_age_form(read):
+                    age = _in_years(read, mark)
+            if _takes(asked, len(ages), cell):
+                ages[cell] = age
+        if age is None:
             continue
-        read = safe_harbor_number(cell, comma)
-        if read is None or not _an_age_form(read):
-            continue
-        years = _in_years(read, mark)
+        years = age
         if years >= TOP_CODE:
             if years <= TOP_CODE_REACH_CEILING:
                 top += [place]
@@ -33304,6 +33719,7 @@ def _year_census(
 ) -> "tuple[int, bool, int, int]":
     """The year reach's count of a column: its years, whether one is so early, its strays and the cells that remain."""
     memo: "dict[str, tuple[int, float]]" = {}
+    asked = _asked()
     present = 0
     aside = 0
     taken = 0
@@ -33314,10 +33730,11 @@ def _year_census(
             continue
         present += 1
         if cell in memo:
+            asked.answered = asked.answered + 1
             kind = memo[cell]
         else:
             kind = _year_kind(cell, comma, reference_year)
-            if len(memo) < _SAFE_HARBOR_MEMO:
+            if _takes(asked, len(memo), cell):
                 memo[cell] = kind
         if kind[0] == _YEAR_ASIDE:
             aside += 1
@@ -33374,9 +33791,11 @@ def year_top_coded_cells(
     Raises TypeError for a cell that is not text. No I/O.
     """
     memo: "dict[str, str]" = {}
+    asked = _asked()
     written: "list[str]" = []
     for cell in cells:
         if cell in memo:
+            asked.answered = asked.answered + 1
             written += [memo[cell]]
             continue
         coded = cell
@@ -33390,7 +33809,7 @@ def year_top_coded_cells(
                 affixed = affixed_year(cell)
                 if affixed is not None and YEAR_EARLIEST <= affixed[1] <= cutoff:
                     coded = affixed[0] + f"{cutoff}" + affixed[2]
-        if len(memo) < _SAFE_HARBOR_MEMO:
+        if _takes(asked, len(memo), cell):
             memo[cell] = coded
         written += [coded]
     return written
@@ -33979,11 +34398,13 @@ def coordinate_reading(
     widest = 0.0
     others = 0
     seen: "dict[str, tuple[bool, float]]" = {}
+    asked = _asked()
     for cell in cells:
         if cell in absent or not _holds_a_figure(cell):
             continue
         present += 1
         if cell in seen:
+            asked.answered = asked.answered + 1
             fits, size = seen[cell]
         elif "." not in cell and "," not in cell:
             # ...no point and no comma: no decimal, read without the grammar.
@@ -33999,7 +34420,7 @@ def coordinate_reading(
                 and abs(read.value) <= _LONGITUDE_REACH
             )
             size = abs(read.value) if read is not None and fits else 0.0
-            if len(seen) < _SAFE_HARBOR_MEMO:
+            if _takes(asked, len(seen), cell):
                 seen[cell] = (fits, size)
         if fits:
             decimals += 1

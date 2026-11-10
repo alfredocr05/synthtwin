@@ -2573,6 +2573,47 @@ def _a_whole_number_between_affixes(value: str, comma: bool = False) -> "tuple[s
     return None
 
 
+def _key_reading(value: str, comma: bool, affixed: bool = False) -> "tuple[tuple[str, str, str], bool] | None":
+    """One value's key as `_each_on_one_row_arm` counts it, and whether its figures are wide; None for a stray.
+
+    The value's figures (`_key_figures`, a sign before them read as the
+    arm reads it), or a whole number after letters, or, in a column read
+    as an affixed number (``affixed``), between the affixes that reading
+    takes (`_a_whole_number_between_affixes`; lane ID-ROOM2, plan
+    P4-D457), the figures with their leading noughts off; a value read
+    none of these ways is a stray. Read for its figures only where no
+    decimal comma is declared or the value holds no comma and no point.
+    Guarantees: a fixed function of the three. Raises TypeError for a
+    value that is not text. No I/O.
+    """
+    figures: "str | None" = None
+    opening = ""
+    closing = ""
+    if not comma or ("," not in value and "." not in value):
+        figures = _key_figures(value)
+        if figures is None and value[:1] in _SIGNS:
+            # A SIGN BEFORE THE FIGURES (the verify of repair 1, item
+            # 1: `-300001` down read continuous and `+300001` up read
+            # count, every real value copied): a `+` writes the same
+            # number as none does, and a `-` opens a form of its own.
+            figures = _key_figures(value[1:])
+            if figures is not None and value[:1] == "-":
+                opening = "-"
+    if figures is None:
+        lettered = _a_whole_number_after_letters(value)
+        if lettered is None and affixed:
+            lettered = _a_whole_number_between_affixes(value, comma)
+        if lettered is None:
+            return None
+        opening, figures, closing = lettered
+    # ONE NUMBER WRITTEN TWO WAYS IS ONE NUMBER (lane POP's ruling):
+    # `00123` and `123` are the same value here -- and its WRITTEN
+    # width is what the five-figure line reads (Codex's review, item
+    # 2: `RPT000001` is six figures wide).
+    key = (opening, _without_leading_noughts(figures), closing)
+    return key, len(figures) >= _PREFIXED_FIGURES_AT_LEAST
+
+
 def _without_leading_noughts(figures: str) -> str:
     """Figures with their leading noughts off, `0` where nothing else is left (P4-D436)."""
     if not isinstance(figures, str):
@@ -2633,6 +2674,19 @@ def _each_on_one_row_arm(
     nines: "dict[str, bool]" = {}
     cells = 0
     stray = 0
+    # EACH SPELLING READ ONCE (lane PRT-a, plan P4-D468): a value's key
+    # (`_key_reading`) is a fixed function of the value, the declared
+    # comma and whether the column is read as an affixed number, the two
+    # last fixed for the walk, so the rows that write one spelling share
+    # it, held as lane S4d bounds a memo of one answer per spelling
+    # (`parsing.memo_takes`, with the note of texts met once,
+    # `parsing.memo_notes`). This walk read every row again: 3 to 5 per
+    # cent of the code-heavy and numeric describes at 200,000 rows (lane
+    # PRT-0).
+    keys_read: "dict[str, tuple[tuple[str, str, str], bool] | None]" = {}
+    keys_noted: "dict[str, tuple[tuple[str, str, str], bool] | None]" = {}
+    keys_older: "dict[str, tuple[tuple[str, str, str], bool] | None]" = {}
+    answered = 0
     for value in present:
         if _set_aside_beside_keys(value):
             if _is_plain_whole_number(value):
@@ -2642,45 +2696,40 @@ def _each_on_one_row_arm(
             _minus_nines(value) or negatives[value] >= _KEY_CELLS_AT_LEAST
         ):
             continue
-        figures: "str | None" = None
-        opening = ""
-        closing = ""
-        if not comma or ("," not in value and "." not in value):
-            figures = _key_figures(value)
-            if figures is None and value[:1] in _SIGNS:
-                # A SIGN BEFORE THE FIGURES (the verify of repair 1, item
-                # 1: `-300001` down read continuous and `+300001` up read
-                # count, every real value copied): a `+` writes the same
-                # number as none does, and a `-` opens a form of its own.
-                figures = _key_figures(value[1:])
-                if figures is not None and value[:1] == "-":
-                    opening = "-"
-        if figures is None:
-            lettered = _a_whole_number_after_letters(value)
-            if lettered is None and affixed:
-                lettered = _a_whole_number_between_affixes(value, comma)
-            if lettered is None:
-                stray = stray + 1
-                # ...and once more than one present cell in a hundred is read
-                # by no arm, none reaches the column (the stray line below),
-                # so the rest are not read: the affixed reading costs a
-                # split a cell (lane ID-ROOM2, plan P4-D457), and a column of
-                # numbers beside a unit, every cell unread, stops here.
-                if stray * _STRAY_SHARE > len(present):
-                    return "", False
-                continue
-            opening, figures, closing = lettered
+        if value in keys_read:
+            answered = answered + 1
+            read = keys_read[value]
+        elif value in keys_noted or value in keys_older:
+            # MET AGAIN PAST THE BOUND: taken now, with its first reading.
+            read = keys_noted[value] if value in keys_noted else keys_older[value]
+            keys_read[value] = read
+            answered = answered + 1
+        else:
+            read = _key_reading(value, comma, affixed)
+            if parsing.memo_takes(len(keys_read), answered):
+                keys_read[value] = read
+            elif parsing.memo_notes(len(keys_noted)):
+                keys_noted[value] = read
+            else:
+                keys_older = keys_noted
+                keys_noted = {}
+        if read is None:
+            stray = stray + 1
+            # ...and once more than one present cell in a hundred is read
+            # by no arm, none reaches the column (the stray line below),
+            # so the rest are not read: the affixed reading costs a
+            # split a cell (lane ID-ROOM2, plan P4-D457), and a column of
+            # numbers beside a unit, every cell unread, stops here.
+            if stray * _STRAY_SHARE > len(present):
+                return "", False
+            continue
+        key, wide_figures = read
         cells = cells + 1
-        # ONE NUMBER WRITTEN TWO WAYS IS ONE NUMBER (lane POP's ruling):
-        # `00123` and `123` are the same value here -- and its WRITTEN
-        # width is what the five-figure line reads (Codex's review, item
-        # 2: `RPT000001` is six figures wide).
-        key = (opening, _without_leading_noughts(figures), closing)
         if key in numbers:
             numbers[key] = numbers[key] + 1
         else:
             numbers[key] = 1
-        if len(figures) >= _PREFIXED_FIGURES_AT_LEAST:
+        if wide_figures:
             wide[key] = True
     if stray * _STRAY_SHARE > len(present):
         return "", False
@@ -4905,8 +4954,32 @@ def _a_key_of_figures_repeating(present: "list[str]", any_width: bool = False) -
     keys: "dict[str, int]" = {}
     present_keys = 0
     placeholders = 0
+    # EACH SPELLING READ ONCE (lane PRT-a, plan P4-D468): `_key_figures` is
+    # a fixed function of the value, so the rows that write one spelling
+    # share its figures, held as lane S4d bounds a memo of one answer per
+    # spelling (`parsing.memo_takes`, `parsing.memo_notes`).
+    figures_read: "dict[str, str | None]" = {}
+    figures_noted: "dict[str, str | None]" = {}
+    figures_older: "dict[str, str | None]" = {}
+    answered = 0
     for value in present:
-        figures = _key_figures(value)
+        if value in figures_read:
+            answered = answered + 1
+            figures = figures_read[value]
+        elif value in figures_noted or value in figures_older:
+            # MET AGAIN PAST THE BOUND: taken now, with its first figures.
+            figures = figures_noted[value] if value in figures_noted else figures_older[value]
+            figures_read[value] = figures
+            answered = answered + 1
+        else:
+            figures = _key_figures(value)
+            if parsing.memo_takes(len(figures_read), answered):
+                figures_read[value] = figures
+            elif parsing.memo_notes(len(figures_noted)):
+                figures_noted[value] = figures
+            else:
+                figures_older = figures_noted
+                figures_noted = {}
         if figures is None:
             if not _a_key_placeholder(value):
                 return False

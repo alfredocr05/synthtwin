@@ -230,39 +230,6 @@ def _ladder_in(read: "chain._Read", rows: "list[int]", name: str, floor: int) ->
     return ladder, [start_to_l0[read.codes[row]] for row in rows]
 
 
-def _as_described(
-    table: reading.Table,
-    place: int,
-    block: "dict[str, object]",
-    settings: taxonomy.Settings,
-    declared: "dict[str, bool]",
-    seen: "dict[str, bool]",
-    stored_as: str,
-    blank_rows: int,
-    read: "chain._Read",
-) -> "tuple[chain._Read | None, list[str], dict[str, bool]]":
-    """A column whose recount agreed, read again on its cells as its description read them (Codex's review of batch 4p, item 1, HIPAA).
-
-    ``read`` is the column read as the file wrote it under the caller's
-    ``declared``; ``seen`` the declarations the description read it under
-    (`chain.declarations_read`: a comma it inferred among them). Where
-    the description changed no cell of it (`chain.described_cells` hands
-    the cells back as the file wrote them) under the same declarations,
-    the reading comes back as given, byte for byte; otherwise the column
-    is read again on the cells the description read -- the age top-code
-    and its pool, the placeholders set aside, the dates held, the year
-    top-code (`chain.read_as_described`) -- and that recount is the check
-    again. Returns the reading, the cells and the declarations they were
-    read under. A fixed function of its arguments; no I/O.
-    """
-    values = reading.column_values(table, place)
-    cells = chain.described_cells(table, place, block, settings, seen, stored_as)
-    if seen == declared and (cells is values or cells == values):
-        return read, values, declared
-    again, cells = chain.read_as_described(table, place, block, settings, seen, stored_as, blank_rows)
-    return again, cells, seen
-
-
 def _eligible_ladder(ladder: "rules.Ladder | None", role: object) -> "str | None":
     """4.6b.1's `one_band` and `constant` read on a ladder, as `chain.describe` reads them."""
     if ladder is None:
@@ -937,6 +904,10 @@ PERSON_KEPT_IN_ROWS = (
 # The person column's counts of its patients by form or alphabet, read over the
 # patient table: each stands only at 0 or at least the floor (`_person_counts_floored`).
 PERSON_COUNTED_FORMS = ("n_all_digits", "n_code_alphabet")
+# The Safe Harbor marks of a patient-fixed column's row block that its published
+# block keeps where the patient table's own lacks them (lane BT3a's repair 2): the
+# age top-code, its pooled top category's rule and its people, and the year cut.
+SAFE_HARBOR_MARKS = ("top_coded", "top_category_pooled", "top_category_people", "top_coded_year")
 
 
 def _person_counts_floored(block: "dict[str, object]", floor: int) -> "dict[str, object]":
@@ -982,10 +953,13 @@ def _blocks_as_published(
     The person column keeps its presence and absence in rows (section
     5.3), its repetition census withheld, every other key read over the
     patient table; a patient-fixed column takes its block over the patient
-    table; a position-like or held column publishes no key but its name,
-    place and role; every other column's multiplicity map is withheld
-    unless each value covers one row.
+    table, the rows' remark that its dates in disguise are held kept on
+    it, and the rows' Safe Harbor marks its own block lacks
+    (`SAFE_HARBOR_MARKS`); a position-like or held column publishes no key
+    but its name, place and role; every other column's multiplicity map
+    is withheld unless each value covers one row.
     """
+    dated = taxonomy.rendered(taxonomy.REMARK_DATED_VALUES_HELD, ())
     out: "list[dict[str, object]]" = []
     for place in range(len(blocks)):
         block = blocks[place]
@@ -1006,6 +980,23 @@ def _blocks_as_published(
             moved: "dict[str, object]" = {}
             for key in pt_blocks[name]:
                 moved[key] = place + 1 if key == "position" else pt_blocks[name][key]
+            # THE ROWS' DATED REMARK STANDS ON THE PUBLISHED BLOCK (lane BT3a's
+            # repair 1, LANE BT3 RULINGS 5 (1)(d)): the patient table holds the
+            # rows' described cells, its dates in disguise blank, so its own
+            # description finds none to remark on; the Safe Harbor question
+            # the remark says is open still is.
+            remarks = _get(block, "remarks")
+            kept = _get(moved, "remarks")
+            if isinstance(remarks, list) and dated in remarks and isinstance(kept, list) and dated not in kept:
+                moved["remarks"] = list(kept) + [dated]
+            # ...AND ITS SAFE HARBOR MARKS (lane BT3a's repair 2, its verify's
+            # item 1): the patient table's cells are already top-coded, pooled
+            # below the mark or read as the year cut, so its own description
+            # may find nothing to mark; the column's Safe Harbor question, the
+            # summary's sentence and a checked file's reading stand on them.
+            for key in SAFE_HARBOR_MARKS:
+                if key not in moved and _get(block, key) is not None:
+                    moved[key] = _get(block, key)
             out += [moved]
             continue
         if kind in (pr.CLASS_POSITION, pr.CLASS_HELD):
@@ -1304,18 +1295,22 @@ def describe(
     # -- (c) every column read in rows, and the classes (4.6c.5 to 4.6c.7) --
     held_by_switch = set(switch.held)
     sequences = chain.sequence_places(document)
-    codes_declared = set(forced_codes)
-    measurements_declared = set(forced_measurements)
-    commas_declared = set(forced_decimal_commas)
     # THE CELLS AS THE ROW DESCRIPTION READ THEM (Codex's review of batch
     # 4p, item 1, HIPAA): every class, reading, band and position list below
     # reads a column's cells as its description read them -- 24,000 rows of
     # ages 80 to 99 under a description top-coded at 90 published a
     # position list of 80 to 92 from the cells as the file wrote them. The
-    # recount on those cells stays the gate, as before.
-    seen_codes, seen_measurements, seen_commas = chain.declarations_read(
+    # recount on those cells stays the gate, as before; lane BT3a's reader
+    # reads them once, in place of the fix round's read of the file's cells
+    # and its second read (batch 4r's merge, LANE I4p RULINGS 6 (3)).
+    # Each column read under the declarations its description read it
+    # under, the comma it inferred among them (lane BT3a, plan P4-D467).
+    codes_declared, measurements_declared, commas_declared = chain.declarations_read(
         document, forced_codes, forced_measurements, forced_decimal_commas
     )
+    # ...and each age column in the unit its question was answered with
+    # (lane BT3a's repair 2, LANE BT3 RULINGS 6 (2)).
+    answered_units = dict(switch.ages_counted_in)
     first_patients = _Patients(tabled, of_row, patient_rows, r_values)
     classes: "dict[str, str]" = {}
     row_columns: "dict[str, _RowColumn]" = {}
@@ -1335,12 +1330,13 @@ def describe(
             continue
         declared = _declared(name, codes_declared, measurements_declared, commas_declared)
         storage = stored_as[place] if place < len(stored_as) else ""
-        read = chain.read_column(table, place, block, settings, declared, storage, blank_rows)
-        if read is None or not read.agrees:
-            notes += [f"the recount of column {name} disagreed with its published counts"]
-            return _off(OFF_RECOUNT, notes, counts)
-        seen = _declared(name, seen_codes, seen_measurements, seen_commas)
-        read, values, declared = _as_described(table, place, block, settings, declared, seen, storage, blank_rows, read)
+        # THE CELLS AS THE ROW DESCRIPTION READ THEM (lane BT3a, plan
+        # P4-D467), for the recount and for every class, reading and list
+        # below: no value the description top-coded, set aside or held.
+        read, values = chain.read_as_described(
+            table, place, block, settings, declared, storage, blank_rows,
+            answered_units[name] if name in answered_units else 0,
+        )
         if read is None or not read.agrees:
             notes += [f"the recount of column {name} disagreed with its published counts"]
             return _off(OFF_RECOUNT, notes, counts)
@@ -1432,13 +1428,14 @@ def describe(
     pt_names = [person] + fixed_names
     pt_cells: "list[list[str]]" = []
     # EACH PATIENT-FIXED COLUMN'S CELLS AS THE ROW DESCRIPTION READ THEM (the
-    # sibling sweep of Codex's review of batch 4p, item 1, HIPAA): a fixed
-    # year of birth whose rows the description top-coded at 1937 (a stray
-    # cell on a patient's later row shaping it) put each patient's first
-    # cell on the patient table as the file wrote it, and the patient
-    # table's own description, holding no stray, published years of 1925
-    # to 1936 in its block and a band of patients below them in its chain.
-    # The person column's cells are its keys, as the file wrote them.
+    # sibling sweep of Codex's review of batch 4p, item 1, HIPAA; lane BT3a's
+    # repair 1, LANE BT3 RULINGS 4 (1) and 5 (1)): taken as the file wrote
+    # them, a fixed year of birth the rows' description top-coded at 1937
+    # put years of 1925 to 1936 in the patient table's block and a band of
+    # patients below them in its chain, and a fixed amount whose five-figure
+    # values the rows' description holds as dates in disguise put 25000 in
+    # its block and its summary. The person column's cells are its keys, as
+    # the file wrote them.
     for name in pt_names:
         values = fixed_cells[name] if name in fixed_cells else reading.column_values(table, pr.place_in(names, name))
         pt_cells += [[values[tabled[rows[0]]] for rows in patient_rows]]
@@ -1460,17 +1457,26 @@ def describe(
     # first skeptic's item 1, HIPAA): the Safe Harbor top-code, its answers,
     # the columns held for a question and the floor-size count of dates, each
     # patient a holder, however few patients a table has.
+    # The patient table is described under the person's declarations, as
+    # before lane BT3a: its published counts are its description's own.
+    # ...AND UNDER THE COMMA THE ROWS SETTLED (lane BT3a's repair 2, LANE BT3
+    # RULINGS 6 (1), Codex's item 1): the first cell of each patient need not
+    # settle a comma the rows inferred (`12,34` beside one `56,7` in rows),
+    # and read without it a measurement published categorical; and in the
+    # unit each age column was answered with (RULINGS 6 (2)).
+    settled_commas = [name for name in pt_names if name in commas_declared]
     pt_document = profile.build_document(
         patient_table,
         pt_settings,
         [person],
-        [name for name in pt_names if name in codes_declared],
-        [name for name in pt_names if name in measurements_declared],
-        [name for name in pt_names if name in commas_declared],
+        [name for name in pt_names if name in forced_codes],
+        [name for name in pt_names if name in forced_measurements],
+        settled_commas,
         stored_as=pt_storage,
         unanswered=[name for name in switch.unanswered if name in pt_names],
         top_code=True,
         safe_harbor_no=[name for name in switch.safe_harbor_no if name in pt_names],
+        ages_counted_in={name: answered_units[name] for name in pt_names if name in answered_units},
         rare_values_released=switch.rare_values_released,
         harbor_year=switch.harbor_year,
         kept_identities=[name for name in switch.kept_identities if name in pt_names],
@@ -1489,11 +1495,22 @@ def describe(
     pt_eligible: "list[str]" = []
     pt_ineligible: "list[dict[str, object]]" = []
     everyone = list(range(patient_count))
+    # THE PATIENT TABLE READ AS ITS OWN DESCRIPTION READ IT (lane BT3a, plan
+    # P4-D467): its cells are the rows' described ones, and its own
+    # description, each patient a holder, is read the same way, through
+    # the same helper, under the declarations it published (a comma it
+    # inferred among them, and the comma the rows settled).
+    pt_codes, pt_measurements, pt_commas = chain.declarations_read(
+        pt_document, forced_codes, forced_measurements, settled_commas
+    )
     for at in range(1, len(pt_names)):
         name = pt_names[at]
         block = pt_blocks[name] if name in pt_blocks else {}
-        declared = _declared(name, codes_declared, measurements_declared, commas_declared)
-        read = chain.read_column(patient_table, at, block, pt_settings, declared, pt_storage[at], 0)
+        declared = _declared(name, pt_codes, pt_measurements, pt_commas)
+        read, _cells = chain.read_as_described(
+            patient_table, at, block, pt_settings, declared, pt_storage[at], 0,
+            answered_units[name] if name in answered_units else 0,
+        )
         if read is None or not read.agrees:
             notes += [f"the patient table's recount of column {name} disagreed with its published counts"]
             return _off(OFF_RECOUNT, notes, counts)

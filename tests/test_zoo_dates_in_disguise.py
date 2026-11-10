@@ -629,6 +629,39 @@ def test_ages_beside_many_day_counts_are_top_coded_once_those_are_set_aside(tmp_
     assert printed and max(printed) <= taxonomy.TOP_CODE, block["percentiles"]
 
 
+CONTACT_DAY_OPENINGS = ("635", "640", "650", "660")
+
+
+def _written_opening(node: object, openings: "tuple[str, ...]") -> "list[str]":
+    """Every word or number a published block writes, at any depth, that opens with one of ``openings``: each key's and
+    string's words with their ends shed of every mark that is no letter or figure, and each number as written (LANE
+    I4r RULINGS 2 (1)'s class: the serialized block split at its quotation marks read no number and no word after a
+    string's first)."""
+    found: "list[str]" = []
+    waiting: "list[object]" = [node]
+    while waiting:
+        one = waiting.pop()
+        if isinstance(one, dict):
+            waiting += list(one)
+            waiting += list(one.values())
+        elif isinstance(one, list):
+            waiting += one
+        elif isinstance(one, str):
+            found += [word.strip("".join(mark for mark in word if not mark.isalnum())) for word in one.split()]
+        elif isinstance(one, (int, float)) and not isinstance(one, bool):
+            found += [f"{one}"]
+    return [word for word in found if word[:3] in openings]
+
+
+def test_a_day_number_is_read_as_a_number_and_as_any_word_of_a_block() -> None:
+    """The contact table's day numbers, written as a JSON number or after a string's first word, are found; a count, a
+    share and a longer word are not. The serialized block split at its quotation marks found `65012` alone (red on
+    that scan)."""
+    block = {"max": 63512, "remarks": ["held day (64012)."], "levels": [{"label": "65012", "count": 600}], "share": 0.635,
+             "note": "x66012"}
+    assert sorted(_written_opening(block, CONTACT_DAY_OPENINGS)) == ["63512", "64012", "65012"]
+
+
 def test_a_date_question_left_blank_in_a_file_publishes_no_day(tmp_path: pathlib.Path) -> None:
     """A blank Q3 is no answer: the other columns answered, its column's day counts stay blank until `no` or `measurement`."""
     case = forms._contact_table()
@@ -637,7 +670,7 @@ def test_a_date_question_left_blank_in_a_file_publishes_no_day(tmp_path: pathlib
     path.write_bytes(case.write(header, rows))
     described = _answered(tmp_path, path, {"encounter_id": "identifier"})
     block = next(block for block in described["columns"] if block["name"] == "visit_day_number")
-    assert not [token for token in json.dumps(block).split('"') if token[:3] in ("635", "640", "650", "660")]
+    assert not _written_opening(block, CONTACT_DAY_OPENINGS), block
     assert block["n_present"] == 0 or block["role"] == taxonomy.ROLE_IDENTIFIER
 
 

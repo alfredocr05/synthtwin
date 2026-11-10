@@ -4812,9 +4812,6 @@ def build_document(
     dates_in_people: "list[bool]" = []
     for enough in subject_enough:
         dates_in_people += [enough or table.n_rows >= parsing.TABLE_ROW_FLOOR or long_table_dates]
-    # Each row its own holder, built once for the date columns no subject
-    # column counts in people (plan P4-D433, `rows_as_holders`).
-    row_holders: "list[str]" = []
     described_identifiers = forced_identifiers + [
         name for name in withheld_names if name not in forced_identifiers
     ]
@@ -5798,14 +5795,10 @@ def build_document(
         )
         # The walk counts the rows beside every subject column there is (a
         # subject column of fewer than the floor's people, attached to the
-        # column, still holds it, as P4-D406 holds it).
+        # column, still holds it, as P4-D406 holds it), each row its own
+        # holder with no text a row (`in_rows`; lane SR2a, plan P4-D463).
         walking = counting
         walking_enough = people_enough
-        if in_rows:
-            if len(row_holders) != len(cells):
-                row_holders = rows_as_holders(len(cells))
-            walking = counting + [row_holders]
-            walking_enough = people_enough + [True]
         # DATES DECLARED AS COUNTS AND NOT READ AS DATES are never
         # published as plain numbers (the orchestrator's LANE HX2 ADDENDUM
         # 2, from lane AQ's close verify): `42.345` for an Excel day leaves
@@ -5937,6 +5930,7 @@ def build_document(
                     settings.small_cell_floor,
                     frozenset(described.absent_spellings),
                     _on_the_shared_clock(_column_block(described)),
+                    in_rows,
                 )
                 held_dates = _held_record(walked.grain)
                 spans = walked.grain.spans
@@ -5962,6 +5956,7 @@ def build_document(
                         settings.small_cell_floor,
                         walking_enough,
                         cell_reading,
+                        rows_hold=in_rows,
                     ):
                         pooled = taxonomy.with_time_grain(
                             candidate,
@@ -7752,7 +7747,7 @@ def _cell_keys(
     published: _Published,
     forms: "dict[str, int]",
     absent: "frozenset[str]",
-    memo: "dict[str, tuple[str, ...]]",
+    memo: "dict[str, tuple[str, ...]] | None",
     interned: "dict[tuple[str, ...], tuple[str, ...]]",
     reading: "_CellReading | None" = None,
 ) -> "tuple[str, ...]":
@@ -7761,9 +7756,10 @@ def _cell_keys(
     The tuple returned is the one ``interned`` already holds for the same
     keys, so a column of cells each different -- every one a miss of the
     capped ``memo`` -- keeps one reference a row and not one tuple a row
-    (lane HX2's skeptic, round 2, item 7).
+    (lane HX2's skeptic, round 2, item 7). A caller that keeps its own memo
+    of what each cell is counted as passes None, and none is kept here.
     """
-    if cell in memo:
+    if memo is not None and cell in memo:
         return memo[cell]
     found: "list[str]" = []
     if parsing.folded(cell) and cell not in absent:
@@ -7781,7 +7777,7 @@ def _cell_keys(
         frozen = interned[frozen]
     else:
         interned[frozen] = frozen
-    if len(memo) < 65536:
+    if memo is not None and len(memo) < _PEOPLE_MEMO_TEXTS:
         memo[cell] = frozen
     return frozen
 
@@ -7794,6 +7790,7 @@ def _counted_in_subjects(
     enough: "list[bool] | None" = None,
     reading: "_CellReading | None" = None,
     pooled_in_people: bool = False,
+    rows_hold: bool = False,
 ) -> bool:
     """Whether a column publishes a value fewer than `floor` subjects hold.
 
@@ -7831,6 +7828,29 @@ def _counted_in_subjects(
     P4-D453): its remainder is that pool, which names no group and whose
     count is a count in the pool (P4-D363), so it is not asked of the
     remainder; every value the block publishes is asked as ever.
+
+    ``rows_hold``: the rows count as one more subject column, each row its
+    own holder (plan P4-D433), which tells no subject apart and is attached
+    to none: a column of dates or times one of whose published values one to
+    `floor` - 1 rows hold publishes it.
+
+    ONE SUBJECT COLUMN AT A TIME, COUNTED BY CODE (lane SR2a, plan P4-D463,
+    repairs 1 and 2): the different sets of keys the cells are counted under
+    are numbered as first met, each different cell read once while the memo
+    lasts (`_KeyCodes`), and each subject column is counted in one pass, in
+    c47a6aee's order: each set's rows and its first `floor` subjects
+    (`_few_hold_a_key`). The first column that finds a key few hold ends the
+    count, as c47a6aee's did, so no more rows times subject columns are read
+    than it read; and a column's subjects are let go before the next column
+    is counted, so the subjects held at once are one column's, at most
+    `floor` a set of keys (Codex's review of the lane, item 1: counted under
+    every column at once, a code column of 181,818 published labels beside
+    49 open candidates held about 4 GB of subjects at 2,000,000 rows). A
+    key's rows are the sum over the sets that hold it and its subjects the
+    first `floor` of their union (`_keys_counted`): what `_holding` counted
+    row by row. A subject column of too few values is asked whether the
+    column is attached to it before its pass, as before; one that counts in
+    people, only where the answer decides.
     """
     shown = _column_block(described)
     if pooled_in_people:
@@ -7850,36 +7870,213 @@ def _counted_in_subjects(
     forms = _named_forms(shown)
     absent = frozenset(described.absent_spellings)
     dated = described.role in (taxonomy.ROLE_DATETIME, taxonomy.ROLE_CLOCK)
-    memo: "dict[str, tuple[str, ...]]" = {}
-    interned: "dict[tuple[str, ...], tuple[str, ...]]" = {}
-    keyed: "list[tuple[str, ...]]" = []
-    for cell in cells:
-        keyed += [
-            _cell_keys(cell, published, forms, absent, memo, interned, reading)
-        ]
-    for place, subject in enumerate(subject_cells):
+    # WHETHER THE COLUMN IS ATTACHED TO A SUBJECT COLUMN OF TOO FEW VALUES,
+    # asked before its pass (plan P4-D406): only one it is attached to, and
+    # that tells its people apart, is counted. Under a column that counts in
+    # people it is asked only where its answer decides (plan P4-D463): it
+    # costs a map of every subject, and a column of dates is held by a key
+    # few people hold whatever it answers.
+    codes = _KeyCodes(published, forms, absent, reading, [], [], {}, _Codes(bytearray(0), 0), False)
+    last = len(subject_cells) - 1
+    for place in range(len(subject_cells)):
         people = enough is None or enough[place]
-        attached = _attached(cells, subject)
-        if not people and not (attached and _names_its_people(cells, subject)):
-            continue
-        counted = _holding(keyed, subject, floor)
-        for key in counted:
-            held = counted[key]
-            if len(held.holders) >= floor:
+        attached: "bool | None" = None
+        if not people:
+            attached = _attached(cells, subject_cells[place])
+            if not (attached and _names_its_people(cells, subject_cells[place])):
                 continue
-            if key in (_KEY_PRESENT, _KEY_REMAINDER):
-                if (
-                    people
-                    and held.rows >= floor
-                    and not (pooled_in_people and key == _KEY_REMAINDER)
-                ):
-                    return True
-                continue
-            if not people or attached or dated:
-                return True
-            if held.rows >= floor and _plainly(key, plain):
+        if _few_hold_a_key(
+            cells, subject_cells[place], floor, codes, place < last, plain, people, attached, dated, pooled_in_people
+        ):
+            return True
+    if rows_hold and dated:
+        # EACH ROW ITS OWN HOLDER, counted with no text a row (lane SR2a,
+        # plan P4-D463): a key's holders are its rows.
+        if not codes.counted:
+            _counted_by_code(cells, None, floor, codes, False)
+        rows_keyed: "dict[str, int]" = {}
+        for code in range(len(codes.met)):
+            for key in codes.met[code]:
+                rows_keyed[key] = rows_keyed[key] + codes.rows[code] if key in rows_keyed else codes.rows[code]
+        for key in rows_keyed:
+            if rows_keyed[key] < floor and key not in (_KEY_PRESENT, _KEY_REMAINDER):
                 return True
     return False
+
+
+@dataclasses.dataclass
+class _KeyCodes:
+    """A column's cells numbered by the set of keys each is counted under (`_counted_in_subjects`, plan P4-D463).
+
+    ``published``, ``forms``, ``absent`` and ``reading`` say what a cell is
+    counted as (`_cell_keys`). The first pass (`_counted_by_code`) fills the
+    rest and sets ``counted``: ``met`` holds the different sets of keys in
+    the order first met and ``rows`` each set's rows; ``code_of`` each
+    different cell's number while the memo lasts (`_PEOPLE_MEMO_TEXTS`), -1
+    for a cell counted under no key; ``past`` the number, plus one, of each
+    row whose cell the memo could not hold, one to three bytes a row
+    (`_Codes`), kept only where a later pass reads it.
+    """
+
+    published: _Published
+    forms: "dict[str, int]"
+    absent: "frozenset[str]"
+    reading: "_CellReading | None"
+    met: "list[tuple[str, ...]]"
+    rows: "list[int]"
+    code_of: "dict[str, int]"
+    past: "_Codes"
+    counted: bool
+
+
+def _counted_by_code(
+    cells: "list[str]",
+    subjects: "list[str] | None",
+    floor: int,
+    codes: _KeyCodes,
+    keep: bool,
+) -> "list[dict[str, bool]]":
+    """One pass over a column's cells under one subject column: each set of keys' first `floor` subjects (P4-D463).
+
+    The first pass numbers the different sets of keys as first met
+    (``codes``), reading each different cell once while the memo lasts
+    (`_PEOPLE_MEMO_TEXTS`, as `_cell_keys`' own) and each cell past it
+    again, as ever, and counts each set's rows; where ``keep`` (another
+    subject column may follow), it keeps the number of each row past the
+    memo (`_code_kept`), so a later pass reads no cell again but each row's
+    number back. A cell counted under no key, blank or absent, is passed
+    over and its subject not read, as `_holding` passed it. Returns, under
+    ``subjects`` (None: the rows alone, and nothing), each set's first
+    `floor` subjects in the order met; nothing is kept a row.
+    """
+    first = not codes.counted
+    met = codes.met
+    rows = codes.rows
+    code_of = codes.code_of
+    held: "list[dict[str, bool]]" = []
+    if subjects is not None:
+        held = [{} for _code in met]
+    coded: "dict[tuple[str, ...], int]" = {}
+    interned: "dict[tuple[str, ...], tuple[str, ...]]" = {}
+    total = len(cells)
+    for place in range(total):
+        cell = cells[place]
+        if cell in code_of:
+            code = code_of[cell]
+        elif not first:
+            code = _code_at(codes.past, place) - 1
+        else:
+            keys = _cell_keys(cell, codes.published, codes.forms, codes.absent, None, interned, codes.reading)
+            if not keys:
+                code = -1
+            elif keys in coded:
+                code = coded[keys]
+            else:
+                code = len(met)
+                coded[keys] = code
+                met += [keys]
+                rows += [0]
+                if subjects is not None:
+                    held += [{}]
+            if len(code_of) < _PEOPLE_MEMO_TEXTS:
+                code_of[cell] = code
+            elif keep:
+                _code_kept(codes.past, place, code + 1, total)
+        if code < 0:
+            continue
+        if first:
+            rows[code] = rows[code] + 1
+        if subjects is not None:
+            holders = held[code]
+            if len(holders) < floor:
+                subject = subjects[place]
+                if subject not in holders:
+                    holders[subject] = True
+    codes.counted = True
+    return held
+
+
+def _few_hold_a_key(
+    cells: "list[str]",
+    subjects: "list[str]",
+    floor: int,
+    codes: _KeyCodes,
+    keep: bool,
+    plain: _Published,
+    people: bool,
+    attached: "bool | None",
+    dated: bool,
+    pooled_in_people: bool,
+) -> bool:
+    """Whether one subject column finds a key one to `floor` - 1 of its subjects hold that is a group (P4-D463).
+
+    Its subjects are counted in one pass (`_counted_by_code`) and let go as
+    this returns, before another column is counted. The rules are
+    `_counted_in_subjects`'s (plan P4-D406), key by key, in the order the
+    keys are first met.
+    """
+    held = _counted_by_code(cells, subjects, floor, codes, keep)
+    rows, holders = _keys_counted(codes, held, floor)
+    for key in rows:
+        if len(holders[key]) >= floor:
+            continue
+        if key in (_KEY_PRESENT, _KEY_REMAINDER):
+            if (
+                people
+                and rows[key] >= floor
+                and not (pooled_in_people and key == _KEY_REMAINDER)
+            ):
+                return True
+            continue
+        if not people or dated:
+            return True
+        if attached is None:
+            attached = _attached(cells, subjects)
+        if attached:
+            return True
+        if rows[key] >= floor and _plainly(key, plain):
+            return True
+    return False
+
+
+def _keys_counted(
+    codes: _KeyCodes, held: "list[dict[str, bool]]", floor: int
+) -> "tuple[dict[str, int], dict[str, dict[str, bool]]]":
+    """Each key's rows, and up to `floor` of the different subjects of one column that hold it (P4-D463).
+
+    A key's rows are the sum over the sets of keys that hold it; its
+    subjects are the first `floor` of the union of theirs, which is
+    `floor` wherever a set's own reached it, and every subject otherwise:
+    what `_holding` counts row by row. A key one set holds is given that
+    set's own subjects; one that several hold, a union of its own.
+    """
+    rows: "dict[str, int]" = {}
+    holders: "dict[str, dict[str, bool]]" = {}
+    unions: "dict[str, bool]" = {}
+    for code in range(len(codes.met)):
+        own = held[code]
+        for key in codes.met[code]:
+            if key not in rows:
+                rows[key] = codes.rows[code]
+                holders[key] = own
+                continue
+            rows[key] = rows[key] + codes.rows[code]
+            into = holders[key]
+            if len(into) >= floor:
+                continue
+            if key not in unions:
+                union: "dict[str, bool]" = {}
+                for subject in into:
+                    union[subject] = True
+                holders[key] = union
+                unions[key] = True
+                into = union
+            for subject in own:
+                if len(into) >= floor:
+                    break
+                if subject not in into:
+                    into[subject] = True
+    return rows, holders
 
 
 def _reads_as_text(cells: "list[str]", absent: "frozenset[str]") -> bool:
@@ -7923,24 +8120,46 @@ def _present_too_few(
 
     Guarantees: a fixed function of the six, linear in the cells. Raises
     nothing. No I/O.
+
+    ONE PASS THAT STOPS AT THE FLOOR (lane SR2a, plan P4-D463, repair 1):
+    the present cells' first `floor` different subjects are met under each
+    subject column that counts, as `_holding` keeps them, and the pass ends
+    once every such column has met `floor` of them, or, where none counts,
+    once `floor` cells are present: the answer is then known. Nothing is
+    kept a row.
     """
-    keyed: "list[tuple[str, ...]]" = []
+    counting: "list[list[str]]" = []
+    for place in range(len(subject_cells)):
+        if enough[place]:
+            counting += [subject_cells[place]]
+    met: "list[dict[str, bool]]" = [{} for _subject in counting]
+    short = len(counting)
     rows = 0
-    for cell in cells:
-        if parsing.folded(cell) and cell not in absent:
-            keyed += [_PRESENT_ONLY]
-            rows = rows + 1
-        else:
-            keyed += [()]
+    for place in range(len(cells)):
+        cell = cells[place]
+        if not parsing.folded(cell) or cell in absent:
+            continue
+        rows = rows + 1
+        if not counting:
+            if rows >= floor:
+                return False
+            continue
+        for column in range(len(counting)):
+            holders = met[column]
+            if len(holders) < floor:
+                subject = counting[column][place]
+                if subject not in holders:
+                    holders[subject] = True
+                    if len(holders) >= floor:
+                        short = short - 1
+        if short == 0:
+            return False
     if rows == 0:
         return False
-    counted_in_people = False
-    for place, subject in enumerate(subject_cells):
-        if enough[place]:
-            counted_in_people = True
-            if len(_holding(keyed, subject, floor)[_KEY_PRESENT].holders) < floor:
+    if counting:
+        for holders in met:
+            if len(holders) < floor:
                 return True
-    if counted_in_people:
         return False
     return rows < floor and n_rows >= parsing.TABLE_ROW_FLOOR
 
@@ -8464,17 +8683,45 @@ class _Walked:
 
     ``grain`` is the record at the rung the walk reached (or `held`, where
     the top rung has no span or a subject column of few people tells its
-    people apart); ``thin`` names, for every rung, whether some bucket
-    inside that rung's span holds one to `floor` - 1 people under some
-    subject column; ``unread_thin`` whether the cells that read as no
+    people apart); ``read`` holds one byte a row, 1 where the row's cell
+    reads as a moment (lane SR2a, plan P4-D463: a byte a row, where a list
+    held each row's moment); ``thin`` names, for every rung, whether some
+    bucket inside that rung's span holds one to `floor` - 1 people under
+    some subject column; ``unread_thin`` whether the cells that read as no
     moment, or a written shape or offset of those that do, are held so.
     """
 
     grain: grains.Grain
-    moments: "list[int | None]"
+    read: bytearray
     thin: "dict[str, bool]"
     unread_thin: bool
     padded: bool
+
+
+# The different texts each memo of the count in people holds at most
+# (`_cell_keys`, the walk's `_moments_keyed` and its step back `_cells_at`):
+# a fixed few megabytes at 2,000,000 rows.
+_PEOPLE_MEMO_TEXTS = 65536
+
+
+@dataclasses.dataclass
+class _WalkPass:
+    """What `_grain_walk`'s one pass over a column keeps beside its moments in order (plan P4-D463).
+
+    ``finest`` is the finest rung a cell writes; ``unread`` holds, for each
+    subject column the walk counts in people, the holders of every written
+    shape and offset key, at most `floor` of each (`_holding`'s count),
+    and ``rows`` the rows of each where each row is its own holder;
+    ``offsets`` each row's offset code where the block prints the shared
+    clock (no byte else), ``named`` the code of each offset key, `""` the
+    code 0 of a cell written with none.
+    """
+
+    finest: str
+    unread: "list[dict[str, dict[str, bool]]]"
+    rows: "dict[str, int]"
+    offsets: "_Codes"
+    named: "dict[str, int]"
 
 
 def _grain_walk(
@@ -8486,6 +8733,7 @@ def _grain_walk(
     floor: int,
     absent: "frozenset[str]" = frozenset(),
     at_utc: bool = False,
+    rows_hold: bool = False,
 ) -> _Walked:
     """The walk of a column of dates or times down its ladder (plan P4-D417).
 
@@ -8495,7 +8743,7 @@ def _grain_walk(
     columns name, the description's population. At every rung of its
     ladder the ENDS are the first and the last bucket held by `floor`
     different subjects or more under every subject column that counts in
-    people (`_holding`, the one count), and `grains.ladder_walk` chooses
+    people (`_holding`'s count), and `grains.ladder_walk` chooses
     the rung the walk reaches from the spans and the estimate. A rung is
     THIN where a bucket strictly inside its span holds one to `floor` - 1
     people under some subject column (the description there would name a
@@ -8515,159 +8763,334 @@ def _grain_walk(
     and offset; the walk counts the people of each bucket and offset
     apart, the texts the description would print, never the local bucket
     whole.
+    EACH ROW ITS OWN HOLDER (``rows_hold``, plan P4-D433): the rows count as
+    one more subject column that counts in people, of as many subjects as
+    rows, each key held by its rows.
+    NOTHING KEPT A ROW (lane SR2a, plan P4-D463): each cell is read once,
+    whether it reads as a moment kept as one byte a row, and each moment
+    as ONE whole number, its second shifted past the row's place, sorted
+    once (`_moments_keyed`). Every rung is a second or coarser, so the
+    second decides a moment's bucket at every rung, and a rung's buckets
+    are runs of that order: each rung is counted in one walk of it, each
+    bucket let go before the next (`_rung_counted`), where a key, a start,
+    a holder list and a count were kept for every bucket of every rung
+    (about 460 bytes a row at 500,000 rows of a stamp to the second).
     """
-    moments: "list[int | None]" = []
-    memo: "dict[str, int | None]" = {}
-    finest = grains.YEAR
     kind_reading = time_reading
-    for cell in cells:
-        if cell in memo:
-            moments += [memo[cell]]
-            continue
-        # AN ABSENT CELL IS NO MOMENT (repair round 2, Codex's item 3): a
-        # spelling of no value that reads as a date -- one declared with
-        # `--missing-value`, a placeholder day such as `1900-01-01` -- is
-        # kept out of the walk, so it is never coarsened into a present
-        # cell nor counted into a span.
-        moment = None if cell in absent else grains.moment_of(cell, time_reading)
-        if moment is not None:
-            own = grains.finest_of(cell, time_reading)
-            if grains.RANK[own] > grains.RANK[finest]:
-                finest = own
-        if len(memo) < 65536:
-            memo[cell] = moment
-        moments += [moment]
-    memo = {}
-    if time_reading.kind == grains.CLOCK and grains.RANK[finest] < grains.RANK[grains.MINUTE]:
-        finest = grains.MINUTE
-    if time_reading.kind == grains.STAMP and grains.RANK[finest] <= grains.RANK[grains.DAY]:
-        kind_reading = grains.Reading(grains.DATE, time_reading.member, time_reading.mark)
+    held = False
     for place in range(len(subject_cells)):
         if not enough[place] and _attached(cells, subject_cells[place]) and (
             _names_its_people(cells, subject_cells[place])
         ):
-            return _Walked(
-                grains.Grain(grains.HELD, kind_reading, present, (), finest, 0),
-                moments, {}, True, True,
-            )
+            held = True
+            break
+    counted: "list[list[str]]" = []
+    for place in range(len(subject_cells)):
+        if enough[place] and not held:
+            counted += [subject_cells[place]]
+    rows = rows_hold and not held
     # THE PEOPLE THE SUBJECT COLUMNS NAME, the fewest under several: the
     # population the description counts, which the walk reads beside the
-    # rows (`grains.estimate`).
+    # rows (`grains.estimate`); counted before the moments are, so the two
+    # are never held at once.
     people = 0
     for place in range(len(subject_cells)):
-        if not enough[place]:
+        if held or not enough[place]:
             continue
         named: "dict[str, bool]" = {}
         for key in subject_cells[place]:
             named[key] = True
         if people == 0 or len(named) < people:
             people = len(named)
+        named = {}
+    if rows and (people == 0 or len(cells) < people):
+        people = len(cells)
+    marked = (
+        at_utc
+        and (bool(counted) or rows)
+        and time_reading.kind in (grains.DATE, grains.STAMP)
+    )
+    walk = _WalkPass(
+        grains.YEAR,
+        [{} for _subject in counted],
+        {},
+        _Codes(bytearray(len(cells) if marked else 0), 1 if marked else 0),
+        {"": 0},
+    )
+    read = bytearray(len(cells))
+    # Each row's place in the low bits of its moment's whole number.
+    shift = 1
+    while 1 << shift <= len(cells):
+        shift = shift + 1
+    keyed = _moments_keyed(
+        cells, time_reading, absent, read, walk, counted, rows, floor, shift
+    )
+    ordered: "list[int]" = []
+    if counted or rows:
+        ordered = sorted(keyed)
+    else:
+        for _moment in keyed:
+            continue
+    finest = walk.finest
+    if time_reading.kind == grains.CLOCK and grains.RANK[finest] < grains.RANK[grains.MINUTE]:
+        finest = grains.MINUTE
+    if time_reading.kind == grains.STAMP and grains.RANK[finest] <= grains.RANK[grains.DAY]:
+        kind_reading = grains.Reading(grains.DATE, time_reading.member, time_reading.mark)
+    if held:
+        return _Walked(
+            grains.Grain(grains.HELD, kind_reading, present, (), finest, 0),
+            read, {}, True, True,
+        )
     # THE CELLS THAT READ AS NO MOMENT, AND EVERY WRITTEN FORM OF THOSE THAT
     # DO: counts the description at every rung publishes the same --
     # `n_unparsed`, `resolution_mix`, `datetime_separators`,
     # `date_field_widths`, `utc_offsets` and the other censuses of how a
     # date is written, each a union of written shapes (a figure `9`, a
-    # letter `a` or `A`) or of offsets, which a cell keeps at every rung.
-    dated = time_reading.kind in (grains.DATE, grains.STAMP)
-    apart: "list[tuple[str, ...]]" = []
-    shaped: "dict[str, tuple[str, ...]]" = {}
-    # Each cell's offset where the block prints the shared clock, "" else.
-    offsets: "list[str]" = []
-    for place in range(len(cells)):
-        cell = cells[place]
-        if moments[place] is None:
-            if parsing.folded(cell) and cell not in absent:
-                apart += [("u", f"u{grains.shape_of(cell)}")]
-            else:
-                apart += [()]
-            if at_utc and dated:
-                offsets += [""]
-            continue
-        if cell not in shaped:
-            read = parsing.parse_datetime(cell, time_reading.member) if dated else None
-            keys: "tuple[str, ...]" = (
-                (f"s{grains.shape_of(cell)}", f"o{read[1]}")
-                if read is not None and read[1]
-                else (f"s{grains.shape_of(cell)}",)
-            )
-            if len(shaped) < 65536:
-                shaped[cell] = keys
-            apart += [keys]
-        else:
-            keys = shaped[cell]
-            apart += [keys]
-        if at_utc and dated:
-            offsets += [keys[1] if len(keys) > 1 else ""]
-    shaped = {}
-    unread_thin = _any_thin(apart, subject_cells, enough, floor)
-    apart = []
-    rungs = grains.ladder(kind_reading.kind, finest)
+    # letter `a` or `A`) or of offsets, which a cell keeps at every rung,
+    # counted in `_moments_keyed`'s pass.
+    unread_thin = False
+    for holding in walk.unread:
+        for key in holding:
+            if len(holding[key]) < floor:
+                unread_thin = True
+    for key in walk.rows:
+        if walk.rows[key] < floor:
+            unread_thin = True
+    walk.unread = []
+    walk.rows = {}
     ends: "dict[str, tuple[int, int] | None]" = {}
     thin: "dict[str, bool]" = {}
-    for rung in rungs:
-        keyed: "list[tuple[str, ...]]" = []
-        starts: "dict[str, int]" = {}
-        for place in range(len(moments)):
-            moment = moments[place]
-            if moment is None:
-                keyed += [()]
-                continue
-            start = grains.start_of(moment, rung)
-            key = f"{start}{offsets[place]}" if offsets else f"{start}"
-            starts[key] = start
-            keyed += [(key,)]
-        passing: "dict[str, bool] | None" = None
-        for place in range(len(subject_cells)):
-            if not enough[place]:
-                continue
-            counted = _holding(keyed, subject_cells[place], floor)
-            held: "dict[str, bool]" = {}
-            for key in counted:
-                if len(counted[key].holders) >= floor and (passing is None or key in passing):
-                    held[key] = True
-            passing = held
-        found: "tuple[int, int] | None" = None
-        for key in passing if passing is not None else {}:
-            start = starts[key]
-            if found is None:
-                found = (start, start)
-            else:
-                found = (min(found[0], start), max(found[1], start))
-        ends[rung] = found
-        # Every bucket strictly inside the span that some row holds is
-        # held by the floor under every subject column, or the rung is thin.
-        thin[rung] = found is None or any(
-            found[0] < starts[key] < found[1]
-            and (passing is None or key not in passing)
-            for key in starts
+    for rung in grains.ladder(kind_reading.kind, finest):
+        ends[rung], thin[rung] = _rung_counted(
+            ordered, shift, rung, counted, rows, floor, walk
         )
+    ordered = []
     rung, spans = grains.ladder_walk(
         grains.estimate(present, people), floor, finest, kind_reading.kind, ends
     )
     return _Walked(
         grains.Grain(rung, kind_reading, present, spans, finest, people),
-        moments,
+        read,
         thin,
         unread_thin,
         grains.column_padded(cells, kind_reading) if rung != grains.HELD else True,
     )
 
 
-def _any_thin(
-    keyed: "list[tuple[str, ...]]",
-    subject_cells: "list[list[str]]",
-    enough: "list[bool]",
+def _moments_keyed(
+    cells: "list[str]",
+    time_reading: grains.Reading,
+    absent: "frozenset[str]",
+    read: bytearray,
+    walk: _WalkPass,
+    counted: "list[list[str]]",
+    rows: bool,
     floor: int,
-) -> bool:
-    """Whether some key is held by one to `floor` - 1 subjects under a subject column that counts in people."""
-    for place in range(len(subject_cells)):
-        if not enough[place]:
+    shift: int,
+) -> "typing.Iterator[int]":
+    """Each row whose cell reads as a moment, as ONE whole number: its second times `2 ** shift`, plus its row (P4-D463).
+
+    One pass over the cells: the row is marked in ``read``, ``walk`` keeps
+    the finest rung any cell writes and, where ``counted`` names subject
+    columns or each row is its own holder (``rows``), each written shape's
+    and offset's holders under each, or its rows (a cell
+    that reads as no moment, present and not an absent spelling, counted
+    under `u` and its own shape apart) and, where its offsets are kept,
+    each row's offset code. Each different cell is read once while the
+    memos last, as the walk read it before.
+    """
+    memo: "dict[str, int | None]" = {}
+    shaped: "dict[str, tuple[str, ...]]" = {}
+    interned: "dict[tuple[str, ...], tuple[str, ...]]" = {}
+    dated = time_reading.kind in (grains.DATE, grains.STAMP)
+    for place in range(len(cells)):
+        cell = cells[place]
+        if cell in memo:
+            moment = memo[cell]
+        else:
+            # AN ABSENT CELL IS NO MOMENT (repair round 2, Codex's item 3): a
+            # spelling of no value that reads as a date -- one declared with
+            # `--missing-value`, a placeholder day such as `1900-01-01` -- is
+            # kept out of the walk, so it is never coarsened into a present
+            # cell nor counted into a span.
+            moment = None if cell in absent else grains.moment_of(cell, time_reading)
+            if moment is not None:
+                own = grains.finest_of(cell, time_reading)
+                if grains.RANK[own] > grains.RANK[walk.finest]:
+                    walk.finest = own
+            if len(memo) < _PEOPLE_MEMO_TEXTS:
+                memo[cell] = moment
+        if counted or rows:
+            keys: "tuple[str, ...]" = ()
+            if moment is None:
+                if parsing.folded(cell) and cell not in absent:
+                    keys = ("u", f"u{grains.shape_of(cell)}")
+            elif cell in shaped:
+                keys = shaped[cell]
+            else:
+                parsed = (
+                    parsing.parse_datetime(cell, time_reading.member) if dated else None
+                )
+                keys = (
+                    (f"s{grains.shape_of(cell)}", f"o{parsed[1]}")
+                    if parsed is not None and parsed[1]
+                    else (f"s{grains.shape_of(cell)}",)
+                )
+                if keys in interned:
+                    keys = interned[keys]
+                else:
+                    interned[keys] = keys
+                if len(shaped) < _PEOPLE_MEMO_TEXTS:
+                    shaped[cell] = keys
+            for column in range(len(counted)):
+                holding = walk.unread[column]
+                subject = counted[column][place]
+                for key in keys:
+                    if key not in holding:
+                        holding[key] = {subject: True}
+                    elif len(holding[key]) < floor and subject not in holding[key]:
+                        holding[key][subject] = True
+            if rows:
+                for key in keys:
+                    walk.rows[key] = walk.rows[key] + 1 if key in walk.rows else 1
+            if walk.offsets.width and moment is not None and len(keys) > 1:
+                if keys[1] not in walk.named:
+                    walk.named[keys[1]] = len(walk.named)
+                _code_kept(walk.offsets, place, walk.named[keys[1]], len(cells))
+        if moment is None:
             continue
-        counted = _holding(keyed, subject_cells[place], floor)
-        for key in counted:
-            if 0 < len(counted[key].holders) < floor:
-                return True
-    return False
+        read[place] = 1
+        yield ((moment // date_counts.SECOND) << shift) + place
+
+
+@dataclasses.dataclass
+class _Codes:
+    """A small whole number a row, ``width`` bytes each, least significant first (plan P4-D463).
+
+    Where a list held a reference a row, one to three bytes do; the store
+    grows a byte wider wherever a number needs it (`_code_kept`). A width of
+    0 keeps none, and every row then reads 0.
+    """
+
+    store: bytearray
+    width: int
+
+
+def _code_kept(codes: _Codes, place: int, code: int, rows: int) -> None:
+    """Row ``place``'s number in ``codes``, the store a byte wider wherever the number needs it."""
+    while code >= 1 << (8 * codes.width):
+        wider = bytearray((codes.width + 1) * rows)
+        for row in range(rows):
+            for at in range(codes.width):
+                wider[row * (codes.width + 1) + at] = codes.store[row * codes.width + at]
+        codes.store = wider
+        codes.width = codes.width + 1
+    for at in range(codes.width):
+        codes.store[place * codes.width + at] = (code >> (8 * at)) & 255
+
+
+def _code_at(codes: _Codes, place: int) -> int:
+    """Row ``place``'s number in ``codes`` (`_code_kept`), 0 where none is kept."""
+    code = 0
+    for at in range(codes.width):
+        code = code | (codes.store[place * codes.width + at] << (8 * at))
+    return code
+
+
+def _rung_counted(
+    ordered: "list[int]",
+    shift: int,
+    rung: str,
+    counted: "list[list[str]]",
+    rows: bool,
+    floor: int,
+    walk: _WalkPass,
+) -> "tuple[tuple[int, int] | None, bool]":
+    """One rung's ends and whether it is thin, from one walk of the moments in order (plans P4-D417, P4-D463).
+
+    A rung's buckets are runs of ``ordered`` (`_moments_keyed`), each
+    counted as the walk passes it and let go before the next. A key is a
+    bucket, or a bucket and an offset where the block prints the shared
+    clock; it is HELD where every subject column of ``counted`` names
+    `floor` different subjects or more among its rows (`_holding`'s
+    count), and, where each row is its own holder (``rows``), it has
+    `floor` rows or more; a bucket of fewer rows than the floor holds none. The
+    ENDS are the starts of the first and the last bucket some key of which
+    is held, None where none is; the rung is THIN where a key not held
+    lies in a bucket strictly between them, or where no key is held.
+    """
+    if not counted and not rows:
+        return None, True
+    mask = (1 << shift) - 1
+    first: "int | None" = None
+    last = 0
+    pending = False
+    inside = False
+    at = 0
+    total = len(ordered)
+    while at < total:
+        start = grains.start_of((ordered[at] >> shift) * date_counts.SECOND, rung)
+        end = grains.after(start, rung) // date_counts.SECOND
+        stop = at + 1
+        while stop < total and (ordered[stop] >> shift) < end:
+            stop = stop + 1
+        held = False
+        missed = True
+        if stop - at >= floor:
+            held, missed = _bucket_counted(ordered, at, stop, mask, counted, rows, floor, walk)
+        if held:
+            if pending:
+                inside = True
+            if first is None:
+                first = start
+            last = start
+        if missed and first is not None and start > first:
+            pending = True
+        at = stop
+    return (None if first is None else (first, last)), first is None or inside
+
+
+def _bucket_counted(
+    ordered: "list[int]",
+    at: int,
+    stop: int,
+    mask: int,
+    counted: "list[list[str]]",
+    rows: bool,
+    floor: int,
+    walk: _WalkPass,
+) -> "tuple[bool, bool]":
+    """Whether some key of one bucket is held, and whether some key is not (`_rung_counted`, P4-D463).
+
+    Each key's subjects under each subject column are kept up to the floor,
+    for this bucket alone.
+    """
+    keys: "dict[int, list[dict[str, bool]]]" = {}
+    held_rows: "dict[int, int]" = {}
+    for index in range(at, stop):
+        place = ordered[index] & mask
+        code = _code_at(walk.offsets, place) if walk.offsets.width else 0
+        if code not in keys:
+            keys[code] = [{} for _subject in counted]
+            held_rows[code] = 0
+        held_rows[code] = held_rows[code] + 1
+        holders = keys[code]
+        for column in range(len(counted)):
+            met = holders[column]
+            if len(met) < floor:
+                subject = counted[column][place]
+                if subject not in met:
+                    met[subject] = True
+    held = False
+    missed = False
+    for code in keys:
+        if all([len(met) >= floor for met in keys[code]]) and (
+            not rows or held_rows[code] >= floor
+        ):
+            held = True
+        else:
+            missed = True
+    return held, missed
 
 
 def _cells_at(
@@ -8677,21 +9100,38 @@ def _cells_at(
 
     A cell that reads as no moment is kept as written; None where a cell
     that reads cannot be written at the rung in its own form.
+    ONE TEXT FOR EACH DIFFERENT COARSE CELL, UP TO 65,536 OF THEM (lane
+    SR2a, plan P4-D463): the cells at a rung coarser than the column's own
+    repeat, and each equal text is the one object the first such cell made,
+    where a column whose cells all differ made a new text a row once its
+    memo was full (about 85 bytes a row for stamps to the second). THE
+    LIMIT (Codex's review of the lane, item 2): the texts shared are the
+    first `_PEOPLE_MEMO_TEXTS` different ones met; one first met after them
+    is made again at each of its cells, equal in value, as before this
+    lane, so a column of more different buckets than that at the rung
+    keeps a text a row for the rows past them (2,000,000 stamps over 80,000
+    minutes read at the minute: 361,600 rows).
     """
     rung, first, last = span
     reading = walked.grain.reading
     coarse: "list[str]" = []
     written: "dict[str, str | None]" = {}
+    shared: "dict[str, str]" = {}
     for place in range(len(cells)):
         cell = cells[place]
-        if walked.moments[place] is None:
+        if not walked.read[place]:
             coarse += [cell]
             continue
         if cell in written:
             made = written[cell]
         else:
             made = grains.coarse_cell(cell, reading, rung, first, last, walked.padded)
-            if len(written) < 65536:
+            if made is not None:
+                if made in shared:
+                    made = shared[made]
+                elif len(shared) < _PEOPLE_MEMO_TEXTS:
+                    shared[made] = made
+            if len(written) < _PEOPLE_MEMO_TEXTS:
                 written[cell] = made
         if made is None:
             return None

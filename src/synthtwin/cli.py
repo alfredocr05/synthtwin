@@ -5100,6 +5100,7 @@ def _chained_description(
     rare_values_released: bool = True,
     harbor_year: int = 0,
     kept_identities: "tuple[str, ...]" = (),
+    ages_counted_in: "dict[str, int] | None" = None,
 ) -> "dict[str, object]":
     """The description with its chain, the ledger's decision on it, and the one line on the screen.
 
@@ -5107,11 +5108,19 @@ def _chained_description(
     before its description, or leaves it None where the ledger refuses
     the run (its words printed): the caller then writes nothing. The
     private notes stay in `chain_state.notes`; no line names the key.
+    ``ages_counted_in`` is each age column answered with its unit and
+    that unit's mark, as the description was told it (`_marks_answered`).
     """
     from synthtwin import chain, installation
 
     run = chain_state.run
     name = run.name if run.name is not None else table.stem
+    # Lane BT3a's repair 2 (LANE BT3 RULINGS 6 (2)): the reader reads a
+    # column's dates in disguise in the unit its age was answered in.
+    answered: "list[tuple[str, int]]" = []
+    if ages_counted_in is not None:
+        for column in sorted(ages_counted_in):
+            answered += [(column, ages_counted_in[column])]
     # THE SUBJECT QUESTION'S HOLD (lane GRa, plan P4-D449; `_persons_settled`
     # read it as the people were counted): while it is open, or answered with
     # no column naming the person, no chain and no patient layer is drawn.
@@ -5133,6 +5142,7 @@ def _chained_description(
             harbor_year,
             kept_identities,
             rules=run.rules,
+            ages_counted_in=tuple(answered),
         ),
         list(forced_codes),
         list(forced_measurements),
@@ -7951,6 +7961,7 @@ def _run_profile_body(
             not identities_open,
             harbor_year,
             tuple(identities_kept),
+            _marks_answered(ages_counted_in),
         )
         if chain_state.entry is None:
             return results.REFUSED

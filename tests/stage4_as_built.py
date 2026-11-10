@@ -52,6 +52,17 @@ nothing reads the product's source to build them:
   labels by their folded text: the oracles of lane H3's repair (the
   same file and plan), asked of a tally carrying `taxonomy._label_maps`'s
   two maps under their old names.
+- `GRAIN_WALK` is, as c47a6aee shipped them, `profile._grain_walk`
+  with the record it returned and the step back's `_cells_at`: a moment,
+  a key text, a one-key tuple and a holder list kept for every row of
+  every rung, the oracle of lane SR2a (`tests/test_stage4_describe_peak.py`,
+  plan P4-D463), whose record, thin rungs, unread count, padding and
+  coarse cells the product's must be.
+- `COUNTED_IN_SUBJECTS` and `PRESENT_TOO_FEW` are, as c47a6aee shipped
+  them, `profile._counted_in_subjects`, holding a reference a row to each
+  row's keys and asking every subject column whether the column is
+  attached to it, and `profile._present_too_few`, holding a reference a row
+  to its one key: the same lane's oracles, whose answers the product's must be.
 
 Each is compiled into a copy of its module's own names, so the helpers
 it does not define are today's, and the tests that use it require a
@@ -2679,4 +2690,387 @@ def few_units(
         held[index] = held[index] + 1
     filled = [held[index] for index in range(len(groups)) if groups[index][2] > 0]
     return len(filled) >= 2 and sum(filled) < FEWEST_MEAN_UNITS * len(filled)
+'''
+
+
+GRAIN_WALK = r'''
+@dataclasses.dataclass(frozen=True)
+class _Walked:
+    """What `_grain_walk` found of one column: its record, and what the step back reads.
+
+    ``grain`` is the record at the rung the walk reached (or `held`, where
+    the top rung has no span or a subject column of few people tells its
+    people apart); ``thin`` names, for every rung, whether some bucket
+    inside that rung's span holds one to `floor` - 1 people under some
+    subject column; ``unread_thin`` whether the cells that read as no
+    moment, or a written shape or offset of those that do, are held so.
+    """
+
+    grain: grains.Grain
+    moments: "list[int | None]"
+    thin: "dict[str, bool]"
+    unread_thin: bool
+    padded: bool
+
+
+def _grain_walk(
+    cells: "list[str]",
+    present: int,
+    time_reading: grains.Reading,
+    subject_cells: "list[list[str]]",
+    enough: "list[bool]",
+    floor: int,
+    absent: "frozenset[str]" = frozenset(),
+    at_utc: bool = False,
+) -> _Walked:
+    """The walk of a column of dates or times down its ladder (plan P4-D417).
+
+    Each present cell is read as its moment; the column's finest rung is
+    the finest any cell writes; the walk reads ``present``, the block's
+    `n_present`, published on every column, and the people the subject
+    columns name, the description's population. At every rung of its
+    ladder the ENDS are the first and the last bucket held by `floor`
+    different subjects or more under every subject column that counts in
+    people (`_holding`, the one count), and `grains.ladder_walk` chooses
+    the rung the walk reaches from the spans and the estimate. A rung is
+    THIN where a bucket strictly inside its span holds one to `floor` - 1
+    people under some subject column (the description there would name a
+    bucket whose count one to ten people hold, by subtraction where it is
+    not printed: the skeptic's item 1), and the cells that read as no
+    moment (present, not an absent spelling) are counted as one value,
+    each written shape apart, beside every written shape and offset of
+    the cells that read (the skeptic's items 1 and 2: `n_unparsed`,
+    `resolution_mix` and every census of how a date is written count
+    unions of them, at every rung alike). A subject column of fewer than
+    `floor` values counts the column only where it is attached to it and
+    tells its people apart (plan P4-D406), and then no bucket can reach
+    the floor: the column is held.
+    ON THE CLOCK THE BLOCK PUBLISHES (``at_utc``, plan P4-D433, repair
+    round 2): a column whose offsets differ prints each bucket start a
+    cell is written at as its instant at UTC, one text for each bucket
+    and offset; the walk counts the people of each bucket and offset
+    apart, the texts the description would print, never the local bucket
+    whole.
+    """
+    moments: "list[int | None]" = []
+    memo: "dict[str, int | None]" = {}
+    finest = grains.YEAR
+    kind_reading = time_reading
+    for cell in cells:
+        if cell in memo:
+            moments += [memo[cell]]
+            continue
+        # AN ABSENT CELL IS NO MOMENT (repair round 2, Codex's item 3): a
+        # spelling of no value that reads as a date -- one declared with
+        # `--missing-value`, a placeholder day such as `1900-01-01` -- is
+        # kept out of the walk, so it is never coarsened into a present
+        # cell nor counted into a span.
+        moment = None if cell in absent else grains.moment_of(cell, time_reading)
+        if moment is not None:
+            own = grains.finest_of(cell, time_reading)
+            if grains.RANK[own] > grains.RANK[finest]:
+                finest = own
+        if len(memo) < 65536:
+            memo[cell] = moment
+        moments += [moment]
+    memo = {}
+    if time_reading.kind == grains.CLOCK and grains.RANK[finest] < grains.RANK[grains.MINUTE]:
+        finest = grains.MINUTE
+    if time_reading.kind == grains.STAMP and grains.RANK[finest] <= grains.RANK[grains.DAY]:
+        kind_reading = grains.Reading(grains.DATE, time_reading.member, time_reading.mark)
+    for place in range(len(subject_cells)):
+        if not enough[place] and _attached(cells, subject_cells[place]) and (
+            _names_its_people(cells, subject_cells[place])
+        ):
+            return _Walked(
+                grains.Grain(grains.HELD, kind_reading, present, (), finest, 0),
+                moments, {}, True, True,
+            )
+    # THE PEOPLE THE SUBJECT COLUMNS NAME, the fewest under several: the
+    # population the description counts, which the walk reads beside the
+    # rows (`grains.estimate`).
+    people = 0
+    for place in range(len(subject_cells)):
+        if not enough[place]:
+            continue
+        named: "dict[str, bool]" = {}
+        for key in subject_cells[place]:
+            named[key] = True
+        if people == 0 or len(named) < people:
+            people = len(named)
+    # THE CELLS THAT READ AS NO MOMENT, AND EVERY WRITTEN FORM OF THOSE THAT
+    # DO: counts the description at every rung publishes the same --
+    # `n_unparsed`, `resolution_mix`, `datetime_separators`,
+    # `date_field_widths`, `utc_offsets` and the other censuses of how a
+    # date is written, each a union of written shapes (a figure `9`, a
+    # letter `a` or `A`) or of offsets, which a cell keeps at every rung.
+    dated = time_reading.kind in (grains.DATE, grains.STAMP)
+    apart: "list[tuple[str, ...]]" = []
+    shaped: "dict[str, tuple[str, ...]]" = {}
+    # Each cell's offset where the block prints the shared clock, "" else.
+    offsets: "list[str]" = []
+    for place in range(len(cells)):
+        cell = cells[place]
+        if moments[place] is None:
+            if parsing.folded(cell) and cell not in absent:
+                apart += [("u", f"u{grains.shape_of(cell)}")]
+            else:
+                apart += [()]
+            if at_utc and dated:
+                offsets += [""]
+            continue
+        if cell not in shaped:
+            read = parsing.parse_datetime(cell, time_reading.member) if dated else None
+            keys: "tuple[str, ...]" = (
+                (f"s{grains.shape_of(cell)}", f"o{read[1]}")
+                if read is not None and read[1]
+                else (f"s{grains.shape_of(cell)}",)
+            )
+            if len(shaped) < 65536:
+                shaped[cell] = keys
+            apart += [keys]
+        else:
+            keys = shaped[cell]
+            apart += [keys]
+        if at_utc and dated:
+            offsets += [keys[1] if len(keys) > 1 else ""]
+    shaped = {}
+    unread_thin = _any_thin(apart, subject_cells, enough, floor)
+    apart = []
+    rungs = grains.ladder(kind_reading.kind, finest)
+    ends: "dict[str, tuple[int, int] | None]" = {}
+    thin: "dict[str, bool]" = {}
+    for rung in rungs:
+        keyed: "list[tuple[str, ...]]" = []
+        starts: "dict[str, int]" = {}
+        for place in range(len(moments)):
+            moment = moments[place]
+            if moment is None:
+                keyed += [()]
+                continue
+            start = grains.start_of(moment, rung)
+            key = f"{start}{offsets[place]}" if offsets else f"{start}"
+            starts[key] = start
+            keyed += [(key,)]
+        passing: "dict[str, bool] | None" = None
+        for place in range(len(subject_cells)):
+            if not enough[place]:
+                continue
+            counted = _holding(keyed, subject_cells[place], floor)
+            held: "dict[str, bool]" = {}
+            for key in counted:
+                if len(counted[key].holders) >= floor and (passing is None or key in passing):
+                    held[key] = True
+            passing = held
+        found: "tuple[int, int] | None" = None
+        for key in passing if passing is not None else {}:
+            start = starts[key]
+            if found is None:
+                found = (start, start)
+            else:
+                found = (min(found[0], start), max(found[1], start))
+        ends[rung] = found
+        # Every bucket strictly inside the span that some row holds is
+        # held by the floor under every subject column, or the rung is thin.
+        thin[rung] = found is None or any(
+            found[0] < starts[key] < found[1]
+            and (passing is None or key not in passing)
+            for key in starts
+        )
+    rung, spans = grains.ladder_walk(
+        grains.estimate(present, people), floor, finest, kind_reading.kind, ends
+    )
+    return _Walked(
+        grains.Grain(rung, kind_reading, present, spans, finest, people),
+        moments,
+        thin,
+        unread_thin,
+        grains.column_padded(cells, kind_reading) if rung != grains.HELD else True,
+    )
+
+
+def _any_thin(
+    keyed: "list[tuple[str, ...]]",
+    subject_cells: "list[list[str]]",
+    enough: "list[bool]",
+    floor: int,
+) -> bool:
+    """Whether some key is held by one to `floor` - 1 subjects under a subject column that counts in people."""
+    for place in range(len(subject_cells)):
+        if not enough[place]:
+            continue
+        counted = _holding(keyed, subject_cells[place], floor)
+        for key in counted:
+            if 0 < len(counted[key].holders) < floor:
+                return True
+    return False
+
+
+def _cells_at(
+    cells: "list[str]", walked: _Walked, span: "tuple[str, int, int]"
+) -> "list[str] | None":
+    """Every cell written as the start of its bucket at ``span``'s rung, the tails pooled into its ends.
+
+    A cell that reads as no moment is kept as written; None where a cell
+    that reads cannot be written at the rung in its own form.
+    """
+    rung, first, last = span
+    reading = walked.grain.reading
+    coarse: "list[str]" = []
+    written: "dict[str, str | None]" = {}
+    for place in range(len(cells)):
+        cell = cells[place]
+        if walked.moments[place] is None:
+            coarse += [cell]
+            continue
+        if cell in written:
+            made = written[cell]
+        else:
+            made = grains.coarse_cell(cell, reading, rung, first, last, walked.padded)
+            if len(written) < 65536:
+                written[cell] = made
+        if made is None:
+            return None
+        coarse += [made]
+    return coarse
+'''
+
+
+COUNTED_IN_SUBJECTS = r'''
+def _counted_in_subjects(
+    described: taxonomy.ColumnProfile,
+    cells: "list[str]",
+    subject_cells: "list[list[str]]",
+    floor: int,
+    enough: "list[bool] | None" = None,
+    reading: "_CellReading | None" = None,
+    pooled_in_people: bool = False,
+) -> bool:
+    """Whether a column publishes a value fewer than `floor` subjects hold.
+
+    PLAN P4-D406. Every value the column's description publishes is read
+    back off its block (`_published_in`), and every written form its
+    `shape_forms` census names, and each is counted in each subject
+    column (`_holding`): one held by one to `floor` - 1 different
+    subjects, under any subject column, is one the column may not
+    publish -- in a column attached to that subject, or a column of
+    dates or times of day, whatever its rows; in any other where `floor`
+    rows or more hold it and it stands off the rungs. So are the
+    column's present rows as a whole and the remainder of rows that read
+    as no published value, wherever `floor` rows or more hold either: a
+    column all of whose rows, or whose merged remainder, belong to one
+    to `floor` - 1 subjects prints a count of that few people.
+
+    ``enough`` says, per subject column, whether it holds `floor`
+    different values (None: every one does). Under one of fewer every
+    value is held by fewer subjects than the floor, so only a column
+    attached to it, and telling its subjects apart (`_names_its_people`),
+    is counted there: the filler code of seven values a question was put
+    to blanks no column of measurements, labels or dates beside it, and
+    the names and birth dates of seven patients are held.
+    Their visit dates, attached to nobody's one value, are counted in
+    rows there (plan P4-D406's stated limit, lane PS).
+
+    Such a column is then described as a held record number
+    (`taxonomy.as_held_in_people`), as lane HX describes a column whose
+    identity question is open, so the twin writes made-up values in the
+    column's layouts and the real table still meets its own description.
+    A number beside a unit is counted as the same number written bare
+    (``reading.affixed``; plan P4-D443).
+
+    ``pooled_in_people`` reads a block whose pool is counted in people (plan
+    P4-D453): its remainder is that pool, which names no group and whose
+    count is a count in the pool (P4-D363), so it is not asked of the
+    remainder; every value the block publishes is asked as ever.
+    """
+    shown = _column_block(described)
+    if pooled_in_people:
+        # ...and not of a sentence's words: `there are 6 different values`
+        # names no value `6`, and every value a sentence of this block could
+        # name is a published level, itself read here. Nor of the stand-ins'
+        # starts: a function of the published levels alone, which says
+        # nothing of any cell, even where it spells one (the orchestrator's
+        # LANE PL RULINGS 2 (1)).
+        shown = {
+            key: shown[key]
+            for key in shown
+            if key not in _SENTENCE_KEYS and key != "pool_in_people"
+        }
+    published = _published_in(shown, True)
+    plain = _published_in(shown, False)
+    forms = _named_forms(shown)
+    absent = frozenset(described.absent_spellings)
+    dated = described.role in (taxonomy.ROLE_DATETIME, taxonomy.ROLE_CLOCK)
+    memo: "dict[str, tuple[str, ...]]" = {}
+    interned: "dict[tuple[str, ...], tuple[str, ...]]" = {}
+    keyed: "list[tuple[str, ...]]" = []
+    for cell in cells:
+        keyed += [
+            _cell_keys(cell, published, forms, absent, memo, interned, reading)
+        ]
+    for place, subject in enumerate(subject_cells):
+        people = enough is None or enough[place]
+        attached = _attached(cells, subject)
+        if not people and not (attached and _names_its_people(cells, subject)):
+            continue
+        counted = _holding(keyed, subject, floor)
+        for key in counted:
+            held = counted[key]
+            if len(held.holders) >= floor:
+                continue
+            if key in (_KEY_PRESENT, _KEY_REMAINDER):
+                if (
+                    people
+                    and held.rows >= floor
+                    and not (pooled_in_people and key == _KEY_REMAINDER)
+                ):
+                    return True
+                continue
+            if not people or attached or dated:
+                return True
+            if held.rows >= floor and _plainly(key, plain):
+                return True
+    return False
+'''
+
+
+PRESENT_TOO_FEW = r'''
+def _present_too_few(
+    cells: "list[str]",
+    absent: "frozenset[str]",
+    subject_cells: "list[list[str]]",
+    enough: "list[bool]",
+    floor: int,
+    n_rows: int,
+) -> bool:
+    """Whether a column's present cells are held by one to `floor` - 1 people (plan P4-D453).
+
+    Counted in people under every subject column that repeats and holds the
+    floor's number of different values: fewer than that under any of them is
+    a group of that few. Where none does, in rows, each row its own holder,
+    on a table the command describes (`parsing.TABLE_ROW_FLOOR`), the library
+    keeping its bytes below it as the count of dates in rows does (P4-D433).
+
+    Guarantees: a fixed function of the six, linear in the cells. Raises
+    nothing. No I/O.
+    """
+    keyed: "list[tuple[str, ...]]" = []
+    rows = 0
+    for cell in cells:
+        if parsing.folded(cell) and cell not in absent:
+            keyed += [_PRESENT_ONLY]
+            rows = rows + 1
+        else:
+            keyed += [()]
+    if rows == 0:
+        return False
+    counted_in_people = False
+    for place, subject in enumerate(subject_cells):
+        if enough[place]:
+            counted_in_people = True
+            if len(_holding(keyed, subject, floor)[_KEY_PRESENT].holders) < floor:
+                return True
+    if counted_in_people:
+        return False
+    return rows < floor and n_rows >= parsing.TABLE_ROW_FLOOR
 '''

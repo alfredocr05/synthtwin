@@ -1263,8 +1263,9 @@ def test_a_position_list_reads_the_ages_as_the_description_top_coded_them(tmp_pa
     # the patient layer read the cells as the file wrote them and published the position list 80 to 92,
     # ages 91 and 92 among them. Unanswered and answered `yes`, no published position reads above 90 and
     # the column's block keeps its top-code; answered `no` (the column holds no age, so nothing is
-    # top-coded), the list stands as the file writes it. MUTANT as_written: `_as_described` hands back the
-    # cells as the file wrote them (91 and 92 published again).
+    # top-coded), the list stands as the file writes it. MUTANT as_written: `chain.read_as_described` hands
+    # back the cells as the file wrote them (91 and 92 published again; batch 4r's merge of lane BT3a: its
+    # reader replaced the fix round's `patient_layer._as_described`, which this mutant named).
     monkeypatch.chdir(tmp_path)
     rows = [[f"P{patient:05d}", "a" if patient % 2 == 0 else "b", f"{80 + visit}"] for patient in range(1200) for visit in range(20)]
     fixtures.write(tmp_path, "agecase.csv", _csv(["pid", "arm", "age"], rows))

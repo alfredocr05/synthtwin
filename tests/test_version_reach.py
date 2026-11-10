@@ -810,7 +810,18 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 #
 # 66 AT BATCH 4q'S MERGE OF LANE CHs (2026-11-07): the line's 65 and the
 # lane's one above (59 on its branch, on batch 4o's step-2 head's 58), loaded once.
-FILES_LOADED_AS_MODULES = 66
+#
+# 62 ON LANE BT3a (plan P4-D467, its repair 2 of 2026-11-08, one more on
+# batch 4p's 61): the chain recount's gate, `tests/test_stage6_chain_recount.py`,
+# in `_clause_x`, loads clause (x)'s driver of `K-S6-02`,
+# `tools/measurements/kpi_chain_recount.py`, one call, to hold its scan to
+# the one case it accepts by name and to every held spelling. What it loads
+# is a committed file under tools/, which this guard reads directly, so the
+# floor holds for it as it does for the other sixty-one.
+#
+# 67 AT BATCH 4r'S MERGE OF LANE BT3a (2026-11-09): the line's 66 and the
+# lane's one above (62 on its branch, on batch 4p's 61), loaded once.
+FILES_LOADED_AS_MODULES = 67
 
 
 def _files() -> "list[pathlib.Path]":

@@ -215,11 +215,12 @@ def patient_cases() -> "dict[str, int]":
 # -- THE CHECKS AT THE OWNER'S TABLE FLOOR (20,000 rows; `kpi_run --slow`) --
 
 
-# At most this many visits a patient on the floor-size tables: a visit number past 125 lets the
-# Safe Harbor age reach read the column as ages and set its values past 125 aside (lane SH2's
-# rules), and the chain's recount, reading the cells as written, then refuses the whole table
-# (measured on lane CHa2's merged line; named for the orchestrator in lane GRa's repair 2).
-VISITS_MAX = 120
+# At most this many visits a patient on the floor-size tables. A visit number past 125 lets the
+# Safe Harbor age reach read the column as ages and set its placeholder-like values aside (lane
+# SH2's rules); the chain's reader reads the cells as the description read them (lane BT3a, plan
+# P4-D467), so both layers stand. Back to 400 on 2026-11-06 from the 120 lane GRa's repair 2 held
+# while the recount read the cells as written and refused the whole table.
+VISITS_MAX = 400
 
 
 def _long_rows(patients_wanted: int, seed: int, complete: bool, heap: bool = False, twice: bool = False) -> "tuple[list[str], list[list[str]]]":

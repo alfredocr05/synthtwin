@@ -188,6 +188,56 @@ under Python 3.11, its setup, call and teardown seconds summed as the
 table's other rows are, on a machine other work was loading lightly
 (one-minute load average 5.5 and 5.3).
 
+ONE ROW ADDED 2026-11-05, on lane SR2a's branch (plan P4-D463), timed again
+2026-11-07 at its repair 2: its gate, `tests/test_stage4_describe_peak.py`,
+56.86 s, its 76 cases timed alone by one `pytest -q` process on the repair's
+code under Python 3.11, on a quiet machine (a one-minute load of about 8;
+96.53 s for its first 67 cases at a load of about 120, at repair 1, and
+87.72 s for its first 52).
+
+ONE ROW ADDED 2026-11-07, at lane PRT-a (plan P4-D468): the lane's gate
+file weighed the default. `tests/test_readers_once_a_spelling.py`, 8.99 s
+(39 cases since the lane's repair 2: each reader's answers, the walks
+read against their readers asked one by one, the shared memo's cap over
+spellings written twice in a row, the whole describe of a 600-row table
+with every memo on and off, each check on its mutant), timed alone by
+one `pytest -q --durations=0` process on the lane's head under Python
+3.11, on a machine other work was loading (6.71 CPU seconds, at a load
+of 63; 14.11 s and 6.85 CPU seconds for repair 1's 35 cases, 9.86 s and
+5.75 for the build's 32).
+
+ONE ROW ADDED 2026-11-06, at lane BT3a (plan P4-D467): the lane's gate
+file weighed the default. `tests/test_stage6_chain_recount.py`, 80.71 s
+(10 cases: a clinic table and a long table of 400 visits a patient, each
+through the switched command at the owner's table floor), timed alone by
+one `pytest -q` process on the lane's head under Python 3.11, on a
+machine other work was loading (72.9 CPU seconds). RE-TIMED 2026-11-08
+at the lane's repair 1: 95.52 s (16 cases: the long table's three
+patient-fixed columns, three year tables of 24,000 rows and a table of
+20,000 rows read with its own absent spellings added), the same way on
+its final code head at a load near 5 (95.5 CPU seconds; 275.54 s at a
+load near 50 the day before). RE-TIMED 2026-11-08 at its repair 2, with
+a second file: `tests/test_stage6_chain_recount.py` 148.65 s (17 cases:
+two patient-fixed ages and the same long table with the switch off
+added, two year tables moved out) and
+`tests/test_stage6_chain_recount_settled.py` 66.06 s (5 cases: two year
+tables, the table of own absent spellings, a settled comma on 24,000
+rows and an age answered in days on 20,000), each timed alone the same
+way on the final code head at a load near 9 (149.8 and 66.4 CPU
+seconds).
+
+ONE ROW WEIGHED AGAIN 2026-11-09, at batch 4r's merge of lane BT3a (plan
+P4-D467): `tests/test_stage6_chain_recount_settled.py`, 49.61 s (6 cases:
+the merge's case of the rule steps reading the cells of the reading that
+stands, beside the lane's five; 66.06 s before), timed alone by one
+`pytest -q --durations=0` process on the merged tree under Python 3.11,
+its setup, call and teardown seconds summed as the table's other rows
+are, on a machine other work was loading lightly (one-minute load
+average about 7). The merged line's other files keep their rows, the
+three other new files of lanes SR2a, PRT-a and BT3a at the seconds their
+lanes measured above: every file the merged line collects has a row
+(399 files, 18,170 cases).
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Only a file added since
 the last measurement has none: it is placed like an ordinary small file
 and runs in its shard from the commit that adds it. A file every case of
@@ -480,6 +530,7 @@ SECONDS = {
     "tests/test_r6_quoted_closing_reading.py": 83.07,
     "tests/test_r6_taxonomy_contract.py": 14.24,
     "tests/test_r6f5_write_transaction.py": 0.1,
+    "tests/test_readers_once_a_spelling.py": 8.99,
     "tests/test_reading.py": 7.51,
     "tests/test_reading_agreement.py": 7.9,
     "tests/test_reading_header_shape.py": 0.02,
@@ -549,6 +600,7 @@ SECONDS = {
     "tests/test_stage4_counts_together.py": 1.57,
     "tests/test_stage4_describe_groups.py": 119.36,
     "tests/test_stage4_describe_memory.py": 1134.9,
+    "tests/test_stage4_describe_peak.py": 56.86,
     "tests/test_stage4_generate_memory.py": 742.66,
     "tests/test_stage4_linear_work.py": 69.73,
     "tests/test_stage4_million_rows.py": 266.07,
@@ -561,6 +613,8 @@ SECONDS = {
     "tests/test_stage6_band_totals.py": 70.36,
     "tests/test_stage6_chain_describe_scale.py": 126.48,
     "tests/test_stage6_chain_generate.py": 338.92,
+    "tests/test_stage6_chain_recount.py": 148.65,
+    "tests/test_stage6_chain_recount_settled.py": 49.61,
     "tests/test_stage6_clock_mirror.py": 64.23,
     "tests/test_stage6_order_rules.py": 59.29,
     "tests/test_stage6_patient_profile.py": 354.3,

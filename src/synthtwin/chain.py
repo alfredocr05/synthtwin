@@ -11,11 +11,13 @@ summary and twin stays byte for byte as it was.
 WHAT IT DOES, in 4.6b's order:
 
 - reads every column through `reading.column_values` (lane SR's column
-  access, plan P4-D400), each cell to its STARTING band by the
-  classifier's own reading of the column (`taxonomy._read_the_column`,
-  the same declarations `profile_column` applied), and checks the
-  recount against the column's published counts before anything is
-  published from it;
+  access, plan P4-D400), each cell AS THE DESCRIPTION READ IT
+  (`described_cells`, lane BT3a, plan P4-D467: the Safe Harbor readings,
+  the dates held, the comma the description inferred) to its STARTING
+  band by the classifier's own reading of the column
+  (`taxonomy._read_the_column`, the same declarations `profile_column`
+  applied), and checks the recount against the column's published
+  counts before anything is published from it;
 - cuts each eligible column's ladder (4.6b.2: `L0` the deciles with p25
   and p75 on a number, the nine interior rungs on a date or clock, each
   published level on a label column; the `L0` merge; `L1` and `L2` read
@@ -158,6 +160,11 @@ class ChainSwitch:
     # every writer of a switched description must do before it is read;
     # lane CHON turns the rule steps on with the chain.
     rules: bool = False
+    # Each age column answered with its unit, and that unit's mark
+    # (`asking.AGE_UNIT_ANSWERS`, plan P4-D454), as the row description was
+    # told them: a column whose block carries no mark of its own is read in
+    # that unit (lane BT3a's repair 2, LANE BT3 RULINGS 6 (2)).
+    ages_counted_in: "tuple[tuple[str, int], ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -516,25 +523,23 @@ def _recount_agrees(block: "dict[str, object]", totals: "dict[str, int]", tabled
     return readings + totals["pool"] == present
 
 
-# -- THE CELLS AS THE DESCRIPTION READ THEM (batch 4p's fix round) -------
+# -- THE CELLS AS THE DESCRIPTION READ THEM (lane BT3a, plan P4-D467) ------
 #
 # The command describes many columns from cells it has CHANGED: the Safe
 # Harbor age top-code with its placeholders set aside and a small top
 # category pooled, the year top-code, dates in disguise held, a column
 # counted absent; and it reads a comma it inferred as the decimal point.
 # The published counts are those of the changed cells, made by the HIPAA
-# rules. `described_cells` reads a column's cells as the description read
-# them, by the same taxonomy functions in `profile.build_document`'s
-# order, from the marks the published block carries and the document's
-# own settings -- as the validator reads a checked file
-# (`validation._top_coded_table` and its neighbours). The patient layer
-# reads through it every column whose recount agrees, so no class,
-# reading, band or position list it publishes reads a value the
-# description held (Codex's review of batch 4p, item 1: a position list
-# read the cells as the file wrote them and published ages of 91 and 92
-# beside a description top-coded at 90). The row chain's own reader
-# still reads the cells as the file wrote them, its recount the check:
-# lane BT3a moves it onto these cells.
+# rules, and they are right. Read as the file wrote them, the recount of
+# such a column disagreed and turned the whole table's chain off on
+# ordinary count, padded-code and decimal-comma columns (measured at
+# 20,000 rows; P4-D467's cause table). So the chain reads each cell as
+# the description read it, by the same taxonomy functions in
+# `profile.build_document`'s order, from the marks the published block
+# carries and the document's own settings -- as the validator reads a
+# checked file (`validation._top_coded_table` and its neighbours). The
+# recount stays the check: a column that still disagrees turns the chain
+# off as before, and the chain never reads a value the description held.
 
 
 def declarations_read(
@@ -551,8 +556,10 @@ def declarations_read(
     plan P4-D443), which no person declared and the command does not hand
     over -- and `_reading_of` reads a column under exactly these three
     (`stored_as`, the fourth thing it reads, is the reader's, never a
-    declaration). Guarantees: a fixed function of the four; reads no
-    cell. Raises nothing. No I/O.
+    declaration). Read without the inferred comma, a column of `36,9`
+    counted no reading and turned the chain off (lane BT3a, plan P4-D467).
+    Guarantees: a fixed function of the four; reads no cell. Raises
+    nothing. No I/O.
     """
     settings_block = _get(document, "settings")
     found: "list[set[str]]" = []
@@ -593,15 +600,18 @@ def described_cells(
     declared: "dict[str, bool]",
     stored_as: str,
     exact: bool = False,
+    answered: int = 0,
 ) -> "list[str]":
-    """One column's cells as its published block says the description read them (4.6b.2; 4.6c's reading in rows).
+    """One column's cells as its published block says the description read them (lane BT3a, plan P4-D467; 4.6b.2).
 
     In `profile.build_document`'s order, each step by the taxonomy
     function that made the description: (1) DATES IN DISGUISE HELD, where
     the block carries the remark `REMARK_DATED_VALUES_HELD`
     (`date_counts.dated_values_blanked`, ages kept up to 125 years in the
-    unit of the column's mark: its `top_coded`, else its name's, else 90,
-    as the validator reads it); (2) A COLUMN COUNTED ABSENT
+    unit of the column's mark: its `top_coded`, else its name's, else the
+    unit its age question was answered with (``answered``, that unit's
+    mark, as `build_document` was told it; lane BT3a's repair 2), else
+    90); (2) A COLUMN COUNTED ABSENT
     (`present_count_withheld`: every present cell blank); (3) THE AGE
     TOP-CODE, where the block carries `top_coded`: every value from the
     mark written as it (`taxonomy.top_coded_cells`, or
@@ -660,7 +670,7 @@ def described_cells(
     image = spellings
     blanked = False
     if dated:
-        unit_mark = mark if mark else (taxonomy.age_mark_named(name) or taxonomy.TOP_CODE)
+        unit_mark = mark if mark else (taxonomy.age_mark_named(name) or answered or taxonomy.TOP_CODE)
         held = date_counts.dated_values_blanked(
             image, absent, taxonomy.TOP_CODE_REACH_CEILING * unit_mark / taxonomy.TOP_CODE
         )
@@ -698,7 +708,7 @@ def described_cells(
     if year:
         image = taxonomy.year_top_coded_cells(image, comma, absent, year)
     if not exact and (blanked or pooled_here):
-        return described_cells(table, place, block, settings, declared, stored_as, True)
+        return described_cells(table, place, block, settings, declared, stored_as, True, answered)
     if image == spellings:
         return values
     written = dict(zip(spellings, image))
@@ -760,20 +770,43 @@ def read_as_described(
     declared: "dict[str, bool]",
     stored_as: str,
     blank_rows: int,
+    answered: int = 0,
+    kept: "list[tuple[list[str], dict[str, tuple[str, float | None, str]]]] | None" = None,
+    spellings_kept: "taxonomy.KeptSpellings | None" = None,
 ) -> "tuple[_Read | None, list[str]]":
     """A column read to its starting bands on its cells as its description read them (`described_cells`), and those cells.
 
     A recount that disagrees on the cells read with the plain absent
     spellings is read once more with the column's own (``exact``).
+    ``answered`` is the mark of the unit the column's age question was
+    answered with, 0 where none was (`ChainSwitch.ages_counted_in`).
+
+    ``kept`` and ``spellings_kept`` are `read_column`'s (lanes RO and
+    CHs), taken or skipped AFTER the transforms (batch 4r's merge of
+    lane BT3a, LANE BT3 RULINGS 1 (3)): where `described_cells` hands
+    back the very list `reading.column_values` gives (its guarantee: no
+    step changed a cell), the column is read as the file wrote it, by
+    `read_column`'s own path, so the description's own reading kept for
+    the chain is taken whole, as before the merge; a column whose cells
+    the description changed is read on its described cells and never
+    with it (`read_column` refuses it beside cells). The file's list is
+    asked for only where a kept reading is handed, which the table
+    layer alone does, on a table naming no person: its column is held,
+    so no asking after the first reads the file. ``kept`` holds the reading of
+    the cells returned alone: a second reading replaces the first.
     """
-    cells = described_cells(table, place, block, settings, declared, stored_as)
-    found = read_column(table, place, block, settings, declared, stored_as, blank_rows, cells)
+    written = reading.column_values(table, place) if spellings_kept is not None else None
+    cells = described_cells(table, place, block, settings, declared, stored_as, False, answered)
+    whole = written is not None and cells is written
+    found = read_column(table, place, block, settings, declared, stored_as, blank_rows, None if whole else cells, kept, spellings_kept)
     if found is not None and found.agrees:
         return found, cells
-    again = described_cells(table, place, block, settings, declared, stored_as, True)
+    again = described_cells(table, place, block, settings, declared, stored_as, True, answered)
     if again == cells:
         return found, cells
-    return read_column(table, place, block, settings, declared, stored_as, blank_rows, again), again
+    if kept is not None:
+        del kept[:]
+    return read_column(table, place, block, settings, declared, stored_as, blank_rows, again, kept), again
 
 
 @dataclasses.dataclass(frozen=True)
@@ -809,8 +842,8 @@ def read_column(
     """One column read to its starting bands, row by row, through `reading.column_values`.
 
     ``cells``, where given, are the column's cells as its description
-    read them (`described_cells`), read in place of the cells as the file
-    wrote them.
+    read them (`described_cells`, lane BT3a, plan P4-D467), read in place
+    of the cells as the file wrote them.
 
     `kept`, where a caller passes it, receives the column's cells and its
     own reader's decision on each spelling, so the rule steps read the
@@ -3052,9 +3085,14 @@ def describe(
     counts["sample_rows"] = len(sample)
     _probed("sample", counts)
     sequences = _sequence_places(document)
-    declared_codes = set(forced_codes or [])
-    declared_measurements = set(forced_measurements or [])
-    declared_commas = set(forced_decimal_commas or [])
+    # Each column read under the declarations its description read it
+    # under, the comma it inferred among them (lane BT3a, plan P4-D467).
+    declared_codes, declared_measurements, declared_commas = declarations_read(
+        document, forced_codes, forced_measurements, forced_decimal_commas
+    )
+    # ...and each age column in the unit its question was answered with
+    # (lane BT3a's repair 2, LANE BT3 RULINGS 6 (2)).
+    answered_units = dict(switch.ages_counted_in)
     storage = stored_as or ()
     eligible: "list[str]" = []
     ineligible: "list[dict[str, object]]" = []
@@ -3100,7 +3138,12 @@ def describe(
         if kept is not None and place in kept:
             handed = kept[place]
             del kept[place]
-        read = read_column(
+        # THE CELLS AS THE DESCRIPTION READ THEM (lane BT3a, plan P4-D467),
+        # beside lanes RO's and CHs's readings (batch 4r's merge, LANE BT3
+        # RULINGS 1 (3)): the rule steps receive the cells read, after the
+        # transforms; the description's kept reading is taken only where
+        # the column is read as the file wrote it (`read_as_described`).
+        read, _cells = read_as_described(
             table,
             place,
             block,
@@ -3108,6 +3151,7 @@ def describe(
             declared,
             storage[place] if place < len(storage) else "",
             blank_rows,
+            answered_units[name] if name in answered_units else 0,
             kept=cells_kept,
             spellings_kept=handed,
         )
@@ -3117,7 +3161,7 @@ def describe(
             # CHs no longer holds (batch 4q's merge; the same readings).
             chain_order.gather(gathered, name, block, _tabled_texts(cells_kept[0][0], excluded), cells_kept[0][1], declared, range(tabled))
         cells_kept = None
-        del handed
+        del handed, _cells
         _probed("read column", counts)
         if read is None or not read.agrees:
             notes += [f"the recount of column {name} disagreed with its published counts"]

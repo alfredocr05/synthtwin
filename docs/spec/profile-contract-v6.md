@@ -4013,6 +4013,45 @@ contradictory, cells without the affixes) and `labels` (on
   and level" reads this cut at `L2` on such a column and no other.
   `tests/test_chain_table_layer.py` pins it, the oracle mirrors it
   (`chain_oracle._one_band`) and `K-S6-08` reads it by exact enumeration.
+- **Amended 2026-11-06 (lane BT3a, plan P4-D467): each cell as the
+  description read it.** A column's starting bands are read on its cells
+  as its published block and the description's settings say the
+  description read them, by the same steps in the same order: the dates
+  in disguise its remark says are held, blank; a column counted absent
+  (`present_count_withheld`), blank; where `top_coded` stands, every
+  value the top-code writes as the mark written as it (a value past 125
+  written as no age it keeps, lane SH2's rule), the placeholders past
+  125 blank, and
+  a top category that fewer than `top_category_pooled` rows (or people
+  of each column of `top_category_people`) hold written as the value
+  below it (a block recording no pooling rule read as before lane SH3's
+  repair); where `top_coded_year` stands, every year up to it written as
+  it; and every column the settings name in `forced_codes`,
+  `forced_measurements` or `forced_decimal_commas` -- a comma the
+  description inferred among them -- read so. A column whose block
+  carries none of these is read as its file wrote it. The patient
+  layer (4.6c) reads its rows so, and its patient table as that
+  table's own description read it, under the declarations that
+  description published (amended 2026-11-07, lane BT3a's repair 1: the
+  patient table's cells are the rows' described cells, each patient's
+  at its first position, so its own description, told of no hold,
+  reads no value the rows' description top-coded, set aside or held;
+  batch 4p's fix round builds it so, `fixed_cells`). So no band,
+  group, reading or moment of the chain's families, and none of the
+  patient layer's, is read on a value a description top-coded, set
+  aside or held, and the totals above are the counts those rules made;
+  since batch 4r's merge one reading behind the chain's switch is
+  outside this: the rule steps (4.6b.7) read a candidate `B` that is
+  ineligible but not refused there (free text, empty, unrepresentable
+  or a sequence) on the cells as the file wrote them, so such a
+  column's held dates in disguise or cells counted absent reach those
+  steps as written (a stated limit, not measured; owner lane CHON).
+  (Amended 2026-11-08, lane BT3a's repair 2, plan P4-D467: a column
+  whose block carries no `top_coded` reads its dates in disguise in
+  the unit its age question was answered in, as the description was
+  told it; and the patient table is described and read under the
+  decimal commas the rows' description settled, an inferred one
+  among them.)
 
 **These four facts are what the generator's band-totals interface (lane
 BTp's `cells_by_band`, plan P4-D404) assumes, stated here as obligations
@@ -4616,6 +4655,16 @@ nor a table of one row a person from a long table with no person column
 P4-D451: a table of several rows a person never chains in rows through
 this amendment. The release under the subject question's answer that
 each row is another person is lane GRa's (plan P4-D449).
+
+**Amended 2026-11-06 (lane BT3a, plan P4-D467): what (b)'s recount
+reads.** The recount reads each cell as 4.6b.2's amendment of this date
+says the description read it (the Safe Harbor readings, the inferred
+comma, the dates held, the columns counted absent); a column that still
+disagrees turns the chain off as before, its private note naming it.
+Read as the file wrote them, the age top-code on a declared code, a
+placeholder set aside, an inferred comma and dates held turned whole
+tables' chains off: 30 columns on 15 of 85 invented tables at 20,000
+rows (P4-D467's cause table).
 
 **The tabled rows.** Every table of this section counts the TABLED ROWS:
 every row of the table except the records holding nothing that a
@@ -8116,7 +8165,12 @@ cap lemma of 4.6c.4.
   class witness of 4.6c.5 (e) the draw does not take); or ineligible for
   4.6b.1's other reasons. The class is published in `grain.classes`.
 - **The patient table.** One row per patient. Its columns are the
-  patient-fixed columns (each patient's value at its first position),
+  patient-fixed columns (each patient's value at its first position;
+  amended 2026-11-07, lane BT3a's repair 1, plan P4-D467: that value as
+  the rows' description read it, 4.6b.2's amendment of 2026-11-06, so a
+  year the rows top-coded is the cut, an age the mark, and a value they
+  set aside or held is blank; the person column's keys as the file
+  wrote them),
   the patient's row count `r` (a column the profiler makes, never read
   from the file), and the DERIVED patient-level columns of 4.6c.2 (a
   first-date band, an own-mean band). Because the patient table has one
@@ -8854,7 +8908,15 @@ of `r` again: a free-text column holding each patient's name on every
 row has the map of `r` exactly, and a column holding it on most rows
 has a map close to it. So while the layer is ON:
 - a PATIENT-FIXED column (4.6c.5) publishes its block over the patient
-  table, its map counting PATIENTS a value covers;
+  table, its map counting PATIENTS a value covers (amended 2026-11-07,
+  lane BT3a's repair 1, plan P4-D467: the block keeps the rows' remark
+  that the column's dates in disguise are held, which the patient
+  table's own description, finding them blank, does not write; and,
+  amended 2026-11-08 by its repair 2, each of the rows' Safe Harbor
+  marks its own block lacks, `top_coded`, `top_category_pooled`,
+  `top_category_people` and `top_coded_year`, its cells already
+  top-coded, pooled or cut, so the column's Safe Harbor question and
+  its summary's sentence stand as with the switch off);
 - every other column's `n_distinct_by_occurrences` is `null` unless its
   every present value covers one row (the map `{1: n_present}`, which
   `n_distinct` and `n_present` already state); the twin writes such a

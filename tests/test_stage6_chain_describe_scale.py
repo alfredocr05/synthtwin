@@ -332,17 +332,34 @@ def test_the_chain_reads_no_column_again_where_the_description_kept_its_reading(
     wherever it was read under the chain's own arguments: on the paths
     table not one column is read again once the description is done (red
     if the chain re-reads), and the bytes are the base's (the first case).
+
+    BUT THE ONE WHOSE CELLS THE DESCRIPTION CHANGED (batch 4r's merge of
+    lane BT3a, plan P4-D467, LANE BT3 RULINGS 1 (3): the kept reading is
+    taken or skipped after the transforms): `level_b`, which the
+    description top-codes at 90 (it may hold ages; its values past 89 are
+    read as 90), is read by the chain on its cells as the description read
+    them, and the reading the description kept for the chain is of the
+    file's spellings, not of those cells, so the chain reads that one
+    column again, and only it.
     """
     from synthtwin import taxonomy
 
     header, rows = _paths_rows(ROWS, 7)
     table = _write(tmp_path / "paths.csv", header, rows, 11)
     phase = {"chain": False, "reads": 0}
+    read_again: "list[str]" = []
+    reading_now = {"name": ""}
     read_the_column = taxonomy._read_the_column
+    spellings_read = taxonomy.spellings_read
+
+    def naming(values, name, *arguments, **keywords):  # type: ignore[no-untyped-def]
+        reading_now["name"] = name
+        return spellings_read(values, name, *arguments, **keywords)
 
     def counting(*arguments, **keywords):  # type: ignore[no-untyped-def]
         if phase["chain"]:
             phase["reads"] += 1
+            read_again.append(reading_now["name"])
         return read_the_column(*arguments, **keywords)
 
     def probe(stage: str, counts: "dict[str, int]") -> None:
@@ -350,11 +367,12 @@ def test_the_chain_reads_no_column_again_where_the_description_kept_its_reading(
             phase["chain"] = True
 
     monkeypatch.setattr(taxonomy, "_read_the_column", counting)
+    monkeypatch.setattr(taxonomy, "spellings_read", naming)
     monkeypatch.setattr(chain, "_probed", probe)
     found = _switched(tmp_path, table, monkeypatch)
     capsys.readouterr()
     assert found == FROZEN["paths"]
-    assert phase["chain"] and phase["reads"] == 0
+    assert phase["chain"] and phase["reads"] == 1 and read_again == ["level_b"], read_again
 
 
 def test_a_kept_reading_is_taken_only_under_the_chain_s_own_arguments():

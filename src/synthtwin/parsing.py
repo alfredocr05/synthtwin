@@ -642,23 +642,31 @@ def subject_key(cell: str) -> str:
     return merged_key(cell)
 
 
+# THE VOCABULARY FOLDED ONCE (lane PRT-a, plan P4-D468): each member of
+# `MISSING_TEXTS` trimmed and case-folded, made when this module loads and
+# never changed. `is_missing_text` folded all seventeen again for every
+# cell it was asked about, which was 80 to 88 per cent of the describe's
+# 125 to 159 calls a cell to `folded` (lane PRT-0, at 200,000 rows). A
+# text equal to some member's folded form is exactly a text this set
+# holds, so the answer is the loop's own. `NaT`, the one member matched
+# byte for byte, is not in it (`MISSING_TEXTS_EXACT`).
+_FOLDED_MISSING_TEXTS = frozenset(folded(member) for member in MISSING_TEXTS)
+
+
 def is_missing_text(text: str) -> bool:
     """True when ``text`` is one of the documented spellings of "no value".
 
     Guarantees: accepts text; returns a truth value; raises TypeError
     if handed anything that is not a string instance. The comparison is
-    against MISSING_TEXTS after trimming and case folding, and against
+    against MISSING_TEXTS after trimming and case folding (their folded
+    forms made once, `_FOLDED_MISSING_TEXTS`), and against
     MISSING_TEXTS_EXACT byte for byte. No I/O.
     """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
     if text in MISSING_TEXTS_EXACT:
         return True
-    body = folded(text)
-    for member in MISSING_TEXTS:
-        if body == folded(member):
-            return True
-    return False
+    return folded(text) in _FOLDED_MISSING_TEXTS
 
 
 def missing_text_matches(spelling: str, member: str) -> bool:
