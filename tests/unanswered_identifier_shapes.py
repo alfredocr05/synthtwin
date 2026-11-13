@@ -35,7 +35,10 @@ person column, and a patient's name, a street address or a full birth
 date beside a patient key whose person question is open -- held by the
 count in people. `STATED`: a name, a street address and a full birth date
 on a long table with no subject column, which no question flags and no
-count in people reaches (plan P4-D406 item (a)).
+count in people reaches (plan P4-D406 item (a)). `PUBLISHING_NOTHING`
+(lane LM1, plan P4-D475): codes written like numbers in exponent form,
+read as magnitudes, which publish counts alone: nothing real published
+or written, no question needed.
 
 WHAT IS COUNTED (`count_real`, a pure function the gate also tests on
 cases made for it). In the description, its summary, the questions file and
@@ -132,6 +135,12 @@ def _patient_more(kind: str, place: int, draw: random.Random) -> str:
         return f"user{place}.x{draw.randint(1, 99)}@mailhost.org"
     if kind == "record2":
         return f"ACC{30000000 + 11 * place:08d}"
+    if kind == "expcode":
+        # A CODE WRITTEN LIKE A NUMBER IN EXPONENT FORM (skeptic 1 of lane
+        # LM1, item 1; LANE LM1 RULINGS 2 (1) and 5 (2)): one figure, `E`,
+        # four figures, read as a number past a double's range, nine codes
+        # an exponent (`PUBLISHING_NOTHING`).
+        return f"{1 + place % 9}E{309 + place // 9:04d}"
     return f"XKH{draw.randint(100000000, 999999999)}"
 
 
@@ -186,7 +195,7 @@ def _patient(kind: str, place: int, draw: random.Random) -> str:
 MORE = ("randkey", "mixw", "zerokey", "nines", "key_m99", "key_m1_40",
         "key_word", "key_point0", "varkey", "dotted9", "phone_ext",
         "ssn_space", "ip", "url", "card16", "email_angle", "email_one_bad",
-        "record2", "plan2")
+        "record2", "plan2", "expcode")
 
 HELD = ("record", "plan", "email", "email_upper", "account", "phone",
         "phone_space", "phone_plus", "phone_dot", "phone_paren", "phone10",
@@ -196,6 +205,17 @@ HELD = ("record", "plan", "email", "email_upper", "account", "phone",
         "randkey", "mixw", "zerokey", "nines", "key_m99", "key_m1_40",
         "key_word", "key_point0", "varkey", "dotted9", "phone_ext",
         "ssn_space", "ip", "url", "card16", "email_angle", "email_one_bad")
+# READ AS A ROLE THAT PUBLISHES NOTHING (lane LM1, plan P4-D475; LANE LM1
+# RULINGS 5 (2)): codes written like numbers in exponent form, `4E0815`,
+# past a double's range, so read as magnitudes, whose block publishes
+# counts alone and whose twin writes made-up figure strings. No question
+# holds them and none needs to: nothing real is published or written.
+# The exponent census the lane built and withdrew published the four
+# figures after the `E` of every code, and its twin wrote 19,990 of
+# 20,000 cells as real codes (skeptic 1 of lane LM1, item 1, at 20,000
+# rows); this shape is the regression case that keeps such a key out of
+# the class of roles that publish nothing, counted as `HELD` is.
+PUBLISHING_NOTHING = ("expcode",)
 BESIDE = ("email_beside", "beneficiary_beside", "phone_beside")
 # COUNTED IN PEOPLE (lane HX2, plan P4-D406): values no question flags,
 # on a long table with a subject column -- a health plan or account

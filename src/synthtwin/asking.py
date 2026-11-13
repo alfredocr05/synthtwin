@@ -123,6 +123,17 @@ ANSWER_DECIMAL_COMMA = "decimal_comma"
 # to ask for what we need").
 ANSWER_TWELVE_HOUR = "twelve-hour"
 BECAUSE_TWELVE_HOUR = "hours-from-one-to-twelve-and-no-am-or-pm"
+# ...and Q-CLOCK (lane TR, plan P4-D473; the zoo-fix reading page's ZR.2):
+# the column holds clock times written as figures, `0742` or
+# `074512.123456`, which is rule 5c's reading (`taxonomy._figure_clock_reading`).
+# Offered only where rule 5c's two conditions hold -- every present cell one
+# shape of figures, every value on the clock's grid -- and never inferred:
+# on whole figures it is one more answer of the padded or fixed-width
+# question, whose hold stands until answered; with a fraction, where no
+# identity question is put, it is one more answer of the checklist's entry
+# for a measurement, which holds nothing. Its kept answers are a family of
+# their own (`_FAMILY_FIGURES`).
+ANSWER_CLOCK_FIGURES = "clock-figures"
 # ...and the tenth (landing 3b.5, plan P4-D373): a column of clock times
 # holding few enough different values for a set of labels -- the shift
 # starts `07:00`, `15:00` and `23:00` -- is read as clock times since that
@@ -783,6 +794,14 @@ def _publishes_under(answer: str, role: str, floor: int) -> str:
             f"is the hour after midnight, and the twin writes hours 1 to 12 "
             f"only, as your table does"
         )
+    if answer == ANSWER_CLOCK_FIGURES:
+        # -- lane TR (P4-D473): rule 5c's reading, as a clock column's.
+        return (
+            f"{_clock_publishes(floor, taxonomy.ROLE_CLOCK)}, each time read "
+            f"from its figures -- two of hour, two of minute, and two of "
+            f"second where written -- and the twin writes its times in the "
+            f"same figures, a fraction of a second written as noughts"
+        )
     # ANSWER_KEEP: whatever the column already is.
     if role == taxonomy.ROLE_CLOCK or role == taxonomy.ROLE_DATETIME:
         return f"what it publishes now: {_clock_publishes(floor, role)}"
@@ -797,6 +816,16 @@ def _publishes_under(answer: str, role: str, floor: int) -> str:
     return (
         "what it publishes now: every value as written, with the number "
         "of rows that carried it"
+    )
+
+
+def _clock_figures_choice(role: str, floor: int) -> Choice:
+    """Q-CLOCK's answer `clock-figures` (lane TR, plan P4-D473; ZR.2)."""
+    return Choice(
+        ANSWER_CLOCK_FIGURES,
+        "clock times written as figures alone -- `0742` is 07:42, and "
+        "`074512` is 07:45:12",
+        _publishes_under(ANSWER_CLOCK_FIGURES, role, floor),
     )
 
 
@@ -1769,6 +1798,17 @@ def questions_and_splits_for(
                     ANSWER_MEASUREMENT, role, settings.small_cell_floor
                 )
                 taken = ANSWER_MEASUREMENT
+                # -- lane TR (P4-D473): Q-CLOCK is this question with one
+                # more answer, where rule 5c's conditions hold; its hold
+                # stands until it is answered (ZR.2).
+                if (
+                    reason in (BECAUSE_PADDED, BECAUSE_FIXED_WIDTH)
+                    and role != taxonomy.ROLE_DATETIME
+                    and taxonomy.clock_figures_fit(present)
+                ):
+                    choices += [
+                        _clock_figures_choice(role, settings.small_cell_floor)
+                    ]
             # A column of padded ages is counted in words as the top-code
             # reads it (plan P4-D427, its second repair): `103` written
             # `090` too, so the sentence names no count the top-coded
@@ -2409,10 +2449,16 @@ def _an_arc_naming_an_item(uid: str) -> bool:
 #   one to twelve letters, an opening of letters, one to four figures and
 #   a mark (`S24-`, `AB12_`), or with a mark (`-`, `_` or `.`) and one or
 #   two letters after them (`300001-A`, `300001.A`;
-#   `_a_whole_number_after_letters`), or, where the column is read as an
+#   `_a_whole_number_after_letters`) -- the label after a sign, joined by
+#   a mark or a space, or closed by one check letter (`#MR1000013`,
+#   `MR.1000013`, `MR 1000013`, `MR1000013A`), and figures after a number
+#   sign alone (`#1000013`; lane CZ-A2, plan P4-D469) --, or, where the column is read as an
 #   affixed number, between the prefix and the suffix that reading takes
 #   where the suffix holds a figure (`P200000Q4444`;
-#   `_a_whole_number_between_affixes`, lane ID-ROOM2, plan P4-D457) --
+#   `_a_whole_number_between_affixes`, lane ID-ROOM2, plan P4-D457), or
+#   five figures or more beside words, whatever follows them
+#   (`Tarn,Ul,,1000013`, `MR #1000013`, `1000013^TARN^UL^^^`;
+#   `_a_whole_number_beside_words`, lane CZ-A2's repair 1) --
 #   and at most one present cell in a
 #   hundred that is none of these (`_STRAY_SHARE`; lane HX4's addendum: one
 #   ordinary token must not defeat a hold, so `99708.5` or `RPT300008A`
@@ -2458,6 +2504,38 @@ _OPENING_LETTERS_AT_MOST = 12
 _OPENING_FIGURES_AT_MOST = 4
 _OPENING_MARKS = "-_#"
 _CLOSING_MARKS = "-_."
+# A RECORD NUMBER'S LABEL WRITTEN WITH A SIGN, A MARK OR A CHECK LETTER
+# (lane CZ-A2, plan P4-D469; batch 4q's fix round 2, section C): `#MR` and
+# a number from 1,000,000 up, one a row, 1,000 people of 20 rows, was read
+# as an affixed number no arm read, and its twin wrote 19,999 of 20,000
+# real cells, while `MR1000013` and `MR-1000013` were held. So the opening
+# may begin with one of `_LABEL_SIGNS` and a space or none before its
+# letters (`#MR1000013`, `* MR1000013`, `@mr1000013`), the letters may be
+# joined to the figures by one of `_LABEL_JOINS`, a space after it or none
+# (`MR.1000013`, `MR: 1000013`, `MR/1000013`, `MR 1000013`), a number sign
+# alone may stand before the figures (`#1000013`), and after an opening
+# holding a letter one letter may close the figures with no mark, a check
+# letter (`MR1000013A`). A currency sign or a percent sign is none of
+# these, and a unit glued after figures with no letters before them
+# (`12345mg`) stays unread.
+#
+# ...AND THE CLASS CLOSED, NOT ITS SPELLINGS (lane CZ-A2's repair 1, its
+# skeptic's items 1 and 2): `MR #1000013`, `MR - 1000013` and
+# `(MR1000013)`, one a row, still wrote 19,999 of 20,000 real cells, and
+# one a person 20,000 with 1,000 values shown, as on the public head. So
+# spaces may stand on both sides of the joining mark, or several alone
+# (`MR #1000013`, `MR - 1000013`, `MR  1000013`), a tab as a space; an
+# equals sign or a comma joins too (`MR=1000013`); one enclosing pair of
+# `_ENCLOSING` may hold the whole cell (`(MR1000013)`, `[#MR1000013]`), its
+# halves read into the opening and the closing; and the numero sign
+# (U+2116) stands alone before figures as the number sign does. The
+# figures alone in a pair (`(12345)`, a negative amount as an account
+# writes it) are not read: the pair holds a label or nothing is read.
+_LABEL_SIGNS = "#*!@~^&=\u2116"
+_LABEL_JOINS = "-_#.:/=,"
+_LABEL_SPACES = " \t"
+_NUMBER_SIGN_ALONE = "#\u2116"
+_ENCLOSING = {"(": ")", "[": "]", "{": "}"}
 _SIGNS = "+-"
 # The openings that are no prefix: none, and a minus sign alone.
 _NO_PREFIX = ("", "-")
@@ -2490,16 +2568,103 @@ def _a_whole_number_after_letters(value: str) -> "tuple[str, str, str] | None":
     figures (`RPT300001`, `SPECIMEN300001`, `ACC-123456`); letters, one to
     four figures and one of those marks, then figures (`S24-10001`,
     `AB12_300001`); either of those, or figures alone, followed by `-`,
-    `_` or `.` and one or two letters (`300001-A`, `300001.A`). Nothing
-    else: a unit glued to the figures (`12345mg`) has no mark and is not
-    one. The opening
+    `_` or `.` and one or two letters (`300001-A`, `300001.A`). And (lane
+    CZ-A2, plan P4-D469) the letters after one of `_LABEL_SIGNS` and a
+    space or none (`#MR1000013`, `* MR1000013`), joined to the figures by
+    one of `_LABEL_JOINS` and a space or none, or by a space alone
+    (`MR.1000013`, `MR: 1000013`, `MR 1000013`); the figures after a number
+    sign alone (`#1000013`); and after an opening holding a letter, one
+    letter closing the figures with no mark (`MR1000013A`). And (lane
+    CZ-A2's repair 1) spaces or tabs on both sides of the joining mark, or
+    several alone (`MR #1000013`, `MR - 1000013`), an equals sign or a
+    comma joining (`MR=1000013`), any spaces after the sign, the numero
+    sign (U+2116) alone before figures, and one enclosing pair of
+    brackets around all of it (`(MR1000013)`: the opening `(MR`, the
+    closing `)`). Nothing else: a unit glued to the figures (`12345mg`)
+    has no mark and is not one, nor is a currency sign before them, nor
+    figures alone in brackets (`(12345)`). The opening
     and closing are returned in upper case, so `rpt1` and `RPT1` share one;
     None where the cell is not of this form, or carries no letter at all.
     A fixed function of the text. Raises TypeError for a non-string. No I/O.
     """
     if not isinstance(value, str):
         raise TypeError("a cell to ask about must be text")
+    # ...read with the product's spaces and dashes (lane CZ-A2's repair 2,
+    # LANE CZ-A2 RULINGS 7 (2): `MR-1000013` written with a minus sign,
+    # U+2212, was read by no reader and published), each reading of the
+    # cell in turn, the first that reads taken (`taxonomy.plain_readings`:
+    # the soft hyphen read as a dash and set aside; batch 4s's merge).
+    for plain in taxonomy.plain_readings(value):
+        found = _a_plain_number_after_letters(plain)
+        if found is not None:
+            return found
+    return None
+
+
+def _a_plain_number_after_letters(value: str) -> "tuple[str, str, str] | None":
+    """`_a_whole_number_after_letters` on one reading of a cell read plain (`taxonomy.plain_readings`; batch 4s's merge)."""
+    if not isinstance(value, str):
+        raise TypeError("a cell to ask about must be text")
+    if len(value) > 2 and value[0] in _ENCLOSING and value[-1] == _ENCLOSING[value[0]]:
+        # ...one enclosing pair set aside, its halves read into the opening
+        # and the closing (lane CZ-A2's repair 1: `(MR1000013)`), and read
+        # ONCE (its repair 2, Codex's item 4: a pair inside it is read as
+        # no label, so a cell of a thousand nested pairs costs one reading,
+        # not one call a pair).
+        inner = _a_labelled_number(value[1:-1])
+        if inner is None or not inner[0]:
+            return None
+        return value[0] + inner[0], inner[1], inner[2] + value[-1]
+    return _a_labelled_number(value)
+
+
+def _a_labelled_number(value: str) -> "tuple[str, str, str] | None":
+    """`_a_whole_number_after_letters` on a text read plain, with no enclosing pair read (lane CZ-A2's repair 2)."""
+    if not isinstance(value, str):
+        raise TypeError("a cell to ask about must be text")
+    sign = ""
+    if value[:1] in _LABEL_SIGNS:
+        after = 1
+        while after < len(value) and value[after] in _LABEL_SPACES:
+            after = after + 1
+        sign = value[:after]
+        rest = value[after:]
+        if sign[:1] in _NUMBER_SIGN_ALONE:
+            # ...a number sign alone before the figures (`#1000013`); and
+            # (lane CZ-A2's repair 2, LANE CZ-A2 RULINGS 5 (3) and 7 (2)) a
+            # dash between them, any of the product's read plain, is a mark,
+            # as `MR -1000013`'s is, never a minus sign (`#-1000013`: read
+            # as a negative number it was published, 1,000 values and 20,000
+            # real twin cells one a person, 19,999 real twin cells one a
+            # row, at 20,000 rows), and the spaces and dashes after the
+            # figures are set aside (`#1000013 `, read by no reader).
+            marked = 0
+            if rest[:1] == "-":
+                marked = 1
+                while marked < len(rest) and rest[marked] in _LABEL_SPACES:
+                    marked = marked + 1
+            last = len(rest)
+            while last > marked and (rest[last - 1] in _LABEL_SPACES or rest[last - 1] == "-"):
+                last = last - 1
+            if _is_plain_whole_number(rest[marked:last]):
+                return value[: len(sign) + marked], rest[marked:last], ""
+            if marked:
+                return None
+        if not rest or not _ascii_letter(rest[0]):
+            return None
+        # ...the rest opens with a letter, which is no sign: one call more
+        # at most, whatever the cell.
+        found = _a_labelled_number(rest)
+        if found is None or not found[0]:
+            return None
+        opening, figures, closing = found
+        return value[: len(sign) + len(opening)].upper(), figures, closing
     end = len(value)
+    # ...the spaces and dashes after the figures set aside (lane CZ-A2's
+    # repair 2, LANE CZ-A2 RULINGS 5 (3): `MR.1000013 ` was read by no
+    # reader).
+    while end > 0 and (value[end - 1] in _LABEL_SPACES or value[end - 1] == "-"):
+        end = end - 1
     closing = ""
     # The closing: a mark and one or two letters after the figures.
     back = end
@@ -2527,8 +2692,28 @@ def _a_whole_number_after_letters(value: str) -> "tuple[str, str, str] | None":
             figured = figured + 1
         if figured > place and figured < end and value[figured] in _OPENING_MARKS:
             place = figured + 1
-        elif place < end and value[place] in _OPENING_MARKS:
-            place = place + 1
+        else:
+            # ...a mark joining the label to its figures, spaces beside it
+            # or none, or spaces alone (lane CZ-A2: `MR.1000013`,
+            # `MR: 1000013`, `MR 1000013`; its repair 1: `MR #1000013`,
+            # `MR - 1000013`, `MR  1000013`).
+            joined = place
+            while joined < end and value[joined] in _LABEL_SPACES:
+                joined = joined + 1
+            if joined < end and value[joined] in _LABEL_JOINS:
+                joined = joined + 1
+                while joined < end and value[joined] in _LABEL_SPACES:
+                    joined = joined + 1
+            place = joined
+        if (
+            not closing
+            and end - place >= 2
+            and _ascii_letter(value[end - 1])
+            and "0" <= value[end - 2] <= "9"
+        ):
+            # ...and one check letter closing the figures (`MR1000013A`).
+            closing = value[end - 1].upper()
+            end = end - 1
     if place == 0 and not closing:
         return None
     figures = value[place:end]
@@ -2557,15 +2742,78 @@ def _a_whole_number_between_affixes(value: str, comma: bool = False) -> "tuple[s
     """
     if not isinstance(value, str):
         raise TypeError("a cell to ask about must be text")
-    try:
-        split = taxonomy.affixed_split(value, comma)
-    except errors.ProfileError:
-        return None
-    if split is None:
-        return None
-    prefix, core, suffix = split
-    figures = parsing.trimmed(core)
+    for split in _affixed_whole_numbers(value, comma):
+        found = _read_between_affixes(*split)
+        if found is not None:
+            return found
+    return None
+
+
+# A RECORD NUMBER BESIDE WORDS IN AN AFFIXED CELL, WHATEVER FOLLOWS IT (lane
+# CZ-A2's repair 1, its skeptic's items 1 and 2: the class closed at its
+# cause, not by its spellings). The affixed reading publishes each cell's
+# prefix and the statistics of its numbers, and lane HX5's arm read an
+# affix only through a label of letters (`_a_whole_number_after_letters`)
+# or a suffix holding a figure (`_a_whole_number_between_affixes`). So a
+# family name, a given name and a record number joined by marks no reader
+# names -- an empty part (`Tarn,Ul,,1000013`), a trailing flag
+# (`Tarn,Ul,1000013,F`), an underscore, small letters, five figures --
+# and a label after marks (`MR #1000013`, `(MR1000013)`), one a row at
+# 1,000 people of 20 rows, each published 3,000 values or 126 and wrote
+# 18,000 or 19,999 real twin cells, as on the public head. The affixed
+# split (`taxonomy.affixed_split`: the longest number in the cell, the text
+# either side of it) is now read as the opening, the figures and the
+# closing where the figures are a plain whole number written five wide or
+# more and the text BEFORE them holds a letter, whatever follows; or where
+# nothing but a sign stands before them and the text after them opens with
+# a mark that parts fields (`_FIELD_MARKS`) and holds a name of two parts or
+# more (the number first, `1000013^TARN^UL^^^`) or a flag of one or two
+# letters (`1000013,F`): a single word after the number (`185380;pending`,
+# a status beside a record number in a list, which lane HX4's list
+# question reads) is neither. A unit or a currency written after a number
+# (`12345mg`, `12345 EUR`) opens with no such mark, and stays unread as
+# before.
+_FIELD_MARKS = ",;|^\t_"
+
+
+def _affixed_whole_numbers(value: str, comma: bool) -> "list[tuple[str, str, str]]":
+    """The affixed reading's split of each reading of a cell whose number is a plain whole number: the prefix, the figures, the suffix.
+
+    `taxonomy.affixed_split`'s prefix and suffix as written and its core
+    trimmed, a plain whole number or one after a sign; none for a reading
+    with no such split, whose core is neither, or whose search would read
+    too much of it. The cell is read with the product's spaces and dashes
+    (`taxonomy.with_plain_marks`; lane CZ-A2's repair 2), so a minus sign
+    (U+2212) before the figures is the `-` the readers take as a label's
+    mark; and (batch 4s's merge) each reading of the cell
+    (`taxonomy.plain_readings`: the soft hyphen read as a dash and set
+    aside) gives its own split, in that order, each reader taking the first
+    split it reads. A fixed function of the two. Raises nothing for text.
+    No I/O.
+    """
+    found: "list[tuple[str, str, str]]" = []
+    for plain in taxonomy.plain_readings(value):
+        try:
+            split = taxonomy.affixed_split(plain, comma)
+        except errors.ProfileError:
+            continue
+        if split is None:
+            continue
+        prefix, core, suffix = split
+        figures = parsing.trimmed(core)
+        if not _is_plain_whole_number(figures) and not (
+            figures[:1] in _SIGNS and figures[:1] != "" and _is_plain_whole_number(figures[1:])
+        ):
+            continue
+        found += [(prefix, figures, suffix)]
+    return found
+
+
+def _read_between_affixes(prefix: str, figures: str, suffix: str) -> "tuple[str, str, str] | None":
+    """`_a_whole_number_between_affixes` on a split already read: where the suffix holds a figure."""
     if not _is_plain_whole_number(figures):
+        # ...a signed core is no number between affixes (lane ID-ROOM2's
+        # reading, as it stood).
         return None
     for character in suffix:
         if "0" <= character <= "9":
@@ -2573,19 +2821,313 @@ def _a_whole_number_between_affixes(value: str, comma: bool = False) -> "tuple[s
     return None
 
 
-def _key_reading(value: str, comma: bool, affixed: bool = False) -> "tuple[tuple[str, str, str], bool] | None":
+def _holds_a_letter(text: str) -> bool:
+    """Whether text holds a letter of any script (`_a_letter_of_any_script`).
+
+    Raises TypeError for a value that is not text (the offline audit
+    reads the methods called on it as text's). No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a cell to ask about must be text")
+    for character in text:
+        if _a_letter_of_any_script(character):
+            return True
+    return False
+
+
+# A LETTER OF ANY SCRIPT, READ WITHOUT A TABLE OF LETTERS (lane CZ-A2's
+# repair 2: the offline audit admits no `str.isalpha`, which repair 1's
+# reader called): a character with a capital and a small form (Latin,
+# Greek, Cyrillic, Armenian ...), or one of the letters of the scripts
+# that write no capital, read by their ranges, so a label written in them
+# beside a record number is read as repair 1 read it (two Han characters,
+# an Arabic, a Hebrew or a Devanagari word before seven figures, one a row
+# and one a person: held there, and by no reader with the case alone). A
+# currency sign, a degree sign or a unit's sign is no letter (the euro
+# sign before five figures stays unread, as lane HX5's line has it).
+#
+# ...AND EVERY LETTER OF NO CASE, THE CLASS CLOSED (lane CZ-A2's follow-up,
+# LANE CZ-A2 RULINGS 9 (2)): repair 2's twelve ranges (Hebrew, Arabic, the
+# Indic scripts, Thai, Hangul, the kana and the Han ideographs) left out a
+# label in Ethiopic before seven figures, one a person at 1,000 people of
+# 20 rows: 1,000 values shown and 20,000 real twin cells at 20,000 rows;
+# one a row 126 runs shown and 19,999 real twin cells; Khmer, Lao, Tibetan,
+# Myanmar, Mongolian and the Canadian syllabics alike at the unit level,
+# and 87,240 of the 127,667 letters of no case of Unicode 14.0 in all. The
+# ranges are now one sorted list, the ranges apart from one another: the
+# seven blocks of that ruling (U+1200 to U+137F, U+1780 to U+17FF, U+0E80
+# to U+0EFF, U+0F00 to U+0FFF, U+1000 to U+109F, U+1800 to U+18AF, U+1400
+# to U+167F) and repair 2's twelve, merged with every run of letters, marks
+# and unassigned code points that holds a letter of no case (the categories
+# Lo and Lm of Unicode 15.1, and the letters of no case Unicode 16.0 and
+# 17.0 add, read from pyarrow's character classes). A run holds no figure,
+# sign, punctuation mark, space, control or format character; the whole
+# blocks hold their scripts' figures and signs (the riel sign, U+17DB,
+# among them). A test reads every letter of no case of the running
+# Python's Unicode from `unicodedata` and holds each inside a range, and
+# the list sorted and apart, which the reading below relies on to stop at
+# the first range above a character.
+_UNCASED_LETTERS = (
+    ("\u00aa", "\u00aa"), ("\u00ba", "\u00ba"), ("\u00f8", "\u02c1"), ("\u02c6", "\u02d1"),
+    ("\u02e0", "\u02e4"), ("\u02ec", "\u02ec"), ("\u02ee", "\u02ee"), ("\u0300", "\u0374"),
+    ("\u0376", "\u037d"), ("\u0483", "\u0559"), ("\u05c7", "\u05f2"), ("\u0620", "\u065f"),
+    ("\u066e", "\u06d3"), ("\u06d5", "\u06dc"), ("\u06df", "\u06e8"), ("\u06ea", "\u06ef"),
+    ("\u06fa", "\u06fc"), ("\u06ff", "\u06ff"), ("\u0710", "\u07bf"), ("\u07ca", "\u07f5"),
+    ("\u07fa", "\u07fd"), ("\u0800", "\u082f"), ("\u083f", "\u085d"), ("\u085f", "\u0887"),
+    ("\u0889", "\u088f"), ("\u0898", "\u08e1"), ("\u08e3", "\u0963"), ("\u0971", "\u0e3e"),
+    ("\u0e40", "\u0e4e"), ("\u0e5c", "\u109f"), ("\u10fc", "\u138f"), ("\u1400", "\u167f"),
+    ("\u1681", "\u169a"), ("\u169d", "\u16ea"), ("\u16f1", "\u1734"), ("\u1737", "\u193f"),
+    ("\u1950", "\u19cf"), ("\u1a00", "\u1a1d"), ("\u1a20", "\u1a7f"), ("\u1aa7", "\u1aa7"),
+    ("\u1aec", "\u1b4d"), ("\u1b80", "\u1baf"), ("\u1bba", "\u1bfb"), ("\u1c00", "\u1c3a"),
+    ("\u1c4a", "\u1c4f"), ("\u1c5a", "\u1c7d"), ("\u1cd4", "\u1fbc"), ("\u2071", "\u2073"),
+    ("\u207f", "\u207f"), ("\u208f", "\u209f"), ("\u212f", "\u2139"), ("\u2c00", "\u2ce4"),
+    ("\u2d00", "\u2d6f"), ("\u2d71", "\u2dff"), ("\u2e2f", "\u2e2f"), ("\u3005", "\u3006"),
+    ("\u3031", "\u3035"), ("\u303b", "\u303c"), ("\u3040", "\u318f"), ("\u31a0", "\u31bf"),
+    ("\u31f0", "\u31ff"), ("\u3400", "\u4dbf"), ("\u4e00", "\ua48f"), ("\ua4c7", "\ua4fd"),
+    ("\ua500", "\ua60c"), ("\ua610", "\ua61f"), ("\ua62a", "\ua672"), ("\ua67f", "\ua6e5"),
+    ("\ua717", "\ua71f"), ("\ua722", "\ua788"), ("\ua78b", "\ua827"), ("\ua83a", "\ua873"),
+    ("\ua878", "\ua8cd"), ("\ua8da", "\ua8f7"), ("\ua8fb", "\ua8fb"), ("\ua8fd", "\ua8ff"),
+    ("\ua90a", "\ua92d"), ("\ua930", "\ua95e"), ("\ua960", "\ua9c0"), ("\ua9ce", "\ua9cf"),
+    ("\ua9e0", "\ua9ef"), ("\ua9fa", "\uaa4f"), ("\uaa60", "\uaa76"), ("\uaa7a", "\uaadd"),
+    ("\uaae0", "\uaaef"), ("\uaaf2", "\uab5a"), ("\uab5c", "\uab69"), ("\uab6c", "\uabea"),
+    ("\uabfa", "\ud7ff"), ("\uf900", "\ufb28"), ("\ufb2a", "\ufbb1"), ("\ufbd3", "\ufd3d"),
+    ("\ufd50", "\ufd8f"), ("\ufd92", "\ufdc7"), ("\ufdd0", "\ufdfb"), ("\ufe6c", "\ufefe"),
+    ("\uff66", "\uffdf"), ("\ufffe", "\U000100ff"), ("\U000101fd", "\U000102e0"), ("\U000102fc", "\U0001031f"),
+    ("\U00010324", "\U00010340"), ("\U00010342", "\U00010349"), ("\U0001034b", "\U0001039e"), ("\U000103a0", "\U000103cf"),
+    ("\U000103d6", "\U0001049f"), ("\U000104aa", "\U0001056e"), ("\U00010570", "\U00010856"), ("\U00010860", "\U00010876"),
+    ("\U00010880", "\U000108a6"), ("\U000108b0", "\U000108fa"), ("\U00010900", "\U00010915"), ("\U00010920", "\U0001093e"),
+    ("\U00010940", "\U000109bb"), ("\U000109be", "\U000109bf"), ("\U00010a00", "\U00010a3f"), ("\U00010a59", "\U00010a7c"),
+    ("\U00010a80", "\U00010a9c"), ("\U00010aa0", "\U00010ac7"), ("\U00010ac9", "\U00010aea"), ("\U00010af7", "\U00010b38"),
+    ("\U00010b40", "\U00010b57"), ("\U00010b60", "\U00010b77"), ("\U00010b80", "\U00010b98"), ("\U00010bb0", "\U00010cf9"),
+    ("\U00010d00", "\U00010d2f"), ("\U00010d4a", "\U00010d68"), ("\U00010d6f", "\U00010d8d"), ("\U00010e7f", "\U00010eac"),
+    ("\U00010eae", "\U00010ecf"), ("\U00010efd", "\U00010f1c"), ("\U00010f27", "\U00010f50"), ("\U00010f5a", "\U00010f85"),
+    ("\U00010f8a", "\U00010fc4"), ("\U00010fcc", "\U00011046"), ("\U00011070", "\U000110ba"), ("\U000110ce", "\U000110ef"),
+    ("\U000110fa", "\U00011135"), ("\U00011144", "\U00011173"), ("\U00011176", "\U000111c4"), ("\U000111da", "\U000111da"),
+    ("\U000111dc", "\U000111dc"), ("\U000111f5", "\U00011237"), ("\U0001123e", "\U000112a8"), ("\U000112aa", "\U000112ef"),
+    ("\U000112fa", "\U000113b7"), ("\U000113d1", "\U000113d1"), ("\U000113d3", "\U000113d3"), ("\U000113e3", "\U0001144a"),
+    ("\U0001145e", "\U000114c5"), ("\U000114c7", "\U000114cf"), ("\U000114da", "\U000115c0"), ("\U000115d8", "\U00011640"),
+    ("\U00011644", "\U0001164f"), ("\U0001166d", "\U000116b8"), ("\U000116e4", "\U0001172f"), ("\U00011740", "\U0001183a"),
+    ("\U000118f3", "\U00011943"), ("\U0001195a", "\U000119e1"), ("\U000119e3", "\U00011a3e"), ("\U00011a47", "\U00011a99"),
+    ("\U00011a9d", "\U00011a9d"), ("\U00011aa3", "\U00011aff"), ("\U00011b68", "\U00011be0"), ("\U00011bfa", "\U00011c40"),
+    ("\U00011c72", "\U00011d4f"), ("\U00011d5a", "\U00011d9f"), ("\U00011daa", "\U00011ddf"), ("\U00011dea", "\U00011ef6"),
+    ("\U00011ef9", "\U00011f42"), ("\U00011f5b", "\U00011fbf"), ("\U00012000", "\U000123ff"), ("\U00012475", "\U00012ff0"),
+    ("\U00012ff3", "\U0001342f"), ("\U00013440", "\U0001611d"), ("\U0001613a", "\U00016a5f"), ("\U00016a70", "\U00016abf"),
+    ("\U00016aca", "\U00016af4"), ("\U00016af6", "\U00016b36"), ("\U00016b40", "\U00016b43"), ("\U00016b62", "\U00016d6c"),
+    ("\U00016e9b", "\U00016fe1"), ("\U00016fe3", "\U00016ff3"), ("\U00016ff7", "\U0001bc9b"), ("\U0001da8c", "\U0001e13f"),
+    ("\U0001e14a", "\U0001e14e"), ("\U0001e150", "\U0001e2ef"), ("\U0001e300", "\U0001e4ef"), ("\U0001e4fa", "\U0001e5ed"),
+    ("\U0001e5f0", "\U0001e5f0"), ("\U0001e600", "\U0001e6e2"), ("\U0001e6e4", "\U0001e6e5"), ("\U0001e6e7", "\U0001e6ed"),
+    ("\U0001e6f0", "\U0001e6f4"), ("\U0001e6f6", "\U0001e8c6"), ("\U0001e8d0", "\U0001e94f"), ("\U0001ed3e", "\U0001eeef"),
+    ("\U0001fbfb", "\U000e0000"),
+)
+
+
+def _a_letter_of_any_script(character: str) -> bool:
+    """Whether one character is a letter: a capital and a small form, or a letter of a script with no capital (see the note above)."""
+    if not isinstance(character, str):
+        raise TypeError("a cell to ask about must be text")
+    if character.lower() != character.upper():
+        return True
+    for lowest, highest in _UNCASED_LETTERS:
+        if character < lowest:
+            # ...the ranges are sorted and apart: none further holds it.
+            return False
+        if character <= highest:
+            return True
+    return False
+
+
+def _edges_set_aside(text: str) -> str:
+    """A text read plain with the spaces and dashes at either end set aside (lane CZ-A2's repair 2)."""
+    if not isinstance(text, str):
+        raise TypeError("a cell to ask about must be text")
+    return text.strip("- ")
+
+
+def _a_name_or_a_flag_after(suffix: str) -> bool:
+    """Whether the text after a number opens with a mark that parts fields and holds a name of two parts or more, or a flag (lane CZ-A2's repair 1).
+
+    The parts are the text between such marks, spaces trimmed, empty
+    ones set aside: two or more holding a letter (`^TARN^UL^^^`,
+    `,tarn,ul`), or one part of one or two ASCII letters (`,F`); one
+    word (`;pending`) is neither. The text is read plain (lane CZ-A2's
+    repair 2, `taxonomy.with_plain_marks`): every space and dash at its
+    head and at either end of a part is set aside, so a zero-width space,
+    an en dash or a minus sign between the number and its mark
+    (`1000013-,TARN,UL`) is no word. A fixed function of the text. Raises
+    TypeError for a value that is not text. No I/O.
+    """
+    if not isinstance(suffix, str):
+        raise TypeError("a cell to ask about must be text")
+    text = taxonomy.with_plain_marks(suffix).lstrip("- ")
+    if not text or text[0] not in _FIELD_MARKS:
+        return False
+    parts: "list[str]" = []
+    piece = ""
+    for character in text:
+        if character in _FIELD_MARKS:
+            parts += [_edges_set_aside(piece)]
+            piece = ""
+        else:
+            piece = piece + character
+    parts += [_edges_set_aside(piece)]
+    parts = [part for part in parts if part]
+    lettered = [part for part in parts if _holds_a_letter(part)]
+    if len(lettered) >= 2:
+        return True
+    return (
+        len(parts) == 1
+        and len(parts[0]) <= _CLOSING_LETTERS_AT_MOST
+        and all(_ascii_letter(character) for character in parts[0])
+    )
+
+
+def _a_run_of_five_figures(text: str) -> bool:
+    """Whether text holds a run of five figures or more (`_PREFIXED_FIGURES_AT_LEAST`)."""
+    run = 0
+    for character in text:
+        run = run + 1 if "0" <= character <= "9" else 0
+        if run >= _PREFIXED_FIGURES_AT_LEAST:
+            return True
+    return False
+
+
+# THE FORMS' RULE DEFERS A CELL ONLY WHERE IT HOLDS THE COLUMN (lane
+# CZ-A2's repair 2, Codex's item 1, LANE CZ-A2 RULINGS 6 (1) and 7 (4)):
+# lane HX5's arm and route two's register left every cell the forms' rule
+# reads (`taxonomy.a_form_of_the_forms_rule`) to that rule, so a column of
+# two identifier families -- `#MR` and seven figures for half the people,
+# a blood-unit number for the other half, one a person at 1,000 people of
+# 20 rows -- was read by neither: the blood-unit numbers stood below the
+# rule's two-in-three line, so the rule did not hold the column either,
+# and its 1,000 record numbers were published as levels and written in
+# 20,000 real twin cells. A cell is now left to the forms' rule only where
+# that rule holds the column (`taxonomy.identifier_form_hold`, read once a
+# column); elsewhere it is read as any other cell, and in route two's
+# register a cell the rule reads is a code: it names one thing.
+def _forms_hold_the_column(present: "list[str]", held: "dict[str, bool]") -> bool:
+    """Whether the forms' rule holds the column of these present cells, read once into ``held``."""
+    if "" not in held:
+        held[""] = taxonomy.identifier_form_hold("", present, frozenset()) != ""
+    return held[""]
+
+
+def _left_to_its_own_hold(value: str, present: "list[str]", held: "dict[str, bool]") -> bool:
+    """Whether a cell is left to a hold of its own: a device identifier's (whatever its share), or the forms' rule's where it holds the column.
+
+    A unique device identifier (`taxonomy.a_device_identifier`) keeps lane
+    SH2's device hold and its Safe Harbor question, which take the column
+    from one such cell (lane CZ-A2's repair 2: HIBCC identifiers read
+    beside words were put the person question in its place).
+    """
+    if taxonomy.a_device_identifier(value):
+        return True
+    return taxonomy.a_form_of_the_forms_rule(value) and _forms_hold_the_column(present, held)
+
+
+def _a_register_code_beside_words(value: str, present: "list[str]", held: "dict[str, bool]") -> bool:
+    """Whether a cell no code's letters and figures alone write is a code of route two's register beside words.
+
+    A cell the forms' rule reads, where that rule does not hold the column
+    (see the note above); or a record number of five figures or more beside
+    words (`_a_whole_number_beside_words`), read only where the cell, read
+    plain, holds such a run and a letter (the reading asks a split of the
+    cell, and a column nothing reads is split once a different text:
+    K-S3-55). A device identifier is none: its own hold takes the column
+    (`_left_to_its_own_hold`). Raises TypeError for a value that is not
+    text. No I/O.
+    """
+    if taxonomy.a_device_identifier(value):
+        return False
+    if taxonomy.a_form_of_the_forms_rule(value):
+        return not _forms_hold_the_column(present, held)
+    for plain in taxonomy.plain_readings(value):
+        # ...each reading of the cell (the soft hyphen as a dash and set
+        # aside; batch 4s's merge).
+        if _a_run_of_five_figures(plain) and _holds_a_letter(plain):
+            return _a_whole_number_beside_words(value) is not None
+    return False
+
+
+def _read_beside_words(prefix: str, figures: str, suffix: str) -> "tuple[str, str, str] | None":
+    """`_a_whole_number_beside_words` on a split already read (lane CZ-A2's repair 1)."""
+    if figures[:1] in _SIGNS and figures[:1] != "":
+        # ...a sign the split read into the number, after a label and a
+        # space (`MR -1000013`), is the label's mark: read with the opening.
+        prefix = prefix + figures[:1]
+        figures = figures[1:]
+    if len(figures) < _PREFIXED_FIGURES_AT_LEAST:
+        return None
+    if _a_run_of_five_figures(prefix) or _a_run_of_five_figures(suffix):
+        # ...ONE record number beside words: a cell of several
+        # (`R100000;R100001`, a list lane HX4's list question reads) is
+        # none.
+        return None
+    if _holds_a_letter(prefix) or (
+        parsing.trimmed(prefix) in _NO_PREFIX and _a_name_or_a_flag_after(suffix)
+    ):
+        return parsing.trimmed(prefix).upper(), figures, parsing.trimmed(suffix).upper()
+    return None
+
+
+def _a_whole_number_beside_words(value: str, comma: bool = False) -> "tuple[str, str, str] | None":
+    """The opening, figures and closing of an affixed cell whose record number stands beside words (lane CZ-A2's repair 1).
+
+    See the note above: the affixed reading's split, its figures a plain
+    whole number written five wide or more, the text before them holding a
+    letter whatever follows (`Tarn,Ul,,1000013`, `MR #1000013`,
+    `Tarn,Ul,1000013,F`), or a sign or nothing before them and the text
+    after them opening with one of `_FIELD_MARKS` and holding a name of two
+    parts or more or a flag (`1000013^TARN^UL^^^`, `1000013,F`;
+    `_a_name_or_a_flag_after`). The opening and closing are returned trimmed
+    and in upper case, as `_a_whole_number_after_letters` returns them;
+    None where the cell is not of this form: a unit or a currency after the
+    figures (`12345mg`, `12345 EUR`), fewer than five figures (`Age 45`),
+    a decimal (`Weight 72.5 kg`), or another run of five figures or more
+    beside the number (`R100000;R100001`, a list). A fixed function of the
+    two. Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(value, str):
+        raise TypeError("a cell to ask about must be text")
+    for split in _affixed_whole_numbers(value, comma):
+        found = _read_beside_words(*split)
+        if found is not None:
+            return found
+    return None
+
+
+def _key_reading(
+    value: str,
+    comma: bool,
+    affixed: bool = False,
+    present: "list[str] | None" = None,
+    held: "dict[str, bool] | None" = None,
+) -> "tuple[tuple[str, str, str], bool] | None":
     """One value's key as `_each_on_one_row_arm` counts it, and whether its figures are wide; None for a stray.
 
     The value's figures (`_key_figures`, a sign before them read as the
-    arm reads it), or a whole number after letters, or, in a column read
-    as an affixed number (``affixed``), between the affixes that reading
-    takes (`_a_whole_number_between_affixes`; lane ID-ROOM2, plan
-    P4-D457), the figures with their leading noughts off; a value read
-    none of these ways is a stray. Read for its figures only where no
-    decimal comma is declared or the value holds no comma and no point.
-    Guarantees: a fixed function of the three. Raises TypeError for a
+    arm reads it), or a whole number after letters, or a labelled record
+    number written in two groups of figures, its label the opening and its
+    groups one number, where the column is no column of periods (lane
+    CZ-A2's follow-up 4: `_record_number_groups`, `_periods_in_two_groups`),
+    or, in a column read as an affixed number (``affixed``), between the
+    affixes that reading takes (`_read_between_affixes`; lane ID-ROOM2,
+    plan P4-D457) or beside words whatever follows (`_read_beside_words`,
+    where the cell is left to no hold of its own: lane CZ-A2's repairs 1
+    and 2), on one split a cell, the figures with their leading noughts
+    off; a value read none of these ways is a stray. Read for its figures
+    only where no decimal comma is declared or the value holds no comma and
+    no point. ``present`` is the column's present cells and ``held`` keeps
+    the two facts of that column the lane CZ-A2 readings ask (whether the
+    forms' rule holds the column, `_forms_hold_the_column`; whether its
+    two-groups cells are periods), each read once a walk when a cell asks;
+    with none given the column is read as empty. Guarantees: a fixed
+    function of the value, the comma, whether the column is affixed and
+    those two facts, which are fixed for a walk (batch 4s's merge of lane
+    CZ-A2 into lane PRT-a's walk, plan P4-D468). Raises TypeError for a
     value that is not text. No I/O.
     """
+    column: "list[str]" = present if present is not None else []
+    facts: "dict[str, bool]" = held if held is not None else {}
     figures: "str | None" = None
     opening = ""
     closing = ""
@@ -2601,8 +3143,35 @@ def _key_reading(value: str, comma: bool, affixed: bool = False) -> "tuple[tuple
                 opening = "-"
     if figures is None:
         lettered = _a_whole_number_after_letters(value)
+        if lettered is None:
+            # ...a labelled record number written in two groups of
+            # figures, its label the opening and its groups one number
+            # (lane CZ-A2's follow-up 4, `_record_number_groups`, the
+            # register's reading, periods aside), read before the
+            # affixed reading's split, which takes one group alone or
+            # the space as a mark between thousands (`MR100 000` one a
+            # row, read as `MR` and the number 100,000, wrote 19,999 real
+            # twin cells at 20,000 rows on 7894ddbd).
+            grouped = _record_number_groups(value)
+            if grouped is not None and not _periods_in_two_groups(column, facts):
+                lettered = grouped[0], grouped[1] + grouped[2], ""
         if lettered is None and affixed:
-            lettered = _a_whole_number_between_affixes(value, comma)
+            # ...between the affixes the affixed reading takes, where its
+            # suffix holds a figure (lane ID-ROOM2), or beside words
+            # whatever follows (lane CZ-A2's repair 1), one split a cell's
+            # reading (`taxonomy.plain_readings`; batch 4s's merge).
+            for split in _affixed_whole_numbers(value, comma):
+                lettered = _read_between_affixes(*split)
+                if lettered is None and not _left_to_its_own_hold(value, column, facts):
+                    # ...a cell the forms' rule reads (a name joined to a
+                    # record number, a blood-unit number) keeps that
+                    # rule's own question WHERE THAT RULE HOLDS THE
+                    # COLUMN (lane CZ-A2's repair 2, Codex's item 1): a
+                    # cell read so but a share below the rule's line is
+                    # read here as any other.
+                    lettered = _read_beside_words(*split)
+                if lettered is not None:
+                    break
         if lettered is None:
             return None
         opening, figures, closing = lettered
@@ -2662,6 +3231,8 @@ def _each_on_one_row_arm(
     """
     if _the_row_sequence(name, present):
         return "", False
+    # Whether the forms' rule holds the column, read once when a cell asks.
+    held: "dict[str, bool]" = {}
     negatives: "dict[str, int]" = {}
     for value in present:
         if value[:1] == "-" and _is_plain_whole_number(value[1:]):
@@ -2676,9 +3247,12 @@ def _each_on_one_row_arm(
     stray = 0
     # EACH SPELLING READ ONCE (lane PRT-a, plan P4-D468): a value's key
     # (`_key_reading`) is a fixed function of the value, the declared
-    # comma and whether the column is read as an affixed number, the two
-    # last fixed for the walk, so the rows that write one spelling share
-    # it, held as lane S4d bounds a memo of one answer per spelling
+    # comma and whether the column is read as an affixed number, and of
+    # the two facts of the column lane CZ-A2's readings ask (``held``:
+    # whether the forms' rule holds the column, whether its two-groups
+    # cells are periods; batch 4s's merge), all fixed for the walk, so
+    # the rows that write one spelling share it, held as lane S4d bounds
+    # a memo of one answer per spelling
     # (`parsing.memo_takes`, with the note of texts met once,
     # `parsing.memo_notes`). This walk read every row again: 3 to 5 per
     # cent of the code-heavy and numeric describes at 200,000 rows (lane
@@ -2705,7 +3279,7 @@ def _each_on_one_row_arm(
             keys_read[value] = read
             answered = answered + 1
         else:
-            read = _key_reading(value, comma, affixed)
+            read = _key_reading(value, comma, affixed, present, held)
             if parsing.memo_takes(len(keys_read), answered):
                 keys_read[value] = read
             elif parsing.memo_notes(len(keys_noted)):
@@ -4434,6 +5008,19 @@ def checklist_for(
             table_columns[position], settings
         )
         if role in _MEASURED_ROLES:
+            measured = _numeric_choices(
+                ANSWER_MEASUREMENT,
+                role,
+                settings.small_cell_floor,
+            )
+            # -- lane TR (P4-D473): Q-CLOCK on a measurement no question of
+            # its own asks -- figures with a fraction, `074512.123456`, where
+            # rule 5c's conditions hold: one more answer of the checklist's
+            # entry, which holds nothing (the zoo-fix reading page's ZR.2).
+            if taxonomy.clock_figures_fit(present):
+                measured += [
+                    _clock_figures_choice(role, settings.small_cell_floor)
+                ]
             listed += [
                 Question(
                     name,
@@ -4441,11 +5028,7 @@ def checklist_for(
                     BECAUSE_LISTED,
                     "read as a measurement, so its description carries "
                     "statistics over these values",
-                    _numeric_choices(
-                        ANSWER_MEASUREMENT,
-                        role,
-                        settings.small_cell_floor,
-                    ),
+                    measured,
                     ANSWER_MEASUREMENT,
                 )
             ]
@@ -4735,11 +5318,25 @@ def _beside_keys_counted(
     true figures alone (`_a_padded_key_cell`). None where a present cell
     is neither a key, nor a word with no figure, nor a placeholder of
     figures. A fixed function of the cells. Raises nothing. No I/O.
+
+    AND A KEY OF ROUTE TWO'S REGISTER (lane CZ-A2's repair 2, LANE CZ-A2
+    RULINGS 7 (3); the standing rule that sparse tokens never defeat a key
+    hold): where ``padded`` is false, a cell the register's labelled
+    branch or its beside-words branch reads (`_a_register_key`: `#MR`
+    and seven figures, `MR #1000013`, a name in small letters joined to a
+    record number) is a key too. One person's twenty cells written
+    `UNKNOWN` or `-1` beside such numbers, one a person at 1,000 people of
+    20 rows, made the register no register, and 999 record numbers were
+    published as levels and written in 20,000 real twin cells; the words
+    and placeholders set aside here are this rule's own
+    (`_set_aside_beside_keys`).
     """
     keys: "dict[str, bool]" = {}
     counted = 0
     words = 0
     placeholders = 0
+    registered: "dict[str, bool]" = {}
+    held: "dict[str, bool]" = {}
     for value in present:
         if padded and _a_padded_key_cell(value):
             keys[value] = True
@@ -4754,7 +5351,14 @@ def _beside_keys_counted(
         elif padded and _a_note_beside_padded_keys(value):
             words = words + 1
         else:
-            return None
+            if padded:
+                return None
+            if value not in registered:
+                registered[value] = _a_register_key(value, present, held)
+            if not registered[value]:
+                return None
+            keys[parsing.folded(value)] = True
+            counted = counted + 1
     return keys, counted, words, placeholders
 
 
@@ -5339,15 +5943,67 @@ def _a_register_of_codes(present: "list[str]") -> bool:
     asks how often a value repeats is the caller's, because both routes
     ask it and one question belongs in one place.
 
+    AND A RECORD NUMBER BESIDE ITS LABEL WRITTEN WITH A SIGN OR A MARK
+    (lane CZ-A2, plan P4-D469): a register of one number a person, 1,000
+    people of 20 rows, written `#MR1000013`, `MR.1000013`, `MR/1000013`,
+    `MR#1000013` or `#1000013`, holds characters no code is written with,
+    was read as labels, and published all 1,000 numbers with 20,000 twin
+    cells real, while `MR1000013` was asked. A cell lane HX5's arm reads
+    as a labelled number (`_a_whole_number_after_letters`: a label of
+    letters, or a number sign, before figures written five wide or more)
+    is a code here too; `Stage 2` and `Grade 3`, whose figures are few,
+    are not.
+
+    AND ONE RECORD NUMBER A PERSON BESIDE WORDS, WHATEVER FOLLOWS IT (lane
+    CZ-A2's repair 1, its skeptic's items 1 and 2): `MR #1000013`,
+    `(MR1000013)` and a name joined to its record number with an empty
+    part (`Tarn,Ul,,1000013`), one a person at 1,000 people of 20 rows,
+    were read as labels, published 1,000 values and wrote 20,000 real
+    twin cells, as on the public head. A cell the affixed split reads as
+    five figures or more beside words (`_a_whole_number_beside_words`) is
+    a code here too, each different cell read once, unless the forms'
+    rule reads it (`taxonomy.a_form_of_the_forms_rule`: a name joined to
+    a record number keeps the Safe Harbor question, a blood-unit number
+    its share's question).
+
+    AND A CELL THE FORMS' RULE READS IS LEFT TO IT ONLY WHERE THAT RULE
+    HOLDS THE COLUMN (lane CZ-A2's repair 2, Codex's item 1; see
+    `_forms_hold_the_column`): elsewhere it is a code here, letters or
+    figures alone (a whole number of fifteen figures) among them, so two
+    identifier families in one column, neither on two cells in three, are
+    a register of codes.
+
+    AND A MARK INSIDE THE FIGURES (lane CZ-A2's follow-up, LANE CZ-A2
+    RULINGS 9 (2)): the code alphabet is read on the cell read plain
+    (`taxonomy.with_plain_marks`), so `MR100` and a soft hyphen or an en
+    dash before `0013` is a code as `MR100-0013` is: one a person at 1,000
+    people of 20 rows, each was read as labels, published 1,000 values and
+    wrote 20,000 real twin cells at 20,000 rows on repair 2's head. A space
+    between two groups of figures is read as written here, `MR100 0013` no
+    code; the register's key reads it (lane CZ-A2's follow-up 4: the
+    two-groups branch of `_a_register_key`, `_record_number_groups`).
+
     Guarantees: accepts the present cells; returns a truth value. A
     fixed function of them. Raises nothing. No I/O, and no cell reaches
     anything it returns.
     """
     if not present:
         return False
+    codes: "dict[str, bool]" = {}
+    held: "dict[str, bool]" = {}
     for value in present:
-        if not parsing.is_code_text(value):
-            return False
+        if not any(parsing.is_code_text(plain) for plain in taxonomy.plain_readings(value)):
+            if value[:1] == "[" and value[-1:] == "]":
+                # ...a record number in square brackets is lane HX4's list
+                # of one record number a cell (`[R123456]`), which its list
+                # question holds: no code of this register (lane CZ-A2's
+                # repair 1 reads the other pairs, `(MR1000013)`).
+                return False
+            if value not in codes:
+                codes[value] = _a_register_key(value, present, held)
+            if not codes[value]:
+                return False
+            continue
         figure = False
         letter = False
         for character in value:
@@ -5356,8 +6012,170 @@ def _a_register_of_codes(present: "list[str]") -> bool:
             elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
                 letter = True
         if not figure or not letter:
-            return False
+            if value not in codes:
+                codes[value] = taxonomy.a_form_of_the_forms_rule(value) and not _forms_hold_the_column(
+                    present, held
+                )
+            if not codes[value]:
+                return False
     return True
+
+
+def _a_register_key(value: str, present: "list[str]", held: "dict[str, bool]") -> bool:
+    """Whether a cell no code's letters and figures alone write is a key of route two's register (lane CZ-A2).
+
+    Read by the register's labelled branch (`_a_whole_number_after_letters`:
+    an opening and five figures or more), its two-groups branch
+    (`_record_number_groups`, where the column is no column of periods and
+    the cell is left to no hold of its own) or its beside-words branch
+    (`_a_register_code_beside_words`). ``held`` keeps whether the forms'
+    rule holds the column of ``present``, and whether its two-groups cells
+    are periods. Raises TypeError for a value that is not text. No I/O.
+    """
+    labelled = _a_whole_number_after_letters(value)
+    if labelled is not None and labelled[0] and len(labelled[1]) >= _PREFIXED_FIGURES_AT_LEAST:
+        return True
+    if (
+        _record_number_groups(value) is not None
+        and not _left_to_its_own_hold(value, present, held)
+        and not _periods_in_two_groups(present, held)
+    ):
+        return True
+    return _a_register_code_beside_words(value, present, held)
+
+
+# A LABELLED RECORD NUMBER WRITTEN IN TWO GROUPS OF FIGURES (lane CZ-A2's
+# follow-up 4, LANE CZ-A2 RULINGS 10 (2)): `MR100 0013` and `MR1000 013`,
+# the groups parted by one space of the product's one definition (a plain,
+# a no-break or a thin space or a tab: `taxonomy.with_plain_marks` writes
+# each ` `, the tab kept, those with no width set aside), one a person at
+# 1,000 people of 20 rows, were read as labels, published 1,000 values and
+# wrote 20,000 real twin cells at 20,000 rows, on the public head as on the
+# lane's; and one a row `MR100 000`, read as `MR` and a number whose
+# thousands a space parts, wrote 19,999 real twin cells. Route two's
+# register key and lane HX5's arm read such a cell as one record number
+# only where its shape says one: one to twelve letters of any script (a
+# sign before them as the label reader reads one, the spaces and dashes at
+# either end set aside), figures, ONE such space and figures closing the
+# cell, each group two figures or more and six figures or more in all
+# (`taxonomy._NUMBER_FIGURES_AT_LEAST`, a record number's fewest), so two
+# spaces part no groups, a fiscal quarter (`Q3 2024`: a group of one
+# figure) and a version (`v10 12`: four figures) are none; and not in a
+# column every such cell of which is a period, a year (four figures from
+# 1900 to 2099) beside two figures or a second year (`W23 2024`,
+# `FY2023 24`, `FY2023 2024`). Over the zoo's catalogue at 20,000 rows (77
+# tables, 839 columns, 2,485,093 different cells) the shape reads no cell.
+_GROUP_FIGURES_AT_LEAST = 2
+# ...and six figures in all: a record number's fewest, the six taxonomy's
+# readers of a record number take (its `_NUMBER_FIGURES_AT_LEAST`, which the
+# offline audit lets no other module read).
+_GROUPS_FIGURES_AT_LEAST = 6
+_PERIOD_YEAR_FIGURES = 4
+_PERIOD_YEAR_FROM = "1900"
+_PERIOD_YEAR_TO = "2099"
+_PERIOD_BESIDE_FIGURES = 2
+_PERIODS_HELD = "two groups are periods"
+
+
+def _record_number_groups(value: str) -> "tuple[str, str, str] | None":
+    """The label and the two groups of figures of a labelled record number written in two groups (see the note above); None for any other cell.
+
+    The cell is read plain (`taxonomy.with_plain_marks`), its spaces and
+    dashes at either end set aside (`_edges_set_aside`), as the label
+    reader sets them aside, and read by `_groups_of_a_plain_cell`, each
+    reading of the cell in turn (`taxonomy.plain_readings`: the soft hyphen
+    read as a dash and set aside; batch 4s's merge). A fixed function of the
+    text. Raises TypeError for a value that is not text. No I/O.
+    """
+    if not isinstance(value, str):
+        raise TypeError("a cell to ask about must be text")
+    for plain in taxonomy.plain_readings(value):
+        found = _groups_of_a_plain_cell(_edges_set_aside(plain))
+        if found is not None:
+            return found
+    return None
+
+
+def _groups_of_a_plain_cell(plain: str) -> "tuple[str, str, str] | None":
+    """`_record_number_groups` on a cell read plain, its ends set aside (lane CZ-A2's follow-up 4).
+
+    One of `_LABEL_SIGNS` and spaces or none, one to
+    `_OPENING_LETTERS_AT_MOST` letters of any script
+    (`_a_letter_of_any_script`), a group of figures, one space (` ` or the
+    tab, `_LABEL_SPACES`, as the label reader reads a text read plain) and
+    a group of figures closing the cell; each group
+    `_GROUP_FIGURES_AT_LEAST` figures or more, the two
+    `_GROUPS_FIGURES_AT_LEAST` or more together. The label, its sign with
+    it, is returned in upper case, as `_a_whole_number_after_letters`
+    returns an opening. A fixed function of the text. Raises TypeError for
+    a value that is not text. No I/O.
+    """
+    if not isinstance(plain, str):
+        raise TypeError("a cell to ask about must be text")
+    place = 0
+    if plain[:1] != "" and plain[:1] in _LABEL_SIGNS:
+        place = 1
+        while place < len(plain) and plain[place] in _LABEL_SPACES:
+            place = place + 1
+    letters = place
+    while place < len(plain) and place - letters < _OPENING_LETTERS_AT_MOST and _a_letter_of_any_script(plain[place]):
+        place = place + 1
+    first = place
+    while place < len(plain) and "0" <= plain[place] <= "9":
+        place = place + 1
+    if first == letters or place == first or place >= len(plain) or plain[place] not in _LABEL_SPACES:
+        return None
+    mark = place
+    place = place + 1
+    while place < len(plain) and "0" <= plain[place] <= "9":
+        place = place + 1
+    if place != len(plain):
+        return None
+    opening, closing = plain[first:mark], plain[mark + 1:]
+    if (
+        len(opening) < _GROUP_FIGURES_AT_LEAST
+        or len(closing) < _GROUP_FIGURES_AT_LEAST
+        or len(opening) + len(closing) < _GROUPS_FIGURES_AT_LEAST
+    ):
+        return None
+    return plain[:first].upper(), opening, closing
+
+
+def _a_year_of_a_period(figures: str) -> bool:
+    """Whether a group of figures reads as a year: four figures from 1900 to 2099 (see the note above)."""
+    return len(figures) == _PERIOD_YEAR_FIGURES and _PERIOD_YEAR_FROM <= figures <= _PERIOD_YEAR_TO
+
+
+def _a_period(year: str, other: str) -> bool:
+    """Whether two groups read as a period: a year beside two figures or beside a second year (see the note above)."""
+    return _a_year_of_a_period(year) and (len(other) == _PERIOD_BESIDE_FIGURES or _a_year_of_a_period(other))
+
+
+def _periods_in_two_groups(present: "list[str]", held: "dict[str, bool]") -> bool:
+    """Whether every cell of the column read in two groups (`_record_number_groups`) is a period, read once into ``held``.
+
+    A period: a year (`_a_year_of_a_period`) beside a group of
+    `_PERIOD_BESIDE_FIGURES` figures or beside a second year, either group
+    first (`W23 2024`, `FY2023 24`, `FY2023 2024`). False where no cell is
+    read in two groups. A fixed function of the cells. Raises TypeError
+    for a cell that is not text. No I/O.
+    """
+    if _PERIODS_HELD not in held:
+        periods = False
+        seen: "dict[str, bool]" = {}
+        for value in present:
+            if value in seen:
+                continue
+            seen[value] = True
+            groups = _record_number_groups(value)
+            if groups is None:
+                continue
+            if not (_a_period(groups[1], groups[2]) or _a_period(groups[2], groups[1])):
+                periods = False
+                break
+            periods = True
+        held[_PERIODS_HELD] = periods
+    return held[_PERIODS_HELD]
 
 
 def _is_an_address(value: str) -> bool:
@@ -5512,6 +6330,9 @@ def person_questions(
                         taxonomy.top_coded_cells(
                             present, False, frozenset(),
                             _mark_of(block["top_coded"]),
+                            # ...its age words as its block records them
+                            # (plan P4-D477).
+                            "top_coded_words" in block,
                         )
                         if "top_coded" in block
                         else present,
@@ -6444,10 +7265,15 @@ SAFE_HARBOR_DATES_KEPT_SAW = (
     "You gave this answer in an earlier run to the question about the values "
     f"that, {SAFE_HARBOR_DATES_SEEN}; it is kept here."
 )
+# ...and a label column holding values too few rows hold (lane CODES-2, plan
+# P4-D471; the owner's answer Z1 = B, the zoo plan's 2.3 paths (i) and
+# (iii)): unanswered it is described as before, `no` names those values
+# beside their pooled total, without their counts, and `yes` holds it.
+BECAUSE_SAFE_HARBOR_RARE_NAMES = "values-too-few-rows-hold-of-a-column-of-labels"
 SAFE_HARBOR_REASONS = (
     BECAUSE_SAFE_HARBOR_AGES, BECAUSE_SAFE_HARBOR_ZIPS,
     BECAUSE_SAFE_HARBOR_AGES_HELD, BECAUSE_SAFE_HARBOR_FEW_VALUES,
-    BECAUSE_SAFE_HARBOR_DATED_VALUES,
+    BECAUSE_SAFE_HARBOR_DATED_VALUES, BECAUSE_SAFE_HARBOR_RARE_NAMES,
 )
 # ...AND LANE SH2'S (plan P4-D434): years of birth top-coded, and the
 # columns held whole for years that are also ZIP-shaped, dates so early,
@@ -6473,6 +7299,16 @@ BECAUSE_SAFE_HARBOR_FEW_PEOPLE = "levels-few-people-hold-of-an-unclear-column"
 # ...and, from lane SH3 (plan P4-D454), a name that says a house,
 # apartment, unit or suite number.
 BECAUSE_SAFE_HARBOR_ADDRESS_PARTS = "a-name-that-says-parts-of-an-address"
+# ...and, from lane CZ-F (plan P4-D478), persons' names: a column whose
+# values are mostly names written whole, and one whose name says it holds
+# a person's name and whose values are written as names are, each held
+# whole and put the same one question, its own sentence saying what was
+# seen.
+BECAUSE_SAFE_HARBOR_PERSONS_NAMES = "persons-names-written-whole"
+BECAUSE_SAFE_HARBOR_NAMED_AS_NAMES = "a-name-that-says-persons-names"
+PERSONS_NAMES_REASONS = (
+    BECAUSE_SAFE_HARBOR_PERSONS_NAMES, BECAUSE_SAFE_HARBOR_NAMED_AS_NAMES,
+)
 # ...and the identifier forms (plan P4-D445, lane CZ-A): numbers and codes
 # given to one person or one device, each held whole and put the same one
 # question, its own sentence saying what was seen.
@@ -6490,6 +7326,21 @@ IDENTIFIER_FORM_REASONS = (
     BECAUSE_SAFE_HARBOR_DEVICE_NAMES, BECAUSE_SAFE_HARBOR_ACCESSIONS,
     BECAUSE_SAFE_HARBOR_UNIT_NUMBERS, BECAUSE_SAFE_HARBOR_LONG_NUMBERS,
 )
+# ...and the value readers (plan P4-D472, lane CZ-E): a column held by what
+# its values are -- levels holding a person's name, a telephone number, a
+# date or a record number in their words, area codes, a coordinate pair in
+# one cell, network addresses -- each held whole and put the same one
+# question, its own sentence saying what was seen.
+BECAUSE_SAFE_HARBOR_IDENTIFIER_WORDS = "levels-holding-identifier-words"
+BECAUSE_SAFE_HARBOR_AREA_CODES = "area-codes-smaller-than-a-state"
+BECAUSE_SAFE_HARBOR_COORDINATE_PAIRS = "coordinate-pairs-in-one-cell"
+BECAUSE_SAFE_HARBOR_NETWORK_ADDRESSES = "network-addresses"
+BECAUSE_SAFE_HARBOR_DEVICE_SERIALS = "device-serial-numbers"
+VALUE_READER_REASONS = (
+    BECAUSE_SAFE_HARBOR_IDENTIFIER_WORDS, BECAUSE_SAFE_HARBOR_AREA_CODES,
+    BECAUSE_SAFE_HARBOR_COORDINATE_PAIRS, BECAUSE_SAFE_HARBOR_NETWORK_ADDRESSES,
+    BECAUSE_SAFE_HARBOR_DEVICE_SERIALS,
+)
 SH2_SAFE_HARBOR_REASONS = (
     BECAUSE_SAFE_HARBOR_YEARS, BECAUSE_SAFE_HARBOR_YEARS_HELD,
     BECAUSE_SAFE_HARBOR_DATES, BECAUSE_SAFE_HARBOR_PLACES,
@@ -6498,7 +7349,7 @@ SH2_SAFE_HARBOR_REASONS = (
     BECAUSE_SAFE_HARBOR_COORDINATES, BECAUSE_SAFE_HARBOR_CITY_STATES,
     BECAUSE_SAFE_HARBOR_FEW_PEOPLE,
     BECAUSE_SAFE_HARBOR_ADDRESS_PARTS,
-) + IDENTIFIER_FORM_REASONS
+) + IDENTIFIER_FORM_REASONS + PERSONS_NAMES_REASONS + VALUE_READER_REASONS
 # ...of which the reasons that hold a column whole: its question is put
 # alone, every other question of the column waiting for `no` (lane SH2's
 # repair 1, Codex item 4).
@@ -6509,7 +7360,7 @@ SH2_HELD_REASONS = (
     BECAUSE_SAFE_HARBOR_YEARS_BESIDE, BECAUSE_SAFE_HARBOR_COORDINATES,
     BECAUSE_SAFE_HARBOR_CITY_STATES, BECAUSE_SAFE_HARBOR_FEW_PEOPLE,
     BECAUSE_SAFE_HARBOR_ADDRESS_PARTS,
-) + IDENTIFIER_FORM_REASONS
+) + IDENTIFIER_FORM_REASONS + PERSONS_NAMES_REASONS + VALUE_READER_REASONS
 # Each of lane SH2's holds (`taxonomy.SAFE_HARBOR_HOLDS`) and the reason
 # its question gives.
 _HELD_BECAUSE: "dict[str, str]" = {
@@ -6524,6 +7375,8 @@ _HELD_BECAUSE: "dict[str, str]" = {
     taxonomy.HELD_CITY_STATES: BECAUSE_SAFE_HARBOR_CITY_STATES,
     taxonomy.HELD_LEVELS_OF_FEW_PEOPLE: BECAUSE_SAFE_HARBOR_FEW_PEOPLE,
     taxonomy.HELD_ADDRESS_PARTS: BECAUSE_SAFE_HARBOR_ADDRESS_PARTS,
+    taxonomy.HELD_PERSONS_NAMES: BECAUSE_SAFE_HARBOR_PERSONS_NAMES,
+    taxonomy.HELD_NAMED_AS_PERSONS_NAMES: BECAUSE_SAFE_HARBOR_NAMED_AS_NAMES,
     taxonomy.HELD_SOCIAL_SECURITY: BECAUSE_SAFE_HARBOR_SOCIAL_SECURITY,
     taxonomy.HELD_BENEFICIARIES: BECAUSE_SAFE_HARBOR_BENEFICIARIES,
     taxonomy.HELD_NAMES_WITH_NUMBERS: BECAUSE_SAFE_HARBOR_NAMES_WITH_NUMBERS,
@@ -6532,6 +7385,11 @@ _HELD_BECAUSE: "dict[str, str]" = {
     taxonomy.HELD_ACCESSIONS: BECAUSE_SAFE_HARBOR_ACCESSIONS,
     taxonomy.HELD_UNIT_NUMBERS: BECAUSE_SAFE_HARBOR_UNIT_NUMBERS,
     taxonomy.HELD_LONG_NUMBERS: BECAUSE_SAFE_HARBOR_LONG_NUMBERS,
+    taxonomy.HELD_IDENTIFIER_WORDS: BECAUSE_SAFE_HARBOR_IDENTIFIER_WORDS,
+    taxonomy.HELD_AREA_CODES: BECAUSE_SAFE_HARBOR_AREA_CODES,
+    taxonomy.HELD_COORDINATE_PAIRS: BECAUSE_SAFE_HARBOR_COORDINATE_PAIRS,
+    taxonomy.HELD_NETWORK_ADDRESSES: BECAUSE_SAFE_HARBOR_NETWORK_ADDRESSES,
+    taxonomy.HELD_DEVICE_SERIALS: BECAUSE_SAFE_HARBOR_DEVICE_SERIALS,
 }
 ANSWER_SAFE_HARBOR_NO = "no"
 ANSWER_SAFE_HARBOR_YES = "yes"
@@ -6681,8 +7539,12 @@ def _sh2_seen(reason: str, cutoff: int, held: str) -> str:
             f"person, such as a plan number, an account number or a name; "
             f"{held}"
         )
+    if reason in PERSONS_NAMES_REASONS:
+        return f"{_persons_names_seen(reason)}; {held}"
     if reason in IDENTIFIER_FORM_REASONS:
         return f"{_identifier_form_seen(reason)}; {held}"
+    if reason in VALUE_READER_REASONS:
+        return f"{_value_reader_seen(reason)}; {held}"
     if reason == BECAUSE_SAFE_HARBOR_DEVICES:
         return (
             f"some of its values are unique device identifiers -- GS1's mark "
@@ -6696,6 +7558,54 @@ def _sh2_seen(reason: str, cutoff: int, held: str) -> str:
         f"placeholders and words set aside, are whole numbers of five "
         f"figures, as ZIP codes are written, each count naming one date; "
         f"{held}"
+    )
+
+
+def _value_reader_seen(reason: str) -> str:
+    """What the Safe Harbor question says it saw of a column held by the value readers (plan P4-D472), naming no value."""
+    if reason == BECAUSE_SAFE_HARBOR_IDENTIFIER_WORDS:
+        return (
+            "some of its values shared by enough rows to be published are "
+            "written in words that hold a name after a title or "
+            "after a word (Dr, Mrs, wife), initials, a family name and an "
+            "initial, a telephone number, a month and a day, a run of "
+            f"{taxonomy.IDENTIFIER_WORD_FIGURES} figures or more, a network "
+            "address, or a latitude and a longitude, as a remark, "
+            "a list of names or a label naming a person may be written, and "
+            "such a value names a person, a date, a record, a device or a "
+            "place wherever it is published"
+        )
+    if reason == BECAUSE_SAFE_HARBOR_AREA_CODES:
+        return (
+            "most of its values are whole numbers of ten to twelve figures "
+            "that open with a state's two-figure code, its leading nought "
+            "kept or lost, as the code of a census tract or block group is "
+            "written, and such a code names an area smaller than a state"
+        )
+    if reason == BECAUSE_SAFE_HARBOR_COORDINATE_PAIRS:
+        return (
+            "some of its values -- most of them, or one value shared by "
+            "enough rows to be published -- are a latitude and a longitude "
+            "written in one cell -- two decimals of three places or more "
+            "inside the ranges a latitude (-90 to 90) and a longitude (-180 "
+            "to 180) keep, parted by a comma or a space -- and a coordinate "
+            "is a place's equivalent geocode, naming a place smaller than a "
+            "state"
+        )
+    if reason == BECAUSE_SAFE_HARBOR_DEVICE_SERIALS:
+        return (
+            "most of its values are written as a device's serial number is -- "
+            "one word of capitals and figures, six figures or more, groups "
+            "joined by a dash or not -- and many different ones stand in it, "
+            "and a serial number is given to one device a person carries or "
+            "was treated with"
+        )
+    return (
+        "some of its values -- most of them, or one value shared by enough "
+        "rows to be published -- are network addresses -- four numbers from "
+        "0 to 255 parted by points, groups of hexadecimal characters parted "
+        "by colons, or a device's hardware address -- and an internet "
+        "address or a hardware address is given to one device a person uses"
     )
 
 
@@ -6717,11 +7627,21 @@ def _identifier_form_seen(reason: str) -> str:
             "given to one person"
         )
     if reason == BECAUSE_SAFE_HARBOR_NAMES_WITH_NUMBERS:
+        # ...EVERY FORM THE RULE HOLDS, IN WORDS THAT FIT IT (lane CZ-A2's
+        # repair 2, Codex's item 5): a name joined to a record number by one
+        # mark, the number first or last, of five figures or more, was told
+        # the words of the bracketed form alone.
         return (
-            "some of its values are a name written family name first, a "
-            "comma and a given name, beside a number of six figures or more "
-            "in brackets or after a number sign, and both a person's name "
-            "and a record number name one person"
+            "some of its values are a person's name beside a record number: "
+            "a name written family name first, a comma and a given name, "
+            "beside a number of six figures or more in brackets or after a "
+            "number sign; or the parts of a name (a family name, given names "
+            "or initials) and a record number joined by one mark -- a comma, "
+            "a semicolon, a bar, a tab, a caret or an underscore -- the "
+            "number written first or last, five figures or more, with a "
+            "short label before it or none and a flag of one or two letters "
+            "after it or none; and both a person's name and a record number "
+            "name one person"
         )
     if reason == BECAUSE_SAFE_HARBOR_TOKENS:
         return (
@@ -6766,9 +7686,49 @@ def _identifier_form_seen(reason: str) -> str:
     )
 
 
+def _persons_names_seen(reason: str) -> str:
+    """What the Safe Harbor question says it saw of a column held for persons' names (plan P4-D478), naming no value.
+
+    It says what was LOOKED AT: the different values read, every one or,
+    where the column holds more than the reader reads, a sample met in
+    cells spread over the whole column (lane CZ-F's repair 2, Codex's item
+    3); and the shapes read, the name field cut at `^` and the small words
+    of a family name among them (Codex's item 5).
+    """
+    read = (
+        f"of its different values read -- every one, or, where it holds more "
+        f"than {taxonomy.PERSONS_NAMES_READ_AT_MOST:,}, a sample of "
+        f"{taxonomy.PERSONS_NAMES_READ_AT_MOST:,} met in cells spread over "
+        f"the whole column --"
+    )
+    if reason == BECAUSE_SAFE_HARBOR_PERSONS_NAMES:
+        return (
+            f"{read} most, and {taxonomy.NAMES_AT_LEAST} or more, are written "
+            f"as a person's name is written whole: a family name, a comma and "
+            f"a given name; a given name and a family name; or a health "
+            f"message's name field, its parts cut at ^, the family name first; "
+            f"with initials, a suffix or a title or none, every word opening "
+            f"with a capital but the small words a family name may hold before "
+            f"it, such as de or van, or the whole name in capitals; and a name "
+            f"names one person wherever it is published, a patient, a relative "
+            f"or a clinician"
+        )
+    return (
+        f"its name says it holds a person's name -- a patient's, a "
+        f"relative's or a clinician's, such as a surgeon or an attending -- "
+        f"and, {read} most are written as names are, however few they are: "
+        f"whole, as a family name and its initials, or as a family name "
+        f"alone, each word opening with a capital but the small words a "
+        f"family name may hold before it, such as de or van, or in capitals, "
+        f"a suffix such as Jr after it or none, or as a health message's "
+        f"name field cut at ^; and a name names one person wherever it is "
+        f"published"
+    )
+
+
 def _safe_harbor_question(
     name: str, role: str, reason: str, cutoff: int = 0, mark: int = taxonomy.TOP_CODE,
-    offer_units: bool = False, established: bool = True,
+    offer_units: bool = False, established: bool = True, bands: bool = False,
 ) -> Question:
     """The Safe Harbor question put to one column (plan P4-D427; lane SH2's reasons, P4-D434).
 
@@ -6783,7 +7743,9 @@ def _safe_harbor_question(
     whole column lost every other statistic of it. Where its values alone
     read as ages, `yes` holds it whole, as before lane SH3 (RULINGS 1
     (1): an answer keeps the meaning it had when it was given), and a
-    unit answered top-codes it.
+    unit answered top-codes it. ``bands``: the column's values are bands
+    of ages (plan P4-D472, `taxonomy.an_age_band`), its bands from 90
+    pooled into one, and the sentences say so.
     """
     yes_means = _SAFE_HARBOR_YES_MEANS
     yes_publishes = "no value of the column: it is held as a record number is"
@@ -6846,6 +7808,31 @@ def _safe_harbor_question(
         yes_publishes = (
             f"the column read with the top-code: every value from {mark} "
             f"{unit} read as {mark}, its other values published"
+        )
+    elif reason == BECAUSE_SAFE_HARBOR_AGES and bands:
+        # ...AGES WRITTEN AS BANDS (plan P4-D472): no number is read as 90;
+        # the bands from 90 are pooled into one band past 89.
+        seen = (
+            f"its values are bands of ages (a first and a last age joined by a "
+            f"dash or a word, or a first age and over, a unit word after them "
+            f"or not), some starting past "
+            f"{taxonomy.TOP_CODE_LAST_AGE}, and an age over "
+            f"{taxonomy.TOP_CODE_LAST_AGE} is part of a birth date; unless this "
+            f"question is answered no every band from {taxonomy.TOP_CODE}, and a "
+            f"band holding {taxonomy.TOP_CODE}, is read as one band written from "
+            f"{taxonomy.TOP_CODE} (or from the first age of the band holding it) "
+            f"in the column's own form (\"{taxonomy.TOP_CODE} and over\") in the "
+            f"description, its summary and the twin"
+        )
+        unanswered = SAFE_HARBOR_TOP_CODED
+        lifted = (
+            f"the column as it is read without the top-code: each band, those "
+            f"past {taxonomy.TOP_CODE_LAST_AGE} among them"
+        )
+        yes_means = _SAFE_HARBOR_AGES_YES_MEANS
+        yes_publishes = (
+            f"the column read with the top-code: every band from "
+            f"{taxonomy.TOP_CODE} read as one band, its other bands published"
         )
     elif reason == BECAUSE_SAFE_HARBOR_AGES:
         seen = (
@@ -6910,6 +7897,26 @@ def _safe_harbor_question(
             "the column as it is described now, and the list of the values "
             "two cells or more hold, without counts, which the twin writes "
             "and nothing else"
+        )
+    elif reason == BECAUSE_SAFE_HARBOR_RARE_NAMES:
+        # ...IN WORDS THAT NAME NO VALUE (lane CODES-2, plan P4-D471): what the
+        # floor holds back is said as a fact about the column, and `no` says
+        # what it adds; nothing of a value, a count or a row is in it.
+        seen = (
+            "some of its values are each held by fewer rows than the "
+            "smallest group size, so the description counts them together "
+            "and does not name them; until this question is answered the "
+            "column is described as it is now, and with no the description "
+            "also names those values, without how many rows hold each, "
+            "beside the rows they cover together, and the twin writes them, "
+            "so a list of the values written on the twin also meets the "
+            "table's own"
+        )
+        unanswered = ANSWER_KEEP
+        lifted = (
+            "the column as it is described now, and the names of the values "
+            "too few rows hold, without their counts, which the twin writes "
+            "in their rows"
         )
     elif reason == BECAUSE_SAFE_HARBOR_DATED_VALUES:
         seen = (
@@ -6986,6 +7993,7 @@ def safe_harbor_questions(
     dated: "tuple[str, ...]" = (),
     dates_answered: "tuple[str, ...]" = (),
     beside: "tuple[str, ...]" = (),
+    rare_named: "tuple[str, ...]" = (),
 ) -> "list[Question]":
     """The Safe Harbor questions a run puts, in the table's own column order.
 
@@ -7019,7 +8027,13 @@ def safe_harbor_questions(
     the column in this run (``beside``, one question a column, P4-D427):
     a column of dates as text and a few codes is put its codes question,
     or its mostly-dates question, first, its dates held meanwhile.
-    Guarantees: a fixed function of the twelve. Raises nothing. No I/O.
+    AND ONE TO EACH LABEL COLUMN in ``rare_named`` (lane CODES-2, plan
+    P4-D471; the owner's answer Z1 = B): values too few rows hold, named
+    beside their pooled total only after `no`; on the same terms -- one
+    question a column, none to a column answered, none while another
+    question is put to the column in this run (``beside``) -- and
+    unanswered it is described as before.
+    Guarantees: a fixed function of the thirteen. Raises nothing. No I/O.
     """
     held_for: "dict[str, str]" = {} if reasons is None else reasons
     cutoff = taxonomy.year_cutoff(harbor_year) if harbor_year else 0
@@ -7067,6 +8081,7 @@ def safe_harbor_questions(
                     stated not in taxonomy.AGE_UNITS_STATED
                     and not taxonomy.age_mark_named(name),
                     bool(stated) or taxonomy.named_as_an_age(name),
+                    _bands_published(block),
                 )
             ]
             named[name] = True
@@ -7098,7 +8113,22 @@ def safe_harbor_questions(
         elif name in dated and name not in waiting:
             found += [_safe_harbor_question(name, role, BECAUSE_SAFE_HARBOR_DATED_VALUES)]
             named[name] = True
+        elif name in rare_named and name not in waiting:
+            found += [_safe_harbor_question(name, role, BECAUSE_SAFE_HARBOR_RARE_NAMES)]
+            named[name] = True
     return found
+
+
+def _bands_published(block: "dict[str, object]") -> bool:
+    """Whether two in three at least of a block's published levels are bands of ages (plan P4-D472, `taxonomy.a_band_cell`)."""
+    levels = block["levels"] if "levels" in block else None
+    if not isinstance(levels, list):
+        return False
+    labels = [
+        f"{level['label']}" for level in levels if isinstance(level, dict) and "label" in level
+    ]
+    bands = [label for label in labels if taxonomy.a_band_cell(label) is not None]
+    return bool(bands) and 3 * len(bands) >= 2 * len(labels)
 
 
 # A REGISTER EVERY CELL OF WHICH NAMES ONE PERSON (plan P4-D401, route
@@ -9387,6 +10417,8 @@ class Answers:
     # offers neither reading, so both stay empty on every shipped path.
     persons_said: "tuple[str, ...]" = ()
     records_said: "tuple[str, ...]" = ()
+    # -- lane TR (P4-D473): the columns answered `clock-figures` (rule 5c).
+    clock_figures: "tuple[str, ...]" = ()
 
 
 def _entry_answer(
@@ -9646,6 +10678,7 @@ def answers_in(document: object, shown: str) -> Answers:
     delimiter = ""
     first_row = ""
     twelve_hours: list[str] = []
+    clock_figures: list[str] = []
     day_first = False
     month_first = False
     # -- 3b.R4 (P4-D384): the columns answered with a counting system.
@@ -9755,6 +10788,9 @@ def answers_in(document: object, shown: str) -> Answers:
             metadata_rows_answered = True
         elif written == ANSWER_TWELVE_HOUR:
             twelve_hours += [name]
+        elif written == ANSWER_CLOCK_FIGURES:
+            # -- lane TR (P4-D473): rule 5c's reading, by the answer alone.
+            clock_figures += [name]
         elif written in date_counts.MEMBERS:
             # Question Q3 (landing R4): `--date-count COLUMN MEMBER`.
             counted += [(name, written)]
@@ -9889,6 +10925,7 @@ def answers_in(document: object, shown: str) -> Answers:
         safe_harbor_dates_yes=tuple(safe_harbor_dates_yes),
         persons_said=tuple(persons_said),
         records_said=tuple(records_said),
+        clock_figures=tuple(clock_figures),
     )
 
 
@@ -9967,6 +11004,10 @@ _FAMILY_SAFE_HARBOR_DATES = "safe-harbor-dates"
 # QUESTION Q-UNIT's `keep` (plan P4-D438): the labels kept, carried so the
 # question is not put again. Its `measurement` and `code` are the kind's.
 _FAMILY_UNIT = "unit"
+# Q-CLOCK's answer (lane TR, plan P4-D473): a family of its own, so a kept
+# answer of what a column holds lists no clock beside it, and its question
+# decides both families.
+_FAMILY_FIGURES = "clock-figures"
 _FAMILY_WORDS: "dict[str, tuple[str, ...]]" = {
     _FAMILY_KIND: (
         ANSWER_KEEP, ANSWER_CODE, ANSWER_IDENTIFIER, ANSWER_MEASUREMENT,
@@ -9991,6 +11032,7 @@ _FAMILY_WORDS: "dict[str, tuple[str, ...]]" = {
     _FAMILY_SAFE_HARBOR: (ANSWER_SAFE_HARBOR_NO, ANSWER_SAFE_HARBOR_YES) + tuple(AGE_UNIT_ANSWERS),
     _FAMILY_SAFE_HARBOR_DATES: (ANSWER_SAFE_HARBOR_NO, ANSWER_SAFE_HARBOR_YES),
     _FAMILY_UNIT: (ANSWER_KEEP, ANSWER_MEASUREMENT, ANSWER_CODE),
+    _FAMILY_FIGURES: (ANSWER_KEEP, ANSWER_CLOCK_FIGURES),
 }
 # The subject a question about the whole file is filed under, which is
 # the `column` its entry names.
@@ -10013,6 +11055,7 @@ _KEPT_MEANS: "dict[str, str]" = {
     ANSWER_MEASUREMENT: "measurements",
     ANSWER_DECIMAL_COMMA: "numbers written with a comma before the decimals",
     ANSWER_TWELVE_HOUR: "a 12-hour clock written without AM or PM",
+    ANSWER_CLOCK_FIGURES: "clock times written as figures alone",
     ANSWER_NO_DATE: "its few repeated codes stand for a missing date or time",
     ANSWER_REAL_VALUE: "its few repeated codes are values of their own",
     ANSWER_DATES: "dates, with the values written another way left unread",
@@ -10066,6 +11109,17 @@ _CANNOT_STAND_TOGETHER: "tuple[tuple[tuple[str, ...], tuple[str, ...]], ...]" = 
     ),
     ((ANSWER_DECIMAL_COMMA,), (ANSWER_CODE, ANSWER_IDENTIFIER)),
     ((ANSWER_TWELVE_HOUR,), (ANSWER_CODE,)),
+    # -- lane TR (P4-D473): clock figures are not codes, record numbers or
+    # measurements, so a later answer of either kind replaces the other --
+    # nor counted dates (Codex's review of lane TR, item 4: a kept
+    # `clock-figures` beside a later `--date-count chart_time
+    # seconds-since-1970` was kept too, and its declined check held as
+    # record numbers 20,000 cells the date count alone reads as dates), so
+    # the newer of the two replaces the other, either way round.
+    (
+        (ANSWER_CLOCK_FIGURES,),
+        (ANSWER_CODE, ANSWER_IDENTIFIER, ANSWER_MEASUREMENT) + tuple(date_counts.MEMBERS),
+    ),
 )
 
 
@@ -10098,7 +11152,7 @@ def _family_of(answer: str, offered: "tuple[str, ...]") -> str:
         _FAMILY_KIND, _FAMILY_GRAMMAR, _FAMILY_CLOCK, _FAMILY_COUNTED,
         _FAMILY_DATE_CODES, _FAMILY_CENTURY, _FAMILY_DATES, _FAMILY_FIRST_ROW,
         _FAMILY_METADATA, _FAMILY_DELIMITER, _FAMILY_DAY_ORDER,
-        _FAMILY_SAFE_HARBOR,
+        _FAMILY_SAFE_HARBOR, _FAMILY_FIGURES,
     ):
         if answer in _FAMILY_WORDS[family]:
             return family
@@ -10404,6 +11458,8 @@ class Given:
     date_columns: "tuple[str, ...]" = ()
     date_columns_kept: "tuple[str, ...]" = ()
     identities_kept: "tuple[str, ...]" = ()
+    # -- lane TR (P4-D473): the columns answered `clock-figures`.
+    clock_figures: "tuple[str, ...]" = ()
     # Question Q-UNIT answered `keep` (plan P4-D438).
     units_kept: "tuple[str, ...]" = ()
     # Question Q-COMMA answered `keep` (plan P4-D443).
@@ -10526,6 +11582,8 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
     kept_identity = {name: True for name in given.identities_kept}
     kept_units = {name: True for name in given.units_kept}
     clocks = {name: True for name in given.twelve_hours}
+    # -- lane TR (P4-D473): Q-CLOCK's answer, kept in its own family.
+    figured = {name: True for name in given.clock_figures}
     counted = {name: member for name, member in given.date_counts}
     coded: "dict[str, tuple[str, str]]" = {}
     for name, saw in given.missing_dates:
@@ -10567,7 +11625,7 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
     others: "dict[str, bool]" = {}
     for table in (
         kinds, commas, kept_commas, kept_identity, kept_units, clocks,
-        counted, coded, centuries, dated, harbored, harbored_dates,
+        counted, coded, centuries, dated, harbored, harbored_dates, figured,
     ):
         for name in table:
             if name not in named:
@@ -10589,6 +11647,10 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
         if name in clocks:
             found += [
                 _kept_entry(name, ANSWER_TWELVE_HOUR, _FAMILY_CLOCK, "")
+            ]
+        if name in figured:
+            found += [
+                _kept_entry(name, ANSWER_CLOCK_FIGURES, _FAMILY_FIGURES, "")
             ]
         if name in counted:
             found += [_kept_entry(name, counted[name], _FAMILY_COUNTED, "")]

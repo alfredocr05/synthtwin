@@ -409,6 +409,10 @@ _place(
         "columns.[].high_tail.rms_distance",
         "columns.[].suppressed_numbers.mean",
         "columns.[].part_agreements.[]",
+        # ...and the two values an age column's ends were pooled into in
+        # people (lane HB2, plan P4-D477): each a value of its cells the
+        # floor's people hold.
+        "columns.[].top_coded_ends.[]",
     ),
     VALUE,
 )
@@ -1739,6 +1743,119 @@ def test_the_sentence_leak_witness_fails_on_the_whole_word_split() -> None:
     missed = _sentence_leaks_missed(whole_words)
     assert len(missed) == len(SENTENCE_LEAKS), missed
 
+
+# Values the split cut apart (batch 4r's tests-and-tools round HYG-1,
+# LANE I4r RULINGS 6 (2)(c)): a word ended at every character that is no
+# letter, figure or `- : + . /`, so a value the source wrote with a comma,
+# a percent sign, an apostrophe, a combining mark or a tab was never one
+# token, wherever a page printed it.
+WRITTEN_WHOLE_LEAKS = (
+    ("The value is 36,8.", "36,8", "a decimal comma ending a sentence"),
+    ("held by 1,234 rows", "1,234", "a thousands separator"),
+    ("(12%) of the rows", "12%", "a percent sign in brackets"),
+    ("admitted on Mar 4, 2021.", "Mar 4, 2021", "a date of three words with a comma"),
+    ("seen at 2021-03-04\t10:00 here", "2021-03-04\t10:00", "a moment written with a tab"),
+    ("in O'Brien's ward", "O'Brien's", "an apostrophe of its own"),
+    ("written as café.", "café", "a combining mark"),
+)
+
+
+def _tokens_before_hyg1(text):
+    """`_tokens` as the driver held it at 59267e6b: the split, its joins of two and three, a trailing point taken."""
+    found = []
+    word = ""
+    for letter in text:
+        if letter.isalnum() or letter in "-:+./":
+            word += letter
+        else:
+            if word:
+                found += [word]
+            word = ""
+    if word:
+        found += [word]
+    caught = []
+    for place in range(len(found)):
+        for width in (1, 2, 3):
+            if place + width > len(found):
+                continue
+            joined = " ".join(found[place:place + width])
+            caught += [joined]
+            bare = joined.rstrip(".")
+            if bare and bare != joined:
+                caught += [bare]
+    return caught
+
+
+def test_the_literal_leak_measurement_reads_a_value_as_the_source_wrote_it() -> None:
+    """HYG-1: a value written with a comma, a percent sign or any mark the split cut at comes back whole.
+
+    MUTATION: the split before (`_tokens_before_hyg1`) misses every one.
+    And a point in front of a value is never shed (`_window_ends`), so
+    `.5` is offered and the different value `5` is not (batch 4r's
+    repair round HYG-1b, LANE I4r RULINGS 9 (1), the verify's item 3).
+    MUTATION: a front point shed like any mark (`front_point_shed`)
+    offers `5`.
+    """
+    driver = _tail_leak_driver()
+    for line, value, why in WRITTEN_WHOLE_LEAKS:
+        assert value in driver._tokens(line), why
+        assert value not in _tokens_before_hyg1(line), why
+    tokens = driver._tokens("a share of .5 here")
+    assert ".5" in tokens and "5" not in tokens
+
+
+_LEAK_VALUES = (
+    "36,8", "1,234", "12%", "Mar 4, 2021", "2024-02-02 12:34:56", "00:12", "O'Brien's", "café", "2015-Q3",
+    "17-MAR-2021", "12.5",
+)
+_LEAK_FILLER = ("the", "earliest", "is", "rows", "Earliest:", "at", "and", "2", "of", "x")
+_LEAK_FRONTS = ("", "", "(", "[", '"', "'", "“", "«", "#", "​")
+_LEAK_BACKS = ("", "", ".", ",", ";", ")", "]", '"', "'", "”", "!", "?", ").", "​")
+_LEAK_GAPS = (" ", " ", "  ", "\t", "\n", " ", "　")
+_LEAK_GLUE = ("x", "7", "-", "+", "/", ":")
+
+
+def test_the_literal_leak_measurement_keeps_what_it_caught_and_reads_every_placement() -> None:
+    """HYG-1, the class at the unit level: 3,000 generated lines, each one value placed among filler words.
+
+    A value standing between whitespace and any marks but `- + : /`
+    comes back as a token; one glued to a letter, a figure or a notation
+    mark (`x00:12`, `5-`, `-00:12`) never does; and the tokens the split
+    gave before HYG-1 come first, in their order, and are never offered
+    twice, so a value it caught is counted as often as before.
+    MUTATION: the split before misses the placements of every value
+    that holds a comma, a percent sign, an apostrophe, a combining mark
+    or a tab.
+    """
+    driver = _tail_leak_driver()
+    draw = random.Random(20261109)
+    standing = 0
+    missed_before = 0
+    for _case in range(3000):
+        value = draw.choice(_LEAK_VALUES)
+        glued = draw.random() < 0.25
+        words = [draw.choice(_LEAK_FILLER) for _word in range(draw.randrange(0, 6))]
+        placed = draw.choice(_LEAK_FRONTS) + value + draw.choice(_LEAK_BACKS)
+        if glued:
+            stuck = draw.choice(_LEAK_GLUE)
+            placed = stuck + value if draw.random() < 0.5 else value + stuck
+        at = draw.randrange(0, len(words) + 1)
+        words = words[:at] + [placed] + words[at:]
+        line = ""
+        for place in range(len(words)):
+            line += (draw.choice(_LEAK_GAPS) if place else "") + words[place]
+        before = _tokens_before_hyg1(line)
+        after = driver._tokens(line)
+        assert after[: len(before)] == before, line
+        assert not set(after[len(before):]) & set(before), line
+        if glued:
+            assert value not in after, line
+            continue
+        standing += 1
+        assert value in after, line
+        if value not in before:
+            missed_before += 1
+    assert standing > 2000 and missed_before > 1000, (standing, missed_before)
 
 # -- 3b. the reconstruction attacks (the fix pass, plan P4-D349) -------
 #

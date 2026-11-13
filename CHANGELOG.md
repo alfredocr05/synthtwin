@@ -6,6 +6,709 @@ exists).
 
 ## [Unreleased]
 
+### Batch 4s sealed: lanes LM1, TR, DST, CODES-2, CZ-F, CZ-A2, HB2, CZ-E and SV landed after rounds HYG-1 and CI-4r, their KPIs stamped on the fix head (2026-11-13)
+
+**Measured on the fix head `85eb6754`** (the eleven merge steps, 0 to 10, on batch 4r's sealed head `548abf89`, whose tree is the public head `658d2b13`'s, the batch's owed items, and the fix round's ten commits on the reviewed head `ce75ec54`; plans P4-D469 and P4-D471 to P4-D478, each with its landing lines; nine proof runners side by side on a loaded machine, so no seconds were judged; Python 3.11 only): lane HB's five label-key shapes 0 real keys and 0 real runs at 20,000 rows, the probe's lines as on batch 4r's reviewed head but generation seconds; the stage-5 goldens 257 records, 0 differing; twenty-nine entries compared key by key with their last stamps (batch 4r's reviewed head's, and each lane's own for `K-HZ-22` to `K-HZ-30`): `K-HZ-07`, `K-HZ-15`, `K-HZ-19`, `K-S3-65`, `K-HZ-05`, `K-HZ-22`, `K-HZ-24`, `K-HZ-25`, `K-HZ-28`, `K-S5-01`, `K-S5-02`, `K-S8-01`, `K-S8-03` and `K-S8-05` PASS, `K-HZ-03` PASS on its machine-free keys (its seconds red at the stamp on a loaded machine, as before), `K-HZ-06`, `K-S3-64`, `K-HZ-01`, `K-HZ-02` (139 failures over 40 kinds at 20,000 rows, 158 over 45 before, each owned), `K-HZ-13`, `K-HZ-17`, `K-HZ-20` (94 and 79 questions put), `K-HZ-23`, `K-HZ-26`, `K-HZ-27` (its zone-word column read right on the merged line), `K-HZ-29` and `K-HZ-30` OPEN-held, `K-HZ-14` OPEN at its bounds (84 items, 0 failing where 2 failed), and `K-HZ-16` OPEN-WORSE on two keys of one attack, red at the stamp: the attack's answer column of dates spelled `2024-03-05 00:00 EST` is held whole as an identifier by lane CZ-E's question answered `yes`, so it is neither put its dates question nor held by the dated-values rule (`case_iso_zone_not_asked` and `case_iso_zone_not_held` 0 to 1), with 0 real date elements shown and 0 twin cells carrying one, found by the attack run alone on the line's heads; ruled (the orchestrator's LANE I4s RULINGS 4 (1)): the hold stands, the key's reading is the fault (a column held whole as an identifier is to count as held), and whether such a column is also put its dates question is a fidelity item, both lane CZ-H's; the entry stays red at its stamp. The other keys that moved are named in their entries, each with the lane that moved it where one is named (measured by the lane or by this seal's runs of the line's heads where so said, else read so and not split by a run), and the keys moved with no lane named are listed in STATE's carries: lane CZ-A2's implant log fixture (`K-HZ-06`'s table refused for the people floor 1 to 0, `K-HZ-14`'s two failing items to none, `K-HZ-16`'s price 28 to 26), lanes DST, TR and CODES-2 on the zoo's kinds (`K-HZ-01` 53 to 58 kinds passing; `K-HZ-02` 158 to 139 failures, with lanes LM1, CZ-A2 and CZ-E), lane CODES-2's rare levels named after `no` (`K-HZ-17`'s twin cells equal to a level 1 to 10 people hold 4 to 123), lane LM1's `expcode` (`K-S3-64` 402 shapes), and `K-HZ-19`'s recorded twin mean of a pooled number column, `code_per_person` 9.0041 to 23.4041 at 20,000 rows against the real 7.5878, not split by a run (at 600 rows, below the table floor and no finding, 38.2333 to 4320.9, which the form run alone on the line's heads puts at lane HB2's merge), a named fidelity cost of pooling a rare far code in people and the first item of lane HB3-a3, which measures and bisects it at 20,000 rows (the orchestrator's LANE I4s RULINGS 4 (4)). **Catch-up stamps from batch 4r's own runs:** `K-S4-09` from its full driver on batch 4r's reviewed head `820d55c3`, which finished after batch 4r's push (OPEN-held, 11.3 traced bytes a cell against the bound of 17.7); and `K-P0-11` registered, green, bound at 110 per cent of the heaviest shard of batch 4r's final whole suite on its sealed head `9545edee` (every shard exiting 0, Python 3.11 only), read by `tools/measurements/kpi_suite_shards.py`: 18,193 collected, the heaviest shard 9,104.45 s and 42,129.29 s summed; `K-P0-10`, read from that run, is not stamped, its two seconds above both bounds on a machine that was not quiet (plan P4-D461's acceptance not met on that run); the entry stands as left, and P4-D461's remedy waits for a run on a quiet machine, owner the orchestrator, not a push condition (LANE I4s RULINGS 4 (2)). No bound, rule or status of an existing entry moved; the ledger reads 1,281,035 bytes, under its bound of 1,300,000, which was not edited.
+
+**The whole suite on the fix head** (2026-11-12, the five shards at once, Python 3.11 only): 19,194 collected; 19,120 passed, 56 skipped, 15 expected to fail and 3 failed, the disposition registry's three seal cases, which this seal clears. The whole suite and the proofs ran on Python 3.11 only (lane CI-4r's memory file and five neighbours also ran on Python 3.13 at its merge); GitHub's run covers Python 3.11 to 3.14 on three systems, on the push that carries the batch.
+
+### Batch 4s's fix round: the one band past 89 written in years, the band marker read by the validator, the forced description and the chain's reader, the patient layer keeping it, a band an age only beside the column's ages, zone words at the monthly pooling's handoff, a label's bound kept inward, and one index of a column's runs (2026-11-12)
+
+**Ten commits on the reviewed head `ce75ec54`, code and tests** (8 source files and one new gate file, `tests/test_merged_line_review_items.py`, 22 cases, 100.3 CPU s and 403.77 s of summed durations under Python 3.11); the outside review of the merged line, REJECT on one HIGH and six MEDIUM items, each fixed with a case of the review's table (for item 7, a column that reaches the test at every layout), a generated case and a mutant, 20 of the file's 22 cases red on `ce75ec54`; its scoped verify reproduced the seven items with its own tables and found one record sentence to narrow, no code. (1) The one band past 89 that pooling writes takes a form only where it reads in years (3,000 generated columns of year bands beside bands open upward in months, weeks or days: 0 written in another unit): the review's table (`0-17 years`, `18-89 years`, `90-94 years` and `12+ months`, 5,000 rows each) was written `90+ months` on 5,000 rows, a group from 7.5 years, and is written `90+ years` (plan P4-D472). (2) A label's bound stands on a grid point only within the noise of its own figures, so both bounds move inward: the review's witness wrote 11 numbers below a detection limit of `<1000.00000025` and writes none (P4-D475; the bound scaled to its grid below 2^52, and the validator's reading of the bound carried to lane LM1-b). (3) A stamp written with a zone word keeps it when monthly pooling moves its offset (`parsing.zone_family_word`): 20,000 Eastern stamps of 2024 beside 1,000 people were held and written in 2028, and are published at the month and written in 2024 (P4-D474). (4) A band joins a column's ages only beside a number the column reads as an age: the review's `score_band` was top-coded `80+` on 14,000 rows and is put its question and kept after `keep`; the adult age groups of limit (k) are read as no ages again, at the public tree's numbers (2 or 3 bands past 89 published and 3,900 twin cells on 1,000 people aged 25 to 104), owner lane CZ-G (P4-D472). (5) The patient layer keeps `top_coded_bands` on a patient-fixed column's published block: `75+` on 8,000 rows where `75-99` and `100+` stayed (P4-D467). (6) A block recording `top_coded_bands` beside no `top_category_pooled` is read with its bands by the validator, the forced description and the chain's reader: on the review's 20,000-row description each writes `90+` on 8,000 rows, and the real table, which missed 10 obligations of its own description, misses none (P4-D472, validation method V15.1). (7) The exclusion step reads a column's present runs once for all its layouts: at 200,000 rows and 50 layouts, 49 scans and 9,800,000 row visits (24.31 CPU s) become one read (0.97 CPU s), the exclusions identical by digest (P4-D469); the review's own table reaches the test at each of its 50 layouts when its column is declared a record number (on `ce75ec54` 50 scans and 1,000,000 row visits at 20,000 rows, on the head one read of the 20,000 rows, the description byte-identical), and undeclared, the command's default path, it does not reach the test. Carried with numbers and owners (STATE's carries): two neighbours of (1), one of them new against the public head as a wrong group (a number of 90 to 125 months beside year bands pooled into the oldest band as years: 3,000 cells of children aged 8 and 9), owner lane CZ-H; the label grid at 2^52 steps or more; the false hold of a measure's bands beside one number of 0 to 125. The 257 goldens reproduce; the zoo's 839 columns read the same reach, band decision and top-code at 20,000 rows on both heads.
+
+### Rounds HYG-1 and HYG-1b: the stage-3b count and cell checks and the tail-leak tokens read a text word by word, the old reading kept beside the word rule at four count readers and one cell check (2026-11-09 and 2026-11-10)
+
+**Tests and tools only, no src line** (merged first in batch 4s; plan P4-D467's paragraph of the round). The three carries of batch 4r's fix round are fixed: eight count readers, three readers of the questions file and one word reader read a count or a cell as written, word by word, each with a case red on its old reading (14 cases), and generated checks of 3,000 texts, 3,000 decoded files and 3,000 lines agree with walks written apart; `K-S3-11`'s tokens compare a value whole as the source wrote it, its value on the driver's 105-case battery unchanged key for key (+8.0 CPU s a run). The repair keeps the round's replaced reading beside the word rule at four count readers and the questions file's sixth check, so each of their old reds stays red by construction (7 cases); two regex readers are replaced without a union. Stated limits with their numbers in STATE's carries, owner the orchestrator.
+
+### Lane SV: validate reads a large checked twin in groups of columns (2026-11-09)
+
+- **`synthtwin validate` reads a large checked file in groups of columns, as `synthtwin profile` reads a table, and every byte it writes and prints is unchanged** (plan P4-D476; K-S4-23 new, OPEN). Read whole, the check held the twin's bytes, its text and a Python text object a cell: on the base, 974.1 MB at 200,000 rows of the made-up 50-column health table, 4.39 KB a row more from 20,000 rows. A file whose reading may not fit one group of columns (its bytes ten times over past `reading.GROUP_BYTES`, so past 25.6 MiB) is now read a line at a time and held a walk of groups at a time, every column asked of `reading.column_values`; the three rewrites the check makes of the table -- the Safe Harbor ages and years and the published grains -- are made of each column as it is asked for, by the functions that make them of a table read whole, so every description, check and chain line reads the cells it read before; the file's encoding is asked of the file a line at a time; a smaller file, and every workbook, is read whole, as before, at the cost it had. Measured, memory: the peak at 2,000,000 x 50 is not established by sizes up to 200,000 rows: one run a size of the same check moved by a factor of two to three between runs on the loaded machine (134.0 to 382.9 MB at 20,000 rows, 237.5 to 534.1 at 100,000), and a line through two of the measured points reads anywhere from below zero to 10,036.5 MB on the mixed table at 2,000,000 x 50 (the highest through the lowest 20,000-row run, 134.0 MB, and the highest 100,000-row run, 534.1 MB; K-S4-23's own three sizes give 1,428.5, 3,350.0 and 5,993.3) and 764.6 to 4,186.4 on the Gaussian, so these sizes show neither that validate stays under the owner's 8 GB a process nor that it goes over it; validate runs the grouped describe, whose own peak projected to 2,688.7 MB at `K-S4-09`'s stamp of `589f3d7` (1,307.4 MB at its stamp of batch 4r's reviewed head `820d55c3`, read at batch 4s's seal; projected, not judged); K-S4-23 stays OPEN until lane SX measures 1,000,000 rows and more, each size the largest of three runs, and projects no peak before. At 200,000 rows the grouped read peaked at 489.5 to 578.0 MB against 735.8 to 990.4 read whole on the mixed table and saved nothing on the Gaussian (491.8 against 492.0); at 100,000 rows it peaked above the whole read in the night's run (530.8 against 480.7) and far below it in the statistician's runs (237.5 and 245.9 against 558.4). Bytes: every written file, the screen and the exit equal to the base's on 1,229 runs of a generated fuzz of small tables, twelve kinds of the health zoo, the three 50-column tables at 20,000 and 200,000 rows and a chain-switched table (the 200,000-row screen of the mixed table compared again with one output folder: one text, read whole, at the shipped budget and in the groups 2,000,000 rows are read in; the Gaussian's and the code-heavy table's 200,000-row screens compared on their last 400 characters, their reports and exits equal). Time: files up to 25.6 MiB (read whole) retire what they retired; read in groups validate retires more (9.9 per cent more instructions at 200,000 rows at the shipped budget, 23.9 in the groups 2,000,000 rows are read in), projected linearly to 2,000,000 x 50 on a loaded machine from 132,345.8 to 165,613.4 G instructions on the mixed table, 25.1 per cent more (2.81 to 3.71 CPU hours), and from 225,247.5 to 237,182.7 G on the Gaussian, 5.3 per cent more (4.89 to 5.06 CPU hours), a stated limit. The gate, `tests/test_stage4_validate_groups.py` (40 cases, 44 CPU s, 97 s on the clock on a loaded machine), holds a file read one column a group to the same file read in one group over a generated sweep of the rewrites and the encoding words, fourteen written forms, refused files, grains, the chain's switch, one table of 20,000 rows, quoting by class, a header line written into a headerless file, a row order broken inside one grain and a workbook with its twin, and holds K-S4-23's driver to its rules; `tests/test_kpi_ledger_integrity.py`'s two exporter withdrawals reach the reading a file past 25.6 MiB is read by too. K-S4-23's driver is a measuring tool whose evidence is withheld rather than favourable, and it never deletes anything it did not make (repair 2, the outside review of the lane): a validation that did not complete stops it with nothing printed, a memory counter that read nothing withholds the peaks, a kept description and twin are measured only where the record written beside them when they were made still holds, its size list is read before any work, the peak is fitted only over sizes of 100,000 rows or more, and `run` refuses an output folder that is or holds either input's folder and writes only in a folder of its own, which it takes away once read. The validation method's V14.3 and V15.3 now state the rule a table read in groups is checked by, in place of the limit they stated (the grain and the top-code read through the redescription alone).
+
+### Lane CZ-E: the value readers -- a column held by what its values are: identifiers inside published text values, area codes, a coordinate pair or a network address in one cell, a device's serial number, and ages past 89 inside band labels (plan P4-D472, 2026-11-09)
+
+HIPAA first. Readers of a column's values, where its name and the
+other rules said nothing (`taxonomy.value_reader_hold`, asked last by
+`safe_harbor_hold`; the age reach's `age_bands_past_89`):
+
+- a level the floor's rows hold, of two words or more, holding a month
+  and a day, a telephone number, a run of seven figures or more, a title
+  before a name, initials, a family name and initials or a given name and
+  a middle initial, or a name after a word naming a relative, holds its
+  column whatever the levels' people and whether the table is counted in
+  people or in rows;
+- census tract and block-group codes (a state's code first, its nought
+  kept, or lost where the state's code is 2 to 9), a latitude and a
+  longitude in one cell, and dotted, colon and hardware network
+  addresses, each on two in three of the cells, hold their column;
+- devices' serial numbers (one word of capitals and figures, six figures
+  or more) on two in three of the cells, 100 different or more in two
+  makers' layouts or more, each layout counted by different serials, hold
+  their column (item (E));
+- each such column is put the one Safe Harbor question with its own
+  sentence, and only `no` or `--identifier` frees it;
+- a column of age bands holding a band past 89, read as ages by a unit
+  word, `age`, its name or its bands' spans, is in the age reach: its
+  bands from 90, every other cell naming an age past 89 and a band
+  holding 90 are written as ONE band in the source's form (`90+`, `>= 90
+  yrs`, `75+`), its question put in the words of bands, `no` freeing it;
+  bands written in another language are not read (plan P4-D472 (g)).
+
+Measured at 20,000 rows (`K-HZ-25`, new; 80 items, the eight kinds with
+and without their patient column in four modes, the eight smallest
+tables, the area codes one row a person): 80 of 80 items pass, 14 of
+them read again after the measure's first judge and band words and the
+serials' 10 on their reader's head: no real value
+of a held column shown, no twin cell equal to one, no complete real run
+inside a wider twin cell, every held column asked or held. On the base, the same
+tables published 18 of 18 common remarks holding an identifier, 118 rare
+remarks of a table counted in rows, 390 lists of names, 33 area codes, 402
+coordinate pairs, the bands past 89, one by one, and 1,000 of 1,000
+devices' serials of a table counted in rows answered truthfully. The price over the
+zoo's 77 catalogue tables (839 columns): one column reached, the signed
+reports' text, and no false alarm. The zoo answers `yes`
+for its signed reports (a clinician's name, inside the no-real-name
+rule), so their kind fails six checks at 20,000 rows where it failed four,
+each owned, and `K-HZ-02`'s bound on failures at 20,000 rows reads 160 for
+158. What stays open is named in P4-D472 with its numbers and owner.
+The suite collects 18,177 cases, 145 more (`tests/test_zoo_value_readers.py`).
+
+Repair 1 (2026-11-10; the skeptic's and the statistics check's items,
+each measured at 20,000 rows before it was fixed): every reader reads a
+value with the product's own odd dashes and spaces plain; a telephone
+number is read by a grammar instead of a list of nineteen layouts (the
+skeptic's independent attack: 831,600 of 831,600 spellings read, 342,300
+before); a range of dates, a slash between spaces, six glued figures and a year
+of two figures first are read (their price on the zoo 0); an
+address or a home point standing among words (`IP <address>`, `home
+<latitude>,<longitude>`) is read; a level that is a date or a stamp
+alone is left to the date rules, and a column whose question about
+dates was answered is not asked it again; one level wholly an address
+or a point holds its column whatever the share; a maker's layout is
+counted by different serials; bands topped by `100 & over`, `(100,
+105]`, `100 and up` or `100 or above`, and a band holding 90, are pooled
+into the one band past 89; bands are read as ages by their spans and by
+a name running `age` into a group's word; a score (since repair 2, a
+pair over a figure whose column writes the same words with 0 over that
+figure: repair 1's rule, three different figures or more over one
+figure, read dates sharing a day as scores) is read as no date, and the
+33 common clinical abbreviations of three letters or more
+written with points as no initials (those of two letters, a person's
+two initials' form, stay read); the title prefix rule is not taken (it
+left placed titles unread). The generated spellings are written from
+grammars of the tests' own, never from a reader's list. At 600 rows,
+the suite's test size, the reports' kind fails 6 checks where it failed
+3 on the base's own answers: `K-HZ-02`'s `failures_600_rows` reads 251
+for 248 at the next proof, inside its bound of 340.
+Measured at 20,000 rows (`K-HZ-25`, 94 items over 15 kinds, the 36 the
+repair touches read again on its head, 12 of them new, and the price
+kind's 2 and the remarks' 2 on its final head): 0 failing,
+no real value of a held column shown, no twin cell equal to one, no
+complete real run inside a wider twin cell, every held column asked or
+held, and no column of bands publishing more than one category past 89.
+The price kind of plain clinical labels (imaging exams' names with a
+modality code first, medicines' names with a release code, services'
+words after a title-like word, scores, dotted abbreviations): a first run holds
+the first three until `no` (P4-D472 (c)) and neither the scores nor the
+abbreviations; answered `no`, all five are published.
+The price over the zoo's 77 catalogue tables: one column reached, the
+signed reports' text, and no false alarm, as at the build, read again on
+the final head. The false
+alarms each widening reads outside the zoo are named in P4-D472 (c).
+A held label column of many values, each on many rows, is not generated
+in hours (the price kind's 120 imaging exams' names past 240 s, 7.4 s
+published): the held block writer's limit, the base's few-people route
+holding the same names alike, owned by lane HB3-b (P4-D472 (i)).
+
+Repair 2 (2026-11-11; the lane's last: the combined verify's items and
+the outside review's ten, each measured before it was fixed): a pair
+over a figure is a score only where its column writes the same words
+with 0 over that figure, so visit remarks `seen M/D` whose dates share a
+day stay read (repair 1's rule had published 24 of 24 on a patient table
+and 509 of 509 on a case table at 20,000 rows); adult age groups under a
+neutral name (four closed groups or more chained from an age of 21 or
+less, `18-44` to `100+`) are read as ages and pooled into one band past
+89; a bound open downward written `<`, `under`, `below` or `less than`
+ends one below its age, so the people under 90 keep their own band; a
+band with no unit word of years is read in the column's unit, so a
+closed band of months, weeks or days is never pooled at 90 (one written
+with open words, `100 months and over`, is still top-coded by the number
+path and written `90 months and over`: 71 of 4,000 generated columns at
+batch 4s's fix round, not new, owner lane CZ-H); a description records
+its band reading (`top_coded_bands`, contract TC1), and one made before
+it validates as it did (validation method V15.1); every form the address
+reader admits holds its column, addresses of letters alone or parted by
+hyphens among them, alone, among words and after a label holding an
+underscore; a latitude and a longitude among words are read in every
+spelling a cell of their own admits; a relative's name of two letters,
+any run of spaces, and an international number with a bracketed group
+are read; the questions of points and addresses say that one value
+shared by enough rows holds the column as most of its values do.
+`K-HZ-25`'s verdict counts a complete identifier inside a placed cell
+shown in a file or held by a twin cell, and it reads a category past 89
+by its own grammar. Measured at 20,000 rows (`K-HZ-25`, the second
+repair's four kinds unanswered and truthful and six items its fixes
+touch read again, 14 items, the five whose strings had been read with
+every string read again with the strings no made-up cell writes by
+chance): 0 failing, no real value of a held column shown, no twin cell
+equal to one, no complete real run or identifier inside a wider twin
+cell, every held column asked or held, no column of bands publishing
+more than one category past 89; on repair 1's head the second repair's
+three unanswered items publish 48, 12 and 11 real values. The price over
+the zoo's 77 catalogue tables: one column reached, the signed reports'
+text, and no false alarm, as before. The suite collects 18,275 cases, 98
+more (`tests/test_zoo_value_readers.py`).
+
+### Lane HB2: Safe Harbor ages read with their words and counted in people (2026-11-10)
+
+**Ages written with a word before their number are read as ages** (plan
+P4-D477; contract TC1 and B4e, method G7.14 and validation V15 amended;
+ledger `K-HZ-29`, new). A label column of `Age NN` cells, one a person,
+1,000 people of 20 rows, was read as words with no number: it was put no
+Safe Harbor question, published `Age 91` to `Age 95` and wrote 1,360 twin
+cells past 89 at 20,000 rows. One closed vocabulary,
+`taxonomy.AGE_VOCABULARY` (`age`, `aged`; `:`, `=`, `-`; round and square
+brackets; the units of years, months, weeks and days and an age's
+affixes), is now read around one age's number by the reach, its question,
+the top-code, the validator, the chain's reader and the generator's bound,
+with every space Python reads as one, the zero-width and format spaces
+and every dash the identifier forms are written with read as its space
+and hyphen and kept as written (the lane's repair 1: `Age<U+00A0>95`,
+`Age<U+2013>95` and their kind were read as words, 5 spellings past 89
+shown and 1,360 real twin cells a form); the top category is written in
+the cell's own form (`Age 90`, `Age<U+00A0>90`). Ten such
+families now put the question, show no age past 89 and write none; words
+that are no age (`Stage 2`, `Room 101`, `Score 95`) read as before, and
+the age words bring no column of the zoo's 77 tables into the reach. A
+block whose cells hold such words records `top_coded_words`, so every
+other description keeps its bytes and one written before validates as it
+did.
+
+**A top-coded age column (one holding an age past 89, or written with an
+age word or unit) the count in people would hold is pooled at its ends in
+people instead.** A visit table's ages beside its patient column, about
+3,000 patients at the table floor, was held whole as record numbers -- a
+youngest age, a percentile and the largest each held by 4 to 10 patients
+-- so the patient layer classed it ineligible. Each end's values few
+people hold now join one band the floor's people hold (the top code merged
+down, never past 90), the column is described and counted in people again,
+and held as before only where that fails; the block records
+`top_coded_ends`, and the description's summary says the two values each
+end is read as. On the table's three seeds at 20,005 to 20,065 rows the
+column is now described as a count, every published number and bin group
+held by 11 patients or more, its twin valid where the base's was not, and
+classed patient-fixed by the chain's patient layer behind its switch; the
+default command writes the age a row, as every column of numbers, so its
+twin patients holding two ages rose from 289 to 296 a seed to 2,840 to
+2,871 (owner lane GRb2, with lane CHON's switch). A round the count in
+people holds on its remainder alone takes the remainder's ages into the
+nearer band, and each bin group a block whose ends were pooled publishes
+is counted in people too (a histogram group closes at the floor's rows,
+and one person's 20 rows could close it alone: 3 groups of 7 to 10
+people over 34 draws at 1,000 people, now taken into the bands); where
+no round runs, a bin group 1 to 10 people hold is still published, as on
+the public head (carry C5: bin group 0, 100 rows, 5 people's, at 1,000
+people of 20 rows; lane HB3-a2's first HIPAA item). An age column whose
+oldest age is 89 or less is
+not top-coded and stays held as before (owner lane HB3-a2).
+
+**The top code bounds a column of numbers, and a pool's start after `no`
+stays off its held-back values.** The zoo's vitals export, nobody at the
+keyboard, published the top code 90 for its weight in kilograms and its
+twin wrote 130.9 to 159.5 kg; a column described as numbers, bare or
+with a unit, whose description publishes a top code now writes no twin
+cell past it, a placeholder aside, the bound given by the column's facts
+(inferred, it reached a held column's made-up cells and its twin missed
+its own layouts), and the oracle writes the same; a label column's twin
+is the stand-ins' (a categorical `NN kg` column writes 793 twin cells past
+the top code on the base and the head alike: stated, owner lane HB3). After the person's `no`, a code column
+whose one rare value equalled its pool's constant start (`8888` beside the
+key `8889`; `88` beside `1` to `5`) printed it and wrote it on that
+person's 20 rows; the pool's block now names its held-back widths' openings
+and its numbers' start is four figures at least, taking a free opening the
+width names where the openings keep the countdown back (`9888`), so
+neither is printed or written and both columns are pooled; over the zoo's
+50 tables with a person column, answered as the zoo answers, its 5 pools
+after `no` keep their starts and their blocks.
+
+**Stated, with their owners.** The day-number export's two decimals checks
+(198 and 193 twin cells written with four decimals, one made-up value the
+held walk shares between two held columns) are lane HB3's, with the held
+walk's layouts; its three-part key (4 repeated keys) is a relation of three
+columns, lane GRb2's; its two span checks stay held by design, its made-up
+days in the made-up years and off every real day's opening. The registry's
+identifier forms and the implant log's device numbers leave to lane HB3 by
+the brief's size valve. Ages in free-text phrases the vocabulary does not
+read -- `Age NN M` and `Age NN F`, `Age (yrs): NN`, `NN years N months`,
+`Age at diagnosis: NN` and the others plan P4-D477 lists with their
+numbers, none new against the base -- are lane HB3-a's; bands (`Age 90-94`)
+are lane CZ-E's. With lane GRb's patient walk, which is not on this line,
+the visit table's twin patients holding two ages fall to 0, and `K-BC-06`'s
+clause 6 is missed at 20,000 rows while clauses 1 and 4 regress on two of
+three seeds: the chain makes the newly patient-fixed age its root family
+and publishes no own-mean family and no trend there; owner lane GRb2.
+
+**Repair 2: every number the number reader reads, the words before the
+reach, the ends in the column's unit, the start off its rare value in every
+form, and the words without the pool marker.** Inside each frame of the
+vocabulary the number is now read as the profiler's number reader reads one
+(`Age .95e2` is 95), and a bracket around the number alone before an age's
+unit is the frame's: `Age (95) years` was read as -95 and `Age [95] years`
+as no number, so such columns put no question and published and wrote their
+ages past 89 (256 `Age (95) years` cells at 20,000 rows). An age word before
+a column's numbers now puts it in the reach before its strays past 125 can
+take it out (`Age 18` to `Age 105` beside 2,000 `Age 126` to `Age 225` under
+`record_label` published `Age 95` and wrote 204 such cells); under every
+heading such cells are described as under `age`. The ends are recorded in
+the unit of the top code and each cell is compared in it and written in its
+own (`600 months` and `960 months` beside bare years drew `[30, 960]` beside
+the top code 90, which the loader refused, so no twin was written). A pool's
+start after `no` is widened in a signed or decimal form too (`+88` beside `+1`
+to `+5`, and `88.8` beside `1.1` to `5.1`, were the starts and were written
+on that person's 20 cells; the declared decimal comma's `88,8` is now
+`8888,8`). A block's age words and ends are read beside no pool marker by the
+validator, the chain's reader and the generator alike. The zoo's owners
+lines name lane HB3 for the held walk's layouts (the day numbers' decimals,
+the registry's and the implant log's identifiers) and lane GRb2 for the day
+numbers' three-part key; the day numbers' two span checks are an accepted
+limit, written in the made-up-date room and never in the real span.
+
+### Lane CZ-A2: record numbers beside labels, names joined to record numbers, one-word codes and names with no layout (plan P4-D469; 2026-11-09)
+
+The identifier readings batch 4q's checks measured publishing real values,
+or writing them on the twin, each reproduced first on the base `a391424c`
+at the owner's table floor (20,000 rows, 1,000 people of 20 rows, nothing
+declared or answered) and each closed by a generated sweep of thousands of
+spellings and a table-level sample. Every figure is the lane's own run.
+
+- **A record number's label after a sign, joined by a mark or a space, or
+  closed by a check letter** is read by lane HX5's rule and by the person
+  rule's register of codes:
+  `#MR` and a number one a row wrote 19,999 of 20,000 real twin cells and
+  showed 126 values, now 0 and 0; `MR.` and a number 19,998 twin cells
+  holding a complete real record number, now 0; one a person, `#MR`,
+  `MR.`, `MR/`, `MR#` and a number sign alone published all 1,000 numbers
+  and wrote 20,000 real cells each, now 0 and 0.
+- **A name and a record number joined by one mark** (a comma, a semicolon,
+  a bar, a tab or a caret, the number first or last, two to four parts of
+  the name) is held as a name beside a record number on one cell:
+  `Cedar,Abc,1000013` one a row wrote 18,000 real twin cells, 1,998 more
+  holding a complete real record number and showed 3,000 values, now 0;
+  one a person, with spaces after the commas too, 20,000 and 1,000, now 0.
+- **A run of five figures or more in a one-word layout holding a letter**
+  is kept off the real by its opening where the layout's own exclusion
+  leaves it free (`ZM1004715` beside a real `MR1004715`): 48 to 0, five
+  figures 4,447 to 0, the forms' accession, block and slide references 20
+  to 0 each. An exclusion that writes inside the run stands byte for byte,
+  and a number in exponent form is one key; the broader rule batch 4q tried
+  was measured and not taken (it wrote a column of `REC` and seven figures
+  as the spill and a spreadsheet's NPIs off their layout). The price: over
+  the catalogue's such identifier columns read alone and unanswered, 21,538
+  such twin cells in 71 of 96 columns go to 0, and three columns of a capital and
+  five figures, which leave no free opening, are written wider than every
+  real cell until answered; declared, the implant log's dense lots write
+  their five-figure half wider (9,808 of 20,000 cells; 64 complete real
+  lots before). Stage-5 golden G6 moves by this rule (one record, recorded
+  again).
+- **The PCORnet-style export's codes**: the zoo's driver now answers a
+  second Safe Harbor question put to one column with the same answers;
+  pcornet_cdm fails 1 check at 20,000 rows where it failed 3.
+- **K-HZ-16's price accepted**: the six identifier columns of the forms'
+  tables it counts are held whole and the bounds 28 and 9 are its targets.
+- **The implant log's fixture** holds 2,500 people, each lot held by two,
+  so the person census counts 1,250 and the zoo's run reaches every step.
+- **Names with no layout** are generated in 4.8 to 5.8 CPU seconds at
+  20,000 rows where they took 106.3 to 113.1 (the column with a layout
+  7.5), and in 66.3 at 200,000 rows where the base took 2,242.7 (the
+  layout column 70.5), each twin's bytes the same: a strict search no
+  filling of which reads as the value's class is run once, and the walk's
+  band heads are written once a band.
+- K-HZ-22, new: seventeen items at 20,000 rows, 0 real values shown, 0
+  real twin cells, 0 complete real runs in wider cells, every item asked
+  or read as free text, which publishes nothing (a record number closed by
+  a check letter one a row). The gate is
+  `tests/test_labelled_record_numbers.py` (15 cases).
+- Stated limits, each with its owner in P4-D469: long codes shared by many
+  people are released only by an answer (lane MG); a spreadsheet's exponent
+  display of an identifier writes mantissa fragments at chance (lane HB2);
+  mixed joiners in one cell and names in small letters (lane CZ-A2's
+  successor); serial numbers under a name no word reads, alone in their
+  table, publish 921 values and write 18,420 real twin cells on the base
+  and the head alike (P4-D445's limit (h), measured; its owner for the
+  orchestrator to name).
+#### Lane CZ-A2's repair 1 (2026-11-10): its reviews' items, each closed or stated with its numbers
+
+- **The two classes closed at their cause.** A record number of five
+  figures or more beside words, in a cell read as an affixed number, is
+  read whatever follows it (`asking._a_whole_number_beside_words`): words
+  before the number, or a name of two parts or more or a flag of one or two
+  letters after it, the number first. Lane HX5's rule reads it one a row
+  and the person rule's register one a person, each leaving a cell the
+  forms' rule reads to that rule, so a name joined to a record number keeps
+  its Safe Harbor question and a blood-unit number its own. The label reader
+  takes spaces on both sides of its mark, `=`, `,`, the numero sign and one
+  pair of brackets; the joined-name reader sets aside every empty part and
+  takes an underscore, a flag after the number and five figures beside a
+  name. One cell of several record numbers, a record number with one word
+  after it and a record number in square brackets stay lane HX4's list
+  question's. The spellings the lane's skeptic measured on the base and
+  the build head alike (an empty part, the number first with empty parts
+  after, an underscore, five figures, a flag after the number, small
+  letters, labels after spaces and a mark or in brackets: one a row 3,000
+  or 126 values shown and 18,000 or 19,999 real twin cells, one a person
+  1,000 and 20,000) read 0 values shown, 0 real twin cells, 0 complete
+  real record numbers and 0 real name words at 20,000 rows, one a row and
+  one a person, each held with its question put.
+- **A declared column of two layouts whose runs share a width** (`#MR` and
+  seven figures beside `#9` and six) keeps its run off the other layout's
+  real runs: 81 twin cells holding a complete real record number at 20,000
+  rows, one a row, to 0.
+- **The price, measured** over the catalogue and the forms at 20,000 rows
+  (77 tables, 839 columns): on the repair's final code no column differs
+  from the build head in its role, its question or its exclusion (a first
+  reading put the forms' blood-unit numbers the person question; a cell
+  the forms' rule reads by its share is now left to that rule). A
+  labelled measurement of five figures or more, each value on one row
+  (`Volume: 12345 mL`), is now asked and held until answered (127 values
+  shown and 19,999 real twin cells before); a record number with one word
+  after it (`185380;pending`) keeps its list question.
+- **K-HZ-22** grows to thirty-six items, each counted unanswered and once
+  answered, with the free-text items recorded apart, each item's share of
+  twin cells in a real cell's pattern and eight false alarms recorded
+  (stamped on the final code: 0 failing of 36, every privacy key 0 unanswered and answered). The gate, `tests/test_labelled_record_numbers.py`, holds 40
+  cases (95.2 CPU seconds); the twenty-five mutants it ran, each new
+  rule's and the six of the build that stayed green on theirs, are each
+  red (a twenty-sixth, the beside-words reader's five-figure line
+  lowered, stayed green until repair 2's case).
+- **Two suite records move by the one-word rule, on purpose, each recorded
+  again**: `tests/test_stage6_chain_describe_scale.py`'s held table
+  (`record_no`'s exclusion `Z%%%%%%%` to `Z9%%%%%%`, the same at 20,000
+  rows) and `tests/test_stage4_generate_memory.py`'s `texts` (`record`'s
+  `Z@%%%%%%%` to `Z@9999%%%`, its 600 cells), beside stage-5 golden G6.
+- **K-HZ-16's price measured on the head**: four of the six columns stay on
+  it, the implant log's two leaving through its new fixture: its targets 26
+  and 9.
+- **Stated limits** added or restated, each with its owner in P4-D469: held
+  values with no layout are written in stand-ins, no real value (lane HB2);
+  a column of persons' names with no record number, alone in its table,
+  publishes 1,000 names and writes 20,000 real twin cells on the public
+  head and here alike (the CZ track, lane CZ-E first), and a name beside
+  fewer than five figures the same (lane CZ-G part (a)); `RC` and seven figures drawn at random,
+  one a row, held 49 complete real record numbers in the twin on the base
+  and are written as the spill until answered here; a column of `Age NN`
+  levels publishes ages from 90 to 95 on the public head and here alike
+  (lane HB2).
+
+#### Lane CZ-A2's repair 2 (2026-11-10): its verify's and its outside review's items, each closed or stated with its numbers
+
+- **Every space and every dash of one definition, in any place.** The
+  lane's readers, and the forms' rule's reader of a name beside a
+  bracketed record number, read a cell with each dash of the social
+  security reader's set written `-` (the set gains a horizontal bar, a
+  small em dash and a soft hyphen) and each Unicode space written ` `,
+  those of no width set aside, and set the spaces and dashes aside at the
+  ends of a name's parts and of the record number; a number sign's dash is
+  a mark, not a minus sign: a minus sign before the number of a label or a
+  joined name, a zero-width space or a dash after a number written first,
+  and a zero-width space or a dash around the comma or the brackets of a
+  name beside a record number published 1,000 values and wrote 20,000 real
+  twin cells one a person (18,000 and 1,998 complete runs one a row) on the
+  public head and the repair's earlier codes alike. Of the verify's 756
+  generated columns, 44 were held by no reader on repair 1's head; of 2,100
+  over 25 spellings of the class beside their plain spellings, 203; of
+  1,344 with each mark in sixteen places, 530; 0 here.
+- **Two identifier families in one column are held or asked.** A cell the
+  forms' rule reads is left to that rule only where it holds the column,
+  and a device identifier keeps its own hold: `#MR` numbers beside
+  blood-unit numbers, half each, one a person, published 1,000 record
+  numbers. Of 924 generated columns of two families, 64 were held by no
+  reader on repair 1's head; 0 here.
+- **A word or a placeholder never defeats the register's keys.** One
+  person's `UNKNOWN` or `-1` beside the lane's one-a-person labels or names
+  in small letters published 999 record numbers and wrote 20,000 real twin
+  cells; route two's count of keys beside words now counts them. Of 1,836
+  generated columns, 540 were held by no reader on repair 1's head; 0 here.
+- **A figure an exclusion writes inside its run** is read against the real
+  runs: a declared column of `#19...` beside `#MR` numbers wrote 101 twin
+  cells holding a complete real record number at 20,000 rows; 0 here, the
+  number sign's layout beside it kept off the other layout's runs too.
+- **The outside review's other items**: the unread-search memo keys the
+  literal template; an enclosing pair is read once, never by recursion (a
+  cell of nested brackets raised RecursionError past a depth of about 990;
+  depths of 1,000, 10,000 and 100,000 now read); the names-beside-
+  numbers question names each form it holds; the gate's set constructions
+  are hoisted; a timing citation and K-HZ-16's target stage restated. The
+  suite's five reds on repair 1's head are closed (the offline audit's four
+  lines, K-S3-55's 1,890 splits for 1,000 texts, the `udi_hibcc`
+  question); a letter is read without the table of letters the audit refuses (a
+  cased letter, or one of the scripts with no capital it names by range,
+  every letter of no case since the follow-up below), so a label in those
+  scripts is held as repair 1 held it.
+- **The price**: over the catalogue at 20,000 rows (77 tables, 839 columns)
+  0 roles and 0 questions move against repair 1, and one exclusion
+  (`payer_members.member_id`'s six-figure layout now opens with `99`: 0
+  real twin cells before and after). Labelled measurements that repeat are
+  asked and held until answered, now beside a word too (480 of 480
+  generated columns each way; the narrowing is lane CODES-3's). K-HZ-22
+  grows to 64 items (stamped on 60 of them at `d3f6a04c`: 0 failing, every privacy key 0 unanswered and answered; the four newest read 0 by the repair's own runs on the final code), the three-level dose among its false
+  alarms. The gate holds 57 cases (99.0 CPU seconds),
+  twenty-two mutants each red.
+- **Restated**: repair 1's "every new rule ... is red on its mutant" is the
+  twenty-five mutants it ran (the five-figure line of the beside-words
+  reader lowered stayed green until this repair's case); a name beside
+  fewer than five figures is owned by lane CZ-G.
+- **Stated**: a column of very long cells costs the describe time (about
+  345 CPU seconds for 20,000 cells of 2,007 characters; lane PRT);
+  a numeric placeholder beside held keys and a space after a number sign's figures each cost validate one obligation, with no exposure (lane HB3); the outside review's interior construction writes its `#MR` layout as the spill at 20,000 rows, 0 real values, and 22 of its 15,000 spill cells open with a whole real record number (for example `#MR2002009914` opening with a real `#MR2002009`), about chance (22.5 = 15,000 real numbers / 10^7 openings x 15,000 cells), as limit (f)'s windows (lane ID-ROOM4-b).
+
+#### Lane CZ-A2's follow-up (2026-11-11): its verify 2's two one-line fixes, each class held by a generated check, and two records items
+
+- **A mark inside a labelled record number's figures.** Route two's register
+  reads the code alphabet on the cell read plain: `MR100` with a soft hyphen
+  or an en dash before the last four figures, one a person, was read as
+  labels and published 1,000 values and wrote 20,000 real twin cells at
+  20,000 rows on repair 2's head (the soft hyphen on the public head too);
+  held now, 0 and 0. Of 504 generated columns (each of 42 marks after each
+  of the first six figures, both layouts), 22 were held by no reader where
+  their plain spelling is held; 0 here. The every-mark set gains the
+  label's joint, its head and both ends (1,596 columns, each held).
+- **Stated, not closed: a space between two groups of figures.** A space
+  after the third or fourth figure of a labelled record number, one a
+  person, publishes the record numbers (1,000 values shown and 20,000 real
+  twin cells at 20,000 rows, on the public head as here); one a row such a
+  column is read as free text or an affixed number, 0 real twin cells. A
+  reading that joins the groups was measured and withdrawn: over the
+  catalogue it put the person question on a fiscal quarter, held two date
+  columns beside it and changed a blood-unit column's question. Closed by
+  the narrower reading of follow-up 4 (below).
+- **Every letter of no case.** The ranges of the scripts with no capital hold
+  every character of Unicode's categories Lo and Lm with no case, 197 ranges
+  (the seven blocks the ruling names among them), held there by a generated
+  check read from `unicodedata`: an Ethiopic label one a person published
+  1,000 values and wrote 20,000 real twin cells (one a row 126 runs and
+  19,999), and 87,240 of Unicode 14.0's 127,667 such letters lay outside the
+  twelve ranges; 0 now, under Python 3.11 and 3.13.
+- **The price**: 0 roles, 0 questions and 0 exclusions move over the
+  catalogue (77 tables, 839 columns at 20,000 rows; the ranges reach no cell,
+  the register's reading 759 cells in two columns, which read the same). The
+  gate holds 59 cases (120.2 CPU seconds); K-HZ-22's driver 68 items, the
+  four new ones 0 unanswered and answered by the follow-up's own runs.
+- **Records**: K-HZ-22's stamp is worded as repair 2's code `d3f6a04` (before
+  `643ad537`), its 20,000-row case three columns since `6ce11509` (six now);
+  the interior construction's spill is lane ID-ROOM4-b's, its windows stated.
+- **Carried, with the verify's numbers**: a lone `9` beside one-a-person
+  holds (lane ID-ROOM4-b); `#MR` beside twelve-figure numbers (lane CZ-G);
+  tokens beside accessions one a row (lane HB3-b-b).
+
+#### Lane CZ-A2's follow-up 4 (2026-11-11): a labelled record number written in two groups of figures
+
+- **Read as one record number where its shape says one.** Route two's
+  register and lane HX5's arm read letters (of any script, a sign before
+  them and the marks at either end set aside, as the label reader reads
+  them), two groups of two figures or more, six or more in all, and one
+  space of the one definition between them, unless every such cell of the
+  column is a period (a year beside two figures or a second year).
+  `MR100 0013` and `MR1000 013` one a person, the groups parted by a plain,
+  a no-break or a thin space, published 1,000 values and wrote 20,000 real
+  twin cells at 20,000 rows (a tab: 0 and 20,000), on the public head as on
+  the lane's; one a row, six figures in groups of three wrote 19,999 real
+  twin cells, the space read as a mark between thousands. Each is held now,
+  0 and 0, unanswered and answered over one round. Of 896 generated columns
+  (labels of one and two letters, six and seven figures, every split, 32
+  spaces, both layouts) 596 were held by no reader; 0 now.
+- **Not reached**: fiscal quarters, fiscal years, versions, weeks, months and
+  thousands parted by a space keep their reading; eleven such columns
+  described at 20,000 rows are the same byte for byte; a group of one figure
+  is no cell of the reading.
+- **The price**: 0 roles, 0 questions and 0 exclusions move over the
+  catalogue (77 tables, 839 columns, 2,485,093 different cells at 20,000
+  rows; the reading takes no cell). The gate holds 61 cases (144.9 CPU
+  seconds), red on `7894ddbd` and on nine mutants; K-HZ-22's driver 72
+  items and 11 false alarms, the four new items 0 unanswered and answered
+  and the two new false alarms not asked.
+- **Stated**: five figures in all in two groups, two spaces between them, a
+  dash after the label and the cell in brackets, one a person, are still
+  read as labels (1,000 values, 20,000 real twin cells each; lane CZ-G).
+
+### Lane CZ-F: persons' names read from their values, and from a column name that says so (2026-11-10)
+
+**A column of persons' names is held whole and put the Safe Harbor question, in the spellings the reader reads** (plan P4-D478; `K-HZ-30`). A column of names with no record number in its cells and no person column beside it was read as labels and put no question: at the owner's floor its description published every name and its twin wrote every cell real. `taxonomy.persons_names_hold`, asked last by `safe_harbor_hold` on a role that publishes its levels, holds a column whose different present values are, two in three or more, a person's name written whole -- a family name, a comma and a given name; a given name and a family name; or a health message's name field cut at `^` -- with initials, a closed list of particles, apostrophes, dashes, suffixes, titles, degrees, capitals or letters past ASCII, every cell read through the product's one definition of a space and a dash (since batch 4s's merge lane CODES-2's `taxonomy._SCREEN_SPACE_RANGES`, every control and format character among its spaces, and `taxonomy._SCREEN_DASHES` beside it; a soft hyphen read both as a space and as a dash), 100 different or more, the values read -- a sample of 4,096 where a column holds more -- met by a walk over the whole column whose step shares no factor with its rows; and a column whose name says it holds a person's name -- a patient's, a relative's, a clinician's or a staff member's (`surgeon`, `attending_md`, `performed_by`, `crna`, `scrub_tech`, `circulating_rn`, written apart or run together in capitals, `PATIENTLASTNAME`; a participle, a provider, an operator, a resident or a reader never after a thing: `procedure_performed`, `insurance_provider`, `insurance_provider_name`, `lab_provider`) -- whose values are written as names, a family name and its initials or a family name alone among them, a suffix after it or after a comma read as the family-name reader reads one, whatever their number -- no minimum, one or two among them --, a word of the closed lists of roles, sources, services, statuses and flags being no name there. Its own sentence names no value and says what was looked at, every different value or a sample of them; only `no` or `--identifier` frees it, never `code`, `keep`, `measurement`, `--code` or `--measurement`. Beside a person column, declared or with its question still open, a names column the count in people holds keeps its bytes. Measured at 20,000 rows and 1,000 people (`K-HZ-30`, 137 items over 34 invented tables in six modes, two of them a reading typed at every run, one or two family names under a name that says one, suffixed family names, 116,400 rows in date order and 49,152 in blocks of 12; its counter reading every file's strings decoded): 0 real names shown, 0 real twin cells, 0 names inside wider twin cells, every names column held or asked; over the zoo's 77 catalogue tables one column reached, a names column, and no false alarm. Its stated limits -- names in small letters or a script with no capitals, single names and fewer than 100 names under a neutral name, names inside a wider text, names under two in three of a column's different values, staff headings outside the closed list, spellings it does not read, on more rows than the names or cycled in a regular order, crowding them out of the sample, and four words of the closed lists the repository's denied manifest holds -- are lane CZ-G's; labels in capitals and labels holding a particle read as names are the price `no` frees. Gate: `tests/test_zoo_persons_names.py`, 298 cases.
+
+### Rare values of category and code columns named beside their pooled total (lane CODES-2, plan P4-D471; 2026-11-09)
+
+Under the owner's answer Z1 = B, a value fewer than 11 rows hold may be
+NAMED in the description, never counted, beside the pooled total ruling 2
+already prints, and the twin writes it, so code written on the twin
+against a closed list of codes or words (`isin`, `map`, a code list) meets
+the real table's values -- save a spelling the floor folds into a published
+level, which the twin writes as that level's commonest spelling (`po` beside
+`PO`: lane CODES-2's repair 2, Codex's item 7). Only on a table of 20,000 rows or more, never
+while a question offering `identifier` is open, and only on three paths: a
+column declared a code and answered `no` to its Safe Harbor question; any
+other label column answered `no`, where no rare spelling reads as a number
+or is shaped as an identifier; and the words of a column of numbers with
+labels that pass the word screen -- with no question only where no word
+holds a figure, a word holding a figure (`#4521`, `1:40`) only after the
+column's `no`. The screen (lane CODES-2's repair 1) refuses a spelling of
+more than two words, a run of five figures or more than six, a letter
+beside a figure (`REC 1234`, `E1234`, `aged 101`), an initial with a point,
+an e-mail or web address (an `@` written `(at)` or `at` included, a host
+followed by a path), an internet address, a date or clock in every layout it
+reads (a month beside a year, a day above 12 beside a month, a week, a time
+of day), an age past 89 written with a word, a unit or a mark (`age 101`,
+`92 yrs`, `~95`, `100+`), a street address, a masked social security number
+or ZIP area, and a picture's file name; path (iii)'s net, behind the
+person's `no`, refuses the same save the word count, the letter beside a
+figure and the initial. The question is the one the product already puts,
+the owner's own sentence, now also put to a label column whose `no` would
+name its pool and to a column of numbers with labels whose held-back word
+holding a figure `no` would name; unanswered nothing changes, and `yes`
+holds the column. Contract 6.3 (`held_back_names`, invariants B4f to B4h),
+method G8.3e and its key index, validation V18, plan P4-D471; the new gate
+`tests/test_zoo_rare_names.py` and the driver `tools/measurements/kpi_rare_names.py`
+(K-HZ-23, K-HZ-24). Stated limits: a word of letters and marks alone (a name
+or a place typed into a measurement column, a bare host name) has no shape
+and is named by the screen; behind the person's `no`, path (iii) names
+record words of six figures or fewer and codes of letters and figures;
+missing marks read as absent are not named; a column held as names or
+street addresses (an identifier) names none of them, a lone name typed into
+a column of numbers with labels being the first limit's; a declared code's
+long tail is named whole on the person's declaration.
+
+**Repair 2 (2026-11-10; the verify of repair 1 and Codex's review of the
+build, the orchestrator's LANE CODES-2 RULINGS 5 and 6).** The word screen
+reads every Unicode space, control and format character as a space (Codex's
+note joined by no-break or em spaces was one word and was named with no
+answer; it is now four words, named nowhere and written in no twin cell at
+20,000 rows), and figures and letters of every script from fixed tables, not
+the interpreter's Unicode database. It refuses, on every road, an age past 89
+written in words (`ninety-five`, `hundred+`) and a month's name alone or
+beside a day's word (`April fifth`); path (i), a declared code answered `no`,
+names nothing where a held-back spelling wears a shape no public code wears
+(a week with its year, an age past 89 with a mark, a unit, a word or in
+words, a clock, an internet or e-mail address, a masked number or a
+picture's file name), every generated ICD-10-CM, NDC, LOINC and HCPCS code
+and procedure code with a modifier still named (*restated by the follow-up*:
+save the W chapter's codes written without their seventh character, 1,050
+of 4,231 generated, read as weeks until the follow-up); a code's letter after its figures (`S72.001D`, `0Y6M0Z0`)
+is read as an age's unit only where the number is an age past 89 in that
+unit. The rows of a named pool past the floor move in one pass (at 112,000
+pooled rows 0.05 to 0.06 CPU seconds against the build's 20.8), judged when
+the allocation is complete; names and counts that cannot agree, and a named
+pool counted in people, are refused when the description is read (B4g), so
+every pooled row is written once and no more. The driver of K-HZ-23 and
+K-HZ-24 stops on a run that did not complete and reads the levels it set
+aside. A held surname column of few groups wears every layout it publishes
+(the writer's layout packing asks a column of 64 groups or fewer up to 64
+questions, method G9.6). CODES-3's mutants M2, R4 and M4 are each red on a
+case. New stated limits: a spelling folded into a published level (`po`), a
+declared code ending in a number from 90 to 125 and `Y` (3 of 20,000
+generated ICD-10-PCS codes), and other languages' age words.
+
+**Follow-up (2026-11-10 and 11, the lane's last round; the verify of
+repair 2, the orchestrator's LANE CODES-2 RULINGS 8 and 9).** Read only as
+a space, one character that prints nothing (a format character, or a
+control that is not whitespace) inside a word or a number cut it in two,
+so a month's name, an age in words, a marked age or a clock holding one
+was named -- 40 names and 79 twin cells a column at 20,000 rows on
+`b26d2b0a`, month names with no question. Every screen now reads a
+held-back spelling twice, as written and with what prints nothing removed,
+and names it only where both readings pass: 0 named of the same spellings,
+at the unit level over all 218 such characters of every plane and at
+20,000 rows. Also refused on every road: number words glued into one
+(`ninetyfive`, `HundredEight+` and, since the lane's micro-step, `eight`
+before an end word in `y`, `ninetyeightyrs`: read longest first, `eight`
+and `yrs` were `eighty` and a rest, and 819 of the 23,562 spellings of the
+glued grammar were named on each road on the follow-up's head; read by
+backtracking, none); after `no` too, a month's name beside a
+day in figures (`1 of April`, `Mar 5th`), a word of about joined to an age
+past 89 by a point or glued to it (`c.95`, `approx95`, `95est`), a decade
+past 89 (`90s`) and an age whose marks stand apart (`age : 95`), each
+priced first on the code columns of the zoo's forms and on 20,000
+generated codes of 28 systems, where none refuses a code; and `SSN` glued
+to figures (`SSN1234`) on the two roads that are not a declared code. `c`
+glued before a number (`C95`) stays named: it is the shape of ICD-10-CM's
+categories C90 to C96 (a new stated limit, with `abt` and `ish`). A week
+is read only beside a year of 1900 to 2100, so codes of ICD-10-CM's W
+chapter written without their seventh character (`W16.011`), 1,050 of
+4,231 generated refused before, are named on a declared code's `no`; since
+the micro-step a point may join a year written first to its week and the
+week to its day (`2021.W14`, `2021-W14.3`) or a week to a year after it
+(`W14.2021`), newly refusing none of 905,100 spellings of the W chapter
+written out and 324,836 generated codes, while a week or a year out of
+bounds (`2021-W54`, `1899-W14`) is no week and is named after `no` (a
+stated limit). The driver's check of a failed generate has its own
+case (a stale twin left beside it), and the three writes of the gate
+file's driver case name their line ending, as the lane's suite repair
+does. A column the screens now hold back takes the held path the public
+head gives it, whose made-up spellings in the column's forms can meet a
+real rare spelling (4 to 52 twin cells a column of the about-word
+families at 20,000 rows, the same on the public head; owner lane HB3-b).
+The micro-step on the follow-up's verify (the orchestrator's LANE CODES-2
+RULINGS 10) adds four cases to the gate file: the glued grammar on every
+road; the same spellings through the commands at 20,000 rows, one column a
+road (on the follow-up's head each column published all 45 and the twin
+wrote them; none now); and the two sides of the re-ruled week. From that
+verify it states as limits characters that print nothing outside the
+format and control characters, `SSN` glued to nine figures on a declared
+code's `no`, the whitespace controls inside a word and road (ii) tables of
+five columns validating at exit 3 (owner lane CODES-3, planned), and rule
+A2's stand-ins (owner lane HB3-b-b).
+
+### Batch 4s's merges: the ledger's bound raised once, lane CODES-2's limit (g) answered, the held writer's short layouts given an owner, lane CZ-F's merge, lane CZ-A2's merge, lane HB2's merge, lane CZ-E's merge and lane SV's merge (2026-11-11)
+
+- The ledger's byte bound rises once for this batch, from 1,200,000 to 1,300,000 (the orchestrator's recorded call D15; the owner may veto): lanes LM1, TR and DST merged under the old bound (1,194,040 bytes after lane DST's merge), lane CODES-2's merge takes the merged ledger past it (1,211,857 bytes, with its new `K-HZ-23` and `K-HZ-24`), and no entry is trimmed and no key dropped.
+- Lane CODES-2's limit (g) (plan P4-D471) is restated as answered: on 2026-11-10 the owner answered yes to naming the rare keys of a column that says which measurement each row is (a flow key, a question key) beside the pooled total after its Safe Harbor question is answered `no`, as under the answer Z1 = B; lane KV builds it (`K-HZ-23`'s 2,185 cells of the zoo's flow keys at 20,000 rows), and the zoo's owners line of those keys names lane KV. No code changes.
+- The held block's writer files no deviation for a layout it leaves short (lane CODES-2's held surname: three layouts missed with the twin's notes empty on `a391424c` and on that lane's repair 1 head alike, named by validate only): a stated limit, owner lane HB3-b.
+- Lane TR's case that the settings block leaves out exactly two settings names three since lane CODES-2's merge: that lane's `held_back_named`, a column's own, is the third.
+- Lane CZ-F's merge: lane CODES-2's word screen and lane CZ-F's reader of persons' names each brought a function named `taxonomy._words_of`, and under one name the reader's would have replaced the screen's in every call (on such a merge the standing guard of names bound twice fails, and a note joined by a zero-width space or a control character is named on the screen's roads); the reader's is now `_words_of_a_name_part`. The seam with lane CZ-E, which merges later (its `value_reader_hold` asked first by `safe_harbor_hold`, then `persons_names_hold`; the Safe Harbor reason tuples the union, lane CZ-E's first), is written in plan P4-D478's paragraph at this merge, with the caret owed to lane CZ-A2's merge and the held writer's cliff, which stands until lane HB3-b's.
+- The reader of persons' names reads the product's one definition of a space and a dash: lane CODES-2's `taxonomy._SCREEN_SPACE_RANGES` (2,474 code points: every space `str.split` cuts at and every control and format character) and `taxonomy._SCREEN_DASHES`, named beside it, in place of its own list of 35 spaces and 11 dashes. A cell holding the soft hyphen, a space of the one definition and the reader's dash before, is read both ways, the stronger reading kept, so the reader holds every name it held, and names written with a control or a format character besides. A generated case over all 1,114,112 code points holds the reader's spaces equal to the word screen's and its dashes to the named ones.
+- Lane CZ-A2's merge: lane PRT-a's walk of lane HX5's arm reads a value's key once a spelling (`asking._key_reading`), and lane CZ-A2 changed the same reading (a labelled record number in two groups of figures, a record number beside words, the forms' rule deferred to only where it holds the column): the key reading now holds lane CZ-A2's readings and takes the two facts of the column they ask, each read once a walk, so the memo holds. Lane CODES-2's word screen and lane CZ-A2's exclusions each brought a function named `taxonomy._figure_runs`, and under one name the exclusions' would have replaced the screen's in every call (on such a merge the standing guard of names bound twice fails, and an age past 89 written with a mark, a unit letter or Arabic-Indic figures is named on the screen's roads); the exclusions' is now `_figure_runs_of_a_layout`. The four ledger entries both lanes changed keep batch 4r's stamp with both lanes' notes, and the ledger holds 1,232,263 bytes.
+- Lane CZ-A2's readers read the product's one definition of a space and a dash: `taxonomy.with_plain_marks` reads `taxonomy._SCREEN_SPACE_RANGES` (a space a display draws written as a space, the tab kept, a space that prints nothing set aside) and `taxonomy._SCREEN_DASHES` in place of the lane's three lists (24 spaces, 7 marks of no width, 12 dashes), which lie inside; the definition is wider by the four information separators and by 2,438 characters that print nothing, and the horizontal bar, the lane's dash, joins the named dashes (the reader of persons' names reads it as a dash too). The soft hyphen, a space that prints nothing and the lane's dash, is read both ways (`taxonomy.plain_readings`), so the readers hold every cell either reading holds: a labelled record number in two groups with a soft hyphen before the space or after the label, one a person, read as labels with 1,000 values shown and 20,000 real twin cells at 20,000 rows on the merge's first commit, is held with a question offering identifier, 0 values shown and 0 real twin cells. A generated case over all 1,114,112 code points holds the readers' reading equal to the one definition.
+- Lane HB2's merge: the reader of an age's words read its dashes from the identifier forms' marks, which lane CZ-A2 widened with the horizontal bar, the small em dash and the soft hyphen, so on the merged tree it read those three as dashes and the lane's case on its dashes and its case of the product against the generation oracle failed until the case and the oracle followed the marks. The reader now reads the product's one definition of a space and a dash: `taxonomy._SCREEN_SPACE_RANGES` (2,474 code points) and `taxonomy._SCREEN_DASHES`, in place of its own list of 36 spaces (every character Python reads as whitespace and seven zero-width and format spaces) and of the marks, so 2,437 controls, format characters and lone surrogate code points it read as written are spaces, and the soft hyphen is a space alone: over 4,596 generated cells of an age from 90 to 125 years with a soft hyphen in the frame, the space reading top-codes all 4,596 and the dash reading 1,961, none by the dash reading alone. A generated case over all 1,114,112 code points holds the reader and the generation oracle to the definition; the describe of a column of 200,000 different such spellings costs 0.8 per cent more CPU.
+- Lane CODES-2's word screen reads the shared age vocabulary (`taxonomy.AGE_VOCABULARY`): its words that say an age beside figures are the vocabulary's words before a number with `ages` and `old`, and its unit words the vocabulary's written in letters alone, equal to the lists they replace; and its unit reader reads the vocabulary's brackets: an age past 89 with its unit in brackets after its figures (`121 (years)`, `93(yrs)`) was named after `no` on paths (i) and (iii) (75 of 2,083 generated families past 89 on each) and is refused now. Measured first, 0 of 240,000 generated codes of six public systems and 0 of 46,755 distinct spellings holding a bracket in the zoo's tables at 20,000 rows move. Lane CZ-E, which merges later, carries the combined case (`Age 90-94`, `age >= 95`) and its band reader's reading of the vocabulary (plan P4-D477's paragraph at this merge).
+- Lane HB2's scoped verify 2: three cases hold three lines of its repair 2 that no case held -- a column of age words beside a declared person described under the heading `age` as under a neutral heading, a signed pool start after `no` keeping its sign, and the validator reading the ends beside no pool marker -- each red on the verify's own mutant; plan P4-D477 states the start without `no` with its numbers, the price of the words on the worst column (+2.7 per cent profile CPU at 200,000 rows) and the carry C8, an age with a leading zero after its word (`Age 0NN`: 9 real spellings past 90 shown and 2,188 twin cells past 90 at 20,000 rows, the same on the base; owner lane HB3-a, HIPAA first).
+- Lane CZ-E's merge: lane CODES-2's word screen and lane CZ-E's month-and-day reader each bound `taxonomy._MONTH_WORDS`, and under one name the reader's table of month numbers, bound later, replaced the screen's set, whose `held & _MONTH_WORDS` then raised a TypeError (on such a tree the standing case of names bound once fails); the reader's is now `_MONTH_NUMBERS`. The reader of persons' names is asked before the value readers, its holds unchanged, so an imaging exam's name such as `MR BRAIN`, which both read as a title before a family name, is held by the first: held either way, freed by `no` either way. A description records both readings, lane HB2's `top_coded_words` and `top_coded_ends` and lane CZ-E's `top_coded_bands`, and the validator, the chain's reader and the top-code read them together.
+- The value readers read the product's one definition of a space and a dash (`taxonomy._SCREEN_SPACE_RANGES`, `taxonomy._SCREEN_DASHES`) in place of the lane's two lists (31 spaces, 8 dashes), which lie inside: the controls, format characters and lone surrogate code points of the definition, the information separators U+001C to U+001F and the soft hyphen among them, are read as a space, and the horizontal bar and the small em dash as a dash, where the lane read them as written. Measured first over the gate's generated spellings with each such character for a space or a hyphen (151,884 cells): 47,440 more read, and none fewer once a value holding the horizontal bar or the small em dash is read again with it as written where the plain reading finds no form (46 cells, a family name glued by one to the word before it, were read only so).
+- The band reader reads the shared age vocabulary (`taxonomy.AGE_VOCABULARY`): a band opens with its words, marks and brackets as the age reach reads them (`Age: 90-94`, `[Age 90-94]`, `Age (90-94) yrs`), `ages` beside them, and is read in the unit its unit word or affix names, one definition of an age's unit for the bands and the ends (`90-94 months` is a band in months, never past 89 years); `Age: => 90` and `Age (=> 90)` are read from 90 (lane HB2's carry C4: 2,660 of 58,800 generated cells were split as no word). THE COMBINED CASE of lanes HB2 and CZ-E found ages written `Age 18` to `Age 89` beside `Age 90-94` and `age >= 95`, bare ages beside `90-94` and `95+`, and `[AGED: 90-94]` in no reach, so none of their 3,440 real cells past 89 each met the top-code at 20,000 rows: a band among an age column's numbers is now an age of the reach, one past 89 an age past 89 (since batch 4s's fix round, beside a number of 0 to 125 read as an age; a column of bands alone is decided by the band reader alone), and each such column is top-coded, its bands from 90 written as one band. The price, measured first: 3 of the zoo's 839 columns at 20,000 rows newly reached (two columns of ages already written `90+`, now asked and written as before, and a weight percentile beside `<1` and `>99`, a false alarm freed by `no`), and the describe of the worst column of different codes 8.8 per cent slower at 200,000 rows.
+- Lane CZ-E's scoped verify 2: plan P4-D472 gains the count of the address forms of letters alone or parted by hyphens (1,081, 961 of letters alone), the amount ranges read as ages (a priced false alarm), a point written with hemisphere letters and no comma (read by no reader, owner lane CZ-G) and the adult age groups whose lowest present band opens after 21 or that hold three closed bands (read as no ages: HIPAA, older than the lane; limit (k), lane CZ-G's first item).
+- Lane SV's merge: git merged `validation.py` without a conflict, and the lane's grouped branch of `_top_coded_table` handed its column to `column_as_checked` without the age words and the ends of lane HB2 (plan P4-D477) and the bands past 89 of lane CZ-E (plan P4-D472), so a checked file read in groups (past 25.6 MiB at the shipped budget) had its top-coded columns read without them while the same file read whole had them (on that merge the report on a 20,000-row table of those shapes differs between the two readings); the rewrite now carries the three. Two generated cases hold the two readings equal: 48 seeded tables at the unit level (the words move 997 cells, the ends 3,372 and the bands 423) and two seeded tables at the table level (ages in years, months, weeks and days with their ends and top categories pooled in people at the table floor, worded ages, bands, stamps under their rule at a grain, clock figures, years of birth): the same exit, screen and files, the checked file never read whole while it is read in groups.
+- Lane SV's scoped verify 2: the two pins that the fitted sizes' move to 100,000 rows and up left without a case are held again (the projection's 1,000,000-row requirement and its three largest sizes; a kept pair's description digest and a made pair's columns), and plan P4-D476's limit (5) gives the grouped validate's 20,000-row spread as 134.0 to 382.9 MB.
+- The validation method's V14.3 and V15.3 state the line's readings beside the lane's rule for a file read in groups: a grained column put at its rung at the offset a published rule puts in force (lane DST), clock figures at theirs (lane TR), and a top-coded column read with the age words, the ends and the bands its block records (lanes HB2 and CZ-E).
+
+### Lane DST: offsets that follow the date (2026-11-09)
+
+**A twin's stamp wears the offset its zone has in force on its own date** (plan P4-D474; method G7.4r; contract 6.6.2's `offset_rule`). Where a column read on the shared clock carries exactly two offsets an hour apart and every stamp wears the one in force on its date under one of four hand-coded rule families (`us` from 1987 with the 2007 change, `eu` from 1996, `au` and `nz` from 2008; no zone database), the description publishes the rule and the twin writes each cell at the offset in force at its instant: the census is met by spreading the ranks of each run a change of the clocks runs through over its two sides, no later step moves a rank across a change, no cell stands in the hour the clocks skip, and the hour they repeat is written at both offsets where the twin's instants reach it. A pooled column's buckets are written at the offset in force at their start and each cell is drawn among its bucket's instants. Validate holds the rule as a fact of its own (`offsets.rule`). Every other column keeps its bytes. Measured at the owner's floor: the zoo's nine stamp columns with offsets wrote 5,293 to 11,410 of 20,000 cells off their date on the base and none on the lane's head; `encounters`, the bed movements, the wearable stream and the FHIR observations pass end to end. The zone words wait for lane TR's reading, and the share of the later occurrence in the hour the clocks repeat stays a stated limit (lane RT2).
+
+**Repair 1 (2026-11-10).** The census step lays each side of a change evenly, so the hours beside a change keep their cells (empty 12-hour windows beside the 2023 and 2024 changes of a uniform table of six zones at 20,000 rows: 4 of 288, from 15; the base and the real none; the rest stated, owner lane RT2); the passes' frame hands each rank back inside its own side of a change, so no stamp is written at the other occurrence of its wall clock (a south-eastern rung inside April's repeated hour, missed by 1,486 seconds, is held); a pooled rank wears its own side's offset (a day-rung table of four zones at 200,000 rows, which missed its four weekday censuses, is validate-clean); and a pooled column whose stamps follow a rule is walked by the one text its description prints for each bucket, so a decade of south-eastern and western European visits reads both rules at the month where it read none at the year (9,897 and 9,753 of 20,000 cells off their date before). Five mutants that survived the first review are now red on cases of their own, and the lane's whole suite's twelve red cases are fixed at their cause.
+
+**Repair 2 (2026-11-10 to 11).** One definition now admits a rule in inference, publication and the loader -- a standard offset from -12:00 to +13:00 whose minutes are 00, 30 or 45 -- read off the offsets the cells wear rather than those the census absorbed: a column with one stamp at a third offset, or at offsets no zone wears, keeps its description without a rule, and a column at -13:00 profiles again (it stopped at the publication guard). Validate checks a published rule on the cells as the file holds them, over the family's whole calendar, before any grain: a cell in the hour the clocks skip is named even where its bucket's start reads valid (Codex's own table at 20,000 rows), and a twin's tail before or after the years its rule was read over keeps it. On a pooled column the census is counted as the twin will be read back: no rank stands in the hour after a bound where its side turns to winter, a bucket inside a repeated hour draws among both its occurrences and stays inside itself, and a count off the census is the report's line; a column pooled at the minute or the second across a repeated hour keeps its description without the rule, so its twin spends its offsets by counts as on the base (on `K-HZ-27`'s such column 10,662 of 20,000 cells off their date, the base's figure; a stated limit, owner lane RT2). The census step shares by weight with caps apart and counts what it achieves, and a row moved to reach the count of different values stays on its side of the census of offsets (the statistics check's event table, one cell off at validate, is clean). The measuring driver of `K-HZ-27` counts a table that did not check as unchecked and measures the new tables at the owner's floor.
+
+**Follow-up (2026-11-11; the scoped verify 2's three items: tests, the measuring driver and records, no code of the product).** Three limits stand, owner lane RT2, each stated with the analyses it affects. At the hour rung the twin fills the bucket of the hour the clocks repeat off the real count (on `K-HZ-27`'s fall-back table at seed 1, 202, 322 and 624 cells against the real 562, 549 and 552 in the European, south-eastern and US columns; for European columns new against the base) while validate, the census and the count at midnight hold: counts of events by clock hour across a fall-back night, for a column pooled at the hour, are affected, and `K-HZ-27` now prints each hour column's bucket beside the real one. The minute column above (10,662 of 20,000 cells off their date and 7 validate misses): analyses of local clock time or of elapsed time across the repeated hour. And a column of Eastern stamps with their zone word that holds one stray cell of another zone family (19,999 EST/EDT stamps and one CET stamp) reads as free text and its twin is all filler (20,000 cells), so every analysis that reads it as dates or times is lost (lane TR's reading, not new against the public head). A case now pins the cause the twin's report gives when a rule leaves the count of different values short at the rung.
+
+### Lane TR: zone words after a stamp read with their offsets, and clock times written as figures read on the answer `clock-figures` (2026-11-09)
+
+**Two time readings the zoo's kinds failed at 20,000 rows** (plan P4-D473; contract LY1's field table and C6-10b, method G7.9 and G7A.1 amended). A stamp followed by one space and a zone word of a closed list (`EST`/`EDT`, `CST`/`CDT`, `MST`/`MDT`, `PST`/`PDT`, `AKST`/`AKDT`, `HST`, `WET`/`WEST`, `CET`/`CEST`, `EET`/`EEST`) is read with the offset the word names, and its twin writes the word of each offset it writes; `IST` and `BST`, a column mixing families, and a word another country gives another meaning stay stated limits. A column of `0742`, `074512` or `074512.123456` answered `clock-figures` -- offered by the padded or fixed-width question beside its three answers, or beside a fraction as one more answer of the checklist's entry for a measurement -- is read as clock times in one of eight forms of figures, never by inference; its twin writes the same figures, a fraction as noughts; unanswered the padded question's hold stands, and an answer that does not read holds the column. At 20,000 rows the zoo's `dicom_metadata` passes, `compact_and_fraction_clocks` keeps lane SS's two fraction checks of its six and `dst_zones_and_words` lane DST's six of its eight; new `K-HZ-26`: 2 of the zoo's 9 time columns unread and 24,139 bad twin cells on the repair head, where the base, by the same driver, had 6 and 68,313. Such a clock's different values are its whole seconds, so a TM column of 200,000 different spellings no longer publishes a count no day holds (the census rule refused it at load). Items (a) and (d) are not built: the month and year, NAACCR's dates and the `24:00` slot ends fail only at 600 rows, the colon clock with a fraction passes at 20,000, and the registry mix, which the zoo now answers as dates, fails five checks at 20,000 rows and goes to lane TR2; item (e), the date key beside -1 and -2, is cut to lane TR-e; the command line's `--clock-figures` is not built (the questions file's answer reaches the same reading, and the lines that repeat a run name that file).
+
+**Repair 1: a held column of stamps writes no real birth date** (contract 7.12c and method G9.6c amended). A birth stamp held beside its patients took its twin's made-up stamps from 2000 to 2029, and at 20,000 rows beside 1,000 patients born 1928 to 2005 wrote 80 cells on 3 real birth dates in each stamp form (an Eastern zone word, no offset, an offset, `UTC`); it now takes the made-up-date room its dates would, from 2028 on, and 0 twin cells fall on a real day. The generation oracle writes the zone words itself; a column written to the second never takes a stand-in written as figures, which every reader takes for a word (51,440 words against route 1's 50,000 at 2,500,000 cells); `K-HZ-26` counts a column held only by its grain, and holds two things at 20,000 rows, held birth stamps on a real day and unanswered figures published, each 0.
+
+**Repair 2: answers about clock figures that read as the person meant, and held European zone stamps written as stamps** (contract C6-10b and LY1's fields, method G9.6c amended). An answer `clock-figures` typed at the keyboard now reads the column on that very run (its own description had kept the column as before while its questions file recorded the answer, and at 20,000 rows the twin wrote 10,023 of 20,000 cells that are no clock time). An answer whose times would be written as a spelling the table names as missing -- `080000.000000` declared missing beside fractions of that second -- is not taken, and the run says why: the twin wrote that spelling on every present cell and they all came back missing. A column of one or two values answered `clock-figures` stays the constant or binary column it was, never held; a fraction clock whose twin holds one value names that in the twin's report. A later `--date-count` replaces a kept `clock-figures` answer and the other way round. A column whose stamps carry words of two zone families, even one cell in two hundred, is not read under either. `K-HZ-26`'s check of unanswered figures counts every real value outside the product's own constants and counts, and its held-stamp check covers a Central European word: a held birth-stamp column written with `CEST`, `WEST` or `EEST` had 11,760 of 20,000 twin cells that were no date, now 0.
+
+**Follow-up: held stamps followed by a zone word of the closed list are written as stamps or left blank, never as text that is no date** (plan P4-D473; method G9.6c and G12's key index amended). A held birth-stamp column whose zone word follows a fraction of a second, a month's name or a two-figure year wrote made-up text that is no date on every twin cell (20,000 of 20,000 at 20,000 rows), where the twin before zone words were read left the column blank. A fraction before the word is now drawn as a stamp in the years free of real dates; where no stamp can be drawn the cells are left blank, as before, and the twin's report says how many. Those twins carry no date of the column, and validating them names the column's values as missed; so does a drawn zone-word column whose cells include a second published layout no stamp of its reading wears (a date alone for 5 per cent of the patients): it writes those cells blank (1,000 of 20,000) and validate exits 3 on 9 of the column's obligations, where `7d968bb8` met them with cells that are no date and the base described the column empty. Carry C-C is restated in three parts: a fraction before a zone word is fixed; a fraction before `UTC` or a signed offset in a layout reading (`1971-05-31 05:41:17.551 UTC`, `1928-02-26 21:40:51.749-0500`) still writes 20,000 of 20,000 twin cells that are no stamp, on the base and the head alike, none on a real day; fourteen figures with a signed offset write 19,920 such cells, as on the base; lane ID-ROOM3-b owns those two. A column of stamps with even one cell of another zone family stays unread, so analyses that read it as dates or times cannot be run on its twin (lane RT2 owns a finer rule). The five checks repair 2 had turned red pass again: the catalog of messages, two scans of the source, and the index and the registry name of one key of the twin's report.
+
+### Lane LM1: numbers written as the source wrote them -- a label's bound holds the numbers beside it, and the exponent form built for magnitudes is withdrawn (2026-11-09; repairs 1 and 2, 2026-11-10)
+
+**Measured first at the owner's table floor** (plan P4-D475; LANE I4m RULINGS 18): each target kind of the health data zoo was run at 20,000 rows on the base 820d55c3 as a person runs it. A result field beside `TND` and `<20` wrote 72 loads below 20 (`3` on 12 cells) on its low tail. Now a published label naming a bound -- `<20`, `<=0.5`, `>1000000`, `>=90`, `90+` -- holds the fitted end of the numbers' withheld tail inside it, in a column read as numbers and labels (`contract.label_bounds`, method G5.3b), read in the column's decimal grammar and moved inward onto the grid the numbers are written on, so `<0,5` bounds a decimal-comma column and `<20.5` beside whole numbers holds them at 21 (Codex's review of the lane, items 8 and 9). The bound is read off labels already published and writes no key. The zoo's birth-year check is re-owned to lane SH2, the HIPAA price.
+
+**Withdrawn** (LANE LM1 RULINGS 5): the exponent form and census of a column of magnitudes past a double's range (the contract's rules EF1 to EF3 and method G10.5's revisions 6 and 7, as the lane built them) were reviewed three times and each review found a way for them to publish or write real figures or to break an obligation -- codes written `4E0815` published 223 census keys while their question offering `identifier` was open and their twin wrote 19,990 of 20,000 cells equal to a real code -- for one zoo kind of a shape rare in health data that the base already describes safely, save one exception older than the lane that its scoped verify 2 found (carry C4): codes spelt `1e400` to `9e622` (one figure, a small `e`, a three-figure exponent from 400, ten rows each) are written as 20,000 of 20,000 twin cells equal to a real code (all 2,000 codes, each ten times; the same codes with a capital `E`: 0 exact and 19,459 of 19,459 case-folded) on 820d55c3 and on the lane's head alike, owner lane ID-ROOM4 (planned). Such a column writes as the base did, byte for byte, proved by the gate against digests taken on the base; the classes the reviews measured are plan P4-D475's acceptance tests for a redesign (lane LM2), and the zoo's `numeric_unrepresentable` fails its three checks as before, owned by LM2.
+
+**Measured on the repair-2 head** (guard.sh, floor311 with a metadata-only dist-info, the machine loaded): through the command at 20,000 rows, codes written `4E0815` in four forms beside `4.1E0815` one a row, left blank and answered `measurement` or `identifier`, 24 generated columns of magnitudes, and the zoo's `instrument_magnitudes` and `safe_harbor` write every file byte for byte as the base did, and `bedside_results` too but for `hiv_rna`'s twin column and its report blocks, the label's bound; in none of the code table's runs does a twin cell of a code column equal a real code, and the frequent labels `A`, `B`, `TND` and `<20` are published and reproduced by design (measured by the lane's scoped verify 2 on the head and the base alike at 20,000 rows: `instrument_magnitudes` writes the instrument codes `A` and `B` on 20,000 of 20,000 cells, and `bedside_results` writes the real labels of `urine_protein` (6 values), `visual_acuity` (10) and `rubella_titer` (7) on 20,000 of 20,000 cells each and `hiv_rna`'s `TND` and `<20`, each value held by 11 rows or more). `hiv_rna` writes 0 numbers under 20 against 72 on the base, so `lab_instrument_results` fails only `wbc_count`'s 2 checks, and `K-HZ-28` reads 0, GREEN. Codex's column beside `<20.5` writes no `20` (repair 1's head: 11) and his decimal-comma column nothing under 0,5 (10). The gate file runs 42 cases in 71.32 seconds.
+
+**Stated limits** (plan P4-D475, each measured at 20,000 rows; none is a copy of a real value): (a) counts and measurements in exponent style with a fixed number of significant figures write more figures (14,482 of 20,000 cells at two, 19,911 at three), owner LM2; (b) a result field of `TND`, `<20` and exponent numbers read as categories writes 171 held-back numbers plain, and its stand-ins 404 cells spelled as a value 1 to 10 real cells hold (52 of 173 such spellings), chance from published facts, owner CODES-3; (c) a column of magnitudes past a double's range publishes counts alone and writes made-up figure strings, as on the base, save carry C4 above, whose made-up strings are the real codes (owner lane ID-ROOM4, planned), owner LM2 for the redesign; (d) a fraction of a day writes 5 cells at or past 1 and counts of 16 to 19 figures 12 cells at 15 or 20 figures, owner LM2; (e) a joined range answered `joined` writes 6 crossed pairs, 10,858 ends with different decimals and 4,791 padded ends against 0 real (validate misses 16 facts), owner LM2; (f) a label's bound beside a count, continuous or categorical reading is not read, owner LM2; (g) at 200,000 rows a result field of `TND`, `<20` and loads of 20 or more writes 20 numbers under 20 (0 to 19) and validate misses `n_zero`, on the head and the base alike, a route the bound does not reach, owner LM2.
+
+### The notes memory case reads the bytes a row added, after batch 4r's public run (2026-11-10)
+
+- **The memory case of notes with capitals and of a 30,000-word vocabulary reads the bytes a row the column adds, from a quarter of its rows to all of them** (`tests/test_stage4_describe_memory.py`, lane CI-4r). Batch 4r's public run 42868109912 failed that one case of 2,783 on Python 3.14 on all three systems: the large vocabulary in lower case at 2,000 rows read 200.095 traced bytes a row against the bound of 200. At 2,000 rows, a tenth of the 20,000 under which `synthtwin profile` refuses a table, the case also read a column's fixed bytes shared out over its rows, 7.4 to 13.5 KB on that vocabulary (Python 3.11, 3.13 and 3.14). Batch 4r's head holds 1,792 to 1,976 bytes more of them at 2,000 and 4,000 rows, 1,680 to 1,848 at 20,000 and 1,960 at 200,000 on Python 3.14 (lane PRT-a's record of the number readers' answers, which every column's reading makes and a notes column never asks; plan P4-D468), while the bytes a row added from 2,000 to 4,000 rows are the base's within 0.02 on Python 3.11, 3.13 and 3.14. The case now reads 194.0 to 194.1 on the large vocabulary on Python 3.11, 191.6 on 3.13 and 192.7 to 192.8 on 3.14, the base's within 0.02 (the failing case's old reading was 200.14 to 200.18 under Python 3.14.6 on macOS, the base's 199.20), and 177.8 to 180.9 on notes with capitals. The Python 3.14 readings of this entry, CI's 200.095 aside, come from a verbatim copy of the case's helpers calling `taxonomy.profile_column` under Python 3.14.6 on macOS, because the test file itself could not run under pytest on Python 3.14 on that machine (no Python 3.14 build of pyarrow or scipy was at hand offline); the next public run's Python 3.14 jobs, the first to run the case itself on that version, are to confirm it. The large vocabulary's whole column reads 172.7 bytes a row at 20,000 rows on Python 3.11 and 172.9 on 3.14, and 185.5 at 200,000 rows on 3.14 (the base's 185.5; memos of 6,250 texts, a thirty-second of the rows). The six cases take 21.6 CPU seconds more on Python 3.11 (116.5 against 94.8). No product code changed; every other case, shape and bound of the file is as it was.
+
 ### Batch 4r sealed: lanes SR2a, PRT-a and BT3a landed, their KPIs stamped on the reviewed head and on the fix head (2026-11-10)
 
 **Measured on the reviewed head `820d55c3`** (the three lanes merged on batch 4q's final head `a391424c`, whose tree is the public head `97a28db0`'s; plans P4-D463, P4-D467 and P4-D468, each with its landing line; nine proof runners side by side on a loaded machine, so no seconds were judged): lane HB's five label-key shapes 0 real keys and 0 real runs at 20,000 rows, the probe's lines as on batch 4q's merged head but generation seconds; the stage-5 goldens 257 records, 0 differing; twenty-nine entries read every key as batch 4q's stamps read them, compared key by key, but machine kinds (seconds, peaks and their projections) and one ratio of two timings, `K-HZ-13`'s 1.96 against its bound of 2.5 (1.99 at batch 4q's stamp): `K-HZ-07`, `K-HZ-15`, `K-HZ-19`, `K-S3-65`, `K-HZ-05`, `K-BC-11`, `K-S5-01`, `K-S5-02`, `K-S8-01`, `K-S8-03`, `K-S8-05`, `K-S6-04`, `K-S6-05`, `K-S6-08` and `K-S6-14` PASS, `K-HZ-03` PASS on its machine-free keys (its seconds red at the stamp on a loaded machine, as before), `K-HZ-06` (the zoo's held date columns 0 equal, 0 merging, 0 naming the same day), `K-S3-64`, `K-HZ-01`, `K-HZ-02` (158 failures over 45 kinds at 20,000 rows, each owned), `K-HZ-13`, `K-HZ-16`, `K-HZ-17`, `K-HZ-20` (94 and 79 questions put), `K-S6-01`, `K-S6-06`, `K-S6-12` and `K-S6-13` OPEN-held, and `K-HZ-14` OPEN at its bounds (84 items, 2 failing, as stamped). **`K-S6-02` and `K-S6-03` are stamped on the fix head `59267e6b`** (`git diff` of the two heads over src is empty; the reviewed head's run of them stopped at clause (x) and stamps nothing): `K-S6-02` OPEN-held on clause (vii) alone, its clause (x) over five more tables (lane BT3a's repair 1) with `scan_hits` 0 and its one accepted case named apart (its repair 2), three wide tables' chains as batch 4q's lanes leave them (read so, not split by a run); `K-S6-03` PASS, its coverage grown by lane BT3a's reader (92 twins and 645 families checked, 90 and 627 before). **`K-S4-09` on this head is owed to its full driver**, `tools/measurements/kpi_describe_groups.py` under kpi_run, which the batch's proofs started and which was still running when the batch was sealed: a records-only commit on batch 4s's base stamps it, its entry keeps its last stamp until then, and lane SR2a's claims rest on the lane's own measurements and the merge's gate cases (`tests/test_stage4_describe_peak.py`, 76 cases, the one at the 65,536 shared coarse texts rewritten at the merge). `K-S6-15` was not re-run (its run owed by hand). The suite collects 18,193 cases; its whole suite on the reviewed head, run beside the proofs, failed 2 of the 18,170 collected there, the disposition registry's two seal cases, which the seal clears, so `K-P0-10`'s seconds and `K-P0-11` stay owed to the final whole suite. The ledger reads 1,181,259 bytes after the stamps, under the bound of 1,200,000.
@@ -23,7 +726,7 @@ exists).
 
 **Repair 1 (2026-11-07; the lane's two reviews, the orchestrator's LANE BT3 RULINGS 3 to 5).** HIPAA first, behind the switch: the patient layer built its patient table from the cells as the file wrote them, so the table's own description, told of no hold, published a year of birth fixed by patient below the 1937 cut (`min` 1925 and a band of 102 patients below its `p10`, on the base too) and an amount fixed by patient whose five-figure values the rows' description holds as dates in disguise (`max` 25000 and the summary's largest value, new since the lane's reader let the layer stand on such a table). The patient table now holds each patient-fixed column's cells as the rows' description read them, as batch 4p's fix round builds it, and a patient-fixed column's published block keeps the rows' remark that its dates in disguise are held. The gate grows to 16 cases (the year of birth, the held amount, a comma the patient table's own description inferred, a year that runs with the visit and one repeated across patients, two counts read with their own absent spellings), each red on its mutant; `K-S6-02`'s clause (x) reads year cuts, derived edges and each published block against what its row block top-coded, set aside or held, over a reach grown by five tables: at this head its one hit is the accepted weight of the vitals export, and on the base its new checks read 59 hits on batch 4p's four sibling tables of 24,000 rows. Batch 4p's fix round's restated pooled-category case and its stand-ins page test are taken as written there. Nothing moves with the switch at its default.
 
-**Repair 2 (2026-11-08; the outside review's four items and the combined verify's one, the orchestrator's LANE BT3 RULINGS 6 and 7).** Behind the switch: a patient-fixed column's published block keeps the rows' Safe Harbor marks (`top_coded`, `top_category_pooled`, `top_category_people`, `top_coded_year`) where the patient table's own block lacks them, its cells being already top-coded, pooled or cut, so the switched questions file and summary put the column's Safe Harbor question and sentence as the run with the switch off does (they dropped them for two ages whose top category one and ten patients hold, and the year of birth fixed by patient lost its year question); the patient table is described and read under the decimal comma the rows settled, so a measurement written `12,34` with one `56,7` among its rows stays a measurement there (it was published categorical); and the command hands the chain each age column's answered unit, so a column answered `days` whose block carries no mark reads its dates in disguise in days (read in years, 19,900 of 20,000 cells were blanked and the chain was off). `K-S6-02`'s clause (x) names its one accepted case, the vitals export's weight read past 125 as no age, apart from `scan_hits`, whose bound is now 0, and checks every set-aside spelling, not the first 20. The gate is two files, each under three minutes (`tests/test_stage6_chain_recount_settled.py` added), every new case red on its mutant and on the previous head. Nothing moves with the switch at its default: the one change to `cli.py` lies on the switched path.
+**Repair 2 (2026-11-08; the outside review's four items and the combined verify's one, the orchestrator's LANE BT3 RULINGS 6 and 7).** Behind the switch: a patient-fixed column's published block keeps the rows' Safe Harbor marks (`top_coded`, `top_category_pooled`, `top_category_people`, `top_coded_year`, and since batch 4s's fix round `top_coded_bands`) where the patient table's own block lacks them, its cells being already top-coded, pooled or cut, so the switched questions file and summary put the column's Safe Harbor question and sentence as the run with the switch off does (they dropped them for two ages whose top category one and ten patients hold, and the year of birth fixed by patient lost its year question); the patient table is described and read under the decimal comma the rows settled, so a measurement written `12,34` with one `56,7` among its rows stays a measurement there (it was published categorical); and the command hands the chain each age column's answered unit, so a column answered `days` whose block carries no mark reads its dates in disguise in days (read in years, 19,900 of 20,000 cells were blanked and the chain was off). `K-S6-02`'s clause (x) names its one accepted case, the vitals export's weight read past 125 as no age, apart from `scan_hits`, whose bound is now 0, and checks every set-aside spelling, not the first 20. The gate is two files, each under three minutes (`tests/test_stage6_chain_recount_settled.py` added), every new case red on its mutant and on the previous head. Nothing moves with the switch at its default: the one change to `cli.py` lies on the switched path.
 
 **Repair 3 (2026-11-08; the whole suite of `0aca262f`, two red cases of the lane's own).** Tests only, and nothing else moves: the version guard records the first gate file's one load of clause (x)'s driver (62 files loaded as modules, with its dated paragraph), and the second gate file builds each `synthtwin profile` command whose description it loads, as the line-endings guard asks of a module that loads one; every table, option and assertion of the two gate files is unchanged.
 

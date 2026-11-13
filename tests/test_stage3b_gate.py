@@ -247,12 +247,14 @@ import math
 import pathlib
 import random
 import re
+import unicodedata
 
 import pytest
 
 import fixtures
 import kpi_shapes
 import workbooks
+import written_words
 from synthtwin import (
     calendar_rules,
     contract,
@@ -3431,13 +3433,224 @@ def test_a_missed_weekday_group_below_the_line_prints_no_count(tmp_path: pathlib
     assert "Sunday fewer than 11" in check.achieved, check.achieved
     assert any("fewer than 11" in line for line in check.note), check.note
     for text in (check.achieved, " ".join(check.note)):
-        numbers = [int(word) for word in text.replace(",", " ").split() if word.isdigit()]
+        numbers = _counts_read(text)
         assert all(number >= _LINE for number in numbers), (text, numbers)
     printed = quality.quality_report(described.loaded, outcome)
     census = [line for line in printed.splitlines() if "Monday" in line and "Sunday" in line]
-    counts = [int(found) for line in census for found in re.findall(r"day (\d+)\b", line)]
     assert any("Sunday fewer than 11" in line for line in census), census
-    assert counts and min(counts) >= _LINE, counts
+    _census_reads_a_day_count(census)
+
+
+def _counts_read(text: str) -> "list[int]":
+    """Every count ``text`` writes, read twice: by the word rule, then by the comma reading it replaced.
+
+    Batch 4r's repair round HYG-1b (LANE I4r RULINGS 9 (1), the verify's
+    item 2 (b)). `written_words.counts_in` reads no count in a word that
+    glues one to more by a comma (`fewer than 11,3`); the reading it
+    replaced -- the text's words with `,` taken as a space and kept where
+    all figures -- read the 3 there. The two lists one after the other
+    keep every red of each reading by construction. `isdecimal`, not
+    `isdigit`, so a superscript figure (`3²`) no longer crashes the old
+    reading.
+    """
+    return written_words.counts_in(text) + [int(word) for word in text.replace(",", " ").split() if word.isdecimal()]
+
+
+def _census_reads_a_day_count(census: "list[str]") -> None:
+    """The report's census lines read a day count beside each `fewer than` they write, and none below the line.
+
+    Batch 4r's repair round HYG-1b (LANE I4r RULINGS 9 (1), the verify's
+    item 1). `written_words.counts_in` reads the 11 of `Sunday fewer than
+    11`, so asking only that some count was read could not see the
+    description's line lose its day counts: more counts than `fewer
+    than`s must be read.
+    """
+    counts = [count for line in census for count in written_words.counts_in(line)]
+    assert len(counts) > sum(line.count("fewer than") for line in census) and min(counts) >= _LINE, counts
+
+
+def test_the_census_lines_must_read_a_day_count_beside_the_short_one() -> None:
+    """The census reading is red where the description's line asks its days without their counts.
+
+    Batch 4r's repair round HYG-1b (LANE I4r RULINGS 9 (1), the verify's
+    item 1), machine-free. The verify's mutant `asked_bare` (the census
+    line asks its groups without their counts) leaves one count on the
+    lines, the 11 of `Sunday fewer than 11`. MUTATION: the assertion
+    HYG-1 wrote, `counts and min(counts) >= _LINE`, holds on those lines.
+    """
+    found = (
+        "      the file was found to hold: Monday kept back, Tuesday kept back, Wednesday kept back, "
+        "Thursday kept back, Friday kept back, Saturday kept back, Sunday fewer than 11"
+    )
+    asked = (
+        "      the description asks for: Monday 211, Tuesday 173, Wednesday 155, Thursday 149, "
+        "Friday 149, Saturday 72, Sunday 65"
+    )
+    bare = "      the description asks for: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday"
+    _census_reads_a_day_count([asked, found])
+    with pytest.raises(AssertionError):
+        _census_reads_a_day_count([bare, found])
+    counts = [count for line in (bare, found) for count in written_words.counts_in(line)]
+    assert counts == [11] and min(counts) >= _LINE, counts
+
+
+def test_a_count_glued_to_the_short_group_by_a_comma_is_read() -> None:
+    """`Sunday fewer than 11,3` yields the count 3 (the verify's item 2 (b), its mutant `short_glued`).
+
+    Batch 4r's repair round HYG-1b (LANE I4r RULINGS 9 (1)),
+    machine-free. MUTATION: the word rule alone, HYG-1's reading, reads
+    no count in that text, so the check above read nothing below the
+    line there.
+    """
+    achieved = (
+        "Monday kept back, Tuesday kept back, Wednesday kept back, Thursday kept back, "
+        "Friday kept back, Saturday kept back, Sunday fewer than 11,3"
+    )
+    assert 3 in _counts_read(achieved), _counts_read(achieved)
+    assert written_words.counts_in(achieved) == [], achieved
+
+
+def test_the_weekday_line_s_counts_are_read_before_every_mark() -> None:
+    """The two readings above take every count the check's text and the report's census lines write.
+
+    Batch 4r's tests-and-tools round HYG-1 (LANE I4r RULINGS 6 (2)): a
+    count before a point, a bracket, a semicolon or a closing quotation
+    mark, after a no-break space, a tab or a bracket, or written with a
+    thousands separator, is read whole. MUTATION, the two readings they
+    replaced: the text's words with `,` taken as a space and kept where
+    all figures read none of the marked counts; `day (\\d+)\\b` read a
+    count only after `day` and one space, and 1 of `1,234`.
+    """
+
+    def as_read_before(text: str) -> "list[int]":
+        return [int(word) for word in text.replace(",", " ").split() if word.isdigit()]
+
+    for mark in written_words.CLOSING_MARKS:
+        achieved = f"Monday 145, Saturday kept back, Sunday 3{mark}"
+        assert written_words.counts_in(achieved) == [145, 3], achieved
+        assert as_read_before(achieved) == [145], achieved
+    for gap in (" ", "\t", " ("):
+        line = f"      the file was found to hold: Monday 145, Sunday{gap}3"
+        assert written_words.counts_in(line) == [145, 3], line
+        assert [int(found) for found in re.findall(r"day (\d+)\b", line)] == [145], line
+    grouped = "      the description asks for: Monday 1,234, Sunday 12"
+    assert written_words.counts_in(grouped) == [1234, 12]
+    assert [int(found) for found in re.findall(r"day (\d+)\b", grouped)] == [1, 12]
+
+
+# -- HYG-1: every count as written, against a walk written apart --------
+#
+# THE CLASS AT THE UNIT LEVEL (batch 4r's tests-and-tools round HYG-1,
+# LANE I4r RULINGS 1 (4) and 6 (2)). The stage-3b tests read the
+# counts of a check's own text; the readers they used kept a word only
+# where it was figures alone once commas were spaces, so a count before
+# a point, a bracket, a semicolon or a quotation mark was never read and
+# `1,234` was read as two counts. A few thousand generated texts -- each
+# a run of words, every word a count (plain or with its thousands
+# separators) or a word that is no count (an ordinal, a decimal, a clock
+# time, a range, a word with a combining mark or a superscript figure),
+# wearing a front and a back mark, the words apart by one of nine kinds
+# of whitespace -- are read three ways: as built, by
+# `written_words.counts_in`, and by `_counts_walked`, a character walk
+# written apart from it. All three agree on every text, and the readings
+# these tests used are red on them.
+
+_COUNTED = (0, 3, 7, 10, 11, 12, 99, 345, 1000, 1234, 99999, 1234567)
+_NOT_COUNTS = (
+    "1st", "27th", "28-day", "12.5", "36,8", "1,23", "1,2345", "12,345,67", "0,123", "09:05", "1-10",
+    "x12", "12x", "Monday", "não", "3́", "3²", "2023-03-17", "٣٢x",
+)
+_FRONTS = ("", "", "", "(", "[", "{", '"', "'", "“", "‘", "«", "-", "+", "#", "~", "¿", "​")
+_BACKS = (
+    "", "", "", ".", ",", ";", ":", ")", "]", "}", '"', "'", "”", "’", "»", "!", "?", "%", "…",
+    ").", ");", '."', "​",
+)
+_GAPS = (" ", " ", "  ", "\t", "\n", "\r\n", " ", " ", " ", "　")
+
+
+def _counted_text(draw: random.Random) -> "tuple[str, list[int]]":
+    """One generated text and the counts it writes, in order."""
+    text = ""
+    counts: "list[int]" = []
+    for place in range(draw.randrange(1, 13)):
+        if draw.random() < 0.5:
+            count = draw.choice(_COUNTED)
+            written = f"{count:,}" if count >= 1000 and draw.random() < 0.5 else f"{count}"
+            counts += [count]
+        else:
+            written = draw.choice(_NOT_COUNTS)
+        text += (draw.choice(_GAPS) if place else "") + draw.choice(_FRONTS) + written + draw.choice(_BACKS)
+    return text, counts
+
+
+def _counts_walked(text: str) -> "list[int]":
+    """Every count of ``text`` by a walk over its characters, written apart from `written_words`.
+
+    A word runs from a character that is no space to the next space
+    (`str.isspace`); its ends lose every character whose Unicode
+    category is not a letter, a number or a mark; what is left is a
+    count where it is decimal figures and commas only, with no comma at
+    all, or with its commas exactly every three figures from the end and
+    a first group of one to three figures that no nought leads.
+    """
+    found: "list[int]" = []
+    place = 0
+    while place < len(text):
+        if text[place].isspace():
+            place += 1
+            continue
+        stop = place
+        while stop < len(text) and not text[stop].isspace():
+            stop += 1
+        first, last = place, stop - 1
+        while first <= last and unicodedata.category(text[first])[0] not in "LNM":
+            first += 1
+        while last >= first and unicodedata.category(text[last])[0] not in "LNM":
+            last -= 1
+        core = text[first : last + 1]
+        place = stop
+        if core == "" or not all(one.isdecimal() or one == "," for one in core):
+            continue
+        commas = [index for index in range(len(core)) if core[index] == ","]
+        if not commas:
+            found += [int(core)]
+            continue
+        apart = all(commas[index + 1] - commas[index] == 4 for index in range(len(commas) - 1))
+        if 1 <= commas[0] <= 3 and core[0] != "0" and apart and len(core) - commas[-1] == 4:
+            found += [int(core.replace(",", ""))]
+    return found
+
+
+def test_every_count_a_generated_text_writes_is_read_as_written() -> None:
+    """3,000 generated texts: the reader, the walk and the construction agree; the old readings do not."""
+    draw = random.Random(20261109)
+    texts = 0
+    counts = 0
+    missed_by_the_comma_reading = 0
+    missed_by_the_clock_reading = 0
+    for _case in range(3000):
+        text, written = _counted_text(draw)
+        texts += 1
+        counts += len(written)
+        assert _counts_walked(text) == written, (text, written)
+        assert written_words.counts_in(text) == written, (text, written)
+        for kind, before in (
+            ("comma", lambda one: one.replace(",", " ")),
+            ("clock", lambda one: one.replace(":", " ").replace(",", " ")),
+        ):
+            try:
+                read = [int(word) for word in before(text).split() if word.isdigit()]
+            except ValueError:
+                read = None
+            if read != written:
+                if kind == "comma":
+                    missed_by_the_comma_reading += 1
+                else:
+                    missed_by_the_clock_reading += 1
+    assert texts == 3000 and counts > 4000, (texts, counts)
+    assert missed_by_the_comma_reading > 1000 and missed_by_the_clock_reading > 1000, (
+        missed_by_the_comma_reading, missed_by_the_clock_reading,
+    )
 
 
 def test_a_column_with_unparsed_cells_publishes_and_its_twins_meet_it(tmp_path: pathlib.Path) -> None:

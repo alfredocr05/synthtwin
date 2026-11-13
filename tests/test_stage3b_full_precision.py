@@ -973,11 +973,13 @@ def test_computed_numbers_describe_at_ten_thousand_and_a_hundred_thousand_rows(r
 
 
 def oracle_timestamps(rows: int, seed: int) -> "list[str]":
-    """Oracle TIMESTAMP spellings with a zone word, `18-SEP-21 09.51.52.229882 PM EST`: a column no reader reads.
+    """Oracle TIMESTAMP spellings with a zone word, `18-SEP-21 09.51.52.229882 PM IST`: a column no reader reads.
 
     Landing R2b's layout reads Oracle's TIMESTAMP itself (plan P4-D383), so
     the zone abbreviation after it, which no layout reads, keeps this a
-    column nothing reads, split as it was.
+    column nothing reads, split as it was. Lane TR (plan P4-D473) reads the
+    words of its closed list after a stamp, `EST` among them, so the word
+    here is `IST`, which names two zones and is never read.
     """
     draw = random.Random(seed)
     months = ("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
@@ -986,7 +988,7 @@ def oracle_timestamps(rows: int, seed: int) -> "list[str]":
         cells += [
             f"{draw.randint(1, 28):02d}-{months[draw.randrange(12)]}-{draw.randint(19, 24):02d} "
             f"{draw.randint(1, 12):02d}.{draw.randint(0, 59):02d}.{draw.randint(0, 59):02d}."
-            f"{draw.randrange(1000000):06d} {draw.choice(('AM', 'PM'))} EST"
+            f"{draw.randrange(1000000):06d} {draw.choice(('AM', 'PM'))} IST"
         ]
     return cells
 

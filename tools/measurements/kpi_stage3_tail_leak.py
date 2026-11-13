@@ -83,8 +83,10 @@ import io
 import math
 import pathlib
 import random
+import re
 import sys
 import tempfile
+import unicodedata
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
@@ -600,6 +602,21 @@ def _tokens(text):
     A renderer-only regression could leave the headline green while a
     page printed a withheld end in full; these are the two shapes that
     happens in.
+
+    A THIRD WAY, AND WHAT THE TWO ABOVE STILL CATCH (batch 4r's
+    tests-and-tools round HYG-1, LANE I4r RULINGS 6 (2)(c)). The split
+    above cuts a word at every character that is not a letter, a
+    figure or one of `- : + . /`, so a value the source wrote with a
+    comma or a percent sign (`36,8`, `1,234`, `12%`), an apostrophe, a
+    bracket of its own, a combining mark or two spaces was cut apart
+    and never one token. The tokens above are kept as they were, in
+    their order, so nothing they caught is lost; after them come the
+    line's own words, split on any whitespace, in windows of one to
+    three words, each window offered as the line wrote it and with its
+    words joined by one space, and each with its two outer ends shed
+    every way (`_window_ends`): from none of their marks to all of
+    them. A token the first list already holds is not offered twice,
+    so a value it caught is counted as often as before.
     """
     found = []
     word = ""
@@ -622,7 +639,57 @@ def _tokens(text):
             bare = joined.rstrip(".")
             if bare and bare != joined:
                 caught += [bare]
+    known = set(caught)
+    words = [(match.start(), match.end()) for match in re.finditer(r"\S+", text)]
+    for place in range(len(words)):
+        for width in (1, 2, 3):
+            if place + width > len(words):
+                continue
+            first = text[words[place][0]:words[place][1]]
+            last = text[words[place + width - 1][0]:words[place + width - 1][1]]
+            front = _window_ends(first)[0]
+            back = _window_ends(last)[1]
+            if front == len(first) or back == len(last) or (width == 1 and front + back >= len(first)):
+                continue
+            exact = text[words[place][0]:words[place + width - 1][1]]
+            spaced = " ".join(text[start:end] for start, end in words[place:place + width])
+            offered = set()
+            for whole in (exact, spaced):
+                inside = whole[front:len(whole) - back]
+                for cut in range(front + 1):
+                    for kept in range(back + 1):
+                        offered.add(first[cut:front] + inside + last[len(last) - back:len(last) - back + kept])
+            caught += sorted(offered - known)
     return caught
+
+
+# The characters `_tokens` sheds at the two outer ends of a window of a
+# line's words: every character that is not a letter, a figure or a
+# combining mark (Unicode categories L, N and M) -- punctuation, every
+# quotation mark and bracket, `%`, `,`, `;`, symbols, invisible format
+# characters -- but never a NOTATION mark a value is written with: `-`,
+# `+`, `:` and `/` stay on, as the split above keeps them, so `5-` is
+# never offered as the different value `5`; and a point is shed at a
+# window's back only, as the split above takes a trailing point.
+def _window_ends(word):
+    """How many characters ``word`` sheds at its front and how many at its back, as `_tokens` sheds a window's ends.
+
+    Each end is counted on its own: a word of marks alone sheds all of
+    itself at its back, and all of itself at its front unless a point
+    stops it there.
+    """
+    front = 0
+    while front < len(word) and word[front] != "." and _shed_at_an_end(word[front]):
+        front += 1
+    back = 0
+    while back < len(word) and _shed_at_an_end(word[len(word) - 1 - back]):
+        back += 1
+    return front, back
+
+
+def _shed_at_an_end(one):
+    """Whether `_window_ends` sheds the character ``one``: no letter, figure or combining mark, and no `- + : /`."""
+    return unicodedata.category(one)[0] not in "LNM" and one not in "-+:/"
 
 
 # How many multisets the back-solve is allowed to count before it stops

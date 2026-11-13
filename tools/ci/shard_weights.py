@@ -236,7 +236,158 @@ are, on a machine other work was loading lightly (one-minute load
 average about 7). The merged line's other files keep their rows, the
 three other new files of lanes SR2a, PRT-a and BT3a at the seconds their
 lanes measured above: every file the merged line collects has a row
-(399 files, 18,170 cases).
+(399 files, 18,170 cases). Lane TR (plan P4-D473) adds
+`tests/test_zoo_time_readers.py`, 216.24 s (45 cases, 12 of them its repair 1's, 10 its repair 2's
+and 8 its follow-up's), timed alone by one `pytest -q --durations=50` process on its follow-up's code
+head under Python 3.11 beside other lanes' runs, the machine heavily loaded (one-minute load average
+about 140; eight settings under 0.005 s unshown; 64.9 CPU s, where repair 2's 37 cases took 53.5 CPU s
+in a run of their own at a load average about 40).
+
+ONE ROW ADDED 2026-11-10, by lane LM1 (plan P4-D475), re-timed at its
+repair 2: `tests/test_lm1_numbers_as_written.py`, 71.32 s (its gate,
+42 cases, two of them at 20,000 rows: 22.03 and 8.63 s;
+169.24 s at repair 1 with 63 cases and three such, before the exponent
+form's cases left), timed alone by one `pytest -q --durations=0` process
+on the repair's head under Python 3.11, its setup, call and teardown
+seconds summed, on a machine other work was loading.
+
+ONE ROW ADDED 2026-11-09, at lane DST (plan P4-D474): the lane's gate
+file weighed the default. `tests/test_offsets_follow_the_date.py`,
+134.34 s at the lane's repair 2 (54 cases: the rule families against a
+calendar written from their own words on quarter hours sampled over four
+decades -- each year from the family's first admitted one to 2030, the
+25 quarter hours beside each change and 300 drawn over the year, not
+every quarter hour as this comment first said -- the reading, the one
+definition that admits a rule over every quarter-hour pair of offsets,
+the product against the oracle on generated cases, the census step, the
+dead hour and the read-back at five rungs of four fall-back days, every
+bucket of four fall-back days drawn, the take-back, the count at the
+rung, a twin's tail before and after its family's years, the zoo's two
+tables at 600 rows, the hour-rung tables of three families, one table
+of 20,000 rows through the command with the floor
+on, the mutants' cases, and the combined zone-word case, skipped until
+lane TR's reading stands), timed alone by one `pytest -q --durations=0`
+process on the repair's code head under Python 3.11, its setup, call
+and teardown seconds summed, at a one-minute load of 80 to 110 (an
+earlier run of the same cases: 138.51 s; repair 1's 39 cases: 62.65 s
+near 100; the build's 30: 50.41 s near 80).
+
+ONE ROW ADDED 2026-11-10, at lane CODES-2's repair 2 (Codex's item 8 on
+the lane's build, the orchestrator's LANE CODES-2 RULINGS 6 (5)): the
+lane's gate file `tests/test_zoo_rare_names.py`, 170.37 s (92 cases, its
+case at the owner's floor 143.05 s of them), timed alone by one
+`pytest -q --durations=0` process over the repair's tree (its src that of
+the repair's head) under Python 3.11, its setup, call and teardown seconds
+summed as the table's other rows are, on a machine other work was loading
+heavily (one-minute load average 72 to 85; 172.2 s wall, 88.1 s of CPU).
+Before this row the file weighed the default though the plan records it at
+about 145 s wall, so its shard was packed about two minutes light.
+
+THE SAME ROW RE-TIMED 2026-11-11, at lane CODES-2's follow-up (the
+orchestrator's LANE CODES-2 RULINGS 8 and 9): 366.91 s (102 cases, ten
+added; its first case at the owner's floor 227.56 s and the follow-up's
+case at the floor 81.58 s of them), timed alone by one
+`pytest -q --durations=0` process over the follow-up's tree under
+Python 3.11, setup, call and teardown summed as before, on a machine
+other work was loading heavily (one-minute load average 58 to 88;
+370.96 s wall, 121.6 s of CPU against repair 2's 88.1 s). RULINGS 9
+counts the suite-time rule in CPU seconds on this machine: the file
+adds 33.5 CPU s to repair 2's, well inside its three minutes.
+
+THE SAME ROW RE-TIMED AGAIN 2026-11-11, at lane CODES-2's follow-up
+micro-step (the orchestrator's LANE CODES-2 RULINGS 10): 410.25 s (106
+cases, four added; its first case at the owner's floor 202.17 s, the
+follow-up's 75.71 s and the micro-step's 67.88 s of them, the glued
+grammar enumerated 13.62 s), timed alone by one `pytest -q
+--durations=0` process over the micro-step's third commit (its src and
+tests those of the micro-step's head) under Python 3.11, setup, call and
+teardown summed as before, on a machine other work was loading heavily
+(one-minute load average 57 to 88; 414.01 s wall, 151.1 s of CPU, user
+and system, against the follow-up's 121.6 s). In CPU seconds, as
+RULINGS 9 counts the suite-time rule on this machine, the file adds 29.5
+to the follow-up's and stays inside its three minutes.
+
+ONE ROW ADDED 2026-11-11, at batch 4s's merge of lane CZ-A2 (the
+orchestrator's LANE CZ-A2 RULINGS 11 (3)): the lane's gate file
+`tests/test_labelled_record_numbers.py`, 144.9 s (61 cases), the lane's
+own measurement on its final code `a08efa47`: one `pytest` process over
+the file, 144.9 CPU seconds, user and system (313.8 s of wall at the
+machine's load), where the other rows sum the setup, call and teardown
+seconds `--durations=0` prints. The merge's join adds one case, the
+agreement of the file's plain reading with the product's one definition
+of a space and a dash over every code point (4.5 s in the merge
+step's run).
+
+TWO ROWS ADDED 2026-11-11, at batch 4s's merge of lane HB2 (plan P4-D477):
+the lane's two gate files, each timed by one `pytest` process over the
+file on the merge step's code, CPU seconds, user and system, at the
+machine's load: `tests/test_safe_harbor_age_words.py` 51.5 s (21 cases:
+the lane's 17, the scoped verify 2's floor case beside a declared
+person and the join's three) and `tests/test_safe_harbor_ends_and_bounds.py` 71.6 s (19
+cases: the lane's 17 and the verify's two unit cases), where the other
+rows sum the setup, call and teardown seconds `--durations=0` prints.
+
+ONE ROW ADDED 2026-11-12, at batch 4s's merge of lane CZ-E (plan P4-D472):
+the lane's gate file `tests/test_zoo_value_readers.py`, 137.1 s (254 cases: the
+lane's 243 and the merge's join), one `pytest` process over the file on
+the merge step's code, CPU seconds, user and system, at the machine's load
+(268 s of wall), where the other rows sum the setup, call
+and teardown seconds `--durations=0` prints; the lane measured 62.7 CPU s
+for its 243 on its final code `591b48d0`.
+
+ONE ROW ADDED 2026-11-09, on lane SV's branch (plan P4-D476): its gate,
+`tests/test_stage4_validate_groups.py`, 96.35 s (40 cases since the
+lane's repair 2, 2026-11-11: a generated sweep of the check's rewrites
+and of the encoding words, fourteen written forms, seeded refused
+files, grains, the chain's switch, one table of 20,000 rows, quoting by
+class, a header line written in, a row order broken inside a grain and
+a workbook, each read one column a group against one group, and twelve
+machine-free cases of K-S4-23's driver), timed alone by one
+`pytest -q --durations=0` process on the repair's code under Python
+3.11, its setup, call and teardown seconds summed as the table's other
+rows are, on a machine other work was loading (one-minute load 46 to
+51; the 120.59 s recorded before were repair 1's 33 cases).
+
+ONE ROW MOVED 2026-11-12, at batch 4s's merge of lane SV (plan P4-D476):
+`tests/test_stage4_validate_groups.py`, 79.93 s (42 cases: the
+lane's 40 and the join's two agreement cases of the line's top-coded and
+time shapes, one of them over a table of 20,000 rows), one `pytest`
+process over the file on the merge step's code, CPU seconds, user and
+system, at the machine's load (164 s of wall), as the rows of
+lanes HB2 and CZ-E were measured at their merges; the lane's 96.35 s
+were its 40 cases' setup, call and teardown seconds summed.
+
+TEN ROWS WEIGHED AGAIN 2026-11-12, at batch 4s's owed items (the merge
+part's checks, on the merged head `4e64baa5`): every gate file the batch's
+lanes added, each timed alone by one `pytest -q --durations=0` process
+under Python 3.11 over that head, its setup, call and teardown seconds
+summed as the table's other rows are, on a machine other work was loading
+(one-minute load average about 60 to 110), the process's CPU seconds, user
+and system, and its wall beside each:
+`tests/test_labelled_record_numbers.py` 400.77 s (62 cases, 178.3 CPU s,
+404 s of wall; the row was 144.9); `tests/test_lm1_numbers_as_written.py`
+112.12 s (42 cases, 46.9 CPU s, 116 s of wall; the row was 71.32);
+`tests/test_offsets_follow_the_date.py` 145.94 s (54 cases, 62.5 CPU s, 149
+s of wall; the row was 134.34); `tests/test_safe_harbor_age_words.py`
+141.05 s (21 cases, 54.1 CPU s, 145 s of wall; the row was 51.5);
+`tests/test_safe_harbor_ends_and_bounds.py` 192.92 s (19 cases, 72.2 CPU s,
+195 s of wall; the row was 71.6); `tests/test_stage4_validate_groups.py`
+218.82 s (42 cases, 78.6 CPU s, 223 s of wall; the row was 79.93);
+`tests/test_zoo_persons_names.py` 90.27 s (300 cases, 37.3 CPU s, 94 s of
+wall; no row before); `tests/test_zoo_rare_names.py` 377.02 s (106
+cases, 147.8 CPU s, 382 s of wall; the row was 410.25);
+`tests/test_zoo_time_readers.py` 163.24 s (45 cases, 68.5 CPU s, 166 s of
+wall; the row was 216.24); `tests/test_zoo_value_readers.py` 341.0 s (254
+cases, 134.5 CPU s, 345 s of wall; the row was 137.1). The row of lane
+CZ-F's gate file was missing, so the file weighed the default; the five
+rows the merges of lanes CZ-A2, HB2, CZ-E and SV wrote in CPU seconds now
+hold summed durations like the rest.
+
+ONE ROW ADDED 2026-11-13, at batch 4s's seal: the fix round's gate file
+`tests/test_merged_line_review_items.py`, 403.77 s (22 cases), its setup,
+call and teardown seconds summed from the round's final run of it on the fix
+head `85eb6754`, one `pytest -q --durations=0` process under Python 3.11 at
+a one-minute load of about 80 to 100 (100.3 CPU s, 407 s of wall).
 
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Only a file added since
 the last measurement has none: it is placed like an ordinary small file
@@ -326,6 +477,7 @@ SECONDS = {
     "tests/test_kpi_ledger.py": 2473.74,
     "tests/test_kpi_ledger_integrity.py": 21.86,
     "tests/test_l0_method_page.py": 0.28,
+    "tests/test_labelled_record_numbers.py": 400.77,
     "tests/test_landing_2b12_identifiers_codes_text.py": 18.4,
     "tests/test_landing_2b13_numbers_beside_labels.py": 10.22,
     "tests/test_landing_2b15_unanchored_numbers.py": 19.24,
@@ -341,9 +493,11 @@ SECONDS = {
     "tests/test_lane_l2_spaced_meridiem.py": 99.06,
     "tests/test_lane_l3_stamp_forms.py": 188.23,
     "tests/test_levels_few_people_hold.py": 69.39,
+    "tests/test_lm1_numbers_as_written.py": 112.12,
     "tests/test_lone_figure_nought.py": 0.28,
     "tests/test_lone_pools_every_reader.py": 7.46,
     "tests/test_merge_close_2026_09_18.py": 12.42,
+    "tests/test_merged_line_review_items.py": 403.77,
     "tests/test_method_citations_resolve.py": 1.38,
     "tests/test_mixture_reader_bounds.py": 30.15,
     "tests/test_module_names_once.py": 1.72,
@@ -531,6 +685,7 @@ SECONDS = {
     "tests/test_r6_taxonomy_contract.py": 14.24,
     "tests/test_r6f5_write_transaction.py": 0.1,
     "tests/test_readers_once_a_spelling.py": 8.99,
+    "tests/test_offsets_follow_the_date.py": 145.94,
     "tests/test_reading.py": 7.51,
     "tests/test_reading_agreement.py": 7.9,
     "tests/test_reading_header_shape.py": 0.02,
@@ -542,7 +697,9 @@ SECONDS = {
     "tests/test_ruling_identifier_prefix.py": 18.2,
     "tests/test_ruling_levels_counted_by_subtraction.py": 6.57,
     "tests/test_ruling_pooled_held_back_levels.py": 6.97,
+    "tests/test_safe_harbor_age_words.py": 141.05,
     "tests/test_safe_harbor_ages_and_address_parts.py": 244.5,
+    "tests/test_safe_harbor_ends_and_bounds.py": 192.92,
     "tests/test_safe_harbor_numbers.py": 210.24,
     "tests/test_safe_harbor_places_years_devices.py": 279.66,
     "tests/test_shipped_page_review.py": 3.56,
@@ -609,6 +766,7 @@ SECONDS = {
     "tests/test_stage4_padded_swap_scale.py": 158.03,
     "tests/test_stage4_sign_repairs.py": 43.59,
     "tests/test_stage4_tier2a.py": 247.32,
+    "tests/test_stage4_validate_groups.py": 218.82,
     "tests/test_stage5_gate.py": 349.56,
     "tests/test_stage6_band_totals.py": 70.36,
     "tests/test_stage6_chain_describe_scale.py": 126.48,
@@ -644,10 +802,14 @@ SECONDS = {
     "tests/test_zoo_few_valued_gap.py": 562.84,
     "tests/test_zoo_held_layouts.py": 904.32,
     "tests/test_zoo_identifiers.py": 86.77,
+    "tests/test_zoo_persons_names.py": 90.27,
+    "tests/test_zoo_rare_names.py": 377.02,
     "tests/test_zoo_reading_page.py": 3.74,
     "tests/test_zoo_safe_harbor_forms.py": 192.29,
     "tests/test_zoo_safe_harbor_forms_walk.py": 42.6,
     "tests/test_zoo_stand_ins_page.py": 145.51,
+    "tests/test_zoo_time_readers.py": 163.24,
     "tests/test_zoo_units.py": 52.99,
     "tests/test_zoo_units_order.py": 84.66,
+    "tests/test_zoo_value_readers.py": 341.0,
 }

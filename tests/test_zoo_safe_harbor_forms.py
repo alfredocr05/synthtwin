@@ -722,9 +722,10 @@ def test_codex_item_3_a_later_refusal_counts_what_an_earlier_round_showed(
 def test_codex_item_4_every_run_of_a_real_value_is_counted_by_the_chance_of_a_figure_run() -> None:
     """REPAIR 2, CODEX ITEM 4 (the orchestrator's LANE CZ-A RULINGS 2 (4)): the chance counter reads every run.
 
-    The 20,000-row implant log holds the UDI `(01)02211351444010(17)
-    290712(21)2722647430`; a twin value `ZZ2722647430` holds its serial's
-    ten figures. The counter that read a value whole and its longest run
+    The 20,000-row implant log holds the UDI `(01)00011782499301(17)
+    261102(21)5382967221` (its people and lots since lane CZ-A2's fixture,
+    plan P4-D469); a twin value `ZZ5382967221` holds its serial's ten
+    figures. The counter that read a value whole and its longest run
     alone read 0; `carrying_runs` reads every run of five figures or more
     of each real value, inside a longer run too, on the real side and the
     controls' alike (`chance_of_runs` calls it for both).
@@ -734,12 +735,12 @@ def test_codex_item_4_every_run_of_a_real_value_is_counted_by_the_chance_of_a_fi
     header, body = forms.device_numbers(zoo.KPI_ROWS, forms.SEED)
     place = header.index("device_udi")
     real = sorted({row[place] for row in body})
-    udi = "(01)02211351444010(17)290712(21)2722647430"
+    udi = "(01)00011782499301(17)261102(21)5382967221"
     assert udi in real
-    assert forms.figure_runs(udi) == ["02211351444010", "290712", "2722647430"]
-    assert shapes.count_real([udi], [], ["ZZ2722647430"], linear=True)["twin_cells"] == 0
-    assert forms.carrying_runs([udi], ["ZZ2722647430"]) == 1
-    assert forms.carrying_runs(real, ["ZZ2722647430", "x9902211351444010", "ZZ27226474", "nothing"]) == 2
+    assert forms.figure_runs(udi) == ["00011782499301", "261102", "5382967221"]
+    assert shapes.count_real([udi], [], ["ZZ5382967221"], linear=True)["twin_cells"] == 0
+    assert forms.carrying_runs([udi], ["ZZ5382967221"]) == 1
+    assert forms.carrying_runs(real, ["ZZ5382967221", "x9900011782499301", "ZZ53829672", "nothing"]) == 2
 
 
 # -- a blank keeps a column held in people held -----------------------------------------

@@ -13,7 +13,8 @@ HOWEVER IT IS GLUED (the fix round's verify, blocker 1): the first round reached
 only, and a record number glued to its label or before a letter inside a name (`Cedar, Abc [MR1000000]`, `Cedar,
 Abc #MR1000000`, `Cedar, Abc [1000000A]`) kept the one-letter exclusion: 46, 46 and 47 twin cells of Codex's
 construction held a complete real record number on 037d4fcd, none on f0ce1e06. A run is now reached in every
-layout of two words or more, whatever stands beside it inside its word; a layout of one word is one key, as before.
+layout of two words or more, whatever stands beside it inside its word; a layout of one word was one key, as before
+(since lane CZ-A2, plan P4-D469, one holding a letter reaches its run too: `tests/test_labelled_record_numbers.py`).
 
 Each case runs the command at the owner's table floor (20,000 rows, 1,000 people) with nobody at the keyboard,
 generates at seed 0, validates, and counts with the forms' own linear counter (`safe_harbor_forms.complete_tokens`:
@@ -144,14 +145,17 @@ def test_the_runs_a_layout_writes_inside_a_wider_value() -> None:
     assert taxonomy.inner_runs("@&&&&, @&& [@@@-%%%%%%%]") == [(16, 7)]
     assert taxonomy.inner_runs("[%%]%%%%%%%%%%%%%%[%%]@@%%%%%%") == [(4, 14), (24, 6)]
     assert taxonomy.inner_runs("%% %%%%%% %%") == [(3, 6)]
-    # ...a layout of one word is one key: glued to letters, after a sign, joined by a code's marks; four figures
-    # are no key.
-    assert taxonomy.inner_runs("@@@%%%%%%%") == []
-    assert taxonomy.inner_runs("#@@%%%%%%%") == []
-    assert taxonomy.inner_runs("[%%%%%%%@]") == []
-    assert taxonomy.inner_runs("@@@-%%%%%") == []
-    assert taxonomy.inner_runs("%%@-%%%%%%") == []
+    # ...a layout of one word holding a letter reaches its runs too (lane CZ-A2, plan P4-D469): glued to letters,
+    # after a sign, joined by a code's marks, a year and capitals first; one of figures alone is one key, and four
+    # figures are no key.
+    assert taxonomy.inner_runs("@@@%%%%%%%") == [(3, 7)]
+    assert taxonomy.inner_runs("#@@%%%%%%%") == [(3, 7)]
+    assert taxonomy.inner_runs("[%%%%%%%@]") == [(1, 7)]
+    assert taxonomy.inner_runs("@@@-%%%%%") == [(4, 5)]
+    assert taxonomy.inner_runs("%%@-%%%%%%") == [(4, 6)]
     assert taxonomy.inner_runs("%%%%%-%%%%%") == []
+    assert taxonomy.inner_runs("%%%%%%%") == []
+    assert taxonomy.inner_runs("@@%%%%") == []
     assert taxonomy.inner_runs("@&&&&, @&& [%%%%]") == []
     # ...the marks that part words are a space and every layout mark that joins no code's parts.
     assert set(taxonomy._WORD_PARTS) == {" "} | (set(parsing.LAYOUT_MARKS) - set(taxonomy.OWN_WORD_JOINS))

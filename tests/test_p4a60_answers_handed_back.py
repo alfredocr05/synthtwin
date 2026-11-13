@@ -40,6 +40,7 @@ import pytest
 import keyboard
 
 import fixtures
+import written_words
 from synthtwin import asking, cli, contract, profile, reading, taxonomy
 
 
@@ -191,12 +192,31 @@ def test_a_questions_file_is_written_on_every_run(
     document = json.loads(
         (tmp_path / "clinic-questions.json").read_text(encoding="utf-8")
     )
-    said = json.dumps(document)
+    # Read over the DECODED file, every key, string and number whole and
+    # word by word (batch 4r's tests-and-tools round HYG-1): the needle
+    # this replaced, `f'"{value}"'` in the serialized file, saw a cell
+    # only as a string of its own, never inside a sentence.
+    seen = written_words.seen_in(document)
     for column in _columns().values():
         for value in column[:20]:
-            assert f'"{value}"' not in said, (
+            assert value not in seen, (
                 "the file travels and a cell of the table may not"
             )
+
+
+def test_a_cell_inside_a_sentence_of_the_file_is_seen() -> None:
+    """HYG-1, machine-free: the reading above sees a cell inside a sentence, before a mark or as a number.
+
+    MUTATION: the whole-string needle it replaced sees none of these.
+    """
+    for value, said in (
+        ("00017", "a code such as 00017, written five wide"),
+        ("1957", "born in (1957)."),
+        ("412", 412),
+    ):
+        document = {"asked": [{"column": "reading", "said": said}]}
+        assert value in written_words.seen_in(document), (value, said)
+        assert f'"{value}"' not in json.dumps(document), (value, said)
 
 
 def test_an_answer_in_the_file_becomes_the_declaration(

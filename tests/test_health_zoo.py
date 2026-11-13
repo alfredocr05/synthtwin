@@ -102,6 +102,13 @@ PLAN_LANES = (
     # ...and lane ID-ROOM2, a held date column's made-up dates kept off the
     # real ones (plan P4-D457): a column of two-figure years with no room.
     "ID-ROOM2",
+    # ...and, at lane HB2's handoff (plan P4-D477; the orchestrator's LANE HB2
+    # RULINGS 2 (1) and 5 (6)), lane HB3, the held walk's layouts, and lane
+    # GRb2, the relations a patient's rows hold.
+    "HB3", "GRb2",
+    # ...and lane CZ-E, the value readers (plan P4-D472): the signed reports
+    # held for the reader's name they carry.
+    "CZ-E",
 )
 
 # The kinds the lane's step names, and the ones its reviews found missing
@@ -940,7 +947,8 @@ def test_a_failure_with_only_a_gap_stated_is_counted_apart(monkeypatch: pytest.M
     assert owned["kinds"]["mixed_results"]["needing_owner"] == ["miss result_value -- mean"]
     laned = zoo.zoo_measures([_result("labs", misses=[["ref_range", "styles"]])])
     assert laned["K-HZ-02"]["failures_needing_owner"] == 0
-    assert laned["kinds"]["labs"]["owners"] == ["LM1"]
+    # Lane LM2 since LANE LM1 RULINGS 2 (4): a joined range's styles, P4-D475's limit (e).
+    assert laned["kinds"]["labs"]["owners"] == ["LM2"]
 
 
 def test_every_owner_is_a_lane_of_the_plan_or_needs_one() -> None:

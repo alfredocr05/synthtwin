@@ -468,6 +468,10 @@ _RANKS: "tuple[tuple[str, str, str], ...]" = (
     ("datetime.format", "", TIER_WRITING),
     ("datetime.datetimes_read_at", "", TIER_WRITING),
     ("datetime.count_form", "", TIER_WRITING),
+    # ...and the rule an offset follows its date by (lane DST, plan P4-D474):
+    # a twin whose offsets break it writes a stamp code reads at another
+    # instant.
+    ("datetime.offset_rule", "", TIER_WRITING),
     ("datetime.datetime_separators", "", TIER_WRITING),
     ("datetime.zulu_case", "", TIER_WRITING),
     ("datetime.quarter_marker_case", "", TIER_WRITING),

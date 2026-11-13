@@ -925,9 +925,33 @@ def _clock_field_table() -> str:
     return fixtures.rows_to_csv(["stamped"], [[cell] for cell in cells])
 
 
+def _ruled_offsets_table() -> str:
+    """600 moments of 2023 at the offsets their zone has in force on their dates (lane DST, P4-D474).
+
+    A zone of the `us` family at `-05:00`: summer time's `-04:00` from the
+    day after the second Sunday of March to the day before the first
+    Sunday of November, `-05:00` on the other days, and none on the two
+    days the clocks change -- so every stamp keeps the rule, its block
+    publishes `offset_rule` and the check `offsets.rule` is filed. Its
+    arithmetic is seeded and neutral (plan D13).
+    """
+    draw = random.Random(47401)
+    starts, ends = datetime.date(2023, 3, 12), datetime.date(2023, 11, 5)
+    cells: "list[str]" = []
+    for _row in range(600):
+        day = datetime.date(2023, 1, 1) + datetime.timedelta(days=draw.randrange(365))
+        if day in (starts, ends):
+            day = day + datetime.timedelta(days=1)
+        offset = "-04:00" if starts < day < ends else "-05:00"
+        clock = f"{draw.randrange(24):02d}:{draw.randrange(60):02d}:{draw.randrange(60):02d}"
+        cells += [f"{day.isoformat()} {clock}{offset}"]
+    return fixtures.rows_to_csv(["seen_at"], [[cell] for cell in cells])
+
+
 def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
     tmp_path: pathlib.Path,
     runs: "list[tuple[str, contract.Profile, str]]",
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Drift in the other direction, and the one this review found.
 
@@ -1061,6 +1085,47 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
         )
     )
     few_listed_twin = rendering.twin_csv(generation.generate(few_listed, SEED))
+    # ...AND SO IS THE RULE AN OFFSET FOLLOWS ITS DATE BY (lane DST, plan
+    # P4-D474): it is published only where every stamp of a column read on
+    # the shared clock wears the offset in force on its date, which no
+    # fixture of this battery writes, so one column of such stamps files
+    # `datetime.offset_rule`.
+    ruled = _described(tmp_path, _ruled_offsets_table(), None, stem="ruled")
+    assert ruled.columns[0].facts.offset_rule == "us -05:00", "premise: the column publishes its rule"
+    ruled_twin = rendering.twin_csv(generation.generate(ruled, SEED))
+    # ...AND SO ARE THE NAMES OF A POOL (lane CODES-2, plan P4-D471; the
+    # whole suite of its repair 1's head named `label.held_back_names`
+    # unbound): a route's rare levels named after `no` to its Safe Harbor
+    # question, which no fixture of this battery answers. Naming is a
+    # command's rule at the owner's table floor, so the floor's row count
+    # is lowered to the fixture's 400 rows while it is described, a test
+    # device (LANE I4m RULINGS 18 (4)); the validator re-describes the twin
+    # with the pool named whatever its size, and files the fact.
+    with monkeypatch.context() as lowered:
+        lowered.setattr(parsing, "TABLE_ROW_FLOOR", 400)
+        routes = ["PR"] * 5 + ["TOP"] * 3 + ["NG"]
+        named_table = fixtures.write(
+            tmp_path,
+            "named.csv",
+            fixtures.single_column_table(
+                "route",
+                [routes[place] if place < len(routes) else ("PO", "IV", "SC")[place % 3] for place in range(400)],
+            ),
+        )
+        named = contract.load_profile(
+            str(
+                fixtures.write_profile(
+                    tmp_path,
+                    "named-profile.json",
+                    profile.build_document(
+                        reading.read_table(str(named_table)), SETTINGS, [],
+                        safe_harbor_no=["route"],
+                    ),
+                )
+            )
+        )
+    assert next(column for column in named.columns if column.name == "route").facts.held_back_names  # type: ignore[union-attr]
+    named_twin = rendering.twin_csv(generation.generate(named, SEED))
     for name, described, twin in runs + [
         ("spelled-codes", spelled, spelled_twin),
         ("workbook", booked, book.read_bytes()),
@@ -1071,6 +1136,8 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
         ("clock-fields", fielded, fielded_twin),
         ("clock-minutes", walked, walked_twin),
         ("listed", few_listed, few_listed_twin),
+        ("ruled-offsets", ruled, ruled_twin),
+        ("named", named, named_twin),
     ]:
         outcome = _measured(tmp_path, described, twin, f"{name}.csv")
         for check in outcome.checks:

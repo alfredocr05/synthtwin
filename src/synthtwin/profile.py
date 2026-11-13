@@ -54,6 +54,7 @@ from synthtwin import (
     dialect,
     errors,
     grains,
+    offset_rules,
     parsing,
     reading,
     taxonomy,
@@ -992,6 +993,10 @@ _COUNT_MARK = "a-decimal-mark-of-a-count"
 # rung, a canonical moment or a clock time -- the first and the last bucket
 # the floor's number of people hold, which the record exists to publish.
 _GRAIN_SPAN_PART = "a-rung-or-the-start-of-a-bucket"
+# THE RULE AN OFFSET FOLLOWS ITS DATE BY (lane DST, plan P4-D474): a family
+# of `offset_rules.FAMILIES`, a space and a standard offset, a zone's public
+# calendar.
+_OFFSET_RULE = "a-rule-family-and-a-standard-offset"
 _COUNT_SIGNIFICANT = "fifteen-or-seventeen-significant-figures-or-nothing"
 _CONTACT_WORD = "a-contact-number-in-figures-or-none"
 _SHAPE_FORM = "a-written-form-a-cell-could-not-be-spelled-with"
@@ -1375,6 +1380,12 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
         "columns", _EACH, "sentinel_verdicts", _EACH, "spellings", _EACH
     ): _SPELLING,
     # The label roles.
+    # ...and the names of the levels the floor held back (lane CODES-2, plan
+    # P4-D471; the owner's answer Z1 = B): values of the real table, each a
+    # spelling, published WITHOUT a count of its own beside the pooled
+    # total, only where the column's `no`, or the word screen, names them.
+    ("columns", _EACH, "held_back_names"): _ARRAY,
+    ("columns", _EACH, "held_back_names", _EACH): _SPELLING,
     ("columns", _EACH, "levels"): _ARRAY,
     ("columns", _EACH, "levels", _EACH): _OBJECT,
     ("columns", _EACH, "levels", _EACH, "label"): _SPELLING,
@@ -1768,6 +1779,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "time_precision"): _WORD,
     ("columns", _EACH, "subsecond_digits"): _COUNT,
     ("columns", _EACH, "datetimes_read_at"): _WORD,
+    ("columns", _EACH, "offset_rule"): _OFFSET_RULE,
     # A statement about every parsed cell at once, and a real yes or no
     # (plan P4-D39): a count standing in for it is refused.
     ("columns", _EACH, "all_at_midnight"): _FLAG,
@@ -1881,6 +1893,17 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "top_category_pooled"): _COUNT,
     ("columns", _EACH, "top_category_people"): _ARRAY,
     ("columns", _EACH, "top_category_people", _EACH): _KNOWN_NAME,
+    # ...and the age words its top-code read around its numbers (lane HB2,
+    # plan P4-D477): `true` where a cell holds them (`Age 95`).
+    ("columns", _EACH, "top_coded_words"): _FLAG,
+    # ...and the two values its ends were pooled into in people (lane HB2,
+    # plan P4-D477): the low band's highest value and the top band's lowest,
+    # each a value the floor's people hold.
+    ("columns", _EACH, "top_coded_ends"): _ARRAY,
+    ("columns", _EACH, "top_coded_ends", _EACH): _NUMBER,
+    # ...and that its bands of ages past 89 were written as one band (plan
+    # P4-D472; the orchestrator's LANE CZ-E RULINGS 6 (3)).
+    ("columns", _EACH, "top_coded_bands"): _FLAG_TRUE,
     # RULE A1'S DESTINATION (lane CODES-1, plan P4-D439, contract C6-31g):
     # a written form, which carries no figure or letter of the table.
     ("columns", _EACH, "shape_forms_absorbed"): _SHAPE_FORM,
@@ -2065,6 +2088,8 @@ def _compound_rules() -> "dict[tuple[str, ...], str]":
         # ...and what no real run of figures opens with, beside a label half
         # whose held-back rows hold such a run (lane HB, plan P4-D442).
         "figure_openings",
+        # ...and the names of its held-back words (lane CODES-2, P4-D471).
+        "held_back_names",
         "level_ceiling",
         "n_distinct_by_occurrences",
         "n_all_digits",
@@ -2439,7 +2464,12 @@ def _is_moment(value: object) -> bool:
         return False
     for character in value:
         if character not in _DATETIME_CHARACTERS:
-            return parsing.clock_form(value) is not None
+            # ...or a clock written as figures with a fraction (lane TR,
+            # plan P4-D473), `074512.000000`: its point is not canonical.
+            return (
+                parsing.clock_form(value) is not None
+                or parsing.clock_figure_form(value) is not None
+            )
     return True
 
 
@@ -2958,7 +2988,11 @@ def _leaf_is_published(
             return False
         return value >= parsing.census_floor(context.floor)
     if kind == _CLOCK_VALUE:
-        return isinstance(value, str) and parsing.clock_form(value) is not None
+        # ...in any form, a clock written as figures among them (plan P4-D473).
+        return isinstance(value, str) and (
+            parsing.clock_form(value) is not None
+            or parsing.clock_figure_form(value) is not None
+        )
     if kind == _CLOCK_STEP:
         if value is None:
             return True
@@ -2983,6 +3017,8 @@ def _leaf_is_published(
         return isinstance(value, str) and value in date_counts.MARKS
     if kind == _GRAIN_SPAN_PART:
         return isinstance(value, str) and (value in grains.RUNGS or _is_moment(value))
+    if kind == _OFFSET_RULE:
+        return isinstance(value, str) and offset_rules.parsed_rule(value) is not None
     if kind == _COUNT_SIGNIFICANT:
         return value is None or (
             not isinstance(value, bool) and isinstance(value, int) and value in (15, 17)
@@ -4320,6 +4356,63 @@ def stored_as_of(
     return tuple(words)
 
 
+def _without_held_back_names(block: "dict[str, object]") -> "dict[str, object]":
+    """A column's block with its held-back levels' names set aside, its label half's too (lane CODES-2, P4-D471)."""
+    kept: "dict[str, object]" = {}
+    for key in block:
+        value = block[key]
+        if key == "held_back_names":
+            continue
+        if key == "labels" and isinstance(value, dict) and "held_back_names" in value:
+            value = {inner: value[inner] for inner in value if inner != "held_back_names"}
+        kept[key] = value
+    return kept
+
+
+def _held_back_named_here(
+    name: str,
+    answered_no: "list[str]",
+    released: bool,
+    held: "list[str]",
+    identifiers: "list[str]",
+    checked: "tuple[str, ...] | None",
+    at_the_floor: bool,
+) -> str:
+    """How a column may name its held-back levels (lane CODES-2, plan P4-D471), or "".
+
+    The validator's ``checked`` decides alone: the columns whose description
+    named its pool are read `taxonomy.HELD_BACK_NAMED_CHECKED`, and no other.
+    Else A COMMAND'S RULE, as the top-code and the date floor are (THE
+    OWNER'S TABLE FLOOR, point (3) amended): nothing on a table under
+    `parsing.TABLE_ROW_FLOOR` rows (``at_the_floor`` False, REQUIRED of
+    every caller, read off the table it describes, so no threshold is
+    skipped by omission: the orchestrator's LANE CODES-2 RULINGS 2 (3)),
+    which the command refuses and the library describes byte for byte as
+    before. And
+    RULE U (c), the stand-ins page's ZS.1: nothing while a question offering
+    `identifier` is open on the table (``released`` False), nor on a column a
+    question holds (``held``) or described as a record number;
+    `taxonomy.HELD_BACK_NAMED_ANSWERED` where the column is answered `no` to
+    its Safe Harbor question; `taxonomy.HELD_BACK_NAMED_SCREENED` elsewhere.
+    Guarantees: a fixed function of the seven. Raises nothing. No I/O.
+    """
+    if checked is not None:
+        return taxonomy.HELD_BACK_NAMED_CHECKED if name in checked else ""
+    if not at_the_floor or not released or name in held or name in identifiers:
+        return ""
+    if name in answered_no:
+        return taxonomy.HELD_BACK_NAMED_ANSWERED
+    return taxonomy.HELD_BACK_NAMED_SCREENED
+
+
+def _names_its_pool(details: "dict[str, object]") -> bool:
+    """Whether a column's block names its held-back levels, or its label half does (lane CODES-2, P4-D471)."""
+    if "held_back_names" in details:
+        return True
+    half = details["labels"] if "labels" in details else None
+    return isinstance(half, dict) and "held_back_names" in half
+
+
 def _few_values_released(name: str, answered_no: "list[str]") -> bool:
     """Whether a few-valued column may list its numbers: `no` to its Safe Harbor question.
 
@@ -4510,6 +4603,7 @@ def build_document(
     harbor_year: int = 0,
     harbor_reasons: "dict[str, str] | None" = None,
     year_top_coded_only: "dict[str, int] | None" = None,
+    top_banded_only: "frozenset[str] | None" = None,
     kept_identities: "list[str] | None" = None,
     levels_pooled: "list[str] | None" = None,
     levels_kept_only: "dict[str, tuple[str, ...]] | None" = None,
@@ -4520,6 +4614,12 @@ def build_document(
     dates_answered: "tuple[str, ...]" = (),
     long_table_dates: bool = False,
     kept_spellings: "dict[int, taxonomy.KeptSpellings] | None" = None,
+    rules_published: "dict[str, str] | None" = None,
+    rare_named: "list[str] | None" = None,
+    names_published: "list[str] | None" = None,
+    names_checked_only: "tuple[str, ...] | None" = None,
+    top_words_only: "list[str] | None" = None,
+    top_ends_only: "dict[str, tuple[int, int]] | None" = None,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -4704,7 +4804,24 @@ def build_document(
       at the table floor and above; the block records the rule as
       `top_category_pooled` (and `top_category_people`), whether or not a
       category was pooled, and ``top_pooled_only``, the validator's,
-      gives each column's recorded rule back. ``ages_established``, filled for
+      gives each column's recorded rule back; a column whose top-code
+      wrote a band of ages as its one band past 89 records
+      `top_coded_bands`, and ``top_banded_only``, the validator's, names
+      the columns that record it, a description read again reading the
+      bands of no other (plan P4-D472). The age words around a
+      number (`Age 95`, `(95 yrs)`; `taxonomy.AGE_VOCABULARY`, lane HB2,
+      plan P4-D477) are read by the reach and the top-code, and a block
+      whose cells hold them records `top_coded_words`; ``top_words_only``,
+      the validator's, names the columns whose recorded block says so,
+      every other top-coded column read again without them as it was
+      made. A top-coded column the count in people would hold, beside a
+      subject column that repeats, at the table floor and above, has its
+      ENDS POOLED IN PEOPLE where that frees it (each end's values few
+      people hold joined into one band the floor's people hold, the low
+      band written as its highest value and the top band as its lowest,
+      never past the top code: `taxonomy.ends_pooled_in_people`), recorded
+      as `top_coded_ends`; ``top_ends_only``, the validator's, gives each
+      column's recorded ends back. ``ages_established``, filled for
       the command: each column top-coded here, and what establishes it
       as ages beside its values (`taxonomy.AGE_UNIT_IN_CELLS` and the
       rest; "" for its values alone).
@@ -4759,6 +4876,23 @@ def build_document(
       is an age and is kept: the mark its description, its name or its
       answer states (lane SH3, plan P4-D454; years where none does)
       stands for 90 years (limit (h), wired at lane SH3's merge).
+    - THE NAMES OF RARE LEVELS (lane CODES-2, plan P4-D471; the owner's
+      answer Z1 = B): a column named in ``safe_harbor_no`` -- `no` to its
+      Safe Harbor question, the one sentence every reason of it asks (not
+      the dates-in-disguise question's, ``dated_values_no``) -- is read
+      `taxonomy.HELD_BACK_NAMED_ANSWERED`, so a label column names its
+      held-back levels beside their pooled total where
+      `taxonomy.held_back_names_published` allows; every other column is
+      read `taxonomy.HELD_BACK_NAMED_SCREENED`, which names only a column of
+      numbers with labels' held-back words that pass the word screen. Rule
+      U (c): none while ``rare_values_released`` is False, and never a
+      column ``unanswered`` holds or one described as a record number. A
+      label column whose `no` would name its pool (`held_back_nameable`)
+      and that is not answered `no` is added to ``rare_named``, for the
+      command to put that question; a column that names its pool to
+      ``names_published``. ``names_checked_only``, the validator's, reads
+      exactly those columns `taxonomy.HELD_BACK_NAMED_CHECKED` and no
+      other column any way that names a pool.
     """
     withheld_names = [] if unanswered is None else unanswered
     identities_kept = [] if kept_identities is None else kept_identities
@@ -4927,6 +5061,9 @@ def build_document(
         # a table read in groups holds one group, and the next is read
         # when its first column is described.
         cells = reading.column_values(table, position - 1)
+        # ...as the table holds them, for the `clock-figures` answer's
+        # declined check (Codex's review of lane TR, items 2 and 3).
+        cells_as_read = cells
         # A DECIMAL COMMA INFERRED (lane UN-1b, plan P4-D443; the zoo-fix
         # plan's 2.1b (c) v2.1): where the column's cells settle that its
         # comma is the decimal point (`parsing.decimal_comma_inferred`),
@@ -5009,6 +5146,21 @@ def build_document(
                 read_under = dataclasses.replace(
                     read_under, levels_kept=frozenset(kept)
                 )
+            # THE NAMES OF RARE LEVELS (lane CODES-2, plan P4-D471): how this
+            # column may name its held-back levels, `_held_back_named_here`.
+            named_how = _held_back_named_here(
+                name,
+                no_safe_harbor,
+                rare_values_released,
+                withheld_names,
+                described_identifiers,
+                names_checked_only,
+                table.n_rows >= parsing.TABLE_ROW_FLOOR,
+            )
+            if named_how and not held:
+                read_under = dataclasses.replace(
+                    read_under, held_back_named=named_how
+                )
             return taxonomy.profile_column(
                 name,
                 position,
@@ -5064,6 +5216,21 @@ def build_document(
         readings_here: "list[taxonomy.HeldReading] | None" = [] if kept_spellings is not None else None
         described = described_from(cells, handed_over, readings_kept=readings_here)
         handed_over = None
+        # THE RULE AN OFFSET FOLLOWS, DECIDED ON THE CELLS AS HANDED (lane DST's
+        # repair 2, Codex's items 3 and 6): on a description's own table, the
+        # rule its stamps were read under; where a published rule is checked
+        # (``rules_published``, validation's redescription), that rule where
+        # every stamp keeps it over its family's whole calendar and both its
+        # offsets are worn (`grains.wears_the_rule`), none where one breaks it.
+        # A grain's description carries this verdict, never one read again off
+        # cells coarsened at their own offsets, which a cell in the hour the
+        # clocks skip could pass as valid.
+        offset_verdict = _offset_rule_of(described)
+        if rules_published is not None and name in rules_published:
+            offset_verdict = _kept_rule(
+                cells, _stamp_reading(described), rules_published[name], frozenset(described.absent_spellings)
+            )
+            described = _with_offset_rule(described, offset_verdict)
         if kept_spellings is not None and readings_here:
             _keep_for_the_chain(kept_spellings, position - 1, readings_here[0], described, described_identifiers)
         readings_here = None
@@ -5103,6 +5270,7 @@ def build_document(
             name_read and taxonomy.named_as_an_age(name)
         )
         units_in_cells = False
+        words_in_cells = False
         mark_here = (
             top_coded_only[name]
             if top_coded_only is not None and name in top_coded_only
@@ -5256,9 +5424,32 @@ def build_document(
         # way (Codex's review of lane SH, item 2). The reach reads the cells
         # the date rule leaves (above).
         forced_top = top_coded_only is not None and name in top_coded_only
+        # ...AND THE AGE WORDS AROUND ITS NUMBERS (lane HB2, plan P4-D477):
+        # read by the reach and the top-code (`Age 95` is 95, written `Age
+        # 90`), and recorded where a cell holds them (`top_coded_words`), so
+        # a description the validator reads again is read as it was made --
+        # with them only where it records them, as a description written
+        # before them never does.
+        words_here = (
+            top_words_only is not None and name in top_words_only
+            if forced_top
+            else True
+        )
+        words_recorded = False
+        # ...and the ends its ages were pooled into in people, where they were
+        # (plan P4-D477), with the cells as they stood before.
+        ends_here: "tuple[int, int] | None" = None
+        cells_before_ends: "list[str]" = []
         top_coded_here = False
         top_pool_floor = -1
         top_pool_people: "tuple[str, ...]" = ()
+        # ...and whether its bands of ages past 89 are read as one band: a
+        # description read again reads them only where it records so
+        # (`top_coded_bands`; plan P4-D472, the orchestrator's LANE CZ-E
+        # RULINGS 6 (3): a description made before the band reading
+        # validates as it did), and whether this description wrote any.
+        bands_read = not forced_top or (top_banded_only is not None and name in top_banded_only)
+        top_banded = False
         reach = ""
         # ...and whether only the column's name put it in the age reach (lane
         # SH3's rule), its cells read in years reaching nothing: such a column
@@ -5287,6 +5478,10 @@ def build_document(
                 settings.small_cell_floor,
                 harbor_year,
                 taxonomy.counted_member(taxonomy.counted_for_the_column(settings, name)),
+                # ...and whether its question about dates in disguise was
+                # answered `no`: the value readers never ask it again
+                # (plan P4-D472).
+                name in no_dates,
             )
         if (
             top_coded_only is None
@@ -5297,6 +5492,17 @@ def build_document(
                 or name in withheld_names
             )
         ):
+            # ...AN AGE WORD BEFORE ITS NUMBERS SAYS, AS ITS NAME WOULD, THAT
+            # IT HOLDS AGES, BEFORE THE REACH IS DECIDED (lane HB2's repair 2;
+            # Codex's item 2, the orchestrator's LANE HB2 RULINGS 5 (2)): a
+            # column named `record_label` writing `Age 18` to `Age 105` on
+            # 18,000 cells and `Age 126` to `Age 225` on 2,000 was taken out of
+            # the reach by its strays past 125 before its words were read, and
+            # published `Age 95` and wrote it in its twin, where the same cells
+            # named `age` were top-coded.
+            words_named = taxonomy.ages_written_with_words(
+                cells_as_written, name in declared_commas, frozenset(described.absent_spellings)
+            )
             reach = _reach_here(
                 cells_as_written,
                 dated_cells,
@@ -5320,12 +5526,13 @@ def build_document(
                 or name in declared_measurements
                 or name in withheld_names,
                 mark_here,
-                age_named,
+                age_named or words_named,
             )
             reached_by_name = (
                 reach == taxonomy.SAFE_HARBOR_AGES
                 and age_named
                 and not unit_answered
+                and not words_named
                 and _reach_here(
                     cells_as_written,
                     dated_cells,
@@ -5349,6 +5556,11 @@ def build_document(
                 units_in_cells = taxonomy.ages_written_with_units(
                     cells, name in declared_commas, frozenset(described.absent_spellings)
                 )
+                # ...and an age word before its numbers says, as its name
+                # would, that it holds ages (plan P4-D477).
+                words_in_cells = taxonomy.ages_written_with_words(
+                    cells, name in declared_commas, frozenset(described.absent_spellings)
+                )
             # ...and a column whose name, cells or answer state its ages'
             # unit holds no ZIP code: ages in days younger than 90 are
             # published as numbers (RULINGS 1 (3)).
@@ -5361,12 +5573,31 @@ def build_document(
         if reach == taxonomy.SAFE_HARBOR_ZIPS and held_first == taxonomy.HELD_ADDRESS_PARTS:
             reach = ""
         # ...a description written before lane SH3's repair, which records
-        # no pooling rule, is read again as it was made (Codex's item 4).
-        before_sh3 = forced_top and (
-            top_pooled_only is None or name not in top_pooled_only
+        # no pooling rule, is read again as it was made (Codex's item 4) --
+        # but one that records the age words or the ends, which no such
+        # description holds, is read with them (lane HB2's repair 2, Codex's
+        # item 5: `top_coded_words` beside no `top_category_pooled` was read
+        # by the older reader, which left `Age 95` as it was) -- and so is one
+        # that records its band reading (`top_coded_bands`), which no such
+        # description holds either (Codex's review of batch 4s, item 6; the
+        # orchestrator's LANE I4s RULINGS 1 (2): `90-94` and `95+` beside no
+        # pooling rule were published again where the generator wrote `90+`).
+        before_sh3 = (
+            forced_top
+            and (top_pooled_only is None or name not in top_pooled_only)
+            and not words_here
+            and not (top_ends_only is not None and name in top_ends_only)
+            and not (top_banded_only is not None and name in top_banded_only)
         )
         cells_before_ages = cells
         if forced_top or reach == taxonomy.SAFE_HARBOR_AGES:
+            words_recorded = (
+                words_here
+                if forced_top
+                else taxonomy.age_words_written(
+                    cells, name in declared_commas, frozenset(described.absent_spellings)
+                )
+            )
             coded = (
                 taxonomy.top_coded_cells_before_sh3(
                     cells, name in declared_commas, frozenset(described.absent_spellings)
@@ -5374,7 +5605,14 @@ def build_document(
                 if before_sh3
                 else taxonomy.top_coded_cells(
                     cells, name in declared_commas, frozenset(described.absent_spellings),
-                    mark_here,
+                    mark_here, words_here, bands_read,
+                )
+            )
+            banded_cells = (
+                not before_sh3
+                and bands_read
+                and taxonomy.bands_top_coded(
+                    cells, name in declared_commas, frozenset(described.absent_spellings), mark_here
                 )
             )
             recoded = described_from(coded, None, read_as_labels_here=held_as_labels)
@@ -5391,6 +5629,7 @@ def build_document(
                     frozenset(described.absent_spellings),
                     settings.small_cell_floor,
                     mark_here,
+                    words_here,
                 )
                 if aside != coded:
                     coded = aside
@@ -5452,17 +5691,107 @@ def build_document(
                     max(pool_floor, 0),
                     mark_here,
                     pool_holders if pool_holders else None,
+                    words_here,
                 )
                 pool_holders = []
                 if top_pooled != coded:
                     coded = top_pooled
                     recoded = described_from(coded, None, read_as_labels_here=held_as_labels)
-                cells = coded
                 top_pool_floor = pool_floor
                 top_pool_people = pool_people if pool_floor > 0 else ()
+                # ...AND ITS ENDS POOLED IN PEOPLE WHERE THE COUNT IN PEOPLE
+                # WOULD HOLD IT (lane HB2, plan P4-D477; the orchestrator's
+                # LANE GRb RULINGS 2 (2) and 3 (4)): a visit table's ages of
+                # 3,000 patients, about 20,000 rows, were held whole as record
+                # numbers -- its youngest ages, its first and 99th percentiles
+                # and its largest each held by 4 to 10 patients -- so its twin
+                # wrote two stand-ins a row and a twin patient held two ages.
+                # Each end's values few people hold join one band the floor's
+                # people hold, the column is described again and counted in
+                # people again, and held as before only where that fails; a
+                # description checked again reads the ends it records.
+                cells_before_ends = coded
+                if forced_top:
+                    ends_here = (
+                        top_ends_only[name] if top_ends_only is not None and name in top_ends_only else None
+                    )
+                elif pool_floor > 0 and not reached_by_name:
+                    # ...DESCRIBED AGAIN AND COUNTED IN PEOPLE AGAIN, at most
+                    # `_END_ROUNDS` times: a value the pooled block still
+                    # publishes that 1 to `floor` - 1 people hold (a bin's edge
+                    # beside its low tail: `30`, 6 patients of 3,020) is taken
+                    # into the band of the nearer end, and the ends drawn again;
+                    # held as before where none is left to take.
+                    ends_people, ends_enough = _subjects_beside(
+                        name, subject_names, subject_cells, subject_enough
+                    )
+                    ends_held = bool(ends_people) and _counted_in_subjects(
+                        taxonomy.with_top_code(recoded, mark_here, top_pool_floor, top_pool_people, words_recorded),
+                        coded, ends_people, settings.small_cell_floor, ends_enough,
+                        _plain_reading(recoded, name in declared_commas),
+                    )
+                    ends_low_need = -1
+                    ends_high_need = -1
+                    for _round in range(_END_ROUNDS if ends_held else 0):
+                        ends_drawn = taxonomy.ends_pooled_in_people(
+                            coded, name in declared_commas, frozenset(described.absent_spellings),
+                            settings.small_cell_floor, mark_here, ends_people, words_here, ends_low_need, ends_high_need,
+                        )
+                        if ends_drawn is None:
+                            break
+                        ends_cells = taxonomy.cells_within_the_ends(
+                            coded, name in declared_commas, frozenset(described.absent_spellings),
+                            ends_drawn[0], ends_drawn[1], mark_here, words_here,
+                        )
+                        # ...each cell read as the block reads it and in the
+                        # column's unit (lane HB2's repair 2, Codex's item 1).
+                        ends_ages = taxonomy.ages_as_read(
+                            ends_cells, name in declared_commas, frozenset(described.absent_spellings),
+                            mark_here, words_here,
+                        )
+                        ends_described = described_from(ends_cells, None, read_as_labels_here=held_as_labels)
+                        ends_candidate = taxonomy.with_top_ends(
+                            taxonomy.with_top_code(ends_described, mark_here, top_pool_floor, top_pool_people, words_recorded),
+                            ends_drawn[0], ends_drawn[1],
+                        )
+                        if not _counted_in_subjects(
+                            ends_candidate, ends_cells, ends_people, settings.small_cell_floor, ends_enough,
+                            _plain_reading(ends_described, name in declared_commas),
+                        ):
+                            # ...and every bin group it publishes held by the
+                            # floor's people too, a group few people hold taken
+                            # into the nearer band (lane HB2's repair 1).
+                            ends_few = _groups_few(ends_candidate, ends_ages, ends_people, settings.small_cell_floor)
+                            if not ends_few:
+                                ends_here = ends_drawn
+                                break
+                        else:
+                            ends_few = _published_few(ends_candidate, ends_ages, ends_people, settings.small_cell_floor)
+                        if not ends_few:
+                            # ...or, where no value it publishes is few people's,
+                            # the values of its remainder, the cells that read as
+                            # none, where 1 to `floor` - 1 people hold it (lane
+                            # HB2's repair 1; the statistics check's item 3).
+                            ends_few = _remainder_few(ends_candidate, ends_ages, ends_people, settings.small_cell_floor)
+                        ends_moved, ends_low_need, ends_high_need = _ends_asked(
+                            ends_drawn, ends_few, ends_low_need, ends_high_need,
+                        )
+                        if not ends_moved:
+                            break
+                if ends_here is not None:
+                    coded = taxonomy.cells_within_the_ends(
+                        coded, name in declared_commas, frozenset(described.absent_spellings),
+                        ends_here[0], ends_here[1], mark_here, words_here,
+                    )
+                    recoded = described_from(coded, None, read_as_labels_here=held_as_labels)
+                cells = coded
+                top_banded = banded_cells
                 described = taxonomy.with_top_code(
-                    recoded, mark_here, top_pool_floor, top_pool_people
+                    recoded, mark_here, top_pool_floor, top_pool_people,
+                    words_recorded, top_banded,
                 )
+                if ends_here is not None:
+                    described = taxonomy.with_top_ends(described, ends_here[0], ends_here[1])
                 if dated_here:
                     described = taxonomy.with_dated_values_held(described)
                 top_coded_here = True
@@ -5473,7 +5802,7 @@ def build_document(
                         taxonomy.AGE_UNIT_IN_CELLS if units_in_cells
                         else taxonomy.AGE_UNIT_IN_NAME if unit_named
                         else taxonomy.AGE_UNIT_ANSWERED if unit_answered
-                        else taxonomy.AGE_NAMED if age_named
+                        else taxonomy.AGE_NAMED if age_named or words_in_cells
                         else ""
                     )
             elif ages_held is not None:
@@ -5695,7 +6024,7 @@ def build_document(
             and (five_figures is None or name not in five_figures)
             and not (
                 not declarations_are_reconstructed
-                and _counted_dates_declined(settings, name, described)
+                and _counted_dates_declined(settings, name, described, cells_as_read)
             )
             and not (
                 counting
@@ -5815,7 +6144,7 @@ def build_document(
             not declarations_are_reconstructed
             and name not in withheld_names
             and name not in described_identifiers
-            and _counted_dates_declined(settings, name, described)
+            and _counted_dates_declined(settings, name, described, cells_as_read)
         )
         cell_reading = _CellReading(
             taxonomy.counted_member(
@@ -5895,18 +6224,18 @@ def build_document(
         if read_at_its_grain and published_grain is not None:
             if absent_read is not None:
                 absent_read[name] = described.absent_spellings
+            pooled_cells = grains.coarse_cells(
+                cells, published_grain, None, frozenset(described.absent_spellings), offset_verdict,
+            )
             described = taxonomy.with_time_grain(
-                described_from(
-                    grains.coarse_cells(
-                        cells, published_grain, None, frozenset(described.absent_spellings)
-                    ),
-                    None,
-                    False,
-                    published_grain.reading,
+                _with_offset_rule(
+                    described_from(pooled_cells, None, False, published_grain.reading),
+                    _kept_rule(pooled_cells, published_grain.reading, offset_verdict, frozenset(described.absent_spellings)),
                 ),
                 grains.record(published_grain),
                 in_rows,
             )
+            pooled_cells = []
         elif name in withheld_names:
             described = taxonomy.as_unanswered_identity(described)
         elif declined or held_by_people or by_rows:
@@ -5921,55 +6250,90 @@ def build_document(
                 else _time_reading(described, settings, name, declared_commas)
             )
             if time_reading is not None:
-                walked = _grain_walk(
-                    cells,
-                    described.n_present,
-                    time_reading,
-                    walking,
-                    walking_enough,
-                    settings.small_cell_floor,
-                    frozenset(described.absent_spellings),
-                    _on_the_shared_clock(_column_block(described)),
-                    in_rows,
-                )
-                held_dates = _held_record(walked.grain)
-                spans = walked.grain.spans
-                # THE STEP BACK (plan P4-D417, repair round 1): from the
-                # rung the walk reached up to the top, the first rung whose
-                # description publishes no count one to ten people hold.
-                place = len(spans) if walked.grain.rung != grains.HELD else 0
-                while place > 0 and pooled is None and not walked.unread_thin:
-                    place = place - 1
-                    if walked.thin[spans[place][0]]:
-                        continue
-                    coarse = _cells_at(cells, walked, spans[place])
-                    if coarse is None:
-                        continue
-                    candidate = described_from(coarse, None, False, walked.grain.reading)
-                    if (
-                        candidate.role in _GRAIN_ROLES
-                        and _reads_its_member(candidate, walked.grain.reading)
-                    ) and not _counted_in_subjects(
-                        candidate,
-                        coarse,
+                # ...ON THE CLOCK THE BLOCK PUBLISHES: where the column's
+                # stamps follow a rule (lane DST, plan P4-D474, repair 1, the
+                # statistics check's item 1), its description prints ONE text
+                # for each bucket, its start at the offset the rule puts in
+                # force there (`_cells_at`, `grains.coarse_cell`), so the walk
+                # counts each bucket whole, as it prints it, and not each of
+                # its two offsets apart: split, the side of a bucket a change
+                # of the clocks cuts thin marked the month and the quarter
+                # thin, the walk stepped back to the year, where the rule
+                # cannot stand, and the twin spent its offsets by counts
+                # (9,684 to 10,043 of 20,000 cells off their date on eight
+                # columns of the check's invented tables). The step back's
+                # count of the printed candidate (`_counted_in_subjects`)
+                # stands as before, on whatever `_cells_at` prints.
+                # ...AND A RULE IS NOT ADMITTED AT A RUNG FINER THAN THE HOUR
+                # ACROSS AN HOUR THE CLOCKS REPEAT (lane DST's repair 2, Codex's
+                # item 1): there each bucket of the hour holds both its
+                # occurrences' instants while its start names only the first,
+                # so no placement of the twin's instants keeps both the census
+                # and the buckets' counts; the column is walked again as it was
+                # before the rule, and keeps that description and its bytes.
+                for ruled in (offset_verdict, "") if offset_verdict else ("",):
+                    pooled = None
+                    chosen: "tuple[str, int, int] | None" = None
+                    walked = _grain_walk(
+                        cells,
+                        described.n_present,
+                        time_reading,
                         walking,
-                        settings.small_cell_floor,
                         walking_enough,
-                        cell_reading,
-                        rows_hold=in_rows,
-                    ):
-                        pooled = taxonomy.with_time_grain(
-                            candidate,
-                            grains.record(
-                                dataclasses.replace(
-                                    walked.grain,
-                                    rung=spans[place][0],
-                                    spans=spans[: place + 1],
-                                )
-                            ),
-                            by_rows,
+                        settings.small_cell_floor,
+                        frozenset(described.absent_spellings),
+                        _on_the_shared_clock(_column_block(described)) and not ruled,
+                        in_rows,
+                    )
+                    held_dates = _held_record(walked.grain)
+                    spans = walked.grain.spans
+                    # THE STEP BACK (plan P4-D417, repair round 1): from the
+                    # rung the walk reached up to the top, the first rung whose
+                    # description publishes no count one to ten people hold.
+                    place = len(spans) if walked.grain.rung != grains.HELD else 0
+                    while place > 0 and pooled is None and not walked.unread_thin:
+                        place = place - 1
+                        if walked.thin[spans[place][0]]:
+                            continue
+                        coarse = _cells_at(cells, walked, spans[place], ruled)
+                        if coarse is None:
+                            continue
+                        candidate = _with_offset_rule(
+                            described_from(coarse, None, False, walked.grain.reading),
+                            _kept_rule(coarse, walked.grain.reading, ruled, frozenset(described.absent_spellings)),
                         )
-                    coarse = None
+                        if (
+                            candidate.role in _GRAIN_ROLES
+                            and _reads_its_member(candidate, walked.grain.reading)
+                        ) and not _counted_in_subjects(
+                            candidate,
+                            coarse,
+                            walking,
+                            settings.small_cell_floor,
+                            walking_enough,
+                            cell_reading,
+                            rows_hold=in_rows,
+                        ):
+                            pooled = taxonomy.with_time_grain(
+                                candidate,
+                                grains.record(
+                                    dataclasses.replace(
+                                        walked.grain,
+                                        rung=spans[place][0],
+                                        spans=spans[: place + 1],
+                                    )
+                                ),
+                                by_rows,
+                            )
+                            chosen = spans[place]
+                        coarse = None
+                    if (
+                        pooled is None
+                        or chosen is None
+                        or not _offset_rule_of(pooled)
+                        or _rule_admitted_at(_offset_rule_of(pooled), chosen)
+                    ):
+                        break
             # A LEVEL FEW PEOPLE HOLD NO LONGER COSTS THE WHOLE COLUMN (lane
             # PL, plan P4-D453; the orchestrator's LANE CZ-D RULINGS 1 (1)).
             # In a label reading it is pooled as a held-back level, whatever
@@ -6034,15 +6398,25 @@ def build_document(
                         settings,
                         cell_reading,
                         name in declared_commas,
+                        # ...after the person's `no`, its stand-ins kept off
+                        # every value the pool holds back (plan P4-D477).
+                        name in no_safe_harbor,
                     )
                 elif (
                     kept_labels
                     and not plainly
                     and five_figures is not None
                     and harbor_reasons is not None
-                    and name not in five_figures
+                    # ...its own reason before the persons' names' (plan
+                    # P4-D478), which the people count makes no wider: the
+                    # column keeps the bytes it had.
+                    and (
+                        name not in five_figures
+                        or (name in harbor_reasons and harbor_reasons[name] in taxonomy.PERSONS_NAMES_HOLDS)
+                    )
                 ):
-                    five_figures += [name]
+                    if name not in five_figures:
+                        five_figures += [name]
                     harbor_reasons[name] = taxonomy.HELD_LEVELS_OF_FEW_PEOPLE
             if pooled is not None:
                 described = pooled
@@ -6053,6 +6427,7 @@ def build_document(
             else:
                 described_identifiers += [name]
                 held_in_people += [name]
+                cells = _held_from(cells, cells_before_ends, ends_here, forced_top)
                 fresh = described_from(cells, None, True)
                 if counting:
                     fresh = _layouts_in_subjects(
@@ -6143,10 +6518,26 @@ def build_document(
         # too (plan P4-D427): its twin and the validator read it so.
         if top_coded_here:
             described = taxonomy.with_top_code(
-                described, mark_here, top_pool_floor, top_pool_people
+                described, mark_here, top_pool_floor, top_pool_people,
+                words_recorded, top_banded,
             )
         if year_here:
             described = taxonomy.with_year_top_code(described, year_here)
+        # THE NAMES OF RARE LEVELS (lane CODES-2, plan P4-D471): a label
+        # column whose `no` would name its held-back levels, not answered
+        # `no`, is named for the command to put its Safe Harbor question to
+        # (never a held column: its question is HX's); one that names them,
+        # for rule U (c).
+        if (
+            rare_named is not None
+            and described.held_back_nameable
+            and name not in no_safe_harbor
+            and name not in withheld_names
+            and name not in described_identifiers
+        ):
+            rare_named += [name]
+        if names_published is not None and _names_its_pool(described.details):
+            names_published += [name]
         columns += [_column_block(described)]
         absent_spellings += [described.absent_spellings]
         for note in described.publication_notes:
@@ -7782,6 +8173,251 @@ def _cell_keys(
     return frozen
 
 
+def _subjects_beside(
+    name: str,
+    subject_names: "list[str]",
+    subject_cells: "list[list[str]]",
+    subject_enough: "list[bool]",
+) -> "tuple[list[list[str]], list[bool]]":
+    """The subject columns a column is counted in, every one but itself, and whether each holds the floor's values (plan P4-D477). No I/O."""
+    people: "list[list[str]]" = []
+    enough: "list[bool]" = []
+    for place in range(len(subject_names)):
+        if subject_names[place] != name:
+            people += [subject_cells[place]]
+            enough += [subject_enough[place]]
+    return people, enough
+
+
+def _plain_reading(described: taxonomy.ColumnProfile, comma: bool) -> "_CellReading":
+    """How the count in people reads a column that is no date (`_CellReading`, plan P4-D406): its comma, its unit and its wrappers. No I/O."""
+    return _CellReading(
+        "", comma, described.role == taxonomy.ROLE_AFFIXED, _published_wrappers(described.details)
+    )
+
+
+def _ends_asked(
+    ends: "tuple[int, int]", few: "list[int]", low_need: int, high_need: int
+) -> "tuple[bool, int, int]":
+    """Each value 1 to `floor` - 1 people still hold taken into the band of the nearer end (plan P4-D477): whether one moved, and the two reaches.
+
+    A value nearer the low band than the top one moves the low band's
+    reach up to it, any other the top band's down to it; the reaches only
+    ever widen. A fixed function of its arguments. No I/O.
+    """
+    moved = False
+    for value in few:
+        if value - ends[0] <= ends[1] - value:
+            if value > low_need:
+                low_need = value
+                moved = True
+        elif high_need < 0 or value < high_need:
+            high_need = value
+            moved = True
+    return moved, low_need, high_need
+
+
+# How many times an age column's ends are drawn again (plan P4-D477).
+_END_ROUNDS = 8
+
+
+def _published_few(
+    described: taxonomy.ColumnProfile,
+    ages: "list[tuple[float, int] | None]",
+    people: "list[list[str]]",
+    floor: int,
+) -> "list[int]":
+    """The ages, in the column's unit, of each whole number a block publishes that 1 to ``floor`` - 1 people hold under some subject column (plan P4-D477).
+
+    ``ages``: each cell's number as the block reads it and its age in the
+    column's unit (`taxonomy.ages_as_read`; lane HB2's repair 2, Codex's
+    item 1: a cell written `960 months` or `Age 95` was read as no
+    published value). Linear in the rows. No I/O.
+    """
+    shown = _published_in(_column_block(described), True)
+    wanted: "dict[float, bool]" = {}
+    for number in shown.numbers:
+        if number == int(number) and number >= 0:
+            wanted[number] = True
+    held: "list[dict[float, dict[str, bool]]]" = [{} for _subjects in people]
+    aged: "dict[float, dict[int, bool]]" = {}
+    for place in range(len(ages)):
+        entry = ages[place]
+        if entry is None or entry[0] not in wanted:
+            continue
+        if entry[1] >= 0:
+            if entry[0] not in aged:
+                aged[entry[0]] = {}
+            aged[entry[0]][entry[1]] = True
+        for column in range(len(people)):
+            holders = held[column]
+            if entry[0] not in holders:
+                holders[entry[0]] = {}
+            if len(holders[entry[0]]) < floor:
+                holders[entry[0]][people[column][place]] = True
+    few: "dict[int, bool]" = {}
+    for number in wanted:
+        if any(0 < len(holders[number]) < floor for holders in held if number in holders):
+            for age in aged[number] if number in aged else {}:
+                few[age] = True
+    return sorted(few)
+
+
+def _groups_few(
+    described: taxonomy.ColumnProfile,
+    ages: "list[tuple[float, int] | None]",
+    people: "list[list[str]]",
+    floor: int,
+) -> "list[int]":
+    """The whole numbers of each bin group a block publishes that 1 to ``floor`` - 1 people hold under some subject column (plan P4-D477).
+
+    LANE HB2'S REPAIR 1 (LANE HB2 RULINGS 4 (4): every published group held
+    by the floor's people): a tail block's histogram closes a group once it
+    holds the floor's ROWS (`taxonomy._tail_bins`), and beside a subject
+    column whose people hold 20 rows each one person's age closes a group
+    alone -- three such groups over the statistics check's 34 draws at
+    1,000 people of 20 rows. The interior rows are read by rank as the block
+    read them (its tails' rows set aside at each end, ties in row order),
+    each in its bin of the scale between the tails' boundary rungs
+    (`parsing.histogram_bin`), and each group's people counted, the floor's
+    at most. Such a group's values are taken into the nearer band as a
+    published value few people hold is, each in the column's unit
+    (``ages``, `taxonomy.ages_as_read`: each cell's number as the block
+    reads it, a number written with words or a unit too -- lane HB2's
+    repair 2, Codex's item 1). Empty where the block publishes no group.
+    Sorts the rows once. No I/O.
+    """
+    block = _column_block(described)
+    groups = block["bin_groups"] if "bin_groups" in block else None
+    tails = block["tails"] if "tails" in block else None
+    if not isinstance(groups, list) or not groups or not isinstance(tails, dict):
+        return []
+    low = tails["low"] if "low" in tails else None
+    high = tails["high"] if "high" in tails else None
+    if not isinstance(low, dict) or not isinstance(high, dict):
+        return []
+    points: "dict[str, object]" = {}
+    for key in ("percentiles", "percentiles_between"):
+        found = block[key] if key in block else None
+        if isinstance(found, dict):
+            for rung in found:
+                points[rung] = found[rung]
+    low_percent = low["percent"] if "percent" in low else None
+    high_percent = high["percent"] if "percent" in high else None
+    low_rows = low["rows"] if "rows" in low else None
+    high_rows = high["rows"] if "rows" in high else None
+    if not (
+        isinstance(low_percent, int) and isinstance(high_percent, int)
+        and isinstance(low_rows, int) and isinstance(high_rows, int)
+    ):
+        return []
+    low_rung = f"p{low_percent:02d}"
+    high_rung = f"p{high_percent:02d}"
+    lowest = points[low_rung] if low_rung in points else None
+    highest = points[high_rung] if high_rung in points else None
+    if not isinstance(lowest, float) or not isinstance(highest, float) or not highest > lowest:
+        return []
+    read: "list[tuple[float, int]]" = []
+    for place in range(len(ages)):
+        entry = ages[place]
+        if entry is not None:
+            read += [(entry[0], place)]
+    interior = sorted(read)[low_rows: len(read) - high_rows]
+    holders: "list[dict[int, dict[str, bool]]]" = [{} for _subjects in people]
+    values: "dict[int, dict[int, bool]]" = {}
+    for value, place in interior:
+        at = parsing.histogram_bin(value, lowest, highest)
+        found = ages[place]
+        if found is not None and found[1] >= 0:
+            if at not in values:
+                values[at] = {}
+            values[at][found[1]] = True
+        for column in range(len(people)):
+            if at not in holders[column]:
+                holders[column][at] = {}
+            held = holders[column][at]
+            if len(held) < floor:
+                held[people[column][place]] = True
+    few: "dict[int, bool]" = {}
+    for group in groups:
+        first = group["first"] if isinstance(group, dict) and "first" in group else None
+        last = group["last"] if isinstance(group, dict) and "last" in group else None
+        if not isinstance(first, int) or not isinstance(last, int):
+            continue
+        for column in range(len(people)):
+            union: "dict[str, bool]" = {}
+            for at in range(first, last + 1):
+                for subject in holders[column][at] if at in holders[column] else {}:
+                    if len(union) < floor:
+                        union[subject] = True
+            if 0 < len(union) < floor:
+                for at in range(first, last + 1):
+                    for whole in values[at] if at in values else {}:
+                        few[whole] = True
+    return sorted(few)
+
+
+def _held_from(
+    cells: "list[str]",
+    before_ends: "list[str]",
+    ends: "tuple[int, int] | None",
+    forced: bool,
+) -> "list[str]":
+    """The cells a column the count in people holds is held from: as they stood before its ends were pooled, where they were (plan P4-D477).
+
+    A held column's block is read off its cells as the line before the lane
+    read them, never off the bands its ends were written as; a description
+    checked again (``forced``) is read as it was made. Lane HB2's repair 1
+    (skeptic 1's item 6, M20): the describe reaches it only where its count
+    in people holds a column whose ends a round freed, which no table
+    measured has reached (the rounds' count and this one read the same
+    block, cells and people); it is a guard, pinned on its own. A fixed
+    function of the four. No I/O.
+    """
+    if ends is not None and not forced:
+        return before_ends
+    return cells
+
+
+def _remainder_few(
+    described: taxonomy.ColumnProfile,
+    ages: "list[tuple[float, int] | None]",
+    people: "list[list[str]]",
+    floor: int,
+) -> "list[int]":
+    """The whole numbers of a block's remainder where 1 to ``floor`` - 1 people hold it under some subject column, read off its cells as written (plan P4-D477).
+
+    The remainder is the cells that read as no value the block publishes
+    (`_KEY_REMAINDER`), counted in people as one count. LANE HB2'S REPAIR
+    1 (the statistics check's item 3): at 1,000 people of 20 rows a round
+    drew the ends (37, 74) and the count in people still held the column
+    on its remainder alone -- one age no published point named, 140 rows of
+    7 people -- which `_published_few` cannot see, so the rounds stopped
+    and the column was held; such values are taken into the nearer band as
+    `_published_few`'s are, each in the column's unit (``ages``,
+    `taxonomy.ages_as_read`; lane HB2's repair 2). Empty where the remainder
+    is held by none or by the floor's people. Linear in the rows. No I/O.
+    """
+    shown = _published_in(_column_block(described), True)
+    published: "dict[float, bool]" = {}
+    for number in shown.numbers:
+        if number == int(number) and number >= 0:
+            published[number] = True
+    values: "dict[int, bool]" = {}
+    held: "list[dict[str, bool]]" = [{} for _subjects in people]
+    for place in range(len(ages)):
+        entry = ages[place]
+        if entry is None or entry[1] < 0 or entry[0] in published:
+            continue
+        values[entry[1]] = True
+        for column in range(len(people)):
+            if len(held[column]) < floor:
+                held[column][people[column][place]] = True
+    if not any(0 < len(holders) < floor for holders in held):
+        return []
+    return sorted(values)
+
+
 def _counted_in_subjects(
     described: taxonomy.ColumnProfile,
     cells: "list[str]",
@@ -7852,7 +8488,12 @@ def _counted_in_subjects(
     column is attached to it before its pass, as before; one that counts in
     people, only where the answer decides.
     """
-    shown = _column_block(described)
+    # THE NAMES OF THE HELD-BACK LEVELS (lane CODES-2, plan P4-D471) are no
+    # value this rule asks of: the owner's answer Z1 = B names exactly the
+    # values few rows or people hold, without a count or a row, and only
+    # after the person's `no` -- whose pool it is, counted in rows or in
+    # people, is what the rule asks of the rest of the block.
+    shown = _without_held_back_names(_column_block(described))
     if pooled_in_people:
         # ...and not of a sentence's words: `there are 6 different values`
         # names no value `6`, and every value a sentence of this block could
@@ -8328,6 +8969,7 @@ def _described_with_pool(
     settings: taxonomy.Settings,
     reading: "_CellReading | None",
     decimal_comma: bool = False,
+    after_no: bool = False,
 ) -> "taxonomy.ColumnProfile | None":
     """A column's block with its pool counted in people, or None where it cannot be (P4-D453).
 
@@ -8349,6 +8991,18 @@ def _described_with_pool(
     facts and no key is printed or written (`8888`, person 0's key and one
     of the column's own rare values, was published as `number_from` and
     written into 20 twin cells at 20,000 rows).
+
+    AFTER THE PERSON'S `no` (``after_no``; lane HB2, plan P4-D477, the
+    orchestrator's LANE I4m RULINGS 30 (1)): P4-D442's stand-in rule
+    applies to the pool as to a label column's held-back stand-ins. Its
+    block names the `figure_openings` of the widths its held-back rows
+    hold (`taxonomy.label_figure_openings`) where the reading as whole-number
+    codes named none, and its number class's start is at least four
+    figures wide (`taxonomy.pool_stand_in_starts`), so a start the openings
+    keep back leaves the column held, as the public line held it: `8888`
+    beside the key `8889` and `88` beside levels `1` to `5`, each the
+    column's one rare value, were the constant starts and were written on
+    that person's 20 rows.
     """
     if candidate.role not in _LEVELS_POOLED_ROLES:
         return None
@@ -8379,6 +9033,23 @@ def _described_with_pool(
         ):
             return None
         classes = parsing.pool_levels_split(wanted, rows, owed[parsing.NUMBER])
+        if after_no and "figure_openings" not in candidate.details:
+            census = candidate.details["shape_forms"] if "shape_forms" in candidate.details else None
+            labels: "list[object]" = []
+            for label in published:
+                labels += [label]
+            openings = taxonomy.label_figure_openings(
+                [cell for cell in cells if parsing.folded(cell) and cell not in absent],
+                labels,
+                settings.small_cell_floor,
+                census if isinstance(census, dict) else None,
+            )
+            if openings:
+                opened: "dict[str, object]" = {}
+                for key in candidate.details:
+                    opened[key] = candidate.details[key]
+                opened["figure_openings"] = openings
+                candidate = dataclasses.replace(candidate, details=opened)
         starts = taxonomy.pool_stand_in_starts(
             published,
             written,
@@ -8387,6 +9058,7 @@ def _described_with_pool(
             absent,
             decimal_comma,
             taxonomy.figure_openings_read(candidate.details),
+            parsing.FIGURE_RUN_KEY_WIDTH if after_no else 0,
         )
         if starts is None or _a_stand_in_is_a_key(
             starts, classes, published, subject_cells
@@ -9093,8 +9765,75 @@ def _bucket_counted(
     return held, missed
 
 
+def _offset_rule_of(column: taxonomy.ColumnProfile) -> str:
+    """The rule a described column's stamps follow (`offset_rule`, lane DST, plan P4-D474), or `""`."""
+    details = column.details
+    rule = details["offset_rule"] if isinstance(details, dict) and "offset_rule" in details else ""
+    return rule if isinstance(rule, str) else ""
+
+
+def _rule_admitted_at(rule_text: str, span: "tuple[str, int, int]") -> bool:
+    """Whether a pooled column's rule stands at its rung (lane DST's repair 2): at the hour or coarser always; at the minute or the second only where no hour the clocks repeat falls inside the span (Codex's item 1)."""
+    rung, first, last = span
+    rule = offset_rules.parsed_rule(rule_text)
+    if rule is None or rung not in (grains.MINUTE, grains.SECOND):
+        return True
+    low = first // date_counts.SECOND
+    high = grains.after(last, rung) // date_counts.SECOND
+    for year in range(parsing.civil_from_days(low // 86400)[0] - 1, parsing.civil_from_days(high // 86400)[0] + 2):
+        back = offset_rules.changes(rule, year)[1]
+        if back + rule.standard < high and back + rule.standard + 3600 > low:
+            return False
+    return True
+
+
+def _stamp_reading(column: taxonomy.ColumnProfile) -> "grains.Reading | None":
+    """How a described column of stamps reads its cells (its member), or None for any other column."""
+    details = column.details
+    shown = details["format"] if isinstance(details, dict) and "format" in details else None
+    if column.role != taxonomy.ROLE_DATETIME or not isinstance(shown, str):
+        return None
+    return grains.Reading(grains.STAMP, shown)
+
+
+def _kept_rule(
+    cells: "list[str]", cell_reading: "grains.Reading | None", rule_text: str, absent: "frozenset[str]"
+) -> str:
+    """``rule_text`` where the cells are a column of it (`grains.wears_the_rule`, over its family's whole calendar), else `""` (lane DST's repair 2)."""
+    rule = offset_rules.parsed_rule(rule_text) if rule_text else None
+    if rule is None or cell_reading is None:
+        return ""
+    return rule_text if grains.wears_the_rule(cells, cell_reading, rule, absent) else ""
+
+
+def _with_offset_rule(column: taxonomy.ColumnProfile, rule_text: str) -> taxonomy.ColumnProfile:
+    """The column with ``rule_text`` as its `offset_rule` where its census names exactly the rule's two offsets on the shared clock, and with none elsewhere (lane DST's repair 2).
+
+    The verdict decided on the cells as handed (`build_document`'s
+    ``offset_verdict``) is what a column of stamps, or the description of
+    its grain, publishes: never a rule read again off cells coarsened at
+    their own offsets, and never one beside a census the loader would not
+    admit it beside (invariant OR1). A column with no rule and no verdict is
+    returned as it is.
+    """
+    details = column.details
+    if not isinstance(details, dict) or column.role != taxonomy.ROLE_DATETIME:
+        return column
+    rule = offset_rules.parsed_rule(rule_text) if rule_text else None
+    census = details["utc_offsets"] if "utc_offsets" in details else None
+    if rule is not None and (
+        details["datetimes_read_at"] if "datetimes_read_at" in details else ""
+    ) == taxonomy.READ_AT_UTC and isinstance(census, dict) and sorted(census) == sorted(
+        [offset_rules.offset_text(rule.standard), offset_rules.offset_text(rule.standard + 3600)]
+    ):
+        return taxonomy.with_offset_rule(column, rule_text)
+    if "offset_rule" not in details:
+        return column
+    return taxonomy.with_offset_rule(column, "")
+
+
 def _cells_at(
-    cells: "list[str]", walked: _Walked, span: "tuple[str, int, int]"
+    cells: "list[str]", walked: _Walked, span: "tuple[str, int, int]", rule_text: str = ""
 ) -> "list[str] | None":
     """Every cell written as the start of its bucket at ``span``'s rung, the tails pooled into its ends.
 
@@ -9114,6 +9853,13 @@ def _cells_at(
     """
     rung, first, last = span
     reading = walked.grain.reading
+    # ...EACH AT THE OFFSET ITS RULE PUTS IN FORCE AT THE BUCKET'S START where
+    # the column's stamps follow one (lane DST, plan P4-D474, method G7.4r;
+    # `grains.coarse_cell`), unless the starts would then wear one offset.
+    rule = grains.cell_rule(rule_text, reading)
+    if rule is not None and not grains.keeps_the_rule(cells, reading, rule):
+        rule = None
+    years: "dict[tuple[str, int, int], tuple[int, int]]" = {}
     coarse: "list[str]" = []
     written: "dict[str, str | None]" = {}
     shared: "dict[str, str]" = {}
@@ -9125,7 +9871,7 @@ def _cells_at(
         if cell in written:
             made = written[cell]
         else:
-            made = grains.coarse_cell(cell, reading, rung, first, last, walked.padded)
+            made = grains.coarse_cell(cell, reading, rung, first, last, walked.padded, rule, years)
             if made is not None:
                 if made in shared:
                     made = shared[made]
@@ -9136,6 +9882,8 @@ def _cells_at(
         if made is None:
             return None
         coarse += [made]
+    if rule is not None and not grains.two_offsets(coarse, reading, frozenset()):
+        return _cells_at(cells, walked, span)
     return coarse
 
 
@@ -9567,13 +10315,45 @@ def _without_held(
         century_windows=tuple(
             pair for pair in settings.century_windows if pair[0] not in held
         ),
+        # -- lane TR (P4-D473)
+        forced_clock_figures=tuple(
+            one for one in settings.forced_clock_figures if one not in held
+        ),
     )
 
 
 def _counted_dates_declined(
-    settings: taxonomy.Settings, name: str, described: taxonomy.ColumnProfile
+    settings: taxonomy.Settings,
+    name: str,
+    described: taxonomy.ColumnProfile,
+    cells: "list[str] | None" = None,
 ) -> bool:
-    """Whether a column declared as counted dates was read as anything but dates."""
+    """Whether a column declared as counted dates was read as anything but dates.
+
+    ...or, since lane TR (plan P4-D473), a column answered `clock-figures`
+    as anything but clock times: rule 5c's declaration that does not read
+    holds the column, contract NF127's treatment of a declined counted-date
+    declaration (the zoo-fix reading page's ZR.1), so its figures are
+    never published as plain numbers. BUT NOT where ``cells`` (the
+    column's cells as the table holds them) show the answer was not
+    refused by them (Codex's review of lane TR, items 2 and 3): every
+    present cell fits rule 5c and an EARLIER rule read the column -- one
+    value or two, rules 3 and 4, which keep their precedence, so `0800`
+    and `1600` alternating are the two values they always were, never
+    record numbers -- or a time among them would be written as a spelling
+    the table reads as no value, so the answer is not taken and the column
+    is read as it was before the answer (`taxonomy.clock_figures_reading`).
+    """
+    if name in settings.forced_clock_figures:
+        if described.role == taxonomy.ROLE_CLOCK:
+            return False
+        found = taxonomy.clock_figures_reading(cells, settings) if cells is not None else ""
+        if found == taxonomy.FIGURES_ABSENT:
+            return False
+        return not (
+            found == taxonomy.FIGURES_READ
+            and described.role in (taxonomy.ROLE_CONSTANT, taxonomy.ROLE_BINARY)
+        )
     for column, _member in settings.forced_date_counts:
         if column == name:
             return described.role != taxonomy.ROLE_DATETIME

@@ -204,13 +204,17 @@ with tempfile.TemporaryDirectory() as scratch:
                 written.unlink()
     # THE ZOO'S HELD COLUMNS AT THE FLOOR (the statistics skeptic's item 2; LANE HB RULINGS 1, item
     # (17)): `tumor_registry.dx_date`, read as record numbers, and `labs.viral_load`, every real cell
-    # a number, each through the zoo's own truthful answers.
+    # a number, each through the zoo's own truthful answers -- `dx_date`'s two questions left blank,
+    # as K-HZ-06's zoo leg leaves them (`identifier_room_shapes.zoo_left_unanswered`; lane TR's
+    # repair 1), so the column is held as before.
     import csv
     import health_zoo
+    import identifier_room_shapes
 
     for place, table in enumerate(health_zoo.TABLES):
         if table.name not in ("tumor_registry", "labs"):
             continue
+        table = identifier_room_shapes.zoo_left_unanswered(table)  # type: ignore[assignment]
         folder = pathlib.Path(scratch) / f"zoo-{table.name}"
         health_zoo.run_table(table, folder, ROWS, 20261016 + place)
         value["shapes"] += 1

@@ -507,6 +507,13 @@ ROUTES_THAT_RUN_SOURCE = {
     # process the way the interpreter runs it, on the committed
     # `src/synthtwin/__main__.py`, a file this guard reads.
     ("tests/test_terminal_install.py", "runpy.run_module"): 1,
+    # Lane DST (plan P4-D474): its gate file runs the committed generation
+    # oracle by path, as the branch files above do, to hold the product's
+    # G7.4r to the oracle's on generated cases; and, since its repair 2,
+    # the committed driver of K-HZ-27 (tools/measurements/kpi_zoo_offsets.py)
+    # by path, to hold its tally to a table that did not check. Both are
+    # files this guard reads.
+    ("tests/test_offsets_follow_the_date.py", "runpy.run_path"): 2,
 }
 RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module")
 
@@ -821,7 +828,20 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 #
 # 67 AT BATCH 4r'S MERGE OF LANE BT3a (2026-11-09): the line's 66 and the
 # lane's one above (62 on its branch, on batch 4p's 61), loaded once.
-FILES_LOADED_AS_MODULES = 67
+#
+# 68 ON LANE HB2 (plan P4-D477, on batch 4r's 67): the age words' gate,
+# `tests/test_safe_harbor_age_words.py`, loads the generation oracle,
+# `tools/reference/make_generation_reference_vectors.py`, one call, to hold
+# the product's top-code bound to the oracle's with the age words read. What
+# it loads is a committed file under tools/, which this guard reads directly.
+#
+# 69 AT BATCH 4s'S MERGE OF LANE CZ-E (plan P4-D472; 2026-11-11, step 9): the
+# line's 68 and the lane's one, its gate file `tests/test_zoo_value_readers.py`
+# loading K-HZ-25's driver, `tools/measurements/kpi_value_readers.py`, one
+# call, to read the driver's judge (the lane's branch moved no number: its own
+# suite was not run before its merge). What it loads is a committed file under
+# tools/, which this guard reads directly.
+FILES_LOADED_AS_MODULES = 69
 
 
 def _files() -> "list[pathlib.Path]":

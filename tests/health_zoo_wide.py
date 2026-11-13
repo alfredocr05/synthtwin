@@ -332,7 +332,11 @@ FAMILY_ROLES: "tuple[Table, ...]" = (
             "ventilator_settings": ("patient_id", "chart_date", "o2_delivery", "fio2", "peep", "vent_mode"),
             "compact_and_fraction_clocks": ("chart_time", "monitor_clock"),
         },
-        {"patient_id": "identifier", "chart_time": "keep", "monitor_clock": "keep", "fio2": "measurement", "peep": "measurement"},
+        {
+            "patient_id": "identifier", "monitor_clock": "keep", "fio2": "measurement", "peep": "measurement",
+            # A military time is a time of day written as figures (lane TR, plan P4-D473).
+            "chart_time": "clock-figures",
+        },
         _csv_reader(sep="\t"),
         (
             Check("tab_delimited", "the file splits into eight columns", "same",
@@ -2933,15 +2937,29 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
         ("PS2", zoo.HELD_VALUES, covers(
             "counts in scientific notation", "the counts read as numbers", "the numbers of wbc_count keep their range",
             "the numbers of hiv_rna keep their range", columns=("wbc_count", "hiv_rna"))),
-        ("LM1", "the number part of a result written in scientific notation does not keep its exponent spelling "
-                "(the zoo plan's row 52)", covers("counts in scientific notation", columns=("wbc_count",))),
+        # MEASURED BY LANE LM1 AT 20,000 ROWS (plan P4-D475's limit (a), owner
+        # LM2 by LANE LM1 RULINGS 1 (1)): `wbc_count` is a count of two
+        # significant figures (`7.5E+03`); its strata are drawn on the whole
+        # numbers, not on the grid two figures make, so its twin writes up to
+        # five (`5.983E+03`) on 14,482 of 20,000 cells, and the cells the check
+        # reads in the source's form stand at a middle of 11000 against 7500.
+        ("LM2", "a count written in scientific notation with a fixed number of significant figures has its strata "
+                "drawn on the whole numbers, not on the grid its figures make, so its twin writes more figures in "
+                "the same exponent style (the zoo plan's row 52; plan P4-D475's limit (a), G5.2a on a grid of "
+                "significant figures)", covers(
+            "counts in scientific notation", "the numbers of wbc_count keep their range", columns=("wbc_count",))),
     ),
     "numeric_unrepresentable": (
-        ("LM1", "a column of magnitudes past a double's range (role numeric_unrepresentable) publishes no "
+        # LANE LM1 RULINGS 5 (1) and (4): lane LM1 built an exponent form and
+        # census for this column, three reviews found ways for it to publish
+        # or write real figures, and it was withdrawn; the column writes as
+        # on 820d55c3, failing these three checks at 20,000 rows.
+        ("LM2", "a column of magnitudes past a double's range (role numeric_unrepresentable) publishes no "
                 "statistic, by design, and its twin writes made-up figures outside the source's form ('000067e400' "
-                "for '8.732E+300'): no exponent written d.dddE+3dd and no value past the range; lane LM1, the zoo "
-                "plan's owner of E-notation and magnitudes, rows 51 to 53 (the orchestrator's LANE E0c RULINGS 1, "
-                "item 1, 2026-10-25)", covers(
+                "for '8.732E+300'): no exponent written d.dddE+3dd and no value past the range; the exponent form "
+                "and census lane LM1 built were withdrawn before landing (plan P4-D475), and lane LM2 redesigns "
+                "them against the review's classes (the zoo plan's rows 51 to 53; the orchestrator's LANE E0c "
+                "RULINGS 1, item 1, 2026-10-25)", covers(
             "magnitudes written d.dddE+3dd", "the exponents keep their range",
             "magnitudes past a double's range, as a share", columns=("magnitude",))),
     ),
@@ -2951,18 +2969,13 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
             "FiO2 with %", "the numbers of fio2 keep their range", "the numbers of o2_delivery keep their range",
             "oxygen is RA, litres a minute or a ventilator", columns=("fio2", "o2_delivery"))),
     ),
+    # Lane TR (plan P4-D473): the military time, answered `clock-figures`, is
+    # read as clock times written as figures, so its lines are closed; at
+    # 20,000 rows the clock with milliseconds is free text whose twin keeps
+    # the form, `.000` (the zoo plan's row 33), so only lane SS's line stands.
     "compact_and_fraction_clocks": (
-        ("TR", "a military time 'HHMM' is read as a number, and unanswered held as record numbers (the zoo plan's "
-               "row 32; ZR.9's stated limit, its answer `clock-figures`)", covers(
-            "military times HHMM", "chart_time parses as %H%M", "some time before ten keeps its leading nought",
-            "some time before ten keeps its leading nought, as a share", columns=("chart_time",))),
-        ("TR", "a clock with milliseconds ('08:37:21.902') is read as free text (the zoo plan's row 33)", covers(
-            "monitor_clock parses as %H:%M:%S.%f", "clocks keep three figures of milliseconds",
-            "some clock carries its milliseconds", "some clock carries its milliseconds, as a share",
-            columns=("monitor_clock",))),
         ("SS", "the twin writes a clock's fraction as nought ('.000'; the zoo plan's row 33)", covers(
             "some clock carries its milliseconds", "some clock carries its milliseconds, as a share")),
-        ("CODES-3", HELD_FORMS, covers("miss chart_time")),
     ),
     "pharmacy_dispensing": (
         ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
@@ -3016,6 +3029,16 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     ),
     "report_text_with_headings": (
         ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        # ...and, since lane CZ-E (plan P4-D472), the signed template names its
+        # reader, a made-up clinician: the value readers hold the column and
+        # the zoo answers `yes` under the no-real-name rule (P4-D445's item 9).
+        ("CZ-E", "the signed template names its reader, a made-up clinician: the value readers hold the column (a "
+                 "title before a name) and the zoo answers yes under the no-real-name rule, so no report's line, "
+                 "heading, template or length is published; by design", covers(
+            "some report keeps its IMPRESSION heading", "some report keeps its IMPRESSION heading, as a share",
+            "some report runs over several lines", "some report runs over several lines, as a share",
+            "the share of reports written from the template", "report lengths at the 10th, 50th and 90th percentiles",
+            columns=("report_text",))),
         ("NOTES", "free text publishes no line, heading, template or length facts: the twin's reports hold no line "
                   "break, no IMPRESSION heading and no template, and their lengths collapse", covers(
             "some report keeps its IMPRESSION heading", "some report keeps its IMPRESSION heading, as a share",
@@ -3055,8 +3078,7 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     ),
     "adt_bed_movements": (
         ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
-        ("DST", "the twin writes an offset not in force on its date (US Central; the zoo plan's row 30)", covers(
-            "in_ts wears a Central offset in force on its date", "out_ts wears a Central offset in force on its date")),
+        # Lane DST (plan P4-D474): the offset follows the date; passes at 20,000 rows.
         # Batch 4l's merge of lane E0c after lane PS2 (plan P4-D433): out_ts is
         # counted in the people of its repeating patient column at any size
         # and pooled at the quarter at 600 rows, and a stamp published on the
@@ -3105,8 +3127,7 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     ),
     "wearable_offsets_subsecond": (
         ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
-        ("DST", "an offset written after a space ('-0400') is not one in force on its date (the zoo plan's row 55)",
-         covers("the local offset is in force on its date")),
+        # Lane DST (plan P4-D474): the offset follows the date; passes at 20,000 rows.
         ("SS", "a stamp's milliseconds are written as nought", covers(
             "some stamp carries its milliseconds", "some stamp carries its milliseconds, as a share")),
         ("CODES-3", HELD_FORMS, covers("miss step_count", "miss heart_rate")),
@@ -3158,16 +3179,14 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     ),
     "fhir_flattened": (
         ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
-        ("DST", "the twin writes an offset not in force on its date (US Eastern, ISO 8601 instants)", covers(
-            "each instant wears an offset in force on its date")),
+        # Lane DST (plan P4-D474): the offset follows the date; passes at 20,000 rows.
         ("CODES-2", zoo.WITHHELD + " (the CDC's category codes, the zoo plan's row 25)", covers(
             "CDC category codes", "category codings under the CDC code system", "units", "observation status",
             columns=("omb_category", "value_quantity_unit", "status"))),
     ),
     "hl7v2_flattened": (
         ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
-        ("DST", "the twin writes an offset not in force on its date (HL7 'YYYYMMDDHHMMSS-0400'; the zoo plan's row 30)",
-         covers("MSH-7 wears an offset in force on its date")),
+        # Lane DST (plan P4-D474): the offset follows the date; passes at 20,000 rows.
         ("CODES-3", IDENTIFIER_FORMS, covers("PID-3 as id^^^HOSP^MR", columns=("pid_3",))),
         ("LISTS", "an HL7 '^' component list is read as one label: its rarer combinations are 'group-N'", covers(
             "OBX-3 is code^text^LN, the text its code's own", "OBX-6 units as unit^^UCUM", columns=("obx_3", "obx_6"))),
@@ -3178,8 +3197,9 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
             "durable keys of six figures, or -1 and -2", "some row's durable key is the -1 member",
             "some row's durable key is the -1 member, as a share", "miss patient_key",
             columns=("patient_key",))),
-        ("TR", "a warehouse date key (YYYYMMDD beside -1 and -2) left unanswered is read as a number and held "
-               "(the zoo plan's row 57, item (e))", covers(
+        ("TR-e", "a warehouse date key (YYYYMMDD beside -1 and -2) left unanswered falls below the date line, "
+                 "so its dates are numbers the Safe Harbor hold of dates written as numbers writes blank in the "
+                 "twin (the zoo plan's row 57, lane TR's item (e), cut to a lane of its own: plan P4-D473)", covers(
             "date keys are dates YYYYMMDD, or -1 and -2", "some date key is the -1 member",
             "some date key is the -1 member, as a share", "miss day_key", columns=("day_key",))),
         ("CODES-2", zoo.WITHHELD + " ('*Unspecified', '*Unknown', '*Not Applicable': the zoo plan's row 56)", covers(
@@ -3207,11 +3227,14 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
         ("CODES-3", IDENTIFIER_FORMS, covers("record references keep their apostrophe", columns=("record_ref",))),
     ),
     "phi_columns": (
-        ("CODES-3", IDENTIFIER_FORMS + " (telephone numbers, e-mail addresses, social security numbers, MR numbers)",
+        ("HB3", IDENTIFIER_FORMS + " (telephone numbers, e-mail addresses, social security numbers, MR numbers): "
+                "held identifiers written outside their own layouts, lane HB3's (lane HB2's handoff)",
          covers("telephone numbers (NNN) 555-NNNN", "e-mail addresses", "social security numbers",
                 "medical record numbers", columns=("phone", "email", "ssn", "med_rec_no"))),
-        ("CODES-2", "names and street addresses answered `identifier` are written as made-up record numbers, not "
-                    "names or addresses (the allowlist's limit, CODES-2)", covers(
+        ("HB3", "names and street addresses held as identifiers are never named (lane CODES-2's stated limit, "
+                "plan P4-D471): held, their twin writes made-up record numbers, not made-up names or addresses in the "
+                "source's own layouts, which are held blocks' stand-ins in valid layouts: held identifiers written "
+                "outside their own layouts, lane HB3's (lane HB2's handoff)", covers(
             "names, first and last", "street addresses", columns=("patient_name", "street_address"))),
     ),
     "undeclared_record_number_long": (
@@ -3225,9 +3248,20 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
         ("CODES-3", HELD_FORMS, covers("miss durable_key", "miss zip_number", "miss udi_number")),
     ),
     "safe_harbor_shapes": (
-        ("LM1", "the tail rule extends a bounded scale past its withheld end: a birth year written past the real's "
-                "range (the zoo plan's rows 13 and 53)", covers(
-            "birth years from 1920 to 2006", "shifted dates parse and stay in their century", "no age past 89 is written as a number")),
+        # RE-OWNED BY LANE LM1 (plan P4-D475), measured at 20,000 rows on
+        # 820d55c3: `birth_year` is a Safe Harbor year the zoo answers `yes`
+        # to, so lane SH2 holds it whole as a record number and its twin
+        # writes made-up four-figure numbers kept off the real years (9041 to
+        # 9965 on all 20,000 cells); every year from 1920 to 2006 is a real
+        # one, so no made-up year inside them could be written. The HIPAA
+        # price, not the tail rule.
+        ("SH2", "held by HIPAA's Safe Harbor rule; by design (45 CFR 164.514(b)(2)(i)(C)): a birth year is a Safe "
+                "Harbor element, the zoo answers its question 'yes', lane SH2 holds the column whole and its twin "
+                "writes made-up numbers off the real years, so the analyst's check of the years' span fails",
+         covers("birth years from 1920 to 2006")),
+        ("LM2", "the tail rule extends a bounded scale past its withheld end (the zoo plan's rows 13 and 53; plan "
+                "P4-D475's limits (d) and (f))", covers(
+            "shifted dates parse and stay in their century", "no age past 89 is written as a number")),
         ("SH", "LIVE: an age past the top-code 90 printed or written as a number (Safe Harbor; lane SH, P4-D427)",
          covers("leak age_top")),
         # Lane SH2's ZIP areas, at its merge (batch 4m; plan P4-D434): `021**` is held until `no`.
@@ -3238,15 +3272,50 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
          covers("codes zip3", "levels zip3", "three-figure ZIPs", columns=("zip3",))),
     ),
     "dst_zones_and_words": (
-        ("DST", "the twin writes an offset not in force on its date (US Central and European rules; the zoo plan's row 30)",
-         covers("each Central stamp wears an offset in force on its date",
-                "each European stamp wears an offset in force on its date",
-                "some Central stamp in the hour that happens twice is its later occurrence",
+        # Lane DST (plan P4-D474): every Central and European stamp wears the
+        # offset in force on its date at 20,000 rows; what stays is the hour
+        # the clocks repeat, whose cells are where the twin's instants stand.
+        ("RT2", "the hour the clocks repeat holds the twin's cells where its instants stand, which the description "
+                "places no finer than its date facts: a day that stands out among moments is not listed (contract "
+                "HD's limit), so the share of that hour's later occurrence is not kept: at 20,000 rows the twin "
+                "writes 2 of its 52 Central and 3 of its 46 European cells there at the first occurrence, the real "
+                "480 of 951 and 495 of 948. A second cause, the census step's emptied side of a change (0 of 41 and "
+                "2 of 32; 9 and 9 of the 24 days beside a change under a quarter of their 30-day mean), is thinned "
+                "evenly since lane DST's repair 1 (8 and 5 days; the real 0). And 12-hour windows within 72 hours of a "
+                "change stay empty where the real fills them, G7.4r step 3's gaps cut at the changes acting on heaps no "
+                "description lists: the zoo's Central and European stamps 4 and 4 of 48, a uniform table of six zones "
+                "4 of 288, K-HZ-27's even and heaped tables 1 of 288 and 33 of 240 (the heaped 33 at repair 1 too, "
+                "the base 7), the verify's heaped table of six zones 24 of 240 (lane DST's measures, P4-D474). "
+                "At the hour rung the twin fills the repeated hour's bucket off the real count, short in the European "
+                "and south-eastern columns and over in the US one (lane DST's scoped verify 2, item 1): counted by "
+                "wall-clock hour at 20,000 rows and 1,000 people, the bucket that holds both "
+                "occurrences holds, real / base / 32db00de / lane DST's head, European 545 / 571 / 293 / 232 on the "
+                "verify's table and 562 / 580 / n.a. / 202 on K-HZ-27's fall-back table at seed 1, south-eastern "
+                "549 / 295 / n.a. / 322 and US 552 / 563 / n.a. / 624 there (n.a.: not measured); at seed 0 the head "
+                "holds 422, 348 and 656 against the real 544, 543 and 585. For European columns it is new against "
+                "the base (32db00de already held 293 against 545; repair 2's census correction moves 61 more cells "
+                "into the next hour); validate, the census and the count at midnight hold, so nothing names it. "
+                "Analyses affected: counts of events by clock hour across a fall-back night, for a column pooled at "
+                "the hour (K-HZ-27 prints each hour column's bucket beside the real one, P4-D474). The over-full hour "
+                "before the repeated one is the base's own behaviour, not lane DST's (K-HZ-27's fall-back table at "
+                "seed 1: the base 524, 810 and 415 cells there, European, south-eastern and US, against the real 279, "
+                "294 and 284); if a build fix is wanted, it is the census step's choice of which summer-side ranks "
+                "cross the bound, today those beside it (the repeated hour itself) instead of the over-full hour "
+                "before it. A column pooled at the minute or the second whose span holds the repeated hour is not "
+                "admitted to the rule and keeps the base's figures (lane DST's repair 2): K-HZ-27's fall-back table, "
+                "10,662 of 20,000 cells off their date and 7 validate misses; analyses of local clock time or of "
+                "elapsed time across the repeated hour are affected. And lane TR's N2 (lane TR's scoped verify 2): "
+                "a column of Eastern stamps with their zone word that holds one stray cell of another zone family "
+                "(19,999 EST/EDT stamps and one CET stamp) reads as free text and its twin is all filler (20,000 cells), so every "
+                "analysis that reads it as dates or times is lost; not new against the public head",
+         covers("some Central stamp in the hour that happens twice is its later occurrence",
                 "the later occurrences, as a share of the Central hour that happens twice",
                 "some European stamp in the hour that happens twice is its later occurrence",
-                "the later occurrences, as a share of the European hour that happens twice")),
-        ("TR", "a stamp followed by a zone word ('EDT', 'EST') is not read: only UTC and GMT are (the zoo plan's row 31)",
-         covers("Eastern stamps with their zone word", "each zone word is the one in force on its date", columns=("zoned_word",))),
+                "the later occurrences, as a share of the European hour that happens twice",
+                # Lane TR (plan P4-D473) reads the zone word with its offset and
+                # writes the word of the offset it writes: the word is in force
+                # where the offset is, which is this line's (the zoo plan's row 31).
+                "each zone word is the one in force on its date")),
     ),
     "month_year": (
         ("TR", "a month and year column of its own ('03/2019') has no reading (the zoo plan's row 17)", covers(
@@ -3510,19 +3579,38 @@ _KEY_VALUE = (
 )
 _HELD_KEYS = (
     "a code or key column read as labels writes its held-back levels as made-up codes outside the real pattern, "
-    "and one held whole writes record numbers: the identifier generator's limit"
+    "and one held whole writes record numbers: the identifier generator's limit; since lane CODES-2 (plan "
+    "P4-D471) a key column answered code and no names its held-back levels on tables of 20,000 rows or more"
 )
+_KEYS_FEW_PEOPLE_HOLD = (
+    "a key column whose rare keys few people hold, each on many rows (a pool counted in people, plan P4-D453), keeps "
+    "made-up keys for them, so a script that filters by key finds none of them; the owner answered yes on 2026-11-10: "
+    "such keys may be named beside the pooled total once the column's Safe Harbor question is answered no, never "
+    "counted, never while an identifier question is open, on tables of 20,000 rows and 1,000 people or more (plan "
+    "P4-D471's limit (g)); lane KV builds it"
+)
+# THE HELD DAY NUMBERS (lane HB2's handoff, plan P4-D477; the orchestrator's
+# LANE HB2 RULINGS 1 (2), 2 (1) and 5 (6)): written in the made-up-date room,
+# never the real span -- an accepted limit, not a promise to restore the span.
 _HELD_DAYS = (
-    "a day-number column answered as dates and held whole in people is written by the record-number walk in its "
-    "excluded room, past the real span, and a few cells written wider lose the contact's two figures (plan P4-D446's "
-    "limit (a)): written as days inside the span by lane HB2"
+    "a day-number column answered as dates and held whole in people is written in the made-up-date room, days of "
+    "2086 to 2114, never in the real span, so no real day is written (plan P4-D477's accepted limit, code "
+    "usability; plan P4-D446's limit (a))"
+)
+_HELD_DAY_DECIMALS = (
+    "the held walk writes one made-up value shared by the two held day columns, so cells written wider lose the "
+    "contact's two figures (plan P4-D446's limit (a)): the held walk's layouts, lane HB3's"
+)
+_HELD_DAY_KEY = (
+    "the three-part key is a relation of three columns that the twin draws apart (plan P4-D446's limit (a)): "
+    "lane GRb2's"
 )
 WIDE_OWNERS[_disguise.KIND_DAY_NUMBERS] = (
-    ("HB2", _HELD_DAYS, covers(
-        "birth days fall in the real span of years", "visit days fall in the real span of years",
+    ("HB2", _HELD_DAYS, covers("birth days fall in the real span of years", "visit days fall in the real span of years")),
+    ("HB3", _HELD_DAY_DECIMALS, covers(
         "a day number with its contact index after the point", "two fixed decimals keep the contact's two figures",
-        "day numbers as text keep two decimals", "the three-part key (record, day number, line) is unique",
-        "integer day numbers", columns=_disguise.DAY_COLUMNS)),
+        "day numbers as text keep two decimals", "integer day numbers", columns=_disguise.DAY_COLUMNS)),
+    ("GRb2", _HELD_DAY_KEY, covers("the three-part key (record, day number, line) is unique")),
     ("PS", "a value eleven rows hold and fewer than eleven people is held in people (plan P4-D406), pooling inside "
            "a reading in subject units being lane PS's", covers(columns=("dose_mg", "item_count", "pain_score"))),
 )
@@ -3534,7 +3622,7 @@ WIDE_OWNERS[_disguise.KIND_ANSWERS] = (
 WIDE_OWNERS[_disguise.KIND_FLOW] = (
     ("CZ-H", _HELD_VALUES, covers("missing result_value", "missing spellings result_value")),
     ("CZ-C", _KEY_VALUE, covers("miss result_value", "pressure pairs keep their slash", columns=("result_value",))),
-    ("CODES-2", _HELD_KEYS, covers("flow keys", columns=("flow_key",))),
+    ("KV", _KEYS_FEW_PEOPLE_HOLD, covers("flow keys", columns=("flow_key",))),
 )
 WIDE_OWNERS[_disguise.KIND_RESULTS] = (
     ("CZ-H", _HELD_VALUES, covers("missing result_value", "missing spellings result_value")),
@@ -3579,7 +3667,7 @@ _LAYOUT_FALLBACK = (
     "a held column's twin writes made-up values in the column's own layouts (plan P4-D442), but a layout the walk "
     "cannot fill under its guards -- nine plain figures beside dashed ones, a letter after figures, letters and "
     "figures in one cell of two classes -- falls back to a longer stand-in outside the layouts (plan P4-D445's "
-    "limit): held blocks' stand-ins in valid layouts are lane HB2's"
+    "limit): held blocks' stand-ins in valid layouts are lane HB3's (the held walk's layouts; lane HB2's handoff)"
 )
 _ROOM_PAST_INT64 = (
     "the record-number room opens a made-up identifier of nineteen figures with a figure no real one opens with, "
@@ -3589,7 +3677,7 @@ _ROOM_PAST_INT64 = (
 
 
 def _forms_line(kind: str, *checks: str) -> "tuple[str, str, str]":
-    return ("HB2", _LAYOUT_FALLBACK, covers(
+    return ("HB3", _LAYOUT_FALLBACK, covers(
         *checks, *(f"miss {column}" for column in _forms.IDENTIFIERS[kind]), columns=_forms.IDENTIFIERS[kind]))
 
 
@@ -3605,11 +3693,15 @@ WIDE_OWNERS[_forms.KIND_DEVICES] = (
     # ...and the answer round the person census refuses (the orchestrator's
     # LANE CZ-A RULINGS 1 (3) (a), the statistics skeptic's item 1): the
     # lot, answered `identifier`, joins the people's union, so the table is
-    # counted as 40 people by `device_lot and patient_ref` and refused at the
-    # answer round, with the table floor on or off (plan P4-D445's limit (f)).
-    ("MG", "a repeating lot answered identifier joins the people's union, so the table is counted as 40 people by "
-           "'device_lot and patient_ref' and refused at the answer round, with the table floor on or off (plan "
-           "P4-D445's limit (f)): the person census is lane MG's", covers("answers")),
+    # counted by `device_lot and patient_ref` in lots, not people (plan
+    # P4-D445's limit (f)). Since lane CZ-A2's fixture (plan P4-D469) each
+    # lot is held by two people and the 20,000-row log is counted as 1,250
+    # people and runs; the smoke's 600 rows (a test size under the owner's
+    # floor) is counted as 50 and refused.
+    ("MG", "a repeating lot answered identifier joins the people's union, so the table is counted in lots by "
+           "'device_lot and patient_ref', and the smoke's 600 rows (a test size) as 50 people, refused at the "
+           "answer round with the table floor on or off (plan P4-D445's limit (f)): the person census is lane MG's",
+     covers("answers")),
 )
 WIDE_OWNERS[_forms.KIND_ACCESSION] = (_forms_line(
     _forms.KIND_ACCESSION, "accession numbers in three layouts", "ISBT 128 unit numbers"),)

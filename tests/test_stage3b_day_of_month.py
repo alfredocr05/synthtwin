@@ -101,6 +101,7 @@ import pytest
 
 import fixtures
 import kpi_shapes
+import written_words
 from synthtwin import (
     calendar_rules,
     contract,
@@ -566,8 +567,63 @@ def test_a_missed_line_prints_no_count_below_the_line(battery: "dict[int, dict[s
     checks = [check for check in outcome.checks if check.subcheck == "day_of_month_census.groups" and check.column == "billing_date"]
     assert len(checks) == 1 and checks[0].verdict == validation.MISSED
     line = parsing.census_floor(11)
-    for number in [int(word) for word in checks[0].achieved.replace(",", " ").split() if word.isdigit()]:
+    for number in _counts_read(checks[0].achieved):
         assert number == 0 or number >= line or number > 31, checks[0].achieved
+
+
+def _counts_read(text: str) -> "list[int]":
+    """Every count ``text`` writes, read twice: by the word rule, then by the comma reading it replaced.
+
+    Batch 4r's repair round HYG-1b (LANE I4r RULINGS 9 (1), the verify's
+    item 2: the union of `tests/test_stage3b_gate.py`'s weekday reading,
+    written here where the verify's variants show the same loss).
+    `written_words.counts_in` reads no count in a word that glues one to
+    more by a comma (`fewer than 11,3`, `3,the`); the reading it replaced
+    -- the line's words with `,` taken as a space and kept where all
+    figures -- read the 3 there. The two lists one after the other keep
+    every red of each reading by construction; `isdecimal`, so a
+    superscript figure no longer crashes the old reading.
+    """
+    return written_words.counts_in(text) + [int(word) for word in text.replace(",", " ").split() if word.isdecimal()]
+
+
+def test_a_census_line_s_count_glued_by_a_comma_is_read() -> None:
+    """A count glued to more by a comma is read on a census line.
+
+    Batch 4r's repair round HYG-1b (LANE I4r RULINGS 9 (1)),
+    machine-free. MUTATION: the word rule alone, HYG-1's reading, reads
+    no 3 in either line.
+    """
+    for achieved in (
+        "the 1st 345, the 2nd to the 27th kept back, the last day of a 28-day month fewer than 11,3",
+        "the 1st 345, the 2nd 3,the 3rd 18",
+    ):
+        assert 3 in _counts_read(achieved), (achieved, _counts_read(achieved))
+        assert 3 not in written_words.counts_in(achieved), achieved
+
+
+def test_a_census_line_s_count_is_read_before_every_mark() -> None:
+    """The reading above takes every count a census line writes, and no day's own name.
+
+    Batch 4r's tests-and-tools round HYG-1 (LANE I4r RULINGS 6 (2)): a
+    count before a point, a bracket, a semicolon or a closing quotation
+    mark is read, a count written with a thousands separator is read
+    whole, and `1st`, `27th` or `28-day` is no count. MUTATION: the
+    reading it replaced, the line's words with `,` taken as a space and
+    kept where all figures, reads none of the marked counts and splits
+    `1,234` into 1 and 234.
+    """
+
+    def as_read_before(text: str) -> "list[int]":
+        return [int(word) for word in text.replace(",", " ").split() if word.isdigit()]
+
+    for mark in written_words.CLOSING_MARKS:
+        achieved = f"the 1st 345, the 2nd to the 27th kept back, the last day of a 28-day month 3{mark}"
+        assert written_words.counts_in(achieved) == [345, 3], achieved
+        assert as_read_before(achieved) == [345], achieved
+    grouped = "the 1st 1,234, the 28th, not the month's last day 12"
+    assert written_words.counts_in(grouped) == [1234, 12]
+    assert as_read_before(grouped) == [1, 234, 12]
 
 
 # -- DM4 and the scope ----------------------------------------------------------------

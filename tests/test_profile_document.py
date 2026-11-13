@@ -89,13 +89,44 @@ def test_the_settings_that_produced_the_roles_travel_with_them(
     # is None for the table; what it held is recorded in that column's own
     # block (its published levels beside `pool_in_people`), which the
     # validator reads back, so the profile is reproduced without it here.
-    declared = declared - {"levels_kept"}
+    # ...and `held_back_named` is a column's too (lane CODES-2, plan P4-D471):
+    # set where the column's `no` or the word screen names its held-back
+    # levels, recorded in that column's own block as `held_back_names`.
+    declared = declared - {"levels_kept", "held_back_named"}
+    # ...AND ONE IS RECORDED BY THE COLUMN'S OWN FORM (lane TR, plan P4-D473):
+    # `forced_clock_figures`, the columns answered `clock-figures`, is read
+    # only where rule 5c reads every present cell, and such a column
+    # publishes a `clock_form` of figures (`hh-mm figures`, `hh-mm-ss
+    # figures.N`), which no other reading publishes; the validator reads a
+    # checked file under that form (`validation.clock_figures_published`),
+    # so the description is reproduced without the key, and writing it
+    # would move every description's bytes.
+    declared = declared - {"forced_clock_figures"}
     assert declared <= set(recorded), (
         "every setting must be written into the profile; a setting added "
         "to Settings and forgotten in the settings block would leave "
         "profiles that cannot be reproduced"
     )
     assert recorded["small_cell_floor"] == SETTINGS.small_cell_floor
+
+
+def test_the_settings_the_block_leaves_out_are_exactly_three(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Lane TR (plan P4-D473; LANE TR RULINGS 3 (5) (b)) and lane CODES-2 (plan P4-D471): the exemption above is exactly its three keys.
+
+    `levels_kept`, a column's own (lane PL), `held_back_named`, a
+    column's own too (lane CODES-2: what it named is recorded in that
+    column's own block as `held_back_names`), and `forced_clock_figures`,
+    recorded by the `clock_form` of figures its column publishes: every
+    other setting is written into the block, so a fourth left out turns
+    this red, as does any of the three written in. Batch 4s's merge of
+    lane CODES-2 joined the two lanes' exemptions here: each lane's own
+    case named only its own keys.
+    """
+    document = _demo_document(tmp_path)
+    declared = {field.name for field in dataclasses.fields(taxonomy.Settings)}
+    assert declared - set(document["settings"]) == {"levels_kept", "held_back_named", "forced_clock_figures"}
 
 
 def test_notes_and_columns_cannot_disagree(tmp_path: pathlib.Path) -> None:

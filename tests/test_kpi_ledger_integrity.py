@@ -819,6 +819,16 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 1,300,000 from 1,200,000, AT THE INTEGRATION OF BATCH 4S (2026-11-11),
+    # the orchestrator's recorded call D15 (the owner may veto), made ONCE
+    # for the batch: lanes LM1, TR and DST merged under the old bound
+    # (1,184,561 bytes at lane LM1's merge, 1,189,602 at lane TR's and
+    # 1,194,040 at lane DST's), then lane CODES-2's `K-HZ-23` and
+    # `K-HZ-24`, new, with their clause of the note, took the merged ledger
+    # past it (1,211,857 bytes at lane CODES-2's merge), every entry kept
+    # by id and the note merged clause by clause. A MEASUREMENT IS NEVER
+    # TRIMMED TO FIT.
+    #
     # 1,200,000 from 1,100,000, AT THE INTEGRATION OF BATCH 4Q (2026-11-07),
     # the orchestrator's recorded call D15 (the owner may veto), made ONCE
     # for the batch: lanes ARR-a, TT and RO merged under the old bound
@@ -1680,7 +1690,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # their evidence and their note clause. The batch integrator settles
     # this beside the other lanes' raises. A MEASUREMENT IS NEVER TRIMMED
     # TO FIT.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 1_200_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 1_300_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:
@@ -2237,8 +2247,14 @@ _NODES_BEFORE = (
 
 
 def _without_utf16(monkeypatch: "pytest.MonkeyPatch") -> None:
-    """Withdraw UTF-16 decoding and nothing else: the file is refused."""
-    from synthtwin import dialect, errors
+    """Withdraw UTF-16 decoding and nothing else: the file is refused.
+
+    Read whole (`dialect.decoded`) and read a line at a time
+    (`reading._file_facts`, the reading `synthtwin profile` makes and,
+    since lane SV (plan P4-D476), `synthtwin validate` of a file past
+    25.6 MiB, its bytes ten times over past `reading.GROUP_BYTES`).
+    """
+    from synthtwin import dialect, errors, reading
 
     reads = dialect.decoded
 
@@ -2248,6 +2264,14 @@ def _without_utf16(monkeypatch: "pytest.MonkeyPatch") -> None:
         return reads(data, shown)
 
     monkeypatch.setattr(dialect, "decoded", refusing)
+    facts = reading._file_facts
+
+    def refusing_facts(table_path: pathlib.Path, shown: str, encoding: str) -> object:
+        if pathlib.Path(table_path).read_bytes()[:2] in (b"\xff\xfe", b"\xfe\xff"):
+            raise errors.ProfileError(errors.looks_like_utf16(shown))
+        return facts(table_path, shown, encoding)
+
+    monkeypatch.setattr(reading, "_file_facts", refusing_facts)
 
 
 def _outcome(node: str, folder: pathlib.Path) -> str:
@@ -2396,6 +2420,19 @@ def test_the_exporter_kpi_goes_red_when_the_dos_mark_is_withdrawn(
         return reads(data, shown)
 
     monkeypatch.setattr(dialect, "decoded", refusing)
+    # ...and read a line at a time, as `synthtwin profile` reads it and, since
+    # lane SV (plan P4-D476), `synthtwin validate` reads a file past 25.6 MiB,
+    # its bytes ten times over past `reading.GROUP_BYTES` (`reading._file_facts`).
+    from synthtwin import reading
+
+    facts = reading._file_facts
+
+    def refusing_facts(table_path: pathlib.Path, shown: str, encoding: str) -> object:
+        if b"\x1a" in pathlib.Path(table_path).read_bytes():
+            raise errors.ProfileError(errors.unreadable_as_csv(shown, "a DOS end-of-file mark"))
+        return facts(table_path, shown, encoding)
+
+    monkeypatch.setattr(reading, "_file_facts", refusing_facts)
     assert _outcome(node, tmp_path / "dos") == "failed"
     for older in _NODES_BEFORE:
         assert _outcome(

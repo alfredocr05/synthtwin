@@ -55,6 +55,7 @@ import pytest
 
 import clock_census_shapes as shapes
 import fixtures
+import written_words
 
 from synthtwin import calendar_clock
 from synthtwin import contract
@@ -590,11 +591,100 @@ def test_one_cell_moved_off_its_minute_is_missed(monkeypatch: pytest.MonkeyPatch
     found = [check for check in _checks(loaded, moved) if check.subcheck == "minute_census.groups"]
     assert [check.verdict for check in found] == [validation.MISSED]
     line = parsing.census_floor(11)
-    for text in found[0].note:
-        for number in [int(word) for word in text.replace(":", " ").replace(",", " ").split() if word.isdigit()]:
+    read = _counts_of_the_texts(found[0].achieved, found[0].note)
+    assert read[0][1], found[0].achieved
+    for text, numbers in read:
+        for number in numbers:
             assert number == 0 or number >= line or number > 59, text
     monkeypatch.setattr(validation, "_clock_minute_checks", lambda *_arguments: [])
     assert [check for check in _checks(loaded, moved) if check.subcheck == "minute_census.groups"] == []
+
+
+def _counts_read(text: str) -> "list[int]":
+    """Every count a note writes, read twice: by the word rule, then by the colon-and-comma reading it replaced.
+
+    Batch 4r's repair round HYG-1b (LANE I4r RULINGS 9 (1), the verify's
+    item 2: the union of `tests/test_stage3b_gate.py`'s weekday reading,
+    written here where the verify's variants show the same loss).
+    `written_words.counts_in` reads no count in a word that glues one to
+    more by a comma or a colon (`fewer than 11,3`, `minute:3`); the
+    reading it replaced -- the note's words with `:` and `,` taken as
+    spaces and kept where all figures -- read the 3 there. The two lists
+    one after the other keep every red of each reading by construction;
+    `isdecimal`, so a superscript figure no longer crashes the old
+    reading.
+    """
+    return written_words.counts_in(text) + [
+        int(word) for word in text.replace(":", " ").replace(",", " ").split() if word.isdecimal()
+    ]
+
+
+def _counts_of_the_texts(achieved: str, notes: "tuple[str, ...]") -> "list[tuple[str, list[int]]]":
+    """Each text of a minute census check, its census line first, with the counts it writes.
+
+    Batch 4r's repair round HYG-1b, carry C1 of HYG-1's verify (LANE I4r
+    RULINGS 9 (3)): the case above read the notes alone, and its own run
+    writes none, so its reading was called 0 times, before HYG-1 and
+    after it. The loop now takes the census line (`achieved`) and the
+    notes. The census line is read part by part
+    (`written_words.part_counts`, the reading of the hour and minute
+    census lines): its group names write figures of their own (`minute
+    :06`, `minutes :07-:09`), which a reading of every word takes for
+    counts -- on the case's own line `counts_in` reads 6 and 10, the
+    colon-and-comma reading 5, 6, 9 and 10. Each note is read by
+    `_counts_read`.
+    """
+    return [(achieved, written_words.part_counts(achieved))] + [(note, _counts_read(note)) for note in notes]
+
+
+def test_a_note_s_count_glued_by_a_comma_or_a_colon_is_read() -> None:
+    """A count glued to more by a comma or a colon is read in a note.
+
+    Batch 4r's repair round HYG-1b (LANE I4r RULINGS 9 (1)),
+    machine-free. MUTATION: the word rule alone, HYG-1's reading, reads
+    no 3 in either note.
+    """
+    for note in (
+        "A group this file holds fewer than 11,3 of is not counted out",
+        "A group this file holds fewer than 11 of is not counted out, and one holds minute:3",
+    ):
+        assert 3 in _counts_read(note), (note, _counts_read(note))
+        assert 3 not in written_words.counts_in(note), note
+
+
+def test_the_census_line_is_read_beside_the_notes() -> None:
+    """A count below the line on the census line is read, and a minute's own name is not (carry C1).
+
+    Batch 4r's repair round HYG-1b (LANE I4r RULINGS 9 (3)),
+    machine-free. MUTATION: the loop before read the notes alone, so a
+    check with no note read nothing.
+    """
+    achieved = "minute :00 112, minutes :01-:05 7, minute :06 12, minute :10 106"
+    assert _counts_of_the_texts(achieved, ()) == [(achieved, [112, 7, 12, 106])]
+    note = "A group this file holds fewer than 11 of is not counted out"
+    assert _counts_of_the_texts(achieved, (note,))[1] == (note, [11, 11])
+
+
+def test_a_note_s_count_is_read_before_every_mark() -> None:
+    """The reading above takes every count a note writes, whatever mark follows it.
+
+    Batch 4r's tests-and-tools round HYG-1 (LANE I4r RULINGS 6 (2)): a
+    count before a point, a bracket, a semicolon or a closing quotation
+    mark is read, and a count written with a thousands separator is read
+    whole. MUTATION: the reading it replaced, the note's words with `:`
+    and `,` taken as spaces and kept where all figures, reads none of the
+    marked counts and splits `1,234` into 1 and 234.
+    """
+
+    def as_read_before(text: str) -> "list[int]":
+        return [int(word) for word in text.replace(":", " ").replace(",", " ").split() if word.isdigit()]
+
+    for mark in written_words.CLOSING_MARKS:
+        note = f"A group this file holds fewer than 11 of is not counted out, and one holds 3{mark}"
+        assert written_words.counts_in(note) == [11, 3], note
+        assert as_read_before(note) == [11], note
+    assert written_words.counts_in("A group this file holds 1,234 of.") == [1234]
+    assert as_read_before("A group this file holds 1,234 of.") == [1, 234]
 
 
 def test_a_lane_keeps_off_the_places_the_table_calls_absent(monkeypatch: pytest.MonkeyPatch) -> None:

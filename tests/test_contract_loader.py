@@ -1041,6 +1041,45 @@ def _with_grain(document: Document, **changes: object) -> None:
 
 
 
+def _named_region(wrong: str) -> Change:
+    """The region's pool named beside its total (6.3, plan P4-D471), wrong in one way (B4f to B4h).
+
+    The names are invented spellings of no published level, one a held-back
+    level, sorted, each once, with no scale of the pool's numbers -- as the
+    producer writes a named pool -- save the one thing ``wrong`` breaks.
+    """
+    def change(document: Document) -> None:
+        block = at(document, "region")
+        count = int(block["suppressed_levels"])
+        names = sorted(f"zz held {place}" for place in range(count))
+        scale: "dict[str, object]" = {"n_cells": 0, "mean": None}
+        if wrong == "twice":
+            names = sorted(names + [names[0]])
+        elif wrong == "published":
+            names = sorted(names[1:] + [f"{block['levels'][0]['label']}"])
+        elif wrong == "short":
+            names = names[1:] if count > 1 else []
+            names = names or ["zz held 0", "zz held 1"]
+        elif wrong == "number":
+            # Repair 2 (Codex's item 5): a name that reads as a number beside
+            # a pool owing no number -- names and counts that cannot agree.
+            names = sorted(["1"] + names[1:])
+        elif wrong == "people":
+            # Repair 2 (Codex's item 4): the pool said to be counted in people,
+            # refused where the reader holds the key beside the names.
+            block["pool_in_people"] = {"number_from": "", "word_from": "Z"}
+        elif wrong == "scale":
+            # A scale B4d itself accepts -- eleven pooled numbers of the
+            # column's twenty-two, each count on the census line -- so the
+            # refusal is B4h's alone: a named pool publishes none.
+            scale = {"n_cells": 11, "mean": 2.0}
+            block["n_numeric"] = 22
+            block["n_not_numeric"] = int(block["n_not_numeric"]) - 22
+        block["held_back_names"] = names
+        block["suppressed_numbers"] = scale
+    return change
+
+
 # A census of spellings `visits` could carry on its own (SC1 to SC3 hold:
 # its 22 noughts, every number cell named, each spelling on the floor or
 # more), so a value list beside it breaks VL5 and nothing before it.
@@ -1481,6 +1520,34 @@ def battery() -> list[Mutation]:
                 "region",
                 pool_in_people={"number_from": "7", "word_from": ""},
             ),
+        ),
+        # B4f TO B4h, A POOL NAMED BESIDE ITS TOTAL (lane CODES-2, plan
+        # P4-D471; the orchestrator's LANE CODES-2 RULINGS 2 (2)): each
+        # entry names the region's pool in one wrong way, the rest of the
+        # named pool as the producer writes it.
+        Mutation(
+            "B4f", "a named pool's names written twice",
+            _named_region("twice"),
+        ),
+        Mutation(
+            "B4g", "a named pool naming a published level",
+            _named_region("published"),
+        ),
+        Mutation(
+            "B4g", "a named pool naming fewer labels than it holds",
+            _named_region("short"),
+        ),
+        Mutation(
+            "B4h", "a named pool publishing a scale of its numbers",
+            _named_region("scale"),
+        ),
+        Mutation(
+            "B4g", "a named pool naming a number its counts of numbers leave no row",
+            _named_region("number"),
+        ),
+        Mutation(
+            "B4g", "a named pool said to be counted in people",
+            _named_region("people"),
         ),
         Mutation(
             "B5", "a label published below the floor",

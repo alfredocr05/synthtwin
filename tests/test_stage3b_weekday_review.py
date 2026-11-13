@@ -21,6 +21,7 @@ import pytest
 
 import fixtures
 import kpi_shapes
+import written_words
 from synthtwin import calendar_rules, contract, errors, parsing, profile, reading, taxonomy
 
 
@@ -324,11 +325,68 @@ def test_a_missed_weekday_line_gives_no_count_back_by_subtraction(tmp_path: path
     [check] = [check for check in outcome.checks if check.fact == "datetime.weekday_census"]
     assert check.verdict == validation.MISSED
     assert "Sunday fewer than 11" in check.achieved, check.achieved
-    numbers = [int(word) for word in check.achieved.replace(",", " ").split() if word.isdigit()]
-    assert numbers == [11], check.achieved
+    numbers = _counts_read(check.achieved)
+    # Each reading reads the one count 11: the word rule's [11], then the comma reading's [11].
+    assert numbers == [11, 11] and written_words.counts_in(check.achieved) == [11], check.achieved
     printed = quality.quality_report(described.loaded, outcome)
     found = [line for line in printed.splitlines() if "found to hold" in line and "Sunday" in line]
-    assert found and all(re.findall(r"day (\d+)\b", line) == [] for line in found), found
+    assert found and all(written_words.counts_in(line) == [11] for line in found), found
+
+
+def _counts_read(text: str) -> "list[int]":
+    """Every count ``text`` writes, read twice: by the word rule, then by the comma reading it replaced.
+
+    Batch 4r's repair round HYG-1b (LANE I4r RULINGS 9 (1), the verify's
+    item 2: the union of `tests/test_stage3b_gate.py`'s weekday reading,
+    written here where the verify's variants show the same loss).
+    `written_words.counts_in` reads no count in a word that glues one to
+    more by a comma (`fewer than 11,3`, `3,Sunday`); the reading it
+    replaced -- the text's words with `,` taken as a space and kept where
+    all figures -- read the 3 there. The check above asks each reading
+    for exactly `[11]`, so every red of each is kept by construction;
+    `isdecimal`, so a superscript figure no longer crashes the old
+    reading.
+    """
+    return written_words.counts_in(text) + [int(word) for word in text.replace(",", " ").split() if word.isdecimal()]
+
+
+def test_the_short_sunday_line_s_count_glued_by_a_comma_is_read() -> None:
+    """A count glued to more by a comma is read on the check's line.
+
+    Batch 4r's repair round HYG-1b (LANE I4r RULINGS 9 (1)),
+    machine-free. MUTATION: the word rule alone, HYG-1's reading, reads
+    no 3 in either text, and reads the second as `[11]`, which the check
+    above took for a line that prints no count but the short group's.
+    """
+    for achieved in ("Monday kept back, Sunday fewer than 11,3", "Monday kept back, Saturday 3,Sunday fewer than 11"):
+        assert 3 in _counts_read(achieved), (achieved, _counts_read(achieved))
+        assert 3 not in written_words.counts_in(achieved), achieved
+    assert written_words.counts_in("Monday kept back, Saturday 3,Sunday fewer than 11") == [11]
+
+
+def test_the_short_sunday_line_is_read_for_every_count_it_writes() -> None:
+    """The two readings above take every count the check's text and the report's found line write.
+
+    Batch 4r's tests-and-tools round HYG-1 (LANE I4r RULINGS 6 (2)): a
+    count before a point, a bracket, a semicolon or a closing quotation
+    mark, or after a no-break space, a tab or a colon, is read. MUTATION,
+    the two readings they replaced: the text's words with `,` taken as a
+    space and kept where all figures read none of the marked counts, and
+    `day (\\d+)\\b` read no count after anything but `day` and one space,
+    so the found line's group count went unseen.
+    """
+
+    def as_read_before(text: str) -> "list[int]":
+        return [int(word) for word in text.replace(",", " ").split() if word.isdigit()]
+
+    for mark in written_words.CLOSING_MARKS:
+        achieved = f"Monday kept back, Sunday fewer than 11, Saturday 3{mark}"
+        assert written_words.counts_in(achieved) == [11, 3], achieved
+        assert as_read_before(achieved) == [11], achieved
+    for gap in (" ", "\t", ": "):
+        line = f"      the file was found to hold: Monday kept back, Sunday{gap}3"
+        assert written_words.counts_in(line) == [3], line
+        assert re.findall(r"day (\d+)\b", line) == [], line
 
 
 def test_naming_the_short_groups_is_withheld_where_it_would_give_a_count_back() -> None:

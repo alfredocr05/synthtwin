@@ -109,7 +109,7 @@ RECORDS = (
     ('G5.3', 'file', 'every.csv', '148a6033397ff9ed70a61c3e8982d1234947a908fe6638cdc5a82f01c3bd75eb', 2286073, 20001),
     ('G5.3', 'out', 0, 'bf35f47c0a85991b152c0621fad26095273d30dcee43edf4bfa5b54d94b43fc2', 597055, 8981),
     ('G6', 'exit', 0),
-    ('G6', 'file', 't-profile.json', '851f8dfe54eadeb10cb0404876cc08d947c4aadfbb5fb2228d46e550fb4c47aa', 20220, 808),
+    ('G6', 'file', 't-profile.json', 'e339d303682e23568366bfb08b560df55ffac76aa08b674152e9dcb82bdc17da', 20220, 808),
     ('G6', 'file', 't-profile.txt', '82b9a395db151b079a5f208a2ef1791d1a13b0e9bd47ec39929e14e56382bb57', 9618, 149),
     ('G6', 'file', 't-questions.json', 'dbbf6ad283b8723d25c184e63a54d833b8ba3db6e5ccee7f65ef6e61d9f7278f', 6352, 76),
     ('G6', 'file', 't.csv', '82126a4f8490545b9b0e82d12f5b8878a6a22c0ff5d0d7da13725b099b16e8ff', 457870, 20001),
@@ -272,4 +272,4 @@ RECORDS = (
     ('D1', 'err', 1, 'd3c27b133ea35f36d6c35ac5dfdef18e48792917a00c2521562a7c0c00e183a0', 214, 1),
     ('D1', 'out', 2, '62077995ef6d00594f93f2c19eb3dadc709517ac63da744b62087781b5098548', 693, 13),
 )
-RECORDS_DIGEST = 'c7e90d8df56d7bc739cc95fc771697350cd4c53a439ce379b2d9f6e317538134'
+RECORDS_DIGEST = '9f05aefddb3f76f010f5d0f8d3159b921e73e7a7369c14737dacffd6b7cc994f'

@@ -185,6 +185,8 @@ import math
 from synthtwin import calendar_clock, calendar_rules, contract, errors, parsing
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
 from synthtwin import date_counts
+# -- lane DST (P4-D474): the rule families an offset follows its date by.
+from synthtwin import offset_rules
 
 # The eleven points of the percentile ladder: the shape-carrying
 # summary of a numeric column (plan P1-D4).
@@ -3869,6 +3871,17 @@ class Settings:
     # so asking it of each label costs the same at any number of levels
     # (lane PL's repair 2, the orchestrator's LANE PL RULINGS 4 (4)).
     levels_kept: "frozenset[str] | None" = None
+    # THE NAMES OF THE LEVELS A COLUMN HOLDS BACK (lane CODES-2, plan
+    # P4-D471; the owner's answer Z1 = B of 2026-10-16): set per column, as
+    # `levels_kept` is, and never recorded in a description's settings.
+    # `HELD_BACK_NAMED_ANSWERED`, the person answered `no` to the column's
+    # Safe Harbor question: a label column publishes the spellings of the
+    # levels the floor held back, without their counts, beside the pooled
+    # total (`held_back_names_published`). `HELD_BACK_NAMED_SCREENED`: the
+    # label half of a column of numbers with labels publishes its held-back
+    # words where every one passes the word screen (`passes_the_word_screen`).
+    # "" on every other column, as ever.
+    held_back_named: str = ""
     # THE COLUMNS THE PERSON DECLARED 12-HOUR CLOCKS WRITTEN WITHOUT AM OR
     # PM (`--twelve-hour`, landing T1, plan P4-D370). Nothing in `8:34` or
     # `12:15` says which clock wrote it, so where every hour lies in 1 to
@@ -3901,6 +3914,15 @@ class Settings:
     # `counted_for_the_column`'s view of these settings, which narrows
     # this to `COUNTED_HERE` and the member, or to nothing.
     forced_date_counts: "tuple[tuple[str, str], ...]" = ()
+    # -- lane TR (P4-D473)
+    # THE COLUMNS THE PERSON SAID HOLD CLOCK TIMES WRITTEN AS FIGURES
+    # (`--clock-figures`, the answer `clock-figures`; rule 5c of the zoo-fix
+    # reading page, plan P4-D419's ZR.1): each is read in a form of figures
+    # (`parsing.CLOCK_FIGURE_FORMS`) where every present cell is one shape
+    # on the clock's grid, and held where it is not. A column is READ under
+    # `for_the_column`'s view of these settings, which narrows this to
+    # `CLOCK_FIGURES_HERE` or to nothing.
+    forced_clock_figures: "tuple[str, ...]" = ()
 
 
 # What `for_the_column` leaves in `forced_twelve_hour_clocks` for a column
@@ -3928,6 +3950,8 @@ def for_the_column(settings: Settings, name: str) -> Settings:
         and not settings.century_windows
         # -- 3b.R2c (P4-D383)
         and not settings.forced_date_columns
+        # -- lane TR (P4-D473)
+        and not settings.forced_clock_figures
     ):
         return settings
     narrowed: "tuple[str, ...]" = ()
@@ -3942,11 +3966,16 @@ def for_the_column(settings: Settings, name: str) -> Settings:
     dates: "tuple[str, ...]" = ()
     if name in settings.forced_date_columns:
         dates = (DATES_HERE,)
+    # -- lane TR (P4-D473)
+    figures: "tuple[str, ...]" = ()
+    if name in settings.forced_clock_figures:
+        figures = (CLOCK_FIGURES_HERE,)
     return dataclasses.replace(
         settings,
         forced_twelve_hour_clocks=narrowed,
         century_windows=windows,
         forced_date_columns=dates,
+        forced_clock_figures=figures,
     )
 
 
@@ -3977,6 +4006,18 @@ PARTIAL_FULL_SHARE = 0.5
 def dates_declared(settings: Settings) -> bool:
     """Whether the column these settings were narrowed for was said to hold dates (Q6)."""
     return DATES_HERE in settings.forced_date_columns
+
+
+# -- lane TR (P4-D473)
+# What `for_the_column` leaves in `forced_clock_figures` for a column the
+# person said holds clock times written as figures: a word of this
+# package's own.
+CLOCK_FIGURES_HERE = "(this column holds clock times written as figures)"
+
+
+def clock_figures_declared(settings: Settings) -> bool:
+    """Whether the column these settings were narrowed for was said to hold clock times written as figures (rule 5c)."""
+    return CLOCK_FIGURES_HERE in settings.forced_clock_figures
 
 
 def century_window_of(settings: Settings) -> int:
@@ -4967,6 +5008,10 @@ class ColumnProfile:
     # rule U (c)): such a list is released only where no question
     # offering `identifier` is open on any column. Never written.
     few_values_rare: bool = False
+    # WHETHER `no` TO THE COLUMN'S SAFE HARBOR QUESTION WOULD NAME ITS HELD-BACK
+    # LEVELS (lane CODES-2, plan P4-D471, `held_back_nameable`): the profile
+    # command puts that question to such a column. Never written.
+    held_back_nameable: bool = False
 
 
 SIGNIFICAND_BITS = 53
@@ -10314,6 +10359,10 @@ class _Levels:
     # aggregate is taken over, and `_pooled_numbers` states why that is
     # a group and not a row -- and why no spread stands beside it.
     pooled_numbers: dict[str, object]
+    # THE SPELLINGS OF THE HELD-BACK LEVELS (lane CODES-2, plan P4-D471),
+    # sorted and each once, gathered only where `Settings.held_back_named`
+    # asks; `held_back_names_published` decides whether they are published.
+    held_back_names: "tuple[str, ...]" = ()
 
 
 def _absorb_lone_spellings(
@@ -10630,6 +10679,35 @@ def _published_distinct(cells: _Cells) -> int:
             spellings = _absorb_lone_spellings(spellings, cells.settings)
         counted = counted + len(spellings)
     return counted
+
+
+def _figures_distinct(
+    cells: _Cells, role: str, details: "dict[str, object]", counted: int
+) -> int:
+    """`counted`, or, on a clock written as figures with a fraction, its different whole times (plan P4-D473).
+
+    Such a column's fraction is read and not kept (rule 5c): every
+    published value and every twin cell writes it as noughts, so its
+    different values are its different whole seconds, never its
+    different spellings -- `074512.123456` and `074512.654321` are one
+    time. Counted by their spellings, 200,000 such cells published as
+    many different values as rows, which no day of 86,400 seconds holds:
+    the census's own rule (CC5) refused the description at load, and
+    generate and validate stopped. Every other column keeps `counted`.
+    A function of the arguments; one pass over the cells where it
+    applies. Raises nothing. No I/O.
+    """
+    if role != ROLE_CLOCK:
+        return counted
+    form = details["clock_form"] if "clock_form" in details else None
+    if not isinstance(form, str) or not parsing.clock_figure_fraction(form):
+        return counted
+    seen: "set[int]" = set()
+    for text in cells.present:
+        found = parsing.clock_ordinal(text, form)
+        if found is not None:
+            seen |= {found}
+    return len(seen)
 
 
 def _column_distinct(
@@ -11265,6 +11343,14 @@ def _levels(
     # holds back is, and no scale of the pool is published: a mean over a
     # level few people hold is a fact about those few.
     kept = settings.levels_kept
+    # ...AND THE HELD-BACK LEVELS' SPELLINGS, where the column may name them
+    # (lane CODES-2, plan P4-D471): gathered here, decided on in
+    # `_level_details`, published nowhere else. ONLY A POOL THE FLOOR MADE:
+    # the owner's answer Z1 = B names values fewer than 11 ROWS hold, and a
+    # pool counted in people holds levels few people hold on any number of
+    # rows, whose levels P4-D453 names nowhere (`K-HZ-19`), so it gathers none.
+    held_spellings: "dict[str, bool]" = {}
+    gathering = bool(settings.held_back_named) and kept is None
     for label in ordered:
         count = counts[label]
         if count >= settings.small_cell_floor and (kept is None or label in kept):
@@ -11296,6 +11382,9 @@ def _levels(
         else:
             suppressed_levels = suppressed_levels + 1
             suppressed_rows = suppressed_rows + count
+            if gathering:
+                for spelling in _label_spellings(counts, spellings_by_folded, label):
+                    held_spellings[spelling] = True
     return _Levels(
         published=entries,
         suppressed_levels=suppressed_levels,
@@ -11305,6 +11394,7 @@ def _levels(
             if kept is not None
             else _pooled_numbers(counts, spellings_by_folded, settings)
         ),
+        held_back_names=tuple(sorted(held_spellings)),
     )
 
 
@@ -12112,12 +12202,17 @@ def _level_details(
     """
     counted: "dict[str, int]" = {}
     spelled = described_spellings(cells.present, cells.settings)
+    # THE HELD-BACK LEVELS NAMED (lane CODES-2, plan P4-D471): where the
+    # column may publish them, their spellings stand beside the pool, which
+    # then speaks of no form, no place and no scale of its own, as a pool
+    # counted in people does: the twin writes the names themselves.
+    named = held_back_names_published(levels, cells, with_text_total, code_declared)
     # A POOL COUNTED IN PEOPLE (lane PL, plan P4-D453): the census speaks of
     # the published levels' cells alone. A form only a pooled level wears
     # names something about the few people who hold it, and its cells are
     # written as stand-ins of another form, so they are counted nowhere, as
     # a cell with no form is.
-    pooling = cells.settings.levels_kept is not None
+    pooling = cells.settings.levels_kept is not None or bool(named)
     if pooling:
         spoken: "dict[str, bool]" = {}
         for entry in levels.published:
@@ -12136,7 +12231,8 @@ def _level_details(
     # WHAT NO REAL RUN OF FIGURES OPENS WITH, beside every label role (LANE HB
     # RULINGS 6, plan P4-D442): `label_figure_openings` states whose.
     # A COLUMN THE PERSON DECLARED A CODE names none: their word that it is no key.
-    openings = {} if code_declared else label_figure_openings(
+    # ...NOR ONE WHOSE HELD-BACK LEVELS ARE NAMED: no stand-in is made up.
+    openings = {} if code_declared or named else label_figure_openings(
         cells.present,
         [entry["label"] for entry in levels.published],
         cells.settings.small_cell_floor,
@@ -12164,6 +12260,9 @@ def _level_details(
         details["shape_forms_absorbed"] = absorbed
     if openings:
         details["figure_openings"] = openings
+    if named:
+        details["held_back_names"] = list(named)
+        details["suppressed_numbers"] = dict(_NO_POOLED_SCALE)
     if with_text_total and not pooling:
         # RULE A2'S CENSUS (lane CODES-1, plan P4-D439): what the held-back
         # cells of each named form hold at each place, floored. A key absent
@@ -12192,6 +12291,1432 @@ def _level_details(
         if places:
             details["shape_form_places"] = places
     return details
+
+
+# THE NAMES OF RARE LEVELS (lane CODES-2, plan P4-D471; the owner's answer Z1
+# = B of 2026-10-16, verbatim in the plan): a level fewer rows than the floor
+# hold is published by its NAME, never its count, only on the roads below.
+# `held_back_named` is set per column by the description, never by a cell:
+# ANSWERED where the person answered `no` to the column's Safe Harbor
+# question, SCREENED on the label half of a column of numbers with labels
+# where no question offering `identifier` is open, and CHECKED by the
+# validator alone, on a column whose description named its pool.
+HELD_BACK_NAMED_ANSWERED = "answered"
+HELD_BACK_NAMED_SCREENED = "screened"
+HELD_BACK_NAMED_CHECKED = "checked"
+
+
+def _names_under(
+    how: str,
+    names: "tuple[str, ...]",
+    decimal_comma: bool,
+    with_text_total: bool,
+    code_declared: bool,
+) -> "tuple[str, ...]":
+    """The held-back spellings one road names, or none: `held_back_names_published`'s rule."""
+    if how == HELD_BACK_NAMED_CHECKED:
+        return names
+    if how not in (HELD_BACK_NAMED_ANSWERED, HELD_BACK_NAMED_SCREENED):
+        return ()
+    if not with_text_total:
+        # PATH (ii): the words of a column of numbers with labels, each
+        # through the whole screen, whatever was answered -- AND A WORD
+        # HOLDING A FIGURE ONLY AFTER THE PERSON'S `no` (the stand-ins page's
+        # ZS.3 (ii), P4-D422; the orchestrator's LANE CODES-2 RULINGS 3 (1),
+        # skeptic 1's item 1 (a)): `#4521`, `03-31` or `~95` is named by no
+        # screen, unanswered or after `yes`, whatever its shape.
+        for name in names:
+            if not passes_the_word_screen(name):
+                return ()
+            if how != HELD_BACK_NAMED_ANSWERED and _a_word_holding_a_figure(name):
+                return ()
+        return names
+    if how != HELD_BACK_NAMED_ANSWERED:
+        return ()
+    if code_declared:
+        # PATH (i): a declared code, answered `no` -- and none where one
+        # held-back spelling is shaped as no public code is
+        # (`_a_shape_no_code_wears`: the verify of repair 1, item 4).
+        for name in names:
+            if _a_shape_no_code_wears(name):
+                return ()
+        return names
+    # PATH (iii): any other label column answered `no` -- its number rule
+    # read both ways, as the screens read a spelling (`_without_what_prints_nothing`:
+    # `657<U+0000>6` is the number 6576; lane CODES-2's follow-up).
+    readings = list(names) + [_without_what_prints_nothing(name) for name in names]
+    for cell in _classify_all(readings, decimal_comma):
+        if cell.kind != parsing.NOT_A_NUMBER:
+            return ()
+    for name in names:
+        if not passes_the_word_screen(name, False):
+            return ()
+    return names
+
+
+def held_back_names_published(
+    levels: _Levels, cells: _Cells, with_text_total: bool, code_declared: bool
+) -> "tuple[str, ...]":
+    """The held-back spellings a label block publishes, or none (lane CODES-2, plan P4-D471).
+
+    ALL OR NONE: a column names every held-back spelling or none of them,
+    so its pool is either wholly named or wholly made up, never split.
+
+    - PATH (i), a column the person declared a code (``code_declared``) and
+      answered `no` to its Safe Harbor question -- no value of it names a
+      person, a place smaller than a state, a birth date, or a record,
+      account or device number (`HELD_BACK_NAMED_ANSWERED`): every
+      held-back spelling. `code` alone names none: a column of ZIP codes or
+      device numbers is offered `code` too.
+    - PATH (iii), any other label column answered `no`: every held-back
+      spelling, unless one of them reads as a number -- a number a few rows
+      of a column of words hold is a measurement's value, a tail no
+      description prints by name (the owner's rule: no one-row extreme
+      printed directly) -- or is shaped as an identifier
+      (`passes_the_word_screen` read as path (iii)'s net: its word count,
+      its letters-beside-figures rule and its initials rule set aside, the
+      person's `no` governing them): then none.
+    - PATH (ii), the label half of a column of numbers with labels
+      (``with_text_total`` False): every held-back word where each passes
+      `passes_the_word_screen` whole -- the result words (`TNP`, `HI`,
+      `LO`, `Not done`) -- and none where one fails it, whatever was
+      answered, so a typed comment is never named; and A WORD HOLDING A
+      FIGURE (`#4521`, `1:40`, `120/80`) only after the person's `no`
+      (`HELD_BACK_NAMED_ANSWERED`): `HELD_BACK_NAMED_SCREENED`, unanswered
+      or after `yes`, names a pool only where no word of it holds a figure
+      (the stand-ins page's ZS.3 (ii); the orchestrator's LANE CODES-2
+      RULINGS 3 (1)). Unanswered, such a pool stays pooled whole, its
+      words of letters too, as before this lane; `held_back_nameable`
+      puts it the question.
+    - `HELD_BACK_NAMED_CHECKED`, the validator's re-description of a file
+      whose description named its pool: every held-back spelling, to be
+      compared with the names published.
+
+    Guarantees: a fixed function of the levels, the column's settings and
+    the declaration; returns the sorted spellings, or an empty tuple.
+    Raises nothing. No I/O.
+    """
+    if not levels.held_back_names or not levels.suppressed_levels:
+        return ()
+    return _names_under(
+        cells.settings.held_back_named,
+        levels.held_back_names,
+        cells.decimal_comma,
+        with_text_total,
+        code_declared,
+    )
+
+
+def _long_tail_named_only_as_a_code(levels: _Levels, declared: bool) -> _Levels:
+    """A long tail's levels with their held-back spellings set aside unless the person declared it a code (lane CODES-2, P4-D471).
+
+    The zoo plan's 2.3 never publishes a long tail not answered `code`: a
+    long tail answered `no` alone names nothing (the MUST NOT the lane's
+    repair 1 pins, skeptic 1's item 4). Guarantees: a fixed function of the
+    two. Raises nothing. No I/O.
+    """
+    return levels if declared else dataclasses.replace(levels, held_back_names=())
+
+
+def held_back_nameable(
+    levels: _Levels, cells: _Cells, with_text_total: bool, code_declared: bool
+) -> bool:
+    """Whether `no` to the column's Safe Harbor question would name its held-back levels (lane CODES-2, P4-D471).
+
+    The question is put only where the answer can change the description:
+    a label column whose pool `HELD_BACK_NAMED_ANSWERED` would name; and the
+    label half of a column of numbers with labels (``with_text_total``
+    False) whose pool `no` would name and the screen alone would not -- a
+    held-back word holding a figure beside words that all pass the screen
+    (the stand-ins page's ZS.3 (ii): the question is put to every column
+    with a held-back word that holds a figure and passes the screen; the
+    orchestrator's LANE CODES-2 RULINGS 3 (1), skeptic 1's item 1 (b)).
+    Guarantees: a fixed function of the four. Raises nothing. No I/O.
+    """
+    if not levels.held_back_names or not levels.suppressed_levels:
+        return False
+    if not _names_under(
+        HELD_BACK_NAMED_ANSWERED,
+        levels.held_back_names,
+        cells.decimal_comma,
+        with_text_total,
+        code_declared,
+    ):
+        return False
+    return with_text_total or not _names_under(
+        HELD_BACK_NAMED_SCREENED,
+        levels.held_back_names,
+        cells.decimal_comma,
+        with_text_total,
+        code_declared,
+    )
+
+
+# The words of a unit an age is counted in, beside figures (`passes_the_word_screen`):
+# `92 years` or `101 yrs` is an age, and an age over 89 a Safe Harbor element.
+# ...the product's own unit words included (`AGE_UNIT_WORDS`: `1100 m`, `5000 w`,
+# skeptic 1's item 1 of lane CODES-2's repair 1), each read AFTER the figures;
+# ...and the words that say an age wherever they stand beside figures (`age 97`,
+# `aged 101`, `92 years old`). Both are the shared age vocabulary's since batch
+# 4s's merge of lane HB2 (`_AGE_UNIT_WORDS` and `_AGE_WORDS`, defined beside
+# `AGE_VOCABULARY`, which this screen reads with the words it reads beyond it).
+# The words of a street address beside a house number (`passes_the_word_screen`):
+# `258 Elm St` names a place smaller than a state.
+_STREET_WORDS = frozenset((
+    "st", "street", "ave", "avenue", "rd", "road", "ln", "lane", "blvd", "boulevard", "dr", "drive", "way",
+    "ct", "court", "pl", "place", "ter", "terrace", "hwy", "highway", "pkwy", "parkway", "cir", "circle",
+    "apt", "apartment", "suite", "ste", "unit", "box", "floor", "fl",
+))
+# The words of the month a date written as text holds (`passes_the_word_screen`).
+_MONTH_WORDS = frozenset((
+    "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
+    "january", "february", "march", "april", "june", "july", "august", "september",
+    "october", "november", "december",
+))
+
+
+# THE CHARACTERS THE WORD SCREEN READS, FIXED HERE AND NOT ASKED OF THE
+# INTERPRETER (lane CODES-2's repair 2; Codex's item 1 on the lane's build
+# and the orchestrator's LANE CODES-2 RULINGS 6 (1), a HIPAA blocker; and
+# the reason `parsing._is_a_digit` gives: `str.isdigit` and `str.isalpha`
+# answer out of the Unicode database the running Python carries, so one
+# table would be screened two ways on two supported interpreters).
+#
+# A SPACE (`_a_space_of_the_screen`): every character `str.split()` cuts
+# at -- the ASCII spaces, the four information separators, the next-line
+# mark, the no-break space and every space, line and paragraph separator
+# of Unicode -- and every control and format character, which a display
+# draws as nothing: the zero-width space, joiners and non-joiner, the
+# left-to-right and right-to-left marks, embeddings, overrides and
+# isolates, the word joiner and the invisible operators, the byte-order
+# mark, the soft hyphen, the Mongolian vowel separator (the display
+# controls `parsing` escapes, beside the spaces). A note joined by any of
+# them -- `Called<U+00A0>patient<U+00A0>Cedar<U+00A0>Grove` -- is four
+# words, as it is to the person who reads it, and never one.
+_SCREEN_SPACE_RANGES = (
+    (0x0000, 0x0020), (0x007F, 0x00A0), (0x00AD, 0x00AD), (0x0600, 0x0605), (0x061C, 0x061C),
+    (0x06DD, 0x06DD), (0x070F, 0x070F), (0x0890, 0x0891), (0x08E2, 0x08E2), (0x1680, 0x1680),
+    (0x180E, 0x180E), (0x2000, 0x200F), (0x2028, 0x202F), (0x205F, 0x206F), (0x3000, 0x3000),
+    (0xD800, 0xDFFF), (0xFEFF, 0xFEFF), (0xFFF9, 0xFFFB), (0x110BD, 0x110BD), (0x110CD, 0x110CD),
+    (0x13430, 0x1343F), (0x1BCA0, 0x1BCAF), (0x1D173, 0x1D17A), (0xE0000, 0xE00FF),
+)
+# A SPACE A DISPLAY DRAWS (`_prints_nothing`): every character `str.split()`
+# cuts at, spelled out. Every other character of `_SCREEN_SPACE_RANGES` -- each
+# format character, each control that is not whitespace (and the lone
+# surrogate code points the table lists) -- PRINTS NOTHING, and the screen's second
+# reading removes it (lane CODES-2's follow-up; the verify of repair 2, item
+# 1, a HIPAA blocker, and the orchestrator's LANE CODES-2 RULINGS 8 (2)): read
+# only as a space, ONE such character inside a word or a number -- `Ap<U+00AD>ril`,
+# `nine<U+200B>ty-five`, `9<U+200B>5+` -- cut it in two, so no reader of the
+# screen saw the month, the age or its mark, and 40 rare names and 79 twin
+# cells a column were published so at 20,000 rows through the commands.
+_SCREEN_VISIBLE_SPACES = (
+    "\t\n\x0b\x0c\r\x1c\x1d\x1e\x1f \x85\xa0          "
+    "      　"
+)
+# A DASH, WHICH IS NO SPACE (batch 4s's merge of lane CZ-F, the orchestrator's
+# LANE CODES-2 RULINGS 7 (4): `_SCREEN_SPACE_RANGES` is the product's ONE
+# definition of a space, and the dashes are named beside it): the
+# hyphen-minus, the hyphen, the non-breaking hyphen, the figure dash, the en
+# and em dashes, the minus sign, the small em dash and the small and
+# full-width hyphen-minus, each read as `-` between the words of a double
+# family name (`_name_characters`); and (batch 4s's merge of lane CZ-A2,
+# step 7) the horizontal bar U+2015, a dash of `_SSN_MARKS` that lane
+# CZ-A2's readers read as `-` (`with_plain_marks`), so the dashes are
+# exactly the marks of `_SSN_MARKS` that are no space. The soft hyphen
+# U+00AD is a space of the ranges above, one that prints nothing; the reader
+# of persons' names and lane CZ-A2's readers, which read it as a dash before
+# the batch's merges, read a cell holding one both ways (`_name_readings`,
+# `plain_readings`).
+_SCREEN_DASHES = "-\u2010\u2011\u2012\u2013\u2014\u2015\u2212\ufe58\ufe63\uff0d"
+# A FIGURE OF ANY SCRIPT (`_a_figure_of_any_script`): every character Python's `str.isdigit`
+# answers for under Unicode 15.1 -- the decimal figures of every script, the
+# superscript, subscript, circled and parenthesized figures -- and the
+# figures Unicode 16.0 added, so the screen reads `#٤٥٢١` (Arabic-Indic),
+# `#４５２１` (fullwidth) and `#४५२१` (Devanagari) as `#4521` on every
+# interpreter this package runs on.
+_SCREEN_FIGURE_RANGES = (
+    (0x0030, 0x0039), (0x00B2, 0x00B3), (0x00B9, 0x00B9), (0x0660, 0x0669), (0x06F0, 0x06F9),
+    (0x07C0, 0x07C9), (0x0966, 0x096F), (0x09E6, 0x09EF), (0x0A66, 0x0A6F), (0x0AE6, 0x0AEF),
+    (0x0B66, 0x0B6F), (0x0BE6, 0x0BEF), (0x0C66, 0x0C6F), (0x0CE6, 0x0CEF), (0x0D66, 0x0D6F),
+    (0x0DE6, 0x0DEF), (0x0E50, 0x0E59), (0x0ED0, 0x0ED9), (0x0F20, 0x0F29), (0x1040, 0x1049),
+    (0x1090, 0x1099), (0x1369, 0x1371), (0x17E0, 0x17E9), (0x1810, 0x1819), (0x1946, 0x194F),
+    (0x19D0, 0x19DA), (0x1A80, 0x1A89), (0x1A90, 0x1A99), (0x1B50, 0x1B59), (0x1BB0, 0x1BB9),
+    (0x1C40, 0x1C49), (0x1C50, 0x1C59), (0x2070, 0x2070), (0x2074, 0x2079), (0x2080, 0x2089),
+    (0x2460, 0x2468), (0x2474, 0x247C), (0x2488, 0x2490), (0x24EA, 0x24EA), (0x24F5, 0x24FD),
+    (0x24FF, 0x24FF), (0x2776, 0x277E), (0x2780, 0x2788), (0x278A, 0x2792), (0xA620, 0xA629),
+    (0xA8D0, 0xA8D9), (0xA900, 0xA909), (0xA9D0, 0xA9D9), (0xA9F0, 0xA9F9), (0xAA50, 0xAA59),
+    (0xABF0, 0xABF9), (0xFF10, 0xFF19), (0x104A0, 0x104A9), (0x10A40, 0x10A43), (0x10D30, 0x10D39),
+    (0x10D40, 0x10D49), (0x10E60, 0x10E68), (0x11052, 0x1105A), (0x11066, 0x1106F), (0x110F0, 0x110F9),
+    (0x11136, 0x1113F), (0x111D0, 0x111D9), (0x112F0, 0x112F9), (0x11450, 0x11459), (0x114D0, 0x114D9),
+    (0x11650, 0x11659), (0x116C0, 0x116C9), (0x116D0, 0x116E3), (0x11730, 0x11739), (0x118E0, 0x118E9),
+    (0x11950, 0x11959), (0x11BF0, 0x11BF9), (0x11C50, 0x11C59), (0x11D50, 0x11D59), (0x11DA0, 0x11DA9),
+    (0x11F50, 0x11F59), (0x16130, 0x16139), (0x16A60, 0x16A69), (0x16AC0, 0x16AC9), (0x16B50, 0x16B59),
+    (0x16D70, 0x16D79), (0x1CCF0, 0x1CCF9), (0x1D7CE, 0x1D7FF), (0x1E140, 0x1E149), (0x1E2F0, 0x1E2F9),
+    (0x1E4F0, 0x1E4F9), (0x1E5F1, 0x1E5FA), (0x1E950, 0x1E959), (0x1F100, 0x1F10A), (0x1FBF0, 0x1FBF9),
+)
+# ...each decimal figure's zero, so `_with_ascii_figures` reads `٢٠٢٣-٠٧` as
+# `2023-07` before the dates, clocks and ages are read.
+_SCREEN_FIGURE_ZEROS = (
+    0x0660, 0x06F0, 0x07C0, 0x0966, 0x09E6, 0x0A66, 0x0AE6, 0x0B66, 0x0BE6, 0x0C66, 0x0CE6, 0x0D66,
+    0x0DE6, 0x0E50, 0x0ED0, 0x0F20, 0x1040, 0x1090, 0x17E0, 0x1810, 0x1946, 0x19D0, 0x1A80, 0x1A90,
+    0x1B50, 0x1BB0, 0x1C40, 0x1C50, 0xA620, 0xA8D0, 0xA900, 0xA9D0, 0xA9F0, 0xAA50, 0xABF0, 0xFF10,
+    0x104A0, 0x10D30, 0x10D40, 0x11066, 0x110F0, 0x11136, 0x111D0, 0x112F0, 0x11450, 0x114D0,
+    0x11650, 0x116C0, 0x116D0, 0x116DA, 0x11730, 0x118E0, 0x11950, 0x11BF0, 0x11C50, 0x11D50,
+    0x11DA0, 0x11F50, 0x16130, 0x16A60, 0x16AC0, 0x16B50, 0x16D70, 0x1CCF0, 0x1D7CE, 0x1D7D8,
+    0x1D7E2, 0x1D7EC, 0x1D7F6, 0x1E140, 0x1E2F0, 0x1E4F0, 0x1E5F1, 0x1E950, 0x1FBF0,
+)
+# A MARK, NO LETTER (`_a_letter_of_any_script`): outside ASCII a character is a letter of
+# some script unless it is a figure, a space or one of these marks and
+# symbols -- Latin-1's signs (`°`, `±`, `§`; the micro sign `µ` is a
+# letter), the multiplication and division signs, general punctuation and
+# every block of symbols to the end of the supplemental arrows, the CJK
+# marks, the vertical, small and fullwidth forms of the ASCII marks.
+_SCREEN_MARK_RANGES = (
+    (0x00A1, 0x00B4), (0x00B6, 0x00BF), (0x00D7, 0x00D7), (0x00F7, 0x00F7), (0x2010, 0x2BFF),
+    (0x3001, 0x303F), (0xFE10, 0xFE1F), (0xFE30, 0xFE6F), (0xFF01, 0xFF0F), (0xFF1A, 0xFF20),
+    (0xFF3B, 0xFF40), (0xFF5B, 0xFF65),
+)
+_NOT_TEXT_TO_THE_SCREEN = "a held-back spelling reached the word screen as something other than text"
+
+
+def _in_ranges(code: int, ranges: "tuple[tuple[int, int], ...]") -> bool:
+    """Whether a character's number falls in one of ``ranges`` (ascending, none overlapping)."""
+    for start, end in ranges:
+        if code < start:
+            return False
+        if code <= end:
+            return True
+    return False
+
+
+def _a_space_of_the_screen(character: str) -> bool:
+    """Whether one character is a space to the word screen (`_SCREEN_SPACE_RANGES`)."""
+    if not isinstance(character, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    return _in_ranges(ord(character), _SCREEN_SPACE_RANGES)
+
+
+def _prints_nothing(character: str) -> bool:
+    """Whether one character is a space to the screen that a display draws as nothing (`_SCREEN_VISIBLE_SPACES`)."""
+    if not isinstance(character, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    return _a_space_of_the_screen(character) and character not in _SCREEN_VISIBLE_SPACES
+
+
+def _without_what_prints_nothing(text: str) -> str:
+    """A held-back spelling with every character that prints nothing removed, its visible spaces kept.
+
+    THE SCREEN'S SECOND READING (lane CODES-2's follow-up, the orchestrator's
+    LANE CODES-2 RULINGS 8 (2)): every screen -- path (ii)'s word screen,
+    path (iii)'s net and its number rule, path (i)'s shapes no code wears --
+    reads a held-back spelling twice, as written (every character of
+    `_SCREEN_SPACE_RANGES` a space, so a note joined by zero-width spaces is
+    four words) and as this returns it (`Ap<U+00AD>ril` is `April`,
+    `9<U+200B>5+` is `95+`), and names it only where BOTH readings pass.
+    Guarantees: a fixed function of the text. Raises TypeError where it is
+    no text. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    kept = ""
+    for character in text:
+        if not _prints_nothing(character):
+            kept = kept + character
+    return kept
+
+
+def _a_figure_of_any_script(character: str) -> bool:
+    """Whether one character is a figure of any script (`_SCREEN_FIGURE_RANGES`)."""
+    if not isinstance(character, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    if "0" <= character <= "9":
+        return True
+    return ord(character) > 127 and _in_ranges(ord(character), _SCREEN_FIGURE_RANGES)
+
+
+def _a_letter_of_any_script(character: str) -> bool:
+    """Whether one character is a letter of any script: an ASCII letter, or outside ASCII no figure, space or mark."""
+    if not isinstance(character, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    if ord(character) < 128:
+        return "a" <= character <= "z" or "A" <= character <= "Z"
+    return not (
+        _a_figure_of_any_script(character)
+        or _a_space_of_the_screen(character)
+        or _in_ranges(ord(character), _SCREEN_MARK_RANGES)
+    )
+
+
+def _with_ascii_figures(text: str) -> str:
+    """A text with each decimal figure of another script written as its ASCII figure (`_SCREEN_FIGURE_ZEROS`)."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    written = ""
+    for character in text:
+        figure = ""
+        if ord(character) > 127:
+            for zero in _SCREEN_FIGURE_ZEROS:
+                if zero <= ord(character) <= zero + 9:
+                    figure = chr(48 + ord(character) - zero)
+        written = written + (figure if figure else character)
+    return written
+
+
+def _figure_runs(text: str) -> "list[tuple[int, int]]":
+    """Each run of figures in a text, any script's (`_a_figure_of_any_script`): where it starts and how long it is."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    runs: "list[tuple[int, int]]" = []
+    start = -1
+    place = 0
+    for character in text:
+        if _a_figure_of_any_script(character):
+            if start < 0:
+                start = place
+        elif start >= 0:
+            runs += [(start, place - start)]
+            start = -1
+        place = place + 1
+    if start >= 0:
+        runs += [(start, place - start)]
+    return runs
+
+
+def _parts_between(text: str, marks: str) -> "list[str]":
+    """The text cut at every one of ``marks``."""
+    parts: "list[str]" = []
+    current = ""
+    for character in text:
+        if character in marks:
+            parts += [current]
+            current = ""
+        else:
+            current = current + character
+    return parts + [current]
+
+
+def _all_figures(text: str) -> bool:
+    """Whether a text is a run of one figure or more and nothing else."""
+    if not text:
+        return False
+    for character in text:
+        if not "0" <= character <= "9":
+            return False
+    return True
+
+
+def _words_of(text: str) -> "list[str]":
+    """A text cut at its runs of space, its words in order, none empty (`passes_the_word_screen`).
+
+    A space is every character `_a_space_of_the_screen` names -- the
+    no-break, em, thin and ideographic spaces, the zero-width marks, the
+    controls -- in any place and any number (lane CODES-2's repair 2,
+    Codex's item 1: the screen read six ASCII spaces only, so a note
+    joined by no-break spaces was one word and was named).
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    words: "list[str]" = []
+    current = ""
+    for character in text:
+        if _a_space_of_the_screen(character):
+            if current:
+                words += [current]
+            current = ""
+        else:
+            current = current + character
+    if current:
+        words += [current]
+    return words
+
+
+def _ascii_letters(text: str) -> str:
+    """A text's ASCII letters folded to small, every other character a space."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    letters = ""
+    for character in parsing.folded(text):
+        letters = letters + (character if "a" <= character <= "z" else " ")
+    return letters
+
+
+def _a_word_holding_a_figure(text: str) -> bool:
+    """Whether a text holds a figure of any script (`_a_figure_of_any_script`): path (ii) names such a word only after `no`."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    for character in text:
+        if _a_figure_of_any_script(character):
+            return True
+    return False
+
+
+def _letters_beside_figures(text: str) -> bool:
+    """The screen's rule (6), read over the whole spelling: a letter and a figure both (`REC 1234`, `E1234`, `aged 101`)."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    letter = False
+    for character in text:
+        if _a_letter_of_any_script(character):
+            letter = True
+    return letter and _a_word_holding_a_figure(text)
+
+
+def _an_initial(text: str) -> bool:
+    """The screen's rule (7): a single letter followed by a point (`J.S.`, `J. Smith`)."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    for place in range(1, len(text)):
+        if (
+            text[place] == "."
+            and _a_letter_of_any_script(text[place - 1])
+            and (place == 1 or not _a_letter_of_any_script(text[place - 2]))
+        ):
+            return True
+    return False
+
+
+def _a_host_with_a_path(token: str) -> bool:
+    """`example.org/jsmith`: a point between two letters before the token's first `/` (the screen's rule (3))."""
+    if not isinstance(token, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    cut = token.find("/")
+    if cut < 0:
+        return False
+    for place in range(1, cut - 1):
+        if token[place] == "." and _a_letter_of_any_script(token[place - 1]) and _a_letter_of_any_script(token[place + 1]):
+            return True
+    return False
+
+
+def _an_address_of_the_sixth_version(token: str) -> bool:
+    """`fe80::1`, `2001:db8:0:0:0:0:2:1`: `::`, or three groups or more of at most four hexadecimal characters cut by `:`."""
+    if not isinstance(token, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    if "::" in token:
+        return True
+    groups = _parts_between(token, ":")
+    if len(groups) < 3:
+        return False
+    for group in groups:
+        if len(group) > 4:
+            return False
+        for mark in group:
+            if mark not in "0123456789abcdef":
+                return False
+    return True
+
+
+def _an_internet_address(word: str) -> bool:
+    """An e-mail, a web address or an internet address by its marks (the screen's rule (3) and (5)).
+
+    `@`, `://` or `www.`; an e-mail's `@` written out (`(at)`, `[at]`,
+    `{at}`); a host followed by a path (`example.org/jsmith`: a point
+    between two letters before the first `/`); an internet address of the
+    sixth version (`fe80::1`, `2001:db8:0:0:0:0:2:1`: `::`, or three groups
+    or more of at most four hexadecimal characters cut by `:`). A bare host
+    name of letters (`example.org`) is NOT read: the stated limit (a) of
+    P4-D471 (the orchestrator's LANE CODES-2 RULINGS 3 (2)).
+    """
+    if not isinstance(word, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    low = parsing.folded(word)
+    if "@" in word or "://" in word or "www." in low:
+        return True
+    for written_out in ("(at)", "[at]", "{at}"):
+        if written_out in low:
+            return True
+    for token in _words_of(low):
+        if _a_host_with_a_path(token) or _an_address_of_the_sixth_version(token):
+            return True
+    return False
+
+
+def _a_year_beside_a_month(year: str, month: str) -> bool:
+    """`2023` beside `07`: a year of four figures from 1000 to 2999 and a month of one or two."""
+    return (
+        _all_figures(year)
+        and len(year) == 4
+        and 1000 <= int(year) <= 2999
+        and _all_figures(month)
+        and len(month) <= 2
+        and 1 <= int(month) <= 12
+    )
+
+
+# The marks that join a week to its year and to its day (`_a_week_of_a_year`):
+# `-`, `/` and, since the micro-step on lane CODES-2's follow-up (the
+# orchestrator's LANE CODES-2 RULINGS 10 (2)), a point.
+_WEEK_JOINTS = "-/."
+
+
+def _a_week_of_a_year(token: str) -> bool:
+    """A week written with its year (`2021-W14`, `1990W11`, `2021-W14-3`, `W14-2021`, `2021.W14`, `W14.2021`): a date other than a year.
+
+    *Restated by lane CODES-2's follow-up* (the verify of repair 2, item 3;
+    the orchestrator's LANE CODES-2 RULINGS 8 (4)): the week's figures, 1 to
+    53, beside a year of four figures from 1900 to 2100, the year first or
+    the week first, joined by `-`, `/` or nothing, a day's figure after a
+    year-first week allowed (`2021-W14-3`, `2021W143`). Read with no bound on
+    its year and its points dropped, `W16.011` was week 1 of the year 6011,
+    and path (i) refused 165 of 16,772 generated ICD-10-CM codes of the W
+    chapter written without their seventh character, so their column named
+    nothing. A week of one figure stays a week where a mark between or the
+    year first leaves no code's reading (`W5-2021`, `2021-W5`, `2021W5`), as
+    before (HIPAA first: no public code is written so, and the gate's week
+    family holds such spellings); written week first with nothing between, a
+    week has two figures (`W142021`), since `W` and five figures is a code
+    written without its point (`W22041`). *Re-ruled by the micro-step on the
+    follow-up's verify* (its item 2; the orchestrator's LANE CODES-2 RULINGS
+    10 (2)): read never across a point, a week joined to its year by one was
+    named after `no` on paths (iii) and (i). A POINT JOINS TOO where no code
+    is written so (`_WEEK_JOINTS`): a year written first to its week and the
+    week to its day (`2021.W14`, `2021-W14.3`), and a week written first to
+    the year after it (`W14.2021`) -- no code of the W chapter has four
+    figures after its point (`W16.011` has three, and its seventh character
+    is a letter) and no code begins with four figures and `W`. PRICE,
+    measured first: 0 of 905,100 spellings of the W chapter written out (W00
+    to W99, every form) and 0 of 324,836 generated codes of 28 systems newly
+    refused on paths (i) and (iii). A week or a year outside the bounds
+    (`1899-W14`, `2021-W54`, `W14.2101`) is no week, with a point or without:
+    P4-D471's stated limit (m). Guarantees: a fixed function of the text.
+    Raises TypeError where it is no text. No I/O.
+    """
+    if not isinstance(token, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    low = parsing.folded(token)
+    cut = -1
+    for place in range(len(low)):
+        if low[place] == "w":
+            if cut >= 0:
+                return False
+            cut = place
+    if cut < 0:
+        return False
+    before = low[:cut]
+    after = low[cut + 1 :]
+    if before:
+        year = before[: len(before) - 1] if before[len(before) - 1] in _WEEK_JOINTS else before
+        if not _a_year_a_week_is_read_beside(year):
+            return False
+        parts = _parts_between(after, _WEEK_JOINTS)
+        if len(parts) == 1 and len(after) == 3 and _all_figures(after):
+            return _the_figures_of_a_week(after[:2])
+        if len(parts) == 2:
+            return _the_figures_of_a_week(parts[0]) and len(parts[1]) == 1 and _all_figures(parts[1])
+        return len(parts) == 1 and _the_figures_of_a_week(after)
+    parts = _parts_between(after, _WEEK_JOINTS)
+    if len(parts) == 2:
+        return _the_figures_of_a_week(parts[0]) and _a_year_a_week_is_read_beside(parts[1])
+    # ...the week first with nothing between it and its year only in two
+    # figures (`W142021`): `W` and five figures is a code of the W chapter
+    # written without its point (`W22041`, W22.041), never a week.
+    return (
+        len(parts) == 1
+        and len(after) == 6
+        and _all_figures(after)
+        and _the_figures_of_a_week(after[:2])
+        and _a_year_a_week_is_read_beside(after[2:])
+    )
+
+
+def _a_year_a_week_is_read_beside(text: str) -> bool:
+    """`2021`: a year of four figures from 1900 to 2100 (`_a_week_of_a_year`)."""
+    return len(text) == 4 and _all_figures(text) and 1900 <= int(text) <= 2100
+
+
+def _the_figures_of_a_week(text: str) -> bool:
+    """`14`, `5`: a week's number of one or two figures from 1 to 53 (`_a_week_of_a_year`)."""
+    return 1 <= len(text) <= 2 and _all_figures(text) and 1 <= int(text) <= 53
+
+
+# The marks and words that say a number is about, or past, what it reads
+# (`~95`, `95?`, `100+`, `>95`, `95 est`, `approx 92`, `101 (est)`).
+_MORE_OR_ABOUT = "~≈?+>≥"
+_ABOUT_WORDS = frozenset(("est", "estimated", "approx", "approximately", "about", "ca", "circa", "c"))
+
+
+def _words_apart_from_figures(token: str) -> "list[str]":
+    """A word's runs of ASCII letters in small letters, each that no figure touches on either side."""
+    if not isinstance(token, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    low = _ascii_letters_and_figures(token)
+    found: "list[str]" = []
+    place = 0
+    while place < len(low):
+        if not "a" <= low[place] <= "z":
+            place = place + 1
+            continue
+        start = place
+        while place < len(low) and "a" <= low[place] <= "z":
+            place = place + 1
+        before = low[start - 1] if start else " "
+        after = low[place] if place < len(low) else " "
+        if not ("0" <= before <= "9" or "0" <= after <= "9"):
+            found += [low[start:place]]
+    return found
+
+
+def _an_age_past_89_with_a_mark(token: str) -> bool:
+    """`~95`, `95?`, `100+`, `>95`, `95-est`, `approx-92`: a number from 90 to 125 written with a mark of about or more.
+
+    An age past 89 is a Safe Harbor element (45 CFR 164.514(b)(2)(i)(C)),
+    and a person writes one so beside an age column's readings; the screen
+    refuses it on every road it reads, `no` included (the orchestrator's
+    LANE CODES-2 RULINGS 4 (2)). A plain number is no word of a label: it
+    joins the column's numbers, which the top-code reaches. A word of about
+    is read only where it stands apart from the figures (`c. 95`, `95 est`,
+    `101 (est)`): glued to them it is a code's letter (`444Y94C`, `C95`;
+    lane CODES-2's repair 2, measured on generated ICD-10-PCS codes). And a
+    run of figures after a point or an exponent's letter is a decimal's or
+    an exponent's part, no age (`C62.97`, `1.090E+304`).
+    """
+    marked = any(mark in token for mark in _MORE_OR_ABOUT) or bool(
+        set(_words_apart_from_figures(token)) & _ABOUT_WORDS
+    )
+    if not marked:
+        return False
+    for start, length in _figure_runs(token):
+        run = token[start : start + length]
+        if start and token[start - 1] in ".,eE":
+            continue
+        if _all_figures(run) and length <= 3 and 90 <= int(run) <= 125:
+            return True
+    return False
+
+
+# The marks a masked number writes in place of a figure (`XXX-XX-6789`, `522**`).
+_MASKS = "Xx*#"
+# The endings of a picture's file name (`face_0012.jpg`): a full-face photograph is
+# a Safe Harbor element (45 CFR 164.514(b)(2)(i)(Q)), and its file name points to one.
+_IMAGE_ENDINGS = (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tif", ".tiff", ".dcm", ".heic", ".webp")
+
+
+def _a_masked_social_security_number(word: str) -> bool:
+    """`XXX-XX-6789`, `***-**-6789`, `SSN 6789` or `SSN1234`: a social security number masked to its last figures (rule (8)).
+
+    Paths (ii) and (iii) read the word `SSN` wherever its letters stand as a
+    word, figures glued to it or not (`SSN1234`, `ssn#4410`): repair 1's
+    reading, restored there by lane CODES-2's follow-up (the verify of
+    repair 2, item 5; the orchestrator's LANE CODES-2 RULINGS 8 (6)), where
+    repair 2's narrowing had let `SSN1234` be named after `no` on path (iii).
+    Path (i) keeps the narrowing (`_a_masked_social_security_number_of_a_code`).
+    """
+    if _a_social_security_number_masked_by_marks(word):
+        return True
+    return "ssn" in _words_of(_ascii_letters(word)) and _a_word_holding_a_figure(word)
+
+
+def _a_masked_social_security_number_of_a_code(word: str) -> bool:
+    """PATH (i)'S READING of rule (8)'s social security number: `SSN` read only where it stands apart from figures (`0SSN123` is a code's letters, lane CODES-2's repair 2)."""
+    if _a_social_security_number_masked_by_marks(word):
+        return True
+    return "ssn" in _words_apart_from_figures(word) and _a_word_holding_a_figure(word)
+
+
+def _a_social_security_number_masked_by_marks(word: str) -> bool:
+    """`XXX-XX-6789`, `***-**-6789`: three masks, two masks and four figures cut by `-` (rule (8))."""
+    for token in _words_of(word):
+        parts = _parts_between(token, "-")
+        if (
+            len(parts) == 3
+            and len(parts[0]) == 3
+            and len(parts[1]) == 2
+            and all(mark in _MASKS for mark in parts[0] + parts[1])
+            and _all_figures(parts[2])
+            and len(parts[2]) == 4
+        ):
+            return True
+    return False
+
+
+def _an_image_file_name(word: str) -> bool:
+    """`face_0012.jpg`, `IMG_0008.JPG`: a picture's file name (rule (8))."""
+    for token in _words_of(parsing.folded(word)):
+        if _ends_as_a_picture(token):
+            return True
+    return False
+
+
+def _ends_as_a_picture(token: str) -> bool:
+    """Whether one word ends in a picture's ending after one character or more (`_IMAGE_ENDINGS`)."""
+    if not isinstance(token, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    for ending in _IMAGE_ENDINGS:
+        if len(token) > len(ending) and token[len(token) - len(ending) :] == ending:
+            return True
+    return False
+
+
+def _a_masked_zip_area(word: str) -> bool:
+    """`522**`, `52***`, `522xx`: a ZIP code of five places masked past its first two to four figures (rule (8))."""
+    for token in _words_of(word):
+        figures = 0
+        while figures < len(token) and "0" <= token[figures] <= "9":
+            figures = figures + 1
+        rest = token[figures:]
+        if len(token) == 5 and 2 <= figures <= 4 and rest and all(mark in _MASKS for mark in rest):
+            return True
+    return False
+
+
+def _an_e_mail_written_with_at(word: str) -> bool:
+    """`jsmith at example.org`: an e-mail address with its `@` written as the word `at` before a host (rule (3))."""
+    words = _words_of(parsing.folded(word))
+    for place in range(1, len(words) - 1):
+        if words[place] == "at" and _a_dotted_host(words[place + 1]):
+            return True
+    return False
+
+
+def _a_dotted_host(token: str) -> bool:
+    """`example.org`: a point between two letters somewhere in one word."""
+    if not isinstance(token, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    for spot in range(1, len(token) - 1):
+        if token[spot] == "." and _a_letter_of_any_script(token[spot - 1]) and _a_letter_of_any_script(token[spot + 1]):
+            return True
+    return False
+
+
+def _an_identifier_shape(word: str) -> bool:
+    """RULE (8), the shapes unmistakably an identifier's, refused on both roads the screen reads (P4-D471).
+
+    The orchestrator's LANE CODES-2 RULINGS 4 (3), measured first on the code
+    columns of K-HZ-17's forms (`codes`, `wide_mart`, `role_mix`): a
+    masked social security number, a picture's file name, a masked ZIP
+    area and an e-mail written with `at`. A shape that is also a plain
+    code's -- letters and figures in a fixed pattern (`AB12-3456`, `SN 1234`,
+    `RN-1234`, a plate), a record number of six figures or fewer, a run of
+    hexadecimal characters -- is not read here: path (ii) names none of them
+    before `no` (rules (6) and the figure rule) and path (iii) names them
+    after `no` alone, the stated limit of P4-D471 with its counts.
+    """
+    return (
+        _a_masked_social_security_number(word)
+        or _an_image_file_name(word)
+        or _a_masked_zip_area(word)
+        or _an_e_mail_written_with_at(word)
+    )
+
+
+def _an_identifier_shape_of_a_code(word: str) -> bool:
+    """RULE (8) AS PATH (i) READS IT: `_an_identifier_shape`, its social security number read as a code's (`_a_masked_social_security_number_of_a_code`)."""
+    return (
+        _a_masked_social_security_number_of_a_code(word)
+        or _an_image_file_name(word)
+        or _a_masked_zip_area(word)
+        or _an_e_mail_written_with_at(word)
+    )
+
+
+def _reads_as_a_date_or_clock(token: str) -> bool:
+    """Whether one word is written as a date, an age, a clock time or an internet address.
+
+    A date: three runs of figures cut by `/`, `-` or `.` (`12/03/2024`,
+    `2024-03-12`, `3.12.24`); a month and a day cut by `/` (`6/12`: both
+    could be one); a month's word beside figures (`12Mar`, `Mar-12`). An
+    age: a unit an age is counted in beside figures (`92-years`, `101yrs`).
+    A clock: two figures, `:` and two (`14:32`), seconds after it, or `am`
+    or `pm` alone beside figures (`2pm`). An internet address: four runs of
+    figures cut by `.`. A ratio of one figure before `:` (`1:40`, a titer)
+    is no clock.
+
+    AND THE DATES OTHER THAN A YEAR THAT HOLD NO DAY OR NO YEAR (the
+    statistics skeptic's item 1 of lane CODES-2's repair 1, 45 CFR
+    164.514(b)(2)(i)(C)): a month beside a year of four figures, either
+    first (`2023-07`, `11/2022`, `3.2024`, `1990/03`); a day above 12
+    beside a month, either first (`14-03`, `03-14`, `13/01`, `14.03`); a
+    week with its year (`2021-W14`); and an age past 89 written with a
+    mark or a word of about or more (`100+`, `>95`, `~95`, `95?`, `95 est`,
+    `approx 92`), as `age 101` is by its word. Two numbers
+    neither above 12 (`2-3`, `6-8`, a range), a ratio (`120/80`, `20/40`),
+    `12-345` and `4521/7` are none of these: the stand-ins page's ZS.3 (ii)
+    names them after `no`. MEASURED cost, stated in P4-D471: a rare range
+    whose larger end is 13 to 31 and whose smaller 12 or under (`10-14`,
+    `5-14`) is read as a date too.
+    """
+    if not isinstance(token, str):
+        raise TypeError("a held-back spelling reached the word screen as something other than text")
+    parts = _parts_between(token, "/-.")
+    figure_parts = [part for part in parts if _all_figures(part)]
+    if len(parts) == 3 and len(figure_parts) == 3:
+        return True
+    if len(parts) == 4 and len(figure_parts) == 4 and "." in token:
+        return True
+    if len(parts) == 2 and len(figure_parts) == 2:
+        first, second = parts
+        if _a_year_beside_a_month(first, second) or _a_year_beside_a_month(second, first):
+            return True
+        if len(first) <= 2 and len(second) <= 2:
+            one, two = int(first), int(second)
+            if (13 <= one <= 31 and 1 <= two <= 12) or (1 <= one <= 12 and 13 <= two <= 31):
+                return True
+    if _a_week_of_a_year(token):
+        return True
+    if _an_age_past_89_with_a_mark(token):
+        return True
+    slashed = _parts_between(token, "/")
+    if (
+        len(slashed) == 2
+        and _all_figures(slashed[0])
+        and _all_figures(slashed[1])
+        and len(slashed[0]) <= 2
+        and len(slashed[1]) <= 2
+        and 1 <= int(slashed[0]) <= 12
+        and 1 <= int(slashed[1]) <= 31
+    ):
+        return True
+    if _figure_runs(token):
+        bare = ""
+        for word in _words_of(_ascii_letters(token)):
+            if word in _MONTH_WORDS or word in _AGE_WORDS:
+                return True
+            bare = bare + word
+        if bare in ("am", "pm"):
+            return True
+        # ...a unit an age is counted in AFTER its figures (`92y`, `92-years`,
+        # `1100 m`, `100 y/o`), as `AGE_UNIT_WORDS` reads an age; before them
+        # (`M54`, `W19`, `D50`, `Y92`) the letters are a code's, not a unit
+        # (the orchestrator's LANE CODES-2 RULINGS 4 (3): a plain code's shape
+        # is not refused); and only where its number is an age past 89 in
+        # that unit (`_an_age_past_89_in_a_unit`; the verify of repair 1,
+        # item 5: `S72.001D` and `0Y6M0Z0` are codes, not ages).
+        if _an_age_past_89_in_a_unit(token):
+            return True
+    return _a_clock_time(token)
+
+
+def _a_clock_time(token: str) -> bool:
+    """`14:32`, `14:32:05`, `09:15am`: two figures, `:` and two, or three runs of figures cut by `:` (a ratio `1:40` is none)."""
+    if not isinstance(token, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    timed = _parts_between(token, ":")
+    if len(timed) >= 3 and _all_figures(timed[0]) and _all_figures(timed[1]) and _all_figures(timed[2]):
+        return True
+    return len(timed) == 2 and _all_figures(timed[0]) and len(timed[0]) == 2 and _all_figures(timed[1][:2])
+
+
+def _an_age_past_89_in_a_unit(token: str) -> bool:
+    """`92y`, `101 yrs`, `92-years`, `1100 m`, `4700 wks`, `100 y/o`: a number whose unit word after it makes it an age from 90 to 125 years.
+
+    A unit an age is counted in (`AGE_UNIT_WORDS`), read AFTER the
+    number's figures with at most two spaces, hyphens or points between,
+    and the number, its decimal part set aside, at the unit's mark or more
+    (lane SH3's `AGE_MARKS`) and under 126 years: 90 to 125 years, 1,080 to
+    1,511 months, 4,695 to 6,572 weeks, 32,871 to 46,018 days. An age past
+    89 is a Safe Harbor element (45 CFR 164.514(b)(2)(i)(C)); a code whose
+    letter follows figures that make no such age -- `S72.001D`, `T36.0X1D`
+    (a seventh character after `001` and `1`), `0Y6M0Z0` -- is none (the
+    verify of lane CODES-2's repair 1, item 5: read as a unit after any
+    number, 133 of 399 ICD-10-CM codes with a seventh character and 59 of
+    399 ICD-10-PCS codes were refused, and their columns named nothing).
+    READ WITHOUT THE AGE VOCABULARY'S BRACKETS (batch 4s's merge of lane
+    HB2: the screen reads the shared vocabulary, `AGE_VOCABULARY.brackets`):
+    a unit word the vocabulary writes in brackets after the number
+    (`121 (years)`, `93(yrs)`, `95 [y]`) is read as the vocabulary reads it,
+    where the bracket parted the unit from its figures and the spelling was
+    named after `no` on paths (i) and (iii) (the generated-families
+    agreement case: 75 of 2,083 families past 89 named on each). Guarantees:
+    a fixed function of the text. Raises TypeError where it is no text. No
+    I/O.
+    """
+    if not isinstance(token, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    low = _ascii_letters_and_figures(_without_the_age_brackets(token))
+    place = 0
+    while place < len(low):
+        if not "0" <= low[place] <= "9":
+            place = place + 1
+            continue
+        start = place
+        while place < len(low) and "0" <= low[place] <= "9":
+            place = place + 1
+        whole = low[start:place]
+        if place + 1 < len(low) and low[place] in ".," and "0" <= low[place + 1] <= "9":
+            place = place + 1
+            while place < len(low) and "0" <= low[place] <= "9":
+                place = place + 1
+        after = place
+        while after < len(low) and after - place < 2 and low[after] in " -.":
+            after = after + 1
+        unit = ""
+        while after < len(low) and "a" <= low[after] <= "z":
+            unit = unit + low[after]
+            after = after + 1
+        # ...a unit's letter with a figure straight after it is a code's
+        # letter between figures (`0W995Y4`), no age's unit.
+        if after < len(low) and "0" <= low[after] <= "9":
+            continue
+        if unit in _AGE_UNIT_WORDS and unit in AGE_UNIT_WORDS and len(whole) <= 6:
+            mark = AGE_MARKS[AGE_UNIT_WORDS[unit]]
+            if mark <= int(whole) < (mark * 126) // 90:
+                return True
+    return False
+
+
+def _without_the_age_brackets(text: str) -> str:
+    """A text with every bracket of the age vocabulary set aside (`AGE_VOCABULARY.brackets`: `121 (years)` is `121 years`; batch 4s's merge). A fixed function of the text. No I/O."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    kept = ""
+    for character in text:
+        bracket = False
+        for opening, closing in AGE_VOCABULARY.brackets:
+            if character == opening or character == closing:
+                bracket = True
+        if not bracket:
+            kept = kept + character
+    return kept
+
+
+def _ascii_letters_and_figures(text: str) -> str:
+    """A text folded to small letters, with its ASCII letters, figures, spaces, hyphens, points and commas kept and every other character a `/`."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    kept = ""
+    for character in parsing.folded(text):
+        kept = kept + (character if "a" <= character <= "z" or "0" <= character <= "9" or character in " -.," else "/")
+    return kept
+
+
+# THE WORDS OF A NUMBER OF NINETY OR MORE AND OF A PERSON THAT OLD (the verify
+# of lane CODES-2's repair 1, item 3: `ninety-five`, `Ninety-two`, `hundred`
+# and `hundred+` were named in a column the age top-code reaches, unanswered
+# and after `yes`, and the twin wrote them): an age past 89 written in words is
+# a Safe Harbor element as `~95` is, refused on every road the screen reads.
+_NUMBER_WORDS_PAST_89 = frozenset((
+    "ninety", "nineties", "hundred", "hundreds", "thousand", "thousands", "nonagenarian", "nonagenarians",
+    "centenarian", "centenarians", "supercentenarian", "supercentenarians",
+))
+# ...and a day of the month written out, which beside a month's name makes a
+# date other than a year (`April fifth`, `the twenty first of May`).
+_DAY_WORDS = frozenset((
+    "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth",
+    "eleventh", "twelfth", "thirteenth", "fourteenth", "fifteenth", "sixteenth", "seventeenth",
+    "eighteenth", "nineteenth", "twentieth", "thirtieth", "one", "two", "three", "four", "five", "six",
+    "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
+    "seventeen", "eighteen", "nineteen", "twenty", "thirty",
+))
+# ...and a month's name written whole, alone a date's element too (`April`).
+_WHOLE_MONTH_NAMES = frozenset((
+    "january", "february", "march", "april", "may", "june", "july", "august", "september", "october",
+    "november", "december",
+))
+
+
+def _a_date_or_an_age_in_words(word: str) -> bool:
+    """`ninety-five`, `hundred+`, `a centenarian`, `April fifth`, `April`: an age past 89 or a date other than a year written in words.
+
+    Read over the whole spelling's ASCII words in small letters: a word of
+    `_NUMBER_WORDS_PAST_89`, or those words glued into one
+    (`_number_words_glued`: `ninetyfive`, `HundredEight+`); a month's name
+    or short form beside a day's word (`_DAY_WORDS`); or a month's whole
+    name alone. A month's short form alone (`Mar`, `Dec`) and a day's word
+    alone (`second`) are no date. Guarantees: a fixed function of the text.
+    Raises TypeError where it is no text. No I/O.
+    """
+    words = _words_of(_ascii_letters(word))
+    held = set(words)
+    if held & _NUMBER_WORDS_PAST_89:
+        return True
+    for letters in words:
+        if _number_words_glued(letters):
+            return True
+    if len(words) == 1 and words[0] in _WHOLE_MONTH_NAMES:
+        return True
+    return bool(held & _MONTH_WORDS) and bool(held & _DAY_WORDS)
+
+
+# ...AND THOSE WORDS GLUED INTO ONE (lane CODES-2's follow-up; the verify of
+# repair 2, item 2, and the orchestrator's LANE CODES-2 RULINGS 8 (3):
+# `ninetyfive`, `NinetyTwo`, `HundredEight+` and `onehundredtwo?` were named
+# with no question, 324 of 324 generated, and 10 names and 19 twin cells at
+# 20,000 rows): a word whose letters begin with `ninety`, `hundred` or
+# `thousand` -- a count of hundreds before them allowed (`a`, `one` to
+# `nine`) -- and go on only with number words glued (`and`, the ones, the
+# teens, the tens), at most one word of a mark or a unit at its end. *Read
+# by backtracking since the micro-step on the follow-up's verify*
+# (`_glued_rest_reads`, the orchestrator's LANE CODES-2 RULINGS 10 (1)):
+# `ninetyeightyrs` is `ninety`, `eight` and `yrs`, never `eighty` and `rs`.
+_GLUED_COUNTS = ("a", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
+_GLUED_NUMBER_WORDS = (
+    "seventeen", "thirteen", "fourteen", "eighteen", "nineteen", "thousand", "fifteen", "hundred", "sixteen",
+    "seventy", "eleven", "twelve", "twenty", "thirty", "eighty", "ninety", "forty", "fifty", "sixty", "three",
+    "seven", "eight", "four", "five", "nine", "and", "one", "two", "six", "ten",
+)
+_GLUED_ENDS = ("yearsold", "yearold", "years", "year", "yrs", "plus", "odd", "ish", "old", "yr", "yo", "y", "s")
+
+
+def _number_words_glued(letters: str) -> bool:
+    """`ninetyfive`, `hundredeight`, `onehundredandtwo`: one run of small ASCII letters that is a number of ninety or more in number words glued.
+
+    After its head (`ninety`, `hundred` or `thousand`, a count of hundreds
+    before it allowed), the word must read as number words glued and at
+    most one end word (`_glued_rest_reads`), every way of cutting it tried,
+    so `ninetyeightyrs` is `ninety`, `eight` and `yrs`; a word that goes on
+    with anything else (`hundredweight`, `thousandfold`, `onehundredth`) is
+    no such number. Guarantees: a fixed function of the text. Raises
+    TypeError where it is no text. No I/O.
+    """
+    if not isinstance(letters, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    rest = letters
+    for count in _GLUED_COUNTS:
+        after = rest[len(count) :]
+        if rest[: len(count)] == count and (after[:7] == "hundred" or after[:8] == "thousand"):
+            rest = after
+            break
+    if not (rest[:6] == "ninety" or rest[:7] == "hundred" or rest[:8] == "thousand"):
+        return False
+    return _glued_rest_reads(rest)
+
+
+def _glued_rest_reads(rest: str) -> bool:
+    """`ninetyeightyrs`, `hundredandtwo`, `eightyo`: whether a text reads as number words glued, then at most one end word.
+
+    THE BACKTRACKING READ (the micro-step on lane CODES-2's follow-up, the
+    scoped verify's item 1, a HIPAA blocker; the orchestrator's LANE
+    CODES-2 RULINGS 10 (1)): ``rest`` reads where it is empty or one word of
+    `_GLUED_ENDS`, or where a word of `_GLUED_NUMBER_WORDS` begins it and the
+    remainder reads -- every such word tried, none kept for good. Each word
+    taken longest first and never given back, `eight` followed by an end
+    word in `y` was read `eighty` and a rest that is no end word, so
+    `ninetyeightyrs`, `HundredEightYears` and `onehundredandeightyearsold`
+    read as no number and were named on every road: 819 of the 23,562
+    spellings of the glued grammar, and 45 names and 90 twin cells a column
+    at 20,000 rows. The read carries its own table of the places a reading
+    of number words can reach, each place tried once, and never recurses:
+    read by recursion, a run of 1,207 letters (`hundred` and 400 `and`)
+    went past Python's limit of 1,000 frames when measured, and a step
+    nested past it stops the command (plan P4-D380). Guarantees: a fixed
+    function of the text, each place read once against each number word.
+    Raises TypeError where it is no text. No I/O.
+    """
+    if not isinstance(rest, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    reached = [False] * (len(rest) + 1)
+    reached[0] = True
+    for place in range(len(rest) + 1):
+        if not reached[place]:
+            continue
+        left = rest[place:]
+        if left == "" or left in _GLUED_ENDS:
+            return True
+        for piece in _GLUED_NUMBER_WORDS:
+            if left[: len(piece)] == piece:
+                reached[place + len(piece)] = True
+    return False
+
+
+# THE NEIGHBOUR FAMILIES (lane CODES-2's follow-up; the verify of repair 2,
+# item 4, and the orchestrator's LANE CODES-2 RULINGS 8 (5), each priced first
+# on K-HZ-17's code columns and on 20,000 generated codes of each public
+# system, P4-D471): after `no`, paths (i) and (iii) named a month beside a day
+# in figures (`1 of April`), a word of about glued to an age past 89 or joined
+# to it by a point (`c.95`, `approx95`: 40 names and 79 twin cells a column at
+# 20,000 rows), a decade past 89 (`90s`) and an age whose marks stand apart
+# (`age : 95`). Each is refused on every road the screen reads, `no` included,
+# SAVE `c` glued BEFORE the number (`C95`), the shape of the ICD-10-CM
+# categories C90 to C96, which stays named: the stated limit (m).
+_DECADES_PAST_89 = ("90s", "100s", "110s", "120s")
+
+
+def _a_neighbour_date_or_age(word: str) -> bool:
+    """Whether a held-back spelling is a date or an age past 89 in a neighbour family's form (`_a_month_beside_a_day_in_figures`, `_an_about_word_glued_to_an_age`, `_a_decade_past_89`, `_an_age_past_89_with_its_marks_apart`)."""
+    return (
+        _a_month_beside_a_day_in_figures(word)
+        or _an_about_word_glued_to_an_age(word)
+        or _a_decade_past_89(word)
+        or _an_age_past_89_with_its_marks_apart(word)
+    )
+
+
+def _letter_and_figure_runs(word: str) -> "list[str]":
+    """A spelling's runs of ASCII letters and figures, folded to small letters, every other character cutting them."""
+    if not isinstance(word, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    runs: "list[str]" = []
+    current = ""
+    for character in _ascii_letters_and_figures(_with_ascii_figures(word)):
+        if "a" <= character <= "z" or "0" <= character <= "9":
+            current = current + character
+        else:
+            if current:
+                runs += [current]
+            current = ""
+    if current:
+        runs += [current]
+    return runs
+
+
+def _a_day_in_figures(run: str) -> bool:
+    """`5`, `12`, `5th`, `21st`: a day of the month, 1 to 31, in one or two figures, ordinal or not."""
+    if not isinstance(run, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    figures = 0
+    while figures < len(run) and "0" <= run[figures] <= "9":
+        figures = figures + 1
+    return 1 <= figures <= 2 and 1 <= int(run[:figures]) <= 31 and run[figures:] in ("", "st", "nd", "rd", "th")
+
+
+def _a_month_beside_a_day_in_figures(word: str) -> bool:
+    """`1 of April`, `the 5th of March`, `12th April`, `Mar 5th`, `12th of Apr`, `April the 5th`: a month's name or short form beside a day in figures.
+
+    A month's word (`_MONTH_WORDS`) and a day of the month (`_a_day_in_figures`)
+    side by side, or with `of` and `the` alone between them, over the
+    spelling's runs of letters and figures (`_letter_and_figure_runs`).
+    Guarantees: a fixed function of the text. Raises TypeError where it is
+    no text. No I/O.
+    """
+    runs = _letter_and_figure_runs(word)
+    for first in range(len(runs)):
+        later = first + 1
+        while later < len(runs) and later <= first + 3:
+            if (runs[first] in _MONTH_WORDS and _a_day_in_figures(runs[later])) or (
+                runs[later] in _MONTH_WORDS and _a_day_in_figures(runs[first])
+            ):
+                return True
+            if runs[later] not in ("of", "the"):
+                break
+            later = later + 1
+    return False
+
+
+def _an_age_in_figures(text: str) -> bool:
+    """`95`, `101`: a number from 90 to 125 in two or three figures, no nought first."""
+    return 2 <= len(text) <= 3 and _all_figures(text) and text[0] != "0" and 90 <= int(text) <= 125
+
+
+def _an_about_word_glued_to_an_age(word: str) -> bool:
+    """`c.95`, `ca.92`, `approx95`, `circa101`, `95est`, `100approx`: a word of about glued to an age past 89, or joined to it by a point.
+
+    Over each word of the spelling, folded, its marks of more or about at
+    its end set aside (`+`, `?`, `~`, `.`, `!`): a word of `_ABOUT_WORDS`
+    glued to a number from 90 to 125 or joined to it by a point, before it
+    or after it -- SAVE `c` glued before the number (`C95`), an ICD-10-CM
+    category, the stated limit (m) of P4-D471. Guarantees: a fixed function
+    of the text. Raises TypeError where it is no text. No I/O.
+    """
+    if not isinstance(word, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    for token in _words_of(parsing.folded(_with_ascii_figures(word))):
+        body = token
+        while body and body[len(body) - 1] in "+?~.!":
+            body = body[: len(body) - 1]
+        for about in _ABOUT_WORDS:
+            size = len(about)
+            if body[:size] == about:
+                rest = body[size:]
+                if (rest[:1] == "." and _an_age_in_figures(rest[1:])) or (about != "c" and _an_age_in_figures(rest)):
+                    return True
+            if len(body) > size and body[len(body) - size :] == about:
+                rest = body[: len(body) - size]
+                if _an_age_in_figures(rest) or (rest[len(rest) - 1 :] == "." and _an_age_in_figures(rest[: len(rest) - 1])):
+                    return True
+    return False
+
+
+def _a_decade_past_89(word: str) -> bool:
+    """`90s`, `90's`, `in his 90s`, `mid-100s`: a decade from 90 to 120 (`_DECADES_PAST_89`), its apostrophe set aside."""
+    if not isinstance(word, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    for token in _words_of(parsing.folded(_with_ascii_figures(word))):
+        for piece in _parts_between(token, "-"):
+            plain = ""
+            for character in piece:
+                if character not in "'’":
+                    plain = plain + character
+            if plain in _DECADES_PAST_89:
+                return True
+    return False
+
+
+def _an_age_past_89_with_its_marks_apart(word: str) -> bool:
+    """`age : 95`, `95 ( est )`, `approx . 101`, `95 y . o .`: an age past 89 whose mark, word of about or age, or unit stands apart from it.
+
+    The spelling's words joined with no space between them, read by the
+    readers of an age (`_an_age_past_89_with_a_mark`,
+    `_an_age_word_beside_figures`, `_an_age_past_89_in_a_unit`,
+    `_an_about_word_glued_to_an_age`). Guarantees: a fixed function of the
+    text. Raises TypeError where it is no text. No I/O.
+    """
+    if not isinstance(word, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    words = _words_of(_with_ascii_figures(word))
+    if len(words) < 2:
+        return False
+    joined = ""
+    for piece in words:
+        joined = joined + piece
+    return (
+        _an_age_past_89_with_a_mark(joined)
+        or _an_age_word_beside_figures(joined)
+        or _an_age_past_89_in_a_unit(joined)
+        or _an_about_word_glued_to_an_age(joined)
+    )
+
+
+def _an_age_word_beside_figures(token: str) -> bool:
+    """`age 97`, `aged 101`, `92 years old`: figures and a word that says an age (`_AGE_WORDS`) in one word or a pair."""
+    return bool(_figure_runs(token)) and bool(set(_words_of(_ascii_letters(token))) & _AGE_WORDS)
+
+
+def _a_shape_no_code_wears(name: str) -> bool:
+    """PATH (i)'S SCREEN: whether a held-back spelling of a declared code is shaped as no public code is (P4-D471).
+
+    The verify of lane CODES-2's repair 1, item 4: a declared code answered
+    `no` named every held-back spelling, so the dates, ages, internet and
+    masked shapes the screen refuses on paths (ii) and (iii), `no`
+    included, were named on path (i): 2,518 names over 48 of 65 families at
+    20,000 rows. Refused here, on the person's `no` too, the shapes no
+    public code system writes: a week with its year (`2021-W14`); an age
+    past 89 with a mark (`~95`, `100+`), with its unit after it (`92 yrs`,
+    `1100 m`) or in words (`ninety-five`); figures beside `age`, `aged` or
+    `old`; a month's name alone or beside a day's word; a clock time
+    (`14:32`); an e-mail, a web or internet address, a host followed by a
+    path; and rule (8)'s masked social security numbers, picture file
+    names, masked ZIP areas and e-mails written with `at`. NOT read here,
+    each a public code's shape too: three runs of figures (`10098-9154-5`,
+    an NDC), a month beside a year (`2345-7`, a LOINC code), a day above 12
+    beside a month (`13-8`), a run of five figures or more, letters beside
+    figures. *Added by lane CODES-2's follow-up* (the orchestrator's LANE
+    CODES-2 RULINGS 8 (2), (5) and (6)): the spelling is READ TWICE, as
+    written and with every character that prints nothing removed
+    (`_without_what_prints_nothing`), and refused where either reading wears
+    such a shape; the neighbour families are refused too
+    (`_a_neighbour_date_or_age`); and the word `SSN` is read only apart
+    from figures (`_an_identifier_shape_of_a_code`). Guarantees: a fixed
+    function of the text. Raises TypeError where it is no text. No I/O.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    return _a_shape_no_code_wears_read_once(name) or _a_shape_no_code_wears_read_once(_without_what_prints_nothing(name))
+
+
+def _a_shape_no_code_wears_read_once(name: str) -> bool:
+    """`_a_shape_no_code_wears` on one reading of the spelling."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    word = _with_ascii_figures(name)
+    if (
+        _an_internet_address(word)
+        or _an_identifier_shape_of_a_code(word)
+        or _a_date_or_an_age_in_words(word)
+        or _a_neighbour_date_or_age(word)
+    ):
+        return True
+    words = _words_of(word)
+    for place in range(len(words)):
+        pieces = [words[place]] + ([words[place - 1] + "-" + words[place]] if place else [])
+        for piece in pieces:
+            if (
+                _a_week_of_a_year(piece)
+                or _an_age_past_89_with_a_mark(piece)
+                or _an_age_past_89_in_a_unit(piece)
+                or _an_age_word_beside_figures(piece)
+                or _a_clock_time(piece)
+            ):
+                return True
+    return False
+
+
+# The most figures a word the screen passes may hold in all: a telephone
+# number holds ten (seven without its area), a social security number nine.
+WORD_SCREEN_FIGURES_AT_MOST = 6
+
+
+def passes_the_word_screen(word: str, counting_words: bool = True) -> bool:
+    """Whether a held-back word may be named (lane CODES-2, plan P4-D471; the stand-ins page's ZS.3 (ii), P4-D422).
+
+    THE SHAPE SCREEN the owner's answer Z1 = B names for short result words
+    (``counting_words``, path (ii)), the page's rules (1) to (7) and lane
+    CODES-2's repair 1's rule (8): (1) at most two words; (2) no run of five
+    figures or more, and at most `WORD_SCREEN_FIGURES_AT_MOST` figures in
+    all, of any script; (3) no `@`, `://` or `www.`, nor an e-mail's `@`
+    written out (`(at)`, or the word `at` before a host) or a host followed
+    by a path (`_an_internet_address`); (4) nothing written as a date, an
+    age past 89, a clock time or an internet address
+    (`_reads_as_a_date_or_clock`: a month beside a year, a day above 12
+    beside a month, a week, `age 101`, `92 yrs`, `~95`, `100+`), in a word or
+    across two -- a month's name beside a day (`Mar 12`) is a date -- and no
+    street address (a house number beside a street's word, `258 Elm St`);
+    (5) no dotted quad; (6) no spelling holding both a letter and a figure,
+    read over the whole spelling (`REC 1234`, `E1234`, `S12-3456`, `aged
+    101`, `K1A 0B1`); (7) no single letter followed by a point (`J.S.`,
+    `J. Smith`); (8) none of the shapes unmistakably an identifier's
+    (`_an_identifier_shape`: a masked social security number, a picture's
+    file name, a masked ZIP area). So a typed
+    comment (`Called to J. Smith RN at 14:32`) never passes, nor a
+    telephone number, an e-mail, a social security number, a ZIP code, a
+    web or internet address or a record number holding a letter. A word of
+    figures and marks that passes (`#4521`, `12-345`, `1:40`, `120/80`) is
+    named only after the person's `no` (`_names_under`). WHAT IT CANNOT
+    TELL, stated (P4-D471's limit (a)): a word of letters and marks alone
+    -- a lone one- or two-word name typed into a measurement column
+    (`Smith`, `Dr Smith`, `Elm Street`), a serial written in letters alone,
+    a bare host name (`example.org`) -- has no shape, and passes.
+
+    PATH (iii)'S NET (``counting_words`` False), behind the person's `no`
+    on a label column: rules (2) to (5), (8) and the street address; the
+    word count, rule (6) and rule (7) are the person's to answer
+    (`Type 2`, `3C-01A` or `p.o.` name no one).
+
+    READ TWICE (*added by lane CODES-2's follow-up*, the orchestrator's LANE
+    CODES-2 RULINGS 8 (2)): the word passes only where it passes as written
+    AND with every character that prints nothing removed
+    (`_without_what_prints_nothing`), so one zero-width or format character
+    inside `April`, `ninety-five`, `95+` or `14:32` hides no month, age or
+    clock; and on both readings the neighbour families
+    (`_a_neighbour_date_or_age`) and number words glued into one are
+    refused.
+
+    Guarantees: a fixed function of the word and the flag. Raises TypeError
+    where the word is no text. No I/O.
+    """
+    if not isinstance(word, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    return _passes_the_word_screen_read_once(word, counting_words) and _passes_the_word_screen_read_once(
+        _without_what_prints_nothing(word), counting_words
+    )
+
+
+def _passes_the_word_screen_read_once(word: str, counting_words: bool) -> bool:
+    """`passes_the_word_screen` on one reading of the word."""
+    if not isinstance(word, str):
+        raise TypeError(_NOT_TEXT_TO_THE_SCREEN)
+    # Every decimal figure of another script read as its ASCII figure first
+    # (lane CODES-2's repair 2, the verify's item 7): `٢٠٢٣-٠٧` is a month.
+    written = _with_ascii_figures(word)
+    words = _words_of(written)
+    if not words or (counting_words and len(words) > 2):
+        return False
+    if counting_words and (_letters_beside_figures(written) or _an_initial(written)):
+        return False
+    if _an_internet_address(written) or _an_identifier_shape(written):
+        return False
+    # ...and an age past 89 or a date written in words, on every road (the
+    # verify of repair 1, item 3), and the neighbour families (the follow-up).
+    if _a_date_or_an_age_in_words(written) or _a_neighbour_date_or_age(written):
+        return False
+    figures = 0
+    for _start, length in _figure_runs(written):
+        if length >= 5:
+            return False
+        figures = figures + length
+    if figures > WORD_SCREEN_FIGURES_AT_MOST:
+        return False
+    for place, token in enumerate(words):
+        if _reads_as_a_date_or_clock(token):
+            return False
+        if place and _reads_as_a_date_or_clock(words[place - 1] + "-" + token):
+            return False
+    # ...and a street address: a house number beside a street's word.
+    if figures and len(words) > 1:
+        for token in words:
+            if "".join(_words_of(_ascii_letters(token))) in _STREET_WORDS:
+                return False
+    return True
 
 
 # The characters each placeholder of a form stands for, in the order a
@@ -19065,6 +20590,47 @@ def _chosen_layout(
     return chosen
 
 
+def _another_zone_family(layout: str, failing: "list[str]") -> bool:
+    """Whether a text a zone-word layout misses ends in a word of another family of the closed list (plan P4-D473).
+
+    A COLUMN MIXING ZONE FAMILIES IS READ UNDER NONE (P4-D473 (c); Codex's
+    review of lane TR, item 5): the parse rate's allowance is for cells
+    that read as no stamp, never for cells of another family, so 19,900
+    Eastern stamps beside 100 Central European ones are a mixing, and the
+    column stays unread as an even mixture does -- where before the
+    Eastern layout read it with the 100 left unread and its twin wrote
+    them as filler. ``failing`` holds every text the layout missed where
+    it reached the line (`_layout_reads`), so a cell of another family is
+    among them. A function of the two; one look at each text's last word
+    (`_last_word`). Raises TypeError for a layout or a missed text that
+    is not text. No I/O.
+    """
+    field = parsing.layout_offset_field(parsing.layout_format(layout))
+    if not parsing.zone_family_offsets(field):
+        return False
+    for text in failing:
+        family = parsing.zone_family_of(_last_word(text))
+        if family and family != field:
+            return True
+    return False
+
+
+def _last_word(text: str) -> str:
+    """A text's last word: what follows its last space, the whole text where it holds none (plan P4-D473).
+
+    THE OFFLINE SCAN'S TYPE GATE comes first (lane TR's follow-up; LANE TR
+    RULINGS 7 (1) (b)): the scan traces no value of a list a function is
+    handed, so each text `_another_zone_family` looks at is checked as
+    text here, and the word is taken with `split`, a method the scan
+    clears on text (`rfind` is not one). A function of the text. Raises
+    TypeError for a text that is not text. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    pieces = text.split(" ")
+    return pieces[len(pieces) - 1]
+
+
 def _layout_walk(
     keyed: "list[tuple[tuple[int, int, int, int, int, int, str], str]]",
     counted: "dict[str, int]",
@@ -19102,7 +20668,7 @@ def _layout_walk(
         for one in grown:
             if one not in later and one not in reached:
                 later += [one]
-        if missed > room:
+        if missed > room or _another_zone_family(layout, failing):
             continue
         reached[layout] = read
         if read > best_rows:
@@ -19114,8 +20680,8 @@ def _layout_walk(
         items = parsing.compiled_layout(layout)
         if items is None or layout in reached:
             continue
-        read, missed, _failing = _layout_reads(items, counted, room)
-        if missed > room:
+        read, missed, missed_texts = _layout_reads(items, counted, room)
+        if missed > room or _another_zone_family(layout, missed_texts):
             continue
         reached[layout] = read
         if read > best_rows or (
@@ -20178,6 +21744,10 @@ def _datetime_details(
     # THE OFFSETS AS PUBLISHED, FIRST (plan P4-D222): a value whose offset
     # the census counts into the commonest one is read at that offset by
     # everything below, so no published fact tells it apart.
+    # ...THE CELLS AS PARSED KEPT for the rule an offset follows (lane DST's
+    # repair 2, Codex's item 4): a rule is read off the offsets the cells
+    # wear, never off the ones the census absorbed them into.
+    parsed_pairs = pairs
     offsets, pairs = _offsets_published(
         format_name, pairs, sources, settings
     )
@@ -20245,7 +21815,7 @@ def _datetime_details(
         tail_edges(format_name, unit, reading, offsets),
         distinct,
     )
-    return {
+    found = {
         "format": format_name,
         "resolution_mix": _resolution_mix(format_name, sources, truncated),
         "resolution": resolution,
@@ -20285,6 +21855,29 @@ def _datetime_details(
             clock_style, None if census is None else census.cells_at_midnight,
         ),
     }
+    # THE OFFSET THAT FOLLOWS THE DATE (lane DST, plan P4-D474, method
+    # G7.4r): where the column is read on the shared clock and every stamp
+    # wears the offset one rule family puts in force on its date, the rule
+    # is published, and the twin writes each cell at the offset in force on
+    # its own date instead of spending the census by counts. Absent on every
+    # other column, which keeps its bytes. The rule is a zone's public
+    # calendar and publishes no date: the census beside it already names
+    # both offsets. ELIGIBILITY IS READ OFF THE CELLS AS PARSED (lane DST's
+    # repair 2, Codex's item 4): 10,000 January stamps at -05:00, 9,999 July
+    # stamps at -04:00 and one January stamp at -06:00, absorbed by the
+    # census into -05:00, published `us -05:00` for a column of three
+    # offsets; read off the cells as written, no rule fits them. The floor
+    # stands too: the census as published must name exactly the rule's two
+    # offsets, which is what the loader admits a rule beside (`contract`'s
+    # invariant OR1), so inference never writes a rule publication refuses.
+    if reading == READ_AT_UTC and len(offsets) == 2:
+        rule = offset_rules.rule_of(parsed_pairs)
+        parsed = offset_rules.parsed_rule(rule)
+        if parsed is not None and sorted(offsets) == sorted(
+            [offset_rules.offset_text(parsed.standard), offset_rules.offset_text(parsed.standard + 3600)]
+        ):
+            found["offset_rule"] = rule
+    return found
 
 
 @dataclasses.dataclass(frozen=True)
@@ -24280,6 +25873,9 @@ class _Verdict:
     # ...and whether one of them is held by fewer cells than the floor
     # (`_few_values_rare`). Never published.
     few_values_rare: bool = False
+    # ...and whether `no` would name the held-back levels of a label column
+    # (lane CODES-2, plan P4-D471, `held_back_nameable`). Never published.
+    held_back_nameable: bool = False
     # THE WRITTEN HOUR OF EVERY PARSED CELL, in the order the description
     # ranks the cells, on a column of moments read on the local clock, not
     # in the joint member and not wholly at midnight, and nowhere else
@@ -25247,10 +26843,159 @@ def _clock_reading(cells: _Cells) -> "_Clock | None":
     return None
 
 
+def _figure_clock_reading(cells: _Cells) -> "_Clock | None":
+    """A column said to hold clock times written as figures, read in its one form, or None (rule 5c, plan P4-D473).
+
+    Read only where BOTH hold (the zoo-fix reading page's ZR.1, rule 5c):
+    every present cell is ONE shape of figures -- four (`0742`), six
+    (`074512`), or six, a point and one to six figures (`074512.123456`),
+    the same width throughout -- and every value lies on the clock's
+    grid, hours 00 to 23 and minutes and seconds 00 to 59
+    (`parsing.clock_figure_form`, `parsing.clock_ordinal`). A fraction is
+    read and not kept: each value is the form's own spelling of its whole
+    second, its fraction noughts, as every published value and every twin
+    cell is written (lane SS writes fractions). None where either fails:
+    the declaration then reads nothing.
+
+    AND NONE WHERE A VALUE WOULD BE WRITTEN AS A SPELLING THE TABLE READS
+    AS NO VALUE (Codex's review of lane TR, item 2; plan P4-D473): with
+    `080000.000000` declared missing, the present cells `080000.000001`
+    to `080000.019989` are each the second 08:00:00, which the form
+    spells `080000.000000` -- the declared spelling -- and the twin wrote
+    it on all 20,000 cells, so every observed value came back missing. A
+    form of figures has one width of hour, so no other spelling of that
+    second exists to write instead (`calendar_clock._other_width_form`):
+    the answer is not taken (`figure_spellings_absent`), the column is
+    read as it was before it, and the run says why
+    (`clock_figures_reading`).
+
+    Guarantees: a function of the cells; one pass over them, no memo, so
+    linear in the rows and flat in memory beyond the values list rule 8
+    keeps too, and one check a different second. Raises nothing. No I/O.
+    """
+    present = cells.present
+    if not present:
+        return None
+    form = parsing.clock_figure_form(present[0])
+    if form is None:
+        return None
+    values: "list[str]" = []
+    seconds: "dict[int, bool]" = {}
+    for text in present:
+        found = parsing.clock_ordinal(text, form)
+        if found is None:
+            return None
+        seconds[found] = True
+        values += [parsing.clock_spelling(found, form)]
+    if figure_spellings_absent(
+        [parsing.clock_spelling(found, form) for found in seconds], cells.settings, cells.decimal_comma
+    ):
+        return None
+    return _Clock(form=form, values=values, n_unparsed=0)
+
+
+def figure_spellings_absent(
+    spellings: "list[str]", settings: Settings, decimal_comma: bool = False
+) -> bool:
+    """Whether any spelling a clock written as figures would write reads as no value under these settings (plan P4-D473).
+
+    The column's own reader decides it, as it decides a cell of the table:
+    this package's missing words and a `--missing-value` named by its
+    spelling (`_missing_class`, after `--keep-value`'s rescue), and one
+    named as a number by that exact number (`_declared_number`), so
+    `--missing-value 80000` reaches `080000.000000` too. Codex's review of
+    lane TR, item 2: such a spelling written for a present time comes back
+    as a missing cell. A function of the arguments; one reading a
+    spelling. Raises TypeError for a spelling that is not text. No I/O.
+    """
+    kept = _declarations(settings.kept_values, decimal_comma)
+    declared = _declarations(settings.declared_missing_values, decimal_comma)
+    numeric = [one for one in declared if one.exact is not None]
+    for spelling in spellings:
+        if _missing_class(spelling, kept, declared):
+            return True
+        if numeric and _declared_number(exact_of_spelling(spelling), numeric):
+            return True
+    return False
+
+
+# What `clock_figures_reading` says of a column declared to hold clock times
+# written as figures (lane TR, plan P4-D473): rule 5c reads it, or it would
+# but a time would be written as a missing spelling (Codex's review of lane
+# TR, item 2), or neither.
+FIGURES_READ = "read"
+FIGURES_ABSENT = "a time written as a missing spelling"
+
+
+def clock_figures_reading(values: "list[str]", settings: Settings) -> str:
+    """What rule 5c makes of a column's cells (plan P4-D473): `FIGURES_READ`, `FIGURES_ABSENT`, or `''`.
+
+    ``values`` are the column's cells as the table holds them, absent ones
+    among them; the present ones are those this package's reader keeps
+    (`split_missing`, then a `--missing-value` named as a number). Where
+    every present cell is one shape of figures on the clock's grid
+    (`clock_figures_fit`), `FIGURES_ABSENT` if a time among them would be
+    written as a spelling the table reads as no value
+    (`figure_spellings_absent`, Codex's review of lane TR, item 2), and
+    `FIGURES_READ` otherwise; `''` where the cells do not fit. The
+    description's declined check and the run's message read it, so a
+    `clock-figures` answer that is not taken leaves the column as it was
+    before the answer and never holds it (contract NF127's treatment is
+    for an answer the cells do not fit). Linear in the cells, one reading
+    a different text. Raises TypeError for a cell that is not text. No
+    I/O.
+    """
+    present, _missing = split_missing(values, settings)
+    numeric = [one for one in _declarations(settings.declared_missing_values) if one.exact is not None]
+    if numeric:
+        kept: "dict[str, bool]" = {}
+        for text in present:
+            if text not in kept:
+                kept[text] = not _declared_number(exact_of_spelling(text), numeric)
+        present = [text for text in present if kept[text]]
+    if not clock_figures_fit(present):
+        return ""
+    form = parsing.clock_figure_form(present[0])
+    if form is None:
+        return ""
+    seconds: "dict[int, bool]" = {}
+    for text in present:
+        found = parsing.clock_ordinal(text, form)
+        if found is not None:
+            seconds[found] = True
+    if figure_spellings_absent([parsing.clock_spelling(found, form) for found in seconds], settings):
+        return FIGURES_ABSENT
+    return FIGURES_READ
+
+
+def clock_figures_fit(values: "list[str]") -> bool:
+    """Whether rule 5c's two conditions hold on a column's present cells (plan P4-D473).
+
+    One shape of figures throughout and every value on the clock's grid,
+    as `_figure_clock_reading` reads them: where they hold, the question
+    may offer `clock-figures` (Q-CLOCK), and the answer reads the column.
+    A function of the cells; one pass, no memo. Raises TypeError for a
+    cell that is not text. No I/O.
+    """
+    if not values:
+        return False
+    form = parsing.clock_figure_form(values[0])
+    if form is None:
+        return False
+    for text in values:
+        if parsing.clock_ordinal(text, form) is None:
+            return False
+    return True
+
+
 def _compound_details(
     cells: _Cells, compound: "_Compound"
-) -> "dict[str, object]":
+) -> "tuple[dict[str, object], bool]":
     """Both halves of a compound column, each described in its own terms.
+
+    Returned beside them: whether `no` to the column's Safe Harbor question
+    would name its label half's held-back words (`held_back_nameable`, lane
+    CODES-2's repair 1, plan P4-D471), never published.
 
     THE TWO SUB-BLOCKS, and they are the whole point of the role. The
     counts alone would say only that the column has two populations and
@@ -25380,7 +27125,7 @@ def _compound_details(
         # wore them, and the column's own `n_present` counts the
         # numbers too.
         labels_block["n_present"] = len(compound.labels)
-    return details
+    return details, held_back_nameable(levels, label_cells, False, False)
 
 
 def _compound_verdict(
@@ -25434,12 +27179,17 @@ def _compound_verdict(
                 cells.n_rows,
             ),
         )
+    details, nameable = _compound_details(cells, compound)
     return _Verdict(
         role=ROLE_COMPOUND,
         evidence=evidence,
-        details=_compound_details(cells, compound),
+        details=details,
         notes=notes,
         remarks=remarks,
+        # ...and whether `no` would name its label half's held-back words
+        # (lane CODES-2's repair 1, plan P4-D471): the command puts the
+        # Safe Harbor question to it.
+        held_back_nameable=nameable,
     )
 
 
@@ -25492,12 +27242,17 @@ def _clock_verdict(
     # P4-D328), measured in the form's own unit: minutes of the day at the
     # minute, seconds at the second.
     ordinals = [at for at, _value in keyed]
+    # ...and on a clock written as figures with a fraction, whose fraction
+    # is not kept, every value counts as its whole second (plan P4-D473).
+    apart = cells.raw_distinct == len(cells.present)
+    if parsing.clock_figure_fraction(clock.form):
+        apart = len(set(ordinals)) == len(ordinals)
     low_tail, high_tail, ranks = ordered_tails(
         ordered,
         ordinals,
         cells.settings.small_cell_floor,
         (0, parsing.CLOCK_CAPACITY[clock.form] - 1),
-        cells.raw_distinct == len(cells.present),
+        apart,
     )
     remarks += _clock_style_remarks(clock.other_faces, clock.widths_in)
     details: "dict[str, object]" = {
@@ -25507,7 +27262,7 @@ def _clock_verdict(
         "clock_percentiles": _date_ladder(ordered, ranks),
         "n_unparsed": clock.n_unparsed,
     }
-    if _all_different(cells):
+    if _all_different(cells) and (apart or not parsing.clock_figure_fraction(clock.form)):
         remarks += [
             _difference_remark(
                 cells,
@@ -27468,6 +29223,7 @@ def _categories_verdict(
         details=details,
         notes=notes,
         remarks=remarks,
+        held_back_nameable=held_back_nameable(levels, cells, True, code_declared),
     )
 
 
@@ -27898,6 +29654,7 @@ def _decide(
                 details=_level_details(levels, cells, code_declared=forced_code),
                 notes=notes,
                 remarks=remarks,
+                held_back_nameable=held_back_nameable(levels, cells, True, forced_code),
             )
 
         # RULE 4 -- two values. Decided on the SAME key the levels are
@@ -27928,6 +29685,7 @@ def _decide(
                 details=_level_details(levels, cells, code_declared=forced_code),
                 notes=notes,
                 remarks=remarks,
+                held_back_nameable=held_back_nameable(levels, cells, True, forced_code),
             )
 
         # RULE 5 -- dates, under one documented format, at the parse rate.
@@ -28070,6 +29828,22 @@ def _decide(
                 fresh=clock_fields[2],
                 fresh_written=clock_fields[3],
             )
+
+        # -- lane TR (P4-D473): RULE 5c -- CLOCK TIMES WRITTEN AS FIGURES,
+        # after rule 5 and before the numeric rule, as rule 5 reads
+        # `YYYYMMDD` before it (the zoo-fix reading page's ZR.1). Taken ONLY
+        # where the person answered `clock-figures` or declared
+        # `--clock-figures`, never from the values: `0742` is written the
+        # way a padded key, a revenue code or a count is, and keys numbered
+        # in order stay on the clock's grid. Read where every present cell
+        # is one shape of figures on the grid (`_figure_clock_reading`);
+        # where not, the declaration reads nothing here, the column goes on
+        # down the order, and the description holds it (`profile`, contract
+        # NF127's treatment of a declaration that does not read).
+        if not labels_only and clock_figures_declared(settings):
+            figures = _figure_clock_reading(cells)
+            if figures is not None:
+                return _clock_verdict(cells, figures, notes, remarks)
 
         # RULE 6 -- numbers, at the one parse rate there is. A column that
         # reads as numbers in essentially every cell is a quantity however
@@ -28434,7 +30208,9 @@ def _decide(
     covering = _levels_covering(cells.label_counts, settings)
     if covering > 0 or forced_code:
         label_counts, label_mixed = _label_maps(cells)
-        levels = _levels(label_counts, label_mixed, settings)
+        levels = _long_tail_named_only_as_a_code(
+            _levels(label_counts, label_mixed, settings), forced_code
+        )
         details = _level_details(levels, cells, code_declared=forced_code)
         if levels.suppressed_levels:
             notes += [_pooled_note(levels, settings)]
@@ -28456,6 +30232,7 @@ def _decide(
             details=details,
             notes=notes,
             remarks=remarks,
+            held_back_nameable=held_back_nameable(levels, cells, True, forced_code),
         )
 
     # RULE 9c -- TWO PLAIN WHOLE NUMBERS JOINED BY A SLASH, read from
@@ -29717,11 +31494,25 @@ def with_layout_exclusions(
         # and its fix round 2) is kept off every real run of its width by its
         # opening, the openings counted over every run of every real cell.
         run_widths: "dict[int, bool]" = {}
+        # ...AND, IN A COLUMN OF SEVERAL LAYOUTS, THE RUN OF A ONE-WORD LAYOUT
+        # OF FIGURES (lane CZ-A2's repair 2, the outside review's item 2 at
+        # 20,000 rows): `#` and seven figures beside `#MR` and seven, declared,
+        # kept the exclusion `#9%%%%%%` where the `#MR` numbers from 9,000,000
+        # open with the same `9`, and 8 twin cells held a complete real record
+        # number of the other layout; such a run is kept off the other
+        # layouts' real runs as a run beside a label is (`_runs_kept_off`). A
+        # column of one layout reads as before.
+        several = sum(1 for layout in named if layout not in needs) > 1
         for layout in named:
             if layout not in needs:
-                for _place, figures in inner_runs(layout):
+                for _place, figures in _runs_kept_off(layout, several):
                     run_widths[figures] = True
         runs_held = _run_firsts(present, run_widths) if run_widths else {}
+        # ...the present cells' runs of those widths, read at most once for
+        # every layout of the column (`_RealRuns`; Codex's review of batch
+        # 4s, item 7: read again for each layout, fifty layouts read 200,000
+        # rows fifty times).
+        real_runs = _real_runs(present, run_widths)
         for layout in named:
             if layout in needs:
                 listed = _list_exclusion_of(layout, firsts, floor, needs[layout], deepest)
@@ -29738,8 +31529,12 @@ def with_layout_exclusions(
             found = _exclusion_of(
                 keys_of_length, layout, template, prefix, floor, int(f"{forms[layout]}"), need, arc, texts,
             )
-            runs = inner_runs(layout)
-            if runs and found and not _openings_kept(found, runs, runs_held):
+            runs = _runs_kept_off(layout, several)
+            if runs and found and not _openings_kept(found, runs, runs_held) and (
+                _layout_words(layout) >= 2
+                or _a_run_left_free(found, layout, runs)
+                or _an_opening_held(found, runs, runs_held, present, real_runs)
+            ):
                 found = _exclusion_with_openings(
                     keys_of_length, layout, template, prefix, floor, int(f"{forms[layout]}"), need, arc, texts,
                     runs, runs_held,
@@ -29793,10 +31588,40 @@ def with_layout_exclusions(
 # the column was free text. A run is now reached wherever the layout holds a
 # word beside the run's own -- words parted by a space and by every mark
 # that joins no code's parts (`_WORD_PARTS`) -- whatever stands beside the
-# run inside its word: a letter, a mark joining a code's parts or nothing. A
-# layout of one word (`MR1234567`, `#MR1234567`, `S24-123456`) is one key,
-# kept off the real whole by the layout's own exclusion, and is read as
-# before byte for byte.
+# run inside its word: a letter, a mark joining a code's parts or nothing.
+#
+# ...AND IN A LAYOUT OF ONE WORD HOLDING A LETTER (lane CZ-A2, plan P4-D469;
+# batch 4q's fix round 2, its rule R4, measured and not taken there): a
+# record number glued to its label is one key, but where the label is
+# withheld -- a column held by an open question publishes no prefix -- the
+# layout's own exclusion wrote a letter out and drew the figures freely, so
+# a twin cell changed the label and kept a real number whole (`ZM1004715`
+# beside a real `MR1004715`): 48 of 20,000 at the owner's floor, and 4,447
+# for numbers of five figures (`#MR10000` upward), with an accession's
+# capitals the same (`Z21-487010`; `specimen_accession`, `block_ref`,
+# `slide_ref` 20 each). The run is now kept off the real by its opening
+# there too, WHERE THE LAYOUT'S OWN EXCLUSION LEAVES IT FREE: one that writes
+# a figure inside the run -- a declared record number's after its published
+# prefix (`@@9%%%%%%`), a block a prefix's keys leave free -- stands byte
+# for byte (`_a_run_left_free`), as does one that already writes a free
+# opening at the run (`_openings_kept`). Measured, the rule that rewrote
+# every such exclusion (R4) wrote a column of `REC` and seven figures beside
+# `E` and six as the spill (800 of 800 twin cells off their layouts) and
+# changed the twins of identifier columns that were kept off already. A
+# layout of one word of figures alone, of letters with no run of five
+# figures, or of a number in exponent form (`_a_label_beside_figures`) is
+# one key as before.
+#
+# ...AND WHERE THE LAYOUT'S OWN EXCLUSION WRITES AN OPENING ANOTHER LAYOUT'S
+# REAL RUNS HOLD (lane CZ-A2's repair 1, its skeptic's item 4): a column of
+# `#MR` and seven figures beside `#9` and six (a quarter of its people),
+# held, kept `#@@9%%%%%%` -- the `9` free among the `#MR` keys, while every
+# real run of the other layout opens with it -- so each twin `#MR9...` drew
+# its run from a room holding every real `#9...` run: none at the owner's
+# floor (about 0.19 expected), but the count grows with the people. A run is
+# now kept off the real by its opening where an opening its exclusion writes
+# is one a real run of its merged width opens with (`_an_opening_held`); a
+# one-layout column's exclusion writes no such opening, so it stands.
 _RUN_NOT_TEXT = "a layout or a cell must be text"
 # The marks that join the parts of one code, so a run beside them stands in
 # that code's word (`inner_runs`): `REC-12345`, `S24.012345`, `A/12345`.
@@ -29824,8 +31649,73 @@ def inner_runs(layout: str) -> "list[tuple[int, int]]":
     its word -- as the word itself (`[1234567]`, `#1234567`), after a label
     (`[MR1234567]`, `#MR1234567`), before a letter (`[1234567A]`) or joined
     by a code's marks (`[REC-1234567]`) -- the value holds more beside it
-    (batch 4q's fix round 2, the verify's blocker 1). A layout of one word
-    (`MR1234567`, `#MR1234567`, `S24-123456`) holds none: it is one key.
+    (batch 4q's fix round 2, the verify's blocker 1). And in a layout of ONE
+    word holding a letter as a label (`MR1234567`, `#MR1234567`,
+    `S24-123456`): its label or capitals stand beside the run (lane CZ-A2,
+    plan P4-D469; `_a_label_beside_figures`). A layout of one word with no
+    letter (`%%%%%%%`, `!!%%%%%%`), or whose one letter is the exponent of
+    a number a spreadsheet writes in exponent form (`%.%%%%%@+%%`), holds
+    none: it is one key. A fixed function of the layout. Raises TypeError
+    for a non-string. No I/O.
+    """
+    if not isinstance(layout, str):
+        raise TypeError(_RUN_NOT_TEXT)
+    if _layout_words(layout) < 2 and not _a_label_beside_figures(layout):
+        return []
+    return _figure_runs_of_a_layout(layout)
+
+
+def _figure_runs_of_a_layout(layout: str) -> "list[tuple[int, int]]":
+    """Every run of five figure places or more a layout writes, as (place, figures), whatever stands beside it (plan P4-D432); named apart from the word screen's `_figure_runs` at batch 4s's merge, where one name for the two let this one replace the screen's in every call.
+
+    A fixed function of the layout. Raises TypeError for a non-string. No
+    I/O.
+    """
+    if not isinstance(layout, str):
+        raise TypeError(_RUN_NOT_TEXT)
+    found: "list[tuple[int, int]]" = []
+    start = -1
+    for place in range(len(layout) + 1):
+        if place < len(layout) and layout[place] == parsing.LAYOUT_DIGIT:
+            if start < 0:
+                start = place
+            continue
+        if start >= 0 and place - start >= _LIST_KEY_FIGURES:
+            found += [(start, place - start)]
+        start = -1
+    return found
+
+
+def _runs_kept_off(layout: str, several: bool) -> "list[tuple[int, int]]":
+    """The runs of a layout kept off the column's real runs by their openings (lane CZ-A2's repair 2).
+
+    Its inner runs (`inner_runs`); and where the column holds ``several``
+    layouts, the run of a layout of figures alone, one or more marks before
+    them or none and nothing after them (`#%%%%%%%`, `%%%%%%%`), which
+    another layout's real runs may hold whole (see the note in
+    `with_layout_exclusions`). A layout holding a letter's place (an
+    exponent's `E`, a code's letters), a nought's place (a zero-filled
+    width, whose layouts are its noughts' counts) or a mark among or after
+    its figures (a UID's points, a date's dashes) reads as before. Raises
+    TypeError for a non-string. No I/O.
+    """
+    runs = inner_runs(layout)
+    if runs or not several:
+        return runs
+    start = 0
+    while start < len(layout) and layout[start] not in _LAYOUT_PLACEHOLDER_MARKS:
+        start += 1
+    if start == len(layout):
+        return runs
+    for mark in layout[start:]:
+        if mark != parsing.LAYOUT_DIGIT:
+            return runs
+    return _figure_runs_of_a_layout(layout)
+
+
+def _layout_words(layout: str) -> int:
+    """How many words a layout writes: stretches no space and no mark parting words (`_WORD_PARTS`) breaks, holding a placeholder (plan P4-D432).
+
     A fixed function of the layout. Raises TypeError for a non-string. No
     I/O.
     """
@@ -29839,19 +31729,72 @@ def inner_runs(layout: str) -> "list[tuple[int, int]]":
             worded = False
         elif layout[place] in _LAYOUT_PLACEHOLDER_MARKS:
             worded = True
-    found: "list[tuple[int, int]]" = []
-    if words < 2:
-        return found
-    start = -1
-    for place in range(len(layout) + 1):
-        if place < len(layout) and layout[place] == parsing.LAYOUT_DIGIT:
-            if start < 0:
-                start = place
-            continue
-        if start >= 0 and place - start >= _LIST_KEY_FIGURES:
-            found += [(start, place - start)]
-        start = -1
-    return found
+    return words
+
+
+def _a_run_left_free(found: "list[str]", layout: str, runs: "list[tuple[int, int]]") -> bool:
+    """Whether a spelling of a layout's exclusion writes nothing inside one of its runs (plan P4-D469).
+
+    A place written is one where the spelling is not the layout's own mark.
+    A one-word layout whose exclusion writes a figure inside each run keeps
+    its own exclusion byte for byte; one whose exclusion writes only its
+    label, a year or other places outside a run -- `ZM1004715` beside a real
+    `MR1004715` -- leaves that run free, and the run is kept off by its
+    opening (lane CZ-A2). Raises nothing. No I/O.
+    """
+    for spelling in found:
+        for place, figures in runs:
+            if not any(
+                at < len(spelling) and at < len(layout) and spelling[at] != layout[at]
+                for at in range(place, place + figures)
+            ):
+                return True
+    return False
+
+
+# The marks a number's exponent may carry before its figures, and the most
+# figures an exponent holds (a double's reaches 308).
+_EXPONENT_SIGNS = "+-"
+_EXPONENT_FIGURES_AT_MOST = 3
+
+
+def _a_label_beside_figures(layout: str) -> bool:
+    """Whether a layout holds a letter that labels its figures, not the exponent of a number in exponent form (plan P4-D469).
+
+    A letter of either case (`_LETTER_MARKS`) anywhere in the layout,
+    unless the layout is a number written in exponent form, as a
+    spreadsheet displays a long one (`%.%%%%%@+%%`, `5.07906E+11`): figures,
+    a point and figures, ONE letter, a sign or none and one to three
+    figures, or one figure, one letter, a sign and one to three figures
+    (`1E+11`); an accession's year, capitals, dash and sequence
+    (`%%@-%%%%%%`) is no exponent. Batch 4q's fix round 2 and
+    lane CZ-A2 measured the broader rule on a zoo column of such numbers:
+    its exclusion found no free opening and the twin was written wider than
+    every real cell, all 20,000 of it, where 979 were. A fixed function of
+    the layout. Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(layout, str):
+        raise TypeError(_RUN_NOT_TEXT)
+    letters = [place for place in range(len(layout)) if layout[place] in _LETTER_MARKS]
+    if not letters:
+        return False
+    if len(letters) > 1:
+        return True
+    at = letters[0]
+    mantissa = layout[:at]
+    exponent = layout[at + 1:]
+    signed = exponent[:1] in _EXPONENT_SIGNS and exponent[:1] != ""
+    if signed:
+        exponent = exponent[1:]
+    pointed = mantissa.count(".") == 1 and mantissa[:1] == parsing.LAYOUT_DIGIT and mantissa[-1:] == parsing.LAYOUT_DIGIT
+    figured = bool(mantissa) and all(mark in (parsing.LAYOUT_DIGIT, ".") for mark in mantissa)
+    exponent_form = (
+        figured
+        and 1 <= len(exponent) <= _EXPONENT_FIGURES_AT_MOST
+        and all(mark == parsing.LAYOUT_DIGIT for mark in exponent)
+        and (pointed or (signed and len(mantissa) == 1))
+    )
+    return not exponent_form
 
 
 def _run_firsts(present: "list[str]", widths: "dict[int, bool]") -> "dict[int, dict[str, int]]":
@@ -29913,6 +31856,162 @@ def _openings_kept(found: "list[str]", runs: "list[tuple[int, int]]", held: "dic
             if not opening or opening[0] == "0" or len(opening) >= figures or opening in counts:
                 return False
     return True
+
+
+def _an_opening_held(
+    found: "list[str]", runs: "list[tuple[int, int]]", held: "dict[int, dict[str, int]]",
+    present: "list[str]", index: "_RealRuns | None" = None,
+) -> bool:
+    """Whether a spelling of a layout's exclusion opens one of its inner runs as a real run of its merged width opens (lane CZ-A2's repair 1).
+
+    The figures a spelling writes out from the run's first place, as
+    `_openings_kept` reads them, held by a real run of the run's merged
+    width (`_run_firsts`): `#@@9%%%%%%` where the column's other layout
+    writes `#9` and six figures.
+
+    AND A FIGURE WRITTEN ANYWHERE INSIDE THE RUN (lane CZ-A2's repair 2,
+    Codex's item 2, LANE CZ-A2 RULINGS 6 (2)): `#@@%9%%%%%`, the `9` at the
+    run's second place, stood beside a real `#1912804`, because this test
+    read only the figures from the run's first place while
+    `_a_run_left_free` saw the run written in: 93 labelled twin cells held
+    a complete real record number at 20,000 rows. Where a spelling writes a
+    figure inside a run past the figures it writes from the run's first
+    place, the present cells' runs of the merged width are read
+    (`_a_real_run_written`, through the index `_RealRuns`, read once a
+    column whatever the layouts asking it): the exclusion is rewritten
+    where one holds each written figure at its place. A spelling that
+    writes no figure inside a run is not read here (`_a_run_left_free`
+    reads it). ``index``: the present cells' index, which
+    `with_layout_exclusions` shares between a column's layouts; None
+    makes one of ``present`` for this call. Raises TypeError for a cell
+    that is not text. No I/O.
+    """
+    real = index if index is not None else _real_runs(present, {figures: True for _place, figures in runs})
+    for spelling in found:
+        for place, figures in runs:
+            written: "list[tuple[int, str]]" = []
+            for at in range(place, min(place + figures, len(spelling))):
+                if "0" <= spelling[at] <= "9":
+                    written += [(at - place, spelling[at])]
+            if not written:
+                continue
+            counts = held[figures] if figures in held else {}
+            opening = ""
+            for spot, figure in written:
+                if spot == len(opening):
+                    opening = opening + figure
+            if opening and len(opening) < figures and opening in counts:
+                # ...the figures written from the run's first place: its
+                # opening, read as before.
+                return True
+            if (len(opening) < len(written) or len(opening) == figures) and _a_real_run_indexed(real, figures, written):
+                return True
+    return False
+
+
+@dataclasses.dataclass
+class _RealRuns:
+    """THE PRESENT CELLS' RUNS OF FIGURES, READ ONCE A COLUMN (Codex's review of batch 4s, item 7; the orchestrator's LANE I4s RULINGS 1 (7)).
+
+    `_a_real_run_written` reads every present cell again for each spelling
+    asked of it, so a column of fifty layouts read its rows fifty times
+    (200,000 rows: 50 calls, 10 million row visits, 30.5 of the exclusion
+    step's 35.4 CPU seconds). This index (`_real_runs`) holds the present
+    cells and the run widths a column's layouts ask of; at the first
+    question each different present cell is read once (`_real_runs_read`)
+    into its maximal runs of merged figures (the noughts before them
+    dropped) of those widths, `runs`, and each width and set of places a
+    question names is read once over the runs of that width, `figures_at`
+    (`_a_real_run_indexed`); `read` says whether the cells were read.
+    """
+
+    present: "list[str]"
+    widths: "dict[int, bool]"
+    runs: "dict[int, dict[str, bool]]"
+    figures_at: "dict[tuple[int, tuple[int, ...]], dict[tuple[str, ...], bool]]"
+    read: bool = False
+
+
+def _real_runs(present: "list[str]", widths: "dict[int, bool]") -> _RealRuns:
+    """An index of ``present``'s runs of the merged ``widths``, read at its first question (`_RealRuns`). No I/O."""
+    return _RealRuns(present=present, widths=widths, runs={}, figures_at={})
+
+
+def _real_runs_read(index: _RealRuns) -> None:
+    """Each indexed width's different merged runs over the different present cells, read once into ``index``. Raises TypeError for a cell that is not text. No I/O."""
+    seen: "dict[str, bool]" = {}
+    for cell in index.present:
+        if not isinstance(cell, str):
+            raise TypeError(_RUN_NOT_TEXT)
+        if cell in seen:
+            continue
+        seen[cell] = True
+        start = -1
+        for place in range(len(cell) + 1):
+            if place < len(cell) and "0" <= cell[place] <= "9":
+                if start < 0:
+                    start = place
+                continue
+            if start < 0:
+                continue
+            nought = start
+            while nought < place and cell[nought] == "0":
+                nought = nought + 1
+            start = -1
+            if place - nought in index.widths:
+                if place - nought not in index.runs:
+                    index.runs[place - nought] = {}
+                index.runs[place - nought][cell[nought:place]] = True
+    index.read = True
+
+
+def _a_real_run_indexed(index: _RealRuns, figures: int, written: "list[tuple[int, str]]") -> bool:
+    """Whether a present cell holds a run of ``figures`` merged figures holding each ``written`` figure at its place, read off ``index`` (`_RealRuns`): the answer `_a_real_run_written` gives over the same cells, to which a width the index does not hold is put. Raises TypeError for a cell that is not text. No I/O."""
+    if figures not in index.widths:
+        return _a_real_run_written(index.present, figures, written)
+    if not index.read:
+        _real_runs_read(index)
+    places = tuple(spot for spot, _figure in written)
+    key = (figures, places)
+    if key not in index.figures_at:
+        held: "dict[tuple[str, ...], bool]" = {}
+        for run in index.runs[figures] if figures in index.runs else {}:
+            held[tuple(run[spot] for spot in places)] = True
+        index.figures_at[key] = held
+    return tuple(figure for _spot, figure in written) in index.figures_at[key]
+
+
+def _a_real_run_written(present: "list[str]", figures: int, written: "list[tuple[int, str]]") -> bool:
+    """Whether a present cell holds a run of ``figures`` merged figures holding each ``written`` figure at its place (lane CZ-A2's repair 2).
+
+    Every maximal run of ASCII figures of every different present cell,
+    read on its merged figures (the noughts before them dropped), as
+    `_run_firsts` reads them; ``written`` pairs a place in the run with the
+    figure written there. Linear in the cells. Raises TypeError for a cell
+    that is not text. No I/O.
+    """
+    seen: "dict[str, bool]" = {}
+    for cell in present:
+        if not isinstance(cell, str):
+            raise TypeError(_RUN_NOT_TEXT)
+        if cell in seen:
+            continue
+        seen[cell] = True
+        start = -1
+        for place in range(len(cell) + 1):
+            if place < len(cell) and "0" <= cell[place] <= "9":
+                if start < 0:
+                    start = place
+                continue
+            if start < 0:
+                continue
+            nought = start
+            while nought < place and cell[nought] == "0":
+                nought = nought + 1
+            start = -1
+            if place - nought == figures and all(cell[nought + spot] == figure for spot, figure in written):
+                return True
+    return False
 
 
 def _exclusion_with_openings(
@@ -31508,7 +33607,8 @@ def _date_form(spelling: str) -> "str | None":
 
 
 def _class_starts(
-    written: "list[str]", wanted: int, reads_as: str, decimal_comma: bool = False
+    written: "list[str]", wanted: int, reads_as: str, decimal_comma: bool = False,
+    openings: "dict[int, str] | None" = None, figures_at_least: int = 0,
 ) -> "list[str]":
     """The starts a class of a pool may take, in the order they are tried (plan P4-D453).
 
@@ -31543,13 +33643,63 @@ def _class_starts(
                 found += [alphabet[0] * width]
     widest = _widest(own)
     if widest:
-        found += [parsing.stand_in_wider(parsing.stand_in_start(widest))]
+        countdown = parsing.stand_in_wider(parsing.stand_in_start(widest))
     else:
-        found += [
+        countdown = (
             parsing.STAND_IN_FIGURE
             if reads_as == parsing.NUMBER
             else parsing.STAND_IN_LETTER
-        ]
+        )
+    if figures_at_least and reads_as == parsing.NUMBER and _a_plain_countdown(countdown):
+        # ...AFTER THE PERSON'S `no`, A NUMBER'S COUNTDOWN STARTS AT LEAST
+        # `parsing.FIGURE_RUN_KEY_WIDTH` FIGURES WIDE (lane HB2, plan P4-D477;
+        # the orchestrator's LANE I4m RULINGS 30 (1)): where the published
+        # `figure_openings` keep every held-back run of its width off it (a
+        # start they keep back leaves the column held, as before), and no
+        # held-back number narrower can be it. `88` beside levels `1` to `5`
+        # was the start of a pool whose one rare value was `88`, and its twin
+        # wrote it on that person's 20 rows.
+        # ...IN EVERY FORM THE CODE READERS ACCEPT (lane HB2's repair 2, Codex's
+        # item 4): a sign before its figures or a point among them, the run
+        # before the point is the one widened -- `+88` beside `+1` to `+5`,
+        # and `88.8` beside `1.1` to `5.1`, were the starts of pools whose
+        # one rare value they were, and their twins wrote them.
+        signed = 1 if countdown[:1] in ("+", "-") else 0
+        while _figures_before_the_point(countdown) < figures_at_least:
+            countdown = parsing.stand_in_wider(countdown)
+        # ...AND WHERE THE OPENINGS KEEP IT BACK, IT TAKES A FREE OPENING FIRST
+        # (lane HB2's repair 1, skeptic 1's item 5): beside levels `1` to `5`,
+        # one person's rare `8888` names every opening of four figures but
+        # `8`, and the countdown `8888` -- never wider, which no width named
+        # lets stand -- left the column held where the line before published
+        # its five levels. Each opening the width names, in its order, takes
+        # the countdown's first figures (`9888`): a start no held-back run
+        # opens with, a function of published facts alone.
+        width = _figures_before_the_point(countdown)
+        if openings and width in openings and not stand_in_runs_stand(countdown, openings):
+            for opening in parsing.figure_opening_choices(openings[width]):
+                if opening and parsing.is_whole_figures(opening) and len(opening) < width:
+                    found += [countdown[:signed] + opening + countdown[signed + len(opening):]]
+    found += [countdown]
+    return found
+
+
+def _a_plain_countdown(text: str) -> bool:
+    """Whether a number class's countdown is figures alone, a sign before them and one point or comma among them allowed (`8888`, `+88`, `-88`, `88.8`; plan P4-D477). No I/O."""
+    body = text[1:] if text[:1] in ("+", "-") else text
+    whole = _figures_before_the_point(text)
+    if not whole:
+        return False
+    rest = body[whole:]
+    return not rest or (rest[:1] in (".", ",") and len(rest) > 1 and parsing.is_whole_figures(rest[1:]) and rest[1:2] != "-")
+
+
+def _figures_before_the_point(text: str) -> int:
+    """How many figures open a text after its sign, before any other character. No I/O."""
+    body = text[1:] if text[:1] in ("+", "-") else text
+    found = 0
+    while found < len(body) and _a_figure(body[found]):
+        found += 1
     return found
 
 
@@ -31561,6 +33711,7 @@ def pool_stand_in_starts(
     absent: "frozenset[str]",
     decimal_comma: bool = False,
     openings: "dict[int, str] | None" = None,
+    figures_at_least: int = 0,
 ) -> "dict[str, str] | None":
     """Where the twin's stand-ins start, for a pool counted in people (plan P4-D453).
 
@@ -31589,8 +33740,14 @@ def pool_stand_in_starts(
     widths as numbers; the orchestrator's LANE I4m RULINGS 21 (3)): no walked
     spelling holds a run of figures they keep back, as the generator keeps
     every other held-back stand-in off them, so a start names no real run.
+    ``figures_at_least`` (a pool after the person's `no`, lane HB2, plan
+    P4-D477): the number class's countdown starts at least so many figures
+    wide (`_class_starts`), where the published openings keep every
+    held-back run of its width off it, so its start is no held-back number
+    of the column by construction, still a function of published facts
+    alone; a start they keep back leaves the column held, as before.
 
-    Guarantees: a fixed function of the seven. Raises nothing. No I/O.
+    Guarantees: a fixed function of the eight. Raises nothing. No I/O.
     """
     frozen = frozenset(published)
     numbers: "dict[float, bool]" = {}
@@ -31606,7 +33763,9 @@ def pool_stand_in_starts(
         if not wanted:
             continue
         chosen = ""
-        candidates = _class_starts(written, wanted, reads_as, decimal_comma)
+        candidates = _class_starts(
+            written, wanted, reads_as, decimal_comma, openings, figures_at_least
+        )
         for place in range(len(candidates)):
             start = candidates[place]
             widen = place == len(candidates) - 1
@@ -31753,6 +33912,22 @@ def with_time_grain(
     )
 
 
+def with_offset_rule(column: ColumnProfile, rule: str) -> ColumnProfile:
+    """A column of stamps with ``rule`` as its `offset_rule`, or with none where ``rule`` is `""` (lane DST's repair 2, plan P4-D474).
+
+    The rule a column's cells as handed keep (`profile._with_offset_rule`
+    decides where it may stand). Guarantees: a fixed function of the two;
+    every other detail kept. Raises nothing. No I/O.
+    """
+    details: "dict[str, object]" = {}
+    for key in column.details:
+        if key != "offset_rule":
+            details[key] = column.details[key]
+    if rule:
+        details["offset_rule"] = rule
+    return dataclasses.replace(column, details=details)
+
+
 def with_held_dates(column: ColumnProfile, grain: "dict[str, object]") -> ColumnProfile:
     """A held column of dates or times whose twin writes valid ones (plan P4-D417, NF129).
 
@@ -31880,6 +34055,11 @@ _AGE_ABOVE = 3
 _AGE_ABOVE_PADDED = 4
 _AGE_OUTSIDE = 5
 _AGE_OTHER = 6
+# ...and, to the age reach alone, a band of ages that is no number (batch
+# 4s's merge, step 9): one before 90 years and one past 89, an age of the
+# reach only beside the column's own numbers (`safe_harbor_reach`).
+_AGE_BAND_IN = 7
+_AGE_BAND_ABOVE = 8
 _ZIP_ASIDE = 0
 _ZIP_IN = 1
 _ZIP_OUTSIDE = 2
@@ -31949,6 +34129,13 @@ class SafeHarborNumber:
     stands between its thousands (`12,345`), ``decimal_comma`` whether
     the number was read with a comma for its point though no column
     declared one (`94,8`: the second repair of lane SH, item 3).
+    ``word`` is the age word and its marks before the number where the
+    cell writes one (`Age `, `age: `; lane HB2, plan P4-D477), part of
+    ``head``; ``closing`` the brackets that close brackets ``head`` opens
+    at the end of ``tail`` (`(95 yrs)`, `[Age (95)]`), the outer one last;
+    ``closes_number`` the bracket that closes one ``head`` opens around the
+    number alone, a unit after it (`Age (95) years`; lane HB2's repair 2),
+    the first character of ``tail``.
     """
 
     head: str
@@ -31961,10 +34148,188 @@ class SafeHarborNumber:
     exponent: bool
     grouped: bool
     decimal_comma: bool = False
+    word: str = ""
+    closing: str = ""
+    closes_number: str = ""
+
+
+# THE AGE WORDS (lane HB2, plan P4-D477; the orchestrator's LANE HB2 RULINGS 1
+# (3)): ONE CLOSED VOCABULARY, read around one number by the age reach, its
+# question, the top-code, the validator and the generator's bound alike. A
+# word BEFORE the number, whole, in any case -- `Age 95`, `age: 95`,
+# `AGE=95`, `Age - 95`, `aged 95` -- with spaces and at most one mark of
+# `AGE_WORD_MARKS` between it and the number (a hyphen with a space before it
+# and a figure after it is the number's sign: `Age -1` is the placeholder
+# `-1`); the units of years, months, weeks and days AFTER it, as
+# `AGE_UNIT_WORDS` and the age's own affixes read them (`95 yrs`, `95 y/o`,
+# `95-year-old`), and a unit word in brackets (`95 (years)`); and one pair of
+# `AGE_WORD_BRACKETS` around the whole (`(95 yrs)`, `[age 95]`) or around
+# the number after the word (`Age (95)`), read only beside an age word or a
+# unit, so `(95)` alone -- an amount written negative in brackets -- is read
+# as before. Words that are no age (`Stage 2`, `Grade 3`, `Room 101`, `Week
+# 95`, `Score 95`, a label before a record number) are not in it: such a
+# cell is read as it was. Lane CZ-E's band reader (`Age 90-94`, `age >= 95`)
+# and lane CODES-2's word screen read this constant at their merges, which
+# the batch integrators wire: `AGE_VOCABULARY`.
+AGE_WORDS_BEFORE = ("aged", "age")
+AGE_WORD_MARKS = (":", "=", "-")
+AGE_WORD_BRACKETS = (("(", ")"), ("[", "]"))
+# THE SPACES AND DASHES AN AGE'S WORDS ARE READ WITH (lane HB2's repair 1;
+# skeptic 1's item 1, a HIPAA blocker, and the orchestrator's LANE HB2
+# RULINGS 3 (2); the class of LANE CZ-E RULINGS 3 (4) and LANE CODES-2
+# RULINGS 6 (1)): a cell written with a no-break, narrow or other Unicode
+# space between the word, its mark and the number (`Age<U+00A0>95`,
+# `Age:<U+2009>95`), or with an en dash, a minus sign or a non-breaking
+# hyphen for its mark (`Age<U+2013>95`), was read as a word: no Safe Harbor
+# question, 5 ages past 89 published and 1,360 real twin cells per form at
+# 20,000 rows. A SPACE is a space of the product's ONE definition and a DASH
+# a dash named beside it (batch 4s's merge, the orchestrator's LANE HB2
+# RULINGS 7 (3) and 8 (3), LANE CODES-2 RULINGS 7 (1)): `_SCREEN_SPACE_RANGES`
+# -- every character `str.split()` cuts at, and every control and format
+# character, which a display draws as nothing, the soft hyphen among them --
+# and `_SCREEN_DASHES`, the word screen's, which the readers of persons'
+# names and of record numbers beside labels read too. Each is read as the
+# space or the hyphen of the vocabulary and kept as written, so the top code
+# writes `Age<U+00A0>90`. (Before the merge the lane read its own list: every
+# character `str.isspace()` reads as one and seven zero-width and format
+# spaces, and the dashes of the identifier forms' `_SSN_MARKS` that are no
+# space; that list lies inside the one definition, which reads more
+# characters as a space, so more cells as ages: more held, never fewer.)
+# The ASCII characters of that definition but ` ` are the tab and the line's
+# `_ASCII_READ_PLAIN` (every other control and the delete), which a text of
+# ASCII alone may hold; the agreement case of the gate reads every code point.
+
+
+def _age_plain(text: str) -> str:
+    """A text as the age words' reader reads it, one character for one, so a place in it is the same place in the text as written (plan P4-D477).
+
+    Every space of the product's one definition (`_a_space_of_the_screen`:
+    `_SCREEN_SPACE_RANGES`, the soft hyphen among them) is written ` `,
+    every dash named beside it (`_SCREEN_DASHES`) `-` (batch 4s's merge).
+    Guarantees: a fixed function of the text, as long as it. Raises
+    TypeError for a text that is not text. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    if text.isascii():
+        # (A text of ASCII alone holds no dash but `-` and no space to write
+        # but its controls and the delete.)
+        plainly = True
+        for character in text:
+            if character == "\t" or character in _ASCII_READ_PLAIN:
+                plainly = False
+                break
+        if plainly:
+            return text
+    found = ""
+    for character in text:
+        if _a_space_of_the_screen(character):
+            found += " "
+        elif character in _SCREEN_DASHES:
+            found += "-"
+        else:
+            found += character
+    return found
+
+
+def _age_word_at(text: str) -> int:
+    """Where the number starts after an age word of `AGE_WORDS_BEFORE` and its marks at the start of a text, or -1.
+
+    The word is read whole, in any case (`agent 5`, `ages 3` hold none),
+    then spaces, at most one mark of `AGE_WORD_MARKS` and spaces; the number
+    opens as the number reader reads one (`_a_number_opens`: a figure, a
+    point before one, a sign before either), or a bracket of
+    `AGE_WORD_BRACKETS` and spaces stand before it (`Age (95)`, `Age( 95 )`,
+    `Age (95) years`). A hyphen with a space before it and a number after
+    it is the sign, not a mark (`Age -1`). Every space and dash is read as
+    `_age_plain` reads it (lane HB2's repair 1): `Age<U+00A0>95`,
+    `Age<U+2013>95`. Guarantees: a fixed function of the text. Raises
+    TypeError for a text that is not text. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    plain = _age_plain(text)
+    lowered = _in_small_letters(plain)
+    for word in AGE_WORDS_BEFORE:
+        if lowered[: len(word)] != word or (len(plain) > len(word) and _a_letter(plain[len(word)])):
+            continue
+        place = len(word)
+        while place < len(plain) and plain[place] == " ":
+            place += 1
+        signed = (
+            place < len(plain)
+            and plain[place] in ("-", "+")
+            and place > len(word)
+            and _a_number_opens(plain, place + 1, False)
+        )
+        if not signed and place < len(plain) and plain[place] in AGE_WORD_MARKS:
+            place += 1
+            while place < len(plain) and plain[place] == " ":
+                place += 1
+        number = place
+        for opening, _closing in AGE_WORD_BRACKETS:
+            if plain[place:place + 1] == opening:
+                # ...or a bracket around the number after the word (`Age (95)`),
+                # spaces inside it (`Age( 95 )`).
+                number = place + 1
+                while number < len(plain) and plain[number] == " ":
+                    number += 1
+        if _a_number_opens(plain, number, True):
+            return place
+        return -1
+    return -1
+
+
+def _a_number_opens(plain: str, place: int, signed: bool) -> bool:
+    """Whether a number the number reader reads opens at a place of a plain text: a figure, a point before one, and, where ``signed``, a sign before either (plan P4-D477).
+
+    LANE HB2'S REPAIR 2 (Codex's item 3, the orchestrator's LANE HB2
+    RULINGS 5 (3)): the word reader opened a number at a figure or a sign
+    before one alone, so `Age .95e2` -- 95 to the number reader
+    (`parsing.parse_number`: a leading point, an exponent) -- was read as
+    words, and a column holding it published and wrote it. A fixed
+    function of the three. No I/O.
+    """
+    if signed and plain[place:place + 1] in ("-", "+"):
+        place += 1
+    if plain[place:place + 1] == ".":
+        place += 1
+    return place < len(plain) and _a_figure(plain[place])
+
+
+def _bracketed(text: str) -> str:
+    """The closing bracket of `AGE_WORD_BRACKETS` a text is wholly enclosed in, or nothing."""
+    for opening, closing in AGE_WORD_BRACKETS:
+        if len(text) >= 2 and text[0] == opening and text[-1] == closing:
+            inner = text[1:-1]
+            if opening not in inner and closing not in inner:
+                return closing
+    return ""
+
+
+def _bracketed_unit_at(text: str) -> int:
+    """Where a unit word of `AGE_UNIT_WORDS` in brackets ends a text (`95 (years)`): the bracket's place, or -1."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    for opening, closing in AGE_WORD_BRACKETS:
+        if text[-1:] != closing:
+            continue
+        start = -1
+        for place in range(len(text)):
+            if text[place] == opening:
+                start = place
+        if start <= 0:
+            continue
+        word = _in_small_letters(parsing.trimmed(text[start + 1: -1]))
+        if word[-1:] == ".":
+            word = word[:-1]
+        if word in AGE_UNIT_WORDS:
+            return start
+    return -1
 
 
 def safe_harbor_number(
-    cell: str, comma: bool = False, affixes: bool = True
+    cell: str, comma: bool = False, affixes: bool = True, words: bool = False
 ) -> "SafeHarborNumber | None":
     """A cell read as one number, a unit word after it or not; None where it is not one.
 
@@ -31976,7 +34341,13 @@ def safe_harbor_number(
     `94,8` in an undeclared column were levels the reach never read, and
     printed `96,5` and `94,8` (the second repair of lane SH, item 3). A unit word is letters, spaces
     and points after the number, holding a letter: `95 years`, `95y`.
-    Guarantees: a fixed function of the two. Raises TypeError for a cell
+    ``words`` (the age reach's, lane HB2, plan P4-D477): the age words of
+    `AGE_VOCABULARY` around the number are read too, kept in ``head`` and
+    ``tail`` so the cell is written back in its own form -- `Age 95` is 95
+    with the head `Age `, `(95 yrs)` 95 in years, `95 (years)` too. A cell
+    holding none of them is read exactly as without ``words``; every reader
+    but the age reach's passes none (the years, the coordinates, an affix).
+    Guarantees: a fixed function of the four. Raises TypeError for a cell
     that is not text. No I/O.
     """
     if not isinstance(cell, str):
@@ -31985,6 +34356,176 @@ def safe_harbor_number(
     head = cell[: len(cell) - len(body)]
     rest = body.rstrip()
     after = body[len(rest):]
+    if words and affixes:
+        framed = _framed_age(head, rest, after, comma)
+        if framed is not None:
+            return framed
+    return _number_and_its_unit(head, rest, after, comma, affixes)
+
+
+def _framed_age(head: str, rest: str, after: str, comma: bool) -> "SafeHarborNumber | None":
+    """``rest`` read with the age words of `AGE_VOCABULARY` around one number (plan P4-D477), or None where it holds none.
+
+    One pair of brackets around the whole, an age word and its marks, one
+    pair of brackets around the rest after the word or around the number
+    alone before a unit (`Age (95) years`, `(95) yrs`; lane HB2's repair
+    2), and a unit word in brackets after the number, in that order; the
+    frame stands only where it holds an age word or a unit
+    (`_cell_age_unit`), and its parts are kept in the head and the tail as
+    written. Inside it the number is read by the number reader whole
+    (`_number_and_its_unit`: signs, a leading or trailing point, an
+    exponent, marks between thousands). Every space and dash in it is
+    read as `_age_plain` reads it, one character for one, and kept as
+    written (lane HB2's repair 1: `Age<U+00A0>95` is 95 with the head
+    `Age<U+00A0>`; `( Age 95 )` and `Age( 95 )` are read with the spaces
+    inside their brackets). Raises TypeError for a text that is not text.
+    No I/O.
+    """
+    if not isinstance(head, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    if not isinstance(rest, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    if not isinstance(after, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    # Every place below is read off the plain text and cut out of the
+    # text as written, which the plain text matches place for place; a
+    # zero-width space at its edges is an edge space, kept as written.
+    plain = _age_plain(rest)
+    first = 0
+    while first < len(plain) and plain[first] == " ":
+        first += 1
+    last = len(plain)
+    while last > first and plain[last - 1] == " ":
+        last -= 1
+    head = head + rest[:first]
+    after = rest[last:] + after
+    start = first
+    end = last
+    opening = ""
+    closing = _bracketed(plain[first:last])
+    if closing:
+        opening = rest[first]
+        start, end = first + 1, last - 1
+    word = ""
+    inside = start
+    while inside < end and plain[inside] == " ":
+        # ...the spaces inside a bracket around the whole, before its word.
+        inside += 1
+    starts = _age_word_at(plain[inside:end])
+    if starts >= 0:
+        word = rest[start:inside + starts]
+        start = inside + starts
+    unit = ""
+    at = _bracketed_unit_at(plain[start:end])
+    if at >= 0:
+        cut = start + at
+        while cut > start and plain[cut - 1] == " ":
+            cut -= 1
+        unit = rest[cut:end]
+        end = cut
+    # A BRACKET AROUND THE NUMBER (lane HB2's repair 2, Codex's item 3): after
+    # the word, around the rest (`Age (95)`, `Age (95 yrs)`: it closes the
+    # tail), or around the number alone before a unit (`Age (95) years`,
+    # `Age [95] yrs`, `(95) yrs`, `Age (95) (years)`: it closes right after
+    # the number). `Age (95) years` was read as -95 (the number reader's
+    # bracket of a negative amount) and `Age [95] years` as no number, so a
+    # column of either published and wrote its ages past 89; `(95)` alone,
+    # an amount in brackets, beside no word and no unit, is read as before.
+    opener = ""
+    closes = ""
+    closes_number = ""
+    enclosed = _bracketed(plain[start:end]) if word or unit else ""
+    if enclosed and unit:
+        # ...around the number alone, a unit in brackets after it.
+        if word:
+            word = word + rest[start]
+        else:
+            opener = rest[start]
+        closes, closes_number = rest[end - 1], enclosed
+        start, end = start + 1, end - 1
+    elif enclosed:
+        # ...around the rest after the word, a unit inside it or none, and
+        # the bracket around the whole, where one stands, closing after it
+        # (`[Age (95 yrs)]`).
+        word = word + rest[start]
+        closing = enclosed + closing
+        start, end = start + 1, end - 1
+    if not enclosed and not unit:
+        shut = _bracketed_number_at(plain, start, end)
+        if shut >= 0:
+            opened = start
+            while plain[opened] == " ":
+                opened += 1
+            if word:
+                word = word + rest[start:opened + 1]
+            else:
+                opener = rest[start:opened + 1]
+            closes, closes_number = rest[shut:end], rest[shut]
+            start = opened + 1
+            end = shut
+    if not (opening or word or unit or closes_number):
+        return None
+    lead = start
+    while lead < end and plain[lead] == " ":
+        lead += 1
+    core = end
+    while core > lead and plain[core - 1] == " ":
+        core -= 1
+    read = _number_and_its_unit("", plain[lead:core], "", comma, True)
+    if read is None:
+        return None
+    if closes_number and parsing.trimmed(read.tail):
+        # ...a bracket around the number alone holds the number alone.
+        return None
+    if not word and not unit and not closes_number and not _cell_age_unit(read):
+        return None
+    number = lead + len(read.number)
+    return dataclasses.replace(
+        read,
+        head=head + opening + word + opener + rest[start:lead],
+        number=rest[lead:number],
+        tail=rest[number:core] + rest[core:end] + closes + unit + closing + after,
+        word=word,
+        closing=closing,
+        closes_number=closes_number,
+    )
+
+
+def _bracketed_number_at(plain: str, start: int, end: int) -> int:
+    """Where the bracket closes that opens a plain text's part after its spaces and holds the number alone, an age's unit after it (`(95) years`, `[95]yrs`): its place, or -1 (plan P4-D477).
+
+    One pair of `AGE_WORD_BRACKETS`, no other bracket inside it, and after
+    it spaces and an age's unit or affix (`_age_unit_written`), nothing
+    else. A fixed function of the three. No I/O.
+    """
+    opened = start
+    while opened < end and plain[opened] == " ":
+        opened += 1
+    for opening, closing in AGE_WORD_BRACKETS:
+        if plain[opened:opened + 1] != opening:
+            continue
+        place = opened + 1
+        while place < end and plain[place] not in ("(", ")", "[", "]"):
+            place += 1
+        if place < end and plain[place] == closing and place > opened + 1:
+            if _age_unit_written(plain[place + 1:end]):
+                return place
+    return -1
+
+
+def _number_and_its_unit(
+    head: str, rest: str, after: str, comma: bool, affixes: bool
+) -> "SafeHarborNumber | None":
+    """`safe_harbor_number`'s reading of a cell's trimmed text, ``head`` and ``after`` its edge spaces (plan P4-D427).
+
+    Raises TypeError for a text that is not text. No I/O.
+    """
+    if not isinstance(head, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    if not isinstance(rest, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    if not isinstance(after, str):
+        raise TypeError(_NOT_TEXT_HERE)
     place = len(rest)
     while place > 0 and (_a_letter(rest[place - 1]) or rest[place - 1] in " ."):
         place -= 1
@@ -32124,6 +34665,211 @@ _AGE_AFFIXES: "tuple[str, ...]" = _AGE_SLASHED + tuple(
 )
 
 
+@dataclasses.dataclass(frozen=True)
+class AgeVocabulary:
+    """The age words of one closed vocabulary (lane HB2, plan P4-D477): what may stand around one age's number.
+
+    ``before``: the words before it, read whole in any case; ``marks``: the
+    marks that may stand between such a word and the number, spaces
+    beside them; ``brackets``: the pairs that may enclose the whole, the
+    number after the word, or a unit word after it; ``units``: each unit
+    word after it (in small letters, its point dropped) and the unit letter
+    of `AGE_MARKS` it names -- years, months, weeks and days; ``affixes``:
+    the age's own endings after it (`y/o`, `-year-old`, `months old`).
+    """
+
+    before: "tuple[str, ...]"
+    marks: "tuple[str, ...]"
+    brackets: "tuple[tuple[str, str], ...]"
+    units: "tuple[tuple[str, str], ...]"
+    affixes: "tuple[str, ...]"
+
+
+# THE ONE SHARED CONSTANT (the orchestrator's LANE HB2 RULINGS 1 (3)): every
+# reader of an age's words reads this, so lane CODES-2's word screen and lane
+# CZ-E's band reader cannot drift from the age reach; the gate checks each
+# generated family against it.
+AGE_VOCABULARY = AgeVocabulary(
+    AGE_WORDS_BEFORE,
+    AGE_WORD_MARKS,
+    AGE_WORD_BRACKETS,
+    tuple((word, AGE_UNIT_WORDS[word]) for word in sorted(AGE_UNIT_WORDS)),
+    _AGE_AFFIXES,
+)
+# THE WORD SCREEN READS IT (batch 4s's merge of lane HB2; the orchestrator's
+# LANE HB2 RULINGS 2 (3) and 7 (3), LANE CODES-2 RULINGS 8 (5)): lane
+# CODES-2's screen (`passes_the_word_screen`, `_a_shape_no_code_wears`) read
+# its own two lists, the words that say an age beside figures and the unit
+# words an age is counted in after its figures; they are now the
+# vocabulary's, united with what the screen reads beyond it, so a word or a
+# unit the vocabulary gains is refused beside figures on every road the
+# screen reads: the words before a number (`age`, `aged`) and `ages` and
+# `old`, which the screen refuses beside figures though the age reach reads
+# them in no frame of its own (`Ages 3` is no age to the reach, and `old`
+# follows a unit there); and every unit word of the vocabulary written in
+# letters alone (an affix holding a mark, `y/o`, is read by the screen as its
+# letter before the mark). Before the merge both lists stood here written
+# out, equal to these.
+_SCREEN_AGE_WORDS_BEYOND = ("ages", "old")
+_AGE_WORDS = frozenset(AGE_VOCABULARY.before) | frozenset(_SCREEN_AGE_WORDS_BEYOND)
+_AGE_UNIT_WORDS = frozenset(
+    unit for unit, _letter in AGE_VOCABULARY.units if unit and all("a" <= letter <= "z" for letter in unit)
+)
+
+
+# The marks a band opens with after an age word (`age >= 95`, `Age <18`,
+# `Age +90`): `age_words_split` sets the word aside before them too; and
+# (batch 4s's merge, step 9) `=>` and `=<` after the word's mark or a bracket
+# (C4 of lane HB2's verify: `Age: => 90` and `Age (=> 90)` were split as no
+# word, 2,660 of 58,800 generated cells), and the band reader's words (`Age
+# over 90`, `age under 18`), which lane CZ-E's reader read after `age` and a
+# space. Right after the word an `=` is the word's mark, as before (`age =>
+# 90` is `('age =', '> 90')`), and the band reader reads it back as `=>`.
+_AGE_BAND_OPENINGS = (">", "<", "+", "\u2265", "\u2264")
+_AGE_BAND_TWO_MARKS = ("=>", "=<")
+
+
+def _a_band_mark_at(plain: str, place: int) -> bool:
+    """Whether a band's own mark opens at a place of a plain text (`_AGE_BAND_OPENINGS`, `_AGE_BAND_TWO_MARKS`, or a word of the band reader's marks, `over`, `above`, `under`, `below` and `less than`, whole); `=>=` and `=<=` are the word's `=` before a band's `>=` and `<=` (`Age=>= 95`)."""
+    if plain[place:place + 1] in _AGE_BAND_OPENINGS or (
+        plain[place:place + 2] in _AGE_BAND_TWO_MARKS and plain[place + 2:place + 3] != "="
+    ):
+        return True
+    lowered = _in_small_letters(plain[place:place + 10])
+    for mark, _past in _BAND_UPWARD + _BAND_DOWNWARD:
+        if mark[-1:] == " " and lowered[: len(mark)] == mark:
+            return True
+    return False
+
+
+def age_words_split(cell: str) -> "tuple[str, str]":
+    """A cell's age word with what stands before its number, and the rest: `('Age ', '90-94')` for `Age 90-94`; `('', cell)` where it writes none.
+
+    `AGE_VOCABULARY`'s words before a number, as the age reach sets them
+    aside (plan P4-D477), for a reader of what follows -- lane CZ-E's
+    bands. EXACTLY WHAT THE READER READS (lane HB2's repair 1, skeptic 1's
+    item 4): the spaces and an opening bracket around the whole, the word,
+    its spaces, one mark and its spaces, and an opening bracket before the
+    number and its spaces, every space and dash read as `_age_plain` reads
+    it -- `Age: 90-94` is `('Age: ', '90-94')`, `[Age 90-94]` `('[Age ',
+    '90-94]')`, `Age<U+00A0>(90-94)` `('Age<U+00A0>(', '90-94)')`; where
+    the rest opens with a band's own mark (`_AGE_BAND_OPENINGS`; and since
+    batch 4s's merge, step 9, `=>` and `=<` after the word's mark or a
+    bracket, and the words `over`, `above`, `under`, `below` and `less
+    than`) and no figure, the same parts before it (`age >= 95` is `('age ',
+    '>= 95')`, `Age: >= 95` `('Age: ', '>= 95')`, `Age: => 90` `('Age: ',
+    '=> 90')`, `Age over 90` `('Age ', 'over 90')`). So the rest opens with a figure, a
+    sign before one or a band's mark. Guarantees: a fixed function of the
+    cell; the two parts join to the cell. Raises TypeError for a cell that
+    is not text. No I/O.
+    """
+    if not isinstance(cell, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    plain = _age_plain(cell)
+    place = 0
+    while place < len(plain) and plain[place] == " ":
+        place += 1
+    if plain[place:place + 1] in ("(", "["):
+        place += 1
+        while place < len(plain) and plain[place] == " ":
+            place += 1
+    starts = _age_word_at(plain[place:])
+    if starts >= 0:
+        number = place + starts
+        if plain[number:number + 1] in ("(", "["):
+            number += 1
+            while number < len(plain) and plain[number] == " ":
+                number += 1
+        return cell[:number], cell[number:]
+    lowered = _in_small_letters(plain[place:])
+    for word in AGE_WORDS_BEFORE:
+        if lowered[: len(word)] != word or (len(plain) > place + len(word) and _a_letter(plain[place + len(word)])):
+            continue
+        band = place + len(word)
+        while band < len(plain) and plain[band] == " ":
+            band += 1
+        if plain[band:band + 1] in AGE_WORD_MARKS:
+            band += 1
+            while band < len(plain) and plain[band] == " ":
+                band += 1
+        if plain[band:band + 1] in ("(", "["):
+            band += 1
+            while band < len(plain) and plain[band] == " ":
+                band += 1
+        if _a_band_mark_at(plain, band):
+            return cell[:band], cell[band:]
+        return "", cell
+    return "", cell
+
+
+def age_words_written(cells: "list[str]", comma: bool, absent: "frozenset[str]") -> bool:
+    """Whether a present cell of a column is read with age words around its number (`Age 95`, `(95 yrs)`, `95 (years)`; plan P4-D477).
+
+    Such a column's description records it (`top_coded_words`), so its
+    validator and its generator read the words as its profiler did; a
+    column holding none reads the same with or without them and records
+    nothing. Each spelling read once. Guarantees: a fixed function of the
+    three. Raises TypeError for a cell that is not text. No I/O.
+    """
+    seen: "dict[str, bool]" = {}
+    for cell in cells:
+        if cell in seen or cell in absent or not _holds_a_figure(cell):
+            continue
+        seen[cell] = True
+        read = safe_harbor_number(cell, comma, True, True)
+        if read is not None and _framed(read):
+            return True
+    return False
+
+
+def ages_written_with_words(cells: "list[str]", comma: bool, absent: "frozenset[str]") -> bool:
+    """Whether at least half of a column's cells that read as numbers write an age word before theirs (`Age 95`, `aged 95`; plan P4-D477).
+
+    The word says the column holds ages as its name would (`AGE_NAMED`), so
+    its Safe Harbor question offers the units where no cell states one and
+    `yes` top-codes it; since lane HB2's repair 2 it is asked BEFORE the
+    reach is decided, of every column the reach reads, so a column none of
+    whose spellings holds the letters of an age word is answered by one
+    look at each spelling, and each memo is bounded (`_takes`). Guarantees:
+    a fixed function of the three. Raises TypeError for a cell that is not
+    text. No I/O.
+    """
+    seen: "dict[str, bool]" = {}
+    asked = _asked()
+    lettered = False
+    for cell in cells:
+        if cell in seen:
+            asked.answered = asked.answered + 1
+            continue
+        if "age" in _in_small_letters(cell):
+            lettered = True
+            break
+        if _takes(asked, len(seen), cell):
+            seen[cell] = True
+    if not lettered:
+        return False
+    numbers = 0
+    worded = 0
+    memo: "dict[str, int]" = {}
+    asked = _asked()
+    for cell in cells:
+        if cell in absent or not _holds_a_figure(cell):
+            continue
+        if cell in memo:
+            asked.answered = asked.answered + 1
+            kind = memo[cell]
+        else:
+            read = safe_harbor_number(cell, comma, True, True)
+            kind = 0 if read is None else (2 if read.word else 1)
+            if _takes(asked, len(memo), cell):
+                memo[cell] = kind
+        if kind:
+            numbers += 1
+            if kind == 2:
+                worded += 1
+    return numbers > 0 and 2 * worded >= numbers
+
+
 def _age_affix_start(rest: str) -> int:
     """Where a number ends before an age's own affix in a cell's trimmed text (`100 y/o`, `92-year-old`), or -1 (plan P4-D454).
 
@@ -32150,12 +34896,41 @@ def _age_affix_start(rest: str) -> int:
     return -1
 
 
+def _unit_text(read: SafeHarborNumber) -> str:
+    """What a read writes after its number, trimmed, without the bracket its head opened or the brackets around a unit word (plan P4-D477).
+
+    `95 yrs` and `(95 yrs)` give `yrs`, `95 (years)` gives `years`; a read
+    with no age words gives its trimmed tail, as before them. Its spaces
+    and dashes are read as `_age_plain` reads them (lane HB2's repair 1:
+    `Age 95<U+200B>yrs` writes `yrs`); a read with no age words holds none
+    but at its edge, which trimming takes. No I/O.
+    """
+    text = parsing.trimmed(_age_plain(read.tail))
+    if read.closes_number and text[:1] == read.closes_number:
+        # ...the bracket around the number alone, before its unit (lane
+        # HB2's repair 2: `Age (95) years` writes `years`).
+        text = parsing.trimmed(text[1:])
+    for closer in reversed(read.closing):
+        # ...the brackets that close the tail, the outer one last.
+        if text[-1:] == closer:
+            text = parsing.trimmed(text[:-1])
+    for opening, closing in AGE_WORD_BRACKETS:
+        if len(text) >= 2 and text[0] == opening and text[-1] == closing:
+            text = parsing.trimmed(text[1:-1])
+    return text
+
+
+def _framed(read: SafeHarborNumber) -> bool:
+    """Whether a read's number stands in age words: a word before it, a bracket around it or around its unit (plan P4-D477)."""
+    return bool(read.word or read.closing or read.closes_number) or _unit_text(read) != parsing.trimmed(read.tail)
+
+
 def _an_age_unit_letter(read: SafeHarborNumber) -> bool:
     """Whether one unit letter of `AGE_MARKS` is written against a number, no space between (`090Y`, `6m`)."""
     tail = read.tail
     if not isinstance(tail, str):
         raise TypeError(_NOT_TEXT_HERE)
-    letter = parsing.trimmed(tail)
+    letter = _unit_text(read)
     return (
         len(letter) == 1
         and tail[:1] == letter
@@ -32165,7 +34940,17 @@ def _an_age_unit_letter(read: SafeHarborNumber) -> bool:
 
 def _cell_age_unit(read: SafeHarborNumber) -> str:
     """The unit a cell writes after its number (`AGE_UNIT_WORDS`), as a letter of `AGE_MARKS`; empty where it writes none (plan P4-D454)."""
-    word = _in_small_letters(parsing.trimmed(read.tail))
+    return _age_unit_of(_unit_text(read))
+
+
+def _age_unit_written(text: str) -> bool:
+    """Whether a text is an age's unit or affix alone, spaces beside it (`years`, ` yrs`, `-year-old`; plan P4-D477). No I/O."""
+    return _age_unit_of(parsing.trimmed(_age_plain(text))) != ""
+
+
+def _age_unit_of(text: str) -> str:
+    """The unit letter of `AGE_MARKS` a trimmed unit word or affix names (`AGE_UNIT_WORDS`, `-year-old`), or "" (plan P4-D454). No I/O."""
+    word = _in_small_letters(text)
     if word[-1:] == ".":
         word = word[:-1]
     if word in AGE_UNIT_WORDS:
@@ -32194,7 +34979,7 @@ AGE_UNITS_STATED = (AGE_UNIT_IN_CELLS, AGE_UNIT_IN_NAME, AGE_UNIT_ANSWERED)
 
 
 def ages_written_with_units(cells: "list[str]", comma: bool, absent: "frozenset[str]") -> bool:
-    """Whether at least half of a column's cells that read as numbers write an age's unit word or affix (`14 months`, `92 y/o`; plan P4-D454).
+    """Whether at least half of a column's cells that read as numbers write an age's unit word or affix (`14 months`, `92 y/o`; plan P4-D454), a band of ages among them (`an_age_band`, plan P4-D472).
 
     Blank cells and those of ``absent`` are set aside. Guarantees: a
     fixed function of the three. Raises TypeError for a cell that is not
@@ -32211,8 +34996,13 @@ def ages_written_with_units(cells: "list[str]", comma: bool, absent: "frozenset[
             asked.answered = asked.answered + 1
             kind = memo[cell]
         else:
-            read = safe_harbor_number(cell, comma)
+            # ...its age words read as the reach reads them (`Age 14
+            # months`, `(95 yrs)`; plan P4-D477).
+            read = safe_harbor_number(cell, comma, True, True)
             kind = 0 if read is None else (2 if _cell_age_unit(read) else 1)
+            if a_band_cell(cell) is not None:
+                # ...a band of ages states its unit by its form (plan P4-D472).
+                kind = 2
             if _takes(asked, len(memo), cell):
                 memo[cell] = kind
         if kind:
@@ -32278,20 +35068,27 @@ def _an_age_form(read: SafeHarborNumber) -> bool:
     value past 125 and of a placeholder on few rows is asked of such
     cells alone, so a made-up label of a held or long-tail twin (`126O`,
     `777Q`, three figures and any letter) is no age the checked file is
-    read with.
+    read with. The words a cell writes around its number (`Age 95`,
+    `(95 yrs)`; plan P4-D477) are read as its frame, not its unit.
     """
-    words = parsing.trimmed(read.tail)
+    words = _unit_text(read)
     return (
         not words or _an_age_unit_letter(read) or words[:1] in ("y", "Y")
         or _cell_age_unit(read) != ""
     )
 
 
-def _safe_harbor_kind(cell: str, comma: bool, mark: int = TOP_CODE) -> "tuple[int, int, float]":
-    """What one present cell is to the age reach and to the ZIP reach, and its value (in years: its unit's, else the column's ``mark``, read as 90)."""
+def _safe_harbor_kind(
+    cell: str, comma: bool, mark: int = TOP_CODE, words: bool = True
+) -> "tuple[int, int, float]":
+    """What one present cell is to the age reach and to the ZIP reach, and its value (in years: its unit's, else the column's ``mark``, read as 90).
+
+    ``words``: its age words read too (`safe_harbor_number`, plan P4-D477);
+    a cell so read is no ZIP.
+    """
     if not _holds_a_figure(cell):
         return _AGE_ASIDE, _ZIP_ASIDE, 0.0
-    read = safe_harbor_number(cell, comma)
+    read = safe_harbor_number(cell, comma, True, words)
     if read is None:
         return _AGE_OTHER, (_ZIP_IN if _a_zip_plus_four(cell) else _ZIP_OTHER), 0.0
     # ...placeholders are read as written (`999Y`, `-1`), the age in years.
@@ -32315,8 +35112,9 @@ def _safe_harbor_kind(cell: str, comma: bool, mark: int = TOP_CODE) -> "tuple[in
         age = _AGE_ABOVE_PADDED if padded else _AGE_ABOVE
     else:
         age = _AGE_IN_PADDED if padded else _AGE_IN
-    if parsing.trimmed(read.tail):
-        # A number with a word after it is no ZIP, nor a placeholder.
+    if parsing.trimmed(read.tail) or read.word or read.closing:
+        # A number with a word after it is no ZIP, nor a placeholder; nor
+        # one an age word or a bracket frames (plan P4-D477).
         postal = _ZIP_OTHER
     elif written < 0 or (whole and written == 0 and len(read.whole) == 1):
         postal = _ZIP_ASIDE
@@ -32352,6 +35150,7 @@ def safe_harbor_reach(
     padded_answered: bool = False,
     mark: int = TOP_CODE,
     named: bool = False,
+    words: bool = True,
 ) -> str:
     """Which Safe Harbor reach a column's cells fall in: `ages`, `zips` or none (plan P4-D427).
 
@@ -32363,7 +35162,16 @@ def safe_harbor_reach(
     whatever their share, never take it out of the reach (the
     orchestrator's LANE SH3 RULINGS 2 (1): years 18 to 105 beside 7 % of
     cells from 126 to 2,000, or 15 % of infants' ages written as bare
-    days, published 14 to 25 ages past 89).
+    days, published 14 to 25 ages past 89). AND A COLUMN OF AGE BANDS
+    holding a band past 89 is in the age reach too (`age_bands_past_89`,
+    plan P4-D472), ``named`` reading its bands as ages; and a band among
+    an age column's numbers is an age of the reach, one past 89 an age
+    past 89 (batch 4s's merge, step 9: `Age 18` to `Age 89` beside `Age
+    90-94` and `age >= 95`).
+    ``words``: each cell's age words read around its number (`Age 95`,
+    `(95 yrs)`; `safe_harbor_number`, lane HB2, plan P4-D477): a label
+    column of `Age NN` was read as words with no number, put no Safe
+    Harbor question, and published `Age 90` to `Age 95`.
 
     ``absent``: the spellings the column was read as holding no value,
     set aside; ``floor``: the rows a value outside the reach must hold
@@ -32402,6 +35210,8 @@ def safe_harbor_reach(
     zip_five = 0
     zip_aside = 0
     zip_outside: "dict[float, int]" = {}
+    band_in = 0
+    band_above = False
     for cell in cells:
         if cell in absent or not parsing.trimmed(cell):
             continue
@@ -32410,17 +35220,34 @@ def safe_harbor_reach(
             asked.answered = asked.answered + 1
             kind = memo[cell]
         else:
-            kind = _safe_harbor_kind(cell, comma, mark)
+            kind = _safe_harbor_kind(cell, comma, mark, words)
+            if kind[0] == _AGE_OTHER:
+                # ...A BAND OF AGES AMONG AN AGE COLUMN'S NUMBERS (batch 4s's
+                # merge, step 9; the orchestrator's LANE HB2 RULINGS 7 (4), the
+                # combined case of lanes HB2 and CZ-E): a band is an age of the
+                # reach, one past 89 an age past 89 (`_band_is_past_89`, in its
+                # own unit), so ages written `Age 18` to `Age 89` beside `Age
+                # 90-94` and `age >= 95` for the oldest are reached, where the
+                # bands, a sixth of the cells, made neither a column of numbers
+                # past 89 nor one of bands, and 1,080 and 360 real band cells
+                # were published and written on 20,000 rows. Counted apart
+                # (below): a band is such an age only beside numbers.
+                band = a_band_cell(cell)
+                if band is not None:
+                    kind = (_AGE_BAND_ABOVE if _band_is_past_89(band, mark) else _AGE_BAND_IN, kind[1], kind[2])
             if _takes(asked, len(memo), cell):
                 memo[cell] = kind
         age, postal, value = kind
-        if age == _AGE_ASIDE:
+        if age in (_AGE_BAND_IN, _AGE_BAND_ABOVE):
+            band_in += 1
+            band_above = band_above or age == _AGE_BAND_ABOVE
+        elif age == _AGE_ASIDE:
             age_aside += 1
         elif age == _AGE_OUTSIDE:
             # ...keyed by the number as written, not in years: a placeholder
             # is a spelling (`99998` beside ages in days, plan P4-D454).
             if cell not in written_of:
-                read = safe_harbor_number(cell, comma)
+                read = safe_harbor_number(cell, comma, True, words)
                 written_of[cell] = read.value if read is not None else value
             outside = written_of[cell]
             age_outside[outside] = (age_outside[outside] if outside in age_outside else 0) + 1
@@ -32439,6 +35266,18 @@ def safe_harbor_reach(
             zip_in += 1
         elif postal == _ZIP_OUTSIDE:
             zip_outside[value] = (zip_outside[value] if value in zip_outside else 0) + 1
+    # ...A BAND IS AN AGE OF THE REACH ONLY BESIDE THE COLUMN'S OWN NUMBERS
+    # (Codex's review of batch 4s, item 4; the orchestrator's LANE I4s
+    # RULINGS 1 (4)): the combined case's bands stand beside numbers read as
+    # ages (`Age 18` to `Age 89`, or `18` to `89`, beside `90-94` and
+    # `95+`); a column holding no number read as an age is a column of bands
+    # alone, read by the band reader's own decision on their shape
+    # (`age_bands_past_89`, below), so a measure's bands are left intact --
+    # `40-79`, `80-109` and `110-125` of a score, every band an age of the
+    # reach, were written `40-79` and `80+` on 20,000 rows.
+    if age_in > 0:
+        age_in += band_in
+        age_above = age_above or band_above
     repeat = max(floor, 1)
     # ...AN AGE'S PLACEHOLDERS ARE THE VALUES WRITTEN AS PLACEHOLDERS ARE
     # (`_a_placeholder_spelling`), set aside whatever their rows and
@@ -32482,12 +35321,17 @@ def safe_harbor_reach(
         and _BULK_PARTS * zip_in >= _BULK_TAKEN * (present - zip_aside)
     ):
         return SAFE_HARBOR_ZIPS
+    # ...AND AGES PAST 89 INSIDE BAND LABELS (plan P4-D472, lane CZ-E): a
+    # column of age bands holding a band past 89 (`age_bands_past_89`), its
+    # bands from 90 pooled by `top_coded_cells` into one band.
+    if age_bands_past_89(cells, absent, named, mark):
+        return SAFE_HARBOR_AGES
     return ""
 
 
 def age_placeholders_set_aside(
     cells: "list[str]", comma: bool, absent: "frozenset[str]", floor: int,
-    mark: int = TOP_CODE,
+    mark: int = TOP_CODE, words: bool = True,
 ) -> "list[str]":
     """A top-coded age column's cells with each placeholder written blank, before any rung is read (plan P4-D434).
 
@@ -32517,7 +35361,8 @@ def age_placeholders_set_aside(
     placeholder. Words, absent cells and every other number are kept, a
     stray past 125 that fewer rows hold among them. Guarantees: a fixed
     function of the four, the cells in their order. Raises TypeError for
-    a cell that is not text. No I/O.
+    a cell that is not text. No I/O. ``words``: the cells' age words read
+    as the reach reads them (plan P4-D477).
     """
     memo: "dict[str, tuple[int, int, float]]" = {}
     asked = _asked()
@@ -32529,10 +35374,10 @@ def age_placeholders_set_aside(
             asked.answered = asked.answered + 1
             kind = memo[cell]
         else:
-            kind = _safe_harbor_kind(cell, comma, mark)
+            kind = _safe_harbor_kind(cell, comma, mark, words)
             if _takes(asked, len(memo), cell):
                 memo[cell] = kind
-        read = safe_harbor_number(cell, comma) if kind[0] == _AGE_OUTSIDE else None
+        read = safe_harbor_number(cell, comma, True, words) if kind[0] == _AGE_OUTSIDE else None
         if read is not None and _a_placeholder_spelling(read.value):
             if _an_age_form(read):
                 outside[kind[2]] = (outside[kind[2]] if kind[2] in outside else 0) + 1
@@ -32548,9 +35393,9 @@ def age_placeholders_set_aside(
         if cell in absent or not _holds_a_figure(cell):
             written += [cell]
             continue
-        kind = memo[cell] if cell in memo else _safe_harbor_kind(cell, comma, mark)
+        kind = memo[cell] if cell in memo else _safe_harbor_kind(cell, comma, mark, words)
         read_here = (
-            safe_harbor_number(cell, comma)
+            safe_harbor_number(cell, comma, True, words)
             if kind[0] == _AGE_OUTSIDE and kind[2] in chosen
             else None
         )
@@ -32611,7 +35456,8 @@ def _placeholder_rows(outside: "dict[float, int]", repeat: int) -> int:
 
 
 def _padded_widths(
-    cells: "list[str]", comma: bool, absent: "frozenset[str]", affixes: bool = True
+    cells: "list[str]", comma: bool, absent: "frozenset[str]", affixes: bool = True,
+    words: bool = True,
 ) -> "dict[int, bool]":
     """The widths a column pads its numbers to: those of its cells written with a leading zero."""
     widths: "dict[int, bool]" = {}
@@ -32625,7 +35471,7 @@ def _padded_widths(
             continue
         if _takes(asked, len(seen), cell):
             seen[cell] = True
-        read = safe_harbor_number(cell, comma, affixes)
+        read = safe_harbor_number(cell, comma, affixes, words)
         if read is not None and not read.exponent and len(read.whole) >= 2 and read.whole[:1] == "0":
             widths[len(read.whole)] = True
     return widths
@@ -32743,9 +35589,37 @@ def top_coded_cells_before_sh3(
     return written
 
 
+def _pooled_as_a_band(
+    cell: str, band: "AgeBand | None", banded: bool, absent: "frozenset[str]", comma: bool, mark: int
+) -> bool:
+    """Whether the top-code writes a cell as its column's one band past 89 (`top_coded_cells`): a band past 89 years (`_band_is_past_89`), or, in a column of bands past 89 (``banded``), a band holding 90 years or a cell that is no band but still names an age past 89 (`_past_89_unread`)."""
+    if cell in absent:
+        return False
+    if band is not None:
+        return _band_is_past_89(band, mark) or (banded and band.end >= _band_cutoff(band, mark))
+    return banded and _past_89_unread(cell, comma, mark)
+
+
+def bands_top_coded(
+    cells: "list[str]", comma: bool = False, absent: "frozenset[str]" = frozenset(), mark: int = TOP_CODE
+) -> bool:
+    """Whether the top-code writes a cell of a column as its one band past 89 (`top_coded_cells`, `_pooled_as_a_band`): the column's description then records its band reading, `top_coded_bands` (plan P4-D472; the orchestrator's LANE CZ-E RULINGS 6 (3)). Each different cell read once up to `_SAFE_HARBOR_MEMO` of them. Guarantees: a fixed function of the four. Raises TypeError for a cell that is not text. No I/O."""
+    banded = age_bands_past_89(cells, absent, True, mark)
+    seen: "set[str]" = set()
+    for cell in cells:
+        if cell in seen:
+            continue
+        if len(seen) < _SAFE_HARBOR_MEMO:
+            seen |= {cell}
+        band = None if cell in absent else a_band_cell(cell)
+        if _pooled_as_a_band(cell, band, banded, absent, comma, mark):
+            return True
+    return False
+
+
 def top_coded_cells(
     cells: "list[str]", comma: bool = False, absent: "frozenset[str]" = frozenset(),
-    mark: int = TOP_CODE,
+    mark: int = TOP_CODE, words: bool = True, bands: bool = True,
 ) -> "list[str]":
     """A column's cells with every value of 90 or more written 90, its placeholders aside (plan P4-D427, ZS.1; P4-D434).
 
@@ -32761,23 +35635,50 @@ def top_coded_cells(
     20,000 rows), but a placeholder -- all nines, or written as one is
     (`_a_placeholder_spelling`) -- which the caller writes blank
     (`age_placeholders_set_aside`); every other cell is kept. Guarantees:
-    a fixed function of the three, the cells in their own order. Raises
+    a fixed function of the six, the cells in their own order. Raises
     TypeError for a cell that is not text. No I/O. ``mark``: the mark of
     the column's unit (`AGE_MARKS`, plan P4-D454): every value at or past
     it is written as it, `1300` in a column of ages in months as `1080`.
+    ``words``: each cell's age words read around its number and kept, so
+    `Age 95` is written `Age 90` (lane HB2, plan P4-D477); a description
+    that records no such reading (`top_coded_words`) is read without them.
+    AND A BAND OF AGES FROM 90 (plan P4-D472, `an_age_band`: `90-94`, `>=
+    95 yrs`, `100 and over`) is written as the column's one band past 89
+    in the source's form (`pooled_band`: `90+`, `>= 90 yrs`), read first,
+    so no band past 89 but that one is written; and, in a column of bands
+    past 89 (`age_bands_past_89`), so is every other cell that still
+    names an age past 89 (`_past_89_unread`: `100 & older`, `90 a 94`;
+    the orchestrator's LANE CZ-E RULINGS 3 (2)); a band in the column's
+    unit, ``mark``, never past 89 years where that unit is months, weeks
+    or days and the band writes no unit word of years (`_band_cutoff`,
+    RULINGS 6 (2)). ``bands`` False reads no band (a description that
+    records no band reading, `top_coded_bands`, was made before it and is
+    read as it was made: Codex's item 3 of lane CZ-E's review, the
+    orchestrator's LANE CZ-E RULINGS 6 (3)).
     """
-    padded = _padded_widths(cells, comma, absent)
+    padded = _padded_widths(cells, comma, absent, True, words)
     memo: "dict[str, str]" = {}
     asked = _asked()
     written: "list[str]" = []
+    pooled = ""
+    banded = bands and age_bands_past_89(cells, absent, True, mark)
+    # ...and a closed band holding 90 (`75-99` beside `100+`) joins the one
+    # band, written from its own first age, so the band past 89 is never
+    # the older ages alone.
+    start = _band_holding_90(cells, absent, mark) if banded else TOP_CODE
     for cell in cells:
         if cell in memo:
             asked.answered = asked.answered + 1
             written += [memo[cell]]
             continue
         coded = cell
-        if cell not in absent:
-            read = safe_harbor_number(cell, comma)
+        band = None if cell in absent or not bands else a_band_cell(cell)
+        if bands and _pooled_as_a_band(cell, band, banded, absent, comma, mark):
+            if not pooled:
+                pooled = pooled_band(cells, absent, start, mark)
+            coded = pooled
+        elif cell not in absent:
+            read = safe_harbor_number(cell, comma, True, words)
             years = _in_years(read, mark) if read is not None else 0.0
             if read is not None and (
                 TOP_CODE <= years <= TOP_CODE_REACH_CEILING
@@ -32798,6 +35699,7 @@ def top_coded_cells(
 def top_category_pooled(
     cells: "list[str]", comma: bool, absent: "frozenset[str]", floor: int,
     mark: int = TOP_CODE, holders: "list[list[str]] | None" = None,
+    words: bool = True,
 ) -> "list[str]":
     """A top-coded column's cells with a top category of 1 to ``floor`` - 1 rows written as the value below it (plan P4-D454).
 
@@ -32842,7 +35744,7 @@ def top_category_pooled(
         else:
             age = None
             if cell not in absent and _holds_a_figure(cell):
-                read = safe_harbor_number(cell, comma)
+                read = safe_harbor_number(cell, comma, True, words)
                 if read is not None and _an_age_form(read):
                     age = _in_years(read, mark)
             if _takes(asked, len(ages), cell):
@@ -32873,15 +35775,238 @@ def top_category_pooled(
     written: "list[str]" = []
     for cell in cells:
         written += [cell]
-    padded = _padded_widths(cells, comma, absent)
+    padded = _padded_widths(cells, comma, absent, True, words)
     for place in top:
         if below_cell:
             written[place] = below_cell
         else:
-            read_top = safe_harbor_number(cells[place], comma)
+            read_top = safe_harbor_number(cells[place], comma, True, words)
             if read_top is not None:
                 written[place] = _top_coded_text(read_top, comma, padded, mark, True)
     return written
+
+
+# THE AGES' ENDS POOLED IN PEOPLE (lane HB2, plan P4-D477; the orchestrator's
+# LANE GRb RULINGS 2 (2) and 3 (4)). A column the age reach reads, beside a
+# person column that repeats, was held whole as record numbers where a value
+# its description publishes -- the youngest ages of its low tail, its first
+# percentile, its 99th, its largest, the top code 90 itself -- was held by 1 to
+# 10 people (a visit table of 3,000 patients aged 25 to 90, about 20,000 rows:
+# 4 to 10 people hold each of 26, 27, 82 to 90), so its twin wrote two
+# stand-ins per row and twin patients held two ages. Its ENDS are pooled in
+# people instead: from each end inward, the values each fewer people than the
+# floor hold join one band until the band holds the floor's people and the
+# next value does too; the low band is written as its highest value and the
+# top band as its lowest -- the top code merged down into the highest band
+# eleven people or more hold, never past 90 -- each cell in its own form. The
+# column is then described again from those cells and counted in people
+# again, and held as before only where that count still finds a value few
+# people hold. A record number its name alone put in the reach is never so
+# pooled (LANE I4m RULINGS 21 (1)).
+
+
+def ends_pooled_in_people(
+    cells: "list[str]", comma: bool, absent: "frozenset[str]", floor: int,
+    mark: int, holders: "list[list[str]]", words: bool = True,
+    low_at_least: int = -1, high_at_most: int = -1,
+) -> "tuple[int, int] | None":
+    """The two values a top-coded age column's ends are pooled into, counted in people: (low, high), or None where none is (plan P4-D477).
+
+    ``holders`` names the subject of every row under each subject column;
+    a value's people are the fewest it holds under any of them. Read are
+    the cells written as ages are (`_an_age_form`), whole numbers from 0
+    to the mark of the cell's own unit, EACH IN THE UNIT OF THE COLUMN'S
+    MARK (`age_in_the_columns_unit`, lane HB2's repair 2, Codex's item 1:
+    `25`, `30`, `50`, `600 months`, `960 months` and `1080 months` were
+    compared as written, and the ends `[30, 960]` the description recorded
+    beside the top code 90 were refused by its loader), so the two values
+    are the column's, at most its mark; None where a cell of them has
+    decimals, where the column holds no such value, where the two bands
+    would meet, or where neither end needs a band. ``low`` is the highest
+    value of the low band and ``high`` the lowest of the top band: every
+    value below ``low`` is written as ``low`` and every value above
+    ``high`` as ``high`` (`cells_within_the_ends`), each band then held by
+    ``floor`` people or more, the value beside it too. ``low_at_least`` and
+    ``high_at_most`` (where at or past nought): the low band reaches that
+    value at least and the top band down to it at least, before the rule
+    above goes on, as the count in people asks after a first pooling
+    (`profile.build_document`, `_END_ROUNDS` times at most). Guarantees: a fixed function of the
+    nine; linear in the rows. Raises TypeError for a cell that is not
+    text. No I/O.
+    """
+    if floor <= 0 or not holders:
+        return None
+    reads: "dict[str, int | None]" = {}
+    held: "list[dict[int, dict[str, bool]]]" = [{} for _subjects in holders]
+    for place in range(len(cells)):
+        cell = cells[place]
+        if cell not in reads:
+            value: "int | None" = None
+            if cell not in absent and _holds_a_figure(cell):
+                read = safe_harbor_number(cell, comma, True, words)
+                if read is not None and _an_age_form(read) and not read.exponent:
+                    if read.places:
+                        return None
+                    if 0 <= read.value <= age_mark(read, mark):
+                        value = age_in_the_columns_unit(read, mark)
+            reads[cell] = value
+        found = reads[cell]
+        if found is None:
+            continue
+        for column in range(len(holders)):
+            people = held[column]
+            if found not in people:
+                people[found] = {}
+            if len(people[found]) < floor:
+                people[found][holders[column][place]] = True
+    values = sorted(held[0]) if held else []
+    if len(values) < 2:
+        return None
+
+    def enough(value: int) -> bool:
+        return all(len(people[value]) >= floor for people in held)
+
+    def band(order: "list[int]", reaching: "int | None") -> int:
+        union: "list[dict[str, bool]]" = [{} for _people in held]
+        for at in range(len(order)):
+            for column in range(len(held)):
+                for subject in held[column][order[at]]:
+                    if len(union[column]) < floor:
+                        union[column][subject] = True
+            full = all(len(one) >= floor for one in union)
+            reached = reaching is None or (
+                order[at] >= reaching if order[0] <= order[-1] else order[at] <= reaching
+            )
+            if full and reached and (at + 1 == len(order) or enough(order[at + 1])):
+                return at
+        return len(order) - 1
+
+    low_at = band(values, low_at_least if low_at_least >= 0 else None)
+    high_at = len(values) - 1 - band(list(reversed(values)), high_at_most if high_at_most >= 0 else None)
+    if high_at <= low_at or (low_at == 0 and high_at == len(values) - 1):
+        return None
+    return values[low_at], values[high_at]
+
+
+def cells_within_the_ends(
+    cells: "list[str]", comma: bool, absent: "frozenset[str]", low: int, high: int,
+    mark: int = TOP_CODE, words: bool = True,
+) -> "list[str]":
+    """A top-coded age column's cells with every whole age below ``low`` written as ``low`` and above ``high`` as ``high``, each in its own form (plan P4-D477).
+
+    The ends `ends_pooled_in_people` chose, which a description records
+    (`top_coded_ends`) and its validator reads again: a cell written as an
+    age is (`_an_age_form`), a whole number from 0 to its unit's mark,
+    keeps its head and tail and the width it pads to (`Age 25` is `Age 27`,
+    `025` is `027`); every other cell is kept. The two ends are in the unit
+    of the column's ``mark``: each cell is compared in it
+    (`age_in_the_columns_unit`) and written in its own unit
+    (`age_in_its_own_unit`; lane HB2's repair 2: `360 months` below the
+    end 31 years is `372 months`). Guarantees: a fixed function of the
+    seven, the cells in their order. Raises TypeError for a cell that is
+    not text. No I/O.
+    """
+    memo: "dict[str, str]" = {}
+    written: "list[str]" = []
+    for cell in cells:
+        if cell in memo:
+            written += [memo[cell]]
+            continue
+        coded = cell
+        if cell not in absent and _holds_a_figure(cell):
+            read = safe_harbor_number(cell, comma, True, words)
+            if (
+                read is not None
+                and _an_age_form(read)
+                and not read.exponent
+                and not read.places
+                and 0 <= read.value <= age_mark(read, mark)
+                and not low <= age_in_the_columns_unit(read, mark) <= high
+            ):
+                figures = f"{age_in_its_own_unit(low if age_in_the_columns_unit(read, mark) < low else high, read, mark)}"
+                if read.whole[:1] == "0" and len(read.whole) > len(figures):
+                    figures = "0" * (len(read.whole) - len(figures)) + figures
+                coded = read.head + ("+" if read.plus else "") + figures + read.tail
+        memo[cell] = coded
+        written += [coded]
+    return written
+
+
+def age_in_the_columns_unit(read: SafeHarborNumber, mark: int) -> int:
+    """A whole age's value in the unit of its column's ``mark``: its own value times that mark over its own unit's mark, rounded down -- the completed units (plan P4-D477).
+
+    `960 months` is 80 in a column of years, `30` 360 in one of months;
+    `1080 months` is 90, so no cell at or below its own unit's mark is
+    past the column's. A fixed function of the two. No I/O.
+    """
+    return (int(read.value) * mark) // age_mark(read, mark)
+
+
+def age_in_its_own_unit(value: int, read: SafeHarborNumber, mark: int) -> int:
+    """The fewest whole units of a cell's own unit whose age in the unit of its column's ``mark`` is ``value`` or more (plan P4-D477).
+
+    `age_in_the_columns_unit` reads it back as ``value`` where the cell's
+    unit is the column's or finer (80 years is `960 months`), and as at
+    least ``value`` where it is coarser; at most the cell's own mark where
+    ``value`` is at most the column's. A fixed function of the three. No
+    I/O.
+    """
+    unit = age_mark(read, mark)
+    return -((-value * unit) // mark)
+
+
+def ages_as_read(
+    cells: "list[str]", comma: bool, absent: "frozenset[str]", mark: int, words: bool = True,
+) -> "list[tuple[float, int] | None]":
+    """Each cell's number as its column's block reads it, and its whole age in the unit of the column's ``mark``, -1 where it is none: None where the cell reads as no number (plan P4-D477).
+
+    The number is the profiler's (`parsing.parse_number`, through the
+    declared decimal comma where ``comma``), or, for a cell its number
+    reader reads with words or a unit around it (`Age 95`, `95 yrs`,
+    `(95) yrs`), that number in the cell's own unit, as the block reads a
+    number with its affix; the age is `age_in_the_columns_unit`'s, for a
+    whole number written as an age is from 0 to its own unit's mark. LANE
+    HB2'S REPAIR 2 (Codex's item 1): the ends' rounds counted the people of
+    a published value, of the remainder and of a bin group over cells
+    written as bare whole numbers alone, and compared values in the unit
+    each cell wrote. Each spelling read once; linear in the rows.
+    Guarantees: a fixed function of the five, one entry a cell. Raises
+    TypeError for a cell that is not text. No I/O.
+    """
+    memo: "dict[str, tuple[float, int] | None]" = {}
+    found: "list[tuple[float, int] | None]" = []
+    for cell in cells:
+        if cell not in memo:
+            entry: "tuple[float, int] | None" = None
+            if cell not in absent and _holds_a_figure(cell):
+                number = parsing.parse_number(parsing.written_with_a_decimal_comma(cell) if comma else cell)
+                read = safe_harbor_number(cell, comma, True, words)
+                if number is None and read is not None and (
+                    read.word or read.closing or read.closes_number or parsing.trimmed(read.tail)
+                ):
+                    number = read.value
+                if number is not None and math.isfinite(number):
+                    whole = (
+                        read is not None
+                        and read.value == number
+                        and _an_age_form(read)
+                        and not read.exponent
+                        and not read.places
+                        and 0 <= read.value <= age_mark(read, mark)
+                    )
+                    entry = (number, age_in_the_columns_unit(read, mark) if whole and read is not None else -1)
+            memo[cell] = entry
+        found += [memo[cell]]
+    return found
+
+
+def with_top_ends(column: ColumnProfile, low: int, high: int) -> ColumnProfile:
+    """A top-coded column described with its ends pooled in people (plan P4-D477): `top_coded_ends`, the two values the bands are written as, both published values each the floor's people hold. Raises nothing. No I/O."""
+    details: "dict[str, object]" = {}
+    for key in column.details:
+        details[key] = column.details[key]
+    details["top_coded_ends"] = [low, high]
+    return dataclasses.replace(column, details=details)
 
 
 def _free_below_the_top_code(
@@ -32926,7 +36051,7 @@ _STAND_IN_UNIT_CAPITALS = {"y": "Y", "m": "M", "w": "W", "d": "D"}
 
 
 def _stand_ins_below_the_mark(
-    cells: "list[str]", absent: "frozenset[str]", mark: int
+    cells: "list[str]", absent: "frozenset[str]", mark: int, words: bool = False
 ) -> "list[str]":
     """A label twin's made-up labels past the mark each written as a spelling below it that no other cell holds (lane SH3's second repair, plan P4-D454).
 
@@ -32958,7 +36083,10 @@ def _stand_ins_below_the_mark(
         if cell in chosen:
             written += [chosen[cell]]
             continue
-        read = None if cell in absent or parsing.trimmed(cell) in absent else safe_harbor_number(cell, False)
+        read = (
+            None if cell in absent or parsing.trimmed(cell) in absent
+            else safe_harbor_number(cell, False, True, words)
+        )
         if (
             read is None
             or read.places
@@ -32985,7 +36113,12 @@ def _stand_ins_below_the_mark(
                     ]
         spelling = ""
         for tail in tails:
-            own = safe_harbor_number("1" + tail, False)
+            # ...a tail its words frame is read with its frame (plan P4-D477).
+            own = (
+                dataclasses.replace(read, tail=tail)
+                if _framed(read)
+                else safe_harbor_number("1" + tail, False)
+            )
             unit_mark = age_mark(own, mark) if own is not None else mark
             least = 0 if padded or width == 1 else 10 ** (width - 1)
             key = (width, padded, _in_small_letters(tail))
@@ -33011,6 +36144,7 @@ def _stand_ins_below_the_mark(
 def at_most_the_top_code(
     cells: "list[str]", absent: "frozenset[str]" = frozenset(), mark: int = TOP_CODE,
     held: bool = False, published: "bool | None" = None, labels: bool = False,
+    words: bool = False, bounded: bool = False,
 ) -> "list[str]":
     """A twin's cells with every value above 90, to 125, written at or below 90 (plan P4-D427).
 
@@ -33050,22 +36184,33 @@ def at_most_the_top_code(
     standing for the top category): False writes no cell of the
     column at or past its unit's mark, the mark itself included; True
     lets the mark stand; None reads it from the cells as above.
+    ``bounded``: the column is DESCRIBED AS NUMBERS (its facts a column of
+    numbers', bare or with a unit; the generator says so), and writes no
+    cell past 125 years either but a placeholder, whatever word follows
+    its number (lane HB2, plan P4-D477: the weight `130.9 kg` of a column
+    whose description publishes the top code 90). Passed, never inferred
+    (lane HB2's repair 1, skeptic 1's item 2: inferred as neither held nor
+    labels, it reached a held column's made-up cells -- the generator
+    never passes ``held`` -- and wrote `201 lb` as `86 lb`, so the twin of
+    a held weight column missed its own layouts and length).
     ``labels``: the column is a label column, whose cells past the mark
     are made-up labels standing in for levels the floor held back; each
     is first written as a free spelling below the mark
     (`_stand_ins_below_the_mark`, lane SH3's second repair), so none joins
-    the published top category. Guarantees: a fixed function of the six,
-    the cells in their order. Raises TypeError for a cell that is not
-    text. No I/O.
+    the published top category. ``words``: each cell's age words read
+    around its number and kept (`Age 95` is 95; lane HB2, plan P4-D477),
+    as the description recorded it (`top_coded_words`). Guarantees: a
+    fixed function of the eight, the cells in their order. Raises
+    TypeError for a cell that is not text. No I/O.
     """
     if held:
-        cells = _held_ages_within_the_mark(cells, absent, mark)
+        cells = _held_ages_within_the_mark(cells, absent, mark, words)
     if labels:
-        cells = _stand_ins_below_the_mark(cells, absent, mark)
+        cells = _stand_ins_below_the_mark(cells, absent, mark, words)
     unit = 10 ** _TOP_CODE_PLACES
     taken: "dict[int, bool]" = {}
     lowest = TOP_CODE * unit
-    padded = _padded_widths(cells, False, absent)
+    padded = _padded_widths(cells, False, absent, True, words)
     # ...a column counted in another unit writes a cell past its mark AS
     # THE MARK only where another cell holds the mark itself -- the top
     # category the description published -- and else as the mark less one
@@ -33076,7 +36221,7 @@ def at_most_the_top_code(
     # months` where the description had pooled that category).
     at_the_marks: "dict[int, bool]" = {}
     for cell in cells:
-        read = None if cell in absent or parsing.trimmed(cell) in absent else safe_harbor_number(cell, False)
+        read = None if cell in absent or parsing.trimmed(cell) in absent else safe_harbor_number(cell, False, True, words)
         if (
             read is not None
             and age_mark(read, mark) != TOP_CODE
@@ -33092,7 +36237,7 @@ def at_most_the_top_code(
     for cell in cells:
         if cell in absent or parsing.trimmed(cell) in absent:
             continue
-        read = safe_harbor_number(cell, False)
+        read = safe_harbor_number(cell, False, True, words)
         if (
             read is not None
             and age_mark(read, mark) == TOP_CODE
@@ -33105,7 +36250,7 @@ def at_most_the_top_code(
     for cell in cells:
         if cell in absent or parsing.trimmed(cell) in absent:
             continue
-        read = safe_harbor_number(cell, False)
+        read = safe_harbor_number(cell, False, True, words)
         if read is not None and _in_years_as_written(read, mark) <= TOP_CODE:
             kept_value = round(_in_years_as_written(read, mark) * unit)
             taken[kept_value] = True
@@ -33118,10 +36263,10 @@ def at_most_the_top_code(
         read = (
             None
             if cell in absent or parsing.trimmed(cell) in absent
-            else safe_harbor_number(cell, False)
+            else safe_harbor_number(cell, False, True, words)
         )
         if read is None or not (
-            _changed_by_the_top_code(read, mark)
+            _changed_by_the_top_code(read, mark, bounded)
             # ...and, where the description publishes no value at or past
             # the mark, a cell of the column's own unit at the mark itself.
             or (published is False and read.value == age_mark(read, mark))
@@ -33158,7 +36303,7 @@ def at_most_the_top_code(
 
 
 def _held_ages_within_the_mark(
-    cells: "list[str]", absent: "frozenset[str]", mark: int
+    cells: "list[str]", absent: "frozenset[str]", mark: int, words: bool = False
 ) -> "list[str]":
     """A held age column's made-up cells with every whole number past 125 years written as its remainder by its unit's mark (lane SH3's repair, skeptic 1's item 10).
 
@@ -33171,7 +36316,7 @@ def _held_ages_within_the_mark(
     """
     written: "list[str]" = []
     for cell in cells:
-        read = None if cell in absent or parsing.trimmed(cell) in absent else safe_harbor_number(cell, False)
+        read = None if cell in absent or parsing.trimmed(cell) in absent else safe_harbor_number(cell, False, True, words)
         if (
             read is None
             or read.exponent
@@ -33188,7 +36333,9 @@ def _held_ages_within_the_mark(
     return written
 
 
-def _changed_by_the_top_code(read: SafeHarborNumber, mark: int = TOP_CODE) -> bool:
+def _changed_by_the_top_code(
+    read: SafeHarborNumber, mark: int = TOP_CODE, bounded: bool = False
+) -> bool:
     """Whether the top-code's reading of a checked file changes a twin's cell (plan P4-D434), so G7.14 writes it at or below 90.
 
     Above 90 years, to 125; and, written as an age is (`_an_age_form`),
@@ -33199,6 +36346,13 @@ def _changed_by_the_top_code(read: SafeHarborNumber, mark: int = TOP_CODE) -> bo
     made-up label of a held or long-tail twin (`898Y`, `777Y`) that the
     validator would so read is written below the top-code instead, so the
     twin keeps its count of cells and of different values.
+    ``bounded`` (a column described as numbers, which the generator passes;
+    lane HB2, plan P4-D477): a cell past 125 written with a word that is no
+    age's unit (`130.9 kg`) is changed too, as the top code its
+    description publishes bounds every twin cell -- a placeholder (nines
+    alone, or written as one is) kept. The zoo's vitals export, nobody at
+    the keyboard, published the top code 90 for its weight column and its
+    twin wrote 130.9, 138.8, 148.3 and 159.5 kg.
     """
     years = _in_years(read, mark)
     if TOP_CODE < years <= TOP_CODE_REACH_CEILING or _at_the_decimal_cut(read, mark):
@@ -33206,7 +36360,12 @@ def _changed_by_the_top_code(read: SafeHarborNumber, mark: int = TOP_CODE) -> bo
         # `89.9986` years is an age of 90.
         return True
     if not _an_age_form(read):
-        return False
+        return (
+            bounded
+            and years > TOP_CODE_REACH_CEILING
+            and not _all_nines(read.value)
+            and not _a_placeholder_spelling(read.value)
+        )
     written = read.value
     whole = written == int(written)
     if whole and (_all_nines(written) or -9 <= written < 0):
@@ -33218,7 +36377,7 @@ def _changed_by_the_top_code(read: SafeHarborNumber, mark: int = TOP_CODE) -> bo
 
 def with_top_code(
     column: ColumnProfile, mark: int = TOP_CODE, pooled: int = -1,
-    people: "tuple[str, ...]" = (),
+    people: "tuple[str, ...]" = (), words: bool = False, bands: bool = False,
 ) -> ColumnProfile:
     """A column described with every age over 89 read as 90 (plan P4-D427, ZS.1).
 
@@ -33235,8 +36394,18 @@ def with_top_code(
     columns that category was counted in too, as `top_category_people`
     (lane SH3's repair, Codex's item 4 and the orchestrator's LANE SH3
     RULINGS 1 (2): a validator reads the rule the description records and
-    never a newer one). Guarantees: a fixed function of the four. Raises
-    nothing. No I/O.
+    never a newer one). ``words``: the column's cells were read with the
+    age words of `AGE_VOCABULARY` around their numbers (`Age 95`; lane
+    HB2, plan P4-D477), written as `top_coded_words` -- only where a cell
+    holds such words, so every other description keeps its bytes, and one
+    written before the vocabulary is read without them. ``bands``: the
+    top-code wrote a band of ages as the column's one band past 89
+    (`bands_top_coded`), written as `top_coded_bands`, true, so a
+    validator reads the bands as it did; a block without it was made
+    before the band reading or wrote no band so, and is read with its
+    bands kept (plan P4-D472; Codex's item 3 of lane CZ-E's review, the
+    orchestrator's LANE CZ-E RULINGS 6 (3)). Guarantees: a fixed function
+    of the six. Raises nothing. No I/O.
     """
     details: "dict[str, object]" = {}
     for key in column.details:
@@ -33246,6 +36415,10 @@ def with_top_code(
         details["top_category_pooled"] = pooled
         if people:
             details["top_category_people"] = list(people)
+    if words:
+        details["top_coded_words"] = True
+    if bands:
+        details["top_coded_bands"] = True
     return dataclasses.replace(column, details=details)
 
 
@@ -33377,6 +36550,9 @@ HELD_ADDRESS_PARTS = "named-as-address-parts"
 #   or five figures beside its name is none), the given name a sole
 #   initial with its point (`Lastname, F. [1234567]`) and a family name
 #   written with a curly apostrophe among them (repair 2, Codex item 2),
+#   or the name's parts and the number joined by one mark, the number
+#   last or first (`Lastname,Firstname,1234567`, `1234567;Lastname;
+#   Firstname`; lane CZ-A2, plan P4-D469, `_a_name_joined_to_a_number`),
 #   one cell of it whatever its share: both parts are Safe Harbor
 #   identifiers;
 # - an opaque token, 32 or 64 hexadecimal characters in one case -- the
@@ -34305,8 +37481,20 @@ def age_mark_named(name: str) -> int:
 
 
 def named_as_an_age(name: str) -> bool:
-    """Whether a column's name holds the word `age`, read whole, or `age` and a unit run together (plan P4-D454)."""
-    return AGE_NAME_WORD in name_words(name) or age_mark_named(name) != 0
+    """Whether a column's name holds the word `age`, read whole, or `age` and a unit run together (plan P4-D454), or `age` and a word of `AGE_GROUP_RUN_ONS` run together (`agegrp`, `AGEGROUP`, `ageband`; plan P4-D472)."""
+    words = name_words(name)
+    for word in words:
+        if word[: len(AGE_NAME_WORD)] == AGE_NAME_WORD and word[len(AGE_NAME_WORD):] in AGE_GROUP_RUN_ONS:
+            return True
+    return AGE_NAME_WORD in words or age_mark_named(name) != 0
+
+
+# The words of a group that `age` may run together with in a column's
+# name (`named_as_an_age`): `agegrp`, `agegroup`, `ageband`, `agecat`.
+AGE_GROUP_RUN_ONS = frozenset({
+    "grp", "group", "groups", "band", "bands", "bin", "bins", "cat", "category",
+    "categories", "class", "range", "ranges", "bracket", "brackets", "cohort",
+})
 
 
 def _a_numbered_part(word: str) -> bool:
@@ -34464,6 +37652,2121 @@ def coordinates_held(readings: "list[tuple[str, str]]") -> "list[str]":
     return found
 
 
+def _text_place(text: str, needle: str, start: int = 0) -> int:
+    """Where ``needle`` first stands in a text from ``start``, or -1 (the value readers' one search, on text alone)."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    if not isinstance(needle, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    found = text[start:].find(needle)
+    return found + start if found >= 0 else -1
+
+
+def _text_count(text: str, needle: str) -> int:
+    """How many times ``needle`` stands in a text, apart."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    if not isinstance(needle, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    return text.count(needle)
+
+
+def _text_parts(text: str, mark: str) -> "list[str]":
+    """A text cut at each ``mark``."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    if not isinstance(mark, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    return text.split(mark)
+
+
+def _a_letter_or_figure(character: str) -> bool:
+    """Whether one character is a letter (`_a_letter`) or a figure from 0 to 9."""
+    return _a_figure(character) or _a_letter(character)
+
+
+# THE PRODUCT'S OWN ODD MARKS (the orchestrator's LANE CZ-E RULINGS 3 (4)):
+# every value reader reads a text with each dash written `-` and each space,
+# zero-width or format character written ` `. Measured at 20,000 rows
+# before: a telephone number or a date written with a non-breaking hyphen,
+# an en dash or a minus sign, and a name after a title, a relative's word or
+# a family name's comma behind a non-breaking or narrow space, were read by
+# no reader and published (1,068 to 1,134 twin cells a form). THE ONE
+# DEFINITION (batch 4s's merge, step 9; the orchestrator's LANE CZ-E RULINGS
+# 7 (5) and LANE CODES-2 RULINGS 7 (4)): a space is a space of
+# `_SCREEN_SPACE_RANGES` (`_a_space_of_the_screen`) and a dash one of
+# `_SCREEN_DASHES`, the word screen's, which the age words' reader and the
+# readers of persons' names and of record numbers beside labels read too.
+# Before the merge the lane read two lists of its own: the dashes of
+# `_SSN_MARKS` but the horizontal bar U+2015 and the small em dash U+FE58,
+# and the spaces of LANE CODES-2 RULINGS 6 (1) (tab, newline, carriage
+# return, form feed, vertical tab, U+0085, U+00A0, U+1680, U+2000 to U+200F,
+# U+2028, U+2029, U+202F, U+205F, U+2060, U+3000, U+FEFF). Both lie inside
+# the definition, which reads more characters as a space or a dash -- the
+# four information separators U+001C to U+001F, every other control and
+# format character (the soft hyphen U+00AD among them), the lone surrogate
+# code points, U+2015 and U+FE58 -- so more cells as the readers' forms:
+# more held, never fewer.
+
+
+def plain_marks(text: str) -> str:
+    """A text as the value readers read it, one character for one: each dash of the product's one definition (`_SCREEN_DASHES`) written `-`, each space of it (`_a_space_of_the_screen`, the soft hyphen among them) written ` ` (plan P4-D472; batch 4s's merge, step 9). An ASCII text holding no control character but the space is returned as it is. A fixed function of the text. Raises TypeError for a value that is not text. No I/O."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    if text.isascii():
+        if "\t" not in text and _read_as_written(text):
+            return text
+    else:
+        for character in text:
+            if (character != "-" and character in _SCREEN_DASHES) or (
+                character != " " and _a_space_of_the_screen(character)
+            ):
+                break
+        else:
+            return text
+    written = ""
+    for character in text:
+        written = written + (
+            "-" if character in _SCREEN_DASHES else " " if _a_space_of_the_screen(character) else character
+        )
+    return written
+
+
+# THE TWO DASHES THE LANE READ AS WRITTEN BEFORE THE MERGE (batch 4s's merge,
+# step 9): the horizontal bar and the small em dash, which the one definition
+# reads as dashes. Over the gate's generated spellings, each ASCII space or
+# hyphen written as each character where the lists differ (151,884 cells), the
+# joined reading reads 47,440 cells the lane's did not and none fewer but 46,
+# each one of these two dashes standing for the space between a word and a
+# family name (`seen by<U+2015>Lanezon, A today`: read as written, the name; as
+# a dash, a word joined to it); so a value holding one is read again with them
+# as written where the plain reading finds no form (`identifier_words_form`),
+# and the readers read every cell either reading reads.
+_DASHES_KEPT_BEFORE = "\u2015\ufe58"
+
+
+def _value_body(text: str, kept: str = "") -> str:
+    """A value as the word readers read it: its odd marks plain (`plain_marks`), trimmed, and EVERY RUN OF SPACES read as one (Codex's item 6 of lane CZ-E's review, the orchestrator's LANE CZ-E RULINGS 6 (6): `Smith,   J scheduled`, three spaces after the comma, was read by no reader where two were, and 10,000 such remarks published the name); each character of ``kept`` written as it is (`_DASHES_KEPT_BEFORE`; batch 4s's merge, step 9). Raises TypeError for a value that is not text. No I/O."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    plain = plain_marks(text)
+    if kept and len(plain) == len(text):
+        written = ""
+        for place in range(len(text)):
+            written = written + (text[place] if text[place] in kept else plain[place])
+        plain = written
+    body = parsing.trimmed(plain)
+    if "  " not in body:
+        return body
+    written = ""
+    for character in body:
+        if character != " " or written[-1:] != " ":
+            written = written + character
+    return written
+
+
+# THE VALUE READERS (plan P4-D472, lane CZ-E; HIPAA first): readers that
+# hold a column by what its VALUES are, where its name and the other
+# rules say nothing. (A), (B), (C) and (E) are whole-column holds of
+# lane SH2's kind (`safe_harbor_hold` asks `value_reader_hold` last, on
+# every role that publishes a value): the column is held as record
+# numbers are and put the one Safe Harbor question, which only `no` or
+# `--identifier` frees -- `code`, `keep` or `measurement` never does.
+# (D) is the age reach's (`safe_harbor_reach`, `top_coded_cells`): ages
+# past 89 inside band labels. Each reads the cells as written; a cell of
+# ``absent`` or with nothing in it is set aside.
+#
+# (A) A LEVEL THAT HOLDS AN IDENTIFIER IN ITS WORDS (`HELD_IDENTIFIER_
+# WORDS`): a label column publishes every level the floor's rows share
+# (rule 7), and a remark, a list of names or a label written for many
+# rows may hold a person's name, a telephone number, a date or a record
+# number inside its words. A level the floor's rows hold, of two words
+# or more (`value_words`), holding one of the forms of `identifier_words_
+# form` holds the column, whatever the levels' people and whether the
+# table is counted in people or in rows.
+HELD_IDENTIFIER_WORDS = "levels-holding-identifier-words"
+# (B) AREA CODES SMALLER THAN A STATE (`HELD_AREA_CODES`): a census
+# tract's or block group's code, a state's two figures, a county's three
+# and six or seven more, on two in three of the cells (`an_area_code`).
+HELD_AREA_CODES = "area-codes-smaller-than-a-state"
+# (C) A LATITUDE AND A LONGITUDE IN ONE CELL (`HELD_COORDINATE_PAIRS`), and
+# A NETWORK ADDRESS (`HELD_NETWORK_ADDRESSES`), each on two in three of
+# the cells (`a_coordinate_pair`, `a_network_address`): a place's
+# equivalent geocode, and an internet address or a device's hardware
+# address (45 CFR 164.514(b)(2)(i)(B), (M), (O)).
+HELD_COORDINATE_PAIRS = "coordinate-pairs-in-one-cell"
+HELD_NETWORK_ADDRESSES = "network-addresses"
+# (E) A DEVICE'S SERIAL NUMBER BY ITS VALUES (the orchestrator's LANE CZ-E
+# RULINGS 1, item (E); `HELD_DEVICE_SERIALS`): a maker writes a serial in a
+# layout of its own -- capitals and figures, figures and a check capital,
+# dashed groups -- one device a person, so a column whose present cells are
+# such serials on two in three, `SERIALS_AT_LEAST` different ones or more,
+# in two makers' layouts or more (`a_serial_number`, `_makers_layouts`),
+# holds one device's number a value (45 CFR 164.514(b)(2)(i)(M)), whatever
+# its name.
+HELD_DEVICE_SERIALS = "device-serial-numbers"
+VALUE_READER_HOLDS = (
+    HELD_IDENTIFIER_WORDS, HELD_AREA_CODES, HELD_COORDINATE_PAIRS,
+    HELD_NETWORK_ADDRESSES, HELD_DEVICE_SERIALS,
+)
+# The fewest different serial numbers a column holds for its cells to be
+# read as devices' serials: a closed list of product or kit codes written
+# so holds far fewer.
+SERIALS_AT_LEAST = 100
+# ...AND THE MAKERS' LAYOUTS: devices of several makers write their serials
+# in several layouts (`_serial_layout`), where a column of record or
+# account keys writes one: two layouts at least, each on one in
+# `SERIAL_LAYOUT_SHARE` of the serial cells or more (measured over the
+# zoo's catalogue at 20,000 rows: a rule of one layout read its 76 record
+# keys, each a held identifier already, the person or record question
+# holding it first).
+SERIAL_LAYOUT_SHARE = 10
+# A serial's length and its fewest figures.
+_SERIAL_LENGTHS = (6, 24)
+_SERIAL_FIGURES = 6
+# The forms `identifier_words_form` names, in the order it asks them.
+WORDS_MONTH_AND_DAY = "a month and a day"
+WORDS_TELEPHONE = "a telephone number"
+WORDS_FIGURES = "a run of seven figures or more"
+WORDS_TITLE = "a title before a name"
+WORDS_INITIALS = "initials"
+WORDS_FAMILY_AND_INITIAL = "a family name and an initial"
+WORDS_FAMILY_AND_GIVEN = "a family name and a given name"
+WORDS_RELATIVE_NAME = "a name after a word naming a relative"
+# ...and the cell forms of (C) standing inside a longer value (the
+# orchestrator's LANE CZ-E RULINGS 3 (5): `IP <address>`, `login from
+# <address>`, `home <latitude>,<longitude>`, `N<latitude> W<longitude>`
+# were read by no reader and published, 16,311 twin cells each).
+WORDS_NETWORK_ADDRESS = "a network address"
+WORDS_COORDINATE_PAIR = "a latitude and a longitude"
+IDENTIFIER_WORD_FORMS = (
+    WORDS_MONTH_AND_DAY, WORDS_TELEPHONE, WORDS_FIGURES, WORDS_NETWORK_ADDRESS,
+    WORDS_COORDINATE_PAIR, WORDS_TITLE, WORDS_INITIALS, WORDS_FAMILY_AND_INITIAL,
+    WORDS_FAMILY_AND_GIVEN, WORDS_RELATIVE_NAME,
+)
+# The fewest figures a run of figures inside a value holds to be read as
+# a number given to one person or record (`WORDS_FIGURES`).
+IDENTIFIER_WORD_FIGURES = 7
+# The words a value holds at least for its forms to be read inside it: a
+# value of one word is a code, a number or a date, read by the rules for
+# those (a telephone number written alone is the person rule's register,
+# plan P4-D401's route three).
+IDENTIFIER_WORDS_AT_LEAST = 2
+# The months by their names and three-letter or four-letter cuts (named
+# `_MONTH_NUMBERS` at batch 4s's merge, step 9: lane CODES-2's word screen
+# binds `_MONTH_WORDS`, a set of the same words, and a module binds a name
+# once, `tests/test_module_names_once.py`).
+_MONTH_NUMBERS = {
+    "jan": 1, "january": 1, "feb": 2, "february": 2, "mar": 3, "march": 3,
+    "apr": 4, "april": 4, "may": 5, "jun": 6, "june": 6, "jul": 7,
+    "july": 7, "aug": 8, "august": 8, "sep": 9, "sept": 9, "september": 9,
+    "oct": 10, "october": 10, "nov": 11, "november": 11, "dec": 12,
+    "december": 12,
+}
+# The marks that may stand between a month's name and its day: at most
+# two of them (`Mar. 14`, `14-Mar`, `March, 14`), or none (`14MAR`).
+_MONTH_DAY_MARKS = " .-/,"
+# The marks that part the figures of a date written in figures; a slash
+# may stand between single spaces too (`3 / 14`, `3/ 14`).
+_DATE_MARKS = "/-."
+_SPACED_SLASHES = (" / ", "/ ", " /")
+# A TELEPHONE NUMBER BY ITS GRAMMAR (the orchestrator's LANE CZ-E RULINGS 3
+# (5), replacing a list of nineteen layouts, of which an independent
+# grammar's plain layouts missed 203 of 330): `+1` or `1` and a mark or
+# none; three figures, the first 2 to 9, in brackets or not; a mark of
+# these or none; three figures, the first 2 to 9; a mark of these or none;
+# four figures -- no figure on either side, an extension's word after it
+# or not (`_telephone_in`). The odd marks are read plain first
+# (`plain_marks`: an en dash or a non-breaking hyphen is `-`).
+_TELEPHONE_MARKS = (" - ", " ", "-", ".", "/", "")
+# The figures an area code and an exchange open with.
+_TELEPHONE_OPENING = "23456789"
+# ...and a local number of seven figures (an exchange, a mark of these,
+# four figures), read only where a word of a telephone stands in the
+# value: `555-0123` beside `call` (a range such as `500-1000` is written
+# so too).
+_LOCAL_TELEPHONE_MARKS = (" - ", "-", ".", " ")
+TELEPHONE_WORDS = frozenset({
+    "call", "callback", "phone", "ph", "tel", "telephone", "cell",
+    "cellphone", "mobile", "fax", "pager", "beeper", "contact", "reach",
+})
+# An international number: `+`, a country's code of one to three figures,
+# then groups of figures parted by single spaces, hyphens or points, the
+# groups after the code holding `_INTERNATIONAL_FIGURES` figures in all.
+_INTERNATIONAL_FIGURES = (6, 13)
+# The titles a name follows, read whole in small letters, a point after
+# them or not: a title before a capitalised word names a person. `nurse`,
+# `rev`, `fr`, `sr` and `capt` were added at repair 1 (the orchestrator's
+# LANE CZ-E RULINGS 3 (7): 6 of 6 remarks and 1,080 twin cells published
+# at 20,000 rows; no column of the zoo writes one before a capitalised
+# word); their false alarms are named in plan P4-D472 (c).
+NAME_TITLES = frozenset({
+    "dr", "doctor", "mr", "mrs", "ms", "miss", "mx", "prof", "professor",
+    "nurse", "rev", "fr", "sr", "capt",
+})
+def _capitals_of(spelled: str) -> str:
+    """An abbreviation written with its points, its capitals alone (`I.C.U.` read as the three capitals the initials reader compares). Raises TypeError for a value that is not text. No I/O."""
+    if not isinstance(spelled, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    return spelled.replace(".", "")
+
+
+# The abbreviations written as capitals each with its point that are no
+# person's initials: times, places, a clinician's credentials and the
+# shorthand of orders and routes (`N.P.O.`, `P.R.N.`, `B.I.D.`).
+NOT_INITIALS = frozenset({
+    "AM", "PM", "US", "UK", "EU", "UN", "DC", "MD", "DO", "RN", "NP", "PA",
+    "BP", "OR", "ER", "ED", "IV", "IM", "PO", "PR", "QD", "HS", "SQ", "SC",
+    "OD", "OS", "OU", "AD", "AS", "AU", "NPO", "BID", "TID", "QID", "QHS",
+    "PRN", "DNR", "DOB", "LPN", "APN", "CNA", "AKA", "ETA",
+    "QOD", "QAM", "QPM", "GI", "GU", "OB", "ENT", "CT", "MRI", "EKG", "ECG",
+}) | frozenset(_capitals_of(spelled) for spelled in (
+    # ...and the common clinical abbreviations of three letters or more,
+    # each listed as the remarks write it, with its points (the
+    # orchestrator's LANE CZ-E RULINGS 4 (3) (iii): `I.C.U. consult` was
+    # read as initials); the reader compares their capitals alone. Those
+    # of two letters (`P.T.`, `O.T.`, `R.T.`) are a person's two initials'
+    # form: adding them left placed initials unread, so they stay read
+    # (plan P4-D472 (c)).
+    "I.C.U.", "A.M.A.", "U.T.I.", "D.O.A.", "C.H.F.", "E.M.S.", "S.L.P.", "A.D.L.", "R.O.M.", "B.M.I.", "C.P.R.",
+    "D.V.T.", "H.T.N.", "I.V.F.", "L.O.C.", "M.V.A.", "N.K.A.", "P.C.P.", "R.L.E.", "R.O.S.", "S.O.B.", "T.K.A.",
+    "T.H.A.", "U.R.I.", "W.N.L.", "C.B.C.", "B.M.P.", "E.E.G.", "E.M.G.", "P.F.T.", "T.P.N.", "P.E.G.", "A.B.G.",
+))
+# The words that name a relative or a companion, read whole in small
+# letters: a capitalised word after one of them names that person (`son
+# Kukun Velegin`, `wife Mara notified`). A capitalised word after any
+# other small word is as often a category's or a service's own capital
+# (`consult Cardiology`, `Black or African American`), so it is read only
+# after these (plan P4-D472's measured choice).
+RELATIVE_WORDS = frozenset({
+    "son", "daughter", "wife", "husband", "spouse", "partner", "mother",
+    "father", "mom", "mum", "dad", "sister", "brother", "sibling", "aunt",
+    "uncle", "niece", "nephew", "cousin", "grandson", "granddaughter",
+    "grandmother", "grandfather", "grandma", "grandpa", "stepson",
+    "stepdaughter", "stepmother", "stepfather", "guardian", "caregiver",
+    "friend", "neighbor", "neighbour", "fiance", "fiancee", "boyfriend",
+    "girlfriend", "roommate", "sponsor",
+})
+
+
+def value_words(text: str) -> int:
+    """How many words a value holds (plan P4-D472).
+
+    A word is a stretch of letters, figures and the marks that join a
+    code's parts (`OWN_WORD_JOINS`) holding a letter or a figure; any
+    other character -- a space, a comma, a bracket, `#`, `:` -- parts
+    words: `Lanezon, A` and `(201) 555-0123` hold two, `S24-012345` one.
+    Guarantees: a fixed function of the text. Raises TypeError for a
+    value that is not text. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    words = 0
+    worded = False
+    for character in text + " ":
+        joined = _a_letter_or_figure(character) or character in OWN_WORD_JOINS
+        if not joined:
+            if worded:
+                words += 1
+            worded = False
+        elif _a_letter_or_figure(character):
+            worded = True
+    return words
+
+
+def _figures_at(text: str, start: int) -> int:
+    """How many figures stand in a text from ``start``."""
+    end = start
+    while end < len(text) and _a_figure(text[end]):
+        end += 1
+    return end - start
+
+
+def _a_day_number(figures: str) -> bool:
+    """Whether one or two figures are a day of a month, 1 to 31."""
+    return 1 <= len(figures) <= 2 and 1 <= int(figures) <= 31
+
+
+def _a_month_number(figures: str) -> bool:
+    """Whether one or two figures are a month, 1 to 12."""
+    return 1 <= len(figures) <= 2 and 1 <= int(figures) <= 12
+
+
+def _month_and_day_either_way(first: str, second: str) -> bool:
+    """Whether two groups of one or two figures are a month and a day, in either order."""
+    return (_a_month_number(first) and _a_day_number(second)) or (
+        _a_day_number(first) and _a_month_number(second)
+    )
+
+
+def _a_date_in_figures(groups: "list[str]", mark: str) -> bool:
+    """Whether the figure groups of one stretch, parted by one ``mark``, write a month and a day (plan P4-D472).
+
+    Three groups: a year of four figures in any place and a month and a
+    day in either order in the other two (`2031-03-14`, `14/2031/03`), or
+    a month and a day in either order then a year of two figures
+    (`03/14/31`, `14.3.31`). Two groups parted by a slash: a month and a
+    day in either order (`3/14`); never by a hyphen or a point, which
+    write a range (`2-3`) or a decimal (`3.14`).
+    """
+    if len(groups) == 3:
+        for year in range(3):
+            others = [groups[place] for place in range(3) if place != year]
+            if len(groups[year]) == 4 and _month_and_day_either_way(others[0], others[1]):
+                return True
+        if len(groups[0]) == 2 and len(groups[1]) == 2 and len(groups[2]) == 2 and (
+            _a_month_number(groups[1]) and _a_day_number(groups[2])
+        ):
+            # ...a year of two figures first, a padded month and day after it
+            # (`45-03-14`; the orchestrator's LANE CZ-E RULINGS 3 (5)).
+            return True
+        return len(groups[2]) == 2 and _month_and_day_either_way(groups[0], groups[1])
+    if len(groups) != 2 or mark != "/":
+        return False
+    return _month_and_day_either_way(groups[0], groups[1])
+
+
+def _six_glued_date(figures: str) -> bool:
+    """Whether six figures glued together write a month and a day: month, day and year (`031431`), day, month and year (`140331`), or year, month and day (`310314`) -- the orchestrator's LANE CZ-E RULINGS 3 (5), read where the zoo prices them at no false alarm."""
+    if len(figures) != 6:
+        return False
+    first, middle, last = figures[:2], figures[2:4], figures[4:]
+    return (
+        (_a_month_number(first) and _a_day_number(middle))
+        or (_a_day_number(first) and _a_month_number(middle))
+        or (_a_month_number(middle) and _a_day_number(last))
+    )
+
+
+def _day_before_a_clock(groups: "list[str]") -> "list[list[str]]":
+    """A stretch's groups read with its last group cut into a day and a clock's hour run on after it (`2031-03-149:15`): each reading whose hour is 0 to 23."""
+    last = groups[-1]
+    found: "list[list[str]]" = []
+    for day in (1, 2):
+        hour = last[day:]
+        if 1 <= len(hour) <= 2 and int(hour) <= 23:
+            found += [groups[:-1] + [last[:day]]]
+    return found
+
+
+def _date_mark_at(text: str, place: int) -> "tuple[str, int]":
+    """The mark of a date in figures standing at ``place`` before a figure, and how many characters it takes (`/`, `-`, `.`, or a slash between single spaces), or ("", 0)."""
+    for spaced in _SPACED_SLASHES:
+        end = place + len(spaced)
+        if text[place:end] == spaced and end < len(text) and _a_figure(text[end]):
+            return "/", len(spaced)
+    if place + 1 < len(text) and text[place] in _DATE_MARKS and _a_figure(text[place + 1]):
+        return text[place], 1
+    return "", 0
+
+
+def _uniform_parts(groups: "list[str]", marks: str) -> "list[tuple[list[str], str]]":
+    """A stretch's figure groups cut at each change of mark, each part with its one mark: `3/14-3/21` is `3/14`, `14-3` and `3/21` (the orchestrator's LANE CZ-E RULINGS 3 (5): a range of dates was read by none)."""
+    parts: "list[tuple[list[str], str]]" = []
+    first = 0
+    for place in range(1, len(marks) + 1):
+        if place == len(marks) or marks[place] != marks[first]:
+            parts += [(groups[first: place + 1], marks[first])]
+            first = place
+    return parts
+
+
+def _month_and_day_in_figures(text: str) -> bool:
+    """Whether a text writes a month and a day in figures: `3/14`, `3 / 14`, `03/14/2031`, `2031-03-14`, `14.03.31`, `2031 03 14`, a clock's hour run on after the day or not (`2031-03-149:15`), and each date of a range (`3/14-3/21`: a stretch is cut at each change of mark and every part read)."""
+    place = 0
+    while place < len(text):
+        if not _a_figure(text[place]):
+            place += 1
+            continue
+        start = place
+        groups: "list[str]" = []
+        marks = ""
+        while True:
+            size = _figures_at(text, place)
+            groups += [text[place: place + size]]
+            place += size
+            mark, taken = _date_mark_at(text, place)
+            if taken:
+                marks += mark
+                place += taken
+                continue
+            break
+        before = text[start - 1] if start > 0 else " "
+        after = text[place] if place < len(text) else " "
+        if not marks:
+            if len(groups) == 1 and _six_glued_date(groups[0]) and not (_a_letter(before) or _a_letter(after)):
+                return True
+            continue
+        if len(groups) == 2 and (_a_letter(before) or _a_letter(after)):
+            continue
+        if marks != marks[0] * len(marks):
+            for part, mark in _uniform_parts(groups, marks):
+                if _a_date_in_figures(part, mark):
+                    return True
+            continue
+        if _a_date_in_figures(groups, marks[0]):
+            return True
+        if after == ":" and len(groups) == 3 and 3 <= len(groups[2]) <= 4:
+            for read in _day_before_a_clock(groups):
+                if _a_date_in_figures(read, marks[0]):
+                    return True
+    return _month_and_day_spaced(text)
+
+
+# The years a date parted by spaces may name: three numbers parted so are
+# read as a date only where one is a year of these (`2031 03 14`).
+_SPACED_YEARS = (1800, 2199)
+
+
+def _month_and_day_spaced(text: str) -> bool:
+    """Whether a text writes a year of `_SPACED_YEARS` and a month and a day in either order, three groups of figures parted by single spaces or a comma and a space, in any order (`2031 03 14`, `03 14, 2031`)."""
+    words = _spaced_words(text)
+    figures: "list[str]" = []
+    for word in words:
+        written = word[:-1] if word[-1:] == "," else word
+        figures += [written if written and _figures_alone(written) else ""]
+    low, high = _SPACED_YEARS
+    for place in range(len(figures) - 2):
+        three = figures[place: place + 3]
+        years = [group for group in three if len(group) == 4 and low <= int(group) <= high]
+        if all(three) and years and _a_date_in_figures(three, "-"):
+            return True
+    return False
+
+
+def _month_and_day_in_words(text: str) -> bool:
+    """Whether a text writes a month's name beside a day of it: `Mar 14`, `March 14th`, `14 Mar`, `14-MAR-2031`, `14th of March`."""
+    place = 0
+    while place < len(text):
+        if not _a_letter(text[place]):
+            place += 1
+            continue
+        start = place
+        while place < len(text) and _a_letter(text[place]):
+            place += 1
+        word = text[start:place]
+        small = _in_small_letters(word)
+        if small[:2] in _ORDINAL_ENDINGS and start > 0 and _a_figure(text[start - 1]):
+            # ...an ordinal's letters glued to the month (`1stJan`).
+            word = word[2:]
+            small = small[2:]
+            start += 2
+        if small not in _MONTH_NUMBERS or (small == "may" and word[:1] == "m"):
+            continue
+        # ...the day after the name: at most two marks, then one or two
+        # figures and an ordinal's letters or none, no letter after.
+        after = place
+        if after < len(text) and text[after] == ".":
+            after += 1
+        marks = 0
+        while after < len(text) and text[after] in _MONTH_DAY_MARKS and marks < 2:
+            after += 1
+            marks += 1
+        size = _figures_at(text, after)
+        if 1 <= size <= 2 and _a_day_number(text[after: after + size]):
+            end = after + size
+            ending = _in_small_letters(text[end: end + 2])
+            if ending in _ORDINAL_ENDINGS:
+                end += 2
+            if end >= len(text) or not _a_letter(text[end]):
+                return True
+        # ...and the day before it: `14 Mar`, `14th of March`, `14MAR`.
+        before = start
+        if _in_small_letters(text[max(before - 4, 0): before]) == " of ":
+            before -= 4
+        marks = 0
+        while before > 0 and text[before - 1] in _MONTH_DAY_MARKS and marks < 2:
+            before -= 1
+            marks += 1
+        if _in_small_letters(text[max(before - 2, 0): before]) in _ORDINAL_ENDINGS:
+            before -= 2
+        size = 0
+        while before - size > 0 and _a_figure(text[before - size - 1]):
+            size += 1
+        if 1 <= size <= 2 and _a_day_number(text[before - size: before]):
+            return True
+    return False
+
+
+def _figures_from(text: str, place: int, count: int, opening: str) -> bool:
+    """Whether ``count`` figures or more stand in a text from ``place``, the first one of ``opening``."""
+    if place >= len(text) or text[place] not in opening:
+        return False
+    return _figures_at(text, place) >= count
+
+
+def _line_from(text: str, place: int, marks: "tuple[str, ...]") -> bool:
+    """Whether a mark of ``marks``, an exchange (three figures, the first 2 to 9), a mark of them and four figures stand from ``place``, no figure after them (a mark of none glues the groups)."""
+    for mark in marks:
+        middle = place + len(mark)
+        if text[place:middle] != mark or not _figures_from(text, middle, 3, _TELEPHONE_OPENING):
+            continue
+        for second in marks:
+            line = middle + 3 + len(second)
+            if text[middle + 3: line] != second:
+                continue
+            if second and _figures_at(text, middle) == 3 and _figures_at(text, line) == 4:
+                return True
+            if not second and _figures_at(text, middle) == 7:
+                return True
+    return False
+
+
+def _telephone_from(text: str, start: int) -> bool:
+    """Whether a telephone number of the grammar (`_TELEPHONE_MARKS`) stands from ``start``: `+1` or `1` and a mark or none, an area code (three figures, the first 2 to 9) in brackets or not, then `_line_from`."""
+    for prefix in ("+1", "1", ""):
+        if text[start: start + len(prefix)] != prefix:
+            continue
+        for first in _TELEPHONE_MARKS if prefix else ("",):
+            at = start + len(prefix)
+            if text[at: at + len(first)] != first:
+                continue
+            at += len(first)
+            bracket = text[at: at + 1] == "("
+            at += 1 if bracket else 0
+            if not _figures_from(text, at, 3, _TELEPHONE_OPENING):
+                continue
+            at += 3
+            if bracket:
+                if text[at: at + 1] != ")":
+                    continue
+                at += 1
+            if _line_from(text, at, _TELEPHONE_MARKS):
+                return True
+    return False
+
+
+def _telephone_in(text: str, local: bool) -> bool:
+    """Whether a text writes a telephone number (plan P4-D472; the orchestrator's LANE CZ-E RULINGS 3 (5)).
+
+    By the grammar of `_TELEPHONE_MARKS` (`_telephone_from`), from a place
+    no figure stands before: a ten-figure number whose area code and
+    exchange each open with a figure from 2 to 9, as the North American
+    plan writes them (`(319) 555-0123`, `319 555-0123`, `319\u2013555\u20130123`,
+    `+1 319.555.0123`, `3195550123 x12`); or, ``local``, an exchange and
+    four figures parted by a mark of `_LOCAL_TELEPHONE_MARKS` (`555-0123`);
+    or an international number after `+` (`_international_telephone_in`).
+    """
+    for start in range(len(text)):
+        if start > 0 and _a_figure(text[start - 1]):
+            continue
+        if text[start] in "+1(" or text[start] in _TELEPHONE_OPENING:
+            if _telephone_from(text, start):
+                return True
+            if local and text[start] in _TELEPHONE_OPENING and _figures_at(text, start) == 3:
+                for mark in _LOCAL_TELEPHONE_MARKS:
+                    line = start + 3 + len(mark)
+                    if text[start + 3: line] == mark and _figures_at(text, line) == 4:
+                        return True
+    return _international_telephone_in(text)
+
+
+# The most figures a bracketed group of an international number holds: a
+# trunk nought (`(0)20`) or an area code (`(20)`).
+_INTERNATIONAL_BRACKETED = 4
+
+
+def _international_group_at(text: str, at: int, after_bracket: bool) -> "tuple[int, int]":
+    """The next group of an international number from ``at``: a mark of a single space, a hyphen or a point, or none right after a bracketed group, then figures, or one to `_INTERNATIONAL_BRACKETED` figures in brackets (`(0)`, `(20)`); (its figures, where it ends), or (0, ``at``) where none stands there."""
+    step = at + 1 if at < len(text) and text[at] in " -." else at
+    if text[step: step + 1] == "(":
+        inner = _figures_at(text, step + 1)
+        if 1 <= inner <= _INTERNATIONAL_BRACKETED and text[step + 1 + inner: step + 2 + inner] == ")":
+            return inner, step + 2 + inner
+        return 0, at
+    if step == at and not after_bracket:
+        return 0, at
+    size = _figures_at(text, step)
+    return (size, step + size) if size else (0, at)
+
+
+def _international_telephone_in(text: str) -> bool:
+    """Whether a text writes `+`, a country's code and groups of figures parted by single spaces, hyphens or points: `+44 20 7946 0958`, a trunk nought or an area code in brackets among them, the next group glued to it or not (`+44 (0)20 7946 0958`, `+44 (20) 7946 0958`; Codex's item 6 of lane CZ-E's review, the orchestrator's LANE CZ-E RULINGS 6 (6))."""
+    place = _text_place(text, "+")
+    while place >= 0:
+        code = _figures_at(text, place + 1)
+        at = place + 1 + code
+        groups = 0
+        figures = 0
+        bracketed = False
+        while 1 <= code <= 3 and at < len(text):
+            size, end = _international_group_at(text, at, bracketed)
+            if not size:
+                break
+            bracketed = text[end - 1: end] == ")"
+            groups += 1
+            figures += size
+            at = end
+        low, high = _INTERNATIONAL_FIGURES
+        before = text[place - 1] if place > 0 else " "
+        if groups >= 2 and low <= figures <= high and not _a_letter_or_figure(before):
+            return True
+        place = _text_place(text, "+", place + 1)
+    return False
+
+
+def _figure_run_in(text: str) -> bool:
+    """Whether a text holds a run of `IDENTIFIER_WORD_FIGURES` figures or more that is no decimal's fraction (`ref 76030298`, `REF1234567`)."""
+    place = 0
+    while place < len(text):
+        size = _figures_at(text, place)
+        if size == 0:
+            place += 1
+            continue
+        fraction = place >= 2 and text[place - 1] in ".," and _a_figure(text[place - 2])
+        if size >= IDENTIFIER_WORD_FIGURES and not fraction:
+            return True
+        place += size
+    return False
+
+
+def _name_word_at(text: str, start: int) -> int:
+    """The letters of a name written from ``start`` -- a capital, then letters, apostrophes or hyphens -- or 0 where none stands there."""
+    if start >= len(text) or not _a_capital(text[start]) or not _a_letter(text[start]):
+        return 0
+    end = start
+    letters = 0
+    while end < len(text) and (_a_letter(text[end]) or text[end] in "'’-"):
+        if _a_letter(text[end]):
+            letters += 1
+        end += 1
+    return letters
+
+
+def _title_before_a_name(text: str) -> bool:
+    """Whether a text writes one of `NAME_TITLES`, a point after it or not, then a capitalised word: `Dr Gapesam`, `per Mrs. Lomo`, `DR SMITH`."""
+    place = 0
+    while place < len(text):
+        if not _a_letter(text[place]):
+            place += 1
+            continue
+        start = place
+        while place < len(text) and _a_letter(text[place]):
+            place += 1
+        if _in_small_letters(text[start:place]) not in NAME_TITLES:
+            continue
+        after = place
+        pointed = after < len(text) and text[after] == "."
+        if pointed:
+            after += 1
+        spaces = 0
+        while after < len(text) and text[after] == " ":
+            after += 1
+            spaces += 1
+        if (pointed or spaces) and _name_word_at(text, after) >= 2:
+            return True
+    return False
+
+
+def _initials_in(text: str) -> bool:
+    """Whether a text writes two or three capitals each with its point, a space between or none: `K.T.`, `K. T.`, `J.K.T.`, `K.T` -- never one of `NOT_INITIALS`.
+
+    A run of capitals each with its point, a single space between or none,
+    is cut at its spaces; where every piece is one capital the run is one
+    person's initials (`K. T.`), else each piece is read alone (`P.O.
+    B.I.D.` is two abbreviations); the last capital may stand without its
+    point where no letter follows it (`K.T`). No piece follows a letter.
+    """
+    place = 0
+    while place < len(text):
+        opens = (
+            _a_letter(text[place])
+            and _a_capital(text[place])
+            and place + 1 < len(text)
+            and text[place + 1] == "."
+            and (place == 0 or not (_a_letter(text[place - 1]) or text[place - 1] == "."))
+        )
+        if not opens:
+            place += 1
+            continue
+        pieces: "list[str]" = [""]
+        at = place
+        while True:
+            pointed = at + 1 < len(text) and text[at + 1] == "."
+            last = not pointed and (at + 1 >= len(text) or not _a_letter(text[at + 1]))
+            if not (at < len(text) and _a_letter(text[at]) and _a_capital(text[at]) and (pointed or last)):
+                break
+            pieces[-1] = pieces[-1] + text[at]
+            if last:
+                at += 1
+                break
+            at += 2
+            # ...one space or two before the next capital (`K. T.`, `K.  T.`).
+            spaces = 1 if text[at: at + 1] == " " else 0
+            spaces += 1 if spaces and text[at + 1: at + 2] == " " else 0
+            if spaces and at + spaces < len(text) and _a_letter(text[at + spaces]) and _a_capital(text[at + spaces]):
+                pieces += [""]
+                at += spaces
+        place = max(at, place + 1)
+        if at < len(text) and _a_letter(text[at]):
+            continue
+        joined = ""
+        for piece in pieces:
+            joined = joined + piece
+        groups = [joined] if all(len(piece) == 1 for piece in pieces) else pieces
+        for group in groups:
+            if 2 <= len(group) <= 3 and group not in NOT_INITIALS:
+                return True
+    return False
+
+
+def _family_name_then(text: str, given: bool) -> bool:
+    """Whether a text writes a family name, a comma, then initials (``given`` False: one or two capitals, a point after each or not: `Lanezon, A`, `KUBAR, T.`, `SMITH, KT`, `Smith, K.T.`) or a given name and a middle initial (``given``: a capitalised word, a space and one capital, a point after it or not: `SMITH, JOHN M`, `Smith, John Q.`), no letter after them.
+
+    A given name with no initial after it is not read: a category in
+    title case after a comma is written so (`Excision, Complete`).
+    """
+    comma = _text_place(text, ",")
+    while comma > 0:
+        start = comma
+        while start > 0 and (_a_letter(text[start - 1]) or text[start - 1] in "'\u2019-"):
+            start -= 1
+        named = _name_word_at(text, start) >= 2 and start < comma
+        opened = start == 0 or not _a_letter_or_figure(text[start - 1])
+        after = comma + 1
+        while after < len(text) and text[after] == " " and after - comma <= 2:
+            after += 1
+        end = after
+        if given:
+            letters = _name_word_at(text, after)
+            while end < len(text) and (_a_letter(text[end]) or text[end] in "'\u2019-"):
+                end += 1
+            middle = (
+                end + 1 < len(text)
+                and text[end] == " "
+                and _a_letter(text[end + 1])
+                and _a_capital(text[end + 1])
+            )
+            follows = letters >= 2 and middle
+            end += 2 if middle else 0
+            if follows and end < len(text) and text[end] == ".":
+                end += 1
+        else:
+            capitals = 0
+            while (
+                end < len(text) and _a_letter(text[end]) and _a_capital(text[end]) and capitals < 2
+            ):
+                capitals += 1
+                end += 1
+                if end < len(text) and text[end] == ".":
+                    end += 1
+            follows = capitals >= 1
+        if named and opened and follows and (end >= len(text) or not _a_letter(text[end])):
+            return True
+        comma = _text_place(text, ",", comma + 1)
+    return False
+
+
+# The fewest letters of a name after a word naming a relative: two (Codex's
+# item 6 of lane CZ-E's review, the orchestrator's LANE CZ-E RULINGS 6
+# (6): `wife Jo notified` and `per wife Li today` were read by no reader
+# where a name of three letters was).
+_RELATIVE_NAME_LETTERS = 2
+
+
+def _name_after_a_relative(text: str) -> bool:
+    """Whether a text writes a word of `RELATIVE_WORDS` and then a capitalised word of `_RELATIVE_NAME_LETTERS` letters or more, one space or more between: `son Kukun Velegin`, `per wife Mara`, `wife Jo notified`."""
+    words = [word for word in _spaced_words(text) if word]
+    for place in range(1, len(words)):
+        before = _in_small_letters(words[place - 1])
+        while before and not _a_letter(before[-1]):
+            before = before[:-1]
+        word = words[place]
+        if before in RELATIVE_WORDS and _name_word_at(word, 0) >= _RELATIVE_NAME_LETTERS:
+            return True
+    return False
+
+
+# The marks stripped from a word's ends before it is read as a network
+# address or a coordinate standing among words: punctuation around it.
+_WORD_EDGE_OPENINGS = "(<\"'"
+_WORD_EDGE_ENDINGS = ".,;)>!?\"'"
+
+
+def _edges_stripped(word: str) -> str:
+    """A word without the punctuation at its ends (`_WORD_EDGE_OPENINGS`, `_WORD_EDGE_ENDINGS`)."""
+    while word and word[0] in _WORD_EDGE_OPENINGS:
+        word = word[1:]
+    while word and word[-1] in _WORD_EDGE_ENDINGS:
+        word = word[:-1]
+    return word
+
+
+def _address_in_words(body: str) -> bool:
+    """Whether a value holds a network address as one of its words (`a_network_address`), its punctuation stripped, or after a label glued by `:` or `=`, or as a part of a link cut at `/` (`IP 192.0.2.17`, `IP:192.0.2.17`, `login from 2001:db8::7`, `http://192.0.2.17/x`; the orchestrator's LANE CZ-E RULINGS 3 (5)) -- every form the address reader admits, an address of letters alone among them (`login from abcd:abcd:abcd:abcd:abcd:abcd:abcd:abcd`; RULINGS 6 (4))."""
+    for word in _spaced_words(body):
+        if not ("." in word or ":" in word or "-" in word):
+            continue
+        pieces = [_edges_stripped(word)]
+        for mark in ("=", ":"):
+            cut = _text_place(word, mark)
+            if cut > 0 and _a_glued_label(word[:cut]):
+                pieces += [_edges_stripped(word[cut + 1:])]
+        if "/" in word:
+            pieces += [_edges_stripped(piece) for piece in _text_parts(word, "/")]
+        for piece in pieces:
+            if piece and a_network_address(piece):
+                return True
+    return False
+
+
+# THE ADMITTED GRAMMAR OF A PAIR AMONG WORDS (Codex's item 5 of lane CZ-E's
+# review, the orchestrator's LANE CZ-E RULINGS 6 (5)): a pair `a_coordinate_
+# pair` reads in a cell of its own is read among words over a window of
+# words as long as its longest spelling -- `POINT ( N 41.66123 ° , W
+# 91.53210 ° )` is ten -- reaching back over the words that may open it
+# (`POINT`, a bracket, a hemisphere's letter): two words side by side read
+# `home 41.66123,-91.53210`, but not `home 41.66123° N, 91.53210° W`,
+# whose pair stands over four, and eleven such remarks published the
+# place.
+_PAIR_WINDOW = 10
+_PAIR_OPENINGS_BACK = 3
+
+
+def _pair_candidates(window: str) -> "list[str]":
+    """The readings of a window of words a pair may stand in: as written, its punctuation stripped from its ends (`_edges_stripped`), its closing punctuation alone stripped (`POINT(-91.53210 41.66123).` reads `POINT(-91.53210 41.66123)`), and that without one bracket around the whole (`(POINT(...))`)."""
+    found = [window, _edges_stripped(window)]
+    closed = window
+    while closed and closed[-1] in ".,;!?":
+        closed = closed[:-1]
+    found += [closed]
+    if closed[:1] in "([" and closed[-1:] in ")]":
+        found += [closed[1:-1]]
+    return found
+
+
+def _a_glued_label(text: str) -> bool:
+    """Whether a text is a label a value may be glued to by `=` or `:`: a letter, then letters, figures or underscores (`IP`, `lat`, `client_ip`; the combined verify's item 5 of lane CZ-E: `client_ip=<address>` was read by none)."""
+    if not text or not _a_letter(text[0]):
+        return False
+    return all(_a_letter_or_figure(character) or character == "_" for character in text)
+
+
+def _label_cut(word: str) -> str:
+    """A word with a label glued to it by `=` or `:` cut off (`_a_glued_label`: `lat=41.66123,` reads `41.66123,`), or the word as it is."""
+    for mark in ("=", ":"):
+        cut = _text_place(word, mark)
+        if cut > 0 and _a_glued_label(word[:cut]):
+            return word[cut + 1:]
+    return word
+
+
+def _pair_in_words(body: str) -> bool:
+    """Whether a value holds a latitude and a longitude among its words (`a_coordinate_pair`): over a window of up to `_PAIR_WINDOW` words reaching back up to `_PAIR_OPENINGS_BACK` words before a word holding a decimal's point, read as written or with its punctuation stripped, each word's glued label cut off (`home 41.66123,-91.53210`, `at 41.66123, -91.53210 today`, `N41.66123 W91.53210`, `home 41.66123° N, 91.53210° W`, `lat=41.66123, lon=-91.53210`; the orchestrator's LANE CZ-E RULINGS 3 (5) and 6 (5)), or with a longitude's word between the two numbers (`lat 41.66123 lon -91.53210`)."""
+    words = [word for word in _spaced_words(body) if word]
+    cut = [_label_cut(word) for word in words]
+    for place in range(len(words)):
+        word = words[place]
+        if "." not in word or not _holds_a_figure(word):
+            continue
+        for back in range(min(place, _PAIR_OPENINGS_BACK) + 1):
+            first = place - back
+            window = ""
+            for last in range(first, min(first + _PAIR_WINDOW, len(words))):
+                window = cut[last] if last == first else window + " " + cut[last]
+                if last < place:
+                    continue
+                for reading in _pair_candidates(window):
+                    if reading and a_coordinate_pair(reading):
+                        return True
+        between = _in_small_letters(words[place + 1]) if place + 2 < len(words) else ""
+        while between and between[-1] in ":=":
+            between = between[:-1]
+        if between in _LONGITUDE_WORDS and a_coordinate_pair(
+            _edges_stripped(word) + " " + _edges_stripped(words[place + 2])
+        ):
+            # ...a longitude's word between the two numbers (`lat 41.66123 lon -91.53210`).
+            return True
+    return False
+
+
+# The words that may name a longitude between a latitude and it.
+_LONGITUDE_WORDS = frozenset({"lon", "long", "lng", "longitude"})
+
+
+def _score_pairs(text: str) -> "list[tuple[int, int, str, str]]":
+    """Each pair of one or two figures over one or two figures a text writes (`7/10`), no figure or stroke against it: (start, end, the figures over, the figures under)."""
+    found: "list[tuple[int, int, str, str]]" = []
+    place = 0
+    while place < len(text):
+        size = _figures_at(text, place)
+        if size == 0:
+            place += 1
+            continue
+        start = place
+        place += size
+        opens = start == 0 or not (_a_figure(text[start - 1]) or text[start - 1] == "/")
+        if not opens or size > 2 or place >= len(text) or text[place] != "/":
+            continue
+        under = _figures_at(text, place + 1)
+        end = place + 1 + under
+        closes = end >= len(text) or not (_a_figure(text[end]) or text[end] == "/")
+        if 1 <= under <= 2 and closes:
+            found += [(start, end, text[start:place], text[place + 1: end])]
+        place = end
+    return found
+
+
+# A PAIR OVER A FIGURE IS A SCORE ONLY BESIDE ITS SCALE'S NOUGHT (the
+# orchestrator's LANE CZ-E RULINGS 7 (2)): a pair x/d is read as a score,
+# never a month and a day, where the column writes the same words with 0
+# over the same figure (`pain 7/10` beside `pain 0/10`). No month and no
+# day is 0, so a column of dates written without a year is never read so,
+# however many of its dates share a day. (Repair 1's rule -- three
+# different figures or more over one figure -- blanked them: 24 of 24
+# visit remarks `seen M/D` were published at 20,000 rows, 4,629 twin
+# cells equal to a real one.)
+
+
+def _score_key(text: str, start: int, end: int, under: str) -> str:
+    """A pair's words and its figure under the stroke as one key: the text with the pair cut out, then the figure."""
+    return text[:start] + "\x00" + text[end:] + "\x00" + under
+
+
+def score_templates(levels: "list[str]") -> "frozenset[str]":
+    """The keys (`_score_key`) of the pairs over nought a column's levels write, each with its words (plan P4-D472): a pair over the same figure in the same words is a score (`pain 0/10` makes `pain 7/10` one). Each level is read as `identifier_words_form` reads it (`_value_body`). A fixed function of the levels. Raises TypeError for a level that is not text. No I/O."""
+    found: "set[str]" = set()
+    for level in levels:
+        if not isinstance(level, str):
+            raise TypeError(_NOT_TEXT_HERE)
+        if "/" not in level:
+            continue
+        body = _value_body(level)
+        for start, end, over, under in _score_pairs(body):
+            if int(over) == 0:
+                found |= {_score_key(body, start, end, under)}
+    return frozenset(found)
+
+
+def _scores_blanked(text: str, scores: "frozenset[str]") -> str:
+    """A text with each pair whose key is one of ``scores`` (`score_templates`) written as spaces, read again for a date in figures."""
+    written = text
+    for start, end, _over, under in reversed(_score_pairs(text)):
+        if _score_key(text, start, end, under) in scores:
+            written = written[:start] + " " * (end - start) + written[end:]
+    return written
+
+
+def identifier_words_form(text: str, dates: bool = True, scores: "frozenset[str]" = frozenset()) -> str:
+    """Which identifier form a value holds inside its words, one of `IDENTIFIER_WORD_FORMS`, or none (plan P4-D472).
+
+    The value is read with its odd marks plain (`plain_marks`). In this
+    order: a month and a day, in figures (`3/14`, `3 / 14`, `03/14/2031`,
+    `2031-03-14`, `14.3.31`, each date of `3/14-3/21`) or with the
+    month's name (`Mar 14`, `14th of March`, `14-MAR-2031`) -- unless
+    the value is a date or a stamp alone, the date rules' (`date_counts.
+    a_date_alone`: `12 Jan`, `2031-03-14 9:15 AM`), or ``dates`` is False
+    (the column's question about dates was answered); a telephone number
+    of the grammar of `_TELEPHONE_MARKS`, a local one of seven figures
+    beside a word of `TELEPHONE_WORDS`, or an international one after
+    `+`; a run of `IDENTIFIER_WORD_FIGURES` figures or more that is no
+    decimal's fraction (a record or account number); a network address
+    (`_address_in_words`: `IP 192.0.2.17`) or a latitude and a longitude
+    (`_pair_in_words`: `home 41.66123,-91.53210`) standing among words; a
+    title of `NAME_TITLES` before a capitalised word; two or three
+    capitals each with its point (`K.T.`), none of `NOT_INITIALS`; a
+    family name, a comma and one or two initials (`Lanezon, A`, `SMITH,
+    KT`) or a given name and a middle initial (`Smith, John Q`); and a
+    capitalised word after a word of `RELATIVE_WORDS` (`son Kukun
+    Velegin`). What stays open is named in plan P4-D472: a name written
+    first or alone (`Kukun Velegin to call back`, `Gapesam knee
+    protocol`), after a verb or a preposition (`ride by Kukun Velegin`),
+    or with no comma before its initials (`Surname KT`); initials with no
+    points; a title in small letters before a name in small letters.
+    A value holding a dash the lane read as written before the batch's merge
+    (`_DASHES_KEPT_BEFORE`) is read again with it so where the plain
+    reading finds no form (batch 4s's merge, step 9). Guarantees: a fixed
+    function of the three. Raises TypeError for a value that is not text.
+    No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    form = _identifier_words_form_in(_value_body(text), dates, scores)
+    if form:
+        return form
+    for character in text:
+        if character in _DASHES_KEPT_BEFORE:
+            return _identifier_words_form_in(_value_body(text, _DASHES_KEPT_BEFORE), dates, scores)
+    return ""
+
+
+def _identifier_words_form_in(body: str, dates: bool, scores: "frozenset[str]") -> str:
+    """`identifier_words_form` on one reading of a value's body (batch 4s's merge, step 9)."""
+    figured = _holds_a_figure(body)
+    figures_read = _scores_blanked(body, scores) if scores and "/" in body else body
+    if (
+        dates
+        and figured
+        and (_month_and_day_in_figures(figures_read) or _month_and_day_in_words(body))
+        and not date_counts.a_date_alone(body)
+    ):
+        return WORDS_MONTH_AND_DAY
+    if figured:
+        local = False
+        for word in _spaced_words(_in_small_letters(body)):
+            stripped = word
+            while stripped and not _a_letter_or_figure(stripped[-1]):
+                stripped = stripped[:-1]
+            if stripped in TELEPHONE_WORDS:
+                local = True
+        if _telephone_in(body, local):
+            return WORDS_TELEPHONE
+        if _figure_run_in(body):
+            return WORDS_FIGURES
+    if _address_in_words(body):
+        return WORDS_NETWORK_ADDRESS
+    if figured and _pair_in_words(body):
+        return WORDS_COORDINATE_PAIR
+    if _title_before_a_name(body):
+        return WORDS_TITLE
+    if _initials_in(body):
+        return WORDS_INITIALS
+    if _family_name_then(body, False):
+        return WORDS_FAMILY_AND_INITIAL
+    if _family_name_then(body, True):
+        return WORDS_FAMILY_AND_GIVEN
+    if _name_after_a_relative(body):
+        return WORDS_RELATIVE_NAME
+    return ""
+
+
+def levels_holding_identifier_words(
+    cells: "list[str]", absent: "frozenset[str]", floor: int, dates: bool = True
+) -> "list[str]":
+    """The levels of a column the floor's rows hold that hold an identifier form in their words, each once, in their first order (plan P4-D472).
+
+    A level is a value's folded spelling (`parsing.folded`), counted over
+    the present cells; one ``floor`` rows or more hold is read, on each
+    of its spellings of `IDENTIFIER_WORDS_AT_LEAST` words or more
+    (`value_words`, its odd marks plain), by `identifier_words_form`
+    (``dates``: whether a month and a day is read). ONE PASS over the
+    cells counting each different spelling, then each spelling read once:
+    linear in the column, its memory the column's different spellings.
+    Guarantees: a fixed function of the four. Raises TypeError for a cell
+    that is not text. No I/O.
+    """
+    return _levels_read(cells, absent, floor, dates)[0]
+
+
+def _levels_read(
+    cells: "list[str]", absent: "frozenset[str]", floor: int, dates: bool
+) -> "tuple[list[str], int]":
+    """The levels the floor's rows hold that hold identifier words (`levels_holding_identifier_words`), and the cell forms such a level is wholly, as bits: 1 a network address, 2 a coordinate pair (`_value_forms_of_a_cell`; the orchestrator's LANE CZ-E RULINGS 3 (3))."""
+    spelled: "dict[str, int]" = {}
+    for cell in cells:
+        if cell in absent:
+            continue
+        spelled[cell] = (spelled[cell] if cell in spelled else 0) + 1
+    keys: "dict[str, str]" = {}
+    rows: "dict[str, int]" = {}
+    for cell in spelled:
+        key = parsing.folded(cell)
+        keys[cell] = key
+        if key:
+            rows[key] = (rows[key] if key in rows else 0) + spelled[cell]
+    found: "list[str]" = []
+    seen: "set[str]" = set()
+    forms = 0
+    scores = score_templates(list(spelled))
+    for cell in spelled:
+        key = keys[cell]
+        if not key or rows[key] < max(floor, 1):
+            continue
+        if (
+            key not in seen
+            and value_words(plain_marks(cell)) >= IDENTIFIER_WORDS_AT_LEAST
+            and identifier_words_form(cell, dates, scores)
+        ):
+            seen |= {key}
+            found += [key]
+        bits = _value_forms_of_a_cell(cell)
+        if bits > 0:
+            forms = forms | (bits & 3)
+    return found, forms
+
+
+def _area_figures(text: str) -> bool:
+    """Whether a text is a code of an area smaller than a state in figures: a state's two figures (`STATE_FIPS`), a county's three and six or seven more (plan P4-D472).
+
+    Eleven figures (a census tract) or twelve (a block group) opening with
+    a state's code; or ten where a state's code of one figure from 2 to 9
+    lost its nought (`6037201000`), unless the ten figures are a
+    provider's number with its check figure (`a_provider_number`). A
+    state's code of `1` that lost its nought is not read: ten figures
+    opening with 1 are as often a moment counted in seconds; nor is a
+    block group's code that lost its nought (eleven figures read only as a
+    tract's), which a concept's or a product's code is written as.
+    """
+    body = parsing.trimmed(plain_marks(text))
+    if not _figures_alone(body):
+        return False
+    size = len(body)
+    if size in (11, 12) and body[:2] in STATE_FIPS:
+        return True
+    return (
+        size == 10
+        and body[0] in _NOUGHT_LOST_STATES
+        and ("0" + body[:1]) in STATE_FIPS
+        and not a_provider_number(body)
+    )
+
+
+# The first figures of a ten-figure tract code whose state's nought was
+# lost that the area reader reads (`_area_figures`): 1 is left out.
+_NOUGHT_LOST_STATES = "23456789"
+
+
+# The two-figure codes of the states, the District of Columbia and the
+# territories a census writes (01 to 56, the gaps kept; 60, 66, 69, 72,
+# 78).
+STATE_FIPS = frozenset({
+    "01", "02", "04", "05", "06", "08", "09", "10", "11", "12", "13", "15",
+    "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27",
+    "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39",
+    "40", "41", "42", "44", "45", "46", "47", "48", "49", "50", "51", "53",
+    "54", "55", "56", "60", "66", "69", "72", "78",
+})
+# The figures a provider's ten-figure number is checked under: the card
+# issuer's prefix its check figure is worked out with (Luhn's sum).
+_PROVIDER_PREFIX = "80840"
+
+
+def a_provider_number(figures: str) -> bool:
+    """Whether ten figures are a provider's number with its check figure: Luhn's sum over `_PROVIDER_PREFIX` and the ten is a multiple of ten (plan P4-D472).
+
+    A provider's number names a clinician, not a patient; a census tract
+    code that lost its nought passes the check one time in ten.
+    """
+    if len(figures) != 10 or not _figures_alone(figures):
+        return False
+    written = _PROVIDER_PREFIX + figures
+    total = 0
+    for place in range(len(written)):
+        figure = int(written[len(written) - 1 - place])
+        if place % 2 == 1:
+            figure = figure * 2
+            if figure > 9:
+                figure -= 9
+        total += figure
+    return total % 10 == 0
+
+
+def an_area_code(text: str) -> bool:
+    """Whether a cell is a code of an area smaller than a state (`_area_figures`; plan P4-D472). A fixed function of the text. No I/O."""
+    return _area_figures(text)
+
+
+def _decimal_part(text: str) -> "float | None":
+    """A coordinate's number: a hemisphere's letter or none, a sign or none, figures, a point and three figures or more, a degree's mark and a hemisphere's letter or none; None where it is not one."""
+    body = parsing.trimmed(text)
+    while body and (body[-1] in "NSEWnsew°" or body[-1] == " "):
+        body = body[:-1]
+    if body[:1] in ("N", "S", "E", "W", "n", "s", "e", "w") and len(body) > 1:
+        # ...the hemisphere's letter written first (`N41.66123`).
+        body = parsing.trimmed(body[1:])
+    sign = 1.0
+    if body[:1] in ("-", "+", "−"):
+        sign = -1.0 if body[:1] != "+" else 1.0
+        body = body[1:]
+    point = _text_place(body, ".")
+    if point < 1 or not _figures_alone(body[:point]) or not _figures_alone(body[point + 1:]):
+        return None
+    if len(body) - point - 1 < _COORDINATE_PLACES or point > 3:
+        return None
+    return sign * float(body)
+
+
+def a_coordinate_pair(text: str) -> bool:
+    """Whether a cell writes a latitude and a longitude in one cell (plan P4-D472).
+
+    Two numbers of `_COORDINATE_PLACES` decimals or more, parted by a
+    comma, a semicolon, a stroke, a bar or spaces (a tab among them, the
+    odd marks read plain: `plain_marks`), in brackets or `POINT( )` or
+    neither, a hemisphere's letter before each or a degree's mark and a
+    hemisphere's letter after each or neither; one inside [-90, 90] and
+    the other inside [-180, 180], in either order (`41.66123,-91.53210`,
+    `(41.66123, -91.53210)`, `POINT(-91.53210 41.66123)`, `N41.66123
+    W91.53210`). Guarantees: a fixed function of the text. Raises
+    TypeError for a cell that is not text. No I/O.
+    """
+    body = parsing.trimmed(plain_marks(text))
+    if _in_small_letters(body[:5]) == "point":
+        body = parsing.trimmed(body[5:])
+    if body[:1] in "([" and body[-1:] in ")]":
+        body = parsing.trimmed(body[1:-1])
+    parts: "list[str]" = []
+    for mark in (",", ";", "/", "|"):
+        if _text_count(body, mark) == 1:
+            cut = _text_place(body, mark)
+            parts = [body[:cut], body[cut + 1:]]
+            break
+    if not parts:
+        pieces = [piece for piece in _spaced_words(body) if piece]
+        if len(pieces) != 2:
+            return False
+        parts = pieces
+    first = _decimal_part(parts[0])
+    second = _decimal_part(parts[1])
+    if first is None or second is None:
+        return False
+    if abs(first) <= _NEAR_NOUGHT and abs(second) <= _NEAR_NOUGHT:
+        # ...two shares or proportions, as `coordinates_held` reads them.
+        return False
+    return (abs(first) <= _LATITUDE_REACH and abs(second) <= _LONGITUDE_REACH) or (
+        abs(second) <= _LATITUDE_REACH and abs(first) <= _LONGITUDE_REACH
+    )
+
+
+def _hexadecimal_alone(text: str) -> bool:
+    """Whether a text is one to four hexadecimal characters and nothing else."""
+    if not 1 <= len(text) <= 4:
+        return False
+    for character in text:
+        if not (_a_figure(character) or character in "abcdefABCDEF"):
+            return False
+    return True
+
+
+def _a_dotted_address(text: str) -> bool:
+    """Whether a text is four groups of one to three figures, each 0 to 255, parted by points: `192.0.2.17`."""
+    groups = _text_parts(text, ".")
+    if len(groups) != 4:
+        return False
+    for group in groups:
+        if not 1 <= len(group) <= 3 or not _figures_alone(group) or int(group) > 255:
+            return False
+    return True
+
+
+def _a_colon_address(text: str) -> bool:
+    """Whether a text is groups of one to four hexadecimal characters parted by colons, eight of them or fewer around one `::`, a dotted address in the last place or not: `2001:db8::8a2e:370:7334`."""
+    if _text_count(text, "::") > 1 or ":::" in text:
+        return False
+    groups = _text_parts(text, ":")
+    last = groups[-1]
+    tail = 0
+    if "." in last:
+        if not _a_dotted_address(last):
+            return False
+        groups = groups[:-1]
+        tail = 2
+    filled = [group for group in groups if group]
+    for group in filled:
+        if not _hexadecimal_alone(group):
+            return False
+    if "::" in text:
+        return len(filled) + tail <= 7 and (len(filled) > 0 or tail > 0)
+    return len(groups) + tail == 8 and len(filled) == len(groups)
+
+
+def _a_hardware_address(text: str) -> bool:
+    """Whether a text is a device's hardware address: six groups of two hexadecimal characters parted by colons or hyphens, or three of four parted by points."""
+    for mark, count, width in ((":", 6, 2), ("-", 6, 2), (".", 3, 4)):
+        groups = _text_parts(text, mark)
+        if len(groups) == count and all(len(group) == width and _hexadecimal_alone(group) for group in groups):
+            return any(not _a_figure(character) for character in text if character != mark) or mark != "."
+    return False
+
+
+def a_network_address(text: str) -> bool:
+    """Whether a cell is a network address (plan P4-D472).
+
+    A dotted address (four groups of 0 to 255: `192.0.2.17`), a port or a
+    prefix after it or not (`:8080`, `/24`); a colon address (hexadecimal
+    groups, eight of them or fewer around one `::`, a dotted address last
+    or not), in square brackets with a port after them or not, a zone
+    after `%` or not; or a device's hardware address (`00:1a:2b:3c:4d:5e`).
+    Guarantees: a fixed function of the text, read with its odd marks
+    plain (`plain_marks`). Raises TypeError for a cell that is not text.
+    No I/O.
+    """
+    body = parsing.trimmed(plain_marks(text))
+    if body[:1] == "[" and "]" in body:
+        body = body[1: _text_place(body, "]")]
+    if "%" in body:
+        body = body[: _text_place(body, "%")]
+    if "/" in body:
+        cut = _text_place(body, "/")
+        if not _figures_alone(body[cut + 1:]) or len(body) - cut - 1 > 3:
+            return False
+        body = body[:cut]
+    if _text_count(body, ":") == 1 and "." in body:
+        cut = _text_place(body, ":")
+        if not _figures_alone(body[cut + 1:]):
+            return False
+        body = body[:cut]
+    if _a_dotted_address(body):
+        return True
+    if _text_count(body, ":") >= 2 and _a_colon_address(body):
+        return True
+    return _a_hardware_address(body)
+
+
+def a_serial_number(text: str) -> bool:
+    """Whether a cell is written as a device's serial number is (the orchestrator's LANE CZ-E RULINGS 1, item (E)).
+
+    One word of 6 to 24 characters, capitals, figures and at most three
+    single dashes between groups, holding six figures or more and one
+    capital or more: `KX40291847`, `40291847K`, `Q7-4029-18`. A number
+    alone, a word of small letters or one with a space is none; the odd
+    marks are read plain (`plain_marks`). Guarantees: a fixed function of
+    the text. Raises TypeError for a cell that is not text. No I/O.
+    """
+    body = parsing.trimmed(plain_marks(text))
+    shortest, longest = _SERIAL_LENGTHS
+    if not shortest <= len(body) <= longest or body[:1] == "-" or body[-1:] == "-":
+        return False
+    figures = 0
+    capitals = 0
+    dashes = 0
+    previous = ""
+    for character in body:
+        if _a_figure(character):
+            figures += 1
+        elif "A" <= character <= "Z":
+            capitals += 1
+        elif character == "-" and previous != "-":
+            dashes += 1
+        else:
+            return False
+        previous = character
+    return figures >= _SERIAL_FIGURES and capitals >= 1 and dashes <= 3
+
+
+def _serial_layout(text: str) -> str:
+    """A serial's layout: each capital written `A`, each figure `9`, a dash kept (`AA99999999`, `99999999A`, `A9-9999-99`)."""
+    written = ""
+    for character in parsing.trimmed(plain_marks(text)):
+        written = written + ("9" if _a_figure(character) else "A" if "A" <= character <= "Z" else character)
+    return written
+
+
+def _makers_layouts(layouts: "dict[str, int]") -> bool:
+    """Whether the serials' layouts are several makers': two at least, each holding one in `SERIAL_LAYOUT_SHARE` of the column's different serials or more (counted by different serials, never by cells: one serial repeated on half the rows is no maker's layout -- the statistics check of lane CZ-E, item 2)."""
+    total = 0
+    for layout in layouts:
+        total += layouts[layout]
+    shared = 0
+    for layout in layouts:
+        if SERIAL_LAYOUT_SHARE * layouts[layout] >= total:
+            shared += 1
+    return shared >= 2
+
+
+def _count_a_serial(serials: "dict[str, bool]", layouts: "dict[str, int]", cell: str) -> None:
+    """Count one serial cell: a different serial once, its layout with it (`_makers_layouts`), up to `_SAFE_HARBOR_MEMO` serials."""
+    if cell in serials or len(serials) >= _SAFE_HARBOR_MEMO:
+        return
+    serials[cell] = True
+    layout = _serial_layout(cell)
+    layouts[layout] = (layouts[layout] if layout in layouts else 0) + 1
+
+
+# The value readers' cell forms, one bit a form (`_value_forms_of_a_cell`).
+_VALUE_FORMS = (HELD_NETWORK_ADDRESSES, HELD_COORDINATE_PAIRS, HELD_AREA_CODES, HELD_DEVICE_SERIALS)
+# How many cells the one pass reads between its checks that two in three
+# of the present cells can no longer pass any form.
+_VALUE_PASS_CHECK = 1024
+
+
+# The longest cell the three cell forms are read in: a longer one is a
+# present cell of none of them, read without a look at its characters.
+_VALUE_FORM_LONGEST = 64
+
+
+def _value_forms_of_a_cell(cell: str) -> int:
+    """One cell's value forms as bits after `_VALUE_FORMS`: 1 a network address, 2 a coordinate pair, 4 an area code, 8 a serial number; -1 a cell holding no figure and no network address; 0 a cell longer than `_VALUE_FORM_LONGEST`.
+
+    EVERY FORM THE ADDRESS READER ADMITS is read (Codex's item 4 of lane
+    CZ-E's review, the orchestrator's LANE CZ-E RULINGS 6 (4)): an
+    address of letters alone (`aa:bb:cc:dd:ee:ff`, eight colon groups of
+    letters) and a hardware address parted by hyphens (`00-1a-2b-3c-4d-5e`)
+    were set aside before the reader saw them, and eleven of them beside
+    19,989 labels published the address.
+    """
+    if len(cell) > _VALUE_FORM_LONGEST:
+        return 0
+    marked = plain_marks(cell)
+    address = ("." in marked or ":" in marked or "-" in marked) and a_network_address(cell)
+    if not _holds_a_figure(cell):
+        return 1 if address else -1
+    bits = 1 if address else 0
+    if "." in cell and a_coordinate_pair(cell):
+        bits += 2
+    if 10 <= len(parsing.trimmed(cell)) <= 12 and an_area_code(cell):
+        bits += 4
+    if a_serial_number(cell):
+        bits += 8
+    return bits
+
+
+# The roles a level is published by, read for identifier words: the
+# labels' and the labels of numbers beside labels.
+_IDENTIFIER_WORD_ROLES = (
+    ROLE_CONSTANT, ROLE_BINARY, ROLE_CATEGORICAL, ROLE_LONG_TAIL,
+    ROLE_COMPOUND,
+)
+
+
+def value_reader_hold(
+    role: str, cells: "list[str]", absent: "frozenset[str]", floor: int, dates: bool = True
+) -> str:
+    """Which of the value readers' holds reaches a column, one of `VALUE_READER_HOLDS`, or none (plan P4-D472).
+
+    Asked by `safe_harbor_hold` of a column of a role that publishes a
+    value, last. In this order: two in three of the present cells that
+    hold a figure are network addresses (`a_network_address`), a latitude
+    and a longitude in one cell (`a_coordinate_pair`), codes of an area
+    smaller than a state (`an_area_code`), or devices' serial numbers, of
+    `SERIALS_AT_LEAST` different values or more in two makers' layouts or
+    more counted by different serials (`a_serial_number`,
+    `_makers_layouts`) -- ONE PASS over the cells, each different cell
+    read once, a cell longer than `_VALUE_FORM_LONGEST` counted as none
+    unread, settled early where more than a third of all the cells pass
+    no form; then, for a role that publishes levels
+    (`_IDENTIFIER_WORD_ROLES`), A LEVEL THE FLOOR'S ROWS HOLD that is
+    wholly a network address or a coordinate pair, whatever its share
+    (the orchestrator's LANE CZ-E RULINGS 3 (3): a minority of addresses
+    among labels was published), and one that holds an identifier in its
+    words (`levels_holding_identifier_words`; ``dates`` False where the
+    column's question about dates was answered: no month and a day is
+    read again). Guarantees: a fixed function of the five. Raises
+    TypeError for a cell that is not text. No I/O.
+    """
+    present = 0
+    passing = [0, 0, 0, 0]
+    memo: "dict[str, int]" = {}
+    serials: "dict[str, bool]" = {}
+    layouts: "dict[str, int]" = {}
+    read = 0
+    for cell in cells:
+        read += 1
+        if cell in memo:
+            bits = memo[cell]
+        elif cell in absent:
+            continue
+        else:
+            bits = _value_forms_of_a_cell(cell)
+            if len(memo) < _SAFE_HARBOR_MEMO:
+                memo[cell] = bits
+        if bits < 0:
+            continue
+        present += 1
+        if bits & 8:
+            _count_a_serial(serials, layouts, cell)
+        for place in range(len(_VALUE_FORMS)):
+            if bits & (1 << place):
+                passing[place] += 1
+        if read % _VALUE_PASS_CHECK == 0 and all(
+            _BULK_PARTS * (present - passing[place]) > len(cells) for place in range(len(_VALUE_FORMS))
+        ):
+            # ...more than a third of all the cells pass no form: settled.
+            break
+    for place in range(len(_VALUE_FORMS)):
+        if _VALUE_FORMS[place] == HELD_DEVICE_SERIALS and (
+            len(serials) < SERIALS_AT_LEAST or not _makers_layouts(layouts)
+        ):
+            continue
+        if passing[place] > 0 and _BULK_PARTS * passing[place] >= _BULK_TAKEN * present:
+            return _VALUE_FORMS[place]
+    if role not in _IDENTIFIER_WORD_ROLES:
+        return ""
+    worded, wholly = _levels_read(cells, absent, floor, dates)
+    if wholly & 1:
+        return HELD_NETWORK_ADDRESSES
+    if wholly & 2:
+        return HELD_COORDINATE_PAIRS
+    return HELD_IDENTIFIER_WORDS if worded else ""
+
+
+# (D) AGES PAST 89 INSIDE BAND LABELS (plan P4-D472): a band of ages
+# (`an_age_band`) is no number, so neither the top-code nor the age
+# question reached a column of them, and bands past 89 were published one
+# by one. A column whose present cells holding a figure are bands on two
+# in three, one starting past 89, is in the age reach (`safe_harbor_reach`)
+# and its bands from 90 are POOLED into one band written in the source's
+# form (`top_coded_cells`: `90+`, `>= 90 yrs`), as a top-coded column's
+# ages from 90 are written 90.
+# The words a band may open with (batch 4s's merge, step 9; the orchestrator's
+# LANE HB2 RULINGS 1 (3) and 7 (2), plan P4-D477 (4)): the age vocabulary's
+# words before an age (`AGE_VOCABULARY`), with the marks and the brackets the
+# age reach reads beside them (`age_words_split`: `Age 90-94`, `Age: >= 95`,
+# `[Age 90-94]`, `Age (90-94)`, `AGE=95+`), and `ages`, which the band reader
+# read before the merge and the vocabulary does not hold (`Ages 3` is no age
+# to the reach), read with the same marks and brackets. Before the merge the
+# reader read a list of its own, `ages`, `aged` and `age` and a space.
+_BAND_WORDS_BEYOND = ("ages",)
+# The marks and words an open band's age stands after, each with how far
+# past that age the band starts: `>= 95` from 95, `> 89` and `over 89`
+# from 90; and those of a band open downward, each with how far below
+# its age the band ends: `<= 18` holds 18, `<18`, `under 18`, `below 18`
+# and `less than 18` end at 17 (Codex's item 1 of lane CZ-E's review, the
+# orchestrator's LANE CZ-E RULINGS 6 (1): `<90` read as holding 90 joined
+# the one band past 89, and 18,000 people under 90 became one constant
+# band with the 2,000 past it).
+_BAND_UPWARD = ((">=", 0), ("=>", 0), ("\u2265", 0), (">", 1), ("over ", 1), ("above ", 1))
+_BAND_DOWNWARD = (("<=", 0), ("=<", 0), ("\u2264", 0), ("<", 1), ("under ", 1), ("below ", 1), ("less than ", 1))
+# The words that close a band open upward after its first age (`90 and
+# over`), and the marks between the two ages of a closed band.
+_BAND_OPEN_WORDS = (
+    "and over", "and older", "and above", "or older", "or over", "or more",
+    "plus", "and up", "& over", "& older", "& above", "& up", "or above",
+    "or greater", "and greater", "up",
+)
+# ...a dash of the one definition is written `-` by `plain_marks` before the
+# band is read (batch 4s's merge, step 9).
+_BAND_JOINS = ("-", "to ", "thru ", "through ")
+# The unit words and affixes of an age a band may write after its ages (batch
+# 4s's merge, step 9; the orchestrator's seam (3), ONE definition of an age's
+# unit for the bands and the ends): the age vocabulary's units and affixes
+# (`AGE_VOCABULARY.units` and `.affixes`: years, months, weeks and days),
+# longest first, read whole in small letters, a point after a unit word or
+# ` old` read with it (`yrs.`, `y.o.`) as the age reach reads it, never after
+# a slashed or hyphened affix (`y/o.`); each names its unit by `_age_unit_of`,
+# as the age reach
+# and the ends read it, so a band in months is read in months (`_band_cutoff`).
+# Before the merge the reader read a list of its own, the units of years
+# alone (`years old` to `y`), and a band written in months was no band.
+def _longest_first(words: "set[str]") -> "tuple[str, ...]":
+    """Words longest first, each length in its alphabetical order (batch 4s's merge, step 9)."""
+    longest = 0
+    for word in words:
+        longest = max(longest, len(word))
+    ordered: "list[str]" = []
+    for size in range(longest, 0, -1):
+        ordered += sorted([word for word in words if len(word) == size])
+    return tuple(ordered)
+
+
+_BAND_UNITS = _longest_first({unit for unit, _letter in AGE_VOCABULARY.units} | set(AGE_VOCABULARY.affixes))
+# The widths (last age less first) of a closed band of five or ten years.
+_BAND_WIDTHS = (4, 9)
+# The longest band read, and the characters a band may open with: a
+# figure, a mark of `_BAND_UPWARD` or `_BAND_DOWNWARD`, an opening bracket of
+# the age vocabulary, or the first letter of one of its words or of `ages`,
+# `over`, `above`, `under`, `below` or `less`.
+_BAND_LONGEST = 40
+_BAND_FIRST_MARKS = "<>=\u2265\u2264(["
+_BAND_FIRST_LETTERS = "ablou"
+
+
+@dataclasses.dataclass(frozen=True)
+class AgeBand:
+    """One cell read as a band of ages (plan P4-D472).
+
+    ``start`` is the first age it holds; ``end`` its last, or -1 for a band
+    open upward; ``unit`` the unit word or affix of an age written in it as
+    written (`_BAND_UNITS`, its unit named by `_age_unit_of`), or "";
+    ``opened`` whether a word of the age vocabulary or `ages` opens it; ``form`` how a band
+    open upward writes its first age, `{}` standing for it (`>= {} yrs`,
+    `{}+`), or "" for a closed band or one open downward; ``past`` how far
+    past that age it starts (`> 89` starts at 90).
+    """
+
+    start: int
+    end: int
+    unit: str
+    opened: bool
+    form: str
+    past: int = 0
+
+
+def _band_spaces(small: str, place: int) -> int:
+    """The place after the spaces at ``place``."""
+    while place < len(small) and small[place] == " ":
+        place += 1
+    return place
+
+
+def _band_unit(small: str, place: int) -> int:
+    """The place after a unit word or affix of an age at ``place`` (`_BAND_UNITS`) and a point after it, or ``place`` where none stands there."""
+    for unit in _BAND_UNITS:
+        end = place + len(unit)
+        if small[place:end] == unit and (end >= len(small) or not _a_letter(small[end])):
+            if small[end:end + 1] == "." and "/" not in unit and (unit in AGE_UNIT_WORDS or unit[-4:] == " old"):
+                # ...a point after a unit word or a unit and ` old`, as the age
+                # reach reads one (`95 yrs.`, `95 y.o.`, `95 years old.`), never
+                # after a slashed or hyphened affix (`95 y/o.`, `95 years-old.`).
+                end += 1
+            return end
+    return place
+
+
+def _band_words(body: str, small: str) -> "tuple[int, str, int]":
+    """Where a band's ages start after the words that open it, the closing brackets of the brackets before the word (innermost first), and the place of a bracket after the word or -1; ``(0, "", -1)`` where no word opens it (batch 4s's merge, step 9).
+
+    The age vocabulary's words before an age, read as the age reach reads
+    them (`age_words_split`: the word, its spaces, one mark, an opening
+    bracket around the whole or around the band), and `ages` read the same
+    way (`_BAND_WORDS_BEYOND`). Guarantees: a fixed function of the two.
+    No I/O.
+    """
+    head, _rest = age_words_split(body)
+    if not head:
+        first = 0
+        while first < len(small) and not _a_letter(small[first]):
+            first += 1
+        for word in _BAND_WORDS_BEYOND:
+            after = first + len(word)
+            if small[first:after] == word and not _a_letter(small[after: after + 1] or " "):
+                # ...the vocabulary's grammar around the word, read on the text
+                # with the word written as the vocabulary's own (`(Ages: 90-94)`).
+                own = AGE_WORDS_BEFORE[-1]
+                written, _after = age_words_split(body[:first] + own + body[after:])
+                if written:
+                    head = body[:after] + written[first + len(own):]
+                break
+    if not head:
+        return (0, "", -1)
+    letters = 0
+    while letters < len(head) and not _a_letter(head[letters]):
+        letters += 1
+    outer = ""
+    inner = -1
+    for place in range(len(head)):
+        for opening, closing in AGE_VOCABULARY.brackets:
+            if head[place] == opening and place < letters:
+                outer = closing + outer
+            elif head[place] == opening:
+                inner = place
+    return (len(head), outer, inner)
+
+
+def _band_figures(small: str, place: int) -> int:
+    """An age of one to three figures at ``place``, 0 to 125, or -1."""
+    size = _figures_at(small, place)
+    if not 1 <= size <= 3 or (place + size < len(small) and _a_figure(small[place + size])):
+        return -1
+    age = int(small[place: place + size])
+    return age if age <= TOP_CODE_REACH_CEILING else -1
+
+
+def _an_interval_band(body: str) -> "AgeBand | None":
+    """An interval of ages in brackets read as a closed band, or None: two ages parted by a comma or a hyphen inside `(` or `[` and `)` or `]`, a unit word of years after it or not (`[90, 95)`, `(89, 94] yrs`)."""
+    if not 5 <= len(body) <= _BAND_LONGEST or body[0] not in "([":
+        return None
+    small = _in_small_letters(body)
+    close = 1
+    while close < len(small) and small[close] not in ")]":
+        close += 1
+    if close >= len(small):
+        return None
+    inner = small[1:close]
+    at = _band_spaces(inner, 0)
+    first = _band_figures(inner, at)
+    if first < 0:
+        return None
+    at = _band_spaces(inner, at + _figures_at(inner, at))
+    if inner[at: at + 1] not in (",", "-"):
+        return None
+    at = _band_spaces(inner, at + 1)
+    last = _band_figures(inner, at)
+    if last < 0 or _band_spaces(inner, at + _figures_at(inner, at)) != len(inner):
+        return None
+    start = first + (1 if small[0] == "(" else 0)
+    end = last - (1 if small[close] == ")" else 0)
+    rest = _band_spaces(small, close + 1)
+    unit_end = _band_unit(small, rest)
+    if end < start or _band_spaces(small, unit_end) != len(small):
+        return None
+    return AgeBand(start, end, body[rest:unit_end], False, "")
+
+
+def an_age_band(text: str) -> "AgeBand | None":
+    """A cell read as a band of ages, or None (plan P4-D472).
+
+    Closed: two ages joined by a hyphen, a dash or `to`, the first below
+    the last (`90-94`, `18-44 yrs`, `90 to 94 years`); open upward: an age
+    after `>=`, `>`, `over` or `above`, or before `+`, `and over`, `and
+    older` or `or more` (`>= 95 yrs`, `90+`, `100 and over`); open
+    downward: after `<`, `<=`, `under`, `below` or `less than` (`<18
+    yrs`), a strict bound ending one below its age (`<18` holds 0 to 17,
+    `<= 18` 0 to 18). Each age has one to three figures and lies in 0 to 125, a unit
+    word of years after it or not (`_BAND_UNITS`); `age`, `aged` or `ages`
+    may open the band, and nothing else may stand in it. AND (the
+    orchestrator's LANE CZ-E RULINGS 3 (2)): open upward before `and up`,
+    `& over`, `& older`, `& above`, `or above`, `or greater`, `and
+    greater` or a glued `up` too (`100 and up`, `100up`); and an interval
+    in brackets, its first age kept by `[` and left by `(`, its last kept
+    by `]` and left by `)` (`[90, 95)` is 90 to 94, `(89, 94]` is 90 to
+    94, `[90-95)` is 90 to 94). The odd marks are read plain
+    (`plain_marks`). Guarantees: a fixed function of the text. Raises
+    TypeError for a cell that is not text. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    body = parsing.trimmed(plain_marks(text))
+    interval = _an_interval_band(body)
+    if interval is not None:
+        return interval
+    if not body or len(body) > _BAND_LONGEST or not (
+        _a_figure(body[0]) or body[0] in _BAND_FIRST_MARKS or _in_small_letters(body[:1]) in _BAND_FIRST_LETTERS
+    ):
+        # ...no band is so long, nor opens with another character: read at
+        # once, so a column of free text costs the reader one look a cell.
+        return None
+    small = _in_small_letters(body)
+    if len(small) != len(body):
+        small = ""
+        for character in body:
+            lowered = _in_small_letters(character)
+            small = small + (lowered if len(lowered) == 1 else character)
+    place = 0
+    opened = False
+    head_at = _band_words(body, small)
+    if head_at[0]:
+        place = _band_spaces(small, head_at[0])
+        opened = True
+        if small[place - 1: place] == "=" and small[place: place + 1] in "<>" and small[place + 1: place + 2] != "=":
+            # ...the word's `=` right before `>` or `<` is the band's `=>` or
+            # `=<` (`age =>90`, `age =<17`; batch 4s's merge, step 9).
+            place -= 1
+        # ...each bracket before the word closes at the cell's end (`[Age
+        # 90-94]`) and is read as a space, so the band reads as it would
+        # bare and the form it is written back in keeps the source's
+        # brackets (batch 4s's merge, step 9)...
+        end = len(small)
+        for closing in head_at[1]:
+            while end > place and small[end - 1] == " ":
+                end -= 1
+            if small[end - 1: end] != closing:
+                return None
+            end -= 1
+            small = small[:end] + " " + small[end + 1:]
+        if head_at[2] >= 0:
+            # ...and a bracket after the word closes after the band, before
+            # its unit or at its end (`Age (90-94)`, `Age (90-94) yrs`), its
+            # last closing bracket read as a space; or it is an interval's
+            # own (`Age [90, 95)`).
+            closing = ""
+            for opening, closer in AGE_VOCABULARY.brackets:
+                if small[head_at[2]] == opening:
+                    closing = closer
+            at = end - 1
+            while at >= place and small[at] != closing:
+                at -= 1
+            if at < place:
+                interval = _an_interval_band(parsing.trimmed(body[head_at[2]:end]))
+                return None if interval is None else dataclasses.replace(interval, opened=True)
+            small = small[:at] + " " + small[at + 1:]
+    elif small[:1] in "([":
+        # ...an opening bracket of the vocabulary around the whole, no word,
+        # is read only beside a unit word inside it (`(90-94 yrs)`), as the
+        # age reach reads one (`(95 yrs)`); `(90-94)` alone is the interval
+        # read above (batch 4s's merge, step 9).
+        for opening, closing in AGE_VOCABULARY.brackets:
+            if small[:1] == opening and small[-1:] == closing:
+                inner = an_age_band(body[1:-1])
+                if inner is not None and inner.unit:
+                    form = opening + inner.form + closing if inner.form else ""
+                    return dataclasses.replace(inner, form=form)
+        return None
+
+    def unit_then_end(at: int) -> "tuple[str, bool]":
+        at = _band_spaces(small, at)
+        end = _band_unit(small, at)
+        if end == at:
+            # ...or a unit word in the vocabulary's brackets (`90-94 (years)`).
+            for opening, closing in AGE_VOCABULARY.brackets:
+                if small[at: at + 1] == opening:
+                    inner = _band_spaces(small, at + 1)
+                    inner_end = _band_unit(small, inner)
+                    shut = _band_spaces(small, inner_end)
+                    if inner_end > inner and small[shut: shut + 1] == closing:
+                        return body[inner:inner_end], _band_spaces(small, shut + 1) == len(small)
+        written = body[at:end]
+        return written, _band_spaces(small, end) == len(small)
+
+    for mark, past in _BAND_UPWARD:
+        if small[place: place + len(mark)] == mark and not (mark == ">" and small[place + 1: place + 2] == "="):
+            at = _band_spaces(small, place + len(mark))
+            age = _band_figures(small, at)
+            if age < 0:
+                return None
+            unit, ended = unit_then_end(at + _figures_at(small, at))
+            if not ended:
+                return None
+            form = body[:at] + "{}" + body[at + _figures_at(small, at):]
+            return AgeBand(age + past, -1, unit, opened, form, past)
+    for mark, below in _BAND_DOWNWARD:
+        if small[place: place + len(mark)] == mark:
+            at = _band_spaces(small, place + len(mark))
+            age = _band_figures(small, at)
+            if age < below:
+                # ...no age at all, or a strict bound at 0, which holds none.
+                return None
+            unit, ended = unit_then_end(at + _figures_at(small, at))
+            return AgeBand(0, age - below, unit, opened, "") if ended else None
+    first = _band_figures(small, place)
+    if first < 0:
+        return None
+    after_first = place + _figures_at(small, place)
+    at = _band_spaces(small, after_first)
+    unit_end = _band_unit(small, at)
+    first_unit = body[at:unit_end]
+    at = _band_spaces(small, unit_end)
+    if small[at: at + 1] == "+":
+        unit, ended = unit_then_end(at + 1)
+        if not ended:
+            return None
+        return AgeBand(first, -1, first_unit or unit, opened, body[:place] + "{}" + body[after_first:])
+    for words in _BAND_OPEN_WORDS:
+        if small[at: at + len(words)] == words and (at + len(words) >= len(small) or not _a_letter(small[at + len(words)])):
+            unit, ended = unit_then_end(at + len(words))
+            if not ended:
+                return None
+            return AgeBand(first, -1, first_unit or unit, opened, body[:place] + "{}" + body[after_first:])
+    for join in _BAND_JOINS:
+        if small[at: at + len(join)] == join:
+            last_at = _band_spaces(small, at + len(join))
+            last = _band_figures(small, last_at)
+            if last < 0 or last <= first:
+                return None
+            unit, ended = unit_then_end(last_at + _figures_at(small, last_at))
+            if not ended:
+                return None
+            return AgeBand(first, last, unit or first_unit, opened, "")
+    return None
+
+
+def _band_cutoff(band: AgeBand, mark: int = TOP_CODE) -> int:
+    """The first age of 90 years in a band's own unit: the mark of the unit its unit word or affix names (`_age_unit_of`, the one definition of an age's unit the age reach and the ends read; batch 4s's merge, step 9: 90 years, 1,080 months, 4,695 weeks, 32,871 days, `AGE_MARKS`), else the mark of the column's unit (Codex's item 2 of lane CZ-E's review, the orchestrator's LANE CZ-E RULINGS 6 (2): childhood bands in months were pooled at 90)."""
+    letter = _age_unit_of(band.unit) if band.unit else ""
+    return AGE_MARKS[letter] if letter else mark
+
+
+def _band_is_past_89(band: AgeBand, mark: int = TOP_CODE) -> bool:
+    """Whether a band holds only ages past 89 years: it starts at 90 years in its unit (`_band_cutoff`) or later; a band in months, weeks or days, whose ages have at most three figures, never does."""
+    return band.start >= _band_cutoff(band, mark)
+
+
+# The marks one of which a band holds beside its figures: a band holds a
+# mark of these, a dash of the one definition (`_SCREEN_DASHES`; batch 4s's
+# merge, step 9), a bracket or a letter (`90-94`, `90+`, `>= 95`, `90 to
+# 94`), and a number alone (`67.42`) is no band, read without the band's
+# grammar.
+_BAND_SIGNS = "+<>=\u2265\u2264"
+
+
+def a_band_cell(cell: str) -> "AgeBand | None":
+    """A cell read as a band of ages (`an_age_band`); a cell holding no figure, or no mark of `_BAND_SIGNS`, of `_SCREEN_DASHES` or a bracket and no letter, is read as none."""
+    if not _holds_a_figure(cell):
+        return None
+    for character in cell:
+        if character in _BAND_SIGNS or character in _SCREEN_DASHES or character in "([" or _a_letter(character):
+            return an_age_band(cell)
+    return None
+
+
+def _past_89_unread(cell: str, comma: bool = False, mark: int = TOP_CODE) -> bool:
+    """Whether a cell of a column of bands that is no band starting before 90 years still names an age past 89 years: its number reads 90 years or more in its unit (`safe_harbor_number`, `_in_years`), or, in a column of years, its first group of one to three figures is 90 to 125 (`100 & older`, `90 a 94`; the orchestrator's LANE CZ-E RULINGS 3 (2)); ``mark``: the mark of the column's unit (`AGE_MARKS`; RULINGS 6 (2))."""
+    band = an_age_band(cell)
+    if band is not None:
+        return _band_is_past_89(band, mark)
+    read = safe_harbor_number(cell, comma)
+    if read is not None and TOP_CODE <= _in_years(read, mark) <= TOP_CODE_REACH_CEILING:
+        return True
+    if mark != TOP_CODE:
+        return False
+    body = plain_marks(cell)
+    place = 0
+    while place < len(body) and not _a_figure(body[place]):
+        place += 1
+    size = _figures_at(body, place)
+    return 1 <= size <= 3 and TOP_CODE <= int(body[place: place + size]) <= TOP_CODE_REACH_CEILING
+
+
+def age_bands_past_89(
+    cells: "list[str]", absent: "frozenset[str]", named: bool = False, mark: int = TOP_CODE
+) -> bool:
+    """Whether a column is a column of age bands holding a band past 89 to pool (plan P4-D472).
+
+    Its present cells holding a figure are bands (`an_age_band`) on two in
+    three; the bands are of ages -- a unit word of years or `age` stands
+    in one, ``named`` (its name says age), or its closed bands are an
+    age's (`_bands_read_as_ages`: five or ten years wide, or four or more
+    chained from an age of 21 or less, or past 89 five or ten years wide
+    beside a band from 0) -- and a band starts past 89 years that is not
+    the one band of 90 and over the Safe Harbor rule allows (`90+` or `>=
+    90` alone is kept as it is). A cell that is no band but still names
+    an age past 89 (`_past_89_unread`: `100 & older`, `90 a 94`) counts as
+    such a band (the orchestrator's LANE CZ-E RULINGS 3 (2)). ``mark``:
+    the mark of the column's unit (`AGE_MARKS`): a band with no unit word
+    of years is read in it, so bands of months, weeks or days never start
+    past 89 years (`_band_cutoff`; the orchestrator's LANE CZ-E RULINGS 6
+    (2)). ONE PASS, each different cell read once up to
+    `_SAFE_HARBOR_MEMO` of them, a cell longer than any band
+    (`_BAND_LONGEST`) counted as no band unread, and settled early where
+    more than a third of all the cells are no band. Guarantees: a fixed
+    function of the four. Raises TypeError for a cell that is not text.
+    No I/O.
+    """
+    present = 0
+    others = 0
+    worded = named
+    past: "list[tuple[int, int]]" = []
+    unread: "list[str]" = []
+    spans: "dict[tuple[int, int], int]" = {}
+    memo: "dict[str, tuple[bool, AgeBand | None, bool]]" = {}
+    for cell in cells:
+        if cell in memo:
+            figured, band, beyond = memo[cell]
+        elif cell in absent:
+            continue
+        else:
+            # ...a cell longer than any band is a present cell of none.
+            longer = len(cell) > _BAND_LONGEST
+            figured = longer or _holds_a_figure(cell)
+            band = a_band_cell(cell) if figured and not longer else None
+            beyond = figured and not longer and band is None and _past_89_unread(cell, False, mark)
+            if len(memo) < _SAFE_HARBOR_MEMO:
+                memo[cell] = (figured, band, beyond)
+        if not figured:
+            continue
+        present += 1
+        if band is None:
+            others += 1
+            if beyond and cell not in unread and len(unread) < _BAND_LONGEST:
+                unread += [cell]
+            if _BULK_PARTS * others > len(cells):
+                return False
+            continue
+        worded = worded or bool(band.unit) or band.opened
+        key = (band.start, band.end)
+        if key in spans or len(spans) < _SAFE_HARBOR_MEMO:
+            spans[key] = (spans[key] if key in spans else 0) + 1
+        if _band_is_past_89(band, mark) and key not in past:
+            past += [key]
+    bands = present - others
+    if bands == 0 or _BULK_PARTS * bands < _BULK_TAKEN * present:
+        return False
+    if not (worded or _bands_read_as_ages(spans)):
+        return False
+    if len(past) + len(unread) > 1:
+        return True
+    return (len(past) == 1 and past[0] != (TOP_CODE, -1)) or len(unread) == 1
+
+
+# The fewest closed bands a chain of an age's bands holds: a measure's
+# classes (`<60`, `60-89`, `90-100`, `>100`) chain too, in two or three.
+_CHAIN_AT_LEAST = 4
+# The oldest first age such a chain may open with: a child's groups open at
+# 0 or 1, an adult's at 16, 18 or 21 (the orchestrator's LANE CZ-E RULINGS
+# 7 (3): `18-44, 45-64, 65-89, 90-94, 95-99, 100+` under a neutral name
+# published three bands past 89 on the first run, 2,160 twin cells).
+_CHAIN_OPENS_BY = 21
+
+
+def _chains_on(before: "tuple[int, int]", after: "tuple[int, int]") -> bool:
+    """Whether a closed band chains on from the one before it: it starts one after that band ends (`18-44`, `45-64`), or at the bound of a band from 0 that holds its bound (`<= 30`, `30-49`)."""
+    return after[0] == before[1] + 1 or (before[0] == 0 and after[0] == before[1])
+
+
+def _bands_read_as_ages(spans: "dict[tuple[int, int], int]") -> bool:
+    """Whether a column's bands, each (first age, last age; -1 open upward) with its cells, are an age's by their spans alone (plan P4-D472; the orchestrator's LANE CZ-E RULINGS 3 (5) and 7 (3)).
+
+    Some band is closed, and: every closed band, or two in three of the
+    closed bands' cells, spans five or ten years (`_BAND_WIDTHS`); or
+    `_CHAIN_AT_LEAST` closed bands or more chain, each starting one after
+    the last ends, the first of them opening at an age of `_CHAIN_OPENS_BY`
+    or less (`0-17`, `<18` -- which holds 0 to 17 -- then `18-44`; or
+    `18-44`, `45-64`, `65-89`, `90-94`), a band from 0 that holds its
+    bound (`<= 30`) chained to one opening at that bound too; or every
+    closed band past 89 spans five or ten years beside a band from 0
+    (`0-17` or `<18`).
+    """
+    closed = [key for key in spans if key[1] >= 0]
+    if not closed:
+        return False
+    closed_cells = 0
+    wide_cells = 0
+    for key in closed:
+        closed_cells += spans[key]
+        if key[1] - key[0] in _BAND_WIDTHS:
+            wide_cells += spans[key]
+    if wide_cells == closed_cells or _BULK_PARTS * wide_cells >= _BULK_TAKEN * closed_cells:
+        return True
+    ordered = sorted(closed)
+    chained = ordered[0][0] <= _CHAIN_OPENS_BY and len(ordered) >= _CHAIN_AT_LEAST
+    for place in range(1, len(ordered)):
+        chained = chained and _chains_on(ordered[place - 1], ordered[place])
+    if chained:
+        return True
+    past_wide = [key for key in closed if key[0] >= TOP_CODE]
+    from_nought = any(key[0] == 0 for key in closed)
+    return bool(past_wide) and from_nought and all(key[1] - key[0] in _BAND_WIDTHS for key in past_wide)
+
+
+def _band_holding_90(cells: "list[str]", absent: "frozenset[str]", mark: int = TOP_CODE) -> int:
+    """The first age of the lowest closed band of a column that holds 90 years and starts before it (`75-99`), or 90 where none does (the orchestrator's LANE CZ-E RULINGS 3 (2): the one band past 89 is never the older ages alone); a band in another unit than years (``mark``, `_band_cutoff`) never holds 90 years."""
+    start = TOP_CODE
+    memo: "set[str]" = set()
+    for cell in cells:
+        if cell in memo or cell in absent:
+            continue
+        if len(memo) < _SAFE_HARBOR_MEMO:
+            memo |= {cell}
+        band = a_band_cell(cell)
+        if band is not None and band.start < start and band.end >= _band_cutoff(band, mark):
+            start = band.start
+    return start
+
+
+def pooled_band(cells: "list[str]", absent: "frozenset[str]", start: int = TOP_CODE, mark: int = TOP_CODE) -> str:
+    """The one band past 89 a column's bands from 90 are written as, in the source's form (plan P4-D472).
+
+    The form of the column's commonest band open upward, written from 90
+    (`>= 95 yrs` makes `>= 90 yrs`, `95+` makes `90+`, `> 94` makes `>
+    89`); where no band is open upward, `90+` and, where its bands past
+    89 write a unit word, the first such word after it (`90-94 yrs` makes
+    `90+ yrs`). The commonest form first, the smaller form first among
+    equals. ``start``: the first age it is written from, 90 or the first
+    age of a closed band holding 90 (`_band_holding_90`: `75-99` beside
+    `100+` makes `75+`); ``mark``, the mark of the column's unit
+    (`_band_is_past_89`). ONE PASS, each different cell read once up to
+    `_SAFE_HARBOR_MEMO` of them. Guarantees: a fixed function of the
+    four. Raises TypeError for a cell that is not text. No I/O.
+
+    THE ONE BAND IS WRITTEN IN YEARS (Codex's review of batch 4s, item 1;
+    the orchestrator's LANE I4s RULINGS 1 (1)): its first age, 90 or the
+    first age of a band holding 90 years, is a figure in years, so a form
+    open upward is taken only where it reads in years -- a unit word of
+    years, or no unit word in a column of years (`_band_cutoff` 90). A
+    band of another unit is never the form: `12+ months`, the commonest
+    band open upward beside `0-17 years` to `90-94 years`, wrote `90+
+    months`, a group from seven and a half years, on 5,000 of 20,000 rows
+    in the description and the twin.
+    """
+    forms: "dict[tuple[str, int], int]" = {}
+    unit = ""
+    memo: "dict[str, AgeBand | None]" = {}
+    for cell in cells:
+        if cell in memo:
+            band = memo[cell]
+        elif cell in absent:
+            continue
+        else:
+            band = a_band_cell(cell)
+            if len(memo) < _SAFE_HARBOR_MEMO:
+                memo[cell] = band
+        if band is None:
+            continue
+        if band.end < 0 and band.form and _band_cutoff(band, mark) == TOP_CODE:
+            key = (band.form, band.past)
+            forms[key] = (forms[key] if key in forms else 0) + 1
+        if not unit and band.unit and _band_is_past_89(band, mark):
+            unit = band.unit
+    chosen: "tuple[str, int] | None" = None
+    for key in sorted(forms):
+        if chosen is None or forms[key] > forms[chosen]:
+            chosen = key
+    if chosen is not None:
+        form, past = chosen
+        cut = _text_place(form, "{}")
+        return form[:cut] + f"{start - past}" + form[cut + 2:]
+    return f"{start}+" + (" " + unit if unit else "")
+
+
 def _a_place_beside_its_state(text: str) -> bool:
     """Whether a text is a place, a comma and a state's two-letter code, a ZIP code after it or not (plan P4-D434).
 
@@ -34605,6 +39908,18 @@ def _letters_or_figures(text: str) -> bool:
     return True
 
 
+def a_device_identifier(text: str) -> bool:
+    """Whether a cell holds a unique device identifier (`_a_device_identifier`), whose hold takes its column whatever its share (plan P4-D434).
+
+    Lane HX5's arm and route two's register leave such a cell to that
+    hold and its Safe Harbor question (lane CZ-A2's repair 2: a column of
+    HIBCC device identifiers read beside words was put the person question
+    in its place). Guarantees: a fixed function of the cell. Raises
+    TypeError for a cell that is not text. No I/O.
+    """
+    return _a_device_identifier(text)
+
+
 def _udi_characters(text: str) -> bool:
     """Whether a text is capitals, figures and the marks a HIBCC or ICCBBA code writes (`_UDI_MARKS`, `=`, `&`, `,`)."""
     for character in text:
@@ -34629,7 +39944,33 @@ _SSN_GROUPS = (3, 2, 4)
 _SSN_MARKS = (
     "-", " ", "\u2013", "\u2014", "\u2010", "\u2011", "\u2012", "\u2212",
     "\ufe63", "\uff0d", "\u00a0", "\u202f",
+    # ...and (lane CZ-A2's repair 2, LANE CZ-A2 RULINGS 7 (2)) a horizontal
+    # bar, a small em dash and a soft hyphen: the dashes a form or a word
+    # processor writes that the set did not hold.
+    "\u2015", "\ufe58", "\u00ad",
 )
+# THE PRODUCT'S SPACES AND DASHES, ONE DEFINITION (lane CZ-A2's repair 2,
+# LANE CZ-A2 RULINGS 7 (2); measured at 20,000 rows before: a minus sign
+# before a labelled record number or one joined to a name, and a zero-width
+# space or a dash after a record number written before a name, were read by
+# no reader and published, 1,000 values and 20,000 real twin cells one a
+# person, 18,000 real twin cells and 1,998 complete real record numbers one
+# a row). Lane CZ-A2's readers read them through `with_plain_marks`, which
+# reads the word screen's one definition (batch 4s's merge, step 7, the
+# orchestrator's LANE CZ-A2 RULINGS 10 (4) and 11 (3)): a space is a
+# character of `_SCREEN_SPACE_RANGES`, written ` ` where a display draws it
+# (`_SCREEN_VISIBLE_SPACES`; the tab kept, as it parts a joined name's
+# fields) and set aside where it prints nothing (`_prints_nothing`); a dash
+# is one of `_SCREEN_DASHES`, written `-`. The lane's three lists before the
+# merge (24 spaces a display draws, 7 marks of no width, 12 dashes) lie
+# inside, and the definition is wider by the information separators U+001C
+# to U+001F (spaces a display draws) and by 2,438 characters that print
+# nothing (the controls that are no whitespace, the format characters, the
+# lone surrogate code points and the soft hyphen); the horizontal bar
+# U+2015, the lane's dash, joined the screen's dashes, and the soft hyphen,
+# a space that prints nothing and the lane's dash, is read both ways
+# (`plain_readings`). Each reads more cells as a space or a dash, so more
+# cells as a record number: more held, never fewer.
 _SSN_FIGURES = 9
 # The longest cell a social security number written with its marks takes:
 # eleven characters, a space and a letter after them.
@@ -34662,6 +40003,29 @@ _NUMBER_LABEL_MARKS = ":#"
 _NUMBER_SIGN = "#"
 _NUMBER_FIGURES_AT_LEAST = 6
 _NAME_PARTICLE_LETTERS = 3
+# ...AND A NAME AND A RECORD NUMBER JOINED BY ONE MARK (lane CZ-A2, plan
+# P4-D469; the push critic of batch 4q, M1): `Lastname,Firstname,1234567`,
+# a comma, a semicolon, a bar, a tab or a caret between the parts, spaces
+# beside the mark or none, the number last or first (`1234567,Lastname,
+# Firstname`), two to four parts of the name -- a family name, a given name,
+# a second given name or an initial, a suffix such as `Jr` or `III` --
+# and a mark after the last part or none. A thousand people of twenty rows
+# whose cells were `Cedar,Abc,1000000` were read as affixed numbers, their
+# names published as prefixes and 18,000 of 20,000 twin cells equal to a
+# real one; one record number a person was read as labels, all 1,000
+# published; with a space after each comma, too.
+_NAME_JOINERS = ",;|\t^_"
+_JOINED_NAME_PARTS = (2, 4)
+# ...and (lane CZ-A2's repair 1, LANE CZ-A2 RULINGS 4 (1)) an underscore
+# between the parts, a flag of one or two letters after the number
+# (`Cedar,Abc,1000013,F`), and a number of five figures beside a name
+# (`Cedar,Abc,10013`): the skeptic's spellings, each of which published the
+# names on the public head.
+_JOINED_FLAG_LETTERS_AT_MOST = 2
+_JOINED_NUMBER_FIGURES_AT_LEAST = 5
+# ...and the longest such cell read: four parts of a name and a record
+# number are far shorter, so a note of free text is never walked whole.
+_JOINED_NAME_LONGEST = 160
 # An opaque token's lengths: hexadecimal; base64 without its padding --
 # 22 and 24 characters (a token of sixteen and of eighteen bytes), 43 and
 # 44 (a key of thirty-two and of thirty-three bytes) -- and base64 with
@@ -34918,8 +40282,12 @@ def _a_name_before(text: str) -> bool:
             break
     if comma < 1:
         return False
-    family = _spaced_words(name[:comma])
-    given = _spaced_words(parsing.trimmed(name[comma + 1:]))
+    # ...each part with the spaces and dashes at either end set aside (lane
+    # CZ-A2's repair 2, LANE CZ-A2 RULINGS 7 (2): a dash after the comma,
+    # `Lastname,-Firstname (1234567)`, was read by no reader and published),
+    # as a joined name's parts are (`_a_part_trimmed`).
+    family = _spaced_words(_a_part_trimmed(name[:comma]))
+    given = _spaced_words(_a_part_trimmed(name[comma + 1:]))
     if given and len(given[-1]) == 2 and given[-1][1] == "." and _a_letter(given[-1][0]) and _a_capital(given[-1][0]):
         # ...an initial with its point stands for its word, the given
         # name's only one among them (`Lastname, F. [2000000]`).
@@ -34945,8 +40313,29 @@ def _a_name_beside_a_number(text: str) -> bool:
     brackets, or after a `#` with no bracket: `Lastname, Firstname M [REC
     1234567]`, `Lastname Jr., Firstname (REC: 1234567)`, `Lastname,
     Firstname M #1234567`.
+
+    Read with the product's spaces and dashes (`with_plain_marks`; lane
+    CZ-A2's repair 2, LANE CZ-A2 RULINGS 7 (2)): a zero-width space after
+    the comma or before the bracket, and a dash of the one definition
+    (`_SCREEN_DASHES`) before the bracket, are read as the plain cell reads
+    (`Lastname,Firstname (...)`, `Lastname, Firstname-(...)`), where they
+    were read by no reader and the cell was published; and the spaces and
+    dashes at either end of the cell, of each part of the name
+    (`_a_name_before`) and of the record number in its brackets or after
+    its number sign are set aside, as a joined name's are
+    (`_a_part_trimmed`). Each reading of the cell is read (`plain_readings`:
+    the soft hyphen as a dash and set aside; batch 4s's merge). Guarantees:
+    a fixed function of the cell. Raises TypeError for a cell that is not
+    text. No I/O.
     """
-    body = parsing.trimmed(text)
+    for plain in plain_readings(text):
+        if _a_plain_name_beside_a_number(_a_part_trimmed(plain)):
+            return True
+    return False
+
+
+def _a_plain_name_beside_a_number(body: str) -> bool:
+    """`_a_name_beside_a_number` on one reading of a cell, read plain and its ends set aside (`plain_readings`; batch 4s's merge)."""
     for opening, closing in _NUMBER_BRACKETS:
         if body[-1:] != closing:
             continue
@@ -34956,13 +40345,195 @@ def _a_name_beside_a_number(text: str) -> bool:
                 at = place
         if at < 3:
             continue
-        if _a_record_number(body[at + 1: -1]) and _a_name_before(body[:at]):
+        if _a_record_number(_a_part_trimmed(body[at + 1: -1])) and _a_name_before(body[:at]):
             return True
     at = -1
     for place in range(len(body)):
         if body[place] == _NUMBER_SIGN:
             at = place
-    return at >= 3 and _a_record_number(body[at:]) and _a_name_before(body[:at])
+    return (
+        at >= 3
+        and _a_record_number(_NUMBER_SIGN + _a_part_trimmed(body[at + 1:]))
+        and _a_name_before(body[:at])
+    )
+
+
+def with_plain_marks(text: str) -> str:
+    """A cell as lane CZ-A2's readers read it: each dash of the product's one definition written `-`, each space a display draws written ` `, the tab kept, each space that prints nothing set aside (batch 4s's merge).
+
+    The readers of a record number beside its label, of a name joined to
+    a record number, and of a record number beside words read the text
+    this returns (lane CZ-A2's repair 2), so each reads every space and
+    every dash of the word screen's one definition (`_SCREEN_SPACE_RANGES`,
+    `_prints_nothing`, `_SCREEN_DASHES`; see the note above) as it reads ` `
+    and `-`. The soft hyphen, a space that prints nothing, is written `-`
+    here, as the lane read it before the merge; `plain_readings` reads it
+    set aside too. An ASCII text holding no control character but the tab
+    is returned as it is (`_read_as_written`). Guarantees: a fixed function
+    of the text. Raises TypeError for a value that is not text. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    if text.isascii() and _read_as_written(text):
+        return text
+    written = ""
+    for character in text:
+        if character in _SCREEN_DASHES or character == _SOFT_HYPHEN:
+            written = written + "-"
+        elif _prints_nothing(character):
+            continue
+        elif _a_space_of_the_screen(character) and character != "\t":
+            # ...a tab parts a joined name's fields (`_NAME_JOINERS`): kept.
+            written = written + " "
+        else:
+            written = written + character
+    return written
+
+
+def plain_readings(text: str) -> "tuple[str, ...]":
+    """The readings of a cell lane CZ-A2's readers take: the cell read plain (`with_plain_marks`), and, where it holds the soft hyphen, read again with it set aside (batch 4s's merge).
+
+    The soft hyphen U+00AD is a space that prints nothing in the product's
+    one definition (`_prints_nothing`) and was a dash to lane CZ-A2's
+    readers (`_SSN_MARKS`). Each reading alone holds cells the other does
+    not -- `MR100` and a soft hyphen before ` 0013` is two groups of figures
+    only with it set aside, and the dash reading stands as the lane
+    measured it -- so each reader of the lane takes the first reading that
+    reads, and a cell either reading holds is held, as the reader of
+    persons' names reads it both ways (`_name_readings`). Guarantees: a
+    fixed function of the text, the first reading `with_plain_marks`'s.
+    Raises TypeError for a value that is not text. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    plain = with_plain_marks(text)
+    if _SOFT_HYPHEN not in text:
+        return (plain,)
+    return (plain, with_plain_marks(text.replace(_SOFT_HYPHEN, "")))
+
+
+# ...the ASCII characters the plain reading writes otherwise than as they
+# are: every control but the tab, and the delete, each a space of
+# `_SCREEN_SPACE_RANGES` (batch 4s's merge). An ASCII text is asked each in
+# turn, each a scan at the speed of `in`: a cell of 200,007 characters on
+# each of 20,000 rows, read whole by `min`, cost route four ten times its
+# walk (38.3 CPU s against 3.8 on the lane's head).
+_ASCII_READ_PLAIN = (
+    "\x00\x01\x02\x03\x04\x05\x06\x07\x08\n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15"
+    "\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x7f"
+)
+
+
+def _read_as_written(text: str) -> bool:
+    """Whether an ASCII text holds none of `_ASCII_READ_PLAIN`, so the plain reading returns it as it is (batch 4s's merge)."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    for mark in _ASCII_READ_PLAIN:
+        if mark in text:
+            return False
+    return True
+
+
+def _a_name_joined_to_a_number(text: str) -> bool:
+    """Whether a cell is a name and a record number joined by one mark, `Lastname,Firstname,1234567` (plan P4-D469).
+
+    The cell's first mark of `_NAME_JOINERS` (a comma, a semicolon, a bar,
+    a tab, a caret or an underscore) parts it, spaces beside it or none,
+    every empty part set aside wherever it stands (lane CZ-A2's repair 1).
+    The record number (`_a_joined_record_number`: six figures at least, a
+    label of at most four letters, a `:` or a `#` before it or none, or
+    five figures or more alone) is the last part, a flag of one or two
+    letters after it or none, or the first; the others, two to four of them
+    (`_JOINED_NAME_PARTS`), are each
+    a name's part holding no figure: a family name or given names of name
+    words (a capital, then letters, an apostrophe straight or curly, or a
+    dash; small words before the last, a point after one, as
+    `_a_family_name` reads them), or an initial with its point or without,
+    and one of them holds a word of two letters or more; a cell longer than
+    `_JOINED_NAME_LONGEST` characters is none. Read with the product's
+    spaces and dashes (`with_plain_marks`; lane CZ-A2's repair 2), every
+    space and dash at either end of a part set aside: a minus sign before
+    the number (`Lastname,Firstname,-1234567`, U+2212 among the dashes) and
+    a zero-width space or a dash after a number written first are read as
+    the number; each reading of the cell is read (`plain_readings`: the
+    soft hyphen as a dash and set aside; batch 4s's merge). Guarantees: a
+    fixed function of the cell. Raises TypeError for a cell that is not
+    text. No I/O.
+    """
+    for plain in plain_readings(text):
+        if _a_plain_name_joined_to_a_number(parsing.trimmed(plain)):
+            return True
+    return False
+
+
+def _a_plain_name_joined_to_a_number(body: str) -> bool:
+    """`_a_name_joined_to_a_number` on one reading of a cell, read plain and trimmed (`plain_readings`; batch 4s's merge)."""
+    if len(body) > _JOINED_NAME_LONGEST:
+        return False
+    joiner = ""
+    for character in body:
+        if character in _NAME_JOINERS:
+            joiner = character
+            break
+    if not joiner:
+        return False
+    parts: "list[str]" = []
+    piece = ""
+    for character in body:
+        if character == joiner:
+            parts += [_a_part_trimmed(piece)]
+            piece = ""
+        else:
+            piece = piece + character
+    parts += [_a_part_trimmed(piece)]
+    # ...every empty part set aside, wherever it stands (lane CZ-A2's repair
+    # 1, its skeptic's item 1: `Tarn,Ul,,1000013`, and the number first with
+    # empty parts after the names, `1000013^TARN^UL^^^`).
+    parts = [part for part in parts if part]
+    if (
+        len(parts) >= 2
+        and 1 <= len(parts[-1]) <= _JOINED_FLAG_LETTERS_AT_MOST
+        and all(_a_letter(character) for character in parts[-1])
+        and _a_joined_record_number(parts[-2])
+    ):
+        # ...a flag of one or two letters after the number (`,F`).
+        parts = parts[:-1]
+    fewest, most = _JOINED_NAME_PARTS
+    if not fewest + 1 <= len(parts) <= most + 1:
+        return False
+    if _a_joined_record_number(parts[-1]):
+        names = parts[:-1]
+    elif _a_joined_record_number(parts[0]):
+        names = parts[1:]
+    else:
+        return False
+    worded = False
+    for part in names:
+        words = _spaced_words(part)
+        if _holds_a_figure(part) or not _a_family_name(words):
+            return False
+        for word in words:
+            if len(word) >= 2 and word[-1:] != ".":
+                worded = True
+    return worded
+
+
+def _a_part_trimmed(text: str) -> str:
+    """A joined name's part, read plain, with every space and dash at either end set aside (lane CZ-A2's repair 2)."""
+    body = parsing.trimmed(text)
+    start = 0
+    end = len(body)
+    while start < end and body[start] in "- ":
+        start += 1
+    while end > start and body[end - 1] in "- ":
+        end -= 1
+    return body[start:end]
+
+
+def _a_joined_record_number(text: str) -> bool:
+    """A record number as a joined name writes it: `_a_record_number`, or five figures or more alone (lane CZ-A2's repair 1)."""
+    body = parsing.trimmed(text)
+    return _a_record_number(body) or (len(body) >= _JOINED_NUMBER_FIGURES_AT_LEAST and _figures_alone(body))
 
 
 def _a_hexadecimal_or_base64_token(text: str) -> bool:
@@ -35212,7 +40783,17 @@ def _forms_of_a_cell(body: str) -> "tuple[str, int]":
         return HELD_SOCIAL_SECURITY, 0
     if size in (11, 13) and _a_beneficiary_number(body):
         return HELD_BENEFICIARIES, 0
-    if (body[-1:] in ("]", ")") or _NUMBER_SIGN in body) and _a_name_beside_a_number(body):
+    # ...the bracket or the number sign looked for in the cell read plain
+    # (lane CZ-A2's repair 2): a zero-width mark after the closing bracket
+    # stood where the bracket was looked for, and a dash after it the same
+    # (its spaces and dashes at either end set aside). The reader reads
+    # the cell plain itself.
+    plain = _a_part_trimmed(with_plain_marks(body))
+    if (plain[-1:] in ("]", ")") or _NUMBER_SIGN in plain) and _a_name_beside_a_number(body):
+        return HELD_NAMES_WITH_NUMBERS, 0
+    # ...or joined to it by one mark, the number last or first (lane CZ-A2,
+    # plan P4-D469).
+    if _a_name_joined_to_a_number(body):
         return HELD_NAMES_WITH_NUMBERS, 0
     if size >= LONG_NUMBER_FIGURES_ON_ONE_CELL and _figures_alone(body):
         return HELD_LONG_NUMBERS, 0
@@ -35238,6 +40819,26 @@ def _forms_of_a_cell(body: str) -> "tuple[str, int]":
     if size >= LONG_NUMBER_FIGURES and _a_long_whole_number(body):
         bits += 8
     return "", bits
+
+
+def a_form_of_the_forms_rule(text: str) -> bool:
+    """Whether a cell is one of the identifier forms the forms' rule reads, on its own cell or by its share (plan P4-D445).
+
+    `_forms_of_a_cell` on the cell, its edge spaces set aside: a hold on
+    one cell whatever its share (a social security number written with
+    its marks, a beneficiary identifier, a name beside or joined to a
+    record number, a whole number of sixteen figures or more), or a form
+    it holds on two in three of the present cells (an opaque token, an
+    accession number, a blood-unit number, a whole number of fifteen
+    figures or more). Lane HX5's arm and route two of the person rule
+    leave such a cell's reading beside words to this rule and its own
+    question (lane CZ-A2's repair 1): a name joined to a record number
+    keeps the Safe Harbor question, and a blood-unit number the question
+    its share puts. Guarantees: a fixed function of the cell. Raises
+    TypeError for a cell that is not text. No I/O.
+    """
+    found, bits = _forms_of_a_cell(parsing.trimmed(text))
+    return bool(found) or bits > 0
 
 
 def identifier_form_hold(name: str, cells: "list[str]", absent: "frozenset[str]") -> str:
@@ -35325,6 +40926,1029 @@ def _mostly(cells: "list[str]", absent: "frozenset[str]", devices: bool) -> bool
     return False
 
 
+# THE PERSONS' NAMES READ FROM THEIR VALUES (plan P4-D478, lane CZ-F; 45
+# CFR 164.514(b)(2)(i)(A): "names", the patient's and a relative's, and the
+# product's own rule that no real name is published, a clinician's among
+# them, plan P4-D445): a column of persons' names under a neutral name,
+# with no record number in its cells and no person column beside it, was
+# read as labels and put no question -- its description published every
+# name a level holds and its twin wrote the real names, 20,000 of 20,000
+# cells at the owner's floor. A whole-column hold of lane SH2's kind,
+# asked LAST by `safe_harbor_hold` on a role that publishes its levels
+# (`persons_names_hold`), put the one Safe Harbor question with its own
+# sentence and freed only by `no` or `--identifier`:
+# - THE VALUE ARM (`HELD_PERSONS_NAMES`): `NAMES_AT_LEAST` different present
+#   values or more are a person's name written whole (`a_persons_name`),
+#   and they are two in three of the column's different present values or
+#   more -- counted over every present value, not over the published
+#   levels: a visit table publishes only the names of the few who came
+#   eleven times or more, and holds thousands;
+# - THE HEADING ARM (`HELD_NAMED_AS_PERSONS_NAMES`; the orchestrator's LANE
+#   CZ-F RULINGS 1 (2)): the column's name says it holds a person's name
+#   (`named_as_persons_names`: a patient's, a relative's or a clinician's)
+#   and two in three of its different present values are a name written
+#   whole, a family name and its initials, or a family name alone (a
+#   suffix after it read as the family-name reader reads one), whatever
+#   their number, ONE OR TWO among them (lane CZ-F's repair 2, Codex's
+#   item 1: `patient_surname` holding one family name, or two in turn, was
+#   published; the minimum of three name words is withdrawn): a yes-no
+#   flag, a role and a service are no name; a column of codes or numbers
+#   under such a name fails the values.
+# A closed shape and a count: no list of names, nothing learnt from the
+# table, no network.
+HELD_PERSONS_NAMES = "persons-names-written-whole"
+HELD_NAMED_AS_PERSONS_NAMES = "named-as-persons-names"
+PERSONS_NAMES_HOLDS = (HELD_PERSONS_NAMES, HELD_NAMED_AS_PERSONS_NAMES)
+# The fewest different values written as persons' names for the values
+# alone to hold a column: a tenth of the people a table at the owner's
+# floor holds (1,000), above every name-shaped vocabulary a label column
+# of codes or categories writes (procedure labels, departments, note
+# types, ancestries).
+NAMES_AT_LEAST = 100
+# The most different values the reader reads of one column: where the
+# column holds more, those read are a SAMPLE, met in cells spread over the
+# whole column (`persons_names_hold`), and the question says so (lane
+# CZ-F's repair 2, Codex's item 3).
+PERSONS_NAMES_READ_AT_MOST = _SAFE_HARBOR_MEMO
+# The longest cell read as a person's name, in characters, its spaces at
+# the ends and doubled inside aside.
+PERSONS_NAME_LONGEST = 60
+# The roles that publish a column's levels: the reader is asked of them.
+_PERSONS_NAME_ROLES = (
+    ROLE_CONSTANT, ROLE_BINARY, ROLE_CATEGORICAL, ROLE_LONG_TAIL, ROLE_COMPOUND,
+)
+# THE SPACES AND DASHES A CELL IS READ THROUGH ARE THE PRODUCT'S ONE
+# DEFINITION (batch 4s's merge; the orchestrator's LANE CODES-2 RULINGS 7
+# (4), and LANE CZ-F RULINGS 2 (3), the class of LANE CZ-A2 RULINGS 7 (2),
+# CZ-E RULINGS 3 (4) and CODES-2 RULINGS 6 (1)): each character of
+# `_SCREEN_SPACE_RANGES` -- every space `str.split` cuts at and every
+# control and format character, the zero-width marks among them -- is read
+# as a space, and each of `_SCREEN_DASHES` as `-` (skeptic 1 item 2:
+# `Family,` U+200B `Given`, one a person, published 1,000 names and wrote
+# 20,000 real twin cells; a double family name joined by a non-breaking
+# hyphen read as no name). The list of 35 spaces and 11 dashes this reader
+# kept before the merge stands inside the one definition, each character
+# read as it read it, but the soft hyphen U+00AD: a space of the ranges,
+# which this reader read as a dash, so a cell holding one is read both ways
+# and the stronger reading kept (`_name_readings`) -- the joined reader
+# holds every name either definition held, and more: a name written with a
+# control or a format character the old list lacked is read too.
+_SOFT_HYPHEN = "\u00ad"
+# The apostrophes a name is written with, each read as `'`: straight,
+# curly, the modifier letter apostrophe, the opening quotation mark, the
+# acute accent and the backtick (skeptic 1 item 5 (d): `O` U+02BC `Family,
+# Given` read as no name).
+_PERSONS_NAME_APOSTROPHES = "'\u2019\u02bc\u2018\u00b4`"
+# The marks a name word holds between its letters once read: an
+# apostrophe and a dash.
+_PERSONS_NAME_MARKS = "'-"
+# The blocks of combining marks a letter carries when a name is stored
+# decomposed (`Mu` U+0308 `ller`, NFD): each mark is read with the letter
+# before it (skeptic 1 item 5 (d)).
+_COMBINING_MARKS = ((0x0300, 0x036F), (0x1AB0, 0x1AFF), (0x1DC0, 0x1DFF), (0x20D0, 0x20FF), (0xFE20, 0xFE2F))
+# The small words a family name may hold before its name words, in small
+# letters, a CLOSED list (`de la`, `van der`, `bin`, `al`; and, lane CZ-F's
+# repair, skeptic 1 item 5 (d): `de las`, `y`, `do`, `e`, `des`, `von und
+# zu`, `af` -- the masculine article after `de` is a word the repository's
+# denied manifest holds, a stated limit). In a cell of mixed case any other short word breaks
+# the shape, so `or`, `of`, `and` and `with` never stand in a name there
+# (`Black or African American`); in a cell in capitals every word of two
+# letters or more is a name word (`FRACTURE OF FEMUR` reads as a name, the
+# reader's stated price).
+_PERSONS_NAME_PARTICLES = frozenset({
+    "van", "von", "de", "da", "di", "du", "del", "della", "der", "den",
+    "la", "le", "bin", "ibn", "al", "el", "dos", "das", "ter", "ten",
+    "las", "y", "do", "e", "des", "zu", "und", "af",
+})
+# ...those joined to the name word after them by a dash or an apostrophe
+# (`al-Rashid`, `d'Arcy`)...
+_PERSONS_NAME_JOINED = frozenset({
+    "van", "von", "de", "da", "di", "du", "del", "della", "der", "den",
+    "la", "le", "bin", "ibn", "al", "el", "dos", "das", "ter", "ten", "d",
+})
+# ...and those of one letter that stand in a cell in capitals between two
+# name words (`GARCIA Y LOPEZ`): anywhere else a capital alone is an
+# initial.
+_PERSONS_NAME_LETTER_PARTICLES = frozenset({"y", "e"})
+# The words after a name that are no name word (read in small letters,
+# their points taken out): suffixes, and the degrees a clinician's name is
+# written with -- a degree only after a comma or after two words of a name
+# at least (`Minh Do` is a given and a family name; lane CZ-F's repair,
+# skeptic 1 item 5 (d)); and the titles before one, or after a family
+# name's comma (`Cedar, Mrs. Aaa`).
+_PERSONS_NAME_SUFFIXES = frozenset({"jr", "sr", "ii", "iii", "iv"})
+_PERSONS_NAME_DEGREES = frozenset({
+    "md", "do", "rn", "np", "pa", "phd", "crna", "aprn", "dds", "dmd", "dpm",
+    "fnp", "cnm", "mbbs", "pharmd",
+})
+_PERSONS_NAME_TITLES = frozenset({"dr", "mr", "mrs", "ms", "miss", "mx", "prof"})
+# The words a column of flags writes, never a list of names: one of them
+# is no name word for the heading arm.
+_NOT_PERSONS_NAME_WORDS = frozenset({
+    "yes", "no", "true", "false", "unknown", "none", "null", "pending",
+    "other", "self",
+})
+# THE WORDS OF A ROLE, A SOURCE, A SERVICE OR A STATUS (the heading arm;
+# lane CZ-F's repair, skeptic 1 items 3 and 5 (b): a column under a name
+# that says who acted may hold who acted by role -- `Self`, `Family
+# Member`, `Charge Nurse` --, a service, `Internal Medicine`, or a flag,
+# `Not Signed`, `Referred`): a value whose last word is one of them, or
+# ends as the name of a specialty or a service does (`-ology`, `-iatry`,
+# `-iatrics`, `-ics`, `-surgery`, `-medicine`, `-therapy`, `-care`), is no
+# name under a heading. A closed list of the product's own words, no
+# list of names: a title before a name stays read (`Nurse Okafor`).
+_ROLE_AND_SERVICE_WORDS = frozenset({
+    "patient", "patients", "self", "family", "member", "members", "caregiver",
+    "caregivers", "parent", "parents", "guardian", "guardians", "spouse",
+    "relative", "relatives", "friend", "staff", "student", "students",
+    "volunteer", "volunteers", "aide", "aides", "nurse", "nurses", "nursing",
+    "physician", "physicians", "surgeon", "surgeons", "resident", "residents",
+    "fellow", "attending", "provider", "providers", "practitioner",
+    "practitioners", "technician", "technicians", "technologist",
+    "technologists", "tech", "techs", "pharmacist", "pharmacists",
+    "therapist", "therapists", "assistant", "assistants", "doctor", "doctors",
+    "clinician", "clinicians", "midwife", "midwives", "paramedic",
+    "paramedics", "system", "systems", "interface", "device", "devices",
+    "import", "portal", "auto", "automatic", "batch", "lab", "labs",
+    "laboratory", "pharmacy", "home", "health", "clinic", "clinics",
+    "service", "services", "unit", "units", "department", "departments",
+    "center", "centre", "office", "hospital", "practice",
+    "team", "group", "agency", "medicine", "surgery", "therapy", "care",
+    "outside", "external", "other", "unknown", "unassigned", "none",
+    "dietitian", "dietician", "chaplain", "interpreter", "phlebotomist",
+    "phlebotomy", "scribe", "transport", "transporter", "coordinator",
+    "manager", "worker", "counselor", "educator", "navigator", "anesthesia",
+    "emergency", "trauma", "hospice", "nutrition", "disease", "diseases",
+    "management", "speech", "imaging", "radiology",
+    "signed", "unsigned", "referred", "declined", "given", "refused", "done",
+    "completed", "cancelled", "canceled", "held", "ordered", "performed",
+    "verified", "reviewed", "administered", "collected",
+    "entered", "documented", "dictated", "cosigned", "required",
+})
+_SERVICE_ENDINGS = ("ology", "iatry", "iatrics", "ics", "surgery", "medicine", "therapy", "care")
+# The most name words a name written given name first holds, and a family
+# name written first; the most given words after a family name's comma;
+# the most initials, and the most a family name alone may carry under a
+# heading (`Smith J.A.`).
+_GIVEN_FIRST_WORDS_AT_MOST = 4
+_FAMILY_WORDS_AT_MOST = 3
+_GIVEN_WORDS_AT_MOST = 2
+_INITIALS_AT_MOST = 2
+_INITIALS_AFTER_A_FAMILY_NAME = 3
+# The parts of a health message's name field cut at `^`: family name,
+# given name, middle names or initials, suffix, title, degree and a
+# one-letter name type, the last set aside.
+_CARET_PARTS_AT_MOST = 7
+# What one different value is to the reader: no name, a family name alone
+# (the heading arm's), a family name and its initials (the heading arm's
+# alone), or a person's name written whole.
+_NOT_A_NAME = 0
+_A_FAMILY_NAME_ALONE = 1
+_A_NAME_UNDER_ITS_HEADING = 2
+_A_NAME_WRITTEN_WHOLE = 3
+# THE WALK OVER THE CELLS (lane CZ-F's repair 2; the orchestrator's LANE
+# CZ-F RULINGS 5 (1)): each step the cells' count times this share,
+# rounded, raised until it shares no factor with the count, so that the
+# walk reads every cell once and no prefix of it stays on one phase of a
+# layout that repeats every few rows.
+_WALK_SHARE = 0.6180339887498949
+
+
+def _a_combining_mark(character: str) -> bool:
+    """Whether a character is a combining mark of `_COMBINING_MARKS`, written after the letter it marks."""
+    if not isinstance(character, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    code = ord(character)
+    for low, high in _COMBINING_MARKS:
+        if low <= code <= high:
+            return True
+    return False
+
+
+def _name_characters(text: str) -> "list[str]":
+    """The characters of a cell as the reader reads them: each space of the product's one definition (`_a_space_of_the_screen`, `_SCREEN_SPACE_RANGES`) a space, each dash of `_SCREEN_DASHES` a dash, each apostrophe of `_PERSONS_NAME_APOSTROPHES` a straight one, every other as written (batch 4s's merge)."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    read: "list[str]" = []
+    for character in text:
+        if _a_space_of_the_screen(character):
+            read += [" "]
+        elif character in _SCREEN_DASHES:
+            read += ["-"]
+        elif character in _PERSONS_NAME_APOSTROPHES:
+            read += ["'"]
+        else:
+            read += [character]
+    return read
+
+
+def _name_read(text: str) -> str:
+    """A cell as the reader reads it (plan P4-D478): its characters as `_name_characters` reads them, joined."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    return "".join(_name_characters(text))
+
+
+def _name_readings(text: str) -> "tuple[str, ...]":
+    """The readings of one cell (batch 4s's merge): the cell itself, or, where it holds the soft hyphen (`_SOFT_HYPHEN`), the cell with each soft hyphen written as a space and again as a hyphen -- a space of the one definition, which this reader read as a dash before it. Guarantees: a fixed function of the text. Raises TypeError for a text that is not text. No I/O."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    if _SOFT_HYPHEN not in text:
+        return (text,)
+    return (text.replace(_SOFT_HYPHEN, " "), text.replace(_SOFT_HYPHEN, "-"))
+
+
+def _a_persons_name_word(token: str) -> bool:
+    """Whether a token is one word of a person's name (plan P4-D478).
+
+    Two letters or more, each a letter with a capital and a small form
+    (`_a_letter`: a script without capitals is none), the first a capital;
+    an apostrophe or a dash between two letters (`O'Brien`, `Smith-Jones`,
+    any mark `_name_read` reads as one); capitals inside it (`McDonald`,
+    `DeVito`); a combining mark after a letter (a name stored decomposed).
+    """
+    if len(token) < 2 or not (_a_letter(token[0]) and _a_capital(token[0])):
+        return False
+    letters = 1
+    previous = token[0]
+    for character in token[1:]:
+        if character in _PERSONS_NAME_MARKS or character in _SCREEN_DASHES or character in _PERSONS_NAME_APOSTROPHES:
+            if previous == "-" or previous == "'":
+                return False
+            previous = "-"
+            continue
+        if _a_combining_mark(character):
+            if previous == "-" or previous == "'":
+                return False
+            continue
+        if not _a_letter(character):
+            return False
+        letters += 1
+        previous = character
+    return letters >= 2 and previous != "-" and previous != "'"
+
+
+def _a_joined_particle_word(token: str) -> bool:
+    """Whether a token is a particle joined to a name word by a dash or an apostrophe: `al-Rashid`, `d'Arcy` (plan P4-D478)."""
+    for place in range(1, len(token)):
+        if token[place] in _PERSONS_NAME_MARKS:
+            return token[:place] in _PERSONS_NAME_JOINED and _a_persons_name_word(token[place + 1:])
+    return False
+
+
+def _without_points(token: str) -> str:
+    """A token in small letters with its points taken out (`M.D.` is `md`, `Jr.` is `jr`)."""
+    if not isinstance(token, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    return token.lower().replace(".", "")
+
+
+def _a_name_suffix(token: str) -> bool:
+    """Whether a token is a suffix after a name: one of `_PERSONS_NAME_SUFFIXES` read in small letters with its points taken out (`Jr.`, `JR`, `jr`, `Sr.`, `III`, `iv.`) -- the family-name reader's ONE definition, which the heading arm reads too (lane CZ-F's repair 2, Codex's item 2)."""
+    return _without_points(token) in _PERSONS_NAME_SUFFIXES
+
+
+def _persons_name_initials(token: str, at_most: int = _INITIALS_AT_MOST) -> int:
+    """How many initials a token writes: one capital with its point or none (`M`, `M.`), or capitals each with its point (`J.M.`); 0 for none."""
+    if len(token) == 1:
+        return 1 if _a_letter(token) and _a_capital(token) else 0
+    if len(token) % 2 or len(token) > 2 * at_most:
+        return 0
+    for place in range(0, len(token), 2):
+        if not (_a_letter(token[place]) and _a_capital(token[place]) and token[place + 1] == "."):
+            return 0
+    return len(token) // 2
+
+
+def _initials_run_together(token: str) -> int:
+    """How many initials a token writes run together, capitals each with a point or none: `JA`, `J.A`, `JAM`, `J.A.M.`; 0 for none or more than `_INITIALS_AFTER_A_FAMILY_NAME`."""
+    found = 0
+    previous = ""
+    for character in token:
+        if character == ".":
+            if previous in ("", "."):
+                return 0
+        elif _a_letter(character) and _a_capital(character):
+            found += 1
+        else:
+            return 0
+        previous = character
+    return found if 1 <= found <= _INITIALS_AFTER_A_FAMILY_NAME else 0
+
+
+def _name_words_read(
+    tokens: "list[str]", capitals: bool, words_at_most: int, initials_at_most: int,
+) -> "tuple[int, int] | None":
+    """The name words and initials of a run of a name's tokens, or None where one token is neither (plan P4-D478).
+
+    A particle of the closed list (`_PERSONS_NAME_PARTICLES`, in small
+    letters, never in a cell in capitals: there it is a name word, but a
+    one-letter one between two name words, `GARCIA Y LOPEZ`) stands only
+    before a name word or another particle; a particle joined to a name
+    word counts as one. At most ``words_at_most`` name words and
+    ``initials_at_most`` initials.
+    """
+    words = 0
+    initials = 0
+    for place in range(len(tokens)):
+        token = tokens[place]
+        following = tokens[place + 1] if place + 1 < len(tokens) else ""
+        if _a_persons_name_word(token) or _a_joined_particle_word(token):
+            words += 1
+        elif not capitals and token in _PERSONS_NAME_PARTICLES:
+            if not (
+                _a_persons_name_word(following)
+                or _a_joined_particle_word(following)
+                or following in _PERSONS_NAME_PARTICLES
+            ):
+                return None
+        elif (
+            capitals
+            and _without_points(token) in _PERSONS_NAME_LETTER_PARTICLES
+            and place > 0
+            and _a_persons_name_word(tokens[place - 1])
+            and _a_persons_name_word(following)
+        ):
+            continue
+        else:
+            found = _persons_name_initials(token)
+            if not found:
+                return None
+            initials += found
+        if words > words_at_most or initials > initials_at_most:
+            return None
+    return words, initials
+
+
+# The marks a nickname stands between beside a name (`Smith, John (Jack)`,
+# `John "Jack" Smith`).
+_NICKNAME_MARKS = (("(", ")"), ('"', '"'), ("“", "”"))
+
+
+def _a_nickname(token: str) -> bool:
+    """Whether a token is a nickname, a name word between brackets or quotes: `(Jack)`, `"Jack"`."""
+    for opening, closing in _NICKNAME_MARKS:
+        if len(token) > 3 and token[0] == opening and token[-1] == closing:
+            return _a_persons_name_word(token[1:-1])
+    return False
+
+
+def _cut_at_commas(text: str) -> "list[str]":
+    """A text cut at each comma."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    return text.split(",")
+
+
+def _cut_at_carets(text: str) -> "list[str]":
+    """A text cut at each `^`, the mark between the parts of a health message's field."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    return text.split("^")
+
+
+def _plain_words(text: str) -> "list[str]":
+    """A text cut into its words at every run of spaces and at every dash."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    return text.replace("-", " ").split()
+
+
+def _words_of_a_name_part(part: str) -> "list[str]":
+    """A text cut into its words at every run of spaces, its ends aside, a dash standing alone or at a word's edge joining the words beside it (`Smith - Jones` is `Smith-Jones`); named apart from the word screen's `_words_of` at batch 4s's merge, where one name for the two let this one replace the screen's in every call."""
+    if not isinstance(part, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    words: "list[str]" = []
+    joining = False
+    for word in part.split():
+        if words and (joining or word[:1] == "-"):
+            words[-1] = words[-1] + word
+        else:
+            words += [word]
+        joining = word[-1:] == "-"
+    return words
+
+
+def _all_in_capitals(text: str) -> "bool | None":
+    """Whether every letter of a text is a capital; None where it holds no letter."""
+    lettered = False
+    for character in text:
+        if _a_letter(character):
+            lettered = True
+            if not _a_capital(character):
+                return False
+    return True if lettered else None
+
+
+def _name_tokens(text: str) -> "tuple[list[list[str]], bool] | None":
+    """A cell read (`_name_read`) and cut into its parts at each comma and each part into its words (`_words_of_a_name_part`), one nickname set aside, and whether its letters are all capitals; None where a part is empty or no letter stands."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    read = _name_read(text)
+    parts: "list[list[str]]" = []
+    nicknames = 0
+    for part in _cut_at_commas(read):
+        words: "list[str]" = []
+        for word in _words_of_a_name_part(part):
+            if not nicknames and _a_nickname(word):
+                nicknames = 1
+            else:
+                words += [word]
+        if not words:
+            return None
+        parts += [words]
+    capitals = _all_in_capitals(read)
+    if capitals is None:
+        return None
+    return parts, capitals
+
+
+def _within_the_longest(text: str) -> bool:
+    """Whether a cell read (`_name_read`), its spaces at the ends and doubled inside aside, holds at most `PERSONS_NAME_LONGEST` characters."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    return len(" ".join(_words_of_a_name_part(_name_read(text)))) <= PERSONS_NAME_LONGEST
+
+
+def _a_degree_after(tokens: "list[str]", comma: bool) -> bool:
+    """Whether the last of a name's tokens is a suffix, or a degree after a comma or after two words of a name at least (`Minh Do` is a name, `Ann Lee Do` a name and a degree)."""
+    if _a_name_suffix(tokens[-1]):
+        return len(tokens) > 1
+    return _without_points(tokens[-1]) in _PERSONS_NAME_DEGREES and (comma or len(tokens) > 2) and len(tokens) > 1
+
+
+def _given_name_first(tokens: "list[str]", capitals: bool) -> bool:
+    """Whether a part of a cell is a name written given name first: `Aaa Cedar`, `John M. Smith`, `Dr Maria de la Cruz`, `J. Smith Jr.`."""
+    if tokens and _without_points(tokens[0]) in _PERSONS_NAME_TITLES and len(tokens) > 1:
+        titled = True
+        tokens = tokens[1:]
+    else:
+        titled = False
+    while len(tokens) > 1 and _a_degree_after(tokens, False):
+        tokens = tokens[:-1]
+    if not tokens or (not capitals and tokens[0] in _PERSONS_NAME_PARTICLES):
+        return False
+    last = tokens[-1]
+    if not (_a_persons_name_word(last) or _a_joined_particle_word(last)):
+        return False
+    read = _name_words_read(tokens, capitals, _GIVEN_FIRST_WORDS_AT_MOST, _INITIALS_AT_MOST)
+    if read is None:
+        return False
+    words, initials = read
+    return words + initials >= 2 or (titled and words >= 1)
+
+
+def _a_family_name_read(tokens: "list[str]", capitals: bool) -> int:
+    """How many name words a family name's tokens hold, a suffix after them set aside (`van der Berg`, `Smith Jr.`); 0 where they are no family name."""
+    if len(tokens) > 1 and _a_name_suffix(tokens[-1]):
+        tokens = tokens[:-1]
+    if not capitals and tokens[0] in _PERSONS_NAME_PARTICLES and len(tokens) == 1:
+        return 0
+    read = _name_words_read(tokens, capitals, _FAMILY_WORDS_AT_MOST, 0)
+    return 0 if read is None else read[0]
+
+
+def _a_given_name_read(tokens: "list[str]", capitals: bool) -> bool:
+    """Whether the tokens after a family name's comma are a given name: a title or none, one or two given words and up to two initials, or the initials alone, a suffix or a degree after them (`Aaa`, `Mrs. Aaa`, `Aaa M.`, `A. B.`, `Aaa MD`)."""
+    if len(tokens) > 1 and _without_points(tokens[0]) in _PERSONS_NAME_TITLES:
+        tokens = tokens[1:]
+    while len(tokens) > 1 and _a_degree_after(tokens, True):
+        tokens = tokens[:-1]
+    if not capitals and tokens[0] in _PERSONS_NAME_PARTICLES:
+        return False
+    read = _name_words_read(tokens, capitals, _GIVEN_WORDS_AT_MOST, _INITIALS_AT_MOST)
+    return read is not None and read[0] + read[1] >= 1
+
+
+def _caret_name_kind(text: str) -> int:
+    """What a cell written as a health message's name field is (plan P4-D478; lane CZ-F's repair, skeptic 1 item 1): `_A_NAME_WRITTEN_WHOLE`, `_A_FAMILY_NAME_ALONE` or `_NOT_A_NAME`.
+
+    The cell read (`_name_read`) is cut at each `^`: its empty parts at
+    the end set aside, then a seventh part of one letter (the name's type)
+    and the empty ones before it; part 1 a family name (one to three name
+    words, the particles of the closed list), part 2 a given name (one or
+    two words or initials), part 3 middle names or initials, parts 4 to 6
+    a suffix, a title and a degree, each or empty (`CEDAR^AAA`,
+    `Cedar^Aaa^B^^^`, `CEDAR^AAA^B^JR^DR^MD`, `CEDAR^AAA^^^^^L`). A family
+    name with nothing after it but empty parts, or a suffix, a title or a
+    degree, is a family name alone (`CEDAR^^^`, `CEDAR^^^JR`).
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    read = _name_read(text)
+    capitals = _all_in_capitals(read)
+    if capitals is None or "," in read:
+        return _NOT_A_NAME
+    parts: "list[list[str]]" = []
+    for part in _cut_at_carets(read):
+        parts += [_words_of_a_name_part(part)]
+    while parts and not parts[-1]:
+        parts = parts[:-1]
+    if len(parts) == _CARET_PARTS_AT_MOST and len(parts[-1]) == 1 and len(parts[-1][0]) == 1 and _a_letter(parts[-1][0]):
+        parts = parts[:-1]
+        while parts and not parts[-1]:
+            parts = parts[:-1]
+    if not parts or len(parts) >= _CARET_PARTS_AT_MOST or not parts[0]:
+        return _NOT_A_NAME
+    for closing in parts[3:]:
+        if closing and not (
+            len(closing) == 1
+            and (
+                _a_name_suffix(closing[0])
+                or _without_points(closing[0]) in _PERSONS_NAME_TITLES
+                or _without_points(closing[0]) in _PERSONS_NAME_DEGREES
+            )
+        ):
+            return _NOT_A_NAME
+    family = _a_family_name_read(parts[0], capitals)
+    if not family:
+        return _NOT_A_NAME
+    given = parts[1] if len(parts) > 1 else []
+    middle = parts[2] if len(parts) > 2 else []
+    if not given:
+        return _NOT_A_NAME if middle else _A_FAMILY_NAME_ALONE
+    read_given = _name_words_read(given, capitals, _GIVEN_WORDS_AT_MOST, _INITIALS_AT_MOST)
+    if read_given is None or read_given[0] + read_given[1] < 1:
+        return _NOT_A_NAME
+    if middle and _name_words_read(middle, capitals, _GIVEN_WORDS_AT_MOST, _INITIALS_AT_MOST) is None:
+        return _NOT_A_NAME
+    return _A_NAME_WRITTEN_WHOLE
+
+
+def a_persons_name(text: str) -> bool:
+    """Whether a cell is a person's name written whole (plan P4-D478).
+
+    The whole cell read through the product's one definition of a space
+    and a dash (`_SCREEN_SPACE_RANGES`, `_SCREEN_DASHES`) and the
+    apostrophes (`_name_read`), a cell holding the soft hyphen both ways
+    (`_name_readings`: a name where either reading is one), no figure, at
+    most `PERSONS_NAME_LONGEST` characters,
+    spaces at its ends and doubled inside aside, a dash standing alone
+    joining the words beside it, in one of three orders: FAMILY NAME
+    FIRST, one to three name words (particles of the closed list before
+    them, a suffix after them), a comma, then a title or none, one or two
+    given words and up to two initials, or the initials alone, a suffix
+    or a degree after them or after a second comma (`Cedar, Aaa`,
+    `O'Cedar, Aaa M.`, `van der Berg, Jan`, `Smith Jr., John`, `CEDAR,
+    AB`, `Cedar, Mrs. Aaa`); GIVEN NAME FIRST, two to four name words and
+    initials, a title before them and a suffix or a degree after them or
+    not (`Aaa Cedar`, `John M. Smith`, `Ludwig van Beethoven`, `Dr.
+    Okafor`, `Minh Do`); or A HEALTH MESSAGE'S NAME FIELD, its parts cut
+    at `^` (`_caret_name_kind`: `CEDAR^AAA^B`); one nickname between
+    brackets or quotes set aside (`Smith, John (Jack)`). Every name word
+    opens with a capital, or the whole cell is in capitals; its letters
+    are those with a capital and a small form, a combining mark beside
+    one, so a script without capitals is never read (a stated limit), nor
+    a name in small letters alone, nor names joined by a semicolon or
+    five name words without a comma. Guarantees: a fixed function of the
+    text. Raises TypeError for a text that is not text. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    readings = _name_readings(text)
+    if len(readings) > 1:
+        # ...a cell holding the soft hyphen, read as a space and as a dash
+        # (batch 4s's merge): a name where either reading is one.
+        return any(a_persons_name(reading) for reading in readings)
+    text = readings[0]
+    if _holds_a_figure(text) or not _within_the_longest(text):
+        return False
+    if "^" in text:
+        return _caret_name_kind(text) == _A_NAME_WRITTEN_WHOLE
+    cut = _name_tokens(text)
+    if cut is None:
+        return False
+    parts, capitals = cut
+    if len(parts) == 1:
+        return _given_name_first(parts[0], capitals)
+    if len(parts) == 3:
+        closing = parts[2][0] if len(parts[2]) == 1 else ""
+        if not (closing and (_a_name_suffix(closing) or _without_points(closing) in _PERSONS_NAME_DEGREES)):
+            return False
+    elif len(parts) != 2:
+        return False
+    return _a_family_name_read(parts[0], capitals) >= 1 and _a_given_name_read(parts[1], capitals)
+
+
+def _a_family_name_alone(text: str) -> bool:
+    """Whether a cell is a person's family name alone, as a column whose name says it holds names writes it: one to three name words, particles before or among them, a suffix after them or after a comma, or none (`Okafor`, `van Dyke`, `O'Brien`, `de la Cruz`, `Okafor Jr.`, `Okafor, Jr.`, `VAN DYKE, III`, `CEDAR^^^`), never a flag's word (plan P4-D478).
+
+    Read by THE FAMILY-NAME READER (`_a_family_name_read`), as a family
+    name before a comma is: its particles, its most name words and its
+    ONE definition of a suffix (`_a_name_suffix`), with and without the
+    point, in capitals and in small letters (lane CZ-F's repair 2, Codex's
+    item 2: 60 family names each followed by ` Jr.` under
+    `patient_surname` were read as no name and published; in capitals a
+    particle is a name word, so `VAN DYKE, JR.` is two of them).
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    if _holds_a_figure(text) or not _within_the_longest(text):
+        return False
+    if "^" in text:
+        return _caret_name_kind(text) == _A_FAMILY_NAME_ALONE
+    cut = _name_tokens(text)
+    if cut is None:
+        return False
+    parts, capitals = cut
+    if len(parts) == 2 and len(parts[1]) == 1 and _a_name_suffix(parts[1][0]):
+        # ...a suffix after a comma is read as after the name (`Okafor, Jr.`).
+        tokens = parts[0] + parts[1]
+    elif len(parts) == 1:
+        tokens = parts[0]
+    else:
+        return False
+    named = tokens[:-1] if len(tokens) > 1 and _a_name_suffix(tokens[-1]) else tokens
+    if len(named) == 1 and _without_points(named[0]) in _NOT_PERSONS_NAME_WORDS:
+        return False
+    return _a_family_name_read(tokens, capitals) >= 1
+
+
+def _a_family_name_and_initials(text: str) -> bool:
+    """Whether a cell is one family name and one to three initials after it, no comma: `Smith J`, `Smith J.`, `SMITH J`, `Smith J.A.`, `Smith J A` -- the operating room's own form, read under a heading alone (`Vitamin D` and `Stage I` have the same shape; plan P4-D478, skeptic 1 item 5 (c))."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    if _holds_a_figure(text) or not _within_the_longest(text) or "," in text or "^" in text:
+        return False
+    cut = _name_tokens(text)
+    if cut is None:
+        return False
+    tokens = cut[0][0]
+    if len(tokens) < 2 or not (_a_persons_name_word(tokens[0]) or _a_joined_particle_word(tokens[0])):
+        return False
+    initials = 0
+    for token in tokens[1:]:
+        found = _initials_run_together(token)
+        if not found:
+            return False
+        initials += found
+    return 1 <= initials <= _INITIALS_AFTER_A_FAMILY_NAME
+
+
+def _a_role_or_a_service(text: str) -> bool:
+    """Whether a value names a role, a source or a service, not a person: its last word one of `_ROLE_AND_SERVICE_WORDS` or ending as a specialty's name does (`Self`, `Family Member`, `Charge Nurse`, `Internal Medicine`, `Cardiology`); a title before a name is no such word (`Nurse Okafor`)."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    words = _plain_words(_name_read(text))
+    if not words:
+        return False
+    last = _without_points(words[-1])
+    if last in _ROLE_AND_SERVICE_WORDS or last in _NOT_PERSONS_NAME_WORDS:
+        return True
+    for ending in _SERVICE_ENDINGS:
+        if len(last) > len(ending) and last[-len(ending):] == ending:
+            return True
+    return False
+
+
+# The words of a column's name that say it holds a person's name (plan
+# P4-D478, the orchestrator's LANE CZ-F RULINGS 1 (2)), read whole
+# (`name_words`): a word naming a part of a name...
+_NAME_HEADING_WORDS = frozenset({
+    "surname", "surnames", "lastname", "firstname", "fname", "lname",
+    "mname", "forename", "forenames", "maiden", "maidenname", "fullname",
+    "givenname", "familyname", "middlename", "nickname",
+})
+# ...the word `name` (or `nm`, `names`) after a word naming a part of a
+# name or a person -- a patient, a relative, a contact, a clinician, the
+# staff (`dr_name`, `employee_name`, `staff_name`, `user_name`,
+# `tech_name`; lane CZ-F's repair, skeptic 1 item 5 (b)) -- never
+# `drug_name` or `assay_name`...
+_NAME_WORDS = frozenset({"name", "names", "nm"})
+_NAME_OF_WORDS = frozenset({
+    "first", "last", "middle", "given", "family", "full", "nick",
+    "patient", "pt", "pat", "person", "member", "subscriber", "guarantor",
+    "insured", "relative", "contact", "kin", "spouse", "mother", "father",
+    "guardian", "parent", "child", "caregiver", "dr", "doctor", "employee",
+    "staff", "user", "tech",
+})
+# ...or before a word naming a part of a name (`name_last`, `NAME_FIRST`)...
+_NAME_PART_WORDS = frozenset({"first", "last", "middle", "given", "family", "full", "maiden", "nick"})
+# ...and a CLINICIAN'S ROLE, the last word of the name after any other
+# (`surgeon`, `primary_surgeon`, `charge_nurse`, `first_assistant`) or
+# before `name`, `by` or `md`, never before another word
+# (`surgeon_specialty`, `nurse_unit`); widened by lane CZ-F's repair
+# (skeptic 1 item 5 (b): 60 clinicians under `administered_by` were
+# published) to the staff an anesthesia or surgery table names...
+_CLINICIAN_ROLE_WORDS = frozenset({
+    "surgeon", "surgeons", "anesthesiologist", "anesthesiologists",
+    "anesthetist", "anesthetists", "attending", "attendings", "clinician",
+    "clinicians", "physician", "physicians", "nurse", "nurses", "fellow",
+    "fellows", "proceduralist", "proceduralists", "author", "authors",
+    "radiologist", "radiologists", "pathologist", "pathologists", "doctor",
+    "doctors", "prescriber", "prescribers", "practitioner", "practitioners",
+    "therapist", "therapists", "technician", "technicians",
+    "pharmacist", "pharmacists", "midwife", "midwives", "consultant",
+    "consultants", "hospitalist", "hospitalists", "intensivist",
+    "cardiologist", "cardiologists", "dentist",
+    "perfusionist", "perfusionists", "assistant", "assistants", "crna",
+    "crnas", "circulator", "circulators", "pcp",
+})
+# ...a role that names a person only ALONE, before `name`, `by` or `md`,
+# or after a clinician's qualifier (`_CLINICIAN_QUALIFIERS`): `provider`,
+# `referring_provider`, `operator`, `resident`, `reader`, `ordering_md`,
+# `scrub_tech`, `rn`, `circulating_rn` -- never after a thing (`insurance_provider`,
+# `service_provider`, `machine_operator`, `county_resident`, `card_reader`,
+# `imaging_tech`; lane CZ-F's repair, skeptic 1 item 3 and the statistics
+# check's item 1)...
+_QUALIFIED_ROLE_WORDS = frozenset({
+    "provider", "providers", "operator", "operators", "resident", "residents",
+    "reader", "readers", "md", "mds", "tech", "techs", "rn", "rns", "lpn",
+    "cna", "rnfa",
+})
+# ...the qualifiers that say a clinician's part in a case, a closed list
+# (`primary care`, its `care` read after `primary`; and the visit, the
+# appointment or the patient a clinician is assigned to: `visit_provider`,
+# `servicing_provider`, `patient_provider_name`)...
+_CLINICIAN_QUALIFIERS = frozenset({
+    "attending", "referring", "ordering", "rendering", "treating",
+    "operating", "admitting", "supervising", "consulting", "performing",
+    "prescribing", "discharging", "anesthesia", "covering", "primary", "pcp",
+    "scrub", "surgical", "lab", "laboratory", "pharmacy", "servicing",
+    "encounter", "visit", "appointment", "assigned", "responsible", "patient",
+    "pt", "circulating", "relief",
+})
+# ...of which a laboratory and a pharmacy name a place of work, not a
+# clinician's part: they qualify only its technicians (`lab_tech`,
+# `pharmacy_tech`), never a provider, an operator or a reader, which there
+# is the laboratory or the pharmacy itself (lane CZ-F's repair 2, the
+# orchestrator's LANE CZ-F RULINGS 5 (2): `pharmacy_provider` and
+# `lab_provider` holding 12 and 8 one-word organisations were held as
+# persons' names)...
+_WORKPLACE_QUALIFIERS = frozenset({"lab", "laboratory", "pharmacy"})
+_WORKPLACE_ROLE_WORDS = frozenset({"tech", "techs"})
+# ...and a PARTICIPLE that names who acted only ALONE, before `by`, `name`
+# or `md` or run together with them (`signed`, `performed_by`,
+# `orderedby`, `administered_by`, `recorded_by`), never as the last word
+# after a thing (`procedure_performed`, `test_ordered`, `consent_signed`;
+# skeptic 1 item 3).
+_PARTICIPLE_ROLE_WORDS = frozenset({
+    "signed", "performed", "ordered", "referred", "administered", "entered",
+    "documented", "verified", "collected", "reviewed", "dictated", "cosigned",
+    "recorded", "charted", "witnessed", "completed", "attested",
+    "transcribed", "dispensed", "created", "updated", "modified", "edited",
+    "changed",
+})
+# The words after a role that say the column names who held it.
+_ROLE_NAME_WORDS = frozenset({"name", "names", "nm", "by", "md"})
+# THE WORDS A COLUMN'S NAME RUN TOGETHER IS READ AS (lane CZ-F's repair; the
+# orchestrator's LANE CZ-F RULINGS 1 (2), the unseparated forms): a name
+# written in capitals with no mark between its words (`PATIENTLASTNAME`,
+# `PRIMARYSURGEON`, `REFERRINGPROVIDER`, `NEXTOFKINNAME`) is read as the
+# words of the lists above it is wholly made of (`patient`, `lastname`;
+# `primary`, `surgeon`), or as one other word of three letters or more
+# before such words, the first of four letters or more (`charge`, `nurse`;
+# `emergency`, `contact`, `name`), then by the same rules, so that the
+# other word counts only where any word would (`insuranceprovider` and
+# `procedureperformed` name no person, `deptname` is `dept`, `name`).
+_HEADING_VOCABULARY = (
+    _NAME_HEADING_WORDS | _NAME_WORDS | _NAME_OF_WORDS | _NAME_PART_WORDS | _CLINICIAN_ROLE_WORDS
+    | _QUALIFIED_ROLE_WORDS | _CLINICIAN_QUALIFIERS | _PARTICIPLE_ROLE_WORDS | _ROLE_NAME_WORDS
+    | frozenset({"of", "care", "next"})
+)
+# The longest word of that vocabulary; the longest run-together word read;
+# the fewest letters of the other word before the words of the
+# vocabulary, and of the first of those after it, which is never a part
+# of a name written short (`itemname` is `item`, `name`, not `ite`,
+# `mname`; `panelname` is `panel`, `name`).
+_HEADING_WORD_LONGEST = max(len(word) for word in _HEADING_VOCABULARY)
+_RUN_TOGETHER_LONGEST = 64
+_OTHER_WORD_AT_LEAST = 3
+_AFTER_THE_OTHER_WORD_AT_LEAST = 4
+_NAMES_WRITTEN_SHORT = frozenset({"fname", "lname", "mname"})
+
+
+def _a_role_word(word: str) -> bool:
+    """Whether a word of a column's name is a clinician's role, a qualified role or a participle naming who acted."""
+    return word in _CLINICIAN_ROLE_WORDS or word in _QUALIFIED_ROLE_WORDS or word in _PARTICIPLE_ROLE_WORDS
+
+
+def _a_name_heading_word(word: str) -> bool:
+    """Whether one word of a column's name says a person's name, written whole or run together (`lastname`, `surgeonname`, `performedby`, `providername`)."""
+    if word in _NAME_HEADING_WORDS:
+        return True
+    for ending in _ROLE_NAME_WORDS:
+        if len(word) > len(ending) and word[-len(ending):] == ending:
+            opening = word[: -len(ending)]
+            if _a_role_word(opening) or (ending in _NAME_WORDS and opening in _NAME_OF_WORDS):
+                return True
+    return False
+
+
+def _after_a_qualifier(words: "list[str]") -> bool:
+    """Whether the last word of a column's name follows a clinician's qualifier (`referring_provider`, `primary_care_provider`, `ordering_md`); a workplace's qualifier (`_WORKPLACE_QUALIFIERS`) only before its technicians' word (`lab_tech`, never `lab_provider`)."""
+    if len(words) < 2:
+        return False
+    before = words[-2]
+    if before == "care" and len(words) > 2:
+        before = words[-3]
+    if before in _WORKPLACE_QUALIFIERS:
+        return words[-1] in _WORKPLACE_ROLE_WORDS
+    return before in _CLINICIAN_QUALIFIERS
+
+
+def _vocabulary_cut(word: str) -> "list[str] | None":
+    """A word cut wholly into words of `_HEADING_VOCABULARY`, the cut of the fewest pieces; None where it cannot be."""
+    best: "list[list[str] | None]" = [None] * (len(word) + 1)
+    best[0] = []
+    for end in range(1, len(word) + 1):
+        for start in range(max(0, end - _HEADING_WORD_LONGEST), end):
+            cut = best[start]
+            if cut is None or word[start:end] not in _HEADING_VOCABULARY:
+                continue
+            found = best[end]
+            if found is None or len(cut) + 1 < len(found):
+                best[end] = cut + [word[start:end]]
+    return best[len(word)]
+
+
+def _run_together_read(word: str) -> "list[str]":
+    """A word of a column's name cut into words of `_HEADING_VOCABULARY` where it is wholly made of them (`patientlastname` is `patient`, `lastname`), else into one other word of `_OTHER_WORD_AT_LEAST` letters or more and such words after it, the first of `_AFTER_THE_OTHER_WORD_AT_LEAST` letters or more and none of `_NAMES_WRITTEN_SHORT`, the other word as short as can be (`chargenurse` is `charge`, `nurse`); the word alone where neither holds, or where it is longer than `_RUN_TOGETHER_LONGEST`."""
+    if not isinstance(word, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    if len(word) > _RUN_TOGETHER_LONGEST or word in _HEADING_VOCABULARY:
+        return [word]
+    whole = _vocabulary_cut(word)
+    if whole:
+        return whole
+    for place in range(_OTHER_WORD_AT_LEAST, len(word) - _AFTER_THE_OTHER_WORD_AT_LEAST + 1):
+        rest = _vocabulary_cut(word[place:])
+        if rest and len(rest[0]) >= _AFTER_THE_OTHER_WORD_AT_LEAST and rest[0] not in _NAMES_WRITTEN_SHORT:
+            return [word[:place]] + rest
+    return [word]
+
+
+def _heading_words(name: str) -> "list[str]":
+    """A column's name cut into its words (`name_words`), each run-together word read as the words it is wholly made of (`_run_together_read`)."""
+    words: "list[str]" = []
+    for word in name_words(name):
+        words += _run_together_read(word)
+    return words
+
+
+def _a_role_before(words: "list[str]", place: int) -> bool:
+    """Whether the word before ``place`` of a column's name is a role naming who held it: a clinician's role or a participle anywhere, a qualified role first or after a clinician's qualifier (`provider_name`, `referring_provider_name`; never `insurance_provider_name`)."""
+    if place < 1:
+        return False
+    before = words[place - 1]
+    if before in _CLINICIAN_ROLE_WORDS or before in _PARTICIPLE_ROLE_WORDS:
+        return True
+    return before in _QUALIFIED_ROLE_WORDS and (place == 1 or _after_a_qualifier(words[:place]))
+
+
+def named_as_persons_names(name: str) -> bool:
+    """Whether a column's name says it holds a person's name: a patient's, a relative's or a clinician's (plan P4-D478).
+
+    Its words (`name_words`): one naming a part of a name
+    (`_NAME_HEADING_WORDS`: `surname`, `lastname`, `fname`); `name`,
+    `names` or `nm` after a word naming a part of a name, a person or the
+    staff (`_NAME_OF_WORDS`: `last_nm`, `patient_full_name`,
+    `PatientLastName`, `pt_nm`, `staff_name`) or before a part of a name
+    (`name_last`); a role before `name`, `by` or `md` (`surgeon_name`,
+    `performed_by`, `attending_md`, `provider_name`); a clinician's role
+    as its last word (`_CLINICIAN_ROLE_WORDS`: `surgeon`,
+    `primary_surgeon`, `charge_nurse`), never before another word
+    (`surgeon_specialty`); a qualified role (`_QUALIFIED_ROLE_WORDS`:
+    `provider`, `operator`, `resident`, `reader`, `md`) alone or after a
+    clinician's qualifier (`referring_provider`), never after a thing
+    (`insurance_provider`, `machine_operator`), and before `name`, `by` or
+    `md` only so (`insurance_provider_name` names no person); a participle
+    naming who acted (`_PARTICIPLE_ROLE_WORDS`) alone, never after a thing
+    (`procedure_performed`, `test_ordered`). A name run together reads its
+    parts (`surgeonname`, `performedby`, and in capitals with no mark
+    between its words `PATIENTLASTNAME`, `PRIMARYSURGEON`:
+    `_run_together_read`). Guarantees: a fixed function of the name.
+    Raises TypeError for a name that is not text. No I/O.
+    """
+    words = _heading_words(name)
+    if not words:
+        return False
+    for place in range(len(words)):
+        word = words[place]
+        before = words[place - 1] if place > 0 else ""
+        after = words[place + 1] if place + 1 < len(words) else ""
+        if word in _NAME_HEADING_WORDS:
+            return True
+        if word in _NAME_WORDS and (before in _NAME_OF_WORDS or after in _NAME_PART_WORDS):
+            return True
+        if word in _NAME_WORDS and after == "of" and place + 2 < len(words) and (
+            words[place + 2] in _NAME_OF_WORDS or _a_role_word(words[place + 2])
+        ):
+            return True
+        if word in _ROLE_NAME_WORDS and _a_role_before(words, place):
+            return True
+    last = words[-1]
+    if last in _CLINICIAN_ROLE_WORDS or _a_name_heading_word(last):
+        return True
+    if last in _QUALIFIED_ROLE_WORDS:
+        return len(words) == 1 or _after_a_qualifier(words)
+    return last in _PARTICIPLE_ROLE_WORDS and len(words) == 1
+
+
+def _persons_name_kind(text: str, named: bool) -> int:
+    """What one different value is to the reader: `_A_NAME_WRITTEN_WHOLE`, and under a heading that says a person's name (``named``) `_A_NAME_UNDER_ITS_HEADING` or `_A_FAMILY_NAME_ALONE`, or `_NOT_A_NAME`; under a heading a role, a source or a service is no name (`_a_role_or_a_service`); a cell holding the soft hyphen is the stronger of its two readings (`_name_readings`)."""
+    readings = _name_readings(text)
+    if len(readings) > 1:
+        # ...read as a space and as a dash (batch 4s's merge): the stronger.
+        return max(_persons_name_kind(reading, named) for reading in readings)
+    text = readings[0]
+    whole = a_persons_name(text)
+    if not named:
+        return _A_NAME_WRITTEN_WHOLE if whole else _NOT_A_NAME
+    if _a_role_or_a_service(text):
+        return _NOT_A_NAME
+    if whole:
+        return _A_NAME_WRITTEN_WHOLE
+    if _a_family_name_and_initials(text):
+        return _A_NAME_UNDER_ITS_HEADING
+    if _a_family_name_alone(text):
+        return _A_FAMILY_NAME_ALONE
+    return _NOT_A_NAME
+
+
+def _walk_step(total: int) -> int:
+    """The step of the walk over ``total`` cells (`persons_names_hold`): ``total`` times `_WALK_SHARE`, rounded, one at least, raised until it shares no factor with ``total`` (Euclid's rule, `calendar_clock.common_divisor`: the offline scan lends no divisor of the math module) -- so the walk, each place the last plus the step round the column, reads every cell once."""
+    step = max(1, round(total * _WALK_SHARE))
+    while total > 1 and calendar_clock.common_divisor(step, total) != 1:
+        step += 1
+    return step
+
+
+def persons_names_hold(name: str, role: str, cells: "list[str]", absent: "frozenset[str]") -> str:
+    """Which of the persons' names holds reaches a column, one of `PERSONS_NAMES_HOLDS`, or none (plan P4-D478).
+
+    Asked by `safe_harbor_hold` LAST, of a column of a role that publishes
+    its levels (`_PERSONS_NAME_ROLES`). ONE PASS over the cells, each read
+    once, in an order SPREAD OVER THE WHOLE COLUMN: a walk whose step is
+    the cells' count times `_WALK_SHARE`, rounded and raised until it
+    shares no factor with the count, each place the last plus the step
+    round the column (lane CZ-F's repair 2, the orchestrator's LANE CZ-F
+    RULINGS 5 (1): an era at the column's start cannot fill the bound, as
+    skeptic 1's item 4 asked, and no prefix of the walk stays on one phase
+    of a layout repeating every few rows -- the step of len(cells) //
+    `_SAFE_HARBOR_MEMO` it replaces met only the first cell of each block
+    of 12 rows, and only the rows 48 j of Codex's item 3); each different
+    present value (``absent`` spellings and empty cells aside) read once
+    (`_persons_name_kind`), up to `_SAFE_HARBOR_MEMO` different values --
+    a SAMPLE of the column's values where it holds more -- and settled
+    early where the values left within that bound could no longer make
+    two in three: linear in the rows. `HELD_PERSONS_NAMES` where
+    `NAMES_AT_LEAST` different values or more are names written whole
+    (`a_persons_name`) and two in three of the different values or more;
+    else `HELD_NAMED_AS_PERSONS_NAMES` where the column's name says it
+    holds a person's name (`named_as_persons_names`) and two in three of
+    the different values are a name written whole, a family name and its
+    initials or a family name alone (`_a_family_name_alone`), whatever
+    their number, one value among them. Guarantees: a fixed function of
+    the four.
+    Raises TypeError for a cell that is not text. No I/O.
+    """
+    if role not in _PERSONS_NAME_ROLES:
+        return ""
+    named = named_as_persons_names(name)
+    kinds: "dict[str, int]" = {}
+    whole = 0
+    heading_whole = 0
+    single = 0
+    others = 0
+    total = len(cells)
+    step = _walk_step(total)
+    place = 0
+    for _visit in range(total):
+        cell = cells[place]
+        place = (place + step) % total
+        if cell in kinds or cell in absent:
+            continue
+        if not parsing.trimmed(cell):
+            continue
+        kind = _persons_name_kind(cell, named)
+        kinds[cell] = kind
+        if kind == _A_NAME_WRITTEN_WHOLE:
+            whole += 1
+        elif kind == _A_NAME_UNDER_ITS_HEADING:
+            heading_whole += 1
+        elif kind == _A_FAMILY_NAME_ALONE:
+            single += 1
+        else:
+            others += 1
+        left = _SAFE_HARBOR_MEMO - len(kinds)
+        if left <= 0:
+            break
+        named_now = whole + heading_whole + single
+        if (named_now + left) * _BULK_PARTS < _BULK_TAKEN * (named_now + left + others):
+            # ...the values left within the bound could no longer make two
+            # in three: settled.
+            return ""
+    present = whole + heading_whole + single + others
+    if not present:
+        return ""
+    if whole >= NAMES_AT_LEAST and whole * _BULK_PARTS >= _BULK_TAKEN * present:
+        return HELD_PERSONS_NAMES
+    if named and (whole + heading_whole + single) * _BULK_PARTS >= _BULK_TAKEN * present:
+        return HELD_NAMED_AS_PERSONS_NAMES
+    return ""
+
+
 def safe_harbor_hold(
     name: str,
     column: ColumnProfile,
@@ -35333,6 +41957,7 @@ def safe_harbor_hold(
     floor: int,
     reference_year: int,
     counted: str = "",
+    dates_answered: bool = False,
 ) -> str:
     """Which of lane SH2's holds reaches a column, one of `SAFE_HARBOR_HOLDS`, or none (plan P4-D434).
 
@@ -35358,8 +41983,13 @@ def safe_harbor_hold(
     a column of social security numbers, a relative's among them, read as
     free text published nothing but wrote no number of the form, and one
     of a thousand people read as labels published them -- and the device
-    identifiers on free text too. Guarantees: a fixed function of the
-    seven. Raises TypeError for a cell that is not text. No I/O.
+    identifiers on free text too. AND THE VALUE READERS LAST (plan
+    P4-D472, `value_reader_hold`), on a role that publishes a value: one
+    of `VALUE_READER_HOLDS`, reading no month and a day where
+    ``dates_answered`` (the column's question about dates in disguise was
+    answered `no`: an answer is never asked again). Guarantees: a fixed
+    function of the eight. Raises TypeError for a cell that is not text.
+    No I/O.
     """
     absent = frozenset(column.absent_spellings)
     # A NAME SAYING A PART OF AN ADDRESS IS ASKED FIRST, before any date,
@@ -35399,7 +42029,17 @@ def safe_harbor_hold(
         return HELD_COORDINATES
     if _mostly_beside_states(cells, absent):
         return HELD_CITY_STATES
-    return ""
+    # THE PERSONS' NAMES (plan P4-D478, lane CZ-F): a column whose values
+    # are mostly persons' names written whole, or whose name says it holds
+    # a person's name and whose values are written as names are; its holds
+    # are read first, as on the line before lane CZ-E's merge (batch 4s's
+    # merge, step 9).
+    held_as_names = persons_names_hold(name, column.role, cells, absent)
+    if held_as_names:
+        return held_as_names
+    # THE VALUE READERS, last (plan P4-D472, lane CZ-E): network addresses,
+    # a coordinate pair in one cell, area codes, identifier words in levels.
+    return value_reader_hold(column.role, cells, absent, floor, not dates_answered)
 
 
 def with_dated_values_held(column: ColumnProfile) -> ColumnProfile:
@@ -37789,14 +44429,15 @@ def profile_column(
         n_out_of_range=out_of_range,
         n_contradictory=contradictory,
         n_not_numeric=not_numeric,
-        n_distinct=_column_distinct(cells, verdict.role, details),
-        n_distinct_folded=len(cells.label_counts),
+        n_distinct=_figures_distinct(cells, verdict.role, details, _column_distinct(cells, verdict.role, details)),
+        n_distinct_folded=_figures_distinct(cells, verdict.role, details, len(cells.label_counts)),
         sentinel_verdicts=entries,
         n_sentinel_candidates_unpublished=unpublished,
         absent_spellings=_spellings_of(missing),
         units_read_anew=read.units_read_anew and verdict.role == ROLE_AFFIXED,
         few_values=verdict.few_values,
         few_values_rare=verdict.few_values_rare,
+        held_back_nameable=verdict.held_back_nameable,
     )
 
 
@@ -39105,10 +45746,29 @@ MADE_UP_ROOM = 2
 # THE READINGS THE ROOM SERVES (Codex's review of lane ID-ROOM2, item 1): a
 # held column's G1 floor draws the room's years only where its grain reads
 # DATES (`grains.DATE`, as the `time_grain` record writes its `kind`); a
-# held column read as stamps, clock times or counted dates publishes `[]`
-# and its twin is written by the G1 floor's own span as before, so it
-# stays readable. The date pass (no grain) writes only its date layouts.
+# held column read as clock times or counted dates publishes `[]` and its
+# twin is written by the G1 floor's own span as before, so it stays
+# readable. The date pass (no grain) writes only its date layouts.
 MADE_UP_GRAIN_KIND = "date"
+# ...AND STAMPS (lane TR's skeptic 1, item 1; plan P4-D473): a held column
+# whose grain reads STAMPS (`grains.STAMP`) takes the block a date grain
+# does, of the kind of year its reading writes, and its G1 floor draws each
+# made-up stamp's calendar date from it (`_with_made_up_stamp_years`).
+# Before, its made-up stamps came from the G1 floor's fixed span, 2000 to
+# 2029, and beside births of 1928 to 2005 its twin wrote real birth dates by
+# chance: at 20,000 rows and 1,000 patients, 80 twin cells on 3 real birth
+# dates, each one patient's, in each of four stamp forms (a zone word, no
+# offset, `-05:00`, `UTC`), where the dates beside them drew from the block
+# and wrote none.
+MADE_UP_STAMP_KIND = "stamp"
+# How many different made-up stamps a day holds at a grain's finest
+# written detail (`time_grain`'s `finest`), so a year holds 365 times it.
+_STAMP_UNITS_A_DAY = {"second": 86400, "minute": 1440, "hour": 24, "day": 1}
+# ...but a reading that writes dates beside its stamps (`iso-mixed`) writes
+# a day on each of them, so its block is sized by days (lane TR's repair 1:
+# 1,970 dates beside 30 stamps, 690 different values in a block of one
+# year, reached 381).
+_STAMP_MEMBERS_BESIDE_DATES = ("iso-mixed",)
 # How many merged keys the producer remembers having read, so a value on
 # several rows is read once (Codex's review of lane ID-ROOM2, item 6): the
 # keys alone, never what they hold, and no more than this many; past them
@@ -40292,6 +46952,102 @@ def cell_date_years(text: str) -> "tuple[list[int], list[int]]":
     return four, two
 
 
+def stamp_reading_writes_two_figures(member: str) -> bool:
+    """Whether a stamp reading writes its year in two figures (lane TR, plan P4-D473), as the G1 floor writes it.
+
+    A layout by its two-figure year field (`parsing.layout_two_figure_year`),
+    any other member by its name (`two-digit`), as generation's
+    `_reads_two_figure_years` reads a held column's reading. A fixed
+    function of the text. Raises nothing. No I/O.
+    """
+    if parsing.is_layout_name(member):
+        return parsing.layout_two_figure_year(member) > 0
+    return "two-digit" in member
+
+
+def _with_made_up_stamp_years(
+    column: ColumnProfile, cells: "list[str]", grain: "dict[str, object]"
+) -> ColumnProfile:
+    """A held column read as stamps, with the years its twin's made-up stamps take (lane TR's skeptic 1, item 1; plan P4-D473).
+
+    The block a date grain gets, of the kind of year the grain's reading
+    writes -- four figures from `MADE_UP_FIRST_YEAR` (`made_up_year_room`),
+    or two from `28` where it writes two (`short_year_room`,
+    `stamp_reading_writes_two_figures`) -- as many years as hold
+    `MADE_UP_ROOM` times the column's made-up values at a year's own count
+    of stamps at the grain's finest written detail (`_years_asked`: one
+    year at the second, the minute or the hour; the days of a common year
+    at the day, and for a reading that writes dates beside its stamps,
+    `_STAMP_MEMBERS_BESIDE_DATES`), and only where no real cell names a
+    year of it in any reading the room holds against: every present cell
+    that is no absent spelling, each different text read once
+    (`cell_date_years`: the product's date reader, each run of four
+    figures, a compact stamp by the date its run opens with, a clock set
+    aside wherever it stands, a zone or a meridiem after it, counts and
+    days of the year), and the same day written with the other year width
+    held too (the cross rule, as for dates). Its G1 floor then draws each
+    made-up stamp's calendar date from the block -- its clock, its zone
+    word or offset as before -- so no made-up stamp falls on a calendar
+    date of the column (generation's `_room_spans` and
+    `_stamp_in_the_room`). Where a real cell names a year of the block,
+    `[]`: the twin keeps the identifier walk's made-up values, record
+    numbers off the real, no date at all (remark NF137), as a date grain's
+    does. Linear in the cells, one reading a different text.
+    Guarantees: a fixed function of the three. Raises nothing. No I/O.
+    """
+    details: "dict[str, object]" = {}
+    for name in column.details:
+        details[name] = column.details[name]
+    reading = grain["reading"] if "reading" in grain else ""
+    finest = grain["finest"] if "finest" in grain else ""
+    two = isinstance(reading, str) and stamp_reading_writes_two_figures(reading)
+    a_day = _STAMP_UNITS_A_DAY[finest] if isinstance(finest, str) and finest in _STAMP_UNITS_A_DAY else 1
+    if reading in _STAMP_MEMBERS_BESIDE_DATES:
+        a_day = 1
+    available = 100 if two else MADE_UP_LAST_YEAR - MADE_UP_FIRST_YEAR + 1
+    needed = _years_asked(max(column.n_distinct, 1), 365 * a_day, available)
+    absent: "dict[str, bool]" = {}
+    for spelling in column.absent_spellings:
+        absent[spelling] = True
+    held_four: "dict[int, bool]" = {}
+    held_two: "dict[int, bool]" = {}
+    remembered: "dict[str, bool]" = {}
+    # ...each different text read ONCE, all of them remembered (goal G4: at
+    # 200,000 rows of 10,000 people's birth stamps, the cap a date grain's
+    # producer keeps, `MADE_UP_KEYS_REMEMBERED`, read every cell past its
+    # 1,024th text again and cost 24 CPU seconds a profile; the texts the
+    # column already holds in `cells` bound what this keeps).
+    for value in cells:
+        core = parsing.trimmed(value)
+        if not core or value in absent or core in remembered:
+            continue
+        remembered[core] = True
+        cell_four, cell_two = cell_date_years(core)
+        for year in cell_four:
+            held_four[year] = True
+        for year in cell_two:
+            held_two[year] = True
+    # ...THE SAME DAY WRITTEN WITH THE OTHER YEAR WIDTH, as for dates.
+    if two:
+        for year in list(held_four):
+            held_two[year % 100] = True
+    else:
+        for year in list(held_two):
+            held_four[1900 + year] = True
+            held_four[2000 + year] = True
+    room: "list[int] | None" = None
+    if needed > 0:
+        room = short_year_room(held_two, needed) if two else made_up_year_room(held_four, needed)
+    spans = _year_spans(room) if room else []
+    details["made_up_years"] = sorted(spans)
+    remarks: "list[Note]" = []
+    for remark in column.remarks:
+        if remark.form != REMARK_HELD_DATES_ARE_VALID:
+            remarks += [remark]
+    remarks += [note(REMARK_MADE_UP_DATES_OFF_THE_REAL if spans else REMARK_MADE_UP_DATES_NOT_DATES)]
+    return dataclasses.replace(column, details=details, remarks=remarks)
+
+
 def with_made_up_years(column: ColumnProfile, cells: "list[str]") -> ColumnProfile:
     """A record-number block of dates with the years its twin's made-up dates take (lane ID-ROOM2, plan P4-D457).
 
@@ -40416,6 +47172,10 @@ def with_made_up_years(column: ColumnProfile, cells: "list[str]") -> ColumnProfi
             counts[f"{layout}"] = int(f"{forms[layout]}")
     grain = column.details["time_grain"] if "time_grain" in column.details else None
     grained = isinstance(grain, dict)
+    # A HELD COLUMN READ AS STAMPS takes the block too (lane TR's skeptic 1,
+    # item 1; plan P4-D473): `_with_made_up_stamp_years`.
+    if isinstance(grain, dict) and "kind" in grain and grain["kind"] == MADE_UP_STAMP_KIND:
+        return _with_made_up_stamp_years(column, cells, grain)
     if not any(parsing.date_form_fields(layout) is not None for layout in named):
         return column
     if not grained and any(_a_uid_layout(layout) for layout in named):

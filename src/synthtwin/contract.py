@@ -95,7 +95,7 @@ import pathlib
 from synthtwin import calendar_clock, calendar_rules, canonical, chain_check, chain_moments, dialect, errors, parsing
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts, a
 # module that imports `parsing` alone.
-from synthtwin import date_counts, grains
+from synthtwin import date_counts, grains, offset_rules
 from synthtwin.paths import validate_local_path
 
 # The one version this loader reads. `profile_version` must be exactly
@@ -513,6 +513,10 @@ LABEL_KEYS = (
     # carried only where a width's rows are mostly held back, so it is read as
     # empty where absent (`LABEL_READ_AS_EMPTY_WHEN_ABSENT`).
     "figure_openings",
+    # THE NAMES OF THE LEVELS THE FLOOR HELD BACK (lane CODES-2, plan P4-D471):
+    # carried only where the column names its pool, so read as empty where
+    # absent too.
+    "held_back_names",
     "levels",
     "shape_forms",
     "suppressed_levels",
@@ -627,6 +631,11 @@ DATETIME_KEYS = (
     # census. `null` on every block until landing R4 (plan P4-D384) fills
     # it, and the loader refuses anything else.
     "count_form",
+    # THE RULE AN OFFSET FOLLOWS ITS DATE BY (lane DST, plan P4-D474, method
+    # G7.4r): written only where every stamp of a column read on the shared
+    # clock wears the offset one family of `offset_rules` puts in force on
+    # its date, absent everywhere else (`DATETIME_READ_AS_EMPTY_WHEN_ABSENT`).
+    "offset_rule",
 )
 
 # THE KEYS OF A FORM OF COUNTS (landing R4, plan P4-D384), each always
@@ -670,6 +679,9 @@ DATETIME_READ_AS_EMPTY_WHEN_ABSENT = (
     "day_of_month_census",
     "heavy_dates",
     "count_form",
+    # ...and the rule an offset follows, written only where it applies, as
+    # `time_grain` is (lane DST, plan P4-D474): absent, no rule is published.
+    "offset_rule",
 )
 # ...AND THE ONE KEY A COLUMN OF FREE TEXT CARRIES ONLY WHERE IT APPLIES (lane
 # HB, plan P4-D442): `figure_openings` is written where a run of four figures
@@ -678,7 +690,7 @@ DATETIME_READ_AS_EMPTY_WHEN_ABSENT = (
 TEXT_READ_AS_EMPTY_WHEN_ABSENT = ("figure_openings",)
 # ...and the four label roles and a compound column's label half carry it only
 # where it applies too (LANE HB RULINGS 6, plan P4-D442).
-LABEL_READ_AS_EMPTY_WHEN_ABSENT = ("figure_openings",)
+LABEL_READ_AS_EMPTY_WHEN_ABSENT = ("figure_openings", "held_back_names")
 _LABEL_OPENING_ROLES = (ROLE_CONSTANT, ROLE_BINARY, ROLE_CATEGORICAL, ROLE_LONG_TAIL)
 CLOCK_READ_AS_EMPTY_WHEN_ABSENT = (
     "clock_census",
@@ -1533,6 +1545,20 @@ INVARIANTS = {
         "column's other numbers each reach the census line -- and its "
         "mean stands exactly where those cells do, written where they "
         "are counted and absent where they are not"
+    ),
+    # THE NAMES OF THE HELD-BACK LEVELS (lane CODES-2, plan P4-D471).
+    "B4f": (
+        "the names of the labels held back are written each once, in sorted "
+        "order"
+    ),
+    "B4g": (
+        "the names of the labels held back name every label held back and no "
+        "published one, in no more spellings than the rows they cover, "
+        "only of a pool the floor made, never one counted in people, and "
+        "share the pool's rows by the classes its counts of numbers leave them"
+    ),
+    "B4h": (
+        "a pool whose labels are named publishes no scale of its numbers"
     ),
     "B5": (
         "a label is published only at the smallest group size or more"
@@ -3594,6 +3620,14 @@ class LabelFacts:
     figure_openings: "dict[int, str]" = dataclasses.field(
         default_factory=dict, kw_only=True
     )
+    # THE SPELLINGS OF THE LEVELS THE FLOOR HELD BACK, NAMED WITHOUT THEIR
+    # COUNTS (6.3; lane CODES-2, plan P4-D471; the owner's answer Z1 = B):
+    # sorted, each once, every spelling of every held-back level, beside the
+    # pooled total; empty where the column names none, as every column did
+    # before. Invariants B4f to B4h hold them (`_held_back_names`).
+    held_back_names: "tuple[str, ...]" = dataclasses.field(
+        default=(), kw_only=True
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3687,6 +3721,10 @@ class DatetimeFacts:
     # (plan P4-D384): how a column whose dates are written as counts spells
     # them, and `None` on every other column.
     count_form: "date_counts.CountForm | None" = None
+    # THE RULE EACH STAMP'S OFFSET FOLLOWS ITS DATE BY (lane DST, plan
+    # P4-D474, method G7.4r): `offset_rules.rule_text`'s words, or `""` on
+    # every column that publishes none.
+    offset_rule: str = ""
     # -- 3b.R2c (P4-D383): NO KEY OF THE BLOCK, carried by the loader from
     # the settings beside it. True where the person said the column holds
     # dates (`forced_date_columns`, question Q6) and more of its cells were
@@ -3890,6 +3928,14 @@ class NumericFacts:
     # key of the `count` and `continuous` roles; `()` wherever the block
     # carries none, which reads the column exactly as before.
     few_values: "tuple[str, ...]" = ()
+    # THE BOUNDS A LABEL BESIDE THE NUMBERS SETS (lane LM1, plan P4-D475;
+    # method G5.3b). Not a key: the loader reads them off the published
+    # labels of a column of numbers and labels (`label_bounds`) -- `<20`
+    # holds every number at 20 or more, `90+` every number below 90 --
+    # where the half's own published facts agree, and a withheld end is
+    # derived inside them. `(None, None)` on every other block, which
+    # reads the column exactly as before.
+    label_bounds: "tuple[float | None, float | None]" = (None, None)
     # LAYER L0'S CUTS (method G5.7; lane BT, plan P4-D429). Not a key: the
     # generator attaches them to an ELIGIBLE column of a description
     # loaded behind the chain's switch, where its L0 block passes G5.7a's
@@ -4352,6 +4398,24 @@ class ColumnBlock:
     # reads it so and pools nothing.
     top_category_pooled: int = -1
     top_category_people: "tuple[str, ...]" = ()
+    # THE AGE WORDS ITS TOP-CODE READ (lane HB2, plan P4-D477): True where a
+    # top-coded column's cells were read with the age words of
+    # `taxonomy.AGE_VOCABULARY` around their numbers (`Age 95`, `(95 yrs)`),
+    # which its block says with `top_coded_words`; False elsewhere, a
+    # top-coded block written before that vocabulary or holding no such
+    # words read without them, as it was made.
+    top_coded_words: bool = False
+    # ...AND THE ENDS ITS AGES WERE POOLED INTO IN PEOPLE (lane HB2, plan
+    # P4-D477): the low band's highest value and the top band's lowest, which
+    # its block writes as `top_coded_ends`; None elsewhere, a block with no
+    # such key read with no ends pooled, as it was made.
+    top_coded_ends: "tuple[int, int] | None" = None
+    # THE BAND READING OF THE TOP-CODE (plan P4-D472): True where the
+    # top-code wrote a band of ages as the column's one band past 89, the
+    # block carrying `top_coded_bands`; a top-coded block without it was
+    # made before that reading, or wrote no band so, and its validator
+    # reads its bands as written (the orchestrator's LANE CZ-E RULINGS 6 (3)).
+    top_coded_bands: bool = False
     # A COLUMN A CARRIED RULE COMPUTES (contract 4.6b.7, MR.6 (a); lane RO,
     # plan P4-D459), read only behind the chain's switch: the rule's input
     # it is computed from, '' for every other column, and its own layout
@@ -5207,6 +5271,8 @@ def _absent_read_as_empty(
     filled = dict(mapping)
     for key in missing:
         filled[key] = None if key in ("clock_step", "count_form") else []
+        if key == "offset_rule":
+            filled[key] = ""
     return filled
 
 
@@ -8601,6 +8667,60 @@ def _column(
             if key not in ("top_category_pooled", "top_category_people"):
                 kept_pooled[key] = mapping[key]
         mapping = kept_pooled
+    # ...AND THE AGE WORDS ITS TOP-CODE READ (lane HB2, plan P4-D477):
+    # `true`, only beside `top_coded`.
+    top_coded_words = False
+    if "top_coded_words" in mapping:
+        words_value = mapping["top_coded_words"]
+        if not top_coded:
+            raise _unknown("top_coded_words", where)
+        if words_value is not True:
+            raise _out_of_range("top_coded_words", where, "another value", "true")
+        top_coded_words = True
+        kept_words: "dict[str, object]" = {}
+        for key in mapping:
+            if key != "top_coded_words":
+                kept_words[key] = mapping[key]
+        mapping = kept_words
+    # ...AND THE ENDS ITS AGES WERE POOLED INTO IN PEOPLE (lane HB2, plan
+    # P4-D477): two whole numbers from 0, the first at most the second, the
+    # second at most the mark, only beside `top_coded`.
+    top_coded_ends: "tuple[int, int] | None" = None
+    if "top_coded_ends" in mapping:
+        ends_value = mapping["top_coded_ends"]
+        if not top_coded:
+            raise _unknown("top_coded_ends", where)
+        if (
+            not isinstance(ends_value, list)
+            or len(ends_value) != 2
+            or any(isinstance(end, bool) or not isinstance(end, int) for end in ends_value)
+            or not 0 <= ends_value[0] <= ends_value[1] <= top_coded
+        ):
+            raise _out_of_range(
+                "top_coded_ends", where, "another value",
+                "two whole numbers from 0 to the top code, the first at most the second",
+            )
+        top_coded_ends = (ends_value[0], ends_value[1])
+        kept_ends: "dict[str, object]" = {}
+        for key in mapping:
+            if key != "top_coded_ends":
+                kept_ends[key] = mapping[key]
+        mapping = kept_ends
+    # ...AND ITS BAND READING (plan P4-D472; the orchestrator's LANE CZ-E
+    # RULINGS 6 (3)): `true`, only beside `top_coded`, where the top-code
+    # wrote a band of ages as the column's one band past 89.
+    top_coded_bands = False
+    if "top_coded_bands" in mapping:
+        if not top_coded:
+            raise _unknown("top_coded_bands", where)
+        if mapping["top_coded_bands"] is not True:
+            raise _out_of_range("top_coded_bands", where, "another value", "true")
+        top_coded_bands = True
+        kept_bands: "dict[str, object]" = {}
+        for key in mapping:
+            if key != "top_coded_bands":
+                kept_bands[key] = mapping[key]
+        mapping = kept_bands
     # ...AND RULE A1'S DESTINATION (lane CODES-1, plan P4-D439, C6-31g): a
     # label column whose census counted the floor's pool in its commonest
     # named form names that form, which the validator counts a measured
@@ -8911,6 +9031,9 @@ def _column(
         withheld_words_from=words_from,
         top_category_pooled=top_category_pooled,
         top_category_people=top_category_people,
+        top_coded_words=top_coded_words,
+        top_coded_ends=top_coded_ends,
+        top_coded_bands=top_coded_bands,
     )
 
 
@@ -9032,7 +9155,25 @@ def _pool_in_people(
             "a pool counted in people holds no level",
             "the key stands beside a level held back",
         )
+    _a_pool_in_people_names_none(facts, where)
     return number_from, word_from
+
+
+def _a_pool_in_people_names_none(facts: "LabelFacts", where: str) -> None:
+    """B4g: a pool counted in people names none of its levels (lane CODES-2's repair 2, Codex's item 4).
+
+    Only a pool the floor made by rows is named (P4-D471), and the block's
+    reader holds `pool_in_people` and the block's names together only here:
+    it takes the key off the mapping before the label facts are read, so
+    the check `_held_back_names` once made never saw it, and a hand-made
+    pool counted in people kept twenty named spellings. Raises ProfileError
+    for B4g. No I/O.
+    """
+    if facts.held_back_names:
+        raise _broken(
+            "B4g", where, "a pool counted in people names its levels",
+            "only a pool the floor made by rows is named",
+        )
 
 
 def _form_places(
@@ -10314,6 +10455,7 @@ def _label_facts(
         shape_forms=_shape_forms(mapping, where, floor),
         suppressed_numbers=_pooled_numbers(mapping, where, floor),
         figure_openings=_figure_openings(mapping, where),
+        held_back_names=_held_back_names(mapping, where, entries, suppressed, rows),
     )
 
 
@@ -10356,6 +10498,7 @@ def _compound_label_facts(
         shape_forms=_shape_forms(mapping, where, floor, False, False),
         suppressed_numbers=_pooled_numbers(mapping, where, floor, True),
         figure_openings=_figure_openings(mapping, where),
+        held_back_names=_held_back_names(mapping, where, entries, suppressed, rows),
     )
 
 
@@ -10429,6 +10572,7 @@ def _long_tail_facts(
         shape_forms=_shape_forms(mapping, where, floor),
         suppressed_numbers=_pooled_numbers(mapping, where, floor),
         figure_openings=_figure_openings(mapping, where),
+        held_back_names=_held_back_names(mapping, where, entries, suppressed, rows),
     )
 
 
@@ -10462,6 +10606,7 @@ def _categorical_facts(
         shape_forms=_shape_forms(mapping, where, floor),
         suppressed_numbers=_pooled_numbers(mapping, where, floor),
         figure_openings=_figure_openings(mapping, where),
+        held_back_names=_held_back_names(mapping, where, entries, suppressed, rows),
         level_ceiling=ceiling,
     )
 
@@ -11137,7 +11282,42 @@ def _datetime_facts(
             mapping, where, floor, n_present, n_distinct, judged, absent, facts
         ),
     )
-    return facts
+    # -- the rule an offset follows its date by (lane DST, P4-D474)
+    return dataclasses.replace(facts, offset_rule=_offset_rule(mapping, where, facts))
+
+
+def _offset_rule(
+    mapping: "dict[str, object]", where: str, facts: "DatetimeFacts"
+) -> str:
+    """A block's `offset_rule` (lane DST, plan P4-D474, method G7.4r), read.
+
+    `""` where none is published. Otherwise one family of
+    `offset_rules.FAMILIES`, a space and the zone's standard offset as the
+    census writes one (`us -05:00`), on a column read on the shared clock
+    whose census names exactly that offset and the one an hour east of it
+    and nothing else: the two offsets the rule puts in force, every stamp
+    wearing one of them.
+
+    Guarantees: returns the rule's text or `""`. Raises ProfileError for
+    any other value. No I/O of any kind.
+    """
+    found = mapping["offset_rule"]
+    if found == "":
+        return ""
+    text = _text(found, "offset_rule", where)
+    rule = offset_rules.parsed_rule(text)
+    if rule is None:
+        raise _out_of_range(
+            "offset_rule", where, f"'{text}'",
+            "a rule family (us, eu, au or nz), a space and a standard offset written +HH:MM",
+        )
+    wanted = sorted([offset_rules.offset_text(rule.standard), offset_rules.offset_text(rule.standard + 3600)])
+    if facts.datetimes_read_at != "utc" or sorted(facts.utc_offsets) != wanted:
+        raise _out_of_range(
+            "offset_rule", where, f"'{text}'",
+            "a rule only on a column read on the shared clock whose offsets are its two",
+        )
+    return text
 
 
 def _reserved_list(value: object, key: str, where: str) -> None:
@@ -17202,8 +17382,36 @@ def _derived_end(
     # published 15.5 and `validate` MISSED `ladder.p50` and
     # `moments.mean`.
     if abs(spelled - boundary) < mean:
-        return _off_the_stand_ins(held, low, boundary, figures, kept)
-    return _off_the_stand_ins(spelled, low, boundary, figures, kept)
+        return _inside_the_labels(_off_the_stand_ins(held, low, boundary, figures, kept), low, boundary, facts, figures)
+    return _inside_the_labels(_off_the_stand_ins(spelled, low, boundary, figures, kept), low, boundary, facts, figures)
+
+
+def _inside_the_labels(end: float, low: bool, boundary: float, facts: NumericFacts, figures: int) -> float:
+    """A derived end held inside the bound a label beside the numbers names (lane LM1, plan P4-D475).
+
+    `facts.label_bounds` (`label_bounds`): a derived low end below the
+    least value the labels leave the numbers is moved up to it, a derived
+    high end above the greatest down to it, where the bound stands on the
+    tail's own side of its boundary; every other end, and every end of a
+    block no label bounds, is returned as it is. The bound is first moved
+    inward onto the grid the END is placed on (``figures``, which the
+    forms map may have set to the whole numbers on a block whose own
+    grid is finer; `_on_the_label_grid`), so the end is written inside
+    the bound and never rounded out past it (Codex's review of the lane,
+    item 8); where that grid point would pass the boundary, the bound
+    stands as it is. Raises nothing.
+    """
+    bound = facts.label_bounds[0] if low else facts.label_bounds[1]
+    if bound is None:
+        return end
+    placed = _on_the_label_grid(bound, low, False, figures)
+    if placed is None:
+        placed = bound
+    if low and end < placed and bound <= boundary:
+        return placed if placed <= boundary else bound
+    if not low and placed < end and boundary <= bound:
+        return placed if boundary <= placed else bound
+    return end
 
 
 def _off_the_stand_ins(
@@ -21896,6 +22104,11 @@ def _compound_facts(
         _a_label_and_not_a_number(level.label, where, decimal_comma)
         for spelling in sorted(level.variants):
             _a_label_and_not_a_number(spelling, where, decimal_comma)
+    # ...AND A LABEL THAT NAMES A BOUND BOUNDS THE NUMBERS BESIDE IT (lane
+    # LM1, plan P4-D475): read off the published labels, never written.
+    bounds = label_bounds(label_facts.levels, numbers, decimal_comma)
+    if bounds != (None, None):
+        numbers = dataclasses.replace(numbers, label_bounds=bounds)
     return CompoundFacts(
         n_numeric_cells=numeric,
         n_numeric_out_of_range=unusable_out,
@@ -21908,6 +22121,205 @@ def _compound_facts(
         numbers=numbers,
         labels=label_facts,
     )
+
+
+def _bound_of_label(spelling: str, decimal_comma: bool) -> "tuple[str, float, bool] | None":
+    """The bound one label names, or None (lane LM1, plan P4-D475).
+
+    `<20` and `< 20`: every number is 20 or more (`low`, met at 20);
+    `<=0.5`: above 0.5 (`low`, strict); `>1000000`: at most a million
+    (`high`, met at it); `>=90` and `90+`: below 90 (`high`, strict).
+    The number is read by the shipped parser and must be finite; any
+    other label names no bound. IN THE COLUMN'S OWN DECIMAL GRAMMAR
+    (Codex's review of the lane, item 9): on a column declared to write
+    a decimal comma the number is read as its cells are
+    (`parsing.written_with_a_decimal_comma`), so `<0,5` bounds the
+    numbers at 0,5 as `<0.5` does on a column of points; read with a
+    point it named no bound, and the twin wrote `0,001` beside numbers
+    of 0,5 and more. Raises nothing.
+    """
+    if not isinstance(spelling, str):
+        return None
+    body = parsing.trimmed(spelling)
+    side = ""
+    strict = False
+    rest = ""
+    if body[:2] == "<=":
+        side, strict, rest = "low", True, body[2:]
+    elif body[:1] == "<":
+        side, strict, rest = "low", False, body[1:]
+    elif body[:2] == ">=":
+        side, strict, rest = "high", True, body[2:]
+    elif body[:1] == ">":
+        side, strict, rest = "high", False, body[1:]
+    elif body[-1:] == "+" and len(body) > 1:
+        side, strict, rest = "high", True, body[:-1]
+    if not side:
+        return None
+    figures = parsing.trimmed(rest)
+    if decimal_comma:
+        figures = parsing.written_with_a_decimal_comma(figures)
+    value = parsing.parse_number(figures)
+    if value is None or not math.isfinite(value):
+        return None
+    return side, value, strict
+
+
+# The units in the last place of a scaled bound within which it stands on a
+# grid point (`_grid_noise`): a bound read from its label's decimal figures
+# and scaled by a power of ten strays from the point its figures name by at
+# most about one and a half units, and the smallest fraction of a step a
+# label of up to fifteen significant figures can name is more than four.
+_GRID_NOISE_UNITS = 4.0
+
+
+def _grid_noise(scaled: float) -> float:
+    """``_GRID_NOISE_UNITS`` units in the last place of ``scaled`` (Codex's review of batch 4s, item 2). Raises nothing. No I/O."""
+    _fraction, exponent = math.frexp(scaled)
+    return math.ldexp(_GRID_NOISE_UNITS, exponent - 53)
+
+
+def _on_the_label_grid(value: float, low: bool, strict: bool, figures: int) -> "float | None":
+    """A label's bound moved INWARD onto the grid its numbers are written on, or None (method G5.3b).
+
+    Codex's review of the lane, item 8: the grid is the one a tail's
+    derived ends are placed on (`_tail_figures`: the whole numbers on a
+    whole-valued half, ``figures`` places otherwise), and a bound
+    between two of its points was written on the nearer one, which may
+    stand OUTSIDE it -- `<20.5` beside whole numbers of 21 and more held
+    the end at 20.5 and the whole-number writer spelled it `20` on
+    eleven cells at 20,000 rows. So a low bound becomes the least grid
+    point at or above it, a high bound the greatest at or below it, and
+    a STRICT bound on a grid point one step further inside: `<=0.5` on a
+    grid of hundredths is 0.51, `90+` on the whole numbers 89 and on
+    tenths 89.9. Where no width is named (``figures`` -1) a bound is
+    kept as it stands and a strict one names no bound, there being no
+    step to move it by.
+
+    Guarantees: a function of the four; a grid point on the bound's own
+    side of it, or ``value`` itself, or None. Raises nothing. No I/O.
+
+    A BOUND STANDS ON A GRID POINT ONLY WITHIN THE NOISE OF ITS OWN
+    FIGURES (Codex's review of batch 4s, item 2; the orchestrator's LANE
+    I4s RULINGS 1 (6)): `_grid_noise`, a few units in the last place of
+    the scaled bound, where a tolerance of a billionth of the scaled
+    bound's size read a whole step as noise once the bound passed a
+    billion steps -- `<1000.00000025` on a grid of six places stood 0.25
+    of a step above 1,000 and was placed at 1000.0, outside it, and the
+    twin wrote `1000.000000` on 11 cells below the limit; the same for a
+    high bound (`>999.99999975` placed at 1000.0).
+    """
+    if figures == -1:
+        return None if strict else value
+    places = 0 if figures == -2 else figures
+    scale = 1.0
+    for _place in range(places):
+        scale = scale * 10.0
+    scaled = value * scale
+    if not math.isfinite(scaled):
+        return None if strict else value
+    steps = float(round(scaled))
+    if abs(scaled - steps) > _grid_noise(scaled):
+        # The grid point on the bound's own side, in whole steps: the
+        # whole part of the scaled bound, one step further out where that
+        # stands on the wrong side of it.
+        whole = float(int(scaled))
+        if low:
+            steps = whole if whole >= scaled else whole + 1.0
+        else:
+            steps = whole if whole <= scaled else whole - 1.0
+    elif strict:
+        steps = steps + 1.0 if low else steps - 1.0
+    return steps / scale
+
+
+def label_bounds(
+    levels: "tuple[LevelEntry, ...]", numbers: NumericFacts, decimal_comma: bool
+) -> "tuple[float | None, float | None]":
+    """The least and greatest value the numbers beside these labels may take, or None (method G5.3b).
+
+    LANE LM1, PLAN P4-D475: A LABEL THAT NAMES A BOUND BOUNDS THE
+    NUMBERS BESIDE IT. A result field writes `<20` for a load below the
+    test's range and the number itself from 20 up; an age column writes
+    `90+` past 89. The numbers' own end is withheld where few rows hold
+    it, and the twin drew its tail past the bound the label states: `3`
+    beside `<20` on 12 cells at 20,000 rows, a form the source never
+    writes. Every PUBLISHED label (its level and each spelling of it) is
+    read by `_bound_of_label`, in the column's decimal grammar; the
+    lowest low bound and the highest high bound stand (the most room
+    either names), moved inward onto the grid the numbers are written on
+    (`_on_the_label_grid`: a strict one a grid step inside -- one on a
+    whole-valued half, a step of the widest named width otherwise -- and
+    none where no width is named; one between two grid points onto the
+    inner one, so its spelling never stands outside it). A side is kept
+    only where the half's own published facts already stand inside it:
+    each published rung and end, and its tail's boundary at least its
+    mean and root-mean-square distances from the bound -- a tail whose
+    rows stood past the bound would publish a distance it cannot reach
+    inside it, so such a side, and a half with no number, names no
+    bound. Every input is a published fact, so the generator and the
+    validator read the same pair; nothing is written to the block.
+
+    Guarantees: a function of the three; `(None, None)` where no side
+    holds. Raises nothing. No I/O.
+    """
+    lows: "list[tuple[float, bool]]" = []
+    highs: "list[tuple[float, bool]]" = []
+    for level in levels:
+        for spelling in [level.label] + sorted(level.variants):
+            read = _bound_of_label(spelling, decimal_comma)
+            if read is None:
+                continue
+            side, value, strict = read
+            if side == "low":
+                lows += [(value, strict)]
+            else:
+                highs += [(value, strict)]
+    figures = _tail_figures(numbers)
+    low: "float | None" = None
+    if lows:
+        least = min(value for value, _strict in lows)
+        low = _on_the_label_grid(least, True, all(flag for value, flag in lows if value == least), figures)
+    high: "float | None" = None
+    if highs:
+        most = max(value for value, _strict in highs)
+        high = _on_the_label_grid(most, False, all(flag for value, flag in highs if value == most), figures)
+    named: "dict[int, float | None]" = {}
+    for index in range(len(LADDER_PERCENTS)):
+        named[LADDER_PERCENTS[index]] = numbers.percentiles.rungs[index]
+    for index in range(len(FINER_LADDER_KEYS)):
+        named[int(FINER_LADDER_KEYS[index][1:])] = numbers.percentiles_between[index]
+    published: "list[float]" = []
+    for percent in named:
+        rung = named[percent]
+        if rung is not None:
+            published += [rung]
+    if not published:
+        return None, None
+    tails = numbers.tails
+    if low is not None:
+        if min(published) < low:
+            low = None
+        elif tails is not None and tails.low is not None:
+            boundary = named[tails.low.percent] if tails.low.percent in named else None
+            reach = 0.0
+            for distance in (tails.low.mean_distance, tails.low.rms_distance):
+                if distance is not None and distance > reach:
+                    reach = distance
+            if boundary is None or reach > boundary - low:
+                low = None
+    if high is not None:
+        if max(published) > high:
+            high = None
+        elif tails is not None and tails.high is not None:
+            boundary = named[tails.high.percent] if tails.high.percent in named else None
+            reach = 0.0
+            for distance in (tails.high.mean_distance, tails.high.rms_distance):
+                if distance is not None and distance > reach:
+                    reach = distance
+            if boundary is None or reach > high - boundary:
+                high = None
+    return low, high
 
 
 def _text_facts(
@@ -21974,6 +22386,82 @@ def _text_facts(
         ),
         n_distinct_by_occurrences=pattern,
     )
+
+
+def _held_back_names(
+    mapping: "dict[str, object]",
+    where: str,
+    entries: "tuple[LevelEntry, ...]",
+    suppressed: int,
+    rows: int,
+) -> "tuple[str, ...]":
+    """The names of a label block's held-back levels, checked (6.3; lane CODES-2, plan P4-D471).
+
+    Absent, or written empty, the pool is named nowhere, as before. Otherwise
+    a list of different texts, none blank, in sorted order (B4f); every
+    held-back level named and no other: their folded spellings are
+    `suppressed_levels` different labels, none a published level's, and they
+    are no more than `suppressed_rows` spellings, the pool one the floor made
+    and not one counted in people (B4g); and the pool then
+    publishes no scale of its own numbers, `suppressed_numbers` written with
+    no cell (B4h), since the twin writes the names themselves. NO REFUSAL
+    QUOTES A NAME. Raises ProfileError for anything else.
+    """
+    found = mapping["held_back_names"]
+    if found == []:
+        return ()
+    if not isinstance(found, list) or not found:
+        raise _out_of_range(
+            "held_back_names", where, "something that is not a list of texts",
+            "a list of the held-back levels' spellings",
+        )
+    names: "list[str]" = []
+    for name in found:
+        if not isinstance(name, str) or not parsing.trimmed(name):
+            raise _out_of_range(
+                "held_back_names", where, "an entry that is not a text holding a character",
+                "the spellings of the held-back levels, none blank",
+            )
+        names += [name]
+    if names != sorted(set(names)):
+        raise _broken(
+            "B4f", where, "the held-back names are not each written once in sorted order",
+            "the producer writes them sorted, each once",
+        )
+    published: "dict[str, bool]" = {}
+    for entry in entries:
+        published[parsing.folded(entry.label)] = True
+    folded: "dict[str, bool]" = {}
+    for name in names:
+        if parsing.folded(name) in published:
+            raise _broken(
+                "B4g", where, "a held-back name is a spelling of a published level",
+                "a held-back level is no published level",
+            )
+        folded[parsing.folded(name)] = True
+    # A POOL COUNTED IN PEOPLE NAMES NOTHING (B4g): the block's reader takes
+    # `pool_in_people` off the mapping before this check is handed it, so the
+    # pair is refused where both are known, `_pool_in_people` (lane CODES-2's
+    # repair 2, Codex's item 4 on the build: the check here never saw the key,
+    # and a hand-made pool counted in people kept twenty named spellings).
+    if len(folded) != suppressed or len(names) > rows:
+        raise _broken(
+            "B4g", where,
+            f"the held-back names spell {len(folded)} labels in {len(names)} spellings",
+            f"the pool holds {suppressed} labels, each named, in no more spellings than its rows",
+        )
+    scale = mapping["suppressed_numbers"]
+    if (
+        not isinstance(scale, dict)
+        or "n_cells" not in scale
+        or scale["n_cells"] != 0
+        or ("mean" in scale and scale["mean"] is not None)
+    ):
+        raise _broken(
+            "B4h", where, "a named pool publishes a scale of its numbers",
+            "a pool whose levels are named publishes no scale of its own",
+        )
+    return tuple(names)
 
 
 def _figure_openings(mapping: "dict[str, object]", where: str) -> "dict[int, str]":
@@ -22386,6 +22874,73 @@ def _commonest_level_spelling(entry: LevelEntry) -> str:
             best = spelling
             most = entry.variants[spelling]
     return best
+
+
+def _named_pools_add_up(
+    columns: "tuple[ColumnBlock, ...]", settings: SettingsBlock
+) -> None:
+    """B4g: a named pool's names share its rows by the classes its counts of numbers leave them (lane CODES-2's repair 2).
+
+    Codex's item 5 on the lane's build, the orchestrator's LANE CODES-2
+    RULINGS 6 (3): a hand-made description naming `1` in its pool beside a
+    published count of no number was accepted, and the twin wrote 20,001
+    cells for its 20,000 rows before an internal error stopped it. The
+    shares are worked out as method G8.3e works them, from the block's own
+    facts: what each published count of numbers (`n_numeric`,
+    `n_out_of_range`, `n_contradictory`; none on a compound column's word
+    half) leaves once each published level's count has paid in the class
+    its commonest spelling reads as, in the column's declared grammar
+    (`parsing.number_as_declared`), is owed to the names that read as that
+    class, and the rest of `suppressed_rows` to the names that read as no
+    number. REFUSED, FAIL CLOSED: a class owing rows that no name reads as,
+    a class owing fewer rows than its names, or numbers owed past the pool.
+    Every description the profiler writes holds its own cells, so it is
+    untouched. NO REFUSAL QUOTES A NAME.
+
+    Guarantees: accepts the columns and the settings; returns nothing.
+    Raises ProfileError for B4g. No I/O of any kind.
+    """
+    for column in columns:
+        view = column
+        if isinstance(column.facts, (CompoundFacts,)):
+            view = compound_labels_view(column)
+        facts = view.facts
+        if not isinstance(facts, (LabelFacts,)) or not facts.held_back_names:
+            continue
+        comma = column.name in settings.forced_decimal_commas
+        paid = {parsing.NUMBER: 0, parsing.NUMBER_OUT_OF_RANGE: 0, parsing.NUMBER_CONTRADICTORY: 0}
+        for entry in facts.levels:
+            reading = parsing.number_as_declared(_commonest_level_spelling(entry), comma)[0]
+            if reading in paid:
+                paid[reading] = paid[reading] + entry.count
+        owed = {
+            parsing.NUMBER: max(0, view.n_numeric - paid[parsing.NUMBER]),
+            parsing.NUMBER_OUT_OF_RANGE: max(0, view.n_out_of_range - paid[parsing.NUMBER_OUT_OF_RANGE]),
+            parsing.NUMBER_CONTRADICTORY: max(0, view.n_contradictory - paid[parsing.NUMBER_CONTRADICTORY]),
+        }
+        named = {parsing.NUMBER: 0, parsing.NUMBER_OUT_OF_RANGE: 0, parsing.NUMBER_CONTRADICTORY: 0}
+        words = 0
+        for name in facts.held_back_names:
+            reading = parsing.number_as_declared(name, comma)[0]
+            if reading in named:
+                named[reading] = named[reading] + 1
+            else:
+                words = words + 1
+        left = facts.suppressed_rows - owed[parsing.NUMBER] - owed[parsing.NUMBER_OUT_OF_RANGE]
+        left = left - owed[parsing.NUMBER_CONTRADICTORY]
+        agree = left >= words and (words > 0 or left == 0)
+        for reading in owed:
+            agree = agree and owed[reading] >= named[reading] and (named[reading] > 0 or owed[reading] == 0)
+        if not agree:
+            raise _broken(
+                "B4g",
+                f"in the block for the column named '{column.name}'",
+                f"the {len(facts.held_back_names)} names of the values held back cannot "
+                f"share the pool's {facts.suppressed_rows} rows by the classes its "
+                f"counts of numbers leave them",
+                "each class of number the pool owes is owed no fewer rows than the "
+                "names that read as it, and none owes rows that no name reads as",
+            )
 
 
 def _pool_walks_serve(
@@ -23353,6 +23908,7 @@ def _cross_checks(
     _mixture_pools_bounded(columns, settings)
     _closed_pools_bounded(columns, settings)
     _pool_walks_serve(columns, settings)
+    _named_pools_add_up(columns, settings)
     # AND NOT BESIDE A DECLARATION THAT WOULD SILENCE IT (review item
     # P4-G3-R3-F3). The contract forbids the overlap and nothing
     # enforced it, so a hand-written description could name a column

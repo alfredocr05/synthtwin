@@ -6734,6 +6734,44 @@ for _stems, _words in (
 LAYOUT_WEEKDAY_FIELDS = ("DY", "Dy", "dy", "DAY", "Day", "day")
 LAYOUT_WINDOWS = {"YY": 1969, "YY1900": 1900, "YY1930": 1930, "YY1940": 1940}
 LAYOUT_ZULU_FIELDS = ("Z", "z", "UTC", "GMT")
+# THE ZONE WORDS (G7.5's token table, lane TR, plan P4-D473; the skeptic of
+# the lane, item 2), written out here from the method's table and not read
+# from the product: a field names ONE family, its standard word first, each
+# word beside the offset it names. A cell's word is read at its offset; the
+# writer writes the family's word for the offset it is handed, and for an
+# offset the family names no word for -- which rule LY4 keeps out of every
+# loaded description -- its standard word; G7.9b's offer spells each whole
+# hour east as the family's word, where it names one, and as nothing
+# (`None`, a payment not made) where it names none.
+LAYOUT_ZONE_FIELDS = {
+    "EST/EDT": (("EST", "-05:00"), ("EDT", "-04:00")),
+    "CST/CDT": (("CST", "-06:00"), ("CDT", "-05:00")),
+    "MST/MDT": (("MST", "-07:00"), ("MDT", "-06:00")),
+    "PST/PDT": (("PST", "-08:00"), ("PDT", "-07:00")),
+    "AKST/AKDT": (("AKST", "-09:00"), ("AKDT", "-08:00")),
+    "HST": (("HST", "-10:00"),),
+    "WET/WEST": (("WET", "+00:00"), ("WEST", "+01:00")),
+    "CET/CEST": (("CET", "+01:00"), ("CEST", "+02:00")),
+    "EET/EEST": (("EET", "+02:00"), ("EEST", "+03:00")),
+}
+
+
+def zone_word_of(family, offset):
+    """The word a zone family writes for one offset (`+HH:MM`), or None where it names none."""
+    for word, named in LAYOUT_ZONE_FIELDS[family]:
+        if named == offset:
+            return word
+    return None
+
+
+def zone_offset_of(family, word):
+    """The offset (`+HH:MM`) one word of a zone family names, or None where the word is not the family's."""
+    for named, offset in LAYOUT_ZONE_FIELDS[family]:
+        if named == word:
+            return offset
+    return None
+
+
 # THE CLOCK HALF (G7.5's token table, landing R2b): the hour on the 24-hour
 # clock in two figures, in one below ten, or padded with a space; the same
 # three on the 12-hour dial, whose top is 12; and each marker's morning and
@@ -6857,6 +6895,9 @@ def layout_written(member, year, month, day, second, offset, width, figures):
             out.append(LAYOUT_NAME_WORDS[field][month - 1])
         elif field in LAYOUT_ZULU_FIELDS:
             out.append(field)
+        elif field in LAYOUT_ZONE_FIELDS:
+            # The family's word for the offset (lane TR, P4-D473).
+            out.append(zone_word_of(field, shown[:6]) or LAYOUT_ZONE_FIELDS[field][0][0])
         elif field == "+HH:MM":
             out.append(shown)
         elif field == "+HHMM":
@@ -6958,6 +6999,15 @@ def layout_day(member, text):
                 return None
             at += len(field)
             continue
+        if field in LAYOUT_ZONE_FIELDS:
+            # A word of the family, its ASCII letters (lane TR, P4-D473).
+            end = at
+            while end < len(text) and text[end].isascii() and text[end].isalpha():
+                end += 1
+            if zone_offset_of(field, text[at:end]) is None:
+                return None
+            at = end
+            continue
         size = {"+HH:MM": 6, "+HHMM": 5, "+HH": 3}[field]
         if len(text) - at < size or text[at] not in "+-":
             return None
@@ -6973,6 +7023,28 @@ def layout_day(member, text):
     if found is None or (weekday is not None and (found + 3) % 7 != weekday):
         return None
     return found
+
+
+def layout_zone_offset(member, text):
+    """The offset one cell's zone word names under a layout whose last field is a zone family (G7.5, lane TR, P4-D473).
+
+    The word after the stamp, read in the field's family at the offset it
+    names (`zone_offset_of`); `""` where the field is one some cells omit
+    and this cell omits it. None where the layout's last field is no zone
+    field, the layout does not read the cell (`layout_day`), or the word is
+    not the family's.
+    """
+    parts = layout_parts(member)
+    if not parts or parts[-1][0] != "f" or parts[-1][1].rstrip("?") not in LAYOUT_ZONE_FIELDS:
+        return None
+    if layout_day(member, text) is None:
+        return None
+    start = len(text)
+    while start > 0 and text[start - 1].isascii() and text[start - 1].isalpha():
+        start -= 1
+    if start == len(text):
+        return "" if parts[-1][1].endswith("?") else None
+    return zone_offset_of(parts[-1][1].rstrip("?"), text[start:])
 
 
 # THE PARTIAL FORMS (G7.5's partial dates, landing R2c): a partial cell
@@ -7594,13 +7666,32 @@ CLOCK_PAIRS = {
 }
 
 
+def figures_fraction_of(face):
+    """How many figures of fraction a face of figures writes, or None for any other face (G7A.1, plan P4-D473)."""
+    if face == " figures":
+        return 0
+    if face.startswith(" figures.") and face[9:] in ("1", "2", "3", "4", "5", "6"):
+        return int(face[9:])
+    return None
+
+
 def clock_form_fields(form):
-    """A form's width, whether it writes seconds, and its face (G7A.1)."""
+    """A form's width, whether it writes seconds, and its face (G7A.1).
+
+    The eight forms of figures (lane TR, plan P4-D473) have the width
+    `hh` and the face ` figures`, or ` figures.N` with N figures of
+    fraction, which only the forms at the second carry.
+    """
     width, mark, rest = form.partition("-mm")
     if mark != "-mm" or width not in ("hh", "h"):
         raise AssertionError(f"{form!r} is not a clock form")
     seconds = rest.startswith("-ss")
     face = rest[3:] if seconds else rest
+    fraction = figures_fraction_of(face)
+    if fraction is not None:
+        if width != "hh" or (fraction and not seconds):
+            raise AssertionError(f"{form!r} is not a clock form")
+        return width, seconds, face
     if face not in ("", " twelve-hour") and face.lstrip(" ") not in CLOCK_PAIRS:
         raise AssertionError(f"{form!r} is not a clock form")
     if face.startswith("  "):
@@ -7625,6 +7716,15 @@ def written_clock_of(second, seconds, width, face):
     """One second of the day written on a face at a width (G7A.1, G7.5)."""
     hours, rest = divmod(second, 3600)
     minutes, secs = divmod(rest, 60)
+    fraction = figures_fraction_of(face)
+    if fraction is not None:
+        # Figures alone, the fraction noughts (plan P4-D473).
+        text = "%02d%02d" % (hours, minutes)
+        if seconds:
+            text += "%02d" % secs
+            if fraction:
+                text += "." + "0" * fraction
+        return text
     marker = ""
     shown = hours
     if face:
@@ -7648,6 +7748,24 @@ def clock_ordinal_of(text, form):
     back.
     """
     _width, seconds, face = clock_form_fields(form)
+    fraction = figures_fraction_of(face)
+    if fraction is not None:
+        # A form of figures (plan P4-D473): its own shape, exactly, on the grid.
+        size = 6 if seconds else 4
+        figures = text[:size]
+        if len(figures) != size or not figures.isdigit():
+            raise AssertionError(f"{text!r} is not a cell of form {form}")
+        tail = text[size:]
+        if fraction:
+            if len(tail) != fraction + 1 or tail[0] != "." or not tail[1:].isdigit():
+                raise AssertionError(f"{text!r} is not a cell of form {form}")
+        elif tail:
+            raise AssertionError(f"{text!r} is not a cell of form {form}")
+        hour, minute = int(figures[0:2]), int(figures[2:4])
+        second = int(figures[4:6]) if seconds else 0
+        if hour > 23 or minute > 59 or second > 59:
+            raise AssertionError(f"{text!r} is not a cell of form {form}")
+        return (hour * 3600 + minute * 60 + second) // (1 if seconds else 60)
     body, late = text, False
     pair = face.lstrip(" ")
     if pair in CLOCK_PAIRS:
@@ -8177,6 +8295,340 @@ def endpoint_cell(text, resolution, time_precision, subsecond_digits, shift, mar
     # two characters at 17 and 18, and anything after them is the
     # fraction.
     return written[:17] + f"{seconds:02d}" + written[19:]
+
+
+# -- OFFSETS THAT FOLLOW THE DATE: method section G7.4r (lane DST, plan
+# P4-D474), stated from the method's text alone. A rule is a family and a
+# zone's standard offset; summer time is an hour east of it. The families'
+# changes, as instants in seconds from 1970 UTC:
+#   us: from 2007 02:00 local on the second Sunday of March to 02:00 local
+#       summer time on the first Sunday of November; 1987 to 2006 the first
+#       Sunday of April to the last Sunday of October;
+#   eu: 01:00 UTC on the last Sunday of March and of October;
+#   au: 02:00 local standard time on the first Sunday of October to 03:00
+#       local summer time on the first Sunday of April;
+#   nz: as au, from the last Sunday of September.
+def _rule_sunday(year, month, nth):
+    """The day number of a month's nth Sunday, or of its last where nth is 0."""
+    if nth > 0:
+        first = days_from_civil(year, month, 1)
+        return first + (6 - (first + 3) % 7) % 7 + 7 * (nth - 1)
+    last = (days_from_civil(year + 1, 1, 1) if month == 12 else days_from_civil(year, month + 1, 1)) - 1
+    return last - ((last + 3) % 7 + 1) % 7
+
+
+def rule_changes(family, standard, year):
+    """Summer time's start and end in a year, as instants (G7.4r)."""
+    day = 86400
+    if family == "us":
+        start, end = (_rule_sunday(year, 3, 2), _rule_sunday(year, 11, 1)) if year >= 2007 else (
+            _rule_sunday(year, 4, 1), _rule_sunday(year, 10, 0))
+        return start * day + 7200 - standard, end * day + 7200 - standard - 3600
+    if family == "eu":
+        return _rule_sunday(year, 3, 0) * day + 3600, _rule_sunday(year, 10, 0) * day + 3600
+    start = _rule_sunday(year, 10, 1) if family == "au" else _rule_sunday(year, 9, 0)
+    return start * day + 7200 - standard, _rule_sunday(year, 4, 1) * day + 10800 - standard - 3600
+
+
+def rule_offset_at(family, standard, instant):
+    """The offset the rule puts in force at an instant, in seconds east of UTC."""
+    year = civil_from_days((instant + standard) // 86400)[0]
+    start, end = rule_changes(family, standard, year)
+    summer = (instant < end or instant >= start) if family in ("au", "nz") else start <= instant < end
+    return standard + 3600 if summer else standard
+
+
+def rule_in_force(family, standard, local):
+    """The offsets a wall clock may wear under the rule, the earlier occurrence first."""
+    return tuple(
+        offset for offset in (standard + 3600, standard)
+        if rule_offset_at(family, standard, local - offset) == offset
+    )
+
+
+def rule_first_instant(family, standard, local):
+    """The first instant whose wall clock stands at local or after it."""
+    here = rule_in_force(family, standard, local)
+    if here:
+        return local - here[0]
+    return rule_changes(family, standard, civil_from_days((local - standard) // 86400)[0])[0]
+
+
+def rule_clock(column):
+    """(family, standard, rung) a column's offsets follow, or None: a published rule on a column of moments read on the shared clock."""
+    text = column.get("offset_rule") or ""
+    if not text or column.get("datetimes_read_at") != "utc" or ordinal_space(column) != "datetime":
+        return None
+    family, written = text.split(" ")
+    sign = -1 if written.startswith("-") else 1
+    standard = sign * (int(written[1:3]) * 3600 + int(written[4:6]) * 60)
+    grain = column.get("time_grain") or {}
+    rung = grain.get("rung", "") if grain.get("rung") not in (None, "held") else ""
+    return family, standard, rung
+
+
+def _rule_bucket_start(local, rung):
+    """The start of the bucket at rung holding a wall clock, in seconds (G7.13's buckets)."""
+    start, _end = pooled_bucket(datetime.datetime(1970, 1, 1) + datetime.timedelta(seconds=local), rung)
+    return int((start - datetime.datetime(1970, 1, 1)).total_seconds())
+
+
+def rule_offset_for(clock, instant):
+    """The offset a rank at an instant wears: in force at the instant, or on a pooled column its census side's
+    (summer time's where rule_summer counts it there, the standard offset elsewhere; lane DST's repair 1)."""
+    family, standard, rung = clock
+    if not rung:
+        return rule_offset_at(family, standard, instant)
+    return standard + 3600 if rule_summer(clock, instant) else standard
+
+
+def rule_summer(clock, instant):
+    """Whether a rank counts under summer time's offset, as the twin is read back: on a pooled column, by the
+    bucket its wall clock stands in when written at the offset of the bucket its wall clock at its own instant
+    stands in."""
+    family, standard, rung = clock
+    actual = rule_offset_at(family, standard, instant)
+    if not rung:
+        return actual == standard + 3600
+    here = rule_in_force(family, standard, _rule_bucket_start(instant + actual, rung))
+    offset = here[0] if here else standard + 3600
+    here = rule_in_force(family, standard, _rule_bucket_start(instant + offset, rung))
+    return (here[0] if here else standard + 3600) == standard + 3600
+
+
+def rule_bounds(clock, instant):
+    """The last instant at or before an instant where rule_summer changes, and the first after it."""
+    family, standard, rung = clock
+    year = civil_from_days(instant // 86400)[0]
+    found = []
+    for near in range(year - 2, year + 3):
+        for change in rule_changes(family, standard, near):
+            if not rung:
+                found.append(change)
+                continue
+            local = change + rule_offset_at(family, standard, change)
+            start = _rule_bucket_start(local, rung)
+            if start != local:
+                _first, after = pooled_bucket(datetime.datetime(1970, 1, 1) + datetime.timedelta(seconds=start), rung)
+                start = int((after - datetime.datetime(1970, 1, 1)).total_seconds())
+            for offset in (standard + 3600, standard):
+                bound = start - offset
+                if rule_summer(clock, bound) != rule_summer(clock, bound - 1):
+                    found.append(bound)
+    before = max([bound for bound in found if bound <= instant], default=-10**15)
+    after = min([bound for bound in found if bound > instant], default=10**15)
+    return before, after
+
+
+def rule_side(clock, local):
+    """On a pooled column, the offset the start of a wall clock's bucket wears as written: in force there, its first
+    occurrence's where the clocks repeat it, summer time's where they skip it."""
+    family, standard, rung = clock
+    here = rule_in_force(family, standard, _rule_bucket_start(local, rung))
+    return here[0] if here else standard + 3600
+
+
+def rule_dead(clock, instant):
+    """Whether no bucket can write an instant on its census side: on a pooled column, a winter-side instant whose
+    wall clock at the standard offset lands in a bucket that starts in summer time (lane DST's repair 2)."""
+    family, standard, rung = clock
+    if not rung or rule_summer(clock, instant):
+        return False
+    return rule_side(clock, instant + standard) == standard + 3600
+
+
+def off_dead_hours(clock, ordinals, lows, highs, pins, low_rank, high_rank):
+    """Every body rank in a dead hour set on the last instant before it inside its gap, else the first after it."""
+    if not clock[2]:
+        return ordinals
+    moved = list(ordinals)
+    for rank in range(max(low_rank, 0), min(high_rank + 1, len(moved))):
+        if rank in pins or not rule_dead(clock, moved[rank]):
+            continue
+        before = rule_bounds(clock, moved[rank])[0]
+        if before - 1 >= lows[rank]:
+            moved[rank] = before - 1
+        elif before + 3600 <= highs[rank]:
+            moved[rank] = before + 3600
+    return moved
+
+
+def rule_read_back(clock, ordinals, whole, parsed):
+    """The twin's count at summer time's offset as validate reads it back: each rank by the bucket its written wall
+    clock stands in on a pooled column, by the offset it wears at its own precision."""
+    family, standard, rung = clock
+    found = 0
+    for rank in range(parsed):
+        if whole and whole[rank]:
+            continue
+        worn = rule_offset_for(clock, ordinals[rank])
+        side = worn if not rung else rule_side(clock, ordinals[rank] + worn)
+        found += side == standard + 3600
+    return found
+
+
+def rule_offsets(column, clock, ordinals, whole, parsed):
+    """Every rank's offset key under the rule; a bare date wears none."""
+    keys = {}
+    for key in sorted(column["utc_offsets"]):
+        if key not in ("(none)", "(withheld)", "Z"):
+            keys.setdefault(offset_form(key)[1], key)
+    found = []
+    for rank in range(parsed):
+        if whole and whole[rank]:
+            found.append("")
+            continue
+        seconds = rule_offset_for(clock, ordinals[rank])
+        sign = "-" if seconds < 0 else "+"
+        found.append(keys.get(seconds, f"{sign}{abs(seconds) // 3600:02d}:{abs(seconds) % 3600 // 60:02d}"))
+    return found
+
+
+def gaps_cut_by_rule(clock, ordinals, lows, highs, parsed):
+    """Every rank's gap cut at the changes around its instant (G7.4r)."""
+    lows, highs = list(lows), list(highs)
+    for rank in range(min(parsed, len(lows))):
+        if lows[rank] <= ordinals[rank] <= highs[rank]:
+            before, after = rule_bounds(clock, ordinals[rank])
+            if before > -10**15 and rule_dead(clock, before):
+                before += 3600
+            lows[rank] = max(lows[rank], before)
+            highs[rank] = min(highs[rank], after - 1)
+    return lows, highs
+
+
+def _shares_by_remainder(rooms, owed):
+    """owed shared over rooms in proportion, none past its own, the largest remainder first, the earlier on a tie."""
+    total = sum(rooms)
+    if total <= 0 or owed <= 0:
+        return [0] * len(rooms)
+    shares = [room * owed // total for room in rooms]
+    left = owed - sum(shares)
+    for place in sorted(range(len(rooms)), key=lambda place: (-(rooms[place] * owed % total), place)):
+        if left <= 0:
+            break
+        if shares[place] < rooms[place]:
+            shares[place] += 1
+            left -= 1
+    return shares
+
+
+def _shares_by_weight(weights, owed):
+    """owed shared over places in proportion to weights alone, the largest remainder first, the earlier on a tie; none capped (lane DST's repair 2)."""
+    total = sum(weights)
+    if total <= 0 or owed <= 0:
+        return [0] * len(weights)
+    shares = [weight * owed // total for weight in weights]
+    left = owed - sum(shares)
+    for place in sorted(range(len(weights)), key=lambda place: (-(weights[place] * owed % total), place))[:left]:
+        shares[place] += 1
+    return shares
+
+
+def census_by_rule(column, clock, ordinals, lows, highs, pins, parsed):
+    """G7.4r step 2: the body's runs a change runs through spread over its sides until the census's summer count stands.
+
+    A run is the body's ranks in rank order sharing one gap, none pinned
+    and no tail rank. The count owed goes first by how many of a run's
+    ranks its side to move to would hold at the run's density, then by
+    the room left; a run that moves takes its new counts stretch by
+    stretch in rank order, each stretch's group scaled over the whole
+    stretch, its spacing kept in proportion, half its spacing inside both
+    ends (never onto the gap's own ends), a group of one at the middle.
+    """
+    family, standard, _rung = clock
+    summer = standard + 3600
+    wanted = sum(count for key, count in column["utc_offsets"].items()
+                 if key not in ("(none)", "(withheld)", "Z") and offset_form(key)[1] == summer)
+    have = sum(1 for rank in range(parsed) if rule_summer(clock, ordinals[rank]))
+    if have == wanted or column.get("heavy_dates"):
+        return ordinals
+    low_rank = column["low_tail"]["rows"] if column.get("low_tail") else 0
+    high_rank = parsed - 1 - (column["high_tail"]["rows"] if column.get("high_tail") else 0)
+    runs = []
+    rank = max(low_rank, 0)
+    while rank <= high_rank:
+        if rank in pins or lows[rank] >= highs[rank]:
+            rank += 1
+            continue
+        end = rank
+        while end <= high_rank and end not in pins and lows[end] == lows[rank] and highs[end] == highs[rank]:
+            end += 1
+        stretches, start = [], lows[rank]
+        while start <= highs[rank]:
+            stop = min(highs[rank], rule_bounds(clock, start)[1] - 1)
+            live = start + 3600 if rule_dead(clock, start) else start
+            if live <= stop:
+                stretches.append((live, stop, rule_summer(clock, live)))
+            start = stop + 1
+        if len(stretches) > 1:
+            runs.append((rank, end, stretches))
+        rank = end
+    rising = wanted > have
+    rooms, weights, widths = [], [], []
+    for first, end, stretches in runs:
+        inside = sum(1 for place in range(first, end) if rule_summer(clock, ordinals[place]))
+        room = (end - first - inside) if rising else inside
+        width = stretches[-1][1] - stretches[0][0] + 1
+        taking = sum(high - low + 1 for low, high, here in stretches if here == rising)
+        rooms.append(room)
+        weights.append(min(room, (end - first) * taking // width))
+        widths.append(taking)
+    owed = abs(wanted - have)
+    shares = _shares_by_remainder(weights, min(owed, sum(weights)))
+    # ...the rest by how long the side each run moves to is, none past its room.
+    more = [0] * len(runs)
+    caps = [rooms[at] - shares[at] for at in range(len(runs))]
+    left = min(owed, sum(rooms)) - sum(shares)
+    open_runs = [at for at in range(len(runs)) if caps[at] > 0 and widths[at] > 0]
+    while left > 0 and open_runs:
+        # ...weights apart from caps (lane DST's repair 2, Codex's item 5).
+        trial = _shares_by_weight([widths[at] for at in open_runs], left)
+        capped = [at for index, at in enumerate(open_runs) if more[at] + trial[index] >= caps[at]]
+        if not capped:
+            for index, at in enumerate(open_runs):
+                more[at] += trial[index]
+            break
+        for at in capped:
+            left -= caps[at] - more[at]
+            more[at] = caps[at]
+        open_runs = [at for at in open_runs if at not in capped]
+    moved = list(ordinals)
+    for at, (first, end, stretches) in enumerate(runs):
+        size = shares[at] + more[at]
+        if not size:
+            continue
+        counts = [sum(1 for place in range(first, end) if low <= ordinals[place] <= high) for low, high, _h in stretches]
+        giving = [index for index, stretch in enumerate(stretches) if stretch[2] != rising]
+        taking = [index for index, stretch in enumerate(stretches) if stretch[2] == rising]
+        taken = _shares_by_remainder([counts[index] for index in giving], size)
+        for place, index in enumerate(giving):
+            counts[index] -= taken[place]
+        given = _shares_by_weight([stretches[index][1] - stretches[index][0] + 1 for index in taking], sum(taken))
+        for place, index in enumerate(taking):
+            counts[index] += given[place]
+        # ...EVERY stretch's group, giving and taking alike, laid over its
+        # whole stretch, half its spacing inside both ends (repair 1 of lane
+        # DST, skeptic 1's item 1).
+        before, place = ordinals[first:end], first
+        for index, (low, high, _here) in enumerate(stretches):
+            group = before[place - first: place - first + counts[index]]
+            if group:
+                if low == stretches[0][0] and low < high:
+                    low += 1
+                if high == stretches[-1][1] and high > low:
+                    high -= 1
+                lowest, highest = group[0], group[-1]
+                spread = highest - lowest
+                half = (high - low) // (2 * len(group))
+                bottom = min(low + half, high)
+                top = max(high - half, bottom)
+                for offset, value in enumerate(group):
+                    moved[place + offset] = (
+                        bottom + (value - lowest) * (top - bottom) // spread if spread > 0 else (bottom + top) // 2
+                    )
+            place += counts[index]
+    return moved
 
 
 def offset_form(offset):
@@ -13098,6 +13550,71 @@ def pool_in_people_cells(column, content):
     return answer
 
 
+def named_pool_cells(column, content, floor):
+    """A named pool's cells -- method G8.3e (lane CODES-2, plan P4-D471), from its own words.
+
+    Every name the description published for the pool is written once at
+    least, and nothing is made up. The pool's rows are shared class by class:
+    what the published counts of numbers leave of each class goes to the
+    names that read as that class, the rest to the names that read as no
+    number, evenly, the earlier name in sorted order taking the odd row. A
+    pool the floor made (``floor`` above one) keeps each level's names below
+    the floor together: the rows past it go to the next names of the same
+    class whose levels have room, IN ONE PASS (lane CODES-2's repair 2,
+    Codex's item 2): a level's room only shrinks, so one pointer per class
+    leaves a full level behind for good and meets the names the build's
+    search met, in its order. EVERY POOLED ROW IS WRITTEN AND NO MORE
+    (Codex's item 5): names and counts that cannot agree are refused when
+    the description is read, so the shares here add up to the pool.
+    """
+    owed = classes_owed(column, content)
+    order = OWED_CLASSES + (OWED_TEXT,)
+    members = {key: [] for key in order}
+    for name in column["held_back_names"]:
+        reading = notation_reading(name)[0]
+        key = OWED_TEXT
+        for owed_class in OWED_CLASSES:
+            if owed_reading(owed_class) == reading:
+                key = owed_class
+        members[key].append(name)
+    debts = {key: max(0, owed[key]) for key in OWED_CLASSES}
+    debts[OWED_TEXT] = max(0, column["suppressed_rows"] - sum(debts.values()))
+    sizes = {}
+    for key in order:
+        names = members[key]
+        if not names:
+            continue
+        each, odd = divmod(debts[key], len(names))
+        for at, name in enumerate(names):
+            sizes[name] = each + (1 if at < odd else 0)
+    assert sum(sizes.values()) == column["suppressed_rows"] and min(sizes.values()) >= 1, column["name"]
+    if floor > 1:
+        held = {}
+        for name in sorted(sizes):
+            held[folded(name)] = held.get(folded(name), 0) + sizes[name]
+        for key in order:
+            names = members[key]
+            room_at = 0
+            for name in names:
+                past = min(held[folded(name)] - (floor - 1), sizes[name] - 1)
+                while past > 0 and room_at < len(names):
+                    other = names[room_at]
+                    room = floor - 1 - held[folded(other)]
+                    if other == name or room <= 0:
+                        room_at += 1
+                        continue
+                    moved = min(room, past)
+                    sizes[name] -= moved
+                    sizes[other] += moved
+                    held[folded(name)] -= moved
+                    held[folded(other)] += moved
+                    past -= moved
+    answer = []
+    for name in column["held_back_names"]:
+        answer.extend([name] * sizes[name])
+    return answer
+
+
 # THE THIRTY-SECOND FILE: method G8.3d, a pool counted in people and a column
 # of words counted absent (lane PL's repair 1, plan P4-D453; the
 # orchestrator's LANE PL RULINGS 1 (3), A-P4-59). Not a file of placed twin
@@ -13681,6 +14198,12 @@ def _label_content(column):
                     spelling = commonest_spelling(level)
                 content.extend([spelling] * int(key))
                 used.append(spelling)
+    # A NAMED POOL (method G8.3e, lane CODES-2, plan P4-D471): the names the
+    # description published for its pool, its rows shared out; none made up.
+    if column.get("held_back_names"):
+        return content + named_pool_cells(
+            column, content, 0 if "pool_in_people" in column else SMALL_CELL_FLOOR
+        )
     # A POOL COUNTED IN PEOPLE (method G8.3d, lane PL, plan P4-D453), its
     # stand-ins kept off the real runs of figures as every other stand-in is,
     # the published spellings kept (G8.3d, LANE I4m RULINGS 21 (3)).
@@ -15356,7 +15879,7 @@ def clock_fields_on_own_clocks(column, ordinals, parsed, whole, lows, highs, hol
     body = (column["low_tail"]["rows"], parsed - 1 - column["high_tail"]["rows"])
     return own_clock_unframed(
         ordinals, settled, shifts, offsets, whole, ranks_the_tail_pins(column, parsed),
-        body, lows, highs, 1,
+        body, lows, highs, 1, rule_clock(column) is not None,
     )
 
 
@@ -16773,10 +17296,26 @@ def _datetime_content(column, settled=None):
         for rank, keys in instant_offsets(column, parsed).items():
             if 0 < rank < parsed - 1 and keys:
                 offset_pins[rank] = keys
-    offsets = _offset_allocation(
-        column, parsed, whole, offset_pins,
-        (gap_lows, gap_highs) if snapping else None,
-    )
+    # OFFSETS THAT FOLLOW THE DATE (method G7.4r, lane DST, plan P4-D474):
+    # under a published rule the census is met first by spreading the ranks
+    # of each run a change runs through over its two sides, every rank then
+    # wears the offset its instant is read at, and every gap is cut at the
+    # changes so that no pass moves a rank across one.
+    clock = rule_clock(column)
+    if clock is not None:
+        ordinals = off_dead_hours(
+            clock, ordinals, gap_lows, gap_highs, pinned_at,
+            column["low_tail"]["rows"] if column.get("low_tail") else 0,
+            parsed - 1 - (column["high_tail"]["rows"] if column.get("high_tail") else 0),
+        )
+        ordinals = census_by_rule(column, clock, ordinals, gap_lows, gap_highs, pinned_at, parsed)
+        offsets = rule_offsets(column, clock, ordinals, whole, parsed)
+        gap_lows, gap_highs = gaps_cut_by_rule(clock, ordinals, gap_lows, gap_highs, parsed)
+    else:
+        offsets = _offset_allocation(
+            column, parsed, whole, offset_pins,
+            (gap_lows, gap_highs) if snapping else None,
+        )
     clock_marks = iter(_separator_allocation(column, whole.count(False)))
     marks = ["T" if flag else next(clock_marks) for flag in whole]
     if snapping:
@@ -16833,7 +17372,10 @@ def _datetime_content(column, settled=None):
     # HOW EVERY RANK IS SPELLED (method G7.5, landing 2b.6). Allocated
     # after the instants and the offsets, because which conventions a
     # cell can show depends on the day it writes and the clock it writes
-    # it on.
+    # it on. Under a rule every offset is read off its instant as it stands
+    # (G7.4r).
+    if clock is not None:
+        offsets = rule_offsets(column, clock, ordinals, whole, parsed)
     spellings = written_styles(
         column,
         written_fields(column, ordinals, offsets, parsed, space, resolution),
@@ -17211,6 +17753,9 @@ def offsets_on_offer(field, census):
     own word, the one offset it has, whose census key is `Z` -- less every
     offset the census names (skeptic 2 of landing R2a, item 1): a cell
     written at a named offset is counted into that offset and read at it.
+    A zone family (lane TR, P4-D473) spells each of the fifteen as its word
+    for that offset, and as None where it names none: a payment at None is
+    not made, as one the field cannot write is not.
     """
     if field in LAYOUT_ZULU_FIELDS:
         keyed = [("Z", field)]
@@ -17218,6 +17763,9 @@ def offsets_on_offer(field, census):
         keyed = []
         for hours in range(15):
             sign_hours = f"+{hours:02d}"
+            if field in LAYOUT_ZONE_FIELDS:
+                keyed.append((sign_hours + ":00", zone_word_of(field, sign_hours + ":00")))
+                continue
             keyed.append(
                 (
                     sign_hours + ":00",
@@ -17321,6 +17869,8 @@ def offsets_paid_to_the_classes(column, cells, holes, floor=CASE_SMALL_CELL_FLOO
         made_at = [0] * len(offer)
         for payment in range(count):
             rank = eligible[payment * len(eligible) // count]
+            if offer[payment // (line - 1)] is None:
+                continue
             candidate = cells[rank] + joint + offer[payment // (line - 1)]
             if candidate.strip().lower() not in absent:
                 paid[rank] = candidate
@@ -17429,7 +17979,7 @@ def whole_texts_paid(paid, cells, joint, offer, made_at, rest, line, absent, a_n
         refused = [
             (text, place)
             for text, place in walked
-            if (text + joint + offer[place]).strip().lower() in absent
+            if offer[place] is None or (text + joint + offer[place]).strip().lower() in absent
         ]
         if not refused:
             break
@@ -35279,6 +35829,9 @@ def _clock_reads_absent(ordinal, form, absent):
 def clock_other_width_of(ordinal, form):
     """One time written at the hour's other width on the form's face (G7A.4)."""
     width, seconds, face = clock_form_fields(form)
+    # A form of figures has one width (plan P4-D473): no other spelling.
+    if figures_fraction_of(face) is not None:
+        return clock_spelling_of(ordinal, form)
     return written_clock_of(
         ordinal * (1 if seconds else 60), seconds,
         "h" if width == "hh" else "hh", face,
@@ -60242,7 +60795,45 @@ def own_clock_field(rule, instant, key, sixtieth=False):
     return local % 60
 
 
-def own_clock_unframed(before, framed, shifts, offsets, whole, pinned, body, lows, highs, scale):
+def framed_by_gap(framed, shifts, pinned, stays, body, lows, highs):
+    """Under a rule (G7.4r step 3, lane DST's repair 1): in each group of body ranks between two that never
+    move, where the group holds more than one run of one cut gap and one shift, the written places ascending
+    each go to a run with a rank left whose gap on its own clock holds the place, the one whose gap ends first
+    (then the earlier run); a group where a place fits no run keeps its places."""
+    found = list(framed)
+    rank = body[0]
+    while rank <= body[1]:
+        if pinned[rank] or stays[rank] or lows[rank] >= highs[rank]:
+            rank += 1
+            continue
+        end = rank
+        while end <= body[1] and not pinned[end] and not stays[end] and lows[end] < highs[end]:
+            end += 1
+        runs, first = [], rank
+        while first < end:
+            stop = first
+            while stop < end and (lows[stop], highs[stop], shifts[stop]) == (lows[first], highs[first], shifts[first]):
+                stop += 1
+            runs.append((first, stop, lows[first] + shifts[first], highs[first] + shifts[first]))
+            first = stop
+        if len(runs) > 1:
+            handed = [[] for _run in runs]
+            for place in sorted(framed[member] for member in range(rank, end)):
+                fits = [index for index, (start, stop, low, high) in enumerate(runs)
+                        if len(handed[index]) < stop - start and low <= place <= high]
+                if not fits:
+                    handed = None
+                    break
+                handed[min(fits, key=lambda index: (runs[index][3], index))].append(place)
+            if handed is not None:
+                for (start, _stop, _low, _high), places in zip(runs, handed):
+                    for index, place in enumerate(places):
+                        found[start + index] = place
+        rank = end
+    return found
+
+
+def own_clock_unframed(before, framed, shifts, offsets, whole, pinned, body, lows, highs, scale, ruled=False):
     """The frame taken back onto the shared clock, run by run: in each run of
     body ranks neither pinned nor bare dates with one gap, the written
     places (framed times the scale) ascending, each the least offset left
@@ -60262,9 +60853,13 @@ def own_clock_unframed(before, framed, shifts, offsets, whole, pinned, body, low
     movable one whose own place is still held keeps its instant; each other
     movable one, by the top of its gap on its own clock and then by rank,
     takes the least place left that puts its instant inside its own gap,
-    with its own offset, and stays where it was where none does."""
+    with its own offset, and stays where it was where none does. Under a
+    rule, in a frame of seconds, each group's places are first handed back
+    to the cut gaps they stand in (`framed_by_gap`)."""
     given = list(offsets)
     stays = [flag and scale == 1 for flag in whole]
+    if ruled and scale == 1:
+        framed = framed_by_gap(framed, shifts, pinned, stays, body, lows, highs)
     moved = list(before)
     tails = [rank for rank in range(len(before)) if not body[0] <= rank <= body[1]]
     still = [rank for rank in tails if pinned[rank] or stays[rank] or lows[rank] >= highs[rank]]
@@ -61311,8 +61906,84 @@ _POOLED_CLOCK = re.compile(r"^(\d{2}):(\d{2})(?::(\d{2}))?$")
 _EXCEL_EPOCH = datetime.datetime(1899, 12, 30)
 
 
-def pooled_drawn_inside(cell, reading, rung, word):
-    """One cell drawn inside its bucket at its own precision (G7.13), or the cell as written."""
+_POOLED_ZONED = re.compile(r"^(\d{4})-(\d{2})-(\d{2})([ T])(\d{2}):(\d{2})(?::(\d{2}))?([+-]\d{2}:\d{2})$")
+
+
+def rule_bucket_runs(family, standard, start, end):
+    """The instants whose wall clock stands in start .. end (seconds, end excluded): for each offset, the instants its
+    wall clock puts inside, cut to the stretches between changes where it is in force; in time order, a run of one
+    offset each (lane DST's repair 2)."""
+    year = civil_from_days((start - standard) // 86400)[0]
+    changes = sorted(change for near in range(year - 2, year + 3) for change in rule_changes(family, standard, near))
+    runs = []
+    for offset in (standard + 3600, standard):
+        low, high = start - offset, end - offset
+        edges = [low] + [change for change in changes if low < change < high] + [high]
+        for left, right in zip(edges, edges[1:]):
+            if left < right and rule_offset_at(family, standard, left) == offset:
+                runs.append((left, right, offset))
+    runs.sort()
+    merged = []
+    for left, right, offset in runs:
+        if merged and merged[-1][1] == left and merged[-1][2] == offset:
+            merged[-1] = (merged[-1][0], right, offset)
+        else:
+            merged.append((left, right, offset))
+    return merged
+
+
+def pooled_drawn_under_rule(cell, rung, word, clock):
+    """A stamp with its offset drawn among its bucket's INSTANTS, at the offset in force at the one drawn (G7.13 under G7.4r).
+
+    The bucket's instants are those whose wall clock stands in it, as runs
+    of one offset (`rule_bucket_runs`), stepped by the cell's own precision
+    on the wall clock's grid; never in the hour the clocks skip, both
+    occurrences of the hour they repeat, each its own run where a bucket
+    lies inside it. None for a cell this form does not read.
+    """
+    found = _POOLED_ZONED.match(cell)
+    if not found:
+        return None
+    family, standard, _rung = clock
+    with_seconds = found.group(7) is not None
+    moment = datetime.datetime(
+        int(found.group(1)), int(found.group(2)), int(found.group(3)),
+        int(found.group(5)), int(found.group(6)), int(found.group(7) or 0),
+    )
+    epoch = datetime.datetime(1970, 1, 1)
+    start, end = pooled_bucket(moment, rung)
+    start = int((start - epoch).total_seconds())
+    end = int((end - epoch).total_seconds())
+    unit = 1 if with_seconds else 60
+    # ...ITS INSTANTS AS RUNS OF ONE OFFSET, each occurrence of a repeated
+    # hour its own run (lane DST's repair 2, Codex's item 2), each run stepped
+    # on the wall clock's grid; the word picks one step of them all.
+    steps = []
+    for first, past, offset in rule_bucket_runs(family, standard, start, end):
+        grid = first + (start - offset - first) % unit
+        steps.append((grid, max(0, (past - 1 - grid) // unit + 1) if grid < past else 0, offset))
+    count = sum(here for _grid, here, _offset in steps)
+    if count <= 0:
+        return cell
+    pick = bounded(word, count)
+    for grid, here, offset in steps:
+        if pick < here:
+            target = grid + pick * unit
+            break
+        pick -= here
+    made = epoch + datetime.timedelta(seconds=target + offset)
+    sign = "-" if offset < 0 else "+"
+    text = made.strftime("%Y-%m-%d") + found.group(4) + made.strftime("%H:%M")
+    text = text + (made.strftime(":%S") if with_seconds else "")
+    return text + f"{sign}{abs(offset) // 3600:02d}:{abs(offset) % 3600 // 60:02d}"
+
+
+def pooled_drawn_inside(cell, reading, rung, word, clock=None):
+    """One cell drawn inside its bucket at its own precision (G7.13), or the cell as written; under a rule, by G7.4r."""
+    if clock is not None and reading == "iso-datetime":
+        drawn = pooled_drawn_under_rule(cell, rung, word, clock)
+        if drawn is not None:
+            return drawn
     if reading in _POOLED_FORMS:
         pattern, form = _POOLED_FORMS[reading]
         if not pattern.match(cell):
@@ -61396,7 +62067,7 @@ def pooled_band(text, reading, edges):
     return sum(1 for edge in edges if not moment < edge)
 
 
-def pooled_written(cell, reading, rung, word, edges, joint):
+def pooled_written(cell, reading, rung, word, edges, joint, clock=None):
     """One present pooled cell as it leaves (G7.13): drawn inside its bucket with the row's word; held in its band (G4.2b, lane BT2); then the column's one joint mark (G7.9).
 
     Where ``edges`` is given -- the column's `L0` edges, a chain naming
@@ -61405,9 +62076,9 @@ def pooled_written(cell, reading, rung, word, edges, joint):
     leaves wearing ``joint`` between its date and its time, where that
     reads, the middle too (Codex's review of lane BT2, item 2).
     """
-    drawn = pooled_drawn_inside(cell, reading, rung, word)
+    drawn = pooled_drawn_inside(cell, reading, rung, word, clock)
     if edges is not None:
-        middle = pooled_drawn_inside(cell, reading, rung, POOLED_MIDDLE_WORD)
+        middle = pooled_drawn_inside(cell, reading, rung, POOLED_MIDDLE_WORD, clock)
         if pooled_band(drawn, reading, edges) != pooled_band(middle, reading, edges):
             drawn = middle
     if joint and len(drawn) > 10 and drawn[10] in ("T", "t", " ") and drawn[10] != joint:
@@ -61470,7 +62141,7 @@ def pooled_protections(block, rung, first, last):
     return sorted(kept), (fences[0], fences[1])
 
 
-def pooled_count_filled(buckets, points, first, last, rung, kind, finest, target, pinned, fences=(None, None)):
+def pooled_count_filled(buckets, points, first, last, rung, kind, finest, target, pinned, fences=(None, None), clock=None):
     """Method G7.13's count at the rung, from its words, over `datetime` bucket starts.
 
     The twin holds the description's count of different buckets: where its
@@ -61482,8 +62153,20 @@ def pooled_count_filled(buckets, points, first, last, rung, kind, finest, target
     is published at), then from the rung just above (its first ranks); each
     row to the earliest empty bucket of its key; until the count is met.
     No stretch at or below ``fences``' low tail boundary, or at or above
-    its high one, moves a row (repair round 2). Returns {row: new bucket start}.
+    its high one, moves a row (repair round 2). Under a rule (``clock``,
+    lane DST's repair 2) the key holds the offset the bucket's start wears,
+    so a row stays on its side of the census of offsets. Returns {row: new
+    bucket start}.
     """
+
+    def keyed(start):
+        key = _pooled_census_key(start, rung, kind, finest)
+        if key is None or clock is None:
+            return key
+        family, standard, _rung = clock
+        here = rule_in_force(family, standard, int((start - datetime.datetime(1970, 1, 1)).total_seconds()))
+        return key + ((here[0] if here else standard + 3600),)
+
     rows_of = {}
     for row, bucket in enumerate(buckets):
         if bucket is not None:
@@ -61517,12 +62200,12 @@ def pooled_count_filled(buckets, points, first, last, rung, kind, finest, target
         start = _pooled_next(low, rung)
         while start < high:
             if start not in rows_of:
-                key = _pooled_census_key(start, rung, kind, finest)
+                key = keyed(start)
                 if key is not None:
                     empties.setdefault(key, []).append(start)
             start = _pooled_next(start, rung)
         for bucket, rows in givers:
-            free = empties.get(_pooled_census_key(bucket, rung, kind, finest), [])
+            free = empties.get(keyed(bucket), [])
             for row in rows:
                 if need <= 0 or not free:
                     break
@@ -70629,8 +71312,288 @@ _HARBOR_MILLIONTHS = 10 ** 6
 _HARBOR_AFFIX = re.compile(r"^(\s*)([+-]?)(\d+)(?:\.(\d*))?([ -]{0,2}[A-Za-z][A-Za-z/.]*(?:[ -][A-Za-z]+)?\s*)$")
 
 
-def _harbor_read(cell):
-    """(head, sign, whole, fraction, tail, exact value) of a cell the forms above write; None otherwise."""
+# ...and since lane HB2 (plan P4-D477) the age words around one number, read
+# only where the description records them: `age` or `aged` before it, whole,
+# in any case, spaces and at most one of `:`, `=`, `-` between (a hyphen
+# with a space before it and a figure after it is the number's sign); one
+# pair of round or square brackets around the whole or around the number
+# after the word; and a unit word in such brackets after the number. A frame
+# stands only beside an age word or a unit, and is kept in the head and the
+# tail as written.
+_HARBOR_AGE_WORD = re.compile(r"(?i)(aged|age)(?![a-z])")
+_HARBOR_PAIRS = {"(": ")", "[": "]"}
+
+
+def _harbor_figure(character):
+    """Whether one character is an ASCII figure."""
+    return len(character) == 1 and "0" <= character <= "9"
+
+
+def _harbor_enclosed(text):
+    """The text inside one pair of brackets enclosing all of it, with nothing bracketed inside; None otherwise."""
+    if len(text) >= 2 and text[0] in _HARBOR_PAIRS and text[-1] == _HARBOR_PAIRS[text[0]]:
+        inside = text[1:-1]
+        if text[0] not in inside and text[-1] not in inside:
+            return inside
+    return None
+
+
+# ...and since lane HB2's repair 1 every space and dash of such a frame read
+# as the space or the hyphen it stands for and kept as written (`Age<U+00A0>95`,
+# `Age<U+2013>95`), at the frame's edges too, and spaces inside a frame's
+# brackets (`( Age 95 )`, `Age( 95 )`). SINCE BATCH 4s'S MERGE the spaces and
+# the dashes are the product's one definition, written out here from it
+# (method G7.14): a space is a character `str.split()` cuts at -- the ASCII
+# spaces, the four information separators, the next-line mark, the no-break
+# space and every space, line and paragraph separator -- or a control or
+# format character, which a display draws as nothing (the soft hyphen among
+# them); a dash is a hyphen, a non-breaking hyphen, a figure dash, an en or
+# em dash, a horizontal bar, a minus sign, a small em dash, a small or a
+# full-width hyphen-minus. (Before the merge a space was a character
+# `str.isspace()` reads as one or one of seven zero-width and format spaces,
+# and the soft hyphen a dash.)
+_HARBOR_SPACE_RANGES = (
+    (0x0000, 0x0020), (0x007F, 0x00A0), (0x00AD, 0x00AD), (0x0600, 0x0605), (0x061C, 0x061C),
+    (0x06DD, 0x06DD), (0x070F, 0x070F), (0x0890, 0x0891), (0x08E2, 0x08E2), (0x1680, 0x1680),
+    (0x180E, 0x180E), (0x2000, 0x200F), (0x2028, 0x202F), (0x205F, 0x206F), (0x3000, 0x3000),
+    (0xD800, 0xDFFF), (0xFEFF, 0xFEFF), (0xFFF9, 0xFFFB), (0x110BD, 0x110BD), (0x110CD, 0x110CD),
+    (0x13430, 0x1343F), (0x1BCA0, 0x1BCAF), (0x1D173, 0x1D17A), (0xE0000, 0xE00FF),
+)
+_HARBOR_DASHES = "\u2010\u2011\u2012\u2013\u2014\u2015\u2212\ufe58\ufe63\uff0d"
+
+
+def _harbor_space(character):
+    """Whether one character is a space of the frame (`_HARBOR_SPACE_RANGES`)."""
+    code = ord(character)
+    return any(start <= code <= end for start, end in _HARBOR_SPACE_RANGES)
+
+
+def _harbor_plain(text):
+    """A text with each space written ` ` and each dash `-`, one character for one."""
+    return "".join(
+        " " if _harbor_space(character)
+        else "-" if character in _HARBOR_DASHES
+        else character
+        for character in text
+    )
+
+
+def _harbor_opens(plain, at, signed):
+    """Whether a number opens at a place of a plain text: a figure, a point before one, and, where ``signed``, a sign before either."""
+    if signed and plain[at:at + 1] in ("-", "+"):
+        at += 1
+    if plain[at:at + 1] == ".":
+        at += 1
+    return at < len(plain) and _harbor_figure(plain[at])
+
+
+def _harbor_unit_alone(text):
+    """Whether a plain text is an age's unit word or affix alone, spaces beside it."""
+    word = text.strip().lower()
+    if word[-1:] == ".":
+        word = word[:-1]
+    if word in _HARBOR_UNIT_WORDS:
+        return True
+    word = word.lstrip("- ")
+    return any(
+        word.endswith(ending) and word[: len(word) - len(ending)] in _HARBOR_OLD_UNITS for ending in ("-old", " old")
+    )
+
+
+def _harbor_frame(cell):
+    """(before, inner, after, worded, unit, plain inner, alone) of a cell whose number stands in age words; None where it stands in none.
+
+    Every place is read off the cell with its spaces and dashes plain
+    (`_harbor_plain`) and cut out of the cell as written. In order: one
+    pair of brackets around the whole; the word and its marks; a unit word
+    in brackets at the end; a pair around the rest after the word (or
+    around the number alone where a unit in brackets follows); else, since
+    lane HB2's repair 2, a pair around the number alone with an age's unit
+    or affix after it (`Age (95) years`, `(95) yrs`), ``alone`` True: the
+    pair then holds the number alone.
+    """
+    plain = _harbor_plain(cell)
+    first = len(plain) - len(plain.lstrip(" "))
+    last = len(plain.rstrip(" "))
+    begin, end = first, last
+    enclosed = _harbor_enclosed(plain[first:last]) is not None
+    if enclosed:
+        begin, end = first + 1, last - 1
+    worded = False
+    inside = begin
+    while inside < end and plain[inside] == " ":
+        inside += 1
+    found = _HARBOR_AGE_WORD.match(plain[inside:end])
+    if found is not None:
+        at = inside + found.end()
+        while at < end and plain[at] == " ":
+            at += 1
+        sign = (
+            plain[at:at + 1] in ("-", "+")
+            and at > inside + found.end()
+            and _harbor_opens(plain[:end], at + 1, False)
+        )
+        if not sign and at < end and plain[at] in (":", "=", "-"):
+            at += 1
+            while at < end and plain[at] == " ":
+                at += 1
+        number = at
+        if plain[at:at + 1] in _HARBOR_PAIRS:
+            number = at + 1
+            while number < end and plain[number] == " ":
+                number += 1
+        if _harbor_opens(plain[:end], number, True):
+            worded = True
+            begin = at
+    unit = ""
+    if end > begin and plain[end - 1] in (")", "]"):
+        opener = "(" if plain[end - 1] == ")" else "["
+        start = plain.rfind(opener, begin, end)
+        word = plain[start + 1:end - 1].strip().lower() if start > begin else ""
+        if word[-1:] == ".":
+            word = word[:-1]
+        if start > begin and word in _HARBOR_UNIT_WORDS:
+            cut = start
+            while cut > begin and plain[cut - 1] == " ":
+                cut -= 1
+            unit = cell[cut:end]
+            end = cut
+    alone = False
+    bracketed = (worded or unit) and _harbor_enclosed(plain[begin:end]) is not None
+    if bracketed:
+        begin, end = begin + 1, end - 1
+        alone = bool(unit)
+    elif not unit:
+        opened = begin
+        while opened < end and plain[opened] == " ":
+            opened += 1
+        if plain[opened:opened + 1] in _HARBOR_PAIRS:
+            shut = opened + 1
+            while shut < end and plain[shut] not in "()[]":
+                shut += 1
+            if (
+                shut < end
+                and plain[shut] == _HARBOR_PAIRS[plain[opened]]
+                and shut > opened + 1
+                and _harbor_unit_alone(plain[shut + 1:end])
+            ):
+                begin, end = opened + 1, shut
+                alone = True
+    if not enclosed and not worded and not unit and not alone:
+        return None
+    return cell[:begin], cell[begin:end], cell[end:], worded, unit or alone, plain[begin:end], alone
+
+
+def _harbor_tail_words(tail):
+    """A tail's words without the brackets its frame wrote: `yrs)`, ` (years)` and `) years` read `yrs`, `years` and `years`, its spaces and dashes plain."""
+    words = _harbor_plain(tail).strip()
+    if words[:1] in (")", "]"):
+        words = words[1:].strip()
+    while words[-1:] in (")", "]"):
+        words = words[:-1].strip()
+    if words[:1] in ("(", "["):
+        words = words[1:].strip()
+    return words
+
+
+# ...and since lane HB2's repair 2 a number in such a frame is read as the
+# profiler's number reader reads one (plan P1-D4): a sign, a leading or a
+# trailing point, an exponent, marks between thousands (groups of three after
+# a first of one to three, one kind of mark), a negative amount in brackets or
+# with a minus after its point, and, where that reads none, a comma for the
+# point; the unit word or affix after it as above.
+_HARBOR_FRAMED = re.compile(
+    r"^(\s*)([0-9+\-.,'\u2019() eE]+?)((?:\s*[A-Za-z][A-Za-z .]*)?\s*"
+    r"|[ -]{0,2}(?i:[ymwd]/o|(?:years|year|yrs|yr|months|month|mos|mo|weeks|week|wks|wk|days|day)[ -]old)\s*)$"
+)
+_HARBOR_EXPONENT = re.compile(r"[eE][+-]?[0-9]+$")
+
+
+def _harbor_number_text(text):
+    """(sign, whole, fraction, form, exact value) of a number written as P1-D4 reads one, or None; ``form`` "e" for an exponent's (no places, no padding)."""
+    text = text.strip(" ")
+    negative = False
+    if text[:1] == "(" and text[-1:] == ")":
+        text = text[1:-1].strip(" ")
+        if text[:1] in ("+", "-") or text[-1:] == "-":
+            return None
+        negative = True
+    elif len(text) > 1 and text[-1:] == "-" and text[:1] not in ("+", "-") and "." in text[:-1]:
+        text = text[:-1]
+        negative = True
+    sign = ""
+    if text[:1] in ("+", "-"):
+        sign, text = text[0], text[1:]
+    exponent = ""
+    found = _HARBOR_EXPONENT.search(text)
+    if found is not None and found.start() > 0:
+        exponent, text = found.group(0), text[: found.start()]
+    point = text.find(".")
+    whole = text if point < 0 else text[:point]
+    fraction = "" if point < 0 else text[point + 1:]
+    marks = {character for character in whole if character in ", '\u2019"}
+    if marks:
+        groups = whole.split(marks.pop()) if len(marks) == 1 else []
+        if not groups or not 1 <= len(groups[0]) <= 3 or any(len(group) != 3 for group in groups[1:]):
+            return None
+        whole = "".join(groups)
+    if not re.fullmatch(r"[0-9]*", whole) or not re.fullmatch(r"[0-9]*", fraction) or not whole + fraction:
+        return None
+    value = fractions.Fraction(f"{whole or '0'}.{fraction or '0'}{exponent}")
+    if negative or sign == "-":
+        value = -value
+    if exponent:
+        return sign, whole, "", "e", value
+    return sign, whole, fraction, "", value
+
+
+def _harbor_number(text):
+    """(head, sign, whole, fraction, tail, exact value, form) of a framed number (lane HB2's repair 2), or None; ``form`` "," where it was read with a comma for its point."""
+    simple = _harbor_read(text)
+    if simple is not None:
+        return simple
+    found = _HARBOR_FRAMED.match(text)
+    if found is None:
+        return None
+    head, number, tail = found.groups()
+    # ...the spaces after the number are the tail's.
+    tail = number[len(number.rstrip(" ")):] + tail
+    number = number.rstrip(" ")
+    read = _harbor_number_text(number)
+    form_comma = False
+    if read is None and "," in number:
+        read = _harbor_number_text(number.replace(".", "").replace(",", "."))
+        form_comma = read is not None
+    if read is None:
+        return None
+    sign, whole, fraction, form, value = read
+    return head, sign, whole, fraction, tail, value, "," if form_comma else form
+
+
+def _harbor_read(cell, words=False):
+    """(head, sign, whole, fraction, tail, exact value, form) of a cell the forms above write; None otherwise.
+
+    ``words`` (plan P4-D477): the cell's age words read around its number
+    and kept in the head and the tail (`Age 95`, `(95 yrs)`, `95 (years)`),
+    the number in them read as the profiler's number reader reads one
+    (`_harbor_number`, lane HB2's repair 2: `Age .95e2`, `Age (95) years`).
+    ``form`` (since that repair): "e" for a number written with an
+    exponent (no places, no padding), "," for one read with a comma for
+    its point, "" otherwise.
+    """
+    if words:
+        framed = _harbor_frame(cell)
+        if framed is not None:
+            before, inner, after, worded, unit, plain, alone = framed
+            read = _harbor_number(plain)
+            if alone and read is not None and read[4].strip():
+                # ...a pair around the number alone holds the number alone.
+                read = None
+            if read is not None and (worded or unit or _harbor_own_unit(read[4])):
+                head, sign, whole, fraction, tail, value, form = read
+                # ...the head and the tail cut out of the cell as written.
+                head, tail = inner[:len(head)], inner[len(inner) - len(tail):]
+                return before + head, sign, whole, fraction, tail + after, value, form
     found = _HARBOR_NUMBER.match(cell)
     if found is None:
         found = _HARBOR_AFFIX.match(cell)
@@ -70641,7 +71604,7 @@ def _harbor_read(cell):
     value = fractions.Fraction(int(whole + fraction), 10 ** len(fraction))
     if sign == "-":
         value = -value
-    return head, sign, whole, fraction, tail, value
+    return head, sign, whole, fraction, tail, value, ""
 
 
 # G7.14's unit letters (lane SH2's close round, ADDENDUM 4): one letter
@@ -70674,7 +71637,7 @@ _HARBOR_CUTS = {90: fractions.Fraction(3287100, 36525), 1080: fractions.Fraction
 
 def _harbor_own_unit(tail):
     """The unit a cell writes after its number, a letter of `_HARBOR_MARKS`, or ""."""
-    word = tail.strip().lower()
+    word = _harbor_tail_words(tail).lower()
     if word[-1:] == ".":
         word = word[:-1]
     if word in _HARBOR_UNIT_WORDS:
@@ -70706,17 +71669,30 @@ def _harbor_unit(tail, mark=90):
 
 def _harbor_age_form(tail):
     """Whether a number's tail is an age's: nothing, a unit letter or word, or a word opening with y (`years`)."""
-    words = tail.strip()
+    words = _harbor_tail_words(tail)
     return not words or _harbor_own_unit(tail) != "" or words[0] in "yY"
 
 
-def _harbor_changed(read, mark=90):
-    """Whether the top-code's reading of a checked file would change a twin's cell: G7.14 writes it at or below 90."""
+def _harbor_changed(read, mark=90, bounded=False):
+    """Whether the top-code's reading of a checked file would change a twin's cell: G7.14 writes it at or below 90.
+
+    ``bounded`` (since lane HB2, plan P4-D477; a column of numbers, neither
+    held nor read as labels): a cell past 125 years written with a word no
+    age's unit is changed too, save a placeholder (nines alone, or a whole
+    number below nought or of three figures or more repeating one figure or
+    nines and one last figure).
+    """
     years = read[5] / _harbor_unit(read[4], mark)
     if 90 < years <= 125 or _harbor_at_the_cut(read, mark):
         return True
     if not _harbor_age_form(read[4]):
-        return False
+        value = read[5]
+        if not bounded or years <= 125 or value.denominator != 1:
+            return bounded and years > 125 and value.denominator != 1
+        figures = f"{abs(value.numerator)}"
+        nines = set(figures) == {"9"}
+        repeated = value < 0 or (len(figures) >= 3 and (len(set(figures)) == 1 or set(figures[:-1]) == {"9"}))
+        return not nines and not repeated
     value = read[5]
     whole = value.denominator == 1
     if whole and (set(f"{abs(value.numerator)}") == {"9"} or -9 <= value < 0):
@@ -70724,15 +71700,15 @@ def _harbor_changed(read, mark=90):
     return years > 125 or (whole and value < 0)
 
 
-def _harbor_held_within_the_mark(cells, absent, mark):
+def _harbor_held_within_the_mark(cells, absent, mark, words=False):
     """A held age column's made-up whole numbers past 125 years written as their remainder by their unit's mark, as wide as written."""
     written = []
     for cell in cells:
-        read = None if cell in absent or cell.strip() in absent else _harbor_read(cell)
-        if read is None or read[3] or read[5] < 0 or read[5] / _harbor_unit(read[4], mark) <= 125:
+        read = None if cell in absent or cell.strip() in absent else _harbor_read(cell, words)
+        if read is None or read[3] or read[6] == "e" or read[5] < 0 or read[5] / _harbor_unit(read[4], mark) <= 125:
             written.append(cell)
             continue
-        head, sign, whole, _fraction, tail, value = read
+        head, sign, whole, _fraction, tail, value, _form = read
         figures = f"{int(value) % _harbor_cell_mark(tail, mark)}"
         if len(figures) < len(whole):
             figures = "0" * (len(whole) - len(figures)) + figures
@@ -70740,7 +71716,7 @@ def _harbor_held_within_the_mark(cells, absent, mark):
     return written
 
 
-def _harbor_stand_ins_below_the_mark(cells, absent, mark):
+def _harbor_stand_ins_below_the_mark(cells, absent, mark, words=False):
     """A label twin's made-up labels past the mark, each a free spelling below it (lane SH3's second repair).
 
     Each different cell the top-code would change, whole and not
@@ -70759,14 +71735,14 @@ def _harbor_stand_ins_below_the_mark(cells, absent, mark):
         if cell in chosen:
             written.append(chosen[cell])
             continue
-        read = None if cell in absent or cell.strip() in absent else _harbor_read(cell)
-        if read is None or read[3] or read[5] < 0 or not _harbor_changed(read, mark):
+        read = None if cell in absent or cell.strip() in absent else _harbor_read(cell, words)
+        if read is None or read[3] or read[6] == "e" or read[5] < 0 or not _harbor_changed(read, mark):
             written.append(cell)
             continue
-        head, sign, whole, _fraction, tail, _value = read
+        head, sign, whole, _fraction, tail, _value, _form = read
         width = len(whole)
         padded = width >= 2 and whole[0] == "0"
-        letter = tail.strip()
+        letter = _harbor_tail_words(tail)
         tails = [tail]
         if len(letter) == 1 and tail[:1] == letter and letter.lower() in _HARBOR_MARKS:
             for other in "ymwd":
@@ -70796,7 +71772,8 @@ def _harbor_stand_ins_below_the_mark(cells, absent, mark):
     return written
 
 
-def safe_harbor_ages_twin(cells, absent=frozenset(), mark=90, held=False, published=None, labels=False):
+def safe_harbor_ages_twin(cells, absent=frozenset(), mark=90, held=False, published=None, labels=False, words=False,
+                          bounded=False):
     """G7.14: every cell above 90 and at most 125 years written at or below 90, each different value one value.
 
     A cell in months, weeks or days (its unit letter against it) is read in
@@ -70827,17 +71804,22 @@ def safe_harbor_ages_twin(cells, absent=frozenset(), mark=90, held=False, publis
     stand; None reads it from the cells. ``labels`` (lane SH3's second
     repair): a label column's made-up labels past the mark are first each
     written as a free spelling below it, so none joins the top category.
+    ``words`` (lane HB2, plan P4-D477): the age words around each number
+    read and kept, where the description records them (`Age 95` is 95).
+    ``bounded`` (lane HB2, plan P4-D477; passed since its repair 1): a
+    column described as numbers, bare or with a unit, writes no cell past
+    125 years but a placeholder, whatever word follows its number.
     """
     def kept(cell):
         return cell in absent or cell.strip() in absent
 
     if held:
-        cells = _harbor_held_within_the_mark(cells, absent, mark)
+        cells = _harbor_held_within_the_mark(cells, absent, mark, words)
     if labels:
-        cells = _harbor_stand_ins_below_the_mark(cells, absent, mark)
+        cells = _harbor_stand_ins_below_the_mark(cells, absent, mark, words)
     at_the_marks = set()
     for cell in cells:
-        read = None if kept(cell) else _harbor_read(cell)
+        read = None if kept(cell) else _harbor_read(cell, words)
         if (
             read is not None
             and _harbor_cell_mark(read[4], mark) != 90
@@ -70846,7 +71828,7 @@ def safe_harbor_ages_twin(cells, absent=frozenset(), mark=90, held=False, publis
             at_the_marks.add(_harbor_cell_mark(read[4], mark))
     at_ninety = False
     for cell in cells:
-        read = None if kept(cell) else _harbor_read(cell)
+        read = None if kept(cell) else _harbor_read(cell, words)
         if (
             read is not None
             and _harbor_unit(read[4], mark) == 1
@@ -70860,10 +71842,10 @@ def safe_harbor_ages_twin(cells, absent=frozenset(), mark=90, held=False, publis
     lowest = 90 * _HARBOR_MILLIONTHS
     padded = set()
     for cell in cells:
-        read = None if kept(cell) else _harbor_read(cell)
+        read = None if kept(cell) else _harbor_read(cell, words)
         if read is None:
             continue
-        if len(read[2]) >= 2 and read[2][0] == "0":
+        if read[6] != "e" and len(read[2]) >= 2 and read[2][0] == "0":
             padded.add(len(read[2]))
         years = read[5] / _harbor_unit(read[4], mark)
         if years <= 90:
@@ -70877,25 +71859,25 @@ def safe_harbor_ages_twin(cells, absent=frozenset(), mark=90, held=False, publis
     chosen = {}
     written = []
     for cell in cells:
-        read = None if kept(cell) else _harbor_read(cell)
+        read = None if kept(cell) else _harbor_read(cell, words)
         if read is None or not (
-            _harbor_changed(read, mark)
+            _harbor_changed(read, mark, bounded)
             or (published is False and read[5] == _harbor_cell_mark(read[4], mark))
         ):
             written.append(cell)
             continue
         if _harbor_unit(read[4], mark) != 1:
-            head, sign, whole, fraction, tail, _value = read
+            head, sign, whole, fraction, tail, _value, form = read
             cell_mark = _harbor_cell_mark(tail, mark)
             allowed = published if published is not None else cell_mark in at_the_marks
             text = f"{cell_mark - (0 if allowed else 1)}"
-            if whole[0] == "0" and len(whole) > len(text):
+            if form != "e" and whole[:1] == "0" and len(whole) > len(text):
                 text = "0" * (len(whole) - len(text)) + text
             if fraction:
-                text = text + "." + "0" * len(fraction)
+                text = text + ("," if form == "," else ".") + "0" * len(fraction)
             written.append(head + ("+" if sign == "+" else "") + text + tail)
             continue
-        head, sign, whole, fraction, tail, value = read
+        head, sign, whole, fraction, tail, value, form = read
         places = len(fraction)
         if (value, places) not in chosen:
             shown = min(places, 6)
@@ -70915,7 +71897,7 @@ def safe_harbor_ages_twin(cells, absent=frozenset(), mark=90, held=False, publis
                     text = text + "." + figures + "0" * (places - shown)
             chosen[(value, places)] = text
         text = chosen[(value, places)]
-        if whole[0] == "0" or len(whole) in padded:
+        if form != "e" and (whole[:1] == "0" or len(whole) in padded):
             point = text.find(".")
             own = text if point < 0 else text[:point]
             if len(own) < len(whole):
@@ -70982,7 +71964,7 @@ def safe_harbor_years_twin(cells, absent, cutoff):
         if not plain or read[5].denominator != 1 or len(read[2]) != 4 or not 1850 <= read[5] < cutoff:
             written.append(cell)
             continue
-        head, sign, _whole, fraction, tail, value = read
+        head, sign, _whole, fraction, tail, value, _form = read
         if (value, len(fraction)) not in chosen:
             chosen[(value, len(fraction))] = free()
         text = f"{chosen[(value, len(fraction))]}" + ("." + "0" * len(fraction) if fraction else "")

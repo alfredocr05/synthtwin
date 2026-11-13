@@ -394,6 +394,13 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # ...and a layout column read in part, which the partial reader takes
     # on the 24-hour clock alone (the Codex review of landing I3a, item 2).
     "the_twelve_hour_declaration_did_not_reach_in_part": ("seen_at",),
+    # ...and a `clock-figures` answer whose times, each fraction of a
+    # second written as noughts, would be spelled as a value the table
+    # reads as no value (lane TR, plan P4-D473; Codex's review, item 2):
+    # not a refusal and not a hold, the column is read as it was before
+    # the answer. It takes the column name the questions file gave, which
+    # is the person's own, and names no value.
+    "the_clock_figures_answer_was_not_taken": ("chart_time",),
     # ...and `--century` (landing R2a, plan P4-D383): a value that is not
     # a column's name, an equals sign and a year question Q5 offers is
     # refused before the table is opened, and it takes what the person

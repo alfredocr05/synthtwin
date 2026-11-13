@@ -522,6 +522,13 @@ PLAN4_REGIONS = {
         "## Decision P4-D384 — numbers that are dates: read exactly, "
         "described as dates, written back as counts (lane R4, 2026-10-06)"
     ),
+    # The rule an offset follows its date by, disposed in the decision of
+    # the lane that publishes it (lane DST, plan P4-D474).
+    "offset-rule": (
+        "## Decision P4-D474 — offsets that follow the date: a published "
+        "rule, and the twin's offsets read off its instants (lane DST of the "
+        "December plan, 2026-11-09)"
+    ),
     "group-separator": (
         "### P4-D38 The mark between thousands (stage 2, 2026-09-14)"
     ),
@@ -602,6 +609,12 @@ PLAN4_REGIONS = {
     # row for a key Phase 2 never had.
     "codes-in-pattern": (
         "## Decision P4-D439 — held-back codes written in pattern"
+    ),
+    # THE NAMES OF A POOL THE FLOOR MADE (lane CODES-2), disposed in the
+    # decision that built them, as CODES-1's census is.
+    "rare-names": (
+        "## Decision P4-D471 — rare values of category and code columns "
+        "named beside their pooled total"
     ),
     # The joined role's own eight facts, disposed when the role was
     # found to have no table at all.
@@ -1274,6 +1287,18 @@ REGISTRY += (
         plan_region="counted-dates",
         aliases=(),
     ),
+    # -- lane DST (P4-D474): the rule is held as the checked file's own
+    # reading of it, which names it only where every stamp keeps it.
+    Fact(
+        "datetime",
+        "offset_rule",
+        EXACT_OBSERVABLE,
+        plan_words=(
+            "the checked file's own reading names the published rule"
+        ),
+        plan_region="offset-rule",
+        aliases=(),
+    ),
     # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b
     # disposes its own facts below its own line.
     # anchor 3b-D1 (P4-D365)
@@ -1858,6 +1883,19 @@ REGISTRY += [
         authorized=((_LABEL_ENVELOPE, _LABEL_ENVELOPE),),
     ),
     Fact("label", "level_ceiling", LOADER_ONLY),
+    # THE NAMES OF THE LEVELS THE FLOOR HELD BACK (lane CODES-2, plan
+    # P4-D471, contract 6.3's B4f to B4h, validation V18; the orchestrator's
+    # LANE CODES-2 RULINGS 2 (2)): in the label group, the group of every
+    # other key of a label block's pool (`suppressed_levels`,
+    # `suppressed_rows`), and EXACT-OBSERVABLE, since the validator holds
+    # the twin's held-back spellings to the published names exactly.
+    Fact(
+        "label",
+        "held_back_names",
+        EXACT_OBSERVABLE,
+        plan_words="holds its held-back spellings to the published names",
+        plan_region="rare-names",
+    ),
 ]
 
 # `datetime`. The two ends carry no authorization at all, which is the

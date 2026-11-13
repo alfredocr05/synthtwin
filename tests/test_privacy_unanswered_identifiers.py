@@ -23,7 +23,10 @@ where no such question is put is described as before.
 THE GATE, one case per shape at 600 rows (20,000 rows through
 `tools/measurements/kpi_run.py --slow`, ledger K-S3-64): 0 real values and
 0 fragments in the description, the summary, the questions file and the
-screen, 0 in the twin, and the question still asked. Three shapes no
+screen, 0 in the twin, and the question still asked. Codes written like
+numbers in exponent form (`PUBLISHING_NOTHING`, plan P4-D475) are read as
+magnitudes, which publish counts alone: the same zeros, no question
+needed. Three shapes no
 question flags -- a name, a street address, a full birth date -- on a long
 table with no subject column are a STATED LIMIT (P4-D406 item (a)), pinned
 as strict expected failures that turn red the day it closes; beside a
@@ -82,6 +85,26 @@ def test_an_unanswered_identifier_publishes_nothing_real(
     assert seen["forced_identifiers"] == [kind]
     # The population is still counted as it was.
     assert seen["person_columns"] == []
+
+
+@pytest.mark.parametrize("kind", shapes.PUBLISHING_NOTHING)
+def test_codes_read_as_a_role_that_publishes_nothing_publish_nothing_real(
+    tmp_path: pathlib.Path, kind: str
+) -> None:
+    """Codes written like numbers in exponent form: read as magnitudes, 0 real values or fragments anywhere, 0 in the twin.
+
+    The regression case of lane LM1's withdrawn exponent census (plan
+    P4-D475, LANE LM1 RULINGS 5 (2)): that census published the figures
+    after the `E` of every code while the role stood in the class of
+    roles that publish nothing, and its twin wrote the real codes (19,990
+    of 20,000 cells at the table floor).
+    """
+    seen = shapes.run(tmp_path, kind, _ROWS)
+    assert seen["profile_exit"] == 0 and seen["generate_exit"] == 0
+    assert seen["validate_exit"] == 0, seen
+    assert seen["role"] in taxonomy.ROLES_PUBLISHING_NOTHING, seen
+    for key in ("description_values", "description_fragments", "twin_cells", "twin_fragments", "twin_cells_equal"):
+        assert seen[key] == 0, (key, seen)
 
 
 @pytest.mark.parametrize("kind", shapes.BESIDE)

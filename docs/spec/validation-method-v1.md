@@ -4238,10 +4238,24 @@ held with the rung `held` (contract NF129) is a record number like every
 held column and is measured as one: its filled cells keep its layouts,
 its widths and its census of repetition.
 
-**V14.3 Stated limit.** A table read in groups of columns (lane SR) is
-measured at the grain through the redescription alone
-(`profile.build_document`'s ``time_grains``); the checks that count the
-file's own cells read its cells as written.
+**V14.3 A table read in groups of columns (lane SV, plan P4-D476).** A
+delimited file whose bytes, ten times over, pass one group of columns
+(`reading.GROUP_BYTES`, so a file past 25.6 MiB at the shipped budget)
+is read in groups of columns (lane SR); a smaller file, and every
+workbook, is read whole (`validation._read_whole`). A table read in
+groups is measured at the grain as a table read whole is: each grained
+column's cells are written at the record's rung as `reading.column_values`
+hands the column over (`validation.column_as_checked`, by
+`_at_their_grains` itself over that column with the description it is
+handed: each bucket's start at the offset a published `offset_rule`
+puts in force there, lane DST, plan P4-D474, and a column of clock
+times read as figures on the answer `clock-figures`, lane TR, plan
+P4-D473, at its rung as any other; joined at batch 4s's merge of lane
+SV), so the description over the split (V2.4) and every check of V3
+that counts the file's own cells read the cells V14.1 names. This
+replaces the earlier limit, under which
+such a table was measured at the grain through the redescription alone
+and its own cells were counted as written.
 
 ## V15. A column read under the Safe Harbor top-code (lane SH, plan P4-D427)
 
@@ -4274,6 +4288,41 @@ and its column is read as it was then (`taxonomy.top_coded_cells_before_sh3`:
 years alone, lane SH2's letter factors, a unit word read as years, no
 age's affix, no decimal cut, nothing pooled), so a description written by
 the base validates as it did there.
+LANE HB2 (plan P4-D477, 2026-11-10): a block carrying `top_coded_words`
+(contract TC1) has its column's cells read with the age words around each
+number (`Age 95` is 95 and read as `Age 90`; `taxonomy.AGE_VOCABULARY`, its
+spaces and dashes read as lane HB2's repair 1 reads them),
+and a block carrying `top_coded_ends` has every whole age below its first
+value read as it and above its second read as it, in the cell's own form,
+after the top category's pooling (`taxonomy.cells_within_the_ends`); a
+top-coded block carrying neither key is read without the words and with
+no ends pooled, as it was made (``top_words_only`` and ``top_ends_only``
+beside ``top_coded_only``). Since lane HB2's repair 2 (Codex's item 5) a
+block carrying either key beside no `top_category_pooled` is read with
+them, no category pooled, as its generator reads it, never by the reading
+of a description written before lane SH3's repair; and the two values of
+`top_coded_ends` are of the unit of `top_coded`, each cell compared in it
+and written in its own (`taxonomy.age_in_the_columns_unit`).
+LANE CZ-E'S REPAIR 2 (2026-11-11; Codex's item 3 of the lane's review, the
+orchestrator's LANE CZ-E RULINGS 6 (3)): a column's bands of ages past 89
+are read as one band only where its block records that reading
+(`top_coded_bands`, contract TC1); a top-coded block without it was
+written before the band reading, or wrote no band so, and its bands are
+read as written (`taxonomy.top_coded_cells` with `bands` false), so the
+base's description of a column of ages declared a code, `95-99` published
+beside its 90 at 20,000 rows, validates as it did there (0 obligations
+missed; reading its band as one band missed 7).
+BATCH 4s'S FIX ROUND (2026-11-12; the outside review of the merged line,
+item 6): a block recording `top_coded_bands` beside no
+`top_category_pooled` is read with its bands by
+`validation._top_coded_table`, as its generator, the forced description
+(`profile.build_document`) and the chain's reader
+(`chain.described_cells`) read it: on a 20,000-row description of 4,000
+rows each of `0-17`, `18-44`, `45-89`, `90-94` and `95+` with that field
+removed, the validator's top-code kept `90-94` and `95+` on 4,000 rows
+each on `ce75ec54` and the real table missed 10 obligations of its own
+description; on the fix head `85eb6754` it writes `90+` on 8,000 rows and
+the real table misses none.
 
 **V15.2 What it buys.** The real table checked against the description it
 made meets every obligation of the block, as its twin does (measured on
@@ -4284,10 +4333,21 @@ block's real table misses, plan P4-D401). That no twin cell stands above
 the validator's: a file holding 103 is read as holding 90 there, so the
 real table is not refused for its own ages.
 
-**V15.3 Stated limit.** A table read in groups of columns (lane SR) is
-read under the top-code through the redescription alone; the checks that
-count the file's own cells read its cells as written, as V14.3 states for
-the grain.
+**V15.3 A table read in groups of columns (lane SV, plan P4-D476).** A
+table read in groups of columns (V14.3) is read under the top-code as a
+table read whole is: each top-coded column's cells are read so -- with
+the age words, the ends and the bands its block records (V15.1:
+`top_coded_words` and `top_coded_ends`, lane HB2, plan P4-D477;
+`top_coded_bands`, lane CZ-E, plan P4-D472; joined at batch 4s's merge
+of lane SV) -- as `reading.column_values` hands the column over
+(`validation.column_as_checked`, by `_top_coded_table` itself over that
+column and, for a top category pooled in people, the subject columns it
+is counted in, read with it in one reading of the file), and so is each
+column of years of V15.4 (`_year_top_coded_table`), before both
+redescriptions and every check that counts the file's own cells. This
+replaces the earlier limit, under which such a table was read under the
+top-code through the redescription alone and its own cells were counted
+as written.
 
 **V15.4 The Safe Harbor years (lane SH2, plan P4-D434).** A column whose
 block carries `top_coded_year` (contract TC2) is read the same way: every
@@ -4360,3 +4420,15 @@ either side, their citation saying they are not available and why (rule key
 `count-not-published`); its place and name, and the document's bytes, are
 checked as ever. No such check is counted HELD, and the report never says the
 file was found to hold no present cell.
+
+## V18. A named pool (lane CODES-2, plan P4-D471)
+
+A label column whose block carries `held_back_names` (contract 6.3, B4f to B4h)
+is read with its pool named: the checked file's held-back spellings are its own
+names, and its census speaks of the published levels' cells alone, as the
+producer counted. The pool is judged as ruling 2 states it, its count of labels
+and its rows exactly (`label.suppressed_levels`, `label.suppressed_rows`), and
+`label.held_back_names` (subcheck `suppressed.names`) holds the checked file's
+held-back spellings to the published names: HELD where they are the same set,
+MISSED where one is missing or another stands among them, the file's own
+spellings never printed. Every other column is read and checked as before.

@@ -188,6 +188,17 @@ _TABLES: "dict[str, tuple[str, typing.Callable[[], bytes], tuple[str, ...]]]" = 
 # 579 of its 600 cells (`XO2002955` became `ZX1633130`) and every other
 # column keeps its bytes; the frozen assembly still writes the command's
 # bytes. The merge of lane HX5 alone (f2fb4a52) wrote aca86e0f....
+#
+# `texts` RE-MEASURED BY LANE CZ-A2 (plan P4-D469, its repair 1; LANE CZ-A2
+# RULINGS 2 (2) and 3 (4)), A DELIBERATE CHANGE OF ITS RULE (3): the held
+# `record` column (`RC` and seven figures drawn at random, one a row) is a
+# one-word layout holding a letter, whose exclusion `Z@%%%%%%%` wrote the
+# label out and left the run free; the run is now kept off the real by its
+# opening, `Z@9999%%%`, so its 600 cells move and every other column keeps
+# its bytes (b723a9c5... before); the frozen assembly still writes the
+# command's bytes. At 20,000 rows the same column's runs leave no opening
+# the exclusion's search may take, so its twin is written as the spill,
+# wider than every real cell, until answered (P4-D469's limit (f)).
 _BEFORE_SHA256 = {
     "latin": "29abc523a99d85de8c75c29ea57b1a22ca575bb62d911425a336efc261a7cf0e",
     # ...the sorted table's first column named `rank` since lane HB's merge (its
@@ -197,7 +208,7 @@ _BEFORE_SHA256 = {
     "sorted_floor_one": "acf24d3cc5df502ab817ba194a8c33242e5593e923c90282e9b0838a3b85b316",
     "sparse": "829f54e6618b56cd54b38be8f1fedc660a4fa6c4f55037969ee802aa622b7e3e",
     "sparse_floor_one": "d32dc86c471fa47d5a7d68a8118ae7c2871540f18b7adf2fbcd170f830725b27",
-    "texts": "b723a9c5ed91cca010b3ec333b74b153b96eb7905d273ca595c7bb14552c8f87",
+    "texts": "9088b71d470b61c2c5a3e67e90a391cad91b6878373571c4d97f3ce492402e3f",
     "utf16": "35d626ec1e295044f0faea922fd44528d03ffecc957fcab515f996b763484adc",
     "wide": "edaee2c842fa47c880123a55c7b195416b4a7d63334cf1165be690dfc5f84097",
 }

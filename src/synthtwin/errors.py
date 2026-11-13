@@ -1991,6 +1991,31 @@ def the_date_count_declaration_did_not_reach(name: str, member: str) -> str:
     )
 
 
+def the_clock_figures_answer_was_not_taken(name: str) -> str:
+    """Message when a `clock-figures` answer would write a spelling the table reads as no value (lane TR, plan P4-D473).
+
+    NOT A REFUSAL, and the column is NOT held (Codex's review of lane TR,
+    item 2): the answer is valid for the cells, but each time written as
+    figures takes its fraction of a second as noughts, and some such
+    spelling is one the table names as no value, so the twin would write
+    those times as missing cells -- every present cell, where they all
+    fall on that second. A form of figures has no other spelling of the
+    same time, so the answer is not taken and the column is read as it
+    was before it. The message names no value of the column.
+    """
+    return (
+        f"The column '{_shown(name)}' was answered as clock times written "
+        f"as figures, but written that way -- each fraction of a second as "
+        f"noughts, as the twin writes it -- some of its times would be "
+        f"spelled exactly as a value this table reads as no value (one "
+        f"named with --missing-value, or by synthtwin's own list), so the "
+        f"twin would write those times as missing cells. The answer was "
+        f"not taken: the column is read as it was before it. To read it "
+        f"as clock times, name the column's missing values with a "
+        f"spelling no clock time is written in, and run the command again."
+    )
+
+
 def the_comma_declaration_did_not_reach(name: str, role: str) -> str:
     """Message when `--decimal-comma` lands on a role it cannot help.
 

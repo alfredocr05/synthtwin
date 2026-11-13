@@ -73,7 +73,7 @@ where the generator is made, and handed in. No I/O of any kind.
 
 import dataclasses
 
-from synthtwin import date_counts, parsing
+from synthtwin import date_counts, offset_rules, parsing
 
 # -- what a column holds, and how its cells are read ---------------------
 
@@ -897,6 +897,18 @@ def _layout_written(cell: str, reading: Reading, moment: int, made_up: bool) -> 
     the cell's own offset (none for a made-up cell), its fraction's
     figures; the first width word that writes the cell's own form (a
     made-up cell: its very form) and reads back under the member.
+
+    A MADE-UP CELL OF A ZONE-WORD LAYOUT WEARS EACH WORD OF ITS FAMILY
+    (plan P4-D473; lane TR's verify, carry C-B, ruled in LANE TR RULINGS 6
+    (3)): with no offset the layout writes its family's standard word, so
+    a made-up cell as long as the summer word -- `CEST`, `WEST`, `EEST`,
+    a letter longer than `CET`, `WET`, `EET` -- had no form of its own, was
+    judged to wear no date, and kept the identifier walk's made-up value,
+    no date at all (11,760 of 20,000 cells of a held column of birth
+    stamps); each word is now tried at the offset it names, after the
+    standard word the layout writes with no offset, so the cell is written
+    as a stamp in its own form. The families whose two words are as long
+    as each other write as before.
     """
     if not parsing.is_layout_name(reading.member):
         return None
@@ -905,26 +917,42 @@ def _layout_written(cell: str, reading: Reading, moment: int, made_up: bool) -> 
     if parsing.layout_has_clock(reading.member):
         canonical = f"{canonical} {parts.hour:02d}:{parts.minute:02d}:{parts.second:02d}"
     offset = ""
+    offsets: "tuple[str, ...]" = ("",)
     if not made_up:
         read = parsing.parse_datetime(cell, reading.member)
         if read is None:
             return None
         offset = read[1]
+        offsets = (offset,)
+    else:
+        offsets = offsets + parsing.zone_family_offsets(parsing.layout_offset_field(reading.member))
     figures = 0
     runs = _runs(cell)
-    if runs and runs[len(runs) - 1][2] == _DIGIT and cell[runs[len(runs) - 1][0] - 1 : runs[len(runs) - 1][0]] in (".", ","):
-        figures = runs[len(runs) - 1][1] - runs[len(runs) - 1][0]
+    place = len(runs) - 1
+    # ...AND ITS FRACTION BEFORE THE WORD (lane TR's follow-up; LANE TR
+    # RULINGS 7 (2)): a made-up cell of a zone-word layout that writes a
+    # fraction of a second ends in the word, so the fraction's figures are
+    # the last run of figures, the word and the marks after them set
+    # aside; read from the last run alone, a stamp with a fraction before
+    # `EST` took none, wore no date and kept the identifier walk's value
+    # (20,000 of 20,000 cells of a held column of birth stamps).
+    if made_up and len(offsets) > 1 and parsing.layout_precision(reading.member) == parsing.PRECISION_SUBSECOND:
+        while place >= 0 and runs[place][2] != _DIGIT:
+            place = place - 1
+    if place >= 0 and runs[place][2] == _DIGIT and cell[runs[place][0] - 1 : runs[place][0]] in (".", ","):
+        figures = runs[place][1] - runs[place][0]
     shape = _form_of(cell)
     for width in _LAYOUT_WIDTHS:
-        text = parsing.written_layout_date(reading.member, canonical, offset, width, figures)
-        again = parsing.parse_datetime(text, reading.member)
-        if again is None:
-            continue
-        if made_up and _form_of(text) != shape:
-            continue
-        if not made_up and again[1] != offset:
-            continue
-        return text
+        for worn in offsets:
+            text = parsing.written_layout_date(reading.member, canonical, worn, width, figures)
+            again = parsing.parse_datetime(text, reading.member)
+            if again is None:
+                continue
+            if made_up and _form_of(text) != shape:
+                continue
+            if not made_up and again[1] != offset:
+                continue
+            return text
     return None
 
 
@@ -1042,9 +1070,24 @@ def column_padded(cells: "list[str]", reading: Reading, made_up: bool = False) -
 
 
 def coarse_cell(
-    cell: str, reading: Reading, rung: str, first: int, last: int, padded: bool = True
+    cell: str,
+    reading: Reading,
+    rung: str,
+    first: int,
+    last: int,
+    padded: bool = True,
+    rule: "offset_rules.Rule | None" = None,
+    memo: "dict[tuple[str, int, int], tuple[int, int]] | None" = None,
 ) -> "str | None":
-    """A cell written as the start of its bucket at ``rung``, the tails pooled into ``first`` .. ``last``."""
+    """A cell written as the start of its bucket at ``rung``, the tails pooled into ``first`` .. ``last``.
+
+    UNDER A RULE (lane DST, plan P4-D474, method G7.4r) the start wears the
+    offset the rule puts in force at it -- the first occurrence where the
+    clocks repeat it -- rather than the cell's own: every cell of a bucket
+    names one coarse cell whatever side of a change of the clocks it stood
+    on, so the coarse column is itself a column of the rule and publishes
+    nothing finer than its rung (`coarse_cells`).
+    """
     moment = moment_of(cell, reading)
     if moment is None:
         return None
@@ -1053,7 +1096,88 @@ def coarse_cell(
         start = first
     if start > last:
         start = last
+    if rule is not None:
+        here = offset_rules.in_force(rule, start // _NS_SECOND, memo)
+        offset = here[0] if here else rule.standard + 3600
+        moved = with_offset(cell, reading, offset)
+        if moved is None:
+            return None
+        return rewritten(moved, reading, start, padded)
     return rewritten(cell, reading, start, padded)
+
+
+def with_offset(
+    cell: str, reading: Reading, seconds: int, read: "tuple[str, str] | None" = None
+) -> "str | None":
+    """The cell with its written offset replaced by ``seconds`` east of UTC, in the cell's own spelling, or None.
+
+    The offset is the cell's last run as its member writes one --
+    `+HH:MM`, `+HHMM` or `+HH` -- and the new one is written the same way.
+    A cell wearing no offset (a whole date beside the stamps) is returned
+    as it is; None where the cell does not read, wears an offset of none of
+    those spellings, or the new one does not read back under the member
+    (an `+HH` cell cannot wear `+05:30`). ``read``, where given, is the
+    caller's own reading of the cell under its member, so the cell is not
+    read twice (lane DST's repair 1, the statistics check's item 4); the
+    new text is always read back.
+
+    AND A ZONE WORD (lane TR, plan P4-D473; Codex's review of batch 4s,
+    item 3, the orchestrator's LANE I4s RULINGS 1 (5)): under a layout
+    whose offset is a zone family's word (`{EST/EDT}`), the cell's word is
+    the one the family writes for its offset, and the new offset is
+    written as the family's word for it (`parsing.zone_family_word`: `EST`
+    for `-05:00`); None where the family names no word for the new offset.
+    Read only as numbers, monthly pooling of a column of `EST` and `EDT`
+    stamps failed wherever a stamp and its bucket's start stood at
+    different offsets, and the column was held: its twin wrote 20,000 of
+    20,000 stamps of 2024 in 2028.
+    """
+    if read is None:
+        read = parsing.parse_datetime(cell, reading.member)
+    if read is None:
+        return None
+    if not read[1]:
+        return cell
+    old = read[1]
+    if offset_rules.offset_seconds(old) is None:
+        return None
+    new = offset_rules.offset_text(seconds)
+    if new == old:
+        return cell
+    field = parsing.layout_offset_field(reading.member) if parsing.is_layout_name(reading.member) else ""
+    if parsing.zone_family_offsets(field):
+        worded = parsing.zone_family_word(field, old)
+        made = parsing.zone_family_word(field, new)
+        if not worded or not made or cell[len(cell) - len(worded):] != worded:
+            return None
+        text = cell[0 : len(cell) - len(worded)] + made
+        again = parsing.parse_datetime(text, reading.member)
+        if again is not None and again[1] == new and again[0] == read[0]:
+            return text
+        return None
+    spellings = (
+        (old, new),
+        (old[0:3] + old[4:6], new[0:3] + new[4:6]),
+        (old[0:3], new[0:3]),
+    )
+    for written, made in spellings:
+        if len(cell) < len(written) or cell[len(cell) - len(written) :] != written:
+            continue
+        if written == old[0:3] and new[4:6] != "00":
+            return None
+        text = cell[0 : len(cell) - len(written)] + made
+        again = parsing.parse_datetime(text, reading.member)
+        if again is not None and again[1] == new and again[0] == read[0]:
+            return text
+        return None
+    return None
+
+
+def cell_rule(rule_text: str, reading: Reading) -> "offset_rules.Rule | None":
+    """The rule a pooled column's stamps follow (`offset_rule`), or None: none published, or a reading that is no stamp."""
+    if not rule_text or reading.kind != STAMP:
+        return None
+    return offset_rules.parsed_rule(rule_text)
 
 
 def coarse_cells(
@@ -1061,24 +1185,58 @@ def coarse_cells(
     grain: Grain,
     padded: "bool | None" = None,
     absent: "frozenset[str]" = frozenset(),
+    rule_text: str = "",
 ) -> "list[str]":
     """Every cell of a column at a grain's rung; a cell that does not read, or is ``absent``, is kept as written.
 
     ``absent``: the spellings the column reads as no value (repair round 2,
     Codex's item 3), kept as written even where they read as a date, so
     an absent cell stays absent.
+
+    ``rule_text``: the rule the column's stamps follow (`offset_rule`, lane
+    DST, plan P4-D474). Where every stamp that reads wears an offset the
+    rule puts in force on its date, each bucket's start is written at the
+    offset in force there (`coarse_cell`); where one does not, or where the
+    starts would then wear one offset alone, every cell keeps its own, as
+    without a rule -- so a twin whose cells break the rule is read as one,
+    each cell that breaks it kept as written (lane DST's repair 2).
     """
     rung, first, last = grain.spans[len(grain.spans) - 1]
     if rung != grain.rung:
         return cells
     shown = column_padded(cells, grain.reading) if padded is None else padded
+    rule = cell_rule(rule_text, grain.reading)
+    if rule is not None and not keeps_the_rule(cells, grain.reading, rule, absent):
+        # ...AND A CELL THAT BREAKS IT IS KEPT AS WRITTEN (lane DST's repair 2,
+        # Codex's item 3): coarsened at its own offset, a cell in the hour the
+        # clocks skip named a valid bucket start, and the coarse column read
+        # back as one of the rule.
+        absent = absent | _off_the_rule(cells, grain.reading, rule, absent)
+        rule = None
+    found = _coarse_cells_at(cells, grain.reading, (rung, first, last), shown, absent, rule)
+    if rule is not None and not two_offsets(found, grain.reading, absent):
+        found = _coarse_cells_at(cells, grain.reading, (rung, first, last), shown, absent, None)
+    return found
+
+
+def _coarse_cells_at(
+    cells: "list[str]",
+    reading: Reading,
+    span: "tuple[str, int, int]",
+    shown: bool,
+    absent: "frozenset[str]",
+    rule: "offset_rules.Rule | None",
+) -> "list[str]":
+    """`coarse_cells`' walk: each different cell made once, up to 65,536 of them."""
+    rung, first, last = span
     memo: "dict[str, str]" = {}
+    years: "dict[tuple[str, int, int], tuple[int, int]]" = {}
     found: "list[str]" = []
     for cell in cells:
         if cell in memo:
             found += [memo[cell]]
             continue
-        made = None if cell in absent else coarse_cell(cell, grain.reading, rung, first, last, shown)
+        made = None if cell in absent else coarse_cell(cell, reading, rung, first, last, shown, rule, years)
         written = cell if made is None else made
         if len(memo) < 65536:
             memo[cell] = written
@@ -1086,24 +1244,149 @@ def coarse_cells(
     return found
 
 
+def _worn_offset(
+    cell: str, reading: Reading, rule: "offset_rules.Rule", years: "dict[tuple[str, int, int], tuple[int, int]]"
+) -> "tuple[bool, int | None]":
+    """Whether a cell keeps the rule, and the offset it wears (`keeps_the_rule`'s one cell).
+
+    A cell that does not read, or a whole date wearing no offset, keeps it
+    and wears none; a stamp with no offset, or one wearing an offset the
+    rule does not put in force on its date over the family's whole
+    calendar (a year outside its own read under its nearest era), breaks it.
+    """
+    read = parsing.parse_datetime(cell, reading.member)
+    if read is None or (len(read[0]) < 19 and not read[1]):
+        return True, None
+    local = offset_rules.local_seconds(read[0])
+    written = offset_rules.offset_seconds(read[1]) if read[1] else None
+    if local is None or written is None or written not in offset_rules.in_force(rule, local, years):
+        return False, written
+    return True, written
+
+
+def keeps_the_rule(
+    cells: "list[str]", reading: Reading, rule: "offset_rules.Rule", absent: "frozenset[str]" = frozenset()
+) -> bool:
+    """Whether every stamp of the cells that reads wears an offset the rule puts in force on its date.
+
+    A cell that does not read, or is ``absent``, is passed over; a stamp
+    with no offset breaks the rule. Linear in the cells: each different
+    text read once, up to 65,536 of them.
+    """
+    seen: "dict[str, bool]" = {}
+    years: "dict[tuple[str, int, int], tuple[int, int]]" = {}
+    for cell in cells:
+        if cell in seen or cell in absent or not parsing.folded(cell):
+            continue
+        if len(seen) < 65536:
+            seen[cell] = True
+        if not _worn_offset(cell, reading, rule, years)[0]:
+            return False
+    return True
+
+
+def wears_the_rule(
+    cells: "list[str]", reading: Reading, rule: "offset_rules.Rule", absent: "frozenset[str]" = frozenset()
+) -> bool:
+    """Whether the cells are a column of the rule: every stamp keeps it (`keeps_the_rule`) and both its offsets are worn.
+
+    The check of a PUBLISHED rule (lane DST's repair 2, Codex's items 3 and
+    6): over the family's whole calendar, as the twin is written -- a twin
+    tail past the years its rule was read over (a 2099 source's one stamp
+    of January 2100) keeps it -- and on the cells as the file holds them,
+    before any grain: a pooled cell coarsened at its own offset can name a
+    valid bucket start (`2024-03-10 02:30:00-05:00`, in the hour the clocks
+    skip, became `2024-03-01 00:00:00-05:00`), so the verdict is read off
+    the cells first and carried to the description of their grain
+    (`profile.build_document`'s ``rules_published``). Linear in the cells:
+    each different text read once, up to 65,536 of them. Raises nothing.
+    No I/O of any kind.
+    """
+    seen: "dict[str, bool]" = {}
+    years: "dict[tuple[str, int, int], tuple[int, int]]" = {}
+    worn: "dict[int, bool]" = {}
+    for cell in cells:
+        if cell in seen or cell in absent or not parsing.folded(cell):
+            continue
+        if len(seen) < 65536:
+            seen[cell] = True
+        kept, written = _worn_offset(cell, reading, rule, years)
+        if not kept:
+            return False
+        if written is not None:
+            worn[written] = True
+    return rule.standard in worn and rule.standard + 3600 in worn
+
+
+def _off_the_rule(
+    cells: "list[str]", reading: Reading, rule: "offset_rules.Rule", absent: "frozenset[str]"
+) -> "frozenset[str]":
+    """The different cells that break the rule (`_worn_offset`), up to 65,536 different texts read."""
+    seen: "dict[str, bool]" = {}
+    years: "dict[tuple[str, int, int], tuple[int, int]]" = {}
+    found: "dict[str, bool]" = {}
+    for cell in cells:
+        if cell in seen or cell in absent or not parsing.folded(cell):
+            continue
+        if len(seen) < 65536:
+            seen[cell] = True
+        if not _worn_offset(cell, reading, rule, years)[0]:
+            found[cell] = True
+    return frozenset(found)
+
+
+def two_offsets(coarse: "list[str]", reading: Reading, absent: "frozenset[str]") -> bool:
+    """Whether the coarse cells wear two different offsets: a column of the rule, read on the shared clock."""
+    offsets: "dict[str, bool]" = {}
+    seen: "dict[str, bool]" = {}
+    for cell in coarse:
+        if cell in seen or cell in absent:
+            continue
+        if len(seen) < 65536:
+            seen[cell] = True
+        read = parsing.parse_datetime(cell, reading.member) if parsing.folded(cell) else None
+        if read is not None and read[1]:
+            offsets[read[1]] = True
+            if len(offsets) > 1:
+                return True
+    return False
+
+
 def bounded(word: int, span: int) -> int:
     """One word into ``0 .. span - 1`` by the multiply-high rule (method G3.4b)."""
     return (word * span) >> 64
 
 
-def drawn_inside(cell: str, reading: Reading, rung: str, word: int) -> str:
+def drawn_inside(
+    cell: str,
+    reading: Reading,
+    rung: str,
+    word: int,
+    rule: "offset_rules.Rule | None" = None,
+    memo: "dict[tuple[str, int, int], tuple[int, int]] | None" = None,
+) -> str:
     """A twin cell drawn uniformly inside the bucket its coarse cell names, in the cell's own form.
 
     The draw steps by the cell's own precision (`unit_of`), so a date
     draws a day of its month, a stamp to the minute a minute of its hour.
     A cell that does not read, or whose redrawn value does not read back,
     is kept as written.
+
+    UNDER A RULE (``rule``; lane DST, plan P4-D474, method G7.4r) a stamp is
+    drawn among the INSTANTS of its bucket, uniformly, and written at the
+    offset the rule puts in force at the instant drawn: never inside the
+    hour the clocks skip, and in the hour they repeat at either occurrence,
+    each as often as the other.
     """
     moment = moment_of(cell, reading)
     if moment is None:
         return cell
     start = start_of(moment, rung)
     end = after(start, rung)
+    if rule is not None and reading.kind == STAMP:
+        drawn = _drawn_under_rule(cell, reading, (start, end), word, rule, memo)
+        if drawn is not None:
+            return drawn
     if reading.kind == CLOCK:
         end = min(end, parsing.CLOCK_CAPACITY[reading.member]
                   * parsing.clock_step(reading.member) * _NS_SECOND)
@@ -1123,6 +1406,101 @@ def drawn_inside(cell: str, reading: Reading, rung: str, word: int) -> str:
         target = start + bounded(word, count) * unit
     made = rewritten(cell, reading, target, not _shows_unpadded(cell, reading))
     return cell if made is None else made
+
+
+def _drawn_under_rule(
+    cell: str,
+    reading: Reading,
+    bucket: "tuple[int, int]",
+    word: int,
+    rule: "offset_rules.Rule",
+    memo: "dict[tuple[str, int, int], tuple[int, int]] | None",
+) -> "str | None":
+    """`drawn_inside` under a rule: an instant of the bucket drawn by the word, at its own offset (method G7.4r step 4).
+
+    The bucket's instants are those whose wall clock stands in it
+    (`bucket_instants`): runs of one offset, which where the clocks repeat
+    an hour are two DISJOINT runs, one an occurrence (lane DST's repair 2,
+    Codex's item 2: drawn from the first instant whose wall clock reaches
+    the bucket's start to the first that reaches its end, the minute
+    bucket 01:59 of a fall-back day held the whole second occurrence of the
+    hour, and a draw came back at 01:29:30). Each run is stepped by the
+    cell's own precision on the wall clock's grid; the word picks one step
+    of them all. Kept as written where the bucket holds no step, or where
+    no cell of its form writes the instant drawn; None for a cell wearing
+    no offset (a whole date beside the stamps), which is drawn as without
+    a rule.
+    """
+    read = parsing.parse_datetime(cell, reading.member)
+    if read is None or not read[1]:
+        return None
+    start, end = bucket
+    unit = unit_of(cell, reading)
+    steps: "list[tuple[int, int, int]]" = []
+    count = 0
+    for first, past, offset in bucket_instants(rule, start // _NS_SECOND, end // _NS_SECOND, memo):
+        low = first * _NS_SECOND
+        high = past * _NS_SECOND
+        grid = low + (start - offset * _NS_SECOND - low) % unit
+        here = 0 if grid >= high else (high - 1 - grid) // unit + 1
+        steps += [(grid, here, offset)]
+        count = count + here
+    if count <= 0:
+        return cell
+    pick = bounded(word, count)
+    target = 0
+    offset = rule.standard
+    for grid, here, worn in steps:
+        if pick < here:
+            target = grid + pick * unit
+            offset = worn
+            break
+        pick = pick - here
+    moved = with_offset(cell, reading, offset, read)
+    if moved is None:
+        return cell
+    made = rewritten(moved, reading, target + offset * _NS_SECOND, not _shows_unpadded(cell, reading))
+    return cell if made is None else made
+
+
+def bucket_instants(
+    rule: "offset_rules.Rule",
+    start: int,
+    end: int,
+    memo: "dict[tuple[str, int, int], tuple[int, int]] | None" = None,
+) -> "list[tuple[int, int, int]]":
+    """The instants whose wall clock under the rule stands in ``start`` .. ``end`` (seconds, end excluded), as runs of one offset in time order: each run's first instant, the instant past it and its offset (G7.4r step 4).
+
+    Built per offset: under each of the rule's two offsets the instants
+    whose wall clock at that offset lies in the bucket, cut to where that
+    offset is in force. In the hour the clocks skip a bucket holds none;
+    where they repeat one, a bucket inside it holds two runs an hour apart,
+    one an occurrence, and a bucket holding the whole hour one run through
+    both. Python integers only. Raises nothing. No I/O of any kind.
+    """
+    summer = rule.standard + 3600
+    low = start - summer
+    high = end - rule.standard
+    first_year = parsing.civil_from_days((low + rule.standard) // 86400)[0] - 1
+    last_year = parsing.civil_from_days((high + rule.standard) // 86400)[0] + 1
+    points: "dict[int, bool]" = {low: True, high: True}
+    for year in range(first_year, last_year + 1):
+        for change in offset_rules.changes(rule, year, memo):
+            if low < change < high:
+                points[change] = True
+    ordered = sorted(points)
+    found: "list[tuple[int, int, int]]" = []
+    for place in range(len(ordered) - 1):
+        offset = offset_rules.offset_at(rule, ordered[place], memo)
+        first = max(ordered[place], start - offset)
+        past = min(ordered[place + 1], end - offset)
+        if first >= past:
+            continue
+        if found and found[len(found) - 1][1] == first and found[len(found) - 1][2] == offset:
+            first = found[len(found) - 1][0]
+            found = found[0 : len(found) - 1]
+        found += [(first, past, offset)]
+    return found
 
 
 def _shows_unpadded(cell: str, reading: Reading) -> bool:
@@ -1198,6 +1576,7 @@ def count_filled(
     target: int,
     pinned: "dict[int, tuple[int, int]] | None" = None,
     fences: "tuple[int | None, int | None]" = (None, None),
+    rule: "offset_rules.Rule | None" = None,
 ) -> "dict[int, int]":
     """Rows moved to empty buckets so the column holds ``target`` different ones (method G7.13).
 
@@ -1220,6 +1599,12 @@ def count_filled(
     at or above the high one, moves a row, so a tail keeps its rows, its
     values and its distances (the caller leaves the tails' buckets and the
     span's ends out of ``pinned``, so none of them gives a row either).
+    ``rule`` (lane DST's repair 2, the verify's item 1): the rule the
+    column's stamps follow (`offset_rule`); a row then moves only to a
+    bucket whose start wears the offset its own bucket's start wears, so it
+    stays on its side of the census of offsets (a row moved from August,
+    winter in the south, to an empty January left that census one off at
+    validate); where no such row is left the count gives way.
     Returns the moved rows and their buckets.
 
     Guarantees: a function of its arguments. Raises nothing. No I/O.
@@ -1246,6 +1631,16 @@ def count_filled(
     ends = sorted({first, last} | {point for point in points if first <= point <= last})
     steps = 4 * len(buckets) + 4096
     low_fence, high_fence = fences
+    years: "dict[tuple[str, int, int], tuple[int, int]]" = {}
+
+    def keyed(start: int) -> "tuple[int, ...] | None":
+        """The census key of a bucket start, and under ``rule`` the offset its start wears."""
+        key = _census_key(start, rung, kind, finest)
+        if key is None or rule is None:
+            return key
+        here = offset_rules.in_force(rule, start // _NS_SECOND, years)
+        return key + ((here[0] if here else rule.standard + 3600),)
+
     for place in range(len(ends) - 1):
         low = ends[place]
         high = ends[place + 1]
@@ -1279,7 +1674,7 @@ def count_filled(
         while start < high and steps > 0:
             steps -= 1
             if start not in rows_of:
-                key = _census_key(start, rung, kind, finest)
+                key = keyed(start)
                 if key is not None:
                     if key not in empties:
                         empties[key] = []
@@ -1289,7 +1684,7 @@ def count_filled(
         for key in empties:
             taken[key] = 0
         for bucket, rows in givers:
-            key = _census_key(bucket, rung, kind, finest)
+            key = keyed(bucket)
             if key is None or key not in empties:
                 continue
             for row in rows:

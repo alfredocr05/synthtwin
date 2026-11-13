@@ -60,6 +60,16 @@ SAMPLE = 500
 # two trees lane CHa2's `procedure.l2_cut` and `w_te` (plan P4-D451) moved the
 # first, and lane GRa's reason for keeping the chain off beside a held column
 # that repeats (`OFF_HELD_REPEATS`, plan P4-D449) the second, measured there.
+#
+# `held_repeats` RE-RECORDED BY LANE CZ-A2 (plan P4-D469, its repair 1;
+# LANE CZ-A2 RULINGS 2 (2) and 3 (4)), A DELIBERATE CHANGE OF ITS RULE (3):
+# the held table's `record_no` (`V` and seven figures, 900 numbers that
+# repeat) is a one-word layout holding a letter, whose exclusion `Z%%%%%%%`
+# wrote the label out and left the run free; the run is now kept off the
+# real by its opening, `Z9%%%%%%`, the one field of the description that
+# moves (`7292b926...` before). The private notes' sha256 and the families
+# are unchanged. The same table at 20,000 rows moves the same field the
+# same way (measured on `a391424c` and on the lane's head at both sizes).
 FROZEN = {
     "paths": (
         "93f7599d15c30d6afab698b6c202906491545140c73d3854865a4c2a4609a6a5",
@@ -67,7 +77,7 @@ FROZEN = {
         8,
     ),
     "held_repeats": (
-        "7292b9265e512c2227ed47d030493b8ef9d7e84fdc1391527a7a14d781b1ab69",
+        "e3e0d3d42128649e4088c8483989bdb5f56d842404c125a53f3df9307a19d04c",
         "41062874cbb1e9d50e99dd11c9f469df7b8d94c56aca8069c0b03acc72084f11",
         0,
     ),

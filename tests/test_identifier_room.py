@@ -820,9 +820,10 @@ def test_the_zoo_helper_counts_a_table_refused_for_the_people_floor_apart_from_o
 ) -> None:
     """LANE I4q RULINGS 15 (3): K-HZ-06's zoo leg read a table the command refuses for the people floor as not written.
 
-    Lane CZ-A's `implant_log` holds 40 people at 20,000 rows, and its answers step exits 1 with the command's
-    own words ('This table holds 40 people, and synthtwin describes a table of 100 people or more.'): the
-    refusal is right, and the driver counted it under `not_written`. It is counted under `refused_by_floor` now,
+    Lane CZ-A's `implant_log` held 40 people at 20,000 rows (lane CZ-A2's fixture holds 1,250, plan P4-D469),
+    and its answers step exited 1 with the command's own words ('This table holds 40 people, and synthtwin
+    describes a table of 100 people or more.'): the refusal was right, and the driver counted it under
+    `not_written`. It is counted under `refused_by_floor` now, as that run recorded it,
     recognised by those words and that exit, and a step that stops any other way stays a table not written.
     Here `health_zoo.run_table` stops each table as the real one records it, the first description written and
     no twin: the floor's words on one, another failure on the other, and the floor's words with another exit.

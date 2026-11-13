@@ -402,11 +402,14 @@ def test_a_decimal_comma_pool_keeps_the_published_filter(tmp_path: pathlib.Path)
     # five people's `2,5` beside everyone else's `8,0`, answered `no`. On
     # 0f5b9818 the start read `8,0` as no number and wrote `8`, so the twin's
     # `== 8` found every row. The start and its check read the declared grammar:
-    # `88,8`. Mutant: the declaration not passed to the start.
+    # `88,8`, and since lane HB2's repair 2 (plan P4-D477, Codex's item 4: a
+    # pool after `no` starts four figures wide before its point in every form
+    # the code readers accept) `8888,8`. Mutant: the declaration not passed to
+    # the start.
     columns = _people_and_cells("2,5", ("8,0",))
     document = _described(columns, forced_decimal_commas=["code_col"], safe_harbor_no=["code_col"])
     block = _block_of(document, "code_col")
-    assert block["pool_in_people"] == {"number_from": "88,8", "word_from": ""}
+    assert block["pool_in_people"] == {"number_from": "8888,8", "word_from": ""}
     real = _read_back(columns["code_col"], ",")
     twin = _read_back(_twin_column(document, tmp_path, "code_col"), ",")
     assert int((twin == 8).sum()) == int((real == 8).sum()) == 1180
@@ -437,7 +440,9 @@ def test_a_decimal_comma_pool_of_a_number_and_a_word_loads(tmp_path: pathlib.Pat
     # answered `no`, `8,0` and `x` kept beside `2,5` and `Q` that five people
     # each hold. The profiler reads each published level and each held one in
     # the declared grammar, so the pool owes one number and one word, starting
-    # at `88,8` and `zz`, and the loader, reading the same grammar, admits them.
+    # at `88,8` and `zz` (`8888,8` since lane HB2's repair 2, plan P4-D477: after
+    # `no` four figures before the point), and the loader, reading the same
+    # grammar, admits them.
     # Mutants: the profiler's split or its published levels read without the
     # declaration (the starts no longer what the loader asks).
     person: "list[str]" = []
@@ -449,10 +454,10 @@ def test_a_decimal_comma_pool_of_a_number_and_a_word_loads(tmp_path: pathlib.Pat
     document = _described(
         {"patient_key": person, "code_col": cells}, forced_decimal_commas=["code_col"], safe_harbor_no=["code_col"]
     )
-    assert _block_of(document, "code_col")["pool_in_people"] == {"number_from": "88,8", "word_from": "zz"}
+    assert _block_of(document, "code_col")["pool_in_people"] == {"number_from": "8888,8", "word_from": "zz"}
     _load(document, tmp_path)
     twin = _counted(_twin_column(document, tmp_path, "code_col"))
-    assert twin == {"8,0": 580, "x": 580, "88,8": 20, "zz": 20}
+    assert twin == {"8,0": 580, "x": 580, "8888,8": 20, "zz": 20}
 
 
 @pytest.mark.parametrize(("holders", "pooled"), [(10, True), (11, False)])

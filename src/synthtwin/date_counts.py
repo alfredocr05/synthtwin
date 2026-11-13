@@ -3491,6 +3491,36 @@ def date_in_disguise(text: str) -> bool:
     return _head_is_a_date(plain)
 
 
+# The words a date or a stamp holds and nothing else: a month's or a
+# weekday's name, a meridiem's letters, an ordinal's ending, and the `T`
+# and `Z` of a stamp (`a_date_alone`).
+_DATE_ALONE_WORDS = frozenset(
+    tuple(_MONTH_WORDS) + _WEEKDAY_WORDS + _ORDINAL_ENDINGS + ("a", "p", "m", "am", "pm", "t", "z")
+)
+
+
+def a_date_alone(text: str) -> bool:
+    """Whether one cell is a date or a stamp the date rules read (`date_in_disguise`) and holds no other word (plan P4-D472).
+
+    Each run of letters in it is one of `_DATE_ALONE_WORDS`: `12 Jan`,
+    `2031-03-14 9:15 AM` and `2031-03-14T09:15Z` are, `2031-03-14 seen in
+    clinic` is not. Such a cell is the date rules' (plan P4-D446), never
+    read again by the value readers for a month and a day. A function of
+    the text. Raises TypeError for anything but text. No I/O.
+    """
+    if not date_in_disguise(text):
+        return False
+    letters = ""
+    for character in parsing.trimmed(text) + " ":
+        if "a" <= character <= "z" or "A" <= character <= "Z":
+            letters = letters + character
+            continue
+        if letters and _lowered(letters) not in _DATE_ALONE_WORDS:
+            return False
+        letters = ""
+    return True
+
+
 def dated_values_blanked(
     cells: "list[str]",
     absent: "frozenset[str]" = frozenset(),

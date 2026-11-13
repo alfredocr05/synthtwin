@@ -32,6 +32,7 @@ import random
 import pytest
 
 import fixtures
+import written_words
 import test_p3v10f4_named_markers_are_holes as named_markers_are_holes
 import test_p3v10f5_exact_equality_wins as exact_equality_wins
 from synthtwin import (
@@ -3433,15 +3434,38 @@ def _says_not_a_number(line: str) -> bool:
     Read over the WORDS of the line, because `inf` and `nan` are inside
     ordinary English -- "information", "meaning", "infinite" -- and a
     test that greps the raw text finds those instead of the numbers it
-    is looking for.
+    is looking for. Each word sheds at its ends every character that is
+    no letter, figure or combining mark (`written_words.shed`, batch 4r's
+    tests-and-tools round HYG-1): the five marks this shed before left
+    `[inf]`, `nan!` or `inf%` unread.
     """
     for word in line.replace(",", " ").replace("(", " ").replace(
         ")", " "
     ).split():
-        stripped = word.strip(".:;'\"").lower().lstrip("+-")
-        if stripped in ("nan", "inf", "infinity"):
+        if written_words.shed(word)[1].lower() in ("nan", "inf", "infinity"):
             return True
     return False
+
+
+def test_a_non_finite_word_is_read_whatever_mark_it_wears() -> None:
+    """`_says_not_a_number` reads `inf` and `nan` before or after any mark, and never inside a word.
+
+    Batch 4r's tests-and-tools round HYG-1 (LANE I4r RULINGS 6 (2)),
+    machine-free. MUTATION: the shedding it replaced, the line's words
+    stripped of `.:;'"` and a leading sign, reads none of the first six.
+    """
+
+    def as_read_before(line: str) -> bool:
+        words = line.replace(",", " ").replace("(", " ").replace(")", " ").split()
+        return any(word.strip(".:;'\"").lower().lstrip("+-") in ("nan", "inf", "infinity") for word in words)
+
+    for line in ("between 0.0 and [inf]", "a mean of nan!", "a share of inf%", "{nan}", "«Infinity»", "-inf…"):
+        assert _says_not_a_number(line), line
+        assert not as_read_before(line), line
+    for line in ("between 0.0 and inf.", "(-inf, 3)", "'nan'"):
+        assert _says_not_a_number(line) and as_read_before(line), line
+    for line in ("information", "infinite meaning", "nan1", "x-inf"):
+        assert not _says_not_a_number(line), line
 
 
 @pytest.mark.parametrize("shape", sorted(EXTREME_COLUMNS))

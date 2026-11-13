@@ -2897,6 +2897,52 @@ developed on the twin: the fitted end of a light tail stands inside the
 real extreme, and 16 real cells of a 20,000-row normal column fell
 outside the twin's range without it (the skeptic's B6).
 
+**A label's bound (lane LM1, plan P4-D475).** On the numeric half of a
+column of numbers and labels, the bounds `contract.label_bounds` reads
+off its published labels (`<20`: 20 or more; `<=0.5`: above 0.5;
+`>1000000`: at most a million; `>=90` and `90+`: below 90) hold the
+FITTED end of this step: a fitted low end below the low bound is moved
+up to it, a fitted high end above the high bound down to it, where the
+bound stands on the tail's own side of its boundary rung. Each label is
+read in the column's decimal grammar, so `<0,5` bounds a declared
+decimal-comma column as `<0.5` bounds a column of points. Each bound is
+moved INWARD onto the grid the numbers are written on before it holds an
+end -- the least grid point at or above a low bound, the greatest at or
+below a high one, and a strict bound one step further inside -- once on
+the half's own grid (the whole numbers on a whole-valued half, the
+widest published width otherwise; a strict bound names none where no
+width is published) and again on the grid the end is placed on where
+step 4 moved it to the whole numbers. So `<=0.5` on hundredths is 0.51,
+`90+` on tenths 89.9, and `<20.5` beside whole numbers 21: held at 20.5,
+the end was spelled `20` by the whole-number writer, a number the label
+says the column never holds (Codex's review of the lane, item 8; item 9
+the decimal comma). Published and listed ends are never moved, and
+neither is an end TL5's tail rule, the moment ladder (G5.3c) or the ramp
+(G5.3d) derives: measured at the table floor, `<20` beside 52 to 588
+numbers on 20,000 rows writes no twin number under 20 on those routes
+either (repair 1 of lane LM1, skeptic 1's item 11). The bounds are read
+off published facts alone, so the validator's ladder is the generator's.
+They reach a column read as numbers and labels only; a column of the
+same cells read as a count, continuous or labels writes as before (plan
+P4-D475, limit (f)).
+Since batch 4s's fix round (the outside review of the merged line, item
+2) a bound stands on a grid point only within the noise of its own
+figures, four units in the last place of the bound scaled to its grid
+(`contract._grid_noise`), so a low and a high bound both move inward
+while the bound scaled to its grid stays below 2^52 (at 2^52 steps or
+more a step is finer than a float's spacing: 6,729 of 65,856 such cases
+miss the exact point, owner lane LM1-b); on the review's witness,
+`<1000.00000025` beside numbers from 1000.000001 written to six places at
+20,000 rows, the bound read 1000.0 and the twin wrote 11 numbers below
+the limit before, and reads 1000.000001 with 0 past it after. No
+validator check holds a twin's numbers to a label's bound: the bound is
+read off the published labels by the one loader
+(`contract.label_bounds`, through `contract._compound_facts`) for the
+generator and the validator alike, and moves only the derived ends both
+read (`contract._inside_the_labels`, which the validator's windows reach
+through `contract.tail_ladder`); a check that a number past the bound
+misses is the fix round's carry (plan P4-D475, owner lane LM1-b).
+
 ### G5.3c The moment ladder (stage 3)
 
 A tail block publishing its moments and no rung (`tails` with two null
@@ -10247,6 +10293,134 @@ publish, on a twin that wrote both published members exactly. Measured
 on 100 successive noon timestamps alternating no offset and `+01:00`,
 at every seed.
 
+### G7.4r Offsets that follow the date (lane DST, plan P4-D474)
+
+A column read on the shared clock whose block publishes `offset_rule`
+(contract 6.6.2, invariant OR1) takes no offset from the census by counts.
+A rule is a family of `synthtwin.offset_rules` (`us` from 1987 with its
+2007 change, `eu` from 1996, `au` and `nz` from 2008, each family's two
+changes a year stated as instants in Python integers, no zone database)
+and the zone's standard offset; summer time is one hour east of it.
+
+1. **THE OFFSET A RANK WEARS.** At the column's own precision, the one in
+   force at the rank's instant. On a POOLED column (`time_grain`, G7.13)
+   the description's cells are the starts of buckets, each at the offset
+   in force at its start (`grains.coarse_cell`): a rank counts under
+   summer time where the start of the bucket its WRITTEN wall clock stands
+   in is in summer time -- its wall clock written at the offset in force
+   at the start of the bucket its wall clock at its own instant's offset
+   stands in -- and it wears the offset of the side it counts on (repair 1
+   of lane DST: read as the offset of the bucket its wall clock stands in,
+   a rank in the hour after the start of the first bucket starting in
+   winter wore summer time's offset on winter's side, and the zoo's
+   encounters wrote two discharge stamps, pooled at the month, at 23:00 on
+   31 December). On a pooled column THE HOUR AFTER EACH BOUND WHERE THE
+   SIDE TURNS TO WINTER IS DEAD (`_rule_dead`; lane DST's repair 2, Codex's
+   item 1): a rank there counts on winter's side and wears the standard
+   offset, so its wall clock lands in the last bucket that starts in
+   summer time and is read back on summer's side, while at summer time's
+   offset it would land in the first bucket that starts in winter. No rank
+   stands there: before the census step each body rank in it is set on the
+   last instant before it (`_off_dead_hours`), the bucket its real cells
+   stand in, inside its gap, else on the first after it; steps 2 and 3
+   leave the hour out. (A 20,000-row table of local stamps from 01:55 to
+   02:04:59 on a fall-back day published 10,100 and 9,900 at its two
+   offsets and its twin read back 14,916 and 5,084, the second occurrence
+   counted winter and written in summer time's buckets.) Below the hour a
+   bucket of a repeated hour holds both its occurrences' instants while
+   its start names the first, so the producer admits no rule at the minute
+   or the second rung across an hour the clocks repeat: the column keeps
+   the description it had before the rule (contract, `offset_rule`).
+2. **THE CENSUS FIRST.** The ranks are spread as G7.3 spreads them; then,
+   where the count of ranks under summer time differs from the census's,
+   every RUN of the body -- ranks in rank order sharing one gap, none
+   pinned, no tail rank -- whose gap a change runs through is cut into its
+   stretches between changes. The count owed is shared over those runs in
+   proportion to how many of a run's ranks the side it must move to would
+   hold at the run's own density, then by the width of the side each run
+   moves to, none past its room (largest remainder, the earlier run on a
+   tie; the widths are weights alone, never rooms). A run that moves gives
+   its new counts to its stretches (taken from the giving stretches in
+   proportion to the ranks each holds, given to the taking ones in
+   proportion to their width alone, a stretch of one second holding any
+   number) and its ranks fill them in rank order, EVERY stretch's
+   group -- a giving stretch's as a taking stretch's -- laid over the whole
+   stretch: scaled in order from where its ranks stand, its spacing kept
+   in proportion, its first and last rank half the group's spacing on the
+   stretch inside the stretch's two ends (never onto the gap's own pins),
+   a group of one at the middle. So a count short by k ranks thins each
+   stretch evenly and the hours beside a change keep their share of the
+   run (repair 1 of lane DST: a giving stretch that kept its remaining
+   ranks where they stood emptied the hours next to the change, 15 empty
+   12-hour windows within 72 hours of the 2023 and 2024 changes of a
+   uniform table of six zones at 20,000 rows, where the real table and
+   G7.4's twin have none). A column listing dates that stand out moves
+   none. The count the step achieves is COUNTED, never assumed, and a
+   count short of the census is said in the report (lane DST's repair 2,
+   Codex's item 5: widths read as rooms capped a run of one summer second
+   at one rank, and a summer census of 13 was met by 12 in silence). A
+   stretch never begins inside a dead hour (step 1): one the side turns to
+   winter at begins an hour later.
+3. **THE GAPS CUT.** Every rank's gap is cut at the changes around its
+   instant (at the column's precision, the changes of the clocks; on a
+   pooled column, where step 1's side changes, a winter side's gap opening
+   after its dead hour), so no pass of G7.3 moves a rank across one or into
+   a dead hour. Where the passes run on the ranks' own clocks (G7.3k),
+   a pass sorts the ranks between two pins as one run, and where the
+   clocks go back the cut gaps either side of the change share the wall
+   clock of the hour they repeat: so, in a frame of seconds, the frame is
+   taken back by first handing each group's written places -- the body
+   ranks between two ranks that never move -- back to the cut gaps they
+   stand in, the places ascending, each to a run of one cut gap and one
+   offset with a rank left whose gap on its own clock holds it, the run
+   whose gap ends first taken (the matching of points to intervals, which
+   finds one wherever the passes did); each run is then written in instant
+   order at its one offset. No rank is written at the other occurrence of
+   its wall clock and none crosses a pin (repair 1 of lane DST, skeptic
+   1's item 2: without it a run sorted across the April change of a
+   south-eastern zone put a rank an hour early, below the rung at 10 per
+   cent, which validate missed by 1,486 seconds at 20,000 rows). Every
+   rank's offset is then read again off its instant before G7.5 spells
+   it; with every rank inside its cut gap, and a pooled rank wearing its
+   side's offset (step 1), the reading changes no offset (measured: none
+   of the 260,000 stamps of two invented tables of six zones at 20,000
+   rows, one drawn evenly and one heaped on the days the clocks change,
+   a pooled column among them), and it stands as the method's statement
+   that no cell wears another. THE CENSUS IS THEN COUNTED AS THE TWIN WILL
+   BE READ BACK (`_rule_read_back`; lane DST's repair 2, Codex's item 1):
+   at the column's precision the ranks wearing summer time's offset, on a
+   pooled column the ranks whose written wall clock stands in a bucket
+   whose start wears it; a count that disagrees with the census is said in
+   the report, never an empty list.
+4. **INSIDE A BUCKET** (G7.13 under the rule): a pooled stamp is drawn
+   uniformly among its bucket's instants -- those whose wall clock stands
+   in it, as runs of one offset (`grains.bucket_instants`): where the
+   clocks repeat an hour a bucket inside it holds two DISJOINT runs, one an
+   occurrence, and a bucket holding the whole hour one run through both
+   (lane DST's repair 2, Codex's item 2: read from the first instant whose
+   wall clock reaches the bucket's start to the first that reaches its end,
+   the minute bucket 01:59 of a fall-back day took in the whole second
+   occurrence, and a draw came back at 01:29:30) -- each run stepped by the
+   cell's own precision on the wall clock's grid, and written in its own
+   form at the offset in force at the instant drawn: never inside the hour
+   the clocks skip, and in the hour they repeat at either occurrence.
+5. **THE COUNT AT THE RUNG** (G7.13 under the rule; lane DST's repair 2,
+   the verify's item 1): a row moved to an empty bucket to reach the count
+   of different values moves only to one whose start wears the offset its
+   own bucket's start wears (`grains.count_filled`'s `rule`), so it stays
+   on its side of the census; where no such row is left between the same
+   two published points the census stands and the count gives way, named
+   in the report with that cause (P4-D369 (a)'s order). (On the statistics
+   check's event table at 20,000 rows a row moved from August, winter in
+   the south, to an empty January: `nz_iso` held 11,637 cells at summer
+   time's offset against 11,636 published, and validate missed it.)
+
+Every other column is allocated by G7.4 and keeps its bytes. The oracle
+mirrors steps 1 to 4 (`rule_clock`, `rule_dead`, `off_dead_hours`,
+`census_by_rule`, `gaps_cut_by_rule`, `framed_by_gap` in
+`own_clock_unframed`, `rule_read_back`, `rule_bucket_runs` in
+`pooled_drawn_under_rule`, `pooled_count_filled`'s `clock`).
+
 ### G7.5 Writing the cell IN ITS SOURCE'S OWN FORM, at the published precision
 
 **Owner decision 5 is REVERSED** (owner ruling 2026-09-15, plan P4-D61,
@@ -10422,7 +10596,7 @@ slashed pair's joint words; a month or weekday name in its field's
 own set and case, the weekday the date's own; `{F}` as zeros at
 `subsecond_digits`; and the offset the rank wears in its field's own
 spelling, at the place the layout puts it -- `+0100` under `{+HHMM}`,
-`-05` under `{+HH}`, the word itself under `{Z}`, `{UTC}` or `{GMT}`.
+`-05` under `{+HH}`, the word itself under `{Z}`, `{UTC}` or `{GMT}`, and under a zone-word field (lane TR, plan P4-D473) the family's word for the offset, `EDT` for `-04:00` under `{EST/EDT}` -- an offset the family names no word for, which rule LY4 keeps out of a loaded description, its standard word; a cell's word is read at the offset it names, and G7.9b's offer spells each whole hour east as the family's word where it names one, and makes no payment where it names none (the oracle writes the nine families out a second time: `LAYOUT_ZONE_FIELDS`, `layout_written`, `layout_zone_offset`, `offsets_on_offer`; the lane's skeptic 1, item 2).
 THE CLOCK HALF (landing R2b): `{H}` writes the hour in one figure below
 ten and `{_H}` pads it with a space; `{hh}`, `{h}` and `{_h}` write the
 same three widths on the 12-hour dial, the hour less twelve after noon
@@ -11668,6 +11842,17 @@ refuses beyond the shapes refused below is `24:00`, a marked hour of 0 or past 1
 `Am`, a one-letter marker, and a marker after two spaces or a no-break
 space.
 
+**AND EIGHT FORMS OF FIGURES AFTER THE FORTY** (lane TR, plan P4-D473,
+contract C6-10b): `hh-mm figures`, `hh-mm-ss figures` and `hh-mm-ss
+figures.N` for N of 1 to 6, each on its own face at the width `hh`. The
+ordinal is the same minute or second of the day; the spelling writes the
+hour, the minute and, at the second, the second in two figures each with
+no mark between them, and after them, on `figures.N`, a point and N
+noughts. A cell reads only in its own shape, exactly, on the grid; no
+other form's reader takes one, and none is read in them by inference.
+The oracle writes the same map (`figures_fraction_of`, `clock_form_fields`,
+`written_clock_of`, `clock_ordinal_of`).
+
 The ordinal of a cell is `hours * 60 + minutes` for `hh-mm` and
 `hours * 3600 + minutes * 60 + seconds` for `hh-mm-ss`, the hour read on
 the form's face for the other thirty-eight. The spelling of an ordinal
@@ -12452,6 +12637,53 @@ of it: a held or long-tail twin's made-up labels in a layout of three
 figures and a letter (`898Y`, `777Y`) are such cells; one with another
 letter (`126O`) is no age and is kept. The oracle writes both from these
 words (`safe_harbor_ages_twin`, `_harbor_changed`), in the same commit.
+LANE HB2 (plan P4-D477, 2026-11-10): where the block carries
+`top_coded_words` (contract TC1), each cell is read with the age words of
+`taxonomy.AGE_VOCABULARY` around its number -- `age` or `aged` before it,
+spaces and at most one of `:`, `=` and `-` between, one pair of round or
+square brackets around the whole or around the number after the word, a
+unit word in such brackets after it -- and they are kept in the cell's head
+and tail, so `Age 95` is written at or below 90 as a bare `95` would be,
+its words kept; a block without the key is read without them, as it was
+made. AND THE TOP CODE BOUNDS EVERY CELL OF A COLUMN DESCRIBED AS NUMBERS:
+in a column whose facts are a column of numbers', bare or with a unit (the
+generator says so; lane HB2's repair 1: inferred as neither held nor read as
+labels, the bound reached a held column's made-up cells, `201 lb` written
+`86 lb`, and its twin missed its own layouts), a cell past 125 years written
+with a word that is no age's unit (`130.9 kg`) is written at or below 90 too,
+save a placeholder (nines alone, or written as one is), where it was kept
+(the zoo's vitals export, nobody at the keyboard, published the top code
+90 for its weight column and its twin wrote 130.9, 138.8, 148.3 and 159.5
+kg); a held, label or long-tail twin's made-up cells keep the reading above.
+SINCE LANE HB2'S REPAIR 1 every space (`str.isspace()`, and the zero-width
+and format spaces U+200B to U+200F, U+2060 and U+FEFF) and every dash of the
+identifier forms' marks in a cell's frame is read as the space or the hyphen
+it stands for and kept as written (`Age<U+00A0>95` is written `Age<U+00A0>89`
+or `Age<U+00A0>90` as `Age 95` is), spaces inside a frame's brackets too. The
+oracle writes both from these words (`_harbor_frame`, `_harbor_plain`,
+`_harbor_changed`), in the same commit as the product. SINCE BATCH 4s'S
+MERGE OF LANE HB2 (2026-11-11) a space of such a frame is a space of the
+product's one definition (`taxonomy._SCREEN_SPACE_RANGES`: every character
+`str.split()` cuts at and every control and format character, the soft
+hyphen among them) and a dash a dash named beside it
+(`taxonomy._SCREEN_DASHES`: the hyphen-minus, the hyphen, the non-breaking
+hyphen, the figure dash, the en and em dashes, the horizontal bar, the minus
+sign, the small em dash and the small and full-width hyphen-minus), the
+definition the word screen and the readers of persons' names and of record
+numbers beside labels read; the oracle writes both out
+(`_HARBOR_SPACE_RANGES`, `_HARBOR_DASHES`), in the same commit as the
+product.
+SINCE LANE HB2'S REPAIR 2 (2026-11-11; Codex's items 3 and 5) the number in
+such a frame is read as the profiler's number reader reads one -- a sign, a
+leading or a trailing point, an exponent, marks between thousands, a negative
+amount with a minus after its point (`Age .95e2` is 95) -- and a pair of
+brackets around the number alone before an age's unit or affix is the
+frame's (`Age (95) years`, `Age [95] yrs`, `(95) yrs`, `Age (95) (years)`: 95,
+written `Age (89) years`; `(95)` beside no word and no unit is read as
+before); and the words are read wherever the block carries
+`top_coded_words`, with or without `top_category_pooled`, as the validator
+reads them. The oracle reads the same (`_harbor_frame`, `_harbor_number`),
+in the same commit as the product.
 
 
 ### G7.15 The Safe Harbor years: no year before the group
@@ -14249,6 +14481,38 @@ LANE PL RULINGS 1 (1)) writes that one word in the floor's number of its cells (
 most its blank cells), whatever the real number, and its other cells blank; the
 twin's report names those cells beside `n_present` and no other recount. The
 oracle mirrors this section from its own words (A-P4-59).
+
+### G8.3e A named pool
+
+*Lane CODES-2, plan P4-D471; contract 6.3, B4f to B4h.* A block carrying
+`held_back_names` writes its published levels by G8.1 and its pool by this section
+alone, before G8.3d and in place of G8.3 to G8.3c; the step consumes no words and
+makes up no spelling. Every name is written once at least, in sorted order after
+the published spellings. The pool's rows are shared class by class: each numeric
+class takes what its published count (`n_numeric`, `n_out_of_range`,
+`n_contradictory`) leaves once the published spellings have paid (G8.3a's debt, at
+least nought), the words take the rest of `suppressed_rows`, and each class shares
+its rows over its names evenly, the earlier name in sorted order taking the odd
+row. A pool the floor made (no `pool_in_people`) keeps every level's names below
+the floor together: where a level's names reach it, the rows past one fewer go to
+the next names of the same class whose levels have room, in sorted order. The
+real sizes are never published, so the twin's are these; the pool's total, its
+count of labels and its names are met exactly.
+
+*Amended 2026-11-10 by lane CODES-2's repair 2 (Codex's items 2, 3 and 5 on the
+build; the orchestrator's LANE CODES-2 RULINGS 6 (2) and (3)).* The rows past
+the floor move in ONE PASS: a level's room only shrinks (a level that gives rows
+keeps none to spare, one that takes them never gives), so one pointer per class
+leaves a full level behind for good and meets the names, in the order, that a
+search from the class's first name met -- the same twin, linear in the names
+(the build's search took 1.28, 5.43 and 21.60 CPU seconds at 28,000, 56,000 and
+112,000 pooled rows). The allocation is judged when it is COMPLETE: the note
+`held_back_names` is written only where a level's names still hold the floor's
+rows or more together once every name has been read. Names and counts that
+cannot agree -- a class owing rows that no name reads as, a class owing fewer
+rows than its names, numbers owed past the pool -- are REFUSED when the
+description is read (contract 6.3, B4g), so every pooled row is written once and
+no more; the generator never writes a different total from the published one.
 
 ### G8.4 The order of `content`
 
@@ -16245,6 +16509,12 @@ packing rule applying here IN FULL — both margins and the shape search
   on 760 rows whose first groups are singletons, pinning first asked
   sixteen questions with no answer and took eighty seconds; unpinned, the
   column takes under one). At most sixteen different questions are asked
+  -- sixty-four on a column of sixty-four groups or fewer (*amended
+  2026-11-10 by lane CODES-2's repair 2*: a held surname column of seven
+  groups publishing three layouts at 20,000 rows was packed by the
+  seventeenth question alone, and its twin wore `@&&&&&` on 5,833 cells
+  against the 9,935 published; the same column held on the base missed
+  the same three) --
   and at most four layouts built, and each group is then offered
   its packed layout ALONE, a group packed to none being offered no named
   layout at all. A layout built this way is kept only where it builds
@@ -16792,9 +17062,10 @@ publishes `made_up_years` (contract 7.12c) -- one block a kind of year,
 fixed by the published facts, that no real date of the column takes --
 both writers draw from those years alone:
 
-1. **The G1 floor**, where its grain reads dates (a grain reading stamps,
-   clock times or counted dates is written from its own span as before:
-   repair 1 of lane ID-ROOM2, Codex's item 1), takes as its spans the
+1. **The G1 floor**, where its grain reads dates or, since lane TR (its
+   skeptic 1, item 1; plan P4-D473), stamps (a grain reading clock times
+   or counted dates is written from its own span as before: repair 1 of
+   lane ID-ROOM2, Codex's item 1), takes as its spans the
    published runs of the reading's kind of year -- four-figure years, or,
    where the reading writes two figures (a `{YY...}` layout, a two-digit
    member), the two-figure years read from 2000, the figures alone being
@@ -16807,7 +17078,31 @@ both writers draw from those years alone:
    (repair 1, Codex's item 3) -- at its own length and on its side of the
    code alphabet, else left as the walk's value (repair 2: a withheld
    value of the other width of year written at the room's width failed
-   validation).
+   validation). A made-up STAMP stands where one of its readings the room
+   holds against (`taxonomy.cell_date_years`) names a published year of
+   its kind -- so it is no real cell's text, and its calendar date, drawn
+   in a published year, is no real cell's -- with its clock, its fraction
+   and its offset or zone word written as before; one an offset carried
+   across the year's end is drawn again; and a made-up value no stamp
+   wears in its own form, a stand-in of a withheld layout, is written in
+   the member's own form from the same spans, as the G1 floor wrote it
+   before the room (lane TR, plan P4-D473). A made-up value of a zone-word
+   layout wears each word of its family, at the offset the word names,
+   after the standard word the layout writes with no offset (lane TR's
+   verify, carry C-B, plan P4-D473): a made-up value as long as `WEST`,
+   `CEST` or `EEST` -- a letter longer than its family's standard word --
+   is written as a stamp in that word, where it wore no date and kept the
+   walk's value (11,760 of 20,000 cells of held birth stamps were invalid
+   dates); the families whose words are as long as each other write as
+   before. Its fraction of a second is the last run of figures before the
+   word, so a made-up value with a fraction before its zone word is drawn
+   with the fraction's figures, written as noughts (lane TR's follow-up,
+   LANE TR RULINGS 7 (2)). Where the floor draws no stamp of a zone-word
+   column -- its room publishes no year of its kind (`[]`, NF137), or no
+   stamp of its layout is drawn in a made-up value's form -- a made-up value
+   holding a figure is written blank, as the twin of such a column was
+   written before its zone word was read, never the walk's value, which is
+   no date; a made-up word holding no figure stands as before.
 2. **The date pass** takes the published years of the form's kind in runs
    of eighty, in order, in place of eighty from 1940: year first, year,
    month and day; year last, two fields of 1 to 12 each (then, for a
@@ -17832,6 +18127,33 @@ cells. It is behind the chain's switch, and its rule steps are off unless
 a caller asks, so no twin of a description a shipped command loads
 carries it; it prints no count of rows.
 
+**AND ONE MORE IN LANE TR** (plan P4-D473, its repair 2, indexed by its
+follow-up): `role`, named where a clock written as figures with a fraction
+has a twin of one value or two, which the earlier rules read back as one
+value or two where the description reads clock times; it names the role
+read back and no value. The disposition registry files it under
+`universal`, as `cli._registry_fact` names it.
+
+**AND ONE MORE IN LANE CODES-2** (plan P4-D471; amended 2026-11-09 by the
+lane's repair 1, the orchestrator's LANE CODES-2 RULINGS 2 (2)):
+`held_back_names`, the note G8.3e writes on a label block whose pool is
+named beside its total where the twin wrote every name and every pooled
+row but one level's names still hold the floor's rows together once the
+allocation is complete (restated by repair 2: names and counts of numbers
+that cannot agree are refused when the description is read) -- a
+description synthtwin writes always lets the floor hold, so the note names
+a hand-made one. It is
+a DEVIATION OF THE DESCRIPTION because the key it names publishes words:
+the spellings of the levels fewer rows than the floor hold, never their
+counts, beside the pooled total ruling 2 prints. ITS FLOOR RULE: a name is
+published only where the floor made the pool by ROWS (no pool counted in
+people), only at the owner's table floor of 20,000 rows, and only on the
+three roads of P4-D471 -- a declared code answered `no`, any other label
+column answered `no`, or a compound column's words that pass the shape
+screen, a word holding a figure only after `no` -- so the note names no
+count from 1 to 10 and no row. The whole suite of the lane's build head
+turned this guard red, which is what it is for.
+
 * `all_at_midnight`
 * `all_whole_numbers`
 * `band totals`
@@ -17847,6 +18169,7 @@ carries it; it prints no count of rows.
 * `few_values`
 * `fraction_widths`
 * `group_separator`
+* `held_back_names`
 * `integer_valued`
 * `n_at_midnight`
 * `max_length`
@@ -17877,6 +18200,7 @@ carries it; it prints no count of rows.
 * `pad_widths`
 * `percentiles`
 * `resolution_mix`
+* `role`
 * `rules`
 * `shape_forms`
 * `subsecond_digits`

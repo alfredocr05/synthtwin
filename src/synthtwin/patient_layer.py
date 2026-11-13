@@ -906,8 +906,18 @@ PERSON_KEPT_IN_ROWS = (
 PERSON_COUNTED_FORMS = ("n_all_digits", "n_code_alphabet")
 # The Safe Harbor marks of a patient-fixed column's row block that its published
 # block keeps where the patient table's own lacks them (lane BT3a's repair 2): the
-# age top-code, its pooled top category's rule and its people, and the year cut.
-SAFE_HARBOR_MARKS = ("top_coded", "top_category_pooled", "top_category_people", "top_coded_year")
+# age top-code, its pooled top category's rule and its people, the age words it
+# read and the ends it pooled in people (lane HB2, plan P4-D477), and the year
+# cut; AND ITS BAND READING (`top_coded_bands`, lane CZ-E, plan P4-D472;
+# Codex's review of batch 4s, item 5): `0-17` to `100+` fixed by patient, the
+# rows' block pooling `75-99` and `100+` into `75+`, lost the marker on the
+# published block, and the cells read through that block kept `75-99` and
+# `100+` on 4,000 rows each, where `75+` starts below 90 and no reading of
+# the patient table's own cells could find the marker again.
+SAFE_HARBOR_MARKS = (
+    "top_coded", "top_category_pooled", "top_category_people", "top_coded_words", "top_coded_ends",
+    "top_coded_year", "top_coded_bands",
+)
 
 
 def _person_counts_floored(block: "dict[str, object]", floor: int) -> "dict[str, object]":

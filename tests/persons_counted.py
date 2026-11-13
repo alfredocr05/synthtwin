@@ -125,10 +125,21 @@ _EPOCHS = {"days-since-1970": datetime.date(1970, 1, 1),
            "excel-1904": datetime.date(1904, 1, 1)}
 
 
+# ...and a clock written as figures alone (lane TR, plan P4-D473), `0742`,
+# `074512` or `074512.123456`: asked only of a clock column's values.
+_CLOCK_FIGURES = re.compile(r"^\s*(\d{2})(\d{2})(\d{2})?(?:\.\d{1,6})?\s*$")
+
+
 def _clock(text: str) -> "tuple[int, int] | None":
     found = _CLOCK.match(text)
     if not found:
-        return None
+        figures = _CLOCK_FIGURES.match(text)
+        if figures is None:
+            return None
+        hour, minute = int(figures.group(1)), int(figures.group(2))
+        if hour > 23 or minute > 59:
+            return None
+        return hour * 60 + minute, int(figures.group(3)) if figures.group(3) else -1
     hour, minute = int(found.group(1)), int(found.group(2))
     second = int(found.group(3)) if found.group(3) else -1
     marker = (found.group(4) or "").lower().replace(".", "")
@@ -202,7 +213,14 @@ def _grain_floor(moment: "datetime.datetime", rung: str) -> "datetime.datetime":
 
 def _grain_text(moment: "datetime.datetime", grain: "dict[str, object]", block: "dict[str, object]") -> str:
     if grain["kind"] == "clock":
-        with_seconds = "-ss" in f"{block.get('clock_form', '')}" or "-ss" in f"{grain['reading']}"
+        form = f"{block.get('clock_form', '')}"
+        with_seconds = "-ss" in form or "-ss" in f"{grain['reading']}"
+        # A clock written as figures names its bucket in its own figures,
+        # its fraction as noughts (lane TR, plan P4-D473).
+        if " figures" in form:
+            figures = moment.strftime("%H%M%S" if with_seconds else "%H%M")
+            places = form[form.index(" figures") + 9 :]
+            return figures + ("." + "0" * int(places) if places.isdigit() else "")
         return moment.strftime("%H:%M:%S" if with_seconds else "%H:%M")
     if grain["kind"] == "stamp" or moment.time() != datetime.time(0):
         return moment.strftime("%Y-%m-%d %H:%M:%S")

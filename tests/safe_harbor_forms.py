@@ -24,7 +24,9 @@ people):
    either case, 22 and 24 base64 characters.
 6. `device_numbers`: device lot and serial numbers (`A12345`,
    `SN-0042-77`, ten figures) and GS1-style unique device identifiers
-   whose application identifiers carry a serial `(21)` or a lot `(10)`.
+   whose application identifiers carry a serial `(21)` or a lot `(10)`;
+   one person on eight rows, each lot held by two people, so the person
+   census counts 1,250 people at 20,000 rows (lane CZ-A2).
 7. `accession_and_units`: specimen accession numbers (a letter, a
    two-figure year and a sequence, in three layouts in one column) and
    blood-unit numbers in the ISBT 128 layout (a made-up facility code, a
@@ -569,8 +571,19 @@ def bracket_udi(draw: random.Random, serial: str) -> str:
     return f"[01]{device}[17]{expiry}[21]{serial}"
 
 
-# The lots a log's devices come from: a lot holds many devices.
-LOTS = 40
+# THE IMPLANT LOG'S PEOPLE AND LOTS (lane CZ-A2, plan P4-D469): a lot
+# holds several people's devices, and the person census counts the people
+# of a table whose lot is answered an identifier by the lot and the
+# patient together (plan P4-D445's limit (f), lane MG's): forty lots shared
+# by a thousand people were counted as 40 people, so the command refused
+# the zoo's implant log at its answer round and K-HZ-06's zoo leg read no
+# twin of it (`refused_by_floor`). The log holds one person on
+# `DEVICE_ROWS_A_PERSON` rows -- 2,500 people at 20,000 rows, 100 at the
+# smoke's 600 -- and each lot is held by `DEVICE_PEOPLE_A_LOT` people, in
+# turn, so the census counts as many people as there are lots: 1,250 at
+# 20,000 rows, past the owner's floor of 1,000.
+DEVICE_ROWS_A_PERSON = 8
+DEVICE_PEOPLE_A_LOT = 2
 
 
 def device_numbers(n: int, seed: int, people: "int | None" = None) -> "tuple[list[str], list[list[str]]]":
@@ -579,12 +592,16 @@ def device_numbers(n: int, seed: int, people: "int | None" = None) -> "tuple[lis
     And beside them `implant_ref`, UDIs whose application identifiers
     stand in square brackets, and (repair 2) `sn`, another device's serial
     number under its short name (`device_serial`, the verify's item 5).
+    One person on `DEVICE_ROWS_A_PERSON` rows unless ``people`` says how
+    many, each lot held by `DEVICE_PEOPLE_A_LOT` people in turn (lane
+    CZ-A2).
     """
     draw = random.Random(seed)
-    count = _people(n, people)
+    count = people if people else max(n // DEVICE_ROWS_A_PERSON, SMOKE_PEOPLE)
     serials = _distinct(draw, count, device_serial)
-    lot_list = _distinct(draw, LOTS, device_lot)
-    lots = [lot_list[draw.randrange(LOTS)] for _place in range(count)]
+    lot_count = max(count // DEVICE_PEOPLE_A_LOT, 1)
+    lot_list = _distinct(draw, lot_count, device_lot)
+    lots = [lot_list[place % lot_count] for place in range(count)]
     udis = [device_udi(draw, serial.replace("-", ""), lot) for serial, lot in zip(serials, lots)]
     extra = _second(seed)
     implants = _distinct(extra, count, lambda d: bracket_udi(d, _letters(d, 2) + _figures(d, 6)))
@@ -1195,11 +1212,14 @@ def inner_runs(value: str) -> "list[str]":
     a value of two words or more, every such run stands inside a wider
     value, however it is glued in its word (`[1234567]`, `[MR1234567]`,
     `#MR1234567`, `[1234567A]`, `[REC-1234567]`: batch 4q's fix round 2,
-    the verify's blocker 1); a value of one word (`MR1234567`,
-    `S24-123456`) holds none: it is one key.
+    the verify's blocker 1); and in a value of ONE word holding a letter
+    (`MR1234567`, `S24-123456`, `ZM1004715`), whose label or capitals stand
+    beside the run (lane CZ-A2, plan P4-D469). A value of one word of
+    figures alone holds none: it is one key.
     """
     words = 0
     worded = False
+    lettered = False
     for place in range(len(value) + 1):
         joined = place < len(value) and (value[place].isalnum() or value[place] in WORD_JOINS)
         if not joined:
@@ -1207,7 +1227,8 @@ def inner_runs(value: str) -> "list[str]":
             worded = False
         elif value[place].isalnum():
             worded = True
-    return figure_runs(value) if words >= 2 else []
+            lettered = lettered or value[place].isalpha()
+    return figure_runs(value) if words >= 2 or lettered else []
 
 
 def complete_tokens(real: "list[str]", cells: "list[str]") -> int:
@@ -1218,7 +1239,8 @@ def complete_tokens(real: "list[str]", cells: "list[str]") -> int:
     beside a name, glued to its label or standing alone, a sequence beside
     a facility's code. A twin cell holds one where one of its runs inside a
     wider value (`inner_runs`: a cell of two words or more, however the run
-    is glued in its word; the verify of the fix round, blocker 1) is that
+    is glued in its word; the verify of the fix round, blocker 1; or of one
+    word holding a letter, lane CZ-A2) is that
     token whole, so the whole-cell counts never see it: the record number
     stands complete inside a wider made-up value. LINEAR: the real tokens
     in a set, each different twin cell read once.

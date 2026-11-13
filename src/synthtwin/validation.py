@@ -160,6 +160,7 @@ import dataclasses
 import math
 from synthtwin.paths import validate_local_path
 import pathlib
+import typing
 
 from synthtwin import calendar_clock, calendar_rules, contract, dialect, errors, parsing, profile, reading, taxonomy, workbook
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
@@ -2014,7 +2015,29 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
         # read in its system -- at the precision its description published,
         # which `counted_units` hands the re-description.
         forced_date_counts=block.forced_date_counts,
+        # -- lane TR (P4-D473)
+        # THE COLUMNS READ AS CLOCK TIMES WRITTEN AS FIGURES (rule 5c), so a
+        # checked file's are read in the form the description published.
+        forced_clock_figures=clock_figures_published(description),
     )
+
+
+def clock_figures_published(description: contract.Profile) -> "tuple[str, ...]":
+    """The columns a description reads as clock times written as figures (rule 5c, plan P4-D473).
+
+    Each column of clock times whose published `clock_form` is a form of
+    figures (`parsing.CLOCK_FIGURE_FORMS`): only the person's answer
+    `clock-figures` reads a column so, and the form it published is that
+    answer's own record, so a checked file is read under it as the
+    description was. Guarantees: a function of the description, in its
+    column order. Raises nothing. No I/O of any kind.
+    """
+    found: "list[str]" = []
+    for column in description.columns:
+        facts = column.facts
+        if isinstance(facts, contract.ClockFacts) and parsing.clock_figure_fraction(facts.clock_form) is not None:
+            found += [column.name]
+    return tuple(found)
 
 
 def counted_units(description: contract.Profile) -> "dict[str, int]":
@@ -4014,6 +4037,227 @@ def _read_fallback(place: pathlib.Path) -> str:
     return str(data, "latin-1")
 
 
+# -- THE CHECKED FILE READ IN GROUPS OF COLUMNS (lane SV, plan P4-D476) --
+#
+# `synthtwin validate` reads the file it checks as `synthtwin profile` reads
+# a table (`reading.read_table`'s ``in_groups``, lane SR, plan P4-D400): its
+# bytes and its text are never held whole, and a file too large for one
+# group of columns (`reading.GROUP_BYTES`) is held one group at a time,
+# every column asked of `reading.column_values` -- so what the check holds
+# grows with one group of columns, not with the whole twin (measured at
+# 4.4 KB a row read whole, about 9 GB at 2,000,000 x 50). EVERY BYTE IT
+# WRITES AND PRINTS IS THE ONE IT WROTE READING THE FILE WHOLE. Where the
+# reading is whole -- a file that fits one group, or a workbook -- every
+# step below runs as before. Where it is in groups, the three rewrites the
+# check makes of the table it describes and counts (the Safe Harbor ages
+# and years, and the published grains) are made of each column as it is
+# asked for (`column_as_checked`, through `reading.column_values`), by the
+# very functions that make them of a table read whole, so every
+# description, check and chain line reads the cells it read before. The
+# file's whole bytes are read only where a
+# report needs them: a file the reader refuses, a description of no rows,
+# and a workbook.
+
+
+# What reading a delimited file holds, as a multiple of its bytes: the
+# Python text a cell and its place in its column (`cli._MEMORY_PER_FILE_BYTE`,
+# K-S4-02's measure rounded up). A file whose bytes, so many times over, fit
+# one group of columns (`reading.GROUP_BYTES`) is read whole.
+_HELD_A_FILE_BYTE = 10
+
+
+def _read_whole(place: pathlib.Path) -> bool:
+    """Whether the checked file is read whole, as before lane SV: what reading it holds fits one group of columns (plan P4-D476).
+
+    A file of up to `reading.GROUP_BYTES` over `_HELD_A_FILE_BYTE` bytes
+    (25.6 MiB at the shipped budget) is read and checked whole, its bytes
+    and text held, at the cost every file had before; a larger one is read
+    in groups. Guarantees: a function of the file's size and the budget;
+    True where its size cannot be read, which the reading then refuses in
+    its own words. No other I/O.
+    """
+    try:
+        size = pathlib.Path(place).stat().st_size
+    except OSError:
+        return True
+    return size * _HELD_A_FILE_BYTE <= reading.GROUP_BYTES
+
+
+def _whole_bytes(place: pathlib.Path, shown: str) -> bytes:
+    """The file's bytes, read whole, with `_whole_file`'s refusals: a workbook's, which its reader read whole."""
+    try:
+        return _read_bytes(place)
+    except MemoryError as error:
+        raise errors.ProfileError(errors.out_of_memory(shown, 0)) from error
+    except PermissionError as error:
+        raise errors.ProfileError(
+            errors.file_unreadable(shown, f"{error}")
+        ) from error
+    except OSError as error:
+        raise errors.ProfileError(
+            errors.file_unreadable(shown, f"{error}")
+        ) from error
+
+
+def _whole_file(place: pathlib.Path, shown: str) -> "tuple[bytes, str | None, str]":
+    """The file's bytes, its UTF-8 text (None where they are not UTF-8) and its text as the reader reads it.
+
+    The three the reports on a file the reader refuses and on a
+    description of no rows are made from, read as `measure` read them
+    before every run, with the same refusals. Guarantees: raises
+    ProfileError for a file that cannot be read or held. Reads the file.
+    """
+    try:
+        data = _read_bytes(place)
+        text = _read_utf8(place)
+        # The reader falls back to Latin-1 where the bytes are not
+        # UTF-8, so the header question is settled on the same text the
+        # reader would settle it on. Every other check reads `text`,
+        # because whether the file IS UTF-8 is a byte rule of its own.
+        as_read = text if text is not None else _read_fallback(place)
+    except MemoryError as error:
+        raise errors.ProfileError(errors.out_of_memory(shown, 0)) from error
+    except PermissionError as error:
+        raise errors.ProfileError(
+            errors.file_unreadable(shown, f"{error}")
+        ) from error
+    except OSError as error:
+        raise errors.ProfileError(
+            errors.file_unreadable(shown, f"{error}")
+        ) from error
+    return data, text, as_read
+
+
+# The three rewrites of the checked table, in the order `measure` makes them.
+_REWRITE_AGES = "ages"
+_REWRITE_YEARS = "years"
+_REWRITE_GRAINS = "grains"
+
+
+@dataclasses.dataclass(frozen=True)
+class _Rewrite:
+    """One rewrite `measure` makes of the checked table, with the arguments its function is called with.
+
+    ``kind`` names the function: `_top_coded_table` (``marks``, ``pooled``,
+    ``commas``, ``declared``, ``missing``, and the age words, the ends
+    and the bands its description records: ``words``, ``ends``,
+    ``banded``; lanes HB2 and CZ-E, plans P4-D477 and P4-D472, joined
+    at batch 4s's merge of lane SV), `_year_top_coded_table`
+    (``marks``, ``commas``, ``declared``) or `_at_their_grains`
+    (``grained``, ``description``, ``absent_read``).
+    """
+
+    kind: str
+    marks: "dict[str, int]" = dataclasses.field(default_factory=dict)
+    pooled: "dict[str, tuple[int, tuple[str, ...]]]" = dataclasses.field(default_factory=dict)
+    commas: "list[str]" = dataclasses.field(default_factory=list)
+    declared: "tuple[str, ...]" = ()
+    missing: "tuple[str, ...]" = ()
+    words: "list[str] | None" = None
+    ends: "dict[str, tuple[int, int]] | None" = None
+    banded: "frozenset[str]" = frozenset()
+    grained: "dict[str, grains.Grain]" = dataclasses.field(default_factory=dict)
+    description: "contract.Profile | None" = None
+    absent_read: "dict[str, tuple[str, ...]] | None" = None
+
+
+def _viewed(table: reading.Table, rewrite: _Rewrite) -> reading.Table:
+    """``table``, read in groups of columns, with ``rewrite`` made of each column `reading.column_values` hands over (lane SV).
+
+    The table's source is copied with ``rewrite`` after the rewrites it
+    already carries (``reading.ColumnSource.rewrites``), so the table
+    handed in is unchanged and the one handed back reads its own groups.
+    Guarantees: a fixed function of the two. Raises nothing. No I/O.
+    """
+    source = table.source
+    if source is None:
+        return table
+    return dataclasses.replace(
+        table,
+        source=dataclasses.replace(source, rewrites=source.rewrites + (rewrite,)),
+    )
+
+
+def _read_in_groups(table: reading.Table) -> bool:
+    """Whether ``table`` is read in groups of columns (`reading.Table.source`)."""
+    return table.source is not None
+
+
+def column_as_checked(table: reading.Table, place: int) -> "list[str]":
+    """One column of a table the validator reads in groups, as its rewrites of a table read whole leave it (lane SV, plan P4-D476).
+
+    `reading.column_values` hands over through here each column of a table
+    whose source carries the validator's rewrites (`_viewed`). The column
+    is read as the reader read it (`reading.column_as_read`), and each
+    rewrite reaching it is made, in the order `measure` makes them, by its
+    own function -- `_top_coded_table` (with the age words, the ends and
+    the bands the description records), `_year_top_coded_table`,
+    `_at_their_grains` (at the offset a published rule puts in force)
+    -- over a table holding the column and, for a top
+    category pooled in people, the subject columns it is counted in (read
+    with it, one reading of the file), every other column empty: those
+    functions read no other column of a table, so the column comes out as
+    it does from the whole table. Nothing is kept between two asks.
+    Guarantees: what `reading.column_values` raises; IndexError for a
+    place that is not one of the table's columns.
+    """
+    source = table.source
+    # The rewrites `_viewed` put there, each a `_Rewrite`: the reader holds
+    # them without reading them.
+    rewrites = typing.cast(
+        "tuple[_Rewrite, ...]", source.rewrites if source is not None else ()
+    )
+    width = len(table.column_names)
+    if not 0 <= place < width:
+        raise IndexError(f"column {place} of a table of {width}")
+    name = table.column_names[place]
+    wanted = [place]
+    reached = False
+    for rewrite in rewrites:
+        if name in rewrite.marks or name in rewrite.grained:
+            reached = True
+        if rewrite.kind == _REWRITE_AGES and name in rewrite.marks and name in rewrite.pooled:
+            for subject in rewrite.pooled[name][1]:
+                for spot in range(width):
+                    if table.column_names[spot] == subject:
+                        if spot not in wanted:
+                            wanted += [spot]
+                        break
+    if not reached:
+        return reading.column_as_read(table, place)
+    if len(wanted) > 1:
+        reading.hold_columns(table, tuple(wanted))
+    columns: "list[list[str]]" = [[] for _spot in range(width)]
+    for spot in wanted:
+        columns[spot] = reading.column_as_read(table, spot)
+    one = dataclasses.replace(table, columns=columns, source=None)
+    for rewrite in rewrites:
+        if rewrite.kind == _REWRITE_AGES and name in rewrite.marks:
+            one = _top_coded_table(
+                one,
+                {name: rewrite.marks[name]},
+                {name: rewrite.pooled[name]} if name in rewrite.pooled else {},
+                rewrite.commas,
+                rewrite.declared,
+                rewrite.missing,
+                rewrite.words,
+                rewrite.ends,
+                rewrite.banded,
+            )
+        elif rewrite.kind == _REWRITE_YEARS and name in rewrite.marks:
+            one = _year_top_coded_table(
+                one, {name: rewrite.marks[name]}, rewrite.commas, rewrite.declared
+            )
+        elif rewrite.kind == _REWRITE_GRAINS and name in rewrite.grained:
+            one = _at_their_grains(
+                one,
+                {name: rewrite.grained[name]},
+                rewrite.description,
+                rewrite.absent_read,
+            )
+    return one.columns[place]
+
+
 # WHAT USED TO STAND HERE, and why it does not (review item P3-V3-F5).
 # `_first_line` returned the text up to the first line feed, and it was
 # the whole of the zero-row byte check: one physical line, ending in a
@@ -5148,25 +5392,17 @@ def measure(
         raise errors.ProfileError(errors.file_missing(shown))
     if place.is_dir():
         raise errors.ProfileError(errors.path_is_a_folder(shown))
-    try:
-        data = _read_bytes(place)
-        text = _read_utf8(place)
-        # The reader falls back to Latin-1 where the bytes are not
-        # UTF-8, so the header question below is settled on the same
-        # text the reader would settle it on. Every other check reads
-        # `text`, because whether the file IS UTF-8 is a byte rule of
-        # its own.
-        as_read = text if text is not None else _read_fallback(place)
-    except MemoryError as error:
-        raise errors.ProfileError(errors.out_of_memory(shown, 0)) from error
-    except PermissionError as error:
-        raise errors.ProfileError(
-            errors.file_unreadable(shown, f"{error}")
-        ) from error
-    except OSError as error:
-        raise errors.ProfileError(
-            errors.file_unreadable(shown, f"{error}")
-        ) from error
+    # A LARGE FILE IS NOT HELD WHOLE (lane SV, plan P4-D476): a file whose
+    # reading may not fit one group of columns is read in groups below, its
+    # whole bytes and text read only for the reports made of them; a
+    # smaller one is read whole, as every file was before, at the cost it
+    # had (`_read_whole`).
+    grouped = not _read_whole(place)
+    data: "bytes | None" = None
+    text: "str | None" = None
+    as_read = ""
+    if not grouped:
+        data, text, as_read = _whole_file(place, shown)
 
     headed = description.source.header_source == reading.HEADER_FROM_FILE
     # THE REPORT IS CHOSEN BY THE REFUSAL THE READER ACTUALLY RAISED, ON
@@ -5279,6 +5515,11 @@ def measure(
             # are no present cell, so a checked file read under other
             # words would read its clocks as numbers.
             missing_under=settings_for(description),
+            # ...AND ONE GROUP OF COLUMNS AT A TIME where the file is large,
+            # as `synthtwin profile` reads a table (lane SV, plan P4-D476):
+            # its text is never held whole, and every step below asks its
+            # columns of `reading.column_values`.
+            in_groups=grouped,
         )
     except errors.ShapeRefusal as refusal:
         # THE ONE PREDICATE THE DISCLOSURE GATE DOES NOT CLOSE ON A FILE
@@ -5297,6 +5538,8 @@ def measure(
         # every refusal that stands before the reader's two questions --
         # gets the report that refusal chooses, exactly as it does
         # against a description that publishes rows.
+        if data is None:
+            data, text, as_read = _whole_file(place, shown)
         if description.n_rows == 0 and (
             refusal.kind == errors.NO_DATA_TO_DESCRIBE
         ):
@@ -5316,6 +5559,8 @@ def measure(
         # it should hold none, so the byte form MISSES -- and it misses
         # having been measured against a file the producer describes,
         # rather than against a walk nobody read back.
+        if data is None:
+            data, text, as_read = _whole_file(place, shown)
         return _degenerate_report(
             description, data, text, headed, as_read, measured_name
         )
@@ -5344,6 +5589,10 @@ def measure(
     # 1: three patients' undeclared `1900-01-01` were pooled into a
     # present cell before any reading saw them).
     time_grains = published_grains(description)
+    # ...AND EVERY PUBLISHED RULE AN OFFSET FOLLOWS (lane DST's repair 2,
+    # Codex's items 3 and 6), checked on the cells as written, over its
+    # family's whole calendar, before any grain (`published_rules`).
+    rules = published_rules(description)
     absent_read: "dict[str, tuple[str, ...]]" = {}
     clocked = _clocks_published_as_numbers(description, table)
     if clocked:
@@ -5373,12 +5622,27 @@ def measure(
         # description written before the rule validates as it did then,
         # never by a newer reading of the source).
         top_pooled = _top_pooled_here(description, table)
+        # ...and its age words around its numbers read only where the
+        # description records them (`top_coded_words`; lane HB2, plan
+        # P4-D477): a description written before them validates as it did.
+        top_words = _top_words_here(description, table)
+        # ...and its ends pooled in people where it records them
+        # (`top_coded_ends`, P4-D477).
+        top_ends = _top_ends_here(description, table)
+        # ...and its bands of ages past 89 read as one band only where the
+        # description records that reading (`top_coded_bands`; plan P4-D472,
+        # the orchestrator's LANE CZ-E RULINGS 6 (3): a description made
+        # before it validates as it did then).
+        top_banded = _top_banded_here(description, table)
         table = _top_coded_table(
             table, top_coded, top_pooled, declared_commas,
             declared_spellings(description),
             declared_spellings(description),
+            top_words,
+            top_ends,
+            top_banded,
         )
-        # ...AND THE SAFE HARBOR YEARS (plan P4-D434, validation V15.3): a
+        # ...AND THE SAFE HARBOR YEARS (plan P4-D434, validation V15.4): a
         # column published as `top_coded_year` is read with every year from
         # 1850 to the one it names as that year.
         years_coded = _year_top_coded_here(description, table)
@@ -5389,6 +5653,9 @@ def measure(
         # (plan P4-D453, validation V17), handed to every description below.
         kept_levels = levels_kept_here(description)
         absent_columns = counted_absent_here(description)
+        # ...AND THE POOLS NAMED (lane CODES-2, plan P4-D471, validation V18):
+        # the file re-described with exactly those columns' pools named.
+        names_checked = names_checked_here(description)
         # TWO DESCRIPTIONS, ALWAYS BOTH, AND WHAT EACH ONE DECIDES
         # (V2.1 and V2.4; review item P3-V2-A1). The first is the file's
         # OWN description -- what `synthtwin profile` would write about
@@ -5432,16 +5699,21 @@ def measure(
             # -- P4-D417: a column of dates or times described at the grain
             # its description published, the tails pooled into its ends.
             time_grains=time_grains,
+            rules_published=rules,
             dated_held=dated_held,
             absent_read=absent_read,
             top_coded_only=top_coded,
             top_pooled_only=top_pooled,
+            top_words_only=top_words,
+            top_ends_only=top_ends,
             year_top_coded_only=years_coded,
+            top_banded_only=top_banded,
             # -- P4-D453: a column with its pool counted in people is read by
             # its published levels, every other label pooled; a column counted
             # absent is read blank, the real file as the twin.
             levels_kept_only=kept_levels,
             counted_absent_only=absent_columns,
+            names_checked_only=names_checked,
         )
         # THE CHAIN'S OWN-FACT DESCRIPTION HOLDS THE CALENDAR CENSUSES (lane
         # CHv, plan P4-D430; Codex's item 1 on its build). V12.3 reads RULE
@@ -5472,10 +5744,12 @@ def measure(
                     described_affixed=described_affixed,
                     described_labels=described_labels,
                     time_grains=time_grains,
+                    rules_published=rules,
                     dated_held=dated_held,
                     absent_read={},
                     levels_kept_only=kept_levels,
                     counted_absent_only=absent_columns,
+                    names_checked_only=names_checked,
                 )
         table = _at_their_grains(table, time_grains, description, absent_read)
         over_the_split = profile.build_document(
@@ -5500,18 +5774,37 @@ def measure(
             described_affixed=described_affixed,
             described_labels=described_labels,
             time_grains=time_grains,
+            rules_published=rules,
             dated_held=dated_held,
             top_coded_only=top_coded,
             top_pooled_only=top_pooled,
+            top_words_only=top_words,
+            top_ends_only=top_ends,
             year_top_coded_only=years_coded,
+            top_banded_only=top_banded,
             levels_kept_only=kept_levels,
             counted_absent_only=absent_columns,
+            names_checked_only=names_checked,
         )
     except MemoryError as error:
         raise errors.ProfileError(
             errors.out_of_memory_while_describing(shown)
         ) from error
-    checks = _byte_checks(description, data, table.survey, False)
+    # THE FILE'S FORM, ASKED OF THE FILE ITSELF (lane SV, plan P4-D476): a
+    # delimited file's encoding a line at a time (`_encoding_found`), its
+    # other facts off the reader's survey; a workbook's whole bytes, as
+    # before, which its reader read whole.
+    form_of: "bytes | pathlib.Path" = place
+    if data is not None:
+        form_of = data
+    elif table.book is not None:
+        form_of = _whole_bytes(place, shown)
+    try:
+        checks = _byte_checks(description, form_of, table.survey, False, table)
+    except OSError as error:
+        raise errors.ProfileError(
+            errors.file_unreadable(shown, f"{error}")
+        ) from error
     checks = checks + _structure_checks(description, table, headed)
     checks = checks + _workbook_checks(description, redescribed, table)
     # THE COLUMNS THIS DESCRIPTION CANNOT BE READ BACK FOR (owner ruling
@@ -5586,9 +5879,10 @@ def _at_their_grains(
 
     A column read whole is handed over at its grain; the rest of the table
     is the same object's. A table read in groups of columns (lane SR) is
-    returned as it is: its columns are asked of `reading.column_values`,
-    and the redescription reads the grain itself (`profile.build_document`'s
-    ``time_grains``). A cell the description reads as no value -- a
+    handed over as one each of whose columns this function puts at its
+    grain as the column is asked for (`_viewed`; lane SV, plan P4-D476),
+    so every later step reads the cells a table read whole holds, and no
+    group is held beyond the one being read. A cell the description reads as no value -- a
     spelling its block publishes as absent, a blank, a word of the
     vocabulary or one declared with `--missing-value` -- is kept as
     written, even where it reads as a date (repair round 2, Codex's item 3),
@@ -5600,8 +5894,18 @@ def _at_their_grains(
 
     Guarantees: a function of the four. Raises nothing. No I/O.
     """
-    if not grained or table.source is not None:
+    if not grained:
         return table
+    if _read_in_groups(table):
+        return _viewed(
+            table,
+            _Rewrite(
+                kind=_REWRITE_GRAINS,
+                grained=grained,
+                description=description,
+                absent_read=absent_read,
+            ),
+        )
     settings = settings_for(description) if description is not None else None
     blocks: "dict[str, contract.ColumnBlock]" = {}
     for block in description.columns if description is not None else ():
@@ -5624,13 +5928,33 @@ def _at_their_grains(
                 for row in range(len(cells)):
                     if flags[row]:
                         absent[cells[row]] = True
-            columns += [grains.coarse_cells(cells, grained[name], None, frozenset(absent))]
+            # ...AT THE OFFSET ITS RULE PUTS IN FORCE AT EACH BUCKET'S START,
+            # where the description publishes one and every cell keeps it
+            # (lane DST, plan P4-D474): a twin breaking it is read as is.
+            rule = ""
+            published = blocks[name].facts if name in blocks else None
+            if isinstance(published, contract.DatetimeFacts):
+                rule = published.offset_rule
+            columns += [grains.coarse_cells(cells, grained[name], None, frozenset(absent), rule)]
             changed = True
         else:
             columns += [table.columns[place]]
     if not changed:
         return table
     return dataclasses.replace(table, columns=columns)
+
+
+def names_checked_here(description: contract.Profile) -> "tuple[str, ...]":
+    """Each column whose description names its held-back levels, or its label half's (lane CODES-2, P4-D471)."""
+    found: "list[str]" = []
+    for block in description.columns:
+        facts = block.facts
+        if isinstance(facts, contract.CompoundFacts):
+            if facts.labels.held_back_names:
+                found += [block.name]
+        elif isinstance(facts, contract.LabelFacts) and facts.held_back_names:
+            found += [block.name]
+    return tuple(found)
 
 
 def levels_kept_here(description: contract.Profile) -> "dict[str, tuple[str, ...]]":
@@ -5674,6 +5998,37 @@ def _top_pooled_here(
     return found
 
 
+def _top_words_here(
+    description: contract.Profile, table: reading.Table
+) -> "list[str]":
+    """The top-coded columns whose description records the age words its top-code read (`top_coded_words`, P4-D477)."""
+    found: "list[str]" = []
+    for block in description.columns:
+        if block.top_coded and block.top_coded_words and block.name in table.column_names:
+            found += [block.name]
+    return found
+
+
+def _top_ends_here(
+    description: contract.Profile, table: reading.Table
+) -> "dict[str, tuple[int, int]]":
+    """The top-coded columns whose description records the ends their ages were pooled into in people (`top_coded_ends`, P4-D477)."""
+    found: "dict[str, tuple[int, int]]" = {}
+    for block in description.columns:
+        if block.top_coded and block.top_coded_ends is not None and block.name in table.column_names:
+            found[block.name] = block.top_coded_ends
+    return found
+
+
+def _top_banded_here(description: contract.Profile, table: reading.Table) -> "frozenset[str]":
+    """The top-coded columns whose description records that its bands of ages past 89 were written as one band (`top_coded_bands`, P4-D472)."""
+    found: "set[str]" = set()
+    for block in description.columns:
+        if block.top_coded and block.top_coded_bands and block.name in table.column_names:
+            found |= {block.name}
+    return frozenset(found)
+
+
 def _top_coded_table(
     table: reading.Table,
     top_coded: "dict[str, int]",
@@ -5681,25 +6036,50 @@ def _top_coded_table(
     commas: "list[str]",
     declared: "tuple[str, ...]",
     missing: "tuple[str, ...]",
+    words: "list[str] | None" = None,
+    ends: "dict[str, tuple[int, int]] | None" = None,
+    banded: "frozenset[str]" = frozenset(),
 ) -> reading.Table:
     """The checked table with each top-coded column's values from 90 to 125 read as 90 (P4-D427).
 
     A cell that reads as no value -- blank, a built-in spelling of "no
     value", or one the description declared (``declared``) -- keeps its
     spelling, as the redescription keeps it (Codex's review of lane SH,
-    item 1). A table read in groups of columns (lane SR) is returned as
-    it is: the redescription reads the top-code itself
-    (`profile.build_document`'s ``top_coded_only``). A column of
+    item 1). A table read in groups of columns (lane SR) is handed over
+    as one each of whose columns this function reads so as the column is
+    asked for, with the subject columns its pool is counted in read
+    beside it (`_viewed`; lane SV, plan P4-D476). A column of
     ``pooled`` has a top category fewer rows than its recorded floor --
     or people of a recorded subject column, its cells read as subjects
     under ``missing`` -- hold pooled below the mark, as its description
     was made (P4-D454); a column its description records no rule for was
     described before lane SH3's repair and is read as it was then
-    (`taxonomy.top_coded_cells_before_sh3`). Guarantees: a function of the six.
-    Raises nothing. No I/O.
+    (`taxonomy.top_coded_cells_before_sh3`); and only a column of
+    ``banded`` has its bands of ages past 89 read as one band, as its
+    description records (`top_coded_bands`, P4-D472). A column of ``words`` is read
+    with the age words around its numbers, as its description records
+    (`top_coded_words`, P4-D477); every other without them, as it was made.
+    A column of ``ends`` has every whole age below the first written as it
+    and above the second as it (`top_coded_ends`, P4-D477).
+    Guarantees: a function of the nine. Raises nothing. No I/O.
     """
-    if not top_coded or table.source is not None:
+    if not top_coded:
         return table
+    if _read_in_groups(table):
+        return _viewed(
+            table,
+            _Rewrite(
+                kind=_REWRITE_AGES,
+                marks=top_coded,
+                pooled=pooled,
+                commas=commas,
+                declared=declared,
+                missing=missing,
+                words=words,
+                ends=ends,
+                banded=banded,
+            ),
+        )
     named: "dict[str, bool]" = {}
     for spelling in declared:
         named[parsing.trimmed(spelling)] = True
@@ -5720,8 +6100,15 @@ def _top_coded_table(
                 absent[cell] = True
         # ...and a top category fewer rows than the floor hold pooled
         # below it, as the description was made (plan P4-D454).
-        if name not in pooled:
-            # ...a description written before the rule: read as it was then.
+        worded = words is not None and name in words
+        if name not in pooled and not worded and (ends is None or name not in ends) and name not in banded:
+            # ...a description written before the rule: read as it was then
+            # -- one recording the age words or the ends, which none such
+            # holds, is read with them, the same as its generator reads them
+            # (lane HB2's repair 2, Codex's item 5); and one recording its
+            # band reading (`top_coded_bands`) too (Codex's review of batch
+            # 4s, item 6: its `90-94` and `95+` were read as written, where
+            # the generator wrote `90+`).
             columns += [
                 taxonomy.top_coded_cells_before_sh3(
                     table.columns[place], name in commas, frozenset(absent)
@@ -5729,23 +6116,27 @@ def _top_coded_table(
             ]
             changed = True
             continue
-        floor, people = pooled[name]
+        floor, people = pooled[name] if name in pooled else (0, ())
         holders: "list[list[str]]" = []
         for subject in people:
             for spot, column_name in enumerate(table.column_names):
                 if column_name == subject:
                     holders += [profile.subject_keys(table.columns[spot], missing)]
                     break
-        columns += [
-            taxonomy.top_category_pooled(
-                taxonomy.top_coded_cells(
-                    table.columns[place], name in commas, frozenset(absent),
-                    top_coded[name],
-                ),
-                name in commas, frozenset(absent), floor, top_coded[name],
-                holders if holders else None,
+        coded = taxonomy.top_category_pooled(
+            taxonomy.top_coded_cells(
+                table.columns[place], name in commas, frozenset(absent),
+                top_coded[name], worded, name in banded,
+            ),
+            name in commas, frozenset(absent), floor, top_coded[name],
+            holders if holders else None, worded,
+        )
+        if ends is not None and name in ends:
+            coded = taxonomy.cells_within_the_ends(
+                coded, name in commas, frozenset(absent), ends[name][0], ends[name][1],
+                top_coded[name], worded,
             )
-        ]
+        columns += [coded]
         changed = True
     if not changed:
         return table
@@ -5773,12 +6164,22 @@ def _year_top_coded_table(
 
     A cell that reads as no value keeps its spelling, as for the age
     top-code (`_top_coded_table`); a table read in groups of columns is
-    returned as it is, the redescription reading the years itself
-    (`profile.build_document`'s ``year_top_coded_only``). Guarantees: a
-    function of the four. Raises nothing. No I/O.
+    handed over as one each of whose columns this function reads so as
+    the column is asked for (`_viewed`; lane SV, plan P4-D476).
+    Guarantees: a function of the four. Raises nothing. No I/O.
     """
-    if not years_coded or table.source is not None:
+    if not years_coded:
         return table
+    if _read_in_groups(table):
+        return _viewed(
+            table,
+            _Rewrite(
+                kind=_REWRITE_YEARS,
+                marks=years_coded,
+                commas=commas,
+                declared=declared,
+            ),
+        )
     named: "dict[str, bool]" = {}
     for spelling in declared:
         named[parsing.trimmed(spelling)] = True
@@ -5807,6 +6208,27 @@ def _year_top_coded_table(
     if not changed:
         return table
     return dataclasses.replace(table, columns=columns)
+
+
+def published_rules(description: contract.Profile) -> "dict[str, str]":
+    """Every rule an offset follows that a description published, by column (lane DST, plan P4-D474; repair 2).
+
+    The redescription checks each on the cells as the file holds them --
+    every stamp at an offset its family puts in force on its date, over the
+    family's whole calendar, both offsets worn (`grains.wears_the_rule`) --
+    and names it only where they keep it (`profile.build_document`'s
+    ``rules_published``), so a twin cell in the hour the clocks skip is not
+    passed by a grain that writes it as its bucket's start, and a twin tail
+    past the years the rule was read over is not taken for a break.
+
+    Guarantees: a function of the description. Raises nothing. No I/O.
+    """
+    found: "dict[str, str]" = {}
+    for column in description.columns:
+        facts = column.facts
+        if isinstance(facts, contract.DatetimeFacts) and facts.offset_rule:
+            found[column.name] = facts.offset_rule
+    return found
 
 
 def published_grains(description: contract.Profile) -> "dict[str, grains.Grain]":
@@ -6480,7 +6902,7 @@ def _published_characters(value: object, found: "dict[str, bool]") -> None:
 
 
 def _encoding_found(
-    data: bytes, encoding: str, description: "contract.Profile | None" = None
+    data: "bytes | pathlib.Path", encoding: str, description: "contract.Profile | None" = None
 ) -> str:
     """What the bytes are, in the words the published encoding is asked in.
 
@@ -6497,35 +6919,65 @@ def _encoding_found(
     its description. A twin wrongly written as UTF-8 is not: read in the
     published encoding, its accented letters come out as characters the
     description never published.
+
+    ``data`` is the file's bytes, or -- for a file read in groups of
+    columns, whose bytes are never held whole (lane SV, plan P4-D476) --
+    its path: each fact is then asked of the file itself, a line at a
+    time (`reading.opening_bytes`, `reading.decodes_under`,
+    `reading.characters_past_ascii`), in the same order, so the words are
+    the same.
     """
-    if not isinstance(data, bytes):
+    if not isinstance(data, (bytes, pathlib.Path)):
         raise TypeError("internal check: a file's bytes were not bytes")
     words = dialect.ENCODING_WORDS[encoding]
-    if encoding == dialect.ENCODING_UTF16_LE and data[:2] != b"\xff\xfe":
+    if encoding == dialect.ENCODING_UTF16_LE and _head_of(data) != b"\xff\xfe":
         return f"not {words}"
-    if encoding == dialect.ENCODING_UTF16_BE and data[:2] != b"\xfe\xff":
+    if encoding == dialect.ENCODING_UTF16_BE and _head_of(data) != b"\xfe\xff":
         return f"not {words}"
-    try:
-        str(data, dialect.READING_CODECS[encoding])
-    except UnicodeDecodeError:
+    if not _decodes(data, dialect.READING_CODECS[encoding]):
         return f"not {words}"
     if encoding in dialect.FALLBACK_ENCODINGS:
-        try:
-            str(data, "ascii")
-        except UnicodeDecodeError:
-            try:
-                str(data, "utf-8")
-            except UnicodeDecodeError:
+        if not _decodes(data, "ascii"):
+            if not _decodes(data, "utf-8"):
                 return f"written as {words}"
             as_utf8 = f"written as {dialect.ENCODING_WORDS[dialect.ENCODING_UTF8]}"
             if description is None:
                 return as_utf8
             published: dict[str, bool] = {}
             _published_characters(dataclasses.asdict(description), published)
-            for character in set(str(data, dialect.READING_CODECS[encoding])):
-                if ord(character) > 127 and character not in published:
+            for character in _past_ascii(data, dialect.READING_CODECS[encoding]):
+                if character not in published:
                     return as_utf8
     return f"written as {words}"
+
+
+def _head_of(data: "bytes | pathlib.Path") -> bytes:
+    """The first two bytes of a file's bytes, or of the file at a path (lane SV)."""
+    if isinstance(data, bytes):
+        return data[:2]
+    return reading.opening_bytes(f"{data}")[:2]
+
+
+def _decodes(data: "bytes | pathlib.Path", codec: str) -> bool:
+    """Whether a file's bytes, or the file at a path read a line at a time, decode strictly under ``codec`` (lane SV)."""
+    if isinstance(data, bytes):
+        try:
+            str(data, codec)
+        except UnicodeDecodeError:
+            return False
+        return True
+    return reading.decodes_under(f"{data}", codec)
+
+
+def _past_ascii(data: "bytes | pathlib.Path", codec: str) -> "tuple[str, ...]":
+    """The characters past ASCII a file's bytes, or the file at a path, decode to under ``codec``, once each (lane SV)."""
+    if isinstance(data, bytes):
+        found: "dict[str, bool]" = {}
+        for character in set(str(data, codec)):
+            if ord(character) > 127:
+                found[character] = True
+        return tuple(sorted(found))
+    return reading.characters_past_ascii(f"{data}", codec)
 
 
 def _mark_words(marked: bool) -> str:
@@ -6658,7 +7110,10 @@ def _quoting_words(rules: "tuple[str, ...]") -> str:
 
 
 def _quoting_holds(
-    rules: "tuple[str, ...]", surveyed: dialect.Survey, index: int
+    rules: "tuple[str, ...]",
+    surveyed: dialect.Survey,
+    index: int,
+    table: "reading.Table | None" = None,
 ) -> bool:
     """Whether a column's cells are quoted by the published rule per class.
 
@@ -6666,7 +7121,8 @@ def _quoting_holds(
     which rules each class of a checked column agrees with; where it did
     not tell the classes apart -- a column quoted all one way -- a rule
     it rules out is an obligation missed only if the column really holds
-    a cell of that class.
+    a cell of that class (its cells read again where the file was read in
+    groups, ``table``: `_surveyed_cells`).
     """
     held = surveyed.quoting_holds[index]
     present: "dict[str, bool] | None" = None
@@ -6677,12 +7133,71 @@ def _quoting_holds(
         if not surveyed.classified[index]:
             if present is None:
                 present = {}
-                for cell in surveyed.columns[index]:
+                for cell in _surveyed_cells(surveyed, index, table):
                     present[dialect.cell_class(cell)] = True
             if dialect.CELL_CLASSES[place] not in present:
                 continue
         return False
     return True
+
+
+def _surveyed_cells(
+    surveyed: dialect.Survey, index: int, table: "reading.Table | None"
+) -> "list[str]":
+    """One column's cells as the survey read them: the survey's own, or -- a file read in groups of columns, whose survey holds none -- read again (lane SV, plan P4-D476).
+
+    A file read whole is surveyed holding every cell, and its table's
+    columns are those cells; read in groups, the column is read again from
+    the file as the reader read it (`reading.column_as_read`, before any
+    rewrite the check makes), the cells the survey read. Guarantees: what
+    `reading.column_as_read` raises.
+    """
+    if table is not None and table.source is not None:
+        return reading.column_as_read(table, index)
+    return surveyed.columns[index]
+
+
+def _surveyed_width(surveyed: dialect.Survey, table: "reading.Table | None") -> int:
+    """How many columns the survey read: its cells' columns, or its columns' forms where the file was read in groups (lane SV)."""
+    if table is not None and table.source is not None:
+        return len(surveyed.form.columns)
+    return len(surveyed.columns)
+
+
+def _order_holds(
+    surveyed: dialect.Survey, order: dialect.RowOrder, table: "reading.Table | None"
+) -> bool:
+    """`dialect.holds_order_in` of the survey's cells; of a file read in groups, its columns read again a group at a time (lane SV, plan P4-D476).
+
+    `dialect.holds_order_in` takes out every record holding nothing in any
+    cell (of a table of two columns or more) and asks the order column's
+    other cells. Read in groups, the records holding nothing are found a
+    column at a time, and the question is asked of two columns that read
+    the same: a column holding something exactly on the records something
+    stands in, and the order column. Guarantees: the answer
+    `dialect.holds_order_in` gives over every column. Raises what
+    `reading.column_as_read` raises.
+    """
+    if table is None or table.source is None:
+        return dialect.holds_order_in(surveyed.columns, order)
+    width = _surveyed_width(surveyed, table)
+    if order.column < 1 or order.column > width:
+        return False
+    if width < 2:
+        return dialect.holds_order_in(
+            [reading.column_as_read(table, order.column - 1)], order
+        )
+    filled = bytearray(table.n_rows)
+    for place in range(width):
+        cells = reading.column_as_read(table, place)
+        for row in range(len(cells)):
+            if not filled[row] and not dialect.holds_nothing(cells[row]):
+                filled[row] = 1
+    standing = ["x" if filled[row] else "" for row in range(len(filled))]
+    return dialect.holds_order_in(
+        [standing, reading.column_as_read(table, order.column - 1)],
+        dataclasses.replace(order, column=2),
+    )
 
 
 def _nothing_written(form: dialect.Dialect) -> dialect.Dialect:
@@ -6713,7 +7228,7 @@ def _nothing_written(form: dialect.Dialect) -> dialect.Dialect:
     )
 
 
-def _bare_form(form: dialect.Dialect, data: bytes) -> dialect.Dialect:
+def _bare_form(form: dialect.Dialect, data: "bytes | pathlib.Path") -> dialect.Dialect:
     """What a file holding no record shows of a written form, off its bytes.
 
     The survey of such a file stops at its first question -- it holds no
@@ -6721,7 +7236,8 @@ def _bare_form(form: dialect.Dialect, data: bytes) -> dialect.Dialect:
     lines, their endings, a separator hint and an end-of-file mark are
     all there to be read. Every other fact is shown by records alone,
     and is given the description's own value, which no such file can
-    contradict.
+    contradict. Handed a path instead (a surveyed file read in groups,
+    lane SV), it refuses: such a file always carries its survey.
     """
     if not isinstance(data, bytes):
         raise TypeError("internal check: a file's bytes were not bytes")
@@ -6804,11 +7320,21 @@ def _surveyed_quietly(
 
 def _byte_checks(
     description: contract.Profile,
-    data: bytes,
+    data: "bytes | pathlib.Path",
     surveyed: "dialect.Survey | None",
     refused: bool,
+    table: "reading.Table | None" = None,
 ) -> "list[Check]":
     """Every rule about the file's written form, each one able to fail.
+
+    ``data`` is the file's bytes, or its path where the file was read in
+    groups and surveyed (lane SV, plan P4-D476): `_encoding_found` then
+    asks the file itself, and nothing else here reads it. ``table`` is the
+    checked table where the file was read in groups of columns: its
+    survey holds no cell (`reading.read_table`'s ``in_groups``), so the
+    cells the checks below ask of the survey are read again from the file,
+    a column at a time, exactly as the survey read them
+    (`_surveyed_cells`).
 
     THE FORM IS PUBLISHED, SO EVERY RULE HERE IS HELD TO THE DESCRIPTION
     (owner ruling 2026-09-15, plan P4-D86). These rules used to be
@@ -7135,7 +7661,7 @@ def _byte_checks(
     aligned = (
         not refused
         and surveyed is not None
-        and len(surveyed.columns) == len(description.columns)
+        and _surveyed_width(surveyed, table) == len(description.columns)
     )
     for index in range(len(description.columns)):
         name = description.columns[index].name
@@ -7144,7 +7670,7 @@ def _byte_checks(
             checks += _unaligned_column_checks(name, column)
             continue
         measured_column = surveyed.form.columns[index]
-        held = _quoting_holds(column.quoting, surveyed, index)
+        held = _quoting_holds(column.quoting, surveyed, index, table)
         checks += [
             _exact(
                 name,
@@ -7184,8 +7710,8 @@ def _byte_checks(
     order = form.row_order
     if order.column and order.column <= len(description.columns):
         asked = f"rows sorted {order.direction} by this column, read as {order.collation}"
-        held = aligned and surveyed is not None and dialect.holds_order_in(
-            surveyed.columns, order
+        held = aligned and surveyed is not None and _order_holds(
+            surveyed, order, table
         )
         checks += [
             _exact(
@@ -8303,10 +8829,12 @@ def _first_values(table: reading.Table) -> "list[str]":
     is -- blank lines dropped, a quoted line break honoured, a
     byte-order mark taken off. A table reaching here holds at least one
     row, because a table holding none is a refusal the caller reported
-    on before this.
+    on before this. A table read in groups of columns is walked a column
+    at a time through `reading.column_values` (lane SV, plan P4-D476).
     """
     found: list[str] = []
-    for cells in table.columns:
+    for place in range(_width_of(table)):
+        cells = reading.column_values(table, place)
         if not cells:
             return []
         found += [cells[0]]
@@ -9625,10 +10153,21 @@ def _core_read_as_declared(
 def _cells_of(
     table: reading.Table, position: int
 ) -> "list[str] | None":
-    """The measured cells at one position, or None when there are none."""
-    if position < 1 or position > len(table.columns):
+    """The measured cells at one position, or None when there are none.
+
+    Asked of `reading.column_values`, so a table read in groups of columns
+    hands over the column from its group (lane SV, plan P4-D476).
+    """
+    if position < 1 or position > _width_of(table):
         return None
-    return table.columns[position - 1]
+    return reading.column_values(table, position - 1)
+
+
+def _width_of(table: reading.Table) -> int:
+    """How many columns a table holds: its columns read whole, or its names where it is read in groups (lane SV)."""
+    if table.source is not None:
+        return len(table.column_names)
+    return len(table.columns)
 
 
 def _one_judged_candidate(
@@ -11085,6 +11624,13 @@ def _role_checks(
         if kept_levels is not None:
             spelled = [
                 value for value in spelled if parsing.folded(value) in kept_levels
+            ]
+        elif facts.held_back_names:
+            # ...AND A NAMED POOL'S CENSUS SPEAKS OF THE PUBLISHED LEVELS' CELLS
+            # ALONE (lane CODES-2, plan P4-D471), as its producer counted.
+            spoken = frozenset(parsing.folded(entry.label) for entry in facts.levels)
+            spelled = [
+                value for value in spelled if parsing.folded(value) in spoken
             ]
         return (
             _label_checks(column, facts, block, floor)
@@ -16479,6 +17025,11 @@ def _label_checks(
             _level_form_cells(name, level, entry, measured, floor),
         ]
     checks += [_level_set(name, published_keys, measured)]
+    # THE NAMES OF THE HELD-BACK LEVELS (lane CODES-2, plan P4-D471,
+    # validation V18): checked only where the description published them, so
+    # every other column's checks are what they were.
+    if facts.held_back_names:
+        checks += [_held_back_name_set(name, facts.held_back_names, block)]
     checks += _pooled_scale_checks(name, facts, block)
     # THE POOL IS HELD, AND ONLY THE POOL (owner ruling of 2026-09-17,
     # item 2, option A; plan P4-D201). The size of each held-back label
@@ -16666,6 +17217,32 @@ def _level_spelling(
         entry is not None,
         _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
     )
+
+
+def _held_back_name_set(
+    name: str,
+    published: "tuple[str, ...]",
+    block: "dict[str, object]",
+) -> Check:
+    """That the file's own description names exactly the held-back levels this one names (V18; lane CODES-2, plan P4-D471).
+
+    Under the owner's answer Z1 = B the description names the values too few
+    rows hold beside their pooled total, and the validator judges that pool:
+    its total and its count of labels exactly (`suppressed_rows`,
+    `suppressed_levels`), and here the names -- the file re-described with
+    its pool named, every held-back spelling of it against the published
+    ones. What the line says is how many names the description publishes;
+    the file's own spellings are never printed.
+    """
+    fact = "label.held_back_names"
+    subcheck = "suppressed.names"
+    shown = (
+        f"the {_shown_count(len(published))} published name(s) of the values "
+        f"held back, and no other value held back"
+    )
+    found = block["held_back_names"] if "held_back_names" in block else []
+    same = isinstance(found, list) and sorted(f"{entry}" for entry in found) == list(published)
+    return _silent(name, fact, subcheck, shown, same, _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE)
 
 
 def _level_set(
@@ -21542,6 +22119,21 @@ def _offset_checks(
         return []
     measured = _map_at(block, "utc_offsets")
     checks: list[Check] = []
+    # ...AND UNDER A PUBLISHED RULE, THE RULE ITSELF (lane DST, plan P4-D474,
+    # method G7.4r): the twin's own reading must name the same rule, which it
+    # does only where every one of its stamps wears the offset in force on
+    # its date (`offset_rules.Reading`); the census beside it is met as
+    # before, G7.4r's census step placing the instants so that it is.
+    if facts.offset_rule:
+        checks += [
+            _exact(
+                name,
+                "datetime.offset_rule",
+                "offsets.rule",
+                facts.offset_rule,
+                _text_at(block, "offset_rule") or "none",
+            )
+        ]
     for key in sorted(facts.utc_offsets):
         if key == taxonomy.SUPPRESSED_LABEL:
             continue

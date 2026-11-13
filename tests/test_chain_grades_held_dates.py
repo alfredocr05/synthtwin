@@ -124,12 +124,16 @@ TWO = "%%/%%/%%"
         ([ISO], None, None, "", False),
         # Layouts of no date: nothing to name.
         (["@%%%%%%%"], (), None, "", False),
-        # The G1 floor: the grain's reading decides; a grain reading no dates is written from its own span.
+        # The G1 floor: the grain's reading decides; a grain reading clock times or counts is written from its own
+        # span. A grain reading stamps draws from the room since lane TR's repair 1 (plan P4-D473), so with no run
+        # its twin is the walk's record numbers (NF137) and is named, and with one it writes stamps.
         ([ISO], (), "date", "iso-date", True),
         ([ISO], ((2028, 2100),), "date", "iso-date", False),
         ([TWO], ((2028, 2100),), "date", "two-digit-month-first-date", True),
         ([TWO], ((28, 60),), "date", "two-digit-month-first-date", False),
-        (["%%%%-%%-%% %%:%%"], (), "stamp", "iso-datetime", False),
+        (["%%%%-%%-%% %%:%%"], (), "stamp", "iso-datetime", True),
+        (["%%%%-%%-%% %%:%%"], ((2028, 2028),), "stamp", "iso-datetime", False),
+        (["%%:%%"], (), "clock", "hh-mm", False),
     ],
 )
 def test_the_rule_both_reports_read(

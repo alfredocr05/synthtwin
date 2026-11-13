@@ -1223,8 +1223,11 @@ def _fact_head(fact: str) -> str:
 # grain, a column-level key the description publishes beside them (plan
 # P4-D417), which the registry files under `universal` too since lane
 # S5b (plan P4-D441). `tests/test_stage5_gate.py` holds this list to the
-# registry and to every key the generator writes.
-_UNIVERSAL_FACTS = ("n_present", "n_missing", "n_out_of_range", "time_grain")
+# registry and to every key the generator writes. ...AND THE COLUMN'S ROLE
+# (lane TR's follow-up, LANE TR RULINGS 7 (1)): a fraction clock whose twin
+# reads back as one value or two names it (plan P4-D473, repair 2), and the
+# registry files the role under `universal`.
+_UNIVERSAL_FACTS = ("n_present", "n_missing", "n_out_of_range", "time_grain", "role")
 # A generator key `levels -> field` names a field of the label group's
 # levels block (`label.variants_withheld`, `label.shape_form_cells`).
 _ARROW = " -> "
@@ -1549,6 +1552,55 @@ def _described_columns(
         if isinstance(entry, dict):
             found += [entry]
     return found
+
+
+def _released_while_a_question_is_open(
+    identities_open: bool,
+    rare_listed: "list[str]",
+    levels_pooled: "list[str]",
+    names_published: "list[str]",
+) -> bool:
+    """RULE U (c) in the command: whether the first describe released what an open question offering `identifier` withholds.
+
+    The stand-ins page's ZS.1 and ZS.3 (lane GG's repair 1; lanes PL and
+    CODES-2): while any question offering `identifier` is open, no released
+    list names a value fewer cells than the floor hold (``rare_listed``),
+    no pool counted in people publishes its levels (``levels_pooled``) and
+    no pool is named (``names_published``, lane CODES-2, plan P4-D471), so
+    a first describe that did any of them is described again with
+    `rare_values_released` False. Its own function so the gate's case can
+    be red without the lane's term (the verify of lane CODES-2's repair 1,
+    item 8: the term had no case). Guarantees: a fixed function of the
+    four. Raises nothing. No I/O.
+    """
+    return identities_open and bool(rare_listed or levels_pooled or names_published)
+
+
+def _read_as_labels_in(document: "dict[str, object]") -> "frozenset[str]":
+    """The columns a description still reads in a role that can name its pool (lane CODES-2's repair 1, P4-D471).
+
+    The roles whose held-back levels a Safe Harbor `no` can name: the four
+    label roles and a column of numbers with labels. A column the
+    description holds -- by the count in people, as a record number, by an
+    open question -- is read `identifier` or another role and names nothing
+    whatever is answered, so the run puts it no question about the values
+    too few rows hold (the orchestrator's LANE CODES-2 RULINGS 2 (4)).
+    Guarantees: a function of the mapping. Raises nothing. No I/O.
+    """
+    from synthtwin import taxonomy
+
+    roles = (
+        taxonomy.ROLE_CONSTANT,
+        taxonomy.ROLE_BINARY,
+        taxonomy.ROLE_CATEGORICAL,
+        taxonomy.ROLE_LONG_TAIL,
+        taxonomy.ROLE_COMPOUND,
+    )
+    return frozenset(
+        f"{block['name']}"
+        for block in _described_columns(document)
+        if "name" in block and "role" in block and block["role"] in roles
+    )
 
 
 def _warn(
@@ -2747,12 +2799,15 @@ _ANSWER_KEYS = {
     "16": date_counts.NANOSECONDS_SINCE_1970,
     "17": date_counts.DAYS_SINCE_1840,
     "18": date_counts.SECONDS_SINCE_1582,
+    # -- lane TR (P4-D473): Q-CLOCK's answer, its own key.
+    "19": asking.ANSWER_CLOCK_FIGURES,
     "m": asking.ANSWER_MEASUREMENT,
     "c": asking.ANSWER_CODE,
     "i": asking.ANSWER_IDENTIFIER,
     "j": asking.ANSWER_JOINED,
     "d": asking.ANSWER_DECIMAL_COMMA,
     "t": asking.ANSWER_TWELVE_HOUR,
+    "f": asking.ANSWER_CLOCK_FIGURES,
 }
 
 _WHY_SHOWN = {
@@ -2868,6 +2923,8 @@ _KEY_OF = {
     date_counts.NANOSECONDS_SINCE_1970: "16",
     date_counts.DAYS_SINCE_1840: "17",
     date_counts.SECONDS_SINCE_1582: "18",
+    # -- lane TR (P4-D473): Q-CLOCK's answer, at the keyboard too.
+    asking.ANSWER_CLOCK_FIGURES: "19",
     # THE STANDING READING SHARES KEY 1 WITH `measurement`, and the two
     # never appear on one question: a column of figures offers
     # `measurement` as the reading it already has, and a joined-looking
@@ -3238,6 +3295,7 @@ def _answers_given(
     ages_counted_in: "tuple[tuple[str, str], ...]" = (),
     safe_harbor_dates_no: "tuple[str, ...]" = (),
     safe_harbor_dates_yes: "tuple[str, ...]" = (),
+    clock_figures: "tuple[str, ...]" = (),
 ) -> "asking.Given":
     """Every answer this run acts on, as `asking.answered_before` writes it.
 
@@ -3279,6 +3337,8 @@ def _answers_given(
         ages_counted_in=ages_counted_in,
         safe_harbor_dates_no=safe_harbor_dates_no,
         safe_harbor_dates_yes=safe_harbor_dates_yes,
+        # -- lane TR (P4-D473)
+        clock_figures=clock_figures,
         missing_dates=tuple(
             (name, code_shapes[name] if name in code_shapes else "")
             for name in missing_dates
@@ -4236,10 +4296,41 @@ def _answer_typed(standing: str, keep_on_one: bool) -> "str | None":
     return _read_one_answer(standing)
 
 
+def _figures_not_taken_said(names: "list[str]", read: object, settings: object) -> None:
+    """Say each `clock-figures` answer that is not taken because a time would be written as a missing spelling (plan P4-D473).
+
+    Codex's review of lane TR, item 2: the description reads such a column
+    as it read before the answer (`taxonomy.clock_figures_reading`), and
+    the run says why, naming no value. Reads each named column's cells
+    once. Raises TypeError where the settings are not settings or the
+    table not a table (internal invariants), and whatever
+    `reading.column_values` raises. No other I/O.
+    """
+    from synthtwin import reading, taxonomy
+
+    if not names:
+        return
+    if not isinstance(settings, taxonomy.Settings):
+        raise TypeError("internal check: the settings are not settings")
+    if not isinstance(read, reading.Table):
+        raise TypeError("internal check: the table is not a table")
+    for name in names:
+        for place, held in enumerate(read.column_names):
+            if held != name:
+                continue
+            found = taxonomy.clock_figures_reading(reading.column_values(read, place), settings)
+            if found == taxonomy.FIGURES_ABSENT:
+                _warn(
+                    errors.the_clock_figures_answer_was_not_taken(name),
+                    caution=results.CAUTION_DECLARATION_DID_NOT_REACH,
+                    column=name,
+                )
+
+
 def _put_the_questions(
     questions: "list[asking.Question]",
     held: "tuple[str, ...]" = (),
-) -> "tuple[list[str], list[str], list[str], list[str], list[str], list[tuple[str, str]], list[tuple[str, str, str]]] | None":
+) -> "tuple[list[str], list[str], list[str], list[str], list[str], list[tuple[str, str]], list[tuple[str, str, str]], list[str]] | None":
     """Put every question; return the columns named as codes and as IDs, and the questions left open.
 
     None where the person ended the run at a prompt: Ctrl-C and Ctrl-D
@@ -4272,6 +4363,8 @@ def _put_the_questions(
     # -- 3b.R4 (P4-D384): the columns answered with a counting system.
     counted: "list[tuple[str, str]]" = []
     left_open: "list[tuple[str, str, str]]" = []
+    # -- lane TR (P4-D473): the columns answered `clock-figures`.
+    figures: list[str] = []
     place = 0
     for question in questions:
         place = place + 1
@@ -4311,9 +4404,12 @@ def _put_the_questions(
             commas += [question.name]
         elif answer == asking.ANSWER_TWELVE_HOUR:
             twelve += [question.name]
+        elif answer == asking.ANSWER_CLOCK_FIGURES:
+            # -- lane TR (P4-D473): rule 5c's reading.
+            figures += [question.name]
         elif answer in date_counts.MEMBERS:
             counted += [(question.name, answer)]
-    return codes, identifiers, measurements, commas, twelve, counted, left_open
+    return codes, identifiers, measurements, commas, twelve, counted, left_open, figures
 
 
 def _how_to_repeat(
@@ -4329,8 +4425,17 @@ def _how_to_repeat(
     taken_out: "tuple[str, ...]" = (),
     centuries: "tuple[tuple[str, int], ...]" = (),
     date_columns: "tuple[str, ...]" = (),
+    answers_file: str = "",
 ) -> str:
     """The options that repeat this run without asking anything.
+
+    ``answers_file`` is `--answers` and the questions file this run
+    writes, already written as it is typed, where an answer stands that no
+    option repeats: `clock-figures` (lane TR, plan P4-D473; the lane's
+    skeptic 1, item 3), whose reading the command line does not declare
+    (`--clock-figures` is no option). The file keeps that answer under
+    `answered_before`, so handing it back repeats the reading; the other
+    options stand beside it, each the same answer typed.
 
     ``taken_out`` are options the person typed that an answer replaced,
     each already written as it is typed (`_typed_option`): they are said
@@ -4377,10 +4482,20 @@ def _how_to_repeat(
         parts += [_typed_option("--identifier", name)]
     for name in sorted(forced_measurements):
         parts += [_typed_option("--measurement", name)]
+    # -- lane TR (P4-D473): the questions file, for the answer no option
+    # repeats.
+    if answers_file:
+        parts += [answers_file]
     flags = _joined(parts, " ")
     out = ""
-    if taken_out:
+    if answers_file:
         out = (
+            "The questions file named after --answers keeps your answer "
+            "that a column holds clock times written as figures, which no "
+            "option repeats.\n"
+        )
+    if taken_out:
+        out = out + (
             f"and take these out of the command you typed, because your "
             f"answers replaced them:\n  {_joined(list(taken_out), ' ')}\n"
         )
@@ -4818,9 +4933,10 @@ def _safe_harbor_held_notice(names: "tuple[str, ...]") -> str:
     """What the screen says of the columns lane SH2 holds whole (plan P4-D434)."""
     return (
         f"\nTHE SAFE HARBOR QUESTION\n"
-        f"{_joined(list(names), ' and ')} may hold a year or date of birth "
-        f"that shows an age over 89, a place smaller than a state, a ZIP code "
-        f"or a device number, so this description publishes none of their "
+        f"{_joined(list(names), ' and ')} may hold a person's name, a year or "
+        f"date of birth that shows an age over 89, a place smaller than a "
+        f"state, a ZIP code or a device number, so this description publishes "
+        f"none of their "
         f"values and the twin writes made-up values there. Answer 'no' or "
         f"'yes' to the question about them in the questions file, and run the "
         f"command again with --answers."
@@ -5833,6 +5949,9 @@ def _run_profile_body(
     )
     # -- 3b.R2c (P4-D383): THE COLUMNS SAID TO HOLD DATES (question Q6).
     date_columns = sorted({one: 1 for one in (date_columns_given or [])})
+    # -- lane TR (P4-D473): THE COLUMNS SAID TO HOLD CLOCK TIMES WRITTEN AS
+    # FIGURES (Q-CLOCK's answer `clock-figures`; rule 5c).
+    clock_figures: "list[str]" = []
     # THE CENTURIES OF TWO-FIGURE YEARS (landing R2a, question Q5): each
     # `--century COLUMN=YEAR`, refused before the table is opened where it
     # is not that, and the window that stands where nothing was said
@@ -6260,6 +6379,10 @@ def _run_profile_body(
         date_columns = sorted(
             {one: 1 for one in date_columns + list(written.date_columns)}
         )
+        # -- lane TR (P4-D473): ...and an answer of `clock-figures`.
+        clock_figures = sorted(
+            {one: 1 for one in clock_figures + list(written.clock_figures)}
+        )
         # ...and those answered `keep`, carried so Q6 is not put again.
         dates_kept = list(written.date_columns_kept)
         # ...and Q-UNIT's `keep`, carried so Q-UNIT is not put again (plan
@@ -6346,6 +6469,7 @@ def _run_profile_body(
             or bool(answered_real_values)
             or bool(written.century_windows)
             or bool(written.date_columns)
+            or bool(written.clock_figures)
         )
     # THE STANDING WINDOW TYPED IS KEPT AS AN ANSWER NAMING IT (plan
     # P4-D408, third round): it declares nothing, and question Q5 is not
@@ -6412,6 +6536,8 @@ def _run_profile_body(
         forced_date_columns=tuple(date_columns),
         # -- 3b.R4 (P4-D384)
         forced_date_counts=_counted_settings(counted),
+        # -- lane TR (P4-D473)
+        forced_clock_figures=tuple(clock_figures),
     )
     # THE ONE OVERWRITE RULE (lane TT, plan P4-D460), decided from the
     # names alone, before a byte of the table is read: a run that would
@@ -6738,6 +6864,7 @@ def _run_profile_body(
                 tuple(safe_harbor_no), tuple(safe_harbor_yes),
                 tuple(units_kept), tuple(commas_kept), ages_counted_in,
                 tuple(safe_harbor_dates_no), tuple(safe_harbor_dates_yes),
+                tuple(clock_figures),
             ),
         )
         if not_kept:
@@ -6945,6 +7072,11 @@ def _run_profile_body(
     # -- P4-D440, rule U (c): the columns whose released list names a
     # value fewer cells than the floor hold, named for the check below.
     rare_listed: "list[str]" = []
+    # -- P4-D471 (lane CODES-2): the label columns whose `no` would name their
+    # held-back levels, for their Safe Harbor question; and the columns that
+    # name them, for rule U (c) as the two lists above.
+    rare_named: "list[str]" = []
+    names_published: "list[str]" = []
     # -- P4-D453: the columns whose pool is counted in people, named for the
     # same check: their levels wait while a question offering `identifier`
     # is open on the table.
@@ -6992,6 +7124,8 @@ def _run_profile_body(
         # their Safe Harbor question, listed where it was answered `no`.
         few_valued=few_valued,
         rare_listed=rare_listed,
+        rare_named=rare_named,
+        names_published=names_published,
         # -- P4-D434: the Safe Harbor years, places and devices.
         harbor_year=harbor_year,
         harbor_reasons=harbor_reasons,
@@ -7139,6 +7273,10 @@ def _run_profile_body(
                 caution=results.CAUTION_DECLARATION_DID_NOT_REACH,
                 column=name,
             )
+    # -- lane TR (P4-D473): ...AND A `clock-figures` ANSWER THAT WOULD WRITE
+    # A MISSING SPELLING, which is not taken (Codex's review of lane TR,
+    # item 2), said here.
+    _figures_not_taken_said(clock_figures, read, settings)
 
     # A COLUMN DECLARED A MEASUREMENT HAS BEEN ANSWERED TOO, and this
     # list left it out until amendment A-P4-60. It cost nothing while
@@ -7271,7 +7409,7 @@ def _run_profile_body(
                 return results.REFUSED
             (
                 new_codes, new_identifiers, new_measured, new_commas,
-                new_twelve, new_counted, left_open,
+                new_twelve, new_counted, left_open, new_figures,
             ) = given
             answered_here = [
                 asking.question_put(question)
@@ -7296,6 +7434,21 @@ def _run_profile_body(
                 settings = dataclasses.replace(
                     settings, forced_twelve_hour_clocks=tuple(twelve_hours)
                 )
+            # -- lane TR (P4-D473): a column answered `clock-figures` at the
+            # keyboard is read by rule 5c from here.
+            if new_figures:
+                clock_figures = sorted(
+                    {one: 1 for one in clock_figures + new_figures}
+                )
+                settings = dataclasses.replace(
+                    settings, forced_clock_figures=tuple(clock_figures)
+                )
+            # ...and a `clock-figures` answer rebuilds the description as
+            # the other answers do (Codex's review of lane TR, item 1): left
+            # out, the run's own description kept the column as it read
+            # before the answer while its questions file recorded the answer,
+            # and its twin wrote 9,902 of 20,000 six-figure cells that are no
+            # clock time.
             if (
                 new_codes
                 or new_identifiers
@@ -7303,6 +7456,7 @@ def _run_profile_body(
                 or new_commas
                 or new_twelve
                 or new_counted
+                or new_figures
             ):
                 forced_decimal_commas = sorted(
                     [
@@ -7435,6 +7589,8 @@ def _run_profile_body(
                 counted_in_rows = []
                 few_valued = []
                 rare_listed = []
+                rare_named = []
+                names_published = []
                 levels_pooled = []
                 harbor_reasons = {}
                 ages_established = {}
@@ -7462,6 +7618,8 @@ def _run_profile_body(
                     counted_in_rows=counted_in_rows,
                     few_valued=few_valued,
                     rare_listed=rare_listed,
+                    rare_named=rare_named,
+                    names_published=names_published,
                     harbor_year=harbor_year,
                     harbor_reasons=harbor_reasons,
                     levels_pooled=levels_pooled,
@@ -7489,6 +7647,9 @@ def _run_profile_body(
                             caution=results.CAUTION_DECLARATION_DID_NOT_REACH,
                             column=name,
                         )
+                # -- lane TR (P4-D473): ...and a `clock-figures` answer typed
+                # here that is not taken (Codex's review of lane TR, item 2).
+                _figures_not_taken_said(sorted(new_figures), read, settings)
             answered = True
         else:
             _say(f"\n{_assumptions_notice(asked_about, small_tables_refused)}\n")
@@ -7765,14 +7926,40 @@ def _run_profile_body(
             # column's people holds whole already (plan P4-D406) is held so,
             # and put no Safe Harbor question: no answer could give one of
             # its values back (plan P4-D445; lane HX2's register beside a
-            # declared person column).
+            # declared person column). So is a column of persons' names
+            # (plan P4-D478): beside a declared person column it keeps the
+            # bytes it had.
             and not (
                 name in harbor_reasons
-                and harbor_reasons[name] in taxonomy.IDENTIFIER_FORM_HOLDS
+                and harbor_reasons[name] in taxonomy.IDENTIFIER_FORM_HOLDS + taxonomy.PERSONS_NAMES_HOLDS
                 and name in counted_in_people
             )
         ):
             five_held += [name]
+    # ...AND A COLUMN OF PERSONS' NAMES BESIDE A PERSON COLUMN WHOSE QUESTION
+    # IS STILL OPEN (lane CZ-F's repair, skeptic 1 item 6; plan P4-D478):
+    # described below as the count in that column's people holds it, as
+    # without the reader -- no level published, the same block and twin --
+    # and put no Safe Harbor question that run: answered `keep` there, the
+    # table is counted in rows and the question follows in the next run. One
+    # the count does not hold whole is held as before, its question put.
+    person_open: "list[str]" = []
+    for question in still_open:
+        if (
+            question.reason == asking.BECAUSE_REPEATS_AND_MANY
+            and asking.offers_identifier(question)
+            and question.name not in declared_here
+        ):
+            person_open += [question.name]
+    names_beside_open: "list[str]" = []
+    for name in five_held:
+        if (
+            person_open
+            and name in harbor_reasons
+            and harbor_reasons[name] in taxonomy.PERSONS_NAMES_HOLDS
+            and name not in person_open
+        ):
+            names_beside_open += [name]
     # ...and a column answered `yes` to that question is held so for good,
     # the run asking nothing more of it (plan P4-D427) -- but A COLUMN OF
     # AGES, which keeps its top-code for good (lane SH3, plan P4-D454): the
@@ -7830,11 +8017,68 @@ def _run_profile_body(
         or candidates
         or five_held
         or harbor_held
-        or (identities_open and (rare_listed or levels_pooled))
+        or _released_while_a_question_is_open(
+            identities_open, rare_listed, levels_pooled, names_published
+        )
         or dated_held
     ):
         if withheld:
             _warn(_withheld_notice(withheld), caution=results.CAUTION_WITHHELD)
+        # ...and every column held so -- the candidates of the open
+        # person question, and a key held by another identity question,
+        # such as a patient number of figures padded with zeros that the
+        # codes-or-measurements question was put to -- is a subject every
+        # other value is counted in (plan P4-D406; lane HX2's skeptic,
+        # round 2, item 1). One that never repeats counts in rows, as the
+        # floor does, and is set aside by `profile.build_document`.
+        # ...A NAMES COLUMN BESIDE AN OPEN PERSON QUESTION (`names_beside_open`)
+        # is described first as the count in people holds it; one that count
+        # does not hold whole is described again, held as the others are
+        # (one more description, only for such a column).
+        waiting = list(names_beside_open)
+        while True:
+            counted_in_people = []
+            counted_in_rows = []
+            published = profile.build_document(
+                read,
+                settings,
+                forced_identifiers,
+                forced_codes,
+                forced_measurements,
+                forced_decimal_commas,
+                forced_metadata_rows=metadata_rows,
+                forced_delimiter=declared_delimiter,
+                kept_identities=list(identities_kept),
+                table_notes=population_notes,
+                stored_as=storage,
+                unanswered=list(withheld)
+                + [
+                    name
+                    for name in five_held
+                    if not (name in harbor_reasons and harbor_reasons[name] == taxonomy.HELD_DATES)
+                    and name not in waiting
+                ]
+                + harbor_held,
+                subjects=list(person_columns) + list(withheld) + candidates,
+                counted_in_subjects=counted_in_people,
+                top_code=True,
+                safe_harbor_no=safe_harbor_no,
+                ages_counted_in=_marks_answered(ages_counted_in),
+                counted_in_rows=counted_in_rows,
+                rare_values_released=not identities_open,
+                harbor_year=harbor_year,
+                dated_held=dated_held,
+                dated_values_no=safe_harbor_dates_no,
+                dates_answered=tuple(answered_missing_dates + answered_real_values),
+                # The description's own readings kept for the chain (lane CHs,
+                # plan P4-D462): only behind the chain's switch.
+                kept_spellings=chain_state.kept if chain_state is not None else None,
+            )
+            unheld = [name for name in waiting if name not in counted_in_people]
+            if not unheld:
+                break
+            waiting = [name for name in waiting if name not in unheld]
+        five_held = [name for name in five_held if name not in waiting]
         lane_sh = tuple(name for name in five_held if name not in harbor_reasons)
         lane_sh2 = tuple(name for name in five_held if name in harbor_reasons)
         if lane_sh:
@@ -7847,49 +8091,6 @@ def _run_profile_body(
                 _safe_harbor_held_notice(lane_sh2),
                 caution=results.CAUTION_SAFE_HARBOR,
             )
-        # ...and every column held so -- the candidates of the open
-        # person question, and a key held by another identity question,
-        # such as a patient number of figures padded with zeros that the
-        # codes-or-measurements question was put to -- is a subject every
-        # other value is counted in (plan P4-D406; lane HX2's skeptic,
-        # round 2, item 1). One that never repeats counts in rows, as the
-        # floor does, and is set aside by `profile.build_document`.
-        counted_in_people = []
-        counted_in_rows = []
-        published = profile.build_document(
-            read,
-            settings,
-            forced_identifiers,
-            forced_codes,
-            forced_measurements,
-            forced_decimal_commas,
-            forced_metadata_rows=metadata_rows,
-            forced_delimiter=declared_delimiter,
-            kept_identities=list(identities_kept),
-            table_notes=population_notes,
-            stored_as=storage,
-            unanswered=list(withheld)
-            + [
-                name
-                for name in five_held
-                if not (name in harbor_reasons and harbor_reasons[name] == taxonomy.HELD_DATES)
-            ]
-            + harbor_held,
-            subjects=list(person_columns) + list(withheld) + candidates,
-            counted_in_subjects=counted_in_people,
-            top_code=True,
-            safe_harbor_no=safe_harbor_no,
-            ages_counted_in=_marks_answered(ages_counted_in),
-            counted_in_rows=counted_in_rows,
-            rare_values_released=not identities_open,
-            harbor_year=harbor_year,
-            dated_held=dated_held,
-            dated_values_no=safe_harbor_dates_no,
-            dates_answered=tuple(answered_missing_dates + answered_real_values),
-            # The description's own readings kept for the chain (lane CHs,
-            # plan P4-D462): only behind the chain's switch.
-            kept_spellings=chain_state.kept if chain_state is not None else None,
-        )
     if counted_in_rows:
         _warn(
             _dates_held_in_rows_notice(tuple(counted_in_rows), settings.small_cell_floor),
@@ -8131,6 +8332,7 @@ def _run_profile_body(
         or taken_out
         or centuries
         or date_columns
+        or clock_figures
     ):
         _say(
             _how_to_repeat(
@@ -8149,6 +8351,12 @@ def _run_profile_body(
                     for one_century in sorted(centuries)
                 ),
                 date_columns=tuple(date_columns),
+                # -- lane TR (P4-D473; its skeptic 1, item 3): an answer of
+                # `clock-figures`, which no option repeats, is repeated by
+                # the questions file this run writes.
+                answers_file=(
+                    f"--answers {_typed_path(questions_path)}" if clock_figures else ""
+                ),
             )
         )
     kept_of_yours = summary.words_of_your_own(published)
@@ -8399,6 +8607,16 @@ def _run_profile_body(
             if not (question.name in identities_kept and asking.offers_identifier(question))
             and question.reason != asking.BECAUSE_UNIT
         ),
+        # ...and the label columns whose `no` would name the values too few
+        # rows hold (plan P4-D471, lane CODES-2), put it on the same terms --
+        # ONLY WHERE THE PUBLISHED DESCRIPTION STILL READS THE COLUMN AS
+        # LABELS: one it holds, by the count in people, as a record number or
+        # by a question, names nothing whatever is answered, so it is asked
+        # nothing (the orchestrator's LANE CODES-2 RULINGS 2 (4): names
+        # beside a padded key, held in people at 20,000 rows, were put it).
+        rare_named=tuple(
+            name for name in rare_named if name in _read_as_labels_in(published)
+        ),
     )
     if harbor_asked:
         harbored = [question.name for question in harbor_asked]
@@ -8440,10 +8658,13 @@ def _run_profile_body(
         # question, so `no` brought it back a round later and every such
         # column took a round more. Its question asks nothing the entry
         # asks, and holds nothing meanwhile.
+        # ...AND SO DOES A LABEL COLUMN ASKED ABOUT THE VALUES TOO FEW ROWS
+        # HOLD (plan P4-D471, lane CODES-2): its question holds nothing either.
         own_round = [
             question.name
             for question in harbor_asked
-            if question.reason != asking.BECAUSE_SAFE_HARBOR_FEW_VALUES
+            if question.reason
+            not in (asking.BECAUSE_SAFE_HARBOR_FEW_VALUES, asking.BECAUSE_SAFE_HARBOR_RARE_NAMES)
         ]
         listed_about = [
             question for question in listed_about if question.name not in own_round
@@ -8607,6 +8828,7 @@ def _run_profile_body(
                             tuple(commas_kept), ages_counted_in,
                             tuple(safe_harbor_dates_no),
                             tuple(safe_harbor_dates_yes),
+                            tuple(clock_figures),
                         )
                     ),
                     # ...with the names those answers use (P4-D408).

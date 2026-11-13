@@ -7,7 +7,9 @@ on each patient's rows -- at 600 and at 20,000 rows through the real
 nothing answered), `synthtwin generate` (seed 0) and `synthtwin validate`,
 and counts what is real:
 
-- over the shapes a question flags (`HELD` and `BESIDE`) and the shapes
+- over the shapes a question flags (`HELD` and `BESIDE`), the codes read
+  as a role that publishes nothing (`PUBLISHING_NOTHING`, plan P4-D475:
+  `4E0815`-like codes past a double's range), and the shapes
   lane HX2's count in people holds (`COUNTED`, plan P4-D406: a plan and
   an account number beside a declared person column, and a name, a
   street address and a birth date beside a patient key whose person
@@ -119,8 +121,8 @@ chance = {"one_a_row_twin_cells": 0, "one_a_row_twin_fragments": 0, "one_a_row_t
 lines = []
 with tempfile.TemporaryDirectory() as scratch:
     for rows in SIZES:
-        for kind in (shapes.HELD + shapes.BESIDE + shapes.COUNTED + shapes.LISTED + shapes.ONE_A_ROW
-                     + shapes.STATED):
+        for kind in (shapes.HELD + shapes.PUBLISHING_NOTHING + shapes.BESIDE + shapes.COUNTED + shapes.LISTED
+                     + shapes.ONE_A_ROW + shapes.STATED):
             folder = pathlib.Path(scratch) / f"{kind}-{rows}"
             folder.mkdir()
             seen = shapes.run(folder, kind, rows)
@@ -250,7 +252,7 @@ for line in lines:
 value = dict(held)
 value.update(stated)
 value.update(chance)
-held_shapes = (len(shapes.HELD) + len(shapes.BESIDE) + len(shapes.COUNTED)
+held_shapes = (len(shapes.HELD) + len(shapes.PUBLISHING_NOTHING) + len(shapes.BESIDE) + len(shapes.COUNTED)
                + len(shapes.LISTED)
                + len(shapes.SAFE_HARBOR_NUMBERS) + len(shapes.SAFE_HARBOR_ANSWERED)
                + len(shapes.ZOO_ZIPS) + len(shapes.ONE_A_ROW) + len(shapes.SH2_SHAPES))

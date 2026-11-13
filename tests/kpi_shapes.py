@@ -127,6 +127,9 @@ def written_before_p4d375(
     every newer key, and could not see that the loader refused the real
     documents. The real ones are held in
     `tests/test_p4d375_earlier_descriptions.py`, from 668f276's own file.
+    A reserve a current producer writes ONLY WHERE IT APPLIES (the rule an
+    offset follows, `offset_rule`, lane DST, plan P4-D474) is already
+    absent where it would be empty, as 668f276 wrote it, and is left so.
     """
     import copy
 
@@ -141,7 +144,7 @@ def written_before_p4d375(
         if column["role"] == contract.ROLE_CLOCK:
             reserves = contract.CLOCK_READ_AS_EMPTY_WHEN_ABSENT
         for key in reserves:
-            if column.get(key) in ([], None):
+            if key in column and column[key] in ([], None):
                 del column[key]
     block = document["columns"][0]
     remarks = list(block["remarks"])

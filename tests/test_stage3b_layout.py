@@ -147,11 +147,13 @@ import pathlib
 import random
 import re
 import sys
+import unicodedata
 import zlib
 
 import pytest
 
 import keyboard
+import written_words
 
 from synthtwin import (
     asking, contract, errors, generation, parsing, taxonomy, validation,
@@ -3879,13 +3881,49 @@ def test_r2c_q6_red_when_every_column_is_declared(monkeypatch: pytest.MonkeyPatc
 
 @pytest.mark.parametrize("shape", ["mixed", "beds", "julian"])
 def test_r2c_q6_names_no_cell_of_the_column(tmp_path: pathlib.Path, shape: str) -> None:
-    """Q6's sentences carry no value of the table (A-P4-58): no cell appears in the questions file."""
+    """Q6's sentences carry no value of the table (A-P4-58): no cell appears in the questions file.
+
+    Read over the DECODED file (batch 4r's tests-and-tools round HYG-1,
+    LANE I4r RULINGS 6 (2)): every key and string at any depth, whole and
+    word by word with each word's ends shed (`written_words.seen_in`), so
+    a cell is seen at a string's end, before a point, in brackets or
+    before a semicolon; the needles this replaced saw it only between
+    spaces, before a comma or as a whole string.
+    """
     cells = _q6_shapes()[shape]
     _block, _profile, questions = _described(tmp_path, cells)
-    text = json.dumps(questions)
     assert "q6" in _asked(questions)
+    seen = written_words.seen_in(questions)
     for cell in set(cells):
-        assert f'"{cell}"' not in text and f" {cell} " not in text and f" {cell}," not in text
+        assert len(cell.split()) == 1, cell
+        _q6_names_no_cell(cell, questions, seen)
+
+
+def _q6_names_no_cell(cell: str, questions: object, seen: "set[str]") -> None:
+    """The questions file names ``cell`` nowhere: not by the walk (``seen``, its `written_words.seen_in`) nor by the needles it replaced.
+
+    Batch 4r's repair round HYG-1b (LANE I4r RULINGS 9 (1), the verify's
+    item 2 (a)). The walk does not see `c0` in `c0,c1`, a word that glues
+    the cell to more by a comma, which the needle `f" {cell},"` saw (3 of
+    the verify's 30 product runs of the example writer's placements); the
+    two together keep every red of the needles by construction.
+    """
+    assert cell not in seen and not _seen_by_the_needles(cell, questions), cell
+
+
+def test_r2c_q6_a_cell_glued_to_the_next_by_a_comma_is_seen() -> None:
+    """`c0` in `c0,c1` is seen: the needles kept beside the walk see it.
+
+    Batch 4r's repair round HYG-1b (LANE I4r RULINGS 9 (1), the verify's
+    item 2 (a)), machine-free. MUTATION: the walk alone, HYG-1's
+    reading, does not see it.
+    """
+    cells = ("2023076", "2023077")
+    questions = {"asked": [{"column": "seen_at", "said": f"written for example as {cells[0]},{cells[1]}"}]}
+    seen = written_words.seen_in(questions)
+    with pytest.raises(AssertionError):
+        _q6_names_no_cell(cells[0], questions, seen)
+    assert cells[0] not in seen, sorted(seen)
 
 
 def test_r2c_q6_red_when_the_example_is_a_cell(
@@ -3895,7 +3933,175 @@ def test_r2c_q6_red_when_the_example_is_a_cell(
     cells = _q6_shapes()["julian"]
     monkeypatch.setattr(parsing, "format_example", lambda _name: cells[0])
     _block, _profile, questions = _described(tmp_path, cells)
-    assert f" {cells[0]}," in json.dumps(questions)
+    assert cells[0] in written_words.seen_in(questions)
+
+
+def _seen_by_the_needles(cell: str, questions: object) -> bool:
+    """The reading `test_r2c_q6_names_no_cell_of_the_column` used before HYG-1: three needles in the serialized file."""
+    text = json.dumps(questions)
+    return f'"{cell}"' in text or f" {cell} " in text or f" {cell}," in text
+
+
+def test_r2c_q6_a_cell_is_seen_wherever_a_sentence_writes_it() -> None:
+    """A cell at a string's end, before a point, in brackets or before a semicolon is seen; one glued to more is not.
+
+    Batch 4r's tests-and-tools round HYG-1 (LANE I4r RULINGS 6 (2)(b)),
+    machine-free. MUTATION: the three needles the gate above used
+    (`_seen_by_the_needles`) miss every placement here, and see a cell
+    only between spaces, before a comma or as a whole string.
+    """
+    cell = "2023076"
+    for said in (
+        f"dates written as {cell}",
+        f"dates written as {cell}.",
+        f"dates written as ({cell})",
+        f"written as {cell}; or as a count",
+        f"written as “{cell}”",
+        f"written as {cell}\nor",
+        f"written as {cell} or",
+    ):
+        questions = {"asked": [{"column": "seen_at", "said": said}]}
+        assert cell in written_words.seen_in(questions), said
+        assert not _seen_by_the_needles(cell, questions), said
+    for said in (f"dates written as x{cell}", f"written as {cell}1.", f"written as {cell}-{cell}"):
+        assert cell not in written_words.seen_in({"said": said}), said
+    accented = "não"
+    assert accented in written_words.seen_in({"said": f"written as {accented}"})
+    assert not _seen_by_the_needles(accented, {"said": f"written as {accented} or"})
+
+
+# -- HYG-1: every cell a decoded file writes, against a walk written apart --
+#
+# THE CLASS AT THE UNIT LEVEL (batch 4r's tests-and-tools round HYG-1,
+# LANE I4r RULINGS 1 (4) and 6 (2)). A few thousand generated decoded
+# files -- nested objects, lists, keys and numbers, their strings runs of
+# words apart by one of nine kinds of whitespace, each word a cell or a
+# filler word wearing a front and a back mark, some cells glued to a
+# letter or a figure -- and every cell of the pool asked of each: seen by
+# `written_words.seen_in` exactly where `_stands_walked`, an occurrence
+# walk written apart from it, finds it standing; every cell placed
+# standing is found; and the three needles the gate used are red on them.
+
+_POOL = (
+    "2023076", "3/17/2023", "2023-03-17", "5-12-34", "UNK", "36,8", "1,234", "N/A", "-1", "não", "无",
+    "a'b", "00:00",
+)
+_FILLER = ("dates", "written", "as", "the", "column", "seen_at", "1st", "12.5", "or", "x", "2024")
+_FRONT_MARKS = ("", "", "", "(", "[", "{", '"', "'", "“", "«", "#", "¿", "​")
+_BACK_MARKS = ("", "", "", ".", ",", ";", ":", ")", "]", "}", '"', "'", "”", "»", "!", "?", "%", ").", "​")
+_SPACES = (" ", " ", "  ", "\t", "\n", "\r\n", " ", " ", " ", "　")
+_GLUE = ("x", "7", "é", "Q")
+
+
+def _generated_file(draw: random.Random) -> "tuple[object, set[str]]":
+    """One decoded questions-like file, and the cells it places standing."""
+    standing: "set[str]" = set()
+
+    def sentence() -> str:
+        text = ""
+        for place in range(draw.randrange(1, 9)):
+            roll = draw.random()
+            if roll < 0.3:
+                cell = draw.choice(_POOL)
+                standing.add(cell)
+                word = draw.choice(_FRONT_MARKS) + cell + draw.choice(_BACK_MARKS)
+            elif roll < 0.45:
+                cell = draw.choice(_POOL)
+                glued = draw.choice(_GLUE)
+                word = glued + cell if draw.random() < 0.5 else cell + glued
+                word = draw.choice(_FRONT_MARKS) + word + draw.choice(_BACK_MARKS)
+            else:
+                word = draw.choice(_FRONT_MARKS) + draw.choice(_FILLER) + draw.choice(_BACK_MARKS)
+            text += (draw.choice(_SPACES) if place else "") + word
+        return text
+
+    def value(depth: int) -> object:
+        roll = draw.random()
+        if depth > 2 or roll < 0.5:
+            return sentence()
+        if roll < 0.6:
+            number = draw.choice((2023076, -1, 7, 1.5, 400))
+            if f"{number}" in _POOL:
+                standing.add(f"{number}")
+            return number
+        if roll < 0.8:
+            return [value(depth + 1) for _item in range(draw.randrange(0, 4))]
+        found: "dict[str, object]" = {}
+        for _key in range(draw.randrange(1, 4)):
+            key = sentence() if draw.random() < 0.3 else draw.choice(("said", "asked", "reason", "column"))
+            if key not in found:
+                found[key] = value(depth + 1)
+        return found
+
+    return {"asked": [value(0) for _entry in range(draw.randrange(1, 4))]}, standing
+
+
+def _stands_walked(cell: str, decoded: object) -> bool:
+    """Whether ``cell`` stands in a decoded file, by an occurrence walk written apart from `written_words`.
+
+    A text is each key and string at any depth, and each number as JSON
+    writes it. The cell stands where a text equals it, or where it
+    occurs in a text with nothing between it and the nearest whitespace
+    (or the text's end) on either side but characters whose Unicode
+    category is not a letter, a number or a mark.
+    """
+    texts: "list[str]" = []
+
+    def walk(node: object) -> None:
+        nonlocal texts
+        if isinstance(node, str):
+            texts += [node]
+        elif isinstance(node, bool) or node is None:
+            return
+        elif isinstance(node, (int, float)):
+            texts += [json.dumps(node)]
+        elif isinstance(node, dict):
+            for key, inner in node.items():
+                texts += [key]
+                walk(inner)
+        elif isinstance(node, list):
+            for inner in node:
+                walk(inner)
+
+    walk(decoded)
+    for text in texts:
+        if text == cell:
+            return True
+        at = text.find(cell)
+        while at >= 0:
+            left = at - 1
+            while left >= 0 and not text[left].isspace() and unicodedata.category(text[left])[0] not in "LNM":
+                left -= 1
+            right = at + len(cell)
+            while right < len(text) and not text[right].isspace() and unicodedata.category(text[right])[0] not in "LNM":
+                right += 1
+            if (left < 0 or text[left].isspace()) and (right == len(text) or text[right].isspace()):
+                return True
+            at = text.find(cell, at + 1)
+    return False
+
+
+def test_r2c_q6_every_cell_a_generated_file_writes_is_seen_as_written() -> None:
+    """3,000 generated files: the walk of the decoded file and the occurrence walk agree; the needles do not."""
+    draw = random.Random(20261109)
+    asked = 0
+    standing_seen = 0
+    missed_by_the_needles = 0
+    for _case in range(3000):
+        decoded, standing = _generated_file(draw)
+        seen = written_words.seen_in(decoded)
+        for cell in _POOL:
+            asked += 1
+            stands = _stands_walked(cell, decoded)
+            assert (cell in seen) == stands, (cell, decoded)
+            if cell in standing:
+                assert stands, (cell, decoded)
+            if stands:
+                standing_seen += 1
+                if not _seen_by_the_needles(cell, decoded):
+                    missed_by_the_needles += 1
+    assert asked == 3000 * len(_POOL) and standing_seen > 5000, (asked, standing_seen)
+    assert missed_by_the_needles > 1000, missed_by_the_needles
 
 
 def _battery() -> "dict[str, tuple[list[str], tuple[str, ...]]]":

@@ -692,18 +692,35 @@ def described_cells(
     pooled_here = False
     if mark:
         pooled = _whole_mark(_get(block, "top_category_pooled"))
-        if pooled < 0:
+        # ...its age words read only where its block records them (lane
+        # HB2, plan P4-D477), as the description was made.
+        words = _get(block, "top_coded_words") is True
+        ends = _get(block, "top_coded_ends")
+        # ...its bands of ages past 89 read as one band only where the block
+        # records that reading (`top_coded_bands`, P4-D472).
+        banded = _get(block, "top_coded_bands") is True
+        if pooled < 0 and not words and not isinstance(ends, list) and not banded:
             # A description written before lane SH3's repair records no
-            # pooling rule and is read as it was made (P4-D454).
+            # pooling rule and is read as it was made (P4-D454); one that
+            # records the age words or the ends, which none such holds, is
+            # read with them (lane HB2's repair 2, Codex's item 5), and one
+            # that records its band reading too (Codex's review of batch 4s,
+            # item 6).
             coded = taxonomy.top_coded_cells_before_sh3(image, comma, absent)
         else:
-            coded = taxonomy.top_coded_cells(image, comma, absent, mark)
-        aside = taxonomy.age_placeholders_set_aside(coded, comma, absent, settings.small_cell_floor, mark)
+            coded = taxonomy.top_coded_cells(image, comma, absent, mark, words, banded)
+        aside = taxonomy.age_placeholders_set_aside(coded, comma, absent, settings.small_cell_floor, mark, words)
         blanked = blanked or aside != coded
         coded = aside
         if pooled > 0:
             coded = _pooled(table, values, spellings, rows_of, coded, block, settings, comma, absent, pooled, mark)
             pooled_here = coded != aside
+        # ...and its ends pooled in people where its block records them
+        # (`top_coded_ends`, lane HB2, plan P4-D477).
+        if isinstance(ends, list) and len(ends) == 2 and all(isinstance(end, int) for end in ends):
+            ended = taxonomy.cells_within_the_ends(coded, comma, absent, ends[0], ends[1], mark, words)
+            pooled_here = pooled_here or ended != coded
+            coded = ended
         image = coded
     if year:
         image = taxonomy.year_top_coded_cells(image, comma, absent, year)
@@ -740,6 +757,7 @@ def _pooled(
     is asked of every row.
     """
     people = _get(block, "top_category_people")
+    words = _get(block, "top_coded_words") is True
     holders: "list[list[str]]" = []
     for subject in people if isinstance(people, list) else []:
         for spot, column_name in enumerate(table.column_names):
@@ -751,10 +769,10 @@ def _pooled(
     if holders:
         image = dict(zip(spellings, coded))
         cells = [image[cell] for cell in values]
-        found = taxonomy.top_category_pooled(cells, comma, absent, pooled, mark, holders)
+        found = taxonomy.top_category_pooled(cells, comma, absent, pooled, mark, holders, words)
         by_cell = dict(zip(values, found))
         return [by_cell[one] for one in spellings]
-    found = taxonomy.top_category_pooled(coded, comma, absent, len(values) + 1, mark, None)
+    found = taxonomy.top_category_pooled(coded, comma, absent, len(values) + 1, mark, None, words)
     top_rows = 0
     for at in range(len(spellings)):
         if found[at] != coded[at]:

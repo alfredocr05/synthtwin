@@ -176,7 +176,10 @@ def test_skeptic_1_item_1_the_reverse_direction(tmp_path: pathlib.Path) -> None:
 
 def test_codex_item_1_a_held_column_of_stamps_stays_readable(tmp_path: pathlib.Path) -> None:
     """600 values from 1900 cycled, every fiftieth an ISO date, the others hourly ISO stamps: every twin cell
-    parses (0 of 20,000 on 18b17a9c), and the block publishes `[]`. Mutant: the grain's reading not looked at.
+    parses (0 of 20,000 on 18b17a9c). Since lane TR (its skeptic 1, item 1; plan P4-D473) a held column read as
+    stamps takes the block of four-figure years its dates would -- four here, its dates beside its stamps a day
+    each -- and its G1 floor draws each made-up stamp's calendar date from it (`generation._stamp_in_the_room`),
+    so the twin stays readable and names no real day. Mutant: the grain's reading not looked at.
     """
     values = []
     start = datetime.datetime(1900, 1, 1)
@@ -185,8 +188,9 @@ def test_codex_item_1_a_held_column_of_stamps_stays_readable(tmp_path: pathlib.P
         values += [at.date().isoformat() if place % 50 == 0 else at.strftime("%Y-%m-%dT%H:%M:%S")]
     seen = _run(tmp_path, "dob", [values[place % 600] for place in range(ROWS)], [])
     assert seen["exits"][0:2] == (0, 0)
-    assert seen["block"]["made_up_years"] == []  # type: ignore[index]
+    assert seen["block"]["made_up_years"] == [[2028, 2031]]  # type: ignore[index]
     assert seen["dated"] == ROWS, seen["dated"]
+    assert seen["equal"] == 0 and seen["merged"] == 0 and seen["same_day"] == 0
 
 
 def test_codex_item_3_a_withheld_layout_is_written_as_a_date(tmp_path: pathlib.Path) -> None:

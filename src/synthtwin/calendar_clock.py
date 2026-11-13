@@ -2008,7 +2008,14 @@ def absent_places(spellings: "tuple[str, ...] | list[str]", form: str) -> "tuple
 
 
 def _other_width_form(form: str) -> str:
-    """The form one form's hour is written in at its other width (`h-mm` for `hh-mm`)."""
+    """The form one form's hour is written in at its other width (`h-mm` for `hh-mm`).
+
+    A clock written as figures has one width, two figures (plan
+    P4-D473): its other width is itself, so no place is spelled another
+    way.
+    """
+    if parsing.clock_figure_fraction(form) is not None:
+        return form
     style = parsing.clock_style_of(form)
     width = parsing.clock_hour_width(style)
     other = ("h" if width == "hh" else "hh") + parsing.clock_face(style)

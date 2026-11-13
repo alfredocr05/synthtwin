@@ -261,8 +261,10 @@ OPERATIVE = {
     "and `-1` being set aside as placeholders, whatever their share -- is not reached, in a number role or a label role "
     "alike (a label column's words are set aside whatever their share, so no share of words keeps it out of reach)",
     "top-code-label-words-limit": "nor is an age whose levels the label reach reads as words, a word before the number "
-    "or a mark after it (`age 95`, `95 y/o`): lane SH does not reach it, and CODES-2's path (iii) holds every level "
-    "holding a figure until `no` (ZS.3; owner CODES-2)",
+    "or a mark after it (`age 95`, `95 y/o`): lane SH does not reach it, and ZS.3 (iii)'s level-by-level hold is NOT "
+    "BUILT",
+    "top-code-label-words-owner": "the level-by-level hold owned by lane CODES-3, to be measured first at 20,000 rows, "
+    "and the reading of `Age NN` levels by lane HB2)",
     "top-code-99": "`99` is an age and is never set aside",
     "top-code-price-r5": "on the zoo it adds `claims.revenue_code`, `diagnoses_procedures.icd10_plain` and `hcpcs`",
     "top-code-months": "and an age counted in months or days is not protected: its values above 125 are set aside as "
@@ -1592,14 +1594,25 @@ def _named_by_path_ii(word: str, answer: str, screen_only: bool = False) -> bool
 
 
 def test_codex_round_two_hash_word_is_held_until_no(tmp_path: pathlib.Path) -> None:
-    """Item 2: 16,000 numbers 1.00..16.99, 3,999 `HI` and one `#4521` at 20,000 rows: today `#4521` is held back
-    unnamed and nothing is asked; the screen alone would name it; the page names it only after `no`."""
+    """Item 2: 16,000 numbers 1.00..16.99, 3,999 `HI` and one `#4521` at 20,000 rows: `#4521` is held back unnamed;
+    the screen alone would name it; the page names it only after `no`, and puts the Safe Harbor question to it.
+
+    THE QUESTION, since lane CODES-2's repair 1 (the orchestrator's LANE CODES-2 RULINGS 3 (1), skeptic 1's item 1
+    (b)): the page's own rule -- "it is put, in the first round's one entry, to every column with a held-back word
+    that holds a figure and passes the screen ... under this rule the question is put and `#4521` stays held
+    unanswered" -- replaces what the product did before the lane, nothing asked. Unanswered, `#4521` is named
+    nowhere, in the description, its summary or the questions file; the one question is the Safe Harbor sentence.
+    """
     cells = [f"{1 + (k % 1600) / 100:.2f}" for k in range(16000)] + ["HI"] * 3999 + ["#4521"]
     document = _profiled(tmp_path, "hash.csv", "result\n" + "\n".join(cells) + "\n")
     column = _column(document, "result")
     assert column["role"] == "numbers_with_labels" and "#4521" not in json.dumps(column)
-    asked = json.loads((tmp_path / "hash-questions.json").read_text(encoding="utf-8"))["asked"]
-    assert not [entry for entry in asked if entry.get("column") == "result"]
+    questions = (tmp_path / "hash-questions.json").read_text(encoding="utf-8")
+    assert "#4521" not in questions and "#4521" not in (tmp_path / "hash-profile.txt").read_text(encoding="utf-8")
+    asked = json.loads(questions)["asked"]
+    put = [entry for entry in asked if entry.get("column") == "result"]
+    assert len(put) == 1 and sorted(choice["answer"] for choice in put[0]["answers_you_can_give"]) == ["no", "yes"]
+    assert "Could a value of 'result' name a person" in put[0]["what_synthtwin_saw"]
     assert _named_by_path_ii("#4521", "", screen_only=True)  # repair 3: named with no question
     assert not _named_by_path_ii("#4521", "") and _named_by_path_ii("#4521", "no")
     for word in ("12-345", "4521/7", "120/80", "1:40"):

@@ -189,7 +189,7 @@ def test_the_linear_count_is_the_pairwise_count_on_every_shape(tmp_path: pathlib
     the first 60 real values against 90 cells. Red on the mutant "the
     linear counter reads only runs of figures" (`wave6/HX5/mutants-d.log`).
     """
-    kinds = (shapes.HELD + shapes.BESIDE + shapes.COUNTED + shapes.LISTED
+    kinds = (shapes.HELD + shapes.PUBLISHING_NOTHING + shapes.BESIDE + shapes.COUNTED + shapes.LISTED
              + shapes.ONE_A_ROW + shapes.STATED)
     for kind in kinds:
         folder = tmp_path / kind

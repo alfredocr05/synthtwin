@@ -73,6 +73,7 @@ import pytest
 import date_question_shapes as shapes
 import fixtures
 import workbooks
+import written_words
 from synthtwin import asking, cli, profile, reading, taxonomy
 
 
@@ -233,8 +234,12 @@ def test_every_column_with_codes_is_asked_and_answering_repairs_it(
     written = (tmp_path / "real-questions.json").read_text(encoding="utf-8")
     notice = said[said.index("THESE COLUMNS READ AS DATES"):]
     notice = notice[: notice.index("Nothing is wrong with this profile")]
+    # Read over the DECODED file, every key, string and number whole and
+    # word by word (HYG-1): the whole-string needle this replaced,
+    # `json.dumps(one) in written`, saw a code only as a string of its own.
+    seen = written_words.seen_in(json.loads(written))
     for one in set(shape.codes):
-        assert json.dumps(one) not in written, f"{one} is in the questions file"
+        assert one not in seen, f"{one} is in the questions file"
         assert one not in notice, f"{one} is on the screen"
     answers = _answer(tmp_path, "seen_at", asking.ANSWER_NO_DATE)
     code, said = _profiled(tmp_path, values, "--answers", str(answers))
@@ -249,6 +254,28 @@ def test_every_column_with_codes_is_asked_and_answering_repairs_it(
     assert _validates(tmp_path)
     assert not _code_entries(_questions(tmp_path)), "answered, it is not asked again"
     assert "--missing-value" in said
+
+
+def test_a_code_is_seen_wherever_the_questions_file_writes_it() -> None:
+    """A code inside a sentence, before a mark, or written as a number is seen; one glued to a figure is not.
+
+    Batch 4r's tests-and-tools round HYG-1 (LANE I4r RULINGS 6 (2)),
+    machine-free. MUTATION: the needle the gate above used,
+    `json.dumps(code) in written`, sees a code only as a whole string,
+    and none of these.
+    """
+    for code, said in (
+        ("UNK", "rows written as UNK."),
+        ("-1", "a key of -1; or"),
+        ("99:99", "times such as (99:99)"),
+        ("00/00/0000", "written as “00/00/0000”"),
+        ("-1", -1),
+    ):
+        questions = {"asked": [{"column": "seen_at", "said": said}]}
+        assert code in written_words.seen_in(questions), (code, said)
+        assert json.dumps(code) not in json.dumps(questions), (code, said)
+    for code, said in (("-1", "a key of -10"), ("-1", "x-1"), ("UNK", "UNKNOWN")):
+        assert code not in written_words.seen_in({"said": said}), (code, said)
 
 
 def test_a_column_asked_about_its_codes_loses_only_the_questions_they_answer() -> None:

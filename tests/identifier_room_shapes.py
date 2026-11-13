@@ -522,6 +522,14 @@ def _column_cells(path: pathlib.Path, name: str) -> "list[str] | None":
     return None
 
 
+# THE DATE PASS'S HELD DIAGNOSIS DATES, KEPT (lane TR's repair 1; LANE TR RULINGS 3 (4)): the catalogue
+# answers `tumor_registry.dx_date` as the dates it is since then, so its own run reads the column as dates.
+# The tables `zoo_equal_cells` reads leave those two questions blank, as a person may, so the column is held
+# as record numbers and its twin written by the date pass, as K-HZ-06's zoo leg has counted it since lane
+# HB's merge -- its runs byte for byte as before.
+ZOO_LEFT_UNANSWERED = {"tumor_registry": ("dx_date",)}
+
+
 def zoo_tables() -> "tuple[object, ...]":
     """The zoo tables `zoo_equal_cells` reads: the WHOLE catalogue this machine can read.
 
@@ -529,11 +537,24 @@ def zoo_tables() -> "tuple[object, ...]":
     left out only where the cross-check reader is absent (`health_zoo.runnable_tables`). Batch
     4m's records (Codex's review of batch 4l, its second Medium, BATCH 4m OWES 2): the helper
     read `health_zoo.TABLES` alone, so an added export's identifier column -- the instrument
-    magnitudes' `sample_id`, `S500000` beside a twin's `s0500000` -- was never counted.
+    magnitudes' `sample_id`, `S500000` beside a twin's `s0500000` -- was never counted. Each
+    column `ZOO_LEFT_UNANSWERED` names is left unanswered (`zoo_left_unanswered`).
     """
     import health_zoo
 
-    return health_zoo.runnable_tables(health_zoo.catalogue())
+    return tuple(zoo_left_unanswered(table) for table in health_zoo.runnable_tables(health_zoo.catalogue()))
+
+
+def zoo_left_unanswered(table: object) -> object:
+    """A zoo table whose answers leave out the columns `ZOO_LEFT_UNANSWERED` names for it; any other table as it is."""
+    import dataclasses
+
+    name = getattr(table, "name", "")
+    if name not in ZOO_LEFT_UNANSWERED:
+        return table
+    knows = getattr(table, "knows")
+    kept = {column: answer for column, answer in knows.items() if column not in ZOO_LEFT_UNANSWERED[name]}
+    return dataclasses.replace(table, knows=kept)  # type: ignore[type-var]
 
 
 # K-HZ-06's zoo leg, counted per named column (batch 4n's records, Codex's review of batch 4m, its

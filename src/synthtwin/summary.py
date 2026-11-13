@@ -346,6 +346,16 @@ def _map_of(value: object) -> dict[str, object]:
 _UNIT_OF_MARK = {1080: "months", 4695: "weeks", 32871: "days"}
 
 
+def _levels_are_bands(column: "dict[str, object]") -> bool:
+    """Whether two in three at least of a described column's levels are bands of ages (plan P4-D472, `taxonomy.a_band_cell`)."""
+    levels = column["levels"] if "levels" in column else None
+    if not isinstance(levels, list):
+        return False
+    labels = [f"{level['label']}" for level in levels if isinstance(level, dict) and "label" in level]
+    bands = [label for label in labels if taxonomy.a_band_cell(label) is not None]
+    return bool(bands) and 3 * len(bands) >= 2 * len(labels)
+
+
 def _count_of(value: object) -> int:
     """``value`` when it is a whole number, zero otherwise."""
     if isinstance(value, int):
@@ -1241,7 +1251,17 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
             f"rows or people hold such values, they are read as the largest "
             f"value below it instead, so no small group is named"
         )
-    if "top_coded" in column and column["top_coded"] == 90:
+    if "top_coded" in column and column["top_coded"] == 90 and _levels_are_bands(column):
+        # ...A COLUMN OF BANDS OF AGES (plan P4-D472): its bands past 89 and
+        # a band holding 90 are read as one band, never as the number 90.
+        lines += [
+            f"    ages over 89: every band past 89, and a band holding 90, is "
+            f"read as one band written from 90 (\"90 or more\"), or from the "
+            f"first age of the band holding 90, here and in the twin"
+            f"{pooled_words}, until the Safe Harbor question about this column "
+            f"is answered no in the questions file"
+        ]
+    elif "top_coded" in column and column["top_coded"] == 90:
         lines += [
             f"    ages over 89: every value above 89 is read as "
             f"{_count_of(column['top_coded'])} (\"90 or more\") here and in "
@@ -1257,6 +1277,16 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
             f"read as {mark} (\"90 years or more\") here and in the "
             f"twin{pooled_words}, until the Safe Harbor question about this "
             f"column is answered no in the questions file"
+        ]
+    # ...and its ends pooled in people where the description says so (lane
+    # HB2, plan P4-D477): the two values each end's band is read as.
+    ends = column["top_coded_ends"] if "top_coded_ends" in column else None
+    if "top_coded" in column and isinstance(ends, list) and len(ends) == 2:
+        lines += [
+            f"    ages at its ends: every age below {_count_of(ends[0])} is read as "
+            f"{_count_of(ends[0])} and every age above {_count_of(ends[1])} as "
+            f"{_count_of(ends[1])}, here and in the twin, so each end is held by "
+            f"the smallest group size's people or more"
         ]
     # ...AND THE SAFE HARBOR YEARS (plan P4-D434).
     if "top_coded_year" in column:

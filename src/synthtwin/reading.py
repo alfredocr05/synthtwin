@@ -2853,7 +2853,11 @@ class ColumnSource:
     only cells of the table held at all. ``proofs`` holds, a column a
     proof, what pyarrow's reader was held to when the column's walk was
     read (`_ArrowProof`; lane SR-A, plan P4-D414), or nothing where it
-    was not.
+    was not. ``rewrites`` is the validator's alone (lane SV, plan
+    P4-D476): the rewrites `synthtwin validate` makes of the checked
+    table, which `column_values` hands each column through
+    (`validation.column_as_checked`); empty, a column is handed over as
+    it was read.
     """
 
     path: str
@@ -2866,6 +2870,7 @@ class ColumnSource:
     held: "list[list[str]]"
     walks: "tuple[tuple[int, int], ...]" = ()
     proofs: "tuple[_ArrowProof, ...]" = ()
+    rewrites: "tuple[object, ...]" = ()
 
 
 def column_values(table: Table, place: int) -> "list[str]":
@@ -2900,11 +2905,38 @@ def column_values(table: Table, place: int) -> "list[str]":
     columns far apart holds both at once with `hold_columns`, one reading
     for the pair, rather than switching between their groups.
 
+    A TABLE `synthtwin validate` CHECKS (lane SV, plan P4-D476): where
+    its source carries the validator's rewrites (``ColumnSource.rewrites``),
+    the column is handed over as the validator's rewrites of a table read
+    whole leave it (`validation.column_as_checked`, which reads it here,
+    `column_as_read`).
+
     Guarantees: returns the column's values exactly as `read_table`
-    read them. Raises ProfileError where the file changed since it was
-    first read, or can no longer be read as it was
-    (`errors.file_changed_while_read`); IndexError for a place past the
-    last column. Reads the file only for a table read in groups.
+    read them, rewritten where the validator's rewrites stand. Raises
+    ProfileError where the file changed since it was first read, or can
+    no longer be read as it was (`errors.file_changed_while_read`);
+    IndexError for a place past the last column. Reads the file only for
+    a table read in groups.
+    """
+    source = table.source
+    if source is None:
+        return table.columns[place]
+    if source.rewrites:
+        # Imported here, inside the branch: only a table the validator
+        # checks carries rewrites, and every other reading loads nothing
+        # it did not load before.
+        from synthtwin import validation
+
+        return validation.column_as_checked(table, place)
+    return column_as_read(table, place)
+
+
+def column_as_read(table: Table, place: int) -> "list[str]":
+    """One column's values as `read_table` read them, whatever rewrites its source carries (lane SV, plan P4-D476).
+
+    `column_values` without the validator's rewrites: the validator reads
+    a column here before it rewrites it. Guarantees: `column_values`'s
+    for a table carrying no rewrites.
     """
     source = table.source
     if source is None:
@@ -3476,6 +3508,64 @@ def opens_as_a_workbook(raw_path: str) -> bool:
         return workbook.kind_of(_opening_of(table_path)) == workbook.KIND_PACKAGE
     except OSError:
         return False
+
+
+# -- WHAT A CHECKED FILE'S BYTES ARE, ASKED A LINE AT A TIME (lane SV, plan P4-D476) --
+#
+# `synthtwin validate` reads the checked file in groups of columns, as
+# `synthtwin profile` reads a table, so its bytes are never held whole; what
+# its form check asks of them -- their first bytes, whether they decode
+# under a codec, which characters past ASCII they decode to
+# (`validation._encoding_found`) -- is asked here of the file itself, read a
+# line at a time and decoded strictly, so a byte the codec does not read
+# raises as decoding the whole bytes raises.
+
+
+def opening_bytes(raw_path: str) -> bytes:
+    """The file's first bytes, at most eight, as `read_table` reads them to decide its kind (lane SV, plan P4-D476).
+
+    Guarantees: the bytes the file begins with, every one of them where it
+    holds fewer. Raises what the locality gate raises, and OSError where
+    the file cannot be opened. Reads the opening line alone.
+    """
+    validated = validate_local_path(raw_path, purpose="input")
+    return _opening_of(pathlib.Path(validated))
+
+
+def decodes_under(raw_path: str, codec: str) -> bool:
+    """Whether the file's bytes decode under ``codec``, read a line at a time and never held whole (lane SV, plan P4-D476).
+
+    Guarantees: True exactly where decoding the file's whole bytes strictly
+    under ``codec`` raises nothing. Raises what the locality gate raises,
+    and OSError where the file cannot be read. Reads the whole file once.
+    """
+    validated = validate_local_path(raw_path, purpose="input")
+    run = _Pass()
+    try:
+        for _line in _opened_lines(pathlib.Path(validated), codec, run):
+            continue
+    except UnicodeDecodeError:
+        return False
+    return True
+
+
+def characters_past_ascii(raw_path: str, codec: str) -> "tuple[str, ...]":
+    """Every character past ASCII the file's bytes decode to under ``codec``, once each, in code-point order (lane SV, plan P4-D476).
+
+    The file is read a line at a time and its text never held whole.
+    Guarantees: the characters of the whole decoded text whose code point
+    is above 127. Raises what the locality gate raises, UnicodeDecodeError
+    where the bytes do not decode under ``codec`` (ask `decodes_under`
+    first), and OSError where the file cannot be read.
+    """
+    validated = validate_local_path(raw_path, purpose="input")
+    run = _Pass()
+    found: "dict[str, bool]" = {}
+    for line in _opened_lines(pathlib.Path(validated), codec, run):
+        for character in set(line):
+            if ord(character) > 127:
+                found[character] = True
+    return tuple(sorted(found))
 
 
 def _facts_under(

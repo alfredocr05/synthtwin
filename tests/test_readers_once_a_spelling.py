@@ -591,10 +591,12 @@ def test_the_pooled_top_category_reads_a_spelling_once(monkeypatch: pytest.Monke
     read: "list[str]" = []
     original = taxonomy.safe_harbor_number
 
-    def counted(cell: str, comma: bool = False, affixes: bool = True) -> "taxonomy.SafeHarborNumber | None":
+    def counted(
+        cell: str, comma: bool = False, affixes: bool = True, words: bool = False
+    ) -> "taxonomy.SafeHarborNumber | None":
         nonlocal read
         read += [cell]
-        return original(cell, comma, affixes)
+        return original(cell, comma, affixes, words)
 
     monkeypatch.setattr(taxonomy, "safe_harbor_number", counted)
     taxonomy.top_category_pooled(cells, False, frozenset({""}), 11)
@@ -691,10 +693,13 @@ def test_each_key_walk_reads_its_spellings_in_its_own_call(monkeypatch: pytest.M
     reading_original = asking._key_reading
     figures_original = asking._key_figures
 
-    def reading(value: str, comma: bool, affixed: bool = False) -> "tuple[tuple[str, str, str], bool] | None":
+    def reading(
+        value: str, comma: bool, affixed: bool = False, present: "list[str] | None" = None,
+        held: "dict[str, bool] | None" = None,
+    ) -> "tuple[tuple[str, str, str], bool] | None":
         nonlocal readings
         readings += [(value, comma)]
-        found = reading_original(value, comma, affixed)
+        found = reading_original(value, comma, affixed, present, held)
         assert found == _key_reading_one_by_one(value, comma, affixed), (value, comma, affixed)
         return found
 

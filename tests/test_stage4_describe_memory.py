@@ -1408,12 +1408,40 @@ def test_stamps_at_eighty_thousand_rows_hold_under_the_bound_of_twenty_thousand(
 # counted as half a split a row. Measured, Python 3.11, at 2,000 / 4,000
 # rows: 179.2 / 179.1 (557 to 565 on 34bb5902), the large vocabulary 210.2 at
 # 2,000 rows with memos of 128 and 185.8 at 4,000 (769 and 1,343).
+#
+# THE BYTES A ROW ADDS, NOT A COLUMN'S FIXED BYTES SHARED OUT OVER ITS ROWS
+# (lane CI-4r). The traced peak also holds what a column's reading holds at
+# any number of rows: on the large vocabulary 7.4 to 13.5 KB on Python 3.11,
+# 3.13 and 3.14 (the peak at 2,000 rows less 2,000 times the bytes a row it adds
+# from 2,000 to 4,000). At 2,000 rows, a tenth of the 20,000 rows under
+# which `synthtwin profile` refuses a table (plan P4-D425), that reads as
+# 3.7 to 6.8 bytes a row that no row adds, so a change in those fixed bytes
+# moved this bound: batch 4r's head holds 1,792 to 1,976 bytes more at
+# 2,000 and 4,000 rows and 1,680 to 1,848 at 20,000 (lane PRT-a's record of
+# the number readers' answers, plan P4-D468, which `_tally` makes for every
+# column and this one never asks), and the large vocabulary in lower case
+# read 200.095 in CI on Python 3.14 (run 42868109912), while the bytes a
+# row it adds from 2,000 to 4,000 rows stayed the base's within 0.02. So
+# each case reads the bytes a row the column adds from a quarter of its
+# rows to all of them, the memos a thirty-second of the rows at both, as
+# K-S4-08's case reads the bytes a row added. Measured on batch 4r's head
+# at 2,000 and 4,000 rows: the large vocabulary 194.0 to 194.1 on Python
+# 3.11, 191.6 on 3.13 and 192.7 to 192.8 on 3.14, the base's within 0.02;
+# notes with capitals 177.8 to 178.2 on 3.11 and 3.13, 180.0 to 180.9 on
+# 3.14. The whole column's bytes a row at 20,000 rows read 172.7 and 160.5
+# on 3.11, 172.9 and 164.4 on 3.14.
+# Python 3.12 was not measured; the 3.14 readings but CI's 200.095 come from a
+# verbatim copy of this case's helpers under Python 3.14.6, not from this file.
 @pytest.mark.parametrize("rows", [2_000, 4_000])
 @pytest.mark.parametrize("shape", ["notecap", "biglower", "bignote"])
 def test_notes_with_capitals_and_figures_hold_under_two_hundred_bytes_a_row(
     shape: str, rows: int, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    per_row = _h3_repair_traced_a_row(_h3_repair_values(shape, rows), monkeypatch, rows // 32)
+    values = _h3_repair_values(shape, rows)
+    fewer = rows // 4
+    held = _h3_repair_traced_a_row(values, monkeypatch, rows // 32) * rows
+    held_fewer = _h3_repair_traced_a_row(values[:fewer], monkeypatch, fewer // 32) * fewer
+    per_row = (held - held_fewer) / (rows - fewer)
     assert per_row < 200, (shape, rows, per_row)
 
 

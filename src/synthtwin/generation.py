@@ -143,7 +143,7 @@ import math
 import typing
 from synthtwin import calendar_clock, calendar_rules, chain_moments, chain_rules, chain_walk, contract, dialect, errors, parsing, taxonomy, twinstore
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
-from synthtwin import date_counts, grains
+from synthtwin import date_counts, grains, offset_rules
 
 import numpy.random
 
@@ -27229,8 +27229,19 @@ def _clock_times_unread(
     count the twin's description publishes none of. Fewer only past
     that.
 
+    NEVER IN A FORM OF FIGURES (lane TR's statistics check, item 1): the
+    eight forms of figures (`parsing.CLOCK_FIGURE_FORMS`, plan P4-D473)
+    come after the forty in `CLOCK_FORMS`, and no reader infers them
+    (`parsing.clock_form` answers none), so a stand-in in one -- `0742`,
+    once the 22,200 spellings at the minute ran out -- is a word to the
+    reader, never a clock: 1,440 of them took the words of 2,500,000
+    present cells past route 1's allowance. The stand-ins are the forty
+    forms', as method G7A.5 and the oracle's `clock_stand_ins` write them.
+    A column read in a form of figures leaves no cell unparsed (rule 5c
+    reads every present cell or none), so its own form never comes here.
+
     Guarantees: a function of the arguments; `used` records each one.
-    Raises nothing for a form of `parsing.CLOCK_FORMS`. No I/O.
+    Raises nothing for a form of the forty. No I/O.
     """
     found: "list[str]" = []
     if wanted <= 0:
@@ -27240,7 +27251,9 @@ def _clock_times_unread(
     forms = [own] + [
         other
         for other in parsing.CLOCK_FORMS
-        if other != own and (parsing.clock_step(other) == 1) == seconds
+        if other != own
+        and other not in parsing.CLOCK_FIGURE_FORMS
+        and (parsing.clock_step(other) == 1) == seconds
     ]
     for other in forms:
         for ordinal in range(parsing.CLOCK_CAPACITY[other]):
@@ -30586,7 +30599,18 @@ _WEEKDAY_CAUSES = (
 )
 # ...and every cause a pass names for the count, the list's beside the
 # day pass's (G7.3j step 7, plan P4-D369): the recount reads each.
-_COUNT_CAUSES = _WEEKDAY_CAUSES + (_HEAVY_COUNT_SHORT, _HEAVY_COUNT_LONG)
+# ...and the count at a pooled column's rung that its rule left short (lane
+# DST's repair 2, the verify's item 1): no row stood in a bucket whose start
+# wears the offset of the empty bucket it would fill, so the census of
+# offsets stood and the count gave way (P4-D369 (a)'s order).
+_RULE_COUNT_SHORT = (
+    "Each value is written at the offset its zone has in force on its date, "
+    "and the twin's rows that could fill its empty periods stood on the "
+    "other side of a change of the clocks, so the twin kept the published "
+    "counts at each offset and holds fewer different values than the "
+    "description records."
+)
+_COUNT_CAUSES = _WEEKDAY_CAUSES + (_HEAVY_COUNT_SHORT, _HEAVY_COUNT_LONG, _RULE_COUNT_SHORT)
 # ...and the minute and second passes' (method G7.3h; the lane's second
 # skeptic, item 1): where a field's census is met and the count of
 # different values is reachable but left long, the census stood and the
@@ -39816,6 +39840,7 @@ def _off_own_clocks(
     body: "tuple[int, int]",
     gaps: "tuple[list[int], list[int]]",
     scale: int,
+    ruled: bool = False,
 ) -> "tuple[list[int], list[str]]":
     """The passes' frame taken back onto the shared clock (landing 3b.7,
     plan P4-D378, method G7.3k): every rank's instant and offset.
@@ -39839,7 +39864,10 @@ def _off_own_clocks(
     of landing I3b2d, item 3). In a frame of days a bare date
     moves as a day (`_whole_pinned`), and a run holding one hands its days
     to its ranks, each keeping its form and offset (`_own_clock_days`,
-    Codex's item 2 of landing 3b.7).
+    Codex's item 2 of landing 3b.7). UNDER A RULE (``ruled``; lane DST,
+    plan P4-D474, method G7.4r step 3) the written places of the ranks
+    between two pins are first handed back to the cut gaps they stand in
+    (`_framed_by_gap`), so no rank leaves its own gap.
 
     Guarantees: returns the instants and the offsets, one per rank.
     O(n log n) over the ranks, the offsets of a run matched by a walk
@@ -39851,6 +39879,17 @@ def _off_own_clocks(
     # In a frame of days a bare date moves as a day (`_whole_pinned`), so it
     # stands in its gap's run; in a frame of seconds it is pinned.
     stays = [whole[rank] and scale == 1 for rank in range(len(whole))]
+    # ...UNDER A RULE (repair 1 of lane DST, skeptic 1's item 2) every gap
+    # is cut at the changes of the clocks, and where the clocks go back the
+    # runs either side of a change share the wall clock of the hour they
+    # repeat: a pass sorts the ranks between two pins as one run
+    # (`_runs_sorted`), so it may hand a place of the run after the change
+    # to a rank of the run before it, whose offset then writes it at the
+    # hour's OTHER occurrence, an hour earlier and across the pin below it
+    # (20,000 stamps of a south-eastern zone, the April rung at 10 per cent
+    # in that hour: the twin's rung 1,486 seconds early, a validate miss).
+    if ruled and scale == 1:
+        framed = _framed_by_gap(framed, shifts, pinned, stays, body, gaps)
     moved = [value for value in before]
     # The tails' places the passes moved (the Codex review of landing
     # I3b2d, item 3; `_own_clock_tails`).
@@ -40074,6 +40113,88 @@ def _own_clock_run(
         given[first + index] = found[index][1]
 
 
+def _framed_by_gap(
+    framed: "list[int]",
+    shifts: "list[int]",
+    pinned: "list[bool]",
+    stays: "list[bool]",
+    body: "tuple[int, int]",
+    gaps: "tuple[list[int], list[int]]",
+) -> "list[int]":
+    """Under a rule, each group's written places handed back to the cut gaps they stand in (`_off_own_clocks`; lane DST, plan P4-D474, repair 1).
+
+    A GROUP is the body ranks between two that never move -- a pinned
+    rank, a gap of one place, a bare date in a frame of seconds -- which a
+    pass sorts as one run (`_runs_sorted`); its RUNS are its ranks of one
+    cut gap and one shift. Where a group holds more than one run, its
+    written places ascending each go to a run whose gap, on the run's own
+    clock, holds the place and that has a rank left, the run whose gap
+    ends first (then the earlier run) taken: the matching of points to
+    intervals that finds one wherever the passes, which kept every rank
+    inside its own gap, found one. Each run then holds places inside its
+    own gap, so `_own_clock_run` writes every rank inside it at the run's
+    one offset: no rank at the other occurrence of its wall clock, none
+    across a pin. A group whose places find no such matching -- none is
+    known -- keeps the places as the passes left them. A frame of seconds
+    only: in a frame of days the runs either side of a change share no day.
+
+    Returns the places, one per rank. O(n k) over a group of n ranks and
+    k runs. Raises nothing. No I/O of any kind.
+    """
+    gap_lows, gap_highs = gaps
+    body_low, body_high = body
+    found = [value for value in framed]
+    rank = body_low
+    while rank <= body_high:
+        if pinned[rank] or stays[rank] or gap_lows[rank] >= gap_highs[rank]:
+            rank = rank + 1
+            continue
+        end = rank
+        while end <= body_high and not pinned[end] and not stays[end] and gap_lows[end] < gap_highs[end]:
+            end = end + 1
+        runs: "list[tuple[int, int, int, int]]" = []
+        first = rank
+        while first < end:
+            stop = first
+            while (
+                stop < end
+                and gap_lows[stop] == gap_lows[first]
+                and gap_highs[stop] == gap_highs[first]
+                and shifts[stop] == shifts[first]
+            ):
+                stop = stop + 1
+            runs += [(first, stop, gap_lows[first] + shifts[first], gap_highs[first] + shifts[first])]
+            first = stop
+        if len(runs) > 1:
+            handed = _places_to_gaps(sorted(framed[member] for member in range(rank, end)), runs)
+            if handed is not None:
+                for place in range(len(runs)):
+                    first, stop, _low, _high = runs[place]
+                    for index in range(stop - first):
+                        found[first + index] = handed[place][index]
+        rank = end
+    return found
+
+
+def _places_to_gaps(
+    places: "list[int]", runs: "list[tuple[int, int, int, int]]"
+) -> "list[list[int]] | None":
+    """The places ascending, each to the run with a rank left whose gap holds it and ends first (`_framed_by_gap`), or None where one fits none."""
+    handed: "list[list[int]]" = [[] for _run in runs]
+    for place in places:
+        chosen = -1
+        for index in range(len(runs)):
+            first, stop, low, high = runs[index]
+            if len(handed[index]) >= stop - first or not low <= place <= high:
+                continue
+            if chosen < 0 or high < runs[chosen][3]:
+                chosen = index
+        if chosen < 0:
+            return None
+        handed[chosen] += [place]
+    return handed
+
+
 def _datetime_content(
     plan: "_ColumnPlan",
     words: "list[int]",
@@ -40147,11 +40268,40 @@ def _datetime_content(
         for rank in sixtieths:
             texts[rank] = sixtieths[rank]
         layout = dataclasses.replace(layout, texts=texts)
-    offsets, notes = _offset_allocation(
-        column, facts, parsed, whole, pins, room,
-        facts.datetimes_read_at == "utc" and _own_clock_censuses(facts),
-        (gap_lows, gap_highs),
-    )
+    # -- lane DST (P4-D474): UNDER A PUBLISHED RULE EACH RANK WEARS THE
+    # OFFSET IN FORCE AT ITS INSTANT (method G7.4r), in place of G7.4's spend
+    # of the census by counts, and every rank's gap is cut at the changes of
+    # the clocks around it, so no pass below moves it across one: its offset
+    # stands, no cell lands in the hour the clocks skip, and the hour they
+    # repeat is written at both offsets as its instants fall.
+    rule = _column_rule(column, facts)
+    if rule is not None:
+        # ...NO RANK IN A DEAD HOUR (G7.4r step 1; lane DST's repair 2): on a
+        # pooled column the hour after each bound the side turns to winter at
+        # writes no rank on its side, so each one there is set on the last
+        # instant of the bucket before it.
+        ordinals = _off_dead_hours(
+            rule, ordinals, (gap_lows, gap_highs), set(layout.pins),
+            (layout.low.rows if layout.low is not None else 0,
+             parsed - 1 - (layout.high.rows if layout.high is not None else 0)),
+        )
+        # ...ITS CENSUS MET FIRST (G7.4r step 2): the ranks of each gap a
+        # change of the clocks runs through are spread over its two sides so
+        # that as many instants stand in summer time as the census counts;
+        # the count is said once more as the twin is read back, below.
+        ordinals, _census_notes = _census_by_rule(
+            column, facts, rule, ordinals, (gap_lows, gap_highs), layout, set(layout.pins)
+        )
+        notes: "list[Deviation]" = []
+        offsets = _rule_offsets(facts, rule, ordinals, whole, parsed)
+        gap_lows, gap_highs = _gaps_cut_at_changes(rule, ordinals, gap_lows, gap_highs, parsed)
+        layout = dataclasses.replace(layout, lows=tuple(gap_lows), highs=tuple(gap_highs))
+    else:
+        offsets, notes = _offset_allocation(
+            column, facts, parsed, whole, pins, room,
+            facts.datetimes_read_at == "utc" and _own_clock_censuses(facts),
+            (gap_lows, gap_highs),
+        )
     marks, marked = _clock_marks(column, facts, whole)
     notes = notes + marked
     # -- 3b.7 (P4-D378): THE FORM STEP, step 4's first part (method G7.3k):
@@ -40226,7 +40376,7 @@ def _datetime_content(
             ordinals, framed, shifts, offsets, whole, _ranks_the_tail_pins(layout),
             (layout.low.rows if layout.low is not None else 0,
              parsed - 1 - (layout.high.rows if layout.high is not None else 0)),
-            (gap_lows, gap_highs), frame[5],
+            (gap_lows, gap_highs), frame[5], rule is not None,
         )
     # -- the dates that stand out, after every other pass (3b.D4, P4-D369)
     ordinals, heavy_notes = _heavy_sorted(
@@ -40265,6 +40415,19 @@ def _datetime_content(
     # EACH DATE'S READING is its rank's ordinal (method G4.2b).
     if readings is not None:
         readings += [float(value) for value in ordinals[0:parsed]]
+    # ...AND UNDER A RULE EVERY OFFSET IS READ OFF THE INSTANT AS IT STANDS
+    # (lane DST, P4-D474): the cut gaps keep each rank on its side of every
+    # change, so this changes no offset the passes read; it is the method's
+    # statement that no cell wears another.
+    if rule is not None:
+        offsets = _rule_offsets(facts, rule, ordinals, whole, parsed)
+        # ...AND THE CENSUS IS COUNTED AS THE TWIN WILL BE READ BACK (lane
+        # DST's repair 2, Codex's item 1): each rank by the bucket its written
+        # wall clock stands in on a pooled column; a count that disagrees with
+        # the census is the report's, never an empty list.
+        notes = notes + _census_short(
+            column, facts, _rule_wanted(facts, rule), _rule_read_back(rule, ordinals, whole, parsed)
+        )
     # HOW EVERY RANK IS SPELLED (landing 2b.6, the reversal of owner
     # decision 5). Allocated after the instants and the offsets, because
     # which conventions a cell can show depends on the day it writes and
@@ -43421,6 +43584,627 @@ def _subsecond_notes(
             "average of the fractions is not a fact about your table.",
         )
     ]
+
+
+@dataclasses.dataclass(frozen=True)
+class _RuleClock:
+    """The clock G7.4r reads a column's offsets on (lane DST, plan P4-D474).
+
+    `rule` is the published rule. `rung` is `""` on a column of moments
+    described at its own precision, where every rank wears the offset in
+    force at its instant. On a POOLED column (`time_grain`, method G7.13)
+    it is the grain's rung: the description's cells are the starts of its
+    buckets, each at the offset in force at that start
+    (`grains.coarse_cell`), so every rank of the construction wears the
+    offset in force at the start of the bucket it stands in, and the draw
+    inside the bucket (`grains.drawn_inside`) writes each cell at the
+    offset in force at its own instant.
+    """
+
+    rule: "offset_rules.Rule"
+    rung: str
+
+
+# The furthest a stretch of one offset reaches where no change bounds it
+# (a pooled column at the year, whose every bucket starts in winter).
+_NO_CHANGE = 10**15
+# A second in the grain module's nanoseconds.
+_NS_A_SECOND = date_counts.SECOND
+
+
+def _column_rule(column: contract.ColumnBlock, facts: contract.DatetimeFacts) -> "_RuleClock | None":
+    """The rule a column's offsets follow its dates by (lane DST, plan P4-D474, method G7.4r), or None.
+
+    Only a column of moments read on the shared clock, whose ordinals are
+    instants in seconds, takes one. Raises nothing. No I/O of any kind.
+    """
+    if not facts.offset_rule or facts.datetimes_read_at != "utc":
+        return None
+    if _ordinal_space(facts) != "datetime":
+        return None
+    rule = offset_rules.parsed_rule(facts.offset_rule)
+    if rule is None:
+        return None
+    grain = column.time_grain
+    rung = grain.rung if grain is not None and grain.rung != grains.HELD else ""
+    return _RuleClock(rule, rung)
+
+
+def _rule_bucket_offset(
+    clock: _RuleClock, instant: int, years: "dict[tuple[str, int, int], tuple[int, int]]"
+) -> int:
+    """On a pooled column, the offset in force at the start of the bucket an instant's wall clock stands in, read at the offset in force at the instant."""
+    actual = offset_rules.offset_at(clock.rule, instant, years)
+    start = grains.start_of((instant + actual) * _NS_A_SECOND, clock.rung) // _NS_A_SECOND
+    here = offset_rules.in_force(clock.rule, start, years)
+    return here[0] if here else clock.rule.standard + 3600
+
+
+def _rule_offset_at(
+    clock: _RuleClock, instant: int, years: "dict[tuple[str, int, int], tuple[int, int]]"
+) -> int:
+    """The offset a rank standing at an instant wears under G7.4r, in seconds east of UTC (`_RuleClock`).
+
+    At a column's own precision, the one in force at the instant. On a
+    pooled column, the offset of the side of the census the rank stands
+    on (`_rule_summer`): summer time's where it counts under it, the
+    standard offset elsewhere. Read as the offset of the bucket its wall
+    clock stands in (`_rule_bucket_offset`), a rank in the hour after the
+    start of the first bucket that starts in winter -- its wall clock in
+    the bucket before, its census side the one after -- wore summer time's
+    offset on winter's side, so a pass on its own clock set it on a
+    midnight an hour early, and a pooled stamp was written at the last
+    hour of the bucket before (repair 1 of lane DST: two of the 20,000
+    cells of the zoo's encounters' discharge stamps, pooled at the month,
+    written at 23:00 on 31 December).
+    """
+    if not clock.rung:
+        return offset_rules.offset_at(clock.rule, instant, years)
+    summer = clock.rule.standard + 3600
+    return summer if _rule_summer(clock, instant, years) else clock.rule.standard
+
+
+def _rule_summer(
+    clock: _RuleClock, instant: int, years: "dict[tuple[str, int, int], tuple[int, int]]"
+) -> bool:
+    """Whether a rank at an instant counts in the census under summer time's offset, as the twin is read back.
+
+    At a column's own precision, whether summer time is in force at the
+    instant. On a pooled column, whether it is in force at the start of
+    the bucket its WRITTEN wall clock stands in -- the instant plus the
+    offset of the bucket its wall clock stands in (`_rule_bucket_offset`)
+    -- which is where the draw inside the bucket keeps it and where
+    `grains.coarse_cell` reads it.
+    """
+    summer = clock.rule.standard + 3600
+    if not clock.rung:
+        return offset_rules.offset_at(clock.rule, instant, years) == summer
+    offset = _rule_bucket_offset(clock, instant, years)
+    start = grains.start_of((instant + offset) * _NS_A_SECOND, clock.rung) // _NS_A_SECOND
+    here = offset_rules.in_force(clock.rule, start, years)
+    return (here[0] if here else summer) == summer
+
+
+# An hour, in the seconds G7.4r's instants count.
+_HOUR_SECONDS = 3600
+
+
+def _rule_side(clock: _RuleClock, local: int, years: "dict[tuple[str, int, int], tuple[int, int]]") -> int:
+    """On a pooled column, the offset the start of the bucket a wall clock stands in wears as the description writes it (`grains.coarse_cell`): the one in force there, its first occurrence's where the clocks repeat it, summer time's where they skip it."""
+    start = grains.start_of(local * _NS_A_SECOND, clock.rung) // _NS_A_SECOND
+    here = offset_rules.in_force(clock.rule, start, years)
+    return here[0] if here else clock.rule.standard + 3600
+
+
+def _rule_dead(clock: _RuleClock, instant: int, years: "dict[tuple[str, int, int], tuple[int, int]]") -> bool:
+    """Whether an instant is one no bucket can write on its census side (G7.4r step 1; lane DST's repair 2, Codex's item 1).
+
+    On a pooled column only: the hour after each bound where the side turns
+    to winter. A rank there counts on winter's side and wears the standard
+    offset, so its wall clock lands in the last bucket that starts in summer
+    time, which reads it back on summer's side; at summer time's offset it
+    would land in the first bucket that starts in winter. So no rank stands
+    there (`_off_dead_hours`, `_stretches_between_changes`,
+    `_gaps_cut_at_changes`): a 20,000-row table of local stamps from 01:55
+    to 02:04:59 on a fall-back day published 10,100 and 9,900 at its two
+    offsets and its twin read back 14,916 and 5,084, with no deviation.
+    """
+    if not clock.rung or _rule_summer(clock, instant, years):
+        return False
+    return _rule_side(clock, instant + clock.rule.standard, years) == clock.rule.standard + 3600
+
+
+def _off_dead_hours(
+    clock: _RuleClock,
+    ordinals: "list[int]",
+    gaps: "tuple[list[int], list[int]]",
+    fixed: "set[int]",
+    body: "tuple[int, int]",
+) -> "list[int]":
+    """G7.4r step 1's last clause: every body rank in a dead hour (`_rule_dead`) set on the last instant before it, inside its gap, else on the first after it.
+
+    The hour belongs to the bucket before it -- the real cells of its
+    instants stand at the standard offset in the last bucket that starts in
+    summer time, and the bucket's own instants run to the second before the
+    hour on summer's side -- so the rank keeps its bucket and its census
+    side and wears summer time's offset there. Ranks stay in instant order:
+    every rank before the hour stands below it, every rank after it above.
+    Pinned and tail ranks never stand there (each is a bucket's start).
+    Linear in the ranks. Raises nothing. No I/O of any kind.
+    """
+    if not clock.rung:
+        return ordinals
+    gap_lows, gap_highs = gaps
+    years: "dict[tuple[str, int, int], tuple[int, int]]" = {}
+    near: "dict[int, list[int]]" = {}
+    moved = [value for value in ordinals]
+    for rank in range(max(body[0], 0), min(body[1] + 1, len(moved))):
+        if rank in fixed or not _rule_dead(clock, moved[rank], years):
+            continue
+        before, _after = _rule_changes_around(clock, moved[rank], years, near)
+        if before - 1 >= gap_lows[rank]:
+            moved[rank] = before - 1
+        elif before + _HOUR_SECONDS <= gap_highs[rank]:
+            moved[rank] = before + _HOUR_SECONDS
+    return moved
+
+
+def _rule_read_back(
+    clock: _RuleClock, ordinals: "list[int]", whole: "list[bool]", parsed: int
+) -> int:
+    """The twin's count at summer time's offset as validate reads it back (G7.4r; lane DST's repair 2, Codex's item 1).
+
+    At the column's own precision, the ranks wearing summer time's offset.
+    On a pooled column, the ranks whose written wall clock -- the instant at
+    the offset the rank wears (`_rule_offset_at`) -- stands in a bucket whose
+    start wears it (`_rule_side`), which the draw inside the bucket keeps
+    and `grains.coarse_cell` reads. A bare date counts in neither. Linear in
+    the ranks. Raises nothing. No I/O of any kind.
+    """
+    summer = clock.rule.standard + 3600
+    years: "dict[tuple[str, int, int], tuple[int, int]]" = {}
+    found = 0
+    for rank in range(parsed):
+        if rank < len(whole) and whole[rank]:
+            continue
+        worn = _rule_offset_at(clock, ordinals[rank], years)
+        side = worn if not clock.rung else _rule_side(clock, ordinals[rank] + worn, years)
+        if side == summer:
+            found = found + 1
+    return found
+
+
+def _rule_wanted(facts: contract.DatetimeFacts, clock: _RuleClock) -> int:
+    """The census's count at summer time's offset under the rule."""
+    wanted = 0
+    for key in facts.utc_offsets:
+        if offset_rules.offset_seconds(key) == clock.rule.standard + 3600:
+            wanted = facts.utc_offsets[key]
+    return wanted
+
+
+def _rule_changes_around(
+    clock: _RuleClock,
+    instant: int,
+    years: "dict[tuple[str, int, int], tuple[int, int]]",
+    near: "dict[int, list[int]] | None" = None,
+) -> "tuple[int, int]":
+    """The last instant at or before ``instant`` that `_rule_summer` changes on, and the first after it.
+
+    At a column's own precision, the changes of the clocks. On a pooled
+    column, where the bucket a rank's written wall clock stands in turns
+    from one whose start is in summer time to one whose start is not, or
+    back: at the start of the first bucket after each change of the
+    clocks, reached at either offset; a far bound where none falls.
+    """
+    if not clock.rung:
+        return offset_rules.changes_around(clock.rule, instant, years)
+    year = parsing.civil_from_days(instant // 86400)[0]
+    # ...each year's bounds found once a run (`near`), so a column works
+    # out a few calendar sums a year and not a rank.
+    if near is not None and year in near:
+        found = near[year]
+    else:
+        found = _rule_bounds_near(clock, year, years)
+        if near is not None:
+            near[year] = found
+    before = -_NO_CHANGE
+    after = _NO_CHANGE
+    for bound in found:
+        if before < bound <= instant:
+            before = bound
+        if instant < bound < after:
+            after = bound
+    return before, after
+
+
+def _rule_bounds_near(
+    clock: _RuleClock, year: int, years: "dict[tuple[str, int, int], tuple[int, int]]"
+) -> "list[int]":
+    """The instants `_rule_summer` changes on, from two years before ``year`` to two after it, on a pooled column."""
+    found: "list[int]" = []
+    for near in (year - 2, year - 1, year, year + 1, year + 2):
+        for change in offset_rules.changes(clock.rule, near, years):
+            local = change + offset_rules.offset_at(clock.rule, change, years)
+            start = grains.start_of(local * _NS_A_SECOND, clock.rung)
+            if start != local * _NS_A_SECOND:
+                start = grains.after(start, clock.rung)
+            for offset in (clock.rule.standard + 3600, clock.rule.standard):
+                bound = start // _NS_A_SECOND - offset
+                if _rule_summer(clock, bound, years) != _rule_summer(clock, bound - 1, years):
+                    found += [bound]
+    return found
+
+
+def _rule_offsets(
+    facts: contract.DatetimeFacts,
+    clock: _RuleClock,
+    ordinals: "list[int]",
+    whole: "list[bool]",
+    parsed: int,
+) -> "list[str]":
+    """Every rank's offset under the rule (method G7.4r): the census's key for the offset `_rule_offset_at` gives it.
+
+    A rank written as a bare date wears none, as under G7.4. The key is the
+    one the census writes that offset as; the rule's loader admits a rule
+    only beside a census naming both of its offsets. Linear in the ranks,
+    each year's changes stated once (`offset_rules.changes`). Raises
+    nothing. No I/O of any kind.
+    """
+    keys: "dict[int, str]" = {}
+    for key in sorted(facts.utc_offsets):
+        seconds = offset_rules.offset_seconds(key)
+        if seconds is not None and seconds not in keys:
+            keys[seconds] = key
+    years: "dict[tuple[str, int, int], tuple[int, int]]" = {}
+    given: "list[str]" = []
+    for rank in range(parsed):
+        if rank < len(whole) and whole[rank]:
+            given += [""]
+            continue
+        seconds = _rule_offset_at(clock, ordinals[rank], years)
+        given += [keys[seconds] if seconds in keys else offset_rules.offset_text(seconds)]
+    return given
+
+
+def _census_by_rule(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    clock: _RuleClock,
+    ordinals: "list[int]",
+    gaps: "tuple[list[int], list[int]]",
+    layout: "_DateLayout",
+    fixed: "set[int]",
+) -> "tuple[list[int], list[Deviation]]":
+    """G7.4r step 2: the body's instants spread so that the census's count of summer time stands.
+
+    Under a rule an offset is a function of its instant, so the census is
+    a count of instants: how many fall while summer time is in force.
+    Every RUN of the body -- ranks in rank order that share one gap, none
+    pinned, fixed by the move to midnight, or a tail rank -- whose gap a
+    change of the clocks runs through can hold any number of its ranks on
+    either side. The count short (or over) is shared out over those runs
+    in proportion to the ranks the side each must move to would hold at
+    the run's own density, then of what is left by the width of the side
+    each run moves to, none past the ranks it can still move (the largest
+    remainder taking the odd ones, the earlier run on a tie; the widths
+    are weights alone, `_capped_shares`), and each run that
+    moves is laid out again in rank order: its stretches between changes
+    take their new counts in turn, and each stretch's ranks keep their
+    order and their spacing in proportion, laid over the whole stretch
+    (`_run_laid_out`). A run no change runs
+    through, and every run where the count already stands, keeps its
+    instants. Where the runs cannot hold the count -- a column listing its
+    dates that stand out, or too few ranks beside a change -- the twin
+    keeps the nearest count they hold, and the count the step achieved is
+    counted and said in the report (lane DST's repair 2, Codex's item 5);
+    no stretch takes a rank into a dead hour (`_stretches_between_changes`).
+
+    Python integers only, in rank order. Linear in the ranks. Raises
+    nothing. No I/O of any kind.
+    """
+    gap_lows, gap_highs = gaps
+    parsed = len(ordinals)
+    summer = clock.rule.standard + 3600
+    wanted = 0
+    for key in facts.utc_offsets:
+        if offset_rules.offset_seconds(key) == summer:
+            wanted = facts.utc_offsets[key]
+    years: "dict[tuple[str, int, int], tuple[int, int]]" = {}
+    have = 0
+    for rank in range(parsed):
+        if _rule_summer(clock, ordinals[rank], years):
+            have = have + 1
+    if have == wanted:
+        return ordinals, []
+    body_low = layout.low.rows if layout.low is not None else 0
+    body_high = parsed - 1 - (layout.high.rows if layout.high is not None else 0)
+    # The runs that can move, each with its stretches between changes.
+    runs: "list[tuple[int, int, list[tuple[int, int, bool]]]]" = []
+    rank = max(body_low, 0)
+    while rank <= body_high and not layout.listed:
+        if rank in fixed or gap_lows[rank] >= gap_highs[rank]:
+            rank = rank + 1
+            continue
+        end = rank
+        while (
+            end <= body_high
+            and end not in fixed
+            and gap_lows[end] == gap_lows[rank]
+            and gap_highs[end] == gap_highs[rank]
+        ):
+            end = end + 1
+        stretches = _stretches_between_changes(clock, gap_lows[rank], gap_highs[rank], years)
+        if len(stretches) > 1:
+            runs += [(rank, end, stretches)]
+        rank = end
+    # How far each run can move the count, the way it must move, and how
+    # many of its ranks the side it must move to would hold at the run's
+    # own density: the count owed is shared by that first, so a short
+    # stretch beside a change takes few, then by how long the side each
+    # run moves to is, each run no further than its room.
+    rising = wanted > have
+    rooms: "list[int]" = []
+    weights: "list[int]" = []
+    widths: "list[int]" = []
+    for first, end, stretches in runs:
+        inside = 0
+        for place in range(first, end):
+            if _rule_summer(clock, ordinals[place], years):
+                inside = inside + 1
+        room = (end - first - inside) if rising else inside
+        rooms += [room]
+        width = stretches[len(stretches) - 1][1] - stretches[0][0] + 1
+        taking = 0
+        for low, high, summer_here in stretches:
+            if summer_here == rising:
+                taking = taking + high - low + 1
+        weights += [min(room, (end - first) * taking // width)]
+        widths += [taking]
+    owed = wanted - have if rising else have - wanted
+    total = sum(rooms)
+    shares = _largest_remainder_shares(weights, min(owed, sum(weights)))
+    more = _capped_shares(
+        widths, [rooms[place] - shares[place] for place in range(len(runs))], min(owed, total) - sum(shares)
+    )
+    for place in range(len(runs)):
+        shares[place] = shares[place] + more[place]
+    moved = [value for value in ordinals]
+    for place in range(len(runs)):
+        if shares[place] == 0:
+            continue
+        first, end, stretches = runs[place]
+        _run_laid_out(moved, first, end, stretches, shares[place] if rising else -shares[place])
+    # ...AND THE COUNT ACHIEVED IS COUNTED, never assumed (lane DST's repair
+    # 2, Codex's item 5): a share lost to a rounding once left a summer
+    # census of 13 met by 12 ranks with nothing said. Any count short of the
+    # census is the report's.
+    achieved = 0
+    for rank in range(parsed):
+        if _rule_summer(clock, moved[rank], years):
+            achieved = achieved + 1
+    return moved, _census_short(column, facts, wanted, achieved)
+
+
+def _census_short(
+    column: contract.ColumnBlock, facts: contract.DatetimeFacts, wanted: int, achieved: int
+) -> "list[Deviation]":
+    """The report's line where the twin's count at summer time's offset under a rule is not the census's (G7.4r), else none."""
+    if achieved == wanted:
+        return []
+    return [
+        _deviation(
+            column.name,
+            "utc_offsets",
+            f"{wanted} values at summer time's offset under the rule {facts.offset_rule}",
+            f"{achieved} written at it",
+            "Each value is written at the offset its zone has in force on its "
+            "date, and the twin's dates beside the changes of the clocks could "
+            "not hold the published count of values at summer time's offset "
+            "without leaving the places its other published facts give them.",
+        )
+    ]
+
+
+def _stretches_between_changes(
+    clock: _RuleClock, low: int, high: int, years: "dict[tuple[str, int, int], tuple[int, int]]"
+) -> "list[tuple[int, int, bool]]":
+    """A gap cut where `_rule_offset_at` changes inside it: each stretch's first and last instant and whether it is summer time, a winter stretch's dead hour left out (`_rule_dead`)."""
+    found: "list[tuple[int, int, bool]]" = []
+    start = low
+    while start <= high:
+        _before, after = _rule_changes_around(clock, start, years)
+        stop = min(high, after - 1)
+        live = start
+        # ...THE DEAD HOUR LEFT OUT (lane DST's repair 2, Codex's item 1): a
+        # stretch the side turns to winter at begins an hour later
+        # (`_rule_dead`), so the census step lays no rank where no bucket can
+        # write it on its side.
+        if _rule_dead(clock, start, years):
+            live = start + _HOUR_SECONDS
+        if live <= stop:
+            found += [(live, stop, _rule_summer(clock, live, years))]
+        start = stop + 1
+    return found
+
+
+def _capped_shares(weights: "list[int]", caps: "list[int]", owed: int) -> "list[int]":
+    """``owed`` shared in proportion to the weights, none past its cap: a share that would pass its cap stands at it and the rest is shared again among the others.
+
+    The weights are only weights (`_weighted_shares`) and the caps only
+    caps (lane DST's repair 2, Codex's item 5: shared by
+    `_largest_remainder_shares`, which reads each weight as a room too, a
+    weight of 1 second capped its run's share at 1, and 13 owed over two runs
+    each weighing 1 came back as 6 and 6). Every place's share is at most
+    its cap; the shares sum to ``owed`` wherever the caps hold it.
+    """
+    shares = [0 for _cap in caps]
+    open_places = [place for place in range(len(caps)) if caps[place] > 0 and weights[place] > 0]
+    left = owed
+    while left > 0 and open_places:
+        trial = _weighted_shares([weights[place] for place in open_places], left)
+        capped = [place for index, place in enumerate(open_places) if shares[place] + trial[index] >= caps[place]]
+        if not capped:
+            for index, place in enumerate(open_places):
+                shares[place] = shares[place] + trial[index]
+            return shares
+        for place in capped:
+            left = left - (caps[place] - shares[place])
+            shares[place] = caps[place]
+        open_places = [place for place in open_places if place not in capped]
+    return shares
+
+
+def _weighted_shares(weights: "list[int]", owed: int) -> "list[int]":
+    """``owed`` shared over the places in proportion to the weights, by the largest remainder, the earlier on a tie; no place capped (G7.4r, lane DST's repair 2).
+
+    The shares sum to ``owed`` wherever some weight is positive, and are all
+    nought where none is or nothing is owed.
+    """
+    total = sum(weights)
+    shares = [0 for _weight in weights]
+    if total <= 0 or owed <= 0:
+        return shares
+    order: "list[tuple[int, int]]" = []
+    left = owed
+    for place in range(len(weights)):
+        shares[place] = weights[place] * owed // total
+        left = left - shares[place]
+        order += [(-(weights[place] * owed % total), place)]
+    for _remainder, place in sorted(order):
+        if left <= 0:
+            break
+        shares[place] = shares[place] + 1
+        left = left - 1
+    return shares
+
+
+def _largest_remainder_shares(rooms: "list[int]", owed: int) -> "list[int]":
+    """``owed`` shared over the rooms in proportion to each, none past its own, by the largest remainder, the earlier on a tie."""
+    total = sum(rooms)
+    shares = [0 for _room in rooms]
+    if total <= 0 or owed <= 0:
+        return shares
+    left = owed
+    order: "list[tuple[int, int]]" = []
+    for place in range(len(rooms)):
+        shares[place] = rooms[place] * owed // total
+        left = left - shares[place]
+        order += [(-(rooms[place] * owed % total), place)]
+    for _remainder, place in sorted(order):
+        if left <= 0:
+            break
+        if shares[place] < rooms[place]:
+            shares[place] = shares[place] + 1
+            left = left - 1
+    return shares
+
+
+def _run_laid_out(
+    moved: "list[int]",
+    first: int,
+    end: int,
+    stretches: "list[tuple[int, int, bool]]",
+    change: int,
+) -> None:
+    """One run's ranks laid out again over its stretches with ``change`` more of them in summer time (G7.4r step 2).
+
+    Each stretch's count moves with the run's: a rise is taken from the
+    winter stretches and given to the summer ones in proportion to the
+    ranks each holds (the room each has), a fall the other way. The ranks
+    then fill the stretches in rank order, each stretch's own taken from
+    the run's ranks in order, and EVERY stretch's group -- a giving
+    stretch's as a taking stretch's -- is laid over its WHOLE stretch:
+    scaled, in order, from where its ranks stand, its spacing kept in
+    proportion, its first and last rank half the group's spacing on the
+    stretch inside the stretch's two ends (never onto the gap's own ends,
+    the pins either side of it, which a rank set on would repeat). A
+    group of one stands at its stretch's middle. So a census short by k
+    ranks thins each stretch evenly, and the hours beside a change keep
+    their share of the run: a giving stretch whose remaining ranks kept
+    their places emptied the hours next to the change, from which its
+    ranks nearest the change had moved (repair 1 of lane DST, skeptic 1's
+    item 1: 15 empty 12-hour windows within 72 hours of the 2023 and 2024
+    changes of a uniform table of six zones at 20,000 rows, where the
+    real table and G7.4's twin have none).
+    """
+    counts = [0 for _stretch in stretches]
+    for place in range(first, end):
+        for index in range(len(stretches)):
+            if stretches[index][0] <= moved[place] <= stretches[index][1]:
+                counts[index] = counts[index] + 1
+                break
+    giving = [index for index in range(len(stretches)) if stretches[index][2] != (change > 0)]
+    taking = [index for index in range(len(stretches)) if stretches[index][2] == (change > 0)]
+    size = change if change > 0 else -change
+    taken = _largest_remainder_shares([counts[index] for index in giving], size)
+    for place in range(len(giving)):
+        counts[giving[place]] = counts[giving[place]] - taken[place]
+    widths = [stretches[index][1] - stretches[index][0] + 1 for index in taking]
+    # ...by width alone, never capped at it: a stretch of one second holds
+    # any number of ranks, and every rank taken is given (lane DST's repair
+    # 2, Codex's item 5).
+    given = _weighted_shares(widths, sum(taken))
+    for place in range(len(taking)):
+        counts[taking[place]] = counts[taking[place]] + given[place]
+    before = moved[first:end]
+    place = first
+    for index in range(len(stretches)):
+        low, high, _summer = stretches[index]
+        group = before[place - first : place - first + counts[index]]
+        if group:
+            if low == stretches[0][0] and low < high:
+                low = low + 1
+            if high == stretches[len(stretches) - 1][1] and high > low:
+                high = high - 1
+            lowest = group[0]
+            highest = group[len(group) - 1]
+            spread = highest - lowest
+            half = (high - low) // (2 * len(group))
+            bottom = min(low + half, high)
+            top = max(high - half, bottom)
+            for offset in range(len(group)):
+                if spread > 0:
+                    moved[place + offset] = bottom + (group[offset] - lowest) * (top - bottom) // spread
+                else:
+                    moved[place + offset] = (bottom + top) // 2
+        place = place + counts[index]
+
+
+def _gaps_cut_at_changes(
+    clock: _RuleClock,
+    ordinals: "list[int]",
+    gap_lows: "list[int]",
+    gap_highs: "list[int]",
+    parsed: int,
+) -> "tuple[list[int], list[int]]":
+    """Every rank's gap cut at the changes of the clocks around its instant (method G7.4r).
+
+    The rank keeps the part of its gap from the last change at or before
+    its instant to the second before the first change after it: one offset
+    is in force across it, so every pass that moves the rank inside its gap
+    keeps the offset it wears. The ranks stand in instant order, so both
+    bounds stay non-decreasing, as `_pin_bounds` states them. Linear in the
+    ranks. Raises nothing. No I/O of any kind.
+    """
+    years: "dict[tuple[str, int, int], tuple[int, int]]" = {}
+    near: "dict[int, list[int]]" = {}
+    lows: "list[int]" = []
+    highs: "list[int]" = []
+    for rank in range(len(gap_lows)):
+        low = gap_lows[rank]
+        high = gap_highs[rank]
+        if rank < parsed and low <= ordinals[rank] <= high:
+            before, after = _rule_changes_around(clock, ordinals[rank], years, near)
+            # ...and a winter side's gap opens after its dead hour (lane DST's
+            # repair 2): no pass sets a rank inside it.
+            if before > -_NO_CHANGE and _rule_dead(clock, before, years):
+                before = before + _HOUR_SECONDS
+            low = max(low, before)
+            high = min(high, after - 1)
+        lows += [low]
+        highs += [high]
+    return lows, highs
 
 
 def _offset_allocation(
@@ -49479,6 +50263,32 @@ def _label_content(
     # a start a description written before this rule chose against it --
     # `8888` beside openings naming no `8` of four figures, one person's key
     # -- is renamed by the same pass, the published spellings kept.
+    # A NAMED POOL (lane CODES-2, plan P4-D471, method G8.3e): the published
+    # levels stand, and the pool is written as the names the description
+    # published for it, its rows shared among them (`_with_named_pool`); no
+    # spelling is made up.
+    if facts.held_back_names:
+        named_cells, named_fit = _with_named_pool(
+            column,
+            facts,
+            cells,
+            plan.decimal_comma,
+            0 if column.pool_in_people is not None else plan.small_cell_floor,
+        )
+        if named_fit:
+            return named_cells, notes
+        return named_cells, notes + [
+            _deviation(
+                column.name,
+                "held_back_names",
+                f"{facts.suppressed_levels} labels held back, named",
+                "their names written, one label's names on as many rows as the floor",
+                "The pool holds more rows of one kind than its labels of that kind "
+                "can each keep under the smallest group size, which no description "
+                "synthtwin writes does; every name is written and the pooled total "
+                "kept, so the twin's own description publishes that label.",
+            )
+        ]
     if column.pool_in_people is not None:
         pooled_cells = _with_pool_in_people(column, facts, cells, plan.decimal_comma)
         pool_notes = notes + [
@@ -49927,6 +50737,120 @@ def _with_pool_in_people(
         for place in range(len(spellings)):
             cells += [spellings[place]] * (each + (1 if place < odd else 0))
     return cells
+
+
+def _with_named_pool(
+    column: contract.ColumnBlock,
+    facts: contract.LabelFacts,
+    written: "list[str]",
+    decimal_comma: bool,
+    floor: int,
+) -> "tuple[list[str], bool]":
+    """The published spellings and a named pool's names, its rows shared out (method G8.3e, P4-D471).
+
+    Every name the description published for the pool (`held_back_names`,
+    lane CODES-2) is written once at least, as the source wrote it, and no
+    spelling is made up. The pool's rows are shared class by class: what
+    `_classes_owed` leaves of each published count of numbers goes to the
+    names that read as that class, the rest to the names that read as no
+    number; within a class as evenly as the rows go, the earlier name in
+    sorted order taking the odd row. Where ``floor`` is above one -- a pool
+    the floor made, not one counted in people -- no level's names hold as
+    many rows as the floor together: the rows a level's share takes past one
+    fewer go to the next names of its class whose levels have room, so the
+    twin's own description holds the same pool.
+
+    THE ROWS PAST THE FLOOR MOVE IN ONE PASS (lane CODES-2's repair 2,
+    Codex's item 2 on the build: the search began again at the class's first
+    name for every level over the line, so 28,000, 56,000 and 112,000 pooled
+    rows took 1.28, 5.43 and 21.60 CPU seconds). A level's room only ever
+    shrinks -- one that gives rows keeps none to spare, one that takes them
+    never gives -- so a pointer that leaves a name behind once its level is
+    full meets exactly the names the search met, in the same order, and the
+    twin is the build's byte for byte; each step moves rows or advances the
+    pointer, so the pass is linear in the names.
+
+    Returns the cells and whether the COMPLETED allocation keeps every
+    level's names under the floor together (Codex's item 3: the build judged
+    each level as it was left, before later names had moved rows off it, so
+    ten case spellings of one level on one row each named a false
+    deviation). EVERY CELL OF THE POOL IS WRITTEN AND NO MORE (Codex's item
+    5): a description whose names and counts of numbers cannot agree -- a
+    class owed rows no name reads as, or fewer rows than its names -- is
+    refused by the loader (`contract`'s B4g, `_named_pools_add_up`), and
+    reaching here is synthtwin's own mistake.
+
+    Guarantees: a fixed function of the block, the spellings and the floor;
+    consumes no words. Raises ProfileError, an internal check, where the
+    shares do not add up to the pool. No I/O.
+    """
+    owed = _classes_owed(column, written, decimal_comma)
+    debt_of = {
+        parsing.NUMBER: _OWED_NUMBER,
+        parsing.NUMBER_OUT_OF_RANGE: _OWED_OUT_OF_RANGE,
+        parsing.NUMBER_CONTRADICTORY: _OWED_CONTRADICTORY,
+    }
+    order = (_OWED_NUMBER, _OWED_OUT_OF_RANGE, _OWED_CONTRADICTORY, _OWED_TEXT)
+    members: "dict[str, list[str]]" = {key: [] for key in order}
+    for name in facts.held_back_names:
+        found = parsing.classify_number(_read_in_grammar(name, decimal_comma))
+        members[debt_of[found] if found in debt_of else _OWED_TEXT] += [name]
+    debts: "dict[str, int]" = {}
+    left = facts.suppressed_rows
+    for key in order[:3]:
+        debts[key] = max(0, owed[key])
+        left = left - debts[key]
+    debts[_OWED_TEXT] = max(0, left)
+    sizes: "dict[str, int]" = {}
+    shared = 0
+    for key in order:
+        names = members[key]
+        if not names or debts[key] < len(names):
+            continue
+        each, odd = divmod(debts[key], len(names))
+        for place in range(len(names)):
+            sizes[names[place]] = each + (1 if place < odd else 0)
+            shared = shared + sizes[names[place]]
+    if left < 0 or shared != facts.suppressed_rows or len(sizes) != len(facts.held_back_names):
+        raise errors.ProfileError(
+            f"synthtwin internal check: the names of the values held back in the "
+            f"column '{parsing.visible(column.name)}' do not share its pooled rows "
+            f"by the classes its counts of numbers leave them. The description is "
+            f"checked for this when it is read, so this means a mistake in "
+            f"synthtwin; please report it."
+        )
+    fit = True
+    if floor > 1:
+        held: "dict[str, int]" = {}
+        for name in sorted(sizes):
+            level = parsing.folded(name)
+            held[level] = (held[level] if level in held else 0) + sizes[name]
+        for key in order:
+            names = members[key]
+            # The first name of the class whose level may still have room.
+            room_at = 0
+            for name in names:
+                level = parsing.folded(name)
+                past = min(held[level] - (floor - 1), sizes[name] - 1)
+                while past > 0 and room_at < len(names):
+                    other = names[room_at]
+                    room = (floor - 1) - held[parsing.folded(other)]
+                    if other == name or room <= 0:
+                        room_at = room_at + 1
+                        continue
+                    moved = min(room, past)
+                    sizes[name] = sizes[name] - moved
+                    sizes[other] = sizes[other] + moved
+                    held[level] = held[level] - moved
+                    held[parsing.folded(other)] = held[parsing.folded(other)] + moved
+                    past = past - moved
+        for level in held:
+            if held[level] >= floor:
+                fit = False
+    cells = list(written)
+    for name in facts.held_back_names:
+        cells += [name] * sizes[name]
+    return cells, fit
 
 
 # The recounts a column of words counted absent's one note speaks for.
@@ -53022,7 +53946,9 @@ def dates_written_as_record_numbers(
             else:
                 four += [year]
     if grain_kind is not None:
-        if grain_kind != grains.DATE:
+        # A held column read as stamps draws from the room too (lane TR's
+        # skeptic 1, item 1; plan P4-D473).
+        if grain_kind != grains.DATE and grain_kind != grains.STAMP:
             return False
         return not _room_spans((four, two), grains.Reading(kind=grain_kind, member=grain_member))
     dated = False
@@ -53045,10 +53971,12 @@ def _room_spans(room: "tuple[list[int], list[int]]", reading: grains.Reading) ->
     of the year after its last, in nanoseconds as `grains` reads them: the
     four-figure years, or, where the reading writes two figures, the
     two-figure years read in 2000 to 2099 (the figures alone are written,
-    and the reading's own window reads them). A date of a kind of reading
-    other than a date's draws from none.
+    and the reading's own window reads them). A stamp's reading draws its
+    calendar dates from them as a date's does (lane TR's skeptic 1, item
+    1; plan P4-D473), its clock anywhere in the day; a clock's or a
+    count's draws from none.
     """
-    if reading.kind != grains.DATE:
+    if reading.kind != grains.DATE and reading.kind != grains.STAMP:
         return []
     two = _reads_two_figure_years(reading)
     years = room[1] if two else room[0]
@@ -53233,6 +54161,45 @@ def _room_published(
     for year in room[1]:
         two[year] = True
     return four, two
+
+
+def _in_the_room(
+    value: str,
+    reading: grains.Reading,
+    named: "dict[str, bool]",
+    convention: str,
+    published: "tuple[dict[int, bool], dict[int, bool]]",
+    unnamed: bool = False,
+) -> bool:
+    """Whether a held column's made-up value stands in the room: a stamp's by its readings (`_stamp_in_the_room`), a date's by its layout's orders (`_off_the_real_years`)."""
+    if reading.kind == grains.STAMP:
+        return _stamp_in_the_room(value, published)
+    return _off_the_real_years(value, named, convention, published, unnamed)
+
+
+def _stamp_in_the_room(
+    value: str, published: "tuple[dict[int, bool], dict[int, bool]]"
+) -> bool:
+    """Whether a made-up stamp stands: some reading of it names a year the room publishes (lane TR's skeptic 1, item 1; plan P4-D473).
+
+    The producer published no year that any real cell of the column names
+    in any reading the room holds against (`taxonomy.cell_date_years`, the
+    same reader), so a value one of whose readings names a published year
+    is no real cell's text; and the G1 floor drew its calendar date inside
+    the room's span, a year no real cell's calendar date is. A value the
+    offset or the zone carried across the year's end, whose readings name
+    no published year, is refused, and the floor draws again. Raises
+    nothing. No I/O of any kind.
+    """
+    _lead, core, _trail, _cell = _edges(value)
+    four, two = taxonomy.cell_date_years(core)
+    for year in four:
+        if year in published[0]:
+            return True
+    for year in two:
+        if year in published[1]:
+            return True
+    return False
 
 
 def _off_the_real_years(
@@ -59811,13 +60778,29 @@ def _band_head(band: str, whole: bool, length: int) -> "tuple[str, ...]":
     The space and the four characters a spreadsheet reads as the start
     of a formula are excluded from every band, so this set carries the
     positional rules of method G9.1 as well.
+
+    READ ONCE A BAND (lane CZ-A2, plan P4-D469): the set is a fixed
+    function of the band, the wholeness and whether the value is longer
+    than one figure, so the twelve are written when the module loads
+    (`_BAND_HEADS`); the walk asked it of every value it drew, and the
+    wide band's alphabet held a hundred characters each read for the code
+    alphabet: 40 million reads at 60,000 rows of a name column with no
+    layout. The same sets, so the same bytes.
     """
+    key = (band, whole, length > 1)
+    if key in _BAND_HEADS:
+        return _BAND_HEADS[key]
+    return _band_head_written(band, whole, length > 1)
+
+
+def _band_head_written(band: str, whole: bool, longer: bool) -> "tuple[str, ...]":
+    """`_band_head`'s set, read off the band's alphabet (``longer``: the value is longer than one figure)."""
     alphabet = _band_alphabet(band)
     permitted: list[str] = []
     for figure in alphabet:
         if figure == _SPACE or figure in _FORMULA_LEADERS:
             continue
-        if band == _BAND_DIGITS and whole and figure == "0" and length > 1:
+        if band == _BAND_DIGITS and whole and figure == "0" and longer:
             continue
         if band == _BAND_CODE and parsing.is_digit_text(figure):
             continue
@@ -59825,6 +60808,15 @@ def _band_head(band: str, whole: bool, length: int) -> "tuple[str, ...]":
             continue
         permitted += [figure]
     return tuple(permitted)
+
+
+# Every band's head, written once (`_band_head`).
+_BAND_HEADS: "dict[tuple[str, bool, bool], tuple[str, ...]]" = {
+    (band, whole, longer): _band_head_written(band, whole, longer)
+    for band in (_BAND_DIGITS, _BAND_CODE, _BAND_WIDE)
+    for whole in (False, True)
+    for longer in (False, True)
+}
 
 
 # -- columns of record numbers (method G9.6) --------------------------
@@ -60401,7 +61393,14 @@ def _layout_packed(
     room = len(_CLASSES) * len(_BANDS)
     best: "tuple[list[str], list[Deviation], int] | None" = None
     found = _layout_packings(
-        column, facts, groups, folded, partners, _LAYOUT_PACKED_QUESTIONS
+        column,
+        facts,
+        groups,
+        folded,
+        partners,
+        _LAYOUT_PACKED_QUESTIONS_FEW_GROUPS
+        if len(groups) <= _FEW_GROUPS
+        else _LAYOUT_PACKED_QUESTIONS,
     )
     proven = False
     for layout in _named_layouts(facts):
@@ -61402,7 +62401,10 @@ class _OffTheReal:
     ``nought_led`` maps the zero-fill layout a key of figures alone beside
     lists wears to the excluded templates that write it, and ``spends`` each
     excluded template of a column of lists to the name of the room it spends
-    (`parsing.noughts_dropped`; plan P4-D442).
+    (`parsing.noughts_dropped`; plan P4-D442); ``unread`` names each strict
+    search none of whose fillings read as its value's class, from its step
+    and in its value's own spaces, so it is not run again whoever shares
+    (`_next_off_the_real`; lane CZ-A2, plan P4-D469).
     """
 
     facts: contract.IdentifierFacts
@@ -61426,6 +62428,7 @@ class _OffTheReal:
     sharing: "dict[str, bool]"
     nought_led: "dict[str, list[str]]"
     spends: "dict[str, str]"
+    unread: "dict[str, bool]"
 
 
 def _off_the_real_room(
@@ -61500,6 +62503,7 @@ def _off_the_real_room(
         sharing={},
         nought_led=nought_led,
         spends=spends,
+        unread={},
     )
 
 
@@ -61965,6 +62969,27 @@ def _next_off_the_real(
     OWN step (skeptic 1, item 5 (b)): a filling one class cannot take is
     left for another. A search that finds nothing GIVES ITS STEP BACK, so
     the same search from the same step is not run twice.
+
+    NOR, WHOEVER SHARES, A STRICT SEARCH NO FILLING OF WHICH READ AS ITS
+    VALUE'S CLASS (lane CZ-A2, plan P4-D469): a value no layout describes
+    -- a name with an apostrophe, two spaces, a tab or a letter outside
+    ASCII beside its record number -- is offered the spill's figures first,
+    none of which reads as text, and where a member of a merged identity
+    shared its own key (`room.sharing`) the search was run again for each
+    value, `_OFF_THE_REAL_TRIES` fillings each time: 75 to 80 CPU seconds
+    of generate at 20,000 rows where the same column with a layout takes
+    5.5. Whether a filling reads as the value's class asks nothing a
+    member shares, and each check before it only refuses more as the pass
+    writes more, so a search of one value whose every filling was refused
+    there or before it (`unread`, keyed by its template, step, spaces as
+    written and reading) finds nothing again: it gives its step back and
+    is named missed as it would be, with the same bytes written. THE KEY
+    HOLDS THE LITERAL TEMPLATE (lane CZ-A2's repair 2, Codex's item 3): list
+    templates of one merged key share one step counter (``cursor``, the room
+    they spend), so `09%%%,09%%%` and `009%%%,009%%%` met under one key while
+    their fillings are spelt differently, and a search of one was answered
+    by the other's (measured on a fact block of 45,078 rows: the last 11 rows
+    written `87994779760632` with the memo and `009231,009274` without it).
     """
     reading = ""
     if strict:
@@ -61977,14 +63002,22 @@ def _next_off_the_real(
     start = room.steps[cursor] if cursor in room.steps else 0
     step = start
     search = ""
+    unread = ""
     if len(parts) == 1:
         spaces, _core, trail, cell = parts[0]
         search = f"{cursor}|{start}|{len(spaces)}|{len(trail)}|{_reading_of(cell)}"
+        if strict:
+            unread = f"{template!r}|{cursor}|{start}|{spaces!r}|{trail!r}"
         if room.sharing:
             # ...a member sharing its identity's own key and number may find
             # what a search without them missed (`_respelled_one_by_one`).
             search = ""
         elif search in room.missed:
+            return None
+        if unread and unread in room.unread:
+            room.steps[cursor] = start
+            if search:
+                room.missed[search] = True
             return None
     anchor = parts[lead][1] if parts else ""
     budget = _OFF_THE_REAL_TRIES
@@ -62013,6 +63046,9 @@ def _next_off_the_real(
     )
     tries = 0
     found: "dict[str, str] | None" = None
+    # Whether a filling passed the class check, so the search's end is no
+    # longer a property of its class alone (`unread` above).
+    classed = False
     while step < room_of and tries < budget and found is None:
         filled = _filled_layout(template, (step + 1) % room_of)
         step = step + 1
@@ -62043,7 +63079,12 @@ def _next_off_the_real(
                 # class is refused before the hole and date readers are
                 # asked of it (the same answer, sooner; plan P4-D442).
                 or (strict and not _reads_alike(written, cell))
-                or _identity_taken(room, written)
+            ):
+                fits = False
+                break
+            classed = True
+            if (
+                _identity_taken(room, written)
                 or not _kept_off_the_real(room, written)
                 or _is_a_hole_spelling(written, room.holes)
                 or _reads_as_a_date(written)
@@ -62058,6 +63099,8 @@ def _next_off_the_real(
         room.steps[cursor] = start
         if search:
             room.missed[search] = True
+        if unread and not classed:
+            room.unread[unread] = True
         return None
     room.steps[cursor] = step
     return found
@@ -63849,6 +64892,19 @@ def _identifier_packings(
 # in almost every case, and a walk over every pair of a column of eight
 # hundred groups would be quadratic in the groups for nothing.
 _LAYOUT_PACKED_QUESTIONS = 16
+# ...AND A COLUMN OF FEW GROUPS MAY BE ASKED FOUR TIMES AS MANY (lane
+# CODES-2's repair 2; the verify of its repair 1, item 2). A held surname
+# column of seven groups -- the held block's repetition census, groups of
+# 2,519 to 5,024 rows beside one of two -- publishing three layouts at
+# 20,000 rows was packed by the seventeenth question alone, so the twin
+# wrote `@&&&&&` on 5,833 cells against the 9,935 published and validate
+# exited 3 (the same column held on the base `a391424c` misses the same
+# three layouts; the lane's question and `yes` route the table to it). A
+# column of at most `_FEW_GROUPS` groups is asked at most
+# `_LAYOUT_PACKED_QUESTIONS_FEW_GROUPS` questions, each an allocation over
+# that few groups; a column of more keeps the bound measured above.
+_FEW_GROUPS = 64
+_LAYOUT_PACKED_QUESTIONS_FEW_GROUPS = 64
 
 
 def _layout_packings(
@@ -71633,6 +72689,46 @@ def _compound_content(
     return made + said, notes + label_notes
 
 
+def _figures_collapsed(column: contract.ColumnBlock, cells: "list[str]") -> "list[Deviation]":
+    """The deviation of a clock written as figures with a fraction whose twin holds one or two values (plan P4-D473).
+
+    Codex's review of lane TR, item 3: such a column's fraction is read
+    and not kept, so its times are its whole seconds and the twin writes
+    each with its fraction as noughts. Where they fall on one second or
+    two -- `080000.000001` to `080000.020000`, 20,000 different spellings
+    of 08:00:00 -- every twin cell is one value (or one of two), which the
+    earlier rules read as one value or two (rules 3 and 4, which keep
+    their precedence) where the description reads clock times, so the
+    twin says so here; before, it said nothing and only the check of the
+    twin missed the role. Every other column: none. A function of the
+    two; one pass over the cells where it applies. Raises nothing. No I/O.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.ClockFacts) or not parsing.clock_figure_fraction(facts.clock_form):
+        return []
+    written: "dict[str, bool]" = {}
+    for cell in cells:
+        written[cell] = True
+        if len(written) > 2:
+            return []
+    if not written:
+        return []
+    achieved = "constant" if len(written) == 1 else "binary"
+    return [
+        _deviation(
+            column.name,
+            "role",
+            column.statistical_type,
+            achieved,
+            f"The column's times are written as figures with each fraction "
+            f"of a second as noughts, and they fall on {len(written)} "
+            f"second{'s' if len(written) > 1 else ''} of the day, so the twin "
+            f"holds {'one value' if len(written) == 1 else 'two values'} and "
+            f"reads back as {achieved}, not as clock times.",
+        )
+    ]
+
+
 def _content_of(
     plan: "_ColumnPlan",
     words: "list[int]",
@@ -71689,8 +72785,10 @@ def _content_of(
         return compound
     if kind == "time_of_day":
         if readings is None:
-            return _clock_content(plan, words)
-        return _clock_content(plan, words, readings)
+            clocked = _clock_content(plan, words)
+        else:
+            clocked = _clock_content(plan, words, readings)
+        return clocked[0], clocked[1] + _figures_collapsed(column, clocked[0])
     if kind == "datetime":
         if readings is None:
             return _datetime_content(plan, words)
@@ -71989,13 +73087,14 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
         # ...AND A LABEL COLUMN'S MADE-UP LABELS PAST THE MARK ARE WRITTEN
         # BELOW IT, each as a label of its own (lane SH3's second repair):
         # written as the mark, they joined the published top category.
+        # ...AND THE AGE WORDS AROUND ITS NUMBERS ARE READ WHERE THE
+        # DESCRIPTION RECORDS THEM (lane HB2, plan P4-D477): `Age 95` is 95.
+        # ...AND A COLUMN DESCRIBED AS NUMBERS, BARE OR WITH A UNIT, WRITES NO
+        # CELL PAST 125 YEARS BUT A PLACEHOLDER (plan P4-D477), passed by its
+        # facts: a held column's made-up cells keep their layouts (lane HB2's
+        # repair 1, skeptic 1's item 2: `201 lb` was written `86 lb`).
         if column.top_coded:
-            written = taxonomy.at_most_the_top_code(
-                written, frozenset(column.missing_by_source), column.top_coded,
-                False,
-                _the_mark_published(column),
-                isinstance(column.facts, contract.LabelFacts),
-            )
+            written = _top_coded_twin(column, written)
         # ...AND THE SAFE HARBOR YEARS (plan P4-D434): the twin of a column
         # described with every year up to one showing an age of 90 or more
         # read as that year writes none before it.
@@ -72076,7 +73175,22 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
                 )
             ]
         drawn = drawn + len(inside)
-        left, unwritten = _inside_the_grain(column, spelled, inside, _grain_band_edges(profile, column))
+        shorts: "list[str]" = []
+        left, unwritten = _inside_the_grain(column, spelled, inside, _grain_band_edges(profile, column), shorts)
+        blanked = _written_blank_by_the_grain(column, spelled, left)
+        # ...A COUNT ITS RULE LEFT SHORT AT THE RUNG gives way to the census
+        # of offsets, and the recount below names it with that cause (lane
+        # DST's repair 2, P4-D369 (a)'s order).
+        if shorts:
+            notes += [
+                _deviation(
+                    column.name,
+                    "n_distinct",
+                    "the count of different values at the grain",
+                    "fewer, the census of offsets kept",
+                    _RULE_COUNT_SHORT,
+                )
+            ]
         # The grain's words are spent: none is held into the next column
         # (batch 4i, Codex's review of batch 4h: one integer a row).
         inside = []
@@ -72094,7 +73208,10 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
             seen = (
                 left
                 if grain.rung == grains.HELD
-                else grains.coarse_cells(left, grain, None, frozenset(_hole_spellings(column)))
+                else grains.coarse_cells(
+                    left, grain, None, frozenset(_hole_spellings(column)),
+                    column.facts.offset_rule if isinstance(column.facts, contract.DatetimeFacts) else "",
+                )
             )
             if not (
                 _counted_member(column, profile)
@@ -72117,6 +73234,20 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
                         "The column's reading is not one the twin writes, so "
                         "these cells do not parse as the real column's dates "
                         "or times do.",
+                    )
+                ]
+            if blanked > 0:
+                notes += [
+                    _deviation(
+                        column.name,
+                        "time_grain",
+                        "every made-up value written as a valid value",
+                        f"{blanked} cells written blank",
+                        "The column's dates and times end in a time zone's "
+                        "name, and no made-up value could be written in that "
+                        "form inside the years the description leaves free of "
+                        "real dates, so these cells are left blank rather than "
+                        "written as text that is no date or time.",
                     )
                 ]
         if before_order:
@@ -72675,7 +73806,17 @@ def _grain_middle(column: contract.ColumnBlock, cell: str, holes: "frozenset[str
     grain = column.time_grain
     if grain is None or grain.rung == grains.HELD or not parsing.folded(cell) or cell in holes:
         return cell
-    return grains.drawn_inside(cell, grain.reading, grain.rung, _WORD_CEILING // 2)
+    return grains.drawn_inside(
+        cell, grain.reading, grain.rung, _WORD_CEILING // 2, _grain_rule(column)
+    )
+
+
+def _grain_rule(column: contract.ColumnBlock) -> "offset_rules.Rule | None":
+    """The rule a pooled column's stamps follow (lane DST, plan P4-D474, method G7.4r), or None."""
+    grain = column.time_grain
+    if grain is None or not isinstance(column.facts, contract.DatetimeFacts):
+        return None
+    return grains.cell_rule(column.facts.offset_rule, grain.reading)
 
 
 def _grain_joint(column: contract.ColumnBlock) -> str:
@@ -72709,9 +73850,13 @@ def _grain_written(
     grain = column.time_grain
     if grain is None:
         return cell
-    drawn = grains.drawn_inside(cell, grain.reading, grain.rung, word)
+    # ...UNDER THE RULE ITS STAMPS FOLLOW, each drawn among the bucket's
+    # instants at the offset in force at the one drawn (lane DST, plan
+    # P4-D474, method G7.4r).
+    rule = _grain_rule(column)
+    drawn = grains.drawn_inside(cell, grain.reading, grain.rung, word, rule)
     if edges is not None:
-        middle = grains.drawn_inside(cell, grain.reading, grain.rung, _WORD_CEILING // 2)
+        middle = grains.drawn_inside(cell, grain.reading, grain.rung, _WORD_CEILING // 2, rule)
         if _grain_band(column, drawn, edges) != _grain_band(column, middle, edges):
             drawn = middle
     if joint and len(drawn) > 10 and drawn[10:11] in ("T", "t", " ") and drawn[10:11] != joint:
@@ -72743,11 +73888,59 @@ def _grain_words(column: contract.ColumnBlock, rows: int) -> int:
     return rows if column.time_grain is not None else 0
 
 
+def _zone_word_layout(reading: grains.Reading) -> bool:
+    """Whether a grain's reading is a layout whose offset is a zone word of the closed list (plan P4-D473).
+
+    Such a column was read as no stamp before lane TR, and a held one's
+    twin wrote every cell blank; `_inside_the_grain` writes a made-up
+    value of it the G1 floor draws no stamp for blank, as then (lane TR's
+    follow-up; LANE TR RULINGS 7 (2)). A function of the reading; no I/O.
+    """
+    return parsing.is_layout_name(reading.member) and bool(
+        parsing.zone_family_offsets(parsing.layout_offset_field(reading.member))
+    )
+
+
+def _made_up_blank(cells: "list[str]", holes: "typing.Collection[str]") -> "list[str]":
+    """A held column's cells with every made-up value holding a figure written blank (lane TR's follow-up).
+
+    Each absent cell is left as it was, and a made-up word holding no
+    figure, which stands for a real word rather than a stamp, as the walk
+    wrote it.
+    """
+    found: "list[str]" = []
+    for cell in cells:
+        kept = cell in holes or not parsing.folded(cell) or parsing.figures_in(cell) == 0
+        found += [cell if kept else ""]
+    return found
+
+
+def _written_blank_by_the_grain(
+    column: contract.ColumnBlock, cells: "list[str]", left: "list[str]"
+) -> int:
+    """How many present cells of a held zone-word column `_inside_the_grain` wrote blank (lane TR's follow-up).
+
+    The generator names them (LANE TR RULINGS 7 (2): never silently); 0
+    for every other column, whose cells are not looked at. One pass.
+    """
+    grain = column.time_grain
+    if grain is None or grain.rung != grains.HELD or not _zone_word_layout(grain.reading):
+        return 0
+    if len(left) != len(cells):
+        return 0
+    found = 0
+    for place in range(len(cells)):
+        if left[place] == "" and parsing.folded(cells[place]):
+            found = found + 1
+    return found
+
+
 def _inside_the_grain(
     column: contract.ColumnBlock,
     cells: "list[str]",
     words: "list[int]",
     edges: "tuple[object, ...] | None" = None,
+    shorts: "list[str] | None" = None,
 ) -> "tuple[list[str], int]":
     """A column's cells as they leave, inside its published grain (method G7.13, plan P4-D417).
 
@@ -72763,7 +73956,9 @@ def _inside_the_grain(
     of repetition the column publishes holds. A cell absent leaves as it
     was written. Returns the cells and how many made-up values the record
     could not write as a valid value (the generator names them; none on
-    any member this module writes).
+    any member this module writes). ``shorts``, where given, takes the
+    column's name where its rule left its count of different values short
+    at the rung (`_filled_to_the_count`; lane DST's repair 2).
 
     ``edges``, given only on a run whose description carries a chain and
     whose ladder names the column (`_grain_band_edges`), holds each cell
@@ -72779,6 +73974,8 @@ def _inside_the_grain(
     absent = frozenset(holes)
     found: "list[str]" = []
     if grain.rung != grains.HELD:
+        if shorts is not None and _count_short_by_rule(column, cells, holes):
+            shorts += [column.name]
         cells = _filled_to_the_count(column, cells, holes)
         # A STAMP LEAVES WITH THE ONE JOINT ITS COLUMN WRITES: where the
         # block's census names a single mark, a built cell that took
@@ -72823,18 +74020,44 @@ def _inside_the_grain(
     # year, and the twin keeps the walk's values.
     room = _room_years(facts) if isinstance(facts, contract.IdentifierFacts) else None
     # ...ONLY WHERE THE GRAIN READS DATES (Codex's review of lane ID-ROOM2,
-    # item 1): a held column read as stamps, clock times or counted dates
-    # publishes `[]` and is written from its own span as before, so it stays
-    # readable (`taxonomy.MADE_UP_GRAIN_KIND`).
-    if grain.reading.kind != grains.DATE:
+    # item 1): a held column read as clock times or counted dates publishes
+    # `[]` and is written from its own span as before, so it stays readable
+    # (`taxonomy.MADE_UP_GRAIN_KIND`). ...OR STAMPS (lane TR's skeptic 1,
+    # item 1; plan P4-D473): each made-up stamp's calendar date is drawn
+    # from the room's years and checked by its readings
+    # (`_stamp_in_the_room`), its clock and its offset as before, so it
+    # stays readable and falls on no real cell's calendar date.
+    if grain.reading.kind != grains.DATE and grain.reading.kind != grains.STAMP:
         room = None
     room_sets = _room_published(room) if room is not None else None
     named_dates: "dict[str, bool]" = {}
+    # A ZONE WORD'S STAMP IS DRAWN OR WRITTEN BLANK (lane TR's follow-up;
+    # LANE TR RULINGS 7 (2), as RULINGS 6 (3) says: a rule half right does
+    # not admit the column): a held column whose layout writes a zone word
+    # of the closed list was read as no stamp at all before lane TR, and
+    # its twin wrote every cell blank; so where the G1 floor draws no
+    # made-up stamp of it -- no room (the `[]` of NF137), or no stamp of
+    # its layout in the made-up value's form -- the cell is written blank,
+    # as then, never the identifier walk's value, which is no date
+    # (`_zone_word_layout`); a made-up word holding no figure, which stands
+    # for a real word, not for a stamp, is kept as before. Every other held
+    # column is written as before.
+    zoned = _zone_word_layout(grain.reading)
     if room is not None and isinstance(facts, contract.IdentifierFacts):
         spans = _room_spans(room, grain.reading)
         if not spans:
+            if zoned:
+                return _made_up_blank(cells, holes), 0
             return cells, 0
         named_dates = _named_date_layouts(facts)
+    # A made-up value no stamp wears in its own form -- a stand-in of a
+    # layout the census withholds (`!      JU`) -- is written in the
+    # member's own form, as before, from the room's span and checked like
+    # any other (`_stamp_in_the_room`): the room of a date grain asks the
+    # value's own form alone (repair 1 of lane ID-ROOM2), and a stamp's
+    # asked so left 766 of 2,000 twin cells of a held stamp column whose
+    # layouts were all withheld unreadable (lane TR's repair 1).
+    own_form = room is None or grain.reading.kind == grains.STAMP
     values = {}
     made: "dict[str, str]" = {}
     taken: "dict[str, bool]" = {}
@@ -72850,7 +74073,10 @@ def _inside_the_grain(
             and parsing.layout_form(cell, convention) in published
             and not grains.wears_a_date(cell, grain.reading, padded)
         ):
-            made[cell] = cell
+            # ...where it holds a figure, in a zone-word column, it stands
+            # for a stamp the floor could not draw, so it is written blank;
+            # a word, which holds none, still stands for a real word.
+            made[cell] = "" if zoned and parsing.figures_in(cell) > 0 else cell
             continue
         # Span by span, deepest first from the one whose capacity holds the
         # column's count (Codex's item 1); and where none can take it
@@ -72858,10 +74084,10 @@ def _inside_the_grain(
         valid: "str | None" = None
         for span in spans:
             valid = grains.filled(
-                cell, grain.reading, words[place], span, padded, taken, False, room is None
+                cell, grain.reading, words[place], span, padded, taken, False, own_form
             )
-            if valid is not None and room_sets is not None and not _off_the_real_years(
-                valid, named_dates, convention, room_sets
+            if valid is not None and room_sets is not None and not _in_the_room(
+                valid, grain.reading, named_dates, convention, room_sets
             ):
                 valid = None
             if valid is not None:
@@ -72869,10 +74095,10 @@ def _inside_the_grain(
         if valid is None:
             valid = grains.filled(
                 cell, grain.reading, words[place], spans[len(spans) - 1], padded, {}, False,
-                room is None,
+                own_form,
             )
-            if valid is not None and room_sets is not None and not _off_the_real_years(
-                valid, named_dates, convention, room_sets
+            if valid is not None and room_sets is not None and not _in_the_room(
+                valid, grain.reading, named_dates, convention, room_sets
             ):
                 valid = None
         # ...AND A VALUE OF A LAYOUT THE CENSUS WITHHOLDS, which no date
@@ -72897,13 +74123,15 @@ def _inside_the_grain(
         ):
             for span in spans:
                 valid = grains.filled_at_its_length(cell, grain.reading, words[place], span, taken)
-                if valid is not None and not _off_the_real_years(
-                    valid, named_dates, convention, room_sets, True
+                if valid is not None and not _in_the_room(
+                    valid, grain.reading, named_dates, convention, room_sets, True
                 ):
                     valid = None
                 if valid is not None:
                     break
-        if valid is None:
+        if valid is None and zoned and parsing.figures_in(cell) > 0:
+            valid = ""
+        elif valid is None:
             valid = cell
             unwritten = unwritten + 1
         else:
@@ -72944,15 +74172,81 @@ def _filled_to_the_count(
     fewer buckets than the description publishes. Where it does, rows
     move to empty buckets between the same two published points
     (`grains.count_filled`), each written as its new bucket's start in its
-    own form; the draw inside the bucket follows. No word is drawn.
+    own form; the draw inside the bucket follows. No word is drawn. UNDER
+    A PUBLISHED RULE (lane DST's repair 2, the verify's item 1) a row moves
+    only to a bucket whose start wears the offset its own bucket's start
+    wears, so the census of offsets stands; where no such row is left the
+    count gives way (`_count_short_by_rule` says so for the report, P4-D369
+    (a)'s order: the census stands, the count is named).
     """
+    found = _count_fill_inputs(column, cells, holes)
+    if found is None:
+        return cells
+    moved = _count_moves(found, True)
+    if not moved:
+        return cells
+    return [
+        grains.moved_to(cells[place], found.grain.reading, moved[place]) if place in moved else cells[place]
+        for place in range(len(cells))
+    ]
+
+
+def _count_short_by_rule(
+    column: contract.ColumnBlock, cells: "list[str]", holes: "typing.Collection[str]"
+) -> bool:
+    """Whether a pooled column's rule leaves its count at the rung short (G7.13 under G7.4r; lane DST's repair 2): the moves its rule allows reach fewer buckets than the same moves without it.
+
+    A column that publishes no rule is answered before any cell is read,
+    so a pooled column without one reads its cells once, as before.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts) or not facts.offset_rule:
+        return False
+    found = _count_fill_inputs(column, cells, holes)
+    if found is None or found.rule is None:
+        return False
+    return len(_count_moves(found, True)) < len(_count_moves(found, False))
+
+
+@dataclasses.dataclass(frozen=True)
+class _CountFill:
+    """What `grains.count_filled` is handed for a pooled column's built cells (G7.13), and the rule its stamps follow."""
+
+    grain: grains.Grain
+    buckets: "list[int | None]"
+    points: "list[int]"
+    span: "tuple[int, int]"
+    rung: str
+    target: int
+    pinned: "dict[int, tuple[int, int]]"
+    fences: "tuple[int | None, int | None]"
+    rule: "offset_rules.Rule | None"
+
+
+def _count_moves(found: _CountFill, ruled: bool) -> "dict[int, int]":
+    """The rows `grains.count_filled` moves for a pooled column's built cells (G7.13), under its rule or without it.
+
+    A function, not a method of `_CountFill`: the offline audit reads a
+    module function's call and refuses a method called on a value it
+    cannot trace (tests/test_offline_scan.py).
+    """
+    return grains.count_filled(
+        found.buckets, found.points, found.span, found.rung, found.grain.reading.kind, found.grain.finest,
+        found.target, found.pinned, found.fences, found.rule if ruled else None,
+    )
+
+
+def _count_fill_inputs(
+    column: contract.ColumnBlock, cells: "list[str]", holes: "typing.Collection[str]"
+) -> "_CountFill | None":
+    """What `grains.count_filled` is handed for a pooled column's built cells (G7.13); None where it moves none."""
     grain = column.time_grain
     facts = column.facts
     if grain is None or not isinstance(facts, contract.DatetimeFacts) or column.n_distinct <= 0:
-        return cells
+        return None
     rung, first, last = grain.spans[len(grain.spans) - 1]
     if rung != grain.rung:
-        return cells
+        return None
     buckets: "list[int | None]" = []
     for cell in cells:
         moment = None
@@ -72967,7 +74261,7 @@ def _filled_to_the_count(
     texts += [text for text in (ladder.minimum, ladder.maximum) if text is not None]
     protected = _count_protections(facts, rung, first, last)
     if protected is None:
-        return cells
+        return None
     kept, fences = protected
     for tail in (facts.low_tail, facts.high_tail):
         if tail is not None:
@@ -72978,7 +74272,7 @@ def _filled_to_the_count(
     for text in texts:
         moment = grains.canonical_moment(text, facts.resolution)
         if moment is None:
-            return cells
+            return None
         points += [min(max(grains.start_of(moment, rung), first), last)]
     # THE RANKS EACH RUNG HOLDS (taxonomy's rule): a published bucket a
     # heavy date or a tail names gives no row; a rung gives only the rows
@@ -73006,16 +74300,10 @@ def _filled_to_the_count(
     for bucket in kept:
         if bucket in pinned:
             del pinned[bucket]
-    moved = grains.count_filled(
-        buckets, points, (first, last), rung, grain.reading.kind, grain.finest,
-        column.n_distinct, pinned, fences,
+    return _CountFill(
+        grain, buckets, points, (first, last), rung, column.n_distinct, pinned, fences,
+        grains.cell_rule(facts.offset_rule, grain.reading),
     )
-    if not moved:
-        return cells
-    return [
-        grains.moved_to(cells[place], grain.reading, moved[place]) if place in moved else cells[place]
-        for place in range(len(cells))
-    ]
 
 
 def _count_protections(
@@ -81564,6 +82852,28 @@ def _bound_notes(measured: "list[Approximation]") -> "list[Deviation]":
             )
         ]
     return notes
+
+
+def _top_coded_twin(column: contract.ColumnBlock, written: "list[str]") -> "list[str]":
+    """A top-coded column's twin cells written at or below its top code (method G7.14; plan P4-D427), as its description says.
+
+    Its missing spellings kept, its mark published or not
+    (`_the_mark_published`), a label column's made-up labels first written
+    below the mark, the age words read around each number where its block
+    records them (`top_coded_words`, plan P4-D477), and the bound past 125
+    years given by its facts, a column described as numbers bare or with a
+    unit (lane HB2's repair 1). Its own function so its reading of the
+    block is pinned (skeptic 1's item 6, M21). A fixed function of the two.
+    Raises TypeError for a cell that is not text. No I/O.
+    """
+    return taxonomy.at_most_the_top_code(
+        written, frozenset(column.missing_by_source), column.top_coded,
+        False,
+        _the_mark_published(column),
+        isinstance(column.facts, contract.LabelFacts),
+        column.top_coded_words,
+        isinstance(column.facts, (contract.NumericFacts, contract.AffixedFacts)),
+    )
 
 
 def _the_mark_published(column: contract.ColumnBlock) -> "bool | None":

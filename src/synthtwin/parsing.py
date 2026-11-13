@@ -2409,7 +2409,14 @@ def is_a_stand_in_start(text: str) -> bool:
 
     A countdown's start is its own form (`stand_in_start` gives it back)
     with a place to walk; a clock, a date, a spelling of a closed alphabet
-    or a pair's member starts its own walk.
+    or a pair's member starts its own walk. AND A NUMBER'S COUNTDOWN ON A
+    FREE OPENING (lane HB2's repair 1, contract B4e): figures,
+    `FIGURE_RUN_KEY_WIDTH` wide at least before any point, whose first one
+    to `FIGURE_OPENING_DEPTH` - 1 figures are an opening (the first no
+    nought) and the rest its own form -- `9888`, the start a pool after the
+    person's `no` takes where its block's `figure_openings` keep `8888`
+    back; since lane HB2's repair 2 a sign before them or a point and
+    figures after them too (`+9888`, `9888.8`); `1234` is none.
     """
     if not isinstance(text, str):
         raise TypeError("a stand-in's start is text")
@@ -2417,7 +2424,23 @@ def is_a_stand_in_start(text: str) -> bool:
         return False
     if stand_in_walk(text) != WALK_COUNTDOWN:
         return True
-    return stand_in_start(text) == text and any(stand_in_places(text))
+    if stand_in_start(text) == text and any(stand_in_places(text)):
+        return True
+    # ...a sign before it or a point among its figures (lane HB2's repair 2):
+    # `+9888`, `9888.8`, the run before the point on the free opening.
+    body = text[1:] if text[:1] in ("+", "-") else text
+    whole = 0
+    while whole < len(body) and "0" <= body[whole] <= "9":
+        whole += 1
+    rest = body[whole:]
+    if whole < FIGURE_RUN_KEY_WIDTH or body[:1] == "0" or (
+        rest and not (rest[:1] in (".", ",") and len(rest) > 1 and is_whole_figures(rest[1:]) and rest[1:2] != "-")
+    ):
+        return False
+    for opening in range(1, min(FIGURE_OPENING_DEPTH, whole)):
+        if stand_in_start(body[opening:]) == body[opening:]:
+            return True
+    return False
 
 
 def is_a_place_list(text: str) -> bool:
@@ -6389,26 +6412,115 @@ DEFAULT_CLOCK_STYLE = "hh"
 # they always were.
 CLOCK_HH_MM = "hh-mm"
 CLOCK_HH_MM_SS = "hh-mm-ss"
+
+# THE CLOCK WRITTEN AS FIGURES (lane TR, plan P4-D473; rule 5c of the
+# zoo-fix reading page, plan P4-D419's ZR.1). A military time `0742`, a
+# compact `074512`, and a time with a fraction of a second after a point,
+# `074512.123456`, as a monitor or an imaging header writes it: two
+# figures of hour, two of minute, two of second where written, and one to
+# six figures of fraction. Each is a form of its own, on its own face,
+# whose word is this package's: `hh-mm figures`, `hh-mm-ss figures` and
+# `hh-mm-ss figures.N` for N figures of fraction. They come AFTER the
+# forty forms, so every earlier form keeps its place. NO CELL IS READ IN
+# THEM BY INFERENCE: `clock_form` never answers one, so a column of four
+# figures is never taken for clock times from its values (four-figure
+# codes and keys are written the same way); a column is read in them only
+# where the person answered `clock-figures` or declared `--clock-figures`
+# (`taxonomy.clock_figures_declared`). The fraction is read and not kept
+# (a whole second is the unit, as every clock form's), and the twin writes
+# it as noughts at its published width.
+CLOCK_FIGURES = " figures"
+CLOCK_FIGURE_FRACTIONS_MOST = 6
+_FIGURE_FACES = (CLOCK_FIGURES,) + tuple(
+    f"{CLOCK_FIGURES}.{figures}" for figures in range(1, CLOCK_FIGURE_FRACTIONS_MOST + 1)
+)
+CLOCK_FIGURE_FORMS = (
+    CLOCK_HH_MM + CLOCK_FIGURES,
+    CLOCK_HH_MM_SS + CLOCK_FIGURES,
+) + tuple(CLOCK_HH_MM_SS + face for face in _FIGURE_FACES[1:])
 CLOCK_FORMS = tuple(
     width + fields + face
     for face in CLOCK_FACES
     for width in CLOCK_HOUR_WIDTHS
     for fields in ("-mm", "-mm-ss")
-)
+) + CLOCK_FIGURE_FORMS
 
 # Each form's style and whether it writes seconds, and each style's two
-# halves, read off the tables above once.
+# halves, read off the tables above once. A clock written as figures has
+# two figures of hour, so its one style is `hh` on its face.
 _FORM_STYLE = {
-    width + fields + face: (width + face, fields == "-mm-ss")
-    for face in CLOCK_FACES
-    for width in CLOCK_HOUR_WIDTHS
-    for fields in ("-mm", "-mm-ss")
+    **{
+        width + fields + face: (width + face, fields == "-mm-ss")
+        for face in CLOCK_FACES
+        for width in CLOCK_HOUR_WIDTHS
+        for fields in ("-mm", "-mm-ss")
+    },
+    CLOCK_HH_MM + CLOCK_FIGURES: ("hh" + CLOCK_FIGURES, False),
+    **{CLOCK_HH_MM_SS + face: ("hh" + face, True) for face in _FIGURE_FACES},
 }
 _STYLE_PARTS = {
-    width + face: (width, face)
-    for face in CLOCK_FACES
-    for width in CLOCK_HOUR_WIDTHS
+    **{
+        width + face: (width, face)
+        for face in CLOCK_FACES
+        for width in CLOCK_HOUR_WIDTHS
+    },
+    **{"hh" + face: ("hh", face) for face in _FIGURE_FACES},
 }
+# How many figures of fraction each form of figures writes after its point.
+_FIGURE_FORM_FRACTION = {
+    CLOCK_HH_MM + CLOCK_FIGURES: 0,
+    **{
+        CLOCK_HH_MM_SS + _FIGURE_FACES[figures]: figures
+        for figures in range(CLOCK_FIGURE_FRACTIONS_MOST + 1)
+    },
+}
+
+
+def clock_figure_fraction(form: str) -> "int | None":
+    """How many figures of fraction a clock written as figures writes, or None for any other form (plan P4-D473)."""
+    if not isinstance(form, str):
+        raise TypeError(_NOT_TEXT)
+    if form in _FIGURE_FORM_FRACTION:
+        return _FIGURE_FORM_FRACTION[form]
+    return None
+
+
+def clock_figure_form(text: str) -> "str | None":
+    """The form of figures one cell's SHAPE writes, or None (plan P4-D473).
+
+    Four figures; six; or six, a point and one to six figures. The shape
+    only: whether the cell lies on the clock's grid is `clock_ordinal`'s
+    question. Asked of a column the person said holds clock times written
+    as figures, never of any other (rule 5c). Raises TypeError for
+    anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    size = len(text)
+    if size == 4 and _all_ascii_digits(text):
+        return CLOCK_FIGURE_FORMS[0]
+    if size < 6 or not _all_ascii_digits(text[0:6]):
+        return None
+    if size == 6:
+        return CLOCK_FIGURE_FORMS[1]
+    figures = size - 7
+    if text[6] != "." or figures < 1 or figures > CLOCK_FIGURE_FRACTIONS_MOST:
+        return None
+    if not _all_ascii_digits(text[7:]):
+        return None
+    return CLOCK_HH_MM_SS + f"{CLOCK_FIGURES}.{figures}"
+
+
+def _figure_clock_second(text: str, form: str) -> "int | None":
+    """The second of the day one cell names in a form of figures, or None where it is not that shape or off the grid."""
+    if clock_figure_form(text) != form:
+        return None
+    hours = int(text[0:2])
+    minutes = int(text[2:4])
+    seconds = int(text[4:6]) if len(text) >= 6 else 0
+    if hours > 23 or minutes > 59 or seconds > 59:
+        return None
+    return hours * 3600 + minutes * 60 + seconds
 
 # How many different values each form can spell, which is the whole of
 # what a column of that form can hold: a day has 1,440 minutes and
@@ -6447,7 +6559,11 @@ def clock_form_of(style: str, with_seconds: bool) -> str:
     if style not in _STYLE_PARTS:
         raise ValueError(_NOT_TEXT)
     width, face = _STYLE_PARTS[style]
-    return width + ("-mm-ss" if with_seconds else "-mm") + face
+    form = width + ("-mm-ss" if with_seconds else "-mm") + face
+    # A fraction is written only beside seconds (plan P4-D473).
+    if form not in _FORM_STYLE:
+        raise ValueError(_NOT_TEXT)
+    return form
 
 
 def clock_face(style: str) -> str:
@@ -6666,6 +6782,13 @@ def written_clock(second: int, with_seconds: bool, style: str) -> str:
     width, face = _STYLE_PARTS[style]
     hours = second // 3600
     minutes = (second % 3600) // 60
+    # -- lane TR (P4-D473): figures alone, the fraction as noughts.
+    if face in _FIGURE_FACES:
+        figures = f"{hours:02d}{minutes:02d}"
+        if not with_seconds:
+            return figures
+        fraction = int(face[len(CLOCK_FIGURES) + 1 :]) if face != CLOCK_FIGURES else 0
+        return f"{figures}{second % 60:02d}" + ("." + "0" * fraction if fraction else "")
     marker = ""
     shown = hours
     if face:
@@ -6729,6 +6852,14 @@ def clock_ordinal(text: str, form: str) -> "int | None":
     """
     if form not in _FORM_STYLE:
         raise ValueError(_NOT_TEXT)
+    # -- lane TR (P4-D473): a form of figures reads its own shape alone.
+    if form in _FIGURE_FORM_FRACTION:
+        if not isinstance(text, str):
+            raise TypeError(_NOT_TEXT)
+        at = _figure_clock_second(text, form)
+        if at is None:
+            return None
+        return at if _FORM_STYLE[form][1] else at // 60
     parts = clock_parts(text)
     if parts is None:
         return None
@@ -6842,7 +6973,8 @@ def stamp_style(word: str) -> "str | None":
         raise TypeError(_NOT_TEXT)
     if word == "space":
         return DEFAULT_CLOCK_STYLE
-    if word[0:6] == "space " and word[6:] in _STYLE_PARTS:
+    # A clock written as figures is a column's form, never a stamp's (plan P4-D473).
+    if word[0:6] == "space " and word[6:] in CLOCK_STYLES:
         if word[6:] != DEFAULT_CLOCK_STYLE:
             return word[6:]
     return None
@@ -10674,7 +10806,92 @@ _LAYOUT_SET_RANK = {"": 0, "GB": 1, "AU": 2}
 # offset, counted under `utc_offsets`' own `(none)` member.
 _LAYOUT_ZULU_FIELDS = ("Z", "z", "UTC", "GMT")
 _LAYOUT_SIGNED_FIELDS = ("+HH:MM", "+HHMM", "+HH")
-_LAYOUT_OFFSET_FIELDS = _LAYOUT_ZULU_FIELDS + _LAYOUT_SIGNED_FIELDS
+# THE ZONE WORDS (lane TR, plan P4-D473). A stamp followed by one space and
+# a zone word of this closed list is read with the offset the word names --
+# `2024-10-29 09:28:34 EDT` as `-04:00` -- and its twin writes the word for
+# the offset it writes, so a column's EDT and EST are its two offsets. Each
+# field is one family, its standard word first: the word follows the offset
+# within the family, and a column mixing families reads under none. Only
+# words with one meaning in North American and European exports are here;
+# `IST` and `BST` (two meanings each) are never read, and `UTC` and `GMT`
+# keep their own fields. No zone database: the words and offsets are this
+# table.
+_LAYOUT_ZONE_FIELDS: "dict[str, tuple[tuple[str, str], ...]]" = {
+    "EST/EDT": (("EST", "-05:00"), ("EDT", "-04:00")),
+    "CST/CDT": (("CST", "-06:00"), ("CDT", "-05:00")),
+    "MST/MDT": (("MST", "-07:00"), ("MDT", "-06:00")),
+    "PST/PDT": (("PST", "-08:00"), ("PDT", "-07:00")),
+    "AKST/AKDT": (("AKST", "-09:00"), ("AKDT", "-08:00")),
+    "HST": (("HST", "-10:00"),),
+    "WET/WEST": (("WET", "+00:00"), ("WEST", "+01:00")),
+    "CET/CEST": (("CET", "+01:00"), ("CEST", "+02:00")),
+    "EET/EEST": (("EET", "+02:00"), ("EEST", "+03:00")),
+}
+_LAYOUT_ZONE_WORDS = {
+    word: family
+    for family in _LAYOUT_ZONE_FIELDS
+    for word, _offset in _LAYOUT_ZONE_FIELDS[family]
+}
+_LAYOUT_OFFSET_FIELDS = (
+    _LAYOUT_ZULU_FIELDS + _LAYOUT_SIGNED_FIELDS + tuple(_LAYOUT_ZONE_FIELDS)
+)
+
+
+def _zone_offset(family: str, word: str) -> str:
+    """The offset one zone word of a family names, or `''` where the family names no such word."""
+    for named, offset in _LAYOUT_ZONE_FIELDS[family]:
+        if named == word:
+            return offset
+    return ""
+
+
+def _zone_word(family: str, offset: str) -> str:
+    """The word a family writes for one offset, or `''` where it names none."""
+    for word, named in _LAYOUT_ZONE_FIELDS[family]:
+        if named == offset:
+            return word
+    return ""
+
+
+def zone_words() -> "tuple[str, ...]":
+    """Every zone word a layout reads after a stamp (plan P4-D473), in table order."""
+    return tuple(_LAYOUT_ZONE_WORDS)
+
+
+def _layout_sample_offset(field: str) -> str:
+    """The offset a layout's sample cell wears: `Z` on a zulu field, a zone field's standard word's, else `+01:00`."""
+    if field in _LAYOUT_ZULU_FIELDS:
+        return "Z"
+    if field in _LAYOUT_ZONE_FIELDS:
+        return _LAYOUT_ZONE_FIELDS[field][0][1]
+    return "+01:00"
+
+
+def zone_family_of(word: str) -> str:
+    """The family of the closed list a zone word belongs to (`EST/EDT` for `EDT`), or `''` (plan P4-D473)."""
+    if not isinstance(word, str):
+        raise TypeError(_NOT_TEXT)
+    if word in _LAYOUT_ZONE_WORDS:
+        return _LAYOUT_ZONE_WORDS[word]
+    return ""
+
+
+def zone_family_offsets(field: str) -> "tuple[str, ...]":
+    """Each offset a zone family's words name, its standard word's first, or `()` for any other field (plan P4-D473)."""
+    if not isinstance(field, str):
+        raise TypeError(_NOT_TEXT)
+    if field in _LAYOUT_ZONE_FIELDS:
+        return tuple(offset for _word, offset in _LAYOUT_ZONE_FIELDS[field])
+    return ()
+
+
+def zone_family_word(field: str, offset: str) -> str:
+    """The word a zone family writes for one offset (`EDT` for `-04:00` in `EST/EDT`), or `''` where the field is no zone family or names no word for it (plan P4-D473)."""
+    if not isinstance(field, str) or not isinstance(offset, str):
+        raise TypeError(_NOT_TEXT)
+    if field in _LAYOUT_ZONE_FIELDS:
+        return _zone_word(field, offset)
+    return ""
 
 # The fixed-width numeric fields, by width, and the flexible ones.
 _LAYOUT_FIXED_FIELDS = {
@@ -11159,6 +11376,14 @@ def layout_reading(
         bare = name
         if name[len(name) - 1 : len(name)] == "?":
             bare = name[0 : len(name) - 1]
+        # -- lane TR (P4-D473): a zone word, read with the offset it names.
+        if bare in _LAYOUT_ZONE_FIELDS:
+            end = _layout_letters(text, at)
+            offset = _zone_offset(bare, text[at:end])
+            if not offset:
+                return None
+            at = end
+            continue
         if bare in _LAYOUT_ZULU_FIELDS:
             end = at + len(bare)
             if text[at:end] != bare:
@@ -11324,6 +11549,12 @@ def layout_cell(
             written = f"{written}{_layout_word(_LAYOUT_WEEKDAY_FIELDS[bare], place)}"
         elif bare in _LAYOUT_ZULU_FIELDS:
             written = f"{written}{bare}"
+        elif bare in _LAYOUT_ZONE_FIELDS:
+            # -- lane TR (P4-D473): the family's word for the offset; an
+            # offset the family names no word for, which rule LY4 keeps out
+            # of every loaded description, writes its standard word.
+            word = _zone_word(bare, shared[0:6])
+            written = f"{written}{word or _LAYOUT_ZONE_FIELDS[bare][0][0]}"
         elif bare == "+HH:MM":
             written = f"{written}{shared[0:6]}"
         elif bare == "+HHMM":
@@ -11697,6 +11928,9 @@ def _layout_offsets(
         kind, word = _run(runs, at)
         if gap and kind == "a" and (word == "UTC" or word == "GMT"):
             found += [(f"{gap}{{{word}}}", at + 1)]
+        # -- lane TR (P4-D473): a zone word of the closed list, as its family.
+        if gap and kind == "a" and word in _LAYOUT_ZONE_WORDS:
+            found += [(f"{gap}{{{_LAYOUT_ZONE_WORDS[word]}}}", at + 1)]
     return found
 
 
@@ -12043,6 +12277,9 @@ def layout_offset_writable(name: str, offset: str) -> bool:
         return offset == "Z"
     if offset == "Z":
         return False
+    # -- lane TR (P4-D473): a zone field writes only the offsets its words name.
+    if field in _LAYOUT_ZONE_FIELDS:
+        return bool(_zone_word(field, offset))
     if field == "+HH":
         return offset[4:6] == "00"
     return True
@@ -12117,6 +12354,12 @@ def layout_offset_added(cell: str, name: str, offset: str) -> "str | None":
             if offset != "Z":
                 return None
             written = f"{written}{bare}"
+        elif bare in _LAYOUT_ZONE_FIELDS:
+            # -- lane TR (P4-D473): the family's word, where it names one.
+            word = _zone_word(bare, offset)
+            if not word:
+                return None
+            written = f"{written}{word}"
         elif len(offset) != 6:
             return None
         elif bare == "+HH:MM":
@@ -12270,7 +12513,7 @@ def layout_example(name: str) -> str:
     items = layout_items(name)
     if items is None:
         return ""
-    offset = "Z" if layout_offset_field(name) in _LAYOUT_ZULU_FIELDS else "+01:00"
+    offset = _layout_sample_offset(layout_offset_field(name))
     if not layout_offset_field(name):
         offset = ""
     return layout_cell(items, _LAYOUT_SAMPLE, offset, (False, False), 3)
@@ -12314,7 +12557,7 @@ def is_layout_format(name: str) -> bool:
     offset = ""
     field = layout_offset_field(name)
     if field:
-        offset = "Z" if field in _LAYOUT_ZULU_FIELDS else "+01:00"
+        offset = _layout_sample_offset(field)
     cell = layout_cell(items, _LAYOUT_SAMPLE, offset, (), 3)
     # -- 3b.R2c (P4-D383): ...or the ask-first productions, which no column
     # is read under unless the person said it holds dates.

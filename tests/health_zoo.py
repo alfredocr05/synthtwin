@@ -149,6 +149,9 @@ GENERAL_ANSWERS = frozenset(
         # inside it where neither its cells nor its name state one (lane
         # SH3, plan P4-D454; years too since its repair).
         "years", "months", "weeks", "days",
+        # ...and that a column holds clock times written as figures alone,
+        # `0742` (lane TR, plan P4-D473; the zoo-fix reading page's Q-CLOCK).
+        "clock-figures",
     }
 )
 # The units the Safe Harbor question offers beside `no` and `yes` for a
@@ -1242,6 +1245,39 @@ def form(text: str) -> str:
     return re.sub(r"\d", "9", lettered)
 
 
+def numbers_written_differently(
+    real: "list[str]", twin: "list[str]", bound: "tuple[str, float] | None" = None
+) -> int:
+    """K-HZ-28's count (lane LM1, plan P4-D475): the twin cells holding a figure whose form no real cell wears, or a number past the column's bound.
+
+    ``bound`` is a label's (`<20`: ``("at least", 20.0)``; `90+`:
+    ``("below", 90.0)``), so a twin `12` beside `<20` is counted although it
+    wears the form of a real `40`, and a twin `91` beside `90+` although it
+    wears that of a real `89` (repair 1 of lane LM1: skeptic 1's item 9, the
+    statistics check's item 3). A cell counted either way is counted once.
+    Linear: the real forms in a set, each twin cell's form and number read
+    once.
+    """
+    from synthtwin import parsing
+
+    forms = {form(cell) for cell in real}
+    found = 0
+    for cell in twin:
+        if not any("0" <= letter <= "9" for letter in cell):
+            continue
+        if form(cell) not in forms:
+            found = found + 1
+            continue
+        if bound is None:
+            continue
+        number = parsing.parse_number(cell)
+        if number is None:
+            continue
+        if (bound[0] == "at least" and number < bound[1]) or (bound[0] == "below" and number >= bound[1]):
+            found = found + 1
+    return found
+
+
 def _bad_pattern(series: object, pattern: str) -> int:
     values = series.dropna().astype(str)  # type: ignore[attr-defined]
     return int((~values.str.fullmatch(pattern)).sum())
@@ -2043,7 +2079,11 @@ TABLES: "tuple[Table, ...]" = (
             "imaging": ("accession", "patient_id", "modality", "body_part", "series_count"),
             "dicom_metadata": ("study_date", "study_time", "study_uid"),
         },
-        {"accession": "identifier", "patient_id": "identifier", "modality": "code", "study_uid": "identifier"},
+        {
+            "accession": "identifier", "patient_id": "identifier", "modality": "code", "study_uid": "identifier",
+            # DICOM's TM is a time of day written as figures (lane TR, plan P4-D473).
+            "study_time": "clock-figures",
+        },
         _csv_reader(),
         (
             _pattern("imaging", "accession numbers", "accession", r"ACC\d{8}"),
@@ -2103,7 +2143,10 @@ TABLES: "tuple[Table, ...]" = (
             "tumor_registry": ("tumor_id", "morphology", "topography", "tnm", "stage"),
             "partial_dates": ("dx_date", "first_treatment_month"),
         },
-        {"tumor_id": "identifier", "morphology": "code", "topography": "code", "tnm": "code", "stage": "code"},
+        # ...and dx_date holds dates (THE ZOO ANSWERS TRUTHFULLY; LANE TR RULINGS 3 (4)): with no answer both its
+        # questions stayed blank and the open person question held it as record numbers.
+        {"tumor_id": "identifier", "morphology": "code", "topography": "code", "tnm": "code", "stage": "code",
+         "dx_date": "dates"},
         _csv_reader(),
         (
             _pattern("partial_dates", "dates to the year, the month or the day", "dx_date", r"\d{4}|\d\d/\d{4}|\d{4}-\d\d-\d\d"),
@@ -2887,10 +2930,32 @@ def _floor_refused(arguments: "list[str]", small_tables_refused: bool, code: int
 ANSWER_ROUNDS_AT_MOST = 6
 
 
-def _question_key(entry: "dict") -> "tuple[str, tuple[str, ...]]":
-    """What makes a question the same question in a later round: what it asks about and the answers it offers."""
+# How many characters of what synthtwin saw, figures set aside, tell one
+# question from another put to the same column with the same answers
+# (`_question_key`).
+QUESTION_SEEN_OPENING = 48
+
+
+def _question_key(entry: "dict") -> "tuple[str, tuple[str, ...], str]":
+    """What makes a question the same question in a later round: what it asks about, the answers it offers, what it saw.
+
+    WHAT IT SAW TOO (lane CZ-A2, plan P4-D469): two Safe Harbor questions
+    put to one column one after the other offer the same `no` and `yes` --
+    the PCORnet-style export's code column `DX` was put the question about
+    its codes of sixteen figures or more first and, once answered `no`, the
+    question about its nine-figure codes that read as dates -- and a key of
+    the column and the answers alone took the second for the first already
+    answered, so the zoo stopped and left it open: the codes stayed held and
+    their form was missing from the twin (K-HZ-02, pcornet_cdm 3 failures
+    where 1 is the export's own). The opening of what synthtwin saw, its
+    figures set aside (counts move between rounds), tells them apart, as
+    lane CZ-H's own driver told its question from the age or ZIP question.
+    """
     about = f"{entry.get('column') or entry.get('subject') or entry.get('about') or ''}"
-    return about, tuple(sorted(_offered(entry)))
+    seen = "".join(
+        character for character in f"{entry.get('what_synthtwin_saw', '')}" if not ("0" <= character <= "9")
+    )
+    return about, tuple(sorted(_offered(entry))), seen[:QUESTION_SEEN_OPENING]
 
 
 def _keep_the_most(kept: "dict[str, dict]", found: "dict[str, dict]") -> None:
@@ -2964,7 +3029,7 @@ def run_table(
     # the questions file puts no new unanswered question, at most
     # `ANSWER_ROUNDS_AT_MOST` rounds. Each round's description is read
     # for real values, the most each entry published kept.
-    put: "set[tuple[str, tuple[str, ...]]]" = set()
+    put: "set[tuple[str, tuple[str, ...], str]]" = set()
     result["asked"] = []
     result["general"] = True
     result["answer_rounds"] = 0
@@ -3089,6 +3154,14 @@ OLDEST_YEAR_SHOWN = REF_YEAR - 90
 # area ('021**') names a place smaller than a state; a later Safe Harbor
 # ZIP3 allowlist of areas over 20,000 people is lane CODES-2's.
 SAFE_HARBOR_THOUGH_NOT_READ = frozenset({"zip3"})
+# ...AND A COLUMN NAMING A CLINICIAN (plan P4-D472, lane CZ-E): the reports
+# table's signed template names its reader, a made-up clinician. A
+# clinician's name is outside Safe Harbor's list of a patient's elements
+# but inside the no-real-name rule (plan P4-D445's item 9: no real name is
+# published, whatever its people count), so the zoo answers `yes` to the
+# Safe Harbor question the value readers now put to it, and the column
+# stays held: the reports' check of the templated share is the price.
+NAMES_A_CLINICIAN = frozenset({"report_text"})
 
 
 def _is_an_age(column: str) -> bool:
@@ -3123,7 +3196,7 @@ def names_a_safe_harbor_element(table: Table, column: str, old_ages: "frozenset[
     age on the table the person holds (`ages_over_89`); where it is not
     given it is read from the table built at the smoke size.
     """
-    if column in SAFE_HARBOR_THOUGH_NOT_READ:
+    if column in SAFE_HARBOR_THOUGH_NOT_READ or column in NAMES_A_CLINICIAN:
         return True
     if column in NOT_READ:
         return False
@@ -3487,6 +3560,14 @@ def _by_chance(real: "set[str]", twin: "list[str]") -> "tuple[bool, int]":
 NEEDS_OWNER = "needs owner"
 ZOO_LANES = (
     "UN-1a", "UN-1b", "CODES-1", "CODES-2", "CODES-3", "GG", "TR", "SS", "LISTS", "UN-2", "NOTES", "KV", "GR",
+    # Lane TR's item (e), the warehouse date key beside -1 and -2, cut to a
+    # lane of its own (the zoo plan's section 2.5, its named cut; plan P4-D473).
+    "TR-e",
+    # ...and the time readers' second lane, which takes what lane TR's
+    # reviews measured at 20,000 rows and the lane did not build: the
+    # registry mix answered as dates, among others (LANE TR RULINGS 2 (5)
+    # and 3 (4); plan P4-D473).
+    "TR2",
 )
 
 
@@ -3503,7 +3584,10 @@ def covers(*names: str, columns: "tuple[str, ...]" = ()) -> str:
 
 WITHHELD = (
     "a level fewer than 11 rows hold is written as 'group-N', or as a made-up code "
-    "outside its system's pattern, so the analyst's code list or pattern meets it"
+    "outside its system's pattern, so the analyst's code list or pattern meets it; "
+    "since lane CODES-2 (plan P4-D471) such levels are named beside their pooled total "
+    "after the column's Safe Harbor question is answered no, on tables of 20,000 rows "
+    "or more only, so a line here covers the 600-row test size, below the owner's floor"
 )
 MADE_UP_CODES = (
     "a code's levels are made up character by character in its shape ('T2N1M0' as 'D5X1Q5', "
@@ -3617,8 +3701,8 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     ),
     "encounters": (
         ("MG", CENSUS_IN_PEOPLE, covers("patients with two rows or more, and three or more, as shares")),
-        ("DST", "the twin writes an offset not in force on its date (US Eastern)", covers(
-            "admit_ts wears an offset in force on its date", "discharge_ts wears an offset in force on its date")),
+        # Lane DST (plan P4-D474): every stamp's offset follows its date, so
+        # its line here is gone; at 20,000 rows the kind passes.
     ),
     "labs": (
         ("PS2", HELD_VALUES, covers(
@@ -3631,8 +3715,14 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
         ("CODES-2", WITHHELD, covers("POS/NEG results", "abnormal flags", columns=("qualitative", "abnormal_flag"))),
         ("CODES-1", "a held-back LOINC code is written as a code in its form the real never writes "
                     "('00000-0')", covers("LOINC codes", columns=("loinc",))),
-        ("LM1", "a joined range '12.0-16.0' comes back as '12.0-16' and '70-99' as '70.0-99.0': "
-                "validate misses its styles and counts", covers("miss ref_range", columns=("ref_range",))),
+        # LANE LM1 RULINGS 2 (4), measured by its skeptic 1 at 20,000 rows with
+        # 3,969 people (a range panel answered `joined`): the real writes 0
+        # crossed pairs, 0 ends with different decimals and 0 padded ends; the
+        # twin 6, 10,858 and 4,791 (`03-05`, `0.50-02`), and validate misses 16
+        # facts of the range. No per-value style exists yet (plan P4-D475 (e)).
+        ("LM2", "a joined range '12.0-16.0' comes back as '12.0-16' and '70-99' as '70.0-99.0': a joined "
+                "position's style is drawn apart from its value, so validate misses its styles and counts "
+                "(plan P4-D475's limit (e))", covers("miss ref_range", columns=("ref_range",))),
     ),
     "mixed_results": (
         ("CODES-2", WITHHELD, covers(
@@ -3690,10 +3780,9 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     "surveys_pro": (
         ("UN-2", "no question asks whether -99 means missing", covers("scores 1 to 5 or -99")),
     ),
+    # Lane TR (plan P4-D473) reads DICOM's TM, answered `clock-figures`, as clock
+    # times written as figures: its line is closed at 20,000 rows.
     "dicom_metadata": (
-        ("TR", "DICOM's TM time of day ('074512.123456') is read as a decimal number: the twin "
-               "loses its leading zero and writes minutes and seconds past 59, and at 20,000 rows "
-               "validate misses its spread", covers("TM times parse as %H%M%S.%f", "miss study_time")),
         ("CODES-3", "a DICOM UID of dotted figures is written as made-up characters",
          covers("UIDs are dotted figures", columns=("study_uid",))),
     ),
@@ -3711,6 +3800,13 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     "partial_dates": (
         ("TR", "a date known to the month ('03/2019') or the year beside full dates is written as a "
                "made-up figure string", covers("dates to the year, the month or the day")),
+        # ...and, answered truthfully as dates (LANE TR RULINGS 3 (4)), the column is read in its full dates'
+        # layout, its months and years unread: at 20,000 rows its twin writes the 5,008 month-and-year
+        # cells as made-up text, so no date is known to the month only (lane TR2).
+        ("TR2", "a date known to the month ('03/2019') beside full dates and years, answered as dates, is read "
+                "in the full dates' layout and its months and years left unread, so its twin writes them as "
+                "made-up text", covers("shapes dx_date", "some date is known to the month only",
+                                       "some date is known to the month only, as a share")),
     ),
     "immunizations_providers": (
         ("CODES-1", MADE_UP_CODES, covers("NPIs pass their Luhn check", columns=("npi",))),

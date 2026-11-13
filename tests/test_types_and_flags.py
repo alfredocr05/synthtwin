@@ -565,10 +565,14 @@ def test_at_the_floor_integer_codes_keep_their_dtype_spellings_and_filter_shares
     found = zoo.form_measures(table, result, tmp_path / "codes")
     for key in (*NO_CODES_KEY, "group_n", "other"):
         assert found[key] == 0, (key, found, result["analyst"])
-    # Limit (7) of P4-D447: beside 100 to 127, `198` and `199` are written `128` and `99`, a width the column never writes.
-    assert found["codes_past_held"] == 1 and found["failing_columns"] == ["service_code"], found
-    # The tail on the next free number writes itself on its own rows (the owner's gap-first writing).
-    assert found["held_levels_met_cells"] == 4
-    # Held-back levels are written as made-up whole numbers in the column's
-    # own widths (rule A3, P4-D439): the floor's price, one check a column.
-    assert 0 < int(found["made_up_codes"]) <= len(zoo.CODE_COLUMNS)  # type: ignore[call-overload]
+    # Limit (7) of P4-D447, CLOSED by lane CODES-2 (plan P4-D471): the codes,
+    # answered `code` and their Safe Harbor question `no` as the zoo answers,
+    # name their held-back levels beside the pooled total, so `198` and `199`
+    # beside 100 to 127 are written as themselves, never `128` and `99`.
+    assert found["codes_past_held"] == 0 and found["failing_columns"] == [], found
+    # Every held-back level is written by its own name: the 93 cells of the
+    # fourteen named pools meet the levels the source holds back.
+    assert found["held_levels_met_cells"] == 93
+    # ...so no held-back level is made up (rule A3's stand-ins, P4-D439, are
+    # left to columns that name no pool).
+    assert int(found["made_up_codes"]) == 0  # type: ignore[call-overload]

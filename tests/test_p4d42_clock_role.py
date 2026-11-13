@@ -81,6 +81,11 @@ def test_every_value_of_every_form_round_trips() -> None:
     in `h-mm` and `hh-mm`, so it shows the two-figure one. The other
     seconds forms are walked one second in seven, which reaches every
     residue of the minute.
+
+    THE EIGHT FORMS OF FIGURES (lane TR, plan P4-D473) round-trip too, and
+    no cell of theirs SHOWS a form: they are read only where the person
+    answered `clock-figures` (rule 5c), never inferred, so `clock_form`
+    answers none of them and `clock_figure_form` names each one's own.
     """
     for form in parsing.CLOCK_FORMS:
         style = parsing.clock_style_of(form)
@@ -89,6 +94,13 @@ def test_every_value_of_every_form_round_trips() -> None:
         if face == parsing.CLOCK_TWELVE_HOUR:
             face = ""
         stride = 7 if seconds and form != parsing.CLOCK_HH_MM_SS else 1
+        if parsing.clock_figure_fraction(form) is not None:
+            for ordinal in range(0, parsing.CLOCK_CAPACITY[form], stride):
+                text = parsing.clock_spelling(ordinal, form)
+                assert parsing.clock_form(text) is None, (form, text)
+                assert parsing.clock_figure_form(text) == form, (form, text)
+                assert parsing.clock_ordinal(text, form) == ordinal, text
+            continue
         for ordinal in range(0, parsing.CLOCK_CAPACITY[form], stride):
             text = parsing.clock_spelling(ordinal, form)
             width = parsing.clock_hour_width(style)

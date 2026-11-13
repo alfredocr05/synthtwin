@@ -73,6 +73,7 @@ import pytest
 import clock_field_shapes as shapes
 import fixtures
 import kpi_shapes
+import written_words
 from synthtwin import (
     calendar_clock,
     calendar_rules,
@@ -545,10 +546,34 @@ def test_a_flat_twin_misses_the_minute_census(thousand, monkeypatch: pytest.Monk
     checks = [check for check in outcome.checks if check.fact in ("datetime.minute_census", "datetime.second_census", "datetime.minute_heaps", "datetime.second_heaps")]
     assert checks and all(check.verdict == validation.MISSED for check in checks)
     for check in checks:
-        for shown in check.achieved.split(", "):
-            last = shown.split(" ")[-1]
-            if last.isdigit():
-                assert int(last) == 0 or int(last) >= LINE, check.achieved
+        for count in written_words.part_counts(check.achieved):
+            assert count == 0 or count >= LINE, check.achieved
+
+
+def test_a_census_part_s_count_is_read_before_every_mark() -> None:
+    """The reading above takes the count ending each part of a census line, whatever mark or space it wears.
+
+    Batch 4r's tests-and-tools round HYG-1 (LANE I4r RULINGS 6 (2)): a
+    count before a point, a bracket, a semicolon or a closing quotation
+    mark, after a no-break space, or written with a thousands
+    separator; a minute's own name (`minute :07`) is never read as a
+    count. MUTATION: the reading it replaced, the last word of each part
+    split on one space and kept where all figures, reads none of them.
+    """
+
+    def as_read_before(achieved: str) -> "list[int]":
+        return [int(shown.split(" ")[-1]) for shown in achieved.split(", ") if shown.split(" ")[-1].isdigit()]
+
+    for mark in written_words.CLOSING_MARKS:
+        achieved = f"minute :00 145, minute :07 kept back, minutes :08-:59 3{mark}"
+        assert written_words.part_counts(achieved) == [145, 3], achieved
+        assert as_read_before(achieved) == [145], achieved
+    for achieved, counts in (
+        ("minute :00 145, minutes :01-:59 3", [145, 3]),
+        ("minute :00 145, minute :07 kept back, minutes :08-:59 1,234", [145, 1234]),
+    ):
+        assert written_words.part_counts(achieved) == counts, achieved
+        assert as_read_before(achieved) == [145], achieved
 
 
 def test_validating_never_produces_a_clock_census(thousand, monkeypatch: pytest.MonkeyPatch) -> None:

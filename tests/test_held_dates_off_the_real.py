@@ -451,12 +451,14 @@ def test_a_withheld_layout_of_the_other_width_is_read_in_its_own_orders() -> Non
     assert runs and runs[0][0] == 28 and runs[-1][1] < 80, runs
 
 
-@pytest.mark.parametrize("kind", ["stamp", "clock", "counted"])
+@pytest.mark.parametrize("kind", ["clock", "counted"])
 def test_a_grain_reading_no_dates_publishes_no_room_and_keeps_its_remark(kind: str) -> None:
     """Codex's item 1: a held column read as stamps (ISO dates beside hourly stamps) gained a block its G1 floor
-    could not draw from, and 0 of 20,000 twin cells parsed. Such a reading publishes `[]` and keeps the G1
-    floor's remark; its twin is written as before (tests/test_held_dates_off_the_real_shapes.py). Mutant: the
-    reading not looked at (red: a run, and NF136 in place of the G1 floor's remark).
+    could not draw from, and 0 of 20,000 twin cells parsed. A reading of clock times or counts publishes `[]`
+    and keeps the G1 floor's remark; its twin is written as before (tests/test_held_dates_off_the_real_shapes.py).
+    A reading of STAMPS takes the block since lane TR (plan P4-D473; the next case), its G1 floor drawing each
+    made-up stamp's calendar date from it. Mutant: the reading not looked at (red: a run, and NF136 in place of
+    the G1 floor's remark).
     """
     grain = {"rung": "held", "finest": "second", "kind": kind, "reading": "iso-mixed", "mark": ".",
              "rows": 600, "people": 0, "spans": []}
@@ -469,6 +471,33 @@ def test_a_grain_reading_no_dates_publishes_no_room_and_keeps_its_remark(kind: s
     assert held.details["made_up_years"] == []
     assert [remark.form for remark in held.remarks] == [taxonomy.REMARK_HELD_DATES_ARE_VALID]
     assert taxonomy.MADE_UP_GRAIN_KIND == grains.DATE
+
+
+def test_a_grain_reading_stamps_takes_the_block_its_dates_would() -> None:
+    """Lane TR's skeptic 1, item 1 (plan P4-D473): a held column read as stamps takes the block of four-figure years
+    a date grain does -- its G1 floor's fixed span (2000 to 2029) wrote real birth dates by chance, 80 of 20,000
+    twin cells on 3 real birth dates beside 1,000 patients -- and NF136 replaces the G1 floor's remark. A reading
+    of dates beside stamps (`iso-mixed`) writes a day on each, so its block holds twice its 600 values at 365 days
+    a year, four years; a reading of stamps alone, one year at the second. A real cell naming a year of the block
+    publishes `[]` and NF137. Mutant: the stamp branch of `taxonomy.with_made_up_years` removed (`[]` and the G1
+    floor's remark).
+    """
+    grain = {"rung": "held", "finest": "second", "kind": "stamp", "reading": "iso-mixed", "mark": ".",
+             "rows": 600, "people": 0, "spans": []}
+    column = dataclasses.replace(
+        _held({"%%%%-%%-%%": 12, "%%%%-%%-%%@%%:%%:%%": 588}, 600, grain),
+        remarks=[taxonomy.note(taxonomy.REMARK_HELD_DATES_ARE_VALID)],
+    )
+    cells = [f"19{10 + k % 80}-01-02T0{k % 10}:15:00" for k in range(600)]
+    held = taxonomy.with_made_up_years(column, cells)
+    assert held.details["made_up_years"] == [[2028, 2031]]
+    assert [remark.form for remark in held.remarks] == [taxonomy.REMARK_MADE_UP_DATES_OFF_THE_REAL]
+    alone = dataclasses.replace(column, details={**column.details, "time_grain": {**grain, "reading": "iso-datetime"}})
+    assert taxonomy.with_made_up_years(alone, cells).details["made_up_years"] == [[2028, 2028]]
+    cells[17] = "2028-03-05T09:15:00"
+    held = taxonomy.with_made_up_years(column, cells)
+    assert held.details["made_up_years"] == []
+    assert [remark.form for remark in held.remarks] == [taxonomy.REMARK_MADE_UP_DATES_NOT_DATES]
 
 
 def _held_iso_block(tmp_path: pathlib.Path, years: "tuple[tuple[int, int], ...]") -> contract.ColumnBlock:
