@@ -59,7 +59,8 @@ def described(folder, name, rows, floor):
         writer.writerow([row])
     path = fixtures.write(folder, f"{name}.csv", out.getvalue())
     table = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(path), first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=floor,
     )
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=floor), [], [], []
@@ -95,7 +96,8 @@ def main():
                 )
                 again = profile.build_document(
                     reading.read_table(
-                        f"{text}", first_row=reading.FIRST_ROW_AUTOMATIC
+                        f"{text}", first_row=reading.FIRST_ROW_AUTOMATIC,
+                        small_cell_floor=1,
                     ),
                     taxonomy.Settings(small_cell_floor=1), [], [], [],
                 )["columns"][0]["role"]

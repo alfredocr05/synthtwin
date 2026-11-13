@@ -40,7 +40,7 @@ import pathlib
 import pytest
 
 import fixtures
-from synthtwin import errors, profile
+from synthtwin import errors, parsing, profile
 from synthtwin.cli import main
 
 PROFILE_TEXT = '{\n  "profile_version": 2,\n  "note": "PROFILE-DERIVED"\n}\n'
@@ -378,7 +378,7 @@ def test_the_command_prints_the_disk_state_and_then_the_memory_advice(
     table = fixtures.write(
         tmp_path,
         "clinic.csv",
-        fixtures.single_column_table("age", ["41"] * 30),
+        fixtures.single_column_table("age", ["41"] * parsing.POPULATION_FLOOR),
     )
     _first, second = _outputs(tmp_path)
     _break_the_write_of(
@@ -411,7 +411,7 @@ def test_the_command_names_a_working_file_it_could_not_remove(
     table = fixtures.write(
         tmp_path,
         "clinic.csv",
-        fixtures.single_column_table("age", ["41"] * 30),
+        fixtures.single_column_table("age", ["41"] * parsing.POPULATION_FLOOR),
     )
     first, second = _outputs(tmp_path)
     first_part = pathlib.Path(f"{first}{profile.PART_SUFFIX}-1")

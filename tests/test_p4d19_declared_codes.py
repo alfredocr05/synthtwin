@@ -46,7 +46,7 @@ def _described(
     table = fixtures.write(
         folder, "t.csv", fixtures.single_column_table(name, values)
     )
-    read = reading.read_table(f"{table}")
+    read = reading.read_table(f"{table}", small_cell_floor=floor)
     settings = taxonomy.Settings(small_cell_floor=floor)
     return profile.build_document(read, settings, [], codes or [])
 
@@ -204,7 +204,7 @@ def test_an_already_declared_column_is_not_asked_about() -> None:
     table = fixtures.write(
         folder, "t.csv", fixtures.single_column_table("col", values)
     )
-    read = reading.read_table(str(table))
+    read = reading.read_table(str(table), small_cell_floor=1)
     settings = taxonomy.Settings(small_cell_floor=1)
     document = profile.build_document(read, settings, [], ["col"])
     assert asking.questions_for(document, read.columns, settings, ["col"]) == []
@@ -229,7 +229,7 @@ def test_a_question_describes_the_shape_and_carries_no_value() -> None:
     table = fixtures.write(
         folder, "t.csv", fixtures.single_column_table("col", values)
     )
-    read = reading.read_table(str(table))
+    read = reading.read_table(str(table), small_cell_floor=1)
     settings = taxonomy.Settings(small_cell_floor=1)
     document = profile.build_document(read, settings, [], [])
     asked = asking.questions_for(document, read.columns, settings, [])

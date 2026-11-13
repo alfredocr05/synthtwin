@@ -39,7 +39,7 @@
 
 ## CORRECTED MATERIAL
 
-All paths are relative to the repo root "/Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin". Every element below is quoted from the line given. The arithmetic of all three check sets is confirmed: I found no document passing them that describes no table, and no legitimate document they refuse EXCEPT where noted as a conflict with the ratified plan. What follows is the report with its four governance defects, one arithmetic slip, one false gap and two bad citations repaired.
+All paths are relative to the repository root. Every element below is quoted from the line given. The arithmetic of all three check sets is confirmed: I found no document passing them that describes no table, and no legitimate document they refuse EXCEPT where noted as a conflict with the ratified plan. What follows is the report with its four governance defects, one arithmetic slip, one false gap and two bad citations repaired.
 
 =====================================================================
 CHECK SET (a) — fraction_widths against numeric_styles

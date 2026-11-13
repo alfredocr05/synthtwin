@@ -24,6 +24,7 @@ import tempfile
 
 import fixtures
 from synthtwin import (
+    asking,
     contract,
     generation,
     parsing,
@@ -249,8 +250,16 @@ def test_both_families_become_date_columns() -> None:
         block = document["columns"][0]
         assert block["role"] == "datetime", pattern
         assert block["format"] == member, pattern
-        assert block["earliest"] == "2024-01-01", pattern
-        assert block["latest"] == "2024-08-27", pattern
+        # THE COLUMN'S OWN DATES, READ BACK. The two instants this used
+        # to name -- `earliest` and `latest` -- are published nowhere
+        # since stage 3 (plan P4-D328); what stands at the outside of a
+        # column of dates is a tail a side, and its boundary is the
+        # smallest value with the publication floor's worth of cells
+        # below it. These days are one apart and all different, so that
+        # is the twelfth day and the twelfth from the end, and a family
+        # read wrongly puts neither of them on a date of 2024.
+        assert block["low_tail"]["boundary"] == f"{DAYS[11]}", pattern
+        assert block["high_tail"]["boundary"] == f"{DAYS[-12]}", pattern
         assert block["n_unparsed"] == 0, pattern
 
         twin = generation.generate(described, 3)
@@ -287,14 +296,44 @@ def test_a_version_identifier_is_not_a_dotted_date() -> None:
 
 
 def test_a_column_of_versions_stays_a_column_of_versions() -> None:
-    """The same finding, as the column a person would actually hold."""
-    values = [
+    """The same finding, as the column a person would actually hold.
+
+    LANDING R2a (plan P4-D383; the R2 design skeptic, M3) moved half of it.
+    The dotted MEMBERS still read padded cells alone, so the finding above
+    stands for them. The layout member reads an unpadded dotted date with
+    a four-figure year -- `15.4.2023` is the de-DE short date and the
+    Finnish default -- but only where that year lies in its band, 1800 to
+    2299: a column of versions whose last part is a build number past it
+    stays a column of versions. One whose builds are years of the band
+    spells dates, and nothing in its cells says which it is, so it is READ
+    as dates AND ASKED, as it was asked before R2a: the question offers the
+    codes and the record numbers it is (skeptic 1 of R2a, item 3, which
+    found it read as dates and asked only the order of its day and month).
+    """
+    builds = [
+        f"{major}.{minor}.4024"
+        for major in range(1, 4)
+        for minor in range(1, 13)
+    ] * 3
+    document, _loaded, _folder = _described(builds)
+    assert document["columns"][0]["role"] != "datetime"
+    years = [
         f"{major}.{minor}.2024"
         for major in range(1, 4)
         for minor in range(1, 13)
     ] * 3
-    document, _loaded, _folder = _described(values)
-    assert document["columns"][0]["role"] != "datetime"
+    document, _loaded, folder = _described(years)
+    assert document["columns"][0]["format"] == "layout {M}.{D}.{YYYY}"
+    table = reading.read_table(f"{folder / 'thing.csv'}")
+    asked, _split = asking.questions_and_splits_for(
+        document, table.columns, taxonomy.Settings(), []
+    )
+    answers = [
+        [choice.answer for choice in question.choices]
+        for question in asked
+        if question.name == "thing"
+    ]
+    assert answers and {"code", "identifier"} <= set(answers[0])
 
 
 def test_the_pivot_remark_states_a_range_and_not_a_distance() -> None:
@@ -345,9 +384,15 @@ def test_a_dotted_two_figure_year_is_a_date_and_not_a_quantity() -> None:
     block = document["columns"][0]
     assert block["role"] == "datetime", block["role"]
     assert block["format"] == "dotted-two-digit-day-first-date", block
-    # ...and the ends are real dates rather than day-and-month numbers.
-    assert block["earliest"].startswith("2024-"), block["earliest"]
-    assert block["latest"].startswith("2024-"), block["latest"]
+    # ...and the moments it publishes are real dates rather than
+    # day-and-month numbers. Since stage 3 those are the two tail
+    # boundaries (plan P4-D328), which is where the wrong reading showed
+    # itself: a column read as `19.08` wearing `.24` published no date
+    # anywhere.
+    low = block["low_tail"]["boundary"]
+    high = block["high_tail"]["boundary"]
+    assert low.startswith("2024-"), low
+    assert high.startswith("2024-"), high
 
 
 def test_the_dotted_two_figure_family_reads_only_its_own_spelling() -> None:

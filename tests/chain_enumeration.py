@@ -1,0 +1,849 @@
+"""K-S6-08's tables part: every description the chain's draw can publish, and its preimage, enumerated (plan P4-D418).
+
+WHAT IS COUNTED. On small fixtures at the floor of 11, never a scaled-down
+one, every whole-number table of the fixture's size is enumerated, every
+description the procedure of contract 4.6b can publish from it is listed
+(every ELIGIBLE option of every step, the draw's full support, 4.6b.4),
+and a description's PREIMAGE is every table from which some draw publishes
+it. A count LEAKS where, over the whole preimage of a description, it lies
+inside 1 to 10, fixed or bounded (rulings R1 and R3). A union that is a
+count of one column alone (a function of its own published facts) is
+accepted within one column (plan P4-D363) and skipped.
+
+WHAT DECIDES ELIGIBILITY. The product's own rules (`chain_rules`: RULES
+W3 and NE's offered levels, the floor, RULE W1 in full, the score), in an
+option model of three binary columns that mirrors the producer's search
+(`chain._root_options`, `chain._step_options`); `mirror_agrees` checks the
+mirror against the producer itself, option by option, on sampled tables.
+
+THE FIXTURES (BC-ARCH 2.7, as lane CHa stamps them):
+- the margin-set scan: three binary columns, n from 100 to 124, one-way
+  totals of each margin set at least 2f (the design's `n3d.py` sets);
+- RULE W1's part C, recast as a filter (`w1_recast.py`): a day count with
+  `n_zero` 6 inside its lowest band beside a post-op flag; the mutant is
+  the version 2.2 merge;
+- the two-keys pairs: two descriptions of ONE table (a stated limit,
+  reported and never passed);
+- different names: two tables under different names draw independent
+  words, so the pair's preimage is the product of the two single preimages
+  and leaks exactly where a single description does (passed at 0).
+"""
+
+import itertools
+import typing
+
+from synthtwin import chain_rules as rules
+
+F = 11
+
+# A cell of three binary columns (a, b, c) is a*4 + b*2 + c.
+CELLS = [(a, b, c) for a in (0, 1) for b in (0, 1) for c in (0, 1)]
+
+
+def binary_scale(name: str, low: int, high: int) -> rules.Ladder:
+    """A binary column's ladder: its two levels at every level."""
+    return rules.Ladder(name, ((("0",),), (("1",),)), ((0, 1), (0, 1), (0, 1)), (2, 2, 2), (low, high), (True, True))
+
+
+def tables_with_margins(n: int, a1: int, b1: int, c1: int) -> "list[tuple[int, ...]]":
+    """Every 2 x 2 x 2 table of whole numbers with these one-way totals of the value 1."""
+    out: "list[tuple[int, ...]]" = []
+    for t111 in range(0, min(a1, b1, c1) + 1):
+        for t110 in range(0, min(a1, b1) - t111 + 1):
+            for t101 in range(0, min(a1 - t111 - t110, c1 - t111) + 1):
+                t100 = a1 - t111 - t110 - t101
+                if t100 < 0:
+                    continue
+                for t011 in range(0, min(b1 - t111 - t110, c1 - t111 - t101) + 1):
+                    t010 = b1 - t111 - t110 - t011
+                    t001 = c1 - t111 - t101 - t011
+                    if t010 < 0 or t001 < 0:
+                        continue
+                    t000 = n - (t100 + t101 + t110 + t111 + t010 + t011 + t001)
+                    if t000 < 0:
+                        continue
+                    out += [(t000, t001, t010, t011, t100, t101, t110, t111)]
+    return out
+
+
+def margin(table: "tuple[int, ...]", parents: "tuple[int, ...]", child: int) -> "tuple[int, ...]":
+    """A family's complete table: rows the parents' joint cells (last fastest), columns the child's two bands."""
+    width = 1 << len(parents)
+    out = [0] * (width * 2)
+    for index in range(8):
+        cell = CELLS[index]
+        row = 0
+        for parent in parents:
+            row = row * 2 + cell[parent]
+        out[row * 2 + cell[child]] += table[index]
+    return tuple(out)
+
+
+def _floored(table: "tuple[int, ...]") -> bool:
+    return all(cell == 0 or cell >= F for cell in table)
+
+
+_OFFERED: "dict[tuple, object]" = {}
+
+
+def _offered_once(key: tuple, scales: "list[rules.Ladder]", start: "list[int]", order: "list[int]", margins: rules.ParentCells, n: int) -> "list[int] | None":
+    """W3 and NE's levels, kept by what they read (the members' totals and the anchor's table)."""
+    if key not in _OFFERED:
+        _OFFERED[key] = rules.offered_levels(scales, start, order, margins, n, F)
+    found = _OFFERED[key]
+    return found if isinstance(found, list) else None
+
+
+def options(table: "tuple[int, ...]", scales: "list[rules.Ladder]") -> "list[tuple]":
+    """Every description the draw can publish from one table: (root, step) pairs, in option order.
+
+    The root step: `no family`, then each pair (child later in schema order),
+    at every variant of W3 and NE's levels, each eligible where its table
+    passes the floor. The step: `no family` for the third column, then every
+    family whose parents lie in the root family (anchor the earliest family
+    holding them), at every variant. Binary bands are the same at every
+    level, so W1 (no small group) and WE (no blank cell) hold throughout.
+    """
+    n = sum(table)
+    out: "list[tuple]" = [("none",)]
+    names = [scale.column for scale in scales]
+    for child in range(3):
+        for parent in range(child):
+            margins = rules.parent_cells({names[parent]: scales[parent]}, (names[parent],), None)
+            offered = _offered_once(
+                ("root", child, parent, scales[child].totals, scales[parent].totals, n),
+                [scales[child], scales[parent]], [0, 0], [child, parent], margins, n,
+            )
+            if offered is None:
+                continue
+            root_table = margin(table, (parent,), child)
+            if not _floored(root_table):
+                continue
+            # A binary column's bands are one at every level, so each coarser
+            # variant publishes the same table and is eligible exactly where
+            # the offered levels are: the variants differ in their labels
+            # alone, which `canonical` drops, so the scan reads the offered
+            # levels (the producer offers every variant; `mirror_agrees`).
+            for root_levels in [tuple(offered)]:
+                roots = [
+                    rules.Family(names[parent], root_levels[1], (), None, scales[parent].totals),
+                    rules.Family(names[child], root_levels[0], ((names[parent], root_levels[1]),), 0, root_table),
+                ]
+                third = 3 - child - parent
+                steps: "list[tuple]" = [("none",)]
+                held = {names[parent]: (0, root_levels[1]), names[child]: (1, root_levels[0])}
+                for subset in ((parent,), (child,), tuple(sorted((parent, child)))):
+                    anchor_at = 0 if subset == (parent,) else 1
+                    anchor = roots[anchor_at]
+                    start = [0] + [held[names[one]][1] for one in subset]
+                    margins = rules.parent_cells({names[one]: scales[one] for one in range(3)}, tuple(names[one] for one in subset), anchor)
+                    offered_step = _offered_once(
+                        ("step", third, subset, tuple(start), anchor.table, tuple(scale.totals for scale in scales), n),
+                        [scales[third]] + [scales[one] for one in subset],
+                        start,
+                        [third] + list(subset),
+                        margins,
+                        n,
+                    )
+                    if offered_step is None:
+                        continue
+                    step_table = margin(table, subset, third)
+                    if not _floored(step_table):
+                        continue
+                    steps += [(subset, tuple(offered_step), anchor_at, step_table)]
+                for step in steps:
+                    out += [((child, parent, root_levels, root_table), step)]
+    return out
+
+
+def canonical(description: tuple) -> tuple:
+    """A description with its level labels dropped (a binary column's bands are one at every level)."""
+    if description == ("none",):
+        return description
+    root, step = description
+    child, parent, _levels, root_table = root
+    if step == ("none",):
+        return (child, parent, root_table, "none")
+    subset, _step_levels, _anchor, step_table = step
+    return (child, parent, root_table, subset, step_table)
+
+
+UNIONS = [tuple(i for i in range(8) if mask >> i & 1) for mask in range(1, 255)]
+
+
+def _one_column(union: "tuple[int, ...]") -> bool:
+    """A union that is every cell where one column takes one value: that column's own count."""
+    cells = set(union)
+    for column in range(3):
+        for value in (0, 1):
+            if cells == {i for i in range(8) if CELLS[i][column] == value}:
+                return True
+    return False
+
+
+CROSS_UNIONS = [union for union in UNIONS if not _one_column(union)]
+
+
+def leaking(tables: "list[tuple[int, ...]]") -> "tuple[int, ...] | None":
+    """A union whose count lies inside 1 to 10 on every table given, or None."""
+    survivors = None
+    for table in tables:
+        survivors = survive(survivors, table)
+        if not survivors:
+            return None
+    return min(survivors) if survivors else None
+
+
+def survive(survivors: "set[tuple[int, ...]] | None", table: "tuple[int, ...]") -> "set[tuple[int, ...]]":
+    """The cross-column unions still inside 1 to 10 after one more table of a preimage.
+
+    A union leaks only where its count lies inside 1 to 10 on EVERY table
+    of the preimage, so the set of unions that might leak only shrinks as
+    the tables stream past, and a description can be judged without its
+    preimage held.
+    """
+    candidates = CROSS_UNIONS if survivors is None else survivors
+    out: "set[tuple[int, ...]]" = set()
+    for union in candidates:
+        value = 0
+        for i in union:
+            value += table[i]
+        if 1 <= value <= F - 1:
+            out.add(union)
+    return out
+
+
+def margin_scan(sets: "list[tuple[int, int, int, int]]", pairs_on: int = 0) -> "dict[str, object]":
+    """The margin-set scan: tables, descriptions reachable, descriptions leaking, and the two-keys pairs.
+
+    Streams every table of each margin set past each description it can
+    publish (`survive`). The TWO-KEYS pairs (a stated limit) are streamed
+    the same way on the first `pairs_on` sets: each pair of descriptions
+    of one table, its preimage the tables from which both can be
+    published.
+    """
+    counts = {"margin_sets": len(sets), "tables": 0, "descriptions": 0, "descriptions_leaking": 0,
+              "two_key_sets": min(pairs_on, len(sets)), "two_key_pairs": 0, "two_key_pairs_leaking": 0}
+    for place in range(len(sets)):
+        n, a1, b1, c1 = sets[place]
+        scales = [binary_scale("a", n - a1, a1), binary_scale("b", n - b1, b1), binary_scale("c", n - c1, c1)]
+        single: "dict[tuple, set[tuple[int, ...]]]" = {}
+        paired: "dict[tuple, set[tuple[int, ...]]]" = {}
+        for table in tables_with_margins(n, a1, b1, c1):
+            counts["tables"] += 1
+            reached = sorted({canonical(description) for description in options(table, scales)}, key=repr)
+            for key in reached:
+                single[key] = survive(single[key] if key in single else None, table)
+            if place < pairs_on:
+                for first, second in itertools.combinations(reached, 2):
+                    pair = (first, second)
+                    paired[pair] = survive(paired[pair] if pair in paired else None, table)
+        counts["descriptions"] += len(single)
+        counts["descriptions_leaking"] += len([key for key in single if single[key]])
+        counts["two_key_pairs"] += len(paired)
+        counts["two_key_pairs_leaking"] += len([pair for pair in paired if paired[pair]])
+    return counts
+
+
+def scan_sets(n_low: int, n_high: int, count: int, seed: int) -> "list[tuple[int, int, int, int]]":
+    """The design's margin sets (`n3d.py`): n from `n_low` to `n_high`, each one-way total of the value 1 at least 2f."""
+    import random
+
+    sets: "list[tuple[int, int, int, int]]" = []
+    for n in range(n_low, n_high + 1):
+        for a1 in range(2 * F, n // 2 + 1):
+            for b1 in range(2 * F, n - 2 * F + 1):
+                for c1 in range(2 * F, n - 2 * F + 1):
+                    sets += [(n, a1, b1, c1)]
+    random.Random(seed).shuffle(sets)
+    return sets[:count]
+
+
+# -- RULE W1'S PART C, RECAST AS A FILTER (`w1_recast.py`) ------------------
+
+PART_C_BANDS = (25, 32, 40, 60)
+PART_C_ZERO = 6
+PART_C_FLAG = (79, 78)
+
+
+def part_c(variant: str) -> "dict[str, object]":
+    """Every table of the part-C example and every description the draw can publish from it.
+
+    `variant` "filter" reads RULE W1 as the product's eligibility filter
+    (`rules.w1_refusals` on the option placed); "merge" is the version 2.2
+    mutant, the band holding day 0 merged with its neighbour after the draw
+    until its row holds two non-zero cells.
+    """
+    n = sum(PART_C_BANDS)
+    day = rules.Ladder(
+        "day",
+        tuple(((f"B{at}",),) for at in range(4)),
+        ((0, 1, 2, 3), (0, 0, 0, 1), (0, 0, 0, 1)),
+        (4, 2, 2),
+        PART_C_BANDS,
+        (True, True, True, True),
+    )
+    flag = binary_scale("post", PART_C_FLAG[0], PART_C_FLAG[1])
+    scales = {"day": day, "post": flag}
+    groups = {"day": {0}}
+    preimage: "dict[tuple, list[tuple[int, ...]]]" = {}
+    tables = 0
+    for x1 in range(0, PART_C_BANDS[0] + 1):
+        for x2 in range(0, PART_C_BANDS[1] + 1):
+            for x3 in range(0, PART_C_BANDS[2] + 1):
+                x4 = PART_C_FLAG[1] - x1 - x2 - x3
+                if not 0 <= x4 <= PART_C_BANDS[3]:
+                    continue
+                for zeros_flagged in range(0, min(PART_C_ZERO, x1) + 1):
+                    if PART_C_BANDS[0] - x1 < PART_C_ZERO - zeros_flagged:
+                        continue
+                    tables += 1
+                    fine = (
+                        PART_C_ZERO - zeros_flagged,
+                        zeros_flagged,
+                        PART_C_BANDS[0] - x1 - (PART_C_ZERO - zeros_flagged),
+                        x1 - zeros_flagged,
+                        PART_C_BANDS[1] - x2,
+                        x2,
+                        PART_C_BANDS[2] - x3,
+                        x3,
+                        PART_C_BANDS[3] - x4,
+                        x4,
+                    )
+                    for key in _part_c_descriptions((x1, x2, x3, x4), day, flag, scales, groups, variant, n):
+                        if key not in preimage:
+                            preimage[key] = []
+                        preimage[key] += [fine]
+    leaks = 0
+    for key in preimage:
+        if _part_c_leak(preimage[key]):
+            leaks += 1
+    return {"tables": tables, "descriptions": len(preimage), "descriptions_leaking": leaks}
+
+
+def _part_c_descriptions(x, day, flag, scales, groups, variant, n):
+    out = [("none",)]
+    margins = rules.parent_cells(scales, ("day",), None)
+    offered = rules.offered_levels([flag, day], [0, 0], [1, 0], margins, n, F)
+    if offered is None:
+        return out
+    for levels in rules.variants_of(offered):
+        day_level = levels[1]
+        rows = rules.totals_at(day, day_level)
+        ones = [0] * len(rows)
+        for at in range(4):
+            ones[day.maps[day_level][at]] += x[at]
+        table = []
+        for row in range(len(rows)):
+            table += [rows[row] - ones[row], ones[row]]
+        if not all(cell == 0 or cell >= F for cell in table):
+            continue
+        families = [
+            rules.Family("day", day_level, (), None, tuple(rows)),
+            rules.Family("post", levels[0], (("day", day_level),), 0, tuple(table)),
+        ]
+        if variant == "filter":
+            if rules.w1_refusals(families, scales, groups):
+                continue
+            out += [("pair", levels, tuple(table))]
+        else:
+            band = day.maps[day_level][0]
+            if table[band * 2] and table[band * 2 + 1]:
+                out += [("pair", levels, tuple(table))]
+            else:
+                # The merge: the band holding day 0 joined with the one after it, shown as merged.
+                merged = list(table)
+                merged[band * 2] += merged[band * 2 + 2]
+                merged[band * 2 + 1] += merged[band * 2 + 3]
+                out += [("merged", levels, tuple(merged[: band * 2 + 2] + merged[band * 2 + 4 :]))]
+    return out
+
+
+def _part_c_leak(tables: "list[tuple[int, ...]]") -> bool:
+    """A cross-column union of the ten finest cells inside 1 to 10 on every table (day-only unions skipped)."""
+    zero = {i for i in range(10) if all(table[i] == 0 for table in tables)}
+    seen: "set[tuple[int, ...]]" = set()
+    for size in range(1, 11):
+        for union0 in itertools.combinations(range(10), size):
+            union = tuple(i for i in union0 if i not in zero)
+            if not union or union in seen:
+                continue
+            seen.add(union)
+            cells = set(union)
+            if all((2 * group in cells) == (2 * group + 1 in cells) for group in range(5)):
+                continue
+            inside = True
+            for table in tables:
+                value = sum(table[i] for i in union)
+                if value == 0 or value >= F:
+                    inside = False
+                    break
+            if inside:
+                return True
+    return False
+
+
+# -- RULE ONE_BAND'S READING (lane CHa2) -------------------------------------
+
+ONE_BAND_ROWS = (56, 14, 20)
+ONE_BAND_GROUP = 6
+ONE_BAND_FLAG = (45, 45)
+
+
+def one_band_ladder() -> rules.Ladder:
+    """A count column whose median is its lowest value, read by the product's own merge and RULE ONE_BAND.
+
+    Nought on 56 rows (`p25` and `p50` there), one on 14 (`p75`), and from
+    `p90` up 20 rows, six of them one value a published count names.
+    """
+    start = rules.Starting(
+        ((None, "p25"), ("p25", "p75"), ("p75", "p90"), ("p90", None)),
+        ((0, 1, 2, 3), (0, 1, 2, 3), (0, 1, 1, 1)),
+        (True, True, True, True),
+        False,
+        ("0", "1", "2"),
+    )
+    found = rules.merge_ladder("count", start, [0, *ONE_BAND_ROWS], F)
+    if found is None:
+        raise ValueError("the fixture holds rows")
+    return found
+
+
+def one_band(variant: str) -> "dict[str, object]":
+    """Every table of the fixture and every description the draw can publish from it.
+
+    `variant` "filter" reads RULE W1 as the product does, the column at
+    RULE ONE_BAND's `L2`; "old_level" is the mutant: the family is published
+    at the new `L2` and RULE W1 reads the column at the level the rule
+    replaced, one band, so the row holding the six rows is never read.
+    """
+    low, middle, high = ONE_BAND_ROWS
+    n = low + middle + high
+    day = one_band_ladder()
+    if day.maps[2] != (0, 1, 1):
+        raise ValueError("RULE ONE_BAND did not read the fixture's L2")
+    flag = binary_scale("post", ONE_BAND_FLAG[0], ONE_BAND_FLAG[1])
+    scales = {"count": day, "post": flag}
+    margins = rules.parent_cells(scales, ("count",), None)
+    offered = rules.offered_levels([flag, day], [0, 0], [1, 0], margins, n, F)
+    preimage: "dict[tuple, list[tuple[int, ...]]]" = {}
+    tables = 0
+    for x1 in range(0, low + 1):
+        for x2 in range(0, middle + 1):
+            x3 = ONE_BAND_FLAG[1] - x1 - x2
+            if not 0 <= x3 <= high:
+                continue
+            for group_flagged in range(0, min(ONE_BAND_GROUP, x3) + 1):
+                if high - x3 < ONE_BAND_GROUP - group_flagged:
+                    continue
+                tables += 1
+                fine = (
+                    low - x1,
+                    x1,
+                    middle - x2,
+                    x2,
+                    ONE_BAND_GROUP - group_flagged,
+                    group_flagged,
+                    high - x3 - (ONE_BAND_GROUP - group_flagged),
+                    x3 - group_flagged,
+                )
+                for key in _one_band_descriptions((x1, x2, x3), day, flag, scales, offered, variant, n):
+                    if key not in preimage:
+                        preimage[key] = []
+                    preimage[key] += [fine]
+    leaks = 0
+    for key in preimage:
+        if _fine_leak(preimage[key], 8, 4):
+            leaks += 1
+    return {"tables": tables, "descriptions": len(preimage), "descriptions_leaking": leaks}
+
+
+def _one_band_descriptions(x, day, flag, scales, offered, variant, n):
+    out = [("none",)]
+    if offered is None:
+        return out
+    for levels in rules.variants_of(offered):
+        day_level = levels[1]
+        rows = rules.totals_at(day, day_level)
+        ones = [0] * len(rows)
+        for at in range(3):
+            ones[day.maps[day_level][at]] += x[at]
+        table: "list[int]" = []
+        for row in range(len(rows)):
+            table += [rows[row] - ones[row], ones[row]]
+        if not all(cell == 0 or cell >= F for cell in table):
+            continue
+        if variant == "filter":
+            families = [
+                rules.Family("count", day_level, (), None, tuple(rows)),
+                rules.Family("post", levels[0], (("count", day_level),), 0, tuple(table)),
+            ]
+            if rules.w1_refusals(families, scales, {"count": {2}, "post": set()}):
+                continue
+        elif day.counts[day_level] == 2:
+            # The mutant: RULE W1 reads the level RULE ONE_BAND replaced, one band.
+            old = rules.Ladder("count", day.l0, ((0, 1, 2), day.maps[1], (0, 0, 0)), (3, day.counts[1], 1), day.totals, day.ordered)
+            one_row = (sum(table[0::2]), sum(table[1::2]))
+            families = [
+                rules.Family("count", 2, (), None, (n,)),
+                rules.Family("post", levels[0], (("count", 2),), 0, one_row),
+            ]
+            if rules.w1_refusals(families, {"count": old, "post": flag}, {"count": {2}, "post": set()}):
+                continue
+        out += [("pair", levels, tuple(table))]
+    return out
+
+
+def _fine_leak(tables: "list[tuple[int, ...]]", cells: int, groups: int) -> bool:
+    """A cross-column union of the finest cells (`groups` of the column by two of the flag) inside 1 to 10 on every table."""
+    survivors: "set[int] | None" = None
+    for table in tables:
+        candidates = range(1, 2**cells) if survivors is None else survivors
+        kept: "set[int]" = set()
+        for mask in candidates:
+            if all(((mask >> (2 * group)) & 1) == ((mask >> (2 * group + 1)) & 1) for group in range(groups)):
+                continue
+            value = 0
+            for i in range(cells):
+                if mask >> i & 1:
+                    value += table[i]
+            if 1 <= value <= F - 1:
+                kept.add(mask)
+        survivors = kept
+        if not survivors:
+            return False
+    return bool(survivors)
+
+
+# -- THE MIRROR AGAINST THE PRODUCER ----------------------------------------
+
+
+def mirror_agrees(table: "tuple[int, ...]", scales: "list[rules.Ladder]") -> bool:
+    """Whether the producer's own search reaches exactly the descriptions `options` lists.
+
+    The table's rows are laid out as the producer reads them (one byte a
+    row a level), and `chain._root_options` and `chain._step_options` are
+    asked every step, every eligible root placed in turn: the set of
+    descriptions they reach, level labels dropped, must equal the mirror's.
+    """
+    from synthtwin import chain
+
+    names = [scale.column for scale in scales]
+    rows: "list[tuple[int, int, int]]" = []
+    for index in range(8):
+        rows += [CELLS[index]] * table[index]
+    columns = {}
+    for place in range(3):
+        codes = bytes(row[place] for row in rows)
+        columns[names[place]] = chain.Column(names[place], scales[place], (codes, codes, codes), frozenset(), b"", 4, True, 0)
+    counts = {key: 0 for key in ("tables_counted", "candidates", "floor_refusals", "w1_refusals", "we_refusals", "eligible_options")}
+    search = chain._Search(
+        columns,
+        {names[place]: scales[place] for place in range(3)},
+        tuple(names),
+        {names[place]: place for place in range(3)},
+        sum(table),
+        F,
+        frozenset(),
+        (),
+        {},
+        counts,
+        {},
+        {},
+    )
+    index_of = {names[place]: place for place in range(3)}
+    reached: "set[tuple]" = set()
+    for root in chain._root_options(search, None, 0):
+        if not root.child:
+            reached.add(("none",))
+            continue
+        parent = root.parents[0]
+        placed = [
+            rules.Family(parent, root.levels[1], (), None, tuple(rules.totals_at(scales[index_of[parent]], root.levels[1]))),
+            rules.Family(root.child, root.levels[0], ((parent, root.levels[1]),), 0, root.table),
+        ]
+        head = (index_of[root.child], index_of[parent], root.table)
+        clamps = chain._clamps_of(search, placed, False)
+        for option in chain._step_options(search, placed, clamps, {}):
+            if not option.parents:
+                reached.add(head + ("none",))
+            else:
+                reached.add(head + (tuple(sorted(index_of[name] for name in option.parents)), option.table))
+    return reached == {canonical(description) for description in options(table, scales)}
+
+
+# -- THE OWN-FACT SOURCES W1 MISSED BEFORE REPAIR 1 (skeptic 1's item 1) ----
+
+
+def _slice_rows() -> "tuple[list[str], list[list[str]], tuple[str, str]]":
+    """600 all-different ages, gender F on every row of [p40, p50): each 1 % slice holds six rows."""
+    import random
+
+    draw = random.Random(5)
+    ages = sorted(20 + 0.01 * value for value in draw.sample(range(6000), 600))
+    rows = [[f"{ages[at]:.2f}", "F" if 240 <= at < 300 else draw.choice("FM")] for at in range(600)]
+    draw.shuffle(rows)
+    return ["age", "gender"], rows, ("p40", "p50")
+
+
+def _clock_rows() -> "tuple[list[str], list[list[str]], tuple[str, str]]":
+    """600 clocks; g = a on every row of [p25, p50), whose total less the census groups inside it is 1."""
+    import random
+
+    draw = random.Random(2)
+    clocks = [draw.randint(0, 1439) for _ in range(600)]
+    ordered = sorted(clocks)
+    # The type-7 readings of p25 and p50 at 600 rows (positions 149.75 and 299.5).
+    low = ordered[149] + (ordered[150] - ordered[149]) * 3 // 4
+    high = ordered[299] + (ordered[300] - ordered[299]) // 2
+    marks = random.Random(7)
+    plain = [marks.choice("ab") for _ in clocks]
+    rows = [[f"{c // 60:02d}:{c % 60:02d}", "a" if low <= c < high else plain[at]] for at, c in enumerate(clocks)]
+    return ["clock", "g"], rows, ("p25", "p50")
+
+
+def _heap_rows(heap: str) -> "tuple[list[str], list[list[str]], tuple[tuple[str, str], ...]]":
+    """501 ages all different but a published heap (a mode of twelve rows, or eleven noughts), gender F
+    on every row of [p75, p90): each 1 % slice there holds five rows (the combined verify's item 1)."""
+    import random
+
+    draw = random.Random(5)
+    distinct = sorted(20 + 0.01 * value for value in draw.sample(range(1, 6000), 490))
+    value = 0.0 if heap == "zero" else distinct[3]
+    ages = sorted(distinct + [value] * 11)
+    rows = [[f"{age}", "F" if 0.75 * 501 <= place < 0.90 * 501 else draw.choice("FM")] for place, age in enumerate(ages)]
+    draw.shuffle(rows)
+    return ["age", "gender"], rows, (("p75", "p80"), ("p80", "p90"))
+
+
+def own_fact_case(name: str, product: bool) -> "dict[str, int]":
+    """Every root option the draw can take on one fixture (two columns: the chain is its root
+    pair), and how many confine the band holding the fixture's own-fact group to one `L2` band of
+    the other column (RULE W1 read in full with the TRUE group). `product` False is the mutant:
+    the groups `chain.value_run_bands` reads on the column's own values left out; on the two heap
+    fixtures (repair 2), the single values a published count names left unread, so a rung one
+    row stands on beside the heap draws no cut (repair 1's rule)."""
+    import pathlib
+    import tempfile
+
+    from synthtwin import chain, profile, reading, taxonomy
+
+    band_names: "tuple[tuple[str, str], ...]"
+    if name.startswith("heap"):
+        header, rows, band_names = _heap_rows(name[4:])
+    else:
+        header, rows, band_name = _slice_rows() if name == "slice" else _clock_rows()
+        band_names = (band_name,)
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="chain-own-facts-"))
+    path = folder / f"{name}.csv"
+    path.write_text(",".join(header) + "\n" + "".join(",".join(row) + "\n" for row in rows), encoding="utf-8", newline="\n")
+    settings = taxonomy.Settings(small_cell_floor=F)
+    table = reading.read_table(str(path), small_cell_floor=F)
+    document = profile.build_document(table, settings, [], [], [])
+    seen: "list[object]" = []
+    original_options = chain._root_options
+    original_runs = chain.value_run_bands
+    original_points = chain._named_points
+
+    def recording(search, x0, room):  # type: ignore[no-untyped-def]
+        found = original_options(search, x0, room)
+        seen.extend([(option, search.scales) for option in found])
+        return found
+
+    try:
+        chain._root_options = recording  # type: ignore[assignment]
+        if not product and name.startswith("heap"):
+            chain._named_points = lambda *arguments: []  # type: ignore[assignment]
+        elif not product:
+            chain.value_run_bands = lambda *arguments: set()  # type: ignore[assignment]
+        chain.describe(table, document, settings, chain.ChainSwitch(name, bytes(32), rows_per_person=chain.ROWS_UNASKED))
+    finally:
+        chain._root_options = original_options  # type: ignore[assignment]
+        chain.value_run_bands = original_runs  # type: ignore[assignment]
+        chain._named_points = original_points  # type: ignore[assignment]
+        path.unlink()
+        folder.rmdir()
+    column = header[0]
+    options = 0
+    confining = 0
+    for option, scales in seen:
+        if not option.child:  # type: ignore[attr-defined]
+            continue
+        options += 1
+        ladder = scales[column]
+        group = [at for at in range(len(ladder.l0)) if any(isinstance(one, tuple) and one in band_names for one in ladder.l0[at])]
+        parent = option.parents[0]  # type: ignore[attr-defined]
+        placed = [
+            rules.Family(parent, option.levels[1], (), None, tuple(rules.totals_at(scales[parent], option.levels[1]))),  # type: ignore[attr-defined]
+            rules.Family(option.child, option.levels[0], ((parent, option.levels[1]),), 0, option.table),  # type: ignore[attr-defined]
+        ]
+        if rules.w1_refusals(placed, scales, {column: set(group), header[1]: set()}):
+            confining += 1
+    return {"options": options, "confining": confining}
+
+
+def own_fact_sources() -> "dict[str, int]":
+    """K-S6-08's own-fact fixtures, the product and its mutant: the slice and the clock (no group
+    read on the values), and the one-row rung beside a heap, mode and nought (the named values
+    unread; repair 2)."""
+    out = {"own_fact_options": 0, "own_fact_confining": 0, "own_fact_mutant_confining": 0}
+    for name in ("slice", "clock", "heapmode", "heapzero"):
+        found = own_fact_case(name, True)
+        mutant = own_fact_case(name, False)
+        out["own_fact_options"] += found["options"]
+        out["own_fact_confining"] += found["confining"]
+        out["own_fact_mutant_confining"] += mutant["confining"]
+    return out
+
+
+# -- K-S6-08's RULE CLAUSE (contract 4.6b.7, MR.6 (f); lane RO, plan P4-D459) ------------------
+#
+# A derived order rule `A <= B` carried by `D = B - A`, its eligibility, level and class decided by
+# the PRODUCT's own functions (`chain_rules.derived_levels`, `derived_totals`, `class_of`,
+# `derived_option_refusal`): `A` in `a_count` bands, each its own reading, or absent; `D`'s readings
+# over `values` or absent; every whole-number table of `n` rows. A DESCRIPTION is the level's name
+# and edges, the family `{D | A}`'s complete table (with `A`'s absent row) and the class; its
+# preimage every table publishing it. A union of raw cells LEAKS where its count lies inside 1 to
+# `f - 1` in every table of the preimage (the page's `derived3` leg, at the product's functions).
+
+
+def _compositions(total: int, cells: int) -> "typing.Iterator[tuple[int, ...]]":
+    """Every tuple of `cells` whole numbers summing to `total`, in a fixed order."""
+    if cells == 1:
+        yield (total,)
+        return
+    for first in range(total + 1):
+        for rest in _compositions(total - first, cells - 1):
+            yield (first,) + rest
+
+
+def _leaks(keys: "dict[object, set[tuple[int, ...]]]", f: int) -> "tuple[int, int]":
+    """(unions judged, leaking unions) over every description's preimage."""
+    judged = 0
+    leaking = 0
+    for rows_of in keys.values():
+        rows = list(rows_of)
+        size = len(rows[0])
+        judged += (1 << size) - 1
+        tops = [max(row[cell] for row in rows) for cell in range(size)]
+        small = [cell for cell in range(size) if 0 < tops[cell] <= f - 1]
+        if not small:
+            continue
+        seen = {tuple(row[cell] for cell in small) for row in rows}
+        if tuple(0 for _cell in small) in seen:
+            continue
+        for width in range(1, len(small) + 1):
+            for picks in itertools.combinations(range(len(small)), width):
+                low = min(sum(vector[pick] for pick in picks) for vector in seen)
+                high = max(sum(vector[pick] for pick in picks) for vector in seen)
+                if low >= 1 and high <= f - 1:
+                    leaking += 1
+    return judged, leaking
+
+
+def rules_derived_leg(n: int = 12, f: int = 3, limit: int = 4, mutant: str = "", values: "tuple[int, ...]" = (-1, 0, 1, 2)) -> "dict[str, int]":
+    """The derived order rule's leg through the product's functions; `mutant` is '', 'exact' (the exact
+    count under `f` published), 'rule3' (rule 3 off) or 'rule1' (the first text's rule 1, its bound alone)."""
+    from fractions import Fraction
+
+    a_count = 2
+    width = len(values)
+    keys: "dict[object, set[tuple[int, ...]]]" = {}
+    tables = 0
+    placements = 0
+    original_refusal = rules.derived_option_refusal
+    original_rule_one = rules.rule_one_refusal
+
+    def no_rule3(level, totals, table, missing_rows, missing_alone, group_rows, klass, step, floor):  # type: ignore[no-untyped-def]
+        refused = original_refusal(level, totals, table, missing_rows, missing_alone, group_rows, klass, step, floor)
+        return None if refused is not None and refused.startswith("rule 3") else refused
+
+    def first_rule_one(totals, percents, floor):  # type: ignore[no-untyped-def]
+        bound = rules.derived_band_bound(floor)
+        return None if sum(totals) and all(total >= bound for total in totals) else "rule 1"
+
+    if mutant == "rule3":
+        rules.derived_option_refusal = no_rule3  # type: ignore[assignment]
+    if mutant == "rule1":
+        rules.rule_one_refusal = first_rule_one  # type: ignore[assignment]
+    try:
+        for table in _compositions(n, a_count * width + a_count + 1):
+            tables += 1
+            absent = table[-1]
+            if 0 < absent < f:
+                continue
+            a_rows = [table[a * width : (a + 1) * width] for a in range(a_count)]
+            gone = table[a_count * width : a_count * width + a_count]
+            if any(0 < sum(a_rows[a]) + gone[a] < f for a in range(a_count)):
+                continue
+            histogram = [(Fraction(values[at]), sum(a_rows[a][at] for a in range(a_count))) for at in range(width)]
+            histogram = [pair for pair in histogram if pair[1]]
+            if not histogram:
+                continue
+            v = sum(rows for value, rows in histogram if value < 0)
+            if v > limit:
+                continue
+            readings = sum(sum(a_rows[a]) + gone[a] for a in range(a_count))
+            klass = rules.class_of(v, readings, f, limit, False)
+            if mutant == "exact" and v < f:
+                klass = v
+            for name, percents, edges in rules.derived_levels(histogram):
+                totals = rules.derived_totals(edges, histogram)
+                bands = len(edges) + 1
+                family: "list[list[int]]" = []
+                for a in range(a_count):
+                    line = [0] * (bands + 1)
+                    for at in range(width):
+                        line[rules.derived_band_of(edges, Fraction(values[at]))] += a_rows[a][at]
+                    line[bands] = gone[a]
+                    family += [line]
+                spread: "set[int]" = set()
+                if absent:
+                    family += [[0] * bands + [absent]]
+                    spread = {a_count}
+                refused = rules.derived_option_refusal(
+                    (name, percents, edges), totals, family, spread, True, set(), klass if mutant != "exact" or v >= f else rules.CLASS_PHRASE, Fraction(1), f,
+                )
+                if refused is not None:
+                    continue
+                placements += 1
+                key = (name, tuple(edges), tuple(tuple(line) for line in family), klass)
+                keys.setdefault(key, set()).add(table)
+    finally:
+        rules.derived_option_refusal = original_refusal  # type: ignore[assignment]
+        rules.rule_one_refusal = original_rule_one  # type: ignore[assignment]
+    judged, leaking = _leaks(keys, f)
+    return {"tables": tables, "placements": placements, "descriptions": len(keys), "unions": judged, "leaking": leaking}
+
+
+# -- K-S6-08's RULE CLAUSE, MR.2's table of number forms (lane RO's repair 2) ----------------------------
+#
+# One fixture a number form of MR.2's table, `42.` + 1 written `43.` among them: the PRODUCT's writer
+# (`chain_walk.written_sum`, `parsing.with_negative_notation`, `chain_walk.written_form`) against the
+# oracle's frozen vectors (`tests/reference/chain-oracle-vectors.json`, A-P4-59).
+
+
+def rules_forms_leg(vectors: "dict[str, typing.Any]", point: bool = True) -> "dict[str, int]":
+    """Each form checked and those the product writes otherwise than the oracle; `point` False is the
+    mutant that drops the point after figures holding no places."""
+    from synthtwin import chain_walk, parsing
+
+    def summed(value: int, places: int, style: str, pad: int, group: str, ends: bool = False, negative: str = "minus") -> str:
+        return parsing.with_negative_notation(chain_walk.written_sum(value, places, style, pad, group, ends and point), negative)
+
+    product = [
+        summed(43, 0, "plain", 0, ""), summed(142, 2, "decimal", 0, ""), summed(43, 0, "leading_plus", 0, ""),
+        summed(43, 0, "leading_zero", 5, ""), summed(1043, 0, "plain", 0, ","), summed(-5, 0, "leading_plus", 0, ""),
+        summed(-25, 1, "decimal", 0, ""),
+        chain_walk.written_form(summed(123456, 2, "decimal", 0, ","), True, None, None),
+        chain_walk.written_form(summed(1769, 0, "plain", 0, ""), False, "", " mg"),
+        chain_walk.written_form(summed(-25, 1, "decimal", 0, ""), True, "$ ", ""),
+        chain_walk.written_form(summed(43, 0, "leading_zero", 5, ""), False, None, None),
+        summed(43, 0, "plain", 0, "", True), summed(-43, 0, "plain", 0, "", True, "brackets"),
+        summed(-125, 2, "decimal", 0, "", False, "brackets"), summed(-125, 2, "decimal", 0, "", False, "trailing_minus"),
+        summed(-43, 0, "plain", 0, "", False, "trailing_minus"), summed(-43, 0, "plain", 0, "", False, "minus_sign"),
+        summed(425, 2, "decimal", 0, "", True),
+    ]
+    chain = vectors["chain"]
+    oracle = list(chain["rules_written"]["forms"]) + list(chain["rules_forms"]["forms"]) + list(chain["rules_repair2"]["forms"])
+    return {"checked": len(oracle), "off": sum(1 for written, wanted in zip(product, oracle) if written != wanted) + abs(len(product) - len(oracle))}

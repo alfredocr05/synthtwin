@@ -1,0 +1,3101 @@
+"""The chain's oracle in exact arithmetic (lane CHo): contract 4.6b and method G16, from the page alone.
+
+WHAT THIS IS. An independent reading of `docs/spec/profile-contract-v6.md`
+section 4.6b (the chain of floored family tables) and
+`docs/spec/generation-method-v1.md` G16 (the walk that deals them),
+written from those pages and from nothing else: lane CHa's and lane
+CHb's code is not read. It imports neither synthtwin, nor numpy, nor
+pandas, nor a solver, and every decision it takes is made in Python
+integers or exact fractions.
+
+WHERE THE PAGES ASK FOR BINARY64. Two rules are stated on binary64
+arithmetic: RULE W5's stated exponential and running weight sums
+(contract 4.6b.4) and the walk's latent order `L` (G16.2 step 2). Each
+correctly rounded binary64 operation is EMULATED here: the exact result
+is formed as a fraction and rounded to the nearest binary64 value, ties
+to the even significand, by `b64`. That is the definition of a correctly
+rounded operation, so the emulation gives the bits CPython gives on
+every machine, and no Python float is formed (the test file scans this
+module for float literals and float calls).
+
+WHAT IS COVERED (the case list of the design's 10.3, plan P4-D421):
+each column's ladder and band codes with the `L0` merge (4.6b.2); a pair's table and
+its implied table with the dealing spread (V12.2); a family's complete
+table (4.6b.5); the score `u = X2 - df` (4.6b.3); RULES W3 and NE and
+their variants; the floor; RULE W1 read at the other column's coarsest
+level, member by member and across the chain; RULE WE's cell bound; the
+draw of RULE W5 for a given key; the walk (G16.2), the moved target
+(G16.6) and a carried order rule's computed column (G16.2 step 5).
+
+WHAT IS NOT. Row 9's one test for a carried rule (lane CHa's case),
+the patient layer (G16.13), the polish (G17.8) and the triple screen's
+seeds (an input here, never computed).
+"""
+
+import fractions
+import hashlib
+import itertools
+import json
+
+F = fractions.Fraction
+
+DEFAULT_FLOOR = 11
+K_MAX = 3
+LEVELS = (0, 1, 2)
+
+# --- binary64, emulated in exact arithmetic -----------------------------
+
+_TWO52 = 1 << 52
+_TWO53 = 1 << 53
+
+
+def _scaled(numerator, denominator, exponent):
+    """The fraction numerator / denominator divided by 2 ** exponent."""
+    if exponent >= 0:
+        return F(numerator, denominator << exponent)
+    return F(numerator << -exponent, denominator)
+
+
+def b64(value):
+    """The binary64 value nearest `value`, ties to the even significand, as a fraction.
+
+    Raises OverflowError past the largest finite binary64. Subnormal
+    results round on the grid of 2 ** -1074, as IEEE 754 does.
+    """
+    q = F(value)
+    if q == 0:
+        return F(0)
+    negative = q < 0
+    a = -q if negative else q
+    n, d = a.numerator, a.denominator
+    e = n.bit_length() - d.bit_length() - 53
+    m = _scaled(n, d, e)
+    while m >= _TWO53:
+        e += 1
+        m = _scaled(n, d, e)
+    while m < _TWO52:
+        e -= 1
+        m = _scaled(n, d, e)
+    if e < -1074:
+        e = -1074
+        m = _scaled(n, d, e)
+    whole = m.numerator // m.denominator
+    rest = m - whole
+    if rest > F(1, 2) or (rest == F(1, 2) and whole % 2 == 1):
+        whole += 1
+    if whole == _TWO53:
+        whole = _TWO52
+        e += 1
+    if e > 971:
+        raise OverflowError("past the largest finite binary64")
+    out = F(whole) * (F(2) ** e)
+    return -out if negative else out
+
+
+def b64_hex(value):
+    """The form Python's `float.hex` prints for a binary64 value held as a fraction."""
+    x = F(value)
+    if b64(x) != x:
+        raise ValueError("not a binary64 value")
+    if x == 0:
+        return "0x0.0p+0"
+    sign = "-" if x < 0 else ""
+    a = abs(x)
+    exponent = (a.numerator.bit_length() - a.denominator.bit_length())
+    while F(2) ** exponent > a:
+        exponent -= 1
+    while F(2) ** (exponent + 1) <= a:
+        exponent += 1
+    if exponent < -1022:
+        fraction = a / (F(2) ** -1022)
+        lead = 0
+        exponent = -1022
+    else:
+        fraction = a / (F(2) ** exponent)
+        lead = 1
+    tail = (fraction - lead) * _TWO52
+    if tail.denominator != 1:
+        raise ValueError("not a binary64 value")
+    return "%s0x%d.%013xp%+d" % (sign, lead, tail.numerator, exponent)
+
+
+def from_hex(text):
+    """The exact value of a C99 hexadecimal floating constant, `0x1.71547652b82fep0`."""
+    body = text.lower()
+    negative = body.startswith("-")
+    body = body.lstrip("+-")
+    if not body.startswith("0x"):
+        raise ValueError("a hexadecimal constant starts 0x")
+    mantissa, _, power = body[2:].partition("p")
+    whole, _, digits = mantissa.partition(".")
+    value = F(int(whole or "0", 16))
+    if digits:
+        value += F(int(digits, 16), 16 ** len(digits))
+    value *= F(2) ** int(power or "0")
+    return -value if negative else value
+
+
+def b64_add(a, b):
+    return b64(F(a) + F(b))
+
+
+def b64_sub(a, b):
+    return b64(F(a) - F(b))
+
+
+def b64_mul(a, b):
+    return b64(F(a) * F(b))
+
+
+def b64_div(a, b):
+    return b64(F(a) / F(b))
+
+
+def b64_floor(a):
+    """`floor` of a binary64 value: an exact whole number."""
+    x = F(a)
+    return x.numerator // x.denominator
+
+
+def b64_ldexp(a, power):
+    """`ldexp(a, power)`, rounded once as C's ldexp rounds a subnormal result."""
+    return b64(F(a) * (F(2) ** power))
+
+
+# --- RULE W5's stated exponential (contract 4.6b.4) ---------------------
+
+LOG2E = from_hex("0x1.71547652b82fep0")
+LN2 = from_hex("0x1.62e42fefa39efp-1")
+
+
+def _taylor_coefficients():
+    out = []
+    factorial = 1
+    for k in range(14):
+        if k:
+            factorial *= k
+        out += [b64(F((-LN2) ** k) / factorial)]
+    return tuple(out)
+
+
+COEFFICIENTS = _taylor_coefficients()
+
+
+def stated_exponential(gap):
+    """`E(y)` of contract 4.6b.4 for `y = gap` (an exact fraction at least nought).
+
+    `y` is the binary64 nearest the gap; `t = y * LOG2E`; `j = floor(t)`
+    and `r = t - j`; `p(r)` by Horner's rule from `c13` down to `c0`;
+    `E = ldexp(p(r), -j)`, exactly nought where `j` exceeds 1074. Each
+    step is one correctly rounded binary64 operation.
+    """
+    y = b64(gap)
+    if y < 0:
+        raise ValueError("the stated exponential reads gaps of at least nought")
+    t = b64_mul(y, LOG2E)
+    j = b64_floor(t)
+    r = b64_sub(t, j)
+    acc = COEFFICIENTS[13]
+    for k in range(12, -1, -1):
+        acc = b64_add(COEFFICIENTS[k], b64_mul(r, acc))
+    if j > 1074:
+        return F(0)
+    return b64_ldexp(acc, -j)
+
+
+# --- the word and the choice (contract 4.6b.4) ---------------------------
+
+PERSON_DRAW = b"synthtwin.draw.1"
+PERSON_FINGERPRINT = b"synthtwin.kfp.1"
+
+
+def word(key, name, kind, index, columns):
+    """Step `index`'s 16-byte word: keyed BLAKE2b over `[name, kind, index, columns]`."""
+    payload = json.dumps([name, kind, index, list(columns)], separators=(",", ":"), ensure_ascii=False)
+    return hashlib.blake2b(payload.encode("utf-8"), key=key, digest_size=16, person=PERSON_DRAW).digest()
+
+
+def fingerprint(key):
+    """The key's fingerprint: keyed BLAKE2b of `b"key fingerprint"`, 8 bytes, its own domain."""
+    return hashlib.blake2b(b"key fingerprint", key=key, digest_size=8, person=PERSON_FINGERPRINT).digest()
+
+
+def choose(word_bytes, scores, tau):
+    """The option RULE W5 places, by its place among the eligible options.
+
+    `scores` are the eligible options' raised scores `v_i` (exact
+    fractions) in option order; `tau` the temperature. Returns `(place,
+    how, weights)`: `how` is "uniform" where the word's top 30 bits are
+    clear, else "weighted"; `weights` the stated exponentials.
+    """
+    m = len(scores)
+    if m == 0:
+        raise ValueError("a step always has an eligible option")
+    u1 = int.from_bytes(word_bytes[:8], "big")
+    u2 = int.from_bytes(word_bytes[8:], "big")
+    top = max(scores)
+    weights = [stated_exponential((top - v) / F(tau)) for v in scores]
+    if u1 >> 34 == 0:
+        return (u2 * m) >> 64, "uniform", weights
+    running = []
+    acc = F(0)
+    for w in weights:
+        acc = b64_add(acc, w)
+        running += [acc]
+    total = running[-1]
+    threshold = b64_mul(b64_mul(u2 >> 11, F(1, 1 << 53)), total)
+    for place, s in enumerate(running):
+        if s > threshold:
+            return place, "weighted", weights
+    for place in range(m - 1, -1, -1):
+        if weights[place] > 0:
+            return place, "weighted", weights
+    return m - 1, "weighted", weights
+
+
+# --- each column's ladder (contract 4.6b.2) -------------------------------------------
+
+NUMBER_L0 = ("p10", "p20", "p25", "p30", "p40", "p50", "p60", "p70", "p75", "p80", "p90")
+# A date's and a clock's `L0` edges are the nine interior rungs of their
+# eleven-rung ladder (contract 4.6b.2's table; section 5.6), read on the
+# column's own ordinal: `p01` and `p05` below `p10`, `p95` and `p99`
+# above `p90`, and no `p20` to `p80` deciles, which neither ladder has.
+TEMPORAL_L0 = ("p01", "p05", "p10", "p25", "p50", "p75", "p90", "p95", "p99")
+NUMBER_ROLES = ("count", "continuous", "affixed_number", "joined_numbers", "numbers_with_labels")
+TEMPORAL_ROLES = ("datetime", "time_of_day")
+NUMBER_L1 = ("p25", "p50", "p75", "p90")
+NUMBER_L2 = ("p50",)
+SPREAD_ORDER = ("other", "labels", "missing")
+
+
+class Ladder:
+    """One eligible column's three nested levels over the tabled rows.
+
+    `l0` lists the `L0` bands in band order, each a list of the starting
+    bands it joins (`"missing"`, `"other"`, `"labels"`, a value range
+    `(lower_key, upper_key)` with None where open, or a level name).
+    `totals` are the `L0` totals; `l1` and `l2` list each coarser band as
+    a list of `L0` band indices; `row_l0` is each row's `L0` band;
+    `taken_in` lists the `L0` bands that took in a sub-band of 1 to
+    `f - 1` rows (an own-fact group for RULE W1).
+    """
+
+    def __init__(self, name, role, l0, totals, l1, l2, row_l0, taken_in, ordered, position=0):
+        self.name = name
+        self.position = position
+        self.role = role
+        self.l0 = l0
+        self.totals = totals
+        self.l1 = l1
+        self.l2 = l2
+        self.row_l0 = row_l0
+        self.taken_in = taken_in
+        self.ordered = ordered
+
+    def bands(self, level):
+        """The bands of a level, each a list of `L0` band indices."""
+        if level == 0:
+            return [[i] for i in range(len(self.l0))]
+        return self.l1 if level == 1 else self.l2
+
+    def coarsen(self, level):
+        """The map from each `L0` band to its band at `level`."""
+        out = {}
+        for b, members in enumerate(self.bands(level)):
+            for i in members:
+                out[i] = b
+        return out
+
+    def codes(self, level):
+        """Each row's band at `level` (its band code, G16.1)."""
+        to = self.coarsen(level)
+        return [to[i] for i in self.row_l0]
+
+    def band_totals(self, level):
+        return [sum(self.totals[i] for i in members) for members in self.bands(level)]
+
+    def as_dict(self):
+        return {
+            "column": self.name,
+            "l0": [[list(s) if isinstance(s, tuple) else s for s in band] for band in self.l0],
+            "l1": self.l1,
+            "l2": self.l2,
+            "totals": self.totals,
+            "taken_in": self.taken_in,
+        }
+
+
+def _number_edges(rungs, keys):
+    """The rung keys that are edges: published, not null, the lowest percent where tied."""
+    out = []
+    held = set()
+    for key in keys:
+        value = rungs.get(key)
+        if value is None:
+            continue
+        value = F(value)
+        if value in held:
+            continue
+        held.add(value)
+        out += [(key, value)]
+    return out
+
+
+def _cell_kind(cell):
+    return cell[0]
+
+
+def ladder_of(name, role, cells, rungs=None, levels=None, floor=DEFAULT_FLOOR, position=0):
+    """The ladder of one eligible column, from its published facts and its cells.
+
+    `cells` lists, for each tabled row in row order, `("value", x)` (a
+    reading, an exact fraction), `("level", name)` (a published level),
+    `("held",)` (a level of the held-back pool), `("missing",)`,
+    `("other",)` or `("labels",)`. Number columns pass their published
+    `rungs` (keys `p10` ... `p90`, `p25`, `p75`: `NUMBER_L0`); a date
+    (`datetime`) or clock (`time_of_day`) column passes the nine interior
+    rungs of its ladder, `p01`, `p05`, `p10`, `p25`, `p50`, `p75`, `p90`,
+    `p95` and `p99` (`TEMPORAL_L0`), each read on its own ordinal and
+    its cells' readings on the same ordinal; label columns (`binary`, `categorical`,
+    `long_tail_labels`, `constant`) pass their published `levels` as
+    `(name, count)` in published order. A DERIVED column of a carried
+    rule (contract 4.6b.7, role `derived` here) passes the bands of the
+    ONE level its family `{D | A}` publishes as its `levels`; that level
+    is all three of its levels, so RULE W1 reads it as its coarsest.
+    """
+    label_role = role in ("binary", "categorical", "long_tail_labels", "constant", "derived")
+    if not label_role and role not in NUMBER_ROLES + TEMPORAL_ROLES:
+        raise ValueError("a role contract 4.6b.2's table does not list: %r" % (role,))
+    starting = []
+    if label_role:
+        for kind in ("missing",):
+            if any(_cell_kind(c) == kind for c in cells):
+                starting += [kind]
+        for level, _ in levels:
+            starting += [("level", level)]
+        if any(_cell_kind(c) == "held" for c in cells):
+            starting += [("level", "held back")]
+    else:
+        for kind in SPREAD_ORDER:
+            if any(_cell_kind(c) == kind for c in cells):
+                starting += [kind]
+        edges = _number_edges(rungs, TEMPORAL_L0 if role in TEMPORAL_ROLES else NUMBER_L0)
+        bounds = [None] + [k for k, _ in edges] + [None]
+        for i in range(len(bounds) - 1):
+            starting += [("range", bounds[i], bounds[i + 1])]
+        values = {k: v for k, v in edges}
+
+    def start_of(cell):
+        kind = cell[0]
+        if kind in ("missing", "other", "labels"):
+            return starting.index(kind)
+        if kind == "level":
+            return starting.index(("level", cell[1]))
+        if kind == "held":
+            return starting.index(("level", "held back"))
+        x = F(cell[1])
+        for i, s in enumerate(starting):
+            if isinstance(s, tuple) and s[0] == "range":
+                low = values[s[1]] if s[1] is not None else None
+                high = values[s[2]] if s[2] is not None else None
+                if (low is None or low <= x) and (high is None or x < high):
+                    return i
+        raise ValueError("a reading lies in no band")
+
+    row_start = [start_of(c) for c in cells]
+    counts = [0] * len(starting)
+    for s in row_start:
+        counts[s] += 1
+    groups = [[i] for i in range(len(starting))]
+    # A band holding no row is dropped; a value band so dropped joins the
+    # band above it (its upper edge stops being an edge), the top one the
+    # band below.
+    def size(group):
+        return sum(counts[i] for i in group)
+
+    def is_value(i):
+        return isinstance(starting[i], tuple)
+
+    changed = True
+    while changed:
+        changed = False
+        for at, group in enumerate(groups):
+            if size(group) == 0:
+                if label_role or not all(is_value(i) for i in group):
+                    groups = groups[:at] + groups[at + 1:]
+                else:
+                    later = [j for j in range(at + 1, len(groups)) if any(is_value(i) for i in groups[j])]
+                    earlier = [j for j in range(at) if any(is_value(i) for i in groups[j])]
+                    if later:
+                        j = later[0]
+                        groups[j] = group + groups[j]
+                        groups = groups[:at] + groups[at + 1:]
+                    elif earlier:
+                        j = earlier[-1]
+                        groups[j] = groups[j] + group
+                        groups = groups[:at] + groups[at + 1:]
+                    else:
+                        groups = groups[:at] + groups[at + 1:]
+                changed = True
+                break
+    taken = []
+    # The merge: while some band holds 1 to f - 1 rows, it joins a
+    # neighbour (a number column: the neighbour in band order holding
+    # fewer rows, ties to the earlier; a label column: the two smallest
+    # bands, `missing` counting as one, ties to the earlier).
+    while True:
+        small = [at for at, g in enumerate(groups) if 1 <= size(g) <= floor - 1]
+        if not small or len(groups) < 2:
+            break
+        if label_role:
+            order = sorted(range(len(groups)), key=lambda at: (size(groups[at]), at))
+            a, b = sorted(order[:2])
+            smaller = order[0]
+        else:
+            a = small[0]
+            if a == 0:
+                b = 1
+            elif a == len(groups) - 1:
+                b = a - 1
+            else:
+                b = a - 1 if size(groups[a - 1]) <= size(groups[a + 1]) else a + 1
+            smaller = a
+            a, b = min(a, b), max(a, b)
+        taken += [(groups[smaller], size(groups[smaller]))]
+        groups = groups[:a] + [groups[a] + groups[b]] + groups[a + 1:b] + groups[b + 1:]
+    l0 = [[starting[i] for i in sorted(g)] for g in groups]
+    where = {}
+    for at, g in enumerate(groups):
+        for i in g:
+            where[i] = at
+    row_l0 = [where[s] for s in row_start]
+    totals = [0] * len(groups)
+    for b in row_l0:
+        totals[b] += 1
+    taken_in = sorted({where[g[0]] for g, _ in taken})
+    ordered = [any(isinstance(s, tuple) for s in band) for band in l0]
+    if role in ("binary", "constant", "derived"):
+        l1 = [[i] for i in range(len(l0))]
+        l2 = [[i] for i in range(len(l0))]
+    elif label_role:
+        l1, l2 = _label_levels(l0, levels)
+    else:
+        l1 = _number_level(l0, starting, _named_edges(NUMBER_L1, rungs, edges))
+        l2 = _one_band(l0, totals, l1, _number_level(l0, starting, _named_edges(NUMBER_L2, rungs, edges)))
+    return Ladder(name, role, l0, totals, l1, l2, row_l0, taken_in, ordered, position)
+
+
+def _number_level(l0, starting, keys):
+    """A coarser level of a number column, read through `L0`.
+
+    Its edges are the keys that are still edges of `L0` (an edge the
+    merge removed is removed here too); each band is the run of `L0`
+    bands between two of them. A spread band of `L0` holding no value
+    band stays a band of its own.
+    """
+    still = set()
+    for band in l0:
+        ranges = [s for s in band if isinstance(s, tuple)]
+        if ranges:
+            still.add(ranges[0][1])
+    edges = [k for k in keys if k in still and k is not None]
+    out = []
+    spread = [[i] for i, band in enumerate(l0) if not any(isinstance(s, tuple) for s in band)]
+    out += spread
+    current = []
+    for i, band in enumerate(l0):
+        ranges = [s for s in band if isinstance(s, tuple)]
+        if not ranges:
+            continue
+        lower = ranges[0][1]
+        if current and lower in edges:
+            out += [current]
+            current = []
+        current += [i]
+    if current:
+        out += [current]
+    return out
+
+
+def _named_edges(keys, rungs, edges):
+    """A level's rungs named as `L0`'s edges name them.
+
+    Where several rungs hold one value the edge names the one of lowest
+    percent (contract 4.6b.2), so `p75` beside an equal `p60` cuts at the
+    edge `p60`: the cut is the value's, whichever rung names it.
+    """
+    named = {value: key for key, value in edges}
+    out = []
+    for key in keys:
+        value = rungs.get(key)
+        if value is not None and value in named:
+            out += [named[value]]
+    return out
+
+
+def _one_band(l0, totals, l1, l2):
+    """RULE ONE_BAND (contract 4.6b.2, amended 2026-11-01): `L2` of a number, date or clock column.
+
+    Where `p50` leaves a single value band, `L2` reads the lowest `L1` cut
+    with rows on both sides: `L1`'s first value band holding a row against
+    all the later ones. Spread bands stay their own. Otherwise `L2` is as
+    `_number_level` reads it.
+    """
+    def is_value_band(band):
+        return any(isinstance(s, tuple) for s in l0[band[0]]) or any(
+            any(isinstance(s, tuple) for s in l0[i]) for i in band
+        )
+
+    if len([b for b in l2 if is_value_band(b)]) != 1:
+        return l2
+    filled = [b for b in l1 if is_value_band(b) and sum(totals[i] for i in b) > 0]
+    if len(filled) < 2:
+        return l2
+    low = [i for b in l1 if is_value_band(b) and b[0] <= filled[0][0] for i in b]
+    high = [i for b in l1 if is_value_band(b) and b[0] > filled[0][0] for i in b]
+    return [b for b in l2 if not is_value_band(b)] + [low, high]
+
+
+def _label_levels(l0, levels):
+    """`L1` and `L2` of a label column, read through `L0`.
+
+    `L1`: the ten commonest published levels by published count (ties to
+    the earlier published) each a band, every other level and the pool
+    one band; `L2`: the commonest level, every other level one band. An
+    `L0` band holds its levels together, so a band joining a level kept
+    apart with one pooled goes to the pool; `missing` stays a band of its
+    own unless the merge joined it with a level.
+    """
+    published = [name for name, _ in levels]
+    ranked = sorted(range(len(levels)), key=lambda i: (-levels[i][1], i))
+
+    def level_of(top):
+        kept = {published[i] for i in ranked[:top]}
+        out = []
+        rest = []
+        for i, band in enumerate(l0):
+            names = [s[1] for s in band if isinstance(s, tuple)]
+            if not names:
+                out += [[i]]
+            elif all(n in kept for n in names):
+                out += [[i]]
+            else:
+                rest += [i]
+        if rest:
+            out += [rest]
+        return out
+
+    return level_of(10), level_of(1)
+
+
+# --- tables (contract 4.6b.5; validation V12.2) --------------------------
+
+
+def family_table(child_codes, child_count, parents):
+    """A family's COMPLETE table over the tabled rows.
+
+    `parents` is a list of `(codes, count)` in listed order. One row for
+    each joint cell of the parents (the last parent's band varying
+    fastest; one row where there is none), one column for each band of
+    the child, every cell written, zeros included.
+    """
+    shape = [count for _, count in parents]
+    rows = 1
+    for s in shape:
+        rows *= s
+    table = [[0] * child_count for _ in range(rows)]
+    for r in range(len(child_codes)):
+        cell = 0
+        for codes, count in parents:
+            cell = cell * count + codes[r]
+        table[cell][child_codes[r]] += 1
+    return table
+
+
+def pair_table(a_codes, a_count, b_codes, b_count):
+    """A pair's table: `a`'s bands by `b`'s, counted over the tabled rows."""
+    return family_table(b_codes, b_count, [(a_codes, a_count)])
+
+
+def score(table):
+    """`u = X2 - df` of contract 4.6b.3, an exact fraction (no logarithm)."""
+    rows = [sum(r) for r in table]
+    columns = [sum(c) for c in zip(*table)] if table else []
+    n = sum(rows)
+    if n == 0:
+        return F(0)
+    x2 = F(0)
+    for i, r in enumerate(table):
+        for j, observed in enumerate(r):
+            if rows[i] == 0 or columns[j] == 0:
+                continue
+            expected = F(rows[i] * columns[j], n)
+            x2 += (observed - expected) ** 2 / expected
+    used_rows = sum(1 for t in rows if t)
+    used_columns = sum(1 for t in columns if t)
+    df = max(0, used_rows - 1) * max(0, used_columns - 1)
+    return x2 - df
+
+
+def floor_holds(table, floor=DEFAULT_FLOOR):
+    """The floor of contract 4.6b.3: every cell 0 or at least `f`."""
+    return all(c == 0 or c >= floor for r in table for c in r)
+
+
+def dealing_spread(implied, n):
+    """V12.2's dealing spread, `s = 1/2 sum sqrt(p (1 - p) / n)`, held exactly.
+
+    Returns `(radicands, low, high)`: each cell's radicand `p (1 - p) /
+    n` as an exact fraction, and a certified enclosure `low <= s <= high`
+    of whole multiples of `2 ** -60`, each root bounded by integer
+    square roots, so nothing here is rounded unseen.
+    """
+    total = sum(sum(r) for r in implied)
+    radicands = []
+    low = F(0)
+    high = F(0)
+    scale = 1 << 60
+    for r in implied:
+        for c in r:
+            p = F(c) / total
+            q = p * (1 - p) / n
+            radicands += [q]
+            lo_int = _isqrt_floor(q * scale * scale)
+            hi_int = lo_int if F(lo_int * lo_int) == q * scale * scale else lo_int + 1
+            low += F(lo_int, scale)
+            high += F(hi_int, scale)
+    return radicands, low / 2, high / 2
+
+
+def _isqrt_floor(q):
+    """The greatest whole number whose square is at most the fraction `q`."""
+    whole = q.numerator // q.denominator
+    root = _isqrt(whole)
+    while (root + 1) * (root + 1) <= q:
+        root += 1
+    return root
+
+
+def _isqrt(n):
+    if n < 0:
+        raise ValueError("no root of a negative number")
+    if n == 0:
+        return 0
+    x = 1 << ((n.bit_length() + 1) // 2)
+    while True:
+        y = (x + n // x) // 2
+        if y >= x:
+            return x
+        x = y
+
+
+# --- the chain, its tables and its implied joint --------------------------
+
+
+class Family:
+    """One placed family: its child, its parents and the levels of each."""
+
+    def __init__(self, child, level, parents, anchor, table):
+        self.child = child
+        self.level = level
+        self.parents = list(parents)  # [(column, level)] in schema order
+        self.anchor = anchor
+        self.table = table
+
+    def members(self):
+        return [c for c, _ in self.parents] + [self.child]
+
+    def levels(self):
+        return [lv for _, lv in self.parents] + [self.level]
+
+    def as_dict(self):
+        return {
+            "child": self.child,
+            "level": "L%d" % self.level,
+            "parents": [{"column": c, "level": "L%d" % lv} for c, lv in self.parents],
+            "anchor": self.anchor,
+            "table": self.table,
+        }
+
+
+def table_of(lads, child, level, parents):
+    """A family's complete table over the tabled rows, from each ladder's band codes."""
+    lc = lads[child]
+    parent_codes = [(lads[c].codes(lv), len(lads[c].bands(lv))) for c, lv in parents]
+    return family_table(lc.codes(level), len(lc.bands(level)), parent_codes)
+
+
+def chain_level(chain, column):
+    """A column's chain level: the level of the family it is the child of."""
+    for family in chain:
+        if family.child == column:
+            return family.level
+    raise KeyError(column)
+
+
+def _allowed(family, lads, levels_at):
+    """The member tuples at chain levels that lie in a non-zero cell of the family's table."""
+    members = family.members()
+    flevels = family.levels()
+    maps = []
+    domains = []
+    for column, lv in zip(members, flevels):
+        lad = lads[column]
+        chain_bands = lad.bands(levels_at[column])
+        to_family = lad.coarsen(lv)
+        maps += [[to_family[b[0]] for b in chain_bands]]
+        domains += [range(len(chain_bands))]
+    sizes = [len(lads[c].bands(lv)) for c, lv in zip(members, flevels)]
+    out = set()
+    for combo in itertools.product(*domains):
+        coarse = [maps[i][x] for i, x in enumerate(combo)]
+        row = 0
+        for i in range(len(coarse) - 1):
+            row = row * sizes[i] + coarse[i]
+        if family.table[row][coarse[-1]] > 0:
+            out.add(combo)
+    return members, out
+
+
+def tree_edges(chain):
+    """The junction tree's edges: each family joined to its anchor, and a family with
+    parents and no anchor (a derived family `{D | A}` of a carried rule, placed at its
+    rule's step before `A`'s own family, contract 4.6b.7) joined to the family each
+    parent is the child of, once that family is placed. Each column's families stay
+    connected, so the two passes of `support` are exact."""
+    child_of = {}
+    for i, family in enumerate(chain):
+        child_of.setdefault(family.child, i)
+    edges = []
+    for i, family in enumerate(chain):
+        if family.anchor is not None:
+            edges += [(i, family.anchor)]
+        else:
+            for parent, _ in family.parents:
+                j = child_of.get(parent)
+                if j is not None and j != i:
+                    edges += [(i, j)]
+    return edges
+
+
+def _tree_order(count, edges):
+    """Each family's place in a walk of the tree from its component's first family:
+    the order, and each family's neighbour toward that first family."""
+    neighbours = {i: [] for i in range(count)}
+    for a, b in edges:
+        neighbours[a] += [b]
+        neighbours[b] += [a]
+    order = []
+    toward = {}
+    for start in range(count):
+        if start in toward:
+            continue
+        toward[start] = None
+        queue = [start]
+        at = 0
+        while at < len(queue):
+            u = queue[at]
+            at += 1
+            order += [u]
+            for v in sorted(neighbours[u]):
+                if v not in toward:
+                    toward[v] = u
+                    queue += [v]
+    return order, toward
+
+
+def support(chain, lads, fixed=None):
+    """The chain-level band combinations no published nought rules out, column by column.
+
+    Families form a junction tree (`tree_edges`: each family joined to
+    its anchor, a derived family to its parent's own family), so passing
+    true and false up the tree and back down leaves, in each family,
+    exactly the member tuples some full assignment extends (contract
+    4.6b.3's RULE W1, 4.6b.9 (c)). `fixed` restricts columns to sets of
+    chain-level bands. Returns each column's admitted bands.
+    """
+    fixed = fixed or {}
+    levels_at = {f.child: f.level for f in chain}
+    allowed = []
+    for family in chain:
+        members, out = _allowed(family, lads, levels_at)
+        out = {t for t in out if all(t[i] in fixed[c] for i, c in enumerate(members) if c in fixed)}
+        allowed += [(members, out)]
+    order, toward = _tree_order(len(chain), tree_edges(chain))
+
+    def narrowed(target, source):
+        tm, tout = allowed[target]
+        sm, sout = allowed[source]
+        sep = [c for c in tm if c in sm]
+        message = {tuple(t[sm.index(c)] for c in sep) for t in sout}
+        return (tm, {t for t in tout if tuple(t[tm.index(c)] for c in sep) in message})
+
+    # Upward: each family's allowed tuples narrowed by the messages of the families beyond it.
+    for i in reversed(order):
+        if toward[i] is not None:
+            allowed[toward[i]] = narrowed(toward[i], i)
+    # Downward: each family narrowed by the family toward its component's first.
+    for i in order:
+        if toward[i] is not None:
+            allowed[i] = narrowed(i, toward[i])
+    roots_empty = any(not out for members, out in allowed)
+    admitted = {}
+    for members, out in allowed:
+        for i, c in enumerate(members):
+            seen = {t[i] for t in out}
+            admitted[c] = admitted[c] & seen if c in admitted else seen
+    if roots_empty:
+        return {c: set() for c in admitted}
+    return admitted
+
+
+def w1_holds(chain, lads, groups):
+    """RULE W1 checked in full (contract 4.6b.3).
+
+    `groups` lists each placed column's own-fact groups of 1 to `f - 1`
+    rows as `(column, L0 band holding it)`. For every such group, and
+    every OTHER placed column `m`, the band of the column's chain level
+    holding the group must admit at least two bands of `m`'s coarsest
+    level. Returns `(holds, failures)`.
+    """
+    levels_at = {f.child: f.level for f in chain}
+    failures = []
+    for column, l0_band in groups:
+        if column not in levels_at:
+            continue
+        lad = lads[column]
+        beta = lad.coarsen(levels_at[column])[l0_band]
+        admitted = support(chain, lads, {column: {beta}})
+        for other in sorted(levels_at):
+            if other == column:
+                continue
+            olad = lads[other]
+            chain_bands = olad.bands(levels_at[other])
+            to_l2 = olad.coarsen(2)
+            coarsest = {to_l2[chain_bands[b][0]] for b in admitted.get(other, set())}
+            if len(coarsest) < 2:
+                failures += [(column, l0_band, other, sorted(coarsest))]
+    return not failures, failures
+
+
+def cell_bound(chain, lads, cell, n):
+    """`b(x)` of contract 4.6b.9 (a): the least published count holding the full joint cell `x`.
+
+    `cell` maps each column to its `L0` band. The counts read are every
+    family cell whose bands hold `x`'s bands, every `L0` total of `x`'s
+    bands, and `n`.
+    """
+    best = n
+    for column, band in cell.items():
+        best = min(best, lads[column].totals[band])
+    for family in chain:
+        members = family.members()
+        if not all(c in cell for c in members):
+            continue
+        coarse = [lads[c].coarsen(lv)[cell[c]] for c, lv in zip(members, family.levels())]
+        sizes = [len(lads[c].bands(lv)) for c, lv in zip(members, family.levels())]
+        row = 0
+        for i in range(len(coarse) - 1):
+            row = row * sizes[i] + coarse[i]
+        best = min(best, family.table[row][coarse[-1]])
+    return best
+
+
+# --- RULES W3 and NE: which levels are offered (contract 4.6b.3) ----------
+
+
+def _marginal(table, members, levels, lads, keep, keep_levels):
+    """A family's table summed to some of its members, each at a level no finer."""
+    sizes = [len(lads[c].bands(lv)) for c, lv in zip(members, levels)]
+    to = []
+    for c, lv, klv in zip(members, levels, [keep_levels.get(c) for c in members]):
+        if c in keep:
+            full = lads[c].coarsen(klv)
+            here = lads[c].bands(lv)
+            to += [[full[b[0]] for b in here]]
+        else:
+            to += [None]
+    out = {}
+    parent_sizes = sizes[:-1]
+    for row, cells in enumerate(table):
+        rest = row
+        coords = []
+        for s in reversed(parent_sizes):
+            coords += [rest % s]
+            rest //= s
+        coords = list(reversed(coords))
+        for j, count in enumerate(cells):
+            full_coords = coords + [j]
+            key = tuple(to[i][full_coords[i]] for i in range(len(members)) if to[i] is not None)
+            out[key] = out.get(key, 0) + count
+    return out
+
+
+def offered_levels(lads, child, parents, anchor_family, n, floor=DEFAULT_FLOOR):
+    """The levels RULES W3 and NE end on for a candidate, or None where it is not offered.
+
+    `parents` lists `(column, level in the anchor)`; a root pair passes
+    one parent at `L0` and `anchor_family` None. Members are read in
+    schema order for ties, the child last among equals only by its own
+    place (the caller passes `order`). Returns a dict column -> level.
+    """
+    members = [c for c, _ in parents] + [child]
+    level = {c: lv for c, lv in parents}
+    level[child] = 0
+    order = sorted(members, key=lambda c: lads[c].position)
+
+    def totals(c):
+        return lads[c].band_totals(level[c])
+
+    def count(c):
+        return len(lads[c].bands(level[c]))
+
+    def coarsen_one(candidates):
+        movable = [c for c in candidates if level[c] < 2]
+        if not movable:
+            return False
+        pick = min(movable, key=lambda c: (min(totals(c)), order.index(c)))
+        level[pick] += 1
+        return True
+
+    while True:
+        failing = []
+        for c in members:
+            others = 1
+            for o in members:
+                if o != c:
+                    others *= count(o)
+            if min(totals(c)) < floor * others:
+                failing += [c]
+        if not failing:
+            break
+        if not coarsen_one(failing):
+            return None
+    while True:
+        child_totals = totals(child)
+        if anchor_family is None:
+            parent_cells = {(b,): t for b, t in enumerate(totals(parents[0][0]))}
+        else:
+            keep = [c for c, _ in parents]
+            parent_cells = _marginal(
+                anchor_family.table, anchor_family.members(), anchor_family.levels(), lads, keep, level
+            )
+        bad = False
+        for cell_total in parent_cells.values():
+            for t in child_totals:
+                if t * cell_total < (floor + 1) * n:
+                    bad = True
+        if not bad:
+            break
+        if not coarsen_one(members):
+            return None
+    return dict(level)
+
+
+def variants(levels):
+    """Every combination with each member at its offered level or coarser."""
+    names = sorted(levels)
+    out = []
+    for combo in itertools.product(*[range(levels[c], 3) for c in names]):
+        out += [dict(zip(names, combo))]
+    return out
+
+
+# --- the search: options, eligibility, scores and the draw ---------------
+
+
+class Setting:
+    """What a description's search runs under, all of it published or a constant.
+
+    `own_groups` lists each eligible column's own-fact groups of 1 to
+    `f - 1` rows as `(column, L0 band)` (the producer reads them from the
+    column's published block: `mode_count`, `n_zero`, a heap, a bin of
+    one reading); the sub-bands an `L0` merge took in are added from each
+    ladder's `taken_in` at every check. `we` is None or
+    `{"blank": {column: L0 band holding its blank cells, or None}, "z":
+    Z, "p": P}` (RULE WE). `rule_pairs` and `te_pairs` are column pairs
+    (sets); `seeds` the triple screen's seeds, each a tuple of columns.
+    """
+
+    def __init__(self, name, key, floor=DEFAULT_FLOOR, k_max=K_MAX, tau=F(2), w_rule=F(1, 20),
+                 w_te=F(0), w_seed=F(1, 20), rule_pairs=(), te_pairs=(), seeds=(), own_groups=(), we=None):
+        self.name = name
+        self.key = key
+        self.floor = floor
+        self.k_max = k_max
+        self.tau = F(tau)
+        self.w_rule = F(w_rule)
+        self.w_te = F(w_te)
+        self.w_seed = F(w_seed)
+        self.rule_pairs = [frozenset(p) for p in rule_pairs]
+        self.te_pairs = [frozenset(p) for p in te_pairs]
+        self.seeds = [tuple(s) for s in seeds]
+        self.own_groups = list(own_groups)
+        self.we = we
+
+
+def raise_of(setting, n, child, parents):
+    """The weight raises of contract 4.6b.3, on the score's own scale (`n` times a fraction)."""
+    up = F(0)
+    for p in parents:
+        if frozenset((child, p)) in setting.rule_pairs:
+            up += setting.w_rule * n
+            break
+    for p in parents:
+        if frozenset((child, p)) in setting.te_pairs:
+            up += setting.w_te * n
+            break
+    for seed in setting.seeds:
+        if child not in seed:
+            continue
+        others = [c for c in seed if c != child]
+        if len(seed) == 2:
+            if others[0] in parents:
+                up += setting.w_seed * n
+        else:
+            up += setting.w_seed * n * sum(1 for c in others if c in parents)
+    return up
+
+
+def _families_of(option, lads):
+    """The families an option places, in chain order (the root pair places two)."""
+    kind = option["kind"]
+    if kind == "root":
+        a, b = option["parent"], option["child"]
+        la, lb = option["levels"][a], option["levels"][b]
+        first = Family(a, la, [], None, [lads[a].band_totals(la)])
+        second = Family(b, lb, [(a, la)], None, table_of(lads, b, lb, [(a, la)]))
+        return [first, second]
+    if kind == "none_for":
+        d = option["child"]
+        return [Family(d, 0, [], None, [lads[d].band_totals(0)])]
+    if kind == "family":
+        d = option["child"]
+        parents = [(p, option["levels"][p]) for p in option["parents"]]
+        fam = Family(d, option["levels"][d], parents, option["anchor"], table_of(lads, d, option["levels"][d], parents))
+        return [fam]
+    return []
+
+
+def _placed(chain, option, lads):
+    out = list(chain)
+    for fam in _families_of(option, lads):
+        if option["kind"] == "root" and fam.parents:
+            fam.anchor = len(out) - 1
+        out += [fam]
+    return out
+
+
+def we_holds(setting, chain, lads, n):
+    """RULE WE with the option placed: `b(x0) <= Z + P`, or no cell `x0`."""
+    if setting.we is None:
+        return True
+    blank = setting.we["blank"]
+    if any(blank.get(c) is None for c in lads):
+        return True
+    x0 = {c: blank[c] for c in lads}
+    return cell_bound(chain, lads, x0, n) <= setting.we["z"] + setting.we["p"]
+
+
+def eligible(setting, chain, option, lads, n, w1=None):
+    """Whether an offered option is ELIGIBLE (contract 4.6b.3): the floor, RULE W1, RULE WE.
+
+    `w1` replaces RULE W1 (the mutants pass the vacuous clause or the
+    design's own clause). Returns `(eligible, why)`.
+    """
+    if option["kind"] in ("none", "none_for"):
+        return True, "no family is always eligible"
+    families = _families_of(option, lads)
+    table = families[-1].table
+    if not floor_holds(table, setting.floor):
+        return False, "floor"
+    placed = _placed(chain, option, lads)
+    groups = list(setting.own_groups)
+    for column in sorted(lads):
+        groups += [(column, band) for band in lads[column].taken_in if (column, band) not in groups]
+    check = w1 or (lambda ch: w1_holds(ch, lads, groups)[0])
+    if not check(placed):
+        return False, "W1"
+    if not we_holds(setting, placed, lads, n):
+        return False, "WE"
+    return True, "eligible"
+
+
+def _level_key(levels, lads):
+    return tuple(levels[c] for c in sorted(levels, key=lambda c: lads[c].position))
+
+
+def root_options(setting, lads, n):
+    """The root step's options in option order, with their raised scores."""
+    names = sorted(lads, key=lambda c: lads[c].position)
+    out = [({"kind": "none"}, F(0))]
+    for b in names:
+        for a in names:
+            if lads[a].position >= lads[b].position:
+                continue
+            levels = offered_levels(lads, b, [(a, 0)], None, n, setting.floor)
+            if levels is None:
+                continue
+            for variant in sorted(variants(levels), key=lambda v: _level_key(v, lads)):
+                option = {"kind": "root", "parent": a, "child": b, "levels": variant}
+                table = table_of(lads, b, variant[b], [(a, variant[a])])
+                out += [(option, score(table) + raise_of(setting, n, b, [a]))]
+    return out
+
+
+def step_options(setting, lads, chain, n):
+    """A later step's options in option order, with their raised scores."""
+    names = sorted(lads, key=lambda c: lads[c].position)
+    placed_columns = set()
+    for fam in chain:
+        placed_columns.update(fam.members())
+    out = []
+    for d in names:
+        if d in placed_columns:
+            continue
+        out += [({"kind": "none_for", "child": d}, F(0))]
+        candidates = {}
+        for at, fam in enumerate(chain):
+            members = sorted(fam.members(), key=lambda c: lads[c].position)
+            for size in range(1, setting.k_max + 1):
+                for parents in itertools.combinations(members, size):
+                    if parents not in candidates:
+                        candidates[parents] = at
+        for parents, anchor in sorted(candidates.items(), key=lambda kv: (kv[1], [lads[c].position for c in kv[0]])):
+            fam = chain[anchor]
+            at_anchor = dict(zip(fam.members(), fam.levels()))
+            levels = offered_levels(lads, d, [(p, at_anchor[p]) for p in parents], fam, n, setting.floor)
+            if levels is None:
+                continue
+            for variant in sorted(variants(levels), key=lambda v: _level_key(v, lads)):
+                if any(variant[p] < at_anchor[p] for p in parents):
+                    continue
+                option = {"kind": "family", "child": d, "parents": list(parents), "anchor": anchor, "levels": variant}
+                pl = [(p, variant[p]) for p in parents]
+                table = table_of(lads, d, variant[d], pl)
+                out += [(option, score(table) + raise_of(setting, n, d, list(parents)))]
+    return out
+
+
+def search(setting, lads, n, w1=None):
+    """The whole search of contract 4.6b.3 and 4.6b.4 for one key: the chain it places.
+
+    Returns `(chain, steps)`: `steps` lists, for each step, its kind, its
+    eligible options with their raised scores, the word, how the choice
+    fell and the option placed.
+    """
+    names = sorted(lads, key=lambda c: lads[c].position)
+    chain = []
+    steps = []
+    index = 0
+    options = root_options(setting, lads, n)
+    while True:
+        kept = []
+        for option, v in options:
+            ok, _ = eligible(setting, chain, option, lads, n, w1)
+            if ok:
+                kept += [(option, v)]
+        w = word(setting.key, setting.name, "place", index, names)
+        place, how, weights = choose(w, [v for _, v in kept], setting.tau)
+        option = kept[place][0]
+        steps += [{"index": index, "eligible": kept, "word": w.hex(), "how": how, "placed": option,
+                   "weights": [b64_hex(x) for x in weights]}]
+        if option["kind"] == "none":
+            return [], steps
+        chain = _placed(chain, option, lads)
+        placed_columns = set()
+        for fam in chain:
+            placed_columns.update(fam.members())
+        if placed_columns >= set(names):
+            return chain, steps
+        index += 1
+        options = step_options(setting, lads, chain, n)
+
+
+# --- the walk (method G16.2) -----------------------------------------------
+
+
+def hidden_score(words3):
+    """G16.8's hidden score: the twelve 16-bit pieces of three words summed, `(S - 393210) / 65536`."""
+    total = 0
+    for w in words3:
+        for shift in (0, 16, 32, 48):
+            total += (w >> shift) & 0xFFFF
+    return F(total - 393210, 65536)
+
+
+def value_code(x, lo, hi):
+    """Contract 4.6b.6's value code: `min(255, max(0, floor(256 (x - lo) / (hi - lo))))`, exact."""
+    if lo == hi:
+        return 0
+    q = F(256) * (F(x) - F(lo)) / (F(hi) - F(lo))
+    return min(255, max(0, q.numerator // q.denominator))
+
+
+def published_decimal(text):
+    """The binary64 nearest a number written to four decimals (a published `beta` or `sigma`)."""
+    return b64(F(text))
+
+
+def _spread_positions(g, t):
+    """G16.2 step 3: the `q`-th of `t` rows stands at `floor((2 q + 1) g / (2 t))`."""
+    return [((2 * q + 1) * g) // (2 * t) for q in range(t)]
+
+
+def family_target(fam, sizes, cell_of, child_totals, members_test=False, moved=None, fi=None):
+    """G16.0's target of a family: its published table where the twin's count of each of its
+    parent cells, as the families before it placed them, equals the table's row total there
+    and the child's band totals at its level equal its column totals; otherwise its moved
+    table (G16.6), recorded in `moved[fi]` as `(table, units in published noughts)`.
+
+    MUTANT `members_test`: the first build's test, each MEMBER's band totals alone against
+    the table's margins, which a move upstream can leave equal while the joint counts of
+    the parents change (Codex's item 5 of 2026-10-19, G16.12 item 10). Where that test keeps
+    a published table whose row totals the parent cells do not hold, no table can be dealt:
+    None is returned.
+    """
+    published = fam.table
+    counts = [0] * len(published)
+    for c in cell_of:
+        counts[c] += 1
+    columns = [sum(col) for col in zip(*published)]
+    if members_test:
+        same = columns == list(child_totals)
+        for j in range(len(sizes)):
+            stride = 1
+            for size in sizes[j + 1:]:
+                stride *= size
+            twin = [0] * sizes[j]
+            table = [0] * sizes[j]
+            for cell, row in enumerate(published):
+                twin[(cell // stride) % sizes[j]] += counts[cell]
+                table[(cell // stride) % sizes[j]] += sum(row)
+            same = same and twin == table
+        if same:
+            if [sum(row) for row in published] != counts:
+                return None
+            return published
+    elif not needs_move(published, counts, child_totals):
+        return published
+    table, named = moved_target(published, counts, child_totals)
+    if moved is not None:
+        moved[fi] = (table, named)
+    return table
+
+
+# --- G16.2 step 2's IMPLIED SLOPE (lane MPg, plan P4-D456), in emulated binary64 ---
+
+
+def b64_sqrt(a):
+    """The correctly rounded binary64 square root of a binary64 value at least nought, as a fraction.
+
+    No square root of a binary64 value lies exactly half way between two
+    binary64 values, so rounding to the nearest needs no tie rule: `m` is
+    the floor of the root scaled into `[2 ** 52, 2 ** 53)`, and the root
+    rounds up exactly where `4 y > (2 m + 1) ** 2`, `y` the scaled square.
+    """
+    x = F(a)
+    if x < 0:
+        raise ValueError("no root of a negative number")
+    if x == 0:
+        return F(0)
+    e = (x.numerator.bit_length() - x.denominator.bit_length()) // 2 - 53
+    while True:
+        y = x / (F(4) ** e)
+        m = _isqrt_floor(y)
+        if m >= _TWO53:
+            e += 1
+            continue
+        if m < _TWO52:
+            e -= 1
+            continue
+        break
+    if 4 * y > (2 * m + 1) * (2 * m + 1):
+        m += 1
+    return b64(F(m) * (F(2) ** e))
+
+
+def frexp(a):
+    """`math.frexp` of a binary64 value above nought: `(m, e)`, `a = m 2 ** e`, `1/2 <= m < 1`, exact."""
+    x = F(a)
+    e = x.numerator.bit_length() - x.denominator.bit_length()
+    while x / (F(2) ** e) >= 1:
+        e += 1
+    while x / (F(2) ** e) < F(1, 2):
+        e -= 1
+    return x / (F(2) ** e), e
+
+
+_LN2_TEXT = "0.6931471805599453"
+_ROOT_HALF_TEXT = "0.7071067811865476"
+_ODD = [b64(F(1, 2 * k + 1)) for k in range(13)]
+_CENTRE_TOP = ["-39.69683028665376", "220.9460984245205", "-275.9285104469687",
+               "138.3577518672690", "-30.66479806614716", "2.506628277459239"]
+_CENTRE_BOTTOM = ["-54.47609879822406", "161.5858368580409", "-155.6989798598866",
+                  "66.80131188771972", "-13.28068155288572"]
+_TAIL_TOP = ["-0.007784894002430293", "-0.3223964580411365", "-2.400758277161838",
+             "-2.549732539343734", "4.374664141464968", "2.938163982698783"]
+_TAIL_BOTTOM = ["0.007784695709041462", "0.3224671290700398", "2.445134137142996", "3.754408661907416"]
+_TAIL_EDGE_TEXT = "0.02425"
+_RIDGE_TEXT = "1e-9"
+_LEAST_SPREAD_TEXT = "0.1"
+
+
+def natural_log(x):
+    """`ln x` as G16.2 step 2 writes it: `frexp`, the mantissa into `[sqrt(1/2), sqrt(2))`, then
+    `2 y (1 + y**2/3 + ... + y**24/25) + e ln 2`, `y = (m - 1) / (m + 1)`, by Horner's rule from the
+    last term, each binary64 operation emulated."""
+    if not F(x) > 0:
+        raise ValueError("a logarithm of a number above nought")
+    m, e = frexp(x)
+    if m < b64(F(_ROOT_HALF_TEXT)):
+        m = b64_mul(m, 2)
+        e -= 1
+    y = b64_div(b64_sub(m, 1), b64_add(m, 1))
+    square = b64_mul(y, y)
+    total = _ODD[12]
+    for k in range(11, -1, -1):
+        total = b64_add(b64_mul(total, square), _ODD[k])
+    return b64_add(b64_mul(b64_mul(2, y), total), b64_mul(e, b64(F(_LN2_TEXT))))
+
+
+def normal_score(p):
+    """Acklam's normal quantile as G16.2 step 2 writes it, each binary64 operation emulated."""
+    p = F(p)
+    if not 0 < p < 1:
+        raise ValueError("a share strictly between nought and one")
+    edge = b64(F(_TAIL_EDGE_TEXT))
+    upper_edge = b64_sub(1, edge)
+    if p < edge or p > upper_edge:
+        tail = p if p < edge else b64_sub(1, p)
+        q = b64_sqrt(b64_mul(-2, natural_log(tail)))
+        top = b64(F(_TAIL_TOP[0]))
+        for k in range(1, 6):
+            top = b64_add(b64_mul(top, q), b64(F(_TAIL_TOP[k])))
+        bottom = b64(F(_TAIL_BOTTOM[0]))
+        for k in range(1, 4):
+            bottom = b64_add(b64_mul(bottom, q), b64(F(_TAIL_BOTTOM[k])))
+        bottom = b64_add(b64_mul(bottom, q), 1)
+        value = b64_div(top, bottom)
+        return value if p < edge else -value
+    q = b64_sub(p, F(1, 2))
+    r = b64_mul(q, q)
+    top = b64(F(_CENTRE_TOP[0]))
+    for k in range(1, 6):
+        top = b64_add(b64_mul(top, r), b64(F(_CENTRE_TOP[k])))
+    bottom = b64(F(_CENTRE_BOTTOM[0]))
+    for k in range(1, 5):
+        bottom = b64_add(b64_mul(bottom, r), b64(F(_CENTRE_BOTTOM[k])))
+    bottom = b64_add(b64_mul(bottom, r), 1)
+    return b64_div(b64_mul(top, q), bottom)
+
+
+def band_scores(totals, valued):
+    """Each band's normal score at one level: `normal_score((2 C_b + t_b) / (2 n))` over the value
+    bands holding a row; None for a spread band or one holding none."""
+    count = sum(t for t, v in zip(totals, valued) if v and t > 0)
+    out = []
+    below = 0
+    for t, v in zip(totals, valued):
+        if not v or t <= 0 or count <= 0:
+            out += [None]
+            continue
+        out += [normal_score(b64(F(2 * below + t, 2 * count)))]
+        below += t
+    return out
+
+
+def lad_scores(lad, level):
+    """A ladder's band scores at `level`, from its published `L0` totals."""
+    bands = lad.bands(level)
+    totals = [sum(lad.totals[i] for i in members) for members in bands]
+    valued = [any(isinstance(s, tuple) for i in members for s in lad.l0[i]) for members in bands]
+    return band_scores(totals, valued)
+
+
+def lad_ranged(lad):
+    """Whether a ladder holds a value range."""
+    return any(isinstance(s, tuple) and s[0] == "range" for band in lad.l0 for s in band)
+
+
+def implied_slope(table, sizes, parent_scores, used, child_scores):
+    """G16.2 step 2's implied slope from the published table and band scores alone, every binary64
+    operation emulated in the order the page writes: `(used, beta, sigma, means)`."""
+    means = []
+    weights, xs, ys = [], [], []
+    for cell, row in enumerate(table):
+        parts = [0] * len(sizes)
+        rest = cell
+        for place in range(len(sizes) - 1, -1, -1):
+            parts[place] = rest % sizes[place]
+            rest //= sizes[place]
+        weight = 0
+        total = F(0)
+        for band, count in enumerate(row):
+            score = child_scores[band] if band < len(child_scores) else None
+            if count and score is not None:
+                weight += count
+                total = b64_add(total, b64_mul(count, score))
+        if not weight:
+            means += [None]
+            continue
+        mean = b64_div(total, weight)
+        means += [mean]
+        x = [parent_scores[j][parts[j]] for j in used]
+        if any(v is None for v in x):
+            continue
+        weights += [weight]
+        xs += [x]
+        ys += [mean]
+    width = len(used)
+    if not width or not weights:
+        return list(used), [], F(1), means
+    summed = sum(weights)
+    centre = [F(0)] * width
+    centre_y = F(0)
+    for at in range(len(weights)):
+        for a in range(width):
+            centre[a] = b64_add(centre[a], b64_mul(weights[at], xs[at][a]))
+        centre_y = b64_add(centre_y, b64_mul(weights[at], ys[at]))
+    centre = [b64_div(c, summed) for c in centre]
+    centre_y = b64_div(centre_y, summed)
+    ridge = b64(F(_RIDGE_TEXT))
+    matrix = [[ridge if a == c else F(0) for c in range(width)] + [F(0)] for a in range(width)]
+    for at in range(len(weights)):
+        dy = b64_sub(ys[at], centre_y)
+        for a in range(width):
+            da = b64_sub(xs[at][a], centre[a])
+            for c in range(width):
+                term = b64_div(b64_mul(b64_mul(weights[at], da), b64_sub(xs[at][c], centre[c])), summed)
+                matrix[a][c] = b64_add(matrix[a][c], term)
+            term = b64_div(b64_mul(b64_mul(weights[at], da), dy), summed)
+            matrix[a][width] = b64_add(matrix[a][width], term)
+    moment = [matrix[a][width] for a in range(width)]
+    for a in range(width):
+        pivot = matrix[a][a]
+        for c in range(a, width + 1):
+            matrix[a][c] = b64_div(matrix[a][c], pivot)
+        for other in range(width):
+            if other == a:
+                continue
+            factor = matrix[other][a]
+            for c in range(a, width + 1):
+                matrix[other][c] = b64_sub(matrix[other][c], b64_mul(factor, matrix[a][c]))
+    beta = [matrix[a][width] for a in range(width)]
+    explained = F(0)
+    for a in range(width):
+        explained = b64_add(explained, b64_mul(beta[a], moment[a]))
+    left = b64_sub(1, explained)
+    sigma = b64_sqrt(left if left > 0 else F(0))
+    least = b64(F(_LEAST_SPREAD_TEXT))
+    return list(used), beta, (sigma if sigma > least else least), means
+
+
+def implied_latent(cell_of, slope, ranks, z):
+    """The rows' latent orders under an implied slope: `(sum_j beta_j (s_j - m_j) + sigma z) + mu_c`,
+    `s_j` the normal score of the row's rank `(2 rank + 1) / (2 K)`, every operation emulated. Only the FITTED
+    coefficients are read (lane MPg's repair 2, Codex's item 4): where no published cell holds a reading of
+    every used parent, the slope has none and the latent order is `sigma z + mu_c`, as the product's."""
+    _used, beta, sigma, means = slope
+    n = len(cell_of)
+    latent = [F(0)] * n
+    for j in range(len(beta)):
+        rank, readings = ranks[j]
+        scores = [None] * n
+        sums, many = {}, {}
+        for r in range(n):
+            if rank[r] is None:
+                continue
+            score = normal_score(b64(F(2 * rank[r] + 1, 2 * readings)))
+            scores[r] = score
+            c = cell_of[r]
+            sums[c] = b64_add(sums.get(c, F(0)), score)
+            many[c] = many.get(c, 0) + 1
+        mean = {c: b64_div(sums[c], many[c]) for c in sums}
+        for r in range(n):
+            if scores[r] is not None:
+                latent[r] = b64_add(latent[r], b64_mul(beta[j], b64_sub(scores[r], mean[cell_of[r]])))
+    for r in range(n):
+        c = cell_of[r]
+        centre = means[c] if c < len(means) else None
+        value = b64_add(latent[r], b64_mul(sigma, z[r]))
+        latent[r] = b64_add(value, centre if centre is not None else F(0))
+    return latent
+
+
+# --- G16.3's POLISH onto rule B's moments (lane MPg, plan P4-D456), in emulated binary64 ---
+
+POLISH_SAMPLE = 2048
+_POLISH_RIDGE_TEXT = "1e-3"
+_POLISH_LEAST_NOISE_TEXT = "1e-4"
+_POLISH_STEP_TEXT = "1.0"
+_POLISH_AIM_MOST_TEXT = "0.999"
+POLISH_RANK_STEPS = 65536
+POLISH_SPREAD_LEAST = F(1, 4)
+POLISH_SPREAD_MOST = F(4)
+POLISH_PAIR_SPREAD_LEAST = F(1, 64)
+POLISH_LAST_STEPS = 4
+
+
+def spread_positions(rows, taken):
+    """G16.2's spread positions: the `q`-th of `taken` at `floor((2 q + 1) rows / (2 taken))`."""
+    return [((2 * q + 1) * rows) // (2 * taken) for q in range(taken)] if taken > 0 else []
+
+
+def code_spread(codes, has):
+    """A column's codes' mean and standard deviation over its rows holding one: exact sums, divided once."""
+    count = total = squares = 0
+    for code, held in zip(codes, has):
+        if held:
+            count += 1
+            total += code
+            squares += code * code
+    if count < 2:
+        return F(0), F(0)
+    spread = b64(F(count * squares - total * total, count * (count - 1)))
+    return b64(F(total, count)), (b64_sqrt(spread) if spread > 0 else F(0))
+
+
+def moment_unit(scale, n):
+    """Contract 4.6d.0 (3): a moment's unit at its own count, `scale` and one decimal place finer for
+    each 100-fold, or part of one, that `n` exceeds 20,000."""
+    out, reach = scale, 20000
+    while n > reach:
+        out, reach = out * 10, reach * 100
+    return out
+
+
+POLISH_EIGEN_LEAST_TEXT = "1e-4"
+POLISH_JACOBI_CYCLES = 60
+POLISH_JACOBI_TINY_TEXT = "1e-15"
+
+
+def jacobi(matrix):
+    """Eigenvalues and eigenvectors (columns) of a symmetric matrix by cyclic Jacobi rotations, as G16.3's PSD
+    projection writes them (pairs row by row, a nought element passed over, the classical rotation), each
+    binary64 operation emulated."""
+    size = len(matrix)
+    a = [[F(x) for x in row] for row in matrix]
+    v = [[F(1) if i == j else F(0) for j in range(size)] for i in range(size)]
+    tiny = b64(F(POLISH_JACOBI_TINY_TEXT))
+    for _cycle in range(POLISH_JACOBI_CYCLES):
+        largest = F(0)
+        for i in range(size):
+            largest = max(largest, abs(a[i][i]))
+        off = F(0)
+        for p in range(size):
+            for q in range(p + 1, size):
+                off = max(off, abs(a[p][q]))
+        if off <= b64_mul(tiny, max(largest, F(1))):
+            break
+        for p in range(size):
+            for q in range(p + 1, size):
+                apq = a[p][q]
+                if apq == 0:
+                    continue
+                theta = b64_div(b64_sub(a[q][q], a[p][p]), b64_mul(2, apq))
+                root = b64_sqrt(b64_add(b64_mul(theta, theta), 1))
+                t = b64_div(1, b64_add(theta, root)) if theta >= 0 else b64_div(-1, b64_add(-theta, root))
+                c = b64_div(1, b64_sqrt(b64_add(b64_mul(t, t), 1)))
+                sn = b64_mul(t, c)
+                for k in range(size):
+                    akp, akq = a[k][p], a[k][q]
+                    a[k][p] = b64_sub(b64_mul(c, akp), b64_mul(sn, akq))
+                    a[k][q] = b64_add(b64_mul(sn, akp), b64_mul(c, akq))
+                for k in range(size):
+                    apk, aqk = a[p][k], a[q][k]
+                    a[p][k] = b64_sub(b64_mul(c, apk), b64_mul(sn, aqk))
+                    a[q][k] = b64_add(b64_mul(sn, apk), b64_mul(c, aqk))
+                for k in range(size):
+                    vkp, vkq = v[k][p], v[k][q]
+                    v[k][p] = b64_sub(b64_mul(c, vkp), b64_mul(sn, vkq))
+                    v[k][q] = b64_add(b64_mul(sn, vkp), b64_mul(c, vkq))
+    return [a[i][i] for i in range(size)], v
+
+
+def nearest_correlations(matrix):
+    """G16.3's PSD projection: unchanged where every eigenvalue is at least 1e-4; else `V max(L, 1e-4) V^T`, each
+    element summed in index order, divided by the root of its two diagonal elements. Returns (matrix, least
+    eigenvalue, largest change)."""
+    size = len(matrix)
+    if size < 2:
+        return [[F(x) for x in row] for row in matrix], F(1), F(0)
+    values, vectors = jacobi(matrix)
+    least = min(values)
+    floor = b64(F(POLISH_EIGEN_LEAST_TEXT))
+    if least >= floor:
+        return [[F(x) for x in row] for row in matrix], least, F(0)
+    floored = [value if value >= floor else floor for value in values]
+    built = [[F(0)] * size for _ in range(size)]
+    for i in range(size):
+        for j in range(size):
+            total = F(0)
+            for k in range(size):
+                total = b64_add(total, b64_mul(b64_mul(vectors[i][k], floored[k]), vectors[j][k]))
+            built[i][j] = total
+    out = [[b64_div(built[i][j], b64_sqrt(b64_mul(built[i][i], built[j][j]))) for j in range(size)] for i in range(size)]
+    change = F(0)
+    for i in range(size):
+        for j in range(size):
+            change = max(change, abs(b64_sub(out[i][j], F(matrix[i][j]))))
+    return out, least, change
+
+
+# Contract 4.6d.0 (3): a correlation is rounded on Fisher's z in ten-thousandths at the floor (LANE MPp RULINGS 7).
+FISHER_Z_SCALE = 10000
+PARTNERS = 24
+
+
+def positive_definite(matrix):
+    """Whether a symmetric matrix is positive definite: its Cholesky factor, each sum in index order, every
+    operation emulated, every pivot over 0 (lane MPg's repair 2)."""
+    size = len(matrix)
+    low = [[F(0)] * size for _ in range(size)]
+    for i in range(size):
+        for j in range(i + 1):
+            total = F(matrix[i][j])
+            for k in range(j):
+                total = b64_sub(total, b64_mul(low[i][k], low[j][k]))
+            if i == j:
+                if not total > 0:
+                    return False
+                low[i][i] = b64_sqrt(total)
+            else:
+                low[i][j] = b64_div(total, low[j][j])
+    return True
+
+
+def row_sets(own, values, counts):
+    """The common row sets: columns joined where a published pair's count equals both columns' own counts,
+    each class in rising order of its first member, its members rising (lane MPg's repair 2)."""
+    size = len(own)
+    root = list(range(size))
+
+    def top(a):
+        while root[a] != a:
+            a = root[a]
+        return a
+
+    for a in range(size):
+        for b in range(a):
+            if values[a][b] is not None and counts[a][b] == own[a] == own[b]:
+                ra, rb = top(a), top(b)
+                if ra != rb:
+                    root[max(ra, rb)] = min(ra, rb)
+    classes = {}
+    for a in range(size):
+        classes.setdefault(top(a), []).append(a)
+    return [classes[k] for k in sorted(classes)]
+
+
+def target_correlations(own, values, counts):
+    """G16.3's correlation goals (lane MPg's repair 2, Codex's item 2): the projection acts only inside a common
+    row set whose published matrix is not positive definite (no pair of it unpublished); every other published
+    r is its own goal and an unpublished pair is no goal. Returns the goals and the moves past half a step of
+    the pair's grid of z read on r, each `(earlier column, later column, published, goal)`."""
+    size = len(own)
+    goals = [[values[a][b] for b in range(size)] for a in range(size)]
+    moves = []
+    for members in row_sets(own, values, counts):
+        if len(members) < 2:
+            continue
+        known = [[values[a][b] for b in members] for a in members]
+        if any(v is None for row in known for v in row):
+            continue
+        if positive_definite(known):
+            continue
+        projected, _least, _change = nearest_correlations(known)
+        for x in range(len(members)):
+            for y in range(x):
+                a, b = members[x], members[y]
+                goals[a][b] = goals[b][a] = projected[x][y]
+                published = known[x][y]
+                step = b64_div(F(1, 2), moment_unit(FISHER_Z_SCALE, counts[a][b]))
+                if abs(b64_sub(projected[x][y], published)) > b64_mul(step, b64_sub(1, b64_mul(published, published))):
+                    moves += [(b, a, published, projected[x][y])]
+    return goals, moves
+
+
+def chosen_partners(values_row, mine, goals_row):
+    """A number's partners (lane MPg's repair 2): the `PARTNERS` published correlations largest in size, ties in
+    the moments' order, each with a goal; returned in the moments' order."""
+    ranked = sorted((-abs(v), at) for at, v in enumerate(values_row)
+                    if at != mine and v is not None and goals_row[at] is not None)
+    chosen = {at for _size, at in ranked[:PARTNERS]}
+    return [at for at in range(len(values_row)) if at in chosen]
+
+
+def within_target(groups, mean_units, sd_units, n):
+    """A `within` entry's encoding, band spreads and goal as G16.3 writes them: each published figure
+    divided once by the unit its own count sets (a mean in tenths, a column's spread in thousandths, a
+    band's spread in tenths, finer above 20,000 rows), `e_g = (m_g - mu) / sd`, the goal `sum n e**2 / N
+    - (sum n e / N)**2`, every operation emulated in order. Returns (encoding, band spreads, goal)."""
+    centre = b64_div(mean_units, moment_unit(10, n))
+    spread = b64_div(sd_units, moment_unit(1000, n))
+    encoding = []
+    sds = []
+    count = 0
+    first = F(0)
+    second = F(0)
+    for group in groups:
+        if len(group) < 3 or group[0] <= 0:
+            encoding += [F(0)]
+            sds += [F(0)]
+            continue
+        value = b64_div(b64_sub(b64_div(group[1], moment_unit(10, group[0])), centre), spread)
+        encoding += [value]
+        sds += [b64_div(group[2], moment_unit(10, group[0]))]
+        count += group[0]
+        first = b64_add(first, b64_mul(group[0], value))
+        second = b64_add(second, b64_mul(b64_mul(group[0], value), value))
+    if count <= 0:
+        return encoding, sds, None
+    mean = b64_div(first, count)
+    return encoding, sds, b64_sub(b64_div(second, count), b64_mul(mean, mean))
+
+
+def share_target(groups, share_units, n):
+    """A binary's `within` entry (its shares in a grouping's bands) as G16.3 writes it: each share divided
+    once by its unit (ten-thousandths, finer above 20,000 rows), `e_g = (s_g - p) / sqrt(p (1 - p))`, the
+    goal as `within_target`'s. Returns (encoding, goal)."""
+    share = b64_div(share_units, moment_unit(10000, n))
+    spread = b64_sqrt(b64_mul(share, b64_sub(1, share)))
+    encoding = []
+    count = 0
+    first = F(0)
+    second = F(0)
+    for group in groups:
+        if len(group) < 2 or group[0] <= 0:
+            encoding += [F(0)]
+            continue
+        value = b64_div(b64_sub(b64_div(group[1], moment_unit(10000, group[0])), share), spread)
+        encoding += [value]
+        count += group[0]
+        first = b64_add(first, b64_mul(group[0], value))
+        second = b64_add(second, b64_mul(b64_mul(group[0], value), value))
+    if count <= 0:
+        return encoding, None
+    mean = b64_div(first, count)
+    return encoding, b64_sub(b64_div(second, count), b64_mul(mean, mean))
+
+
+def normal_density(share):
+    """The normal density at the quantile of `share` as G16.3 reads it: one millionth either side, the
+    width over the difference of `normal_score`, each operation emulated."""
+    step = b64(F("1e-6"))
+    low = b64_sub(share, step) if b64_sub(share, step) > 0 else b64_div(share, 2)
+    high = b64_add(share, step) if b64_add(share, step) < 1 else b64_div(b64_add(share, 1), 2)
+    return b64_div(b64_sub(high, low), b64_sub(normal_score(high), normal_score(low)))
+
+
+def rank_codes(values):
+    """Each place's RANK CODE among the readings (None holds none): a run of equal readings at sorted
+    positions `k` to `j` of `n` takes `floor(65536 (k + j + 1) / (2 n))`; a place without one, 0."""
+    places = sorted((v, p) for p, v in enumerate(values) if v is not None)
+    n = len(places)
+    out = [0] * len(values)
+    k = 0
+    while k < n:
+        j = k
+        while j + 1 < n and places[j + 1][0] == places[k][0]:
+            j += 1
+        for t in range(k, j + 1):
+            out[places[t][1]] = (POLISH_RANK_STEPS * (k + j + 1)) // (2 * n)
+        k = j + 1
+    return out
+
+
+_NORMAL_OF_RANK = {}
+
+
+def rank_normal(code):
+    """The normal score of rank code `code`: `normal_score((2 code + 1) / (2 * 65536))`."""
+    if code not in _NORMAL_OF_RANK:
+        _NORMAL_OF_RANK[code] = normal_score(b64(F(2 * code + 1, 2 * POLISH_RANK_STEPS)))
+    return _NORMAL_OF_RANK[code]
+
+
+def polish_feature(target, held, state):
+    """A target's feature on the rows `held`: a partner number's rank score (nought where it holds
+    none) for `pair` and `by`, or the band encoding (nought past its bands) of the grouping column's band
+    at the target's level for `within` and `share`."""
+    if target["kind"] in ("pair", "by"):
+        ranks = state["ranks"][target["name"]]
+        present = state["has"][target["name"]]
+        return [rank_normal(ranks[r]) if present[r] else F(0) for r in held]
+    encoding = target["encoding"]
+    of_row = state["bands"][(target["name"], target.get("level", 1))]
+    return [encoding[of_row[r]] if of_row[r] < len(encoding) else F(0) for r in held]
+
+
+def solved(matrix, goals):
+    """`A^-1 b` by Gauss-Jordan elimination in order without exchanges; a nought pivot's row is passed over."""
+    width = len(goals)
+    work = [list(matrix[a]) + [goals[a]] for a in range(width)]
+    for a in range(width):
+        pivot = work[a][a]
+        if pivot == 0:
+            continue
+        for c in range(a, width + 1):
+            work[a][c] = b64_div(work[a][c], pivot)
+        for other in range(width):
+            if other == a:
+                continue
+            factor = work[other][a]
+            for c in range(a, width + 1):
+                work[other][c] = b64_sub(work[other][c], b64_mul(factor, work[a][c]))
+    return [work[a][width] for a in range(width)]
+
+
+def fsum(values):
+    """`math.fsum`: the exact sum of binary64 values, rounded once."""
+    total = F(0)
+    for value in values:
+        total += F(value)
+    return b64(total)
+
+
+def frame_groups(column, name, state, frame_l0):
+    """Each row's FRAME group: a number's band at its chain level (`frame_l0`: its `L0` band); a binary's
+    joint band over `state["keys"][name]`, numbered by first meeting after each key column."""
+    n = state["rows"]
+    if name not in state["keys"]:
+        return [column["slot_l0"][column["index"][r]] if frame_l0 else column["frame"][r] for r in range(n)]
+    found = [0] * n
+    for key_name, level in state["keys"][name]:
+        other = state["columns"][key_name]
+        count = len(set(other["maps"][level]))
+        bands = [other["maps"][level][other["slot_l0"][other["index"][r]]] for r in range(n)]
+        found = [found[r] * count + bands[r] for r in range(n)]
+        seen = {}
+        for r in range(n):
+            if found[r] not in seen:
+                seen[found[r]] = len(seen)
+            found[r] = seen[found[r]]
+    return found
+
+
+def polish_column(column, name, targets, sums, state, adjust, frame_l0=False, stale=False, spreads_on=True, feasible=True):
+    """One round of G16.3 on one column, as the page writes it, every binary64 operation emulated.
+
+    `column` holds `index` (each row's cell-list place), `frame` (each row's band of the column at its
+    chain level), `slot_l0` (each place's `L0` band), `maps` (each level's band of each `L0` band),
+    `slot_codes` and, for a number, `slot_rank`; `targets` are dicts with `kind` (`pair`, `within`,
+    `by`, `share`), `name`, `goal`, `aim`, `slope`, `encoding`, `level`, `most` (the aim's bound, 0.999
+    unless given; a pair's is the larger of 0.999 and half way from its goal to 1, repair 2) and, for
+    `within`, `sds` and `scales`; a `pair` may hold one of each, its column's published spread over the
+    rows whose partner holds a reading and its factor (repair 2, an incomplete pair's own spread); each
+    `aim` and scale moved in place where `adjust`. `state` holds the rows, each column's
+    row `codes`, `has` and `ranks`, the `bands` a target reads (`bands[(c, l)]`, read again from the
+    column's places right after its re-assignment), the `spreads` (code mean and spread), `keys` (a
+    binary's frame columns and levels) and `columns`. `sums` are the rows' hidden sums. Where the moved
+    aims ask for more than the score's whole spread (`a . (C + ridge I)^-1 a` past `1 - 1e-4`), every aim
+    is scaled by one factor to that edge. MUTANTS: `frame_l0`, each row kept in its `L0` band; `stale`,
+    a moved column's bands never read again; `spreads_on` False, no band's spread scaled; `feasible`
+    False, the aims never scaled together.
+    """
+    own = state["codes"][name]
+    present = state["has"][name]
+    n = state["rows"]
+    held = [r for r in range(n) if present[r]]
+    count = len(held)
+    if count < 2:
+        return
+    width = len(targets)
+    taken = min(count, POLISH_SAMPLE)
+    sampled = [held[p] for p in spread_positions(count, taken)]
+    centred = []
+    unit = [F(1)] * width
+    for j, target in enumerate(targets):
+        values = polish_feature(target, sampled, state)
+        centre = b64_div(fsum(values), taken)
+        shifted = [b64_sub(v, centre) for v in values]
+        if target["kind"] in ("pair", "by"):
+            spread_j = b64_sqrt(b64_div(fsum([b64_mul(v, v) for v in shifted]), taken))
+            if spread_j > 0:
+                unit[j] = b64_div(1, spread_j)
+                shifted = [b64_mul(v, unit[j]) for v in shifted]
+        centred += [shifted]
+    matrix = [[F(0)] * width for _ in range(width)]
+    for a in range(width):
+        for c in range(a, width):
+            matrix[a][c] = b64_div(fsum([b64_mul(x, y) for x, y in zip(centred[a], centred[c])]), taken)
+            matrix[c][a] = matrix[a][c]
+        matrix[a][a] = b64_add(matrix[a][a], b64(F(_POLISH_RIDGE_TEXT)))
+    aims = [target["aim"] for target in targets]
+    beta = solved(matrix, aims)
+    explained = F(0)
+    for j in range(width):
+        explained = b64_add(explained, b64_mul(beta[j], aims[j]))
+    rest = b64_sub(1, explained)
+    least = b64(F(_POLISH_LEAST_NOISE_TEXT))
+    noise = b64_sqrt(rest if rest > least else least)
+    score = [F(0)] * n
+    part = [F(0)] * count
+    for j in range(width):
+        values = polish_feature(targets[j], held, state)
+        weight = b64_mul(beta[j], unit[j])
+        part = [b64_add(t, b64_mul(weight, v)) for t, v in zip(part, values)]
+    for at, r in enumerate(held):
+        score[r] = b64_add(part[at], b64_mul(noise, F(sums[r] - 393210, 65536)))
+    if spreads_on:
+        for target in targets:
+            if target["kind"] == "pair" and target.get("scales"):
+                # A pair's own spread of the column (repair 2): the rows whose partner holds a reading, one band.
+                both = state["has"][target["name"]]
+                rows_p = [r for r in range(n) if present[r] and both[r]]
+                if rows_p:
+                    total = F(0)
+                    for r in rows_p:
+                        total = b64_add(total, score[r])
+                    middle = b64_div(total, len(rows_p))
+                    for r in rows_p:
+                        score[r] = b64_add(middle, b64_mul(target["scales"][0], b64_sub(score[r], middle)))
+                continue
+            if target["kind"] != "within" or not target.get("scales"):
+                continue
+            of_row = state["bands"][(target["name"], target.get("level", 1))]
+            bands = len(target["scales"])
+            totals = [F(0)] * bands
+            counts = [0] * bands
+            for r in range(n):
+                if present[r] and of_row[r] < bands:
+                    totals[of_row[r]] = b64_add(totals[of_row[r]], score[r])
+                    counts[of_row[r]] += 1
+            means = [b64_div(totals[b], counts[b]) if counts[b] else F(0) for b in range(bands)]
+            for r in range(n):
+                if present[r] and of_row[r] < bands:
+                    b = of_row[r]
+                    score[r] = b64_add(means[b], b64_mul(target["scales"][b], b64_sub(score[r], means[b])))
+    index = column["index"]
+    groups = frame_groups(column, name, state, frame_l0)
+    binary = name in state["keys"]
+    by_group = {}
+    for r in held:
+        by_group.setdefault(groups[r], []).append(r)
+    for group in sorted(by_group):
+        members = by_group[group]
+        if binary:
+            places = [p for _c, p in sorted((column["slot_codes"][index[r]], index[r]) for r in members)]
+        else:
+            places = sorted(index[r] for r in members)
+        ranked = sorted(members, key=lambda r: (score[r], r))
+        for k, r in enumerate(ranked):
+            index[r] = places[k]
+            own[r] = column["slot_codes"][places[k]]
+            if name in state["ranks"]:
+                state["ranks"][name][r] = column["slot_rank"][places[k]]
+    if not stale:
+        for key in [key for key in state["bands"] if key[0] == name]:
+            state["bands"][key] = [column["maps"][key[1]][column["slot_l0"][index[r]]] for r in range(n)]
+    if not adjust:
+        return
+    centre, spread = state["spreads"][name]
+    if spread <= 0:
+        return
+    table = [b64_div(b64_sub(code, centre), spread) for code in range(256)]
+    whole_x = fsum([table[own[r]] for r in held])
+    step = b64(F(_POLISH_STEP_TEXT))
+    most = b64(F(_POLISH_AIM_MOST_TEXT))
+    for target in targets:
+        if target["kind"] == "pair":
+            other_centre, other_spread = state["spreads"][target["name"]]
+            other = [b64_div(b64_sub(code, other_centre), other_spread) if other_spread > 0 else F(0) for code in range(256)]
+            partner = state["codes"][target["name"]]
+            both = state["has"][target["name"]]
+            rows_both = [r for r in held if both[r]]
+            m = len(rows_both)
+            if m < 2:
+                continue
+            sx = fsum([table[own[r]] for r in rows_both])
+            sxx = fsum([b64_mul(table[own[r]], table[own[r]]) for r in rows_both])
+            sy = fsum([other[partner[r]] for r in rows_both])
+            syy = fsum([b64_mul(other[partner[r]], other[partner[r]]) for r in rows_both])
+            sxy = fsum([b64_mul(table[own[r]], other[partner[r]]) for r in rows_both])
+            vx = b64_sub(sxx, b64_div(b64_mul(sx, sx), m))
+            vy = b64_sub(syy, b64_div(b64_mul(sy, sy), m))
+            if vx <= 0 or vy <= 0:
+                continue
+            got = b64_div(b64_sub(sxy, b64_div(b64_mul(sx, sy), m)), b64_sqrt(b64_mul(vx, vy)))
+        elif target["kind"] == "by":
+            number_centre, number_spread = state["spreads"][target["name"]]
+            if number_spread <= 0:
+                continue
+            number = [b64_div(b64_sub(code, number_centre), number_spread) for code in range(256)]
+            values = state["codes"][target["name"]]
+            holding = [r for r in range(n) if state["has"][target["name"]][r]]
+            m = len(holding)
+            if m < 2:
+                continue
+            encoding = target["encoding"]
+            of_row = state["bands"][(name, target.get("level", 1))]
+            inside = [r for r in holding if of_row[r] < len(encoding)]
+            sx = fsum([number[values[r]] for r in holding])
+            sy = fsum([encoding[of_row[r]] for r in inside])
+            sxy = fsum([b64_mul(number[values[r]], encoding[of_row[r]]) for r in inside])
+            got = b64_sub(b64_div(sxy, m), b64_mul(b64_div(sx, m), b64_div(sy, m)))
+        else:
+            encoding = target["encoding"]
+            of_row = state["bands"][(target["name"], target.get("level", 1))]
+            inside = [r for r in held if of_row[r] < len(encoding)]
+            sy = fsum([encoding[of_row[r]] for r in inside])
+            sxy = fsum([b64_mul(table[own[r]], encoding[of_row[r]]) for r in inside])
+            got = b64_sub(b64_div(sxy, count), b64_mul(b64_div(whole_x, count), b64_div(sy, count)))
+        target["aim"] = b64_add(target["aim"], b64_div(b64_mul(step, b64_sub(target["goal"], got)), target.get("slope", F(1))))
+        if target["kind"] != "within":
+            bound = target.get("most", most)
+            target["aim"] = min(bound, max(-bound, target["aim"]))
+        if spreads_on and target["kind"] == "pair" and target.get("scales"):
+            both = state["has"][target["name"]]
+            rows_p = [r for r in held if both[r]]
+            k = len(rows_p)
+            t = sum(own[r] for r in rows_p)
+            s = sum(own[r] * own[r] for r in rows_p)
+            wanted = target["sds"][0]
+            if k >= 2 and wanted > 0:
+                spread_now = b64(F(k * s - t * t, k * (k - 1)))
+                if spread_now > 0:
+                    factor = b64_div(b64_mul(target["scales"][0], wanted), b64_sqrt(spread_now))
+                    target["scales"][0] = min(POLISH_SPREAD_MOST, max(POLISH_PAIR_SPREAD_LEAST, factor))
+        if spreads_on and target["kind"] == "within" and target.get("scales"):
+            of_row = state["bands"][(target["name"], target.get("level", 1))]
+            bands = len(target["scales"])
+            held_b = [0] * bands
+            totals = [0] * bands
+            squares = [0] * bands
+            for r in held:
+                if of_row[r] < bands:
+                    b = of_row[r]
+                    held_b[b] += 1
+                    totals[b] += own[r]
+                    squares[b] += own[r] * own[r]
+            for b in range(bands):
+                wanted = target["sds"][b]
+                if held_b[b] < 2 or wanted <= 0:
+                    continue
+                spread_now = b64(F(held_b[b] * squares[b] - totals[b] * totals[b], held_b[b] * (held_b[b] - 1)))
+                if spread_now <= 0:
+                    continue
+                factor = b64_div(b64_mul(target["scales"][b], wanted), b64_sqrt(spread_now))
+                target["scales"][b] = min(POLISH_SPREAD_MOST, max(POLISH_SPREAD_LEAST, factor))
+    if feasible:
+        moved = [target["aim"] for target in targets]
+        asked = solved(matrix, moved)
+        whole = F(0)
+        for j in range(width):
+            whole = b64_add(whole, b64_mul(asked[j], moved[j]))
+        edge = b64_sub(1, least)
+        if whole > edge:
+            factor = b64_sqrt(b64_div(edge, whole))
+            for target in targets:
+                target["aim"] = b64_mul(target["aim"], factor)
+
+
+def walk_rows(chain, lads, cells, words, slopes=None, codes=None, targets=None,
+              sort_by_row=False, spread_after=False, trace=None, moved=None, members_test=False,
+              implied=False):
+    """Method G16.2 on given words: each arranged row's cell of each eligible column.
+
+    `lads` maps each column to its PUBLISHED ladder (band structure and totals);
+    `cells[column]` lists, for each `L0` band in band order, the twin's
+    cells of that band as `(text, reading)` in the interface's order
+    (`reading` None on a cell holding no reading of the band's order);
+    `words[f]` lists three words for each arranged row of family `f`;
+    `slopes[f]` is None or `([(parent, beta text)], sigma text)`;
+    `codes[column]` is `(lo, hi)` for a FINE column's value code;
+    `targets[f]` replaces family `f`'s target as the caller gives it;
+    every other family takes G16.0's target (`family_target`): its
+    published table where the twin's parent cells and the child's band
+    totals meet it, else its moved table, recorded in `moved[f]` where
+    `moved` is a dict (and `("undealable", row totals, parent counts)`
+    where the mutant `members_test` keeps a table the cells cannot hold,
+    the walk then stopping before that family).
+    The two keyword mutants are G16.12's: rows sorted by row number
+    instead of `L`, and the spread bands placed after the ordered ones.
+    `trace`, where a dict, receives for each family index its rows'
+    latent orders `L` and each slope parent's cell means (exact
+    binary64 values as fractions).
+    `implied` (lane MPg, plan P4-D456) orders a family publishing no
+    slope, whose child's ladder holds a value range and which has a
+    parent, by G16.2 step 2's IMPLIED SLOPE (`implied_slope`,
+    `implied_latent`), each ranged parent read through its rows' ranks
+    among its readings; False keeps `L = z`, the walk before it.
+    Returns `{column: [cell index of each row]}`, the cell lists, and each
+    family's table as dealt.
+    """
+    slopes = slopes or {}
+    codes = codes or {}
+    targets = targets or {}
+    n = len(words[0])
+    band_code = {}
+    reading = {}
+    index = {}
+    cell_list = {}
+    dealt = []
+    ranks = {}
+    for fi, fam in enumerate(chain):
+        child = fam.child
+        lad = lads[child]
+        level = fam.level
+        bands = lad.bands(level)
+        sizes = [len(lads[p].bands(lv)) for p, lv in fam.parents]
+        to_family = []
+        for p, lv in fam.parents:
+            chain_to = {b: lads[p].coarsen(lv)[members[0]] for b, members in enumerate(lads[p].bands(_chain_level_of(chain, p)))}
+            to_family += [chain_to]
+        cell_of = [0] * n
+        for r in range(n):
+            cell = 0
+            for (p, lv), size, mapping in zip(fam.parents, sizes, to_family):
+                cell = cell * size + mapping[band_code[p][r]]
+            cell_of[r] = cell
+        if fi in targets:
+            target = targets[fi]
+        else:
+            child_totals = [sum(len(cells[child][b]) for b in members) for members in bands]
+            target = family_target(fam, sizes, cell_of, child_totals, members_test, moved, fi)
+            if target is None:
+                if moved is not None:
+                    moved[fi] = ("undealable", [sum(row) for row in fam.table],
+                                 [cell_of.count(c) for c in range(len(fam.table))])
+                return index, cell_list, dealt
+        z = [hidden_score(words[fi][r]) for r in range(n)]
+        latent = list(z)
+        means = {}
+        if fi in slopes and slopes[fi] is not None and lad.ordered and any(lad.ordered):
+            parent_terms, sigma_text = slopes[fi]
+            sigma = published_decimal(sigma_text)
+            for p, beta_text in parent_terms:
+                sums = {}
+                for r in range(n):
+                    if reading[p][r] is None:
+                        continue
+                    s, k = sums.get(cell_of[r], (0, 0))
+                    sums[cell_of[r]] = (s + value_code(reading[p][r], *codes[p]), k + 1)
+                means[p] = {c: b64(F(s, k)) for c, (s, k) in sums.items()}
+            for r in range(n):
+                acc = None
+                for p, beta_text in parent_terms:
+                    beta = published_decimal(beta_text)
+                    if reading[p][r] is None or cell_of[r] not in means[p]:
+                        term = F(0)
+                    else:
+                        code = value_code(reading[p][r], *codes[p])
+                        term = b64_mul(beta, b64_sub(code, means[p][cell_of[r]]))
+                    acc = term if acc is None else b64_add(acc, term)
+                latent[r] = b64_add(acc, b64_mul(sigma, z[r]))
+        elif implied and fam.parents and lad_ranged(lad):
+            used = [j for j, (p, lv) in enumerate(fam.parents) if lad_ranged(lads[p]) and p in ranks]
+            slope = implied_slope(fam.table, sizes, [lad_scores(lads[p], lv) for p, lv in fam.parents],
+                                  used, lad_scores(lad, level))
+            latent = implied_latent(cell_of, slope, [ranks[fam.parents[j][0]] for j in used], z)
+            means = {"slope": slope}
+        if trace is not None:
+            trace[fi] = {"latent": latent, "means": means, "cells": list(cell_of)}
+        sort_key = (lambda r: r) if sort_by_row else (lambda r: (latent[r], r))
+        band_of = [None] * n
+        ordered_band = [any(isinstance(s, tuple) for b in members for s in lad.l0[b]) for members in bands]
+        if lad.role in ("binary", "categorical", "long_tail_labels", "constant"):
+            ordered_band = [not all(s == "missing" for b in members for s in lad.l0[b]) for members in bands]
+        for cell in range(len(target)):
+            rows = sorted([r for r in range(n) if cell_of[r] == cell], key=sort_key)
+            free = list(rows)
+            spread = [b for b in range(len(bands)) if not ordered_band[b] and target[cell][b] > 0]
+            ordered = [b for b in range(len(bands)) if ordered_band[b]]
+
+            def place_spread(free):
+                for b in spread:
+                    t = target[cell][b]
+                    picked = set(_spread_positions(len(free), t))
+                    for at in sorted(picked):
+                        band_of[free[at]] = b
+                    free = [r for at, r in enumerate(free) if at not in picked]
+                return free
+
+            if not spread_after:
+                free = place_spread(free)
+            at = 0
+            for b in ordered:
+                t = target[cell][b]
+                for r in free[at:at + t]:
+                    band_of[r] = b
+                at += t
+            if spread_after:
+                rest = free[at:]
+                for b in spread:
+                    t = target[cell][b]
+                    for r in rest[:t]:
+                        band_of[r] = b
+                    rest = rest[t:]
+        table = [[0] * len(bands) for _ in range(len(target))]
+        for r in range(n):
+            table[cell_of[r]][band_of[r]] += 1
+        dealt += [table]
+        # Step 4: the cells inside their bands.
+        listing = []
+        idx = [None] * n
+        read = [None] * n
+        rank = [None] * n
+        before = 0
+        for b, members in enumerate(bands):
+            rows = sorted([r for r in range(n) if band_of[r] == b], key=sort_key)
+            with_reading = []
+            without = []
+            for l0 in members:
+                for text, value in cells[child][l0]:
+                    if value is None:
+                        without += [(text, value)]
+                    else:
+                        with_reading += [(text, value)]
+            with_reading = [c for _, c in sorted(enumerate(with_reading), key=lambda ic: (ic[1][1], ic[0]))]
+            start = len(listing)
+            listing += with_reading + without
+            g = len(rows)
+            a = len(without)
+            spread_at = set(_spread_positions(g, a)) if a else set()
+            k_read = 0
+            k_without = 0
+            for pos, r in enumerate(rows):
+                if pos in spread_at:
+                    idx[r] = start + len(with_reading) + k_without
+                    k_without += 1
+                else:
+                    idx[r] = start + k_read
+                    rank[r] = before + k_read
+                    k_read += 1
+                read[r] = listing[idx[r]][1]
+            before += len(with_reading)
+        band_code[child] = band_of
+        ranks[child] = (rank, before)
+        reading[child] = read
+        index[child] = idx
+        cell_list[child] = listing
+    return index, cell_list, dealt
+
+
+def _chain_level_of(chain, column):
+    for fam in chain:
+        if fam.child == column:
+            return fam.level
+    raise KeyError(column)
+
+
+# --- the moved target (method G16.6) -----------------------------------------
+
+
+def _tables_with(rows, columns):
+    """Every table of whole numbers with the given row and column totals."""
+    r, c = len(rows), len(columns)
+
+    def fill(i, j, cur, row_left, col_left):
+        if i == r:
+            if all(x == 0 for x in col_left):
+                yield [list(x) for x in cur]
+            return
+        if j == c - 1:
+            v = row_left[i]
+            if v <= col_left[j]:
+                cur[i][j] = v
+                col_left[j] -= v
+                yield from fill(i + 1, 0, cur, row_left, col_left)
+                col_left[j] += v
+            return
+        for v in range(min(row_left[i], col_left[j]) + 1):
+            cur[i][j] = v
+            row_left[i] -= v
+            col_left[j] -= v
+            yield from fill(i, j + 1, cur, row_left, col_left)
+            row_left[i] += v
+            col_left[j] += v
+
+    if sum(rows) != sum(columns):
+        return []
+    return list(fill(0, 0, [[0] * c for _ in range(r)], list(rows), list(columns)))
+
+
+def moved_target_by_enumeration(published, rows, columns):
+    """G16.6's moved table, by enumerating every table: fewest units in published noughts,
+    then the smallest total distance, then the smallest sum of squares, then the greatest
+    in row-major order. Returns `(table, units_in_noughts)` with each `(row, column,
+    units)`. Kept beside `moved_target` as its check on small cases.
+    """
+    best = None
+    best_key = None
+    for table in _tables_with(rows, columns):
+        noughts = sum(table[i][j] for i in range(len(rows)) for j in range(len(columns)) if published[i][j] == 0)
+        distance = sum(abs(table[i][j] - published[i][j]) for i in range(len(rows)) for j in range(len(columns)))
+        squares = sum((table[i][j] - published[i][j]) ** 2 for i in range(len(rows)) for j in range(len(columns)))
+        flat = [-x for row in table for x in row]
+        key = (noughts, distance, squares, flat)
+        if best_key is None or key < best_key:
+            best, best_key = table, key
+    named = [(i, j, best[i][j]) for i in range(len(rows)) for j in range(len(columns)) if published[i][j] == 0 and best[i][j] > 0]
+    return best, named
+
+
+def _compositions(total, bounds):
+    """Every split of `total` into `len(bounds)` whole parts, part `j` at most `bounds[j]`."""
+    if len(bounds) == 1:
+        if total <= bounds[0]:
+            yield (total,)
+        return
+    rest = sum(bounds[1:])
+    for first in range(max(0, total - rest), min(total, bounds[0]) + 1):
+        for tail in _compositions(total - first, bounds[1:]):
+            yield (first,) + tail
+
+
+def moved_target(published, rows, columns):
+    """G16.6's moved table, exactly, row by row: fewest units in published noughts, then the
+    smallest total distance, then the smallest sum of squares, then the greatest in
+    row-major order. Returns `(table, units_in_noughts)` with each `(row, column, units)`.
+
+    The three costs are sums over the cells, so the best table from row `i` on, given the
+    column totals left, is the best first row joined to the best table after it: one
+    table per (row, totals left), each compared on (costs, then its cells read in
+    row-major order, greatest first). The same table as `moved_target_by_enumeration`
+    (the test file checks both on small cases), in time the enumeration cannot reach on
+    the joint-count case of G16.12 item 10.
+    """
+    if sum(rows) != sum(columns):
+        raise ValueError("the row and column totals of a moved table differ")
+    count = len(rows)
+    memo = {}
+
+    def best(i, left):
+        if i == count:
+            return ((0, 0, 0), ()) if not any(left) else None
+        if (i, left) in memo:
+            return memo[(i, left)]
+        found = None
+        for row in _compositions(rows[i], left):
+            after = best(i + 1, tuple(x - y for x, y in zip(left, row)))
+            if after is None:
+                continue
+            noughts = sum(x for x, p in zip(row, published[i]) if p == 0)
+            distance = sum(abs(x - p) for x, p in zip(row, published[i]))
+            squares = sum((x - p) ** 2 for x, p in zip(row, published[i]))
+            cost = (noughts + after[0][0], distance + after[0][1], squares + after[0][2])
+            cells = row + after[1]
+            if found is None or cost < found[0] or (cost == found[0] and cells > found[1]):
+                found = (cost, cells)
+        memo[(i, left)] = found
+        return found
+
+    _, cells = best(0, tuple(columns))
+    width = len(columns)
+    table = [list(cells[i * width:(i + 1) * width]) for i in range(count)]
+    named = [(i, j, table[i][j]) for i in range(count) for j in range(width) if published[i][j] == 0 and table[i][j] > 0]
+    return table, named
+
+
+def needs_move(published, parent_counts, child_totals):
+    """G16.0's test: a family's target is its published table only where the twin's parent
+    cells hold the table's row totals and the child's band totals its column totals."""
+    rows = [sum(r) for r in published]
+    columns = [sum(c) for c in zip(*published)]
+    return rows != list(parent_counts) or columns != list(child_totals)
+
+
+# --- a carried order rule (method G16.2 step 5) -------------------------------
+
+
+def computed_column(a_readings, d_readings):
+    """`B` written as `A + D` where both hold a reading, absent where either does not."""
+    out = []
+    for a, d in zip(a_readings, d_readings):
+        out += [None if a is None or d is None else F(a) + F(d)]
+    return out
+
+
+# --- the cell index (method G16.2 step 4, G16.10) ------------------------------------
+
+
+def index_width(cell_count):
+    """Bytes a row's cell index takes: 3, or 4 where the column holds more than 16,777,215 cells."""
+    return 4 if cell_count > 16_777_215 else 3
+
+
+def pack_indices(indices, cell_count, width=None):
+    """The rows' cell indices as G16.2 step 4 stores them, `index_width` bytes a row.
+
+    The page fixes the width, not the byte order; the oracle reads the
+    bytes little-endian (its own reading, stated in plan P4-D421). `width`
+    overrides the page's width (the mutant: 3 bytes a row whatever the
+    column holds, each index then kept modulo 2**24).
+    """
+    width = index_width(cell_count) if width is None else width
+    out = bytearray()
+    for i in indices:
+        if not 0 <= i < cell_count:
+            raise ValueError("a cell index outside the column's cell list")
+        out += (i % (1 << (8 * width))).to_bytes(width, "little")
+    return out
+
+
+def unpack_indices(data, cell_count, width=None):
+    """The cell indices read back from `pack_indices`' bytes."""
+    width = index_width(cell_count) if width is None else width
+    return [int.from_bytes(bytes(data[k:k + width]), "little") for k in range(0, len(data), width)]
+
+
+# --- the band code (method G16.1, G16.10; lane CHb's second repair) ----------------------
+
+
+def band_code_width(bands):
+    """Bytes a row's band code takes: the fewest whose whole numbers reach the level's count of bands.
+
+    One up to 255 bands, two up to 65,535, three up to 16,777,215 (G16.1 as
+    amended by lane CHb's second repair, Codex's item 2: the first build's
+    two bytes above 255 bands wrote band 65,536 of 65,537 as band 0).
+    """
+    width = 1
+    while bands >= 256 ** width:
+        width += 1
+    return width
+
+
+def pack_band_codes(codes, bands, width=None):
+    """The rows' band codes as G16.1 stores them, `band_code_width` bytes a row, little-endian.
+
+    `width` overrides the page's width (the mutant: the first build's two
+    bytes above 255 bands, each code then kept modulo 2**16).
+    """
+    width = band_code_width(bands) if width is None else width
+    out = bytearray()
+    for code in codes:
+        if not 0 <= code < bands:
+            raise ValueError("a band code outside the level's bands")
+        out += (code % (1 << (8 * width))).to_bytes(width, "little")
+    return out
+
+
+def unpack_band_codes(data, bands, width=None):
+    """The band codes read back from `pack_band_codes`' bytes."""
+    width = band_code_width(bands) if width is None else width
+    return [int.from_bytes(bytes(data[k:k + width]), "little") for k in range(0, len(data), width)]
+
+
+# --- stray rows (method G16.5, G2.1 step 2's second walk) -----------------------------
+
+
+def stray_rows(rows, columns, eligible, rule_named, sequence=None, targets=(), givers=None):
+    """G16.5's stray rows: a row (not a target) holding nothing in every column takes one cell
+    back by G2.1 step 2's second walk, its GIVERS taken only from the ineligible columns no
+    carried rule computes or reads, never the row-sequence column.
+
+    `rows` lists each row's cells as text (`""` holds nothing); `eligible` the eligible
+    columns; `rule_named` every column a `rules` entry names as `computed`, `inputs` or
+    `carrier`. For each such row in row order, in the first column in column order that
+    has a giver (the first row in row order, not a target, holding something in that
+    column and something in two or more columns at that moment), the giver's cell is
+    exchanged into it; where no column has one, the row stays holding nothing and is
+    named. `givers`, where given, replaces the columns that may give (the mutants: an
+    eligible column's cell moved; a computed column giving its cell). Returns `(rows
+    after, exchanges as (row, column, giver), rows left holding nothing)`.
+    """
+    if givers is None:
+        givers = [c for c in columns if c not in eligible and c not in rule_named and c != sequence]
+    allowed = [j for j, name in enumerate(columns) if name in givers]
+    table = [list(r) for r in rows]
+    exchanges = []
+    stayed = []
+    for r in range(len(table)):
+        if r in targets or any(cell != "" for cell in table[r]):
+            continue
+        done = False
+        for j in allowed:
+            giver = None
+            for g in range(len(table)):
+                if g in targets or table[g][j] == "":
+                    continue
+                if sum(1 for cell in table[g] if cell != "") >= 2:
+                    giver = g
+                    break
+            if giver is None:
+                continue
+            table[r][j], table[giver][j] = table[giver][j], table[r][j]
+            exchanges += [(r, columns[j], giver)]
+            done = True
+            break
+        if not done:
+            stayed += [r]
+    return table, exchanges, stayed
+
+
+# --- the reading of a number cell beside a decimal rung (lane CHb, plan P4-D435) -------------
+
+
+def reading_of(text):
+    """A number cell's READING: the binary64 value nearest its decimal text, as an exact fraction.
+
+    ONE READING, settled by lane CHb (lane CHv's build, its point 3): a cell
+    is read as Python reads its text into a float, the binary64 value nearest
+    it, and compared with the rung read the same way, the binary64 value its
+    JSON number names. So `114.7` beside a rung published as 114.7 stands AT
+    the rung, in the band above it, where reading the cell exactly put it
+    below (3 of 800 rows on the clinic table). The profile's ladder, the
+    generator's bands and V12's lines read so; the oracle's ladder is
+    handed cells read here.
+    """
+    return b64(F(text))
+
+
+# --- the interface's groups, joined into `L0` bands (method G16.0; lane CHb, plan P4-D435) ---
+
+
+def _band_order_starts(lad):
+    """Every starting band a column's cells can stand in, in contract band order (4.6b.2)."""
+    held = [s for band in lad.l0 for s in band]
+    if lad.role in ("binary", "categorical", "long_tail_labels", "constant", "derived"):
+        levels = [s for s in held if isinstance(s, tuple) and s[0] == "level" and s[1] != "held back"]
+        return ["missing"] + levels + [("level", "held back")]
+    ranges = [s for s in held if isinstance(s, tuple) and s[0] == "range"]
+    return ["other", "labels", "missing"] + ranges
+
+
+def interface_bands(lad, groups):
+    """The twin's cells of one column per `L0` band, from the interface's groups (G4.2b).
+
+    `groups` lists `(kind, cells)` in the interface's order: `("range", k)`
+    for its `k`-th range group, `("level", name)` for a level group (named
+    by its first published level), `"missing"`, `"other"` (on a label
+    column the cells of withheld levels, the held-back pool's) or
+    `"labels"`; `cells` each `(text, reading)`. A group goes to the `L0`
+    band holding its starting band; a group holding cells whose starting
+    band no `L0` band holds JOINS the band holding the next starting band
+    the ladder holds in contract band order, or, where none follows, the
+    one before it. Within a band the cells keep the interface's order.
+    """
+    where = {}
+    ranges = []
+    for b, band in enumerate(lad.l0):
+        for s in band:
+            where[s] = b
+        # One range group for each `L0` band holding a range (G4.2b).
+        held = [s for s in band if isinstance(s, tuple) and s[0] == "range"]
+        if held:
+            ranges += [held[0]]
+    order = _band_order_starts(lad)
+    label = lad.role in ("binary", "categorical", "long_tail_labels", "constant", "derived")
+    out = [[] for _ in lad.l0]
+    for kind, cells in groups:
+        if isinstance(kind, tuple) and kind[0] == "range":
+            start = ranges[kind[1]]
+        elif kind == "other" and label:
+            start = ("level", "held back")
+        else:
+            start = kind
+        if start in where:
+            out[where[start]] += list(cells)
+            continue
+        if not cells:
+            continue
+        at = order.index(start)
+        later = [s for s in order[at + 1:] if s in where]
+        earlier = [s for s in order[:at] if s in where]
+        if later:
+            out[where[later[0]]] += list(cells)
+        elif earlier:
+            out[where[earlier[-1]]] += list(cells)
+        else:
+            raise ValueError("a column's cells stand in no band of its ladder")
+    return out
+
+
+# --- a column made without its band totals, read as the profile reads it (method G16.0 (h); lane CHb repair 1) ---
+
+
+def reader_bands(lad, cells, rungs, join="next"):
+    """Each cell of a column MADE WITHOUT ITS BAND TOTALS in the `L0` band the profile's reader reads it into.
+
+    Method G16.0's reading (h) (lane CHb's first repair, its skeptics' item
+    2): where rule B3 lays a column without its band totals, the walk takes
+    each cell's band from the reader's own reading of the cell's text, never
+    from the interface's grouping. `cells` lists each cell read as
+    `ladder_of` takes them (`("value", x)` on the column's own order,
+    `("missing",)`, `("other",)`, `("labels",)`); `rungs` are the published
+    rungs, as `ladder_of` takes them. A value stands in the starting range
+    `[low, high)` holding it, a kind in its own starting band; each in the
+    `L0` band joining that starting band, or, where no band joins it, the
+    band joining the next starting band the ladder holds in contract band
+    order, else the one before (the join `interface_bands` makes). MUTANTS
+    of that join (`join`, lane CHb's second repair, its verify's item 1):
+    `"later_never"`, the next band never tried (the one before alone);
+    `"earlier_never"`, the one before never tried; either raises where the
+    other side alone holds a band.
+    """
+    where = {}
+    for b, band in enumerate(lad.l0):
+        for s in band:
+            where[s] = b
+    edges = _number_edges(rungs, TEMPORAL_L0 if lad.role in TEMPORAL_ROLES else NUMBER_L0)
+    values = {k: v for k, v in edges}
+    ranges = [s for band in lad.l0 for s in band if isinstance(s, tuple) and s[0] == "range"]
+    order = _band_order_starts(lad)
+    out = []
+    for cell in cells:
+        start = cell[0]
+        if start == "value":
+            x = F(cell[1])
+            start = None
+            for s in ranges:
+                low = values[s[1]] if s[1] is not None else None
+                high = values[s[2]] if s[2] is not None else None
+                if (low is None or low <= x) and (high is None or x < high):
+                    start = s
+                    break
+            if start is None:
+                raise ValueError("a reading lies in no band")
+        if start in where:
+            out += [where[start]]
+            continue
+        at = order.index(start)
+        later = [s for s in order[at + 1:] if s in where] if join != "later_never" else []
+        earlier = [s for s in order[:at] if s in where] if join != "earlier_never" else []
+        if later:
+            out += [where[later[0]]]
+        elif earlier:
+            out += [where[earlier[-1]]]
+        else:
+            raise ValueError("a column's cells stand in no band of its ladder")
+    return out
+
+
+# --- the content hash and the sample key (contract 4.6b.8; lane CHb, plan P4-D435) -----------
+
+
+def _framed(name, text):
+    name_bytes = name.encode("utf-8")
+    text_bytes = text.encode("utf-8")
+    return len(name_bytes).to_bytes(8, "big") + name_bytes + len(text_bytes).to_bytes(8, "big") + text_bytes
+
+
+def row_hash(names, cells, separators=False, raw=False):
+    """A row's CONTENT HASH, cell by cell (4.6b.8 as amended by lane CHa's repair 2).
+
+    Each cell's length-framed bytes (the column name's and the cell's text's
+    UTF-8 bytes, each preceded by its length as 8 bytes big-endian) hashed
+    alone, BLAKE2b with `person=b"synthtwin.cel.1"`; the cell hashes summed
+    modulo `2**256` as big-endian whole numbers; the sum's 32 bytes hashed,
+    BLAKE2b with `person=b"synthtwin.row.2"`. A cell holding nothing (spaces
+    and tabs alone, `holds_nothing`) is framed as the EMPTY TEXT, as 4.6b.8
+    states ("a cell read as holding nothing is the empty text"), so `""` and
+    `" \t"` give one hash (lane CHb's second repair, Codex's item 4). MUTANT
+    `separators`: the first build's bytes, the cells joined by `0x1f` and
+    `0x1e` under one hash, which a cell holding those bytes can imitate
+    (Codex's item 15); MUTANT `raw`: each cell framed as written, blanks
+    included, which the first oracle did.
+    """
+    if separators:
+        body = b"".join(n.encode("utf-8") + b"\x1f" + c.encode("utf-8") + b"\x1e" for n, c in sorted(zip(names, cells)))
+        return hashlib.blake2b(body, digest_size=32, person=b"synthtwin.row.1").digest()
+    total = 0
+    for name, written in zip(names, cells):
+        text = written if raw or not holds_nothing(written) else ""
+        digest = hashlib.blake2b(_framed(name, text), digest_size=32, person=b"synthtwin.cel.1").digest()
+        total = (total + int.from_bytes(digest, "big")) % (1 << 256)
+    return hashlib.blake2b(total.to_bytes(32, "big"), digest_size=32, person=b"synthtwin.row.2").digest()
+
+
+def holds_nothing(text):
+    """A cell of spaces and tabs alone holds nothing (contract 4.1, `empty_rows`)."""
+    return all(character in " \t" for character in text)
+
+
+def table_hash(names, rows):
+    """The table's content hash: its rows' hashes summed modulo `2**256`, a row holding nothing in
+    every column left out (4.6b.8 as amended by lane CHa's repair 1)."""
+    total = 0
+    for cells in rows:
+        if all(holds_nothing(c) for c in cells):
+            continue
+        total = (total + int.from_bytes(row_hash(names, cells), "big")) % (1 << 256)
+    return total.to_bytes(32, "big")
+
+
+def sample_of(hashes, size, cut=False):
+    """The self-test's sample: the `min(m, n)` rows of smallest SAMPLE KEY, sorted by key (4.6b.8).
+
+    A row's key is BLAKE2b (`digest_size=8`, `person=b"synthtwin.smp.1"`)
+    over its content hash and its OCCURRENCE, the count of earlier rows of
+    the same hash, as 8 bytes big-endian; equal keys are taken in order of
+    content hash, then occurrence. Returns the rows' places. MUTANT `cut`:
+    the first build's rule, a row taken where the first 8 bytes of its
+    content hash fall below a cut set for `size` rows of `n`, which takes or
+    leaves every copy of a row together.
+    """
+    n = len(hashes)
+    if cut:
+        line = (size << 64) // max(n, 1)
+        return [at for at in range(n) if int.from_bytes(hashes[at][:8], "big") < line]
+    seen = {}
+    keyed = []
+    for at, one in enumerate(hashes):
+        occurrence = seen.get(one, 0)
+        seen[one] = occurrence + 1
+        key = hashlib.blake2b(one + occurrence.to_bytes(8, "big"), digest_size=8, person=b"synthtwin.smp.1").digest()
+        keyed += [(key, one, occurrence, at)]
+    keyed.sort()
+    return [entry[3] for entry in keyed[: min(size, n)]]
+
+
+# --- rules between columns: an order rule carried by its difference D (contract 4.6b.7; lane RO, plan P4-D459) ---
+#
+# Read from the rules page (MR.1 to MR.7) alone, in exact fractions: the
+# inference limit, D's nested levels and right-closed bands, row 9's one
+# test in its closed form (Proposition T), rules 1 to 6 of a derived
+# option with rule 1 as repaired, the rule step's word and choice, D's
+# readings in the twin (MR.2, repaired twice) and a sum written in the
+# computed column's own first form.
+
+DERIVED_LEVELS = (("L0", (10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90)), ("L1", (25, 50, 75, 90)),
+                  ("L2", (50,)), ("one", ()))
+
+
+def rule_limit(n, f=DEFAULT_FLOOR):
+    """`L(n) = max(f, floor(n / 100))` (MR.1)."""
+    return max(f, n // 100)
+
+
+def first_rank(p, m):
+    """`k(p) = floor(p (m - 1) / 100)`."""
+    return (p * (m - 1)) // 100
+
+
+def rung_at(readings, p):
+    """A rung by the contract's interpolation rule over sorted readings: `x(k) + frac (x(k + 1) - x(k))`."""
+    m = len(readings)
+    position = F(p * (m - 1), 100)
+    k = position.numerator // position.denominator
+    low = F(readings[k])
+    high = F(readings[k + 1]) if k + 1 < m else low
+    return low + (position - k) * (high - low)
+
+
+def derived_levels(readings):
+    """D's four nested levels, each `(name, percents, edges)`, tied edges taken once (4.6b.7)."""
+    ordered = sorted(F(x) for x in readings)
+    out = []
+    for name, percents in DERIVED_LEVELS:
+        edges = []
+        for p in percents:
+            edge = rung_at(ordered, p)
+            if not edges or edge != edges[-1]:
+                edges += [edge]
+        out += [(name, percents, edges)]
+    return out
+
+
+def derived_band(edges, x):
+    """The value band holding `x`, bands closed on the RIGHT (MR.2 item 1): the count of edges below `x`."""
+    return sum(1 for edge in edges if edge < F(x))
+
+
+def band_totals(edges, readings):
+    totals = [0] * (len(edges) + 1)
+    for x in readings:
+        totals[derived_band(edges, x)] += 1
+    return totals
+
+
+def rule_one(totals, percents, f=DEFAULT_FLOOR, first_text=False):
+    """Rule 1 AS REPAIRED (MR.2): True where met. `first_text` reads the first text (every band at its bound, no clause)."""
+    bound = max(2 * f, f + 4)
+    m = sum(totals)
+    if m == 0:
+        return False
+    if first_text:
+        return all(t >= bound for t in totals)
+    if any(t < bound for t in totals[:-1]) or 0 < totals[-1] < bound:
+        return False
+    ks = [first_rank(p, m) for p in percents]
+    if any(ks[i + 1] - ks[i] < f + 1 for i in range(len(ks) - 1)):
+        return False
+    if totals[-1] == 0 and (not ks or (m - 1) - ks[-1] < f + 1):
+        return False
+    return True
+
+
+def partition_passes(readings, f, limit):
+    """Proposition T read for the WHOLE partition: no class `v` from `f` to `min(L, R)` has `R - v` in 1 to `f - 1`."""
+    return all(not (1 <= readings - v <= f - 1) for v in range(f, min(limit, readings) + 1))
+
+
+def class_of(v, readings, f, limit, phrase_only=False):
+    """The class the real `v` falls in, among a partition that passed whole; None where none."""
+    if v <= f - 1:
+        return "phrase"
+    if phrase_only or v > limit or not partition_passes(readings, f, limit):
+        return None
+    return v
+
+
+def derived_eligible(edges, percents, totals, table, spread_rows, missing_alone, group_rows, klass, g,
+                     f=DEFAULT_FLOOR, rule5=True):
+    """Rules 1 to 6 of a derived option (4.6b.7 as amended): `(eligible, the first rule that refuses)`."""
+    if klass is None:
+        return False, "class"
+    if not rule_one(totals, percents, f):
+        return False, "rule 1"
+    values = len(edges) + 1
+    if not missing_alone or any(table[r][b] for r in spread_rows for b in range(values)):
+        return False, "rule 2"
+    if any(0 < cell < f for row in table for cell in row):
+        return False, "rule 3"
+    holding = {b for b in range(values + 1) if any(row[b] for row in table)}
+    for r in group_rows:
+        reached = {b for b in range(values + 1) if table[r][b] > 0}
+        if len(reached) < 2 and not (reached and reached == holding) and not (not edges and table[r][values] == 0):
+            return False, "rule 4"
+    if rule5 and isinstance(klass, int):
+        left = klass
+        for b in range(values):
+            upper = edges[b] if b < len(edges) else None
+            lower = edges[b - 1] if b > 0 else None
+            if upper is not None and upper < 0:
+                left -= totals[b]
+                continue
+            if lower is None or lower < 0:
+                below = max(0, min(left, totals[b]))
+                if 0 < below < f or 0 < totals[b] - below < f:
+                    return False, "rule 5"
+                left -= below
+    g = F(g)
+    for b in range(1, len(edges)):
+        lo, hi = edges[b - 1], edges[b]
+        up = (lo / g).numerator // (lo / g).denominator + 1
+        if up * g > hi:
+            return False, "rule 6"
+    return True, "eligible"
+
+
+def rule_word(key, name, kind, computed, inputs, columns):
+    """A rule step's word, keyed by the rule's IDENTITY `[kind, computed, inputs]` (4.6b.4, MR.4 (f))."""
+    return word(key, name, "rule", [kind, computed, list(inputs)], list(columns))
+
+
+def derived_readings(edges, published, dealt, percents, failing, g):
+    """D's readings in the twin, each band's ascending (MR.2 as repaired twice), as exact fractions.
+
+    Every reading is a multiple of `g`. An inner band `(lo, hi]` spreads its
+    `t` rows over its multiples at positions `floor(q m / t)`; the ranks
+    two rungs of its upper edge enclose take that edge. The lowest band
+    spreads over its multiples from 0 to its edge, or takes its edge on
+    every rank where two or more rungs tie there. In a count class the
+    bands wholly below 0 take their largest multiple at or below their
+    edge and the band holding 0 gives the failing rows they leave readings
+    below 0 (`-g` in the lowest band; in an inner band its multiples above
+    `lo` and below 0, in turn). The highest band takes `up(lo)` alone where
+    the nearest band's width is at most `g`, else its multiples in `(lo,
+    lo + 3 w]`; where it is published empty, every rank from the top
+    rung's first takes the top edge. A level with no edge: 0 on every row,
+    its failing rows `-g`.
+    """
+    g = F(g)
+    values = len(edges) + 1
+    out = [[] for _ in range(values)]
+
+    def floor_steps(x):
+        q = F(x) / g
+        return q.numerator // q.denominator
+
+    def spread(first, last, t):
+        m = last - first + 1
+        return [(first + (q * m) // t) * g for q in range(t)] if t > 0 else []
+
+    m_all = sum(published)
+
+    def tied_from(b):
+        below = sum(published[:b])
+        end = below + published[b] - 1
+        at = []
+        for p in percents:
+            k = first_rank(p, m_all)
+            exact = (p * (m_all - 1)) % 100 == 0
+            if k >= below and (k + 1 <= end or (exact and k <= end)):
+                at += [k]
+        return at[0] + 1 if len(at) >= 2 else None
+
+    if not edges:
+        t = dealt[0]
+        below = min(failing, t)
+        out[0] = [-g] * below + [F(0)] * (t - below)
+        return out
+    left = failing - sum(dealt[b] for b in range(len(edges)) if edges[b] < 0)
+    for b in range(values):
+        t = dealt[b]
+        if t <= 0:
+            continue
+        lower = edges[b - 1] if b > 0 else None
+        upper = edges[b] if b < len(edges) else None
+        if upper is not None and upper < 0:
+            out[b] = [floor_steps(upper) * g] * t
+            continue
+        holds_zero = lower is None or lower < 0
+        negative = max(0, min(left, t)) if (holds_zero and failing) else 0
+        if holds_zero and failing:
+            left -= negative
+        readings = []
+        if upper is None:
+            width = (edges[-1] - edges[-2]) if len(edges) >= 2 else max(edges[0], F(0))
+            up = floor_steps(lower) + 1
+            readings = [up * g] * t if width <= g else spread(up, floor_steps(lower + 3 * width), t)
+        elif lower is None:
+            tied = tied_from(b)
+            readings = [-g] * negative
+            if tied is not None and (upper / g).denominator == 1:
+                readings += [F(upper)] * (t - negative)
+            else:
+                readings += spread(0, floor_steps(upper), t - negative)
+        else:
+            first = floor_steps(lower) + 1
+            if negative:
+                # Each multiple above `lo` and below 0 read directly, never the band's whole span.
+                span = -first
+                readings = [(first + i % span) * g if span > 0 else -g for i in range(negative)]
+                first = max(first, 0)
+            tied = tied_from(b)
+            rest = t - negative
+            if tied is not None and (upper / g).denominator == 1:
+                start = sum(published[:b]) + negative
+                free = max(0, min(rest, tied - start))
+                readings += spread(first, floor_steps(upper), free) + [F(upper)] * (rest - free)
+            else:
+                readings += spread(first, floor_steps(upper), rest)
+        out[b] = sorted(readings)
+    if published[-1] == 0 and percents and (edges[-1] / g).denominator == 1:
+        k = first_rank(percents[-1], m_all)
+        b = len(edges) - 1
+        start = sum(published[:b])
+        out[b] = sorted(F(edges[-1]) if start + i >= k else out[b][i] for i in range(len(out[b])))
+    return out
+
+
+def negative_written(text, form="minus"):
+    """A negative sum's figures `text` in the column's published negative form: `-` in front, accounting
+    brackets, the minus sign in front, or `-` after the figures where they hold a point (an amount)."""
+    if form == "brackets":
+        return "(" + text + ")"
+    if form == "minus_sign":
+        return "−" + text
+    if form == "trailing_minus" and "." in text:
+        return text + "-"
+    return "-" + text
+
+
+def written_sum(value, style="plain", pad=0, group="", point=False, negative="minus"):
+    """An exact sum written in the computed column's own first form (MR.2's table of forms): `point` where
+    its first fraction width is 0, a point after figures holding no places (`42.` + 1 is `43.`), and a
+    negative in its published negative form (lane RO's repair 2)."""
+    value = F(value)
+    places = 0
+    while (value * 10 ** places).denominator != 1:
+        places += 1
+    scaled = value * 10 ** places
+    magnitude = abs(scaled.numerator)
+    figures = str(magnitude).rjust(places + 1, "0") if places else str(magnitude)
+    whole, fraction = (figures[:-places], figures[-places:]) if places else (figures, "")
+    if group:
+        whole = "".join(("" if (i == 0 or (len(whole) - i) % 3) else group) + ch for i, ch in enumerate(whole))
+    elif style == "leading_zero" and pad > len(whole):
+        whole = "0" * (pad - len(whole)) + whole
+    text = whole + ("." + fraction if fraction else ("." if point else ""))
+    if scaled.numerator < 0:
+        return negative_written(text, negative)
+    return ("+" + text) if style == "leading_plus" else text
+
+
+def stamp_fraction(precision, digits):
+    """A computed stamp's written detail and figures after the second (MR.2; lane RO's repair 2): a block
+    reading `subsecond` writes `A`'s published count of figures in zeros, to the second where it is none."""
+    if precision != "subsecond":
+        return precision, 0
+    return ("subsecond", digits) if digits >= 1 else ("second", 0)
+
+
+def written_form(text, comma=False, prefix=None, suffix=None):
+    """A written sum in the computed column's own marks and affix (MR.2's text-decimal row): a declared decimal
+    comma exchanges the point and the grouping comma; an affix wraps the core as written (lane RO's repair 1)."""
+    if comma:
+        text = "".join("," if ch == "." else ("." if ch == "," else ch) for ch in text)
+    if prefix is not None and suffix is not None:
+        text = prefix + text + suffix
+    return text
+
+
+def offset_like(seconds, model, zulu="upper"):
+    """`A`'s offset (seconds east of UTC) written in the spelling of `B`'s first published offset `model`
+    (MR.2: "A's offset kept", in B's own form; lane RO's repair 1): `Z` beside a model `Z`, else `+HH:MM`,
+    `+HHMM` or `+HH` as the model writes it."""
+    if seconds == 0 and model in ("Z", "z"):
+        return "z" if zulu == "lower" else "Z"
+    sign = "-" if seconds < 0 else "+"
+    hours, minutes = divmod(abs(seconds) // 60, 60)
+    colon = f"{sign}{hours:02d}:{minutes:02d}"
+    if model in ("Z", "z"):
+        return colon
+    figures = "".join(ch for ch in model if ch.isdigit())
+    if ":" not in model and len(figures) == 4:
+        return f"{sign}{hours:02d}{minutes:02d}"
+    if ":" not in model and len(figures) == 2 and minutes == 0:
+        return f"{sign}{hours:02d}"
+    return colon
+
+
+def one_band_worth(edges, zero_rows, both_rows):
+    """MR.7's item on ONE derived option (REPAIR 2, AMENDED 2026-11-05 by the orchestrator's ruling, lane RO's
+    repair 1): a level with no edge writes `B` as `A`; it is worth carrying only where the real gap is 0 on at
+    least 99 of 100 of the rows where both read. A level with an edge is not judged by this item."""
+    if edges:
+        return True
+    return both_rows > 0 and F(zero_rows, both_rows) >= F(99, 100)
+
+
+def rule_option_score(worth, u, n, w_rule=F(1, 20)):
+    """A carried derived option's score (MR.7): `w_rule n` plus the family's `u`, `-w_rule n` where NOT WORTH."""
+    return w_rule * n + F(u) if worth else -w_rule * n
+
+
+def share_between(values, groups):
+    """A reading's exact share of variance between a column's bands (eta squared) over the rows it reads:
+    `values` one reading or None a row, `groups` each row's band (MR.7's association and presence items)."""
+    held = [(g, F(v)) for v, g in zip(values, groups) if v is not None]
+    if len(held) < 2:
+        return F(0)
+    mean = sum(v for _g, v in held) / len(held)
+    spread = sum((v - mean) ** 2 for _g, v in held)
+    if spread == 0:
+        return F(0)
+    between = F(0)
+    for band in sorted({g for g, _v in held}):
+        inside = [v for g, v in held if g == band]
+        between += len(inside) * (sum(inside) / len(inside) - mean) ** 2
+    return between / spread
+
+
+def association_lost(columns):
+    """MR.7's association item (AMENDED 2026-11-05, LANE RO RULINGS 3 (4)): over the other eligible columns,
+    each given as (D's share between its bands, B's own share between them), the largest of the smaller."""
+    return max([min(F(lost), F(kept)) for lost, kept in columns], default=F(0))
+
+
+def tighter_refuses(candidate, others, computed):
+    """MR.7's tighter-rule item (its clause read; AMENDED 2026-11-05 for the tie, LANE RO RULINGS 3 (3)):
+    `candidate` and each of `others` are (input, |median D|, mean |D|) of worth rules computing one column;
+    another refuses it where its input is no column a worth rule computes and its median is smaller, or equal
+    with a smaller mean."""
+    _a, median, mean = candidate
+    for other_a, other_median, other_mean in others:
+        if other_a in computed:
+            continue
+        if F(other_median) < F(median) or (F(other_median) == F(median) and F(other_mean) < F(mean)):
+            return True
+    return False
+
+
+def held_clock(a_seconds, d_seconds, step):
+    """A clock sum on D's side of A at the layout's step, held at the day's last value (MR.2, Theorem R's domain)."""
+    total = a_seconds + d_seconds
+    total = -((-total) // step) * step if d_seconds >= 0 else (total // step) * step
+    return max(0, min(total, 86400 - step))

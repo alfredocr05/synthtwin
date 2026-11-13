@@ -83,15 +83,24 @@ _HEADERLESS = {
 
 
 @pytest.mark.parametrize("name", sorted(_HEADERLESS))
-def test_a_first_row_shape_cannot_settle_is_refused(
+def test_a_first_row_shape_cannot_settle_names_the_columns_itself(
     tmp_path: pathlib.Path, name: str
 ) -> None:
+    # Each of these was REFUSED until the owner's ruling of 2026-09-17,
+    # item 8 (plan P4-D232). The reading is the same -- shape alone
+    # cannot settle the first row, and the record rules can -- and what
+    # follows from it is no longer a stop: the columns are named
+    # `column_1`, `column_2` and so on, every row is kept, no text of
+    # that row is published, and the questions file asks. What each case
+    # is here to hold is that the row is not published as the names.
     target = _write(tmp_path, _HEADERLESS[name])
-    with pytest.raises(errors.ProfileError) as caught:
-        reading.read_table(str(target))
-    message = f"{caught.value}"
-    assert "cannot tell whether the first row" in message, message
-    assert "--first-row names" in message and "--first-row data" in message
+    table = reading.read_table(str(target))
+    assert table.header_source == reading.HEADER_GENERATED, name
+    assert table.column_names[0] == "column_1", name
+    assert table.first_row_seen, name
+    first = _HEADERLESS[name].split(b"\n")[0].decode("utf-8")
+    for cell in first.split(","):
+        assert cell not in table.column_names, cell
 
 
 # --------------------------------------------------------------------
@@ -187,11 +196,18 @@ def test_a_static_file_can_reach_the_name_disagreement(
     tmp_path: pathlib.Path,
 ) -> None:
     # Found by differential fuzzing: nobody rewrites this file, and the
-    # two readers still name its one column differently.
-    target = _write(tmp_path, b"\r \" \n \r \r\\'\t\t")
+    # two readers still name its one column differently. Re-found for
+    # plan P4-D86, whose survey reads the file the fuzz found first as a
+    # header over no rows: this one is read as semicolon text, and pandas
+    # still names a column differently from the survey and the standard
+    # reader, which agree.
+    target = _write(tmp_path, b'\r;\\\\b"b;\r;|"bb"')
     with pytest.raises(errors.ProfileError) as caught:
         reading.read_table(str(target))
-    assert "name of column number 1" in f"{caught.value}", f"{caught.value}"
+    # Which column the two readers part company on is a fact of these
+    # fuzzed bytes and not of the refusal: what this pins is that a file
+    # nobody rewrites can reach it at all.
+    assert "name of column number" in f"{caught.value}", f"{caught.value}"
 
 
 # --------------------------------------------------------------------

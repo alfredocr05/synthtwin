@@ -53,13 +53,18 @@ def _described(
 
 def _clinic() -> "dict[str, list[str]]":
     draw = random.Random(5)
+    concepts = [draw.randint(100000, 9999999) for _index in range(200)]
     return {
         "procedure_code": [
             f"{draw.choice([80053, 99213, 29881, 45378, 20610]):05d}"
             for _index in range(300)
         ],
+        # Drawn from 200 concepts, about one and a half rows each: a
+        # column of whole numbers every one different, or all but one in a
+        # hundred, is put the identifier question since lane HX5 (plan
+        # P4-D436), and this case is the register no rule reaches.
         "drug_concept_id": [
-            f"{draw.randint(100000, 9999999)}" for _index in range(300)
+            f"{concepts[draw.randrange(200)]}" for _index in range(300)
         ],
         "age": [f"{draw.randint(20, 90)}" for _index in range(300)],
         "diagnosis": [
@@ -124,7 +129,8 @@ def test_the_checklist_reaches_the_column_no_rule_can_see() -> None:
 
     A register of drug concept identifiers is six and seven figures
     wide, so it is not one fixed width; it carries no leading zero; and
-    every value differs. Nothing in it is a signal. It lands on `count`
+    its values stand on one or two rows each (every one different is lane
+    HX5's question, plan P4-D436). Nothing in it is a signal. It lands on `count`
     and its description publishes an average over concept identifiers.
     No rule finds it and no remark can honestly single it out.
     """
@@ -262,8 +268,10 @@ def test_the_checklist_reaches_a_run_whose_only_finding_it_is() -> None:
     last thing that should depend on another column raising a question.
     """
     columns = {
+        # ...two hundred concepts, the first hundred on a second row: not
+        # every one different, so not lane HX5's question (plan P4-D436).
         "drug_concept_id": [
-            f"{100000 + index * 40001}" for index in range(300)
+            f"{100000 + (index % 200) * 40001}" for index in range(300)
         ]
     }
     document, read, settings = _described(columns)

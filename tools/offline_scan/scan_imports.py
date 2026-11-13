@@ -67,19 +67,202 @@ should be read as exactly that and no more.
 
 Policy enforced (plan D6.2, a positive AST/name-binding policy;
 Phase 1 additions E1-E5 in plan phase-1-profiler.md, P1-D10; Phase 2
-additions E7-E9 in plan phase-2-generator.md, P2-D13):
+additions E7-E9 in plan phase-2-generator.md, P2-D13; the December
+libraries, their zones and their argument rules in plan
+phase-4-columns.md, P4-D409 and lane DEP-1's P4-D410):
 
 * Allowed modules for src/: argparse, csv, dataclasses, json, math,
   pathlib, typing, sys (but sys.modules and sys.path may never be read
   or written); from os only the enumerated os.path helpers, os.fspath,
-  os.getcwd, os.lstat, and read-only os.environ; from
+  os.getcwd, os.lstat, os.isatty, os.sysconf and os.cpu_count (both in
+  synthtwin.computer alone, P4-D466), and read-only os.environ;
+  from
   importlib.metadata only the version() function; the runtime
-  dependency pandas, reduced to read_csv alone; and, from numpy,
-  `import numpy.random` and the single name numpy.random.default_rng
-  (extension E7) -- no other numpy module and no other numpy attribute
-  is reachable, by import or by attribute step. Imports of the
-  synthtwin package's own modules are allowed because those files are
-  scanned too. Every other import is a violation.
+  dependency pandas, reduced to read_csv and the one set_option call
+  reading.read_table makes; from numpy, `import numpy.random` and the
+  single name numpy.random.default_rng (extension E7) -- no other numpy
+  module and no other numpy attribute is reachable, by import or by
+  attribute step -- save, in the audited array helper synthtwin.arrays
+  alone, `import numpy` and the ten array names plan P4-D466 enumerates
+  (frombuffer, zeros, argsort, bincount, cumsum, where, flatnonzero,
+  concatenate, min and max, each audited below); from pyarrow, the module pyarrow.csv and its reader
+  with three option classes; from scipy, scipy.optimize's milp with
+  Bounds and LinearConstraint, and scipy.linalg's cho_factor and
+  cho_solve; and numba.njit in the one polish-kernel module (P4-D410,
+  each audited below); and, in the chain's three modules alone (lane
+  CHa, plan P4-D418), fractions.Fraction, hashlib.blake2b and
+  secrets.token_bytes (the last in synthtwin.installation alone). Imports of the synthtwin package's own modules
+  are allowed because those files are scanned too. Every other import
+  is a violation.
+* THE ZONES (plan P4-D409 parts 2 and 3, enforced by lane DEP-1, plan
+  P4-D410). Every first-party module sits in one zone: G, generation
+  (any byte of the twin); D, description and shared report (any
+  published byte); P, private report and self-test; R, reading the
+  person's file; W, writing the twin's. _MODULE_ZONES names the R, W
+  and P modules and the polish kernel (G); the generation path is
+  COMPUTED from the tree: every other module the generator, the
+  description's loader or the twin's three writers reach by import,
+  from any line, is zone G (_GENERATION_ROOTS), and so is every
+  package's `__init__` above a reached module, which Python runs first;
+  every other first-party module is D. The audited array helper is
+  ENTERED as zone D (P4-D409 part 3 (c); P4-D466), and a per-function
+  table (_ARRAY_FUNCTION_ZONES) says which of its functions a module of
+  each zone may call: its whole-number functions zones D and G, its float
+  functions and the draw's reader zone G alone, every other zone none;
+  the module itself is no value outside the helper, so every call of it
+  is written by its dotted path, where the table reads it.
+  Every admitted library module carries the zones it may
+  run in (_LIBRARY_ZONES; the standard library runs everywhere, and no
+  library is admitted for W), a use outside them is a violation, a
+  module of zone G or W may not even IMPORT a library not admitted for
+  its zone (the writers are roots of the generation path: what they
+  load, a generate run loads), no module of zone G or W imports a zone
+  R module, and no module outside zone P imports a module inside it.
+  The rule is what keeps library floats -- reductions whose
+  order no build promises, solver tolerances, platform LAPACK -- away
+  from every byte of the twin and of anything published.
+* THE ARGUMENT RULES (P4-D409 part 3 (d); _ARGUMENT_RULES). An admitted
+  call whose behaviour depends on a setting is held to the one audited
+  form, read where the call is written: pandas.set_option sets
+  mode.string_storage to python and nothing else; pyarrow.csv.read_csv
+  takes a validated local path (it is fenced exactly as
+  pandas.read_csv is), then read_options, parse_options and
+  convert_options only, each a call of its option class written in
+  place, read_options always, with ReadOptions(use_threads=False) by
+  name; ParseOptions takes no invalid_row_handler and, as pyarrow
+  26.0.0 does, no positional argument; scipy.optimize.milp
+  takes options written as a dictionary holding 'disp': False,
+  'mip_rel_gap': 0 and a 'node_limit' written as a whole number from 1
+  to _HIGHS_NODE_LIMIT_MAX, never a 'time_limit' (a budget in seconds
+  would let a slow computer decide otherwise than a fast one), and the
+  result it returns is bound to a name and goes nowhere else -- no
+  subscription, return, argument, container or loop -- until the
+  adopting lane enters a member; numba.njit is only
+  the decorator call njit(fastmath=False, parallel=False, cache=False)
+  over a function written at the top level of the kernel module, and
+  the compiled function it makes is CALLED and nothing else, in the
+  kernel and in every module that imports it, the kernel module and
+  its package are no bare values, the compiled function makes no
+  function of its own (no lambda, def or class under it), and a
+  dispatcher's attributes (_DISPATCHER_ATTRIBUTES) are refused on
+  every object (numba's dispatcher carries its compiler settings,
+  `targetoptions`, and the uncompiled body, `py_func`: one statement
+  writing fast-math into the first compiled the kernel with fast-math,
+  measured on numba 0.68.0); every API with an argument rule is the
+  function of a call written in place and nothing else, so map(), a
+  stored name or an argument never calls it with arguments no rule
+  read; numpy's sort and argsort, wherever a later lane admits them, take
+  kind='stable' (argsort is admitted in the audited array helper, P4-D466);
+  the helper's ten numpy names are held to the forms P4-D466 audits, read
+  where each call is written: frombuffer(buffer, dtype=LITERAL) and
+  zeros(n, dtype=LITERAL), each dtype one of u1, <u2, <u4, <u8, <i8 and
+  <f8, frombuffer never writing count or offset; argsort(a,
+  kind="stable"); bincount(x) or bincount(x, minlength=n), never weights,
+  as a keyword or as a second positional; cumsum, flatnonzero, min and
+  max on the array alone; where with exactly three; concatenate of a
+  tuple written in place; and on an array the helper made astype(LITERAL)
+  by position and tolist() with nothing; os.sysconf takes one of
+  SC_PHYS_PAGES and SC_PAGE_SIZE written as text, and os.cpu_count
+  nothing; and n_jobs is refused on every call, as a keyword and
+  as the text 'n_jobs' anywhere (a dictionary of keywords expanded
+  into a call carries it as a key), because it is how a library starts
+  process pools.
+* THE AUDITED ARRAY HELPER AND ITS CLOSURE RULE (plan P4-D466, lane
+  ARR-a; P4-D409 part 3 (c) and (e)). numpy's array names are admitted in
+  synthtwin.arrays alone (_MODULE_SCOPED_ADMISSIONS), whose run-time checks
+  make every operation exact or refuse it (one explicit dtype, int64 or
+  float64; every whole-number bound proved in Python integers below 2 **
+  63, below 2 ** 53 where a whole number meets a float; unique scatter
+  indices; the plain-Python path, with the same bytes, otherwise). What
+  those names make is ONE surface, _ARRAY_ORIGIN: an array, or a value
+  taken out of one, answering to astype and tolist and to no attribute.
+  NO NUMPY OBJECT LEAVES THE HELPER: every expression that may hold such
+  an array is checked where it STANDS (_check_array_position), against an
+  enumeration of the places it may stand -- bound to a local name of a
+  function; an operand of + - * / & | ^, of a shift by a whole-number
+  literal from 0 to 63 with the array on the left, of unary - or ~, or of
+  one comparison of < <= > >= == !=; an argument of an admitted numpy
+  name (a tuple of arrays written in place for concatenate); the receiver
+  of astype or tolist; indexed (by a slice, an index array or a mask) or
+  written through as `view[...] = value`; deleted -- and every other place
+  is refused, so a return, a yield, a global, an attribute, a container
+  member, a default, a closure capture, an exception's argument, an
+  argument of any other call, a truth test, an f-string, `@`, `**`, `//`,
+  `%`, an in-place operator, a loop or a comprehension over an array are
+  each a violation whatever syntax carries them. tolist(), int(),
+  float() and len() are an array's only exits. THE DRAW gets the same
+  rule in every module that draws (a statement naming `integers`): the
+  array the generator's integers method returns, or a word of it, may be
+  bound to a local name, indexed, iterated, deleted, handed to int() or
+  len(), or handed to synthtwin.arrays.hidden_sums -- the ONE first-party
+  function a restricted library value may be handed, by position and
+  first, whose FIRST POSITIONAL PARAMETER carries the draw's surface
+  inside it whatever it is called, and which must be the helper's one
+  binding of that name, a plain def at its top level, undecorated, with
+  a positional parameter first (lane ARR-a's repair 2) -- and nothing
+  else: no operator (so `@` and `**` on it no longer pass unseen), no
+  other call, no container, no return. THE HELPER'S MODULE IS NO VALUE
+  (lane ARR-a's repair 2): outside synthtwin.arrays the module, and the
+  package above it, stand only at the head of a dotted path, so that the
+  per-function zone table reads every call of the helper (a module
+  handed on through typing.cast, a name, a container, an argument or a
+  default would reach its float functions by no path the table reads).
+* THE TWO WORKBOOK MODULES (plan P4-D77). Reading a spreadsheet
+  workbook needs a zip reader and an XML parser, and admitting a
+  workbook LIBRARY would put a third runtime dependency inside the
+  offline guarantee. So `zipfile` and `xml.parsers.expat` are admitted
+  for the standard library's own, reduced to the names the workbook
+  reader needs and no others:
+
+    zipfile.ZipFile      opens a package for READING and hands back
+                         members as bytes, and -- since plan P4-D79 --
+                         builds the twin's own package IN MEMORY. It
+                         reaches no path either way: the reader never
+                         extracts to one, so a member named `..`
+                         reaches no filesystem, and the writer is
+                         handed a bytes buffer and hands bytes back,
+                         leaving the one write in `writing`. The
+                         `extract`/`extractall` names -- the ones that
+                         would reach a path -- are NOT admitted and
+                         stay violations.
+    zipfile.ZipInfo      one member's name and its fixed moment, which
+                         is what makes the twin's package
+                         deterministic: written without it, every
+                         member would carry the clock and the same
+                         description and seed would give different
+                         bytes on every run. It names a member and
+                         opens nothing.
+    zipfile.ZIP_DEFLATED the compression constant, a plain integer.
+    zipfile.BadZipFile   the two exceptions a damaged or oversized
+    zipfile.LargeZipFile package raises, caught so the person gets a
+                         sentence rather than a traceback.
+    expat.ParserCreate   builds a parser. Its handler slots are the
+                         whole reason an XML module is needed, and the
+                         reader refuses a DOCTYPE in one of them, which
+                         is what closes the entity-expansion and
+                         external-entity families: no entity is ever
+                         defined, so none can be external. expat
+                         resolves no namespace and fetches nothing of
+                         its own accord.
+    expat.ExpatError     the exception malformed markup raises.
+
+  Nothing else of either module is reachable. In particular
+  `zipfile.Path` and `expat.ErrorString` are NOT admitted, and the
+  mutation tests in `tests/test_offline_scan.py` prove that a
+  neighbouring attribute of each module is still refused -- the check
+  that keeps this admission an enumeration rather than a doorway.
+
+  AND THE ADMISSION IS SCOPED TO THE MODULES IT WAS ARGUED FROM
+  (_MODULE_SCOPED_ADMISSIONS). Both were admitted for one job each:
+  zipfile so that `synthtwin.reading` can open the person's package
+  and `synthtwin.writing` can put the twin's on disk, expat so that
+  `synthtwin.workbook` can parse the markup those members hold. This
+  table is package-wide, so admitting a name here admitted it for
+  every module in src -- the GENERATOR could have named the zip API
+  and scanned clean, which is exactly the surface the plan's own
+  boundary rule exists to deny. Outside those modules each name is a
+  violation with a message of its own, and a mutation test moves the
+  use into another module to prove it.
 * NO MODULE-LEVEL TRUST. Membership in an allowed module proves
   nothing about what an attribute can do, so every allowed module's
   usable attribute names are enumerated one by one in
@@ -98,7 +281,8 @@ additions E7-E9 in plan phase-2-generator.md, P2-D13):
 * Always forbidden, allowlist aside: __import__,
   importlib.import_module, exec, eval, compile, subprocess, os.system,
   os.exec*, os.spawn*, os.popen, os.fork, os.posix_spawn, ctypes, cffi,
-  multiprocessing, and the reflection primitives getattr, setattr,
+  multiprocessing, llvmlite, joblib, and the reflection primitives
+  getattr, setattr,
   delattr, hasattr, vars, globals, locals, and dir. Aliases are traced
   to their origin, so "g = getattr" followed by "g(...)" is caught.
 * Every attribute chain that starts from an imported module must
@@ -397,7 +581,7 @@ additions E7-E9 in plan phase-2-generator.md, P2-D13):
 
 Complete audit of the closed allowed surface. Every enumerated name
 below was checked against its documented signature on every supported
-interpreter (CPython 3.10 through 3.14); "data" means the API never
+interpreter (CPython 3.11 through 3.14); "data" means the API never
 invokes that name's arguments. This list IS the audit record -- an
 attribute absent from it is not allowed at all:
 
@@ -426,7 +610,7 @@ attribute absent from it is not allowed at all:
   type).
 * pathlib: Path (constructor: data). The Path instance methods the
   src tree uses -- resolve, is_absolute, the / operator, and the
-  parts attribute -- are data. Across 3.10-3.14 the ONLY Path
+  parts attribute -- are data. Across 3.11-3.14 the ONLY Path
   instance method with a callable parameter is walk (on_error SLOT,
   added in 3.12); every other instance method (open, read_text,
   write_text, glob, rglob, iterdir, stat, lstat, mkdir, match,
@@ -435,12 +619,22 @@ attribute absent from it is not allowed at all:
 * typing: Protocol (a base class: data) and cast (returns its second
   argument unchanged: data). Nothing else -- see the typing note
   above.
-* sys: platform, argv, exit, stdout, stderr, executable, and
-  version_info: data. Nothing else is allowed; the slot table keeps
+* sys: platform, argv, exit, stdout, stderr, executable, version_info
+  and byteorder (plan P4-D466: the text naming this computer's byte
+  order, read by the audited array helper before it views the draw's
+  words in place): data. Nothing else is allowed; the slot table keeps
   entries for settrace, setprofile, addaudithook, set_asyncgen_hooks,
   and call_tracing as a second layer even though the attribute
   enumeration already rejects them.
-* os: fspath, getcwd, lstat, and read-only os.environ: data. Every
+* os: fspath, getcwd, lstat, isatty, sysconf (plan P4-D397: it takes a
+  configuration name and returns a number, opens nothing and runs
+  nothing; since P4-D466 in synthtwin.computer alone and with the two
+  memory names SC_PHYS_PAGES and SC_PAGE_SIZE alone), cpu_count (plan
+  P4-D466, in synthtwin.computer alone, with no argument: it returns the
+  number of logical processors or None, opens nothing, names no path,
+  takes no callable and loads nothing; os.process_cpu_count, Python 3.13
+  and later alone, and os.sched_getaffinity, Linux alone, are not
+  admitted), and read-only os.environ: data. Every
   enumerated os.path helper (join, exists, isfile, dirname, ...) is
   a pure path-text or single-metadata function: data.
 * importlib.metadata: version: data.
@@ -469,6 +663,35 @@ attribute absent from it is not allowed at all:
   or a value this package's own code returned -- because the writer
   runs the iteration and text protocols of every row and every cell it
   is given.
+  THE HANDLE WRITTEN A PIECE AT A TIME (plan P4-D415, lane SG): in
+  synthtwin.writing alone, the output handle itself answers to write,
+  with one positional argument, and close, with none, and to nothing
+  else, no attribute either. Capability audit: the handle is the text
+  file pathlib.Path.open returns on the transaction's own validated
+  output target (the origin above, which nothing else can carry); its
+  write encodes the text it is handed in the handle's own encoding and
+  appends it to that one file, and refuses anything that is not text
+  with TypeError, running no protocol of its argument; close flushes and
+  closes that file. Neither opens another path, starts a program or
+  reaches a network. The twin is written this way so that its text is
+  never made whole: a table of 2,000,000 rows by 50 columns is about a
+  gigabyte of text.
+* zlib (plan P4-D415, lane SG), in the module synthtwin.twinstore
+  ALONE (_MODULE_SCOPED_ADMISSIONS), zone G: compress and decompress.
+  Capability audit: both are pure functions of the bytes they are
+  handed (and compress of a level, a whole number): they read no file,
+  open no stream, start no process and take no callable; compressobj,
+  decompressobj and the checksums are not reachable. The held twin
+  packs each block of a finished column's cells with compress and
+  unpacks it with decompress before any cell is read. WHY IT CANNOT
+  DECIDE A BYTE: DEFLATE is lossless -- decompress(compress(raw, level))
+  is raw, byte for byte, for every raw, at every level and in every
+  zlib version -- and what compress writes, which does differ between
+  zlib versions, never leaves the process: it is held in memory and
+  read back only through decompress. A twin byte therefore depends on
+  the cells handed in and on nothing zlib chooses. The admission buys
+  memory: the twin's text at 2,000,000 rows by 50 columns, about 0.9 GB
+  as bytes, is held in about 0.3 GB.
 * math (Phase 1 extension E2, revised at round 1): fsum, frexp,
   isfinite, ldexp, sqrt. Every one is a pure numeric function of
   numbers; none takes a callable, none performs I/O, and each is a
@@ -478,7 +701,10 @@ attribute absent from it is not allowed at all:
   statistics depend on row order and on magnitude, so the profiler now
   computes them itself under the rules in taxonomy.py's docstring, and
   reaches no numpy reduction at all. That is still true: what E7 admits
-  below is one random stream and nothing arithmetic. Nothing else from
+  below is one random stream and nothing arithmetic, and what P4-D466
+  admits in the one audited array helper is whole-number counting and
+  arithmetic under proved bounds, stable sorts and elementwise float64
+  + - * / -- no reduction of floats, no transcendental, no power. Nothing else from
   math is allowed -- prod and sumprod are reductions with their own
   ordering behaviour, and the trigonometric and special functions are
   not correctly rounded.
@@ -515,6 +741,150 @@ attribute absent from it is not allowed at all:
   into a first-party Python whole number. spawn is not reachable: it
   is a method of the generator and the generator's method list holds
   one name.
+* numpy's array names (plan P4-D466, lane ARR-a), in the module
+  synthtwin.arrays ALONE (_MODULE_SCOPED_ADMISSIONS), zones D and G
+  through its per-function table, one name at a time. Capability audit,
+  the same for each: it COMPUTES ON THE ARRAYS IT IS HANDED, OPENS
+  NOTHING, STARTS NOTHING, LOADS NOTHING -- no file, path, network,
+  process, thread or callable, and no code compiled or loaded.
+  frombuffer: an array viewing, in memory, the bytes of the buffer it is
+  handed (a bytes or a bytearray checked at run time, or the draw array
+  in its one reader), with one written dtype, never count or offset; it
+  copies and reads nothing else (fromfile and memmap are not admitted).
+  zeros: a new array of noughts of a written length and dtype.
+  argsort, kind="stable": the order of a whole-number array's elements,
+  one result whatever the algorithm. bincount without weights: how many
+  times each whole number occurs, exact. cumsum: running whole-number
+  sums, the bound proved first. where, three arguments: an elementwise
+  choice. flatnonzero: the positions of nonzero elements. concatenate of
+  a tuple: one array of the arrays handed in. min and max: the least and
+  greatest whole number, for the bound checks, ended by int(). On an
+  array the helper made, astype with one written dtype makes a converted
+  copy, and tolist hands back plain Python values. Each of these numpy
+  functions also asks an array-like it is handed for numpy's dispatch
+  protocols (__array_function__, __array_ufunc__); the helper hands them
+  only arrays it made from bytes and lists it checked, so the one code
+  that can run there is a caller's own object converted from a list
+  (residual 1 above). Not admitted, each a mutation case: sum, add and
+  every ufunc's reduce, accumulate, at and reduceat, dot, matmul,
+  einsum, mean, std, var, prod, exp, log, power, sqrt, sort, lexsort,
+  unique, partition, load, save, fromfile, memmap, frompyfunc,
+  vectorize, seterr, errstate, ctypeslib, lib, linalg and fft, and every
+  other name and submodule.
+* pandas.set_option (lane DEP-1, plan P4-D410), zone R. Capability
+  audit: it stores one value in pandas' process-wide option registry
+  and runs that option's own validator; it performs no I/O, starts no
+  process and takes no callable. What an option does afterwards is the
+  danger -- `compute.use_numba` turns on a code generator, others
+  change readers' defaults -- so the argument rule fixes the one call
+  reading.read_table makes: `mode.string_storage` set to `python`,
+  both written as text. Its result (None) is a pandas value.
+* pyarrow.csv (lane DEP-1, plans P4-D409 and P4-D410), zone R:
+  read_csv, ReadOptions, ParseOptions, ConvertOptions, and NOTHING
+  else of pyarrow -- no pyarrow.fs or pyarrow.flight, no dataset, no
+  writer, no compute. Capability audit: read_csv opens its first
+  argument, a path or a text pyarrow may resolve through a file
+  system, so it IS fenced as pandas.read_csv is (the validated local
+  path, _FENCED_APIS); it reads with a pool of threads unless
+  ReadOptions(use_threads=False) is handed in, which the argument rule
+  requires; its memory_pool is refused. The three option classes hold
+  settings as data, save ParseOptions' invalid_row_handler, a callable
+  pyarrow invokes for each row it cannot parse: a callback SLOT, and
+  refused by the argument rule as well. What read_csv returns, a
+  pyarrow table, answers to no method and no attribute until the
+  adopting lane (SR-A) enters each one it reads with its own audit.
+* pyarrow's table, its columns and their pieces (lane SR-A, plan
+  P4-D414), zone R alone, as read_csv is: five names, each its own
+  surface (_ARROW_TABLE_ORIGIN, _ARROW_COLUMN_ORIGIN,
+  _ARROW_CHUNK_ORIGIN), every other name of them refused. Capability
+  audit: the table's `num_rows` is a whole number and its
+  `column(i)` hands over the i-th column it read, a chunked array --
+  no I/O, no process, no callable; the column's `num_chunks` is a
+  whole number and its `chunk(i)` hands over one piece, an array,
+  likewise; the piece's `to_pylist()` copies its values into a plain
+  Python list of text (strings_can_be_null=False in the reader's
+  settings: no None), which leaves the library -- what it returns is
+  a built-in list, read as any untraced value is. Not admitted, and
+  refused by the surfaces: the table's and the arrays' writers and
+  conversions (to_pandas, to_batches, to_numpy, cast), their buffers,
+  schema and statistics, every compute kernel, and anything they
+  carry. Zone R: the values are the person's file's text, compared
+  with the survey's and handed to `column_values` as text; no float
+  of the library is made or read.
+* scipy.optimize (lane DEP-1, plans P4-D409 part 5 and P4-D410), zone D
+  on the search side, and zone P: milp, Bounds, LinearConstraint.
+  Capability audit: milp hands the arrays it is given to the HiGHS
+  solver compiled into scipy and returns a result; it performs no file
+  or network I/O, starts no process and takes no callable; it prints
+  progress to the terminal unless options silence it and it stops on
+  a clock if given time_limit, which the argument rule turns into
+  'disp': False and a node budget. Bounds and LinearConstraint hold
+  arrays as data. The result is a dictionary of arrays and answers to
+  nothing -- no attribute, no key, and it is handed to nothing --
+  until the adopting lane (MR, CHa) enters what it reads; what
+  HiGHS exhibits is re-checked in Python integers (P4-D409 part 5).
+* scipy.linalg (lane DEP-1, plan P4-D410), zone P only: cho_factor and
+  cho_solve, LAPACK's Cholesky factorization and solve on arrays they
+  are handed. No I/O, no process, no callable; platform floats, which
+  is why zone P alone may use them (the self-test's fits, lane ST).
+* numba (lane DEP-1, plan P4-D409 part 4 and P4-D410), zone G, in the
+  module synthtwin.polish_kernel ALONE (_MODULE_SCOPED_ADMISSIONS):
+  njit. Capability audit: njit compiles the decorated function to
+  machine code through LLVM, in memory, when it is first called --
+  which IS code generated at run time, and is admitted for this one
+  audited module under the CI gate that proves its twin bytes equal to
+  the plain-Python polish on every operating system and Python. The
+  source it compiles is the body under it, read by this audit under
+  every rule above; fastmath=False keeps every operation correctly
+  rounded and in written order, parallel=False starts no thread,
+  cache=False writes no file, and the argument rule requires all three
+  written out. No other numba name -- prange, vectorize, cfunc,
+  objmode, config, jit -- is reachable, and llvmlite is forbidden
+  outright. numba's settings by environment variable are lane MPn's
+  to close (P4-D409 part 4 (vi)).
+* THE FLOAT POWERS (plan P4-D409 parts 2 and 3 (f); entered by lane
+  DEP-2, plan P4-D416; _FLOAT_POWERS). No standard requires `pow` to
+  round correctly, and the measuring Mac's does not: `x ** 0.5` differs
+  from math.sqrt on 2,672 of 2,000,000 random doubles, `x ** 2` from
+  `x * x` on 2,609 of 2,000,000, by one last bit each. So in every
+  module of zones G, D, R and W, a `**` is a violation when a float
+  literal stands in either operand (other than an exact power of two:
+  the literal 2 or 2.0 raised to a whole-number literal, P4-D409 part
+  3 (e)) or when a computed base is raised to a whole-number literal of
+  2 or more -- on a float that is the platform's pow, where `x * x`
+  rounds alike everywhere -- unless the site is entered in
+  _FLOAT_POWERS by its module, its function and its text, with its
+  audit. Today's eight are entered there as P4-D409's named exceptions
+  and stated limit, each to be rewritten in operations every computer
+  rounds alike (math.sqrt, `x * x`, repeated multiplication as
+  validation._tail_pow does, a written constant), a method change
+  under A-P4-59; one more site, an integer square, is entered as
+  exact. The tests hold every entry to a site of the real source, so
+  the table never outlives the code. What the syntax cannot show -- a power of a
+  name that holds a float, raised to a name -- is AGENTS.md's check.
+* fractions (lane CHa, plan P4-D418): Fraction, in the chain's
+  modules alone (_MODULE_SCOPED_ADMISSIONS). Capability audit: a
+  Fraction is a pair of Python integers and its arithmetic is exact
+  integer arithmetic; it performs no I/O, starts no process, takes no
+  callable and loads no code. The chain's score `u = X2 - df` and the
+  draw's gaps are exact fractions because the contract (4.6b.3, 4.6b.4)
+  fixes them so and plan P4-D409 part 2 names `fractions` as zone D's
+  exact route. Its instances answer to every method under policy case
+  (b): each is arithmetic on the pair. Lane GRa (plan P4-D449): the same,
+  for the patient layer's modules (_PATIENT_MODULES), whose certificates
+  plan P4-D409 places in the same zone.
+* hashlib (lane CHa, plan P4-D418): blake2b, in the chain's modules
+  alone. Capability audit: one keyed or unkeyed BLAKE2b digest of the
+  bytes it is handed, computed in memory; no I/O, no process, no
+  callable, no code loaded. The contract names it (4.6b.4: the draw's
+  word, the key's fingerprint, the description digest; 4.6b.8: the row
+  content hash and the sample key). Its hash object answers under
+  policy case (b): update and digest, each on bytes in memory.
+* secrets (lane CHa, plan P4-D418): token_bytes, in
+  synthtwin.installation alone. Capability audit: reads the operating
+  system's random source for the number of bytes asked; no network, no
+  process, no callable, no code loaded. It makes the installation's
+  32-byte private key once (4.6b.4) and nothing else.
 * Accepted built-ins: sorted, min, and max (key SLOT); map and
   filter (the function argument SLOT); the two-argument form of iter
   (the callable argument SLOT); print (file SLOT -- print invokes
@@ -546,7 +916,8 @@ Exit status: 0 clean; 1 one or more violations, each printed as
 "file:line: explanation"; 2 the command line itself was wrong.
 
 This tool uses only the Python standard library (ast, pathlib, sys,
-argparse) and never imports or runs the code it checks.
+argparse) and never imports or runs the code it checks -- nor any of
+the libraries it admits.
 """
 
 import argparse
@@ -565,8 +936,567 @@ _FIRST_PARTY_ROOT = "synthtwin"
 # decision reviewed against the threat model, not a routine code
 # change. (os and importlib.metadata are enumerated separately in
 # _policy_for because their messages are more specific.)
+# ADMISSIONS THAT ARE SCOPED TO THE MODULES THAT NEEDED THEM (repair of
+# landing 2b.10). Two entries of the table below were admitted for one
+# job each: reading a spreadsheet package and writing one. The table
+# itself is package-wide, so admitting them for that job admitted them
+# for every module in src -- the generator could have named the zip API
+# and scanned clean. An admission argued from one module's need is
+# enforced for that module: elsewhere the name is a violation, exactly
+# as it was before the admission.
+#
+# `zipfile` belongs to the two modules that touch a file: `reading`
+# opens the person's package, `writing` puts the twin's on disk.
+# `xml.parsers.expat` belongs to `workbook`, which parses the markup
+# those members hold and opens nothing.
+#
+# `numba` belongs to the ONE audited polish kernel (plan P4-D409 part 4,
+# lane DEP-1's plan P4-D410): numba compiles that module's own source
+# in memory, under the CI gate that proves it byte-identical to the
+# plain-Python polish, and nowhere else. Lane MPn writes the module at
+# this path; until it exists, numba is a violation everywhere.
+_POLISH_KERNEL = "synthtwin.polish_kernel"
+
+# The chain's modules (lane CHa, plan P4-D418): its rules over published
+# facts (reached by the loader, so zone G), its producer (zone D) and
+# the installation's key, ledger and lock (zone D).
+_INSTALLATION = "synthtwin.installation"
+_CHAIN_MODULES = (
+    "synthtwin.chain",
+    "synthtwin.chain_moments",
+    # Lane RO (plan P4-D459): the order rules' inference, a chain module
+    # by the same audit (its failing rows, bands and classes are exact).
+    "synthtwin.chain_order",
+    "synthtwin.chain_rules",
+    _INSTALLATION,
+)
+
+# The patient layer's certificates and its loader read counts and grid codes
+# as exact fractions too (lane GRa, plan P4-D449; contract 4.6c's setting).
+_PATIENT_MODULES = (
+    "synthtwin.chain_check",
+    "synthtwin.patient_layer",
+    "synthtwin.patient_rules",
+)
+
+# `zlib` belongs to the module that holds the twin's finished columns
+# (plan P4-D415, lane SG): it packs each block of a column's cells and
+# unpacks it before any cell is read, and nothing it writes leaves the
+# process. Nowhere else may a module pack or unpack.
+_TWIN_STORE = "synthtwin.twinstore"
+
+# Lane ARR-a, 2026-11-05 (plan P4-D466): THE AUDITED ARRAY HELPER. numpy's
+# array names belong to the ONE module plan P4-D409 part 3 (c) ratified
+# and P4-D466 names for zone G: what it computes is checked at run time
+# (one explicit dtype, every bound proved below 2 ** 63, unique scatter
+# indices, the plain-Python path otherwise), no array it makes leaves it
+# (the closure rule, _check_array_position), and nowhere else may a module
+# name them. THE COMPUTER'S READER (P4-D466; LANE ARR RULINGS 1 (3)): the
+# installed memory and the number of processors are read in one small
+# module, and nowhere else.
+_ARRAY_HELPER = "synthtwin.arrays"
+_COMPUTER = "synthtwin.computer"
+
+_MODULE_SCOPED_ADMISSIONS: "dict[str, frozenset[str]]" = {
+    "zipfile": frozenset({"synthtwin.reading", "synthtwin.writing"}),
+    "xml.parsers.expat": frozenset({"synthtwin.workbook"}),
+    "numba": frozenset({_POLISH_KERNEL}),
+    # Lane CHa (plan P4-D418): the chain's exact score and draw, its keyed
+    # words and digests, and the installation's key, in their own modules.
+    "fractions": frozenset(_CHAIN_MODULES) | frozenset(_PATIENT_MODULES),
+    "hashlib": frozenset(_CHAIN_MODULES),
+    "secrets": frozenset({_INSTALLATION}),
+    "zlib": frozenset({_TWIN_STORE}),
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): the audited array helper.
+    "numpy": frozenset({_ARRAY_HELPER}),
+}
+
+# The need each scoped admission was argued from, in the words its
+# violation message gives.
+_SCOPED_ADMISSION_NEEDS: "dict[str, str]" = {
+    "zipfile": "reading a spreadsheet package and writing one",
+    "xml.parsers.expat": "reading a spreadsheet package and writing one",
+    "numba": (
+        "compiling the one audited polish kernel, whose twin bytes CI "
+        "proves equal to the plain-Python polish (plan P4-D409 part 4)"
+    ),
+    "fractions": (
+        "the chain's exact score and the draw's exact gaps (contract "
+        "4.6b.3 and 4.6b.4, plan P4-D418)"
+    ),
+    "hashlib": (
+        "the chain's keyed words, the key's fingerprint and the "
+        "description and row digests (contract 4.6b.4 and 4.6b.8, plan "
+        "P4-D418)"
+    ),
+    "secrets": (
+        "making the installation's private key once (contract 4.6b.4, "
+        "plan P4-D418)"
+    ),
+    "zlib": (
+        "holding the twin's finished columns packed in memory, unpacked "
+        "before any cell is read (plan P4-D415)"
+    ),
+    # Lane ARR-a, 2026-11-05 (plan P4-D466).
+    "numpy": (
+        "the audited array helper's whole-number and elementwise row "
+        "passes, checked at run time (plan P4-D409 part 3 (c) and (e), "
+        "plan P4-D466)"
+    ),
+}
+
+
+def _out_of_scope_message(
+    dotted: str, prefix: str, allowed_in: "frozenset[str]"
+) -> str:
+    return (
+        "uses '" + dotted + "', which is admitted for "
+        + ", ".join(sorted(allowed_in))
+        + " only. That admission was argued from those modules' own "
+        "need -- " + _SCOPED_ADMISSION_NEEDS[prefix] + " -- and "
+        "is enforced there rather than package-wide, so every other "
+        "module names this API exactly as it did before the admission: "
+        "as a violation. Moving the work to the module that holds the "
+        "admission is the fix; widening the scope is a policy decision "
+        "reviewed against the threat model."
+    )
+
+
+# THE ZONES (plan P4-D409 parts 2 and 3; lane DEP-1, plan P4-D410).
+# Every product module sits in exactly one zone, and every library name
+# is admitted for the zones it may run in, so that no library float
+# decides a byte of the twin or of anything published:
+#
+#   G  generation: any byte of the twin;
+#   D  description and shared report: any published byte;
+#   P  private report, self-test and tests: nothing generated or
+#      published depends on it;
+#   R  reading: how the cells of the person's file are read;
+#   W  writing: the twin file's bytes.
+_ZONE_G = "G"
+_ZONE_D = "D"
+_ZONE_P = "P"
+_ZONE_R = "R"
+_ZONE_W = "W"
+
+# THE GENERATION PATH IS COMPUTED, NOT LISTED (P4-D409 part 3 (a)): every
+# first-party module the generator, the description's loader and the
+# twin's three writers reach by import, at any depth and from any line
+# of the file, is zone G -- so a module joins the path on the commit
+# that imports it, as `tests/test_contract_loader.py` walks the loader's
+# closure. A module reached from both the generation path and describe
+# is G. The writers themselves are zone W (the table below).
+_GENERATION_ROOTS = (
+    "synthtwin.generation",
+    "synthtwin.contract",
+    "synthtwin.rendering",
+    "synthtwin.sheetwriting",
+    "synthtwin.writing",
+)
+
+# The modules a table names for a zone, each entered with its lane's
+# plan decision; the table is read FIRST, so a reading module stays R
+# and a writer stays W wherever it is imported from, and the generation
+# path reaching a zone R or zone P module is a violation of its own
+# (P4-D409 part 3 (b)). A module the table does not name is G when the
+# generation path reaches it and D otherwise. The polish kernel is G
+# wherever it is imported from: what it computes is bytes of the twin.
+# Lane ST (plan P4-D458) entered the first zone P module, the self-test
+# L2b, whose fits run on platform floats and decide nothing published.
+_SELFTEST = "synthtwin.chain_selftest"
+_MODULE_ZONES: "dict[str, str]" = {
+    _POLISH_KERNEL: _ZONE_G,
+    _SELFTEST: _ZONE_P,
+    "synthtwin.reading": _ZONE_R,
+    "synthtwin.workbook": _ZONE_R,
+    "synthtwin.writing": _ZONE_W,
+    "synthtwin.sheetwriting": _ZONE_W,
+    "synthtwin.rendering": _ZONE_W,
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): the audited array helper is
+    # ENTERED, not computed: zone D's, as P4-D409 part 3 (c) ratified (it
+    # keeps its zone-D admissions rather than becoming zone G by part (a)
+    # when the generator imports it), and which of its functions a module
+    # of each zone may call is _ARRAY_FUNCTION_ZONES.
+    _ARRAY_HELPER: _ZONE_D,
+}
+
+# The zones each admitted LIBRARY module may run in, keyed as
+# _ALLOWED_MODULE_ATTRS is. A standard-library module absent from this
+# table runs in every zone: the zones govern libraries whose arithmetic
+# or reach the standard library's documented behaviour does not fix.
+_LIBRARY_ZONES: "dict[str, frozenset[str]]" = {
+    # The twin's one random stream (E7, E8).
+    "numpy.random": frozenset({_ZONE_G}),
+    # The checking reader and its string storage (P1-D2, P4-D410).
+    "pandas": frozenset({_ZONE_R}),
+    # The fast reader (P4-D409, lane SR-A): a validated local path, one
+    # thread.
+    "pyarrow.csv": frozenset({_ZONE_R}),
+    # HiGHS: a SEARCH whose every exhibited arrangement is re-checked in
+    # Python integers (P4-D409 part 5), so D's search side and P.
+    "scipy.optimize": frozenset({_ZONE_D, _ZONE_P}),
+    # The self-test's Cholesky fits: platform floats, private only.
+    "scipy.linalg": frozenset({_ZONE_P}),
+    # The polish kernel, behind its CI gate (P4-D409 part 4).
+    "numba": frozenset({_ZONE_G}),
+    "zipfile": frozenset({_ZONE_R, _ZONE_W}),
+    "xml.parsers.expat": frozenset({_ZONE_R}),
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): numpy's array names, in the
+    # audited helper alone (_MODULE_SCOPED_ADMISSIONS), whose whole-number
+    # functions zone D calls and whose float functions zone G alone.
+    "numpy": frozenset({_ZONE_G, _ZONE_D}),
+}
+
+_ZONE_NAMES: "dict[str, str]" = {
+    _ZONE_G: "zone G (generation: any byte of the twin)",
+    _ZONE_D: "zone D (description and shared report: any published byte)",
+    _ZONE_P: "zone P (private report, self-test and tests)",
+    _ZONE_R: "zone R (reading the person's file)",
+    _ZONE_W: "zone W (writing the twin's file)",
+}
+
+
+# Lane ARR-a, 2026-11-05 (plan P4-D466): THE HELPER'S FUNCTIONS BY ZONE
+# (plan P4-D409 part 3 (a) and (c)). The helper is one module of zone D,
+# but what each of its functions computes decides who may call it: a
+# whole-number function (exact counts, sorts of whole numbers, gathers
+# and scatters, the exact sum rounded once) is zone D's and callable from
+# zones D and G; a float function (the polish's score, the move from a
+# band's mean, the running sums, the float key) and the draw's reader are
+# zone G's alone. A public function the table does not name is callable
+# from no other module: a new function is a row here, entered with its
+# zones by the lane that writes it.
+_ARRAY_INTEGER_ZONES = frozenset({_ZONE_D, _ZONE_G})
+_ARRAY_FLOAT_ZONES = frozenset({_ZONE_G})
+_ARRAY_FUNCTION_ZONES: "dict[str, frozenset[str]]" = {
+    "code_counts": _ARRAY_INTEGER_ZONES,
+    "exact_sum": _ARRAY_INTEGER_ZONES,
+    "hidden_sums": _ARRAY_FLOAT_ZONES,
+    "joint_counts": _ARRAY_INTEGER_ZONES,
+    "joint_groups": _ARRAY_INTEGER_ZONES,
+    "move_from_means": _ARRAY_FLOAT_ZONES,
+    "order_by_score": _ARRAY_FLOAT_ZONES,
+    "places_by_group": _ARRAY_INTEGER_ZONES,
+    "rows_by_group": _ARRAY_INTEGER_ZONES,
+    "running_totals": _ARRAY_FLOAT_ZONES,
+    "scatter_places": _ARRAY_INTEGER_ZONES,
+    "score_rows": _ARRAY_FLOAT_ZONES,
+    "take_codes": _ARRAY_INTEGER_ZONES,
+}
+
+
+def _array_zone_message(dotted: str, zone: str, zones: "frozenset[str] | None") -> str:
+    if zones is None:
+        return (
+            "uses '" + dotted + "', a function of the audited array helper "
+            "that its per-function zone table (_ARRAY_FUNCTION_ZONES, plan "
+            "P4-D466) does not name. Each function the helper offers is "
+            "entered with the zones that may call it before any other "
+            "module calls it."
+        )
+    return (
+        "uses '" + dotted + "' from " + _ZONE_NAMES[zone] + ". That function "
+        "of the audited array helper computes in floats or reads the "
+        "generator's draw, so it is entered for "
+        + ", ".join(_ZONE_NAMES[name] for name in sorted(zones))
+        + " alone (plan P4-D466; P4-D409 part 3 (a) and (c)): a published "
+        "byte never rests on it."
+    )
+
+
+# THE FLOAT POWERS (plan P4-D409 parts 2 and 3 (f); lane DEP-2, plan
+# P4-D416). Each site is keyed by its module, the dotted name of the
+# function it sits in ("" at module level) and its text as ast.unparse
+# writes it; the value is its audit. The first eight are the named
+# exceptions and stated limit of P4-D409 part 3 (f): each reaches the
+# platform's pow on a float, measured on one Mac only (part 2), until
+# it is rewritten in operations every computer rounds alike, a method
+# change under A-P4-59 whose moved goldens and vectors are named.
+_FLOAT_POWER_MEASURED_SQRT = (
+    "x ** 0.5 differs from math.sqrt(x) on 2,672 of 2,000,000 random "
+    "doubles on the measuring Mac, by one last bit (P4-D409 part 2); "
+    "to be written math.sqrt"
+)
+_FLOAT_POWERS: "dict[tuple[str, str, str], str]" = {
+    (
+        "synthtwin.generation",
+        "_repaired_pairing._away",
+        "(spread[first] * spread[second]) ** 0.5",
+    ): _FLOAT_POWER_MEASURED_SQRT,
+    (
+        "synthtwin.generation",
+        "_repaired_pairing._conforming",
+        "(spread[first] * spread[second]) ** 0.5",
+    ): _FLOAT_POWER_MEASURED_SQRT,
+    (
+        "synthtwin.generation",
+        "_repaired_pairing._owed",
+        "(spread[first] * spread[second]) ** 0.5",
+    ): _FLOAT_POWER_MEASURED_SQRT,
+    (
+        "synthtwin.generation",
+        "",
+        "10.0 ** (-parsing.RANK_AGREEMENT_PLACES)",
+    ): (
+        "the pair walk's margin; 10.0 ** -4 agreed with the correctly "
+        "rounded value on the measuring Mac (P4-D409 part 2), still the "
+        "platform's pow; to be written as a constant"
+    ),
+    (
+        "synthtwin.parsing",
+        "rank_agreement",
+        "(spread_left * spread_right) ** 0.5",
+    ): _FLOAT_POWER_MEASURED_SQRT,
+    (
+        "synthtwin.calendar_clock",
+        "lattice_crowded",
+        "(1.0 - 1.0 / room) ** parsed",
+    ): (
+        "the calendar's power differs from the correctly rounded one on 58 "
+        "of 50,000 pairs on the measuring Mac (P4-D409 part 2); to be "
+        "written as repeated multiplication, as validation._tail_pow does"
+    ),
+    (
+        "synthtwin.calendar_clock",
+        "lattice_crowded",
+        "(1.0 - 1.0 / points) ** parsed",
+    ): (
+        "the calendar's power differs from the correctly rounded one on 58 "
+        "of 50,000 pairs on the measuring Mac (P4-D409 part 2); to be "
+        "written as repeated multiplication, as validation._tail_pow does"
+    ),
+    (
+        "synthtwin.calendar_rules",
+        "_per_freedom",
+        "(observed[index] - expected) ** 2",
+    ): (
+        "a float squared: x ** 2 differs from x * x on 2,609 of 2,000,000 "
+        "random doubles on the measuring Mac (P4-D409 part 2); to be "
+        "written x * x"
+    ),
+}
+
+# Powers the rule reads as float powers that are exact: Python integers
+# raised to a whole number, which Python computes exactly.
+_EXACT_POWERS: "dict[tuple[str, str, str], str]" = {
+    (
+        "synthtwin.validation",
+        "_tail_power",
+        "(found + 2) ** 2",
+    ): (
+        "found is a Python integer the loop counts up from 0, so the square "
+        "is an exact integer (G7.3b's comparison, taken exactly)"
+    ),
+}
+
+_POWER_ZONES = frozenset({_ZONE_G, _ZONE_D, _ZONE_R, _ZONE_W})
+
+
+def _is_whole_literal(node: ast.AST) -> bool:
+    """An int literal, or a negated one (bool excluded)."""
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+        node = node.operand
+    return (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, int)
+        and not isinstance(node.value, bool)
+    )
+
+
+def _whole_literal_value(node: ast.AST) -> int:
+    """The value of a node _is_whole_literal accepts: 2, -2 or +2."""
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+        inner = _whole_literal_value(node.operand)
+        return -inner if isinstance(node.op, ast.USub) else inner
+    assert isinstance(node, ast.Constant) and isinstance(node.value, int)
+    return node.value
+
+
+def _holds_float_literal(node: ast.AST) -> bool:
+    return any(
+        isinstance(inner, ast.Constant) and isinstance(inner.value, float)
+        for inner in ast.walk(node)
+    )
+
+
+def _float_power_reason(base: ast.AST, exponent: ast.AST) -> "str | None":
+    """Why a `base ** exponent` may reach the platform's pow, or None.
+
+    An exact power of two -- the literal 2 or 2.0 raised to a whole
+    number literal -- is no float power (P4-D409 part 3 (e)). Otherwise a
+    float literal in either operand makes it one, and so does a computed
+    base raised to any whole-number literal but 0 and 1, a negative one
+    included (`x ** -2`; lane DEP-2's skeptic, item 8), which on a float
+    is the platform's pow where `x * x` or `1.0 / (x * x)` rounds alike
+    everywhere.
+    """
+    if (
+        isinstance(base, ast.Constant)
+        and type(base.value) in (int, float)
+        and base.value == 2
+        and _is_whole_literal(exponent)
+    ):
+        return None
+    if _holds_float_literal(base) or _holds_float_literal(exponent):
+        return "a float literal stands in it"
+    if (
+        not isinstance(base, ast.Constant)
+        and _is_whole_literal(exponent)
+        and _whole_literal_value(exponent) not in (0, 1)
+    ):
+        return "a computed base is raised to a whole number"
+    return None
+
+
+def _float_power_violations(
+    tree: ast.Module, module_name: str, zone: str
+) -> "list[tuple[int, str]]":
+    """The float-power rule (P4-D409 part 3 (f); lane DEP-2, P4-D416).
+
+    Every `**` of a zone G, D, R or W module that _float_power_reason
+    reads as a float power is a violation unless _FLOAT_POWERS or
+    _EXACT_POWERS enters its site. tests/test_offline_scan.py holds the
+    two tables to the code: each entry's site is found in the real
+    source and is red without its entry.
+    """
+    if zone not in _POWER_ZONES:
+        return []
+    found: "list[tuple[int, str]]" = []
+    walking: "list[tuple[ast.AST, str]]" = [(tree, "")]
+    while walking:
+        node, where = walking.pop()
+        for child in ast.iter_child_nodes(node):
+            inside = where
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                inside = child.name if not where else where + "." + child.name
+            walking += [(child, inside)]
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Pow):
+            base, exponent = node.left, node.right
+        elif isinstance(node, ast.AugAssign) and isinstance(node.op, ast.Pow):
+            base, exponent = node.target, node.value
+        else:
+            continue
+        reason = _float_power_reason(base, exponent)
+        if reason is None:
+            continue
+        key = (module_name, where, ast.unparse(node))
+        if key in _FLOAT_POWERS or key in _EXACT_POWERS:
+            continue
+        found += [
+            (
+                getattr(node, "lineno", 1),
+                "raises to a power where " + reason + " ('" + key[2] + "' in "
+                + (where or "the module's body") + "): on a float `**` is "
+                "the platform's pow, which no standard requires to round "
+                "correctly, so the same description could give different "
+                "bytes on two computers (plan P4-D409 parts 2 and 3 (f)). "
+                "Write it in operations every computer rounds alike -- "
+                "math.sqrt for ** 0.5, x * x for ** 2, repeated "
+                "multiplication for a whole power, a written constant for "
+                "a literal -- or, for an integer power, enter its site in "
+                "_EXACT_POWERS with its audit.",
+            )
+        ]
+    return found
+
+
+def _zone_message(dotted: str, prefix: str, zone: str) -> str:
+    allowed = " and ".join(
+        _ZONE_NAMES[name] for name in sorted(_LIBRARY_ZONES[prefix])
+    )
+    return (
+        "uses '" + dotted + "' in a module of " + _ZONE_NAMES[zone] + ", "
+        "while " + prefix + " is admitted for " + allowed + " only (plan "
+        "P4-D409 part 2). A library runs only in the zones its admission "
+        "names, so that no library float decides a byte of the twin or "
+        "of anything published. Move the work to a module of an allowed "
+        "zone; admitting the library for another zone is a plan decision "
+        "with its own capability audit."
+    )
+
+
+def _zone_import_message(name: str, prefix: str, zone: str = _ZONE_G) -> str:
+    if zone == _ZONE_W:
+        return (
+            "imports '" + name + "' into a writer of the twin (zone W), "
+            "while " + prefix + " is not admitted for zone W (plan P4-D409 "
+            "part 3 (a)): the twin's three writers are roots of the "
+            "generation path, so what one of them imports, every generate "
+            "run loads, and a writer admits no library. Keep the import "
+            "in a module the generation path does not reach."
+        )
+    return (
+        "imports '" + name + "' into the generation path (zone G), "
+        "while " + prefix + " is not admitted for zone G (plan P4-D409 "
+        "part 3 (a)): every module synthtwin.generation or "
+        "synthtwin.contract reaches by import decides bytes of the twin, "
+        "and may import only what is admitted there. Keep the import in "
+        "a module the generation path does not reach."
+    )
+
+
+def _reading_module_message(module: str, zone: str) -> str:
+    return (
+        "imports the zone R module '" + module + "' from a module of "
+        + _ZONE_NAMES[zone] + " (plan P4-D409 part 3 (b)). The generation "
+        "path and the twin's writers reach no module that reads the "
+        "person's table: the generator reads the description and nothing "
+        "else (plan P2-D1)."
+    )
+
+
+def _private_module_message(module: str) -> str:
+    return (
+        "imports the zone P module '" + module + "' from a module "
+        "outside zone P (plan P4-D409 part 3 (b)). Zone P's platform "
+        "floats may decide the custodian's private words and nothing "
+        "else: a computation that chooses anything generated or "
+        "published belongs to zone D, wherever it is written. The one "
+        "site that may import it is the row of _PRIVATE_IMPORT_SITES "
+        "(plan P4-D458), named by module and function; a second site is "
+        "a plan decision of its own."
+    )
+
+
+# THE ZONE P IMPORT SITES (plan P4-D458, amending P4-D409 part 3 (b) by a
+# dated amendment of lane ST, LANE ST RULINGS 1 (3)): the rule above holds
+# for every import of a zone P module from outside zone P but the sites
+# this table names, each by the importing module, the dotted name of the
+# function the import statement stands in, and the module imported. A row
+# is data: no code path reads the self-test elsewhere, and a second site,
+# in another function or another module, is flagged as before.
+_PRIVATE_IMPORT_SITES: "dict[tuple[str, str, str], str]" = {
+    ("synthtwin.cli", "_private_report", "synthtwin.chain_selftest"): (
+        "the private report of a switched profile run, written after the "
+        "ledger records the run, into the private folder; the description, "
+        "the questions file, the summary and the shared report are written "
+        "before it and read nothing it computes (plan P4-D458)"
+    ),
+}
+
+
+def _import_sites(tree: ast.Module) -> "dict[tuple[int, int], str]":
+    """Each import statement's place, `(line, column)`, and the dotted name of the function it stands in."""
+    out: "dict[tuple[int, int], str]" = {}
+    walking: "list[tuple[ast.AST, str]]" = [(tree, "")]
+    while walking:
+        node, where = walking.pop()
+        for child in ast.iter_child_nodes(node):
+            inside = where
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                inside = child.name if not where else where + "." + child.name
+            walking += [(child, inside)]
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            out[(node.lineno, node.col_offset)] = where
+    return out
+
+
 _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
     "argparse": frozenset({"ArgumentParser", "RawDescriptionHelpFormatter"}),
+    "zipfile": frozenset(
+        {"BadZipFile", "LargeZipFile", "ZipFile", "ZipInfo", "ZIP_DEFLATED"}
+    ),
+    "xml.parsers.expat": frozenset({"ExpatError", "ParserCreate"}),
     "csv": frozenset({"Error", "field_size_limit", "reader", "writer"}),
     "dataclasses": frozenset(
         {
@@ -632,6 +1562,13 @@ _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
     "math": frozenset(
         {"fsum", "frexp", "isfinite", "ldexp", "sqrt"}
     ),
+    # Lane CHa (plan P4-D418), each scoped to the chain's modules.
+    "fractions": frozenset({"Fraction"}),
+    "hashlib": frozenset({"blake2b"}),
+    "secrets": frozenset({"token_bytes"}),
+    # Lane SG (plan P4-D415): the held twin's blocks packed and unpacked,
+    # in synthtwin.twinstore alone (_MODULE_SCOPED_ADMISSIONS).
+    "zlib": frozenset({"compress", "decompress"}),
     # Extension E7. The key is the TWO-COMPONENT module path, which is
     # the shape os.path already uses here: it makes numpy.random the
     # module the one-attribute-step rule counts from, so
@@ -640,7 +1577,38 @@ _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
     # _KNOWN_MODULE_PATHS) so that any other attribute of it lands in
     # the numpy branch of _policy_for with a message that says why.
     "numpy.random": frozenset({"default_rng"}),
-    "pandas": frozenset({"read_csv"}),
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): the audited array helper's
+    # names, one at a time, each with its capability audit in the module
+    # docstring and its argument rule (_ARGUMENT_RULES), in the module
+    # synthtwin.arrays alone (_MODULE_SCOPED_ADMISSIONS).
+    "numpy": frozenset(
+        {
+            "argsort",
+            "bincount",
+            "concatenate",
+            "cumsum",
+            "flatnonzero",
+            "frombuffer",
+            "max",
+            "min",
+            "where",
+            "zeros",
+        }
+    ),
+    # Extension E1, and lane DEP-1's `set_option` (plan P4-D410): the one
+    # setting reading.read_table makes, written out in full (an argument
+    # rule below holds it to that one option and that one value).
+    "pandas": frozenset({"read_csv", "set_option"}),
+    # Lane DEP-1 (plans P4-D409 and P4-D410), each name with its audit
+    # in the module docstring. The keys are TWO-COMPONENT module paths,
+    # as numpy.random's is, so nothing else of pyarrow or scipy is
+    # reachable at all.
+    "pyarrow.csv": frozenset(
+        {"ConvertOptions", "ParseOptions", "ReadOptions", "read_csv"}
+    ),
+    "scipy.optimize": frozenset({"Bounds", "LinearConstraint", "milp"}),
+    "scipy.linalg": frozenset({"cho_factor", "cho_solve"}),
+    "numba": frozenset({"njit"}),
     "pathlib": frozenset({"Path"}),
     "sys": frozenset(
         {
@@ -668,6 +1636,10 @@ _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
             "stdin",
             "stdout",
             "version_info",
+            # Lane ARR-a, 2026-11-05 (plan P4-D466): the byte order of
+            # this computer, a text, which the audited array helper reads
+            # before it views the draw's words in place.
+            "byteorder",
         }
     ),
     "typing": frozenset({"Protocol", "cast"}),
@@ -693,8 +1665,20 @@ _KNOWN_MODULE_PATHS = frozenset(_ALLOWED_MODULE_ATTRS) | {
     "importlib.metadata",
     # numpy itself names a module and nothing usable: naming it here
     # keeps `numpy.anything` inside the module-path machinery, where
-    # the numpy branch of _policy_for refuses it by name (E7).
+    # the numpy branch of _policy_for refuses it by name (E7). pyarrow
+    # and scipy are named for the same reason (plan P4-D410): only the
+    # enumerated submodules carry usable names.
     "numpy",
+    "pyarrow",
+    "scipy",
+}
+
+# The submodules each library root admits, for the message that refuses
+# every other name of that root (plan P4-D410).
+_LIBRARY_ROOTS: "dict[str, tuple[str, ...]]" = {
+    "numpy": ("numpy.random",),
+    "pyarrow": ("pyarrow.csv",),
+    "scipy": ("scipy.linalg", "scipy.optimize"),
 }
 
 _REFLECTION_PRIMITIVES = {
@@ -717,6 +1701,12 @@ _FORBIDDEN_MODULES = {
     "ctypes": "run native machine code",
     "cffi": "run native machine code",
     "multiprocessing": "launch new processes",
+    # Lane DEP-1 (plans P4-D409 part 3 (c) and P4-D410): llvmlite is
+    # numba's code generator, reachable only through the one audited
+    # njit form; joblib is how a library's `n_jobs` starts process
+    # pools.
+    "llvmlite": "build and run native machine code while the program runs",
+    "joblib": "launch pools of new processes",
 }
 
 # Attribute names that are banned wherever they appear, because they
@@ -823,6 +1813,15 @@ _TEXT_PRODUCING_BUILTINS = {"format", "repr", "str"}
 _RESTRICTED_INSTANCE_METHODS: "dict[str, frozenset[str]]" = {
     "numpy": frozenset(),
     "pandas": frozenset(),
+    # Lane DEP-1 (plan P4-D410): a pyarrow table carries writers and a
+    # conversion to pandas, a scipy result is a dictionary of arrays,
+    # and numba's decorator factory compiles what it is handed. Nothing
+    # at all is permitted on any of them until the adopting lane enters
+    # each name it reads with its own audit and mutation case (lanes
+    # SR-A, MR and CHa, ST and MPn).
+    "numba": frozenset(),
+    "pyarrow": frozenset(),
+    "scipy": frozenset(),
 }
 
 # Attributes that may be READ on a value one of those libraries
@@ -833,6 +1832,9 @@ _RESTRICTED_INSTANCE_METHODS: "dict[str, frozenset[str]]" = {
 _RESTRICTED_INSTANCE_ATTRIBUTES: "dict[str, frozenset[str]]" = {
     "numpy": frozenset(),
     "pandas": frozenset({"columns"}),
+    "numba": frozenset(),
+    "pyarrow": frozenset(),
+    "scipy": frozenset(),
 }
 
 # THE PER-ORIGIN SURFACES (Phase 2 extension E8/E9), and why the two
@@ -866,12 +1868,304 @@ _GENERATOR_ORIGIN = "numpy.random.default_rng"
 _DRAW_ARRAY_ORIGIN = "numpy.random.default_rng.integers"
 _DRAW_SCALAR_ORIGIN = "numpy.random.default_rng.integers.element"
 _WRITER_ORIGIN = "csv.writer"
+# THE ZIP MEMBER WRITER (plan P4-D411). `writing` writes the workbook
+# twin's sheet into its zip member a piece at a time, so the sheet is
+# never held whole, and the one object that takes the pieces is what
+# `ZipFile.open(entry, "w")` hands back. Left untraced, its `write` is
+# a method call on an untraced value and refused; traced as an ordinary
+# api-instance it would accept ANY method. So it is its own surface:
+# `write` and `close` and nothing else, no attribute at all. Both act
+# on the zip file `writing` already opened on its validated path and
+# reach no other path, no program and no network.
+_ZIP_ORIGIN = "zipfile.ZipFile"
+_ZIP_MEMBER_ORIGIN = "zipfile.ZipFile.open"
+# PYARROW'S TABLE, ITS COLUMNS AND THEIR PIECES (lane SR-A, plan
+# P4-D414), each a surface of its own: the table pyarrow.csv.read_csv
+# returns answers to `column` and `num_rows`, a column to `chunk` and
+# `num_chunks`, a piece to `to_pylist`, and nothing else; the audit is
+# in the module docstring. `to_pylist` returns a plain list of text,
+# which leaves the library.
+_ARROW_TABLE_ORIGIN = "pyarrow.csv.read_csv"
+_ARROW_COLUMN_ORIGIN = "pyarrow.csv.read_csv.column"
+_ARROW_CHUNK_ORIGIN = "pyarrow.csv.read_csv.column.chunk"
+# Lane ARR-a, 2026-11-05 (plan P4-D466): THE HELPER'S ARRAYS. What the
+# admitted numpy names make in synthtwin.arrays -- an array, or one value
+# taken out of one (a numpy scalar, which carries an array's writers and
+# its own `data`) -- is ONE surface of its own: astype, with one literal
+# dtype, and tolist, and NO attribute (no ctypes, data, base, flags, T or
+# shape: len() instead). An element keeps the surface until int() or
+# float() ends it, and tolist() hands back plain values. Where an array
+# may STAND is the closure rule's (_check_array_position).
+_ARRAY_ORIGIN = "numpy.(an array the audited helper made)"
+_ARRAY_CONSTRUCTORS = frozenset(
+    {
+        "numpy.argsort",
+        "numpy.bincount",
+        "numpy.concatenate",
+        "numpy.cumsum",
+        "numpy.flatnonzero",
+        "numpy.frombuffer",
+        "numpy.max",
+        "numpy.min",
+        "numpy.where",
+        "numpy.zeros",
+    }
+)
+# The dtypes the helper writes, each an explicit literal: one byte, and
+# the little-endian whole numbers and binary64 (plan P4-D466).
+_ARRAY_DTYPES = frozenset({"u1", "<u2", "<u4", "<u8", "<i8", "<f8"})
+# The array values of both kinds the closure rule follows.
+_ARRAY_FAMILY = frozenset({_ARRAY_ORIGIN, _DRAW_ARRAY_ORIGIN, _DRAW_SCALAR_ORIGIN})
+# THE CLOSURE RULE (lane ARR-a, 2026-11-05, plan P4-D466; P4-D409 part 3
+# (e)). No numpy object leaves the audited helper, and the generator's
+# draw reaches exactly one first-party function. Each expression that may
+# carry an array is checked where it STANDS, against an enumeration of the
+# places it may stand (a position not listed is refused, whatever syntax
+# Python adds): see _Checker._check_array_position. The operators an array
+# of the helper may be an operand of: + - * / and & | ^ (whole numbers
+# under the helper's run-time bound checks; floats one IEEE operation
+# each), the shifts by a literal count from 0 to 63 with the array on the
+# left, unary - and ~, and one comparison of < <= > >= == !=. Refused on
+# an array, each by name: @, **, //, %, divmod and every in-place form; a
+# chained comparison, `in` and `is`; every other operator.
+_ARRAY_ARITHMETIC = (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.BitAnd, ast.BitOr, ast.BitXor)
+_ARRAY_COMPARISONS = (ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Eq, ast.NotEq)
+_ARRAY_EXITS = frozenset({"float", "int", "len"})
+_DRAW_EXITS = frozenset({"int", "len"})
+# The draw's one first-party reader. Lane ARR-a's repair 2, 2026-11-06
+# (LANE ARR RULINGS 5 (2), Codex's item 2): the reader holds the draw in
+# its FIRST POSITIONAL PARAMETER, whatever that parameter is called,
+# because that is where every caller hands it (by position, first: the
+# closure rule refuses any other handoff); that parameter carries the
+# draw's surface inside the reader, so the reader may do with it what the
+# closure rule lets any module do. The reader is the helper's ONE binding
+# of its name, a plain def at the module's top level with no decorator
+# and a positional parameter first; any other binding or signature is
+# refused (_draw_reader_problem), so no spelling of the reader takes the
+# draw unwatched.
+_DRAW_READER_NAME = "hidden_sums"
+_DRAW_READER = _ARRAY_HELPER + "." + _DRAW_READER_NAME
+# The expressions that may carry an array's origin.
+_ARRAY_CARRIERS = (
+    ast.Name,
+    ast.Attribute,
+    ast.Call,
+    ast.Subscript,
+    ast.BinOp,
+    ast.UnaryOp,
+    ast.Compare,
+    ast.IfExp,
+    ast.BoolOp,
+)
+_OPERATOR_TEXT: "dict[type, str]" = {
+    ast.Add: "+",
+    ast.Sub: "-",
+    ast.Mult: "*",
+    ast.Div: "/",
+    ast.BitAnd: "&",
+    ast.BitOr: "|",
+    ast.BitXor: "^",
+    ast.MatMult: "@",
+    ast.Pow: "**",
+    ast.FloorDiv: "//",
+    ast.Mod: "%",
+    ast.LShift: "<<",
+    ast.RShift: ">>",
+}
+
+
+def _is_shift_count(node: ast.AST) -> bool:
+    """A whole-number literal from 0 to 63, the only count an array is shifted by."""
+    return (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, int)
+        and not isinstance(node.value, bool)
+        and 0 <= node.value <= 63
+    )
+
+
+def _array_position_text(parent: ast.AST, field: str) -> str:
+    """Where an array stands, in a few words, for the closure rule's message."""
+    if isinstance(parent, ast.Return):
+        return "as a return value"
+    if isinstance(parent, (ast.Yield, ast.YieldFrom)):
+        return "as a yielded value"
+    if isinstance(parent, ast.Await):
+        return "as an awaited value"
+    if isinstance(parent, (ast.List, ast.Tuple, ast.Set, ast.Dict)):
+        return "as a member of a container"
+    if isinstance(parent, (ast.ListComp, ast.SetComp, ast.GeneratorExp, ast.DictComp)):
+        return "as an element of a comprehension"
+    if isinstance(parent, ast.comprehension):
+        return "in a comprehension's loop"
+    if isinstance(parent, (ast.For, ast.AsyncFor)):
+        return "as the iterable of a loop"
+    if isinstance(parent, ast.arguments):
+        return "as a parameter's default"
+    if isinstance(parent, ast.Raise):
+        return "as an exception"
+    if isinstance(parent, ast.FormattedValue):
+        return "inside an f-string"
+    if isinstance(parent, (ast.If, ast.While, ast.Assert, ast.BoolOp)) or (
+        isinstance(parent, ast.IfExp) and field == "test"
+    ):
+        return "as a truth value"
+    if isinstance(parent, ast.IfExp):
+        return "as one branch of a conditional expression"
+    if isinstance(parent, ast.Starred):
+        return "unpacked with '*'"
+    if isinstance(parent, ast.NamedExpr):
+        return "bound by ':='"
+    if isinstance(parent, ast.withitem):
+        return "as a context manager"
+    if isinstance(parent, ast.Slice):
+        return "as a slice bound (int() makes it a number first)"
+    if isinstance(parent, ast.Expr):
+        return "as a statement whose value is thrown away"
+    if isinstance(parent, ast.Lambda):
+        return "as a lambda's value"
+    if isinstance(parent, ast.keyword):
+        return "handed by name to a call that is not an admitted numpy name"
+    if isinstance(parent, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+        return "stored somewhere other than a local name of a function (a global, an attribute, a container member or an unpacking)"
+    if isinstance(parent, ast.Attribute):
+        return "under an attribute or a method this audit does not admit on it"
+    return "in a position the closure rule does not admit (" + type(parent).__name__ + "." + field + ")"
+
+
+def _array_closure_message(kinds: "set[str]", where: str) -> str:
+    if "helper" in kinds:
+        return (
+            "lets an array the audited array helper made, or a value taken "
+            "out of one, stand " + where + ". No numpy object leaves "
+            "synthtwin.arrays (plan P4-D466): inside it an array may be "
+            "bound to a local name, be an operand of + - * / & | ^, of a "
+            "shift by a whole-number literal from 0 to 63, of unary - or ~ "
+            "or of one comparison, be an argument of an admitted numpy "
+            "name, the receiver of astype or tolist, indexed or written "
+            "through; tolist(), int(), float() and len() are its only exits."
+        )
+    return (
+        "lets the array the generator's integers method returned, or a "
+        "word taken out of it, stand " + where + ". A drawn array may be "
+        "bound to a local name, indexed, iterated, handed to "
+        "synthtwin.arrays.hidden_sums -- its one first-party reader (plan "
+        "P4-D466) -- or deleted, and a drawn word becomes a plain number by "
+        "int(); no operator, no other call, no container, no return."
+    )
+
+
+def _record_parents(root: ast.AST, parents: "dict[int, tuple[ast.AST, str, int]]") -> None:
+    """Map every node under `root` to the node it stands in, the field and its position in that field."""
+    for node in ast.walk(root):
+        for field, value in ast.iter_fields(node):
+            if isinstance(value, list):
+                for position, child in enumerate(value):
+                    if isinstance(child, ast.AST):
+                        parents[id(child)] = (node, field, position)
+            elif isinstance(value, ast.AST):
+                parents[id(value)] = (node, field, -1)
+
+
+def _draws(statement: ast.AST) -> bool:
+    """True when a statement names the generator's one draw method anywhere inside it."""
+    return any(
+        isinstance(node, ast.Attribute) and node.attr == _DRAW_METHOD
+        for node in ast.walk(statement)
+    )
+
+
+# Lane ARR-a's repair 2, 2026-11-06 (LANE ARR RULINGS 5 (2), Codex's item
+# 2): THE READER'S SHAPE. Every node of the helper that binds the reader's
+# name, in any scope and by any form (a def, a class, an assignment, an
+# import, a loop, a `with`, an `except`, a match capture, a walrus, a
+# parameter, a `del`), is found; the reader is sound only where that is
+# ONE plain def written at the module's top level, undecorated (a
+# decorator's wrapper would take the draw, unwatched), whose parameters
+# begin with a positional one (where every caller hands the draw).
+def _binds_name(node: ast.AST, name: str) -> bool:
+    """True when `node` binds `name` (a store, a deletion, a definition, an import, a parameter or a capture)."""
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return node.name == name
+    if isinstance(node, ast.Name):
+        return node.id == name and not isinstance(node.ctx, ast.Load)
+    if isinstance(node, ast.alias):
+        return (node.asname or node.name.partition(".")[0]) == name
+    if isinstance(node, ast.arg):
+        return node.arg == name
+    if isinstance(node, (ast.ExceptHandler, ast.MatchAs, ast.MatchStar)):
+        return node.name == name
+    if isinstance(node, ast.MatchMapping):
+        return node.rest == name
+    if isinstance(node, (ast.Global, ast.Nonlocal)):
+        return name in node.names
+    return False
+
+
+def _draw_reader_problem(tree: ast.Module) -> "tuple[ast.AST, str] | None":
+    """Where and how the helper's text makes the draw's reader unsound, or None."""
+    binders = [node for node in ast.walk(tree) if _binds_name(node, _DRAW_READER_NAME)]
+    if not binders:
+        return None
+    reader = binders[0]
+    if len(binders) > 1:
+        return binders[1], "binds that name more than once"
+    if not isinstance(reader, ast.FunctionDef) or not any(statement is reader for statement in tree.body):
+        return reader, "binds that name by something other than one plain def at the module's top level"
+    if reader.decorator_list:
+        return reader, "hands that def to a decorator, whose wrapper would take the draw"
+    if not (reader.args.posonlyargs or reader.args.args):
+        return reader, "gives that def no positional parameter first, where every caller hands the draw"
+    return None
+
+
+def _draw_reader_message(problem: str) -> str:
+    return (
+        "writes the draw's one reader, " + _DRAW_READER + ", so that it "
+        + problem + " (plan P4-D466). The generator's draw is handed to "
+        "that function alone, by position and first, and its first "
+        "positional parameter carries the draw's surface inside it; the "
+        "reader is the helper's one plain def of that name, undecorated, "
+        "taking the draw first, or the draw would leave the closure rule's "
+        "view."
+    )
+
+
+# Lane ARR-a's repair 2, 2026-11-06 (LANE ARR RULINGS 5 (1), Codex's item
+# 1): THE HELPER'S MODULE IS NO VALUE. The per-function zone table is
+# read where a function of the helper is written by its dotted path; the
+# module object handed on as data -- through typing.cast, a name, a
+# container, an argument or a default -- would reach the same functions
+# by no path this audit reads. So outside synthtwin.arrays the module,
+# and the package above it, stand only at the head of a dotted path, as
+# the polish kernel's do (the verify of lane DEP-1's repair 1).
+def _array_module_value_message(dotted: str) -> str:
+    what = (
+        "the audited array helper's module"
+        if dotted == _ARRAY_HELPER
+        else "the package above the audited array helper"
+    )
+    return (
+        "refers to " + what + " ('" + dotted + "') as a bare value (plan "
+        "P4-D466). Which of the helper's functions a module may call is "
+        "read where the call names the function by its dotted path "
+        "(_ARRAY_FUNCTION_ZONES); a module handed on as data -- through "
+        "typing.cast, a name, a container, an argument or a default -- "
+        "would reach its float functions and the draw's reader by no path "
+        "this audit reads. Write the call as arrays.<function>(...)."
+    )
 
 _RESTRICTED_SURFACES: "dict[str, tuple[frozenset[str], frozenset[str]]]" = {
     _GENERATOR_ORIGIN: (frozenset({"integers"}), frozenset()),
     _DRAW_ARRAY_ORIGIN: (frozenset(), frozenset()),
     _DRAW_SCALAR_ORIGIN: (frozenset(), frozenset()),
     _WRITER_ORIGIN: (frozenset({"writerow", "writerows"}), frozenset()),
+    _ZIP_MEMBER_ORIGIN: (frozenset({"close", "write"}), frozenset()),
+    _ARROW_TABLE_ORIGIN: (frozenset({"column"}), frozenset({"num_rows"})),
+    _ARROW_COLUMN_ORIGIN: (frozenset({"chunk"}), frozenset({"num_chunks"})),
+    _ARROW_CHUNK_ORIGIN: (frozenset({"to_pylist"}), frozenset()),
+    # Lane ARR-a, 2026-11-05 (plan P4-D466).
+    _ARRAY_ORIGIN: (frozenset({"astype", "tolist"}), frozenset()),
 }
 
 # How each surface is named in a violation message, in words that say
@@ -881,8 +2175,16 @@ _SURFACE_DESCRIPTIONS: "dict[str, str]" = {
     _DRAW_ARRAY_ORIGIN: "the array of words the generator's integers method returned",
     _DRAW_SCALAR_ORIGIN: "one word taken out of the array integers returned",
     _WRITER_ORIGIN: "the CSV writer made by csv.writer",
+    _ZIP_MEMBER_ORIGIN: "the zip member writer made by ZipFile.open",
+    _ARROW_TABLE_ORIGIN: "the table pyarrow.csv.read_csv returned",
+    _ARROW_COLUMN_ORIGIN: "a column of the table pyarrow.csv.read_csv returned",
+    _ARROW_CHUNK_ORIGIN: "a piece of a column of the table pyarrow.csv.read_csv returned",
+    _ARRAY_ORIGIN: "an array the audited array helper made, or a value taken out of one",
     "numpy": "a value produced by numpy",
     "pandas": "a value produced by pandas",
+    "numba": "a value produced by numba",
+    "pyarrow": "a value produced by pyarrow",
+    "scipy": "a value produced by scipy",
 }
 
 # The origin an ELEMENT of a restricted value carries -- what a
@@ -895,6 +2197,9 @@ _SURFACE_DESCRIPTIONS: "dict[str, str]" = {
 _RESTRICTED_ELEMENT: "dict[str, str]" = {
     _DRAW_ARRAY_ORIGIN: _DRAW_SCALAR_ORIGIN,
     _DRAW_SCALAR_ORIGIN: _DRAW_SCALAR_ORIGIN,
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): an element of a helper's
+    # array keeps the array's surface.
+    _ARRAY_ORIGIN: _ARRAY_ORIGIN,
 }
 
 # What a PERMITTED method call on a restricted surface hands back. Only
@@ -903,6 +2208,23 @@ _RESTRICTED_ELEMENT: "dict[str, str]" = {
 # the library.
 _RESTRICTED_METHOD_RESULTS: "dict[tuple[str, str], str]" = {
     (_GENERATOR_ORIGIN, "integers"): _DRAW_ARRAY_ORIGIN,
+    (_ARROW_TABLE_ORIGIN, "column"): _ARROW_COLUMN_ORIGIN,
+    (_ARROW_COLUMN_ORIGIN, "chunk"): _ARROW_CHUNK_ORIGIN,
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): astype makes another array;
+    # tolist has no entry, so what it hands back is a plain value.
+    (_ARRAY_ORIGIN, "astype"): _ARRAY_ORIGIN,
+}
+
+# What a method of an ORDINARY api-instance hands back, where the
+# returned object needs a surface of its own (plan P4-D411): the zip
+# member writer, which `ZipFile.open` returns, and the modules where it
+# is traced. The member writer is `writing`'s alone, the one module that
+# writes: zipfile's own admission also holds `reading`, and there the
+# result stays untraced, so a member written in `reading` is refused
+# (skeptic 1 of lane XW, item 4). Every other method result of an
+# ordinary api-instance stays untraced, as before.
+_INSTANCE_METHOD_RESULTS: "dict[tuple[str, str], tuple[str, frozenset[str]]]" = {
+    (_ZIP_ORIGIN, "open"): (_ZIP_MEMBER_ORIGIN, frozenset({"synthtwin.writing"})),
 }
 
 # The one restricted surface whose values may still be handed to
@@ -945,6 +2267,15 @@ _NUMBER = ("number", "")
 # target". It starts at .open() on a validated path and nowhere else,
 # so it cannot be manufactured from a caller-supplied object (E9).
 _LOCALHANDLE = ("localhandle", "")
+
+# THE HANDLE WRITTEN A PIECE AT A TIME (plan P4-D415, lane SG): the two
+# methods the output handle answers to, with how many positional
+# arguments each takes, and the one module where it answers to them.
+# `writing` writes the twin's text through the handle a piece at a time
+# so the text is never made whole; everywhere else the handle answers
+# to nothing, as before.
+_LOCALHANDLE_METHODS: "dict[str, int]" = {"close": 0, "write": 1}
+_LOCALHANDLE_WRITERS = frozenset({"synthtwin.writing"})
 
 # Origin kinds a value may carry and still be read, stored, or returned
 # without a message of its own. Every kind this audit records belongs
@@ -1040,7 +2371,14 @@ def _is_first_party(kind: str, origin: str) -> bool:
 # the enforcement behind the fence P1-D2.1 describes; round 1 found the
 # claim resting on nothing but the order the current source happens to
 # be written in.
-_FENCED_APIS = frozenset({"pandas.read_csv"})
+_FENCED_APIS = frozenset({"pandas.read_csv", "pyarrow.csv.read_csv"})
+
+# APIs that may appear ONLY as the function of a call written in one
+# place (lane DEP-1, plan P4-D410): numba.njit is the decorator call
+# `@numba.njit(fastmath=False, parallel=False, cache=False)` over the
+# kernel and nothing else, so a bare `@numba.njit`, a stored reference
+# or a call that is not a decorator is refused.
+_CALL_ONLY_APIS = frozenset({"numba.njit"})
 
 _LOCAL_PATH_VALIDATOR = "synthtwin.paths.validate_local_path"
 
@@ -1090,6 +2428,12 @@ def _is_safe_data(kind: str, origin: str) -> bool:
 _DEFINITION_PRESERVING_DECORATORS = {
     "classmethod",
     "dataclasses.dataclass",
+    # Lane DEP-1 (plan P4-D410): numba's dispatcher runs the compiled form
+    # of exactly the scanned body under it -- every statement of which is
+    # read under these same rules -- and the argument rule holds the
+    # decorator to the one form with no fast-math, no threads and no
+    # cache.
+    "numba.njit",
     "property",
     "staticmethod",
 }
@@ -1199,6 +2543,10 @@ _CALLBACK_SLOTS: "dict[str, tuple[frozenset[str], dict[int, str]]]" = {
         {},
     ),
     "pathlib.Path.walk": (frozenset({"on_error"}), {1: "on_error"}),
+    # Lane DEP-1 (plan P4-D410): ParseOptions calls the handler it is
+    # given for every row it cannot parse; the argument rule refuses the
+    # keyword outright as well.
+    "pyarrow.csv.ParseOptions": (frozenset({"invalid_row_handler"}), {}),
     "print": (frozenset({"file"}), {}),
     "sorted": (frozenset({"key"}), {}),
     "sys.addaudithook": (frozenset(), {0: "hook"}),
@@ -1227,7 +2575,54 @@ _SYS_BANNED = (
 # and returns a bool -- it opens nothing, names no path, and reads no
 # content -- and it is reachable in ONE attribute step, which
 # `sys.stdin.isatty` is not.
-_OS_ALLOWED_EXACT = {"os.fspath", "os.getcwd", "os.lstat", "os.isatty"}
+#
+# `os.sysconf` joins them for plan P4-D397: `synthtwin doctor` weighs a
+# table's file size against this computer's total memory, and the
+# standard library reports that memory nowhere else without starting a
+# program or calling native code. It takes the NAME of a configuration
+# value -- the doctor asks for SC_PHYS_PAGES and SC_PAGE_SIZE -- and
+# returns an integer; it opens nothing, names no path, takes no
+# callable and loads nothing. On Windows it does not exist, and the
+# doctor says the memory could not be read.
+_OS_ALLOWED_EXACT = {
+    "os.fspath",
+    "os.getcwd",
+    "os.lstat",
+    "os.isatty",
+    "os.sysconf",
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): see _OS_SCOPED.
+    "os.cpu_count",
+}
+
+# Lane ARR-a, 2026-11-05 (plan P4-D466; LANE I4m RULINGS 26 (5) and LANE
+# ARR RULINGS 1 (3)): THE COMPUTER'S READER. Before any hour of work the
+# shipped command will tell the person what the run needs and whether this
+# computer is enough, so it reads the installed memory and the number of
+# processors, and both are read in synthtwin.computer alone. os.cpu_count
+# takes no argument and returns a whole number or None (the logical
+# processors); it opens nothing, names no path, takes no callable and
+# loads nothing. os.sysconf keeps its audit above (P4-D397) and its
+# argument rule holds it to the two memory names. NOT admitted:
+# os.process_cpu_count (Python 3.13 and later alone), os.sched_getaffinity
+# (Linux alone), multiprocessing.cpu_count (a forbidden module). On Windows
+# os.sysconf does not exist and no standard-library route reads the memory
+# without a native call: the reader says None, and the check says so in
+# plain words.
+_OS_SCOPED: "dict[str, frozenset[str]]" = {
+    "os.cpu_count": frozenset({_COMPUTER}),
+    "os.sysconf": frozenset({_COMPUTER}),
+}
+
+
+def _os_scope_message(dotted: str) -> str:
+    return (
+        "uses '" + dotted + "', which reads this computer and is admitted "
+        "for " + ", ".join(sorted(_OS_SCOPED[dotted])) + " only (plan "
+        "P4-D466): the installed memory and the number of processors are "
+        "read in one small module and handed on as whole numbers. Call "
+        "synthtwin.computer's installed_memory() or processor_count() "
+        "instead."
+    )
 
 # Attribute names that are known to name modules when reached through
 # another module's namespace (allowed modules re-export several of
@@ -1366,7 +2761,8 @@ _ALLOWED_CALL_BUILTINS = {
 _ALLOWLIST_NOTE = (
     "The Phase 0 allowlist (plan D6.2) permits only: argparse, "
     "dataclasses, json, pathlib, typing, sys (never sys.modules or "
-    "sys.path), os.path plus os.fspath, os.getcwd, os.lstat and "
+    "sys.path), os.path plus os.fspath, os.getcwd, os.lstat, "
+    "os.isatty, os.sysconf and "
     "read-only os.environ, and importlib.metadata.version() -- and "
     "within each module only the attribute names enumerated in this "
     "scanner. Adding anything is a plan-level decision, not a code "
@@ -1656,6 +3052,28 @@ def _unknown_call_message(name: str) -> str:
     )
 
 
+def _localhandle_message(method: str) -> str:
+    return (
+        "calls the method '" + method + "' on the output handle opened on "
+        "the validated output target. Only synthtwin.writing writes "
+        "through it, with write(text) and close(), and nothing else of "
+        "it is reachable (plan P4-D415): any other method, an argument "
+        "by name or expanded, or the same calls in another module, could "
+        "read the file back, move within it or write it from code that "
+        "writes nothing."
+    )
+
+
+def _localhandle_attribute_message(name: str) -> str:
+    return (
+        "reads the attribute '" + name + "' of the output handle opened "
+        "on the validated output target. The handle answers to write(text) "
+        "and close() in synthtwin.writing and to no attribute anywhere "
+        "(plan P4-D415): its buffer would write past the text it is "
+        "handed, and nothing else of it is needed to write a file."
+    )
+
+
 def _unknown_method_message(method: str) -> str:
     return (
         "calls the method '" + method + "' on a value this audit "
@@ -1766,10 +3184,186 @@ def _numpy_surface_message(dotted: str) -> str:
         "uses '" + dotted + "'. From numpy only the module numpy.random "
         "and, inside it, the single name numpy.random.default_rng are "
         "allowed (extension E7): one random stream, made once from the "
-        "seed. Every other numpy name -- every array constructor, every "
-        "reduction, every reader and writer, and every other submodule "
-        "-- is outside the allowlist, and adding one is a plan-level "
-        "decision rather than a code change."
+        "seed; and, in the audited array helper synthtwin.arrays alone, "
+        "the ten array names plan P4-D466 enumerates (frombuffer, zeros, "
+        "argsort, bincount, cumsum, where, flatnonzero, concatenate, min "
+        "and max). Every other numpy name -- every other array "
+        "constructor, every reduction, every reader and writer, and every "
+        "other submodule -- is outside the allowlist, and adding one is a "
+        "plan-level decision rather than a code change."
+    )
+
+
+def _library_root_message(dotted: str, root: str) -> str:
+    admitted = " and ".join(_LIBRARY_ROOTS[root])
+    return (
+        "uses '" + dotted + "'. From " + root + " only the enumerated "
+        "names of " + admitted + " are allowed (plan P4-D410), each "
+        "entered one at a time with its capability audit and its zones. "
+        "Every other name of " + root + " -- every other submodule, "
+        "reader, writer, file system, network client and reduction -- is "
+        "outside the allowlist, and adding one is a plan-level decision "
+        "rather than a code change."
+    )
+
+
+def _argument_rule_message(dotted: str, detail: str) -> str:
+    return (
+        "calls '" + dotted + "' " + detail + " (plan P4-D409 part 3 (d), "
+        "lane DEP-1's plan P4-D410). The argument rules hold each "
+        "admitted library call to the one form whose behaviour was "
+        "audited, so that no thread, process, clock or cache decides "
+        "what the program does."
+    )
+
+
+def _call_only_message(dotted: str) -> str:
+    return (
+        "names '" + dotted + "' somewhere other than as the decorator "
+        "call written over the polish kernel, "
+        "@numba.njit(fastmath=False, parallel=False, cache=False) "
+        "(plan P4-D409 part 4). Stored, handed on, called on a function "
+        "or written bare, it compiles code this audit never read, under "
+        "settings it never saw."
+    )
+
+
+def _compiled_reference_message(name: str) -> str:
+    return (
+        "uses the compiled kernel function '" + name + "' other than by "
+        "calling it (plan P4-D409 part 4; lane DEP-1's plan P4-D410). "
+        "What numba.njit makes is a dispatcher, not the function written "
+        "under it: it carries the compiler's settings (`targetoptions`), "
+        "the uncompiled body (`py_func`) and the means to compile again, "
+        "and writing fast-math into its settings compiled the kernel "
+        "with fast-math (measured on numba 0.68.0). Stored, handed on, "
+        "or read or written through an attribute, it escapes the one "
+        "audited form, so the compiled function is called and nothing "
+        "else. A plain-Python name that shares its spelling is renamed."
+    )
+
+
+# The attributes through which a numba dispatcher is compiled again, or
+# read beneath its compiled form: its compiler's settings, its compiler,
+# its uncompiled body, its cache and its compiled overloads (lane
+# DEP-1's repair 2, plan P4-D410). getattr, setattr, vars and every
+# double-underscore name are refused already, so a written attribute is
+# the one way to reach them, and these names are refused wherever they
+# are written, on whatever object: a dispatcher that reached a name this
+# audit does not hold to calls still cannot be given fast-math.
+_DISPATCHER_ATTRIBUTES = frozenset(
+    {
+        "_cache",
+        "_compiler",
+        "disable_compile",
+        "enable_caching",
+        "get_compile_result",
+        "overloads",
+        "py_func",
+        "recompile",
+        "targetoptions",
+    }
+)
+
+
+def _dispatcher_attribute_message(name: str) -> str:
+    return (
+        "names the attribute '" + name + "', which a numba dispatcher "
+        "carries: its compiler's settings, its compiler, its uncompiled "
+        "body, its cache or its compiled forms (plan P4-D409 part 4; lane "
+        "DEP-1's plan P4-D410). The name is refused on whatever object it "
+        "is written, so a compiled function that reached a name this "
+        "audit does not hold to calls still cannot be compiled again with "
+        "fast-math. A first-party attribute that shares the spelling is "
+        "renamed."
+    )
+
+
+def _kernel_closure_message(kind: str) -> str:
+    return (
+        "writes " + kind + " inside a compiled kernel function (plan "
+        "P4-D409 part 4; lane DEP-1's plan P4-D410). A function made "
+        "inside compiled code comes back to Python as a dispatcher of its "
+        "own, under a name this audit does not hold to calls: returned "
+        "from the kernel and given fast-math through its settings, it "
+        "changed a product's last bits (measured on numba 0.68.0, the "
+        "Codex review of lane DEP-1). A compiled function returns data; "
+        "a helper it needs is a compiled function of its own, written at "
+        "the top level of the module."
+    )
+
+
+def _argument_rule_reference_message(dotted: str) -> str:
+    return (
+        "names '" + dotted + "' other than as the function of a call "
+        "written in place (plan P4-D409 part 3 (d); lane DEP-1's plan "
+        "P4-D410). Its argument rule reads the arguments where the call "
+        "is written; handed to map, stored or passed on, it is called "
+        "with arguments no rule read -- map(pandas.set_option, ...) set "
+        "the string storage to pyarrow and map(milp, ...) ran the solver "
+        "with no budget, both scanning clean before (the Codex review of "
+        "lane DEP-1). Call it directly, with its arguments written out."
+    )
+
+
+# The calls whose result is the solver's own dictionary of floats (plan
+# P4-D409 part 5; lane DEP-1's repair 2, plan P4-D410).
+_SOLVER_RESULT_ORIGINS = frozenset({"scipy.optimize.milp"})
+
+
+def _solver_result_message(subscripted: bool) -> str:
+    if subscripted:
+        action = "reads a member of the solver's result by subscription"
+    else:
+        action = (
+            "hands the solver's result on (returned, passed to a call, "
+            "put in a container, iterated, compared or formatted)"
+        )
+    return (
+        action + " (plan P4-D409 part 5; lane DEP-1's plan P4-D410). "
+        "scipy.optimize.milp returns a dictionary of HiGHS' own floats, "
+        "and `found['x']` reads what `found.x` reads. What HiGHS "
+        "exhibits is re-checked in Python integers, and the result "
+        "answers to no member until the adopting lane (MR, CHa) enters "
+        "each one it reads, by attribute, with its audit: until then it "
+        "is bound to a name and goes nowhere else, so no subscription, "
+        "call, container or return carries a solver float out of the "
+        "search."
+    )
+
+
+def _compiled_function_names(tree: ast.Module) -> "set[str]":
+    """The names of the polish kernel's compiled functions, read from its text.
+
+    Every def written at the top level of the module with a decorator
+    above it. numba.njit is the decorator the kernel module exists for,
+    and the argument rule admits it over a top-level def alone, so the
+    set is read from the text, with no resolution an alias could fool,
+    and errs only towards holding another decorated function of the
+    kernel to calls as well (lane DEP-1, plan P4-D410).
+    """
+    return {
+        node.name
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.decorator_list
+    }
+
+
+def _n_jobs_message() -> str:
+    return (
+        "passes 'n_jobs', which lets a library such as scikit-learn "
+        "start pools of new processes through joblib (plan P4-D409 part "
+        "3 (d)). synthtwin runs in one process; leave the argument out."
+    )
+
+
+def _n_jobs_text_message() -> str:
+    return (
+        "writes the text 'n_jobs', which reaches a library's n_jobs as "
+        "the key of a dictionary of keywords expanded into a call, so it "
+        "starts pools of new processes as the keyword does (plan P4-D409 "
+        "part 3 (d)). synthtwin runs in one process; leave it out."
     )
 
 
@@ -1986,6 +3580,8 @@ def _attr_component_message(name: str, dotted: "str | None") -> "str | None":
             "reach code this audit cannot see; they are banned in "
             "synthtwin source."
         )
+    if name in _DISPATCHER_ATTRIBUTES:
+        return _dispatcher_attribute_message(name)
     if name == "load" and dotted != "json.load":
         return (
             "reads an attribute named 'load'. Only json.load is "
@@ -2096,8 +3692,53 @@ class _Checker(ast.NodeVisitor):
         self,
         module_exports: "dict[str, tuple[set[str], set[str], set[str]]] | None" = None,
         first_party_modules: "set[str] | None" = None,
+        module_name: str = "",
+        zone: str = "",
     ) -> None:
         self.violations: list[tuple[int, str]] = []
+        # Which module is being scanned, for the admissions that are
+        # scoped to one (see _MODULE_SCOPED_ADMISSIONS). Empty where the
+        # caller did not say, and an empty name holds no scoped
+        # admission at all -- an unnamed module is not one of the two
+        # that may name the zip API.
+        self.module_name = module_name
+        # Each import statement's function, by its place (plan P4-D458's
+        # one zone P import site, _PRIVATE_IMPORT_SITES).
+        self.import_sites: "dict[tuple[int, int], str]" = {}
+        # The module's zone (plan P4-D409 parts 2 and 3; lane DEP-1, plan
+        # P4-D410): G for a module the generation path reaches, else the
+        # zone _MODULE_ZONES names, else D. Empty for a file outside the
+        # first-party package, which no zone rule reads.
+        self.zone = zone
+        # Every call written in a decorator position, the one place
+        # numba.njit may be called (_CALL_ONLY_APIS), and the ones among
+        # them written over a def at the top level of the module, the one
+        # def numba.njit may compile.
+        self.decorator_calls: set[int] = set()
+        self.top_level_decorator_calls: set[int] = set()
+        # The polish kernel's compiled functions (plan P4-D409 part 4;
+        # lane DEP-1, plan P4-D410), which are called and nothing else:
+        # by their dotted names wherever they are imported, and by their
+        # bare names inside the kernel module itself.
+        self.compiled_functions: set[str] = set()
+        self.compiled_names: set[str] = set()
+        # The solver's result (plan P4-D409 part 5; lane DEP-1's repair 2,
+        # plan P4-D410) may stand only where it is bound to a plain name,
+        # thrown away, or read through an attribute the surface rule
+        # governs: the ids of those positions, and of every subscripted
+        # value, filled by scan_source. Watched only in a module whose
+        # text names milp, the one way to make such a result (getattr and
+        # star imports are refused).
+        self.watch_solver_results = False
+        self.solver_result_positions: set[int] = set()
+        self.subscript_values: set[int] = set()
+        # THE CLOSURE RULE (lane ARR-a, 2026-11-05, plan P4-D466): every
+        # node of a watched part of the module -- the audited helper whole,
+        # and elsewhere each top-level statement that draws -- mapped to
+        # the node it stands in, the field and the position (scan_source
+        # fills it); and the nodes already reported, once each.
+        self.array_parents: "dict[int, tuple[ast.AST, str, int]]" = {}
+        self.array_flagged: set[int] = set()
         # A stack of scopes. Each scope maps a local name to the SET of
         # possible origins it may hold: ("module", dotted),
         # ("api", dotted), ("def", name) for functions and classes
@@ -2547,6 +4188,26 @@ class _Checker(ast.NodeVisitor):
                 if not all(_is_safe_data(kind, origin) for kind, origin in origins):
                     return {_UNKNOWN}
             return {("str", "")}
+        # Lane ARR-a, 2026-11-05 (plan P4-D466): a unary operator on an
+        # array, and a comparison with one, make an array, which keeps the
+        # surface so that the closure rule follows it; every other operand
+        # is read as before (untraced).
+        if isinstance(value, ast.UnaryOp):
+            carried = {
+                origin
+                for origin in self._value_origins(value.operand)
+                if origin[0] == "instance" and origin[1] in _ARRAY_FAMILY
+            }
+            return carried or {_UNKNOWN}
+        if isinstance(value, ast.Compare):
+            carried = set()
+            for operand in [value.left] + list(value.comparators):
+                carried |= {
+                    origin
+                    for origin in self._value_origins(operand)
+                    if origin[0] == "instance" and origin[1] in _ARRAY_FAMILY
+                }
+            return carried or {_UNKNOWN}
         if isinstance(value, ast.IfExp):
             return self._value_origins(value.body) | self._value_origins(
                 value.orelse
@@ -2619,7 +4280,12 @@ class _Checker(ast.NodeVisitor):
                 dotted.partition(".")[0] != "builtins"
                 and self._policy_for(dotted, False) is None
             ):
-                out.add(("instance", dotted))
+                # Lane ARR-a, 2026-11-05 (plan P4-D466): every admitted
+                # numpy name makes the one array surface.
+                if dotted in _ARRAY_CONSTRUCTORS:
+                    out.add(("instance", _ARRAY_ORIGIN))
+                else:
+                    out.add(("instance", dotted))
             else:
                 out.add(_UNKNOWN)
         bound = self._lookup(parts[0])
@@ -2718,6 +4384,11 @@ class _Checker(ast.NodeVisitor):
         out: set[tuple[str, str]] = set()
         for kind, origin in self._trust_origins(func.value):
             if kind != "instance":
+                continue
+            opened = _INSTANCE_METHOD_RESULTS.get((origin, func.attr))
+            if opened is not None:
+                if self.module_name in opened[1]:
+                    out.add(("instance", opened[0]))
                 continue
             key = _surface_key(origin)
             if key is None:
@@ -3328,10 +4999,16 @@ class _Checker(ast.NodeVisitor):
 
         if prefix == "os":
             if dotted in _OS_ALLOWED_EXACT:
+                # Lane ARR-a, 2026-11-05 (plan P4-D466): the computer's
+                # reader's two names, in its module alone.
+                if dotted in _OS_SCOPED and self.module_name not in _OS_SCOPED[dotted]:
+                    return _os_scope_message(dotted)
                 return None
             return (
                 "uses '" + dotted + "'. From the os module only the os.path "
-                "functions, os.fspath, os.getcwd, os.lstat, and reading "
+                "functions, os.fspath, os.getcwd, os.lstat, os.isatty, "
+                "os.sysconf and os.cpu_count (in synthtwin.computer alone, "
+                "plan P4-D466), and reading "
                 "os.environ are allowed."
             )
 
@@ -3345,9 +5022,41 @@ class _Checker(ast.NodeVisitor):
                 "chosen while the program runs."
             )
 
+        # Lane ARR-a, 2026-11-05 (plan P4-D466): a function of the audited
+        # array helper reached from a module whose zone its row does not
+        # name (_ARRAY_FUNCTION_ZONES).
+        if (
+            prefix == _ARRAY_HELPER
+            and self.zone
+            and self.module_name != _ARRAY_HELPER
+            and (
+                rest[0] not in _ARRAY_FUNCTION_ZONES
+                or self.zone not in _ARRAY_FUNCTION_ZONES[rest[0]]
+            )
+        ):
+            return _array_zone_message(
+                dotted, self.zone, _ARRAY_FUNCTION_ZONES.get(rest[0])
+            )
+
+        # Lane ARR-a, 2026-11-05 (plan P4-D466): a numpy name outside the
+        # helper's enumeration is refused by name wherever it is written,
+        # before the question of where the enumerated ones may be used.
+        if prefix == "numpy" and rest[0] not in _ALLOWED_MODULE_ATTRS["numpy"]:
+            return _numpy_surface_message(dotted)
+
         if prefix in _ALLOWED_MODULE_ATTRS:
             if prefix == "typing" and rest[0] in _TYPING_EVALUATORS:
                 return _typing_evaluator_message(dotted)
+            if prefix in _MODULE_SCOPED_ADMISSIONS:
+                allowed_in = _MODULE_SCOPED_ADMISSIONS[prefix]
+                if self.module_name not in allowed_in:
+                    return _out_of_scope_message(dotted, prefix, allowed_in)
+            if (
+                self.zone
+                and prefix in _LIBRARY_ZONES
+                and self.zone not in _LIBRARY_ZONES[prefix]
+            ):
+                return _zone_message(dotted, prefix, self.zone)
             if rest[0] in _ALLOWED_MODULE_ATTRS[prefix]:
                 return None
             return _module_surface_message(dotted, prefix)
@@ -3359,6 +5068,12 @@ class _Checker(ast.NodeVisitor):
             # allowed, and it is reached through the numpy.random key
             # above (extension E7).
             return _numpy_surface_message(dotted)
+
+        if top in _LIBRARY_ROOTS:
+            # The same for pyarrow and scipy (plan P4-D410): the bare
+            # root carries no usable name, only its enumerated
+            # submodules do.
+            return _library_root_message(dotted, top)
 
         return None
 
@@ -3414,18 +5129,37 @@ class _Checker(ast.NodeVisitor):
             if top == _FIRST_PARTY_ROOT:
                 self._register_module_path(name)
                 self._bind(bound_name, ("module", origin))
+                if report:
+                    self._check_private_import(node, name)
                 continue
             if name in {"argparse", "csv", "dataclasses", "json", "math",
-                        "pandas", "pathlib", "typing", "sys", "os"}:
+                        "pandas", "pathlib", "typing", "sys", "os",
+                        "zipfile", "numba", "fractions", "hashlib",
+                        "secrets", "zlib"}:
                 self._bind(bound_name, ("module", name))
+                if report:
+                    self._check_admitted_import(node, name)
                 continue
-            if name in {"os.path", "importlib.metadata", "numpy.random"}:
+            # Lane ARR-a, 2026-11-05 (plan P4-D466): `import numpy` in the
+            # audited array helper alone; everywhere else it stays refused
+            # below, with the message E7 gives.
+            if name == "numpy" and self.module_name == _ARRAY_HELPER:
+                self._bind(bound_name, ("module", origin))
+                if report:
+                    self._check_admitted_import(node, name)
+                continue
+            if name in {"os.path", "importlib.metadata", "numpy.random",
+                        "xml.parsers.expat", "pyarrow.csv",
+                        "scipy.optimize", "scipy.linalg"}:
                 # The same two-component shape os.path has: the import
                 # statement names the submodule, and the one-step rule
                 # then counts from it. `import numpy` on its own is NOT
                 # here: it would bind a module whose only usable name
-                # sits one level down, and E7 admits the submodule.
+                # sits one level down, and E7 admits the submodule. The
+                # same holds for pyarrow and scipy (plan P4-D410).
                 self._bind(bound_name, ("module", origin))
+                if report:
+                    self._check_admitted_import(node, name)
                 continue
 
             # Not allowed. Bind anyway so later uses are reported too.
@@ -3456,14 +5190,63 @@ class _Checker(ast.NodeVisitor):
                     "seed (extension E7). Importing numpy itself, or any "
                     "other numpy module, brings in array constructors, "
                     "reductions, readers and writers this audit has not "
-                    "cleared.",
+                    "cleared; the one module that imports numpy itself is "
+                    "the audited array helper, synthtwin.arrays (plan "
+                    "P4-D466).",
                 )
+            elif top in _LIBRARY_ROOTS:
+                self._flag(node, _library_root_message(name, top))
             else:
                 self._flag(
                     node,
                     "imports '" + name + "', which is not on the "
                     "Phase 0 allowlist. " + _ALLOWLIST_NOTE,
                 )
+
+    def _check_admitted_import(self, node: ast.AST, name: str) -> None:
+        """An admitted library import, held to its scope and its zones.
+
+        A scoped admission (zipfile, expat, numba, zlib) is refused at the
+        import itself outside the modules that hold it: importing numba
+        alone loads its compiler. And a module of the generation path,
+        or one of the twin's writers that root it, may not even import a
+        library that is not admitted for its zone (plan P4-D409 part 3
+        (a)): what such a module loads is what a generate run loads.
+        """
+        prefix = name if name in _ALLOWED_MODULE_ATTRS else None
+        if prefix is None:
+            return
+        if prefix in _MODULE_SCOPED_ADMISSIONS:
+            allowed_in = _MODULE_SCOPED_ADMISSIONS[prefix]
+            if self.module_name not in allowed_in:
+                self._flag(node, _out_of_scope_message(name, prefix, allowed_in))
+                return
+        if (
+            self.zone in (_ZONE_G, _ZONE_W)
+            and prefix in _LIBRARY_ZONES
+            and self.zone not in _LIBRARY_ZONES[prefix]
+        ):
+            self._flag(node, _zone_import_message(name, prefix, self.zone))
+
+    def _check_private_import(self, node: ast.AST, module: str) -> None:
+        """P4-D409 part 3 (b), at the import that would break it.
+
+        No module outside zone P imports a zone P module, and no module
+        of the generation path or of the twin's writers (zones G and W)
+        imports a reading module (zone R): what those modules import, a
+        generate run loads, and the generator reads the description and
+        nothing else (P2-D1).
+        """
+        if not self.zone:
+            return
+        target = _MODULE_ZONES.get(module)
+        if target == _ZONE_P and self.zone != _ZONE_P:
+            place = (getattr(node, "lineno", 0), getattr(node, "col_offset", 0))
+            where = self.import_sites[place] if place in self.import_sites else ""
+            if (self.module_name, where, module) not in _PRIVATE_IMPORT_SITES:
+                self._flag(node, _private_module_message(module))
+        elif target == _ZONE_R and self.zone in (_ZONE_G, _ZONE_W):
+            self._flag(node, _reading_module_message(module, self.zone))
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         self._handle_import_from(node, report=True)
@@ -3517,6 +5300,10 @@ class _Checker(ast.NodeVisitor):
                 continue
             kind = "module" if dotted in self.module_paths else "api"
             self._bind(alias.asname or alias.name, (kind, dotted))
+            if report and kind == "module":
+                # `from pyarrow import csv` imports the admitted module
+                # as surely as `import pyarrow.csv` does (plan P4-D410).
+                self._check_admitted_import(node, dotted)
 
     def _first_party_from_alias(
         self, node: ast.ImportFrom, module: str, alias: ast.alias, report: bool
@@ -3536,7 +5323,11 @@ class _Checker(ast.NodeVisitor):
         if dotted in self.first_party_modules:
             self._register_module_path(dotted)
             self._bind(bound_name, ("module", dotted))
+            if report:
+                self._check_private_import(node, dotted)
             return
+        if report:
+            self._check_private_import(node, module)
 
         exports = self.module_exports.get(module)
         if exports is not None:
@@ -3587,6 +5378,218 @@ class _Checker(ast.NodeVisitor):
 
     # -- expressions -------------------------------------------------
 
+    # -- the closure rule (lane ARR-a, 2026-11-05, plan P4-D466) --------
+
+    def visit(self, node: ast.AST) -> None:
+        if self.array_parents and id(node) in self.array_parents:
+            self._check_array_position(node)
+        super().visit(node)
+
+    def _array_kinds(self, node: ast.AST) -> "set[str]":
+        """Which arrays an expression may hold: 'helper' (the audited
+        helper's), 'draw' (the generator's draw or a word of it), both or
+        neither, read position-blind (a restriction sees every binding)."""
+        kinds: set[str] = set()
+        for kind, origin in self._trust_origins(node):
+            if kind != "instance":
+                continue
+            if origin == _ARRAY_ORIGIN:
+                kinds.add("helper")
+            elif origin in (_DRAW_ARRAY_ORIGIN, _DRAW_SCALAR_ORIGIN):
+                kinds.add("draw")
+        return kinds
+
+    def _in_function_scope(self) -> bool:
+        """True when the walk stands in a function's own scope (not the module, a class or a comprehension)."""
+        return (
+            len(self.scopes) > 1
+            and not self.class_scopes[-1]
+            and not self.comprehension_scopes[-1]
+        )
+
+    def _calls_exactly(self, call: ast.Call, names: "frozenset[str]") -> bool:
+        """True when a call's function resolves, on every binding, to one of `names`."""
+        parts = _chain_parts(call.func)
+        if parts is None:
+            return False
+        resolved = self._resolve_exclusively(parts)
+        return bool(resolved) and all(dotted in names for dotted in resolved)
+
+    def _names_array_helper(self, dotted: str) -> bool:
+        """True where a module path is the audited array helper or a package above it, read outside the helper.
+
+        Lane ARR-a's repair 2, 2026-11-06 (LANE ARR RULINGS 5 (1)): such a
+        path stands only at the head of a dotted path (_array_module_value_message).
+        """
+        return self.module_name != _ARRAY_HELPER and (
+            dotted == _ARRAY_HELPER or _ARRAY_HELPER.startswith(dotted + ".")
+        )
+
+    def _calls_builtin(self, call: ast.Call, names: "frozenset[str]") -> bool:
+        """True when a call's function is one of the built-ins `names`, unshadowed."""
+        return (
+            isinstance(call.func, ast.Name)
+            and call.func.id in names
+            and self._trust_lookup(call.func.id) is None
+        )
+
+    def _check_array_position(self, node: ast.AST) -> None:
+        """Refuse an array standing where it could leave its module or reach
+        library code this audit never enumerated (plan P4-D466).
+
+        Outside the helper only the draw can be held, and only a name, a
+        subscript, an attribute or the draw's own call can hold it there:
+        an operator's result is refused through its operand.
+        """
+        if not isinstance(node, _ARRAY_CARRIERS):
+            return
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            return
+        if isinstance(node, ast.Attribute):
+            # A method or an attribute of an array: the surface's own
+            # rules govern it, and its receiver stands where it is checked.
+            return
+        if self.module_name != _ARRAY_HELPER and (
+            isinstance(node, (ast.BinOp, ast.UnaryOp, ast.Compare, ast.IfExp, ast.BoolOp))
+            or (
+                isinstance(node, ast.Call)
+                and not (isinstance(node.func, ast.Attribute) and node.func.attr == _DRAW_METHOD)
+            )
+        ):
+            return
+        if id(node) in self.array_flagged:
+            return
+        kinds = self._array_kinds(node)
+        if not kinds:
+            return
+        parent, field, position = self.array_parents[id(node)]
+        problem = None
+        if "helper" in kinds:
+            problem = self._helper_position_problem(node, parent, field)
+        if problem is None and "draw" in kinds:
+            problem = self._draw_position_problem(node, parent, field, position)
+        if (
+            problem is None
+            and isinstance(node, ast.Name)
+            and isinstance(node.ctx, ast.Load)
+            and node.id not in self.trust_scopes[-1]
+        ):
+            problem = "taken from an enclosing scope (a closure capture)"
+        if problem is not None:
+            self.array_flagged.add(id(node))
+            self._flag(node, _array_closure_message(kinds, problem))
+
+    def _helper_position_problem(self, node: ast.AST, parent: ast.AST, field: str) -> "str | None":
+        """None where an array of the helper may stand, else where it stands."""
+        if isinstance(node, ast.Subscript) and not isinstance(node.ctx, ast.Load):
+            if isinstance(node.ctx, ast.Store) and isinstance(parent, ast.Assign) and field == "targets":
+                return None
+            return "as the target of a deletion or an in-place operator"
+        if isinstance(parent, ast.Assign) and field == "value":
+            if all(isinstance(target, ast.Name) for target in parent.targets) and self._in_function_scope():
+                return None
+            if all(
+                isinstance(target, ast.Subscript) and "helper" in self._array_kinds(target.value)
+                for target in parent.targets
+            ):
+                return None
+            return _array_position_text(parent, field)
+        if isinstance(parent, ast.AnnAssign) and field == "value":
+            if isinstance(parent.target, ast.Name) and self._in_function_scope():
+                return None
+            return _array_position_text(parent, field)
+        if isinstance(parent, ast.Subscript) and field == "value":
+            return None
+        if isinstance(parent, ast.Subscript) and field == "slice":
+            # An index array or a mask into an array; a lookup in a list or
+            # a dictionary by a value of the helper keeps nothing of it, but
+            # a store or a deletion there would keep it as a key.
+            if isinstance(parent.ctx, ast.Load) or "helper" in self._array_kinds(parent.value):
+                return None
+            return "as the key of a store into a container"
+        if isinstance(parent, ast.BinOp):
+            if isinstance(parent.op, _ARRAY_ARITHMETIC):
+                return None
+            if isinstance(parent.op, (ast.LShift, ast.RShift)):
+                if field == "left" and _is_shift_count(parent.right):
+                    return None
+                return "in a shift whose count is not a whole-number literal from 0 to 63 (or as the count)"
+            return "as an operand of '" + _OPERATOR_TEXT.get(type(parent.op), type(parent.op).__name__) + "'"
+        if isinstance(parent, ast.UnaryOp):
+            if isinstance(parent.op, (ast.USub, ast.Invert)):
+                return None
+            return "under a unary operator other than - and ~"
+        if isinstance(parent, ast.Compare):
+            if len(parent.ops) == 1 and isinstance(parent.ops[0], _ARRAY_COMPARISONS):
+                return None
+            return "in a chained comparison, or under 'in' or 'is'"
+        if isinstance(parent, ast.Call) and field == "args":
+            if self._calls_builtin(parent, _ARRAY_EXITS) or self._calls_exactly(parent, _ARRAY_CONSTRUCTORS):
+                return None
+            return "as an argument of a call that is not an admitted numpy name nor int(), float() or len()"
+        if isinstance(parent, ast.keyword):
+            holder = self.array_parents.get(id(parent))
+            if holder is not None and isinstance(holder[0], ast.Call) and self._calls_exactly(holder[0], _ARRAY_CONSTRUCTORS):
+                return None
+            return _array_position_text(parent, field)
+        if isinstance(parent, ast.Tuple) and field == "elts" and isinstance(parent.ctx, ast.Load):
+            holder = self.array_parents.get(id(parent))
+            if (
+                holder is not None
+                and isinstance(holder[0], ast.Call)
+                and holder[1] == "args"
+                and holder[2] == 0
+                and self._calls_exactly(holder[0], frozenset({"numpy.concatenate"}))
+            ):
+                return None
+            return _array_position_text(parent, field)
+        if isinstance(parent, ast.Attribute) and field == "value":
+            if id(parent) in self.call_targets and parent.attr in ("astype", "tolist"):
+                return None
+            return _array_position_text(parent, field)
+        if isinstance(parent, ast.Delete):
+            return None
+        return _array_position_text(parent, field)
+
+    def _draw_position_problem(self, node: ast.AST, parent: ast.AST, field: str, position: int) -> "str | None":
+        """None where the draw (or a word of it) may stand, else where it stands."""
+        if isinstance(node, ast.Subscript) and not isinstance(node.ctx, ast.Load):
+            return "as the target of a store, a deletion or an in-place operator"
+        if isinstance(parent, ast.Assign) and field == "value":
+            if all(isinstance(target, ast.Name) for target in parent.targets) and self._in_function_scope():
+                return None
+            return _array_position_text(parent, field)
+        if isinstance(parent, ast.AnnAssign) and field == "value":
+            if isinstance(parent.target, ast.Name) and self._in_function_scope():
+                return None
+            return _array_position_text(parent, field)
+        if isinstance(parent, ast.Subscript) and field == "value" and isinstance(parent.ctx, ast.Load):
+            return None
+        if isinstance(parent, (ast.For, ast.comprehension)) and field == "iter":
+            return None
+        if isinstance(parent, ast.Call) and field == "args":
+            if self._calls_builtin(parent, _DRAW_EXITS):
+                return None
+            if position == 0 and self._calls_exactly(parent, frozenset({_DRAW_READER})):
+                return None
+            if (
+                position == 0
+                and self.module_name == _ARRAY_HELPER
+                and self._calls_exactly(parent, frozenset({"numpy.frombuffer"}))
+            ):
+                return None
+            return (
+                "as an argument of a call other than int(), len() and the "
+                "draw's one reader, synthtwin.arrays.hidden_sums"
+            )
+        if isinstance(parent, ast.Delete):
+            return None
+        if isinstance(parent, ast.BinOp):
+            return "as an operand of '" + _OPERATOR_TEXT.get(type(parent.op), type(parent.op).__name__) + "'"
+        if isinstance(parent, (ast.UnaryOp, ast.Compare)):
+            return "under an operator"
+        return _array_position_text(parent, field)
+
     def visit_Name(self, node: ast.Name) -> None:
         self._check_name(node, node.id)
         if isinstance(node.ctx, ast.Load) and id(node) not in self.call_targets:
@@ -3597,11 +5600,31 @@ class _Checker(ast.NodeVisitor):
                 if dotted in _FENCED_APIS:
                     self._flag(node, _fenced_reference_message(dotted))
                     return
+                if dotted in _CALL_ONLY_APIS:
+                    self._flag(node, _call_only_message(dotted))
+                    return
+                if dotted in self.compiled_functions:
+                    self._flag(node, _compiled_reference_message(dotted))
+                    return
+                if dotted in _ARGUMENT_RULES:
+                    self._flag(node, _argument_rule_reference_message(dotted))
+                    return
         if isinstance(node.ctx, ast.Load):
+            self._check_solver_result(node)
             bound = self._lookup(node.id)
             if bound:
                 seen: set[str] = set()
                 for kind, origin in sorted(bound):
+                    # Lane ARR-a's repair 2, 2026-11-06 (LANE ARR RULINGS 5
+                    # (1)): the helper's module, or the package above it, as
+                    # a bare value outside the helper.
+                    # The package above it may hold the polish kernel too,
+                    # whose own rule below still speaks.
+                    if kind in ("module", "api") and self._names_array_helper(origin):
+                        message_text = _array_module_value_message(origin)
+                        if message_text not in seen:
+                            seen.add(message_text)
+                            self._flag(node, message_text)
                     if kind in _VALUE_ORIGIN_KINDS:
                         # Reading a scanned definition, an api-instance,
                         # a literal, a plain number, an open output
@@ -3609,8 +5632,17 @@ class _Checker(ast.NodeVisitor):
                         # string, or an untraced value is fine; only what
                         # is DONE with them is restricted.
                         continue
-                    if kind == "module" and not origin.startswith(
-                        _FIRST_PARTY_ROOT
+                    # A first-party module may be a bare value, save one
+                    # that holds a compiled kernel function, and the
+                    # package above it: through `[kernel][0].propose` the
+                    # dispatcher is reached by no name this audit holds
+                    # to calls (the verify of lane DEP-1's repair 1).
+                    if kind == "module" and (
+                        not origin.startswith(_FIRST_PARTY_ROOT)
+                        or any(
+                            compiled.startswith(origin + ".")
+                            for compiled in self.compiled_functions
+                        )
                     ):
                         message: str | None = _bare_module_message(origin)
                     else:
@@ -3641,6 +5673,13 @@ class _Checker(ast.NodeVisitor):
             # A method call; the method rule governs it.
             return False
         for kind, origin in sorted(self._trust_origins(node.value)):
+            if kind == "localhandle":
+                # The output handle answers to two methods and no
+                # attribute at all (plan P4-D415): its `buffer` would
+                # write bytes past the text rule, its `name` reads back
+                # where it is.
+                self._flag(node, _localhandle_attribute_message(node.attr))
+                return True
             if kind != "instance":
                 continue
             key = _surface_key(origin)
@@ -3652,6 +5691,30 @@ class _Checker(ast.NodeVisitor):
             return True
         return False
 
+    def _check_solver_result(self, node: ast.expr) -> None:
+        """The solver's result is bound to a name and goes nowhere else.
+
+        Plan P4-D409 part 5, lane DEP-1's repair 2 (plan P4-D410): what
+        scipy.optimize.milp returns is a dictionary of HiGHS' floats, so
+        `found['x']` reads what the closed attribute `found.x` reads, and
+        a result returned, passed or put in a container leaves for code
+        this audit then reads as untraced. The value may stand only in
+        the positions scan_source records -- bound to a plain name,
+        thrown away, or read through an attribute, which the surface
+        rule governs -- and asked position-blind, as every restriction
+        is, so a binding written below the use counts too.
+        """
+        if not self.watch_solver_results:
+            return
+        if id(node) in self.solver_result_positions:
+            return
+        for kind, origin in sorted(self._trust_origins(node)):
+            if kind == "instance" and origin in _SOLVER_RESULT_ORIGINS:
+                self._flag(
+                    node, _solver_result_message(id(node) in self.subscript_values)
+                )
+                return
+
     def visit_Attribute(self, node: ast.Attribute) -> None:
         if self._check_restricted_attribute(node):
             return
@@ -3662,6 +5725,23 @@ class _Checker(ast.NodeVisitor):
                 if dotted in _FENCED_APIS:
                     self._flag(node, _fenced_reference_message(dotted))
                     return
+                if dotted in _CALL_ONLY_APIS:
+                    self._flag(node, _call_only_message(dotted))
+                    return
+                if dotted in _ARGUMENT_RULES:
+                    self._flag(node, _argument_rule_reference_message(dotted))
+                    return
+        if parts is not None:
+            # A compiled kernel function reached through a module, or an
+            # attribute of one: called and nothing else, so a method
+            # call on it (`recompile`) is refused here too.
+            for dotted in self._trust_resolve(parts):
+                for compiled in sorted(self.compiled_functions):
+                    if dotted == compiled and id(node) in self.call_targets:
+                        continue
+                    if dotted == compiled or dotted.startswith(compiled + "."):
+                        self._flag(node, _compiled_reference_message(compiled))
+                        return
         if parts is None:
             # Attribute on a computed value (call result, subscript,
             # literal): only the attribute-name bans apply to the READ;
@@ -3684,6 +5764,15 @@ class _Checker(ast.NodeVisitor):
         is_store = isinstance(node.ctx, (ast.Store, ast.Del))
         seen: set[str] = set()
         for dotted in candidates:
+            # Lane ARR-a's repair 2, 2026-11-06 (LANE ARR RULINGS 5 (1)): a
+            # whole chain naming the helper's module, or the package above
+            # it, is that module used as a bare value.
+            if not is_store and self._names_array_helper(dotted):
+                message_text = _array_module_value_message(dotted)
+                if message_text not in seen:
+                    seen.add(message_text)
+                    self._flag(node, message_text)
+                continue
             message = self._policy_for(dotted, is_store)
             if message is None and not is_store and dotted in self.module_paths:
                 # The chain resolves to a module object used as a plain
@@ -3718,6 +5807,39 @@ class _Checker(ast.NodeVisitor):
             if self._trust_origins(node.args[0]) != {_LOCALPATH}:
                 self._flag(node, _fenced_argument_message(dotted))
             return
+
+    def _check_argument_rules(self, node: ast.Call) -> None:
+        """The argument rules of plan P4-D409 part 3 (d) (lane DEP-1, P4-D410).
+
+        The identities are the accumulating position-blind ones, for the
+        reason _check_fenced_call gives: a callee that might be one of
+        these APIs on any binding the scope makes is checked as that API.
+        `n_jobs` is refused on every call whatever its callee, because the
+        rule is about what a keyword can start, not about one library.
+        """
+        for keyword in node.keywords:
+            if keyword.arg == "n_jobs":
+                self._flag(node, _n_jobs_message())
+        parts = _chain_parts(node.func)
+        if parts is None:
+            return
+        for dotted in sorted(set(self._trust_resolve(parts))):
+            rule = _ARGUMENT_RULES.get(dotted)
+            if rule is None:
+                continue
+            detail = rule(self, node)
+            if detail is not None:
+                self._flag(node, _argument_rule_message(dotted, detail))
+
+    def _is_call_of(self, value: ast.AST, dotted: str) -> bool:
+        """True when ``value`` is written as a direct call of exactly ``dotted``."""
+        if not isinstance(value, ast.Call):
+            return False
+        parts = _chain_parts(value.func)
+        if parts is None:
+            return False
+        resolved = self._trust_resolve(parts)
+        return bool(resolved) and set(resolved) == {dotted}
 
     def _check_writer_handle(self, node: ast.Call) -> None:
         """A CSV writer may be built only over this run's own output
@@ -3777,6 +5899,8 @@ class _Checker(ast.NodeVisitor):
     def visit_Call(self, node: ast.Call) -> None:
         self._check_fenced_call(node)
         self._check_writer_handle(node)
+        self._check_argument_rules(node)
+        self._check_solver_result(node)
         # A CLOSED GRAMMAR for call targets (review item P1-R3-F7). A
         # call target is either a bare name or a pure dotted chain, and
         # nothing else. Every other shape -- a conditional expression, a
@@ -3897,6 +6021,19 @@ class _Checker(ast.NodeVisitor):
         method = func.attr
         receiver = self._trust_origins(func.value)
         kinds = {kind for kind, _origin in receiver}
+        if kinds == {"localhandle"}:
+            # The output handle (plan P4-D415): write and close, in
+            # `writing` alone, each with its own count of positional
+            # arguments and nothing by name or expanded.
+            if (
+                method not in _LOCALHANDLE_METHODS
+                or self.module_name not in _LOCALHANDLE_WRITERS
+                or node.keywords
+                or len(node.args) != _LOCALHANDLE_METHODS[method]
+                or any(isinstance(value, ast.Starred) for value in node.args)
+            ):
+                self._flag(node, _localhandle_message(method))
+            return
         if kinds <= {"module", "api", "instance", "localpath"}:
             for kind, origin in sorted(receiver):
                 if kind != "instance":
@@ -3963,6 +6100,14 @@ class _Checker(ast.NodeVisitor):
         """
         if key == _GENERATOR_ORIGIN and method == _DRAW_METHOD:
             return self._check_draw_arguments(node)
+        if key == _ARRAY_ORIGIN:
+            # Lane ARR-a, 2026-11-05 (plan P4-D466): astype takes one dtype
+            # written as a literal, by position; tolist takes nothing.
+            detail = _array_method_detail(node, method)
+            if detail is not None:
+                self._flag(node, _array_method_message(method, detail))
+                return True
+            return False
         if key == _WRITER_ORIGIN and method in _surface_methods(_WRITER_ORIGIN):
             return self._check_writer_rows(node, method)
         return False
@@ -4347,6 +6492,22 @@ class _Checker(ast.NodeVisitor):
             self.visit(node.target)
 
     def visit_AugAssign(self, node: ast.AugAssign) -> None:
+        # Lane ARR-a, 2026-11-05 (plan P4-D466): no in-place operator on an
+        # array (its operator and its result's dtype are numpy's choice).
+        if self.array_parents and id(node.target) in self.array_parents:
+            target = node.target
+            held = target.value if isinstance(target, (ast.Subscript, ast.Attribute)) else target
+            kinds = (
+                {
+                    "helper" if origin[1] == _ARRAY_ORIGIN else "draw"
+                    for origin in (self._trust_lookup(held.id) or set())
+                    if origin[0] == "instance" and origin[1] in _ARRAY_FAMILY
+                }
+                if isinstance(held, ast.Name)
+                else self._array_kinds(held)
+            ) | self._array_kinds(node.value)
+            if kinds:
+                self._flag(node, _array_closure_message(kinds, "under an in-place operator"))
         self.visit(node.value)
         self.visit(node.target)
 
@@ -4374,6 +6535,53 @@ class _Checker(ast.NodeVisitor):
         self._collect_scope_bindings(node.body)
         self._build_trust_scope(list(node.body), None)
         self._walk_scope_body(node.body)
+        self._check_compiled_names(node)
+
+    def _check_compiled_names(self, node: ast.Module) -> None:
+        """Inside the polish kernel, its compiled functions are called and nothing else.
+
+        Read from the text, not from the walk: every name written with a
+        compiled function's spelling, in any scope and on any line, is
+        the function of a call or a violation, so no alias, attribute,
+        argument, store or deletion of the dispatcher passes, whichever
+        order the lines run in (lane DEP-1, plan P4-D410).
+        """
+        if not self.compiled_names:
+            return
+        for inner in ast.walk(node):
+            if (
+                isinstance(inner, ast.Name)
+                and inner.id in self.compiled_names
+                and id(inner) not in self.call_targets
+            ):
+                self._flag(inner, _compiled_reference_message(inner.id))
+        # A compiled function makes no function of its own: a lambda, a
+        # def or a class written anywhere under it -- its defaults, its
+        # body, at any depth -- would come back to Python as a dispatcher
+        # under a name the rule above never sees (the Codex review of
+        # lane DEP-1, plan P4-D410). Its decorators are read by the njit
+        # argument rule, which admits literals alone.
+        made: "dict[type[ast.AST], str]" = {
+            ast.Lambda: "a lambda",
+            ast.FunctionDef: "a def",
+            ast.AsyncFunctionDef: "a def",
+            ast.ClassDef: "a class",
+        }
+        for statement in node.body:
+            if not (
+                isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and statement.name in self.compiled_names
+            ):
+                continue
+            for part in (statement.args, *statement.body):
+                for inner in ast.walk(part):
+                    kind = made.get(type(inner))
+                    if kind is not None:
+                        self._flag(inner, _kernel_closure_message(kind))
+
+    def visit_Constant(self, node: ast.Constant) -> None:
+        if node.value == "n_jobs":
+            self._flag(node, _n_jobs_text_message())
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         self._handle_function(node)
@@ -4411,7 +6619,22 @@ class _Checker(ast.NodeVisitor):
         all_args = _parameters_of(node.args)
         # Parameters hold caller-supplied values: the explicit unknown
         # member, never discarded when other origins join.
-        self._enter_scope({arg.arg: {_UNKNOWN} for arg in all_args}, False, False)
+        seeds = {arg.arg: {_UNKNOWN} for arg in all_args}
+        # Lane ARR-a, 2026-11-05 (plan P4-D466): the draw's one reader, a
+        # top-level function of the helper, holds the draw in a parameter,
+        # so the closure rule follows the draw inside it too. Lane ARR-a's
+        # repair 2, 2026-11-06 (LANE ARR RULINGS 5 (2)): that parameter is
+        # the FIRST POSITIONAL one, where every caller hands the draw,
+        # whatever it is called (scan_source refuses a reader without one).
+        positional = list(node.args.posonlyargs) + list(node.args.args)
+        if (
+            self.module_name == _ARRAY_HELPER
+            and node.name == _DRAW_READER_NAME
+            and len(self.scopes) == 1
+            and positional
+        ):
+            seeds[positional[0].arg] = {_UNKNOWN, ("instance", _DRAW_ARRAY_ORIGIN)}
+        self._enter_scope(seeds, False, False)
         self._collect_scope_bindings(node.body)
         self._upgrade_gated_parameters(node.body)
         self._build_trust_scope(list(node.body), node.body)
@@ -4715,10 +6938,512 @@ class _Checker(ast.NodeVisitor):
         self._leave_scope()
 
 
+# -- the argument rules (plan P4-D409 part 3 (d); lane DEP-1, P4-D410) --
+#
+# Each admitted library call whose behaviour depends on a setting is held
+# to the one form whose behaviour was audited. A rule reads the call as
+# written: a setting this audit cannot read where the call is written --
+# a ** expansion, a dictionary built elsewhere, a value computed -- is
+# refused rather than trusted. Each rule returns the words of its
+# violation, or None when the call keeps the form.
+
+
+def _rule_set_option(checker: "_Checker", node: ast.Call) -> "str | None":
+    """pandas.set_option: the one option reading.read_table sets, to its one value."""
+    values = [
+        argument.value if isinstance(argument, ast.Constant) else None
+        for argument in node.args
+    ]
+    if node.keywords or values != ["mode.string_storage", "python"]:
+        return (
+            "with other arguments than the two written texts "
+            "'mode.string_storage' and 'python': pandas' options reach "
+            "its compute engines, numba's among them, its readers' "
+            "defaults and its display, so set_option may set the one "
+            "option reading.read_table sets, to the one value, written out"
+        )
+    return None
+
+
+_PYARROW_READ_SETTINGS: "dict[str, str]" = {
+    "read_options": "pyarrow.csv.ReadOptions",
+    "parse_options": "pyarrow.csv.ParseOptions",
+    "convert_options": "pyarrow.csv.ConvertOptions",
+}
+
+
+def _rule_pyarrow_read_csv(checker: "_Checker", node: ast.Call) -> "str | None":
+    """pyarrow.csv.read_csv: the validated path, then its settings by name, one thread."""
+    if len(node.args) > 1 or any(
+        isinstance(argument, ast.Starred) for argument in node.args
+    ):
+        return (
+            "with more than the one positional argument, the validated "
+            "local path: every setting goes by name, so that the reader's "
+            "threads can be read where the call is written"
+        )
+    named: "dict[str, ast.expr]" = {}
+    for keyword in node.keywords:
+        if keyword.arg is None:
+            return "with ** expansion, which hides which setting lands where"
+        if keyword.arg not in _PYARROW_READ_SETTINGS:
+            return (
+                "with '" + keyword.arg + "', which is none of read_options, "
+                "parse_options and convert_options (a memory pool and every "
+                "other setting are refused)"
+            )
+        named[keyword.arg] = keyword.value
+    if "read_options" not in named:
+        return (
+            "without read_options: pyarrow's reader starts a pool of "
+            "threads unless it is told otherwise, so "
+            "read_options=pyarrow.csv.ReadOptions(use_threads=False, ...) "
+            "is written in the call"
+        )
+    for setting, value in sorted(named.items()):
+        if not checker._is_call_of(value, _PYARROW_READ_SETTINGS[setting]):
+            return (
+                "with " + setting + " that is not a call of "
+                + _PYARROW_READ_SETTINGS[setting] + " written in place, so "
+                "this audit cannot read the settings it holds"
+            )
+    return None
+
+
+def _rule_pyarrow_read_options(checker: "_Checker", node: ast.Call) -> "str | None":
+    """pyarrow.csv.ReadOptions: use_threads=False, written by name as the literal False."""
+    if node.args:
+        return "with positional arguments, where use_threads=False is written by name"
+    threads: "ast.expr | None" = None
+    for keyword in node.keywords:
+        if keyword.arg is None:
+            return "with ** expansion, which hides whether use_threads is set"
+        if keyword.arg == "use_threads":
+            threads = keyword.value
+    if not (isinstance(threads, ast.Constant) and threads.value is False):
+        return (
+            "without use_threads=False written as the literal False: the "
+            "reader otherwise starts a pool of threads, and one thread read "
+            "500,000 rows by 20 columns in 0.27 s (plan P4-D409)"
+        )
+    return None
+
+
+def _rule_pyarrow_parse_options(checker: "_Checker", node: ast.Call) -> "str | None":
+    """pyarrow.csv.ParseOptions: no row handler, every setting by name.
+
+    pyarrow 26.0.0 takes no positional argument here: ParseOptions(",")
+    raises TypeError, so a positional delimiter is a reader that fails
+    before it reads (the Codex review of lane DEP-1).
+    """
+    if node.args:
+        return (
+            "with positional arguments: pyarrow takes every setting of "
+            "ParseOptions by name (ParseOptions(delimiter=',')), and "
+            "ParseOptions(',') raises TypeError on pyarrow 26.0.0"
+        )
+    for keyword in node.keywords:
+        if keyword.arg is None:
+            return "with ** expansion, which hides whether a row handler is set"
+        if keyword.arg == "invalid_row_handler":
+            return (
+                "with invalid_row_handler, a function pyarrow would call for "
+                "every row it cannot parse: a row the reader cannot parse is "
+                "a refusal the product's own survey decides"
+            )
+    return None
+
+
+_MILP_OPTIONS = frozenset({"disp", "mip_rel_gap", "node_limit", "presolve"})
+
+# The largest node budget the scanner admits (lane DEP-1's repair 2, plan
+# P4-D410): a search that needs more than ten million branch-and-bound
+# nodes is one the adopting lane argues for in its own plan decision.
+# HiGHS' own default, 2,147,483,647, is no budget at all.
+_HIGHS_NODE_LIMIT_MAX = 10_000_000
+
+
+def _rule_milp(checker: "_Checker", node: ast.Call) -> "str | None":
+    """scipy.optimize.milp: output silenced, the budget in nodes, never seconds."""
+    options: "ast.expr | None" = None
+    for keyword in node.keywords:
+        if keyword.arg is None:
+            return "with ** expansion, which hides the solver's options"
+        if keyword.arg == "options":
+            options = keyword.value
+    if not isinstance(options, ast.Dict):
+        return (
+            "without options written as a dictionary in the call: HiGHS "
+            "prints to the terminal and is bounded by nothing unless told "
+            "otherwise, so options={'disp': False, 'node_limit': N} is "
+            "written out"
+        )
+    keys: "dict[str, ast.expr]" = {}
+    for key, value in zip(options.keys, options.values):
+        if not (isinstance(key, ast.Constant) and isinstance(key.value, str)):
+            return (
+                "with an option that is not a name written as text (a ** "
+                "expansion inside options hides which ones are set)"
+            )
+        keys[key.value] = value
+    if "time_limit" in keys:
+        return (
+            "with time_limit: a budget in seconds lets a slow computer "
+            "decide otherwise than a fast one, so the budget is counted in "
+            "branch-and-bound nodes (node_limit)"
+        )
+    unknown = sorted(set(keys) - _MILP_OPTIONS)
+    if unknown:
+        return (
+            "with the option '" + unknown[0] + "', outside disp, node_limit, "
+            "presolve and mip_rel_gap"
+        )
+    silenced = keys.get("disp")
+    if not (isinstance(silenced, ast.Constant) and silenced.value is False):
+        return "without 'disp': False written as the literal False, which silences the solver"
+    if "node_limit" not in keys:
+        return (
+            "without 'node_limit': the search's budget is counted in "
+            "branch-and-bound nodes, the same on every computer"
+        )
+    budget = keys["node_limit"]
+    if not (
+        isinstance(budget, ast.Constant)
+        and type(budget.value) is int
+        and 1 <= budget.value <= _HIGHS_NODE_LIMIT_MAX
+    ):
+        return (
+            "with a 'node_limit' that is not a whole number from 1 to "
+            + format(_HIGHS_NODE_LIMIT_MAX, ",")
+            + " written in the call: scipy passes None on as no option "
+            "at all, and HiGHS ignores a value outside its range, so "
+            "either leaves HiGHS' own default of 2,147,483,647 nodes, no "
+            "budget at all; a budget computed while the program runs is "
+            "one this audit cannot read (the Codex review of lane DEP-1)"
+        )
+    gap = keys.get("mip_rel_gap")
+    if not (
+        isinstance(gap, ast.Constant)
+        and type(gap.value) in (int, float)
+        and gap.value == 0
+    ):
+        return (
+            "without 'mip_rel_gap': 0 written as the literal 0: plan "
+            "P4-D409 runs HiGHS with no optimality gap, so that what it "
+            "exhibits is the optimum it proves, not one within a tolerance"
+        )
+    return None
+
+
+_NJIT_SETTINGS = frozenset({"cache", "fastmath", "parallel"})
+
+
+def _rule_njit(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numba.njit: the decorator over the kernel, fastmath, parallel and cache all False."""
+    if id(node) not in checker.decorator_calls:
+        return (
+            "other than as the decorator written over the kernel: it may "
+            "compile only the scanned body under it"
+        )
+    if id(node) not in checker.top_level_decorator_calls:
+        return (
+            "over something other than a def written at the top level of "
+            "the module: a compiled function is reached by its one name "
+            "in the module, which this audit holds to calls, never "
+            "through a class or another function"
+        )
+    if node.args:
+        return (
+            "with positional arguments, where exactly fastmath=False, "
+            "parallel=False and cache=False are written by name"
+        )
+    seen: "dict[str, ast.expr]" = {}
+    for keyword in node.keywords:
+        if keyword.arg is None:
+            return "with ** expansion, which hides the compiler's settings"
+        seen[keyword.arg] = keyword.value
+    if set(seen) != _NJIT_SETTINGS:
+        return (
+            "with the settings (" + ", ".join(sorted(seen)) + ") where "
+            "exactly fastmath, parallel and cache are written: fast-math "
+            "allows contractions that change the last bit, parallel starts "
+            "threads, cache writes compiled files, and every other setting "
+            "is refused"
+        )
+    for name, value in sorted(seen.items()):
+        if not (isinstance(value, ast.Constant) and value.value is False):
+            return "with " + name + " not written as the literal False"
+    return None
+
+
+def _rule_stable_sort(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numpy's sort and argsort, wherever admitted: kind='stable' (P4-D409 part 3 (d))."""
+    for keyword in node.keywords:
+        if (
+            keyword.arg == "kind"
+            and isinstance(keyword.value, ast.Constant)
+            and keyword.value.value == "stable"
+        ):
+            return None
+    return (
+        "without kind='stable': numpy's default sort is not stable, so "
+        "equal values could leave in a different order from another build"
+    )
+
+
+# Lane ARR-a, 2026-11-05 (plan P4-D466): THE HELPER'S ARGUMENT RULES, read
+# where each call is written. Every dtype is one literal of _ARRAY_DTYPES;
+# frombuffer never writes count or offset (it views the whole buffer, a
+# bytes or a bytearray checked at run time, or the one draw array);
+# argsort is stable; bincount takes no weights, as a keyword or as a
+# second positional; cumsum, flatnonzero, min and max take the array
+# alone (no axis, dtype, out, initial or where); where takes exactly
+# three; concatenate takes a tuple written in place. No keyword is
+# expanded and no argument starred: the rule must see what is handed in.
+
+
+def _array_call_shape(node: ast.Call, positional: int, keywords: "frozenset[str]") -> "str | None":
+    """The common part of the helper's argument rules: the counts and names of the arguments."""
+    if any(isinstance(value, ast.Starred) for value in node.args):
+        return "with a '*' argument, which hides what is handed in"
+    if len(node.args) != positional:
+        return (
+            "with " + str(len(node.args)) + " positional argument(s) where "
+            "exactly " + str(positional) + " is written"
+        )
+    for keyword in node.keywords:
+        if keyword.arg is None:
+            return "with ** expansion, which hides the settings"
+        if keyword.arg not in keywords:
+            return "with the argument '" + keyword.arg + "', which the audited form never writes"
+    return None
+
+
+def _is_dtype_literal(value: ast.AST) -> bool:
+    return isinstance(value, ast.Constant) and isinstance(value.value, str) and value.value in _ARRAY_DTYPES
+
+
+def _keyword_value(node: ast.Call, name: str) -> "ast.expr | None":
+    for keyword in node.keywords:
+        if keyword.arg == name:
+            return keyword.value
+    return None
+
+
+def _rule_frombuffer(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numpy.frombuffer(buffer, dtype=LITERAL): the whole buffer, viewed with one written dtype."""
+    shape = _array_call_shape(node, 1, frozenset({"dtype"}))
+    if shape is not None:
+        return shape
+    if not _is_dtype_literal(_keyword_value(node, "dtype") or ast.Constant(None)):
+        return "without dtype written by name as one of " + ", ".join(sorted(_ARRAY_DTYPES))
+    return None
+
+
+def _rule_zeros(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numpy.zeros(n, dtype=LITERAL)."""
+    shape = _array_call_shape(node, 1, frozenset({"dtype"}))
+    if shape is not None:
+        return shape
+    if not _is_dtype_literal(_keyword_value(node, "dtype") or ast.Constant(None)):
+        return "without dtype written by name as one of " + ", ".join(sorted(_ARRAY_DTYPES))
+    return None
+
+
+def _rule_argsort(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numpy.argsort(a, kind="stable"): one result whatever the algorithm."""
+    shape = _array_call_shape(node, 1, frozenset({"kind"}))
+    if shape is not None:
+        return shape
+    return _rule_stable_sort(checker, node)
+
+
+def _rule_bincount(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numpy.bincount(x) or numpy.bincount(x, minlength=n): whole-number counts, never weights."""
+    if len(node.args) > 1 or _keyword_value(node, "weights") is not None:
+        return (
+            "with weights: a weighted count is a float sum in an order no "
+            "build promises (plan P4-D409 part 2); counts are whole numbers"
+        )
+    return _array_call_shape(node, 1, frozenset({"minlength"}))
+
+
+def _rule_array_alone(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numpy.cumsum, numpy.flatnonzero, numpy.min and numpy.max: the array alone."""
+    return _array_call_shape(node, 1, frozenset())
+
+
+def _rule_where(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numpy.where(condition, chosen, other): exactly three."""
+    return _array_call_shape(node, 3, frozenset())
+
+
+def _rule_concatenate(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numpy.concatenate((first, second, ...)): a tuple written in place."""
+    shape = _array_call_shape(node, 1, frozenset())
+    if shape is not None:
+        return shape
+    first = node.args[0]
+    if not isinstance(first, ast.Tuple) or any(isinstance(item, ast.Starred) for item in first.elts):
+        return "with something other than a tuple of arrays written in place"
+    return None
+
+
+def _array_method_detail(node: ast.Call, method: str) -> "str | None":
+    """What breaks the audited form of astype or tolist, or None."""
+    if method == "tolist":
+        if node.args or node.keywords:
+            return "with arguments, where tolist takes none"
+        return None
+    if node.keywords or len(node.args) != 1 or not _is_dtype_literal(node.args[0]):
+        return (
+            "with other than one dtype written by position as one of "
+            + ", ".join(sorted(_ARRAY_DTYPES))
+        )
+    return None
+
+
+def _array_method_message(method: str, detail: str) -> str:
+    return (
+        "calls '" + method + "' on an array the audited array helper made "
+        + detail + " (plan P4-D466): what the array becomes is read where "
+        "the call is written."
+    )
+
+
+# THE COMPUTER'S READER'S ARGUMENT RULES (lane ARR-a, 2026-11-05, plan
+# P4-D466): os.sysconf with one of the two memory names written as text,
+# os.cpu_count with nothing.
+_SYSCONF_NAMES = frozenset({"SC_PHYS_PAGES", "SC_PAGE_SIZE"})
+
+
+def _rule_sysconf(checker: "_Checker", node: ast.Call) -> "str | None":
+    """os.sysconf("SC_PHYS_PAGES") or os.sysconf("SC_PAGE_SIZE")."""
+    if (
+        node.keywords
+        or len(node.args) != 1
+        or not isinstance(node.args[0], ast.Constant)
+        or node.args[0].value not in _SYSCONF_NAMES
+    ):
+        return (
+            "with other than one of " + ", ".join(sorted(_SYSCONF_NAMES))
+            + " written as text: the computer's reader asks for its memory "
+            "and nothing else"
+        )
+    return None
+
+
+def _rule_cpu_count(checker: "_Checker", node: ast.Call) -> "str | None":
+    """os.cpu_count(), with nothing."""
+    if node.args or node.keywords:
+        return "with an argument, where it takes none"
+    return None
+
+
+_ARGUMENT_RULES = {
+    "numba.njit": _rule_njit,
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): the helper's ten names and
+    # the computer's reader's two.
+    "numpy.argsort": _rule_argsort,
+    "numpy.bincount": _rule_bincount,
+    "numpy.concatenate": _rule_concatenate,
+    "numpy.cumsum": _rule_array_alone,
+    "numpy.flatnonzero": _rule_array_alone,
+    "numpy.frombuffer": _rule_frombuffer,
+    "numpy.max": _rule_array_alone,
+    "numpy.min": _rule_array_alone,
+    "numpy.where": _rule_where,
+    "numpy.zeros": _rule_zeros,
+    "os.cpu_count": _rule_cpu_count,
+    "os.sysconf": _rule_sysconf,
+    "numpy.sort": _rule_stable_sort,
+    "pandas.set_option": _rule_set_option,
+    "pyarrow.csv.ParseOptions": _rule_pyarrow_parse_options,
+    "pyarrow.csv.ReadOptions": _rule_pyarrow_read_options,
+    "pyarrow.csv.read_csv": _rule_pyarrow_read_csv,
+    "scipy.optimize.milp": _rule_milp,
+}
+
+
+def _first_party_imports(
+    tree: ast.Module, first_party_modules: "set[str]"
+) -> "set[str]":
+    """Every first-party module one module imports, from any line of it.
+
+    Read from the syntax tree alone, as every other part of this audit
+    is: `import synthtwin.x`, `from synthtwin import x`, `from
+    synthtwin.x import name` and the relative forms, the latter taken
+    against the package root as the rest of this file takes them. An
+    import inside a function counts: the path is about what a run CAN
+    load (plan P4-D409 part 3 (a)).
+    """
+    found: "set[str]" = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                pieces = alias.name.split(".")
+                for length in range(len(pieces), 0, -1):
+                    candidate = ".".join(pieces[:length])
+                    if candidate in first_party_modules:
+                        found.add(candidate)
+                        break
+        elif isinstance(node, ast.ImportFrom):
+            if node.level and node.level > 0:
+                base = _FIRST_PARTY_ROOT
+                if node.module:
+                    base = base + "." + node.module
+            else:
+                base = node.module or ""
+            if base not in first_party_modules:
+                continue
+            for alias in node.names:
+                candidate = base + "." + alias.name
+                found.add(candidate if candidate in first_party_modules else base)
+    return found
+
+
+def _generation_path(imports: "dict[str, set[str]]") -> "set[str]":
+    """The modules _GENERATION_ROOTS reach by import, the roots among them.
+
+    Importing a module runs every package above it first, so each
+    package's `__init__` a reached module sits under is reached too, at
+    every depth, and what that `__init__` imports with it: on this tree
+    `synthtwin/__init__.py` runs before the generator does (the Codex
+    review of lane DEP-1, plan P4-D410). A package's `__init__` carries
+    the package's own dotted name, as _first_party_module_name gives it.
+    """
+    reached: "set[str]" = set()
+    waiting = [root for root in _GENERATION_ROOTS if root in imports]
+    while waiting:
+        name = waiting.pop()
+        if name in reached:
+            continue
+        reached.add(name)
+        waiting += sorted(imports.get(name, set()) - reached)
+        pieces = name.split(".")
+        for length in range(1, len(pieces)):
+            package = ".".join(pieces[:length])
+            if package in imports and package not in reached:
+                waiting += [package]
+    return reached
+
+
+def _zone_of(module_name: str, generation_path: "set[str]") -> str:
+    """A first-party module's zone: its table entry, else G on the path, else D."""
+    if module_name in _MODULE_ZONES:
+        return _MODULE_ZONES[module_name]
+    if module_name in generation_path:
+        return _ZONE_G
+    return _ZONE_D
+
+
 def scan_source(
     source_text: str,
     module_exports: "dict[str, tuple[set[str], set[str], set[str]]] | None" = None,
     first_party_modules: "set[str] | None" = None,
+    module_name: str = "",
+    zone: str = "",
+    compiled_functions: "set[str] | None" = None,
 ) -> "list[tuple[int, str]]":
     """Scan one module's source text. Returns (line, message) pairs.
 
@@ -4726,6 +7451,23 @@ def scan_source(
     export records for the surrounding scanned tree (see scan_files);
     without them, first-party `from` imports fall back to rejecting
     known module names only.
+
+    ``module_name`` is the dotted name of the module this text is, where
+    the caller knows it. It decides only the admissions that are scoped
+    to one module (_MODULE_SCOPED_ADMISSIONS); left out, no scoped
+    admission applies and those names are violations wherever they
+    appear.
+
+    ``zone`` is the module's zone (plan P4-D409 part 2), which scan_files
+    works out from the whole tree's imports. Left out, a first-party
+    module is G when it is one of _GENERATION_ROOTS and otherwise takes
+    its _MODULE_ZONES entry or D; a file outside the package has no zone
+    and no zone rule reads it.
+
+    ``compiled_functions`` holds the dotted names of the polish kernel's
+    compiled functions, which scan_files reads from the kernel's text
+    (_compiled_function_names): every module calls them and does nothing
+    else with them. The kernel module reads its own from its text here.
     """
     try:
         tree = ast.parse(source_text)
@@ -4739,12 +7481,92 @@ def scan_source(
                 "the syntax so the file can be audited.",
             )
         ]
-    checker = _Checker(module_exports, first_party_modules)
+    if not zone and _first_party_module_name_is(module_name):
+        zone = _zone_of(module_name, set(_GENERATION_ROOTS))
+    checker = _Checker(module_exports, first_party_modules, module_name, zone)
+    checker.import_sites = _import_sites(tree)
+    checker.compiled_functions = set(compiled_functions or set())
+    if module_name == _POLISH_KERNEL:
+        checker.compiled_names = _compiled_function_names(tree)
+        checker.compiled_functions |= {
+            _POLISH_KERNEL + "." + name for name in checker.compiled_names
+        }
+    checker.watch_solver_results = "milp" in source_text
+    # Lane ARR-a, 2026-11-05 (plan P4-D466): THE CLOSURE RULE watches the
+    # audited helper whole and, in every other module, each top-level
+    # statement that draws: the draw is made nowhere else, and it reaches
+    # no other module but through its one reader.
+    if module_name == _ARRAY_HELPER:
+        _record_parents(tree, checker.array_parents)
+        # Lane ARR-a's repair 2, 2026-11-06 (LANE ARR RULINGS 5 (2)): the
+        # draw's reader is one plain def taking the draw first.
+        reader_problem = _draw_reader_problem(tree)
+        if reader_problem is not None:
+            checker._flag(reader_problem[0], _draw_reader_message(reader_problem[1]))
+    elif _DRAW_METHOD in source_text:
+        for statement in tree.body:
+            if _draws(statement):
+                _record_parents(statement, checker.array_parents)
+    # A binding at module or class level is an export: another module
+    # imports it, unwatched, and subscripts it there, so the solver's
+    # result is bound to a name inside a function alone (the verify of
+    # lane DEP-1's repair 2).
+    exported: "set[int]" = set()
+    holders: "list[tuple[ast.AST, bool]]" = [(tree, False)]
+    while holders:
+        holder, in_function = holders.pop()
+        for child in ast.iter_child_nodes(holder):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                holders += [(child, True)]
+            elif isinstance(child, ast.ClassDef):
+                holders += [(child, False)]
+            else:
+                if (
+                    not in_function
+                    and isinstance(child, (ast.Assign, ast.AnnAssign))
+                    and child.value is not None
+                ):
+                    exported.add(id(child.value))
+                holders += [(child, in_function)]
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             checker.call_targets.add(id(node.func))
+        # Where the solver's result may stand (_check_solver_result):
+        # bound to plain names, thrown away, or read through an attribute.
+        if isinstance(node, ast.Assign) and all(
+            isinstance(target, ast.Name) for target in node.targets
+        ):
+            if id(node.value) not in exported:
+                checker.solver_result_positions.add(id(node.value))
+        elif (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.value is not None
+            and id(node.value) not in exported
+        ):
+            checker.solver_result_positions.add(id(node.value))
+        elif isinstance(node, (ast.Expr, ast.Attribute)):
+            checker.solver_result_positions.add(id(node.value))
+        elif isinstance(node, ast.Subscript):
+            checker.subscript_values.add(id(node.value))
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            for decorator in node.decorator_list:
+                if isinstance(decorator, ast.Call):
+                    checker.decorator_calls.add(id(decorator))
+    for statement in tree.body:
+        if isinstance(statement, ast.FunctionDef):
+            for decorator in statement.decorator_list:
+                checker.top_level_decorator_calls.add(id(decorator))
     checker.visit(tree)
+    checker.violations += _float_power_violations(tree, module_name, zone)
     return sorted(checker.violations)
+
+
+def _first_party_module_name_is(module_name: str) -> bool:
+    """True when a dotted name is this package or one of its modules."""
+    return module_name == _FIRST_PARTY_ROOT or module_name.startswith(
+        _FIRST_PARTY_ROOT + "."
+    )
 
 
 def _python_files(root: pathlib.Path) -> "list[pathlib.Path]":
@@ -4764,6 +7586,7 @@ def scan_files(files: "list[pathlib.Path]") -> "list[str]":
     """
     lines: list[str] = []
     texts: dict[pathlib.Path, str] = {}
+    trees: dict[str, ast.Module] = {}
     module_exports: dict[str, tuple[set[str], set[str], set[str]]] = {}
     first_party_modules: set[str] = set()
     for path in files:
@@ -4785,14 +7608,38 @@ def scan_files(files: "list[pathlib.Path]") -> "list[str]":
             # scan_source reports the parse failure for this file below.
             continue
         module_exports[module_name] = _module_bindings(tree)
+        trees[module_name] = tree
         pieces = module_name.split(".")
         for length in range(1, len(pieces) + 1):
             first_party_modules.add(".".join(pieces[:length]))
+    # THE GENERATION PATH, from the whole batch's imports (plan P4-D409
+    # part 3 (a)): computed before any file is judged, so a module's zone
+    # never depends on the order the files are read in.
+    imports = {
+        name: _first_party_imports(tree, first_party_modules)
+        for name, tree in trees.items()
+    }
+    generation_path = _generation_path(imports)
+    # The polish kernel's compiled functions, read from its text before
+    # any file is judged, so every module that imports one holds it to
+    # calls (lane DEP-1, plan P4-D410).
+    compiled: "set[str]" = set()
+    if _POLISH_KERNEL in trees:
+        compiled = {
+            _POLISH_KERNEL + "." + name
+            for name in _compiled_function_names(trees[_POLISH_KERNEL])
+        }
     for path in files:
         if path not in texts:
             continue
+        scanned_name = _first_party_module_name(path)
         for lineno, message in scan_source(
-            texts[path], module_exports, first_party_modules
+            texts[path],
+            module_exports,
+            first_party_modules,
+            scanned_name if scanned_name is not None else "",
+            _zone_of(scanned_name, generation_path) if scanned_name else "",
+            compiled,
         ):
             lines.append(str(path) + ":" + str(lineno) + ": " + message)
     return lines

@@ -37,7 +37,10 @@ import tempfile
 
 import pytest
 
+import keyboard
+
 import fixtures
+import written_words
 from synthtwin import asking, cli, contract, profile, reading, taxonomy
 
 
@@ -58,11 +61,16 @@ def _columns() -> "dict[str, list[str]]":
     """Three columns of digits, none of them separable from the others."""
     draw = random.Random(11)
     return {
-        # padded: a procedure code register written five wide
-        "padded_code": [
-            f"{draw.choice([80053, 9921, 2988, 453, 2061]):05d}"
-            for _index in range(120)
-        ],
+        # padded: a procedure code register written five wide, with a
+        # DIFFERENT code on every row. It held five codes over 120 rows
+        # until plan P4-D341: answering `identifier` on that column is
+        # answering that five people wrote the table, and the
+        # population floor then refuses it -- correctly, and nowhere
+        # near what this file is about. A register whose codes are all
+        # different raises the same padded question, is the shape
+        # `--identifier` exists for, and names a ROW rather than a
+        # person, so the population stays the 120 rows it always was.
+        "padded_code": [f"{index:05d}" for index in range(120)],
         # fixed width and not padded: a real reading, 100 to 999
         "reading": [f"{draw.randint(100, 999)}" for _index in range(120)],
         # fixed width and not padded: a year
@@ -184,12 +192,31 @@ def test_a_questions_file_is_written_on_every_run(
     document = json.loads(
         (tmp_path / "clinic-questions.json").read_text(encoding="utf-8")
     )
-    said = json.dumps(document)
+    # Read over the DECODED file, every key, string and number whole and
+    # word by word (batch 4r's tests-and-tools round HYG-1): the needle
+    # this replaced, `f'"{value}"'` in the serialized file, saw a cell
+    # only as a string of its own, never inside a sentence.
+    seen = written_words.seen_in(document)
     for column in _columns().values():
         for value in column[:20]:
-            assert f'"{value}"' not in said, (
+            assert value not in seen, (
                 "the file travels and a cell of the table may not"
             )
+
+
+def test_a_cell_inside_a_sentence_of_the_file_is_seen() -> None:
+    """HYG-1, machine-free: the reading above sees a cell inside a sentence, before a mark or as a number.
+
+    MUTATION: the whole-string needle it replaced sees none of these.
+    """
+    for value, said in (
+        ("00017", "a code such as 00017, written five wide"),
+        ("1957", "born in (1957)."),
+        ("412", 412),
+    ):
+        document = {"asked": [{"column": "reading", "said": said}]}
+        assert value in written_words.seen_in(document), (value, said)
+        assert f'"{value}"' not in json.dumps(document), (value, said)
 
 
 def test_an_answer_in_the_file_becomes_the_declaration(
@@ -212,9 +239,13 @@ def test_an_answer_in_the_file_becomes_the_declaration(
         "and the answer is recorded as the declaration it stands for, "
         "so the description says who decided"
     )
-    assert _role_of(document, "reading") in asking.NUMERIC_ROLES, (
+    # A COLUMN THEY DID NOT ANSWER ABOUT IS UNTOUCHED by that answer: it
+    # stands as an unanswered column stands, held as record numbers until
+    # its own question is answered (plan P4-D401).
+    assert _role_of(document, "reading") == taxonomy.ROLE_IDENTIFIER, (
         "a column they did not answer about is untouched"
     )
+    assert "reading" in document["settings"]["forced_identifiers"]
 
 
 def test_each_answer_reaches_its_own_declaration(
@@ -230,7 +261,9 @@ def test_each_answer_reaches_its_own_declaration(
     settings = json.loads(
         (tmp_path / "clinic-profile.json").read_text(encoding="utf-8")
     )["settings"]
-    assert settings["forced_identifiers"] == ["padded_code"]
+    # `born`, left unanswered, is held as record numbers until it is
+    # answered (plan P4-D401), beside the column answered `identifier`.
+    assert settings["forced_identifiers"] == ["born", "padded_code"]
     assert settings["forced_measurements"] == ["reading"]
 
 
@@ -312,9 +345,14 @@ def test_the_answer_replaces_a_declaration_typed_earlier(
 
 
 def test_the_run_says_the_answered_file_is_written_again(
-    tmp_path: pathlib.Path, capsys
+    tmp_path: pathlib.Path, capsys, monkeypatch
 ) -> None:
     """A person who spent ten minutes filling it in is told first."""
+    # THE SAFE HARBOR REACH (plan P4-D427, its second repair) holds five
+    # figures padded with zeros until `no` whatever else they are
+    # answered, and asks its own question; these are codes of no place,
+    # so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     assert _run(tmp_path) == 0
     capsys.readouterr()
     questions = tmp_path / "clinic-questions.json"
@@ -348,6 +386,9 @@ def test_the_questions_file_never_survives_a_terminal_answer(
     reading the run did not take, which is the one thing it may never
     do.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column; its numbers
+    # are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
     answers = iter([asking.ANSWER_CODE, "", ""])
     monkeypatch.setattr(
@@ -532,3 +573,51 @@ def test_an_edited_layout_is_still_read(
         (tmp_path / "clinic-profile.json").read_text(encoding="utf-8")
     )["settings"]
     assert settings["forced_codes"] == ["born"]
+
+
+def test_a_key_typed_at_the_prompt_stands_over_a_blank_handed_back_under_identifier(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    """Batch 4q's merge of lane CZ-A: a blank under `identifier` held a column whose question was answered at the prompt.
+
+    Incomes in hundreds at the table floor, 20,000 rows, the person at the
+    keyboard typing `1` (not a person, the reading it has now is right)
+    at every question the prompt puts, in both runs. The first run holds
+    the column as record numbers until the Safe Harbor question, which the
+    prompt does not put, is answered; the file goes back with it answered
+    `no` and the person question left blank under `identifier`. The second
+    run reads the column as the count it is: the key typed stands (LANE TT
+    RULINGS 2 (1); the plan's rule holds a blank's column until its
+    question is answered). MUTANT, the merged head b93f128a, where the
+    blank held whoever was at the keyboard: the column stayed held as
+    record numbers, and validate of the real table against its own
+    description exited 3.
+    """
+    keyboard.dates_in_disguise_answered_no(monkeypatch)
+    monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
+    lines = {"read": 0}
+
+    def typed(*_given: object) -> "str | None":
+        # ...the prompt's own reader maps the key; past four lines the
+        # input ends, so a prompt asking again cannot hold the run.
+        lines["read"] += 1
+        return "1" if lines["read"] <= 4 else None
+
+    monkeypatch.setattr(cli, "_asked", typed)
+    draw = random.Random(17)
+    cells = [str(int(round(draw.lognormvariate(10.8, 0.7), -2))) for _row in range(20000)]
+    table = fixtures.write(tmp_path, "incomes.csv", "value\n" + "".join(cell + "\n" for cell in cells))
+    assert cli.main(["profile", f"{table}", "--replace"]) == 0
+    first = json.loads((tmp_path / "incomes-profile.json").read_text(encoding="utf-8"))
+    assert first["columns"][0]["role"] == taxonomy.ROLE_IDENTIFIER
+    questions = tmp_path / "incomes-questions.json"
+    document = json.loads(questions.read_text(encoding="utf-8"))
+    for entry in document["asked"]:
+        offered = [choice["answer"] for choice in entry["answers_you_can_give"]]
+        if offered == [asking.ANSWER_SAFE_HARBOR_NO, asking.ANSWER_SAFE_HARBOR_YES]:
+            entry["your_answer"] = asking.ANSWER_SAFE_HARBOR_NO
+    questions.write_text(json.dumps(document), encoding="utf-8", newline="\n")
+    assert cli.main(["profile", f"{table}", "--replace", "--answers", f"{questions}"]) == 0
+    capsys.readouterr()
+    second = json.loads((tmp_path / "incomes-profile.json").read_text(encoding="utf-8"))
+    assert second["columns"][0]["role"] == taxonomy.ROLE_COUNT

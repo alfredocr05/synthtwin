@@ -66,21 +66,21 @@ Blocking items 1–6 prevent ratification. Item 7 is serious.
 
    **CONCRETE FAILURE SCENARIO:** A researcher profiles `1:2.0` / `1:2.5` interactively. The reader accepts every cell, but the question says every value contains “whole numbers.” Relying on that description, the researcher leaves the column as text; the profile then publishes no readings and the twin loses the joined quantities.
 
-   The false wording remains in [cli.py](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/src/synthtwin/cli.py:929>), [README.md](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/README.md:194>), [CHANGELOG.md](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/CHANGELOG.md:65>), and two normative contract passages: [settings](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/spec/profile-contract-v6.md:600>) and [role definition](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/spec/profile-contract-v6.md:5255>).
+   The false wording remains in [cli.py](<../../../src/synthtwin/cli.py#L929>), [README.md](<../../../README.md#L194>), [CHANGELOG.md](<../../../CHANGELOG.md#L65>), and two normative contract passages: [settings](<../../../docs/spec/profile-contract-v6.md#L600>) and [role definition](<../../../docs/spec/profile-contract-v6.md#L5255>).
 
    The repaired evidence rendering itself is true. Direct probes confirmed that accepted parts contain ASCII figures with at most one internal decimal point; `NaN`, `.5`, and exponent notation are refused. The summary uses the corrected evidence. I found no remaining joined-role “whole” claim in the generation or quality report producers.
 
 2. **SEVERITY: blocking — there is a ninth grammar site, and it still says 44 forms.**
 
-   **CONCRETE FAILURE SCENARIO:** A consumer enforces NG14 in [contract section 8](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/spec/profile-contract-v6.md:6621>). It accepts only “one of the 44” forms and therefore refuses one or more of NF45–NF48, although sections 4.5.1, 12.2, and 14.8 say 48.
+   **CONCRETE FAILURE SCENARIO:** A consumer enforces NG14 in [contract section 8](<../../../docs/spec/profile-contract-v6.md#L6621>). It accepts only “one of the 44” forms and therefore refuses one or more of NF45–NF48, although sections 4.5.1, 12.2, and 14.8 say 48.
 
-   The new guard reads defining clauses, appendix rows, arities, and one package-word count. It does not read NG14, any of the three census passages, or the bound-affix-position count; see [the parser and checks](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_p4d27_note_grammar_matches_the_code.py:80>). Thus this live contradiction does not turn it red.
+   The new guard reads defining clauses, appendix rows, arities, and one package-word count. It does not read NG14, any of the three census passages, or the bound-affix-position count; see [the parser and checks](<../../../tests/test_p4d27_note_grammar_matches_the_code.py#L80>). Thus this live contradiction does not turn it red.
 
 3. **SEVERITY: blocking — `joined_numbers` has no complete disposition or disclosure account.**
 
    **CONCRETE FAILURE SCENARIO:** A profile of `1:2.5` publishes `separator`, `n_parts`, `n_joined`, `n_unparsed`, `parts`, `part_min_widths`, `part_agreements`, and `part_above`. Section 9 claims every fact of all fourteen roles has exactly one disposition, but supplies no joined-role table. Section 12 claims every disclosed fact has a row, but its ranges row expressly lists five roles and omits `joined_numbers`.
 
-   An institutional reviewer using the promised exhaustive inventory consequently receives no treatment for the separator, positional statistics, or within-cell pairing aggregates. See the [section 9 completeness assertion](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/spec/profile-contract-v6.md:6656>) and [section 12 ranges row](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/spec/profile-contract-v6.md:7553>).
+   An institutional reviewer using the promised exhaustive inventory consequently receives no treatment for the separator, positional statistics, or within-cell pairing aggregates. See the [section 9 completeness assertion](<../../../docs/spec/profile-contract-v6.md#L6656>) and [section 12 ranges row](<../../../docs/spec/profile-contract-v6.md#L7553>).
 
 4. **SEVERITY: blocking — ordinary exemption wording still walks past both phrase inventories.**
 
@@ -90,23 +90,23 @@ Blocking items 1–6 prevent ratification. Item 7 is serious.
    - “Synthetic files are exempt under the privacy policy.”
    - “Synthetic data lets you ignore institutional rules.”
 
-   The stored 23 attacks remain green, but they do not cover these ordinary constructions. The relevant lists are at [test_claim_inventory.py](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_claim_inventory.py:6323>).
+   The stored 23 attacks remain green, but they do not cover these ordinary constructions. The relevant lists are at [test_claim_inventory.py](<../../../tests/test_claim_inventory.py#L6323>).
 
 5. **SEVERITY: blocking — bare `it` and `this` make carry and cure unsound.**
 
    **CONCRETE FAILURE SCENARIO:** “The twin is exempt from data-use agreements. It still applies a publication floor.” The second sentence is about the twin, not the agreement, but bare `it` is accepted as a regime back-reference and “still applies” cures the real banned claim. The matcher returns no offender.
 
-   The reverse also fails: “Privacy rules govern generated files. This package reads CSV. It does not apply to Parquet.” is reported as an exemption from privacy rules because the final `it` is attached across the bridge. The comment says bare `it` is gone, but `_REFERS_BACK` contains both `it` and `this`; see [lines 6493–6505](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_claim_inventory.py:6493>). The new `step` offset is arithmetically correct; this defect is in reference identity, not the offset.
+   The reverse also fails: “Privacy rules govern generated files. This package reads CSV. It does not apply to Parquet.” is reported as an exemption from privacy rules because the final `it` is attached across the bridge. The comment says bare `it` is gone, but `_REFERS_BACK` contains both `it` and `this`; see [lines 6493–6505](<../../../tests/test_claim_inventory.py#L6493>). The new `step` offset is arithmetically correct; this defect is in reference identity, not the offset.
 
 6. **SEVERITY: blocking — deferring R-P4-25 leaves the current contract outside the seal.**
 
-   **CONCRETE FAILURE SCENARIO:** Lower version 6’s `time_of_day` endpoint disposition from exact to report-only. The seal remains current because `profile-contract-v6.md` is absent from `dispositions.GOVERNING`; the companion control still labels it a draft that will join at ratification, although it is now the current contract. See [dispositions.py](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/dispositions.py:100>) and [the stale draft exception](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_p2c4f1_disposition_registry.py:376>).
+   **CONCRETE FAILURE SCENARIO:** Lower version 6’s `time_of_day` endpoint disposition from exact to report-only. The seal remains current because `profile-contract-v6.md` is absent from `dispositions.GOVERNING`; the companion control still labels it a draft that will join at ratification, although it is now the current contract. See [dispositions.py](<../../../tests/dispositions.py#L100>) and [the stale draft exception](<../../../tests/test_p2c4f1_disposition_registry.py#L376>).
 
    All twelve newly added seal digests belong to the Phase 4 plan; none covers the 156 changed contract lines. Given items 2 and 3, repointing is not merely administrative—it would expose live contract gaps. R-P4-25 should not be deferred from this seal landing.
 
 7. **SEVERITY: serious — STATE records the go decision as both taken and waiting.**
 
-   **CONCRETE FAILURE SCENARIO:** The next agent reads the mandatory state page. Lines 36–41 say the owner gave “Go. Lean 15,” while lines 86–90 say the go decision and standing authorization are still waiting. Following the latter stops work or re-asks a settled decision. See [STATE.md](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/STATE.md:36>).
+   **CONCRETE FAILURE SCENARIO:** The next agent reads the mandatory state page. Lines 36–41 say the owner gave “Go. Lean 15,” while lines 86–90 say the go decision and standing authorization are still waiting. Following the latter stops work or re-asks a settled decision. See [STATE.md](<../../../docs/STATE.md#L36>).
 
 ## Checked
 

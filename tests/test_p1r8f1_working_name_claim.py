@@ -36,7 +36,7 @@ import pathlib
 import pytest
 
 import fixtures
-from synthtwin import errors, profile
+from synthtwin import errors, parsing, profile
 from synthtwin.cli import main
 
 PROFILE_TEXT = '{\n  "profile_version": 2,\n  "note": "PROFILE-DERIVED"\n}\n'
@@ -360,7 +360,7 @@ def test_the_command_names_the_file_left_by_an_interrupted_creation(
     table = fixtures.write(
         tmp_path,
         "clinic.csv",
-        fixtures.single_column_table("age", ["41"] * 30),
+        fixtures.single_column_table("age", ["41"] * parsing.POPULATION_FLOOR),
     )
     first, _second = _outputs(tmp_path)
     candidate = pathlib.Path(f"{first}{profile.PART_SUFFIX}-1")
@@ -451,7 +451,10 @@ def test_a_plain_csv_still_profiles_cleanly_through_the_command(
     assert document["n_rows"] == 240
     assert second.read_text(encoding="utf-8")
     assert _neighbours(tmp_path) == []
-    assert told.err == ""
+    # The same narrowing, for the same reason (plan P4-D341): this test
+    # is about the WORKING NAME, and the every-role table is in the
+    # population band, so the run says how large it is.
+    assert "working file" not in told.err, told.err
     assert "Written:" in told.out
 
 

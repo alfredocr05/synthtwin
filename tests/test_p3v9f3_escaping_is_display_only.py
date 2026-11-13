@@ -71,7 +71,7 @@ import pytest
 
 import fixtures
 from synthtwin import contract, parsing, summary, validation
-from synthtwin.cli import main
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 # THE FLOOR THIS FILE ASKS AT. The five blank cells are what pools the
 # split below the publication floor, and a pooled split is what puts the
@@ -113,17 +113,27 @@ def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(summary, "_raw_text_of", summary._text_of)
 
 
-def _column(odd: int = 0) -> "list[str]":
-    """Sixty numbers, twelve declared holes, five blanks below the floor.
+# THE ROWS THAT ARE NOT THE SHAPE (plan P4-D341). `synthtwin profile`
+# describes no table under the population floor, and this witness is
+# about the TWELVE declared holes and the FIVE blanks below the
+# publication floor beside them. Both stay where they are and the plain
+# readings are counted up to the floor.
+_HOLES = 12
+_BLANKS = 5
+_PLAIN = parsing.POPULATION_FLOOR - _HOLES - _BLANKS
 
-    ``odd`` writes that many of the sixty with a leading zero, which is
-    a spelling of the same value in a form the description does not
-    publish.
+
+def _column(odd: int = 0) -> "list[str]":
+    """Plain numbers, twelve declared holes, five blanks below the floor.
+
+    ``odd`` writes that many of the plain numbers with a leading zero,
+    which is a spelling of the same value in a form the description does
+    not publish.
     """
-    plain = 60 - odd
+    plain = _PLAIN - odd
     values = [f"{row + 1}" for row in range(plain)]
     values = values + [f"00{row + plain + 1}" for row in range(odd)]
-    return values + [MARKER] * 12 + [""] * 5
+    return values + [MARKER] * _HOLES + [""] * _BLANKS
 
 
 def _table(folder: pathlib.Path, name: str, odd: int = 0) -> pathlib.Path:
@@ -152,7 +162,7 @@ def _describe(folder: pathlib.Path) -> "tuple[pathlib.Path, contract.Profile]":
     # composed a description's bytes itself, and that test goes red.
     asked = ["profile", f"{table}", "--missing-value", MARKER,
              "--smallest-group", f"{FLOOR}"]
-    assert main(asked) == 0
+    assert lowered_floor.main(asked) == 0
     written = folder / "reading-profile.json"
     return written, contract.load_profile(f"{written}")
 
@@ -193,7 +203,7 @@ def test_the_table_its_own_description_was_written_from_holds_it_all(
     """No miss, and nothing withheld: seven checks came back to life."""
     written, _description = _describe(tmp_path)
     table = _table(tmp_path, "same.csv")
-    assert main(["validate", f"{written}", "--twin", f"{table}"]) == 0
+    assert lowered_floor.main(["validate", f"{written}", "--twin", f"{table}"]) == 0
     counted = _counts((tmp_path / "same-quality.txt").read_text("utf-8"))
     assert counted["MISSED"] == 0
     assert counted["WITHHELD"] == 0
@@ -203,7 +213,7 @@ def test_a_file_that_breaks_them_is_told_so(tmp_path: pathlib.Path) -> None:
     """The two obligations that were withheld now carry a verdict."""
     written, _description = _describe(tmp_path)
     other = _table(tmp_path, "other.csv", odd=12)
-    assert main(["validate", f"{written}", "--twin", f"{other}"]) == 3
+    assert lowered_floor.main(["validate", f"{written}", "--twin", f"{other}"]) == 3
     report = (tmp_path / "other-quality.txt").read_text("utf-8")
     counted = _counts(report)
     assert counted["WITHHELD"] == 0

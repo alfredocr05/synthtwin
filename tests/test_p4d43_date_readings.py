@@ -33,11 +33,14 @@ a property somebody noticed:
 
 import copy
 import pathlib
+import re
 import tempfile
 
 import pytest
 
+import cost_rule_window
 import fixtures
+import tail_rule
 from synthtwin import (
     contract,
     errors,
@@ -99,8 +102,14 @@ def test_a_slashed_iso_column_is_a_column_of_dates() -> None:
     assert block["role"] == "datetime"
     assert block["format"] == "slashed-iso-date"
     assert block["resolution"] == "date"
-    assert block["earliest"] == "2024-01-01"
-    assert block["latest"] == "2024-12-28"
+    # Stage 3 publishes no end: what says the column was read as the days
+    # it names are the two tail boundaries, the twelfth value from each
+    # side of a hundred and twenty different days.
+    ordered = sorted(_dates(120))
+    assert block["low_tail"]["boundary"] == ordered[block["low_tail"]["rows"]]
+    assert block["high_tail"]["boundary"] == ordered[
+        119 - block["high_tail"]["rows"]
+    ]
     assert described.columns[0].facts.n_unparsed == 0
 
 
@@ -132,8 +141,13 @@ def test_an_unpadded_slashed_column_is_a_column_of_dates() -> None:
     block = document["columns"][0]
     assert block["role"] == "datetime"
     assert block["format"] == "month-first-date"
-    assert block["earliest"] == "2024-03-13"
-    assert block["latest"] == "2024-03-31"
+    # Nineteen days over a hundred and twenty rows: the tails hold the
+    # cells the floor's own rule puts beyond each boundary, and each
+    # publishes the two days it holds (plan P4-D329).
+    assert block["low_tail"]["boundary"] == "2024-03-15"
+    assert block["low_tail"]["values"] == ["2024-03-13", "2024-03-14"]
+    assert block["high_tail"]["boundary"] == "2024-03-29"
+    assert block["high_tail"]["values"] == ["2024-03-30", "2024-03-31"]
     assert described.columns[0].facts.n_unparsed == 0
 
 
@@ -320,20 +334,27 @@ def test_a_mixed_column_of_two_other_families_is_not_read() -> None:
     assert document["columns"][0]["role"] != "datetime"
 
 
-def test_a_month_beside_a_day_stays_unread() -> None:
-    """The residual the decision names, asserted as the residual it is.
+def test_a_month_beside_a_day_is_read_at_each_cells_own_precision() -> None:
+    """The residual the decision named, lifted by landing R2c (plan P4-D383).
 
-    `2024-03` beside `2024-03-17` is not read, and now that the month
-    resolution IS built the reason is the one the decision gives rather
-    than an absence: neither form reaches the parse line alone, and the
-    only joint reading there is joins the two ISO instant forms. A
-    month is a span and a date is a day, so a joint reading of them
-    would have to choose which of the two the column publishes at, and
-    the decision declines to choose.
+    `2024-03` beside `2024-03-17` was not read: neither form reaches the
+    parse line alone, and a joint reading would have to choose which of a
+    span and a day the column publishes at. Partial dates choose neither:
+    the column is read at the day under the layout `{YYYY}-{MM}-{DD}`,
+    which reads half its cells whole, and each month is counted at its own
+    precision, under the partial form `{YYYY}-{MM}` and inside
+    `n_unparsed`, reaching no fact of the day.
     """
     values = ["2024-03"] * 60 + _dates(60)
     document, _loaded, _table = _described(values)
-    assert document["columns"][0]["role"] != "datetime"
+    block = document["columns"][0]
+    assert block["role"] == "datetime"
+    assert block["format"] == "layout {YYYY}-{MM}-{DD}"
+    assert block["n_unparsed"] == 60
+    assert block["resolution_mix"] == {
+        "layout {YYYY}-{MM}": 60,
+        "layout {YYYY}-{MM}-{DD}": 60,
+    }
 
 
 # -- item 2: the month resolution -------------------------------------
@@ -348,8 +369,9 @@ def test_a_column_of_months_is_read_at_the_month() -> None:
     assert block["format"] == "iso-month"
     assert block["resolution"] == "month"
     assert block["time_precision"] == "month"
-    assert block["earliest"] == "2020-01"
-    assert block["latest"] == "2029-12"
+    assert block["tail_unit"] == "month"
+    assert block["low_tail"]["boundary"] == "2020-12"
+    assert block["high_tail"]["boundary"] == "2029-01"
     assert block["resolution_mix"] == {"iso-month": 120}
     assert described.columns[0].facts.n_unparsed == 0
 
@@ -361,7 +383,10 @@ def test_a_month_ladder_is_read_in_months() -> None:
     assert generation._ordinal_of("1971-01", "month") == 12
     assert generation._ordinal_of("2024-06", "month") == 12 * 54 + 5
     for ordinal, text in ((0, "1970-01"), (11, "1970-12"), (12, "1971-01")):
-        assert generation._cell_of_ordinal(ordinal, "month", "month", 0) == text
+        assert (
+            generation._cell_of_ordinal(ordinal, "month", "month", 0, "T")
+            == text
+        )
 
 
 def test_a_month_twin_reads_back_as_a_column_of_months() -> None:
@@ -417,8 +442,32 @@ def test_the_twin_report_does_not_warn_where_nothing_changed() -> None:
     _document, described, _table = _described(values)
     twin = generation.generate(described, 6)
     page = rendering.report(described, twin)
-    assert "which IS that form" in page
-    assert "it is NOT kept" not in page
+    assert "and the twin keeps it" in page
+    assert "NOT kept" not in page
+
+
+def test_the_twin_report_says_a_month_first_stamp_is_kept() -> None:
+    """A month-first stamp column keeps its spelling, and the page says so.
+
+    Plan P4-D180: since landing 2b.6 the twin writes `11/14/2021 23:46`
+    for such a column, and the page said it wrote the international form
+    and that code with an explicit format had to change.
+    """
+    values = [
+        f"{1 + place % 12:02d}/{1 + place % 28:02d}/2021 "
+        f"{place % 24:02d}:{place % 60:02d}"
+        for place in range(120)
+    ]
+    _document, described, _table = _described(values)
+    twin = generation.generate(described, 6)
+    written = [cell for cell in twin.columns[0] if cell]
+    assert written and all(
+        re.fullmatch(r"\d\d/\d\d/\d{4} \d\d:\d\d", cell) for cell in written
+    ), written[:5]
+    page = rendering.report(described, twin)
+    assert "and the twin keeps it" in page
+    assert "NOT kept" not in page
+    assert "international form" not in page
 
 
 # -- amendment A-P4-1 item 2: the two slashed stamp members -----------
@@ -450,18 +499,31 @@ def test_the_slashed_stamp_carries_the_ambiguity_remark() -> None:
     assert document["columns"][0]["remarks"] != []
 
 
-def test_the_stamp_clock_is_the_role_s_two_forms_and_no_wider() -> None:
-    """No fractional second, no offset, no unpadded hour."""
-    for value in ("3/17/2024 14:05", "3/17/2024 14:05:09", "03/17/2024 14:05"):
+def test_the_stamp_clock_is_the_role_s_own_reader_and_no_wider() -> None:
+    """No fractional second, no offset, no second space before the clock.
+
+    LANDING T1 (plan P4-D370) moved one cell from the refused list to the
+    read one: Excel's unpadded hour, `3/17/2024 4:05`, and the 12-hour
+    clock with its marker, read by the clock role's own reader.
+    """
+    for value in (
+        "3/17/2024 14:05",
+        "3/17/2024 14:05:09",
+        "03/17/2024 14:05",
+        "3/17/2024 4:05",
+        "3/17/2024 4:05 PM",
+        "3/17/2024 4:05:09pm",
+    ):
         assert parsing.parse_datetime(value, "month-first-datetime") is not None
     for value in (
         "3/17/2024 14:05:09.5",
         "3/17/2024 14:05+02:00",
-        "3/17/2024 4:05",
         "3/17/2024  14:05",
         "3/17/2024T14:05",
         "2024/03/17 14:05",
         "3/17/2024",
+        "3/17/2024 14:05 PM",
+        "3/17/2024 0:05 AM",
     ):
         assert parsing.parse_datetime(value, "month-first-datetime") is None
 
@@ -542,27 +604,26 @@ def test_a_census_is_refused_before_it_can_be_a_share() -> None:
     assert "resolution_mix" in said
 
 
-# -- the census as a fact: REPORT-ONLY, and said so -------------------
+# -- the census as a fact: EXACT on the joint member since landing 3b.7 --
 
 
-def test_the_twin_report_names_the_census_as_not_reproduced() -> None:
-    """Per column, every run -- and both sides recounted.
+def test_the_twin_writes_the_census_of_a_joint_column() -> None:
+    """Per column, every run -- recounted, and kept (landing 3b.7, plan P4-D378).
 
-    The published side comes from the description and the achieved side
-    is counted off the cells this run wrote, so the line can say which
-    it was rather than restate a rule.
+    The REPORT-ONLY line this test held until the landing named the census
+    as not reproduced on every run; the twin now writes the published
+    count of bare dates (generation G7.3k), so the recount finds 60 and no
+    line is said.
     """
     _document, described, _table = _described(_dates(60) + _stamps(60))
     for seed in (1, 2, 3):
         twin = generation.generate(described, seed)
-        named = [
+        assert sum(1 for cell in twin.columns[0] if cell and len(cell) == 10) == 60
+        assert [
             deviation
             for deviation in twin.deviations
             if deviation.fact == "resolution_mix"
-        ]
-        assert len(named) == 1
-        assert "60" in named[0].published
-        assert "120 carry a time of day" in named[0].achieved
+        ] == []
 
 
 def test_a_column_read_under_one_format_has_no_census_line() -> None:
@@ -580,14 +641,16 @@ def test_a_column_read_under_one_format_has_no_census_line() -> None:
 
 
 def test_the_quality_report_lists_the_census_in_its_own_words() -> None:
-    """And the words are true of THIS fact.
+    """And the words are true of THIS fact, on a column read under one member.
 
     The sentence the format fact carries says a written file cannot
     show the fact. Of this one that would be false -- anybody can count
     the two shapes in a CSV -- so the census carries its own reason: the
-    description asks no file to match it.
+    description asks no file to match it. On the joint member it is
+    checked since landing 3b.7 (plan P4-D378), so the listing is asked of a
+    column of one member.
     """
-    _document, described, _table = _described(_dates(60) + _stamps(60))
+    _document, described, _table = _described(_dates(120))
     twin = generation.generate(described, 9)
     folder = pathlib.Path(tempfile.mkdtemp())
     written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
@@ -608,20 +671,28 @@ def test_the_quality_report_lists_the_census_in_its_own_words() -> None:
     assert "which written form each of your dates wore" in page
 
 
-def test_the_census_is_never_a_verdict() -> None:
-    """It is a listing, and a listing is not a check that passed.
+def test_the_census_is_a_verdict_on_the_joint_member_alone() -> None:
+    """A listing where it restates the member, a check where it is a count.
 
-    A REPORT-ONLY fact counted as a passed check would inflate the one
-    number the quality report exists to make honest.
+    On a column of one member the census restates `format` and counted as
+    a passed check it would inflate the one number the quality report
+    exists to make honest, so it stays a listing; on the joint member it is
+    a count of its own, written by the twin since landing 3b.7 (plan
+    P4-D378), and held exactly.
     """
-    _document, described, _table = _described(_dates(60) + _stamps(60))
-    twin = generation.generate(described, 11)
-    folder = pathlib.Path(tempfile.mkdtemp())
-    written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
-    outcome = validation.measure(described, f"{written}")
-    assert [
-        check for check in outcome.checks if "resolution_mix" in check.fact
-    ] == []
+    for cells, checked in ((_dates(120), False), (_dates(60) + _stamps(60), True)):
+        _document, described, _table = _described(cells)
+        twin = generation.generate(described, 11)
+        folder = pathlib.Path(tempfile.mkdtemp())
+        written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
+        outcome = validation.measure(described, f"{written}")
+        found = [check for check in outcome.checks if "resolution_mix" in check.fact]
+        if not checked:
+            assert found == []
+            continue
+        assert [(check.subcheck, check.verdict) for check in found] == [
+            ("resolution_mix.counts", validation.HELD)
+        ]
 
 
 def test_a_twin_of_a_mixed_column_still_meets_every_obligation() -> None:
@@ -731,15 +802,56 @@ def test_a_stand_in_number_reaches_its_share_as_a_count() -> None:
     # verdict is published outright (contract C5-S13). Eleven is the
     # floor this case was written against.
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=11),
         taxonomy.Settings(small_cell_floor=11),
         [],
     )
     block = document["columns"][0]
     assert block["n_present"] == 200
     assert block["n_missing"] == 0
-    assert block["percentiles"]["min"] == -999.0
     assert block["sentinel_verdicts"] == []
+    # THE SMALLEST VALUE IS NOT PUBLISHED ANY MORE, and what says the
+    # `-999` was kept as a READING is the tail that replaced it: the
+    # rule withholds every rung whose reading touches the outermost
+    # values (contract 6.7a, landing 3.3), and the group beyond the low
+    # boundary is worked out here from the column's own numbers. It is
+    # a long way from the boundary because the `-999` is one of those
+    # rows -- a column whose smallest reading were 1 states a low tail
+    # of nothing like this distance, which is the comparison below.
+    assert block["percentiles"]["min"] is None
+    numbers = [float(value) for value in values]
+    assert tail_rule.holds(
+        block["tails"]["low"],
+        block, numbers, 11, True
+    )
+    # BOTH COLUMNS PUBLISH THEIR LOW PAIRS (plan P4-D375), although each
+    # gives its low tail back -- twelve rows below the sixth percentile,
+    # the comparison column's 0.94 to 11.94 from its boundary of 12.94,
+    # this column's 1010.94 and then 0.94 to 10.94. This column's
+    # narrowest reading cannot carry the `-999`, so with its low pair
+    # withheld the window of its mean would fall short of the published
+    # mean; published, it holds. The `-999` shows in the pair as well as
+    # in the column's own MEAN, which the owner's ruling keeps EXACT. The
+    # mean is the arithmetic below, and it is the whole claim -- the
+    # `-999` reached the statistics as a count of its own.
+    without = profile.build_document(
+        reading.read_table(
+            f"{fixtures.write(folder, 'without.csv', fixtures.single_column_table('score', values[1:] + ['200']))}",
+            small_cell_floor=11,
+        ),
+        taxonomy.Settings(small_cell_floor=11),
+        [],
+    )["columns"][0]
+    assert without["tails"]["low"]["rows"] == 12
+    assert abs(without["tails"]["low"]["mean_distance"] - 6.44) < 1e-9
+    assert abs(block["tails"]["low"]["mean_distance"] - 89.69) < 1e-9
+    assert not cost_rule_window.costs(without, 11)
+    assert cost_rule_window.costs(cost_rule_window.withheld(block, ("low",)), 11)
+    assert block["tails"]["low"]["mean_distance"] is not None
+    assert not cost_rule_window.costs(block, 11)
+    assert block["mean"] == (-999 + sum(range(1, 200))) / 200
+    assert without["mean"] == (sum(range(1, 200)) + 200) / 200
+    assert block["mean"] < without["mean"]
 
 
 def _mixed_with_a_declared_hole(
@@ -765,7 +877,7 @@ def _mixed_with_a_declared_hole(
     return document, contract.load_profile(f"{written}"), settings, folder
 
 
-def test_an_endpoint_is_not_lost_to_a_declared_spelling(  # P4-DATE-F2
+def test_a_published_value_is_not_lost_to_a_declared_spelling(  # P4-DATE-F2
 ) -> None:
     """The collision is the twin's own doing, so the twin undoes it.
 
@@ -774,37 +886,45 @@ def test_an_endpoint_is_not_lost_to_a_declared_spelling(  # P4-DATE-F2
     `2024-01-01T00:00:00`. Both facts are honest. The twin then writes
     every parsed cell at the finest precision, reaches for the second
     spelling, and hands back a cell its OWN description reads as
-    absent -- so an exact end walks out over a separator nobody chose.
-    The space form is written instead: the same instant, at the same
-    precision, on the same clock.
+    absent -- so a published value walked out over a separator nobody
+    chose.
+
+    STAGE 3 closes it in two places. A rank that draws a word steps to a
+    neighbouring instant inside its own gap, as it did before; a rank
+    that draws none -- a tail's derived end, its group -- steps INWARD
+    off every unit one of the column's own absent spellings names
+    (G7.3b), so the collision cannot arise there at all. Either way no
+    present cell of the twin wears a spelling its description reads as
+    absent, and the tail's own facts come back.
     """
     document, described, settings, folder = _mixed_with_a_declared_hole(
         ("2024-01-01T00:00:00",), ["2024-01-01T00:00:00"] * 11
     )
     assert document["columns"][0]["format"] == "iso-mixed"
-    assert document["columns"][0]["earliest"] == "2024-01-01 00:00:00"
     assert document["columns"][0]["missing_by_source"] == {
         "2024-01-01T00:00:00": 11
     }
+    published = document["columns"][0]
     for seed in (1, 2, 3):
         twin = generation.generate(described, seed)
         # THE PRESENT CELLS, and the filter is the version 6 write rule
-        # (plan P4-D6.1): the twin now writes each recorded hole
-        # spelling at its published count, so the declared spelling
-        # appears among the ABSENT cells on purpose. What must not wear
-        # it is a cell the twin means as a value.
+        # (plan P4-D6.1): the twin writes each recorded hole spelling at
+        # its published count, so the declared spelling appears among the
+        # ABSENT cells on purpose. What must not wear it is a cell the
+        # twin means as a value.
         holes = set(described.columns[0].missing_by_source)
         cells = [
             cell
             for cell in twin.columns[0]
             if cell and cell not in holes
         ]
-        assert "2024-01-01T00:00:00" not in cells
-        assert "2024-01-01 00:00:00" in cells
+        assert len(cells) == 120, seed
+        for cell in cells:
+            assert cell not in holes, (seed, cell)
         assert [
             deviation
             for deviation in twin.deviations
-            if deviation.fact == "earliest"
+            if deviation.fact.endswith("_tail.rows")
         ] == []
         written = fixtures.write(
             folder, f"twin{seed}.csv", rendering.twin_csv(twin)
@@ -813,27 +933,35 @@ def test_an_endpoint_is_not_lost_to_a_declared_spelling(  # P4-DATE-F2
             reading.read_table(f"{written}"), settings, []
         )
         assert again["columns"][0]["n_present"] == 120
-        assert again["columns"][0]["earliest"] == "2024-01-01 00:00:00"
+        for side in ("low_tail", "high_tail"):
+            assert again["columns"][0][side]["boundary"] == (
+                published[side]["boundary"]
+            ), (seed, side)
+            assert again["columns"][0][side]["rows"] == (
+                published[side]["rows"]
+            ), (seed, side)
 
 
-def test_where_no_spelling_survives_the_loss_is_named() -> None:
-    """And no third spelling is invented to hide it.
+def test_where_both_spellings_are_declared_no_third_is_invented() -> None:
+    """And nothing the description calls absent is written as a value.
 
-    With BOTH separators declared absent there is no cell text left
-    that reads as the published end and is not read as a hole. The run
-    writes the fixed form and says the end is gone, which is what the
-    method's own words promise for a fact it cannot hold.
+    With BOTH separators declared absent there is no cell text at that
+    instant that reads as a value, so the construction does not go
+    there: a word-less rank steps inward off the unit (G7.3b) and a
+    drawn rank steps inside its own gap. What must never happen is the
+    twin making up a third spelling of the instant, or writing one of
+    the two and counting it as a value.
     """
     _document, described, _settings, _folder = _mixed_with_a_declared_hole(
         ("2024-01-01T00:00:00", "2024-01-01 00:00:00"),
         ["2024-01-01T00:00:00"] * 11 + ["2024-01-01 00:00:00"] * 11,
     )
     twin = generation.generate(described, 1)
-    named = [
-        deviation for deviation in twin.deviations if deviation.fact == "earliest"
-    ]
-    assert len(named) == 1
-    assert "reads that cell as absent" in named[0].achieved
+    holes = set(described.columns[0].missing_by_source)
+    cells = [cell for cell in twin.columns[0] if cell and cell not in holes]
+    for cell in cells:
+        assert cell not in holes, cell
+        assert not cell.startswith("2024-01-01"), cell
 
 
 def test_the_census_recount_does_not_count_an_absent_cell() -> None:
@@ -849,13 +977,19 @@ def test_the_census_recount_does_not_count_an_absent_cell() -> None:
         ["2024-01-01T00:00:00"] * 11 + ["2024-01-01 00:00:00"] * 11,
     )
     twin = generation.generate(described, 1)
-    named = [
-        deviation
-        for deviation in twin.deviations
-        if deviation.fact == "resolution_mix"
-    ]
+    # Since landing 3b.7 the twin writes the published count of bare dates
+    # and says no line; five of them written with a time of day make one,
+    # and its recount counts the cells that READ as dates -- 55 and 65 --
+    # never the twenty-two cells wearing a declared spelling.
+    cells = list(twin.columns[0])
+    turned = 0
+    for place in range(len(cells)):
+        if turned < 5 and cells[place] and len(cells[place]) == 10:
+            cells[place] = cells[place] + " 12:00:00"
+            turned = turned + 1
+    named = generation._mix_notes(described.columns[0], cells)
     assert len(named) == 1
-    assert "119 carry a time of day" in named[0].achieved
+    assert "55 of the twin's are written as a whole date and 65 carry a time of day" in named[0].achieved
 
 
 def test_the_recount_of_present_cells_reads_through_the_declaration() -> None:
@@ -884,7 +1018,7 @@ def test_the_method_names_the_census_among_its_deviations(  # P4-DATE-F3
     )
     flat = " ".join(body.split())
     assert "the form census of a column of dates read under the joint" in flat
-    assert "`resolution_mix` is REPORT-ONLY" in flat
+    assert "`resolution_mix` records how many of the real column's parsed cells" in flat
 
 
 def test_a_declared_number_is_matched_exactly_by_the_recount() -> None:
